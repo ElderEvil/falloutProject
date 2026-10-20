@@ -1,0 +1,7975 @@
+{
+  "legacy_revision": "b7e3d9c1a5f2",
+  "baseline_revision": "squash_b7e3d9c1a5f2",
+  "postgres_major": 18,
+  "schema": {
+    "columns": [
+      [
+        "ai_settings",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "ai_settings",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "ai_settings",
+        "provider",
+        "character varying(50)",
+        false,
+        null
+      ],
+      [
+        "ai_settings",
+        "model",
+        "character varying(200)",
+        false,
+        null
+      ],
+      [
+        "ai_settings",
+        "base_url",
+        "character varying(500)",
+        false,
+        null
+      ],
+      [
+        "ai_settings",
+        "gateway_route",
+        "character varying(200)",
+        false,
+        null
+      ],
+      [
+        "ai_settings",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "alembic_version",
+        "version_num",
+        "character varying(32)",
+        true,
+        null
+      ],
+      [
+        "arena_match_event",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "arena_match_event",
+        "room_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "arena_match_event",
+        "round_seq",
+        "integer",
+        true,
+        "1"
+      ],
+      [
+        "arena_match_event",
+        "kind",
+        "character varying",
+        true,
+        null
+      ],
+      [
+        "arena_match_event",
+        "message",
+        "character varying(200)",
+        true,
+        null
+      ],
+      [
+        "arena_match_event",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "arena_match_event",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "arena_state",
+        "room_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "arena_state",
+        "mode",
+        "arenamode",
+        false,
+        null
+      ],
+      [
+        "arena_state",
+        "fighter_a_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "arena_state",
+        "fighter_b_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "arena_state",
+        "fighter_c_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "arena_state",
+        "fighter_d_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "arena_state",
+        "opponents",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "arena_state",
+        "last_fight_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "arena_state",
+        "fight_started_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "arena_state",
+        "knocked_out_ids",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "arena_state",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "arena_state",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "arena_state",
+        "support_bots",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "arena_state",
+        "skill_charge",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "arena_state",
+        "queued_skill_ids",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "arena_state",
+        "next_attack_team",
+        "character varying(1)",
+        true,
+        "'A'::character varying"
+      ],
+      [
+        "chatmessage",
+        "vault_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "chatmessage",
+        "from_user_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "chatmessage",
+        "from_dweller_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "chatmessage",
+        "to_user_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "chatmessage",
+        "to_dweller_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "chatmessage",
+        "message_text",
+        "character varying(2000)",
+        true,
+        null
+      ],
+      [
+        "chatmessage",
+        "llm_interaction_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "chatmessage",
+        "audio_url",
+        "character varying(500)",
+        false,
+        null
+      ],
+      [
+        "chatmessage",
+        "transcription",
+        "character varying(2000)",
+        false,
+        null
+      ],
+      [
+        "chatmessage",
+        "audio_duration",
+        "double precision",
+        false,
+        null
+      ],
+      [
+        "chatmessage",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "chatmessage",
+        "created_at",
+        "timestamp without time zone",
+        true,
+        null
+      ],
+      [
+        "chatmessage",
+        "happiness_delta",
+        "double precision",
+        false,
+        null
+      ],
+      [
+        "chatmessage",
+        "happiness_reason",
+        "character varying(255)",
+        false,
+        null
+      ],
+      [
+        "craftingorder",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "craftingorder",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "craftingorder",
+        "vault_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "craftingorder",
+        "room_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "craftingorder",
+        "item_name",
+        "character varying(64)",
+        true,
+        null
+      ],
+      [
+        "craftingorder",
+        "item_type",
+        "character varying(16)",
+        true,
+        null
+      ],
+      [
+        "craftingorder",
+        "rarity",
+        "rarityenum",
+        true,
+        null
+      ],
+      [
+        "craftingorder",
+        "status",
+        "craftingorderstatus",
+        true,
+        null
+      ],
+      [
+        "craftingorder",
+        "progress",
+        "double precision",
+        true,
+        null
+      ],
+      [
+        "craftingorder",
+        "started_at",
+        "timestamp without time zone",
+        true,
+        null
+      ],
+      [
+        "craftingorder",
+        "estimated_completion_at",
+        "timestamp without time zone",
+        true,
+        null
+      ],
+      [
+        "craftingorder",
+        "completed_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "craftingorder",
+        "junk_spent",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "craftingorder",
+        "caps_spent",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "craftingorder",
+        "required_stat",
+        "character varying(16)",
+        true,
+        null
+      ],
+      [
+        "craftingorder",
+        "ability_sum_at_start",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "craftingorder",
+        "item_snapshot",
+        "jsonb",
+        true,
+        null
+      ],
+      [
+        "craftingorder",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "craftingorder",
+        "cancelled_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "craftingorder",
+        "junk_snapshot",
+        "jsonb",
+        true,
+        "'[]'::jsonb"
+      ],
+      [
+        "dweller",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "strength",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "perception",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "endurance",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "charisma",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "intelligence",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "agility",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "luck",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "first_name",
+        "character varying(32)",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "last_name",
+        "character varying(32)",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "age_group",
+        "agegroupenum",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "birth_date",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "gender",
+        "genderenum",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "rarity",
+        "rarityenum",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "bio",
+        "character varying(2048)",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "visual_attributes",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "image_url",
+        "character varying(255)",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "thumbnail_url",
+        "character varying(255)",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "level",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "experience",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "max_health",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "health",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "radiation",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "happiness",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "stimpack",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "radaway",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "status",
+        "dwellerstatusenum",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "dweller",
+        "vault_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "room_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "partner_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "parent_1_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "parent_2_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "is_dead",
+        "boolean",
+        true,
+        "false"
+      ],
+      [
+        "dweller",
+        "death_timestamp",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "death_cause",
+        "deathcauseenum",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "is_permanently_dead",
+        "boolean",
+        true,
+        "false"
+      ],
+      [
+        "dweller",
+        "epitaph",
+        "character varying(255)",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "is_deleted",
+        "boolean",
+        true,
+        "false"
+      ],
+      [
+        "dweller",
+        "deleted_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "apprentice_stat",
+        "specialenum",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "apprentice_started_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "apprentice_stat_gains",
+        "json",
+        true,
+        "'{}'::json"
+      ],
+      [
+        "dweller",
+        "is_traded",
+        "boolean",
+        true,
+        "false"
+      ],
+      [
+        "dweller",
+        "bio_entries",
+        "jsonb",
+        true,
+        "'[]'::jsonb"
+      ],
+      [
+        "dweller",
+        "exit_requested_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "despair_since",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "lifecycle",
+        "lifecycleenum",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "availability",
+        "availabilityenum",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "previous_vault_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "content_provenance",
+        "character varying(16)",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "sharing_consent",
+        "boolean",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "departed_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "dweller",
+        "departure_eligible_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "dwellerlocation",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "dwellerlocation",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "dwellerlocation",
+        "relation",
+        "dwellerlocationrelationenum",
+        true,
+        null
+      ],
+      [
+        "dwellerlocation",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "dwellerlocation",
+        "dweller_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "dwellerlocation",
+        "location_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "dwellerlocation",
+        "is_unlocked",
+        "boolean",
+        true,
+        "false"
+      ],
+      [
+        "expeditionrun",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "expeditionrun",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "expeditionrun",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "expeditionrun",
+        "exploration_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "expeditionrun",
+        "vault_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "expeditionrun",
+        "site_id",
+        "character varying(64)",
+        true,
+        null
+      ],
+      [
+        "expeditionrun",
+        "room_cursor",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "expeditionrun",
+        "status",
+        "expeditionrunstatus",
+        true,
+        null
+      ],
+      [
+        "expeditionrun",
+        "flags",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "expeditionrun",
+        "finished_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "duration",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "exploration",
+        "start_time",
+        "timestamp without time zone",
+        true,
+        null
+      ],
+      [
+        "exploration",
+        "end_time",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "status",
+        "explorationstatus",
+        true,
+        null
+      ],
+      [
+        "exploration",
+        "events",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "loot_collected",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "dweller_strength",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "exploration",
+        "dweller_perception",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "exploration",
+        "dweller_endurance",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "exploration",
+        "dweller_charisma",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "exploration",
+        "dweller_intelligence",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "exploration",
+        "dweller_agility",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "exploration",
+        "dweller_luck",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "exploration",
+        "total_distance",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "exploration",
+        "total_caps_found",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "exploration",
+        "enemies_encountered",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "exploration",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "exploration",
+        "vault_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "exploration",
+        "dweller_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "exploration",
+        "stimpaks",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "exploration",
+        "radaways",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "exploration",
+        "unclaimed_loot",
+        "jsonb",
+        true,
+        "'[]'::jsonb"
+      ],
+      [
+        "exploration",
+        "return_started_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "return_completes_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "recalled_early",
+        "boolean",
+        true,
+        "false"
+      ],
+      [
+        "exploration",
+        "target_location_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "clear_tier",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "team_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "world_version",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "origin_x",
+        "double precision",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "origin_y",
+        "double precision",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "heading_degrees",
+        "double precision",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "pos_x",
+        "double precision",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "pos_y",
+        "double precision",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "trail",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "position_as_of",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "exploration",
+        "paused_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "gamestate",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "gamestate",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "gamestate",
+        "last_tick_time",
+        "timestamp without time zone",
+        true,
+        null
+      ],
+      [
+        "gamestate",
+        "is_active",
+        "boolean",
+        true,
+        null
+      ],
+      [
+        "gamestate",
+        "is_paused",
+        "boolean",
+        true,
+        null
+      ],
+      [
+        "gamestate",
+        "total_game_time",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "gamestate",
+        "paused_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "gamestate",
+        "resumed_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "gamestate",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "gamestate",
+        "vault_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "gamestate",
+        "last_activity_time",
+        "timestamp without time zone",
+        true,
+        null
+      ],
+      [
+        "gamestate",
+        "water_empty_since",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "gamestate",
+        "resource_remainders",
+        "json",
+        true,
+        "'{}'::json"
+      ],
+      [
+        "gamestate",
+        "last_presence_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "gamestate",
+        "daily_objectives_period",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "gamestate",
+        "weekly_objectives_period",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "gamestate",
+        "achievement_tracks_initialized",
+        "boolean",
+        true,
+        "false"
+      ],
+      [
+        "incident",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "incident",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "incident",
+        "type",
+        "incidenttype",
+        true,
+        null
+      ],
+      [
+        "incident",
+        "status",
+        "incidentstatus",
+        true,
+        null
+      ],
+      [
+        "incident",
+        "difficulty",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "incident",
+        "start_time",
+        "timestamp without time zone",
+        true,
+        null
+      ],
+      [
+        "incident",
+        "end_time",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "incident",
+        "duration",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "incident",
+        "damage_dealt",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "incident",
+        "enemies_defeated",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "incident",
+        "loot",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "incident",
+        "rooms_affected",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "incident",
+        "spread_count",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "incident",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "incident",
+        "vault_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "incident",
+        "room_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "incident",
+        "combat_progress",
+        "double precision",
+        true,
+        "0"
+      ],
+      [
+        "incident",
+        "unclaimed_loot",
+        "jsonb",
+        true,
+        "'[]'::jsonb"
+      ],
+      [
+        "incident_event",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "incident_event",
+        "incident_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "incident_event",
+        "kind",
+        "character varying(32)",
+        true,
+        null
+      ],
+      [
+        "incident_event",
+        "message",
+        "character varying(200)",
+        true,
+        null
+      ],
+      [
+        "incident_event",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "incident_event",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "incident_event",
+        "data",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "incident_participant",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "incident_participant",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "incident_participant",
+        "incident_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "incident_participant",
+        "dweller_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "incident_participant",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "item",
+        "name",
+        "character varying(32)",
+        true,
+        null
+      ],
+      [
+        "item",
+        "rarity",
+        "rarityenum",
+        true,
+        null
+      ],
+      [
+        "item",
+        "value",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "item",
+        "image_url",
+        "character varying(255)",
+        false,
+        null
+      ],
+      [
+        "item",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "item",
+        "item_type",
+        "character varying(32)",
+        true,
+        "'misc'::character varying"
+      ],
+      [
+        "item",
+        "storage_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "junk",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "junk",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "junk",
+        "name",
+        "character varying(32)",
+        true,
+        null
+      ],
+      [
+        "junk",
+        "rarity",
+        "rarityenum",
+        true,
+        null
+      ],
+      [
+        "junk",
+        "value",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "junk",
+        "image_url",
+        "character varying(255)",
+        false,
+        null
+      ],
+      [
+        "junk",
+        "junk_type",
+        "junktypeenum",
+        true,
+        null
+      ],
+      [
+        "junk",
+        "description",
+        "character varying(255)",
+        true,
+        null
+      ],
+      [
+        "junk",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "junk",
+        "storage_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "llminteraction",
+        "parameters",
+        "character varying",
+        false,
+        null
+      ],
+      [
+        "llminteraction",
+        "response",
+        "character varying",
+        false,
+        null
+      ],
+      [
+        "llminteraction",
+        "usage",
+        "character varying",
+        false,
+        null
+      ],
+      [
+        "llminteraction",
+        "prompt_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "llminteraction",
+        "user_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "llminteraction",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "llminteraction",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "llminteraction",
+        "prompt_tokens",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "llminteraction",
+        "completion_tokens",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "llminteraction",
+        "total_tokens",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "llminteraction",
+        "provider",
+        "character varying(32)",
+        false,
+        null
+      ],
+      [
+        "llminteraction",
+        "model",
+        "character varying(128)",
+        false,
+        null
+      ],
+      [
+        "llminteraction",
+        "instructions_hash",
+        "character varying(64)",
+        false,
+        null
+      ],
+      [
+        "llminteraction",
+        "instructions_snapshot",
+        "text",
+        false,
+        null
+      ],
+      [
+        "notification",
+        "user_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "notification",
+        "vault_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "notification",
+        "from_dweller_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "notification",
+        "notification_type",
+        "notificationtype",
+        true,
+        null
+      ],
+      [
+        "notification",
+        "priority",
+        "notificationpriority",
+        true,
+        null
+      ],
+      [
+        "notification",
+        "title",
+        "character varying(200)",
+        true,
+        null
+      ],
+      [
+        "notification",
+        "message",
+        "character varying(1000)",
+        true,
+        null
+      ],
+      [
+        "notification",
+        "is_read",
+        "boolean",
+        true,
+        null
+      ],
+      [
+        "notification",
+        "is_dismissed",
+        "boolean",
+        true,
+        null
+      ],
+      [
+        "notification",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "notification",
+        "meta_data",
+        "json",
+        false,
+        null
+      ],
+      [
+        "notification",
+        "created_at",
+        "timestamp without time zone",
+        true,
+        null
+      ],
+      [
+        "notification",
+        "read_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "objective",
+        "challenge",
+        "character varying(32)",
+        true,
+        null
+      ],
+      [
+        "objective",
+        "reward",
+        "character varying(32)",
+        true,
+        null
+      ],
+      [
+        "objective",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "objective",
+        "objective_type",
+        "character varying",
+        false,
+        null
+      ],
+      [
+        "objective",
+        "target_entity",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "objective",
+        "target_amount",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "objective",
+        "category",
+        "character varying(50)",
+        true,
+        "'achievement'::character varying"
+      ],
+      [
+        "objective",
+        "sequence",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "objective",
+        "description",
+        "character varying",
+        false,
+        null
+      ],
+      [
+        "objective",
+        "template_key",
+        "character varying(160)",
+        false,
+        null
+      ],
+      [
+        "objective",
+        "assignable",
+        "boolean",
+        true,
+        "true"
+      ],
+      [
+        "objective",
+        "track_key",
+        "character varying(160)",
+        false,
+        null
+      ],
+      [
+        "outfit",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "outfit",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "outfit",
+        "name",
+        "character varying(32)",
+        true,
+        null
+      ],
+      [
+        "outfit",
+        "rarity",
+        "rarityenum",
+        true,
+        null
+      ],
+      [
+        "outfit",
+        "value",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "outfit",
+        "image_url",
+        "character varying(255)",
+        false,
+        null
+      ],
+      [
+        "outfit",
+        "outfit_type",
+        "outfittypeenum",
+        false,
+        null
+      ],
+      [
+        "outfit",
+        "gender",
+        "genderenum",
+        false,
+        null
+      ],
+      [
+        "outfit",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "outfit",
+        "dweller_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "outfit",
+        "storage_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "outfit",
+        "fire_resist",
+        "double precision",
+        true,
+        "'0'::double precision"
+      ],
+      [
+        "outfit",
+        "radiation_resist",
+        "double precision",
+        false,
+        null
+      ],
+      [
+        "outfit",
+        "strength",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "outfit",
+        "perception",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "outfit",
+        "endurance",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "outfit",
+        "charisma",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "outfit",
+        "intelligence",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "outfit",
+        "agility",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "outfit",
+        "luck",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "outfit",
+        "exploration_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "pet",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "pet",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "pet",
+        "name",
+        "character varying(32)",
+        true,
+        null
+      ],
+      [
+        "pet",
+        "rarity",
+        "rarityenum",
+        true,
+        null
+      ],
+      [
+        "pet",
+        "value",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "pet",
+        "image_url",
+        "character varying(255)",
+        false,
+        null
+      ],
+      [
+        "pet",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "pet",
+        "dweller_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "pet",
+        "storage_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "pet",
+        "legacy_item_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "pregnancy",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "pregnancy",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "pregnancy",
+        "mother_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "pregnancy",
+        "father_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "pregnancy",
+        "conceived_at",
+        "timestamp without time zone",
+        true,
+        null
+      ],
+      [
+        "pregnancy",
+        "due_at",
+        "timestamp without time zone",
+        true,
+        null
+      ],
+      [
+        "pregnancy",
+        "status",
+        "pregnancystatusenum",
+        true,
+        null
+      ],
+      [
+        "pregnancy",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "prompt",
+        "prompt_name",
+        "character varying(32)",
+        true,
+        null
+      ],
+      [
+        "prompt",
+        "description",
+        "character varying(1000)",
+        true,
+        null
+      ],
+      [
+        "prompt",
+        "prompt_template",
+        "character varying",
+        true,
+        null
+      ],
+      [
+        "prompt",
+        "entity_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "prompt",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "prompt",
+        "version",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "prompt",
+        "is_active",
+        "boolean",
+        true,
+        null
+      ],
+      [
+        "quest",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "quest",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "quest",
+        "title",
+        "character varying(64)",
+        true,
+        null
+      ],
+      [
+        "quest",
+        "short_description",
+        "character varying(128)",
+        true,
+        null
+      ],
+      [
+        "quest",
+        "long_description",
+        "character varying(500)",
+        true,
+        null
+      ],
+      [
+        "quest",
+        "requirements",
+        "character varying(500)",
+        true,
+        null
+      ],
+      [
+        "quest",
+        "rewards",
+        "character varying(500)",
+        true,
+        null
+      ],
+      [
+        "quest",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "quest",
+        "quest_type",
+        "questtype",
+        true,
+        null
+      ],
+      [
+        "quest",
+        "quest_category",
+        "character varying(64)",
+        false,
+        null
+      ],
+      [
+        "quest",
+        "chain_id",
+        "character varying(64)",
+        false,
+        null
+      ],
+      [
+        "quest",
+        "chain_order",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "quest",
+        "previous_quest_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "quest",
+        "next_quest_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "quest",
+        "duration_minutes",
+        "integer",
+        true,
+        "60"
+      ],
+      [
+        "questrequirement",
+        "requirement_type",
+        "requirementtype",
+        true,
+        null
+      ],
+      [
+        "questrequirement",
+        "requirement_data",
+        "jsonb",
+        true,
+        null
+      ],
+      [
+        "questrequirement",
+        "is_mandatory",
+        "boolean",
+        true,
+        null
+      ],
+      [
+        "questrequirement",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "questrequirement",
+        "quest_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "questreward",
+        "reward_type",
+        "rewardtype",
+        true,
+        null
+      ],
+      [
+        "questreward",
+        "reward_data",
+        "jsonb",
+        true,
+        null
+      ],
+      [
+        "questreward",
+        "reward_chance",
+        "double precision",
+        true,
+        null
+      ],
+      [
+        "questreward",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "questreward",
+        "quest_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "questreward",
+        "item_data",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "relationship",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "relationship",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "relationship",
+        "dweller_1_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "relationship",
+        "dweller_2_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "relationship",
+        "relationship_type",
+        "relationshiptypeenum",
+        true,
+        null
+      ],
+      [
+        "relationship",
+        "affinity",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "relationship",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "room",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "room",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "room",
+        "name",
+        "character varying(32)",
+        true,
+        null
+      ],
+      [
+        "room",
+        "category",
+        "roomtypeenum",
+        true,
+        null
+      ],
+      [
+        "room",
+        "ability",
+        "specialenum",
+        false,
+        null
+      ],
+      [
+        "room",
+        "population_required",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "room",
+        "base_cost",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "room",
+        "incremental_cost",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "room",
+        "t2_upgrade_cost",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "room",
+        "t3_upgrade_cost",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "room",
+        "capacity",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "room",
+        "output",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "room",
+        "size_min",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "room",
+        "size_max",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "room",
+        "size",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "room",
+        "tier",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "room",
+        "coordinate_x",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "room",
+        "coordinate_y",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "room",
+        "image_url",
+        "character varying",
+        false,
+        null
+      ],
+      [
+        "room",
+        "speedup_multiplier",
+        "double precision",
+        true,
+        null
+      ],
+      [
+        "room",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "room",
+        "vault_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "room",
+        "refund_caps",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "room",
+        "room_style",
+        "character varying(16)",
+        true,
+        "'default'::character varying"
+      ],
+      [
+        "storage",
+        "used_space",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "storage",
+        "max_space",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "storage",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "storage",
+        "vault_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "storage",
+        "stimpack",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "storage",
+        "radaway",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "team",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "team",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "team",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "team",
+        "vault_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "team",
+        "quest_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "team",
+        "incident_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "team",
+        "name",
+        "character varying(64)",
+        false,
+        null
+      ],
+      [
+        "team",
+        "hazard_team",
+        "hazardteam",
+        false,
+        null
+      ],
+      [
+        "team",
+        "exploration_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "team_member",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "team_member",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "team_member",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "team_member",
+        "team_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "team_member",
+        "dweller_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "team_member",
+        "slot_number",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "team_member",
+        "status",
+        "character varying",
+        true,
+        null
+      ],
+      [
+        "team_member",
+        "origin_room_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "training",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "training",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "training",
+        "dweller_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "training",
+        "room_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "training",
+        "vault_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "training",
+        "stat_being_trained",
+        "specialenum",
+        true,
+        null
+      ],
+      [
+        "training",
+        "current_stat_value",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "training",
+        "target_stat_value",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "training",
+        "progress",
+        "double precision",
+        true,
+        null
+      ],
+      [
+        "training",
+        "started_at",
+        "timestamp without time zone",
+        true,
+        null
+      ],
+      [
+        "training",
+        "estimated_completion_at",
+        "timestamp without time zone",
+        true,
+        null
+      ],
+      [
+        "training",
+        "completed_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "training",
+        "status",
+        "trainingstatus",
+        true,
+        null
+      ],
+      [
+        "training",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "user",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "user",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "user",
+        "username",
+        "character varying(32)",
+        true,
+        null
+      ],
+      [
+        "user",
+        "email",
+        "character varying",
+        false,
+        null
+      ],
+      [
+        "user",
+        "is_active",
+        "boolean",
+        true,
+        null
+      ],
+      [
+        "user",
+        "is_superuser",
+        "boolean",
+        true,
+        null
+      ],
+      [
+        "user",
+        "email_verified",
+        "boolean",
+        true,
+        null
+      ],
+      [
+        "user",
+        "email_verification_token",
+        "character varying",
+        false,
+        null
+      ],
+      [
+        "user",
+        "password_reset_token",
+        "character varying",
+        false,
+        null
+      ],
+      [
+        "user",
+        "password_reset_expires",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "user",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "user",
+        "hashed_password",
+        "character varying",
+        true,
+        null
+      ],
+      [
+        "user",
+        "is_deleted",
+        "boolean",
+        true,
+        "false"
+      ],
+      [
+        "user",
+        "deleted_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "user",
+        "monthly_token_limit",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "userprofile",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "userprofile",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "userprofile",
+        "bio",
+        "character varying(500)",
+        false,
+        null
+      ],
+      [
+        "userprofile",
+        "avatar_url",
+        "character varying(255)",
+        false,
+        null
+      ],
+      [
+        "userprofile",
+        "preferences",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "userprofile",
+        "total_dwellers_created",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "userprofile",
+        "total_caps_earned",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "userprofile",
+        "total_explorations",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "userprofile",
+        "total_rooms_built",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "userprofile",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "userprofile",
+        "user_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "userprofile",
+        "total_dwellers_born",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "userprofile",
+        "total_dwellers_died",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "userprofile",
+        "deaths_by_health",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "userprofile",
+        "deaths_by_radiation",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "userprofile",
+        "deaths_by_incident",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "userprofile",
+        "deaths_by_exploration",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "userprofile",
+        "deaths_by_combat",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "userprofile",
+        "total_incidents",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "userprofile",
+        "total_incidents_won",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "userprofile",
+        "total_incidents_lost",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "vault",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "vault",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "vault",
+        "number",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "vault",
+        "bottle_caps",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "vault",
+        "happiness",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "vault",
+        "power",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "vault",
+        "power_max",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "vault",
+        "food",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "vault",
+        "food_max",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "vault",
+        "water",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "vault",
+        "water_max",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "vault",
+        "population_max",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "vault",
+        "radio_mode",
+        "character varying(50)",
+        false,
+        null
+      ],
+      [
+        "vault",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "vault",
+        "user_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "vault",
+        "is_deleted",
+        "boolean",
+        true,
+        "false"
+      ],
+      [
+        "vault",
+        "deleted_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "vault",
+        "incidents_disabled",
+        "boolean",
+        true,
+        "false"
+      ],
+      [
+        "vault",
+        "last_exit_request_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "vault",
+        "arena_morale_awarded_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "vault",
+        "vault_mode",
+        "character varying(50)",
+        true,
+        "'standard'::character varying"
+      ],
+      [
+        "vault_recipe_unlock",
+        "vault_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "vault_recipe_unlock",
+        "item_type",
+        "character varying(16)",
+        true,
+        null
+      ],
+      [
+        "vault_recipe_unlock",
+        "recipe_name",
+        "character varying(128)",
+        true,
+        null
+      ],
+      [
+        "vault_recipe_unlock",
+        "progress",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "vault_recipe_unlock",
+        "unlocked_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "vault_recipe_unlock",
+        "source",
+        "character varying(16)",
+        true,
+        null
+      ],
+      [
+        "vault_theme",
+        "vault_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "vault_theme",
+        "style",
+        "character varying(16)",
+        true,
+        null
+      ],
+      [
+        "vault_theme",
+        "crafted_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "vault_theme",
+        "source",
+        "character varying(16)",
+        true,
+        null
+      ],
+      [
+        "vaultlocationstate",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "vaultlocationstate",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "vaultlocationstate",
+        "type",
+        "locationtypeenum",
+        true,
+        null
+      ],
+      [
+        "vaultlocationstate",
+        "description",
+        "character varying(1000)",
+        false,
+        null
+      ],
+      [
+        "vaultlocationstate",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "vaultlocationstate",
+        "vault_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "vaultlocationstate",
+        "location_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "vaultlocationstate",
+        "exploration_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "vaultlocationstate",
+        "cleared_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "vaultlocationstate",
+        "reclear_available_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "vaultlocationstate",
+        "clear_count",
+        "integer",
+        true,
+        "0"
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "vault_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "objective_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "progress",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "total",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "is_completed",
+        "boolean",
+        true,
+        null
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "credited_dweller_ids",
+        "json",
+        true,
+        "'[]'::json"
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "reward_snapshot",
+        "character varying(32)",
+        false,
+        null
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "is_locked",
+        "boolean",
+        true,
+        "false"
+      ],
+      [
+        "vaultquestcompletionlink",
+        "vault_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "vaultquestcompletionlink",
+        "quest_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "vaultquestcompletionlink",
+        "is_completed",
+        "boolean",
+        true,
+        null
+      ],
+      [
+        "vaultquestcompletionlink",
+        "is_visible",
+        "boolean",
+        true,
+        null
+      ],
+      [
+        "vaultquestcompletionlink",
+        "started_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "vaultquestcompletionlink",
+        "duration_minutes",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "vaultquestcompletionlink",
+        "is_reward_ready",
+        "boolean",
+        true,
+        null
+      ],
+      [
+        "vaultquestcompletionlink",
+        "return_started_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "vaultquestcompletionlink",
+        "return_completes_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "vaultquestcompletionlink",
+        "completed_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "vaultquestcompletionlink",
+        "granted_rewards",
+        "jsonb",
+        false,
+        null
+      ],
+      [
+        "vaultslot",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "vaultslot",
+        "slot_index",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "vaultslot",
+        "vault_id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "vaultslot",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "vaultslot",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "weapon",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "weapon",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "weapon",
+        "name",
+        "character varying(32)",
+        true,
+        null
+      ],
+      [
+        "weapon",
+        "rarity",
+        "rarityenum",
+        true,
+        null
+      ],
+      [
+        "weapon",
+        "value",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "weapon",
+        "image_url",
+        "character varying(255)",
+        false,
+        null
+      ],
+      [
+        "weapon",
+        "weapon_type",
+        "weapontypeenum",
+        true,
+        null
+      ],
+      [
+        "weapon",
+        "weapon_subtype",
+        "weaponsubtypeenum",
+        true,
+        null
+      ],
+      [
+        "weapon",
+        "stat",
+        "character varying",
+        true,
+        null
+      ],
+      [
+        "weapon",
+        "damage_min",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "weapon",
+        "damage_max",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "weapon",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "weapon",
+        "dweller_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "weapon",
+        "storage_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "weapon",
+        "exploration_id",
+        "uuid",
+        false,
+        null
+      ],
+      [
+        "worldlocation",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "worldlocation",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "worldlocation",
+        "name",
+        "character varying(64)",
+        true,
+        null
+      ],
+      [
+        "worldlocation",
+        "normalized_name",
+        "character varying(64)",
+        true,
+        null
+      ],
+      [
+        "worldlocation",
+        "vault_number",
+        "integer",
+        false,
+        null
+      ],
+      [
+        "worldlocation",
+        "coord_x",
+        "double precision",
+        true,
+        null
+      ],
+      [
+        "worldlocation",
+        "coord_y",
+        "double precision",
+        true,
+        null
+      ],
+      [
+        "worldlocation",
+        "description",
+        "character varying(1000)",
+        false,
+        null
+      ],
+      [
+        "worldlocation",
+        "source",
+        "character varying(16)",
+        true,
+        null
+      ],
+      [
+        "worldlocation",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "worldlocation",
+        "kind",
+        "placekind",
+        true,
+        null
+      ],
+      [
+        "worldlocation",
+        "group_key",
+        "character varying(32)",
+        false,
+        null
+      ],
+      [
+        "worldsnapshot",
+        "id",
+        "uuid",
+        true,
+        null
+      ],
+      [
+        "worldsnapshot",
+        "world_id",
+        "character varying(32)",
+        true,
+        null
+      ],
+      [
+        "worldsnapshot",
+        "generator_version",
+        "integer",
+        true,
+        null
+      ],
+      [
+        "worldsnapshot",
+        "seed",
+        "character varying(64)",
+        true,
+        null
+      ],
+      [
+        "worldsnapshot",
+        "config",
+        "jsonb",
+        true,
+        null
+      ],
+      [
+        "worldsnapshot",
+        "recipe_fingerprint",
+        "character varying(64)",
+        true,
+        null
+      ],
+      [
+        "worldsnapshot",
+        "snapshot_checksum",
+        "character varying(64)",
+        true,
+        null
+      ],
+      [
+        "worldsnapshot",
+        "terrain",
+        "jsonb",
+        true,
+        null
+      ],
+      [
+        "worldsnapshot",
+        "slots",
+        "jsonb",
+        true,
+        null
+      ],
+      [
+        "worldsnapshot",
+        "anchors",
+        "jsonb",
+        true,
+        null
+      ],
+      [
+        "worldsnapshot",
+        "created_at",
+        "timestamp without time zone",
+        false,
+        null
+      ],
+      [
+        "worldsnapshot",
+        "updated_at",
+        "timestamp without time zone",
+        false,
+        null
+      ]
+    ],
+    "constraints": [
+      [
+        "ai_settings",
+        "ai_settings_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "ai_settings",
+        "ai_settings_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "alembic_version",
+        "alembic_version_pkc",
+        "PRIMARY KEY (version_num)"
+      ],
+      [
+        "alembic_version",
+        "alembic_version_version_num_not_null",
+        "NOT NULL version_num"
+      ],
+      [
+        "arena_match_event",
+        "arena_match_event_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "arena_match_event",
+        "arena_match_event_kind_not_null",
+        "NOT NULL kind"
+      ],
+      [
+        "arena_match_event",
+        "arena_match_event_message_not_null",
+        "NOT NULL message"
+      ],
+      [
+        "arena_match_event",
+        "arena_match_event_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "arena_match_event",
+        "arena_match_event_room_id_fkey",
+        "FOREIGN KEY (room_id) REFERENCES room(id) ON DELETE CASCADE"
+      ],
+      [
+        "arena_match_event",
+        "arena_match_event_room_id_not_null",
+        "NOT NULL room_id"
+      ],
+      [
+        "arena_match_event",
+        "arena_match_event_round_seq_not_null",
+        "NOT NULL round_seq"
+      ],
+      [
+        "arena_state",
+        "arena_state_next_attack_team_not_null",
+        "NOT NULL next_attack_team"
+      ],
+      [
+        "arena_state",
+        "arena_state_room_id_not_null",
+        "NOT NULL room_id"
+      ],
+      [
+        "arena_state",
+        "fk_arena_state_fighter_a_id",
+        "FOREIGN KEY (fighter_a_id) REFERENCES dweller(id) ON DELETE SET NULL"
+      ],
+      [
+        "arena_state",
+        "fk_arena_state_fighter_b_id",
+        "FOREIGN KEY (fighter_b_id) REFERENCES dweller(id) ON DELETE SET NULL"
+      ],
+      [
+        "arena_state",
+        "fk_arena_state_fighter_c_id",
+        "FOREIGN KEY (fighter_c_id) REFERENCES dweller(id) ON DELETE SET NULL"
+      ],
+      [
+        "arena_state",
+        "fk_arena_state_fighter_d_id",
+        "FOREIGN KEY (fighter_d_id) REFERENCES dweller(id) ON DELETE SET NULL"
+      ],
+      [
+        "arena_state",
+        "fk_arena_state_room_id",
+        "FOREIGN KEY (room_id) REFERENCES room(id) ON DELETE CASCADE"
+      ],
+      [
+        "arena_state",
+        "pk_arena_state",
+        "PRIMARY KEY (room_id)"
+      ],
+      [
+        "chatmessage",
+        "chatmessage_created_at_not_null",
+        "NOT NULL created_at"
+      ],
+      [
+        "chatmessage",
+        "chatmessage_from_dweller_id_fkey",
+        "FOREIGN KEY (from_dweller_id) REFERENCES dweller(id) ON DELETE CASCADE"
+      ],
+      [
+        "chatmessage",
+        "chatmessage_from_user_id_fkey",
+        "FOREIGN KEY (from_user_id) REFERENCES \"user\"(id) ON DELETE CASCADE"
+      ],
+      [
+        "chatmessage",
+        "chatmessage_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "chatmessage",
+        "chatmessage_llm_interaction_id_fkey",
+        "FOREIGN KEY (llm_interaction_id) REFERENCES llminteraction(id)"
+      ],
+      [
+        "chatmessage",
+        "chatmessage_message_text_not_null",
+        "NOT NULL message_text"
+      ],
+      [
+        "chatmessage",
+        "chatmessage_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "chatmessage",
+        "chatmessage_to_dweller_id_fkey",
+        "FOREIGN KEY (to_dweller_id) REFERENCES dweller(id) ON DELETE CASCADE"
+      ],
+      [
+        "chatmessage",
+        "chatmessage_to_user_id_fkey",
+        "FOREIGN KEY (to_user_id) REFERENCES \"user\"(id) ON DELETE CASCADE"
+      ],
+      [
+        "chatmessage",
+        "chatmessage_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id)"
+      ],
+      [
+        "chatmessage",
+        "chatmessage_vault_id_not_null",
+        "NOT NULL vault_id"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_ability_sum_at_start_not_null",
+        "NOT NULL ability_sum_at_start"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_caps_spent_not_null",
+        "NOT NULL caps_spent"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_estimated_completion_at_not_null",
+        "NOT NULL estimated_completion_at"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_item_name_not_null",
+        "NOT NULL item_name"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_item_snapshot_not_null",
+        "NOT NULL item_snapshot"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_item_type_not_null",
+        "NOT NULL item_type"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_junk_snapshot_not_null",
+        "NOT NULL junk_snapshot"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_junk_spent_not_null",
+        "NOT NULL junk_spent"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_progress_not_null",
+        "NOT NULL progress"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_rarity_not_null",
+        "NOT NULL rarity"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_required_stat_not_null",
+        "NOT NULL required_stat"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_room_id_fkey",
+        "FOREIGN KEY (room_id) REFERENCES room(id)"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_room_id_not_null",
+        "NOT NULL room_id"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_started_at_not_null",
+        "NOT NULL started_at"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_status_not_null",
+        "NOT NULL status"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id)"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_vault_id_not_null",
+        "NOT NULL vault_id"
+      ],
+      [
+        "dweller",
+        "dweller_age_group_not_null",
+        "NOT NULL age_group"
+      ],
+      [
+        "dweller",
+        "dweller_agility_not_null",
+        "NOT NULL agility"
+      ],
+      [
+        "dweller",
+        "dweller_apprentice_stat_gains_not_null",
+        "NOT NULL apprentice_stat_gains"
+      ],
+      [
+        "dweller",
+        "dweller_bio_entries_not_null",
+        "NOT NULL bio_entries"
+      ],
+      [
+        "dweller",
+        "dweller_charisma_not_null",
+        "NOT NULL charisma"
+      ],
+      [
+        "dweller",
+        "dweller_endurance_not_null",
+        "NOT NULL endurance"
+      ],
+      [
+        "dweller",
+        "dweller_experience_not_null",
+        "NOT NULL experience"
+      ],
+      [
+        "dweller",
+        "dweller_first_name_not_null",
+        "NOT NULL first_name"
+      ],
+      [
+        "dweller",
+        "dweller_gender_not_null",
+        "NOT NULL gender"
+      ],
+      [
+        "dweller",
+        "dweller_happiness_not_null",
+        "NOT NULL happiness"
+      ],
+      [
+        "dweller",
+        "dweller_health_not_null",
+        "NOT NULL health"
+      ],
+      [
+        "dweller",
+        "dweller_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "dweller",
+        "dweller_intelligence_not_null",
+        "NOT NULL intelligence"
+      ],
+      [
+        "dweller",
+        "dweller_is_dead_not_null",
+        "NOT NULL is_dead"
+      ],
+      [
+        "dweller",
+        "dweller_is_deleted_not_null",
+        "NOT NULL is_deleted"
+      ],
+      [
+        "dweller",
+        "dweller_is_permanently_dead_not_null",
+        "NOT NULL is_permanently_dead"
+      ],
+      [
+        "dweller",
+        "dweller_is_traded_not_null",
+        "NOT NULL is_traded"
+      ],
+      [
+        "dweller",
+        "dweller_level_not_null",
+        "NOT NULL level"
+      ],
+      [
+        "dweller",
+        "dweller_luck_not_null",
+        "NOT NULL luck"
+      ],
+      [
+        "dweller",
+        "dweller_max_health_not_null",
+        "NOT NULL max_health"
+      ],
+      [
+        "dweller",
+        "dweller_parent_1_id_fkey",
+        "FOREIGN KEY (parent_1_id) REFERENCES dweller(id) ON DELETE SET NULL"
+      ],
+      [
+        "dweller",
+        "dweller_parent_2_id_fkey",
+        "FOREIGN KEY (parent_2_id) REFERENCES dweller(id) ON DELETE SET NULL"
+      ],
+      [
+        "dweller",
+        "dweller_partner_id_fkey",
+        "FOREIGN KEY (partner_id) REFERENCES dweller(id) ON DELETE SET NULL"
+      ],
+      [
+        "dweller",
+        "dweller_perception_not_null",
+        "NOT NULL perception"
+      ],
+      [
+        "dweller",
+        "dweller_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "dweller",
+        "dweller_previous_vault_id_fkey",
+        "FOREIGN KEY (previous_vault_id) REFERENCES vault(id) ON DELETE SET NULL"
+      ],
+      [
+        "dweller",
+        "dweller_radaway_not_null",
+        "NOT NULL radaway"
+      ],
+      [
+        "dweller",
+        "dweller_radiation_not_null",
+        "NOT NULL radiation"
+      ],
+      [
+        "dweller",
+        "dweller_rarity_not_null",
+        "NOT NULL rarity"
+      ],
+      [
+        "dweller",
+        "dweller_room_id_fkey",
+        "FOREIGN KEY (room_id) REFERENCES room(id) ON DELETE SET NULL"
+      ],
+      [
+        "dweller",
+        "dweller_status_not_null",
+        "NOT NULL status"
+      ],
+      [
+        "dweller",
+        "dweller_stimpack_not_null",
+        "NOT NULL stimpack"
+      ],
+      [
+        "dweller",
+        "dweller_strength_not_null",
+        "NOT NULL strength"
+      ],
+      [
+        "dweller",
+        "dweller_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id) ON DELETE CASCADE"
+      ],
+      [
+        "dwellerlocation",
+        "dwellerlocation_dweller_id_fkey",
+        "FOREIGN KEY (dweller_id) REFERENCES dweller(id) ON DELETE CASCADE"
+      ],
+      [
+        "dwellerlocation",
+        "dwellerlocation_dweller_id_not_null",
+        "NOT NULL dweller_id"
+      ],
+      [
+        "dwellerlocation",
+        "dwellerlocation_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "dwellerlocation",
+        "dwellerlocation_is_unlocked_not_null",
+        "NOT NULL is_unlocked"
+      ],
+      [
+        "dwellerlocation",
+        "dwellerlocation_location_id_not_null",
+        "NOT NULL location_id"
+      ],
+      [
+        "dwellerlocation",
+        "dwellerlocation_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "dwellerlocation",
+        "dwellerlocation_relation_not_null",
+        "NOT NULL relation"
+      ],
+      [
+        "dwellerlocation",
+        "fk_dwellerlocation_location_id_worldlocation",
+        "FOREIGN KEY (location_id) REFERENCES worldlocation(id) ON DELETE CASCADE"
+      ],
+      [
+        "dwellerlocation",
+        "uq_dweller_location_relation",
+        "UNIQUE (dweller_id, location_id, relation)"
+      ],
+      [
+        "expeditionrun",
+        "expeditionrun_exploration_id_fkey",
+        "FOREIGN KEY (exploration_id) REFERENCES exploration(id) ON DELETE CASCADE"
+      ],
+      [
+        "expeditionrun",
+        "expeditionrun_exploration_id_not_null",
+        "NOT NULL exploration_id"
+      ],
+      [
+        "expeditionrun",
+        "expeditionrun_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "expeditionrun",
+        "expeditionrun_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "expeditionrun",
+        "expeditionrun_room_cursor_not_null",
+        "NOT NULL room_cursor"
+      ],
+      [
+        "expeditionrun",
+        "expeditionrun_site_id_not_null",
+        "NOT NULL site_id"
+      ],
+      [
+        "expeditionrun",
+        "expeditionrun_status_not_null",
+        "NOT NULL status"
+      ],
+      [
+        "expeditionrun",
+        "expeditionrun_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id) ON DELETE CASCADE"
+      ],
+      [
+        "expeditionrun",
+        "expeditionrun_vault_id_not_null",
+        "NOT NULL vault_id"
+      ],
+      [
+        "exploration",
+        "exploration_duration_not_null",
+        "NOT NULL duration"
+      ],
+      [
+        "exploration",
+        "exploration_dweller_agility_not_null",
+        "NOT NULL dweller_agility"
+      ],
+      [
+        "exploration",
+        "exploration_dweller_charisma_not_null",
+        "NOT NULL dweller_charisma"
+      ],
+      [
+        "exploration",
+        "exploration_dweller_endurance_not_null",
+        "NOT NULL dweller_endurance"
+      ],
+      [
+        "exploration",
+        "exploration_dweller_id_fkey",
+        "FOREIGN KEY (dweller_id) REFERENCES dweller(id) ON DELETE CASCADE"
+      ],
+      [
+        "exploration",
+        "exploration_dweller_id_not_null",
+        "NOT NULL dweller_id"
+      ],
+      [
+        "exploration",
+        "exploration_dweller_intelligence_not_null",
+        "NOT NULL dweller_intelligence"
+      ],
+      [
+        "exploration",
+        "exploration_dweller_luck_not_null",
+        "NOT NULL dweller_luck"
+      ],
+      [
+        "exploration",
+        "exploration_dweller_perception_not_null",
+        "NOT NULL dweller_perception"
+      ],
+      [
+        "exploration",
+        "exploration_dweller_strength_not_null",
+        "NOT NULL dweller_strength"
+      ],
+      [
+        "exploration",
+        "exploration_enemies_encountered_not_null",
+        "NOT NULL enemies_encountered"
+      ],
+      [
+        "exploration",
+        "exploration_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "exploration",
+        "exploration_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "exploration",
+        "exploration_radaways_not_null",
+        "NOT NULL radaways"
+      ],
+      [
+        "exploration",
+        "exploration_recalled_early_not_null",
+        "NOT NULL recalled_early"
+      ],
+      [
+        "exploration",
+        "exploration_start_time_not_null",
+        "NOT NULL start_time"
+      ],
+      [
+        "exploration",
+        "exploration_status_not_null",
+        "NOT NULL status"
+      ],
+      [
+        "exploration",
+        "exploration_stimpaks_not_null",
+        "NOT NULL stimpaks"
+      ],
+      [
+        "exploration",
+        "exploration_total_caps_found_not_null",
+        "NOT NULL total_caps_found"
+      ],
+      [
+        "exploration",
+        "exploration_total_distance_not_null",
+        "NOT NULL total_distance"
+      ],
+      [
+        "exploration",
+        "exploration_unclaimed_loot_not_null",
+        "NOT NULL unclaimed_loot"
+      ],
+      [
+        "exploration",
+        "exploration_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id) ON DELETE CASCADE"
+      ],
+      [
+        "exploration",
+        "exploration_vault_id_not_null",
+        "NOT NULL vault_id"
+      ],
+      [
+        "exploration",
+        "fk_exploration_target_location_id",
+        "FOREIGN KEY (target_location_id) REFERENCES worldlocation(id) ON DELETE SET NULL"
+      ],
+      [
+        "exploration",
+        "fk_exploration_team_id",
+        "FOREIGN KEY (team_id) REFERENCES team(id) ON DELETE SET NULL"
+      ],
+      [
+        "gamestate",
+        "gamestate_achievement_tracks_initialized_not_null",
+        "NOT NULL achievement_tracks_initialized"
+      ],
+      [
+        "gamestate",
+        "gamestate_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "gamestate",
+        "gamestate_is_active_not_null",
+        "NOT NULL is_active"
+      ],
+      [
+        "gamestate",
+        "gamestate_is_paused_not_null",
+        "NOT NULL is_paused"
+      ],
+      [
+        "gamestate",
+        "gamestate_last_activity_time_not_null",
+        "NOT NULL last_activity_time"
+      ],
+      [
+        "gamestate",
+        "gamestate_last_tick_time_not_null",
+        "NOT NULL last_tick_time"
+      ],
+      [
+        "gamestate",
+        "gamestate_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "gamestate",
+        "gamestate_resource_remainders_not_null",
+        "NOT NULL resource_remainders"
+      ],
+      [
+        "gamestate",
+        "gamestate_total_game_time_not_null",
+        "NOT NULL total_game_time"
+      ],
+      [
+        "gamestate",
+        "gamestate_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id) ON DELETE CASCADE"
+      ],
+      [
+        "gamestate",
+        "gamestate_vault_id_not_null",
+        "NOT NULL vault_id"
+      ],
+      [
+        "incident",
+        "incident_combat_progress_not_null",
+        "NOT NULL combat_progress"
+      ],
+      [
+        "incident",
+        "incident_damage_dealt_not_null",
+        "NOT NULL damage_dealt"
+      ],
+      [
+        "incident",
+        "incident_difficulty_not_null",
+        "NOT NULL difficulty"
+      ],
+      [
+        "incident",
+        "incident_duration_not_null",
+        "NOT NULL duration"
+      ],
+      [
+        "incident",
+        "incident_enemies_defeated_not_null",
+        "NOT NULL enemies_defeated"
+      ],
+      [
+        "incident",
+        "incident_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "incident",
+        "incident_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "incident",
+        "incident_room_id_fkey",
+        "FOREIGN KEY (room_id) REFERENCES room(id) ON DELETE CASCADE"
+      ],
+      [
+        "incident",
+        "incident_room_id_not_null",
+        "NOT NULL room_id"
+      ],
+      [
+        "incident",
+        "incident_spread_count_not_null",
+        "NOT NULL spread_count"
+      ],
+      [
+        "incident",
+        "incident_start_time_not_null",
+        "NOT NULL start_time"
+      ],
+      [
+        "incident",
+        "incident_status_not_null",
+        "NOT NULL status"
+      ],
+      [
+        "incident",
+        "incident_type_not_null",
+        "NOT NULL type"
+      ],
+      [
+        "incident",
+        "incident_unclaimed_loot_not_null",
+        "NOT NULL unclaimed_loot"
+      ],
+      [
+        "incident",
+        "incident_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id) ON DELETE CASCADE"
+      ],
+      [
+        "incident",
+        "incident_vault_id_not_null",
+        "NOT NULL vault_id"
+      ],
+      [
+        "incident_event",
+        "incident_event_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "incident_event",
+        "incident_event_incident_id_fkey",
+        "FOREIGN KEY (incident_id) REFERENCES incident(id) ON DELETE CASCADE"
+      ],
+      [
+        "incident_event",
+        "incident_event_incident_id_not_null",
+        "NOT NULL incident_id"
+      ],
+      [
+        "incident_event",
+        "incident_event_kind_not_null",
+        "NOT NULL kind"
+      ],
+      [
+        "incident_event",
+        "incident_event_message_not_null",
+        "NOT NULL message"
+      ],
+      [
+        "incident_event",
+        "incident_event_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "incident_participant",
+        "incident_participant_dweller_id_fkey",
+        "FOREIGN KEY (dweller_id) REFERENCES dweller(id) ON DELETE CASCADE"
+      ],
+      [
+        "incident_participant",
+        "incident_participant_dweller_id_not_null",
+        "NOT NULL dweller_id"
+      ],
+      [
+        "incident_participant",
+        "incident_participant_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "incident_participant",
+        "incident_participant_incident_id_fkey",
+        "FOREIGN KEY (incident_id) REFERENCES incident(id) ON DELETE CASCADE"
+      ],
+      [
+        "incident_participant",
+        "incident_participant_incident_id_not_null",
+        "NOT NULL incident_id"
+      ],
+      [
+        "incident_participant",
+        "incident_participant_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "incident_participant",
+        "uq_incident_participant",
+        "UNIQUE (incident_id, dweller_id)"
+      ],
+      [
+        "item",
+        "ck_item_item_type",
+        "CHECK (((item_type)::text = ANY ((ARRAY['misc'::character varying, 'weapon'::character varying, 'outfit'::character varying, 'junk'::character varying, 'consumable'::character varying, 'lunchbox'::character varying, 'pet'::character varying, 'dweller'::character varying])::text[])))"
+      ],
+      [
+        "item",
+        "fk_item_storage_id_storage",
+        "FOREIGN KEY (storage_id) REFERENCES storage(id)"
+      ],
+      [
+        "item",
+        "item_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "item",
+        "item_item_type_not_null",
+        "NOT NULL item_type"
+      ],
+      [
+        "item",
+        "item_name_not_null",
+        "NOT NULL name"
+      ],
+      [
+        "item",
+        "item_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "item",
+        "item_rarity_not_null",
+        "NOT NULL rarity"
+      ],
+      [
+        "junk",
+        "junk_description_not_null",
+        "NOT NULL description"
+      ],
+      [
+        "junk",
+        "junk_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "junk",
+        "junk_junk_type_not_null",
+        "NOT NULL junk_type"
+      ],
+      [
+        "junk",
+        "junk_name_not_null",
+        "NOT NULL name"
+      ],
+      [
+        "junk",
+        "junk_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "junk",
+        "junk_rarity_not_null",
+        "NOT NULL rarity"
+      ],
+      [
+        "junk",
+        "junk_storage_id_fkey",
+        "FOREIGN KEY (storage_id) REFERENCES storage(id)"
+      ],
+      [
+        "llminteraction",
+        "llminteraction_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "llminteraction",
+        "llminteraction_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "llminteraction",
+        "llminteraction_prompt_id_fkey",
+        "FOREIGN KEY (prompt_id) REFERENCES prompt(id)"
+      ],
+      [
+        "llminteraction",
+        "llminteraction_user_id_fkey",
+        "FOREIGN KEY (user_id) REFERENCES \"user\"(id)"
+      ],
+      [
+        "notification",
+        "notification_created_at_not_null",
+        "NOT NULL created_at"
+      ],
+      [
+        "notification",
+        "notification_from_dweller_id_fkey",
+        "FOREIGN KEY (from_dweller_id) REFERENCES dweller(id)"
+      ],
+      [
+        "notification",
+        "notification_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "notification",
+        "notification_is_dismissed_not_null",
+        "NOT NULL is_dismissed"
+      ],
+      [
+        "notification",
+        "notification_is_read_not_null",
+        "NOT NULL is_read"
+      ],
+      [
+        "notification",
+        "notification_message_not_null",
+        "NOT NULL message"
+      ],
+      [
+        "notification",
+        "notification_notification_type_not_null",
+        "NOT NULL notification_type"
+      ],
+      [
+        "notification",
+        "notification_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "notification",
+        "notification_priority_not_null",
+        "NOT NULL priority"
+      ],
+      [
+        "notification",
+        "notification_title_not_null",
+        "NOT NULL title"
+      ],
+      [
+        "notification",
+        "notification_user_id_fkey",
+        "FOREIGN KEY (user_id) REFERENCES \"user\"(id)"
+      ],
+      [
+        "notification",
+        "notification_user_id_not_null",
+        "NOT NULL user_id"
+      ],
+      [
+        "notification",
+        "notification_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id) ON DELETE CASCADE"
+      ],
+      [
+        "objective",
+        "objective_assignable_not_null",
+        "NOT NULL assignable"
+      ],
+      [
+        "objective",
+        "objective_category_not_null",
+        "NOT NULL category"
+      ],
+      [
+        "objective",
+        "objective_challenge_not_null",
+        "NOT NULL challenge"
+      ],
+      [
+        "objective",
+        "objective_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "objective",
+        "objective_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "objective",
+        "objective_reward_not_null",
+        "NOT NULL reward"
+      ],
+      [
+        "objective",
+        "objective_target_amount_not_null",
+        "NOT NULL target_amount"
+      ],
+      [
+        "outfit",
+        "fk_outfit_exploration_id_exploration",
+        "FOREIGN KEY (exploration_id) REFERENCES exploration(id) ON DELETE CASCADE"
+      ],
+      [
+        "outfit",
+        "outfit_agility_not_null",
+        "NOT NULL agility"
+      ],
+      [
+        "outfit",
+        "outfit_charisma_not_null",
+        "NOT NULL charisma"
+      ],
+      [
+        "outfit",
+        "outfit_dweller_id_fkey",
+        "FOREIGN KEY (dweller_id) REFERENCES dweller(id)"
+      ],
+      [
+        "outfit",
+        "outfit_endurance_not_null",
+        "NOT NULL endurance"
+      ],
+      [
+        "outfit",
+        "outfit_fire_resist_not_null",
+        "NOT NULL fire_resist"
+      ],
+      [
+        "outfit",
+        "outfit_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "outfit",
+        "outfit_intelligence_not_null",
+        "NOT NULL intelligence"
+      ],
+      [
+        "outfit",
+        "outfit_luck_not_null",
+        "NOT NULL luck"
+      ],
+      [
+        "outfit",
+        "outfit_name_not_null",
+        "NOT NULL name"
+      ],
+      [
+        "outfit",
+        "outfit_perception_not_null",
+        "NOT NULL perception"
+      ],
+      [
+        "outfit",
+        "outfit_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "outfit",
+        "outfit_rarity_not_null",
+        "NOT NULL rarity"
+      ],
+      [
+        "outfit",
+        "outfit_storage_id_fkey",
+        "FOREIGN KEY (storage_id) REFERENCES storage(id)"
+      ],
+      [
+        "outfit",
+        "outfit_strength_not_null",
+        "NOT NULL strength"
+      ],
+      [
+        "pet",
+        "ck_pet_dweller_storage_xor",
+        "CHECK (((dweller_id IS NULL) OR (storage_id IS NULL)))"
+      ],
+      [
+        "pet",
+        "pet_dweller_id_fkey",
+        "FOREIGN KEY (dweller_id) REFERENCES dweller(id)"
+      ],
+      [
+        "pet",
+        "pet_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "pet",
+        "pet_name_not_null",
+        "NOT NULL name"
+      ],
+      [
+        "pet",
+        "pet_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "pet",
+        "pet_rarity_not_null",
+        "NOT NULL rarity"
+      ],
+      [
+        "pet",
+        "pet_storage_id_fkey",
+        "FOREIGN KEY (storage_id) REFERENCES storage(id)"
+      ],
+      [
+        "pregnancy",
+        "pregnancy_conceived_at_not_null",
+        "NOT NULL conceived_at"
+      ],
+      [
+        "pregnancy",
+        "pregnancy_due_at_not_null",
+        "NOT NULL due_at"
+      ],
+      [
+        "pregnancy",
+        "pregnancy_father_id_fkey",
+        "FOREIGN KEY (father_id) REFERENCES dweller(id) ON DELETE CASCADE"
+      ],
+      [
+        "pregnancy",
+        "pregnancy_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "pregnancy",
+        "pregnancy_mother_id_fkey",
+        "FOREIGN KEY (mother_id) REFERENCES dweller(id) ON DELETE CASCADE"
+      ],
+      [
+        "pregnancy",
+        "pregnancy_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "pregnancy",
+        "pregnancy_status_not_null",
+        "NOT NULL status"
+      ],
+      [
+        "prompt",
+        "prompt_description_not_null",
+        "NOT NULL description"
+      ],
+      [
+        "prompt",
+        "prompt_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "prompt",
+        "prompt_is_active_not_null",
+        "NOT NULL is_active"
+      ],
+      [
+        "prompt",
+        "prompt_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "prompt",
+        "prompt_prompt_name_not_null",
+        "NOT NULL prompt_name"
+      ],
+      [
+        "prompt",
+        "prompt_prompt_template_not_null",
+        "NOT NULL prompt_template"
+      ],
+      [
+        "prompt",
+        "prompt_version_not_null",
+        "NOT NULL version"
+      ],
+      [
+        "prompt",
+        "uq_prompt_name_version",
+        "UNIQUE (prompt_name, version)"
+      ],
+      [
+        "quest",
+        "fk_quest_next_quest_id",
+        "FOREIGN KEY (next_quest_id) REFERENCES quest(id) ON DELETE SET NULL"
+      ],
+      [
+        "quest",
+        "fk_quest_previous_quest_id",
+        "FOREIGN KEY (previous_quest_id) REFERENCES quest(id) ON DELETE SET NULL"
+      ],
+      [
+        "quest",
+        "quest_chain_order_not_null",
+        "NOT NULL chain_order"
+      ],
+      [
+        "quest",
+        "quest_duration_minutes_not_null",
+        "NOT NULL duration_minutes"
+      ],
+      [
+        "quest",
+        "quest_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "quest",
+        "quest_long_description_not_null",
+        "NOT NULL long_description"
+      ],
+      [
+        "quest",
+        "quest_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "quest",
+        "quest_quest_type_not_null",
+        "NOT NULL quest_type"
+      ],
+      [
+        "quest",
+        "quest_requirements_not_null",
+        "NOT NULL requirements"
+      ],
+      [
+        "quest",
+        "quest_rewards_not_null",
+        "NOT NULL rewards"
+      ],
+      [
+        "quest",
+        "quest_short_description_not_null",
+        "NOT NULL short_description"
+      ],
+      [
+        "quest",
+        "quest_title_not_null",
+        "NOT NULL title"
+      ],
+      [
+        "questrequirement",
+        "questrequirement_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "questrequirement",
+        "questrequirement_is_mandatory_not_null",
+        "NOT NULL is_mandatory"
+      ],
+      [
+        "questrequirement",
+        "questrequirement_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "questrequirement",
+        "questrequirement_quest_id_fkey",
+        "FOREIGN KEY (quest_id) REFERENCES quest(id) ON DELETE CASCADE"
+      ],
+      [
+        "questrequirement",
+        "questrequirement_quest_id_not_null",
+        "NOT NULL quest_id"
+      ],
+      [
+        "questrequirement",
+        "questrequirement_requirement_data_not_null",
+        "NOT NULL requirement_data"
+      ],
+      [
+        "questrequirement",
+        "questrequirement_requirement_type_not_null",
+        "NOT NULL requirement_type"
+      ],
+      [
+        "questreward",
+        "questreward_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "questreward",
+        "questreward_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "questreward",
+        "questreward_quest_id_fkey",
+        "FOREIGN KEY (quest_id) REFERENCES quest(id) ON DELETE CASCADE"
+      ],
+      [
+        "questreward",
+        "questreward_quest_id_not_null",
+        "NOT NULL quest_id"
+      ],
+      [
+        "questreward",
+        "questreward_reward_chance_not_null",
+        "NOT NULL reward_chance"
+      ],
+      [
+        "questreward",
+        "questreward_reward_data_not_null",
+        "NOT NULL reward_data"
+      ],
+      [
+        "questreward",
+        "questreward_reward_type_not_null",
+        "NOT NULL reward_type"
+      ],
+      [
+        "relationship",
+        "relationship_affinity_not_null",
+        "NOT NULL affinity"
+      ],
+      [
+        "relationship",
+        "relationship_dweller_1_id_fkey",
+        "FOREIGN KEY (dweller_1_id) REFERENCES dweller(id) ON DELETE CASCADE"
+      ],
+      [
+        "relationship",
+        "relationship_dweller_2_id_fkey",
+        "FOREIGN KEY (dweller_2_id) REFERENCES dweller(id) ON DELETE CASCADE"
+      ],
+      [
+        "relationship",
+        "relationship_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "relationship",
+        "relationship_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "relationship",
+        "relationship_relationship_type_not_null",
+        "NOT NULL relationship_type"
+      ],
+      [
+        "room",
+        "room_base_cost_not_null",
+        "NOT NULL base_cost"
+      ],
+      [
+        "room",
+        "room_category_not_null",
+        "NOT NULL category"
+      ],
+      [
+        "room",
+        "room_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "room",
+        "room_name_not_null",
+        "NOT NULL name"
+      ],
+      [
+        "room",
+        "room_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "room",
+        "room_room_style_not_null",
+        "NOT NULL room_style"
+      ],
+      [
+        "room",
+        "room_size_max_not_null",
+        "NOT NULL size_max"
+      ],
+      [
+        "room",
+        "room_size_min_not_null",
+        "NOT NULL size_min"
+      ],
+      [
+        "room",
+        "room_speedup_multiplier_not_null",
+        "NOT NULL speedup_multiplier"
+      ],
+      [
+        "room",
+        "room_tier_not_null",
+        "NOT NULL tier"
+      ],
+      [
+        "room",
+        "room_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id)"
+      ],
+      [
+        "room",
+        "room_vault_id_not_null",
+        "NOT NULL vault_id"
+      ],
+      [
+        "storage",
+        "storage_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "storage",
+        "storage_max_space_not_null",
+        "NOT NULL max_space"
+      ],
+      [
+        "storage",
+        "storage_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "storage",
+        "storage_radaway_not_null",
+        "NOT NULL radaway"
+      ],
+      [
+        "storage",
+        "storage_stimpack_not_null",
+        "NOT NULL stimpack"
+      ],
+      [
+        "storage",
+        "storage_used_space_not_null",
+        "NOT NULL used_space"
+      ],
+      [
+        "storage",
+        "storage_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id)"
+      ],
+      [
+        "storage",
+        "storage_vault_id_not_null",
+        "NOT NULL vault_id"
+      ],
+      [
+        "team",
+        "ck_team_one_purpose",
+        "CHECK (((((\nCASE\n    WHEN (quest_id IS NOT NULL) THEN 1\n    ELSE 0\nEND +\nCASE\n    WHEN (incident_id IS NOT NULL) THEN 1\n    ELSE 0\nEND) +\nCASE\n    WHEN (hazard_team IS NOT NULL) THEN 1\n    ELSE 0\nEND) +\nCASE\n    WHEN (exploration_id IS NOT NULL) THEN 1\n    ELSE 0\nEND) = 1))"
+      ],
+      [
+        "team",
+        "team_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "team",
+        "team_incident_id_fkey",
+        "FOREIGN KEY (incident_id) REFERENCES incident(id) ON DELETE CASCADE"
+      ],
+      [
+        "team",
+        "team_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "team",
+        "team_quest_id_fkey",
+        "FOREIGN KEY (quest_id) REFERENCES quest(id) ON DELETE CASCADE"
+      ],
+      [
+        "team",
+        "team_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id) ON DELETE CASCADE"
+      ],
+      [
+        "team",
+        "team_vault_id_not_null",
+        "NOT NULL vault_id"
+      ],
+      [
+        "team",
+        "uq_team_vault_exploration",
+        "UNIQUE (vault_id, exploration_id)"
+      ],
+      [
+        "team",
+        "uq_team_vault_hazard",
+        "UNIQUE (vault_id, hazard_team)"
+      ],
+      [
+        "team",
+        "uq_team_vault_incident",
+        "UNIQUE (vault_id, incident_id)"
+      ],
+      [
+        "team",
+        "uq_team_vault_quest",
+        "UNIQUE (vault_id, quest_id)"
+      ],
+      [
+        "team_member",
+        "fk_team_member_origin_room_id",
+        "FOREIGN KEY (origin_room_id) REFERENCES room(id) ON DELETE SET NULL"
+      ],
+      [
+        "team_member",
+        "team_member_dweller_id_fkey",
+        "FOREIGN KEY (dweller_id) REFERENCES dweller(id) ON DELETE CASCADE"
+      ],
+      [
+        "team_member",
+        "team_member_dweller_id_not_null",
+        "NOT NULL dweller_id"
+      ],
+      [
+        "team_member",
+        "team_member_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "team_member",
+        "team_member_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "team_member",
+        "team_member_status_not_null",
+        "NOT NULL status"
+      ],
+      [
+        "team_member",
+        "team_member_team_id_fkey",
+        "FOREIGN KEY (team_id) REFERENCES team(id) ON DELETE CASCADE"
+      ],
+      [
+        "team_member",
+        "team_member_team_id_not_null",
+        "NOT NULL team_id"
+      ],
+      [
+        "team_member",
+        "uq_team_member_dweller",
+        "UNIQUE (team_id, dweller_id)"
+      ],
+      [
+        "team_member",
+        "uq_team_member_slot",
+        "UNIQUE (team_id, slot_number)"
+      ],
+      [
+        "training",
+        "training_current_stat_value_not_null",
+        "NOT NULL current_stat_value"
+      ],
+      [
+        "training",
+        "training_dweller_id_fkey",
+        "FOREIGN KEY (dweller_id) REFERENCES dweller(id)"
+      ],
+      [
+        "training",
+        "training_dweller_id_not_null",
+        "NOT NULL dweller_id"
+      ],
+      [
+        "training",
+        "training_estimated_completion_at_not_null",
+        "NOT NULL estimated_completion_at"
+      ],
+      [
+        "training",
+        "training_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "training",
+        "training_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "training",
+        "training_progress_not_null",
+        "NOT NULL progress"
+      ],
+      [
+        "training",
+        "training_room_id_fkey",
+        "FOREIGN KEY (room_id) REFERENCES room(id)"
+      ],
+      [
+        "training",
+        "training_room_id_not_null",
+        "NOT NULL room_id"
+      ],
+      [
+        "training",
+        "training_started_at_not_null",
+        "NOT NULL started_at"
+      ],
+      [
+        "training",
+        "training_stat_being_trained_not_null",
+        "NOT NULL stat_being_trained"
+      ],
+      [
+        "training",
+        "training_status_not_null",
+        "NOT NULL status"
+      ],
+      [
+        "training",
+        "training_target_stat_value_not_null",
+        "NOT NULL target_stat_value"
+      ],
+      [
+        "training",
+        "training_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id)"
+      ],
+      [
+        "training",
+        "training_vault_id_not_null",
+        "NOT NULL vault_id"
+      ],
+      [
+        "user",
+        "user_email_verified_not_null",
+        "NOT NULL email_verified"
+      ],
+      [
+        "user",
+        "user_hashed_password_not_null",
+        "NOT NULL hashed_password"
+      ],
+      [
+        "user",
+        "user_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "user",
+        "user_is_active_not_null",
+        "NOT NULL is_active"
+      ],
+      [
+        "user",
+        "user_is_deleted_not_null",
+        "NOT NULL is_deleted"
+      ],
+      [
+        "user",
+        "user_is_superuser_not_null",
+        "NOT NULL is_superuser"
+      ],
+      [
+        "user",
+        "user_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "user",
+        "user_username_not_null",
+        "NOT NULL username"
+      ],
+      [
+        "userprofile",
+        "userprofile_deaths_by_combat_not_null",
+        "NOT NULL deaths_by_combat"
+      ],
+      [
+        "userprofile",
+        "userprofile_deaths_by_exploration_not_null",
+        "NOT NULL deaths_by_exploration"
+      ],
+      [
+        "userprofile",
+        "userprofile_deaths_by_health_not_null",
+        "NOT NULL deaths_by_health"
+      ],
+      [
+        "userprofile",
+        "userprofile_deaths_by_incident_not_null",
+        "NOT NULL deaths_by_incident"
+      ],
+      [
+        "userprofile",
+        "userprofile_deaths_by_radiation_not_null",
+        "NOT NULL deaths_by_radiation"
+      ],
+      [
+        "userprofile",
+        "userprofile_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "userprofile",
+        "userprofile_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "userprofile",
+        "userprofile_total_caps_earned_not_null",
+        "NOT NULL total_caps_earned"
+      ],
+      [
+        "userprofile",
+        "userprofile_total_dwellers_born_not_null",
+        "NOT NULL total_dwellers_born"
+      ],
+      [
+        "userprofile",
+        "userprofile_total_dwellers_created_not_null",
+        "NOT NULL total_dwellers_created"
+      ],
+      [
+        "userprofile",
+        "userprofile_total_dwellers_died_not_null",
+        "NOT NULL total_dwellers_died"
+      ],
+      [
+        "userprofile",
+        "userprofile_total_explorations_not_null",
+        "NOT NULL total_explorations"
+      ],
+      [
+        "userprofile",
+        "userprofile_total_incidents_lost_not_null",
+        "NOT NULL total_incidents_lost"
+      ],
+      [
+        "userprofile",
+        "userprofile_total_incidents_not_null",
+        "NOT NULL total_incidents"
+      ],
+      [
+        "userprofile",
+        "userprofile_total_incidents_won_not_null",
+        "NOT NULL total_incidents_won"
+      ],
+      [
+        "userprofile",
+        "userprofile_total_rooms_built_not_null",
+        "NOT NULL total_rooms_built"
+      ],
+      [
+        "userprofile",
+        "userprofile_user_id_fkey",
+        "FOREIGN KEY (user_id) REFERENCES \"user\"(id) ON DELETE CASCADE"
+      ],
+      [
+        "userprofile",
+        "userprofile_user_id_not_null",
+        "NOT NULL user_id"
+      ],
+      [
+        "vault",
+        "vault_bottle_caps_not_null",
+        "NOT NULL bottle_caps"
+      ],
+      [
+        "vault",
+        "vault_food_max_not_null",
+        "NOT NULL food_max"
+      ],
+      [
+        "vault",
+        "vault_food_not_null",
+        "NOT NULL food"
+      ],
+      [
+        "vault",
+        "vault_happiness_not_null",
+        "NOT NULL happiness"
+      ],
+      [
+        "vault",
+        "vault_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "vault",
+        "vault_incidents_disabled_not_null",
+        "NOT NULL incidents_disabled"
+      ],
+      [
+        "vault",
+        "vault_is_deleted_not_null",
+        "NOT NULL is_deleted"
+      ],
+      [
+        "vault",
+        "vault_number_not_null",
+        "NOT NULL number"
+      ],
+      [
+        "vault",
+        "vault_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "vault",
+        "vault_power_max_not_null",
+        "NOT NULL power_max"
+      ],
+      [
+        "vault",
+        "vault_power_not_null",
+        "NOT NULL power"
+      ],
+      [
+        "vault",
+        "vault_user_id_fkey",
+        "FOREIGN KEY (user_id) REFERENCES \"user\"(id)"
+      ],
+      [
+        "vault",
+        "vault_user_id_not_null",
+        "NOT NULL user_id"
+      ],
+      [
+        "vault",
+        "vault_vault_mode_not_null",
+        "NOT NULL vault_mode"
+      ],
+      [
+        "vault",
+        "vault_water_max_not_null",
+        "NOT NULL water_max"
+      ],
+      [
+        "vault",
+        "vault_water_not_null",
+        "NOT NULL water"
+      ],
+      [
+        "vault_recipe_unlock",
+        "vault_recipe_unlock_item_type_not_null",
+        "NOT NULL item_type"
+      ],
+      [
+        "vault_recipe_unlock",
+        "vault_recipe_unlock_pkey",
+        "PRIMARY KEY (vault_id, item_type, recipe_name)"
+      ],
+      [
+        "vault_recipe_unlock",
+        "vault_recipe_unlock_progress_not_null",
+        "NOT NULL progress"
+      ],
+      [
+        "vault_recipe_unlock",
+        "vault_recipe_unlock_recipe_name_not_null",
+        "NOT NULL recipe_name"
+      ],
+      [
+        "vault_recipe_unlock",
+        "vault_recipe_unlock_source_not_null",
+        "NOT NULL source"
+      ],
+      [
+        "vault_recipe_unlock",
+        "vault_recipe_unlock_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id) ON DELETE CASCADE"
+      ],
+      [
+        "vault_recipe_unlock",
+        "vault_recipe_unlock_vault_id_not_null",
+        "NOT NULL vault_id"
+      ],
+      [
+        "vault_theme",
+        "vault_theme_pkey",
+        "PRIMARY KEY (vault_id, style)"
+      ],
+      [
+        "vault_theme",
+        "vault_theme_source_not_null",
+        "NOT NULL source"
+      ],
+      [
+        "vault_theme",
+        "vault_theme_style_not_null",
+        "NOT NULL style"
+      ],
+      [
+        "vault_theme",
+        "vault_theme_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id) ON DELETE CASCADE"
+      ],
+      [
+        "vault_theme",
+        "vault_theme_vault_id_not_null",
+        "NOT NULL vault_id"
+      ],
+      [
+        "vaultlocationstate",
+        "uq_vault_location_state",
+        "UNIQUE (vault_id, location_id)"
+      ],
+      [
+        "vaultlocationstate",
+        "vaultlocationstate_clear_count_not_null",
+        "NOT NULL clear_count"
+      ],
+      [
+        "vaultlocationstate",
+        "vaultlocationstate_exploration_id_fkey",
+        "FOREIGN KEY (exploration_id) REFERENCES exploration(id) ON DELETE SET NULL"
+      ],
+      [
+        "vaultlocationstate",
+        "vaultlocationstate_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "vaultlocationstate",
+        "vaultlocationstate_location_id_fkey",
+        "FOREIGN KEY (location_id) REFERENCES worldlocation(id) ON DELETE CASCADE"
+      ],
+      [
+        "vaultlocationstate",
+        "vaultlocationstate_location_id_not_null",
+        "NOT NULL location_id"
+      ],
+      [
+        "vaultlocationstate",
+        "vaultlocationstate_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "vaultlocationstate",
+        "vaultlocationstate_type_not_null",
+        "NOT NULL type"
+      ],
+      [
+        "vaultlocationstate",
+        "vaultlocationstate_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id) ON DELETE CASCADE"
+      ],
+      [
+        "vaultlocationstate",
+        "vaultlocationstate_vault_id_not_null",
+        "NOT NULL vault_id"
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "vaultobjectiveprogresslink_credited_dweller_ids_not_null",
+        "NOT NULL credited_dweller_ids"
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "vaultobjectiveprogresslink_is_completed_not_null",
+        "NOT NULL is_completed"
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "vaultobjectiveprogresslink_is_locked_not_null",
+        "NOT NULL is_locked"
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "vaultobjectiveprogresslink_objective_id_fkey",
+        "FOREIGN KEY (objective_id) REFERENCES objective(id)"
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "vaultobjectiveprogresslink_objective_id_not_null",
+        "NOT NULL objective_id"
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "vaultobjectiveprogresslink_pkey",
+        "PRIMARY KEY (vault_id, objective_id)"
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "vaultobjectiveprogresslink_progress_not_null",
+        "NOT NULL progress"
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "vaultobjectiveprogresslink_total_not_null",
+        "NOT NULL total"
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "vaultobjectiveprogresslink_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id)"
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "vaultobjectiveprogresslink_vault_id_not_null",
+        "NOT NULL vault_id"
+      ],
+      [
+        "vaultquestcompletionlink",
+        "vaultquestcompletionlink_is_completed_not_null",
+        "NOT NULL is_completed"
+      ],
+      [
+        "vaultquestcompletionlink",
+        "vaultquestcompletionlink_is_reward_ready_not_null",
+        "NOT NULL is_reward_ready"
+      ],
+      [
+        "vaultquestcompletionlink",
+        "vaultquestcompletionlink_is_visible_not_null",
+        "NOT NULL is_visible"
+      ],
+      [
+        "vaultquestcompletionlink",
+        "vaultquestcompletionlink_pkey",
+        "PRIMARY KEY (vault_id, quest_id)"
+      ],
+      [
+        "vaultquestcompletionlink",
+        "vaultquestcompletionlink_quest_id_fkey",
+        "FOREIGN KEY (quest_id) REFERENCES quest(id)"
+      ],
+      [
+        "vaultquestcompletionlink",
+        "vaultquestcompletionlink_quest_id_not_null",
+        "NOT NULL quest_id"
+      ],
+      [
+        "vaultquestcompletionlink",
+        "vaultquestcompletionlink_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id)"
+      ],
+      [
+        "vaultquestcompletionlink",
+        "vaultquestcompletionlink_vault_id_not_null",
+        "NOT NULL vault_id"
+      ],
+      [
+        "vaultslot",
+        "uq_vault_slot_index",
+        "UNIQUE (slot_index)"
+      ],
+      [
+        "vaultslot",
+        "uq_vault_slot_vault",
+        "UNIQUE (vault_id)"
+      ],
+      [
+        "vaultslot",
+        "vaultslot_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "vaultslot",
+        "vaultslot_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "vaultslot",
+        "vaultslot_slot_index_not_null",
+        "NOT NULL slot_index"
+      ],
+      [
+        "vaultslot",
+        "vaultslot_vault_id_fkey",
+        "FOREIGN KEY (vault_id) REFERENCES vault(id) ON DELETE CASCADE"
+      ],
+      [
+        "vaultslot",
+        "vaultslot_vault_id_not_null",
+        "NOT NULL vault_id"
+      ],
+      [
+        "weapon",
+        "fk_weapon_exploration_id_exploration",
+        "FOREIGN KEY (exploration_id) REFERENCES exploration(id) ON DELETE CASCADE"
+      ],
+      [
+        "weapon",
+        "weapon_damage_max_not_null",
+        "NOT NULL damage_max"
+      ],
+      [
+        "weapon",
+        "weapon_damage_min_not_null",
+        "NOT NULL damage_min"
+      ],
+      [
+        "weapon",
+        "weapon_dweller_id_fkey",
+        "FOREIGN KEY (dweller_id) REFERENCES dweller(id)"
+      ],
+      [
+        "weapon",
+        "weapon_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "weapon",
+        "weapon_name_not_null",
+        "NOT NULL name"
+      ],
+      [
+        "weapon",
+        "weapon_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "weapon",
+        "weapon_rarity_not_null",
+        "NOT NULL rarity"
+      ],
+      [
+        "weapon",
+        "weapon_stat_not_null",
+        "NOT NULL stat"
+      ],
+      [
+        "weapon",
+        "weapon_storage_id_fkey",
+        "FOREIGN KEY (storage_id) REFERENCES storage(id)"
+      ],
+      [
+        "weapon",
+        "weapon_weapon_subtype_not_null",
+        "NOT NULL weapon_subtype"
+      ],
+      [
+        "weapon",
+        "weapon_weapon_type_not_null",
+        "NOT NULL weapon_type"
+      ],
+      [
+        "worldlocation",
+        "ck_world_location_coord_x_range",
+        "CHECK (((coord_x >= (0)::double precision) AND (coord_x <= (100)::double precision)))"
+      ],
+      [
+        "worldlocation",
+        "ck_world_location_coord_y_range",
+        "CHECK (((coord_y >= (0)::double precision) AND (coord_y <= (100)::double precision)))"
+      ],
+      [
+        "worldlocation",
+        "ck_world_location_kind_fields",
+        "CHECK ((((kind = 'VAULT'::placekind) AND (vault_number IS NOT NULL)) OR ((kind = 'PLACE'::placekind) AND (vault_number IS NULL))))"
+      ],
+      [
+        "worldlocation",
+        "worldlocation_coord_x_not_null",
+        "NOT NULL coord_x"
+      ],
+      [
+        "worldlocation",
+        "worldlocation_coord_y_not_null",
+        "NOT NULL coord_y"
+      ],
+      [
+        "worldlocation",
+        "worldlocation_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "worldlocation",
+        "worldlocation_kind_not_null",
+        "NOT NULL kind"
+      ],
+      [
+        "worldlocation",
+        "worldlocation_name_not_null",
+        "NOT NULL name"
+      ],
+      [
+        "worldlocation",
+        "worldlocation_normalized_name_not_null",
+        "NOT NULL normalized_name"
+      ],
+      [
+        "worldlocation",
+        "worldlocation_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "worldlocation",
+        "worldlocation_source_not_null",
+        "NOT NULL source"
+      ],
+      [
+        "worldsnapshot",
+        "uq_worldsnapshot_world_version",
+        "UNIQUE (world_id, generator_version)"
+      ],
+      [
+        "worldsnapshot",
+        "worldsnapshot_anchors_not_null",
+        "NOT NULL anchors"
+      ],
+      [
+        "worldsnapshot",
+        "worldsnapshot_config_not_null",
+        "NOT NULL config"
+      ],
+      [
+        "worldsnapshot",
+        "worldsnapshot_generator_version_not_null",
+        "NOT NULL generator_version"
+      ],
+      [
+        "worldsnapshot",
+        "worldsnapshot_id_not_null",
+        "NOT NULL id"
+      ],
+      [
+        "worldsnapshot",
+        "worldsnapshot_pkey",
+        "PRIMARY KEY (id)"
+      ],
+      [
+        "worldsnapshot",
+        "worldsnapshot_recipe_fingerprint_not_null",
+        "NOT NULL recipe_fingerprint"
+      ],
+      [
+        "worldsnapshot",
+        "worldsnapshot_seed_not_null",
+        "NOT NULL seed"
+      ],
+      [
+        "worldsnapshot",
+        "worldsnapshot_slots_not_null",
+        "NOT NULL slots"
+      ],
+      [
+        "worldsnapshot",
+        "worldsnapshot_snapshot_checksum_not_null",
+        "NOT NULL snapshot_checksum"
+      ],
+      [
+        "worldsnapshot",
+        "worldsnapshot_terrain_not_null",
+        "NOT NULL terrain"
+      ],
+      [
+        "worldsnapshot",
+        "worldsnapshot_world_id_not_null",
+        "NOT NULL world_id"
+      ]
+    ],
+    "indexes": [
+      [
+        "ai_settings",
+        "ai_settings_pkey",
+        "CREATE UNIQUE INDEX ai_settings_pkey ON public.ai_settings USING btree (id)"
+      ],
+      [
+        "ai_settings",
+        "ix_ai_settings_id",
+        "CREATE INDEX ix_ai_settings_id ON public.ai_settings USING btree (id)"
+      ],
+      [
+        "alembic_version",
+        "alembic_version_pkc",
+        "CREATE UNIQUE INDEX alembic_version_pkc ON public.alembic_version USING btree (version_num)"
+      ],
+      [
+        "arena_match_event",
+        "arena_match_event_pkey",
+        "CREATE UNIQUE INDEX arena_match_event_pkey ON public.arena_match_event USING btree (id)"
+      ],
+      [
+        "arena_match_event",
+        "ix_arena_match_event_kind",
+        "CREATE INDEX ix_arena_match_event_kind ON public.arena_match_event USING btree (kind)"
+      ],
+      [
+        "arena_match_event",
+        "ix_arena_match_event_room_id",
+        "CREATE INDEX ix_arena_match_event_room_id ON public.arena_match_event USING btree (room_id)"
+      ],
+      [
+        "arena_state",
+        "ix_arena_state_fighter_a_id",
+        "CREATE INDEX ix_arena_state_fighter_a_id ON public.arena_state USING btree (fighter_a_id)"
+      ],
+      [
+        "arena_state",
+        "ix_arena_state_fighter_b_id",
+        "CREATE INDEX ix_arena_state_fighter_b_id ON public.arena_state USING btree (fighter_b_id)"
+      ],
+      [
+        "arena_state",
+        "ix_arena_state_fighter_c_id",
+        "CREATE INDEX ix_arena_state_fighter_c_id ON public.arena_state USING btree (fighter_c_id)"
+      ],
+      [
+        "arena_state",
+        "ix_arena_state_fighter_d_id",
+        "CREATE INDEX ix_arena_state_fighter_d_id ON public.arena_state USING btree (fighter_d_id)"
+      ],
+      [
+        "arena_state",
+        "pk_arena_state",
+        "CREATE UNIQUE INDEX pk_arena_state ON public.arena_state USING btree (room_id)"
+      ],
+      [
+        "chatmessage",
+        "chatmessage_pkey",
+        "CREATE UNIQUE INDEX chatmessage_pkey ON public.chatmessage USING btree (id)"
+      ],
+      [
+        "chatmessage",
+        "ix_chatmessage_created_at",
+        "CREATE INDEX ix_chatmessage_created_at ON public.chatmessage USING btree (created_at)"
+      ],
+      [
+        "chatmessage",
+        "ix_chatmessage_from_dweller_id",
+        "CREATE INDEX ix_chatmessage_from_dweller_id ON public.chatmessage USING btree (from_dweller_id)"
+      ],
+      [
+        "chatmessage",
+        "ix_chatmessage_from_user_id",
+        "CREATE INDEX ix_chatmessage_from_user_id ON public.chatmessage USING btree (from_user_id)"
+      ],
+      [
+        "chatmessage",
+        "ix_chatmessage_id",
+        "CREATE INDEX ix_chatmessage_id ON public.chatmessage USING btree (id)"
+      ],
+      [
+        "chatmessage",
+        "ix_chatmessage_to_dweller_id",
+        "CREATE INDEX ix_chatmessage_to_dweller_id ON public.chatmessage USING btree (to_dweller_id)"
+      ],
+      [
+        "chatmessage",
+        "ix_chatmessage_to_user_id",
+        "CREATE INDEX ix_chatmessage_to_user_id ON public.chatmessage USING btree (to_user_id)"
+      ],
+      [
+        "chatmessage",
+        "ix_chatmessage_vault_id",
+        "CREATE INDEX ix_chatmessage_vault_id ON public.chatmessage USING btree (vault_id)"
+      ],
+      [
+        "craftingorder",
+        "craftingorder_pkey",
+        "CREATE UNIQUE INDEX craftingorder_pkey ON public.craftingorder USING btree (id)"
+      ],
+      [
+        "craftingorder",
+        "ix_craftingorder_id",
+        "CREATE INDEX ix_craftingorder_id ON public.craftingorder USING btree (id)"
+      ],
+      [
+        "craftingorder",
+        "ix_craftingorder_room_id",
+        "CREATE INDEX ix_craftingorder_room_id ON public.craftingorder USING btree (room_id)"
+      ],
+      [
+        "craftingorder",
+        "ix_craftingorder_status",
+        "CREATE INDEX ix_craftingorder_status ON public.craftingorder USING btree (status)"
+      ],
+      [
+        "craftingorder",
+        "ix_craftingorder_vault_id",
+        "CREATE INDEX ix_craftingorder_vault_id ON public.craftingorder USING btree (vault_id)"
+      ],
+      [
+        "dweller",
+        "dweller_pkey",
+        "CREATE UNIQUE INDEX dweller_pkey ON public.dweller USING btree (id)"
+      ],
+      [
+        "dweller",
+        "ix_dweller_availability",
+        "CREATE INDEX ix_dweller_availability ON public.dweller USING btree (availability)"
+      ],
+      [
+        "dweller",
+        "ix_dweller_first_name",
+        "CREATE INDEX ix_dweller_first_name ON public.dweller USING btree (first_name)"
+      ],
+      [
+        "dweller",
+        "ix_dweller_id",
+        "CREATE INDEX ix_dweller_id ON public.dweller USING btree (id)"
+      ],
+      [
+        "dweller",
+        "ix_dweller_is_dead",
+        "CREATE INDEX ix_dweller_is_dead ON public.dweller USING btree (is_dead)"
+      ],
+      [
+        "dweller",
+        "ix_dweller_is_deleted",
+        "CREATE INDEX ix_dweller_is_deleted ON public.dweller USING btree (is_deleted)"
+      ],
+      [
+        "dweller",
+        "ix_dweller_is_permanently_dead",
+        "CREATE INDEX ix_dweller_is_permanently_dead ON public.dweller USING btree (is_permanently_dead)"
+      ],
+      [
+        "dweller",
+        "ix_dweller_last_name",
+        "CREATE INDEX ix_dweller_last_name ON public.dweller USING btree (last_name)"
+      ],
+      [
+        "dweller",
+        "ix_dweller_lifecycle",
+        "CREATE INDEX ix_dweller_lifecycle ON public.dweller USING btree (lifecycle)"
+      ],
+      [
+        "dweller",
+        "ix_dweller_room_id",
+        "CREATE INDEX ix_dweller_room_id ON public.dweller USING btree (room_id)"
+      ],
+      [
+        "dweller",
+        "ix_dweller_status",
+        "CREATE INDEX ix_dweller_status ON public.dweller USING btree (status)"
+      ],
+      [
+        "dweller",
+        "ix_dweller_vault_id",
+        "CREATE INDEX ix_dweller_vault_id ON public.dweller USING btree (vault_id)"
+      ],
+      [
+        "dweller",
+        "uq_dweller_active_apprentice_room",
+        "CREATE UNIQUE INDEX uq_dweller_active_apprentice_room ON public.dweller USING btree (room_id) WHERE ((apprentice_started_at IS NOT NULL) AND (is_deleted = false))"
+      ],
+      [
+        "dwellerlocation",
+        "dwellerlocation_pkey",
+        "CREATE UNIQUE INDEX dwellerlocation_pkey ON public.dwellerlocation USING btree (id)"
+      ],
+      [
+        "dwellerlocation",
+        "ix_dwellerlocation_dweller_id",
+        "CREATE INDEX ix_dwellerlocation_dweller_id ON public.dwellerlocation USING btree (dweller_id)"
+      ],
+      [
+        "dwellerlocation",
+        "ix_dwellerlocation_id",
+        "CREATE INDEX ix_dwellerlocation_id ON public.dwellerlocation USING btree (id)"
+      ],
+      [
+        "dwellerlocation",
+        "ix_dwellerlocation_location_id",
+        "CREATE INDEX ix_dwellerlocation_location_id ON public.dwellerlocation USING btree (location_id)"
+      ],
+      [
+        "dwellerlocation",
+        "uq_dweller_location_relation",
+        "CREATE UNIQUE INDEX uq_dweller_location_relation ON public.dwellerlocation USING btree (dweller_id, location_id, relation)"
+      ],
+      [
+        "expeditionrun",
+        "expeditionrun_pkey",
+        "CREATE UNIQUE INDEX expeditionrun_pkey ON public.expeditionrun USING btree (id)"
+      ],
+      [
+        "expeditionrun",
+        "ix_expeditionrun_exploration_id",
+        "CREATE INDEX ix_expeditionrun_exploration_id ON public.expeditionrun USING btree (exploration_id)"
+      ],
+      [
+        "expeditionrun",
+        "ix_expeditionrun_id",
+        "CREATE INDEX ix_expeditionrun_id ON public.expeditionrun USING btree (id)"
+      ],
+      [
+        "expeditionrun",
+        "ix_expeditionrun_site_id",
+        "CREATE INDEX ix_expeditionrun_site_id ON public.expeditionrun USING btree (site_id)"
+      ],
+      [
+        "expeditionrun",
+        "ix_expeditionrun_status",
+        "CREATE INDEX ix_expeditionrun_status ON public.expeditionrun USING btree (status)"
+      ],
+      [
+        "expeditionrun",
+        "ix_expeditionrun_vault_id",
+        "CREATE INDEX ix_expeditionrun_vault_id ON public.expeditionrun USING btree (vault_id)"
+      ],
+      [
+        "expeditionrun",
+        "uq_expeditionrun_open_exploration",
+        "CREATE UNIQUE INDEX uq_expeditionrun_open_exploration ON public.expeditionrun USING btree (exploration_id) WHERE (status = 'IN_ROOM'::expeditionrunstatus)"
+      ],
+      [
+        "expeditionrun",
+        "uq_expeditionrun_open_vault_site",
+        "CREATE UNIQUE INDEX uq_expeditionrun_open_vault_site ON public.expeditionrun USING btree (vault_id, site_id) WHERE (status = 'IN_ROOM'::expeditionrunstatus)"
+      ],
+      [
+        "exploration",
+        "exploration_pkey",
+        "CREATE UNIQUE INDEX exploration_pkey ON public.exploration USING btree (id)"
+      ],
+      [
+        "exploration",
+        "ix_exploration_dweller_id",
+        "CREATE INDEX ix_exploration_dweller_id ON public.exploration USING btree (dweller_id)"
+      ],
+      [
+        "exploration",
+        "ix_exploration_id",
+        "CREATE INDEX ix_exploration_id ON public.exploration USING btree (id)"
+      ],
+      [
+        "exploration",
+        "ix_exploration_status",
+        "CREATE INDEX ix_exploration_status ON public.exploration USING btree (status)"
+      ],
+      [
+        "exploration",
+        "ix_exploration_team_id",
+        "CREATE INDEX ix_exploration_team_id ON public.exploration USING btree (team_id)"
+      ],
+      [
+        "exploration",
+        "ix_exploration_vault_id",
+        "CREATE INDEX ix_exploration_vault_id ON public.exploration USING btree (vault_id)"
+      ],
+      [
+        "gamestate",
+        "gamestate_pkey",
+        "CREATE UNIQUE INDEX gamestate_pkey ON public.gamestate USING btree (id)"
+      ],
+      [
+        "gamestate",
+        "ix_gamestate_id",
+        "CREATE INDEX ix_gamestate_id ON public.gamestate USING btree (id)"
+      ],
+      [
+        "gamestate",
+        "ix_gamestate_vault_id",
+        "CREATE UNIQUE INDEX ix_gamestate_vault_id ON public.gamestate USING btree (vault_id)"
+      ],
+      [
+        "incident",
+        "incident_pkey",
+        "CREATE UNIQUE INDEX incident_pkey ON public.incident USING btree (id)"
+      ],
+      [
+        "incident",
+        "ix_incident_id",
+        "CREATE INDEX ix_incident_id ON public.incident USING btree (id)"
+      ],
+      [
+        "incident",
+        "ix_incident_room_id",
+        "CREATE INDEX ix_incident_room_id ON public.incident USING btree (room_id)"
+      ],
+      [
+        "incident",
+        "ix_incident_status",
+        "CREATE INDEX ix_incident_status ON public.incident USING btree (status)"
+      ],
+      [
+        "incident",
+        "ix_incident_type",
+        "CREATE INDEX ix_incident_type ON public.incident USING btree (type)"
+      ],
+      [
+        "incident",
+        "ix_incident_vault_id",
+        "CREATE INDEX ix_incident_vault_id ON public.incident USING btree (vault_id)"
+      ],
+      [
+        "incident_event",
+        "incident_event_pkey",
+        "CREATE UNIQUE INDEX incident_event_pkey ON public.incident_event USING btree (id)"
+      ],
+      [
+        "incident_event",
+        "ix_incident_event_incident_id",
+        "CREATE INDEX ix_incident_event_incident_id ON public.incident_event USING btree (incident_id)"
+      ],
+      [
+        "incident_event",
+        "ix_incident_event_kind",
+        "CREATE INDEX ix_incident_event_kind ON public.incident_event USING btree (kind)"
+      ],
+      [
+        "incident_participant",
+        "incident_participant_pkey",
+        "CREATE UNIQUE INDEX incident_participant_pkey ON public.incident_participant USING btree (id)"
+      ],
+      [
+        "incident_participant",
+        "ix_incident_participant_dweller_id",
+        "CREATE INDEX ix_incident_participant_dweller_id ON public.incident_participant USING btree (dweller_id)"
+      ],
+      [
+        "incident_participant",
+        "ix_incident_participant_id",
+        "CREATE INDEX ix_incident_participant_id ON public.incident_participant USING btree (id)"
+      ],
+      [
+        "incident_participant",
+        "ix_incident_participant_incident_id",
+        "CREATE INDEX ix_incident_participant_incident_id ON public.incident_participant USING btree (incident_id)"
+      ],
+      [
+        "incident_participant",
+        "uq_incident_participant",
+        "CREATE UNIQUE INDEX uq_incident_participant ON public.incident_participant USING btree (incident_id, dweller_id)"
+      ],
+      [
+        "item",
+        "item_pkey",
+        "CREATE UNIQUE INDEX item_pkey ON public.item USING btree (id)"
+      ],
+      [
+        "item",
+        "ix_item_id",
+        "CREATE INDEX ix_item_id ON public.item USING btree (id)"
+      ],
+      [
+        "item",
+        "ix_item_name",
+        "CREATE INDEX ix_item_name ON public.item USING btree (name)"
+      ],
+      [
+        "junk",
+        "ix_junk_id",
+        "CREATE INDEX ix_junk_id ON public.junk USING btree (id)"
+      ],
+      [
+        "junk",
+        "ix_junk_name",
+        "CREATE INDEX ix_junk_name ON public.junk USING btree (name)"
+      ],
+      [
+        "junk",
+        "junk_pkey",
+        "CREATE UNIQUE INDEX junk_pkey ON public.junk USING btree (id)"
+      ],
+      [
+        "llminteraction",
+        "ix_llminteraction_id",
+        "CREATE INDEX ix_llminteraction_id ON public.llminteraction USING btree (id)"
+      ],
+      [
+        "llminteraction",
+        "ix_llminteraction_user_id",
+        "CREATE INDEX ix_llminteraction_user_id ON public.llminteraction USING btree (user_id)"
+      ],
+      [
+        "llminteraction",
+        "llminteraction_pkey",
+        "CREATE UNIQUE INDEX llminteraction_pkey ON public.llminteraction USING btree (id)"
+      ],
+      [
+        "notification",
+        "ix_notification_created_at",
+        "CREATE INDEX ix_notification_created_at ON public.notification USING btree (created_at)"
+      ],
+      [
+        "notification",
+        "ix_notification_from_dweller_id",
+        "CREATE INDEX ix_notification_from_dweller_id ON public.notification USING btree (from_dweller_id)"
+      ],
+      [
+        "notification",
+        "ix_notification_id",
+        "CREATE INDEX ix_notification_id ON public.notification USING btree (id)"
+      ],
+      [
+        "notification",
+        "ix_notification_is_dismissed",
+        "CREATE INDEX ix_notification_is_dismissed ON public.notification USING btree (is_dismissed)"
+      ],
+      [
+        "notification",
+        "ix_notification_is_read",
+        "CREATE INDEX ix_notification_is_read ON public.notification USING btree (is_read)"
+      ],
+      [
+        "notification",
+        "ix_notification_notification_type",
+        "CREATE INDEX ix_notification_notification_type ON public.notification USING btree (notification_type)"
+      ],
+      [
+        "notification",
+        "ix_notification_priority",
+        "CREATE INDEX ix_notification_priority ON public.notification USING btree (priority)"
+      ],
+      [
+        "notification",
+        "ix_notification_user_id",
+        "CREATE INDEX ix_notification_user_id ON public.notification USING btree (user_id)"
+      ],
+      [
+        "notification",
+        "ix_notification_vault_id",
+        "CREATE INDEX ix_notification_vault_id ON public.notification USING btree (vault_id)"
+      ],
+      [
+        "notification",
+        "notification_pkey",
+        "CREATE UNIQUE INDEX notification_pkey ON public.notification USING btree (id)"
+      ],
+      [
+        "objective",
+        "ix_objective_assignable",
+        "CREATE INDEX ix_objective_assignable ON public.objective USING btree (assignable)"
+      ],
+      [
+        "objective",
+        "ix_objective_category",
+        "CREATE INDEX ix_objective_category ON public.objective USING btree (category)"
+      ],
+      [
+        "objective",
+        "ix_objective_challenge",
+        "CREATE INDEX ix_objective_challenge ON public.objective USING btree (challenge)"
+      ],
+      [
+        "objective",
+        "ix_objective_id",
+        "CREATE INDEX ix_objective_id ON public.objective USING btree (id)"
+      ],
+      [
+        "objective",
+        "ix_objective_objective_type",
+        "CREATE INDEX ix_objective_objective_type ON public.objective USING btree (objective_type)"
+      ],
+      [
+        "objective",
+        "ix_objective_sequence",
+        "CREATE INDEX ix_objective_sequence ON public.objective USING btree (sequence)"
+      ],
+      [
+        "objective",
+        "ix_objective_template_key",
+        "CREATE UNIQUE INDEX ix_objective_template_key ON public.objective USING btree (template_key)"
+      ],
+      [
+        "objective",
+        "ix_objective_track_key",
+        "CREATE INDEX ix_objective_track_key ON public.objective USING btree (track_key)"
+      ],
+      [
+        "objective",
+        "ix_objective_track_stage",
+        "CREATE UNIQUE INDEX ix_objective_track_stage ON public.objective USING btree (track_key, sequence)"
+      ],
+      [
+        "objective",
+        "objective_pkey",
+        "CREATE UNIQUE INDEX objective_pkey ON public.objective USING btree (id)"
+      ],
+      [
+        "outfit",
+        "ix_outfit_dweller_id",
+        "CREATE INDEX ix_outfit_dweller_id ON public.outfit USING btree (dweller_id)"
+      ],
+      [
+        "outfit",
+        "ix_outfit_exploration_id",
+        "CREATE INDEX ix_outfit_exploration_id ON public.outfit USING btree (exploration_id)"
+      ],
+      [
+        "outfit",
+        "ix_outfit_id",
+        "CREATE INDEX ix_outfit_id ON public.outfit USING btree (id)"
+      ],
+      [
+        "outfit",
+        "ix_outfit_name",
+        "CREATE INDEX ix_outfit_name ON public.outfit USING btree (name)"
+      ],
+      [
+        "outfit",
+        "outfit_pkey",
+        "CREATE UNIQUE INDEX outfit_pkey ON public.outfit USING btree (id)"
+      ],
+      [
+        "pet",
+        "ix_pet_dweller_id",
+        "CREATE INDEX ix_pet_dweller_id ON public.pet USING btree (dweller_id)"
+      ],
+      [
+        "pet",
+        "ix_pet_id",
+        "CREATE INDEX ix_pet_id ON public.pet USING btree (id)"
+      ],
+      [
+        "pet",
+        "ix_pet_legacy_item_id",
+        "CREATE UNIQUE INDEX ix_pet_legacy_item_id ON public.pet USING btree (legacy_item_id)"
+      ],
+      [
+        "pet",
+        "ix_pet_name",
+        "CREATE INDEX ix_pet_name ON public.pet USING btree (name)"
+      ],
+      [
+        "pet",
+        "ix_pet_storage_id",
+        "CREATE INDEX ix_pet_storage_id ON public.pet USING btree (storage_id)"
+      ],
+      [
+        "pet",
+        "pet_pkey",
+        "CREATE UNIQUE INDEX pet_pkey ON public.pet USING btree (id)"
+      ],
+      [
+        "pregnancy",
+        "ix_pregnancy_father_id",
+        "CREATE INDEX ix_pregnancy_father_id ON public.pregnancy USING btree (father_id)"
+      ],
+      [
+        "pregnancy",
+        "ix_pregnancy_id",
+        "CREATE INDEX ix_pregnancy_id ON public.pregnancy USING btree (id)"
+      ],
+      [
+        "pregnancy",
+        "ix_pregnancy_mother_id",
+        "CREATE INDEX ix_pregnancy_mother_id ON public.pregnancy USING btree (mother_id)"
+      ],
+      [
+        "pregnancy",
+        "pregnancy_pkey",
+        "CREATE UNIQUE INDEX pregnancy_pkey ON public.pregnancy USING btree (id)"
+      ],
+      [
+        "prompt",
+        "ix_prompt_active_name",
+        "CREATE UNIQUE INDEX ix_prompt_active_name ON public.prompt USING btree (prompt_name) WHERE (is_active = true)"
+      ],
+      [
+        "prompt",
+        "ix_prompt_entity_id",
+        "CREATE INDEX ix_prompt_entity_id ON public.prompt USING btree (entity_id)"
+      ],
+      [
+        "prompt",
+        "ix_prompt_id",
+        "CREATE INDEX ix_prompt_id ON public.prompt USING btree (id)"
+      ],
+      [
+        "prompt",
+        "ix_prompt_is_active",
+        "CREATE INDEX ix_prompt_is_active ON public.prompt USING btree (is_active)"
+      ],
+      [
+        "prompt",
+        "ix_prompt_prompt_name",
+        "CREATE INDEX ix_prompt_prompt_name ON public.prompt USING btree (prompt_name)"
+      ],
+      [
+        "prompt",
+        "prompt_pkey",
+        "CREATE UNIQUE INDEX prompt_pkey ON public.prompt USING btree (id)"
+      ],
+      [
+        "prompt",
+        "uq_prompt_name_version",
+        "CREATE UNIQUE INDEX uq_prompt_name_version ON public.prompt USING btree (prompt_name, version)"
+      ],
+      [
+        "quest",
+        "ix_quest_chain_id",
+        "CREATE INDEX ix_quest_chain_id ON public.quest USING btree (chain_id)"
+      ],
+      [
+        "quest",
+        "ix_quest_id",
+        "CREATE INDEX ix_quest_id ON public.quest USING btree (id)"
+      ],
+      [
+        "quest",
+        "ix_quest_quest_category",
+        "CREATE INDEX ix_quest_quest_category ON public.quest USING btree (quest_category)"
+      ],
+      [
+        "quest",
+        "ix_quest_quest_type",
+        "CREATE INDEX ix_quest_quest_type ON public.quest USING btree (quest_type)"
+      ],
+      [
+        "quest",
+        "ix_quest_title",
+        "CREATE INDEX ix_quest_title ON public.quest USING btree (title)"
+      ],
+      [
+        "quest",
+        "quest_pkey",
+        "CREATE UNIQUE INDEX quest_pkey ON public.quest USING btree (id)"
+      ],
+      [
+        "questrequirement",
+        "ix_questrequirement_id",
+        "CREATE INDEX ix_questrequirement_id ON public.questrequirement USING btree (id)"
+      ],
+      [
+        "questrequirement",
+        "ix_questrequirement_quest_id",
+        "CREATE INDEX ix_questrequirement_quest_id ON public.questrequirement USING btree (quest_id)"
+      ],
+      [
+        "questrequirement",
+        "ix_questrequirement_requirement_type",
+        "CREATE INDEX ix_questrequirement_requirement_type ON public.questrequirement USING btree (requirement_type)"
+      ],
+      [
+        "questrequirement",
+        "questrequirement_pkey",
+        "CREATE UNIQUE INDEX questrequirement_pkey ON public.questrequirement USING btree (id)"
+      ],
+      [
+        "questreward",
+        "ix_questreward_id",
+        "CREATE INDEX ix_questreward_id ON public.questreward USING btree (id)"
+      ],
+      [
+        "questreward",
+        "ix_questreward_quest_id",
+        "CREATE INDEX ix_questreward_quest_id ON public.questreward USING btree (quest_id)"
+      ],
+      [
+        "questreward",
+        "ix_questreward_reward_type",
+        "CREATE INDEX ix_questreward_reward_type ON public.questreward USING btree (reward_type)"
+      ],
+      [
+        "questreward",
+        "questreward_pkey",
+        "CREATE UNIQUE INDEX questreward_pkey ON public.questreward USING btree (id)"
+      ],
+      [
+        "relationship",
+        "ix_relationship_dweller_1_id",
+        "CREATE INDEX ix_relationship_dweller_1_id ON public.relationship USING btree (dweller_1_id)"
+      ],
+      [
+        "relationship",
+        "ix_relationship_dweller_2_id",
+        "CREATE INDEX ix_relationship_dweller_2_id ON public.relationship USING btree (dweller_2_id)"
+      ],
+      [
+        "relationship",
+        "ix_relationship_id",
+        "CREATE INDEX ix_relationship_id ON public.relationship USING btree (id)"
+      ],
+      [
+        "relationship",
+        "relationship_pkey",
+        "CREATE UNIQUE INDEX relationship_pkey ON public.relationship USING btree (id)"
+      ],
+      [
+        "room",
+        "ix_room_id",
+        "CREATE INDEX ix_room_id ON public.room USING btree (id)"
+      ],
+      [
+        "room",
+        "ix_room_name",
+        "CREATE INDEX ix_room_name ON public.room USING btree (name)"
+      ],
+      [
+        "room",
+        "ix_room_vault_id",
+        "CREATE INDEX ix_room_vault_id ON public.room USING btree (vault_id)"
+      ],
+      [
+        "room",
+        "room_pkey",
+        "CREATE UNIQUE INDEX room_pkey ON public.room USING btree (id)"
+      ],
+      [
+        "storage",
+        "ix_storage_id",
+        "CREATE INDEX ix_storage_id ON public.storage USING btree (id)"
+      ],
+      [
+        "storage",
+        "ix_storage_vault_id",
+        "CREATE INDEX ix_storage_vault_id ON public.storage USING btree (vault_id)"
+      ],
+      [
+        "storage",
+        "storage_pkey",
+        "CREATE UNIQUE INDEX storage_pkey ON public.storage USING btree (id)"
+      ],
+      [
+        "team",
+        "ix_team_exploration_id",
+        "CREATE INDEX ix_team_exploration_id ON public.team USING btree (exploration_id)"
+      ],
+      [
+        "team",
+        "ix_team_hazard_team",
+        "CREATE INDEX ix_team_hazard_team ON public.team USING btree (hazard_team)"
+      ],
+      [
+        "team",
+        "ix_team_id",
+        "CREATE INDEX ix_team_id ON public.team USING btree (id)"
+      ],
+      [
+        "team",
+        "ix_team_incident_id",
+        "CREATE INDEX ix_team_incident_id ON public.team USING btree (incident_id)"
+      ],
+      [
+        "team",
+        "ix_team_quest_id",
+        "CREATE INDEX ix_team_quest_id ON public.team USING btree (quest_id)"
+      ],
+      [
+        "team",
+        "ix_team_vault_id",
+        "CREATE INDEX ix_team_vault_id ON public.team USING btree (vault_id)"
+      ],
+      [
+        "team",
+        "team_pkey",
+        "CREATE UNIQUE INDEX team_pkey ON public.team USING btree (id)"
+      ],
+      [
+        "team",
+        "uq_team_vault_exploration",
+        "CREATE UNIQUE INDEX uq_team_vault_exploration ON public.team USING btree (vault_id, exploration_id)"
+      ],
+      [
+        "team",
+        "uq_team_vault_hazard",
+        "CREATE UNIQUE INDEX uq_team_vault_hazard ON public.team USING btree (vault_id, hazard_team)"
+      ],
+      [
+        "team",
+        "uq_team_vault_incident",
+        "CREATE UNIQUE INDEX uq_team_vault_incident ON public.team USING btree (vault_id, incident_id)"
+      ],
+      [
+        "team",
+        "uq_team_vault_quest",
+        "CREATE UNIQUE INDEX uq_team_vault_quest ON public.team USING btree (vault_id, quest_id)"
+      ],
+      [
+        "team_member",
+        "ix_team_member_dweller_id",
+        "CREATE INDEX ix_team_member_dweller_id ON public.team_member USING btree (dweller_id)"
+      ],
+      [
+        "team_member",
+        "ix_team_member_id",
+        "CREATE INDEX ix_team_member_id ON public.team_member USING btree (id)"
+      ],
+      [
+        "team_member",
+        "ix_team_member_team_id",
+        "CREATE INDEX ix_team_member_team_id ON public.team_member USING btree (team_id)"
+      ],
+      [
+        "team_member",
+        "team_member_pkey",
+        "CREATE UNIQUE INDEX team_member_pkey ON public.team_member USING btree (id)"
+      ],
+      [
+        "team_member",
+        "uq_team_member_dweller",
+        "CREATE UNIQUE INDEX uq_team_member_dweller ON public.team_member USING btree (team_id, dweller_id)"
+      ],
+      [
+        "team_member",
+        "uq_team_member_slot",
+        "CREATE UNIQUE INDEX uq_team_member_slot ON public.team_member USING btree (team_id, slot_number)"
+      ],
+      [
+        "training",
+        "ix_training_dweller_id",
+        "CREATE INDEX ix_training_dweller_id ON public.training USING btree (dweller_id)"
+      ],
+      [
+        "training",
+        "ix_training_id",
+        "CREATE INDEX ix_training_id ON public.training USING btree (id)"
+      ],
+      [
+        "training",
+        "ix_training_room_id",
+        "CREATE INDEX ix_training_room_id ON public.training USING btree (room_id)"
+      ],
+      [
+        "training",
+        "ix_training_status",
+        "CREATE INDEX ix_training_status ON public.training USING btree (status)"
+      ],
+      [
+        "training",
+        "ix_training_vault_id",
+        "CREATE INDEX ix_training_vault_id ON public.training USING btree (vault_id)"
+      ],
+      [
+        "training",
+        "training_pkey",
+        "CREATE UNIQUE INDEX training_pkey ON public.training USING btree (id)"
+      ],
+      [
+        "user",
+        "ix_user_email",
+        "CREATE UNIQUE INDEX ix_user_email ON public.\"user\" USING btree (email)"
+      ],
+      [
+        "user",
+        "ix_user_email_verification_token",
+        "CREATE INDEX ix_user_email_verification_token ON public.\"user\" USING btree (email_verification_token)"
+      ],
+      [
+        "user",
+        "ix_user_id",
+        "CREATE INDEX ix_user_id ON public.\"user\" USING btree (id)"
+      ],
+      [
+        "user",
+        "ix_user_is_deleted",
+        "CREATE INDEX ix_user_is_deleted ON public.\"user\" USING btree (is_deleted)"
+      ],
+      [
+        "user",
+        "ix_user_password_reset_token",
+        "CREATE INDEX ix_user_password_reset_token ON public.\"user\" USING btree (password_reset_token)"
+      ],
+      [
+        "user",
+        "ix_user_username",
+        "CREATE UNIQUE INDEX ix_user_username ON public.\"user\" USING btree (username)"
+      ],
+      [
+        "user",
+        "user_pkey",
+        "CREATE UNIQUE INDEX user_pkey ON public.\"user\" USING btree (id)"
+      ],
+      [
+        "userprofile",
+        "ix_userprofile_id",
+        "CREATE INDEX ix_userprofile_id ON public.userprofile USING btree (id)"
+      ],
+      [
+        "userprofile",
+        "ix_userprofile_user_id",
+        "CREATE UNIQUE INDEX ix_userprofile_user_id ON public.userprofile USING btree (user_id)"
+      ],
+      [
+        "userprofile",
+        "userprofile_pkey",
+        "CREATE UNIQUE INDEX userprofile_pkey ON public.userprofile USING btree (id)"
+      ],
+      [
+        "vault",
+        "ix_vault_id",
+        "CREATE INDEX ix_vault_id ON public.vault USING btree (id)"
+      ],
+      [
+        "vault",
+        "ix_vault_is_deleted",
+        "CREATE INDEX ix_vault_is_deleted ON public.vault USING btree (is_deleted)"
+      ],
+      [
+        "vault",
+        "ix_vault_number",
+        "CREATE INDEX ix_vault_number ON public.vault USING btree (number)"
+      ],
+      [
+        "vault",
+        "ix_vault_user_id",
+        "CREATE INDEX ix_vault_user_id ON public.vault USING btree (user_id)"
+      ],
+      [
+        "vault",
+        "vault_pkey",
+        "CREATE UNIQUE INDEX vault_pkey ON public.vault USING btree (id)"
+      ],
+      [
+        "vault_recipe_unlock",
+        "vault_recipe_unlock_pkey",
+        "CREATE UNIQUE INDEX vault_recipe_unlock_pkey ON public.vault_recipe_unlock USING btree (vault_id, item_type, recipe_name)"
+      ],
+      [
+        "vault_theme",
+        "vault_theme_pkey",
+        "CREATE UNIQUE INDEX vault_theme_pkey ON public.vault_theme USING btree (vault_id, style)"
+      ],
+      [
+        "vaultlocationstate",
+        "ix_vaultlocationstate_id",
+        "CREATE INDEX ix_vaultlocationstate_id ON public.vaultlocationstate USING btree (id)"
+      ],
+      [
+        "vaultlocationstate",
+        "ix_vaultlocationstate_location_id",
+        "CREATE INDEX ix_vaultlocationstate_location_id ON public.vaultlocationstate USING btree (location_id)"
+      ],
+      [
+        "vaultlocationstate",
+        "ix_vaultlocationstate_vault_id",
+        "CREATE INDEX ix_vaultlocationstate_vault_id ON public.vaultlocationstate USING btree (vault_id)"
+      ],
+      [
+        "vaultlocationstate",
+        "uq_vault_location_state",
+        "CREATE UNIQUE INDEX uq_vault_location_state ON public.vaultlocationstate USING btree (vault_id, location_id)"
+      ],
+      [
+        "vaultlocationstate",
+        "vaultlocationstate_pkey",
+        "CREATE UNIQUE INDEX vaultlocationstate_pkey ON public.vaultlocationstate USING btree (id)"
+      ],
+      [
+        "vaultobjectiveprogresslink",
+        "vaultobjectiveprogresslink_pkey",
+        "CREATE UNIQUE INDEX vaultobjectiveprogresslink_pkey ON public.vaultobjectiveprogresslink USING btree (vault_id, objective_id)"
+      ],
+      [
+        "vaultquestcompletionlink",
+        "vaultquestcompletionlink_pkey",
+        "CREATE UNIQUE INDEX vaultquestcompletionlink_pkey ON public.vaultquestcompletionlink USING btree (vault_id, quest_id)"
+      ],
+      [
+        "vaultslot",
+        "ix_vaultslot_id",
+        "CREATE INDEX ix_vaultslot_id ON public.vaultslot USING btree (id)"
+      ],
+      [
+        "vaultslot",
+        "uq_vault_slot_index",
+        "CREATE UNIQUE INDEX uq_vault_slot_index ON public.vaultslot USING btree (slot_index)"
+      ],
+      [
+        "vaultslot",
+        "uq_vault_slot_vault",
+        "CREATE UNIQUE INDEX uq_vault_slot_vault ON public.vaultslot USING btree (vault_id)"
+      ],
+      [
+        "vaultslot",
+        "vaultslot_pkey",
+        "CREATE UNIQUE INDEX vaultslot_pkey ON public.vaultslot USING btree (id)"
+      ],
+      [
+        "weapon",
+        "ix_weapon_dweller_id",
+        "CREATE INDEX ix_weapon_dweller_id ON public.weapon USING btree (dweller_id)"
+      ],
+      [
+        "weapon",
+        "ix_weapon_exploration_id",
+        "CREATE INDEX ix_weapon_exploration_id ON public.weapon USING btree (exploration_id)"
+      ],
+      [
+        "weapon",
+        "ix_weapon_id",
+        "CREATE INDEX ix_weapon_id ON public.weapon USING btree (id)"
+      ],
+      [
+        "weapon",
+        "ix_weapon_name",
+        "CREATE INDEX ix_weapon_name ON public.weapon USING btree (name)"
+      ],
+      [
+        "weapon",
+        "weapon_pkey",
+        "CREATE UNIQUE INDEX weapon_pkey ON public.weapon USING btree (id)"
+      ],
+      [
+        "worldlocation",
+        "ix_worldlocation_group_key",
+        "CREATE INDEX ix_worldlocation_group_key ON public.worldlocation USING btree (group_key)"
+      ],
+      [
+        "worldlocation",
+        "ix_worldlocation_id",
+        "CREATE INDEX ix_worldlocation_id ON public.worldlocation USING btree (id)"
+      ],
+      [
+        "worldlocation",
+        "ix_worldlocation_normalized_name",
+        "CREATE UNIQUE INDEX ix_worldlocation_normalized_name ON public.worldlocation USING btree (normalized_name)"
+      ],
+      [
+        "worldlocation",
+        "uq_world_location_vault_number",
+        "CREATE UNIQUE INDEX uq_world_location_vault_number ON public.worldlocation USING btree (vault_number) WHERE (kind = 'VAULT'::placekind)"
+      ],
+      [
+        "worldlocation",
+        "worldlocation_pkey",
+        "CREATE UNIQUE INDEX worldlocation_pkey ON public.worldlocation USING btree (id)"
+      ],
+      [
+        "worldsnapshot",
+        "ix_worldsnapshot_id",
+        "CREATE INDEX ix_worldsnapshot_id ON public.worldsnapshot USING btree (id)"
+      ],
+      [
+        "worldsnapshot",
+        "ix_worldsnapshot_recipe_fingerprint",
+        "CREATE INDEX ix_worldsnapshot_recipe_fingerprint ON public.worldsnapshot USING btree (recipe_fingerprint)"
+      ],
+      [
+        "worldsnapshot",
+        "ix_worldsnapshot_world_id",
+        "CREATE INDEX ix_worldsnapshot_world_id ON public.worldsnapshot USING btree (world_id)"
+      ],
+      [
+        "worldsnapshot",
+        "uq_worldsnapshot_world_version",
+        "CREATE UNIQUE INDEX uq_worldsnapshot_world_version ON public.worldsnapshot USING btree (world_id, generator_version)"
+      ],
+      [
+        "worldsnapshot",
+        "worldsnapshot_pkey",
+        "CREATE UNIQUE INDEX worldsnapshot_pkey ON public.worldsnapshot USING btree (id)"
+      ]
+    ],
+    "enums": [
+      [
+        "agegroupenum",
+        "CHILD"
+      ],
+      [
+        "agegroupenum",
+        "TEEN"
+      ],
+      [
+        "agegroupenum",
+        "ADULT"
+      ],
+      [
+        "agegroupenum",
+        "ELDER"
+      ],
+      [
+        "arenamode",
+        "DUEL"
+      ],
+      [
+        "arenamode",
+        "BRAWL"
+      ],
+      [
+        "arenamode",
+        "HUNT"
+      ],
+      [
+        "availabilityenum",
+        "VAULT"
+      ],
+      [
+        "availabilityenum",
+        "DEPARTURE"
+      ],
+      [
+        "availabilityenum",
+        "POOL"
+      ],
+      [
+        "availabilityenum",
+        "MARKET"
+      ],
+      [
+        "availabilityenum",
+        "ARCHIVE"
+      ],
+      [
+        "craftingorderstatus",
+        "ACTIVE"
+      ],
+      [
+        "craftingorderstatus",
+        "COMPLETED"
+      ],
+      [
+        "craftingorderstatus",
+        "COLLECTED"
+      ],
+      [
+        "craftingorderstatus",
+        "CANCELLED"
+      ],
+      [
+        "deathcauseenum",
+        "HEALTH"
+      ],
+      [
+        "deathcauseenum",
+        "RADIATION"
+      ],
+      [
+        "deathcauseenum",
+        "INCIDENT"
+      ],
+      [
+        "deathcauseenum",
+        "EXPLORATION"
+      ],
+      [
+        "deathcauseenum",
+        "COMBAT"
+      ],
+      [
+        "deathcauseenum",
+        "EXILE"
+      ],
+      [
+        "dwellerlocationrelationenum",
+        "ORIGIN"
+      ],
+      [
+        "dwellerlocationrelationenum",
+        "VISITED"
+      ],
+      [
+        "dwellerstatusenum",
+        "IDLE"
+      ],
+      [
+        "dwellerstatusenum",
+        "WORKING"
+      ],
+      [
+        "dwellerstatusenum",
+        "EXPLORING"
+      ],
+      [
+        "dwellerstatusenum",
+        "TRAINING"
+      ],
+      [
+        "dwellerstatusenum",
+        "RESTING"
+      ],
+      [
+        "dwellerstatusenum",
+        "DEAD"
+      ],
+      [
+        "dwellerstatusenum",
+        "QUESTING"
+      ],
+      [
+        "dwellerstatusenum",
+        "FIGHTING"
+      ],
+      [
+        "expeditionrunstatus",
+        "IN_ROOM"
+      ],
+      [
+        "expeditionrunstatus",
+        "RETREATED"
+      ],
+      [
+        "expeditionrunstatus",
+        "CLEARED"
+      ],
+      [
+        "expeditionrunstatus",
+        "DIED"
+      ],
+      [
+        "explorationstatus",
+        "ACTIVE"
+      ],
+      [
+        "explorationstatus",
+        "COMPLETED"
+      ],
+      [
+        "explorationstatus",
+        "RECALLED"
+      ],
+      [
+        "explorationstatus",
+        "RETURNING"
+      ],
+      [
+        "genderenum",
+        "MALE"
+      ],
+      [
+        "genderenum",
+        "FEMALE"
+      ],
+      [
+        "hazardteam",
+        "FIRE"
+      ],
+      [
+        "hazardteam",
+        "RADIATION"
+      ],
+      [
+        "incidentstatus",
+        "ACTIVE"
+      ],
+      [
+        "incidentstatus",
+        "SPREADING"
+      ],
+      [
+        "incidentstatus",
+        "RESOLVED"
+      ],
+      [
+        "incidentstatus",
+        "FAILED"
+      ],
+      [
+        "incidenttype",
+        "RAIDER_ATTACK"
+      ],
+      [
+        "incidenttype",
+        "RADROACH_INFESTATION"
+      ],
+      [
+        "incidenttype",
+        "MOLE_RAT_ATTACK"
+      ],
+      [
+        "incidenttype",
+        "DEATHCLAW_ATTACK"
+      ],
+      [
+        "incidenttype",
+        "FERAL_GHOUL_ATTACK"
+      ],
+      [
+        "incidenttype",
+        "FIRE"
+      ],
+      [
+        "incidenttype",
+        "RADSCORPION_ATTACK"
+      ],
+      [
+        "junktypeenum",
+        "CIRCUITRY"
+      ],
+      [
+        "junktypeenum",
+        "LEATHER"
+      ],
+      [
+        "junktypeenum",
+        "ADHESIVE"
+      ],
+      [
+        "junktypeenum",
+        "CLOTH"
+      ],
+      [
+        "junktypeenum",
+        "SCIENCE"
+      ],
+      [
+        "junktypeenum",
+        "STEEL"
+      ],
+      [
+        "junktypeenum",
+        "VALUABLES"
+      ],
+      [
+        "lifecycleenum",
+        "ALIVE"
+      ],
+      [
+        "lifecycleenum",
+        "DEAD_REVIVABLE"
+      ],
+      [
+        "lifecycleenum",
+        "DEAD_PERMANENT"
+      ],
+      [
+        "lifecycleenum",
+        "WASTELAND"
+      ],
+      [
+        "locationtypeenum",
+        "ORIGIN"
+      ],
+      [
+        "locationtypeenum",
+        "VISITED"
+      ],
+      [
+        "locationtypeenum",
+        "DISCOVERY"
+      ],
+      [
+        "locationtypeenum",
+        "HOME_VAULT"
+      ],
+      [
+        "notificationpriority",
+        "INFO"
+      ],
+      [
+        "notificationpriority",
+        "NORMAL"
+      ],
+      [
+        "notificationpriority",
+        "HIGH"
+      ],
+      [
+        "notificationpriority",
+        "URGENT"
+      ],
+      [
+        "notificationtype",
+        "EXPLORATION_UPDATE"
+      ],
+      [
+        "notificationtype",
+        "EXPLORATION_COMPLETE"
+      ],
+      [
+        "notificationtype",
+        "LEVEL_UP"
+      ],
+      [
+        "notificationtype",
+        "TRAINING_COMPLETE"
+      ],
+      [
+        "notificationtype",
+        "TRAINING_STARTED"
+      ],
+      [
+        "notificationtype",
+        "RELATIONSHIP_FORMED"
+      ],
+      [
+        "notificationtype",
+        "PREGNANCY_DETECTED"
+      ],
+      [
+        "notificationtype",
+        "BABY_BORN"
+      ],
+      [
+        "notificationtype",
+        "COMBAT_STARTED"
+      ],
+      [
+        "notificationtype",
+        "COMBAT_VICTORY"
+      ],
+      [
+        "notificationtype",
+        "COMBAT_DEFEAT"
+      ],
+      [
+        "notificationtype",
+        "DWELLER_INJURED"
+      ],
+      [
+        "notificationtype",
+        "RESOURCE_LOW"
+      ],
+      [
+        "notificationtype",
+        "RESOURCE_CRITICAL"
+      ],
+      [
+        "notificationtype",
+        "POWER_OUTAGE"
+      ],
+      [
+        "notificationtype",
+        "QUEST_COMPLETE"
+      ],
+      [
+        "notificationtype",
+        "ACHIEVEMENT_UNLOCKED"
+      ],
+      [
+        "notificationtype",
+        "RADIO_NEW_DWELLER"
+      ],
+      [
+        "notificationtype",
+        "DWELLER_DIED"
+      ],
+      [
+        "notificationtype",
+        "MAP_REGISTRATION_FAILED"
+      ],
+      [
+        "notificationtype",
+        "CRAFTING_COMPLETE"
+      ],
+      [
+        "notificationtype",
+        "DWELLER_EXIT_REQUESTED"
+      ],
+      [
+        "notificationtype",
+        "HAZARD_TEAM_JOINED"
+      ],
+      [
+        "notificationtype",
+        "RADIO_AUTO_SWITCHED_TO_HAPPINESS"
+      ],
+      [
+        "notificationtype",
+        "LOCATION_CLEARED"
+      ],
+      [
+        "notificationtype",
+        "LOCATION_READY"
+      ],
+      [
+        "notificationtype",
+        "RECIPE_UNLOCKED"
+      ],
+      [
+        "notificationtype",
+        "OBJECTIVE_COMPLETED"
+      ],
+      [
+        "notificationtype",
+        "ARENA_MORALE_BOOST"
+      ],
+      [
+        "notificationtype",
+        "OBJECTIVES_REFRESHED"
+      ],
+      [
+        "outfittypeenum",
+        "COMMON"
+      ],
+      [
+        "outfittypeenum",
+        "RARE"
+      ],
+      [
+        "outfittypeenum",
+        "LEGENDARY"
+      ],
+      [
+        "outfittypeenum",
+        "POWER_ARMOR"
+      ],
+      [
+        "outfittypeenum",
+        "TIERED"
+      ],
+      [
+        "placekind",
+        "PLACE"
+      ],
+      [
+        "placekind",
+        "VAULT"
+      ],
+      [
+        "pregnancystatusenum",
+        "PREGNANT"
+      ],
+      [
+        "pregnancystatusenum",
+        "DELIVERED"
+      ],
+      [
+        "pregnancystatusenum",
+        "MISCARRIED"
+      ],
+      [
+        "questtype",
+        "MAIN"
+      ],
+      [
+        "questtype",
+        "SIDE"
+      ],
+      [
+        "questtype",
+        "DAILY"
+      ],
+      [
+        "questtype",
+        "EVENT"
+      ],
+      [
+        "questtype",
+        "REPEATABLE"
+      ],
+      [
+        "rarityenum",
+        "COMMON"
+      ],
+      [
+        "rarityenum",
+        "RARE"
+      ],
+      [
+        "rarityenum",
+        "LEGENDARY"
+      ],
+      [
+        "relationshiptypeenum",
+        "ACQUAINTANCE"
+      ],
+      [
+        "relationshiptypeenum",
+        "FRIEND"
+      ],
+      [
+        "relationshiptypeenum",
+        "ROMANTIC"
+      ],
+      [
+        "relationshiptypeenum",
+        "PARTNER"
+      ],
+      [
+        "relationshiptypeenum",
+        "EX"
+      ],
+      [
+        "relationshiptypeenum",
+        "MARRIED"
+      ],
+      [
+        "requirementtype",
+        "LEVEL"
+      ],
+      [
+        "requirementtype",
+        "ITEM"
+      ],
+      [
+        "requirementtype",
+        "ROOM"
+      ],
+      [
+        "requirementtype",
+        "DWELLER_COUNT"
+      ],
+      [
+        "requirementtype",
+        "QUEST_COMPLETED"
+      ],
+      [
+        "requirementtype",
+        "ATTACK"
+      ],
+      [
+        "requirementtype",
+        "STAT"
+      ],
+      [
+        "rewardtype",
+        "CAPS"
+      ],
+      [
+        "rewardtype",
+        "ITEM"
+      ],
+      [
+        "rewardtype",
+        "DWELLER"
+      ],
+      [
+        "rewardtype",
+        "RESOURCE"
+      ],
+      [
+        "rewardtype",
+        "EXPERIENCE"
+      ],
+      [
+        "rewardtype",
+        "STIMPAK"
+      ],
+      [
+        "rewardtype",
+        "RADAWAY"
+      ],
+      [
+        "rewardtype",
+        "LUNCHBOX"
+      ],
+      [
+        "roomtypeenum",
+        "CAPACITY"
+      ],
+      [
+        "roomtypeenum",
+        "CRAFTING"
+      ],
+      [
+        "roomtypeenum",
+        "MISC"
+      ],
+      [
+        "roomtypeenum",
+        "PRODUCTION"
+      ],
+      [
+        "roomtypeenum",
+        "QUESTS"
+      ],
+      [
+        "roomtypeenum",
+        "THEME"
+      ],
+      [
+        "roomtypeenum",
+        "TRAINING"
+      ],
+      [
+        "roomtypeenum",
+        "ARENA"
+      ],
+      [
+        "roomtypeenum",
+        "RESPONSE"
+      ],
+      [
+        "specialenum",
+        "STRENGTH"
+      ],
+      [
+        "specialenum",
+        "PERCEPTION"
+      ],
+      [
+        "specialenum",
+        "ENDURANCE"
+      ],
+      [
+        "specialenum",
+        "CHARISMA"
+      ],
+      [
+        "specialenum",
+        "INTELLIGENCE"
+      ],
+      [
+        "specialenum",
+        "AGILITY"
+      ],
+      [
+        "specialenum",
+        "LUCK"
+      ],
+      [
+        "trainingstatus",
+        "ACTIVE"
+      ],
+      [
+        "trainingstatus",
+        "COMPLETED"
+      ],
+      [
+        "trainingstatus",
+        "CANCELLED"
+      ],
+      [
+        "weaponsubtypeenum",
+        "BLUNT"
+      ],
+      [
+        "weaponsubtypeenum",
+        "EDGED"
+      ],
+      [
+        "weaponsubtypeenum",
+        "POINTED"
+      ],
+      [
+        "weaponsubtypeenum",
+        "PISTOL"
+      ],
+      [
+        "weaponsubtypeenum",
+        "RIFLE"
+      ],
+      [
+        "weaponsubtypeenum",
+        "SHOTGUN"
+      ],
+      [
+        "weaponsubtypeenum",
+        "AUTOMATIC"
+      ],
+      [
+        "weaponsubtypeenum",
+        "EXPLOSIVE"
+      ],
+      [
+        "weaponsubtypeenum",
+        "FLAMER"
+      ],
+      [
+        "weapontypeenum",
+        "MELEE"
+      ],
+      [
+        "weapontypeenum",
+        "GUN"
+      ],
+      [
+        "weapontypeenum",
+        "ENERGY"
+      ],
+      [
+        "weapontypeenum",
+        "HEAVY"
+      ]
+    ]
+  }
+}

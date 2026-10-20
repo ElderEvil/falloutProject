@@ -542,6 +542,14 @@ PRODUCTION_API_URL  - Frontend build API URL (e.g., https://fallout-api.evillab.
 
 ## Database Migrations
 
+### Planned 3.0 baseline cutover
+
+The [3.0 migration baseline runbook](backend/MIGRATION_BASELINE_V3.md) describes the planned squash,
+preflight command, maintenance sequence, and recovery rules. The machinery can ship before 3.0;
+`alembic-squash.ini` remains opt-in. Ordinary deployments continue using the existing history.
+The current deploy Job and startup migration commands must be updated together at the cutover;
+they do not automatically adopt a database carrying the legacy version marker.
+
 ### Automatic (Recommended)
 Migrations run on container startup:
 ```yaml

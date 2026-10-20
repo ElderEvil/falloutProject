@@ -395,6 +395,11 @@ land as one compatibility pass with migration notes, updated CI/container toolin
 - [ ] **UUIDv7 identifiers** — use Python's standard-library `uuid.uuid7()` for new time-sortable identifiers where
   it improves database locality; preserve existing IDs and define the PostgreSQL/default/migration strategy before
   changing model factories or public API contracts.
+- [ ] **Alembic baseline cutover** — ship the opt-in machinery ahead of 3.0, then freeze the final legacy head,
+  regenerate the baseline after the 3.0 schema changes, reconcile existing schema drift, and rehearse backup/restore
+  plus guarded adoption on production clones. Keep the original graph until every maintained database has crossed
+  the boundary. Follow the [3.0 migration runbook](backend/MIGRATION_BASELINE_V3.md); the October prototype
+  squashed 133 revisions and preserved 24,234 cloned rows, but its pinned snapshot is not the final 3.0 baseline.
 - [ ] **HTTPX 2 evaluation** — test the HTTPX 2 API and compatibility with FastAPI's test transport and application
   integrations; adopt it if the release and dependency ecosystem are ready, otherwise stay on the latest supported
   stable release and record the decision.

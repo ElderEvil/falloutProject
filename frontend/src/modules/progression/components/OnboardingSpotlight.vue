@@ -68,6 +68,11 @@ const objectiveFor = (lesson: OnboardingLesson): Objective | undefined =>
 
 const isHandled = (lesson: OnboardingLesson): boolean => {
   if (ledger.value[lesson.id]) return true
+  // Adding preparation must not reopen an introduction whose send-off is already handled.
+  if (lesson.id === 'orientation.preparation' && !replayMode.value) {
+    const departure = ORIENTATION_STEPS.find((step) => step.id === 'orientation.departure')!
+    if (ledger.value[departure.id] || objectiveFor(departure)?.is_completed) return true
+  }
   // Explicit replay reaches claimed steps; otherwise a claimed objective retires the lesson.
   return !replayMode.value && objectiveFor(lesson)?.is_completed === true
 }
@@ -82,7 +87,8 @@ const lessonObjective = computed(() => {
 const optedIn = computed(() => !!vaultState.value.created || replayMode.value)
 const welcomePending = computed(() => !!vaultState.value.created && !vaultState.value.welcomed)
 const canPresentLesson = computed(() => {
-  if (currentLesson.value?.id !== 'orientation.departure') return true
+  if (!['orientation.preparation', 'orientation.departure'].includes(currentLesson.value?.id ?? ''))
+    return true
   const objective = lessonObjective.value
   // An earned reward remains claimable even if the vault no longer has a dweller.
   if (objective && objective.progress >= objective.total) return true
@@ -184,7 +190,7 @@ watch(
       }
     }
     if (
-      lesson.id === 'orientation.departure' &&
+      ['orientation.preparation', 'orientation.departure'].includes(lesson.id) &&
       dwellerStore.filter.allDwellersLoadedVaultId !== vaultId.value
     ) {
       void dwellerStore.filter.fetchAllDwellers(vaultId.value, token)
@@ -223,6 +229,7 @@ watch([vaultId, () => route.fullPath], () => refresh(), { immediate: true })
 usePolling(refresh, { interval: 30_000, immediate: false })
 
 const targetEl = ref<HTMLElement | null>(null)
+const draggingDweller = ref(false)
 // The first anchor rendered on this page regardless of viewport position, so an
 // off-screen control can be scrolled to instead of "navigated" to in place.
 const presentAnchorEl = ref<HTMLElement | null>(null)
@@ -275,11 +282,17 @@ function isUsableAnchor(element: HTMLElement): boolean {
 }
 
 function anchorCandidates(): HTMLElement[] {
-  const keys = guidingRoomMenu.value
+  let keys = guidingRoomMenu.value
     ? document.querySelector('[data-onboarding="build-living-room"]')
       ? ['build-living-room']
       : ['room-search']
     : (currentLesson.value?.anchors ?? [])
+  if (currentLesson.value?.id === 'orientation.departure') {
+    const sources = [
+      ...document.querySelectorAll<HTMLElement>('[data-onboarding="exploration-dweller"]'),
+    ]
+    keys = !draggingDweller.value && sources.some(hasSize) ? ['exploration-dweller'] : ['wasteland']
+  }
   return keys.flatMap((key) => [
     ...document.querySelectorAll<HTMLElement>(`[data-onboarding="${key}"]`),
   ])
@@ -293,12 +306,31 @@ function resolveTarget() {
   // in the same frame as the cut-out that depends on its bounds.
   void nextTick(() => updateBounds())
 }
-watch([() => currentLesson.value?.id, showWelcome, guidingRoomMenu], () => resolveTarget(), {
-  flush: 'post',
-})
+watch(
+  [() => currentLesson.value?.id, showWelcome, guidingRoomMenu, draggingDweller],
+  () => resolveTarget(),
+  {
+    flush: 'post',
+  }
+)
 
 let observer: MutationObserver | null = null
+const startDwellerDrag = (event: DragEvent) => {
+  if (
+    event.target instanceof Element &&
+    event.target.closest('[data-onboarding="exploration-dweller"]')
+  ) {
+    draggingDweller.value = true
+  }
+}
+const endDwellerDrag = () => {
+  draggingDweller.value = false
+}
+watch([vaultId, () => route.path, () => currentLesson.value?.id], endDwellerDrag)
 onMounted(() => {
+  document.addEventListener('dragstart', startDwellerDrag, true)
+  document.addEventListener('dragend', endDwellerDrag, true)
+  document.addEventListener('drop', endDwellerDrag, true)
   resolveTarget()
   observer = new MutationObserver((records) => {
     if (
@@ -325,7 +357,12 @@ onMounted(() => {
     ],
   })
 })
-onBeforeUnmount(() => observer?.disconnect())
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  document.removeEventListener('dragstart', startDwellerDrag, true)
+  document.removeEventListener('dragend', endDwellerDrag, true)
+  document.removeEventListener('drop', endDwellerDrag, true)
+})
 
 const { top, left, width, height, update: updateBounds } = useElementBounding(targetEl)
 const rectReady = computed(() => width.value > 0 && height.value > 0)
@@ -370,10 +407,7 @@ onBeforeUnmount(() => {
   if (anchorFrame) cancelAnimationFrame(anchorFrame)
 })
 
-// The card sits opposite the control being explained, so it never covers it on
-// small screens; when the control is below the fold the card reduces itself so
-// the lesson stays visible without pushing the control off-screen. Placement
-// reads the reactive element bounds, so scroll and resize update it too.
+// Keep the short instruction visible opposite the control; collapse is a player choice.
 const anchorBelowFold = computed(() => {
   if (!viewportHeight.value || height.value <= 0) return false
   return top.value + height.value / 2 > viewportHeight.value / 2
@@ -383,7 +417,7 @@ const cardPlacement = computed(() => (anchorBelowFold.value ? 'top' : 'bottom'))
 // A manual toggle wins until the lesson changes; data refreshes never reopen or
 // re-collapse the card or move focus.
 const userCollapsed = ref<boolean | null>(null)
-const collapsed = computed(() => userCollapsed.value ?? (!earned.value && anchorBelowFold.value))
+const collapsed = computed(() => userCollapsed.value ?? false)
 const cardClass = computed(() => [
   'onboarding-card',
   `onboarding-card--${cardPlacement.value}`,
@@ -484,8 +518,7 @@ function onClaim() {
           <p class="onboarding-eyebrow">VAULT-TEC // ORIENTATION</p>
           <h2 class="onboarding-title">Welcome, Overseer</h2>
           <p class="onboarding-body">
-            You run this vault. Keep power, food and water flowing, put dwellers where their SPECIAL
-            fits, and grow. This guide shows you one thing to do at a time.
+            Build your vault. Prepare your crew. Send your first explorer. One action at a time.
           </p>
           <div class="onboarding-actions">
             <Button size="sm" @click="start">Start</Button>
@@ -515,12 +548,17 @@ function onClaim() {
             <p class="onboarding-body">
               {{
                 ready
-                  ? 'This step is complete. Claim your reward to continue.'
+                  ? 'Ready. Claim your reward to continue.'
                   : needsEarlierClaim
-                    ? 'Finish and claim the earlier starter objective first. Your progress here is saved.'
+                    ? 'Claim the earlier starter reward first. Your progress is saved.'
                     : guidingRoomMenu
-                      ? 'Choose Living room from this menu. Use search if needed, then select an adjacent empty slot in your vault.'
-                      : currentLesson.body
+                      ? 'Choose Living room. Then select a highlighted empty slot beside your vault.'
+                      : currentLesson.id === 'orientation.departure' && draggingDweller
+                        ? 'Drop onto The Wasteland to choose duration and medicine.'
+                        : currentLesson.id === 'orientation.departure' &&
+                            presentAnchorEl?.dataset.onboarding === 'wasteland'
+                          ? 'No adult is visible in Unassigned. Use the send button instead.'
+                          : currentLesson.body
               }}
             </p>
             <p v-if="replayMode" class="onboarding-note">
@@ -540,6 +578,15 @@ function onClaim() {
                 @click="continueLesson"
               >
                 Continue
+              </Button>
+              <Button
+                v-if="currentLesson.id === 'orientation.departure' && !earned && !needsEarlierClaim"
+                size="sm"
+                variant="outline"
+                :disabled="claiming"
+                @click="router.push(`/vault/${vaultId}/dwellers`)"
+              >
+                Use send button
               </Button>
               <Button
                 v-if="showScrollToControl"

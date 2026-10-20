@@ -1,16 +1,16 @@
 # Spotlight onboarding
 
-> Status: **implemented** in PR #1000, not yet released. This document records the behaviour
-> that is implemented, its ownership boundaries and the checks still outstanding. Deferred
-> work is summarised at the end and tracked in [`../ROADMAP.md`](../ROADMAP.md).
+> Current work: draft PR #1060, tracked by #1034. The short opening and guided departure below
+> describe this branch. Earlier validation records are historical; mocked browser coverage does
+> not establish a successful fresh-vault playthrough against real services. Delivery direction:
+> [integration plan](../features/INTEGRATION_PLAN.md).
 
 ## Implemented behaviour
 
 A first-session guide that shows one useful action at a time, then hands off to the Briefing.
 
-- **Nine authored orientation lessons** (`frontend/src/modules/progression/models/onboardingSteps.ts`):
-  power → generator → food → diner → water → water treatment → SPECIAL staffing → housing →
-  departure. This definition list is the
+- **Six short orientation prompts** (`frontend/src/modules/progression/models/onboardingSteps.ts`):
+  reserves → generator → SPECIAL staffing → housing/newcomer → equipment preparation → wasteland drop. This definition list is the
   only source of **teaching** order.
 - **Local teaching progress is separate from server reward progress.** Teaching state is a
   per-vault ledger in `core/composables/useOnboardingState.ts`; reward order, completion
@@ -23,7 +23,7 @@ A first-session guide that shows one useful action at a time, then hands off to 
   lowest unclaimed starter step; otherwise the card shows a blocker with an Open Starter link.
   Replay reaches claimed explanations with Continue and no reward action.
 - **Eligibility checks** (`onboardingSteps.ts`). Housing prices the build as
-  `base_cost + existing same-category rooms × incremental_cost` (matching backend
+  `base_cost + existing same-type segments × incremental_cost` (matching the build menu and backend
   `get_room_build_price`); departure uses the complete vault roster (mature, not away,
   `health > 0`). Unloaded data reads `unknown` and never dims.
 - **Persistence and error recovery.** One shared state per session, created in a detached
@@ -43,9 +43,8 @@ A first-session guide that shows one useful action at a time, then hands off to 
   for every Reka dialog shell; `RoomMenu`, `NotificationBell`, `DwellerBulkActions`,
   `ChangelogModal` and `PageHelp` register their own non-`TerminalModal` dialogs.
 - **Responsive placement.** The card sits on the opposite side of the highlighted control so it
-  never covers what it explains. When the control is below the fold the card moves above it and
-  collapses to its title (the lesson is preserved). Earned rewards stay expanded by default;
-  a manual collapse/expand toggle wins until the lesson changes, so a background poll never
+  stays opposite the control. Short instructions remain expanded by default; Collapse/Expand is
+  a player choice that persists until the lesson changes, so a background poll never
   reopens the card, moves focus or re-announces
   unchanged copy. When the control is on the current page but out of view, the guide offers an
   explicit **Show control** action that scrolls only when clicked; navigating to the route you
@@ -146,7 +145,7 @@ Out of scope for this PR; tracked in [`../ROADMAP.md`](../ROADMAP.md).
 The presentation work above is followed by three small handoffs, using existing
 lessons, reward claims and game data:
 
-1. **Connect the five explanations.** Reserves lead to the generator, then SPECIAL
+1. **Connect the explanations.** Reserves lead to the generator, then SPECIAL
    staffing, housing, the newcomer and exploration preparation. Keep stable teaching
    IDs and all server objective keys. The starting crew needs inspection rather than
    an artificial reassignment. Explain that dispatching a worker reduces production.
@@ -206,24 +205,39 @@ vault walkthrough against real services. The wider tutorial coverage remains a s
 Validation: frontend lint/typecheck and staged `prek` checks passed; **3260 unit tests**
 across **266 files** and all **10 onboarding browser tests** passed.
 
-## Individual resource lessons and construction refresh
+## Short opening and guided departure (current #1060 revision)
 
-Each resource and its production room has its own lesson and a single spotlight:
-power → generator → food → diner → water → water treatment, followed by SPECIAL staffing,
-housing and departure. Continue and Skip step advance only the current explanation. The
-original power/generator teaching IDs remain stable; food and water have their own IDs.
+Keep resource reserves in one short overview; do not repeat the opening for food and water.
+Generator inspection introduces production; staffing explains Strength/power, Agility/food and
+Perception/water. Each prompt uses short action-led copy. Housing guidance
+continues through Build, room selection, legal placement and the explicit newcomer claim.
 
-After a successful build, the guide refreshes server objective progress immediately through the
-room store after construction. An earned housing reward removes construction highlights without
-a reload or waiting for the periodic refresh; claiming still requires an explicit action.
-Static outlines remain visible with reduced motion. Tutorial body copy, progress and helper notes
-use 14px text, with an 18px heading and 12px labels.
+Equipment preparation comes before departure. It opens the existing Dwellers screen and points
+at the equipment panel when present; dialogs still own attention while gear is selected. Continue
+acknowledges this inspection, not a gameplay achievement. Existing vaults whose departure was already
+handled do not reopen preparation; Replay includes it without granting rewards.
 
-Departure stays pending and hidden until the full vault roster is loaded and contains a dweller.
-An empty roster is checked again through the existing refresh cadence; a newcomer makes the
-lesson available without acknowledging or skipping it. Earned rewards remain claimable even if
-the roster becomes empty.
+On the vault screen the departure guide highlights a healthy adult in Unassigned, then moves the
+spotlight to The Wasteland when dragging starts. **Release to prepare** opens the existing duration
+and medicine dialog. The dialog explains that the dweller leaves only after confirming; cancellation
+returns to the same lesson. The guide also offers **Use send button**, opening Dwellers for keyboard,
+touch or unavailable/filtered drag-source cases. Drops and navigation never earn or claim rewards.
+Only server-reported dispatch progress makes the departure reward claimable. Successful sends refresh
+objectives immediately through the shared send flow; no polling delay or reload is required. The fallback route
+returns to the vault drop zone, rather than the exploration list.
 
-Validation: **3264 unit tests** across **266 files**, all **11 onboarding browser tests**,
-frontend typecheck and staged `prek` checks passed. Browser coverage exercises all six resource
-and production-room tips sequentially and construction completion without reloading.
+The guide reuses the build menu's segment counter when assessing housing affordability. Storage
+rooms do not inflate Living Quarters prices; merged quarters count each segment. Successful builds
+refresh objective progress immediately. Earned rewards stay explicit and do not ask for another build.
+
+Stable existing lesson IDs and server objective keys remain unchanged. The four removed resource/room
+explanations are retired from the active sequence; their saved acknowledgements remain valid data.
+Preparation adds only a teaching ID, with no migration or reward/catalog changes.
+
+Earlier #1060 validation: 3264 unit tests / 266 files and 11 mocked-backend browser tests. That record
+covers the earlier nine-prompt version and does not describe current validation or live gameplay.
+
+Current revision validation: full frontend suite **3458 passed across 274 files**; final guide/send-flow
+checks **82 passed**; all **12 mocked-backend onboarding browser tests passed without retries**.
+Typecheck, lint, module/color/raw-control guards, production build, bundle budget (189.0 kB gzip /
+205 kB) and staged `prek` checks passed. A fresh standard-vault real-service walkthrough remains owed.

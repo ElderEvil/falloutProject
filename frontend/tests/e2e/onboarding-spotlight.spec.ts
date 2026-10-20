@@ -126,6 +126,19 @@ async function mockApi(page: Page) {
     if (path === '/api/v1/rooms/vault/vault-1/') {
       return route.fulfill({ json: [POWER_ROOM] })
     }
+    if (path === '/api/v1/rooms/grid-config/') {
+      return route.fulfill({
+        json: {
+          floor_units: 28,
+          shaft_x: 6,
+          units_per_room: 3,
+          left_slot_starts: [0, 3],
+          right_slot_starts: [7, 10, 13, 16, 19, 22, 25],
+          build_y_max: 15,
+          y_max: 25,
+        },
+      })
+    }
     if (path === '/api/v1/notifications/unread-count') return route.fulfill({ json: { count: 0 } })
     if (path === '/api/v1/notifications/') return route.fulfill({ json: [] })
     if (path.startsWith('/api/v1/stream/')) {
@@ -156,6 +169,102 @@ async function openVault(page: Page, teaching?: unknown) {
 }
 
 test.describe('Spotlight guide — vault page', () => {
+  test('guides a dweller drop through preparation and waits for dispatch before offering the claim', async ({
+    page,
+  }) => {
+    await openVault(page, {
+      ...ORIENTATION_ACKNOWLEDGED,
+      lessons: {
+        ...ORIENTATION_ACKNOWLEDGED.lessons,
+        'orientation.staffing': 'acknowledged',
+        'orientation.housing': 'acknowledged',
+        'orientation.preparation': 'acknowledged',
+      },
+    })
+    let sent = false
+    const dweller = {
+      id: 'newcomer',
+      vault_id: 'vault-1',
+      first_name: 'Juno',
+      last_name: 'Pike',
+      age_group: 'adult',
+      gender: 'female',
+      race: 'human',
+      rarity: 'common',
+      status: 'idle',
+      room_id: null,
+      health: 100,
+      max_health: 100,
+      radiation: 0,
+      happiness: 80,
+      level: 1,
+      strength: 5,
+      perception: 5,
+      endurance: 5,
+      charisma: 5,
+      intelligence: 5,
+      agility: 5,
+      luck: 5,
+    }
+    await page.route('**/api/v1/dwellers/vault/vault-1/**', (route) => {
+      if (new URL(route.request().url()).pathname !== '/api/v1/dwellers/vault/vault-1/') {
+        return route.fallback()
+      }
+      return route.fulfill({ json: [{ ...dweller, status: sent ? 'exploring' : 'idle' }] })
+    })
+    await page.route('**/api/v1/dwellers/newcomer', (route) => route.fulfill({ json: dweller }))
+    await page.route('**/api/v1/objectives/vault-1/**', (route) =>
+      route.fulfill({
+        json: [
+          {
+            ...STAFFING_OBJECTIVE,
+            id: 'departure',
+            template_key: 'starter:send a dweller exploring',
+            objective_type: 'explore',
+            progress: sent ? 1 : 0,
+            total: 1,
+            reward: 'dweller:Elias Reed',
+          },
+        ],
+      })
+    )
+    await page.route('**/api/v1/explorations/send?*', (route) => {
+      expect(route.request().postDataJSON()).toMatchObject({ dweller_id: 'newcomer', duration: 1 })
+      sent = true
+      return route.fulfill({
+        json: {
+          id: 'first-run',
+          vault_id: 'vault-1',
+          dweller_id: 'newcomer',
+          status: 'active',
+          duration: 1,
+          start_time: new Date().toISOString(),
+        },
+      })
+    })
+    await page.reload()
+    const source = page.locator('[data-onboarding="exploration-dweller"]').first()
+    const target = page.locator('[data-onboarding="wasteland"]')
+    const guide = page.getByRole('region', { name: 'Vault onboarding' })
+    await expect(guide).toContainText('Drag a healthy adult')
+    await expect(source).toBeVisible()
+    await source.dragTo(target)
+    const modal = page.getByRole('dialog', { name: 'Select Exploration Duration' })
+    await expect(modal).toBeVisible()
+    await expect(modal).toContainText('They leave only when you confirm.')
+    await expect(guide).toHaveCount(0)
+    expect(sent).toBe(false)
+    await modal.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await expect(guide).toContainText('Drag a healthy adult')
+    expect(sent).toBe(false)
+    await source.dragTo(target)
+    await modal.getByRole('button', { name: '1h', exact: true }).click()
+    await modal.getByRole('button', { name: 'Send to Wasteland', exact: true }).click()
+    await expect(modal).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Claim dweller:Elias Reed' })).toBeVisible()
+    expect(sent).toBe(true)
+  })
+
   test('shows the guide and highlights an on-screen control at phone width', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await openVault(page)
@@ -182,7 +291,9 @@ test.describe('Spotlight guide — vault page', () => {
     expect(overlaps).toBe(false)
   })
 
-  test('teaches power, food and water with their rooms one by one', async ({ page }) => {
+  test('explains reserves and power production without repeated resource tours', async ({
+    page,
+  }) => {
     await openVault(page)
     const rooms = [
       { id: 'power', name: 'Power generator', ability: 'strength', coordinate_x: 0 },
@@ -196,17 +307,13 @@ test.describe('Spotlight guide — vault page', () => {
       coordinate_y: 0,
       ...room,
     }))
-    await page.route('**/api/v1/rooms/vault/vault-1/', (route) => route.fulfill({ json: rooms }))
+    await page.route('**/api/v1/rooms/vault/vault-1/**', (route) => route.fulfill({ json: rooms }))
     await page.reload()
     await page.getByRole('button', { name: 'Start' }).click()
     const card = page.getByRole('region', { name: 'Vault onboarding' })
     for (const [anchor, title] of [
       ['resource-power', 'Keep the power on'],
       ['room-power', 'Open the Power Generator'],
-      ['resource-food', 'Keep your dwellers fed'],
-      ['room-food', 'Open the Diner'],
-      ['resource-water', 'Keep clean water flowing'],
-      ['room-water', 'Open Water Treatment'],
     ]) {
       await expect(card.getByRole('heading', { name: title, exact: true })).toBeVisible()
       await expect(page.locator('.onboarding-cutout')).toHaveCount(1)
@@ -378,7 +485,7 @@ test.describe('Spotlight guide — vault page', () => {
       await page.route('**/api/v1/rooms/buildable/vault-1/', (route) =>
         route.fulfill({ json: [power, living] })
       )
-      await page.route('**/api/v1/rooms/vault/vault-1/', (route) =>
+      await page.route('**/api/v1/rooms/vault/vault-1/**', (route) =>
         route.fulfill({
           json: [
             {

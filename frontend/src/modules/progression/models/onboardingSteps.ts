@@ -1,4 +1,6 @@
 import type { Objective } from './objective'
+import { getRoomSegmentCount } from '@/modules/rooms/utils/room'
+import type { Room } from '@/modules/rooms/models/room'
 
 /**
  * Stable teaching IDs. These are the only keys persisted in the per-vault teaching
@@ -13,6 +15,7 @@ export type LessonId =
   | 'orientation.water-treatment'
   | 'orientation.staffing'
   | 'orientation.housing'
+  | 'orientation.preparation'
   | 'orientation.departure'
 
 /** How a lesson is presented and acknowledged. */
@@ -32,7 +35,7 @@ export interface SnapshotRoom {
   incremental_cost?: number | null
 }
 
-export interface SnapshotBuiltRoom {
+export interface SnapshotBuiltRoom extends Pick<Room, 'name' | 'size' | 'size_min'> {
   category: string
 }
 
@@ -101,18 +104,16 @@ const isMature = (dweller: SnapshotDweller): boolean => MATURE_AGE_GROUPS.has(dw
 const canDepart = (dweller: SnapshotDweller): boolean =>
   isMature(dweller) && !UNAVAILABLE_DEPARTURE_STATUSES.has(dweller.status) && dweller.health > 0
 
-// Mirrors backend get_room_build_price: catalog cost plus an increment per existing room
-// in the same category, so an already-built vault raises the next Living Quarters above base.
+// Match the build menu: incremental cost is per segment of the same room type.
 const livingQuartersPrice = (snapshot: TeachingSnapshot): number | undefined => {
   const template = snapshot.buildableRooms.find(
     (candidate) => candidate.name.trim().toLowerCase() === 'living room'
   )
   if (!template || typeof template.incremental_cost !== 'number') return undefined
   if (!snapshot.roomsLoaded) return undefined
-  const category = template.category.trim().toLowerCase()
-  const existing = snapshot.builtRooms.filter(
-    (room) => room.category.trim().toLowerCase() === category
-  ).length
+  const existing = snapshot.builtRooms
+    .filter((room) => room.name === template.name)
+    .reduce((count, room) => count + getRoomSegmentCount(room), 0)
   return template.base_cost + existing * template.incremental_cost
 }
 
@@ -147,7 +148,7 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     id: 'orientation.resources',
     kind: 'tap',
     title: 'Keep the power on',
-    body: 'Power keeps the vault running. Watch this reserve and its production rate to see whether your supply is growing or draining. Next, meet the crew keeping the lights on.',
+    body: 'Power, food and water keep your vault alive. Watch their reserves and net rates.',
     anchors: ['resource-power'],
     eligibility: alwaysEligible,
   },
@@ -155,42 +156,8 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     id: 'orientation.generator',
     kind: 'tap',
     title: 'Open the Power Generator',
-    body: 'Open the generator to see its crew and output. Strength helps these workers produce power; other rooms use different SPECIAL stats. Next, check the food supply.',
+    body: 'Open the generator to inspect workers and output. Strength boosts power production.',
     anchors: ['room-power'],
-    eligibility: alwaysEligible,
-  },
-  {
-    id: 'orientation.food',
-    kind: 'tap',
-    title: 'Keep your dwellers fed',
-    body: 'Dwellers consume food over time. Watch this reserve and its production rate so you can act before supplies run low. Next, see where food is made.',
-    anchors: ['resource-food'],
-    eligibility: alwaysEligible,
-  },
-  {
-    id: 'orientation.diner',
-    kind: 'tap',
-    title: 'Open the Diner',
-    body: 'This room produces food. Agility helps its workers produce more, so match agile dwellers to the kitchen. Next, check your water supply.',
-    anchors: ['room-food'],
-    route: '',
-    routeLabel: 'Open Vault',
-    eligibility: alwaysEligible,
-  },
-  {
-    id: 'orientation.water',
-    kind: 'tap',
-    title: 'Keep clean water flowing',
-    body: 'Dwellers consume water over time. Keep an eye on this reserve and its production rate to avoid a shortage. Next, meet the water treatment crew.',
-    anchors: ['resource-water'],
-    eligibility: alwaysEligible,
-  },
-  {
-    id: 'orientation.water-treatment',
-    kind: 'tap',
-    title: 'Open Water Treatment',
-    body: 'This room produces clean water. Perception helps its workers produce more. Next, review your crew and compare their SPECIAL with their jobs.',
-    anchors: ['room-water'],
     route: '',
     routeLabel: 'Open Vault',
     eligibility: alwaysEligible,
@@ -199,7 +166,7 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     id: 'orientation.staffing',
     kind: 'inspection',
     title: 'Understand SPECIAL staffing',
-    body: 'Open Dwellers and compare a worker’s SPECIAL with their room. Your starting crew is already matched, so there is no need to move anyone just for the guide. Next, make room for a newcomer.',
+    body: 'Open Dwellers. Match SPECIAL to the job: Strength for power, Agility for food, Perception for water. Your crew already fits.',
     templateKeys: OBJECTIVE_KEYS.staffing,
     anchors: ['nav-dwellers'],
     route: 'dwellers',
@@ -210,7 +177,7 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     id: 'orientation.housing',
     kind: 'objective-explanation',
     title: 'Build more Living Quarters',
-    body: 'Open Build and choose Living room, then select a highlighted empty slot beside an existing room or elevator. The new segment raises capacity and may merge with existing quarters. Claim this objective’s reward to welcome a new dweller immediately, then review them before exploring.',
+    body: 'Open Build. Choose Living room, then a highlighted empty slot. Claim your reward to welcome a newcomer.',
     templateKeys: OBJECTIVE_KEYS.housing,
     anchors: ['build-living-room-slot', 'build-living-room', 'build'],
     route: '',
@@ -218,14 +185,24 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     eligibility: housingEligibility,
   },
   {
+    id: 'orientation.preparation',
+    kind: 'inspection',
+    title: 'Prepare your explorer',
+    body: 'Open a healthy adult in Dwellers. Equip a weapon and outfit before sending them out.',
+    anchors: ['dweller-equipment', 'nav-dwellers'],
+    route: 'dwellers',
+    routeLabel: 'Open Dwellers',
+    eligibility: departureEligibility,
+  },
+  {
     id: 'orientation.departure',
     kind: 'objective-explanation',
-    title: 'Send a dweller exploring',
-    body: 'Your newcomer is an option if they are healthy and available. Review equipment, supplies and the run length before sending an adult out. Sending a worker leaves their production room short; the guide will suggest something useful to do while they are away.',
+    title: 'Drag a dweller to the wasteland',
+    body: 'Drag a healthy adult from Unassigned onto The Wasteland. Dropping opens preparation; it does not send them yet.',
     templateKeys: OBJECTIVE_KEYS.departure,
-    anchors: ['wasteland', 'nav-exploration'],
-    route: 'exploration',
-    routeLabel: 'Open Exploration',
+    anchors: ['exploration-dweller', 'wasteland'],
+    route: '',
+    routeLabel: 'Open Vault',
     eligibility: departureEligibility,
   },
 ]

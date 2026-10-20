@@ -10,6 +10,7 @@ import {
   GENDER_CONFIG_MAP,
   getDwellerDisplayName,
   isAvailableUnassignedDweller,
+  isMature,
   type DwellerShort,
 } from '../models/dweller'
 import DwellerAgeBadge from './DwellerAgeBadge.vue'
@@ -237,6 +238,10 @@ const handleDropZoneDrop = async (event: DragEvent) => {
           :key="dweller.id"
           class="dweller-card"
           draggable="true"
+          v-bind="{
+            'data-onboarding':
+              isMature(dweller) && dweller.health > 0 ? 'exploration-dweller' : undefined,
+          }"
           @dragstart="handleDragStart($event, dweller)"
           @dragend="handleDragEnd"
         >

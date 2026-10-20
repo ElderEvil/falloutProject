@@ -48,18 +48,12 @@ const STAFFING_KEY = 'starter:assign a dweller correctly'
 const HOUSING_KEY = 'starter:build a living quarters'
 const DEPARTURE_KEY = 'starter:send a dweller exploring'
 
-const RESOURCE_LESSONS = [
-  'orientation.resources',
-  'orientation.generator',
-  'orientation.food',
-  'orientation.diner',
-  'orientation.water',
-  'orientation.water-treatment',
-] as const
+const RESOURCE_LESSONS = ['orientation.resources', 'orientation.generator'] as const
 const ALL_LESSONS = [
   ...RESOURCE_LESSONS,
   'orientation.staffing',
   'orientation.housing',
+  'orientation.preparation',
   'orientation.departure',
 ] as const
 
@@ -139,7 +133,10 @@ const seedHousing = (caps: number) => {
   stores.room.availableRooms = [
     { name: 'Living room', category: 'Capacity', base_cost: 100, incremental_cost: 25 },
   ]
-  stores.room.rooms = [{ category: 'Capacity' }, { category: 'Capacity' }]
+  stores.room.rooms = [
+    { name: 'Living room', category: 'Capacity', size: 3, size_min: 3 },
+    { name: 'Living room', category: 'Capacity', size: 3, size_min: 3 },
+  ]
   stores.room.roomsLoadedVaultId = 'v1'
 }
 
@@ -163,6 +160,83 @@ beforeEach(() => {
 })
 
 describe('OnboardingSpotlight', () => {
+  it('teaches equipment before departure without claiming another objective', async () => {
+    useObjectivesStore().objectives = [objective('depart', { templateKey: DEPARTURE_KEY })]
+    stores.dweller.filter.allDwellersLoadedVaultId = 'v1'
+    stores.dweller.filter.allDwellers = [
+      { id: 'a', age_group: 'adult', status: 'idle', health: 100 },
+    ]
+    acknowledgeLessons(...RESOURCE_LESSONS, 'orientation.staffing', 'orientation.housing')
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    await clickButton('Start')
+    expect(document.body.textContent).toContain('Prepare your explorer')
+    await clickButton('Open Dwellers')
+    expect(router.push).toHaveBeenCalledWith('/vault/v1/dwellers')
+    expect(findButton('Claim 25 caps')).toBeUndefined()
+    await clickButton('Continue')
+    expect(document.body.textContent).toContain('Drag a dweller to the wasteland')
+    expect(useOnboardingState().teaching('v1').lessons['orientation.preparation']).toBe(
+      'acknowledged'
+    )
+    wrapper.unmount()
+  })
+
+  it('guides the dweller drag source, then the wasteland, without granting progress on drop', async () => {
+    useObjectivesStore().objectives = [objective('depart', { templateKey: DEPARTURE_KEY })]
+    stores.dweller.filter.allDwellersLoadedVaultId = 'v1'
+    stores.dweller.filter.allDwellers = [
+      { id: 'a', age_group: 'adult', status: 'idle', health: 100 },
+    ]
+    acknowledgeLessons(
+      ...ALL_LESSONS.filter((id) => id !== 'orientation.departure'),
+      'orientation.preparation'
+    )
+    const source = boundedAnchor('exploration-dweller')
+    source.draggable = true
+    const target = boundedAnchor('wasteland')
+    target.getBoundingClientRect = () =>
+      ({ width: 80, height: 20, top: 100, bottom: 120, left: 10, right: 90 }) as DOMRect
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    await clickButton('Start')
+    await vi.waitFor(() =>
+      expect(document.querySelector<HTMLElement>('.onboarding-cutout')?.style.top).toBe('6px')
+    )
+    expect(document.querySelector('.onboarding-body')?.textContent).toContain('Drag')
+
+    source.dispatchEvent(new Event('dragstart', { bubbles: true }))
+    await vi.waitFor(() =>
+      expect(document.querySelector<HTMLElement>('.onboarding-cutout')?.style.top).toBe('96px')
+    )
+    target.dispatchEvent(new Event('drop', { bubbles: true }))
+    await flushPromises()
+    expect(findButton('Claim 25 caps')).toBeUndefined()
+    expect(useOnboardingState().teaching('v1').lessons['orientation.departure']).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('offers the vault drop zone and a non-drag send action from another page', async () => {
+    useObjectivesStore().objectives = [objective('depart', { templateKey: DEPARTURE_KEY })]
+    stores.dweller.filter.allDwellersLoadedVaultId = 'v1'
+    stores.dweller.filter.allDwellers = [
+      { id: 'a', age_group: 'adult', status: 'idle', health: 100 },
+    ]
+    acknowledgeLessons(
+      ...ALL_LESSONS.filter((id) => id !== 'orientation.departure'),
+      'orientation.preparation'
+    )
+    route.path = '/vault/v1/exploration'
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    await clickButton('Start')
+    await clickButton('Open Vault')
+    expect(router.push).toHaveBeenCalledWith('/vault/v1')
+    await clickButton('Use send button')
+    expect(router.push).toHaveBeenCalledWith('/vault/v1/dwellers')
+    wrapper.unmount()
+  })
+
   it('shows the welcome card first for a new vault', async () => {
     const wrapper = mountSpotlight()
     await flushPromises()
@@ -186,14 +260,10 @@ describe('OnboardingSpotlight', () => {
     wrapper.unmount()
   })
 
-  it('teaches each resource and its production room one at a time', async () => {
+  it('explains reserves and production without repeating the tour for each resource', async () => {
     const steps = [
       ['resource-power', 'Keep the power on'],
       ['room-power', 'Open the Power Generator'],
-      ['resource-food', 'Keep your dwellers fed'],
-      ['room-food', 'Open the Diner'],
-      ['resource-water', 'Keep clean water flowing'],
-      ['room-water', 'Open Water Treatment'],
     ]
     for (const [anchor] of steps) boundedAnchor(anchor!)
     const wrapper = mountSpotlight()
@@ -359,7 +429,12 @@ describe('OnboardingSpotlight', () => {
     stores.dweller.filter.allDwellersLoadedVaultId = 'v1'
     const roster = reactive<unknown[]>([])
     stores.dweller.filter.allDwellers = roster
-    acknowledgeLessons(...RESOURCE_LESSONS, 'orientation.staffing', 'orientation.housing')
+    acknowledgeLessons(
+      ...RESOURCE_LESSONS,
+      'orientation.staffing',
+      'orientation.housing',
+      'orientation.preparation'
+    )
     useOnboardingState().patch('v1', { welcomed: true })
     const wrapper = mountSpotlight()
     await flushPromises()
@@ -368,7 +443,7 @@ describe('OnboardingSpotlight', () => {
     roster.push({ id: 'newcomer', age_group: 'adult', status: 'idle', health: 100 })
     await flushPromises()
     expect(document.querySelector('.onboarding-title')?.textContent).toBe(
-      'Send a dweller exploring'
+      'Drag a dweller to the wasteland'
     )
     wrapper.unmount()
   })
@@ -378,7 +453,12 @@ describe('OnboardingSpotlight', () => {
       objective('depart', { templateKey: DEPARTURE_KEY, progress: 2 }),
     ]
     stores.dweller.filter.allDwellersLoadedVaultId = 'v1'
-    acknowledgeLessons(...RESOURCE_LESSONS, 'orientation.staffing', 'orientation.housing')
+    acknowledgeLessons(
+      ...RESOURCE_LESSONS,
+      'orientation.staffing',
+      'orientation.housing',
+      'orientation.preparation'
+    )
     useOnboardingState().patch('v1', { welcomed: true })
     const wrapper = mountSpotlight()
     await flushPromises()
@@ -390,7 +470,12 @@ describe('OnboardingSpotlight', () => {
     const store = useObjectivesStore()
     store.objectives = [objective('depart', { templateKey: DEPARTURE_KEY })]
     stores.dweller.filter.allDwellersLoadedVaultId = 'v1'
-    acknowledgeLessons(...RESOURCE_LESSONS, 'orientation.staffing', 'orientation.housing')
+    acknowledgeLessons(
+      ...RESOURCE_LESSONS,
+      'orientation.staffing',
+      'orientation.housing',
+      'orientation.preparation'
+    )
 
     stores.dweller.filter.allDwellers = [
       { id: 'c', age_group: 'child', status: 'idle', health: 50 },
@@ -436,7 +521,12 @@ describe('OnboardingSpotlight', () => {
       { id: 'a', age_group: 'adult', status: 'resting', health: 50 },
     ]
     boundedAnchor('wasteland')
-    acknowledgeLessons(...RESOURCE_LESSONS, 'orientation.staffing', 'orientation.housing')
+    acknowledgeLessons(
+      ...RESOURCE_LESSONS,
+      'orientation.staffing',
+      'orientation.housing',
+      'orientation.preparation'
+    )
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
@@ -741,7 +831,7 @@ describe('OnboardingSpotlight', () => {
       const wrapper = mountSpotlight()
       await flushPromises()
       await clickButton('Start')
-      expect(card()?.textContent).toContain('Power keeps the vault running')
+      expect(card()?.textContent).toContain('Power, food and water keep your vault alive')
       expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('true')
 
       collapseToggle()?.click()
@@ -762,14 +852,14 @@ describe('OnboardingSpotlight', () => {
       wrapper.unmount()
     })
 
-    it('moves the card above and collapses it when the control sits below the fold', async () => {
+    it('moves the card above a lower control while keeping the short instructions visible', async () => {
       anchored(600)
       const wrapper = mountSpotlight()
       await flushPromises()
       await clickButton('Start')
 
       expect(card()?.getAttribute('class')).toContain('onboarding-card--top')
-      expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('false')
+      expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('true')
       wrapper.unmount()
     })
 
@@ -886,7 +976,8 @@ describe('first-session continuity', () => {
       },
     })
   const finishOrientation = () => {
-    acknowledgeLessons(...ALL_LESSONS)
+    // A completed pre-revision tour has no preparation ledger entry.
+    acknowledgeLessons(...ALL_LESSONS.filter((id) => id !== 'orientation.preparation'))
     useOnboardingState().patch('v1', { welcomed: true })
     useObjectivesStore().objectives = [
       objective('departure', {

@@ -38,22 +38,28 @@ const LIVING_ROOM = {
   base_cost: 100,
   incremental_cost: 25,
 }
-const SEEDED_CAPACITY_ROOMS = [{ category: 'Capacity' }, { category: 'Capacity' }]
+const SEEDED_CAPACITY_ROOMS = [
+  { name: 'Living room', category: 'Capacity', size: 3, size_min: 3 },
+  { name: 'Living room', category: 'Capacity', size: 3, size_min: 3 },
+]
 
 describe('onboardingSteps', () => {
-  it('authors the nine orientation lessons in order with stable ids', () => {
+  it('authors a shorter orientation with preparation before departure', () => {
     expect(ORIENTATION_STEPS.map((step) => step.id)).toEqual([
       'orientation.resources',
       'orientation.generator',
-      'orientation.food',
-      'orientation.diner',
-      'orientation.water',
-      'orientation.water-treatment',
-
       'orientation.staffing',
       'orientation.housing',
+      'orientation.preparation',
       'orientation.departure',
     ])
+  })
+
+  it('returns to the actual vault drop zone instead of the exploration list', () => {
+    expect(byId.get('orientation.generator')?.route).toBe('')
+    expect(byId.get('orientation.departure')?.route).toBe('')
+    expect(byId.get('orientation.departure')?.anchors).toContain('exploration-dweller')
+    expect(byId.get('orientation.preparation')?.route).toBe('dwellers')
   })
 
   it('links only the objective-backed lessons to server template keys', () => {
@@ -67,14 +73,10 @@ describe('onboardingSteps', () => {
   it('anchors each lesson to a real data-onboarding target', () => {
     expect(byId.get('orientation.resources')?.anchors).toContain('resource-power')
     expect(byId.get('orientation.generator')?.anchors).toContain('room-power')
-    expect(byId.get('orientation.food')?.anchors).toEqual(['resource-food'])
-    expect(byId.get('orientation.diner')?.anchors).toEqual(['room-food'])
-    expect(byId.get('orientation.water')?.anchors).toEqual(['resource-water'])
-    expect(byId.get('orientation.water-treatment')?.anchors).toEqual(['room-water'])
     expect(byId.get('orientation.staffing')?.anchors).toContain('nav-dwellers')
     expect(byId.get('orientation.housing')?.anchors).toContain('build-living-room')
     expect(byId.get('orientation.departure')?.anchors).toEqual(
-      expect.arrayContaining(['wasteland', 'nav-exploration'])
+      expect.arrayContaining(['exploration-dweller', 'wasteland'])
     )
   })
 
@@ -104,6 +106,23 @@ describe('onboardingSteps', () => {
       vault: { bottle_caps: 125 },
       buildableRooms: [LIVING_ROOM],
       builtRooms: SEEDED_CAPACITY_ROOMS,
+      roomsLoaded: true,
+      objectives: [objectiveWithKey(HOUSING)],
+    })
+    expect(byId.get('orientation.housing')?.eligibility(snapshot)).toEqual({
+      blocked: 'Not enough caps for Living Quarters (need 150)',
+    })
+  })
+
+  it('prices merged living segments without counting storage rooms', () => {
+    const snapshot = snapshotWith({
+      vault: { bottle_caps: 149 },
+      buildableRooms: [LIVING_ROOM],
+      builtRooms: [
+        { name: 'Living room', category: 'Capacity', size: 6, size_min: 3 },
+        { name: 'Storage room', category: 'Capacity', size: 9, size_min: 3 },
+        { name: 'Storage room', category: 'Capacity', size: 3, size_min: 3 },
+      ],
       roomsLoaded: true,
       objectives: [objectiveWithKey(HOUSING)],
     })

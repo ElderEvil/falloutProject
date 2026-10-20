@@ -70,7 +70,11 @@ watch(
         DWELLER_MAX_SUPPLIES
       )
       selectedRadaways.value = props.allowRadaway
-        ? Math.min(props.initialRadaways ?? DEFAULT_RADAWAYS, props.maxRadaways, DWELLER_MAX_SUPPLIES)
+        ? Math.min(
+            props.initialRadaways ?? DEFAULT_RADAWAYS,
+            props.maxRadaways,
+            DWELLER_MAX_SUPPLIES
+          )
         : 0
       selectedHeading.value = null
       dialOpen.value = false
@@ -124,137 +128,140 @@ const setRadaways = (value: number[] | undefined) => {
     header-class="flex flex-shrink-0 flex-row items-center gap-2 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
     @close="emit('cancel')"
   >
-      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
-        <p class="mb-6 text-sm text-theme-primary/70">How long should {{ dwellerName }} explore?</p>
+    <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+      <p class="mb-2 text-sm text-theme-primary/70">
+        Prepare {{ dwellerName }}. They leave only when you confirm.
+      </p>
 
-        <div
-          v-if="heading || isSuggestingHeading || canReroll"
-          class="mb-6 rounded-lg border border-theme-primary/25 bg-surface-sunken p-4"
-        >
-          <h4 class="mb-2 flex items-center gap-2 text-base font-bold text-theme-primary">
-            <Icon icon="mdi:compass-outline" class="inline h-5 w-5" />
-            Travel Heading
-            <span
-              v-if="isSuggestingHeading"
-              class="text-xs font-normal text-theme-primary/50"
-              aria-live="polite"
-            >
-              consulting terrain…
-            </span>
-          </h4>
-          <div class="flex min-h-[1.75rem] items-center justify-between gap-3">
-            <p v-if="heading" class="text-sm text-theme-primary/80">
-              {{ heading }} — {{ dwellerName }} travels in this direction.
-            </p>
-            <p v-else class="text-sm text-theme-primary/60">
-              No direction suggested. You can try again.
-            </p>
-            <Button
-              v-if="canReroll"
-              variant="outline"
-              size="xs"
-              type="button"
-              class="font-mono text-xs font-bold"
-              @click="handleChange"
-            >
-              Change
-            </Button>
-          </div>
-          <div class="mt-3">
-            <Button
-              variant="outline"
-              size="xs"
-              type="button"
-              class="heading-dial-toggle font-mono text-xs font-bold"
-              @click="dialOpen = !dialOpen"
-            >
-              <Icon icon="mdi:compass" class="inline h-4 w-4" />
-              {{ dialOpen ? 'Hide directions' : 'Pick direction' }}
-            </Button>
-            <div v-if="dialOpen" class="compass-dial mt-3 grid grid-cols-4 gap-2">
-              <Button
-                v-for="(label, index) in COMPASS_LABELS"
-                :key="label"
-                variant="outline"
-                size="xs"
-                type="button"
-                class="dial-direction font-mono text-xs font-bold"
-                :aria-pressed="activeDialLabel === label"
-                :class="
-                  activeDialLabel === label
-                    ? 'border-theme-primary bg-theme-primary/25 text-theme-primary shadow-glow-md'
-                    : ''
-                "
-                @click="selectManualHeading(HEADING_STEPS[index])"
-              >
-                {{ label }}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <div class="mb-6 grid grid-cols-3 gap-3">
-          <button
-            v-for="duration in [1, 2, 4, 8, 12, 24]"
-            :key="duration"
-            @click="selectDuration(duration)"
-            class="duration-button cursor-pointer rounded-md border-2 border-theme-primary/30 bg-theme-primary/10 p-3 font-mono text-base font-bold text-theme-primary transition-all duration-200 hover:border-theme-primary/60 hover:bg-theme-primary/20"
-            :class="
-              selectedDuration === duration
-                ? 'active border-theme-primary bg-theme-primary/25 shadow-glow-md'
-                : ''
-            "
+      <div
+        v-if="heading || isSuggestingHeading || canReroll"
+        class="mb-6 rounded-lg border border-theme-primary/25 bg-surface-sunken p-4"
+      >
+        <h4 class="mb-2 flex items-center gap-2 text-base font-bold text-theme-primary">
+          <Icon icon="mdi:compass-outline" class="inline h-5 w-5" />
+          Travel Heading
+          <span
+            v-if="isSuggestingHeading"
+            class="text-xs font-normal text-theme-primary/50"
+            aria-live="polite"
           >
-            {{ duration }}h
-          </button>
-        </div>
-
-        <div class="mb-8 rounded-lg border border-theme-primary/25 bg-surface-sunken p-4">
-          <h4 class="mb-4 flex items-center gap-2 text-base font-bold text-theme-primary">
-            <Icon icon="mdi:medical-bag" class="inline h-5 w-5" />
-            Medical Supplies
-          </h4>
-          <div class="flex flex-col gap-5">
-            <div class="flex flex-col">
-              <div class="flex items-center justify-between mb-1">
-                <Label class="text-xs text-theme-primary/80">Stimpaks (Heals HP)</Label>
-                <span class="text-xs font-bold text-theme-primary"
-                  >{{ selectedStimpaks }} / {{ maxStimpaks }}</span
-                >
-              </div>
-              <Slider
-                :model-value="[selectedStimpaks]"
-                :min="0"
-                :max="Math.max(1, Math.min(maxStimpaks, 15))"
-                aria-label="Stimpaks to carry"
-                @update:model-value="setStimpaks"
-              />
-            </div>
-            <div v-if="allowRadaway" class="flex flex-col">
-              <div class="flex items-center justify-between mb-1">
-                <Label class="text-xs text-theme-primary/80">RadAway (Removes Rads)</Label>
-                <span class="text-xs font-bold text-theme-primary"
-                  >{{ selectedRadaways }} / {{ maxRadaways }}</span
-                >
-              </div>
-              <Slider
-                :model-value="[selectedRadaways]"
-                :min="0"
-                :max="Math.max(1, Math.min(maxRadaways, 15))"
-                aria-label="RadAway to carry"
-                @update:model-value="setRadaways"
-              />
-            </div>
-            <p v-else class="text-xs leading-relaxed text-theme-primary/80">
-              RadAway isn't needed: this dweller is radiation immune.
-            </p>
-          </div>
-          <p class="mt-2 text-[10px] text-theme-primary/55">
-            * Selected items will be removed from vault storage and used automatically in the
-            wasteland.
+            consulting terrain…
+          </span>
+        </h4>
+        <div class="flex min-h-[1.75rem] items-center justify-between gap-3">
+          <p v-if="heading" class="text-sm text-theme-primary/80">
+            {{ heading }} — {{ dwellerName }} travels in this direction.
           </p>
+          <p v-else class="text-sm text-theme-primary/60">
+            No direction suggested. You can try again.
+          </p>
+          <Button
+            v-if="canReroll"
+            variant="outline"
+            size="xs"
+            type="button"
+            class="font-mono text-xs font-bold"
+            @click="handleChange"
+          >
+            Change
+          </Button>
+        </div>
+        <div class="mt-3">
+          <Button
+            variant="outline"
+            size="xs"
+            type="button"
+            class="heading-dial-toggle font-mono text-xs font-bold"
+            @click="dialOpen = !dialOpen"
+          >
+            <Icon icon="mdi:compass" class="inline h-4 w-4" />
+            {{ dialOpen ? 'Hide directions' : 'Pick direction' }}
+          </Button>
+          <div v-if="dialOpen" class="compass-dial mt-3 grid grid-cols-4 gap-2">
+            <Button
+              v-for="(label, index) in COMPASS_LABELS"
+              :key="label"
+              variant="outline"
+              size="xs"
+              type="button"
+              class="dial-direction font-mono text-xs font-bold"
+              :aria-pressed="activeDialLabel === label"
+              :class="
+                activeDialLabel === label
+                  ? 'border-theme-primary bg-theme-primary/25 text-theme-primary shadow-glow-md'
+                  : ''
+              "
+              @click="selectManualHeading(HEADING_STEPS[index])"
+            >
+              {{ label }}
+            </Button>
+          </div>
         </div>
       </div>
+
+      <h4 class="mb-2 text-base font-bold text-theme-primary">1. Choose a duration</h4>
+      <div class="mb-6 grid grid-cols-3 gap-3">
+        <button
+          v-for="duration in [1, 2, 4, 8, 12, 24]"
+          :key="duration"
+          @click="selectDuration(duration)"
+          class="duration-button cursor-pointer rounded-md border-2 border-theme-primary/30 bg-theme-primary/10 p-3 font-mono text-base font-bold text-theme-primary transition-all duration-200 hover:border-theme-primary/60 hover:bg-theme-primary/20"
+          :class="
+            selectedDuration === duration
+              ? 'active border-theme-primary bg-theme-primary/25 shadow-glow-md'
+              : ''
+          "
+        >
+          {{ duration }}h
+        </button>
+      </div>
+
+      <div class="mb-8 rounded-lg border border-theme-primary/25 bg-surface-sunken p-4">
+        <h4 class="mb-4 flex items-center gap-2 text-base font-bold text-theme-primary">
+          <Icon icon="mdi:medical-bag" class="inline h-5 w-5" />
+          2. Pack medicine
+        </h4>
+        <div class="flex flex-col gap-5">
+          <div class="flex flex-col">
+            <div class="flex items-center justify-between mb-1">
+              <Label class="text-xs text-theme-primary/80">Stimpaks (Heals HP)</Label>
+              <span class="text-xs font-bold text-theme-primary"
+                >{{ selectedStimpaks }} / {{ maxStimpaks }}</span
+              >
+            </div>
+            <Slider
+              :model-value="[selectedStimpaks]"
+              :min="0"
+              :max="Math.max(1, Math.min(maxStimpaks, 15))"
+              aria-label="Stimpaks to carry"
+              @update:model-value="setStimpaks"
+            />
+          </div>
+          <div v-if="allowRadaway" class="flex flex-col">
+            <div class="flex items-center justify-between mb-1">
+              <Label class="text-xs text-theme-primary/80">RadAway (Removes Rads)</Label>
+              <span class="text-xs font-bold text-theme-primary"
+                >{{ selectedRadaways }} / {{ maxRadaways }}</span
+              >
+            </div>
+            <Slider
+              :model-value="[selectedRadaways]"
+              :min="0"
+              :max="Math.max(1, Math.min(maxRadaways, 15))"
+              aria-label="RadAway to carry"
+              @update:model-value="setRadaways"
+            />
+          </div>
+          <p v-else class="text-xs leading-relaxed text-theme-primary/80">
+            RadAway isn't needed: this dweller is radiation immune.
+          </p>
+        </div>
+        <p class="mt-2 text-[10px] text-theme-primary/55">
+          * Selected items will be removed from vault storage and used automatically in the
+          wasteland.
+        </p>
+      </div>
+    </div>
 
     <template #footer>
       <TerminalModalActions

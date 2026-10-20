@@ -29,7 +29,11 @@ const router = useRouter()
 const { goBack } = useGoBack()
 
 function navigateBack(): void {
-  if (props.historyFirst && window.history.length > 1 && window.history.state?.back !== undefined) {
+  if (
+    props.historyFirst &&
+    window.history.length > 1 &&
+    typeof window.history.state?.back === 'string'
+  ) {
     router.back()
     return
   }

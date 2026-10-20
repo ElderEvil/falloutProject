@@ -72,6 +72,17 @@ describe('PageNavigation', () => {
     expect(mocks.push).not.toHaveBeenCalled()
   })
 
+  it('uses the fallback for a direct link with no in-app predecessor', async () => {
+    vi.spyOn(window.history, 'length', 'get').mockReturnValue(2)
+    vi.spyOn(window.history, 'state', 'get').mockReturnValue({ back: null })
+    const wrapper = mount(PageNavigation, {
+      props: { breadcrumbs: [], backTo: '/vault/vault-1/dwellers', historyFirst: true },
+    })
+    await wrapper.get('button').trigger('click')
+    expect(mocks.push).toHaveBeenCalledWith('/vault/vault-1/dwellers')
+    expect(mocks.back).not.toHaveBeenCalled()
+  })
+
   it('keeps an explicit backTo when historyFirst is off', async () => {
     const wrapper = mount(PageNavigation, {
       props: { breadcrumbs: [], backTo: '/vault/vault-1/dwellers/dweller-1' },

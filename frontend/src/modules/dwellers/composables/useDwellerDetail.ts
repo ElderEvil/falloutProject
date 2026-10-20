@@ -105,7 +105,8 @@ interface RunOptions {
  */
 export function useDwellerDetail(
   dwellerId: Ref<string>,
-  vaultId: Ref<string>
+  vaultId: Ref<string>,
+  navigation: { onBack?: () => void; onNavigateToDweller?: (id: string) => void } = {}
 ): UseDwellerDetailReturn {
   const route = useRoute()
   const router = useRouter()
@@ -247,11 +248,15 @@ export function useDwellerDetail(
     void loadDweller()
   })
 
-  const onBack = () => router.push(`/vault/${vaultId.value}/dwellers`)
+  const onBack = () =>
+    navigation.onBack ? navigation.onBack() : router.push(`/vault/${vaultId.value}/dwellers`)
   // Chat opens as a global modal over the current view via `?chat=<id>`; the
   // detail route stays mounted so closing the modal resumes it.
   const navigateToChat = () => router.push({ query: { ...route.query, chat: dwellerId.value } })
-  const navigateToDweller = (id: string) => router.push(`/vault/${vaultId.value}/dwellers/${id}`)
+  const navigateToDweller = (id: string) =>
+    navigation.onNavigateToDweller
+      ? navigation.onNavigateToDweller(id)
+      : router.push(`/vault/${vaultId.value}/dwellers/${id}`)
   const onHeaderNameClick = () => {
     if (dweller.value?.first_name?.toLowerCase() === 'gary') triggerGaryMode()
   }

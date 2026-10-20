@@ -106,6 +106,7 @@ class CraftingOrderRead(SQLModel):
     started_at: datetime
     estimated_completion_at: datetime
     completed_at: datetime | None = None
+    cancelled_at: datetime | None = None
     junk_spent: int
     caps_spent: int
     required_stat: str

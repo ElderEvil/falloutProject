@@ -82,6 +82,26 @@ async def start_crafting_order(
     return CraftingOrderRead.model_validate(order)
 
 
+@router.post("/vault/{vault_id}/orders/{order_id}/cancel", response_model=CraftingOrderRead)
+async def cancel_crafting_order(
+    vault_id: UUID4,
+    order_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    user: CurrentActiveUser,
+) -> CraftingOrderRead:
+    """Cancel an active order, refunding its caps and junk.
+
+    Returns:
+        The cancelled order.
+
+    Raises:
+        HTTPException: 403 if user lacks access to the vault.
+    """
+    await get_user_vault_or_403(vault_id, user, db_session)
+    order = await crafting_service.cancel_order(db_session, vault_id, order_id)
+    return CraftingOrderRead.model_validate(order)
+
+
 @router.post("/vault/{vault_id}/orders/{order_id}/collect", response_model=CraftResultRead)
 async def collect_crafting_order(
     vault_id: UUID4,

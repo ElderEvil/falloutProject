@@ -530,6 +530,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/crafting/vault/{vault_id}/orders/{order_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Crafting Order
+         * @description Cancel an active order, refunding its caps and junk.
+         *
+         *     Returns:
+         *         The cancelled order.
+         *
+         *     Raises:
+         *         HTTPException: 403 if user lacks access to the vault.
+         */
+        post: operations["cancel_crafting_order_api_v1_crafting_vault__vault_id__orders__order_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/crafting/vault/{vault_id}/orders/{order_id}/collect": {
         parameters: {
             query?: never;
@@ -5960,6 +5986,8 @@ export interface components {
             estimated_completion_at: string;
             /** Completed At */
             completed_at?: string | null;
+            /** Cancelled At */
+            cancelled_at?: string | null;
             /** Junk Spent */
             junk_spent: number;
             /** Caps Spent */
@@ -5974,7 +6002,7 @@ export interface components {
          * @description Lifecycle of a workshop order.
          * @enum {string}
          */
-        CraftingOrderStatus: "active" | "completed" | "collected";
+        CraftingOrderStatus: "active" | "completed" | "collected" | "cancelled";
         /** CraftingOrdersRead */
         CraftingOrdersRead: {
             /**
@@ -12351,6 +12379,38 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CraftingOrderRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_crafting_order_api_v1_crafting_vault__vault_id__orders__order_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

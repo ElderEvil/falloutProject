@@ -29,7 +29,7 @@ class CRUDCraftingOrder(CRUDBase[CraftingOrder, CraftingOrderCreate, CraftingOrd
                 CraftingOrder.vault_id == vault_id,
                 CraftingOrder.item_type == item_type,
                 CraftingOrder.item_name == item_name,
-                CraftingOrder.status != CraftingOrderStatus.COLLECTED,
+                CraftingOrder.status.notin_([CraftingOrderStatus.COLLECTED, CraftingOrderStatus.CANCELLED]),
             )
             .limit(1)
         )

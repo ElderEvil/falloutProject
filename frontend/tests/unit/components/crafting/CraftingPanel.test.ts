@@ -17,6 +17,7 @@ vi.mock('@/modules/crafting/services/craftingService', () => ({
     listRecipes: vi.fn(),
     listOrders: vi.fn(),
     startOrder: vi.fn(),
+    cancelOrder: vi.fn(),
     collectOrder: vi.fn(),
   },
 }))
@@ -209,6 +210,23 @@ describe('CraftingPanel', () => {
     expect(bar.exists()).toBe(true)
     expect(bar.attributes('aria-valuenow')).toBe('50')
     expect(wrapper.text()).toContain('50%')
+  })
+
+  it('cancels an active order and refreshes the queue', async () => {
+    vi.mocked(craftingService.listOrders).mockResolvedValue([order({ status: 'active' })])
+    vi.mocked(craftingService.cancelOrder).mockResolvedValue(order({ status: 'cancelled' }))
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    const cancel = wrapper.findAll('button').find((button) => button.text().includes('Cancel'))!
+    await cancel.trigger('click')
+    await flushPromises()
+
+    expect(craftingService.cancelOrder).toHaveBeenCalledWith('vault-1', 'order-1')
+    expect(mockToast.success).toHaveBeenCalledWith(expect.stringContaining('refunded'))
+    expect(craftingService.listOrders).toHaveBeenCalledTimes(2)
+    confirmSpy.mockRestore()
   })
 
   it('collects a finished order', async () => {

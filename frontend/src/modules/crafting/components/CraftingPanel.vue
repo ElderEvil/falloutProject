@@ -125,7 +125,12 @@ function materialsLabel(recipe: CraftingRecipe): string {
 }
 const craftableCount = computed(() => recipes.value.filter((recipe) => recipe.can_craft).length)
 const queue = computed(() =>
-  orders.value.filter((order) => order.status !== 'collected' && order.item_type === props.itemType)
+  orders.value.filter(
+    (order) =>
+      order.status !== 'collected' &&
+      order.status !== 'cancelled' &&
+      order.item_type === props.itemType
+  )
 )
 
 function remainingSeconds(order: CraftingOrder): number {
@@ -185,6 +190,21 @@ async function handleStart(recipe: CraftingRecipe) {
     emit('crafted')
   } catch (error) {
     toast.error(getErrorMessage(error) || `Failed to queue ${recipe.name}`)
+  } finally {
+    busyKey.value = null
+  }
+}
+
+async function handleCancel(order: CraftingOrder) {
+  if (!props.vaultId || busyKey.value) return
+  if (!window.confirm(`Cancel ${order.item_name} and refund its materials?`)) return
+  busyKey.value = order.id
+  try {
+    await craftingService.cancelOrder(props.vaultId, order.id)
+    toast.success(`Cancelled ${order.item_name}; materials refunded.`)
+    await loadAll()
+  } catch (error) {
+    toast.error(getErrorMessage(error) || `Failed to cancel ${order.item_name}`)
   } finally {
     busyKey.value = null
   }
@@ -278,6 +298,21 @@ watch(() => [props.vaultId, props.itemType, props.crewKey], loadAll)
               <span class="w-9 shrink-0 text-right text-xs text-theme-primary">
                 {{ progressPercent(order).toFixed(0) }}%
               </span>
+              <Button
+                v-if="order.status === 'active'"
+                variant="destructive"
+                size="sm"
+                class="shrink-0 border-2 font-mono"
+                :disabled="busyKey !== null"
+                @click="handleCancel(order)"
+              >
+                <Icon
+                  :icon="busyKey === order.id ? 'mdi:loading' : 'mdi:close'"
+                  class="h-4 w-4"
+                  :class="{ 'animate-spin': busyKey === order.id }"
+                />
+                Cancel
+              </Button>
               <Button
                 v-if="order.status === 'completed'"
                 variant="default"

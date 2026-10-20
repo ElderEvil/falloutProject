@@ -681,3 +681,55 @@ async def test_theme_duration_shortens_with_matching_crew(async_session: AsyncSe
 
     order = await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
     assert (order.estimated_completion_at - order.started_at).total_seconds() == party.duration_seconds
+
+
+@pytest.mark.asyncio
+async def test_cancel_active_order_refunds_caps_and_junk(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_theme_workshop(async_session, vault)
+    vault.bottle_caps = 1_000
+    await async_session.commit()
+    await _add_junk(async_session, storage, RarityEnum.COMMON, 3, JunkTypeEnum.CLOTH)
+    await _add_junk(async_session, storage, RarityEnum.RARE, 3, JunkTypeEnum.CLOTH)
+
+    order = await crafting_service.start_order(async_session, vault.id, "Halloween theme", "theme")
+    cancelled = await crafting_service.cancel_order(async_session, vault.id, order.id)
+
+    assert cancelled.status == CraftingOrderStatus.CANCELLED
+    assert cancelled.cancelled_at is not None
+    assert await crud.crafting_order.get_active_by_vault(async_session, vault.id) == []
+    refreshed_vault = await crud.vault.get(async_session, vault.id)
+    assert refreshed_vault.bottle_caps == 1_000
+    junk = (await async_session.execute(select(Junk))).scalars().all()
+    assert len(junk) == 6
+
+
+@pytest.mark.asyncio
+async def test_cancel_rejects_orders_that_are_not_active(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_workshop(async_session, vault, "Weapon workshop")
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON))
+    order = await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
+    await _finish_queue(async_session, vault.id)
+
+    with pytest.raises(ValidationException, match="Only active orders"):
+        await crafting_service.cancel_order(async_session, vault.id, order.id)
+
+
+@pytest.mark.asyncio
+async def test_cancel_unknown_order_raises_not_found(async_session: AsyncSession, vault: Vault) -> None:
+    with pytest.raises(ResourceNotFoundException):
+        await crafting_service.cancel_order(async_session, vault.id, uuid4())
+
+
+@pytest.mark.asyncio
+async def test_cancelled_theme_can_be_queued_again(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_theme_workshop(async_session, vault)
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.CLOTH)
+
+    order = await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+    await crafting_service.cancel_order(async_session, vault.id, order.id)
+
+    replacement = await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+    assert replacement.id != order.id

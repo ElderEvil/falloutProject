@@ -36,7 +36,7 @@ from app.utils.exceptions import (
     ResourceNotFoundException,
     ValidationException,
 )
-from app.utils.item_factory import build_outfit, build_weapon
+from app.utils.item_factory import build_junk, build_outfit, build_weapon
 from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
@@ -82,6 +82,21 @@ class CraftingService:
     def _theme_style(entry: dict[str, Any]) -> str:
         """The room-style key a theme catalog entry owns."""
         return str(entry.get("style") or "")
+
+    @staticmethod
+    def _junk_snapshot(spent: list[Junk]) -> list[dict[str, Any]]:
+        """The exact junk rows an order consumed, so cancellation can restore them."""
+        return [
+            {
+                "name": item.name,
+                "junk_type": item.junk_type.value,
+                "rarity": item.rarity.value,
+                "value": item.value,
+                "description": item.description,
+                "image_url": item.image_url,
+            }
+            for item in spent
+        ]
 
     @staticmethod
     def craft_types(entry: dict[str, Any]) -> list[str]:
@@ -305,6 +320,7 @@ class CraftingService:
             item_snapshot=dict(entry),
             junk_spent=len(spent),
             caps_spent=caps_cost,
+            junk_snapshot=self._junk_snapshot(spent),
         )
         db_session.add(order)
         await db_session.commit()
@@ -318,6 +334,53 @@ class CraftingService:
     async def list_orders(self, db_session: AsyncSession, vault_id: UUID4) -> list[CraftingOrder]:
         """Every order for a vault, newest first."""
         return await crud.crafting_order.get_by_vault(db_session, vault_id)
+
+    async def cancel_order(self, db_session: AsyncSession, vault_id: UUID4, order_id: UUID4) -> CraftingOrder:
+        """Cancel an active order and refund the caps and junk it consumed.
+
+        Completed orders must be collected; collected and cancelled orders cannot
+        be cancelled again.
+        """
+        order = await crud.crafting_order.get_for_vault_for_update(db_session, order_id, vault_id)
+        if order is None:
+            raise ResourceNotFoundException(CraftingOrder, order_id)
+        if not order.is_active():
+            raise ValidationException(f"Only active orders can be cancelled; this order is {order.status}")
+
+        vault = await crud.vault.lock_for_update(db_session, vault_id)
+        if order.caps_spent:
+            await vault_service.deposit_caps(
+                db_session=db_session,
+                vault_obj=vault,
+                amount=order.caps_spent,
+                commit=False,
+                emit_event=False,
+                track_earnings=False,
+            )
+
+        storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
+        if storage is not None:
+            for snapshot in order.junk_snapshot or []:
+                db_session.add(
+                    build_junk(
+                        name=str(snapshot["name"]),
+                        rarity=RarityEnum(snapshot["rarity"]),
+                        storage_id=storage.id,
+                        value=snapshot.get("value"),
+                        description=str(snapshot.get("description") or "Recovered from a cancelled order"),
+                        junk_type=JunkTypeEnum(str(snapshot.get("junk_type", "valuables")).lower()),
+                        image_url=snapshot.get("image_url"),
+                    )
+                )
+
+        order.status = CraftingOrderStatus.CANCELLED
+        order.cancelled_at = datetime.utcnow()
+        order.progress = 0.0
+        db_session.add(order)
+        await db_session.commit()
+        await db_session.refresh(order)
+        logger.info(f"Cancelled {order.item_type} '{order.item_name}' for vault {vault_id}")
+        return order
 
     async def advance_orders(self, db_session: AsyncSession, vault_id: UUID4) -> int:
         """Advance the queue one tick; returns how many orders just completed."""

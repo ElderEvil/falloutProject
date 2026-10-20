@@ -149,12 +149,20 @@ function handleDragLeave(event: DragEvent): void {
         <div class="room-info-overlay">
           <div class="room-header">
             <h3 class="room-name">{{ room.name }}</h3>
-            <Icon
-              v-if="room.ability"
-              :icon="abilityConfig?.icon ?? 'mdi:home'"
-              class="ability-icon"
-              :class="{ 'ability-icon--drag-over': isDraggingOver }"
-            />
+            <span v-if="room.ability" class="room-ability">
+              <Icon
+                :icon="abilityConfig?.icon ?? 'mdi:home'"
+                class="ability-icon"
+                :class="{ 'ability-icon--drag-over': isDraggingOver }"
+              />
+              <span
+                v-if="isDraggingOver && abilityConfig"
+                class="drag-ability-letter"
+                role="img"
+                :aria-label="`Assign a dweller with high ${abilityConfig.label}`"
+                >{{ abilityConfig.letter }}</span
+              >
+            </span>
           </div>
           <div v-if="room.tier" class="room-tier">T{{ room.tier }}</div>
         </div>
@@ -221,6 +229,7 @@ function handleDragLeave(event: DragEvent): void {
 }
 
 .room-content {
+  container-type: inline-size;
   padding: 0;
   text-align: center;
   position: relative;
@@ -316,6 +325,25 @@ function handleDragLeave(event: DragEvent): void {
   flex: 1;
 }
 
+.room-ability {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.drag-ability-letter {
+  display: none;
+  width: 14px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-theme-accent);
+  font-size: 0.75rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
 .ability-icon {
   width: 14px;
   height: 14px;
@@ -358,6 +386,17 @@ function handleDragLeave(event: DragEvent): void {
 .drop-ability {
   font-size: 0.75rem;
   color: var(--color-theme-accent);
+}
+
+@container (max-width: 160px) {
+  .drop-indicator,
+  .room-ability:has(.drag-ability-letter) .ability-icon {
+    display: none;
+  }
+
+  .drag-ability-letter {
+    display: inline-flex;
+  }
 }
 
 .overseer-alert-badge {
@@ -458,6 +497,14 @@ function handleDragLeave(event: DragEvent): void {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .ability-icon {
+    transition: none;
+  }
+
+  .ability-icon--drag-over {
+    transform: none;
+  }
+
   .room.has-incident {
     animation: none;
   }

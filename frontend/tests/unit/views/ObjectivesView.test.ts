@@ -365,7 +365,7 @@ describe('ObjectivesView claimable counters', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.text()).not.toContain('Open objectives')
-    expect(wrapper.text()).toContain('Rewards ready')
+    expect(wrapper.text()).toContain('Collect rewards')
   })
 
   it('offers header help about objectives', async () => {

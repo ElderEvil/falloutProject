@@ -287,6 +287,23 @@ const confirmClaimRewards = async () => {
   }
 }
 
+async function collectAllQuestRewards(): Promise<void> {
+  const id = vaultId.value
+  if (!id || isClaiming.value || readyToClaimQuests.value.length === 0) return
+  const questIds = readyToClaimQuests.value.map((quest) => quest.id)
+  isClaiming.value = true
+  try {
+    // Settle one claim at a time: rewards share the same vault balance.
+    // The store announces each success/error; a failed claim leaves the rest collectable.
+    for (const questId of questIds) {
+      if (vaultId.value !== id) break
+      await questStore.claimQuestRewards(id, questId).catch(() => null)
+    }
+  } finally {
+    isClaiming.value = false
+  }
+}
+
 // Fetch quests on mount
 onMounted(async () => {
   const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
@@ -370,7 +387,10 @@ onMounted(async () => {
                   icon="mdi:treasure-chest"
                   :value="readyToClaimQuests.length"
                   label="Rewards ready"
+                  hover-text="Collect rewards"
                   tooltip="Finished quests with rewards ready to claim"
+                  :disabled="isClaiming || readyToClaimQuests.length === 0"
+                  @click="collectAllQuestRewards"
                 />
               </template>
             </PageHeader>
@@ -415,6 +435,12 @@ onMounted(async () => {
                 </TabsList>
 
                 <div v-if="activeTab === 'available'" class="filter-row">
+                  <!-- Raw checkbox: no Checkbox/Switch primitive is vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
+                  <label class="toggle-label">
+                    <input v-model="showAllQuests" type="checkbox" class="toggle-input" />
+                    <span class="toggle-text">Show All</span>
+                  </label>
+                  <span v-if="showAllQuests" class="filter-hint">(Showing All)</span>
                   <Select :model-value="availableSort" @update:model-value="onAvailableSortChange">
                     <SelectTrigger
                       size="sm"
@@ -433,12 +459,6 @@ onMounted(async () => {
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  <span v-if="showAllQuests" class="filter-hint">(Showing All)</span>
-                  <!-- Raw checkbox: no Checkbox/Switch primitive is vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
-                  <label class="toggle-label">
-                    <input v-model="showAllQuests" type="checkbox" class="toggle-input" />
-                    <span class="toggle-text">Show All</span>
-                  </label>
                 </div>
               </div>
               <p

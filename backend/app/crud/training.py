@@ -13,6 +13,16 @@ from app.schemas.training import TrainingCreate, TrainingUpdate
 class CRUDTraining(CRUDBase[Training, TrainingCreate, TrainingUpdate]):
     """CRUD operations for Training model."""
 
+    async def get_for_update(self, db_session: AsyncSession, training_id: UUID4) -> Training | None:
+        """Serialize completion/cancellation and refresh cached session status."""
+        result = await db_session.execute(
+            select(Training)
+            .where(Training.id == training_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return result.scalar_one_or_none()
+
     async def get_active_by_dweller(
         self,
         db_session: AsyncSession,

@@ -17,6 +17,29 @@ from app.schemas.room import RoomCreate
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
 
 
+async def test_continuous_training_setting_round_trips(async_client, superuser_token_headers, async_session, vault):
+    assert vault.continuous_training is False
+    for enabled in (True, False):
+        response = await async_client.put(
+            f"/vaults/{vault.id}", headers=superuser_token_headers, json={"continuous_training": enabled}
+        )
+        assert response.status_code == 200
+        assert response.json()["continuous_training"] is enabled
+        await async_session.refresh(vault)
+        assert vault.continuous_training is enabled
+
+
+async def test_continuous_training_setting_rejects_foreign_vault(
+    async_client, normal_user_token_headers, async_session, vault
+):
+    response = await async_client.put(
+        f"/vaults/{vault.id}", headers=normal_user_token_headers, json={"continuous_training": True}
+    )
+    assert response.status_code == 403
+    await async_session.refresh(vault)
+    assert vault.continuous_training is False
+
+
 @pytest.mark.asyncio
 async def test_unassigning_a_training_dweller_cancels_active_session(
     async_client: AsyncClient,

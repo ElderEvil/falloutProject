@@ -4,6 +4,15 @@ import type { components } from '@/core/types/api.generated'
 type TrainingRead = components['schemas']['TrainingRead']
 type TrainingProgress = components['schemas']['TrainingProgress']
 
+export async function setContinuousTraining(vaultId: string, enabled: boolean, token: string) {
+  const response = await axios.put<components['schemas']['Vault']>(
+    `/api/v1/vaults/${vaultId}`,
+    { continuous_training: enabled },
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+  return response.data
+}
+
 /**
  * Start training a dweller in a training room
  * @param dwellerId - UUID of the dweller to train

@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { getErrorMessage } from '@/core/types/utils'
+import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 
 vi.mock('@/core/plugins/axios')
 vi.mock('@/core/types/utils', () => ({
@@ -15,6 +17,7 @@ vi.mock('@/modules/progression/services/trainingService', () => ({
   getVaultTrainings: vi.fn(),
   getRoomTrainings: vi.fn(),
   getTrainingProgress: vi.fn(),
+  setContinuousTraining: vi.fn(),
 }))
 
 import * as trainingService from '@/modules/progression/services/trainingService'
@@ -34,6 +37,44 @@ describe('Training Store', () => {
       expect(store.trainingHistory).toEqual([])
       expect(store.isLoading).toBe(false)
       expect(store.error).toBeNull()
+    })
+  })
+
+  describe('continuous training', () => {
+    it('keeps the saved preference after a failed change', async () => {
+      useAuthStore().token = 'token'
+      const vaultStore = useVaultStore()
+      vaultStore.loadedVaults['v1'] = { id: 'v1', continuous_training: true } as any
+      vi.mocked(trainingService.setContinuousTraining).mockRejectedValueOnce(
+        new Error('Save failed')
+      )
+      const store = useTrainingStore()
+      expect(await store.setContinuousTraining('v1', false, 'token')).toBe(false)
+      expect(vaultStore.loadedVaults['v1'].continuous_training).toBe(true)
+      expect(store.isSettingContinuousTraining).toBe(false)
+    })
+
+    it('ignores duplicate changes and results from an old login', async () => {
+      const auth = useAuthStore()
+      auth.token = 'token'
+      const vaultStore = useVaultStore()
+      vaultStore.loadedVaults['v1'] = { id: 'v1', continuous_training: false } as any
+      let finish!: (value: any) => void
+      vi.mocked(trainingService.setContinuousTraining).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve
+          })
+      )
+      const store = useTrainingStore()
+      const pending = store.setContinuousTraining('v1', true, 'token')
+      expect(store.isSettingContinuousTraining).toBe(true)
+      expect(await store.setContinuousTraining('v1', true, 'token')).toBe(false)
+      expect(trainingService.setContinuousTraining).toHaveBeenCalledTimes(1)
+      auth.token = 'different-login'
+      finish({ continuous_training: true })
+      expect(await pending).toBe(false)
+      expect(vaultStore.loadedVaults['v1'].continuous_training).toBe(false)
     })
   })
 
@@ -263,11 +304,23 @@ describe('Training Store', () => {
       vi.mocked(trainingService.getRoomTrainings).mockResolvedValueOnce(mockTrainings)
 
       const store = useTrainingStore()
+      store.activeTrainings.set('previous-round', {
+        id: 'previous-round',
+        room_id: 'r1',
+        status: 'active',
+      } as any)
+      store.activeTrainings.set('other-room', {
+        id: 'other-room',
+        room_id: 'r2',
+        status: 'active',
+      } as any)
       const result = await store.fetchRoomTrainings('r1', 'test-token')
 
       expect(trainingService.getRoomTrainings).toHaveBeenCalledWith('r1', 'test-token')
       expect(result).toEqual(mockTrainings)
       expect(store.activeTrainings.get('t1')).toEqual(mockTrainings[0])
+      expect(store.activeTrainings.has('previous-round')).toBe(false)
+      expect(store.activeTrainings.has('other-room')).toBe(true)
     })
 
     it('should return empty array on error', async () => {

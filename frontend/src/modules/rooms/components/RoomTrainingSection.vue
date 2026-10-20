@@ -12,11 +12,14 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import TrainingProgressCard from '@/modules/progression/components/training/TrainingProgressCard.vue'
 import { getTrainingRoomCapacity } from '../utils/room'
+import { usePolling } from '@/core/composables/usePolling'
+import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 
 type TrainingRead = components['schemas']['TrainingRead']
 
 interface Props {
   room: Room
+  vaultId: string
   assignedDwellers: DwellerShort[]
 }
 
@@ -24,6 +27,7 @@ const props = defineProps<Props>()
 
 const authStore = useAuthStore()
 const trainingStore = useTrainingStore()
+const dwellerStore = useDwellerFilterStore()
 
 const trainings = ref<TrainingRead[]>([])
 const isLoading = ref(false)
@@ -60,14 +64,25 @@ const refresh = async () => {
   const token = roomToken.value
   if (!token) return
   const requestRoomId = props.room.id
+  const vaultId = props.vaultId
   isLoading.value = true
   try {
     const records = await trainingStore.fetchRoomTrainings(requestRoomId, token)
-    if (requestRoomId === props.room.id) trainings.value = records
+    if (requestRoomId === props.room.id) {
+      const finishedRound = trainings.value.some(
+        (previous) => !records.some((current) => current.id === previous.id)
+      )
+      trainings.value = records
+      if (finishedRound) {
+        await dwellerStore.fetchDwellersByVault(vaultId, token)
+      }
+    }
   } finally {
     if (requestRoomId === props.room.id) isLoading.value = false
   }
 }
+
+usePolling(refresh, { interval: 30_000, immediate: false })
 
 const handleStart = async (dwellerId: string) => {
   const token = roomToken.value
@@ -98,6 +113,7 @@ const handleComplete = async (trainingId: string) => {
 watch(
   () => props.room.id,
   () => {
+    trainings.value = []
     void refresh()
   },
   { immediate: true }
@@ -135,7 +151,10 @@ watch(
         @click="handleStart(dweller.id)"
       >
         <span class="trainee-name">{{ getDwellerDisplayName(dweller) }}</span>
-        <span class="trainee-stat">{{ room.ability?.charAt(0) }} {{ statValue(dweller) }} → {{ statValue(dweller) + 1 }}</span>
+        <span class="trainee-stat"
+          >{{ room.ability?.charAt(0) }} {{ statValue(dweller) }} →
+          {{ statValue(dweller) + 1 }}</span
+        >
       </button>
     </div>
   </section>

@@ -12,6 +12,7 @@ from app.core.game_config import game_config
 from app.crud import training as training_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.room import room as room_crud
+from app.crud.vault import vault as vault_crud
 from app.models.base import SPECIALModel
 from app.models.dweller import Dweller
 from app.models.room import Room
@@ -144,7 +145,7 @@ class TrainingService:
             raise ResourceNotFoundException(model=Dweller, identifier=dweller_id)
 
         # Refresh to ensure all SPECIAL stats are loaded
-        await db_session.refresh(dweller)
+        await db_session.refresh(dweller, with_for_update=True)
         # refresh() expires relationship attributes, dropping the eager-loaded
         # pet; re-read so the training-speed snapshot below sees it (B7).
         dweller = await dweller_crud.get(db_session, dweller_id)
@@ -160,43 +161,7 @@ class TrainingService:
                 raise ResourceConflictException(detail=reason)
             raise VaultOperationException(detail=reason)
 
-        # Get current stat value. can_start_training already rejected a room with
-        # no assigned stat; restate it so the invariant is explicit to the reader
-        # (and to the type checker, which cannot see across the validator).
-        stat_to_train = room.ability
-        if stat_to_train is None:
-            raise VaultOperationException(detail="Training room has no assigned SPECIAL stat")
-        vault_id = dweller.vault_id
-        if vault_id is None:
-            raise VaultOperationException(detail="Dweller must belong to a vault to train")
-        current_stat_value = SPECIALModel.get_stat(dweller, stat_to_train)
-
-        # Calculate duration
-        duration_seconds = self.calculate_training_duration(current_stat_value, room.tier)
-
-        # Pet training-speed bonus shortens the duration. Snapshotted here
-        # (estimated_completion_at); tick/progress code never re-applies it.
-        # Neutral when the pet is not loaded (B7 eager-loads it). MAX_PCT_BONUS
-        # caps the reduction, flooring the duration at 50% of base.
-        pet_effect = pet_modifiers_for(dweller)
-        training_speed_pct = min(pet_effect.training_speed_pct, MAX_PCT_BONUS)
-        duration_seconds = int(duration_seconds * (1 - training_speed_pct))
-
-        # Create training session
-        now = datetime.utcnow()
-        training = Training(
-            dweller_id=dweller.id,
-            room_id=room.id,
-            vault_id=vault_id,
-            stat_being_trained=stat_to_train,
-            current_stat_value=current_stat_value,
-            target_stat_value=current_stat_value + 1,
-            progress=0.0,
-            started_at=now,
-            estimated_completion_at=now + timedelta(seconds=duration_seconds),
-            status=TrainingStatus.ACTIVE,
-        )
-
+        training = self._new_training(dweller, room)
         db_session.add(training)
 
         # One transaction for the whole transition: the training row and the
@@ -212,12 +177,59 @@ class TrainingService:
         await db_session.commit()
         await db_session.refresh(training)
 
-        self.logger.info(
-            f"Started training: Dweller {dweller.first_name} training {stat_to_train.value} "
-            f"from {current_stat_value} to {current_stat_value + 1} ({duration_seconds}s)"
-        )
+        self.logger.info("Started training %s for dweller %s", training.id, dweller.id)
 
         return training
+
+    def _new_training(self, dweller: Dweller, room: Room) -> Training:
+        """Snapshot the stat, room tier and equipped pet for one round."""
+        if room.ability is None or dweller.vault_id is None:
+            raise VaultOperationException(detail="Training requires a room stat and a dweller in a vault")
+        current_stat = SPECIALModel.get_stat(dweller, room.ability)
+        speed_bonus = min(pet_modifiers_for(dweller).training_speed_pct, MAX_PCT_BONUS)
+        duration = int(self.calculate_training_duration(current_stat, room.tier) * (1 - speed_bonus))
+        now = datetime.utcnow()
+        return Training(
+            dweller_id=dweller.id,
+            room_id=room.id,
+            vault_id=dweller.vault_id,
+            stat_being_trained=room.ability,
+            current_stat_value=current_stat,
+            target_stat_value=current_stat + 1,
+            started_at=now,
+            estimated_completion_at=now + timedelta(seconds=duration),
+        )
+
+    async def _lock_active_training(
+        self, db_session: AsyncSession, training_id: UUID4, operation: str
+    ) -> tuple[Training, Dweller]:
+        """Lock the dweller before the session, matching assignment write order."""
+        training = await training_crud.training.get(db_session, training_id)
+        if not training:
+            raise ResourceNotFoundException(model=Training, identifier=training_id)
+        dweller = await dweller_crud.get_for_update(db_session, training.dweller_id)
+        if not dweller:
+            raise ResourceNotFoundException(model=Dweller, identifier=training.dweller_id)
+        training = await training_crud.training.get_for_update(db_session, training_id)
+        if not training:
+            raise ResourceNotFoundException(model=Training, identifier=training_id)
+        if not training.is_active():
+            raise VaultOperationException(detail=f"Training is {training.status}, cannot {operation}")
+        return training, dweller
+
+    async def _repeat_training(self, db_session: AsyncSession, training: Training, dweller: Dweller) -> Training | None:
+        vault = await vault_crud.get(db_session, training.vault_id)
+        if not vault or not vault.continuous_training:
+            return None
+        room = await room_crud.get(db_session, training.room_id)
+        if not room or room.ability != training.stat_being_trained:
+            return None
+        can_train, _ = await self.can_start_training(db_session, dweller, room)
+        if not can_train:
+            return None
+        # Refresh the equipped pet after locking; each round uses its current bonus.
+        dweller = await dweller_crud.get(db_session, dweller.id)
+        return self._new_training(dweller, room)
 
     async def update_training_progress(
         self,
@@ -278,18 +290,9 @@ class TrainingService:
             ResourceNotFoundException: If training not found
             VaultOperationException: If training not active
         """
-        training = await training_crud.training.get(db_session, training_id)
-        if not training:
-            raise ResourceNotFoundException(model=Training, identifier=training_id)
-
-        if not training.is_active():
-            raise VaultOperationException(detail=f"Training is {training.status}, cannot complete")
-
-        # Get dweller (use pre-fetched if available)
-        if dweller is None:
-            dweller = await dweller_crud.get(db_session, training.dweller_id)
-        if not dweller:
-            raise ResourceNotFoundException(model=Dweller, identifier=training.dweller_id)
+        training, dweller = await self._lock_active_training(db_session, training_id, "complete")
+        if dweller.room_id != training.room_id or dweller.status != DwellerStatusEnum.TRAINING or dweller.health <= 0:
+            return await self.cancel_training(db_session, training_id)
 
         # Increase SPECIAL stat
         stat_name = training.stat_being_trained.value.lower()
@@ -305,12 +308,18 @@ class TrainingService:
         training.progress = 1.0
         db_session.add(training)
 
-        # Update dweller status back to IDLE and remove from room
+        # The completed round, stat gain and optional successor share one commit.
+        await db_session.flush()
+        next_round = await self._repeat_training(db_session, training, dweller)
+        if next_round is not None:
+            db_session.add(next_round)
+
         from app.schemas.dweller import DwellerUpdate
 
-        await dweller_crud.update(
-            db_session, dweller.id, DwellerUpdate(status=DwellerStatusEnum.IDLE, room_id=None), commit=False
-        )
+        if next_round is None:
+            await dweller_crud.update(
+                db_session, dweller.id, DwellerUpdate(status=DwellerStatusEnum.IDLE, room_id=None), commit=False
+            )
 
         # One transaction: the stat, the session status, and the dweller's
         # release must land together or not at all.
@@ -378,18 +387,7 @@ class TrainingService:
             ResourceNotFoundException: If training not found
             VaultOperationException: If training not active
         """
-        training = await training_crud.training.get(db_session, training_id)
-        if not training:
-            raise ResourceNotFoundException(model=Training, identifier=training_id)
-
-        if not training.is_active():
-            raise VaultOperationException(detail=f"Training is {training.status}, cannot cancel")
-
-        # Get dweller (use pre-fetched if available)
-        if dweller is None:
-            dweller = await dweller_crud.get(db_session, training.dweller_id)
-        if not dweller:
-            raise ResourceNotFoundException(model=Dweller, identifier=training.dweller_id)
+        training, dweller = await self._lock_active_training(db_session, training_id, "cancel")
 
         # Update training status
         training.status = TrainingStatus.CANCELLED
@@ -399,9 +397,10 @@ class TrainingService:
         # Update dweller status back to IDLE and remove from room
         from app.schemas.dweller import DwellerUpdate
 
-        await dweller_crud.update(
-            db_session, dweller.id, DwellerUpdate(status=DwellerStatusEnum.IDLE, room_id=None), commit=False
-        )
+        if dweller.room_id == training.room_id and dweller.status == DwellerStatusEnum.TRAINING:
+            await dweller_crud.update(
+                db_session, dweller.id, DwellerUpdate(status=DwellerStatusEnum.IDLE, room_id=None), commit=False
+            )
 
         # One transaction: the cancelled session and the dweller's release must
         # land together or not at all.

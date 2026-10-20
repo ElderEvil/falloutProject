@@ -11015,6 +11015,12 @@ export interface components {
              */
             incidents_disabled: boolean;
             /**
+             * Continuous Training
+             * @description Repeat training rounds until the selected stat reaches 10
+             * @default false
+             */
+            continuous_training: boolean;
+            /**
              * Id
              * Format: uuid4
              */
@@ -11091,6 +11097,12 @@ export interface components {
              * @default false
              */
             incidents_disabled: boolean;
+            /**
+             * Continuous Training
+             * @description Repeat training rounds until the selected stat reaches 10
+             * @default false
+             */
+            continuous_training: boolean;
         };
         /**
          * VaultMapResponse
@@ -11267,6 +11279,12 @@ export interface components {
              */
             incidents_disabled: boolean;
             /**
+             * Continuous Training
+             * @description Repeat training rounds until the selected stat reaches 10
+             * @default false
+             */
+            continuous_training: boolean;
+            /**
              * Id
              * Format: uuid4
              */
@@ -11350,6 +11368,12 @@ export interface components {
              * @default false
              */
             incidents_disabled: boolean;
+            /**
+             * Continuous Training
+             * @description Repeat training rounds until the selected stat reaches 10
+             * @default false
+             */
+            continuous_training: boolean;
             /**
              * Id
              * Format: uuid4
@@ -11442,6 +11466,12 @@ export interface components {
              * @default false
              */
             incidents_disabled: boolean;
+            /**
+             * Continuous Training
+             * @description Repeat training rounds until the selected stat reaches 10
+             * @default false
+             */
+            continuous_training: boolean;
             /**
              * Id
              * Format: uuid4
@@ -11536,6 +11566,11 @@ export interface components {
              * @description Suppresses incident spawns and processing
              */
             incidents_disabled?: boolean | null;
+            /**
+             * Continuous Training
+             * @description Repeat training rounds until the selected stat reaches 10
+             */
+            continuous_training?: boolean | null;
         };
         /**
          * WastelandLocationWithDwellers

@@ -15,6 +15,7 @@ from app.models.vault import Vault
 from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
 from app.services.training_service import TrainingService
+from app.utils.exceptions import VaultOperationException
 
 
 @pytest.fixture
@@ -252,6 +253,163 @@ async def _idle_dweller(async_session: AsyncSession, dweller: Dweller) -> None:
     dweller.strength = 5
     async_session.add(dweller)
     await async_session.commit()
+
+
+@pytest.fixture
+async def continuous_trainee(async_session, vault, dweller, training_service):
+    """A real, assigned trainee in a vault that opted into repeat training."""
+    vault.continuous_training = True
+    dweller.age_group = "adult"
+    dweller.health = 100
+    async_session.add(vault)
+    await _idle_dweller(async_session, dweller)
+    room = await room_crud.create(async_session, _training_room(vault.id))
+    training = await training_service.start_training(async_session, dweller.id, room.id)
+    return training, room
+
+
+async def test_continuous_training_starts_next_round_atomically(
+    async_session, vault, dweller, training_service, continuous_trainee
+):
+    from datetime import datetime, timedelta
+
+    training, room = continuous_trainee
+    training.estimated_completion_at = datetime.utcnow() - timedelta(seconds=1)
+    async_session.add(training)
+    await async_session.commit()
+    original_commit = async_session.commit
+    observations = []
+
+    async def observe_first_commit():
+        await original_commit()
+        if not observations:
+            observations.append(True)
+            persisted_next = await training_crud.training.get_active_by_dweller(async_session, dweller.id)
+            assert persisted_next is not None
+            assert persisted_next.target_stat_value == 7
+            await async_session.refresh(dweller)
+            assert dweller.strength == 6
+            assert dweller.status == DwellerStatusEnum.TRAINING
+
+    with patch.object(async_session, "commit", new=observe_first_commit):
+        completed = await training_service.update_training_progress(async_session, training)
+    assert observations == [True]
+    next_round = await training_crud.training.get_active_by_dweller(async_session, dweller.id)
+    await async_session.refresh(dweller)
+    assert completed.is_completed()
+    assert dweller.strength == 6
+    assert dweller.status == DwellerStatusEnum.TRAINING
+    assert dweller.room_id == room.id
+    assert next_round is not None
+    assert next_round.id != completed.id
+    assert (next_round.current_stat_value, next_round.target_stat_value) == (6, 7)
+    assert (next_round.estimated_completion_at - next_round.started_at).total_seconds() == (
+        training_service.calculate_training_duration(6, room.tier)
+    )
+    with pytest.raises(VaultOperationException):
+        await training_service.complete_training(async_session, completed.id)
+    await async_session.refresh(dweller)
+    assert dweller.strength == 6
+    assert len(await training_crud.training.get_active_by_room(async_session, room.id)) == 1
+
+
+async def test_continuous_training_stops_at_ten(async_session, dweller, training_service, continuous_trainee):
+    training, _ = continuous_trainee
+    while dweller.strength < 10:
+        await training_service.complete_training(async_session, training.id)
+        await async_session.refresh(dweller)
+        training = await training_crud.training.get_active_by_dweller(async_session, dweller.id)
+        if dweller.strength < 10:
+            assert training is not None
+    assert training is None
+    assert dweller.strength == 10
+    assert dweller.status == DwellerStatusEnum.IDLE
+    assert dweller.room_id is None
+
+
+@pytest.mark.parametrize("action", ["disable", "cancel", "reassign", "death"])
+async def test_continuous_training_can_be_stopped(
+    async_session, vault, dweller, training_service, continuous_trainee, action
+):
+    training, _ = continuous_trainee
+    if action == "disable":
+        from app.crud.vault import vault as vault_crud
+        from app.schemas.vault import VaultUpdate
+
+        await vault_crud.update(async_session, vault.id, VaultUpdate(continuous_training=False))
+    elif action == "reassign":
+        dweller.room_id = None
+        dweller.status = DwellerStatusEnum.IDLE
+    elif action == "death":
+        dweller.health = 0
+        dweller.status = DwellerStatusEnum.DEAD
+    async_session.add(dweller)
+    await async_session.commit()
+    if action == "cancel":
+        await training_service.cancel_training(async_session, training.id)
+    else:
+        await training_service.complete_training(async_session, training.id)
+    await async_session.refresh(dweller)
+    assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None
+    assert dweller.strength == (6 if action == "disable" else 5)
+    if action == "death":
+        assert dweller.status == DwellerStatusEnum.DEAD
+
+
+async def test_continuous_training_supports_raw_tick_session(
+    async_session, db_connection, dweller, training_service, continuous_trainee
+):
+    from sqlalchemy.ext.asyncio import AsyncSession as RawSession
+
+    training_id = continuous_trainee[0].id
+    dweller_id = dweller.id
+    async with RawSession(bind=db_connection, expire_on_commit=False, join_transaction_mode="create_savepoint") as raw:
+        assert not hasattr(raw, "exec")
+        await training_service.complete_training(raw, training_id)
+        next_round = await training_crud.training.get_active_by_dweller(raw, dweller_id)
+        assert next_round is not None
+        assert next_round.target_stat_value == 7
+
+
+async def test_continuous_training_uses_current_pet_bonus(async_session, dweller, training_service, continuous_trainee):
+    from app import crud
+
+    training, room = continuous_trainee
+    pet = await crud.pet.create(async_session, obj_in={"name": "Vault-Tec Parrot", "rarity": "Legendary", "value": 500})
+    await crud.pet.equip(db_session=async_session, item_id=pet.id, dweller_id=dweller.id)
+    await training_service.complete_training(async_session, training.id)
+    next_round = await training_crud.training.get_active_by_dweller(async_session, dweller.id)
+    assert next_round is not None
+    assert (next_round.estimated_completion_at - next_round.started_at).total_seconds() == int(
+        training_service.calculate_training_duration(6, room.tier) * 0.75
+    )
+
+
+async def test_continuous_training_rolls_back_if_next_round_cannot_persist(
+    async_session, dweller, training_service, continuous_trainee
+):
+    from sqlalchemy import event
+
+    from app.models.training import Training
+
+    training, _ = continuous_trainee
+
+    def fail_successor(_mapper, _connection, target):
+        if target.target_stat_value == 7:
+            raise RuntimeError("next training write failed")
+
+    event.listen(Training, "before_insert", fail_successor)
+    try:
+        with pytest.raises(RuntimeError, match="next training write failed"):
+            await training_service.complete_training(async_session, training.id)
+    finally:
+        event.remove(Training, "before_insert", fail_successor)
+        await async_session.rollback()
+    await async_session.refresh(training)
+    await async_session.refresh(dweller)
+    assert training.is_active()
+    assert dweller.strength == 5
+    assert dweller.status == DwellerStatusEnum.TRAINING
 
 
 @pytest.mark.asyncio

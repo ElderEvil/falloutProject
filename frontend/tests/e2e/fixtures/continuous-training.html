@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Continuous training queue</title>
+  </head>
+  <body>
+    <div id="app" class="max-w-md p-4"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import { createApp, h } from 'vue'
+      import { createPinia } from 'pinia'
+      import { TooltipProvider } from '../../../src/core/components/ui/tooltip'
+      import TrainingQueuePanel from '../../../src/modules/progression/components/training/TrainingQueuePanel.vue'
+      import { useAuthStore } from '../../../src/modules/auth/stores/auth'
+      import { useVaultStore } from '../../../src/modules/vault/stores/vault'
+      import { useTheme } from '../../../src/core/composables/useTheme'
+
+      const vault = await (await fetch('/api/v1/vaults/vault-1')).json()
+      useTheme().setTheme(new URLSearchParams(location.search).get('theme') || 'fo4')
+      createApp({
+        setup() {
+          useAuthStore().token = 'fixture-token'
+          const store = useVaultStore()
+          store.loadedVaults['vault-1'] = vault
+          store.activeVaultId = 'vault-1'
+          return () =>
+            h(TooltipProvider, { delayDuration: 0 }, { default: () => h(TrainingQueuePanel) })
+        },
+      })
+        .use(createPinia())
+        .mount('#app')
+    </script>
+  </body>
+</html>

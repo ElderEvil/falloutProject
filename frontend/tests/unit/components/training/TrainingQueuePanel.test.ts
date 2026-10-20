@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount, VueWrapper } from '@vue/test-utils'
+import { mount, VueWrapper, flushPromises, enableAutoUnmount } from '@vue/test-utils'
+import { afterEach } from 'vitest'
+import * as trainingService from '@/modules/progression/services/trainingService'
+
+enableAutoUnmount(afterEach)
 import { createPinia, setActivePinia } from 'pinia'
 import TrainingQueuePanel from '@/modules/progression/components/training/TrainingQueuePanel.vue'
 import { useTrainingStore } from '@/modules/progression/stores/training'
@@ -15,6 +19,13 @@ vi.mock('@/modules/progression/services/trainingService', () => ({
   startTraining: vi.fn().mockResolvedValue({ id: 't-1' }),
   cancelTraining: vi.fn().mockResolvedValue({ id: 't-1', status: 'cancelled' }),
   completeTraining: vi.fn().mockResolvedValue({ id: 't-1', status: 'completed' }),
+  setContinuousTraining: vi.fn(async (_vaultId: string, enabled: boolean) => ({
+    continuous_training: enabled,
+  })),
+}))
+
+vi.mock('@/core/plugins/axios', () => ({
+  default: { get: vi.fn().mockResolvedValue({ data: [] }) },
 }))
 
 describe('TrainingQueuePanel', () => {
@@ -47,6 +58,9 @@ describe('TrainingQueuePanel', () => {
           stubs: {
             Icon: true,
             TrainingProgressCard: true,
+            Tooltip: { template: '<div><slot /></div>' },
+            TooltipTrigger: { template: '<div><slot /></div>' },
+            TooltipContent: { template: '<div><slot /></div>' },
           },
         },
       })
@@ -70,5 +84,43 @@ describe('TrainingQueuePanel', () => {
       // but it wasn't — there's no watcher to react to activeVault changing
       expect(fetchSpy).toHaveBeenCalledWith('vault-1', 'mock-token')
     })
+  })
+
+  it('replaces refresh with a persistent continuous-training toggle', async () => {
+    vaultStore.loadedVaults['vault-1'] = {
+      id: 'vault-1',
+      number: 1,
+      continuous_training: false,
+    } as any
+    vaultStore.activeVaultId = 'vault-1'
+    wrapper = mount(TrainingQueuePanel, {
+      global: {
+        stubs: {
+          Icon: true,
+          Tooltip: { template: '<div><slot /></div>' },
+          TooltipTrigger: { template: '<div><slot /></div>' },
+          TooltipContent: { template: '<div><slot /></div>' },
+        },
+      },
+    })
+    await flushPromises()
+    const toggle = wrapper.get('button[aria-label="Continuous training"]')
+    expect(toggle.attributes('aria-pressed')).toBe('false')
+    await toggle.trigger('click')
+    await flushPromises()
+    expect(trainingService.setContinuousTraining).toHaveBeenCalledWith(
+      'vault-1',
+      true,
+      'mock-token'
+    )
+    expect(toggle.attributes('aria-pressed')).toBe('true')
+    await toggle.trigger('click')
+    await flushPromises()
+    expect(trainingService.setContinuousTraining).toHaveBeenLastCalledWith(
+      'vault-1',
+      false,
+      'mock-token'
+    )
+    expect(toggle.attributes('aria-pressed')).toBe('false')
   })
 })

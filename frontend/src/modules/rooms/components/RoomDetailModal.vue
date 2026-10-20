@@ -310,6 +310,7 @@ onUnmounted(stopAmbience)
 
           <RoomTrainingSection
             v-if="has('training')"
+            :vault-id="vaultId"
             :room="room"
             :assigned-dwellers="assignedDwellers"
           />

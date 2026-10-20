@@ -9,6 +9,8 @@ import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { usePolling } from '@/core/composables/usePolling'
 import TrainingProgressCard from './TrainingProgressCard.vue'
+import { Button } from '@/core/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/core/components/ui/tooltip'
 
 const trainingStore = useTrainingStore()
 const authStore = useAuthStore()
@@ -19,6 +21,14 @@ const roomStore = useRoomStore()
 const loading = ref(false)
 
 const activeTrainings = computed(() => trainingStore.allActiveTrainings)
+const continuousTraining = computed(() => !!vaultStore.activeVault?.continuous_training)
+
+const toggleContinuousTraining = async () => {
+  const vaultId = vaultStore.activeVault?.id
+  const token = authStore.token
+  if (!vaultId || !token) return
+  await trainingStore.setContinuousTraining(vaultId, !continuousTraining.value, token)
+}
 
 const completingSoon = computed(() => trainingStore.completingSoon)
 
@@ -120,9 +130,29 @@ onMounted(() => {
         <Icon icon="mdi:dumbbell" class="header-icon" />
         <h3>Training Queue</h3>
       </div>
-      <button @click="fetchTrainings" class="refresh-button" :disabled="loading">
-        <Icon icon="mdi:refresh" class="refresh-icon" :class="{ 'animate-spin': loading }" />
-      </button>
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <Button
+            :variant="continuousTraining ? 'default' : 'outline'"
+            size="icon"
+            aria-label="Continuous training"
+            :aria-pressed="continuousTraining"
+            :disabled="
+              !vaultStore.activeVault ||
+              !authStore.token ||
+              trainingStore.isSettingContinuousTraining
+            "
+            @click="toggleContinuousTraining"
+          >
+            <Icon :icon="continuousTraining ? 'mdi:repeat' : 'mdi:repeat-off'" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{{
+          continuousTraining
+            ? 'Repeat until stat 10. Click to stop after this round.'
+            : 'Repeat training rounds until stat 10.'
+        }}</TooltipContent>
+      </Tooltip>
     </div>
 
     <div class="panel-content">
@@ -249,30 +279,6 @@ onMounted(() => {
   font-family: 'Courier New', monospace;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-}
-
-.refresh-button {
-  padding: 0.5rem;
-  background: transparent;
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 0.25rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.refresh-button:hover:not(:disabled) {
-  border-color: var(--color-theme-primary);
-  background: var(--color-theme-glow);
-}
-
-.refresh-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.refresh-icon {
-  font-size: 1.25rem;
-  color: var(--color-theme-primary);
 }
 
 .panel-content {

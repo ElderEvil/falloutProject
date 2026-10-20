@@ -17,7 +17,6 @@ import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
-import { Button } from '@/core/components/ui/button'
 import { useToast } from '@/core/composables/useToast'
 import { Icon } from '@iconify/vue'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
@@ -235,52 +234,40 @@ function closeClaimModal(): void {
             </div>
 
             <Tabs :model-value="effectiveTab" @update:model-value="activeTab = String($event)">
-              <div class="tabs-row">
-                <TabsList>
-                  <template v-for="tab in visibleTabs" :key="tab.key">
-                    <TooltipProvider :delay-duration="200">
-                      <Tooltip>
-                        <TooltipTrigger as-child>
-                          <TabsTrigger :value="tab.key">
-                            <Icon
-                              v-if="tab.icon"
-                              :icon="tab.icon"
-                              class="mr-2 inline"
-                              :ariaHidden="true"
-                            />
-                            {{ tab.label }}
-                            <span
-                              v-if="claimableCounts[tab.key]"
-                              :aria-label="claimTooltip(claimableCounts[tab.key] ?? 0)"
+              <TabsList>
+                <template v-for="tab in visibleTabs" :key="tab.key">
+                  <TooltipProvider :delay-duration="200">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <TabsTrigger :value="tab.key">
+                          <Icon
+                            v-if="tab.icon"
+                            :icon="tab.icon"
+                            class="mr-2 inline"
+                            :ariaHidden="true"
+                          />
+                          {{ tab.label }}
+                          <span
+                            v-if="claimableCounts[tab.key]"
+                            :aria-label="claimTooltip(claimableCounts[tab.key] ?? 0)"
+                          >
+                            <Badge
+                              variant="outline"
+                              class="ml-2 border-0 bg-terminal-background text-theme-primary"
                             >
-                              <Badge
-                                variant="outline"
-                                class="ml-2 border-0 bg-terminal-background text-theme-primary"
-                              >
-                                {{ claimableCounts[tab.key] }}
-                                <span class="sr-only">claimable</span>
-                              </Badge>
-                            </span>
-                          </TabsTrigger>
-                        </TooltipTrigger>
-                        <TooltipContent v-if="claimableCounts[tab.key]" side="bottom">
-                          {{ claimTooltip(claimableCounts[tab.key] ?? 0) }}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </template>
-                </TabsList>
-                <Button
-                  class="collect-all-btn"
-                  variant="outline"
-                  size="sm"
-                  :disabled="isClaiming || claimableTotal === 0"
-                  @click="handleCollectAll"
-                >
-                  <Icon icon="mdi:gift-open" />
-                  Collect All<span v-if="claimableTotal > 0"> ({{ claimableTotal }})</span>
-                </Button>
-              </div>
+                              {{ claimableCounts[tab.key] }}
+                              <span class="sr-only">claimable</span>
+                            </Badge>
+                          </span>
+                        </TabsTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent v-if="claimableCounts[tab.key]" side="bottom">
+                        {{ claimTooltip(claimableCounts[tab.key] ?? 0) }}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </template>
+              </TabsList>
               <p v-if="!objectivesUnlocked" class="unlock-hint">
                 Daily, weekly and achievement objectives unlock once you claim the Overseer's Office
                 objective. Rewards already earned stay saved until then.
@@ -376,14 +363,6 @@ function closeClaimModal(): void {
   color: var(--color-theme-primary);
   text-decoration: underline;
   text-underline-offset: 4px;
-}
-
-.tabs-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
 }
 
 .unlock-hint {

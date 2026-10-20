@@ -193,11 +193,11 @@ describe('ObjectivesView collect all', () => {
         is_completed: true,
       }))
 
-    wrapper = mountView()
+    wrapper = mountWithRealHeader()
     await flushPromises()
 
-    const collectAll = wrapper.find('.collect-all-btn')
-    expect(collectAll.text()).toContain('Collect All (2)')
+    const collectAll = wrapper.find('[data-slot="tooltip-trigger"][role="button"]')
+    expect(collectAll.attributes('aria-label')).toBe('Collect rewards: 2')
     await collectAll.trigger('click')
     await flushPromises()
 
@@ -215,10 +215,12 @@ describe('ObjectivesView collect all', () => {
   it('disables Collect All when no reward is ready', async () => {
     objectivesStore.objectives = [{ ...dailyObjective, progress: 0 }]
 
-    wrapper = mountView()
+    wrapper = mountWithRealHeader()
     await flushPromises()
 
-    expect(wrapper.find('.collect-all-btn').attributes('disabled')).toBeDefined()
+    expect(
+      wrapper.find('[data-slot="tooltip-trigger"][role="button"]').attributes('aria-disabled')
+    ).toBe('true')
   })
 
   it('stops at the first failed claim and keeps the error visible', async () => {
@@ -232,9 +234,9 @@ describe('ObjectivesView collect all', () => {
       .mockResolvedValueOnce({ ...dailyObjective, id: 'ready-1', is_completed: true })
       .mockRejectedValueOnce(new Error('Claim failed'))
 
-    wrapper = mountView()
+    wrapper = mountWithRealHeader()
     await flushPromises()
-    await wrapper.find('.collect-all-btn').trigger('click')
+    await wrapper.find('[data-slot="tooltip-trigger"][role="button"]').trigger('click')
     await flushPromises()
 
     expect(completeSpy).toHaveBeenCalledTimes(2)

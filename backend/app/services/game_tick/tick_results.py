@@ -113,6 +113,7 @@ class TickUpdates(TypedDict, total=False):
     apprenticeships: ApprenticeStats
     training: TrainingStats
     crafting: CraftingStats
+    storage: dict[str, int]
     happiness: dict[str, Any]
     breeding: BreedingStats
     events: EventsStats

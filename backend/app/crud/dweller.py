@@ -1014,5 +1014,26 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         response = await db_session.execute(query)
         return response.scalars().all()
 
+    async def list_storage_workers(self, db_session: AsyncSession, vault_id: UUID4) -> list[Dweller]:
+        """Eligible adults posted in storage, with all effective-END relationships loaded."""
+        from app.core.enums import SPECIALEnum
+
+        result = await db_session.execute(
+            select(Dweller)
+            .join(Room, Dweller.room_id == Room.id)
+            .where(
+                Dweller.vault_id == vault_id,
+                Room.vault_id == vault_id,
+                Room.category == RoomTypeEnum.CAPACITY,
+                Room.ability == SPECIALEnum.ENDURANCE,
+                col(Dweller.age_group).in_(ADULT_AGE_GROUPS),
+                ~col(Dweller.is_dead),
+                ~col(Dweller.is_deleted),
+                Dweller.status == DwellerStatusEnum.WORKING,
+            )
+            .options(selectinload(Dweller.outfit), selectinload(Dweller.pet))
+        )
+        return list(result.scalars().all())
+
 
 dweller = CRUDDweller(Dweller)

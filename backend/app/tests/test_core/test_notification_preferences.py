@@ -83,3 +83,9 @@ async def test_muted_notification_is_not_persisted_or_delivered(
 def test_profile_update_rejects_non_boolean_incident_pause(value):
     with pytest.raises(ValueError, match="pause_on_incident must be a boolean"):
         ProfileUpdate(preferences={"pause_on_incident": value})
+
+
+@pytest.mark.parametrize("kind", [NotificationType.STORAGE_ITEM_UPGRADED, NotificationType.STORAGE_ITEM_DEGRADED])
+def test_storage_variant_changes_remain_visible_when_routine_categories_are_muted(kind):
+    preferences = {"notifications": {"version": 1, "disabled_categories": list(NotificationCategory)}}
+    assert should_deliver_notification(preferences, kind)

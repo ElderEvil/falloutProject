@@ -421,3 +421,35 @@ async def test_distribute_recovery_supplies_endpoint(
     await async_session.refresh(dweller)
     assert dweller.radiation == 0
     assert dweller.health >= 40
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+async def test_storage_maintenance_summary_is_read_only(
+    async_client,
+    async_session,
+    superuser_token_headers,
+    vault,
+    enabled,
+    monkeypatch,
+):
+    from app.core.game_config import game_config
+    from app.services.storage_maintenance_service import summary
+
+    monkeypatch.setattr(game_config.storage, "maintenance_enabled", enabled)
+    expected = await summary(async_session, vault.id)
+    response = await async_client.get(f"/storage/vault/{vault.id}/maintenance", headers=superuser_token_headers)
+    assert response.status_code == 200
+    assert response.json() == expected.model_dump()
+    assert response.json()["hourly_chance"] == (0.02 if enabled else 0)
+
+
+async def test_storage_maintenance_refuses_another_players_vault(
+    async_client,
+    normal_user_token_headers,
+    vault,
+):
+    response = await async_client.get(
+        f"/storage/vault/{vault.id}/maintenance",
+        headers=normal_user_token_headers,
+    )
+    assert response.status_code == 403

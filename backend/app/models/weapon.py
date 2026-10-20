@@ -1,6 +1,10 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import UUID4, field_validator
+from sqlalchemy import Index, event, inspect
+from sqlalchemy.engine import Connection
+from sqlalchemy.orm import Mapper
 from sqlmodel import Field, Relationship
 
 from app.core.enums import WeaponSubtypeEnum, WeaponTypeEnum
@@ -52,6 +56,8 @@ class WeaponBase(ItemBase):
 
 
 class Weapon(BaseUUIDModel, WeaponBase, TimeStampMixin, table=True):
+    __table_args__ = (Index("ix_weapon_storage_trial", "storage_id", "last_maintenance_trial_at"),)
+    last_maintenance_trial_at: datetime | None = Field(default=None)
     dweller_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="dweller.id", index=True)
     dweller: "Dweller" = Relationship(back_populates="weapon")
     storage_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="storage.id")
@@ -59,3 +65,11 @@ class Weapon(BaseUUIDModel, WeaponBase, TimeStampMixin, table=True):
     exploration_id: UUID4 | None = Field(
         default=None, nullable=True, foreign_key="exploration.id", index=True, ondelete="CASCADE"
     )
+
+
+@event.listens_for(Weapon, "before_update")
+def _reset_storage_trial_clock(_mapper: Mapper[Weapon], _connection: Connection, weapon: Weapon) -> None:
+    """Every ORM return to storage starts a fresh hour, including collected held loot."""
+    state = inspect(weapon)
+    if weapon.storage_id is not None and state is not None and state.attrs.storage_id.history.has_changes():
+        weapon.last_maintenance_trial_at = datetime.utcnow()

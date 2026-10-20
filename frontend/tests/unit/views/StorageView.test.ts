@@ -97,8 +97,12 @@ describe('StorageView', () => {
     vi.clearAllMocks()
   })
 
-  async function mountWith(items: Record<string, unknown[]>) {
+  async function mountWith(
+    items: Record<string, unknown[]>,
+    maintenance: Record<string, unknown> = { enabled: false }
+  ) {
     vi.mocked(axios.get).mockImplementation(async (url: string) => {
+      if (url.includes('/maintenance')) return { data: maintenance }
       if (url.includes('/space')) return { data: spaceData }
       if (url.includes('/items')) return { data: items }
       return { data: {} }
@@ -117,6 +121,39 @@ describe('StorageView', () => {
     await trigger.trigger('mousedown')
     await flushPromises()
   }
+
+  it.each([
+    ['rusting', 0, 0.02],
+    ['stable', 2, 0],
+    ['improving', 4, 0.02],
+  ] as const)(
+    'shows the %s maintenance badge with workers and trial odds',
+    async (mode, workers, chance) => {
+      const wrapper = await mountWith(
+        { weapons: [], outfits: [], junk: [], items: [], pets: [] },
+        {
+          enabled: true,
+          mode,
+          worker_count: workers,
+          total_endurance: workers * 10,
+          protection_pct: Math.min(workers * 50, 100),
+          hourly_chance: chance,
+          trial_interval_seconds: 3600,
+        }
+      )
+      expect(wrapper.text()).toContain(mode.charAt(0).toUpperCase() + mode.slice(1))
+      expect(wrapper.text()).toContain(
+        `${workers} workers · ${(chance * 100).toFixed(1)}% per trial`
+      )
+      wrapper.unmount()
+    }
+  )
+
+  it('hides the maintenance badge when disabled', async () => {
+    const wrapper = await mountWith({ weapons: [], outfits: [], junk: [], items: [], pets: [] })
+    expect(wrapper.text()).not.toContain('per trial')
+    wrapper.unmount()
+  })
 
   it('keeps a lunchbox unopened when its sealed preview is dismissed', async () => {
     vi.mocked(axios.post).mockResolvedValue({
@@ -228,6 +265,7 @@ describe('StorageView', () => {
       let finishRefresh!: (value: unknown) => void
       vi.mocked(axios.post).mockResolvedValue({ data: {} })
       vi.mocked(axios.get).mockImplementation(async (url: string) => {
+        if (url.includes('/maintenance')) return { data: { enabled: false } }
         if (url.includes('/space')) return { data: spaceData }
         return new Promise((resolve) => {
           finishRefresh = resolve
@@ -316,5 +354,11 @@ describe('StorageView', () => {
     await vi.waitFor(() => {
       expect(wrapper.find('button[aria-label="About Vault Storage"]').exists()).toBe(true)
     })
+    expect(wrapper.text()).not.toContain('Storage rooms share protection across the vault.')
+    await wrapper.find('button[aria-label="About Vault Storage"]').trigger('click')
+    await flushPromises()
+    expect(document.body.textContent).toContain('Storage rooms share protection across the vault.')
+    expect(document.body.textContent).toContain('Each eligible weapon gets one trial per hour')
+    wrapper.unmount()
   })
 })

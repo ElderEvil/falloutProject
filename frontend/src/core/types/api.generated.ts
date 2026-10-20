@@ -4086,6 +4086,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/storage/vault/{vault_id}/maintenance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Storage Maintenance
+         * @description Read the vault's storage protection without running trials.
+         */
+        get: operations["get_storage_maintenance_api_v1_storage_vault__vault_id__maintenance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/stream/notifications": {
         parameters: {
             query?: never;
@@ -8837,7 +8857,7 @@ export interface components {
          * @description Types of notifications
          * @enum {string}
          */
-        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "objective_completed" | "objectives_refreshed" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
+        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "storage_item_degraded" | "storage_item_upgraded" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "objective_completed" | "objectives_refreshed" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
         /** Objective */
         Objective: {
             /** Challenge */
@@ -10459,6 +10479,29 @@ export interface components {
              * @description Pets in storage
              */
             pets?: components["schemas"]["PetRead"][];
+        };
+        /**
+         * StorageMaintenanceRead
+         * @description Vault-wide protection from storage-room staffing; chance is per trial interval.
+         */
+        StorageMaintenanceRead: {
+            /** Enabled */
+            enabled: boolean;
+            /** Worker Count */
+            worker_count: number;
+            /** Total Endurance */
+            total_endurance: number;
+            /** Protection Pct */
+            protection_pct: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "disabled" | "rusting" | "stable" | "improving";
+            /** Hourly Chance */
+            hourly_chance: number;
+            /** Trial Interval Seconds */
+            trial_interval_seconds: number;
         };
         /**
          * StorageSpaceResponse
@@ -17491,6 +17534,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LunchboxOpened"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_storage_maintenance_api_v1_storage_vault__vault_id__maintenance_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageMaintenanceRead"];
                 };
             };
             /** @description Validation Error */

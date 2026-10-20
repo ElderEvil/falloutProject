@@ -111,5 +111,13 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         result = await db_session.execute(query)
         return list(result.scalars().all())
 
+    async def latest_for_vault(self, db: AsyncSession, vault_id: UUID, notification_type) -> datetime | None:
+        result = await db.execute(
+            select(func.max(Notification.created_at)).where(
+                Notification.vault_id == vault_id, Notification.notification_type == notification_type
+            )
+        )
+        return result.scalar_one_or_none()
+
 
 notification = CRUDNotification(Notification)

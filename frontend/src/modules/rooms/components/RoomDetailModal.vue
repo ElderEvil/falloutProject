@@ -31,6 +31,7 @@ import ArenaRoomDetail from './ArenaRoomDetail.vue'
 import RoomIncidentDetail from './RoomIncidentDetail.vue'
 import IncidentAftermath from './IncidentAftermath.vue'
 import CraftingPanel from '@/modules/crafting/components/CraftingPanel.vue'
+import StorageMaintenancePanel from '@/modules/storage/components/StorageMaintenancePanel.vue'
 import OverseerBriefing from '@/modules/vault/components/shell/OverseerBriefing.vue'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 import { useSound } from '@/core/composables/useSound'
@@ -246,6 +247,12 @@ onUnmounted(stopAmbience)
             @apply-style="handleApplyStyle"
           />
 
+          <StorageMaintenancePanel
+            v-if="has('storageMaintenance')"
+            :vault-id="vaultId"
+            :workers="assignedDwellers.length"
+            :slots="dwellerCapacity"
+          />
           <ResponseStationDetail
             v-if="has('responseStation')"
             :room="room"

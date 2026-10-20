@@ -8,7 +8,7 @@ from sqlalchemy import delete, update
 from sqlmodel import and_, func, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import RoomTypeEnum
+from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.crud.base import CRUDBase
 from app.models.room import Room
 from app.schemas.room import RoomCreate, RoomRead, RoomUpdate
@@ -137,6 +137,18 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         for room in replacements:
             await db_session.refresh(room)
         return replacements
+
+    @staticmethod
+    async def get_living_quarters(db_session: AsyncSession, vault_id: UUID4) -> list[Room]:
+        """Storage rooms share CAPACITY, but only Charisma rooms are living quarters."""
+        result = await db_session.execute(
+            select(Room).where(
+                Room.vault_id == vault_id,
+                Room.category == RoomTypeEnum.CAPACITY,
+                Room.ability == SPECIALEnum.CHARISMA,
+            )
+        )
+        return list(result.scalars().all())
 
     @staticmethod
     async def get_by_category(db_session: AsyncSession, vault_id: UUID4, category: RoomTypeEnum) -> list[Room]:

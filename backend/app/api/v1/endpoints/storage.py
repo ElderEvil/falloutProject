@@ -11,7 +11,7 @@ from app.api.deps import CurrentActiveUser, get_user_vault_or_403
 from app.crud import storage as crud_storage
 from app.db.session import get_async_session
 from app.schemas.rewards import LunchboxOpened, LunchboxOpenRequest
-from app.schemas.storage import StorageItemsResponse, StorageSpaceResponse
+from app.schemas.storage import StorageItemsResponse, StorageMaintenanceRead, StorageSpaceResponse
 from app.schemas.vault import MedicalDistributionResponse, MedicalTransferRequest, MedicalTransferResponse
 from app.services.storage_service import storage_service
 
@@ -156,3 +156,16 @@ async def open_lunchbox(
 
     opened = await reward_service.open_lunchbox(db_session, vault.id, request.item_id)
     return LunchboxOpened.model_validate(opened)
+
+
+@router.get("/vault/{vault_id}/maintenance")
+async def get_storage_maintenance(
+    vault_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    current_user: CurrentActiveUser,
+) -> StorageMaintenanceRead:
+    """Read the vault's storage protection without running trials."""
+    from app.services.storage_maintenance_service import summary
+
+    vault = await get_user_vault_or_403(vault_id, current_user, db_session)
+    return await summary(db_session, vault.id)

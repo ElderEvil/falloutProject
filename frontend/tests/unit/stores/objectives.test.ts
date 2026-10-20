@@ -4,7 +4,10 @@ import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import axios from '@/core/plugins/axios'
 import type { Objective } from '@/modules/progression/models/objective'
 
+const { invalidateNukaColaCount } = vi.hoisted(() => ({ invalidateNukaColaCount: vi.fn() }))
+
 vi.mock('@/core/plugins/axios')
+vi.mock('@/modules/vault/composables/useNukaColaCount', () => ({ invalidateNukaColaCount }))
 
 describe('Objectives Store', () => {
   let objectivesStore: ReturnType<typeof useObjectivesStore>
@@ -290,6 +293,7 @@ describe('Objective claim continuity', () => {
     })
     const result = await store.completeObjective('v1', 'step')
     expect(axios.post).toHaveBeenCalledWith('/api/v1/objectives/v1/step/claim')
+    expect(invalidateNukaColaCount).toHaveBeenCalledWith('v1')
     expect(result).toMatchObject({
       id: 'step',
       challenge: 'Train a stat',

@@ -1,22 +1,30 @@
-import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
-import { getErrorMessage } from '@/core/utils/errorHandler'
+import { computed, type ComputedRef, type Ref } from 'vue'
+import { useQuery } from '@tanstack/vue-query'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { storageService } from '@/modules/storage/services/storageService'
+import { queryClient } from '@/core/query/queryClient'
 
 export interface NukaColaCountState {
-  nukaColaCount: Ref<number | null>
+  nukaColaCount: ComputedRef<number | null>
   nukaColaTooltip: ComputedRef<string>
+}
+
+/**
+ * Cache key for one account's count of Nuka-Cola bottles in one vault.
+ *
+ * Account and vault IDs scope the entry; tokens are deliberately excluded so
+ * an access-token refresh does not create a second cache entry.
+ */
+export function nukaColaCountKey(
+  accountId: string | null,
+  vaultId: string | null
+): readonly ['storage', 'nuka-cola-count', string | null, string | null] {
+  return ['storage', 'nuka-cola-count', accountId, vaultId] as const
 }
 
 // Nuka-Cola is not a vault field: rewards land as generic storage items, so the
 // count is a case-insensitive name match over the vault's stored item list.
 const NUKA_COLA_NAME_PATTERN = /nuka/i
-
-// One reactive owner per vault id: every mounted header shares the same Ref, so
-// a refresh updates them all in place. Injectable for test isolation.
-const sharedCounts = new Map<string, Ref<number | null>>()
-// Concurrent activations of the same vault share one in-flight request.
-const inFlightCounts = new Map<string, Promise<number>>()
 
 /** Count the vault's stored items whose name references Nuka-Cola. */
 export function countNukaColaBottles(items: ReadonlyArray<{ name: string }>): number {
@@ -26,65 +34,53 @@ export function countNukaColaBottles(items: ReadonlyArray<{ name: string }>): nu
   )
 }
 
-function cacheFor(vaultId: string, counts: Map<string, Ref<number | null>>): Ref<number | null> {
-  let entry = counts.get(vaultId)
-  if (!entry) {
-    entry = ref<number | null>(null)
-    counts.set(vaultId, entry)
-  }
-  return entry
-}
-
-async function fetchNukaColaCount(vaultId: string, entry: Ref<number | null>): Promise<number> {
-  const inFlight = inFlightCounts.get(vaultId)
-  if (inFlight) return inFlight
-
-  const request = storageService
-    .getStorageItems(vaultId)
-    .then((storage) => countNukaColaBottles(storage.items))
-  inFlightCounts.set(vaultId, request)
-  try {
-    const count = await request
-    entry.value = count
-    return count
-  } finally {
-    inFlightCounts.delete(vaultId)
-  }
-}
-
-function logUnload(vaultId: string, error: unknown): void {
-  console.warn(`Nuka-Cola count stays unloaded: vault ${vaultId}: ${getErrorMessage(error)}`)
-}
-
 /**
  * Route-aware Nuka-Cola bottle count for the shell header.
  *
  * `nukaColaCount` is `null` until a storage fetch resolves — never a false `0`,
- * which would read as "none stored". Every activation revalidates: a mount with
- * a cached value renders it immediately and refetches in the background, so
- * rewards granted between visits cannot leave the header stale. A failed fetch
- * is logged and non-fatal: the count keeps its current value (or stays `null`,
- * so the header shows its dash) instead of breaking the vault shell.
+ * which would read as "none stored". The auth/account/vault gate is applied both
+ * to `enabled` and to the returned computed: a disabled query can still serve a
+ * warm cache, and a mounted observer can briefly retain the previous account's
+ * result while auth changes.
+ *
+ * A background refetch failure keeps the last good value; only a failed first
+ * load leaves the count unknown. Failures are logged by the QueryClient's
+ * `QueryCache.onError`, not surfaced as a header error state.
  */
-export function useNukaColaCount(
-  vaultId: Ref<string | null>,
-  counts: Map<string, Ref<number | null>> = sharedCounts
-): NukaColaCountState {
+export function useNukaColaCount(vaultId: Ref<string | null>): NukaColaCountState {
   const authStore = useAuthStore()
 
-  const nukaColaCount = computed<number | null>(() => {
-    const id = vaultId.value
-    return id && authStore.token ? (counts.get(id)?.value ?? null) : null
+  const accountId = computed(() => authStore.user?.id ?? null)
+  const isEnabled = computed(() => Boolean(authStore.token && accountId.value && vaultId.value))
+  const queryKey = computed(() => nukaColaCountKey(accountId.value, vaultId.value))
+
+  const { data } = useQuery({
+    queryKey,
+    queryFn: async ({ signal, queryKey: key }) => {
+      const id = key[3]
+      if (typeof id !== 'string') {
+        throw new Error('Nuka-Cola count queried without a vault id')
+      }
+      const storage = await storageService.getStorageItems(id, {
+        signal,
+        skipErrorNotification: true,
+      })
+      return countNukaColaBottles(storage.items)
+    },
+    enabled: isEnabled,
+    retry: false,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    networkMode: 'always',
+    meta: computed(() => ({
+      errorContext: `Nuka-Cola count stays unloaded (vault ${vaultId.value ?? 'unknown'})`,
+    })),
   })
 
-  watch(
-    [vaultId, () => authStore.token],
-    ([id, token]) => {
-      if (!id || !token) return
-      const entry = cacheFor(id, counts)
-      void fetchNukaColaCount(id, entry).catch((error: unknown) => logUnload(id, error))
-    },
-    { immediate: true }
+  const nukaColaCount = computed<number | null>(() =>
+    isEnabled.value ? (data.value ?? null) : null
   )
 
   const nukaColaTooltip = computed(() =>
@@ -97,19 +93,21 @@ export function useNukaColaCount(
 }
 
 /**
- * Re-read the bottle count now, after storage mutations (reward claims, sales).
- * Headers sharing the vault's cached Ref update in place; on fetch failure the
- * cached value is kept (never dropped to `null` by a refresh attempt).
+ * Re-read the bottle count after a storage mutation.
+ *
+ * Explicit cancellation comes first: during a cold first load, invalidating
+ * alone reuses the in-flight promise (its response may predate the mutation).
+ * Cancelling aborts that request, then invalidation starts a fresh one for any
+ * active observer. The account is rechecked after the await so a logout or
+ * account replacement during cancellation cannot start a stale fetch.
  */
-export async function refreshNukaColaCount(
-  vaultId: string,
-  counts: Map<string, Ref<number | null>> = sharedCounts
-): Promise<void> {
-  // A request started before the mutation can contain the old inventory. Its
-  // owner handles errors; refresh still needs a new read after it settles.
-  await inFlightCounts.get(vaultId)?.catch(() => undefined)
-  const entry = cacheFor(vaultId, counts)
-  return fetchNukaColaCount(vaultId, entry)
-    .then(() => undefined)
-    .catch((error: unknown) => logUnload(vaultId, error))
+export async function invalidateNukaColaCount(vaultId: string): Promise<void> {
+  const authStore = useAuthStore()
+  const accountId = authStore.user?.id
+  if (!authStore.token || !accountId || !vaultId) return
+
+  const filters = { queryKey: nukaColaCountKey(accountId, vaultId), exact: true }
+  await queryClient.cancelQueries(filters)
+  if (!authStore.token || authStore.user?.id !== accountId) return
+  await queryClient.invalidateQueries({ ...filters, refetchType: 'active' })
 }

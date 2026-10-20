@@ -414,9 +414,11 @@ land as one compatibility pass with migration notes, updated CI/container toolin
   SQLAlchemy/asyncpg, Redis, Dramatiq, and outbound HTTP. Trace a player action from request through transaction,
   queue, and WebSocket notification; scrub tokens and player content before export, define error/latency alerts, and
   do not add a parallel Sentry pipeline unless Logfire demonstrably cannot meet an alerting need.
-- [ ] **Vue server-state pilot** — trial `@tanstack/vue-query` in one data-heavy module (dwellers or crafting) while
-  retaining Pinia for client/UI state. Evaluate query caching, mutation invalidation, retries, polling, and optimistic
-  updates against the existing bespoke loading/error flows before any wider migration.
+- [ ] **Vue server-state evaluation** — evaluate `@tanstack/vue-query` against a shared storage-items read
+  serving both inventory and the Nuka-Cola header (#1051), retaining Pinia for client/UI state. The standalone
+  count prototype is deferred: it did not demonstrate simpler production code and retained duplicate inventory
+  reads. Adopt only if the shared slice removes existing cache/loading/race machinery while preserving mutation
+  freshness, account isolation and error behavior; broader migration and conventions depend on that result.
 - [ ] **Password-hash modernization** — evaluate `pwdlib[argon2]` as the new-password default; retain verification
   for existing bcrypt hashes and upgrade a hash only after a successful login. Do not force-reset accounts merely to
   change algorithms.

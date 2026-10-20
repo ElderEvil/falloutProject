@@ -3,7 +3,10 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import axios from '@/core/plugins/axios'
 
+const { invalidateNukaColaCount } = vi.hoisted(() => ({ invalidateNukaColaCount: vi.fn() }))
+
 vi.mock('@/core/plugins/axios')
+vi.mock('@/modules/vault/composables/useNukaColaCount', () => ({ invalidateNukaColaCount }))
 
 describe('Quest Store', () => {
   beforeEach(() => {
@@ -355,7 +358,12 @@ describe('Quest Store', () => {
       }
 
       vi.mocked(axios.post).mockResolvedValueOnce({
-        data: { quest_id: 'quest-1', quest_title: 'Quest 1', is_completed: true, granted_rewards: [] },
+        data: {
+          quest_id: 'quest-1',
+          quest_title: 'Quest 1',
+          is_completed: true,
+          granted_rewards: [],
+        },
       })
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [completedQuest] })
 
@@ -367,13 +375,17 @@ describe('Quest Store', () => {
         '/api/v1/quests/vault-123/',
         expect.objectContaining({ headers: expect.any(Object) })
       )
+      expect(invalidateNukaColaCount).toHaveBeenCalledWith('vault-123')
     })
 
     it('should handle reward claim error', async () => {
       vi.mocked(axios.post).mockRejectedValueOnce(new Error('Quest not found'))
 
       const store = useQuestStore()
-      await expect(store.claimQuestRewards('vault-123', 'quest-1')).rejects.toThrow('Quest not found')
+      await expect(store.claimQuestRewards('vault-123', 'quest-1')).rejects.toThrow(
+        'Quest not found'
+      )
+      expect(invalidateNukaColaCount).not.toHaveBeenCalled()
     })
   })
 

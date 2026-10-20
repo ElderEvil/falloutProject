@@ -5,7 +5,7 @@ import { useStorageStore } from '../stores/storage'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import { refreshNukaColaCount } from '@/modules/vault/composables/useNukaColaCount'
+import { invalidateNukaColaCount } from '@/modules/vault/composables/useNukaColaCount'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
 import { useSound } from '@/core/composables/useSound'
@@ -262,7 +262,7 @@ const {
   async () => {
     if (!vaultId.value || !selectedLunchboxId.value || lunchboxResult.value) return
     lunchboxResult.value = await storageStore.openLunchbox(vaultId.value, selectedLunchboxId.value)
-    void refreshNukaColaCount(vaultId.value)
+    void invalidateNukaColaCount(vaultId.value)
     playSound('lunchboxOpen', 'ui')
   },
   { context: 'Failed to open lunchbox', showToast: false }

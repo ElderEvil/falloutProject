@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as objectiveService from '../services/objectiveService'
 import type { Objective, ObjectiveCreate } from '../models/objective'
-import { refreshNukaColaCount } from '@/modules/vault/composables/useNukaColaCount'
+import { invalidateNukaColaCount } from '@/modules/vault/composables/useNukaColaCount'
 
 export const useObjectivesStore = defineStore('objectives', () => {
   // State
@@ -33,7 +33,7 @@ export const useObjectivesStore = defineStore('objectives', () => {
     if (!objective) throw new Error('Objective no longer available')
     ++fetchGeneration
     const progress = await objectiveService.claimObjective(vaultId, objectiveId)
-    void refreshNukaColaCount(vaultId)
+    void invalidateNukaColaCount(vaultId)
     const completed = { ...objective, ...progress }
     if (objectivesVaultId.value === vaultId) {
       ++fetchGeneration

@@ -24,7 +24,7 @@ export interface VaultHeaderContext {
   water: ComputedRef<{ current: number; max: number }>
   resourceRates: ComputedRef<ResourceRates | undefined>
   bottleCaps: ComputedRef<number>
-  nukaColaCount: Ref<number | null>
+  nukaColaCount: ComputedRef<number | null>
   dwellersTooltip: ComputedRef<string>
   happinessTooltip: ComputedRef<string>
   capsTooltip: ComputedRef<string>

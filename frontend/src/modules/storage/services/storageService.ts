@@ -1,4 +1,5 @@
 import axios from '@/core/plugins/axios'
+import { apiGet, type ApiRequestOptions } from '@/core/utils/api'
 import type { components } from '@/core/types/api.generated'
 
 type StorageSpaceResponse = components['schemas']['StorageSpaceResponse']
@@ -36,11 +37,16 @@ export const storageService = {
   },
 
   /**
-   * Get all items stored in vault storage
+   * Get all items stored in vault storage.
+   *
+   * Uses the typed API boundary so callers can pass an AbortSignal and opt out
+   * of the transport-level error toast (the Nuka-Cola count query does both).
    */
-  async getStorageItems(vaultId: string): Promise<StorageItemsResponse> {
-    const response = await axios.get<StorageItemsResponse>(`/api/v1/storage/vault/${vaultId}/items`)
-    return response.data
+  async getStorageItems(
+    vaultId: string,
+    options: ApiRequestOptions = {}
+  ): Promise<StorageItemsResponse> {
+    return apiGet<StorageItemsResponse>(`/api/v1/storage/vault/${vaultId}/items`, options)
   },
 
   /**

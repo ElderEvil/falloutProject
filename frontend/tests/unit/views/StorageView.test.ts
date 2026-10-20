@@ -10,7 +10,10 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import axios from '@/core/plugins/axios'
 
+const { invalidateNukaColaCount } = vi.hoisted(() => ({ invalidateNukaColaCount: vi.fn() }))
+
 vi.mock('@/core/plugins/axios')
+vi.mock('@/modules/vault/composables/useNukaColaCount', () => ({ invalidateNukaColaCount }))
 
 // Mock Iconify so icon-only assertions read the resolved icon name
 vi.mock('@iconify/vue', () => createIconifyMock())
@@ -216,6 +219,7 @@ describe('StorageView', () => {
     modal.vm.$emit('close')
     await flushPromises()
     expect(vaultStore.refreshVault).toHaveBeenCalledWith('vault-1', 'test-token')
+    expect(invalidateNukaColaCount).toHaveBeenCalledWith('vault-1')
     wrapper.unmount()
   })
 

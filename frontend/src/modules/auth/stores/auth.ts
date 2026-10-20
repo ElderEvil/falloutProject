@@ -11,6 +11,7 @@ import { authService } from '../services/authService'
 import type { User } from '../types/user'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useProfileStore } from '@/modules/profile/stores/profile'
+import { queryClient } from '@/core/query/queryClient'
 
 export const useAuthStore = defineStore('auth', () => {
   // State (using VueUse for reactive localStorage)
@@ -48,6 +49,7 @@ export const useAuthStore = defineStore('auth', () => {
     useVaultStore().clearSession()
     useStorageStore().reset()
     useProfileStore().clearProfile()
+    queryClient.clear()
   }
 
   // Actions

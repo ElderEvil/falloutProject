@@ -11,7 +11,7 @@ import {
 } from '../models/quest'
 import { useToast } from '@/core/composables/useToast'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { refreshNukaColaCount } from '@/modules/vault/composables/useNukaColaCount'
+import { invalidateNukaColaCount } from '@/modules/vault/composables/useNukaColaCount'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
 type QuestCompleteResponse = components['schemas']['QuestCompleteResponse']
@@ -174,7 +174,7 @@ export const useQuestStore = defineStore('quest', () => {
       } else {
         toast.success('Quest rewards claimed!')
       }
-      void refreshNukaColaCount(vaultId)
+      void invalidateNukaColaCount(vaultId)
     } catch (error: unknown) {
       const errorMessage =
         (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||

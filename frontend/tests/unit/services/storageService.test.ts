@@ -36,6 +36,22 @@ describe('storageService', () => {
       expect(axios.get).toHaveBeenCalledWith('/api/v1/storage/vault/vault-1/items')
       expect(result).toEqual(mockItems)
     })
+
+    it('forwards the abort signal and quiet-error option to the HTTP boundary', async () => {
+      const mockItems = { weapons: [], outfits: [], junk: [], items: [], pets: [] }
+      const controller = new AbortController()
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockItems })
+
+      await storageService.getStorageItems('vault-1', {
+        signal: controller.signal,
+        skipErrorNotification: true,
+      })
+
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/storage/vault/vault-1/items', {
+        signal: controller.signal,
+        _skipErrorNotification: true,
+      })
+    })
   })
 
   describe('sellWeapon', () => {

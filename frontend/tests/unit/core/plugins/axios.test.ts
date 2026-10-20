@@ -34,7 +34,9 @@ let locationStub: { href: string }
 
 function captureRequests(): InternalAxiosRequestConfig[] {
   const seen: InternalAxiosRequestConfig[] = []
-  apiClient.defaults.adapter = async (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
+  apiClient.defaults.adapter = async (
+    config: InternalAxiosRequestConfig
+  ): Promise<AxiosResponse> => {
     seen.push(config)
     return { data: {}, status: 200, statusText: 'OK', headers: {}, config }
   }
@@ -48,14 +50,22 @@ function statusError(
   headers: Record<string, string> = {}
 ): AxiosError {
   const response: AxiosResponse = { data, status, statusText: '', headers, config }
-  return new AxiosError(`Request failed with status code ${status}`, 'ERR_BAD_RESPONSE', config, {}, response)
+  return new AxiosError(
+    `Request failed with status code ${status}`,
+    'ERR_BAD_RESPONSE',
+    config,
+    {},
+    response
+  )
 }
 
 function rejectWithError(
   makeError: (config: InternalAxiosRequestConfig) => AxiosError
 ): InternalAxiosRequestConfig[] {
   const seen: InternalAxiosRequestConfig[] = []
-  apiClient.defaults.adapter = async (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
+  apiClient.defaults.adapter = async (
+    config: InternalAxiosRequestConfig
+  ): Promise<AxiosResponse> => {
     seen.push(config)
     throw makeError(config)
   }
@@ -67,7 +77,9 @@ function failOnceThenResolve(
 ): InternalAxiosRequestConfig[] {
   const seen: InternalAxiosRequestConfig[] = []
   let attempt = 0
-  apiClient.defaults.adapter = async (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
+  apiClient.defaults.adapter = async (
+    config: InternalAxiosRequestConfig
+  ): Promise<AxiosResponse> => {
     seen.push(config)
     attempt += 1
     if (attempt === 1) {
@@ -149,7 +161,9 @@ describe('axios response interceptor', () => {
   it('maps 401 to Unauthorized when the retried request fails again', async () => {
     rejectWithError((config) => statusError(config, 401))
 
-    await expect(apiClient.get('/api/v1/thing', { _retry: true })).rejects.toBeInstanceOf(AxiosError)
+    await expect(apiClient.get('/api/v1/thing', { _retry: true })).rejects.toBeInstanceOf(
+      AxiosError
+    )
 
     expect(mockToast.error).toHaveBeenCalledWith('Unauthorized: Please log in to continue')
   })
@@ -244,8 +258,29 @@ describe('axios response interceptor', () => {
     expect(mockToast.error).not.toHaveBeenCalled()
   })
 
+  it('suppresses the toast for an aborted quiet request', async () => {
+    const controller = new AbortController()
+    apiClient.defaults.adapter = async (
+      config: InternalAxiosRequestConfig
+    ): Promise<AxiosResponse> => {
+      controller.abort()
+      throw new AxiosError('canceled', 'ERR_CANCELED', config, {})
+    }
+
+    await expect(
+      apiClient.get('/api/v1/storage/vault/vault-1/items', {
+        signal: controller.signal,
+        _skipErrorNotification: true,
+      })
+    ).rejects.toMatchObject({ code: 'ERR_CANCELED' })
+
+    expect(mockToast.error).not.toHaveBeenCalled()
+  })
+
   it('maps a network error to Network Error', async () => {
-    apiClient.defaults.adapter = async (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
+    apiClient.defaults.adapter = async (
+      config: InternalAxiosRequestConfig
+    ): Promise<AxiosResponse> => {
       throw new AxiosError('Network Error', 'ERR_NETWORK', config, {})
     }
 
@@ -288,10 +323,9 @@ describe('axios response interceptor', () => {
 
     window.removeEventListener(AUTH_TOKENS_REFRESHED_EVENT, onRefreshed)
 
-    expect(postSpy).toHaveBeenCalledWith(
-      expect.stringContaining('/api/v1/auth/refresh'),
-      { refresh_token: 'refresh-1' }
-    )
+    expect(postSpy).toHaveBeenCalledWith(expect.stringContaining('/api/v1/auth/refresh'), {
+      refresh_token: 'refresh-1',
+    })
     expect(localStorage.getItem('token')).toBe(JSON.stringify('new-token'))
     expect(localStorage.getItem('refreshToken')).toBe(JSON.stringify('refresh-2'))
     expect(refreshed).toEqual([{ token: 'new-token', refreshToken: 'refresh-2' }])

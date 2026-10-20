@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent } from 'vue'
+import { defineComponent, type App } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import { VueQueryPlugin } from '@tanstack/vue-query'
 import {
   useVaultHeaderContext,
   type VaultHeaderContext,
 } from '@/modules/vault/composables/useVaultHeaderContext'
 import { useVaultStore, type VaultWithNumbers } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { createQueryClient } from '@/core/query/queryClient'
 
 const fakeVault = {
   id: 'vault-1',
@@ -56,7 +58,19 @@ function makeRouter(): Router {
 async function mountContext(router: Router, path: string) {
   await router.push(path)
   await router.isReady()
-  const wrapper = mount(Harness, { global: { plugins: [router] } })
+  const queryClient = createQueryClient()
+  const wrapper = mount(Harness, {
+    global: {
+      plugins: [
+        router,
+        {
+          install(app: App): void {
+            app.use(VueQueryPlugin, { queryClient })
+          },
+        },
+      ],
+    },
+  })
   await flushPromises()
   const ctx = (wrapper.vm as unknown as { ctx: VaultHeaderContext }).ctx
   return { wrapper, ctx }
@@ -158,7 +172,10 @@ describe('useVaultHeaderContext', () => {
   it('ignores a late failure from the previous vault route', async () => {
     let rejectOldLoad!: (reason: Error) => void
     ensureSpy.mockImplementationOnce(
-      () => new Promise((_, reject) => { rejectOldLoad = reject })
+      () =>
+        new Promise((_, reject) => {
+          rejectOldLoad = reject
+        })
     )
     const { ctx } = await mountContext(router, '/vault/vault-1')
 

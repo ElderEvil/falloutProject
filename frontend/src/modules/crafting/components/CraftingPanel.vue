@@ -373,7 +373,7 @@ watch(() => [props.vaultId, props.itemType, props.crewKey], loadAll)
         <li
           v-for="recipe in filteredRecipes"
           :key="recipe.name"
-          class="flex items-center gap-3 rounded-sm border border-theme-primary/20 bg-surface-sunken/60 px-3 py-2"
+          class="recipe-row rounded-sm border border-theme-primary/20 bg-surface-sunken/60 px-3 py-2"
           :class="{ 'locked-recipe': isLocked(recipe) }"
         >
           <!--
@@ -382,62 +382,59 @@ watch(() => [props.vaultId, props.itemType, props.crewKey], loadAll)
             stronger a11y contract (same pattern as StorageItemCard.vue).
           -->
           <TooltipProvider :delay-duration="200">
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2">
-                <Icon v-if="isLocked(recipe)" icon="mdi:lock" class="h-3.5 w-3.5 shrink-0 text-warning" />
-                <span class="truncate text-sm font-bold" :class="getRarityTextClass(recipe.rarity)">
-                  {{ recipe.name }}
-                </span>
-                <span
-                  class="shrink-0 text-[0.65rem] uppercase tracking-wider text-theme-primary/50"
-                >
-                  {{ recipe.rarity }}
-                </span>
-                <span
-                  v-if="isOwned(recipe)"
-                  class="shrink-0 text-[0.65rem] uppercase tracking-wider text-theme-accent"
-                >
-                  Crafted
-                </span>
-                <span class="ml-auto flex shrink-0 items-center gap-1 text-theme-accent/80">
-                  <Icon :icon="statMeta(recipe.stat).icon" class="h-3.5 w-3.5" />
-                  {{ statMeta(recipe.stat).label }} {{ recipe.ability_sum }}
-                </span>
-              </div>
-              <div
-                class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-theme-primary/70"
+            <span :class="['recipe-icon', `recipe-icon-${recipe.item_type}`]">
+              <Icon
+                :icon="itemIcon"
+                class="h-6 w-6"
+                :class="getRarityTextClass(recipe.rarity)"
+              />
+            </span>
+            <div class="flex min-w-0 flex-1 items-center gap-2">
+              <span
+                v-if="isLocked(recipe)"
+                class="flex shrink-0 items-center text-warning"
+                :title="recipe.unlock_hint ?? 'Recipe locked'"
               >
-                <span
-                  v-for="(needed, material) in recipe.junk_materials"
-                  :key="material"
-                  class="flex items-center gap-1"
-                  :class="{
-                    'text-danger/80': (recipe.available_junk[material] ?? 0) < needed,
-                  }"
-                >
-                  <Icon icon="mdi:wrench" class="h-3.5 w-3.5 shrink-0" />
-                  {{ recipe.available_junk[material] ?? 0 }}/{{ needed }} {{ material }}
-                </span>
-                <span class="flex items-center gap-1 opacity-80">
+                <Icon icon="mdi:lock" class="h-3.5 w-3.5" />
+              </span>
+              <span class="truncate text-sm font-bold" :class="getRarityTextClass(recipe.rarity)">
+                {{ recipe.name }}
+              </span>
+              <span class="recipe-meta">{{ recipe.rarity }}</span>
+              <span v-if="isOwned(recipe)" class="recipe-meta text-theme-accent">Crafted</span>
+            </div>
+            <div class="recipe-details">
+              <span class="recipe-materials">
+                <span class="flex shrink-0 items-center gap-1 opacity-80">
                   <Tooltip v-for="junkType in recipe.junk_types" :key="junkType">
                     <TooltipTrigger as-child>
-                      <Icon :icon="junkTypeMeta(junkType).icon" class="h-3.5 w-3.5 shrink-0" />
+                      <Icon :icon="junkTypeMeta(junkType).icon" class="h-4 w-4" />
                     </TooltipTrigger>
                     <TooltipContent>{{ junkTypeMeta(junkType).label }}</TooltipContent>
                   </Tooltip>
                 </span>
-                <span class="flex items-center gap-1">
-                  <Icon icon="mdi:clock-outline" class="h-3.5 w-3.5 shrink-0" />
+                <span
+                  v-for="(needed, material) in recipe.junk_materials"
+                  :key="material"
+                  class="flex shrink-0 items-center gap-1"
+                  :class="{
+                    'text-danger/80': (recipe.available_junk[material] ?? 0) < needed,
+                  }"
+                >
+                  <Icon icon="mdi:wrench" class="h-4 w-4" />
+                  {{ recipe.available_junk[material] ?? 0 }}/{{ needed }} {{ material }}
+                </span>
+              </span>
+              <span class="recipe-speed">
+                <span class="flex shrink-0 items-center gap-1 text-theme-accent/80">
+                  <Icon :icon="statMeta(recipe.stat).icon" class="h-4 w-4" />
+                  {{ statMeta(recipe.stat).label }} {{ recipe.ability_sum }}
+                </span>
+                <span class="flex shrink-0 items-center gap-1">
+                  <Icon icon="mdi:clock-outline" class="h-4 w-4" />
                   {{ formatDuration(recipe.duration_seconds, { rounding: 'round' }) }}
                 </span>
-                <span
-                  v-if="isLocked(recipe) && recipe.unlock_hint"
-                  class="flex items-center gap-1 text-warning"
-                >
-                  <Icon icon="mdi:hammer-wrench" class="h-3.5 w-3.5 shrink-0" />
-                  {{ recipe.unlock_hint }}
-                </span>
-              </div>
+              </span>
             </div>
             <Tooltip>
               <TooltipTrigger as-child>
@@ -482,7 +479,7 @@ watch(() => [props.vaultId, props.itemType, props.crewKey], loadAll)
 
       <p class="mt-2 text-[0.7rem] text-theme-primary/50">
         Materials come from scrapping gear and wasteland salvage. Dwellers working the workshop
-        finish orders faster. Scrap an item to reverse-engineer its schematic.
+        finish orders faster. Locked schematics are learned by scrapping the matching item.
       </p>
     </template>
   </Card>
@@ -493,8 +490,60 @@ watch(() => [props.vaultId, props.itemType, props.crewKey], loadAll)
   border: 1px solid color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
 }
 
+.recipe-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.recipe-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.recipe-details {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.75rem;
+  color: color-mix(in srgb, var(--color-theme-primary) 70%, transparent);
+  font-size: 0.75rem;
+}
+
+.recipe-materials,
+.recipe-speed {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.recipe-speed {
+  padding-left: 0.75rem;
+  border-left: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
+}
+
+.recipe-meta {
+  flex-shrink: 0;
+  color: color-mix(in srgb, var(--color-theme-primary) 50%, transparent);
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
 .queue-ready {
   border-color: color-mix(in srgb, var(--color-theme-accent) 60%, transparent);
+}
+
+@media (max-width: 720px) {
+  .recipe-row {
+    flex-wrap: wrap;
+  }
+
+  .recipe-details {
+    order: 3;
+    width: 100%;
+    flex-wrap: wrap;
+  }
 }
 
 .locked-recipe {

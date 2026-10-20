@@ -58,7 +58,7 @@ def unlock_hint(entry: dict[str, Any] | None) -> str | None:
         return None
     name = str(entry.get("name", "")).strip()
     phrase = f"a {name}" if count == 1 else f"{count}\u00d7 {name}"
-    return f"Scrap {phrase} to reverse-engineer this schematic"
+    return f"Scrap {phrase} to learn it"
 
 
 class RecipeUnlockService:

@@ -51,13 +51,8 @@ def test_rare_and_legendary_recipes_are_gated_by_default():
 
 
 def test_unlock_hint_names_the_exact_item():
-    assert (
-        unlock_hint(catalog_entry("weapon", RARE_WEAPON)) == "Scrap a Baseball bat to reverse-engineer this schematic"
-    )
-    assert (
-        unlock_hint(catalog_entry("weapon", LEGENDARY_WEAPON))
-        == "Scrap a Power fist to reverse-engineer this schematic"
-    )
+    assert unlock_hint(catalog_entry("weapon", RARE_WEAPON)) == "Scrap a Baseball bat to learn it"
+    assert unlock_hint(catalog_entry("weapon", LEGENDARY_WEAPON)) == "Scrap a Power fist to learn it"
     assert unlock_hint(catalog_entry("weapon", COMMON_WEAPON)) is None
     assert unlock_hint(None) is None
 
@@ -180,12 +175,12 @@ async def test_list_recipes_lists_locked_schematics_with_hint(async_session: Asy
     legendary = recipes[LEGENDARY_WEAPON]
     assert legendary.unlocked is False
     assert legendary.unlock_hint is not None
-    assert "reverse-engineer" in legendary.unlock_hint
+    assert "learn" in legendary.unlock_hint
 
     assert RARE_WEAPON in recipes
     rare = recipes[RARE_WEAPON]
     assert rare.unlocked is False
-    assert rare.unlock_hint == "Scrap a Baseball bat to reverse-engineer this schematic"
+    assert rare.unlock_hint == "Scrap a Baseball bat to learn it"
 
 
 @pytest.mark.asyncio
@@ -227,7 +222,7 @@ async def test_start_order_refuses_a_locked_recipe(async_session: AsyncSession, 
     await _make_storage(async_session, vault)
     await _add_workshop(async_session, vault, "Weapon workshop")
 
-    with pytest.raises(ValidationException, match="reverse-engineer"):
+    with pytest.raises(ValidationException, match="learn"):
         await crafting_service.start_order(async_session, vault.id, LEGENDARY_WEAPON, "weapon")
 
 

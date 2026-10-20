@@ -299,22 +299,24 @@ describe('CraftingPanel', () => {
 
     expect(wrapper.text()).toContain('Pipe pistol')
     expect(wrapper.text()).not.toContain('Assault rifle')
+    expect(wrapper.find('.recipe-icon-weapon').exists()).toBe(true)
   })
 
-  it('marks a locked recipe: dashed state, unlock hint, and disabled Start', async () => {
+  it('marks a locked recipe: dashed state, hover hint, and disabled Start', async () => {
     vi.mocked(craftingService.listRecipes).mockResolvedValue([
       recipe({
         name: 'Laser pistol',
         rarity: 'legendary',
         unlocked: false,
-        unlock_hint: 'Scrap a Power fist to reverse-engineer this schematic',
+        unlock_hint: 'Scrap a Power fist to learn it',
       }),
     ])
     const wrapper = mountPanel()
     await flushPromises()
 
-    expect(wrapper.find('.locked-recipe').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Scrap a Power fist to reverse-engineer this schematic')
+    const locked = wrapper.find('.locked-recipe')
+    expect(locked.exists()).toBe(true)
+    expect(locked.find('[title]').attributes('title')).toBe('Scrap a Power fist to learn it')
     expect(findButton(wrapper, 'Start').attributes('disabled')).toBeDefined()
   })
 

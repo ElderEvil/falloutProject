@@ -354,11 +354,17 @@ describe('StorageView', () => {
     await vi.waitFor(() => {
       expect(wrapper.find('button[aria-label="About Vault Storage"]').exists()).toBe(true)
     })
-    expect(wrapper.text()).not.toContain('Storage rooms share protection across the vault.')
+    expect(wrapper.text()).not.toContain(
+      'Storage workers pool END across the vault, including equipment bonuses.'
+    )
     await wrapper.find('button[aria-label="About Vault Storage"]').trigger('click')
     await flushPromises()
-    expect(document.body.textContent).toContain('Storage rooms share protection across the vault.')
-    expect(document.body.textContent).toContain('Each eligible weapon gets one trial per hour')
+    expect(document.body.textContent?.replace(/\s+/g, ' ')).toContain(
+      'Storage workers pool END across the vault, including equipment bonuses.'
+    )
+    expect(document.body.textContent?.replace(/\s+/g, ' ')).toContain(
+      'eligible weapons have up to a 2% hourly chance'
+    )
     wrapper.unmount()
   })
 })

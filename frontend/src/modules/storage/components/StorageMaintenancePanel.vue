@@ -23,15 +23,16 @@ watch(
 </script>
 
 <template>
-  <section aria-label="Storage maintenance">
+  <section aria-label="Storage maintenance" class="space-y-2">
+    <h3 class="flex items-center gap-2 font-semibold text-theme-primary">
+      <Icon icon="mdi:tools" class="h-5 w-5 shrink-0" :ariaHidden="true" />
+      Weapon maintenance
+    </h3>
     <Card
-      class="items-start gap-x-6 gap-y-3 p-4 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
+      class="grid gap-0 divide-y divide-theme-primary/20 p-0 text-sm sm:divide-x sm:divide-y-0"
+      :class="maintenance?.enabled ? 'sm:grid-cols-4' : 'sm:grid-cols-2'"
     >
-      <h3 class="flex items-center gap-2 font-semibold text-theme-primary">
-        <Icon icon="mdi:tools" class="h-5 w-5 shrink-0" :ariaHidden="true" />
-        Weapon maintenance
-      </h3>
-      <p class="flex items-center gap-2">
+      <p class="flex min-w-0 items-center justify-center gap-2 px-4 py-3 text-center">
         <Icon
           icon="mdi:account-group"
           class="h-4 w-4 shrink-0 text-theme-primary"
@@ -40,7 +41,7 @@ watch(
         <span>{{ workers }} / {{ slots }} room workers</span>
       </p>
       <template v-if="maintenance?.enabled">
-        <p class="flex items-center gap-2">
+        <p class="flex min-w-0 items-center justify-center gap-2 px-4 py-3 text-center">
           <Icon
             :icon="maintenanceIcons[maintenance.mode] ?? 'mdi:shield-check'"
             class="h-4 w-4 shrink-0 text-theme-primary"
@@ -48,19 +49,27 @@ watch(
           />
           <span>{{ maintenanceLabel }}</span>
         </p>
-        <p class="flex items-center gap-2">
+        <p class="flex min-w-0 items-center justify-center gap-2 px-4 py-3 text-center">
+          <Icon
+            icon="mdi:heart"
+            class="h-4 w-4 shrink-0 text-special-endurance"
+            :ariaHidden="true"
+          />
+          <span>Vault-wide: {{ maintenance.total_endurance }} END</span>
+        </p>
+        <p class="flex min-w-0 items-center justify-center gap-2 px-4 py-3 text-center">
           <Icon
             icon="mdi:shield-outline"
             class="h-4 w-4 shrink-0 text-theme-primary"
             :ariaHidden="true"
           />
-          <span>
-            Vault-wide: {{ maintenance.total_endurance }} END ·
-            {{ maintenance.protection_pct.toFixed(0) }}% protection
-          </span>
+          <span>{{ maintenance.protection_pct.toFixed(0) }}% protection</span>
         </p>
       </template>
-      <p v-else class="flex items-center gap-2 text-muted-foreground">
+      <p
+        v-else
+        class="flex min-w-0 items-center justify-center gap-2 px-4 py-3 text-center text-muted-foreground"
+      >
         <Icon icon="mdi:pause-circle-outline" class="h-4 w-4 shrink-0" :ariaHidden="true" />
         <span>Weapon maintenance is not active.</span>
       </p>

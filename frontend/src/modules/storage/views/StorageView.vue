@@ -321,16 +321,18 @@ const closeLunchboxModal = async () => {
                 Weapon maintenance
               </h2>
               <p>
-                Storage rooms share protection across the vault. Adult workers contribute Endurance,
-                including equipment bonuses. Below 20 total END, stored weapons can degrade; above
-                20 END, they can improve. Near 20 END, they stay stable. The chance reaches 2% per
-                trial at zero or at least 40 END.
+                Storage workers pool
+                <Icon
+                  icon="mdi:heart"
+                  class="inline size-4 align-text-bottom text-special-endurance"
+                  :ariaHidden="true"
+                />
+                END across the vault, including equipment bonuses. Below 20 risks degradation; near
+                20 keeps weapons stable; above 20 allows upgrades.
               </p>
               <p class="mt-2">
-                Each eligible weapon gets one trial per hour while you are online. A successful
-                trial moves it one variant up or down its weapon family, changing its damage, value
-                and sometimes rarity. Weapons with only one variant stay unchanged. Newly stored
-                weapons get a grace period, and time spent offline never builds up extra trials.
+                While online, eligible weapons have up to a 2% hourly chance to move one variant up
+                or down, changing damage, value and sometimes rarity.
               </p>
             </section>
           </template>

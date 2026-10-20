@@ -28,6 +28,15 @@ const activeTrainings = computed(() =>
     (a, b) => Date.parse(a.estimated_completion_at) - Date.parse(b.estimated_completion_at)
   )
 )
+const roomGroups = computed(() => {
+  const groups = new Map<string, typeof activeTrainings.value>()
+  for (const training of activeTrainings.value) {
+    const group = groups.get(training.room_id) ?? []
+    group.push(training)
+    groups.set(training.room_id, group)
+  }
+  return [...groups].map(([roomId, trainings]) => ({ roomId, trainings }))
+})
 const continuousTraining = computed(() => !!vaultStore.activeVault?.continuous_training)
 
 const toggleContinuousTraining = async () => {
@@ -87,6 +96,12 @@ const handleCompleteTraining = async (trainingId: string) => {
   await fetchTrainings()
 }
 
+const handleGoal = async (trainingId: string, goal: number) => {
+  if (!authStore.token) return
+  await trainingStore.setTrainingGoal(trainingId, goal, authStore.token)
+  await fetchTrainings()
+}
+
 onMounted(() => {
   // Fetch when vault becomes available (handles page reload where vault loads async)
   watch(
@@ -114,7 +129,7 @@ onMounted(() => {
             <Button
               :variant="continuousTraining ? 'default' : 'outline'"
               size="sm"
-              aria-label="Repeat to 10"
+              aria-label="Repeat training"
               :aria-pressed="continuousTraining"
               :disabled="
                 !vaultStore.activeVault ||
@@ -124,13 +139,13 @@ onMounted(() => {
               @click="toggleContinuousTraining"
             >
               <Icon :icon="continuousTraining ? 'mdi:repeat' : 'mdi:repeat-off'" />
-              Repeat to 10
+              Repeat training
             </Button>
           </TooltipTrigger>
           <TooltipContent>{{
             continuousTraining
-              ? 'Repeat until stat 10. Click to stop after this round.'
-              : 'Repeat training rounds until stat 10.'
+              ? 'Repeat to individual goals. Click to stop after this round.'
+              : 'Repeat training rounds to each dweller’s goal.'
           }}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -146,18 +161,34 @@ onMounted(() => {
         description="Assign dwellers to training rooms to improve their SPECIAL stats."
       />
 
-      <div v-else class="training-list">
-        <TrainingProgressCard
-          v-for="training in activeTrainings"
-          :key="training.id"
-          :training="training"
-          :dweller-name="getDweller(training.dweller_id)?.name"
-          :dweller-image="getDweller(training.dweller_id)?.image"
-          :room-name="getRoomName(training.room_id)"
-          :continuous-training="continuousTraining"
-          @cancel="handleCancelTraining"
-          @complete="handleCompleteTraining"
-        />
+      <div v-else class="flex flex-col gap-5">
+        <section
+          v-for="group in roomGroups"
+          :key="group.roomId"
+          :id="`training-room-${group.roomId}`"
+          :aria-label="getRoomName(group.roomId)"
+          class="flex flex-col gap-2"
+        >
+          <h4 class="flex items-center gap-2 font-mono text-sm font-bold text-theme-primary">
+            <Icon icon="mdi:dumbbell" class="size-4" />
+            {{ getRoomName(group.roomId) }}
+            <span class="text-xs font-normal text-muted-foreground">{{
+              group.trainings.length
+            }}</span>
+          </h4>
+          <TrainingProgressCard
+            v-for="training in group.trainings"
+            :key="training.id"
+            :training="training"
+            :dweller-name="getDweller(training.dweller_id)?.name"
+            :dweller-image="getDweller(training.dweller_id)?.image"
+            :continuous-training="continuousTraining"
+            :is-saving-goal="trainingStore.savingGoals.has(training.id)"
+            @goal="handleGoal"
+            @cancel="handleCancelTraining"
+            @complete="handleCompleteTraining"
+          />
+        </section>
       </div>
     </div>
   </div>
@@ -216,11 +247,5 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}
-
-.training-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
 }
 </style>

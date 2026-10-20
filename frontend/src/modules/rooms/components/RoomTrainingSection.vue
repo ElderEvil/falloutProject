@@ -105,6 +105,13 @@ const handleCancel = async (trainingId: string) => {
   await refresh()
 }
 
+const handleGoal = async (trainingId: string, goal: number) => {
+  const token = roomToken.value
+  if (!token) return
+  await trainingStore.setTrainingGoal(trainingId, goal, token)
+  await refresh()
+}
+
 const handleComplete = async (trainingId: string) => {
   const token = roomToken.value
   if (!token) return
@@ -138,6 +145,8 @@ watch(
         :training="training"
         :dweller-name="dwellerName(training.dweller_id)"
         :continuous-training="!!vaultStore.loadedVaults[vaultId]?.continuous_training"
+        :is-saving-goal="trainingStore.savingGoals.has(training.id)"
+        @goal="handleGoal"
         @cancel="handleCancel"
         @complete="handleComplete"
       />

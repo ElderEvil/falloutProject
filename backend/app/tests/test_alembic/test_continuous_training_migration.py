@@ -39,7 +39,8 @@ def test_continuous_training_upgrade_preserves_existing_behavior():
 
 
 @pytest.mark.integration
-def test_concurrent_completions_create_only_one_successor(harness, monkeypatch):
+@pytest.mark.parametrize("other_operation", ["complete", "goal"])
+def test_concurrent_completions_create_only_one_successor(harness, monkeypatch, other_operation):
     """A tick and a manual completion cannot award twice or fork a repeat chain."""
     import asyncio
     from unittest.mock import AsyncMock
@@ -93,18 +94,24 @@ def test_concurrent_completions_create_only_one_successor(harness, monkeypatch):
                 training = await training_service.start_training(db, dweller.id, room.id)
                 training_id, dweller_id = training.id, dweller.id
 
-            async def complete():
+            async def operate(operation):
                 async with sessions() as db:
                     try:
-                        await training_service.complete_training(db, training_id)
+                        if operation == "complete":
+                            await training_service.complete_training(db, training_id)
+                        else:
+                            await training_service.set_training_goal(db, training_id, 7)
                     except VaultOperationException:
                         await db.rollback()
                         return False
                     else:
                         return True
 
-            results = await asyncio.gather(complete(), complete())
-            assert sorted(results) == [False, True]
+            results = await asyncio.gather(operate("complete"), operate(other_operation))
+            if other_operation == "complete":
+                assert sorted(results) == [False, True]
+            else:
+                assert results[0] is True
             async with sessions() as db:
                 rounds = (await db.execute(select(Training).where(Training.dweller_id == dweller_id))).scalars().all()
                 assert len(rounds) == 2
@@ -112,6 +119,8 @@ def test_concurrent_completions_create_only_one_successor(harness, monkeypatch):
                     TrainingStatus.ACTIVE.value,
                     TrainingStatus.COMPLETED.value,
                 ]
+                successor = next(session for session in rounds if session.is_active())
+                assert successor.goal_stat_value == (7 if other_operation == "goal" and results[1] else 10)
                 dweller = await db.get(Dweller, dweller_id)
                 assert dweller.strength == 6
                 assert dweller.status == DwellerStatusEnum.TRAINING
@@ -119,3 +128,33 @@ def test_concurrent_completions_create_only_one_successor(harness, monkeypatch):
             await engine.dispose()
 
     asyncio.run(race())
+
+
+def test_training_goals_backfill_and_round_trip():
+    path = Path(__file__).parents[2] / "alembic/versions/2026_10_23_0003-a3c7e9b1d602_training_goals.py"
+    spec = importlib.util.spec_from_file_location("training_goal_migration", path)
+    assert spec is not None
+    assert spec.loader is not None
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    engine = create_engine("sqlite://")
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("CREATE TABLE training (id INTEGER PRIMARY KEY, target_stat_value INTEGER)"))
+            connection.execute(text("INSERT INTO training VALUES (1, 6), (2, 10)"))
+            with Operations.context(MigrationContext.configure(connection)):
+                migration.upgrade()
+                assert connection.execute(text("SELECT goal_stat_value FROM training ORDER BY id")).scalars().all() == [
+                    10,
+                    10,
+                ]
+                connection.execute(text("INSERT INTO training (id, target_stat_value) VALUES (3, 7)"))
+                assert connection.execute(text("SELECT goal_stat_value FROM training WHERE id = 3")).scalar() == 10
+                connection.execute(text("UPDATE training SET goal_stat_value = 7 WHERE id = 1"))
+                migration.downgrade()
+                assert connection.execute(text("SELECT COUNT(*) FROM training")).scalar() == 3
+                assert "goal_stat_value" not in [
+                    column["name"] for column in inspect(connection).get_columns("training")
+                ]
+    finally:
+        engine.dispose()

@@ -181,7 +181,7 @@ class TrainingService:
 
         return training
 
-    def _new_training(self, dweller: Dweller, room: Room) -> Training:
+    def _new_training(self, dweller: Dweller, room: Room, goal_stat_value: int = 10) -> Training:
         """Snapshot the stat, room tier and equipped pet for one round."""
         if room.ability is None or dweller.vault_id is None:
             raise VaultOperationException(detail="Training requires a room stat and a dweller in a vault")
@@ -196,6 +196,7 @@ class TrainingService:
             stat_being_trained=room.ability,
             current_stat_value=current_stat,
             target_stat_value=current_stat + 1,
+            goal_stat_value=goal_stat_value,
             started_at=now,
             estimated_completion_at=now + timedelta(seconds=duration),
         )
@@ -221,6 +222,8 @@ class TrainingService:
         vault = await vault_crud.get(db_session, training.vault_id)
         if not vault or not vault.continuous_training:
             return None
+        if SPECIALModel.get_stat(dweller, training.stat_being_trained) >= training.goal_stat_value:
+            return None
         room = await room_crud.get(db_session, training.room_id)
         if not room or room.ability != training.stat_being_trained:
             return None
@@ -229,7 +232,18 @@ class TrainingService:
             return None
         # Refresh the equipped pet after locking; each round uses its current bonus.
         dweller = await dweller_crud.get(db_session, dweller.id)
-        return self._new_training(dweller, room)
+        return self._new_training(dweller, room, training.goal_stat_value)
+
+    async def set_training_goal(self, db_session: AsyncSession, training_id: UUID4, goal: int) -> Training:
+        """Serialize goal edits with completion so a successor inherits the saved goal."""
+        training, _ = await self._lock_active_training(db_session, training_id, "change goal")
+        if not training.target_stat_value <= goal <= game_config.training.special_stat_max:
+            raise VaultOperationException(detail=f"Training goal must be between {training.target_stat_value} and 10")
+        training.goal_stat_value = goal
+        db_session.add(training)
+        await db_session.commit()
+        await db_session.refresh(training)
+        return training
 
     async def update_training_progress(
         self,

@@ -19,6 +19,7 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
       status: 'active',
       current_stat_value: 5,
       target_stat_value: 6,
+      goal_stat_value: 10,
       progress: 0,
       started_at: new Date(Date.now() - 60_000).toISOString(),
       estimated_completion_at: new Date(Date.now() + Number(minutes) * 60_000).toISOString(),
@@ -30,6 +31,12 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
           changes.push(enabled)
         }
         return route.fulfill({ json: { id: 'vault-1', number: 1, continuous_training: enabled } })
+      }
+      if (route.request().url().endsWith('/goal')) {
+        const id = route.request().url().split('/').at(-2)
+        const session = sessions.find((item) => item.id === id)!
+        session.goal_stat_value = route.request().postDataJSON().goal_stat_value
+        return route.fulfill({ json: session })
       }
       if (route.request().url().includes('/training/vault/'))
         return route.fulfill({ json: sessions })
@@ -54,12 +61,12 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
       return route.fulfill({ json: [] })
     })
     await page.goto(`/tests/e2e/fixtures/continuous-training.html?theme=${theme}`)
-    const toggle = page.getByRole('button', { name: 'Repeat to 10', exact: true })
-    await expect(toggle).toHaveText('Repeat to 10')
+    const toggle = page.getByRole('button', { name: 'Repeat training', exact: true })
+    await expect(toggle).toHaveText('Repeat training')
     await expect(toggle).toHaveAttribute('aria-pressed', 'false')
     await toggle.hover()
     const tooltip = page.locator('[data-slot="tooltip-content"]')
-    await expect(tooltip).toContainText('Repeat training rounds until stat 10.')
+    await expect(tooltip).toContainText('Repeat training rounds to each dweller’s goal.')
     await toggle.click()
     await expect(toggle).toHaveAttribute('aria-pressed', 'true')
     expect(changes).toEqual([true])
@@ -77,10 +84,25 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
     const cards = page.locator('.training-progress-card')
     await expect(cards).toHaveCount(3)
     await expect(cards.nth(0)).toContainText('Alice Vault')
-    await expect(cards.nth(1)).toContainText('Bob Vault')
-    await expect(cards.nth(2)).toContainText('Carol Vault')
+    await expect(cards.nth(1)).toContainText('Carol Vault')
+    await expect(cards.nth(2)).toContainText('Bob Vault')
     await expect(cards.nth(0)).toContainText('Strength 5 → 6')
-    await expect(cards.nth(0)).toContainText('Goal: 10')
+    const aliceGoal = page.getByRole('combobox', { name: 'Training goal for Alice Vault' })
+    await expect(aliceGoal).toContainText('10')
+    await aliceGoal.click()
+    await page.getByRole('option', { name: '7', exact: true }).click()
+    await expect(aliceGoal).toContainText('7')
+    await page.reload()
+    await expect(aliceGoal).toContainText('7')
+    await expect(page.getByRole('combobox', { name: 'Training goal for Bob Vault' })).toContainText(
+      '10'
+    )
+    await expect(
+      page.getByRole('region', { name: 'Weight Room' }).locator('.training-progress-card')
+    ).toHaveCount(2)
+    await expect(
+      page.getByRole('region', { name: 'Fitness Room' }).locator('.training-progress-card')
+    ).toHaveCount(1)
     await expect(cards.nth(0)).toContainText('Soon')
     const rowsFit = await cards.evaluateAll((rows) =>
       rows.every((row) => row.scrollWidth <= row.clientWidth)

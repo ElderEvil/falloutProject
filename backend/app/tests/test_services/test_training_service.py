@@ -644,3 +644,53 @@ async def test_youth_cannot_start_training(async_session, vault, dweller, traini
     with pytest.raises(VaultOperationException, match="adult"):
         await training_service.start_training(async_session, dweller.id, room.id)
     assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None
+
+
+async def test_individual_goal_survives_rounds_and_stops_at_goal(
+    async_session, dweller, training_service, continuous_trainee
+):
+    training, _ = continuous_trainee
+    original_end = training.estimated_completion_at
+    saved = await training_service.set_training_goal(async_session, training.id, 7)
+    assert saved.goal_stat_value == 7
+    assert saved.estimated_completion_at == original_end
+    await training_service.complete_training(async_session, training.id)
+    successor = await training_crud.training.get_active_by_dweller(async_session, dweller.id)
+    assert successor.goal_stat_value == 7
+    assert successor.target_stat_value == 7
+    await training_service.complete_training(async_session, successor.id)
+    await async_session.refresh(dweller)
+    assert dweller.strength == 7
+    assert dweller.status == DwellerStatusEnum.IDLE
+    assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None
+
+
+async def test_lowering_goal_to_next_gain_finishes_current_round(
+    async_session, dweller, training_service, continuous_trainee
+):
+    training, _ = continuous_trainee
+    await training_service.set_training_goal(async_session, training.id, 6)
+    await training_service.complete_training(async_session, training.id)
+    assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None
+    await async_session.refresh(dweller)
+    assert dweller.strength == 6
+
+
+@pytest.mark.parametrize("goal", [0, 5, 11])
+async def test_invalid_goal_does_not_change_session(async_session, training_service, continuous_trainee, goal):
+    from app.utils.exceptions import VaultOperationException
+
+    training, _ = continuous_trainee
+    with pytest.raises(VaultOperationException, match="goal"):
+        await training_service.set_training_goal(async_session, training.id, goal)
+    await async_session.refresh(training)
+    assert training.goal_stat_value == 10
+
+
+async def test_finished_session_goal_cannot_be_changed(async_session, training_service, continuous_trainee):
+    from app.utils.exceptions import VaultOperationException
+
+    training, _ = continuous_trainee
+    await training_service.complete_training(async_session, training.id)
+    with pytest.raises(VaultOperationException, match="cannot"):
+        await training_service.set_training_goal(async_session, training.id, 7)

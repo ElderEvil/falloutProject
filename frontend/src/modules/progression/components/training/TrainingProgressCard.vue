@@ -2,6 +2,13 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/core/components/ui/select'
 import { Badge } from '@/core/components/ui/badge'
 import { Progress } from '@/core/components/ui/progress'
 import { useNow } from '@/core/composables/useNow'
@@ -18,8 +25,8 @@ interface Props {
   training: TrainingRead | TrainingProgress
   dwellerName?: string
   dwellerImage?: string | null
-  roomName?: string
   continuousTraining?: boolean
+  isSavingGoal?: boolean
 }
 
 const props = defineProps<Props>()
@@ -27,8 +34,17 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'cancel', trainingId: string): void
   (e: 'complete', trainingId: string): void
+  (e: 'goal', trainingId: string, value: number): void
 }>()
 
+const goalOptions = computed(() =>
+  Array.from({ length: 11 - props.training.target_stat_value }, (_, index) =>
+    String(props.training.target_stat_value + index)
+  )
+)
+const changeGoal = (value: unknown) => {
+  if (value != null) emit('goal', props.training.id, Number(value))
+}
 const now = useNow(1000)
 const ability = computed(() => getAbilityConfig(props.training.stat_being_trained))
 const isCompletingSoon = computed(() => {
@@ -120,11 +136,25 @@ const handleComplete = () => {
             dwellerName ?? 'Dweller'
           }}</span>
           <Badge v-if="isCompletingSoon" variant="secondary">Soon</Badge>
-          <span
+          <Select
             v-if="continuousTraining && training.status === 'active'"
-            class="shrink-0 whitespace-nowrap font-mono text-xs text-theme-accent"
-            >Goal: 10</span
+            :model-value="String(training.goal_stat_value ?? 10)"
+            :disabled="isSavingGoal"
+            @update:model-value="changeGoal"
           >
+            <SelectTrigger
+              size="sm"
+              class="h-7 shrink-0 gap-1 px-1.5 font-mono text-xs text-theme-accent"
+              :aria-label="`Training goal for ${dwellerName ?? 'Dweller'}`"
+            >
+              Goal: <SelectValue>{{ training.goal_stat_value ?? 10 }}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="goal in goalOptions" :key="goal" :value="goal">{{
+                goal
+              }}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div
           class="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-theme-primary"
@@ -134,7 +164,6 @@ const handleComplete = () => {
             {{ ability?.label ?? training.stat_being_trained }} {{ training.current_stat_value }} →
             {{ training.target_stat_value }}
           </span>
-          <span v-if="roomName" class="text-muted-foreground">{{ roomName }}</span>
         </div>
       </div>
     </div>

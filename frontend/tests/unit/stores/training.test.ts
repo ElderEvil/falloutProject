@@ -18,6 +18,7 @@ vi.mock('@/modules/progression/services/trainingService', () => ({
   getRoomTrainings: vi.fn(),
   getTrainingProgress: vi.fn(),
   setContinuousTraining: vi.fn(),
+  setTrainingGoal: vi.fn(),
 }))
 
 import * as trainingService from '@/modules/progression/services/trainingService'
@@ -27,6 +28,24 @@ describe('Training Store', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  it('saves only the selected dweller goal and keeps the saved value on failure', async () => {
+    useAuthStore().token = 'token'
+    const store = useTrainingStore()
+    store.activeTrainings.set('t1', { id: 't1', goal_stat_value: 10 } as any)
+    store.activeTrainings.set('t2', { id: 't2', goal_stat_value: 10 } as any)
+    vi.mocked(trainingService.setTrainingGoal).mockResolvedValueOnce({
+      id: 't1',
+      goal_stat_value: 7,
+    } as any)
+    expect(await store.setTrainingGoal('t1', 7, 'token')).toBe(true)
+    expect(store.activeTrainings.get('t1')?.goal_stat_value).toBe(7)
+    expect(store.activeTrainings.get('t2')?.goal_stat_value).toBe(10)
+    vi.mocked(trainingService.setTrainingGoal).mockRejectedValueOnce(new Error('Save failed'))
+    expect(await store.setTrainingGoal('t1', 8, 'token')).toBe(false)
+    expect(store.activeTrainings.get('t1')?.goal_stat_value).toBe(7)
+    expect(store.savingGoals.size).toBe(0)
   })
 
   describe('State', () => {

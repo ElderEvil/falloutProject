@@ -43,7 +43,6 @@ describe('TrainingProgressCard', () => {
     const wrapper = mount(TrainingProgressCard, {
       props: {
         dwellerName: 'Alice',
-        roomName: 'Weight Room',
         continuousTraining: true,
         training: {
           id: 't1',
@@ -52,6 +51,7 @@ describe('TrainingProgressCard', () => {
           stat_being_trained: 'strength',
           current_stat_value: 5,
           target_stat_value: 6,
+          goal_stat_value: 8,
           status: 'active',
           progress: 0,
           started_at: new Date().toISOString(),
@@ -62,11 +62,12 @@ describe('TrainingProgressCard', () => {
     })
     expect(wrapper.text()).toContain('Alice')
     expect(wrapper.text()).toContain('Strength 5 → 6')
-    expect(wrapper.text()).toContain('Weight Room')
     expect(wrapper.text()).toContain('42m left')
-    expect(wrapper.text()).toContain('Goal: 10')
+    expect(wrapper.text()).toContain('Goal:')
+    expect(wrapper.get('[role=combobox]').attributes('aria-label')).toBe('Training goal for Alice')
+    expect(wrapper.get('[role=combobox]').text()).toContain('8')
     await wrapper.setProps({ continuousTraining: false })
-    expect(wrapper.text()).not.toContain('Goal: 10')
+    expect(wrapper.text()).not.toContain('Goal:')
     await wrapper.setProps({
       training: {
         ...wrapper.props('training'),

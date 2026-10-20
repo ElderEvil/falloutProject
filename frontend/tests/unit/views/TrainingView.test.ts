@@ -31,7 +31,7 @@ describe('TrainingView', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('Training Center')
     expect(wrapper.text()).toContain('Training Queue')
-    expect(wrapper.get('button[aria-label="Repeat to 10"]').exists()).toBe(true)
+    expect(wrapper.get('button[aria-label="Repeat training"]').exists()).toBe(true)
     wrapper.unmount()
   })
 

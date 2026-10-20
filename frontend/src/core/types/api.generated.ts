@@ -4435,6 +4435,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/training/{training_id}/goal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set Training Goal
+         * @description Set a dweller's goal for the current training chain.
+         */
+        patch: operations["set_training_goal_api_v1_training__training_id__goal_patch"];
+        trace?: never;
+    };
     "/api/v1/users/": {
         parameters: {
             query?: never;
@@ -10644,6 +10664,14 @@ export interface components {
             bottle_caps: number;
         };
         /**
+         * TrainingGoalUpdate
+         * @description Change the final goal without restarting the current round.
+         */
+        TrainingGoalUpdate: {
+            /** Goal Stat Value */
+            goal_stat_value: number;
+        };
+        /**
          * TrainingProgress
          * @description Detailed training progress information.
          */
@@ -10668,6 +10696,11 @@ export interface components {
             current_stat_value: number;
             /** Target Stat Value */
             target_stat_value: number;
+            /**
+             * Goal Stat Value
+             * @default 10
+             */
+            goal_stat_value: number;
             /**
              * Progress
              * @default 0
@@ -10718,6 +10751,11 @@ export interface components {
             current_stat_value: number;
             /** Target Stat Value */
             target_stat_value: number;
+            /**
+             * Goal Stat Value
+             * @default 10
+             */
+            goal_stat_value: number;
             /**
              * Progress
              * @default 0
@@ -18028,6 +18066,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TrainingRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_training_goal_api_v1_training__training_id__goal_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrainingGoalUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingRead"];
                 };
             };
             /** @description Validation Error */

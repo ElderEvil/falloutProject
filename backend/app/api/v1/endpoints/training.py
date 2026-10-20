@@ -9,7 +9,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
 from app.crud import training as crud_training
 from app.db.session import get_async_session
-from app.schemas.training import TrainingProgress, TrainingRead
+from app.models.training import Training
+from app.schemas.training import TrainingGoalUpdate, TrainingProgress, TrainingRead
 from app.services.training_service import training_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
 
@@ -22,7 +23,7 @@ async def start_training(
     room_id: Annotated[UUID4, Query()],
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> TrainingRead:
+) -> Training:
     """Start training a dweller in a training room.
 
     Returns:
@@ -36,6 +37,8 @@ async def start_training(
     from app.crud.dweller import dweller as dweller_crud
 
     dweller = await dweller_crud.get(db_session, dweller_id)
+    if not dweller:
+        raise HTTPException(status_code=404, detail="Dweller not found")
     await get_user_vault_or_403(dweller.vault_id, user, db_session)
 
     try:
@@ -53,7 +56,7 @@ async def get_dweller_training(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> TrainingRead | None:
+) -> Training | None:
     """Get current active training for a dweller.
 
     Returns:
@@ -72,7 +75,7 @@ async def list_vault_training(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> list[TrainingRead]:
+) -> list[Training]:
     """List all active training sessions in a vault.
 
     Returns:
@@ -120,7 +123,7 @@ async def complete_training(
     training_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> TrainingRead:
+) -> Training:
     """Complete an active training session and increase the dweller's SPECIAL stat.
 
     Returns:
@@ -150,7 +153,7 @@ async def cancel_training(
     training_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> TrainingRead:
+) -> Training:
     """Cancel an active training session.
 
     Returns:
@@ -180,7 +183,7 @@ async def list_room_training(
     room_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> list[TrainingRead]:
+) -> list[Training]:
     """List all active training sessions in a room.
 
     Returns:
@@ -193,3 +196,23 @@ async def list_room_training(
         await get_user_vault_or_403(trainings[0].vault_id, user, db_session)
 
     return trainings
+
+
+@router.patch("/{training_id}/goal", response_model=TrainingRead)
+async def set_training_goal(
+    training_id: UUID4,
+    goal: TrainingGoalUpdate,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> Training:
+    """Set a dweller's goal for the current training chain."""
+    training = await crud_training.training.get(db_session, training_id)
+    if not training:
+        raise HTTPException(status_code=404, detail="Training session not found")
+    await get_user_vault_or_403(training.vault_id, user, db_session)
+    try:
+        return await training_service.set_training_goal(db_session, training_id, goal.goal_stat_value)
+    except ResourceNotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except VaultOperationException as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e

@@ -115,3 +115,16 @@ export async function getRoomTrainings(roomId: string, token: string): Promise<T
   })
   return response.data
 }
+
+export async function setTrainingGoal(
+  trainingId: string,
+  goal: number,
+  token: string
+): Promise<TrainingRead> {
+  const response = await axios.patch<TrainingRead>(
+    `/api/v1/training/${trainingId}/goal`,
+    { goal_stat_value: goal },
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+  return response.data
+}

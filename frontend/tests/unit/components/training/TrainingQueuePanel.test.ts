@@ -105,8 +105,8 @@ describe('TrainingQueuePanel', () => {
       },
     })
     await flushPromises()
-    const toggle = wrapper.get('button[aria-label="Repeat to 10"]')
-    expect(toggle.text()).toContain('Repeat to 10')
+    const toggle = wrapper.get('button[aria-label="Repeat training"]')
+    expect(toggle.text()).toContain('Repeat training')
     expect(toggle.attributes('aria-pressed')).toBe('false')
     await toggle.trigger('click')
     await flushPromises()
@@ -129,11 +129,11 @@ describe('TrainingQueuePanel', () => {
   it('renders the queue without requiring a tooltip provider from its page', async () => {
     wrapper = mount(TrainingQueuePanel, { global: { stubs: { Icon: true } } })
     await flushPromises()
-    expect(wrapper.get('button[aria-label="Repeat to 10"]').exists()).toBe(true)
+    expect(wrapper.get('button[aria-label="Repeat training"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Training Queue')
   })
 
-  it('shows every trainee once, soonest first across rooms, with the repeat goal', async () => {
+  it('groups each trainee once by room, soonest first within each room', async () => {
     vaultStore.loadedVaults['vault-1'] = { id: 'vault-1', continuous_training: true } as any
     vaultStore.activeVaultId = 'vault-1'
     wrapper = mount(TrainingQueuePanel, { global: { stubs: { Icon: true } } })
@@ -158,8 +158,12 @@ describe('TrainingQueuePanel', () => {
     }
     await flushPromises()
     const cards = wrapper.findAllComponents(TrainingProgressCard)
-    expect(cards.map((card) => card.props('training').id)).toEqual(['first', 'soon', 'later'])
-    expect(cards.every((card) => card.text().includes('Goal: 10'))).toBe(true)
+    expect(cards.map((card) => card.props('training').id)).toEqual(['first', 'later', 'soon'])
+    expect(wrapper.findAll('section[aria-label]').map((group) => group.attributes('id'))).toEqual([
+      'training-room-r1',
+      'training-room-r2',
+    ])
+    expect(cards.every((card) => card.text().includes('Goal:'))).toBe(true)
     expect(cards.filter((card) => card.text().includes('Soon'))).toHaveLength(2)
     expect(wrapper.text()).not.toContain('Completing Soon')
   })

@@ -35,6 +35,8 @@ class TrainingBase(SQLModel):
     current_stat_value: int = Field(ge=1, le=10)  # Snapshot at start
     target_stat_value: int = Field(ge=2, le=10)  # Always current + 1
 
+    goal_stat_value: int = Field(default=10, ge=2, le=10)  # Final goal across repeated rounds
+
     progress: float = Field(default=0.0, ge=0.0, le=1.0)  # 0.0 to 1.0
 
     started_at: datetime

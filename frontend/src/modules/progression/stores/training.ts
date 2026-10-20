@@ -18,6 +18,7 @@ export const useTrainingStore = defineStore('training', () => {
   const activeTrainings = ref<Map<string, TrainingRead | TrainingProgress>>(new Map())
   const trainingHistory = ref<(TrainingRead | TrainingProgress)[]>([])
   const error = ref<string | null>(null)
+  const savingGoals = ref(new Set<string>())
   const isSettingContinuousTraining = ref(false)
   const {
     run: runFetchVaultTrainings,
@@ -79,7 +80,7 @@ export const useTrainingStore = defineStore('training', () => {
       if (vault) vault.continuous_training = saved.continuous_training
       toast.success(
         saved.continuous_training
-          ? 'Continuous training on. Repeat until stat 10.'
+          ? 'Continuous training on. Repeat to individual goals.'
           : 'Continuous training off. Current rounds will finish.'
       )
       return true
@@ -88,6 +89,27 @@ export const useTrainingStore = defineStore('training', () => {
       return false
     } finally {
       isSettingContinuousTraining.value = false
+    }
+  }
+
+  async function setTrainingGoal(
+    trainingId: string,
+    goal: number,
+    token: string
+  ): Promise<boolean> {
+    if (savingGoals.value.has(trainingId)) return false
+    savingGoals.value.add(trainingId)
+    try {
+      const saved = await trainingService.setTrainingGoal(trainingId, goal, token)
+      if (useAuthStore().token !== token) return false
+      const current = activeTrainings.value.get(trainingId)
+      if (current) Object.assign(current, saved)
+      return true
+    } catch (err: unknown) {
+      handleStoreError(err, 'Failed to save training goal')
+      return false
+    } finally {
+      savingGoals.value.delete(trainingId)
     }
   }
 
@@ -215,6 +237,8 @@ export const useTrainingStore = defineStore('training', () => {
     error,
     isSettingContinuousTraining,
     setContinuousTraining,
+    savingGoals,
+    setTrainingGoal,
 
     // Getters
     allActiveTrainings,

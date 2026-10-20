@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 import { mountWithSetup } from '../../helpers/mountWithSetup'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 
@@ -61,5 +62,74 @@ describe('PageHeaderMetric', () => {
     })
 
     expect(wrapper.find(value).attributes('class')).not.toContain('text-caller-supplied-warning')
+  })
+
+  it('turns the metric into a button whose label swaps to the hover action', async () => {
+    const wrapper = mountWithSetup(PageHeaderMetric, {
+      props: {
+        label: 'Rewards ready',
+        value: 3,
+        icon: 'mdi:treasure-chest',
+        hoverText: 'Collect rewards',
+        tooltip: 'Finished objectives with rewards ready to claim',
+      },
+    })
+
+    const cardEl = wrapper.find('[role="button"]')
+    expect(cardEl.attributes('role')).toBe('button')
+    expect(cardEl.attributes('tabindex')).toBe('0')
+    expect(cardEl.attributes('aria-label')).toBe('Collect rewards: 3')
+    expect(wrapper.text()).toContain('Rewards ready')
+    expect(wrapper.text()).toContain('Collect rewards')
+
+    await cardEl.trigger('click')
+    await cardEl.trigger('keydown', { key: 'Enter' })
+    await cardEl.trigger('keydown', { key: ' ' })
+    expect(wrapper.emitted('click')).toHaveLength(3)
+  })
+
+  it('does not emit a click when an interactive metric is disabled', async () => {
+    const wrapper = mountWithSetup(PageHeaderMetric, {
+      props: {
+        label: 'Rewards ready',
+        value: 0,
+        icon: 'mdi:treasure-chest',
+        hoverText: 'Collect rewards',
+        disabled: true,
+      },
+    })
+
+    const cardEl = wrapper.find(card)
+    expect(cardEl.attributes('aria-disabled')).toBe('true')
+    await cardEl.trigger('click')
+    await cardEl.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('click')).toBeUndefined()
+  })
+
+  it('keeps a disabled metric keyboard reachable so its tooltip can still open', async () => {
+    const wrapper = mountWithSetup(PageHeaderMetric, {
+      attachTo: document.body,
+      props: {
+        label: 'Rewards ready',
+        value: 0,
+        icon: 'mdi:treasure-chest',
+        hoverText: 'Collect rewards',
+        tooltip: 'Finished objectives with rewards ready to claim',
+        disabled: true,
+      },
+    })
+    const metric = wrapper.get('[role="button"]')
+    expect(metric.attributes('tabindex')).toBe('0')
+    const element = metric.element as HTMLElement
+    element.focus()
+    await nextTick()
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
+      'Finished objectives with rewards ready to claim'
+    )
+    await metric.trigger('keydown', { key: 'Enter' })
+    await metric.trigger('keydown', { key: ' ' })
+    await metric.trigger('click')
+    expect(wrapper.emitted('click')).toBeUndefined()
+    wrapper.unmount()
   })
 })

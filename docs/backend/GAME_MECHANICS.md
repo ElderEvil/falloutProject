@@ -57,6 +57,9 @@ intact when touching these flows.
   already-claimed links. Objective rewards never count toward another resource-collection objective.
 - Ready rewards keep their routine bell/toast event; successful claims show a modal or toast. Notification opt-outs
   affect notification delivery, not reward settlement or the player-opened guide.
+- The Objectives and Quests headers let owners collect all currently ready rewards. Claims run sequentially;
+  objectives stop on the first failure and announce any rewards already collected, while quests show each
+  claim's result and continue after failures. Failed claims remain available to retry.
 
 ### Objective renewal
 

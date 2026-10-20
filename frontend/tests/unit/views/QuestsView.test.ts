@@ -1083,7 +1083,7 @@ describe('QuestsView', () => {
 
       const header = wrapper.text()
       expect(header).toContain('Available quests')
-      expect(header).toContain('Rewards ready')
+      expect(header).toContain('Collect rewards')
     })
 
     it('badges the Active tab with the ready-to-claim count and explains it', async () => {

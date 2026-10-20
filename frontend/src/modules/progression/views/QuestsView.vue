@@ -369,7 +369,7 @@ onMounted(async () => {
                 <PageHeaderMetric
                   icon="mdi:treasure-chest"
                   :value="readyToClaimQuests.length"
-                  label="Rewards ready"
+                  label="Collect rewards"
                   tooltip="Finished quests with rewards ready to claim"
                 />
               </template>
@@ -415,6 +415,12 @@ onMounted(async () => {
                 </TabsList>
 
                 <div v-if="activeTab === 'available'" class="filter-row">
+                  <!-- Raw checkbox: no Checkbox/Switch primitive is vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
+                  <label class="toggle-label">
+                    <input v-model="showAllQuests" type="checkbox" class="toggle-input" />
+                    <span class="toggle-text">Show All</span>
+                  </label>
+                  <span v-if="showAllQuests" class="filter-hint">(Showing All)</span>
                   <Select :model-value="availableSort" @update:model-value="onAvailableSortChange">
                     <SelectTrigger
                       size="sm"
@@ -433,12 +439,6 @@ onMounted(async () => {
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  <span v-if="showAllQuests" class="filter-hint">(Showing All)</span>
-                  <!-- Raw checkbox: no Checkbox/Switch primitive is vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
-                  <label class="toggle-label">
-                    <input v-model="showAllQuests" type="checkbox" class="toggle-input" />
-                    <span class="toggle-text">Show All</span>
-                  </label>
                 </div>
               </div>
               <p

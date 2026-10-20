@@ -68,6 +68,21 @@ describe('RoomGrid', () => {
     expect(room.text()).not.toContain('Drop to assign')
   })
 
+  it('highlights the room main stat while a dweller is dragged over it', async () => {
+    useRoomStore().rooms = [mockRoom]
+    const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+    const room = wrapper.get('.built-room')
+
+    expect(room.find('.ability-icon--drag-over').exists()).toBe(false)
+
+    await room.trigger('dragover', { dataTransfer: { dropEffect: '' } })
+    expect(room.find('.ability-icon--drag-over').exists()).toBe(true)
+    expect(room.text()).toContain('S · Strength')
+
+    await room.trigger('dragleave', { relatedTarget: document.body })
+    expect(room.find('.ability-icon--drag-over').exists()).toBe(false)
+  })
+
   it('names empty room cells for screen-reader users', () => {
     const wrapper = mount(RoomGrid, { props: { incidents: [] } })
 

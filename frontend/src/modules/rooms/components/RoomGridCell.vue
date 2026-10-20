@@ -61,9 +61,7 @@ const isRoomAffectedByOutage = (): boolean => {
   return props.room.ability?.toLowerCase() !== 'strength'
 }
 
-const getAbilityIcon = (ability: string | null | undefined): string => {
-  return getAbilityConfig(ability)?.icon ?? 'mdi:home'
-}
+const abilityConfig = computed(() => getAbilityConfig(props.room.ability))
 
 const canUpgrade = (r: Room): boolean => {
   const maxTier = r.t2_upgrade_cost && r.t3_upgrade_cost ? 3 : r.t2_upgrade_cost ? 2 : 1
@@ -151,7 +149,12 @@ function handleDragLeave(event: DragEvent): void {
         <div class="room-info-overlay">
           <div class="room-header">
             <h3 class="room-name">{{ room.name }}</h3>
-            <Icon v-if="room.ability" :icon="getAbilityIcon(room.ability)" class="ability-icon" />
+            <Icon
+              v-if="room.ability"
+              :icon="abilityConfig?.icon ?? 'mdi:home'"
+              class="ability-icon"
+              :class="{ 'ability-icon--drag-over': isDraggingOver }"
+            />
           </div>
           <div v-if="room.tier" class="room-tier">T{{ room.tier }}</div>
         </div>
@@ -159,6 +162,9 @@ function handleDragLeave(event: DragEvent): void {
       <div v-if="isDraggingOver" class="drop-indicator">
         <Icon icon="mdi:account-plus" class="h-6 w-6" />
         <span>Drop to assign</span>
+        <span v-if="abilityConfig" class="drop-ability">
+          {{ abilityConfig.letter }} · {{ abilityConfig.label }}
+        </span>
       </div>
       <span v-if="attentionCount" class="overseer-alert-badge">
         {{ attentionCount }}
@@ -315,6 +321,15 @@ function handleDragLeave(event: DragEvent): void {
   height: 14px;
   color: var(--color-theme-primary);
   flex-shrink: 0;
+  transition:
+    color 120ms ease,
+    transform 120ms ease;
+}
+
+.ability-icon--drag-over {
+  color: var(--color-theme-accent);
+  transform: scale(1.35);
+  filter: drop-shadow(0 0 4px var(--color-theme-glow));
 }
 
 .room-dwellers-container {
@@ -338,6 +353,11 @@ function handleDragLeave(event: DragEvent): void {
   font-weight: bold;
   pointer-events: none;
   z-index: 10;
+}
+
+.drop-ability {
+  font-size: 0.75rem;
+  color: var(--color-theme-accent);
 }
 
 .overseer-alert-badge {

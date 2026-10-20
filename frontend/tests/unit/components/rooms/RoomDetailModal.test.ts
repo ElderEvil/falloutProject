@@ -177,10 +177,9 @@ describe('RoomDetailModal', () => {
       props: { room, modelValue: true, vaultId: 'vault-123' },
     })
 
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Apply Party theme'))!
-      .trigger('click')
+    const select = wrapper.findComponent({ name: 'Select' })
+    expect(select.exists()).toBe(true)
+    select.vm.$emit('update:modelValue', 'party')
     await flushPromises()
 
     expect(axios.post).toHaveBeenCalledWith(

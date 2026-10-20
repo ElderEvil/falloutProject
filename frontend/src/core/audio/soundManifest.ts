@@ -140,13 +140,41 @@ export const ROOM_AMBIENCE_MANIFEST = {
   'response station': '/audio/ambience/response-station.mp3',
 } as const
 
-export type AmbienceKey = keyof typeof AMBIENCE_MANIFEST | keyof typeof ROOM_AMBIENCE_MANIFEST
+/** Curated themed-room loops. Party and Thanksgiving intentionally fall back
+ * to the room's standard ambience until those themes have source audio. */
+export const THEMED_ROOM_AMBIENCE = {
+  'diner:brotherhood': '/audio/ambience/themed/diner-brotherhood.mp3',
+  'diner:halloween': '/audio/ambience/themed/diner-halloween.mp3',
+  'diner:institute': '/audio/ambience/themed/diner-institute.mp3',
+  'diner:minutemen': '/audio/ambience/themed/diner-minutemen.mp3',
+  'diner:railroad': '/audio/ambience/themed/diner-railroad.mp3',
+  'diner:xmas': '/audio/ambience/themed/diner-xmas.mp3',
+  'living:brotherhood': '/audio/ambience/themed/living-brotherhood.mp3',
+  'living:halloween': '/audio/ambience/themed/living-halloween.mp3',
+  'living:institute': '/audio/ambience/themed/living-institute.mp3',
+  'living:minutemen': '/audio/ambience/themed/living-minutemen.mp3',
+  'living:railroad': '/audio/ambience/themed/living-railroad.mp3',
+  'living:xmas': '/audio/ambience/themed/living-xmas.mp3',
+} as const
 
-/** Resolve an ambience key to its asset URL across both ambience maps. */
+export type AmbienceKey =
+  | keyof typeof AMBIENCE_MANIFEST
+  | keyof typeof ROOM_AMBIENCE_MANIFEST
+  | keyof typeof THEMED_ROOM_AMBIENCE
+
+/** Resolve an ambience key to its asset URL across every ambience map. */
 export function getAmbienceSrc(key: AmbienceKey): string | undefined {
+  if (key in THEMED_ROOM_AMBIENCE) {
+    return THEMED_ROOM_AMBIENCE[key as keyof typeof THEMED_ROOM_AMBIENCE]
+  }
   return key in ROOM_AMBIENCE_MANIFEST
     ? ROOM_AMBIENCE_MANIFEST[key as keyof typeof ROOM_AMBIENCE_MANIFEST]
     : AMBIENCE_MANIFEST[key as keyof typeof AMBIENCE_MANIFEST]
+}
+
+const THEMED_ROOM_PREFIX: Record<string, string> = {
+  diner: 'diner',
+  'living room': 'living',
 }
 
 /**
@@ -154,9 +182,19 @@ export function getAmbienceSrc(key: AmbienceKey): string | undefined {
  * otherwise the room's category loop.
  */
 export function getRoomAmbienceKey(
-  room: { name?: string | null; category?: string | null } | null | undefined
+  room:
+    | { name?: string | null; category?: string | null; room_style?: string | null }
+    | null
+    | undefined
 ): AmbienceKey | undefined {
   const name = room?.name?.trim().toLowerCase()
+  const style = room?.room_style?.trim().toLowerCase()
+  if (name && style && style !== 'default') {
+    const themedKey = `${THEMED_ROOM_PREFIX[name] ?? name}:${style}`
+    if (themedKey in THEMED_ROOM_AMBIENCE) {
+      return themedKey as keyof typeof THEMED_ROOM_AMBIENCE
+    }
+  }
   if (name && name in ROOM_AMBIENCE_MANIFEST) return name as AmbienceKey
   const category = room?.category?.trim().toLowerCase()
   return category && category in AMBIENCE_MANIFEST ? (category as AmbienceKey) : undefined

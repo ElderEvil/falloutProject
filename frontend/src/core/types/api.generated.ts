@@ -10258,7 +10258,7 @@ export interface components {
              * Style
              * @enum {string}
              */
-            style: "default" | "party";
+            style: "default" | "party" | "brotherhood" | "halloween" | "institute" | "minutemen" | "railroad" | "thanksgiving" | "xmas";
         };
         /**
          * RoomTypeEnum

@@ -30,8 +30,21 @@ class RoomBuild(SQLModel):
     coordinate_y: int = Field(ge=GRID_Y_MIN, le=GRID_BUILD_Y_MAX)
 
 
+RoomStyleName = Literal[
+    "default",
+    "party",
+    "brotherhood",
+    "halloween",
+    "institute",
+    "minutemen",
+    "railroad",
+    "thanksgiving",
+    "xmas",
+]
+
+
 class RoomStyleUpdate(SQLModel):
-    style: Literal["default", "party"]
+    style: RoomStyleName
 
 
 class RoomRead(RoomBase):

@@ -47,9 +47,27 @@ WORKSHOP_ROOMS = ["Weapon workshop", "Outfit workshop", "Theme workshop"]
 
 # Curated room-wide theme art. These files are deliberately single images, not
 # tier/segment variants; the style is cosmetic and applies to the whole room.
-PARTY_ROOM_IMAGES = {
-    "Diner": "FOS Diner Party.png",
-    "Living room": "FOS LQ Party.jpg",
+ROOM_STYLE_IMAGES: dict[str, dict[str, str]] = {
+    "Diner": {
+        "party": "FOS Diner Party.png",
+        "brotherhood": "FOS Diner Brotherhood.png",
+        "halloween": "FOS Diner Halloween.png",
+        "institute": "FOS Diner Institute.png",
+        "minutemen": "FOS Diner Minutemen.png",
+        "railroad": "FOS Diner Railroad.png",
+        "thanksgiving": "FOS Diner Thanksgiving.png",
+        "xmas": "FOS Diner Xmas.png",
+    },
+    "Living room": {
+        "party": "FOS LQ Party.jpg",
+        "brotherhood": "FOS LQ Brotherhood.png",
+        "halloween": "FOS LQ Halloween.png",
+        "institute": "FOS LQ Institute.png",
+        "minutemen": "FOS LQ Minutemen.png",
+        "railroad": "FOS LQ Railroad.png",
+        "thanksgiving": "FOS LQ Thanksgiving.png",
+        "xmas": "FOS LQ Xmas.png",
+    },
 }
 
 ROOM_TYPE_TO_DEFAULT_NAME = {
@@ -106,8 +124,9 @@ def get_room_image_url(room_name: str, tier: int = 1, size: int = 3, style: str 
     Returns:
         URL path to the room image, or None if not found
     """
-    if style == "party" and room_name in PARTY_ROOM_IMAGES:
-        return f"/static/room_images/{PARTY_ROOM_IMAGES[room_name]}"
+    themed_image = ROOM_STYLE_IMAGES.get(room_name, {}).get(style)
+    if themed_image:
+        return f"/static/room_images/{themed_image}"
 
     # Handle special cases first
     if room_name in SPECIAL_CASE_ROOMS:

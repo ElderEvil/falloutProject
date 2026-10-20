@@ -5,14 +5,37 @@ export type Room = components['schemas']['RoomRead']
 export type RoomBuild = components['schemas']['RoomBuild']
 export type RoomTemplate = components['schemas']['RoomCreateWithoutVaultID']
 
-export type RoomStyleValue = 'default' | 'party'
+export type RoomStyleValue =
+  | 'default'
+  | 'party'
+  | 'brotherhood'
+  | 'halloween'
+  | 'institute'
+  | 'minutemen'
+  | 'railroad'
+  | 'thanksgiving'
+  | 'xmas'
 
-export const PARTY_STYLE_ROOMS = new Set(['Diner', 'Living room'])
+export const ROOM_STYLES: { value: RoomStyleValue; label: string }[] = [
+  { value: 'default', label: 'Standard' },
+  { value: 'party', label: 'Party' },
+  { value: 'brotherhood', label: 'Brotherhood' },
+  { value: 'halloween', label: 'Halloween' },
+  { value: 'institute', label: 'Institute' },
+  { value: 'minutemen', label: 'Minutemen' },
+  { value: 'railroad', label: 'Railroad' },
+  { value: 'thanksgiving', label: 'Thanksgiving' },
+  { value: 'xmas', label: 'Christmas' },
+]
 
-export function supportsPartyStyle(room: Pick<Room, 'name'>): boolean {
-  return PARTY_STYLE_ROOMS.has(room.name)
+export const THEMED_ROOM_NAMES = new Set(['Diner', 'Living room'])
+
+export function supportsRoomStyles(room: Pick<Room, 'name'>): boolean {
+  return THEMED_ROOM_NAMES.has(room.name)
 }
 
 export function roomStyle(room: Pick<Room, 'room_style'>): RoomStyleValue {
-  return room.room_style === 'party' ? 'party' : 'default'
+  return ROOM_STYLES.some((style) => style.value === room.room_style)
+    ? (room.room_style as RoomStyleValue)
+    : 'default'
 }

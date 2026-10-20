@@ -28,7 +28,7 @@ from app.utils.exceptions import (
     UniqueRoomViolationException,
     VaultOperationException,
 )
-from app.utils.room_assets import PARTY_ROOM_IMAGES, get_room_image_url
+from app.utils.room_assets import ROOM_STYLE_IMAGES, get_room_image_url
 from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
@@ -647,20 +647,25 @@ class RoomService:
         async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(room.vault_id)) as acquired:
             if not acquired:
                 raise ResourceConflictException(detail=f"Vault {room.vault_id} is already being built in — try again")
+            await db_session.refresh(room)
             return await self._upgrade_locked(db_session, room)
 
     async def apply_room_style(self, db_session: AsyncSession, room_id: UUID4, style: str) -> Room:
         """Apply a cosmetic room-wide style, updating the stored sprite URL."""
         room = await crud.room.get(db_session, room_id)
-        if style == "party" and room.name not in PARTY_ROOM_IMAGES:
-            raise VaultOperationException(detail=f"{room.name} does not support the Party theme")
-        room_size = room.size if room.size is not None else room.size_min
-        image_url = get_room_image_url(room.name, tier=room.tier, size=room_size, style=style)
-        return await crud.room.update(
-            db_session,
-            id=room.id,
-            obj_in=RoomUpdate(room_style=style, image_url=image_url),
-        )
+        async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(room.vault_id)) as acquired:
+            if not acquired:
+                raise ResourceConflictException(detail=f"Vault {room.vault_id} is already being built in — try again")
+            await db_session.refresh(room)
+            if style != "default" and style not in ROOM_STYLE_IMAGES.get(room.name, {}):
+                raise VaultOperationException(detail=f"{room.name} does not support the {style} theme")
+            room_size = room.size if room.size is not None else room.size_min
+            image_url = get_room_image_url(room.name, tier=room.tier, size=room_size, style=style)
+            return await crud.room.update(
+                db_session,
+                id=room.id,
+                obj_in=RoomUpdate(room_style=style, image_url=image_url),
+            )
 
     async def _upgrade_locked(self, db_session: AsyncSession, room: Room) -> Room:
         """Apply the tier change and fuse any adjacent identical room while the lock is held."""

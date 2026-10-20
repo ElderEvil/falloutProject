@@ -130,7 +130,12 @@ const { playSound, playAmbience, stopAmbience } = useSound()
 
 // Clear error when modal closes; start ambience on open and when the room changes.
 watch(
-  [() => props.modelValue, () => props.room?.name, () => props.room?.category],
+  [
+    () => props.modelValue,
+    () => props.room?.name,
+    () => props.room?.category,
+    () => props.room?.room_style,
+  ],
   ([open], oldValues) => {
     if (!open) {
       actionError.value = null

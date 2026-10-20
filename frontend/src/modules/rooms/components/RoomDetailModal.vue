@@ -17,6 +17,7 @@ import { useRoomUpgrade } from '../composables/useRoomUpgrade'
 import { useRoomDwellers } from '../composables/useRoomDwellers'
 import { useRadioRoom } from '../composables/useRadioRoom'
 import { useRoomStyle } from '../composables/useRoomStyle'
+import { useRoomThemes } from '../composables/useRoomThemes'
 import RoomDetailHeader from './RoomDetailHeader.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import RoomPreviewSection from './RoomPreviewSection.vue'
@@ -74,6 +75,10 @@ const parts = computed<RoomPart[]>(() =>
 const has = (part: RoomPart) => hasPart(parts.value, part)
 const craftingType = computed(() => craftingItemType(props.room))
 const roomUnits = computed(() => props.room?.size ?? props.room?.size_min ?? 3)
+const themeSelectorEnabled = computed(
+  () => !!props.room && supportsRoomStyles(props.room) && props.room.tier >= 3
+)
+const { availableThemes } = useRoomThemes(props.vaultId, themeSelectorEnabled)
 // Elevators keep one static slot for future transit display — no assignment.
 const isElevatorRoom = computed(() => isElevator(props.room))
 
@@ -231,6 +236,8 @@ onUnmounted(stopAmbience)
             :show-apprentice-slot="producesResources(room) && !isElevatorRoom"
             :assign-enabled="!isElevatorRoom"
             :room-style="supportsRoomStyles(room) ? roomStyle(room) : null"
+            :available-themes="availableThemes"
+            :room-tier="room.tier"
             :is-applying-style="isApplyingStyle"
             @activate="openDwellerDetails"
             @unassign="handleUnassignDweller"

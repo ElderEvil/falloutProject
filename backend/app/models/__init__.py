@@ -30,6 +30,7 @@ from .user_profile import UserProfile
 from .vault import Vault
 from .vault_recipe_unlock import VaultRecipeUnlock
 from .vault_slot import VaultSlot
+from .vault_theme import VaultTheme
 from .weapon import Weapon
 from .world_location import DwellerLocation, VaultLocationState, WorldLocation
 from .world_snapshot import WorldSnapshot

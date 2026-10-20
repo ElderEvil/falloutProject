@@ -21,6 +21,22 @@ class CRUDCraftingOrder(CRUDBase[CraftingOrder, CraftingOrderCreate, CraftingOrd
         )
         return list(result.scalars().all())
 
+    async def has_uncollected(
+        self, db_session: AsyncSession, vault_id: UUID4, item_type: str, item_name: str
+    ) -> bool:
+        """True while an order for this exact item is active or awaiting collection."""
+        result = await db_session.execute(
+            select(CraftingOrder.id)
+            .where(
+                CraftingOrder.vault_id == vault_id,
+                CraftingOrder.item_type == item_type,
+                CraftingOrder.item_name == item_name,
+                CraftingOrder.status != CraftingOrderStatus.COLLECTED,
+            )
+            .limit(1)
+        )
+        return result.first() is not None
+
     async def get_by_vault(self, db_session: AsyncSession, vault_id: UUID4) -> list[CraftingOrder]:
         """Every order for a vault, newest first."""
         result = await db_session.execute(

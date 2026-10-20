@@ -83,6 +83,9 @@ vi.mock('@/core/plugins/axios', () => ({
       if (url.includes('/arena/') && url.endsWith('/creatures')) {
         return Promise.resolve({ data: [] })
       }
+      if (url.includes('/crafting/') && url.includes('/recipes/')) {
+        return Promise.resolve({ data: { recipes: [] } })
+      }
       if (url.includes('game/balance')) {
         return Promise.resolve({
           data: {
@@ -190,6 +193,17 @@ describe('RoomDetailModal', () => {
       { headers: { Authorization: 'Bearer token' } }
     )
     expect(wrapper.emitted('roomUpdated')).toHaveLength(1)
+  })
+
+  it('names any active theme in the header', async () => {
+    const room = { ...mockRoom, name: 'Diner', room_style: 'halloween', tier: 3 }
+
+    const wrapper = mount(RoomDetailModal, {
+      props: { room, modelValue: true, vaultId: 'vault-123' },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.header-metadata').text()).toContain('Halloween theme')
   })
 
   const mockDwellers = [

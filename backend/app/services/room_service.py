@@ -657,8 +657,17 @@ class RoomService:
             if not acquired:
                 raise ResourceConflictException(detail=f"Vault {room.vault_id} is already being built in — try again")
             await db_session.refresh(room)
-            if style != "default" and style not in ROOM_STYLE_IMAGES.get(room.name, {}):
-                raise VaultOperationException(detail=f"{room.name} does not support the {style} theme")
+            if style != "default":
+                if style not in ROOM_STYLE_IMAGES.get(room.name, {}):
+                    raise VaultOperationException(detail=f"{room.name} does not support the {style} theme")
+                if room.tier < 3:
+                    raise VaultOperationException(
+                        detail=f"{room.name} must reach tier 3 before the {style} theme can be applied"
+                    )
+                if not await crud.vault_theme.is_crafted(db_session, room.vault_id, style):
+                    raise VaultOperationException(
+                        detail=f"Craft the {style} theme at the Theme workshop before applying it"
+                    )
             room_size = room.size if room.size is not None else room.size_min
             image_url = get_room_image_url(room.name, tier=room.tier, size=room_size, style=style)
             return await crud.room.update(

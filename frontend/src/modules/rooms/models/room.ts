@@ -39,3 +39,7 @@ export function roomStyle(room: Pick<Room, 'room_style'>): RoomStyleValue {
     ? (room.room_style as RoomStyleValue)
     : 'default'
 }
+
+export function roomStyleLabel(style: RoomStyleValue): string {
+  return ROOM_STYLES.find((option) => option.value === style)?.label ?? 'Standard'
+}

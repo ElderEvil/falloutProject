@@ -1,6 +1,7 @@
 import { ref, type Ref } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Room, RoomStyleValue } from '../models/room'
+import { roomStyleLabel } from '../models/room'
 import { useRoomStore } from '../stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
@@ -30,7 +31,9 @@ export function useRoomStyle(
     actionError.value = null
     try {
       await roomStore.applyRoomStyle(room.value.id, style, token)
-      toast.success(style === 'party' ? 'Party theme applied.' : 'Standard theme restored.')
+      toast.success(
+        style === 'default' ? 'Standard theme restored.' : `${roomStyleLabel(style)} theme applied.`
+      )
       emitRoomUpdated()
     } catch (error) {
       actionError.value = getErrorMessage(error)

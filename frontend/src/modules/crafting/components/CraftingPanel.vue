@@ -53,10 +53,17 @@ let recheckTimer: number | null = null
 let lastRecheck = 0
 const RECHECK_MS = 5000
 
-const itemIcon = computed(() => getItemIcon(props.itemType, {}))
-const workshopLabel = computed(() =>
-  props.itemType === 'weapon' ? 'Weapon workshop' : 'Outfit workshop'
+const itemIcon = computed(() =>
+  props.itemType === 'theme' ? 'mdi:palette-outline' : getItemIcon(props.itemType, {})
 )
+const workshopLabel = computed(() =>
+  props.itemType === 'weapon'
+    ? 'Weapon workshop'
+    : props.itemType === 'outfit'
+      ? 'Outfit workshop'
+      : 'Theme workshop'
+)
+const startLabel = computed(() => (props.itemType === 'theme' ? 'Craft' : 'Start'))
 
 const STAT_META: Record<string, { icon: string; label: string }> = {
   strength: { icon: 'mdi:arm-flex', label: 'STR' },
@@ -107,6 +114,7 @@ const filteredRecipes = computed(() =>
 )
 
 const isLocked = (recipe: CraftingRecipe) => recipe.unlocked === false
+const isOwned = (recipe: CraftingRecipe) => recipe.owned === true
 
 /** "3 common · 3 rare" — what the recipe consumes, by material rarity. */
 function materialsLabel(recipe: CraftingRecipe): string {
@@ -349,6 +357,12 @@ watch(() => [props.vaultId, props.itemType], loadAll)
                 >
                   {{ recipe.rarity }}
                 </span>
+                <span
+                  v-if="isOwned(recipe)"
+                  class="shrink-0 text-[0.65rem] uppercase tracking-wider text-theme-accent"
+                >
+                  Crafted
+                </span>
                 <span class="ml-auto flex shrink-0 items-center gap-1 text-theme-accent/80">
                   <Icon :icon="statMeta(recipe.stat).icon" class="h-3.5 w-3.5" />
                   {{ statMeta(recipe.stat).label }} {{ recipe.ability_sum }}
@@ -395,19 +409,31 @@ watch(() => [props.vaultId, props.itemType], loadAll)
                   variant="default"
                   size="sm"
                   class="shrink-0 border-2 border-theme-primary font-mono"
-                  :disabled="isLocked(recipe) || !recipe.can_craft || busyKey !== null"
+                  :disabled="isLocked(recipe) || isOwned(recipe) || !recipe.can_craft || busyKey !== null"
                   @click="handleStart(recipe)"
                 >
                   <Icon
-                    :icon="busyKey === recipe.name ? 'mdi:loading' : 'mdi:hammer'"
+                    :icon="
+                      busyKey === recipe.name
+                        ? 'mdi:loading'
+                        : isOwned(recipe)
+                          ? 'mdi:check'
+                          : 'mdi:hammer'
+                    "
                     class="h-4 w-4"
                     :class="{ 'animate-spin': busyKey === recipe.name }"
                   />
-                  Start
+                  {{ isOwned(recipe) ? 'Crafted' : startLabel }}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{{
-                isLocked(recipe) ? (recipe.unlock_hint ?? 'Recipe locked') : recipe.can_craft ? `Queue ${recipe.name}` : materialsLabel(recipe)
+                isOwned(recipe)
+                  ? 'Already crafted'
+                  : isLocked(recipe)
+                    ? (recipe.unlock_hint ?? 'Recipe locked')
+                    : recipe.can_craft
+                      ? `Queue ${recipe.name}`
+                      : materialsLabel(recipe)
               }}</TooltipContent>
             </Tooltip>
           </TooltipProvider>

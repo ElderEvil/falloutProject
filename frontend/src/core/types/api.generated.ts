@@ -5903,20 +5903,20 @@ export interface components {
              * Item Type
              * @enum {string}
              */
-            item_type: "weapon" | "outfit";
+            item_type: "weapon" | "outfit" | "theme";
         };
         /**
          * CraftResultRead
          * @description The crafted item plus the materials that were spent.
+         *
+         *     Theme orders grant permanent ownership rather than a storage item, so
+         *     ``item_id`` is null for them.
          */
         CraftResultRead: {
             /** Item Type */
             item_type: string;
-            /**
-             * Item Id
-             * Format: uuid4
-             */
-            item_id: string;
+            /** Item Id */
+            item_id?: string | null;
             /** Name */
             name: string;
             rarity: components["schemas"]["RarityEnum"];
@@ -5998,7 +5998,7 @@ export interface components {
              * Item Type
              * @enum {string}
              */
-            item_type: "weapon" | "outfit";
+            item_type: "weapon" | "outfit" | "theme";
             rarity: components["schemas"]["RarityEnum"];
             /** Value */
             value?: number | null;
@@ -6056,6 +6056,13 @@ export interface components {
             unlocked: boolean;
             /** Unlock Hint */
             unlock_hint?: string | null;
+            /** Style */
+            style?: string | null;
+            /**
+             * Owned
+             * @default false
+             */
+            owned: boolean;
         };
         /**
          * CraftingRecipesRead

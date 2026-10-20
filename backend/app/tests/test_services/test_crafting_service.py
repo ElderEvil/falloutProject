@@ -56,10 +56,15 @@ async def _make_storage(async_session: AsyncSession, vault: Vault, max_space: in
     return storage
 
 
-async def _add_workshop(async_session: AsyncSession, vault: Vault, name: str) -> Room:
+async def _add_workshop(
+    async_session: AsyncSession,
+    vault: Vault,
+    name: str,
+    category: RoomTypeEnum = RoomTypeEnum.CRAFTING,
+) -> Room:
     room = Room(
         name=name,
-        category=RoomTypeEnum.CRAFTING,
+        category=category,
         ability=None,
         population_required=None,
         base_cost=800,
@@ -553,3 +558,100 @@ async def test_crafting_tick_notifies_owner_when_order_completes(async_session: 
 
     result = await async_session.execute(select(Notification).where(Notification.vault_id == vault.id))
     assert any(n.notification_type == NotificationType.CRAFTING_COMPLETE for n in result.scalars().all())
+
+
+THEME_WORKSHOP = "Theme workshop"
+PARTY_THEME = "Party theme"
+
+
+async def _add_theme_workshop(async_session: AsyncSession, vault: Vault) -> Room:
+    return await _add_workshop(async_session, vault, THEME_WORKSHOP, RoomTypeEnum.THEME)
+
+
+@pytest.mark.asyncio
+async def test_theme_recipes_are_listed_unowned_until_crafted(async_session: AsyncSession, vault: Vault) -> None:
+    await _make_storage(async_session, vault)
+
+    recipes = await crafting_service.list_recipes(async_session, vault.id, "theme")
+
+    assert len(recipes) == 8
+    party = next(recipe for recipe in recipes if recipe.name == PARTY_THEME)
+    assert party.style == "party"
+    assert party.unlocked is True
+    assert party.owned is False
+
+
+@pytest.mark.asyncio
+async def test_collecting_a_theme_order_grants_vault_ownership(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_theme_workshop(async_session, vault)
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.CLOTH)
+
+    order = await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+    await _finish_queue(async_session, vault.id)
+    result = await crafting_service.collect_order(async_session, vault.id, order.id)
+
+    assert result.item_type == "theme"
+    assert result.item_id is None
+    assert await crud.vault_theme.is_crafted(async_session, vault.id, "party")
+
+
+@pytest.mark.asyncio
+async def test_a_theme_can_only_be_crafted_once(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_theme_workshop(async_session, vault)
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON) + 3, JunkTypeEnum.CLOTH)
+
+    order = await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+    await _finish_queue(async_session, vault.id)
+    await crafting_service.collect_order(async_session, vault.id, order.id)
+
+    with pytest.raises(ValidationException, match="already been crafted"):
+        await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+
+
+@pytest.mark.asyncio
+async def test_collecting_a_theme_needs_no_storage_space(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_theme_workshop(async_session, vault)
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.CLOTH)
+    order = await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+
+    await async_session.delete(storage)
+    await async_session.commit()
+    await _finish_queue(async_session, vault.id)
+
+    result = await crafting_service.collect_order(async_session, vault.id, order.id)
+    assert result.name == PARTY_THEME
+
+
+@pytest.mark.asyncio
+async def test_theme_orders_need_the_theme_workshop(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.CLOTH)
+
+    with pytest.raises(ValidationException, match="Build the Theme workshop"):
+        await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+
+
+@pytest.mark.asyncio
+async def test_boosted_seeding_crafts_every_theme(async_session: AsyncSession, vault: Vault) -> None:
+    from app.services.catalog_service import load_themes
+    from app.services.vault import seeding
+
+    await seeding.seed_boosted_theme_unlocks(async_session, vault.id)
+
+    crafted = await crud.vault_theme.crafted_styles(async_session, vault.id)
+    assert crafted == {str(entry["style"]) for entry in load_themes()}
+
+
+@pytest.mark.asyncio
+async def test_a_theme_cannot_be_queued_twice(async_session: AsyncSession, vault: Vault) -> None:
+    storage = await _make_storage(async_session, vault)
+    await _add_theme_workshop(async_session, vault)
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.CLOTH)
+
+    await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")
+
+    with pytest.raises(ValidationException, match="already being crafted"):
+        await crafting_service.start_order(async_session, vault.id, PARTY_THEME, "theme")

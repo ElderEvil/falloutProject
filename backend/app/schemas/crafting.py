@@ -9,7 +9,7 @@ from sqlmodel import SQLModel
 from app.core.enums import RarityEnum
 from app.models.crafting_order import CraftingOrderStatus
 
-CraftableItemType = Literal["weapon", "outfit"]
+CraftableItemType = Literal["weapon", "outfit", "theme"]
 
 
 class CraftingRecipeRead(SQLModel):
@@ -37,6 +37,8 @@ class CraftingRecipeRead(SQLModel):
     has_junk: bool = False
     unlocked: bool = True
     unlock_hint: str | None = None
+    style: str | None = None
+    owned: bool = False
 
 
 class CraftRequest(SQLModel):
@@ -47,10 +49,14 @@ class CraftRequest(SQLModel):
 
 
 class CraftResultRead(SQLModel):
-    """The crafted item plus the materials that were spent."""
+    """The crafted item plus the materials that were spent.
+
+    Theme orders grant permanent ownership rather than a storage item, so
+    ``item_id`` is null for them.
+    """
 
     item_type: str
-    item_id: UUID4
+    item_id: UUID4 | None = None
     name: str
     rarity: RarityEnum
     junk_spent: int

@@ -299,4 +299,25 @@ describe('CraftingPanel', () => {
     expect(wrapper.text()).toContain('Scrap a Power fist to reverse-engineer this schematic')
     expect(findButton(wrapper, 'Start').attributes('disabled')).toBeDefined()
   })
+
+  it('offers a first craft for a theme and locks a crafted theme', async () => {
+    vi.mocked(craftingService.listRecipes).mockResolvedValue([
+      recipe({ name: 'Party theme', item_type: 'theme', style: 'party', owned: true, can_craft: false }),
+      recipe({ name: 'Halloween theme', item_type: 'theme', style: 'halloween', owned: false }),
+    ])
+    const wrapper = mount(CraftingPanel, {
+      props: { vaultId: 'vault-1', itemType: 'theme' },
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Theme workshop')
+    expect(wrapper.text()).toContain('Crafted')
+
+    const party = wrapper.findAll('li').find((item) => item.text().includes('Party theme'))!
+    const crafted = party.findAll('button').find((button) => button.text().includes('Crafted'))!
+    expect(crafted.attributes('disabled')).toBeDefined()
+
+    const halloween = wrapper.findAll('li').find((item) => item.text().includes('Halloween theme'))!
+    expect(halloween.findAll('button').some((button) => button.text().includes('Craft'))).toBe(true)
+  })
 })

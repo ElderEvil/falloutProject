@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
+import { roomStyle, roomStyleLabel } from '../models/room'
 import { getRoomSegmentCount, getTrainingRoomCapacity } from '../utils/room'
 import { isResponseStation, isTrainingRoom } from '../models/roomParts'
 
@@ -12,6 +13,10 @@ interface Props {
 
 const props = defineProps<Props>()
 const roomSegments = computed(() => getRoomSegmentCount(props.room))
+const activeTheme = computed(() => {
+  const style = roomStyle(props.room)
+  return style === 'default' ? null : `${roomStyleLabel(style)} theme`
+})
 const roomSizeText = computed(() =>
   roomSegments.value > 1 ? `${roomSegments.value}× merged` : `${roomSegments.value}×`
 )
@@ -36,8 +41,8 @@ const displayCapacity = computed(() =>
         <span class="metadata-item">{{ room.category }} Room</span>
         <span class="metadata-divider">&middot;</span>
         <span class="metadata-item">Tier {{ room.tier }}</span>
-        <span v-if="room.room_style === 'party'" class="metadata-divider">&middot;</span>
-        <span v-if="room.room_style === 'party'" class="metadata-item">Party theme</span>
+        <span v-if="activeTheme" class="metadata-divider">&middot;</span>
+        <span v-if="activeTheme" class="metadata-item">{{ activeTheme }}</span>
         <span v-if="room.ability" class="metadata-divider">&middot;</span>
         <span v-if="room.ability" class="metadata-item"
           >{{ abilityLabel }}: {{ room.ability.charAt(0) }}</span

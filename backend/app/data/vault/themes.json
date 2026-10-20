@@ -1,0 +1,82 @@
+[
+  {
+    "name": "Party theme",
+    "style": "party",
+    "rarity": "common",
+    "craftable": true,
+    "stat": "charisma",
+    "craft": {
+      "types": ["cloth", "adhesive"]
+    }
+  },
+  {
+    "name": "Brotherhood theme",
+    "style": "brotherhood",
+    "rarity": "legendary",
+    "craftable": true,
+    "stat": "strength",
+    "craft": {
+      "types": ["steel", "circuitry"]
+    }
+  },
+  {
+    "name": "Halloween theme",
+    "style": "halloween",
+    "rarity": "rare",
+    "craftable": true,
+    "stat": "luck",
+    "craft": {
+      "types": ["cloth", "leather"]
+    }
+  },
+  {
+    "name": "Institute theme",
+    "style": "institute",
+    "rarity": "legendary",
+    "craftable": true,
+    "stat": "intelligence",
+    "craft": {
+      "types": ["circuitry", "science"]
+    }
+  },
+  {
+    "name": "Minutemen theme",
+    "style": "minutemen",
+    "rarity": "legendary",
+    "craftable": true,
+    "stat": "agility",
+    "craft": {
+      "types": ["leather", "steel"]
+    }
+  },
+  {
+    "name": "Railroad theme",
+    "style": "railroad",
+    "rarity": "legendary",
+    "craftable": true,
+    "stat": "endurance",
+    "craft": {
+      "types": ["cloth", "circuitry"]
+    }
+  },
+  {
+    "name": "Thanksgiving theme",
+    "style": "thanksgiving",
+    "rarity": "rare",
+    "craftable": true,
+    "stat": "endurance",
+    "craft": {
+      "types": ["cloth", "adhesive"]
+    }
+  },
+  {
+    "name": "Christmas theme",
+    "style": "xmas",
+    "rarity": "rare",
+    "craftable": true,
+    "stat": "luck",
+    "craft": {
+      "types": ["cloth", "valuables"]
+    }
+  }
+]

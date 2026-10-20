@@ -20,6 +20,8 @@ interface Props {
   showApprenticeSlot?: boolean
   assignEnabled?: boolean
   roomStyle?: RoomStyleValue | null
+  availableThemes?: RoomStyleValue[]
+  roomTier?: number
   isApplyingStyle?: boolean
 }
 
@@ -27,6 +29,8 @@ const props = withDefaults(defineProps<Props>(), {
   showApprenticeSlot: false,
   roomUnits: 3,
   assignEnabled: true,
+  availableThemes: () => [],
+  roomTier: 1,
 })
 const emit = defineEmits<{
   activate: [dwellerId: string]
@@ -72,6 +76,8 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
       <RoomThemeSelector
         v-if="roomStyle"
         :model-value="roomStyle"
+        :themes="availableThemes"
+        :tier="roomTier"
         :disabled="isApplyingStyle"
         @update:model-value="emit('applyStyle', $event)"
       />

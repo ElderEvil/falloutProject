@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test'
 
 for (const theme of ['fo4', 'fo3', 'fnv']) {
   test(`continuous training persists and stays readable in ${theme}`, async ({ page }) => {
+    const pageErrors: string[] = []
+    page.on('pageerror', (error) => pageErrors.push(error.message))
     if (theme === 'fnv') await page.setViewportSize({ width: 360, height: 800 })
     let enabled = false
     const changes: boolean[] = []
@@ -39,5 +41,6 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
     await toggle.click()
     await expect(toggle).toHaveAttribute('aria-pressed', 'false')
     expect(changes).toEqual([true, false])
+    expect(pageErrors).toEqual([])
   })
 }

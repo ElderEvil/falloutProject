@@ -123,4 +123,11 @@ describe('TrainingQueuePanel', () => {
     )
     expect(toggle.attributes('aria-pressed')).toBe('false')
   })
+
+  it('renders the queue without requiring a tooltip provider from its page', async () => {
+    wrapper = mount(TrainingQueuePanel, { global: { stubs: { Icon: true } } })
+    await flushPromises()
+    expect(wrapper.get('button[aria-label="Continuous training"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Training Queue')
+  })
 })

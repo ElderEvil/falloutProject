@@ -7,9 +7,32 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
+vi.mock('@/core/plugins/axios', () => ({
+  default: { get: vi.fn().mockResolvedValue({ data: [] }) },
+}))
+
 describe('TrainingView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+  })
+
+  it('renders the real training queue without a page-level tooltip provider', async () => {
+    useAuthStore().token = 'test-token'
+    vi.spyOn(useVaultStore(), 'ensureVaultLoaded').mockResolvedValue()
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/vault/:id/training', component: TrainingView }],
+    })
+    await router.push('/vault/vault-1/training')
+    await router.isReady()
+    const wrapper = mount(TrainingView, {
+      global: { plugins: [router], stubs: { SidePanel: true, Icon: true } },
+    })
+    await flushPromises()
+    expect(wrapper.text()).toContain('Training Center')
+    expect(wrapper.text()).toContain('Training Queue')
+    expect(wrapper.get('button[aria-label="Continuous training"]').exists()).toBe(true)
+    wrapper.unmount()
   })
 
   it('uses the standard vault shell and gives the training queue the full content width by default', async () => {

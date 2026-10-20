@@ -10,7 +10,12 @@ import { useRoomStore } from '@/modules/rooms/stores/room'
 import { usePolling } from '@/core/composables/usePolling'
 import TrainingProgressCard from './TrainingProgressCard.vue'
 import { Button } from '@/core/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 
 const trainingStore = useTrainingStore()
 const authStore = useAuthStore()
@@ -130,29 +135,31 @@ onMounted(() => {
         <Icon icon="mdi:dumbbell" class="header-icon" />
         <h3>Training Queue</h3>
       </div>
-      <Tooltip>
-        <TooltipTrigger as-child>
-          <Button
-            :variant="continuousTraining ? 'default' : 'outline'"
-            size="icon"
-            aria-label="Continuous training"
-            :aria-pressed="continuousTraining"
-            :disabled="
-              !vaultStore.activeVault ||
-              !authStore.token ||
-              trainingStore.isSettingContinuousTraining
-            "
-            @click="toggleContinuousTraining"
-          >
-            <Icon :icon="continuousTraining ? 'mdi:repeat' : 'mdi:repeat-off'" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{{
-          continuousTraining
-            ? 'Repeat until stat 10. Click to stop after this round.'
-            : 'Repeat training rounds until stat 10.'
-        }}</TooltipContent>
-      </Tooltip>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button
+              :variant="continuousTraining ? 'default' : 'outline'"
+              size="icon"
+              aria-label="Continuous training"
+              :aria-pressed="continuousTraining"
+              :disabled="
+                !vaultStore.activeVault ||
+                !authStore.token ||
+                trainingStore.isSettingContinuousTraining
+              "
+              @click="toggleContinuousTraining"
+            >
+              <Icon :icon="continuousTraining ? 'mdi:repeat' : 'mdi:repeat-off'" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{{
+            continuousTraining
+              ? 'Repeat until stat 10. Click to stop after this round.'
+              : 'Repeat training rounds until stat 10.'
+          }}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
 
     <div class="panel-content">

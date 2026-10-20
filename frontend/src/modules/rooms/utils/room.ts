@@ -80,6 +80,7 @@ export function getMergeCandidates(rooms: Room[], room: Room): Room[] {
         canRemodelRoom(other) &&
         other.name === room.name &&
         other.tier === room.tier &&
+        other.room_style === room.room_style &&
         other.size_min === room.size_min &&
         other.coordinate_y === room.coordinate_y &&
         size + (other.size ?? other.size_min) <= Math.min(room.size_max, other.size_max) &&

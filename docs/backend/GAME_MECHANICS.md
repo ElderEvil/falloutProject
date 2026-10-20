@@ -498,3 +498,17 @@ All paths write the audio under the cache key (`pa/<hash>.mp3`) so subsequent
 calls hit the cache even when the provider chain differs. The existing
 "already has an audio line" guard (`voice_line_url` present) fires before
 cache lookup and raises `ContentNoChangeException` unchanged.
+
+## Room themes (Diner and Living Quarters)
+
+- Only Diner and Living Quarters accept non-default themes; `apply_room_style` rejects any other room.
+- Applying a non-default theme requires **tier 3** and a theme the vault has **crafted**. The standard
+  style is always available, including below tier 3.
+- Themes are crafted **once per vault** at the Theme workshop through the normal order queue
+  (`junk + caps + time`). Collecting the order writes the permanent `vault_theme` row; there is no
+  per-room application item and no second craft. A theme with an active or uncollected order cannot
+  be queued again.
+- Boosted vaults are seeded with every catalog theme already crafted, so the selector is usable
+  immediately. Standard vaults unlock themes only by crafting them.
+- The room selector lists standard plus crafted themes. Below tier 3 it is disabled with a tier hint;
+  at tier 3 with no crafted themes it points the player at the Theme workshop.

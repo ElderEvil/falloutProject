@@ -69,7 +69,9 @@ async def remodel_room(db_session: AsyncSession, room_id: UUID4, other_room_id: 
                         "capacity": _share(source.capacity, count, index),
                         "output": _share(source.output, count, index),
                         "refund_caps": _share(refund, count, index),
-                        "image_url": get_room_image_url(source.name, tier=source.tier, size=source.size_min),
+                        "image_url": get_room_image_url(
+                            source.name, tier=source.tier, size=source.size_min, style=source.room_style
+                        ),
                     }
                 )
                 for index in range(count)
@@ -89,7 +91,7 @@ async def remodel_room(db_session: AsyncSession, room_id: UUID4, other_room_id: 
                 left.id == right.id
                 or any(
                     getattr(left, field) != getattr(right, field)
-                    for field in ("vault_id", "name", "tier", "coordinate_y", "size_min")
+                    for field in ("vault_id", "name", "tier", "coordinate_y", "size_min", "room_style")
                 )
                 or (left.coordinate_x or 0) + (left.size or left.size_min) != right.coordinate_x
                 or total_size > min(left.size_max, right.size_max)
@@ -110,7 +112,9 @@ async def remodel_room(db_session: AsyncSession, room_id: UUID4, other_room_id: 
                         if left.output is None and right.output is None
                         else (left.output or 0) + (right.output or 0),
                         "refund_caps": sum(room_refund(room) for room in rooms),
-                        "image_url": get_room_image_url(left.name, tier=left.tier, size=total_size),
+                        "image_url": get_room_image_url(
+                            left.name, tier=left.tier, size=total_size, style=left.room_style
+                        ),
                     }
                 )
             ]

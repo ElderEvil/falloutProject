@@ -7,6 +7,8 @@ import { getRoomImageUrl } from '@/core/utils/image'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { useFallbackImage } from '../composables/useFallbackImage'
 import { RESPONSE_DETAIL_SCENES } from '../models/roomScenes'
+import type { RoomStyleValue } from '../models/room'
+import RoomThemeSelector from './RoomThemeSelector.vue'
 
 interface Props {
   roomName: string
@@ -17,18 +19,25 @@ interface Props {
   assignedDwellers: DwellerShort[]
   showApprenticeSlot?: boolean
   assignEnabled?: boolean
+  roomStyle?: RoomStyleValue | null
+  availableThemes?: RoomStyleValue[]
+  roomTier?: number
+  isApplyingStyle?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showApprenticeSlot: false,
   roomUnits: 3,
   assignEnabled: true,
+  availableThemes: () => [],
+  roomTier: 1,
 })
 const emit = defineEmits<{
   activate: [dwellerId: string]
   unassign: [dwellerId: string]
   assignWorker: []
   assignApprentice: []
+  applyStyle: [style: RoomStyleValue]
 }>()
 
 const { url: sceneImageUrl, onError: imageFailed } = useFallbackImage(() => [
@@ -59,10 +68,20 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
     :class="sceneSizeClass"
     :aria-label="`${roomName} room preview`"
   >
-    <h3 class="section-title">
-      <Icon icon="mdi:image-outline" class="h-5 w-5" />
-      Room Preview
-    </h3>
+    <div class="preview-header">
+      <h3 class="section-title">
+        <Icon icon="mdi:image-outline" class="h-5 w-5" />
+        Room Preview
+      </h3>
+      <RoomThemeSelector
+        v-if="roomStyle"
+        :model-value="roomStyle"
+        :themes="availableThemes"
+        :tier="roomTier"
+        :disabled="isApplyingStyle"
+        @update:model-value="emit('applyStyle', $event)"
+      />
+    </div>
     <div class="preview-container">
       <div class="room-image-container">
         <img
@@ -202,6 +221,14 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .section-title {

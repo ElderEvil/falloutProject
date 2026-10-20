@@ -16,9 +16,11 @@ app/services/
     ├── event_generator.py           # Generates random events
     ├── combat_calculator.py         # Combat mechanics
     ├── loot_calculator.py           # Loot generation
-    ├── rewards_calculator.py        # Final rewards calculation
-    └── data_loader.py               # JSON data loading
+    └── rewards_calculator.py        # Final rewards calculation
 ```
+
+Shared static catalogs (enemies, event templates, junk, weapons, outfits, themes) load through
+`app/services/catalog_service.py`.
 
 ### Key Components
 
@@ -111,14 +113,15 @@ Calculates final rewards:
 - Items = collected during exploration
 - Early recall = rewards × (progress_percentage / 100)
 
-#### 7. Data Loader (`exploration/data_loader.py`)
-Loads static game data from JSON:
+#### 7. Catalog Service (`app/services/catalog_service.py`)
+Loads shared static game data from JSON:
 
 - `load_enemies()` - Enemy definitions
 - `load_event_templates()` - Event description templates
 - `load_junk_items()` - Junk item pool
 - `load_weapons()` - Weapon definitions
 - `load_outfits()` - Outfit definitions
+- `load_themes()` - Theme workshop recipes
 
 **Features:**
 - LRU caching for performance

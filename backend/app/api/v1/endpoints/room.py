@@ -12,7 +12,7 @@ from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_
 from app.db.session import get_async_session
 from app.models.room import Room
 from app.schemas.grid import GridConfig, grid_config
-from app.schemas.room import RoomBuild, RoomCreateWithoutVaultID, RoomMerge, RoomRead
+from app.schemas.room import RoomBuild, RoomCreateWithoutVaultID, RoomMerge, RoomRead, RoomStyleUpdate
 from app.services.room_remodel_service import remodel_room
 from app.services.room_service import room_service
 
@@ -128,6 +128,18 @@ async def upgrade_room(
     """
     await verify_room_access(room_id, user, db_session)
     return await room_service.upgrade_room(db_session, room_id)
+
+
+@router.post("/style/{room_id}", response_model=RoomRead)
+async def apply_room_style(
+    room_id: UUID4,
+    request: RoomStyleUpdate,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> Room:
+    """Apply a cosmetic room style (for example, the Party theme)."""
+    await verify_room_access(room_id, user, db_session)
+    return await room_service.apply_room_style(db_session, room_id, request.style)
 
 
 @router.post("/split/{room_id}", response_model=list[RoomRead])

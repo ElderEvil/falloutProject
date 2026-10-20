@@ -1,4 +1,8 @@
-"""Data loader for exploration system."""
+"""Static catalog loading shared by workshops, exploration, rewards, and seeding.
+
+Owned outside the exploration package: weapons, outfits, junk, themes, and
+discovery pools are cross-domain catalogs, not exploration internals.
+"""
 
 import json
 from functools import lru_cache
@@ -10,9 +14,10 @@ from app.schemas.exploration_event import EnemySchema
 from app.services.combat import incident_math
 
 # Data directory paths
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+DATA_DIR = Path(__file__).parent.parent / "data"
 EXPLORATION_DIR = DATA_DIR / "exploration"
 ITEMS_DIR = DATA_DIR / "items"
+VAULT_DIR = DATA_DIR / "vault"
 
 
 @lru_cache(maxsize=1)
@@ -117,6 +122,17 @@ def load_outfits() -> list[dict]:
             outfits.extend(json.load(f))
 
     return outfits
+
+
+@lru_cache(maxsize=1)
+def load_themes() -> list[dict]:
+    """Load the Theme workshop's room-theme recipes."""
+    themes_file = VAULT_DIR / "themes.json"
+    if not themes_file.exists():
+        return []
+
+    with themes_file.open() as f:
+        return json.load(f)
 
 
 @lru_cache(maxsize=1)

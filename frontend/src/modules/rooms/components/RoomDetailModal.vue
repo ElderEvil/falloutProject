@@ -10,11 +10,14 @@ import {
   isElevator,
   type RoomPart,
 } from '../models/roomParts'
+import { roomStyle, supportsRoomStyles } from '../models/room'
 import { useRoomStore } from '../stores/room'
 import { useRoomProduction } from '../composables/useRoomProduction'
 import { useRoomUpgrade } from '../composables/useRoomUpgrade'
 import { useRoomDwellers } from '../composables/useRoomDwellers'
 import { useRadioRoom } from '../composables/useRadioRoom'
+import { useRoomStyle } from '../composables/useRoomStyle'
+import { useRoomThemes } from '../composables/useRoomThemes'
 import RoomDetailHeader from './RoomDetailHeader.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import RoomPreviewSection from './RoomPreviewSection.vue'
@@ -72,6 +75,10 @@ const parts = computed<RoomPart[]>(() =>
 const has = (part: RoomPart) => hasPart(parts.value, part)
 const craftingType = computed(() => craftingItemType(props.room))
 const roomUnits = computed(() => props.room?.size ?? props.room?.size_min ?? 3)
+const themeSelectorEnabled = computed(
+  () => !!props.room && supportsRoomStyles(props.room) && props.room.tier >= 3
+)
+const { availableThemes } = useRoomThemes(props.vaultId, themeSelectorEnabled)
 // Elevators keep one static slot for future transit display — no assignment.
 const isElevatorRoom = computed(() => isElevator(props.room))
 
@@ -112,6 +119,10 @@ const {
   () => emit('close')
 )
 
+const { isApplyingStyle, handleApplyStyle } = useRoomStyle(roomRef, actionError, () =>
+  emit('roomUpdated')
+)
+
 const {
   isRecruiting,
   localRadioMode,
@@ -125,7 +136,12 @@ const { playSound, playAmbience, stopAmbience } = useSound()
 
 // Clear error when modal closes; start ambience on open and when the room changes.
 watch(
-  [() => props.modelValue, () => props.room?.name, () => props.room?.category],
+  [
+    () => props.modelValue,
+    () => props.room?.name,
+    () => props.room?.category,
+    () => props.room?.room_style,
+  ],
   ([open], oldValues) => {
     if (!open) {
       actionError.value = null
@@ -219,10 +235,15 @@ onUnmounted(stopAmbience)
             :assigned-dwellers="assignedDwellers"
             :show-apprentice-slot="producesResources(room) && !isElevatorRoom"
             :assign-enabled="!isElevatorRoom"
+            :room-style="supportsRoomStyles(room) ? roomStyle(room) : null"
+            :available-themes="availableThemes"
+            :room-tier="room.tier"
+            :is-applying-style="isApplyingStyle"
             @activate="openDwellerDetails"
             @unassign="handleUnassignDweller"
             @assign-worker="assignmentMode = 'worker'"
             @assign-apprentice="assignmentMode = 'apprentice'"
+            @apply-style="handleApplyStyle"
           />
 
           <ResponseStationDetail
@@ -268,6 +289,7 @@ onUnmounted(stopAmbience)
             v-if="has('crafting') && craftingType"
             :vault-id="vaultId"
             :item-type="craftingType"
+            :crew-key="assignedDwellers.map((dweller) => dweller.id).join(',')"
             @crafted="emit('roomUpdated')"
           />
 

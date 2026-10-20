@@ -17,7 +17,7 @@ from app.core import db_locks
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.db.session import async_session_maker
-from app.services.exploration import data_loader
+from app.services import catalog_service as data_loader
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ def unlock_hint(entry: dict[str, Any] | None) -> str | None:
         return None
     name = str(entry.get("name", "")).strip()
     phrase = f"a {name}" if count == 1 else f"{count}\u00d7 {name}"
-    return f"Scrap {phrase} to reverse-engineer this schematic"
+    return f"Scrap {phrase} to learn it"
 
 
 class RecipeUnlockService:

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import UUID4
 from sqlmodel import Field, SQLModel
@@ -27,6 +28,23 @@ class RoomBuild(SQLModel):
     room_name: str = Field(min_length=3, max_length=32)
     coordinate_x: int = Field(ge=GRID_X_MIN, le=GRID_BUILD_X_MAX)
     coordinate_y: int = Field(ge=GRID_Y_MIN, le=GRID_BUILD_Y_MAX)
+
+
+RoomStyleName = Literal[
+    "default",
+    "party",
+    "brotherhood",
+    "halloween",
+    "institute",
+    "minutemen",
+    "railroad",
+    "thanksgiving",
+    "xmas",
+]
+
+
+class RoomStyleUpdate(SQLModel):
+    style: RoomStyleName
 
 
 class RoomRead(RoomBase):

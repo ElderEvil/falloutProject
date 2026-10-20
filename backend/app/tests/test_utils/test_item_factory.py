@@ -9,7 +9,7 @@ column cannot be forgotten in ``build_outfit`` / ``build_weapon`` without failin
 import pytest
 
 from app.core.enums import JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
-from app.services.exploration.data_loader import load_outfits, load_weapons
+from app.services.catalog_service import load_outfits, load_weapons
 from app.utils.item_factory import build_junk, build_outfit, build_weapon
 
 SPECIAL_KEYS = ("strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck")

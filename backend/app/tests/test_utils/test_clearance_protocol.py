@@ -5,7 +5,7 @@ from pathlib import Path
 from string import Formatter
 
 from app.options.bios import ZONE_RUMORS
-from app.services.exploration.data_loader import load_event_templates
+from app.services.catalog_service import load_event_templates
 from app.utils.place_groups import get_place_group, group_for_place_name
 from app.utils.place_seed import load_seed_entries
 

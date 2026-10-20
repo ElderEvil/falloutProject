@@ -44,7 +44,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
     "agegroupenum": {"CHILD", "TEEN", "ADULT", "ELDER"},
     "arenamode": {"DUEL", "BRAWL", "HUNT"},
     "availabilityenum": {"VAULT", "DEPARTURE", "POOL", "MARKET", "ARCHIVE"},
-    "craftingorderstatus": {"ACTIVE", "COMPLETED", "COLLECTED"},
+    "craftingorderstatus": {"ACTIVE", "COMPLETED", "COLLECTED", "CANCELLED"},
     "deathcauseenum": {"HEALTH", "RADIATION", "INCIDENT", "EXPLORATION", "COMBAT", "EXILE"},
     "dwellerlocationrelationenum": {"ORIGIN", "VISITED"},
     "dwellerstatusenum": {"IDLE", "WORKING", "EXPLORING", "QUESTING", "TRAINING", "RESTING", "FIGHTING", "DEAD"},

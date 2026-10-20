@@ -83,6 +83,9 @@ vi.mock('@/core/plugins/axios', () => ({
       if (url.includes('/arena/') && url.endsWith('/creatures')) {
         return Promise.resolve({ data: [] })
       }
+      if (url.includes('/crafting/') && url.includes('/recipes/')) {
+        return Promise.resolve({ data: { recipes: [] } })
+      }
       if (url.includes('game/balance')) {
         return Promise.resolve({
           data: {
@@ -131,6 +134,7 @@ describe('RoomDetailModal', () => {
     incremental_cost: null,
     population_required: null,
     image_url: null,
+    room_style: 'default',
     vault_id: 'vault-123',
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
@@ -161,6 +165,45 @@ describe('RoomDetailModal', () => {
     expect(wrapper.emitted('roomUpdated')).toHaveLength(1)
     expect(wrapper.emitted('close')).toHaveLength(1)
     vi.mocked(window.confirm).mockRestore()
+  })
+
+  it('applies the Party theme through the room style API', async () => {
+    const room = { ...mockRoom, name: 'Diner', room_style: 'default' }
+    const store = useRoomStore()
+    store.rooms = [room]
+    useAuthStore().token = 'token'
+    vi.mocked(axios.post).mockResolvedValueOnce({
+      data: { ...room, room_style: 'party', image_url: '/static/room_images/FOS Diner Party.png' },
+    })
+
+    const wrapper = mount(RoomDetailModal, {
+      props: { room, modelValue: true, vaultId: 'vault-123' },
+    })
+
+    const select = wrapper.findComponent({ name: 'Select' })
+    expect(select.exists()).toBe(true)
+    expect(wrapper.find('.preview-header [data-slot="select-trigger"]').exists()).toBe(true)
+    expect(wrapper.find('.room-management [data-slot="select-trigger"]').exists()).toBe(false)
+    select.vm.$emit('update:modelValue', 'party')
+    await flushPromises()
+
+    expect(axios.post).toHaveBeenCalledWith(
+      '/api/v1/rooms/style/room-1',
+      { style: 'party' },
+      { headers: { Authorization: 'Bearer token' } }
+    )
+    expect(wrapper.emitted('roomUpdated')).toHaveLength(1)
+  })
+
+  it('names any active theme in the header', async () => {
+    const room = { ...mockRoom, name: 'Diner', room_style: 'halloween', tier: 3 }
+
+    const wrapper = mount(RoomDetailModal, {
+      props: { room, modelValue: true, vaultId: 'vault-123' },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.header-metadata').text()).toContain('Halloween theme')
   })
 
   const mockDwellers = [
@@ -288,9 +331,7 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.find('.room-scene').exists()).toBe(true)
-      expect(wrapper.find('.room-preview-section > .section-title').text()).toContain(
-        'Room Preview'
-      )
+      expect(wrapper.find('.room-preview-section .section-title').text()).toContain('Room Preview')
       expect(wrapper.findAll('.slot-filled')).toHaveLength(2)
       expect(wrapper.find('.staffing-summary').exists()).toBe(false)
       expect(wrapper.find('.header-metadata').text()).toContain('Capacity: 4')
@@ -1546,7 +1587,9 @@ describe('RoomDetailModal', () => {
       })
       expect(ambienceSpy).toHaveBeenCalledWith('armory')
 
-      await wrapper.setProps({ room: { ...mockRoom, id: 'room-2', name: 'Classroom', category: 'TRAINING' } })
+      await wrapper.setProps({
+        room: { ...mockRoom, id: 'room-2', name: 'Classroom', category: 'TRAINING' },
+      })
 
       expect(ambienceSpy).toHaveBeenCalledWith('classroom')
       const modalOpenCalls = playSpy.mock.calls.filter(([key]) => key === 'modalOpen')
@@ -1558,7 +1601,10 @@ describe('RoomDetailModal', () => {
     it('falls back to the category loop for a room with no per-room ambience', () => {
       const ambienceSpy = vi.spyOn(audioManager, 'playAmbience')
       mount(RoomDetailModal, {
-        props: { room: { ...mockRoom, name: 'Broom Closet', category: 'TRAINING' }, modelValue: true },
+        props: {
+          room: { ...mockRoom, name: 'Broom Closet', category: 'TRAINING' },
+          modelValue: true,
+        },
       })
 
       expect(ambienceSpy).toHaveBeenCalledWith('training')
@@ -1587,6 +1633,7 @@ describe('Response Station surface', () => {
     incremental_cost: null,
     population_required: 15,
     image_url: null,
+    room_style: 'default',
     vault_id: 'vault-123',
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',

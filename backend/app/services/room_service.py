@@ -28,7 +28,7 @@ from app.utils.exceptions import (
     UniqueRoomViolationException,
     VaultOperationException,
 )
-from app.utils.room_assets import get_room_image_url
+from app.utils.room_assets import ROOM_STYLE_IMAGES, get_room_image_url
 from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
@@ -79,6 +79,7 @@ def _survivor_field_values(
         "tier": tier,
         "coordinate_y": coordinate_y,
         "image_url": image_url,
+        "room_style": getattr(source, "room_style", "default"),
         "speedup_multiplier": source.speedup_multiplier,
     }
 
@@ -127,6 +128,7 @@ class RoomService:
         coordinate_y = candidate.coordinate_y
         size = candidate.size if candidate.size is not None else candidate.size_min
         size_max = candidate.size_max
+        style = getattr(candidate, "room_style", "default")
         capacity_formula = getattr(candidate, "capacity_formula", None)
         output_formula = getattr(candidate, "output_formula", None)
 
@@ -152,7 +154,9 @@ class RoomService:
             coordinate_y=coordinate_y,
             size=size,
         )
-        adjacent = [room for room in adjacent if room.id != candidate_id]
+        adjacent = [
+            room for room in adjacent if room.id != candidate_id and getattr(room, "room_style", "default") == style
+        ]
 
         same_coordinate_room = await crud.room.get_room_by_coordinates(
             db_session=db_session, vault_id=vault_id, x_coord=coordinate_x, y_coord=coordinate_y
@@ -162,6 +166,7 @@ class RoomService:
             and same_coordinate_room.id != candidate_id
             and same_coordinate_room.name == name
             and same_coordinate_room.tier == tier
+            and getattr(same_coordinate_room, "room_style", "default") == style
         ):
             group = [*adjacent, same_coordinate_room]
         else:
@@ -207,7 +212,7 @@ class RoomService:
             new_capacity = crud.room.evaluate_capacity_formula(capacity_formula, tier, total_size)
         if output_formula:
             new_output = crud.room.evaluate_output_formula(output_formula, tier, total_size)
-        new_image_url = get_room_image_url(name, tier=tier, size=total_size)
+        new_image_url = get_room_image_url(name, tier=tier, size=total_size, style=style)
 
         # The preview and the created segment take the same survivor fields; only
         # the coordinate_x differs (the preview follows the survivor, the created
@@ -537,7 +542,7 @@ class RoomService:
         await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price)
 
         room_size = obj_in.size if obj_in.size is not None else obj_in.size_min
-        obj_in.image_url = get_room_image_url(obj_in.name, tier=obj_in.tier, size=room_size)
+        obj_in.image_url = get_room_image_url(obj_in.name, tier=obj_in.tier, size=room_size, style=obj_in.room_style)
 
         obj_in_db: Room = await crud.room.create(db_session, obj_in=obj_in)
         await db_session.refresh(obj_in_db)
@@ -642,7 +647,34 @@ class RoomService:
         async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(room.vault_id)) as acquired:
             if not acquired:
                 raise ResourceConflictException(detail=f"Vault {room.vault_id} is already being built in — try again")
+            await db_session.refresh(room)
             return await self._upgrade_locked(db_session, room)
+
+    async def apply_room_style(self, db_session: AsyncSession, room_id: UUID4, style: str) -> Room:
+        """Apply a cosmetic room-wide style, updating the stored sprite URL."""
+        room = await crud.room.get(db_session, room_id)
+        async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(room.vault_id)) as acquired:
+            if not acquired:
+                raise ResourceConflictException(detail=f"Vault {room.vault_id} is already being built in — try again")
+            await db_session.refresh(room)
+            if style != "default":
+                if style not in ROOM_STYLE_IMAGES.get(room.name, {}):
+                    raise VaultOperationException(detail=f"{room.name} does not support the {style} theme")
+                if room.tier < 3:
+                    raise VaultOperationException(
+                        detail=f"{room.name} must reach tier 3 before the {style} theme can be applied"
+                    )
+                if not await crud.vault_theme.is_crafted(db_session, room.vault_id, style):
+                    raise VaultOperationException(
+                        detail=f"Craft the {style} theme at the Theme workshop before applying it"
+                    )
+            room_size = room.size if room.size is not None else room.size_min
+            image_url = get_room_image_url(room.name, tier=room.tier, size=room_size, style=style)
+            return await crud.room.update(
+                db_session,
+                id=room.id,
+                obj_in=RoomUpdate(room_style=style, image_url=image_url),
+            )
 
     async def _upgrade_locked(self, db_session: AsyncSession, room: Room) -> Room:
         """Apply the tier change and fuse any adjacent identical room while the lock is held."""
@@ -689,7 +721,7 @@ class RoomService:
         elif room.output is not None:
             new_output = int(room.output * (room.tier + 4) / (old_tier + 4))
 
-        new_image_url = get_room_image_url(room.name, tier=room.tier, size=room_size)
+        new_image_url = get_room_image_url(room.name, tier=room.tier, size=room_size, style=room.room_style)
 
         await crud.room.update(
             db_session=db_session,

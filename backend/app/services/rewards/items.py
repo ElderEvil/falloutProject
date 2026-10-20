@@ -116,7 +116,7 @@ async def _grant_as_dweller(
 
 def _build_weapon(name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
     """Prefer the catalog weapon so stats and metadata are canonical."""
-    from app.services.exploration import data_loader
+    from app.services import catalog_service as data_loader
     from app.utils.item_factory import build_catalog_item
 
     catalog_weapon = build_catalog_item(
@@ -130,7 +130,7 @@ def _build_weapon(name: str, rarity: str, data: dict[str, Any], storage_id: UUID
 
 def _build_outfit(name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
     """Prefer the catalog outfit so SPECIAL bonuses and metadata are kept."""
-    from app.services.exploration import data_loader
+    from app.services import catalog_service as data_loader
     from app.utils.item_factory import build_catalog_item
 
     catalog_outfit = build_catalog_item(

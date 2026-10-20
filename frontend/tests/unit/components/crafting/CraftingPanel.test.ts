@@ -17,6 +17,7 @@ vi.mock('@/modules/crafting/services/craftingService', () => ({
     listRecipes: vi.fn(),
     listOrders: vi.fn(),
     startOrder: vi.fn(),
+    cancelOrder: vi.fn(),
     collectOrder: vi.fn(),
   },
 }))
@@ -211,6 +212,23 @@ describe('CraftingPanel', () => {
     expect(wrapper.text()).toContain('50%')
   })
 
+  it('cancels an active order and refreshes the queue', async () => {
+    vi.mocked(craftingService.listOrders).mockResolvedValue([order({ status: 'active' })])
+    vi.mocked(craftingService.cancelOrder).mockResolvedValue(order({ status: 'cancelled' }))
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    const cancel = wrapper.findAll('button').find((button) => button.text().includes('Cancel'))!
+    await cancel.trigger('click')
+    await flushPromises()
+
+    expect(craftingService.cancelOrder).toHaveBeenCalledWith('vault-1', 'order-1')
+    expect(mockToast.success).toHaveBeenCalledWith(expect.stringContaining('refunded'))
+    expect(craftingService.listOrders).toHaveBeenCalledTimes(2)
+    confirmSpy.mockRestore()
+  })
+
   it('collects a finished order', async () => {
     vi.mocked(craftingService.listOrders).mockResolvedValue([order({ status: 'completed', progress: 1 })])
     const wrapper = mountPanel()
@@ -281,22 +299,58 @@ describe('CraftingPanel', () => {
 
     expect(wrapper.text()).toContain('Pipe pistol')
     expect(wrapper.text()).not.toContain('Assault rifle')
+    expect(wrapper.find('.recipe-icon-weapon').exists()).toBe(true)
   })
 
-  it('marks a locked recipe: dashed state, unlock hint, and disabled Start', async () => {
+  it('marks a locked recipe: dashed state, hover hint, and disabled Start', async () => {
     vi.mocked(craftingService.listRecipes).mockResolvedValue([
       recipe({
         name: 'Laser pistol',
         rarity: 'legendary',
         unlocked: false,
-        unlock_hint: 'Scrap a Power fist to reverse-engineer this schematic',
+        unlock_hint: 'Scrap a Power fist to learn it',
       }),
     ])
     const wrapper = mountPanel()
     await flushPromises()
 
-    expect(wrapper.find('.locked-recipe').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Scrap a Power fist to reverse-engineer this schematic')
+    const locked = wrapper.find('.locked-recipe')
+    expect(locked.exists()).toBe(true)
+    expect(locked.find('[title]').attributes('title')).toBe('Scrap a Power fist to learn it')
     expect(findButton(wrapper, 'Start').attributes('disabled')).toBeDefined()
+  })
+
+  it('reloads recipe estimates when the room crew changes', async () => {
+    const wrapper = mount(CraftingPanel, {
+      props: { vaultId: 'vault-1', itemType: 'weapon', crewKey: 'dweller-1' },
+    })
+    await flushPromises()
+    expect(craftingService.listRecipes).toHaveBeenCalledTimes(1)
+
+    await wrapper.setProps({ crewKey: 'dweller-1,dweller-2' })
+    await flushPromises()
+
+    expect(craftingService.listRecipes).toHaveBeenCalledTimes(2)
+  })
+
+  it('offers a first craft for a theme and locks a crafted theme', async () => {
+    vi.mocked(craftingService.listRecipes).mockResolvedValue([
+      recipe({ name: 'Party theme', item_type: 'theme', style: 'party', owned: true, can_craft: false }),
+      recipe({ name: 'Halloween theme', item_type: 'theme', style: 'halloween', owned: false }),
+    ])
+    const wrapper = mount(CraftingPanel, {
+      props: { vaultId: 'vault-1', itemType: 'theme' },
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Theme workshop')
+    expect(wrapper.text()).toContain('Crafted')
+
+    const party = wrapper.findAll('li').find((item) => item.text().includes('Party theme'))!
+    const crafted = party.findAll('button').find((button) => button.text().includes('Crafted'))!
+    expect(crafted.attributes('disabled')).toBeDefined()
+
+    const halloween = wrapper.findAll('li').find((item) => item.text().includes('Halloween theme'))!
+    expect(halloween.findAll('button').some((button) => button.text().includes('Craft'))).toBe(true)
   })
 })

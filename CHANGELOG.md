@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.246.0 (2026-10-21)
+
+### Features
+
+* **dwellers:** default portraits for unillustrated dwellers ([#1127](https://github.com/ElderEvil/falloutProject/issues/1127)) 1975365
+
 ## 2.245.1 (2026-10-21)
 
 ### Bug Fixes

@@ -1,0 +1,140 @@
+from typing import Any
+
+import pytest
+from httpx import AsyncClient
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from app import crud
+from app.models.dweller import Dweller
+from app.models.vault import Vault
+from app.schemas.common import GenderEnum, RarityEnum
+from app.schemas.dweller import DwellerCreate
+from app.tests.factory.dwellers import create_fake_dweller
+
+pytestmark = pytest.mark.asyncio(scope="module")
+
+
+async def _create_dweller(
+    async_session: AsyncSession,
+    vault: Vault,
+    **overrides: Any,
+) -> Dweller:
+    payload = create_fake_dweller() | {
+        "rarity": RarityEnum.COMMON,
+        "gender": GenderEnum.MALE,
+        **overrides,
+    }
+    return await crud.dweller.create(async_session, DwellerCreate(**payload, vault_id=vault.id))
+
+
+async def test_direct_model_insert_applies_defaults(
+    async_session: AsyncSession,
+    vault: Vault,
+) -> None:
+    dweller = Dweller(
+        first_name="Direct",
+        last_name="Insert",
+        gender=GenderEnum.FEMALE,
+        rarity=RarityEnum.COMMON,
+        vault_id=vault.id,
+        visual_attributes={"race": "synth", "state_of_being": "gen_2"},
+    )
+
+    async_session.add(dweller)
+    await async_session.commit()
+    await async_session.refresh(dweller)
+
+    assert dweller.image_url == "/static/dweller_images/FOS_Dw_Default_Synth_Female_Gen2.webp"
+    assert dweller.thumbnail_url == "/static/dweller_thumbnails/FOS_Dw_Default_Synth_Female_Gen2.webp"
+
+
+async def test_detail_fills_default_portrait(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    dweller = await _create_dweller(
+        async_session,
+        vault,
+        visual_attributes={"race": "ghoul", "state_of_being": "wild"},
+    )
+
+    response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["image_url"] == "/static/dweller_images/FOS_Dw_Default_Ghoul_Male_Wild.webp"
+    assert body["thumbnail_url"] == "/static/dweller_thumbnails/FOS_Dw_Default_Ghoul_Male_Wild.webp"
+    assert body["is_default_portrait"] is True
+
+
+async def test_list_fills_default_thumbnail(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    dweller = await _create_dweller(
+        async_session,
+        vault,
+        gender=GenderEnum.FEMALE,
+        visual_attributes={"race": "super_mutant", "state_of_being": "behemoth"},
+    )
+
+    response = await async_client.get(f"/dwellers/vault/{vault.id}/", headers=superuser_token_headers)
+
+    assert response.status_code == 200
+    item = next(row for row in response.json() if row["id"] == str(dweller.id))
+    assert item["thumbnail_url"] == ("/static/dweller_thumbnails/FOS_Dw_Default_SuperMutant_Female_Behemoth.webp")
+    assert item["is_default_portrait"] is True
+
+
+async def test_existing_portrait_is_preserved(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    dweller = await _create_dweller(
+        async_session,
+        vault,
+        image_url="/static/custom.png",
+        thumbnail_url=None,
+    )
+
+    response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["image_url"] == "/static/custom.png"
+    assert body["thumbnail_url"] == "/static/custom.png"
+    assert body["is_default_portrait"] is False
+
+
+async def test_gen1_synth_uses_one_genderless_default(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    male = await _create_dweller(
+        async_session,
+        vault,
+        gender=GenderEnum.MALE,
+        visual_attributes={"race": "synth", "state_of_being": "gen_1"},
+    )
+    female = await _create_dweller(
+        async_session,
+        vault,
+        gender=GenderEnum.FEMALE,
+        visual_attributes={"race": "synth", "state_of_being": "gen_1"},
+    )
+
+    for dweller in (male, female):
+        response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
+        assert response.status_code == 200
+        body = response.json()
+        assert body["image_url"] == "/static/dweller_images/FOS_Dw_Default_Synth_Gen1.webp"
+        assert body["thumbnail_url"] == "/static/dweller_thumbnails/FOS_Dw_Default_Synth_Gen1.webp"
+        assert body["is_default_portrait"] is True

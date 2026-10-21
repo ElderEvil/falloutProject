@@ -126,6 +126,21 @@ const canHealRadaway = computed(
             alt="Dweller Portrait"
             :class="['portrait-image', { 'grayscale brightness-50 contrast-125': dweller.is_dead }]"
           />
+          <button
+            v-if="dweller.is_default_portrait"
+            type="button"
+            class="absolute bottom-2 left-2 flex h-9 w-9 items-center justify-center rounded-full border border-theme-primary bg-black/75 text-theme-primary opacity-80 transition hover:opacity-100 disabled:cursor-wait"
+            :disabled="loading || generatingPortrait"
+            aria-label="Generate custom portrait"
+            @click="emit('generate-portrait')"
+          >
+            <Icon
+              :icon="generatingPortrait ? 'mdi:loading' : 'mdi:sparkles'"
+              class="h-5 w-5"
+              :class="{ 'animate-spin': generatingPortrait }"
+              :ariaHidden="true"
+            />
+          </button>
           <span
             v-if="dweller.is_dead"
             class="dead-portrait-marker absolute right-3 top-3 rounded-full border border-danger/70 bg-black/75 p-2 text-danger shadow-[0_0_12px_rgba(248,113,113,0.6)]"

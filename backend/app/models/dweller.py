@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from pydantic import UUID4
+from sqlalchemy import event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -21,6 +22,7 @@ from app.core.enums import (
 )
 from app.models.base import BaseUUIDModel, SoftDeleteMixin, SPECIALModel, TimeStampMixin
 from app.options.pet_modifiers import pet_modifiers_for
+from app.utils.dweller_assets import resolve_dweller_image_urls
 
 BIO_MAX_CHARS = 2_048
 
@@ -246,3 +248,8 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
         back_populates="dweller",
         sa_relationship_kwargs={"cascade": "all"},
     )
+
+
+@event.listens_for(Dweller, "before_insert")
+def _apply_default_dweller_portrait(_mapper: object, _connection: object, target: Dweller) -> None:
+    target.image_url, target.thumbnail_url = resolve_dweller_image_urls(target)

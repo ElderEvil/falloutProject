@@ -96,28 +96,27 @@ const getStatColorClass = (value: number) => {
         <div class="thumbnail-placeholder">
           <Icon icon="mdi:account-circle" class="placeholder-icon" />
         </div>
-
-        <!-- Generate AI Button -->
-        <TooltipProvider :delay-duration="200">
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <button
-                @click.stop="emit('generate-ai')"
-                class="ai-generate-button"
-                :disabled="generatingAI"
-                aria-label="Generate AI portrait"
-              >
-                <Icon
-                  :icon="generatingAI ? 'mdi:loading' : 'mdi:sparkles'"
-                  class="ai-icon"
-                  :class="{ 'animate-spin': generatingAI }"
-                />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top">Generate AI portrait</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
       </template>
+
+      <TooltipProvider v-if="!dweller.thumbnail_url || dweller.is_default_portrait" :delay-duration="200">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <button
+              @click.stop="emit('generate-ai')"
+              class="ai-generate-button"
+              :disabled="generatingAI"
+              aria-label="Generate AI portrait"
+            >
+              <Icon
+                :icon="generatingAI ? 'mdi:loading' : 'mdi:sparkles'"
+                class="ai-icon"
+                :class="{ 'animate-spin': generatingAI }"
+              />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">Generate AI portrait</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
 
     <!-- Info Section -->

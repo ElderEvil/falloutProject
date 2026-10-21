@@ -6815,6 +6815,8 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             pet?: components["schemas"]["PetRead"] | null;
+            /** Is Default Portrait */
+            readonly is_default_portrait: boolean;
             /**
              * Effective Max Health
              * @description Maximum health available after radiation damage.
@@ -6975,6 +6977,8 @@ export interface components {
             room: components["schemas"]["RoomRead"] | null;
             weapon: components["schemas"]["WeaponRead"] | null;
             outfit: components["schemas"]["OutfitRead"] | null;
+            /** Is Default Portrait */
+            readonly is_default_portrait: boolean;
             /**
              * Effective Max Health
              * @description Maximum health available after radiation damage.
@@ -7042,6 +7046,8 @@ export interface components {
             parent_1_id?: string | null;
             /** Parent 2 Id */
             parent_2_id?: string | null;
+            /** Is Default Portrait */
+            readonly is_default_portrait: boolean;
             /**
              * Effective Max Health
              * @description Maximum health available after radiation damage.
@@ -7196,6 +7202,8 @@ export interface components {
              * Format: uuid4
              */
             room_id: string;
+            /** Is Default Portrait */
+            readonly is_default_portrait: boolean;
             /**
              * Effective Max Health
              * @description Maximum health available after radiation damage.

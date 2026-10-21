@@ -94,6 +94,35 @@ describe('DwellerCard', () => {
       expect(image.attributes('src')).toContain('example.com/image.jpg')
     })
 
+    it('keeps a generate action on a default portrait', async () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: { ...mockDweller, is_default_portrait: true },
+          imageUrl: '/static/dweller_images/FOS_Dw_Default_Human_Male.webp',
+        },
+      })
+
+      expect(wrapper.find('.portrait-image').exists()).toBe(true)
+      const button = wrapper.find('button[aria-label="Generate custom portrait"]')
+      expect(button.exists()).toBe(true)
+
+      await button.trigger('click')
+      expect(wrapper.emitted('generate-portrait')).toHaveLength(1)
+    })
+
+    it('disables the default portrait generate action while generating', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: { ...mockDweller, is_default_portrait: true },
+          imageUrl: '/static/dweller_images/FOS_Dw_Default_Human_Male.webp',
+          generatingPortrait: true,
+        },
+      })
+
+      const button = wrapper.find('button[aria-label="Generate custom portrait"]')
+      expect(button.attributes('disabled')).toBeDefined()
+    })
+
     it('uses the API origin for backend static portraits', () => {
       const wrapper = mount(DwellerCard, {
         props: {

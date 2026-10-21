@@ -188,4 +188,24 @@ describe('DwellerGridItem', () => {
       expect(wrapper.text()).toContain('5') // Level
     })
   })
+
+  describe('Default portrait', () => {
+    it('keeps the AI action on a default thumbnail', async () => {
+      const wrapper = mount(DwellerGridItem, {
+        props: {
+          dweller: {
+            ...mockDweller,
+            thumbnail_url: '/static/dweller_thumbnails/FOS_Dw_Default_Human_Male.webp',
+            is_default_portrait: true,
+          },
+        },
+      })
+
+      const button = wrapper.find('.ai-generate-button')
+      expect(button.exists()).toBe(true)
+
+      await button.trigger('click')
+      expect(wrapper.emitted('generate-ai')).toHaveLength(1)
+    })
+  })
 })

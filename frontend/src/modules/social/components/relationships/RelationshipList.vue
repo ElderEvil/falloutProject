@@ -50,10 +50,20 @@
       </div>
     </div>
   </div>
+  <TerminalConfirmation
+    :open="showBreakupConfirmation"
+    title="End relationship?"
+    message="These dwellers will become ex-partners."
+    confirm-label="End relationship"
+    @confirm="confirmBreakup()"
+    @cancel="cancelBreakup()"
+  />
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onScopeDispose, ref } from 'vue'
+import { useConfirmDialog } from '@vueuse/core'
+import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.vue'
 import { useRelationshipStore } from '../../stores/relationship'
 import { usePregnancyStore } from '../../stores/pregnancy'
 import {
@@ -87,6 +97,13 @@ const { filter: dwellerStore } = useDwellerStore()
 const relationships = computed(() => relationshipStore.relationships)
 const isLoading = computed(() => relationshipStore.isLoading)
 const error = ref<string | null>(null)
+const {
+  isRevealed: showBreakupConfirmation,
+  reveal: revealBreakup,
+  confirm: confirmBreakup,
+  cancel: cancelBreakup,
+} = useConfirmDialog()
+onScopeDispose(cancelBreakup)
 
 /** A relationship paired with its two resolved dweller records. */
 interface ResolvedRelationship {
@@ -227,7 +244,8 @@ async function marry(relationshipId: string) {
 
 /** End the relationship after a confirmation prompt. */
 async function breakUp(relationshipId: string) {
-  if (confirm('Are you sure you want to end this relationship?')) {
+  if (showBreakupConfirmation.value || isLoading.value) return
+  if (!(await revealBreakup()).isCanceled) {
     await relationshipStore.breakUp(relationshipId)
   }
 }

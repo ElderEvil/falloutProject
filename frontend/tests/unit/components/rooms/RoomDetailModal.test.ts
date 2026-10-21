@@ -24,6 +24,7 @@ config.global.stubs = {
   DialogContent: { template: '<div><slot /></div>' },
   DialogHeader: { template: '<div><slot /></div>' },
   DialogTitle: { template: '<div><slot /></div>' },
+  DialogDescription: { template: '<p><slot /></p>' },
   Button: {
     props: ['disabled'],
     template: '<button class="mock-button" :disabled="disabled"><slot /></button>',
@@ -145,7 +146,7 @@ describe('RoomDetailModal', () => {
     const store = useRoomStore()
     store.rooms = [room, { ...room, id: 'neighbor', size: 3, coordinate_x: room.size }]
     useAuthStore().token = 'token'
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const nativeConfirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     vi.mocked(axios.post).mockResolvedValueOnce({
       data: action === 'split' ? [room, { ...room, id: 'piece-2' }] : { ...room, size: 6 },
     })
@@ -156,6 +157,13 @@ describe('RoomDetailModal', () => {
       .findAll('button')
       .find((b) => b.text().includes(action === 'split' ? 'Split into' : 'Merge right'))!
     await button.trigger('click')
+    await flushPromises()
+    expect(nativeConfirm).not.toHaveBeenCalled()
+    expect(axios.post).not.toHaveBeenCalled()
+    const confirmation = wrapper
+      .findAll('button')
+      .find((b) => b.text().includes(action === 'split' ? 'Split room' : 'Merge rooms'))!
+    await confirmation.trigger('click')
     await flushPromises()
     expect(axios.post).toHaveBeenCalledWith(
       `/api/v1/rooms/${action}/room-1`,

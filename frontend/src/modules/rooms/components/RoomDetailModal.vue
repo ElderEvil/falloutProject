@@ -20,6 +20,7 @@ import { useRoomStyle } from '../composables/useRoomStyle'
 import { useRoomThemes } from '../composables/useRoomThemes'
 import RoomDetailHeader from './RoomDetailHeader.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
+import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.vue'
 import RoomPreviewSection from './RoomPreviewSection.vue'
 import ProductionStats from './ProductionStats.vue'
 import DwellerList from './DwellerList.vue'
@@ -109,6 +110,10 @@ const {
   isDestroying,
   isRemodeling,
   handleRemodel,
+  remodelTitle,
+  showRemodelConfirmation,
+  confirmRemodel,
+  cancelRemodel,
   upgradeInfo,
   isVaultDoor,
   handleUpgrade,
@@ -123,6 +128,10 @@ const {
 const { isApplyingStyle, handleApplyStyle } = useRoomStyle(roomRef, actionError, () =>
   emit('roomUpdated')
 )
+
+watch(modelValueRef, (open) => {
+  if (!open) cancelRemodel()
+})
 
 const {
   isRecruiting,
@@ -329,6 +338,14 @@ onUnmounted(stopAmbience)
       </div>
     </div>
   </TerminalModal>
+  <TerminalConfirmation
+    :open="showRemodelConfirmation"
+    :title="remodelTitle"
+    message="Free. Dwellers, capacity and refund value stay the same."
+    :confirm-label="remodelTitle.startsWith('Merge') ? 'Merge rooms' : 'Split room'"
+    @confirm="confirmRemodel()"
+    @cancel="cancelRemodel()"
+  />
 </template>
 
 <style scoped>

@@ -1,7 +1,9 @@
 """API tests for expedition site endpoints."""
 
+import json
 import random
 from datetime import datetime
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -261,6 +263,18 @@ async def test_site_available_missing_exploration_404(
     assert response.status_code == 404
 
 
+@pytest.fixture
+def level_gated_site_catalog(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    from app.services import catalog_service
+
+    red_rocket = next(site for site in catalog_service.load_expedition_sites() if site.id == "red_rocket")
+    (tmp_path / "expedition_sites.json").write_text(json.dumps({"sites": [red_rocket.model_dump(mode="json")]}))
+    monkeypatch.setattr(catalog_service, "EXPLORATION_DIR", tmp_path)
+    catalog_service.load_expedition_sites.cache_clear()
+    yield
+    catalog_service.load_expedition_sites.cache_clear()
+
+
 @pytest.mark.asyncio
 async def test_site_available_reports_level_reason(
     async_client: AsyncClient,
@@ -268,13 +282,9 @@ async def test_site_available_reports_level_reason(
     async_session: AsyncSession,
     vault: Vault,
     dweller: Dweller,
-    monkeypatch: pytest.MonkeyPatch,
+    level_gated_site_catalog,
 ) -> None:
     """An empty list explains the level gate instead of looking like a missing feature."""
-    from app.services.exploration import data_loader
-
-    red_rocket = next(site for site in data_loader.load_expedition_sites() if site.id == "red_rocket")
-    monkeypatch.setattr(data_loader, "load_expedition_sites", lambda: [red_rocket])
     await crud.dweller.update(async_session, dweller.id, {"level": 1}, commit=True)
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
@@ -294,13 +304,9 @@ async def test_site_available_reports_cooldown_reason(
     async_session: AsyncSession,
     vault: Vault,
     dweller: Dweller,
-    monkeypatch: pytest.MonkeyPatch,
+    level_gated_site_catalog,
 ) -> None:
     """A legacy journey distinguishes an anti-farm cooldown from a genuinely empty catalog."""
-    from app.services.exploration import data_loader
-
-    red_rocket = next(site for site in data_loader.load_expedition_sites() if site.id == "red_rocket")
-    monkeypatch.setattr(data_loader, "load_expedition_sites", lambda: [red_rocket])
     await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     run = await crud.expedition_run.create_run(

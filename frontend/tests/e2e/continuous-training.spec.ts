@@ -42,20 +42,35 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
         return route.fulfill({ json: sessions })
       if (route.request().url().includes('/dwellers/'))
         return route.fulfill({
-          json: sessions.map((session) => ({
-            id: session.id,
-            first_name: session.id === 'first' ? 'Alice' : session.id === 'soon' ? 'Bob' : 'Carol',
-            last_name: 'Vault',
-            room_id: session.room_id,
-            status: 'training',
-            level: 1,
-          })),
+          json: [
+            ...sessions.map((session) => ({
+              id: session.id,
+              first_name:
+                session.id === 'first' ? 'Alice' : session.id === 'soon' ? 'Bob' : 'Carol',
+              last_name: 'Vault',
+              room_id: session.room_id,
+              status: 'training',
+              level: 1,
+            })),
+            {
+              id: 'apprentice',
+              first_name: 'Ada',
+              last_name: 'Learner',
+              room_id: 'r3',
+              status: 'idle',
+              level: 1,
+              apprentice_stat: 'agility',
+              agility: 3,
+              apprentice_started_at: new Date(Date.now() - 60 * 60_000).toISOString(),
+            },
+          ],
         })
       if (route.request().url().includes('/rooms/vault/'))
         return route.fulfill({
           json: [
             { id: 'r1', name: 'Weight Room' },
             { id: 'r2', name: 'Fitness Room' },
+            { id: 'r3', name: 'Diner', tier: 1 },
           ],
         })
       return route.fulfill({ json: [] })
@@ -87,26 +102,49 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
     await expect(cards.nth(1)).toContainText('Carol Vault')
     await expect(cards.nth(2)).toContainText('Bob Vault')
     await expect(cards.nth(0)).toContainText('Strength 5 → 6')
-    const aliceGoal = page.getByRole('combobox', { name: 'Training goal for Alice Vault' })
-    await expect(aliceGoal).toContainText('10')
-    await aliceGoal.click()
-    await page.getByRole('option', { name: '7', exact: true }).click()
-    await expect(aliceGoal).toContainText('7')
+    const aliceGoal = page.getByRole('group', { name: 'Training goal for Alice Vault' })
+    const goalValue = aliceGoal.locator('output')
+    const minus = aliceGoal.getByRole('button', { name: 'Decrease goal for Alice Vault' })
+    const plus = aliceGoal.getByRole('button', { name: 'Increase goal for Alice Vault' })
+    await expect(goalValue).toHaveText('10')
+    await expect(plus).toBeDisabled()
+    for (const value of [9, 8, 7, 6]) {
+      await minus.click()
+      await expect(goalValue).toHaveText(String(value))
+    }
+    await expect(minus).toBeDisabled()
+    await plus.click()
+    await expect(goalValue).toHaveText('7')
     await page.reload()
-    await expect(aliceGoal).toContainText('7')
-    await expect(page.getByRole('combobox', { name: 'Training goal for Bob Vault' })).toContainText(
-      '10'
-    )
+    await expect(goalValue).toHaveText('7')
+    await expect(
+      page.getByRole('group', { name: 'Training goal for Bob Vault' }).locator('output')
+    ).toHaveText('10')
     await expect(
       page.getByRole('region', { name: 'Weight Room' }).locator('.training-progress-card')
     ).toHaveCount(2)
     await expect(
       page.getByRole('region', { name: 'Fitness Room' }).locator('.training-progress-card')
     ).toHaveCount(1)
+    const apprentice = page.locator('.learning-progress-card').filter({ hasText: 'Ada Learner' })
+    await expect(apprentice).toContainText('Apprentice')
+    await expect(apprentice).toContainText('Agility 3 → 4')
+    await expect(apprentice).toContainText('Diner')
+    await expect(apprentice.getByRole('button')).toHaveCount(0)
+    await expect(page.locator('.learning-progress-card')).toHaveCount(4)
+    const first = (await cards.nth(0).boundingBox())!
+    const second = (await cards.nth(1).boundingBox())!
+    if (theme === 'fnv') {
+      expect(second.y).toBeGreaterThan(first.y)
+    } else {
+      expect(second.y).toBe(first.y)
+      expect(second.x).toBeGreaterThan(first.x)
+      expect(first.width).toBeLessThanOrEqual(320)
+    }
     await expect(cards.nth(0)).toContainText('Soon')
-    const rowsFit = await cards.evaluateAll((rows) =>
-      rows.every((row) => row.scrollWidth <= row.clientWidth)
-    )
+    const rowsFit = await page
+      .locator('.learning-progress-card')
+      .evaluateAll((rows) => rows.every((row) => row.scrollWidth <= row.clientWidth))
     expect(rowsFit).toBe(true)
     await toggle.hover()
     await expect(tooltip).toContainText('Click to stop after this round.')

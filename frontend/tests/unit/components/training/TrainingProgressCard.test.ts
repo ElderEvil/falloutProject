@@ -64,8 +64,28 @@ describe('TrainingProgressCard', () => {
     expect(wrapper.text()).toContain('Strength 5 → 6')
     expect(wrapper.text()).toContain('42m left')
     expect(wrapper.text()).toContain('Goal:')
-    expect(wrapper.get('[role=combobox]').attributes('aria-label')).toBe('Training goal for Alice')
-    expect(wrapper.get('[role=combobox]').text()).toContain('8')
+    const goal = wrapper.get('[role=group][aria-label="Training goal for Alice"]')
+    expect(goal.text()).toContain('8')
+    const decrease = goal.get('button[aria-label="Decrease goal for Alice"]')
+    const increase = goal.get('button[aria-label="Increase goal for Alice"]')
+    await decrease.trigger('click')
+    await increase.trigger('click')
+    expect(wrapper.emitted('goal')).toEqual([
+      ['t1', 7],
+      ['t1', 9],
+    ])
+    await wrapper.setProps({ isSavingGoal: true })
+    expect(decrease.attributes()).toHaveProperty('disabled')
+    expect(increase.attributes()).toHaveProperty('disabled')
+    await wrapper.setProps({
+      isSavingGoal: false,
+      training: { ...wrapper.props('training'), goal_stat_value: 6 },
+    })
+    expect(decrease.attributes()).toHaveProperty('disabled')
+    expect(increase.attributes()).not.toHaveProperty('disabled')
+    await wrapper.setProps({ training: { ...wrapper.props('training'), goal_stat_value: 10 } })
+    expect(increase.attributes()).toHaveProperty('disabled')
+    expect(decrease.attributes()).not.toHaveProperty('disabled')
     await wrapper.setProps({ continuousTraining: false })
     expect(wrapper.text()).not.toContain('Goal:')
     await wrapper.setProps({

@@ -2,21 +2,11 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/core/components/ui/select'
-import { Badge } from '@/core/components/ui/badge'
-import { Progress } from '@/core/components/ui/progress'
+import LearningProgressCard from './LearningProgressCard.vue'
 import { useNow } from '@/core/composables/useNow'
 import { formatDuration } from '@/core/utils/time'
 import type { components } from '@/core/types/api.generated'
-import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
-import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 
 type TrainingRead = components['schemas']['TrainingRead']
 type TrainingProgress = components['schemas']['TrainingProgress']
@@ -37,16 +27,14 @@ const emit = defineEmits<{
   (e: 'goal', trainingId: string, value: number): void
 }>()
 
-const goalOptions = computed(() =>
-  Array.from({ length: 11 - props.training.target_stat_value }, (_, index) =>
-    String(props.training.target_stat_value + index)
-  )
-)
-const changeGoal = (value: unknown) => {
-  if (value != null) emit('goal', props.training.id, Number(value))
+const goal = computed(() => props.training.goal_stat_value ?? 10)
+const changeGoal = (delta: number) => {
+  const value = goal.value + delta
+  if (!props.isSavingGoal && value >= props.training.target_stat_value && value <= 10) {
+    emit('goal', props.training.id, value)
+  }
 }
 const now = useNow(1000)
-const ability = computed(() => getAbilityConfig(props.training.stat_being_trained))
 const isCompletingSoon = computed(() => {
   const remaining = Date.parse(props.training.estimated_completion_at) - now.value
   return props.training.status === 'active' && remaining > 0 && remaining <= 10 * 60_000
@@ -88,17 +76,6 @@ const isReadyToComplete = computed(() => {
   return completionTime <= now.value
 })
 
-const fillGradient = computed(() => {
-  if (isReadyToComplete.value) {
-    return 'linear-gradient(to right, var(--color-theme-accent), var(--color-theme-primary), var(--color-theme-accent))'
-  }
-  return 'linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent), var(--color-theme-primary))'
-})
-
-const portraitStateClass = computed(() =>
-  isReadyToComplete.value ? 'border-theme-accent shadow-[0_0_8px_var(--color-theme-accent)]' : ''
-)
-
 const handleCancel = () => {
   if (props.training.id) {
     emit('cancel', props.training.id)
@@ -113,95 +90,58 @@ const handleComplete = () => {
 </script>
 
 <template>
-  <div
-    class="training-progress-card rounded-lg border bg-transparent px-2.5 py-2 shadow-[0_0_10px_var(--color-theme-primary),inset_0_0_10px_rgb(0_0_0_/_0.5)] transition-colors duration-200"
-    :class="{
-      'border-theme-primary hover:shadow-[0_0_15px_var(--color-theme-primary),inset_0_0_10px_rgb(0_0_0_/_0.5)]':
-        !isReadyToComplete && training.status === 'active',
-      'completion-ready border-theme-accent': isReadyToComplete,
-      'border-theme-glow opacity-60 hover:shadow-[0_0_15px_var(--color-theme-primary),inset_0_0_10px_rgb(0_0_0_/_0.5)]':
-        training.status !== 'active',
-    }"
+  <LearningProgressCard
+    class="training-progress-card"
+    :name="dwellerName"
+    :image="dwellerImage"
+    :stat="training.stat_being_trained"
+    :current-stat="training.current_stat_value"
+    :target-stat="training.target_stat_value"
+    :progress="progressPercentage"
+    :time-remaining="timeRemaining"
+    :ready="isReadyToComplete"
+    :soon="isCompletingSoon"
+    :inactive="training.status !== 'active'"
   >
-    <div class="mb-2 flex items-start gap-2">
-      <DwellerPortrait
-        :thumbnail-url="dwellerImage"
-        :alt="dwellerName ?? 'Dweller'"
-        :image-class="`size-10 shrink-0 rounded-md border border-theme-glow object-cover [image-rendering:pixelated] ${portraitStateClass}`"
-        :fallback-class="`flex size-10 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-surface-sunken text-theme-primary ${portraitStateClass}`"
-      />
-      <div class="flex min-w-0 flex-1 flex-col gap-1">
-        <div class="flex min-w-0 items-center gap-2">
-          <span class="min-w-0 flex-1 truncate font-mono text-sm font-bold text-theme-primary">{{
-            dwellerName ?? 'Dweller'
-          }}</span>
-          <Badge v-if="isCompletingSoon" variant="secondary">Soon</Badge>
-          <Select
-            v-if="continuousTraining && training.status === 'active'"
-            :model-value="String(training.goal_stat_value ?? 10)"
-            :disabled="isSavingGoal"
-            @update:model-value="changeGoal"
-          >
-            <SelectTrigger
-              size="sm"
-              class="h-7 shrink-0 gap-1 px-1.5 font-mono text-xs text-theme-accent"
-              :aria-label="`Training goal for ${dwellerName ?? 'Dweller'}`"
-            >
-              Goal: <SelectValue>{{ training.goal_stat_value ?? 10 }}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="goal in goalOptions" :key="goal" :value="goal">{{
-                goal
-              }}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div
-          class="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-theme-primary"
-        >
-          <span class="inline-flex items-center gap-1">
-            <Icon :icon="ability?.icon ?? 'mdi:star'" class="completion-stat-icon shrink-0" />
-            {{ ability?.label ?? training.stat_being_trained }} {{ training.current_stat_value }} →
-            {{ training.target_stat_value }}
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <div class="flex flex-wrap items-center gap-2">
-      <Progress
-        class="h-1.5 min-w-16 flex-1"
-        :fill="fillGradient"
-        :model-value="progressPercentage"
-      />
-      <span
-        class="completion-time whitespace-nowrap font-mono text-xs text-theme-primary"
-        :class="{ 'text-theme-accent': isReadyToComplete }"
-        >{{ timeRemaining }}</span
+    <template v-if="continuousTraining && training.status === 'active'" #goal>
+      <div
+        role="group"
+        :aria-label="`Training goal for ${dwellerName ?? 'Dweller'}`"
+        class="flex items-center gap-1 text-theme-accent"
       >
-      <div class="flex shrink-0 gap-1">
-        <Button v-if="isReadyToComplete" size="xs" variant="default" @click="handleComplete">
-          <Icon icon="mdi:check-circle" />
-          Complete
-        </Button>
+        <span class="mr-1">Goal:</span>
         <Button
-          v-if="training.status === 'active'"
-          size="xs"
-          variant="destructive"
-          @click="handleCancel"
+          size="icon-sm"
+          class="size-7"
+          variant="outline"
+          :aria-label="`Decrease goal for ${dwellerName ?? 'Dweller'}`"
+          :disabled="isSavingGoal || goal <= training.target_stat_value"
+          @click="changeGoal(-1)"
         >
-          <Icon icon="mdi:close-circle" />
-          Cancel
+          <Icon icon="mdi:minus" />
+        </Button>
+        <output class="min-w-5 text-center tabular-nums" aria-live="polite">{{ goal }}</output>
+        <Button
+          size="icon-sm"
+          class="size-7"
+          variant="outline"
+          :aria-label="`Increase goal for ${dwellerName ?? 'Dweller'}`"
+          :disabled="isSavingGoal || goal >= 10"
+          @click="changeGoal(1)"
+        >
+          <Icon icon="mdi:plus" />
         </Button>
       </div>
-    </div>
-  </div>
+    </template>
+    <template v-if="training.status === 'active'" #actions>
+      <Button v-if="isReadyToComplete" size="xs" variant="default" @click="handleComplete">
+        <Icon icon="mdi:check-circle" />
+        Complete
+      </Button>
+      <Button size="xs" variant="destructive" @click="handleCancel">
+        <Icon icon="mdi:close-circle" />
+        Cancel
+      </Button>
+    </template>
+  </LearningProgressCard>
 </template>
-
-<style scoped>
-.completion-ready {
-  box-shadow:
-    0 0 14px var(--color-theme-accent),
-    inset 0 0 10px rgb(0 0 0 / 0.5);
-}
-</style>

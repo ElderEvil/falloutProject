@@ -176,18 +176,21 @@ onMounted(() => {
               group.trainings.length
             }}</span>
           </h4>
-          <TrainingProgressCard
-            v-for="training in group.trainings"
-            :key="training.id"
-            :training="training"
-            :dweller-name="getDweller(training.dweller_id)?.name"
-            :dweller-image="getDweller(training.dweller_id)?.image"
-            :continuous-training="continuousTraining"
-            :is-saving-goal="trainingStore.savingGoals.has(training.id)"
-            @goal="handleGoal"
-            @cancel="handleCancelTraining"
-            @complete="handleCompleteTraining"
-          />
+          <div class="flex flex-wrap gap-3">
+            <TrainingProgressCard
+              class="w-80 max-w-full min-w-0"
+              v-for="training in group.trainings"
+              :key="training.id"
+              :training="training"
+              :dweller-name="getDweller(training.dweller_id)?.name"
+              :dweller-image="getDweller(training.dweller_id)?.image"
+              :continuous-training="continuousTraining"
+              :is-saving-goal="trainingStore.savingGoals.has(training.id)"
+              @goal="handleGoal"
+              @cancel="handleCancelTraining"
+              @complete="handleCompleteTraining"
+            />
+          </div>
         </section>
       </div>
     </div>

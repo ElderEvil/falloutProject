@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { Progress } from '@/core/components/ui/progress'
+import LearningProgressCard from './LearningProgressCard.vue'
 import { useNow } from '@/core/composables/useNow'
 import { formatDuration } from '@/core/utils/time'
-import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import { useRoomStore } from '@/modules/rooms/stores/room'
-import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
 
 const dwellerStore = useDwellerFilterStore()
@@ -22,7 +20,7 @@ const TRAINING_PER_LEVEL_SECONDS = 1800
 const TIER_MULTIPLIERS: Record<number, number> = { 1: 1.0, 2: 0.75, 3: 0.6 }
 
 const apprentices = computed(() =>
-  dwellerStore.dwellers.filter((dweller) => dweller.apprentice_stat !== null)
+  dwellerStore.dwellers.filter((dweller) => !!dweller.apprentice_stat)
 )
 
 const roomLookup = computed(() => {
@@ -39,17 +37,15 @@ interface ApprenticeProgress {
   thumbnailUrl: string | null
   roomName: string
   statKey: string
-  statLabel: string
-  statIcon: string
   currentStat: number
   progressPercent: number
   timeRemaining: string
+  ready: boolean
 }
 
 const apprenticeCards = computed<ApprenticeProgress[]>(() => {
   return apprentices.value.map((dweller) => {
     const statKey = (dweller.apprentice_stat ?? '').toLowerCase()
-    const ability = getAbilityConfig(statKey)
     const room = dweller.room_id ? roomLookup.value.get(dweller.room_id) : undefined
     const currentStat = (dweller[statKey as keyof typeof dweller] as number) ?? 1
 
@@ -67,7 +63,12 @@ const apprenticeCards = computed<ApprenticeProgress[]>(() => {
 
     const remainingMs = durationSeconds * 1000 - elapsed
     const timeRemaining =
-      remainingMs <= 0 ? 'Ready!' : formatDuration(remainingMs / 1000, { omitZeroHours: true })
+      remainingMs <= 0
+        ? 'Ready'
+        : formatDuration(Math.ceil(remainingMs / 60_000) * 60, {
+            omitZeroHours: true,
+            suffix: 'left',
+          })
 
     return {
       id: dweller.id,
@@ -75,11 +76,10 @@ const apprenticeCards = computed<ApprenticeProgress[]>(() => {
       thumbnailUrl: dweller.thumbnail_url ?? null,
       roomName: room?.name ?? 'Production Room',
       statKey,
-      statLabel: ability?.label ?? statKey,
-      statIcon: ability?.icon ?? 'mdi:star',
       currentStat,
       progressPercent,
       timeRemaining,
+      ready: remainingMs <= 0,
     }
   })
 })
@@ -93,9 +93,7 @@ const apprenticeCards = computed<ApprenticeProgress[]>(() => {
           icon="mdi:school"
           class="text-2xl text-theme-primary [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
         />
-        <h3
-          class="m-0 font-mono text-xl font-bold uppercase tracking-[0.05em] text-theme-primary"
-        >
+        <h3 class="m-0 font-mono text-xl font-bold uppercase tracking-[0.05em] text-theme-primary">
           Apprentices ({{ apprenticeCards.length }})
         </h3>
       </div>
@@ -115,48 +113,22 @@ const apprenticeCards = computed<ApprenticeProgress[]>(() => {
       description="Assign youth dwellers to production rooms as apprentices to learn SPECIAL stats."
     />
 
-    <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
-      <div
+    <div v-else class="flex flex-wrap gap-3">
+      <LearningProgressCard
         v-for="apprentice in apprenticeCards"
         :key="apprentice.id"
-        class="flex flex-col gap-3 rounded-lg border-2 border-theme-primary/30 bg-black/30 p-5 transition-colors hover:border-theme-primary/50"
-      >
-        <div class="flex items-center gap-4">
-          <DwellerPortrait
-            :thumbnail-url="apprentice.thumbnailUrl"
-            :alt="apprentice.name"
-            image-class="h-14 w-14 shrink-0 rounded-md border border-theme-glow object-cover [image-rendering:pixelated]"
-            fallback-class="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-surface-sunken text-theme-primary"
-          />
-          <div class="min-w-0 flex-1">
-            <p class="m-0 truncate font-mono text-base font-bold text-theme-primary">
-              {{ apprentice.name }}
-            </p>
-            <p class="m-0 truncate font-mono text-sm text-theme-primary/60">
-              {{ apprentice.roomName }}
-            </p>
-          </div>
-        </div>
-
-        <div class="flex flex-col gap-2">
-          <div class="flex items-center justify-between gap-2">
-            <span
-              class="flex shrink-0 items-center gap-2 rounded border border-theme-primary/40 bg-theme-secondary/40 px-2.5 py-1 font-mono text-sm font-bold text-theme-primary"
-            >
-              <Icon :icon="apprentice.statIcon" class="text-base" />
-              {{ apprentice.statLabel }} {{ apprentice.currentStat }}→{{ apprentice.currentStat + 1 }}
-            </span>
-            <span class="shrink-0 font-mono text-sm font-bold text-theme-primary">{{
-              apprentice.timeRemaining
-            }}</span>
-          </div>
-          <Progress
-            class="h-2.5"
-            :fill="'linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent))'"
-            :model-value="apprentice.progressPercent"
-          />
-        </div>
-      </div>
+        class="w-80 max-w-full min-w-0"
+        kind="apprentice"
+        :name="apprentice.name"
+        :image="apprentice.thumbnailUrl"
+        :room-name="apprentice.roomName"
+        :stat="apprentice.statKey"
+        :current-stat="apprentice.currentStat"
+        :target-stat="Math.min(apprentice.currentStat + 1, 10)"
+        :progress="apprentice.progressPercent"
+        :time-remaining="apprentice.timeRemaining"
+        :ready="apprentice.ready"
+      />
     </div>
   </section>
 </template>

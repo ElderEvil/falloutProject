@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, inject, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, inject, onMounted, onScopeDispose, ref } from 'vue'
+import { useConfirmDialog } from '@vueuse/core'
+import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { MAX_USER_VAULTS, useVaultStore } from '../stores/vault'
 import { useRouter } from 'vue-router'
@@ -81,18 +83,27 @@ const createVault = async ({ number, boosted, vaultMode }: VaultNumberData) => {
   }
 }
 
+const {
+  isRevealed: showDeleteConfirmation,
+  reveal: revealDelete,
+  confirm: confirmDelete,
+  cancel: cancelDeletion,
+} = useConfirmDialog()
+onScopeDispose(cancelDeletion)
+
 const deleteVault = async (id: string) => {
-  if (confirm('Are you sure you want to delete this vault?') && !deletingVault.value) {
-    deletingVault.value = id
-    try {
-      await vaultStore.deleteVault(id, authStore.token as string)
-      if (selectedVaultId.value === id) {
-        selectedVaultId.value = null
-      }
-      await refreshVaults()
-    } finally {
-      deletingVault.value = null
-    }
+  if (deletingVault.value || showDeleteConfirmation.value) return
+  const token = authStore.token
+  if (!token) return
+  const { isCanceled } = await revealDelete()
+  if (isCanceled || authStore.token !== token) return
+  deletingVault.value = id
+  try {
+    await vaultStore.deleteVault(id, token)
+    if (selectedVaultId.value === id) selectedVaultId.value = null
+    await refreshVaults()
+  } finally {
+    deletingVault.value = null
   }
 }
 
@@ -312,4 +323,12 @@ onMounted(async () => {
       </div>
     </PageContentRail>
   </div>
+  <TerminalConfirmation
+    :open="showDeleteConfirmation"
+    title="Delete vault?"
+    message="Delete this vault and its contents?"
+    confirm-label="Delete vault"
+    @confirm="confirmDelete()"
+    @cancel="cancelDeletion()"
+  />
 </template>

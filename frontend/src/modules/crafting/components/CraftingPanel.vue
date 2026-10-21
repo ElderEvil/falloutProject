@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, onUnmounted, ref, watch } from 'vue'
+import { useConfirmDialog } from '@vueuse/core'
+import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.vue'
 import { Icon } from '@iconify/vue'
 import type { AcceptableValue } from 'reka-ui'
 import { Button } from '@/core/components/ui/button'
@@ -195,12 +197,28 @@ async function handleStart(recipe: CraftingRecipe) {
   }
 }
 
+const cancelTitle = ref('')
+const {
+  isRevealed: showCancelConfirmation,
+  reveal: revealCancel,
+  confirm: confirmCancel,
+  cancel: cancelCancellation,
+} = useConfirmDialog()
+onScopeDispose(cancelCancellation)
+watch(
+  () => [props.vaultId, props.itemType],
+  () => cancelCancellation()
+)
+
 async function handleCancel(order: CraftingOrder) {
-  if (!props.vaultId || busyKey.value) return
-  if (!window.confirm(`Cancel ${order.item_name} and refund its materials?`)) return
+  if (!props.vaultId || busyKey.value || showCancelConfirmation.value) return
+  const vaultId = props.vaultId
+  cancelTitle.value = `Cancel ${order.item_name}?`
+  const { isCanceled } = await revealCancel()
+  if (isCanceled || props.vaultId !== vaultId || busyKey.value) return
   busyKey.value = order.id
   try {
-    await craftingService.cancelOrder(props.vaultId, order.id)
+    await craftingService.cancelOrder(vaultId, order.id)
     toast.success(`Cancelled ${order.item_name}; materials refunded.`)
     await loadAll()
   } catch (error) {
@@ -345,10 +363,7 @@ watch(() => [props.vaultId, props.itemType, props.crewKey], loadAll)
           class="min-w-32 h-auto flex-1 rounded-sm border-theme-primary/30 bg-surface-sunken/60 px-2 py-1 text-xs text-theme-primary placeholder:text-theme-primary/40"
         />
         <Select v-model="rarityFilterSelect">
-          <SelectTrigger
-            size="sm"
-            class="text-xs"
-          >
+          <SelectTrigger size="sm" class="text-xs">
             <SelectValue placeholder="All rarities" />
           </SelectTrigger>
           <SelectContent>
@@ -383,11 +398,7 @@ watch(() => [props.vaultId, props.itemType, props.crewKey], loadAll)
           -->
           <TooltipProvider :delay-duration="200">
             <span :class="['recipe-icon', `recipe-icon-${recipe.item_type}`]">
-              <Icon
-                :icon="itemIcon"
-                class="h-6 w-6"
-                :class="getRarityTextClass(recipe.rarity)"
-              />
+              <Icon :icon="itemIcon" class="h-6 w-6" :class="getRarityTextClass(recipe.rarity)" />
             </span>
             <div class="flex min-w-0 flex-1 items-center gap-2">
               <span
@@ -442,7 +453,9 @@ watch(() => [props.vaultId, props.itemType, props.crewKey], loadAll)
                   variant="default"
                   size="sm"
                   class="shrink-0 border-2 border-theme-primary font-mono"
-                  :disabled="isLocked(recipe) || isOwned(recipe) || !recipe.can_craft || busyKey !== null"
+                  :disabled="
+                    isLocked(recipe) || isOwned(recipe) || !recipe.can_craft || busyKey !== null
+                  "
                   @click="handleStart(recipe)"
                 >
                   <Icon
@@ -483,6 +496,14 @@ watch(() => [props.vaultId, props.itemType, props.crewKey], loadAll)
       </p>
     </template>
   </Card>
+  <TerminalConfirmation
+    :open="showCancelConfirmation"
+    :title="cancelTitle"
+    message="Spent materials will be refunded."
+    confirm-label="Cancel crafting"
+    @confirm="confirmCancel()"
+    @cancel="cancelCancellation()"
+  />
 </template>
 
 <style scoped>

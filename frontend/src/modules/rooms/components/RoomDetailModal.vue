@@ -103,6 +103,8 @@ const confirmUnassignAll = async () => {
 
 watch([() => props.modelValue, () => props.room?.id], () => {
   showUnassignConfirmation.value = false
+  cancelRemodel()
+  cancelDestroy()
 })
 
 const { filter: dwellerStore } = useDwellerStore()
@@ -119,6 +121,10 @@ const { resourceIcon, roomImageUrl, roomGridImageUrl, productionInfo } = useRoom
 const {
   isUpgrading,
   isDestroying,
+  destroyTitle,
+  showDestroyConfirmation,
+  confirmDestroy,
+  cancelDestroy,
   isRemodeling,
   handleRemodel,
   remodelTitle,
@@ -139,10 +145,6 @@ const {
 const { isApplyingStyle, handleApplyStyle } = useRoomStyle(roomRef, actionError, () =>
   emit('roomUpdated')
 )
-
-watch(modelValueRef, (open) => {
-  if (!open) cancelRemodel()
-})
 
 const {
   isRecruiting,
@@ -349,6 +351,14 @@ onUnmounted(stopAmbience)
       </div>
     </div>
   </TerminalModal>
+  <TerminalConfirmation
+    :open="showDestroyConfirmation"
+    :title="destroyTitle"
+    message="Dwellers will be unassigned. You will receive a partial refund."
+    confirm-label="Destroy room"
+    @confirm="confirmDestroy()"
+    @cancel="cancelDestroy()"
+  />
   <TerminalConfirmation
     :open="showRemodelConfirmation"
     :title="remodelTitle"

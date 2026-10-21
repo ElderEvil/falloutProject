@@ -21,7 +21,14 @@ export function useRoomUpgrade(
   const authStore = useAuthStore()
   const toast = useToast()
 
-  const { isDestroying, destroyRoom } = useRoomDestroy()
+  const {
+    isDestroying,
+    destroyRoom,
+    destroyTitle,
+    showDestroyConfirmation,
+    confirmDestroy,
+    cancelDestroy,
+  } = useRoomDestroy()
 
   const isUpgrading = ref(false)
   const justUpgraded = ref(false)
@@ -156,6 +163,10 @@ export function useRoomUpgrade(
     cancelRemodel,
     handleRemodel,
     isDestroying,
+    destroyTitle,
+    showDestroyConfirmation,
+    confirmDestroy,
+    cancelDestroy,
     justUpgraded,
     upgradeInfo,
     isVaultDoor: isVaultDoorRoom,

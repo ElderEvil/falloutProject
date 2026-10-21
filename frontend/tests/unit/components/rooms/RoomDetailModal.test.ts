@@ -160,10 +160,10 @@ describe('RoomDetailModal', () => {
     await flushPromises()
     expect(nativeConfirm).not.toHaveBeenCalled()
     expect(axios.post).not.toHaveBeenCalled()
-    const confirmation = wrapper
+    await wrapper
       .findAll('button')
-      .find((b) => b.text().includes(action === 'split' ? 'Split room' : 'Merge rooms'))!
-    await confirmation.trigger('click')
+      .find((button) => button.text() === (action === 'split' ? 'Split room' : 'Merge rooms'))!
+      .trigger('click')
     await flushPromises()
     expect(axios.post).toHaveBeenCalledWith(
       `/api/v1/rooms/${action}/room-1`,
@@ -988,7 +988,9 @@ describe('RoomDetailModal', () => {
       await request.trigger('click')
       expect(nativeConfirm).not.toHaveBeenCalled()
       expect(unassign).not.toHaveBeenCalled()
-      const confirmation = wrapper.findComponent({ name: 'TerminalConfirmation' })
+      const confirmation = wrapper
+        .findAllComponents({ name: 'TerminalConfirmation' })
+        .find((dialog) => dialog.props('title') === 'Unassign dwellers?')!
       expect(confirmation.props('open')).toBe(true)
       expect(confirmation.text()).toContain('Unassign all 2 dwellers from this room?')
       await confirmation

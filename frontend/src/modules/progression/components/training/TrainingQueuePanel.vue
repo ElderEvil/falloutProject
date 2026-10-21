@@ -117,11 +117,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="training-queue-panel">
-    <div class="panel-header">
-      <div class="header-title">
-        <Icon icon="mdi:dumbbell" class="header-icon" />
-        <h3>Training Queue</h3>
+  <div class="training-queue-panel flex h-full flex-col gap-4 bg-transparent">
+    <div class="training-queue-header flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <Icon
+          icon="mdi:dumbbell"
+          class="text-2xl text-theme-primary [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
+        />
+        <h3 class="m-0 font-mono text-xl font-bold uppercase tracking-[0.05em] text-theme-primary">
+          Training Queue
+        </h3>
       </div>
       <TooltipProvider>
         <Tooltip>
@@ -151,7 +156,9 @@ onMounted(() => {
       </TooltipProvider>
     </div>
 
-    <div class="panel-content">
+    <div
+      class="training-queue-content flex flex-1 flex-col gap-6 overflow-y-auto rounded-lg border-2 border-theme-primary p-4 shadow-[0_0_10px_var(--color-theme-glow)]"
+    >
       <!-- Empty State -->
       <TerminalEmptyState
         v-if="activeTrainings.length === 0"
@@ -196,59 +203,3 @@ onMounted(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.training-queue-panel {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: transparent;
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 0.5rem;
-  overflow: hidden;
-  box-shadow: 0 0 10px var(--color-theme-glow);
-}
-
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
-  border-bottom: 1px solid var(--color-theme-glow);
-}
-
-.header-title {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.header-icon {
-  font-size: 1.5rem;
-  color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 4px var(--color-theme-glow));
-}
-
-.panel-header h3 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: bold;
-  white-space: nowrap;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.panel-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-</style>

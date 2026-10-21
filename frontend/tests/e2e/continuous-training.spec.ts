@@ -86,9 +86,12 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
     await expect(toggle).toHaveAttribute('aria-pressed', 'true')
     expect(changes).toEqual([true])
     const fits = await toggle.evaluate((element) => {
-      const bounds = element.closest('.panel-header')!.getBoundingClientRect()
+      const bounds = element.closest('.training-queue-header')!.getBoundingClientRect()
       const button = element.getBoundingClientRect()
-      const title = element.closest('.panel-header')!.querySelector('h3')!.getBoundingClientRect()
+      const title = element
+        .closest('.training-queue-header')!
+        .querySelector('h3')!
+        .getBoundingClientRect()
       return (
         (button.left >= title.right || button.top >= title.bottom) && button.right <= bounds.right
       )
@@ -98,6 +101,11 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
     await expect(toggle).toHaveAttribute('aria-pressed', 'true')
     const cards = page.locator('.training-progress-card')
     await expect(cards).toHaveCount(3)
+    const queueHeading = (await page
+      .getByRole('heading', { name: 'Training Queue', exact: true })
+      .boundingBox())!
+    const queueBox = (await page.locator('.training-queue-content').boundingBox())!
+    expect(queueHeading.y + queueHeading.height).toBeLessThan(queueBox.y)
     await expect(cards.nth(0)).toContainText('Alice Vault')
     await expect(cards.nth(1)).toContainText('Carol Vault')
     await expect(cards.nth(2)).toContainText('Bob Vault')
@@ -153,5 +161,72 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
     await expect(toggle).toHaveAttribute('aria-pressed', 'false')
     expect(changes).toEqual([true, false])
     expect(pageErrors).toEqual([])
+  })
+}
+
+for (const width of [1280, 360]) {
+  test(`training room stats fit without horizontal scrolling at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    const stats = [
+      'strength',
+      'perception',
+      'endurance',
+      'charisma',
+      'intelligence',
+      'agility',
+      'luck',
+    ]
+    const names = [
+      'Weight Room',
+      'Armory',
+      'Fitness Room',
+      'Lounge',
+      'Classroom',
+      'Athletics Room',
+      'Game Room',
+    ]
+    await page.route('**/api/v1/**', async (route) => {
+      if (route.request().url().includes('/vaults/vault-1'))
+        return route.fulfill({ json: { id: 'vault-1', number: 1, continuous_training: false } })
+      if (route.request().url().includes('/rooms/vault/'))
+        return route.fulfill({
+          json: stats.map((ability, index) => ({
+            id: ability,
+            name: names[index],
+            ability,
+            tier: 1,
+            category: 'training',
+            size: 9,
+            capacity: 6,
+          })),
+        })
+      return route.fulfill({ json: [] })
+    })
+    await page.goto('/tests/e2e/fixtures/continuous-training.html?full=1')
+    const region = page.getByRole('region', { name: 'Training rooms by SPECIAL stat', exact: true })
+    const groups = region.locator(':scope > section')
+    await expect(groups).toHaveCount(7)
+    const bounds = await groups.evaluateAll((elements) =>
+      elements.map((element) => ({
+        top: element.getBoundingClientRect().top,
+        fits: element.scrollWidth <= element.clientWidth,
+      }))
+    )
+    expect(bounds.every((element) => element.fits)).toBe(true)
+    expect(await region.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+      true
+    )
+    if (width === 1280) {
+      expect(new Set(bounds.map((element) => element.top)).size).toBe(1)
+      const title = (await page
+        .getByRole('heading', { name: 'Training Rooms', exact: true })
+        .boundingBox())!
+      const capacity = (await page
+        .getByRole('group', { name: 'Overall training capacity' })
+        .boundingBox())!
+      expect(capacity.x).toBeGreaterThan(title.x + title.width)
+      expect(capacity.y).toBeLessThan(title.y + title.height)
+    }
+    await page.screenshot({ path: test.info().outputPath(`training-rooms-${width}.png`) })
   })
 }

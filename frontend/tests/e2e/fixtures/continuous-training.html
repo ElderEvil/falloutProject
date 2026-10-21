@@ -10,6 +10,8 @@
     <script type="module">
       import '../../../src/assets/tailwind.css'
       import { createApp, h } from 'vue'
+      import { createMemoryHistory, createRouter } from 'vue-router'
+      import TrainingView from '../../../src/modules/progression/views/TrainingView.vue'
       import { createPinia } from 'pinia'
       import TrainingQueuePanel from '../../../src/modules/progression/components/training/TrainingQueuePanel.vue'
       import ApprenticeSection from '../../../src/modules/progression/components/training/ApprenticeSection.vue'
@@ -17,6 +19,16 @@
       import { useVaultStore } from '../../../src/modules/vault/stores/vault'
       import { useTheme } from '../../../src/core/composables/useTheme'
 
+      const fullPage = new URLSearchParams(location.search).has('full')
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [{ path: '/vault/:id/training', component: TrainingView }],
+      })
+      await router.push('/vault/vault-1/training')
+      if (fullPage) {
+        document.getElementById('app').className = ''
+        if (innerWidth < 640) localStorage.setItem('sidePanel_collapsed', 'true')
+      }
       const vault = await (await fetch('/api/v1/vaults/vault-1')).json()
       useTheme().setTheme(new URLSearchParams(location.search).get('theme') || 'fo4')
       createApp({
@@ -26,13 +38,16 @@
           store.loadedVaults['vault-1'] = vault
           store.activeVaultId = 'vault-1'
           return () =>
-            h('div', { class: 'flex flex-col gap-6' }, [
-              h(TrainingQueuePanel),
-              h(ApprenticeSection),
-            ])
+            fullPage
+              ? h(TrainingView)
+              : h('div', { class: 'flex flex-col gap-6' }, [
+                  h(TrainingQueuePanel),
+                  h(ApprenticeSection),
+                ])
         },
       })
         .use(createPinia())
+        .use(router)
         .mount('#app')
     </script>
   </body>

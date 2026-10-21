@@ -77,14 +77,18 @@ describe('TrainingView', () => {
     expect(wrapper.text()).toContain('Training Duration')
   })
 
-  it('uses the shared training-room capacity for the overall capacity progress bar', async () => {
+  it('groups rooms by SPECIAL stat and keeps the shared overall capacity', async () => {
     const authStore = useAuthStore()
     const roomStore = useRoomStore()
     const vaultStore = useVaultStore()
     authStore.token = 'test-token'
     roomStore.rooms = [
+      { id: 'agility-room', ability: 'agility', category: 'training', capacity: null, size: 3 },
+      { id: 'strength-room-2', ability: 'strength', category: 'training', capacity: null, size: 3 },
+      { id: 'production-room', ability: 'strength', category: 'production', capacity: 2, size: 3 },
       {
         id: 'training-room-1',
+        ability: 'strength',
         category: 'training',
         capacity: null,
         size: 3,
@@ -112,11 +116,18 @@ describe('TrainingView', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('0 / 2')
+    expect(wrapper.text()).toContain('0 / 6')
     expect(wrapper.findAll('.page-header-metric-value').map((metric) => metric.text())).toEqual([
       '0',
-      '0 / 1',
+      '0 / 3',
     ])
     expect(wrapper.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('0')
+    const rows = wrapper.findAll('section[aria-label$="training rooms"]')
+    expect(rows.map((row) => row.attributes('aria-label'))).toEqual([
+      'Strength training rooms',
+      'Agility training rooms',
+    ])
+    expect(rows[0].findAll('training-room-card-stub')).toHaveLength(2)
+    expect(rows[1].findAll('training-room-card-stub')).toHaveLength(1)
   })
 })

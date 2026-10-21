@@ -26,7 +26,7 @@ describe('TrainingRoomCard', () => {
     expect(wrapper.text()).toContain('1 / 2')
   })
 
-  it('renders the ability label on a single line with the full letter - name text', () => {
+  it('keeps the full room name, tier and occupancy in the compact card', () => {
     const intelligenceRoom = {
       ...room,
       id: 'intelligence-room-1',
@@ -39,10 +39,8 @@ describe('TrainingRoomCard', () => {
       global: { stubs: { Icon: true, UProgressBar: true } },
     })
 
-    const abilityLine = wrapper
-      .findAll('span')
-      .find((span) => span.text().includes('Intelligence'))
-    expect(abilityLine).toBeDefined()
-    expect(abilityLine!.text()).toBe('I - Intelligence')
+    expect(wrapper.get('[title="Classroom"]').text()).toBe('Classroom')
+    expect(wrapper.text()).toContain('T1')
+    expect(wrapper.text()).toContain('0 / 2')
   })
 })

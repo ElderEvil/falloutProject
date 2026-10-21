@@ -51,7 +51,7 @@ onMounted(async () => {
   if (authStore.token && vaultId.value) {
     await equipmentStore.fetchWeapons(authStore.token, vaultId.value)
     await equipmentStore.fetchOutfits(authStore.token, vaultId.value)
-    await petsStore.fetchPets(authStore.token, vaultId.value)
+    await petsStore.fetchPets(vaultId.value)
   }
 })
 
@@ -92,7 +92,7 @@ const handleUnequipPet = async () => {
     return
   petActionPending.value = true
   try {
-    await petsStore.unequipPet(dweller.value.id, equippedPet.value.id, authStore.token)
+    await petsStore.unequipPet(equippedPet.value.id)
     ctx.actions.refresh()
   } finally {
     petActionPending.value = false
@@ -103,7 +103,7 @@ const handleEquipPet = async (petId: string) => {
   if (!canEquip.value || petActionPending.value || !authStore.token || !dweller.value?.id) return
   petActionPending.value = true
   try {
-    const pet = await petsStore.equipPet(dweller.value.id, petId, authStore.token)
+    const pet = await petsStore.equipPet(dweller.value.id, petId)
     if (!pet) return
     showInventoryModal.value = false
     ctx.actions.refresh()

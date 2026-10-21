@@ -312,9 +312,7 @@ onMounted(() => {
                 <span class="text-xs text-theme-primary/50 font-normal ml-1">(Optional)</span>
               </Label>
               <Select v-model="formProviderSelect">
-                <SelectTrigger
-                  class="w-full"
-                >
+                <SelectTrigger class="w-full">
                   <SelectValue placeholder="Default (from env)" />
                 </SelectTrigger>
                 <SelectContent>
@@ -545,7 +543,10 @@ onMounted(() => {
           </p>
 
           <!-- Jev (TypeSafe) decision model — read-only, env-configured -->
-          <div class="mt-5 rounded-md border border-theme-primary/15 bg-surface-sunken p-3">
+          <div
+            v-if="settings"
+            class="mt-5 rounded-md border border-theme-primary/15 bg-surface-sunken p-3"
+          >
             <div class="flex items-center gap-2">
               <Icon
                 :icon="settings.jev.configured ? 'mdi:check-circle' : 'mdi:minus-circle'"

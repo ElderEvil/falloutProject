@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Themed room and relationship prompts</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import { createApp, h, ref } from 'vue'
+      import { createPinia } from 'pinia'
+      import { createMemoryHistory, createRouter } from 'vue-router'
+      import { TooltipProvider } from '../../../src/core/components/ui/tooltip'
+      import TerminalConfirmation from '../../../src/core/components/common/TerminalConfirmation.vue'
+      import { useRoomDestroy } from '../../../src/modules/rooms/composables/useRoomDestroy'
+      import HomeView from '../../../src/modules/vault/views/HomeView.vue'
+      import CraftingPanel from '../../../src/modules/crafting/components/CraftingPanel.vue'
+      import RoomDetailModal from '../../../src/modules/rooms/components/RoomDetailModal.vue'
+      import { useRoomStore } from '../../../src/modules/rooms/stores/room'
+      import RelationshipList from '../../../src/modules/social/components/relationships/RelationshipList.vue'
+      import { useRoomUpgrade } from '../../../src/modules/rooms/composables/useRoomUpgrade'
+      import { useAuthStore } from '../../../src/modules/auth/stores/auth'
+      import { useDwellerFilterStore } from '../../../src/modules/dwellers/stores/dwellerFilter'
+      import { useTheme } from '../../../src/core/composables/useTheme'
+
+      const flow = new URLSearchParams(location.search).get('flow')
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [{ path: '/vault/:id', component: {} }],
+      })
+      await router.push('/vault/vault-1')
+      useTheme().setTheme(new URLSearchParams(location.search).get('theme') || 'fo4')
+      createApp({
+        setup() {
+          useAuthStore().token = 'fixture-token'
+          const roster = useDwellerFilterStore()
+          roster.dwellers = roster.allDwellers = [
+            { id: 'd1', first_name: 'Alice', last_name: 'Smith', level: 3, room_id: 'room-1' },
+            { id: 'd2', first_name: 'Bob', last_name: 'Jones', level: 2, room_id: 'room-1' },
+          ]
+          const room = ref({
+            id: 'room-1',
+            name: 'Living Room',
+            tier: 1,
+            size: 6,
+            size_min: 3,
+            size_max: 9,
+            vault_id: 'vault-1',
+            category: 'capacity',
+            ability: 'charisma',
+            capacity: 4,
+            base_cost: 100,
+            coordinate_x: 0,
+            coordinate_y: 0,
+          })
+          useRoomStore().rooms = [room.value]
+          const destruction = useRoomDestroy()
+          const actions = useRoomUpgrade(
+            room,
+            ref(null),
+            () => {},
+            () => {}
+          )
+          return () =>
+            h(
+              TooltipProvider,
+              { delayDuration: 0 },
+              {
+                default: () =>
+                  flow === 'vault'
+                    ? h(HomeView)
+                    : flow === 'craft'
+                      ? h(CraftingPanel, { vaultId: 'vault-1', itemType: 'weapon' })
+                      : flow === 'unassign'
+                        ? h(RoomDetailModal, {
+                            room: room.value,
+                            modelValue: true,
+                            vaultId: 'vault-1',
+                          })
+                        : h('main', { class: 'p-8 flex flex-col gap-6' }, [
+                            h(
+                              'button',
+                              {
+                                onClick: () =>
+                                  destruction.destroyRoom('room-1', { roomName: 'Living Room' }),
+                              },
+                              'Destroy test room'
+                            ),
+                            h(TerminalConfirmation, {
+                              open: destruction.showDestroyConfirmation.value,
+                              title: destruction.destroyTitle.value,
+                              message:
+                                'Dwellers will be unassigned. You will receive a partial refund.',
+                              confirmLabel: 'Destroy room',
+                              onConfirm: () => destruction.confirmDestroy(),
+                              onCancel: () => destruction.cancelDestroy(),
+                            }),
+                            h('button', { onClick: () => actions.handleRemodel() }, 'Split room'),
+                            h(RelationshipList, { vaultId: 'vault-1' }),
+                            h(TerminalConfirmation, {
+                              open: actions.showRemodelConfirmation.value,
+                              title: actions.remodelTitle.value,
+                              message: 'Free. Dwellers, capacity and refund value stay the same.',
+                              confirmLabel: 'Split room',
+                              onConfirm: () => actions.confirmRemodel(),
+                              onCancel: () => actions.cancelRemodel(),
+                            }),
+                          ]),
+              }
+            )
+        },
+      })
+        .use(createPinia())
+        .use(router)
+        .mount('#app')
+    </script>
+  </body>
+</html>

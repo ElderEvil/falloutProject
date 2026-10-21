@@ -160,10 +160,10 @@ describe('RoomDetailModal', () => {
     await flushPromises()
     expect(nativeConfirm).not.toHaveBeenCalled()
     expect(axios.post).not.toHaveBeenCalled()
-    const confirmation = wrapper
+    await wrapper
       .findAll('button')
-      .find((b) => b.text().includes(action === 'split' ? 'Split room' : 'Merge rooms'))!
-    await confirmation.trigger('click')
+      .find((button) => button.text() === (action === 'split' ? 'Split room' : 'Merge rooms'))!
+      .trigger('click')
     await flushPromises()
     expect(axios.post).toHaveBeenCalledWith(
       `/api/v1/rooms/${action}/room-1`,
@@ -969,6 +969,49 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.text()).toContain('Unassign All Dwellers')
+    })
+
+    it('confirms unassign-all in a themed dialog and cancels without changing dwellers', async () => {
+      const { filter, management } = useDwellerStore()
+      filter.dwellers = mockDwellers
+      useAuthStore().token = 'test-token'
+      const unassign = vi
+        .spyOn(management, 'unassignDwellerFromRoom')
+        .mockResolvedValue({} as never)
+      const nativeConfirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true, vaultId: 'vault-123' },
+      })
+      const request = wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('Unassign All Dwellers'))!
+      await request.trigger('click')
+      expect(nativeConfirm).not.toHaveBeenCalled()
+      expect(unassign).not.toHaveBeenCalled()
+      const confirmation = wrapper
+        .findAllComponents({ name: 'TerminalConfirmation' })
+        .find((dialog) => dialog.props('title') === 'Unassign dwellers?')!
+      expect(confirmation.props('open')).toBe(true)
+      expect(confirmation.text()).toContain('Unassign all 2 dwellers from this room?')
+      await confirmation
+        .findAll('button')
+        .find((button) => button.text() === 'Cancel')!
+        .trigger('click')
+      expect(unassign).not.toHaveBeenCalled()
+      await request.trigger('click')
+      await confirmation
+        .findAll('button')
+        .find((button) => button.text() === 'Unassign all')!
+        .trigger('click')
+      await flushPromises()
+      expect(unassign.mock.calls).toEqual([
+        ['dweller-1', 'test-token'],
+        ['dweller-2', 'test-token'],
+      ])
+      expect(wrapper.emitted('roomUpdated')).toHaveLength(1)
+      expect(confirmation.props('open')).toBe(false)
+      wrapper.unmount()
+      nativeConfirm.mockRestore()
     })
 
     it('groups room-wide controls under Management without restoring Staffing', () => {

@@ -43,8 +43,8 @@ MATRIX = [
 def test_default_matrix(race: str, gender: str | None, state: str | None, filename: str) -> None:
     image, thumbnail = default_dweller_image_urls(race, gender, state)
 
-    assert image == f"{IMAGE_DIR}/{filename}"
-    assert thumbnail == f"{THUMBNAIL_DIR}/{filename}"
+    assert image == f"{IMAGE_DIR}/base/{filename}"
+    assert thumbnail == f"{THUMBNAIL_DIR}/base/{filename}"
 
 
 @pytest.mark.parametrize(("race", "gender", "state", "filename"), MATRIX)
@@ -60,7 +60,7 @@ def test_gen1_synth_ignores_gender() -> None:
     female = default_dweller_image_urls("synth", "female", "gen_1")
 
     assert male == female
-    assert male[0] == f"{IMAGE_DIR}/FOS_Dw_Default_Synth_Gen1.webp"
+    assert male[0] == f"{IMAGE_DIR}/base/FOS_Dw_Default_Synth_Gen1.webp"
 
 
 @pytest.mark.parametrize(
@@ -79,7 +79,7 @@ def test_gen1_synth_ignores_gender() -> None:
 def test_fallbacks(race: str | None, gender: str, state: str | None, expected: str) -> None:
     image, _ = default_dweller_image_urls(race, gender, state)
 
-    assert image == f"{IMAGE_DIR}/{expected}"
+    assert image == f"{IMAGE_DIR}/base/{expected}"
 
 
 def test_accepts_enum_values() -> None:
@@ -95,9 +95,9 @@ def test_accepts_enum_values() -> None:
     )
     gen1, _ = default_dweller_image_urls(RaceEnum.SYNTH, GenderEnum.MALE, SynthTypeEnum.GEN_1)
 
-    assert image == f"{IMAGE_DIR}/FOS_Dw_Default_Ghoul_Female_Wild.webp"
-    assert super_mutant == f"{IMAGE_DIR}/FOS_Dw_Default_SuperMutant_Male_Behemoth.webp"
-    assert gen1 == f"{IMAGE_DIR}/FOS_Dw_Default_Synth_Gen1.webp"
+    assert image == f"{IMAGE_DIR}/base/FOS_Dw_Default_Ghoul_Female_Wild.webp"
+    assert super_mutant == f"{IMAGE_DIR}/base/FOS_Dw_Default_SuperMutant_Male_Behemoth.webp"
+    assert gen1 == f"{IMAGE_DIR}/base/FOS_Dw_Default_Synth_Gen1.webp"
 
 
 def test_resolve_preserves_existing_urls() -> None:
@@ -151,8 +151,8 @@ def test_resolve_uses_default_when_both_missing_dict_attrs() -> None:
     )
 
     assert resolve_dweller_image_urls(dweller) == (
-        f"{IMAGE_DIR}/FOS_Dw_Default_SuperMutant_Female_Mild.webp",
-        f"{THUMBNAIL_DIR}/FOS_Dw_Default_SuperMutant_Female_Mild.webp",
+        f"{IMAGE_DIR}/base/FOS_Dw_Default_SuperMutant_Female_Mild.webp",
+        f"{THUMBNAIL_DIR}/base/FOS_Dw_Default_SuperMutant_Female_Mild.webp",
     )
 
 
@@ -165,8 +165,8 @@ def test_resolve_uses_default_when_both_missing_typed_attrs() -> None:
     )
 
     assert resolve_dweller_image_urls(dweller) == (
-        f"{IMAGE_DIR}/FOS_Dw_Default_Synth_Gen1.webp",
-        f"{THUMBNAIL_DIR}/FOS_Dw_Default_Synth_Gen1.webp",
+        f"{IMAGE_DIR}/base/FOS_Dw_Default_Synth_Gen1.webp",
+        f"{THUMBNAIL_DIR}/base/FOS_Dw_Default_Synth_Gen1.webp",
     )
 
 
@@ -177,8 +177,8 @@ def test_human_variant_matrix_is_complete_and_on_disk() -> None:
                 filename = f"FOS_Dw_Default_Human_{gender.title()}_Skin{skin}_Hair{hair}.webp"
                 image, thumbnail = default_dweller_image_urls("human", gender, None, skin, hair)
 
-                assert image == f"{IMAGE_DIR}/variants/{filename}"
-                assert thumbnail == f"{THUMBNAIL_DIR}/variants/{filename}"
+                assert image == f"{IMAGE_DIR}/variants/adult/{filename}"
+                assert thumbnail == f"{THUMBNAIL_DIR}/variants/adult/{filename}"
                 assert (STATIC_ROOT / image.removeprefix("/static/")).is_file()
                 assert (STATIC_ROOT / thumbnail.removeprefix("/static/")).is_file()
 
@@ -190,13 +190,13 @@ def test_human_variant_matrix_is_complete_and_on_disk() -> None:
 def test_unsupported_human_colors_fall_back_to_base(skin: str, hair: str) -> None:
     image, _ = default_dweller_image_urls("human", "male", None, skin, hair)
 
-    assert image == f"{IMAGE_DIR}/FOS_Dw_Default_Human_Male.webp"
+    assert image == f"{IMAGE_DIR}/base/FOS_Dw_Default_Human_Male.webp"
 
 
 def test_non_human_ignores_color_variants() -> None:
     image, _ = default_dweller_image_urls("ghoul", "male", "wild", "Ebony", "red")
 
-    assert image == f"{IMAGE_DIR}/FOS_Dw_Default_Ghoul_Male_Wild.webp"
+    assert image == f"{IMAGE_DIR}/base/FOS_Dw_Default_Ghoul_Male_Wild.webp"
 
 
 def test_resolve_uses_human_variant() -> None:
@@ -208,8 +208,8 @@ def test_resolve_uses_human_variant() -> None:
     )
 
     assert resolve_dweller_image_urls(dweller) == (
-        f"{IMAGE_DIR}/variants/FOS_Dw_Default_Human_Female_SkinTan_HairRed.webp",
-        f"{THUMBNAIL_DIR}/variants/FOS_Dw_Default_Human_Female_SkinTan_HairRed.webp",
+        f"{IMAGE_DIR}/variants/adult/FOS_Dw_Default_Human_Female_SkinTan_HairRed.webp",
+        f"{THUMBNAIL_DIR}/variants/adult/FOS_Dw_Default_Human_Female_SkinTan_HairRed.webp",
     )
 
 
@@ -218,16 +218,16 @@ def test_accepts_uppercase_db_values() -> None:
     ghoul, _ = default_dweller_image_urls("GHOUL", "MALE", "WILD")
     mutant, _ = default_dweller_image_urls("SUPER_MUTANT", "FEMALE", "BEHEMOTH")
 
-    assert human == f"{IMAGE_DIR}/FOS_Dw_Default_Human_Female.webp"
-    assert ghoul == f"{IMAGE_DIR}/FOS_Dw_Default_Ghoul_Male_Wild.webp"
-    assert mutant == f"{IMAGE_DIR}/FOS_Dw_Default_SuperMutant_Female_Behemoth.webp"
+    assert human == f"{IMAGE_DIR}/base/FOS_Dw_Default_Human_Female.webp"
+    assert ghoul == f"{IMAGE_DIR}/base/FOS_Dw_Default_Ghoul_Male_Wild.webp"
+    assert mutant == f"{IMAGE_DIR}/base/FOS_Dw_Default_SuperMutant_Female_Behemoth.webp"
 
 
 @pytest.mark.parametrize(
     ("url", "expected"),
     [
-        (f"{IMAGE_DIR}/FOS_Dw_Default_Human_Male.webp", True),
-        (f"{THUMBNAIL_DIR}/FOS_Dw_Default_Human_Male.webp", True),
+        (f"{IMAGE_DIR}/base/FOS_Dw_Default_Human_Male.webp", True),
+        (f"{THUMBNAIL_DIR}/base/FOS_Dw_Default_Human_Male.webp", True),
         ("https://example.test/custom.png", False),
         ("/static/legendary_dweller_images/FOS_Dw_Butch.png", False),
         (None, False),

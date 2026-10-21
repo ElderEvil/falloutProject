@@ -19,7 +19,9 @@ from app.options.races import RaceOption
 
 IMAGE_DIR = "/static/dweller_images"
 THUMBNAIL_DIR = "/static/dweller_thumbnails"
+BASE_SUBDIR = "base"
 VARIANT_SUBDIR = "variants"
+ADULT_VARIANT_SUBDIR = f"{VARIANT_SUBDIR}/adult"
 
 HUMAN_PORTRAIT_SKIN_TONES = ("Pale", "Tan", "Brown", "Ebony")
 HUMAN_PORTRAIT_HAIR_COLORS = ("Blonde", "Brunette", "Black", "Brown", "Red", "Gray")
@@ -127,14 +129,17 @@ def default_dweller_image_urls(
         variant = _human_variant(gender_value, skin_tone, hair_color)
         if variant is not None:
             return (
-                f"{IMAGE_DIR}/{VARIANT_SUBDIR}/{variant}",
-                f"{THUMBNAIL_DIR}/{VARIANT_SUBDIR}/{variant}",
+                f"{IMAGE_DIR}/{ADULT_VARIANT_SUBDIR}/{variant}",
+                f"{THUMBNAIL_DIR}/{ADULT_VARIANT_SUBDIR}/{variant}",
             )
 
     filename = _ASSETS.get((race_value, gender_value, state_value))
     if filename is None:
         return None, None
-    return f"{IMAGE_DIR}/{filename}", f"{THUMBNAIL_DIR}/{filename}"
+    return (
+        f"{IMAGE_DIR}/{BASE_SUBDIR}/{filename}",
+        f"{THUMBNAIL_DIR}/{BASE_SUBDIR}/{filename}",
+    )
 
 
 def is_default_dweller_image(url: str | None) -> bool:

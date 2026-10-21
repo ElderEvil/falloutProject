@@ -1,0 +1,1704 @@
+{
+  "description": "Human child skin-tone / hair-color portrait variants.",
+  "source": "OpenAI Images API (images.edit) using the matching adult variant as reference; gpt-image-2.5-flare, medium quality; Lanczos downscale to 300x600.",
+  "skin_tones": [
+    "Pale",
+    "Tan",
+    "Brown",
+    "Ebony"
+  ],
+  "hair_colors": [
+    "Blonde",
+    "Brunette",
+    "Black",
+    "Brown",
+    "Red",
+    "Gray"
+  ],
+  "age_groups": [
+    "child",
+    "teen"
+  ],
+  "assets": [
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinBrown_HairBlack.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Brown",
+      "hair_color": "Black",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinBrown_HairBlack.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same black hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinBrown_HairBlonde.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Brown",
+      "hair_color": "Blonde",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinBrown_HairBlonde.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same blonde hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinBrown_HairBrown.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Brown",
+      "hair_color": "Brown",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinBrown_HairBrown.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same brown hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinBrown_HairBrunette.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Brown",
+      "hair_color": "Brunette",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinBrown_HairBrunette.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same brunette hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinBrown_HairGray.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Brown",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinBrown_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same gray hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinBrown_HairRed.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Brown",
+      "hair_color": "Red",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinBrown_HairRed.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same red hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinEbony_HairBlack.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Ebony",
+      "hair_color": "Black",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinEbony_HairBlack.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same black hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinEbony_HairBlonde.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Ebony",
+      "hair_color": "Blonde",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinEbony_HairBlonde.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same blonde hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinEbony_HairBrown.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Ebony",
+      "hair_color": "Brown",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinEbony_HairBrown.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same brown hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinEbony_HairBrunette.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Ebony",
+      "hair_color": "Brunette",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinEbony_HairBrunette.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same brunette hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinEbony_HairGray.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Ebony",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinEbony_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same gray hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinEbony_HairRed.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Ebony",
+      "hair_color": "Red",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinEbony_HairRed.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same red hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinPale_HairBlack.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Pale",
+      "hair_color": "Black",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinPale_HairBlack.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same black hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinPale_HairBlonde.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Pale",
+      "hair_color": "Blonde",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinPale_HairBlonde.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same blonde hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinPale_HairBrown.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Pale",
+      "hair_color": "Brown",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinPale_HairBrown.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same brown hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinPale_HairBrunette.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Pale",
+      "hair_color": "Brunette",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinPale_HairBrunette.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same brunette hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinPale_HairGray.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Pale",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinPale_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same gray hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinPale_HairRed.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Pale",
+      "hair_color": "Red",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinPale_HairRed.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same red hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinTan_HairBlack.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Tan",
+      "hair_color": "Black",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinTan_HairBlack.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same black hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinTan_HairBlonde.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Tan",
+      "hair_color": "Blonde",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinTan_HairBlonde.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same blonde hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinTan_HairBrown.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Tan",
+      "hair_color": "Brown",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinTan_HairBrown.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same brown hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinTan_HairBrunette.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Tan",
+      "hair_color": "Brunette",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinTan_HairBrunette.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same brunette hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinTan_HairGray.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Tan",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinTan_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same gray hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Female_SkinTan_HairRed.webp",
+      "age_group": "child",
+      "gender": "Female",
+      "skin_tone": "Tan",
+      "hair_color": "Red",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Female_SkinTan_HairRed.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Preserve her female identity: keep the same feminine face shape, softer jawline, eye shape, eyebrows, and skin tone; do not turn her into a boy. Remove the adult bust and waist. Replace the adult high ponytail with two short braided pigtails, in the same red hair color, with simple hair ties. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 713,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 201
+        },
+        "output_tokens": 295,
+        "total_tokens": 1008,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinBrown_HairBlack.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Brown",
+      "hair_color": "Black",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinBrown_HairBlack.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same black hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinBrown_HairBlonde.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Brown",
+      "hair_color": "Blonde",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinBrown_HairBlonde.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same blonde hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinBrown_HairBrown.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Brown",
+      "hair_color": "Brown",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinBrown_HairBrown.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same brown hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinBrown_HairBrunette.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Brown",
+      "hair_color": "Brunette",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinBrown_HairBrunette.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same brunette hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinBrown_HairGray.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Brown",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinBrown_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same gray hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinBrown_HairRed.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Brown",
+      "hair_color": "Red",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinBrown_HairRed.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same red hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinEbony_HairBlack.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Ebony",
+      "hair_color": "Black",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinEbony_HairBlack.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same black hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinEbony_HairBlonde.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Ebony",
+      "hair_color": "Blonde",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinEbony_HairBlonde.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same blonde hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinEbony_HairBrown.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Ebony",
+      "hair_color": "Brown",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinEbony_HairBrown.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same brown hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinEbony_HairBrunette.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Ebony",
+      "hair_color": "Brunette",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinEbony_HairBrunette.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same brunette hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinEbony_HairGray.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Ebony",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinEbony_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same gray hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinEbony_HairRed.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Ebony",
+      "hair_color": "Red",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinEbony_HairRed.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same red hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinPale_HairBlack.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Pale",
+      "hair_color": "Black",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinPale_HairBlack.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same black hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinPale_HairBlonde.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Pale",
+      "hair_color": "Blonde",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinPale_HairBlonde.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same blonde hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinPale_HairBrown.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Pale",
+      "hair_color": "Brown",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinPale_HairBrown.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same brown hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinPale_HairBrunette.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Pale",
+      "hair_color": "Brunette",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinPale_HairBrunette.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same brunette hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinPale_HairGray.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Pale",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinPale_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same gray hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinPale_HairRed.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Pale",
+      "hair_color": "Red",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinPale_HairRed.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same red hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinTan_HairBlack.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Tan",
+      "hair_color": "Black",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinTan_HairBlack.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same black hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinTan_HairBlonde.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Tan",
+      "hair_color": "Blonde",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinTan_HairBlonde.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same blonde hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinTan_HairBrown.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Tan",
+      "hair_color": "Brown",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinTan_HairBrown.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same brown hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinTan_HairBrunette.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Tan",
+      "hair_color": "Brunette",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinTan_HairBrunette.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same brunette hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinTan_HairGray.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Tan",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinTan_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same gray hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Child_Male_SkinTan_HairRed.webp",
+      "age_group": "child",
+      "gender": "Male",
+      "skin_tone": "Tan",
+      "hair_color": "Red",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Child_Male_SkinTan_HairRed.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a clearly child version, age 7 to 9. Keep the exact face identity, skin tone, blue vault suit, pose, line weight, framing, and transparent background. Change the age and body proportions: make the head noticeably larger relative to the body, shorten the torso and legs, make the hands and feet smaller, round the cheeks, and remove the adult jawline. The silhouette must read as a young child at a glance, not as an adult with a child face. Replace the adult hairstyle with a child-appropriate short, neat bowl cut in the same red hair color. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 668,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 156
+        },
+        "output_tokens": 295,
+        "total_tokens": 963,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    }
+  ]
+}

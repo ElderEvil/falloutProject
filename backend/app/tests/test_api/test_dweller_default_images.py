@@ -112,6 +112,92 @@ async def test_existing_portrait_is_preserved(
     assert body["is_default_portrait"] is False
 
 
+async def test_insert_uses_human_variant_for_preset_colors(
+    async_session: AsyncSession,
+    vault: Vault,
+) -> None:
+    dweller = await _create_dweller(
+        async_session,
+        vault,
+        gender=GenderEnum.FEMALE,
+        visual_attributes={"race": "human", "skin_tone": "Ebony", "hair_color": "red"},
+    )
+
+    assert dweller.image_url == ("/static/dweller_images/variants/FOS_Dw_Default_Human_Female_SkinEbony_HairRed.webp")
+    assert dweller.thumbnail_url == (
+        "/static/dweller_thumbnails/variants/FOS_Dw_Default_Human_Female_SkinEbony_HairRed.webp"
+    )
+
+
+async def test_color_update_swaps_human_variant(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    dweller = await _create_dweller(async_session, vault, visual_attributes={"race": "human"})
+
+    response = await async_client.put(
+        f"/dwellers/{dweller.id}",
+        headers=superuser_token_headers,
+        json={"visual_attributes": {"race": "human", "skin_tone": "Tan", "hair_color": "black"}},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["image_url"] == ("/static/dweller_images/variants/FOS_Dw_Default_Human_Male_SkinTan_HairBlack.webp")
+    assert body["is_default_portrait"] is True
+
+
+async def test_unsupported_color_update_falls_back_to_base(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    dweller = await _create_dweller(
+        async_session,
+        vault,
+        visual_attributes={"race": "human", "skin_tone": "Pale", "hair_color": "blonde"},
+    )
+
+    response = await async_client.put(
+        f"/dwellers/{dweller.id}",
+        headers=superuser_token_headers,
+        json={"visual_attributes": {"race": "human", "skin_tone": "Light", "hair_color": "white"}},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["image_url"] == "/static/dweller_images/FOS_Dw_Default_Human_Male.webp"
+
+
+async def test_color_update_preserves_custom_portrait(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    dweller = await _create_dweller(
+        async_session,
+        vault,
+        image_url="/static/custom.png",
+        thumbnail_url="/static/custom-thumb.png",
+        visual_attributes={"race": "human"},
+    )
+
+    response = await async_client.put(
+        f"/dwellers/{dweller.id}",
+        headers=superuser_token_headers,
+        json={"visual_attributes": {"race": "human", "skin_tone": "Ebony", "hair_color": "gray"}},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["image_url"] == "/static/custom.png"
+    assert body["thumbnail_url"] == "/static/custom-thumb.png"
+
+
 async def test_identity_update_refreshes_default_portrait(
     async_client: AsyncClient,
     async_session: AsyncSession,

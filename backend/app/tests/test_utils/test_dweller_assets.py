@@ -5,6 +5,8 @@ import pytest
 
 from app.core.enums import GenderEnum, GhoulFeralnessEnum, RaceEnum, SuperMutantMutationEnum, SynthTypeEnum
 from app.utils.dweller_assets import (
+    HUMAN_PORTRAIT_HAIR_COLORS,
+    HUMAN_PORTRAIT_SKIN_TONES,
     IMAGE_DIR,
     THUMBNAIL_DIR,
     default_dweller_image_urls,
@@ -165,6 +167,49 @@ def test_resolve_uses_default_when_both_missing_typed_attrs() -> None:
     assert resolve_dweller_image_urls(dweller) == (
         f"{IMAGE_DIR}/FOS_Dw_Default_Synth_Gen1.webp",
         f"{THUMBNAIL_DIR}/FOS_Dw_Default_Synth_Gen1.webp",
+    )
+
+
+def test_human_variant_matrix_is_complete_and_on_disk() -> None:
+    for gender in ("male", "female"):
+        for skin in HUMAN_PORTRAIT_SKIN_TONES:
+            for hair in HUMAN_PORTRAIT_HAIR_COLORS:
+                filename = f"FOS_Dw_Default_Human_{gender.title()}_Skin{skin}_Hair{hair}.webp"
+                image, thumbnail = default_dweller_image_urls("human", gender, None, skin, hair)
+
+                assert image == f"{IMAGE_DIR}/variants/{filename}"
+                assert thumbnail == f"{THUMBNAIL_DIR}/variants/{filename}"
+                assert (STATIC_ROOT / image.removeprefix("/static/")).is_file()
+                assert (STATIC_ROOT / thumbnail.removeprefix("/static/")).is_file()
+
+
+@pytest.mark.parametrize(
+    ("skin", "hair"),
+    [("Light", "blonde"), ("Pale", "white"), ("Dark Brown", "blue")],
+)
+def test_unsupported_human_colors_fall_back_to_base(skin: str, hair: str) -> None:
+    image, _ = default_dweller_image_urls("human", "male", None, skin, hair)
+
+    assert image == f"{IMAGE_DIR}/FOS_Dw_Default_Human_Male.webp"
+
+
+def test_non_human_ignores_color_variants() -> None:
+    image, _ = default_dweller_image_urls("ghoul", "male", "wild", "Ebony", "red")
+
+    assert image == f"{IMAGE_DIR}/FOS_Dw_Default_Ghoul_Male_Wild.webp"
+
+
+def test_resolve_uses_human_variant() -> None:
+    dweller = SimpleNamespace(
+        image_url=None,
+        thumbnail_url=None,
+        gender=GenderEnum.FEMALE,
+        visual_attributes={"race": "human", "skin_tone": "Tan", "hair_color": "red"},
+    )
+
+    assert resolve_dweller_image_urls(dweller) == (
+        f"{IMAGE_DIR}/variants/FOS_Dw_Default_Human_Female_SkinTan_HairRed.webp",
+        f"{THUMBNAIL_DIR}/variants/FOS_Dw_Default_Human_Female_SkinTan_HairRed.webp",
     )
 
 

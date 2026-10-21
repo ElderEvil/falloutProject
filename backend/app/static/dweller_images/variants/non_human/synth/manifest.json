@@ -1,0 +1,171 @@
+{
+  "description": "Lore-inspired alternate synth portraits.",
+  "source": "OpenAI Images API (images.edit) using the matching base portrait as reference; gpt-image-2.5-flare, medium quality; Lanczos downscale to 300x600.",
+  "theme": {
+    "ghoul": "wasteland scavenger / Children of Atom-adjacent rags",
+    "super_mutant": "Super Mutant Tribe war paint and scrap armor",
+    "synth": "Railgut/Institute: salvaged Gen1, Railroad escapee Gen2, Courser Gen3"
+  },
+  "assets": [
+    {
+      "file": "FOS_Dw_Default_Synth_Female_Gen2_Alt.webp",
+      "base_file": "FOS_Dw_Default_Synth_Female_Gen2.webp",
+      "race": "synth",
+      "prompt": "Create an alternate portrait variant of the reference Gen 2 synth. Keep the same face identity, male or female identity, pose, line weight, framing, and transparent background. Make them a Railroad escapee: wear a worn wasteland coat and scarf over the grey Institute suit, remove the Institute logo, keep the visible synthetic seams and ear implant. No glowing eyes, no text, no background.",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Synth_Female_Gen2_Alt.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "usage": {
+        "input_tokens": 608,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 96
+        },
+        "output_tokens": 295,
+        "total_tokens": 903,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Synth_Female_Gen3_Alt.webp",
+      "base_file": "FOS_Dw_Default_Synth_Female_Gen3.webp",
+      "race": "synth",
+      "prompt": "Create an alternate portrait variant of the reference Gen 3 synth. Keep the same face identity, male or female identity, pose, line weight, framing, and transparent background. Dress them as an Institute Courser: black tactical Institute uniform with a long coat and a small Institute logo. Do not add visible robot seams or glowing eyes. No text, no background.",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Synth_Female_Gen3_Alt.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "usage": {
+        "input_tokens": 601,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 89
+        },
+        "output_tokens": 295,
+        "total_tokens": 896,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Synth_Gen1_Alt.webp",
+      "base_file": "FOS_Dw_Default_Synth_Gen1.webp",
+      "race": "synth",
+      "prompt": "Create an alternate portrait variant of the reference Gen 1 synth. Keep the same mechanical skeleton, pose, line weight, framing, and transparent background. Make it look salvaged and field-repaired: mismatched replacement panels, exposed wiring at one shoulder, scuffed metal, and a scratched-out Institute mark. No clothing, no text, no background.",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Synth_Gen1_Alt.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "usage": {
+        "input_tokens": 599,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 87
+        },
+        "output_tokens": 295,
+        "total_tokens": 894,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Synth_Male_Gen2_Alt.webp",
+      "base_file": "FOS_Dw_Default_Synth_Male_Gen2.webp",
+      "race": "synth",
+      "prompt": "Create an alternate portrait variant of the reference Gen 2 synth. Keep the same face identity, male or female identity, pose, line weight, framing, and transparent background. Make them a Railroad escapee: wear a worn wasteland coat and scarf over the grey Institute suit, remove the Institute logo, keep the visible synthetic seams and ear implant. No glowing eyes, no text, no background.",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Synth_Male_Gen2_Alt.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "usage": {
+        "input_tokens": 608,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 96
+        },
+        "output_tokens": 295,
+        "total_tokens": 903,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Synth_Male_Gen3_Alt.webp",
+      "base_file": "FOS_Dw_Default_Synth_Male_Gen3.webp",
+      "race": "synth",
+      "prompt": "Create an alternate portrait variant of the reference Gen 3 synth. Keep the same face identity, male or female identity, pose, line weight, framing, and transparent background. Dress them as an Institute Courser: black tactical Institute uniform with a long coat and a small Institute logo. Do not add visible robot seams or glowing eyes. No text, no background.",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Synth_Male_Gen3_Alt.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "usage": {
+        "input_tokens": 601,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 89
+        },
+        "output_tokens": 295,
+        "total_tokens": 896,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    }
+  ]
+}

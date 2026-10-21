@@ -13,6 +13,7 @@ URLs are relative to the backend ``/static`` mount; the frontend's
 
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 from app.options.races import RaceOption
@@ -27,6 +28,7 @@ AGE_VARIANT_SUBDIRS = {
     "teen": f"{VARIANT_SUBDIR}/teen",
     "elder": f"{VARIANT_SUBDIR}/elder",
 }
+NON_HUMAN_VARIANT_SUBDIR = f"{VARIANT_SUBDIR}/non_human"
 
 HUMAN_PORTRAIT_SKIN_TONES = ("Pale", "Tan", "Brown", "Ebony")
 HUMAN_PORTRAIT_HAIR_COLORS = ("Blonde", "Brunette", "Black", "Brown", "Red", "Gray")
@@ -86,6 +88,37 @@ def _build_human_variants() -> dict[tuple[str, str, str, str], tuple[str, str]]:
 
 _HUMAN_VARIANTS = _build_human_variants()
 
+
+def _build_non_human_alts() -> dict[str, tuple[str, str]]:
+    alts: dict[str, tuple[str, str]] = {}
+    groups = [
+        ("ghoul", "Ghoul", ("Male", "Female"), ("Sane", "Wild", "Feral")),
+        ("super_mutant", "SuperMutant", ("Male", "Female"), ("Mild", "Average", "Behemoth")),
+    ]
+    for subdir, prefix, genders, states in groups:
+        for gender in genders:
+            for state in states:
+                base = f"FOS_Dw_Default_{prefix}_{gender}_{state}.webp"
+                alts[base] = (
+                    f"{NON_HUMAN_VARIANT_SUBDIR}/{subdir}",
+                    f"FOS_Dw_Default_{prefix}_{gender}_{state}_Alt.webp",
+                )
+    for base in (
+        "FOS_Dw_Default_Synth_Gen1.webp",
+        "FOS_Dw_Default_Synth_Male_Gen2.webp",
+        "FOS_Dw_Default_Synth_Female_Gen2.webp",
+        "FOS_Dw_Default_Synth_Male_Gen3.webp",
+        "FOS_Dw_Default_Synth_Female_Gen3.webp",
+    ):
+        alts[base] = (
+            f"{NON_HUMAN_VARIANT_SUBDIR}/synth",
+            base.removesuffix(".webp") + "_Alt.webp",
+        )
+    return alts
+
+
+_NON_HUMAN_ALTS = _build_non_human_alts()
+
 _RACE_VALUES = frozenset(race.value for race in RaceOption)
 
 
@@ -138,6 +171,12 @@ def _normalize(race: Any, gender: Any, state_of_being: Any) -> tuple[str, str | 
     return race_value, gender_value, state_value
 
 
+def _variant_index(seed: Any) -> int:
+    if seed is None:
+        return 0
+    return hashlib.sha256(str(seed).encode()).digest()[0] % 2
+
+
 def _normalize_age(age_group: Any) -> str:
     value = (_as_str(age_group) or "adult").casefold()
     return value if value in AGE_VARIANT_SUBDIRS else "adult"
@@ -185,6 +224,7 @@ def default_dweller_image_urls(
     skin_tone: Any = None,
     hair_color: Any = None,
     age_group: Any = None,
+    variation_seed: Any = None,
 ) -> tuple[str | None, str | None]:
     race_value, gender_value, state_value = _normalize(race, gender, state_of_being)
     if race_value == RaceOption.HUMAN.value:
@@ -199,6 +239,13 @@ def default_dweller_image_urls(
     filename = _ASSETS.get((race_value, gender_value, state_value))
     if filename is None:
         return None, None
+    alt = _NON_HUMAN_ALTS.get(filename)
+    if alt is not None and _variant_index(variation_seed) == 1:
+        subdir, alt_filename = alt
+        return (
+            f"{IMAGE_DIR}/{subdir}/{alt_filename}",
+            f"{THUMBNAIL_DIR}/{subdir}/{alt_filename}",
+        )
     return (
         f"{IMAGE_DIR}/{BASE_SUBDIR}/{filename}",
         f"{THUMBNAIL_DIR}/{BASE_SUBDIR}/{filename}",
@@ -221,6 +268,7 @@ def resolve_dweller_image_urls(dweller: object) -> tuple[str | None, str | None]
         return thumbnail, thumbnail
 
     race, state_of_being, skin_tone, hair_color = _attributes(dweller)
+    seed = getattr(dweller, "id", None)
     return default_dweller_image_urls(
         race,
         getattr(dweller, "gender", None),
@@ -228,4 +276,5 @@ def resolve_dweller_image_urls(dweller: object) -> tuple[str | None, str | None]
         skin_tone,
         hair_color,
         getattr(dweller, "age_group", None),
+        seed,
     )

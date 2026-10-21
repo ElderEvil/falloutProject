@@ -1,5 +1,6 @@
 from pathlib import Path
 from types import SimpleNamespace
+from uuid import UUID
 
 import pytest
 
@@ -284,6 +285,35 @@ def test_elder_variant_locks_grey_hair() -> None:
 
     assert image == f"{IMAGE_DIR}/variants/elder/FOS_Dw_Default_Human_Elder_Female_SkinEbony_HairGray.webp"
     assert thumbnail == (f"{THUMBNAIL_DIR}/variants/elder/FOS_Dw_Default_Human_Elder_Female_SkinEbony_HairGray.webp")
+
+
+def test_non_human_alt_selection_is_stable() -> None:
+    base, base_thumb = default_dweller_image_urls("ghoul", "male", "sane", variation_seed=UUID(int=1))
+    alt, alt_thumb = default_dweller_image_urls("ghoul", "male", "sane", variation_seed=UUID(int=6))
+
+    assert base == f"{IMAGE_DIR}/base/FOS_Dw_Default_Ghoul_Male_Sane.webp"
+    assert base_thumb == f"{THUMBNAIL_DIR}/base/FOS_Dw_Default_Ghoul_Male_Sane.webp"
+    assert alt == f"{IMAGE_DIR}/variants/non_human/ghoul/FOS_Dw_Default_Ghoul_Male_Sane_Alt.webp"
+    assert alt_thumb == f"{THUMBNAIL_DIR}/variants/non_human/ghoul/FOS_Dw_Default_Ghoul_Male_Sane_Alt.webp"
+    assert default_dweller_image_urls("ghoul", "male", "sane", variation_seed=UUID(int=6)) == (alt, alt_thumb)
+
+
+def test_resolve_uses_non_human_alt() -> None:
+    from app.core.enums import AgeGroupEnum
+
+    dweller = SimpleNamespace(
+        id=UUID(int=6),
+        image_url=None,
+        thumbnail_url=None,
+        gender=GenderEnum.MALE,
+        age_group=AgeGroupEnum.ADULT,
+        visual_attributes={"race": "ghoul", "state_of_being": "sane"},
+    )
+
+    assert resolve_dweller_image_urls(dweller) == (
+        f"{IMAGE_DIR}/variants/non_human/ghoul/FOS_Dw_Default_Ghoul_Male_Sane_Alt.webp",
+        f"{THUMBNAIL_DIR}/variants/non_human/ghoul/FOS_Dw_Default_Ghoul_Male_Sane_Alt.webp",
+    )
 
 
 def test_age_defaults_when_skin_and_hair_are_missing() -> None:

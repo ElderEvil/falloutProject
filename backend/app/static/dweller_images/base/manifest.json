@@ -202,7 +202,8 @@
       "thumbnail_file": "FOS_Dw_Default_SuperMutant_Female_Behemoth.webp",
       "thumbnail_width": 150,
       "thumbnail_height": 300,
-      "thumbnail_encoding": "webp"
+      "thumbnail_encoding": "webp",
+      "postprocess": "Head and neck enlarged ~35% for behemoth proportions; body and gear unchanged."
     },
     {
       "file": "FOS_Dw_Default_SuperMutant_Female_Mild.webp",
@@ -262,7 +263,8 @@
       "thumbnail_file": "FOS_Dw_Default_SuperMutant_Male_Behemoth.webp",
       "thumbnail_width": 150,
       "thumbnail_height": 300,
-      "thumbnail_encoding": "webp"
+      "thumbnail_encoding": "webp",
+      "postprocess": "Head and neck enlarged ~35% for behemoth proportions; body and gear unchanged."
     },
     {
       "file": "FOS_Dw_Default_SuperMutant_Male_Mild.webp",

@@ -9,22 +9,27 @@ from app import crud
 from app.core.enums import DwellerStatusEnum
 from app.models.dweller import Dweller
 from app.models.quest import Quest
+from app.models.quest_requirement import QuestRequirement, RequirementType
+from app.models.room import Room
 from app.models.storage import Storage
 from app.models.vault import Vault
 from app.models.vault_quest import VaultQuestCompletionLink
-from app.schemas.common import AgeGroupEnum
+from app.schemas.common import AgeGroupEnum, RoomTypeEnum
 from app.schemas.quest import QuestCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.progression.quests.service import quest_service
 from app.services.team_service import team_service
 from app.tests.factory.dwellers import create_fake_dweller
+from app.tests.factory.rooms import create_overseers_office
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 
 
-async def _make_quest_vault(async_session: AsyncSession, *, title: str = "Team Quest") -> tuple[Vault, Quest]:
+async def _make_quest_vault(
+    async_session: AsyncSession, *, title: str = "Team Quest", quest_category: str | None = None
+) -> tuple[Vault, Quest]:
     """A vault with a quest assigned and visible."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
@@ -40,9 +45,12 @@ async def _make_quest_vault(async_session: AsyncSession, *, title: str = "Team Q
             requirements="1 dweller",
             rewards="100 caps",
             duration_minutes=60,
+            quest_category=quest_category,
         ),
     )
     await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+    async_session.add(Room(**create_overseers_office(), vault_id=vault.id))
+    await async_session.commit()
     return vault, quest
 
 
@@ -56,8 +64,84 @@ async def _make_adult_dweller(async_session: AsyncSession, vault: Vault) -> Dwel
 
 
 @pytest.mark.asyncio
+async def test_start_with_party_departs_in_one_transaction(async_session: AsyncSession) -> None:
+    vault, quest = await _make_quest_vault(async_session)
+    room = await _make_room(async_session, vault)
+    dweller = await _make_adult_dweller(async_session, vault)
+    dweller.room_id = room.id
+    await async_session.commit()
+
+    await quest_service.start_quest_for_vault(async_session, vault.id, quest.id, dweller_ids=[dweller.id])
+
+    await async_session.refresh(dweller)
+    link = await crud.quest_crud.get_link(async_session, quest_id=quest.id, vault_id=vault.id)
+    members = await crud.team_crud.get_quest_team(async_session, quest.id, vault.id)
+    assert link.started_at is not None
+    assert dweller.status == DwellerStatusEnum.QUESTING
+    assert dweller.room_id is None
+    assert [member.dweller_id for member in members] == [dweller.id]
+
+
+@pytest.mark.asyncio
+async def test_failed_deployment_does_not_save_party(async_session: AsyncSession) -> None:
+    vault, quest = await _make_quest_vault(async_session)
+    room = await _make_room(async_session, vault)
+    dweller = await _make_adult_dweller(async_session, vault)
+    dweller.room_id = room.id
+    dweller.status = DwellerStatusEnum.EXPLORING
+    await async_session.commit()
+    quest_id, vault_id, room_id = quest.id, vault.id, room.id
+
+    with pytest.raises(ValidationException, match="exploring"):
+        await quest_service.start_quest_for_vault(async_session, vault_id, quest_id, dweller_ids=[dweller.id])
+
+    await async_session.rollback()
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.EXPLORING
+    assert dweller.room_id == room_id
+    assert await crud.team_crud.get_quest_team(async_session, quest_id, vault_id) == []
+    link = await crud.quest_crud.get_link(async_session, quest_id=quest_id, vault_id=vault_id)
+    assert link.started_at is None
+
+
+@pytest.mark.asyncio
+async def test_party_requirement_failure_rolls_back_staged_roster(async_session: AsyncSession) -> None:
+    """Assignment succeeds, but rejecting the party's level must not commit its roster."""
+    vault, quest = await _make_quest_vault(async_session)
+    room = await _make_room(async_session, vault)
+    selected = await _make_adult_dweller(async_session, vault)
+    qualified = await _make_adult_dweller(async_session, vault)
+    selected.level, selected.room_id = 1, room.id
+    qualified.level = 10  # Satisfies the vault read gate, but is not in the dispatched party.
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.LEVEL,
+            requirement_data={"level": 10, "count": 1},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+    quest_id, vault_id, room_id, dweller_id = quest.id, vault.id, room.id, selected.id
+
+    with pytest.raises(ValidationException, match=r"[Ll]evel"):
+        await quest_service.start_quest_for_vault(async_session, vault_id, quest_id, dweller_ids=[dweller_id])
+
+    # Prove the failure happened after roster assembly, not in the assignment checks.
+    members = await crud.team_crud.get_quest_team(async_session, quest_id, vault_id)
+    assert [member.dweller_id for member in members] == [dweller_id]
+    await async_session.rollback()
+    assert await crud.team_crud.get_quest_team(async_session, quest_id, vault_id) == []
+    await async_session.refresh(selected)
+    assert selected.status == DwellerStatusEnum.IDLE
+    assert selected.room_id == room_id
+    link = await crud.quest_crud.get_link(async_session, quest_id=quest_id, vault_id=vault_id)
+    assert link.started_at is None
+
+
+@pytest.mark.asyncio
 async def test_assign_quest_team_assigns_dwellers(async_session: AsyncSession) -> None:
-    """Assigning a team marks members QUESTING with sequential slots."""
+    """Assigning a team reserves members without departing them."""
     vault, quest = await _make_quest_vault(async_session)
     dweller1 = await _make_adult_dweller(async_session, vault)
     dweller2 = await _make_adult_dweller(async_session, vault)
@@ -69,13 +153,19 @@ async def test_assign_quest_team_assigns_dwellers(async_session: AsyncSession) -
     assert all(member.status == "assigned" for member in members)
     await async_session.refresh(dweller1)
     await async_session.refresh(dweller2)
+    assert dweller1.status == DwellerStatusEnum.IDLE
+    assert dweller2.status == DwellerStatusEnum.IDLE
+
+    await quest_service.start_quest(async_session, quest.id, vault.id)
+    await async_session.refresh(dweller1)
+    await async_session.refresh(dweller2)
     assert dweller1.status == DwellerStatusEnum.QUESTING
     assert dweller2.status == DwellerStatusEnum.QUESTING
 
 
 @pytest.mark.asyncio
 async def test_assign_quest_team_replaces_existing(async_session: AsyncSession) -> None:
-    """Reassigning a team frees the old dwellers back to IDLE."""
+    """Reassigning a team frees the old dweller without departing either."""
     vault, quest = await _make_quest_vault(async_session)
     dweller1 = await _make_adult_dweller(async_session, vault)
     dweller2 = await _make_adult_dweller(async_session, vault)
@@ -84,6 +174,12 @@ async def test_assign_quest_team_replaces_existing(async_session: AsyncSession) 
     members = await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller2.id])
 
     assert [member.dweller_id for member in members] == [dweller2.id]
+    await async_session.refresh(dweller1)
+    await async_session.refresh(dweller2)
+    assert dweller1.status == DwellerStatusEnum.IDLE
+    assert dweller2.status == DwellerStatusEnum.IDLE
+
+    await quest_service.start_quest(async_session, quest.id, vault.id)
     await async_session.refresh(dweller1)
     await async_session.refresh(dweller2)
     assert dweller1.status == DwellerStatusEnum.IDLE
@@ -182,22 +278,126 @@ async def test_assign_quest_team_rejects_foreign_dweller(async_session: AsyncSes
         await team_service.assign_quest_team(async_session, quest.id, vault.id, [foreign.id])
 
 
+async def _make_room(
+    async_session: AsyncSession,
+    vault: Vault,
+    *,
+    name: str = "Power Generator",
+    category: RoomTypeEnum = RoomTypeEnum.PRODUCTION,
+    size: int = 3,
+) -> Room:
+    """A simple production-style room posted into the vault."""
+    from app.tests.factory.rooms import create_fake_room
+
+    room_data = create_fake_room()
+    room_data.update(name=name, category=category, size=size, size_min=1, size_max=size)
+    room = Room(vault_id=vault.id, **room_data)
+    async_session.add(room)
+    await async_session.commit()
+    await async_session.refresh(room)
+    return room
+
+
 @pytest.mark.asyncio
-async def test_assign_quest_team_questing_dweller_allowed_on_own_team(async_session: AsyncSession) -> None:
-    """A QUESTING dweller may stay on the same quest's team, but not join another."""
-    vault, quest = await _make_quest_vault(async_session)
-    other_vault, other_quest = await _make_quest_vault(async_session, title="Other Quest")
+@pytest.mark.parametrize("quest_category", ["building", "population", "training"])
+async def test_assign_quest_team_rejects_state_objectives(async_session: AsyncSession, quest_category: str) -> None:
+    """State objectives have no return path, so assigning a party would strand it QUESTING."""
+    vault, quest = await _make_quest_vault(async_session, quest_category=quest_category)
+    room = await _make_room(async_session, vault)
     dweller = await _make_adult_dweller(async_session, vault)
+    dweller.status = DwellerStatusEnum.WORKING
+    dweller.room_id = room.id
+    await async_session.commit()
+
+    with pytest.raises(ValidationException, match="State objectives"):
+        await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
+
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.WORKING
+    assert dweller.room_id == room.id
+
+
+@pytest.mark.asyncio
+async def test_start_quest_clears_pre_departure_room(async_session: AsyncSession) -> None:
+    """Departure detaches dwellers from their old room so it stops counting them."""
+    vault, quest = await _make_quest_vault(async_session)
+    room = await _make_room(async_session, vault)
+    dweller = await _make_adult_dweller(async_session, vault)
+    dweller.room_id = room.id
+    await async_session.commit()
 
     await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
-    # Same dweller, still QUESTING, re-assigned to the same quest: allowed.
-    members = await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
-    assert [member.dweller_id for member in members] == [dweller.id]
 
-    # The same QUESTING dweller cannot join a different quest's team.
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.IDLE
+    assert dweller.room_id == room.id
+
+    await quest_service.start_quest(async_session, quest.id, vault.id)
+
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.QUESTING
+    assert dweller.room_id is None
+
+
+@pytest.mark.asyncio
+async def test_assign_quest_team_reassignment_keeps_dwellers_posted(async_session: AsyncSession) -> None:
+    """Replacing a roster leaves the freed and newly reserved dwellers in their rooms."""
+    vault, quest = await _make_quest_vault(async_session)
+    room = await _make_room(async_session, vault)
+    dweller1 = await _make_adult_dweller(async_session, vault)
+    dweller2 = await _make_adult_dweller(async_session, vault)
+    dweller1.room_id = room.id
+    dweller2.room_id = room.id
+    await async_session.commit()
+
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller1.id])
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller2.id])
+
+    await async_session.refresh(dweller1)
+    await async_session.refresh(dweller2)
+    assert dweller1.status == DwellerStatusEnum.IDLE
+    assert dweller1.room_id == room.id
+    assert dweller2.status == DwellerStatusEnum.IDLE
+    assert dweller2.room_id == room.id
+
+
+@pytest.mark.asyncio
+async def test_quest_return_restores_idle_without_room(async_session: AsyncSession) -> None:
+    """A returning party comes home IDLE and unposted, matching the exploration flow."""
+    vault, quest = await _make_quest_vault(async_session)
+    room = await _make_room(async_session, vault)
+    dweller = await _make_adult_dweller(async_session, vault)
+    dweller.room_id = room.id
+    await async_session.commit()
+
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
+    await quest_service.start_quest(async_session, quest.id, vault.id)
+    link = await crud.quest_crud.get_link(async_session, quest_id=quest.id, vault_id=vault.id)
+    assert link is not None
+    link.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    await async_session.commit()
+
+    await quest_service.mark_quest_ready_to_claim(async_session, quest.id, vault.id)
+
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.IDLE
+    assert dweller.room_id is None
+
+
+@pytest.mark.asyncio
+async def test_departed_dweller_cannot_join_another_quest(async_session: AsyncSession) -> None:
+    """A second deployment cannot reuse someone already travelling on a quest."""
+    vault, quest = await _make_quest_vault(async_session)
+    _, other_quest = await _make_quest_vault(async_session, title="Other Quest")
+    dweller = await _make_adult_dweller(async_session, vault)
+    office = (await crud.room.get_all_by_vault(async_session, vault.id))[0]
+    office.tier = 2
+    await async_session.commit()
     await crud.quest_crud.assign_to_vault(async_session, other_quest.id, vault.id, is_visible=True)
+    await quest_service.start_quest_for_vault(async_session, vault.id, quest.id, dweller_ids=[dweller.id])
+
     with pytest.raises(ValidationException, match="questing"):
-        await team_service.assign_quest_team(async_session, other_quest.id, vault.id, [dweller.id])
+        await quest_service.start_quest_for_vault(async_session, vault.id, other_quest.id, dweller_ids=[dweller.id])
 
 
 @pytest.mark.asyncio
@@ -237,6 +437,7 @@ async def test_quest_round_trip_assign_start_ready_claim(async_session: AsyncSes
         obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
     )
     async_session.add(Storage(vault_id=vault.id, max_space=10))
+    async_session.add(Room(**create_overseers_office(), vault_id=vault.id))
     dweller = await _make_adult_dweller(async_session, vault)
 
     quest = await crud.quest_crud.create(
@@ -259,9 +460,11 @@ async def test_quest_round_trip_assign_start_ready_claim(async_session: AsyncSes
     members = await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
     assert len(members) == 1
     await async_session.refresh(dweller)
-    assert dweller.status == DwellerStatusEnum.QUESTING
+    assert dweller.status == DwellerStatusEnum.IDLE
 
     await quest_service.start_quest(async_session, quest.id, vault.id)
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.QUESTING
     await async_session.refresh(link)
     assert link.started_at is not None
 
@@ -290,3 +493,108 @@ async def test_quest_round_trip_assign_start_ready_claim(async_session: AsyncSes
     assert any(reward["reward_type"] == "caps" for reward in granted)
     await async_session.refresh(link)
     assert link.is_completed is True
+
+
+@pytest.mark.asyncio
+async def test_rejected_start_keeps_party_posted(async_session: AsyncSession) -> None:
+    """A start rejected by the slot cap leaves the selected party in its room."""
+    vault, first_quest = await _make_quest_vault(async_session, title="First Quest")
+    room = await _make_room(async_session, vault)
+    first_dweller = await _make_adult_dweller(async_session, vault)
+    second_dweller = await _make_adult_dweller(async_session, vault)
+    second_dweller.room_id = room.id
+    await async_session.commit()
+
+    await team_service.assign_quest_team(async_session, first_quest.id, vault.id, [first_dweller.id])
+    await quest_service.start_quest(async_session, first_quest.id, vault.id)
+
+    second_quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Second Quest",
+            short_description="No slot left",
+            long_description="A second timed quest that must be rejected.",
+            requirements="One adult dweller",
+            rewards="50 caps",
+            duration_minutes=60,
+        ),
+    )
+    await crud.quest_crud.assign_to_vault(async_session, second_quest.id, vault.id, is_visible=True)
+    with pytest.raises(ResourceConflictException, match="All 1 quest slots"):
+        await quest_service.start_quest_for_vault(
+            async_session, vault.id, second_quest.id, dweller_ids=[second_dweller.id]
+        )
+    assert await crud.team_crud.get_quest_team(async_session, second_quest.id, vault.id) == []
+
+    await async_session.refresh(second_dweller)
+    assert second_dweller.status == DwellerStatusEnum.IDLE
+    assert second_dweller.room_id == room.id
+
+
+@pytest.mark.asyncio
+async def test_start_quest_rejects_party_member_sent_exploring(async_session: AsyncSession) -> None:
+    """A stale roster cannot overwrite someone who left on another assignment."""
+    vault, quest = await _make_quest_vault(async_session)
+    dweller = await _make_adult_dweller(async_session, vault)
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
+
+    dweller.status = DwellerStatusEnum.EXPLORING
+    await async_session.commit()
+
+    quest_id = quest.id
+    vault_id = vault.id
+    with pytest.raises(ValidationException, match="exploring"):
+        await quest_service.start_quest(async_session, quest_id, vault_id)
+
+    await async_session.rollback()
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.EXPLORING
+    link = await crud.quest_crud.get_link(async_session, quest_id=quest_id, vault_id=vault_id)
+    assert link is not None
+    assert link.started_at is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("flag", ["is_reward_ready", "is_completed"])
+async def test_finished_quest_history_does_not_block_another_departure(async_session: AsyncSession, flag: str) -> None:
+    """A returned party can depart again while its old roster stays as history."""
+    vault, first_quest = await _make_quest_vault(async_session, title="First Quest")
+    second_quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Second Quest",
+            short_description="Fresh roster",
+            long_description="A quest that may reuse a returned party.",
+            requirements="One adult dweller",
+            rewards="50 caps",
+            duration_minutes=60,
+        ),
+    )
+    await crud.quest_crud.assign_to_vault(async_session, second_quest.id, vault.id, is_visible=True)
+    dweller = await _make_adult_dweller(async_session, vault)
+    await quest_service.start_quest_for_vault(async_session, vault.id, first_quest.id, dweller_ids=[dweller.id])
+
+    link = await crud.quest_crud.get_link(async_session, quest_id=first_quest.id, vault_id=vault.id)
+    assert link is not None
+    link.started_at = datetime.utcnow() - timedelta(minutes=link.duration_minutes + 1)
+    await async_session.commit()
+    await quest_service.start_quest_return(async_session, first_quest.id, vault.id)
+    link.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    await async_session.commit()
+    await quest_service.mark_quest_ready_to_claim(async_session, first_quest.id, vault.id)
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.IDLE
+    if flag == "is_completed":
+        await quest_service.claim_quest_rewards(async_session, first_quest.id, vault.id)
+    await async_session.refresh(link)
+    assert getattr(link, flag) is True
+
+    eligible = await crud.quest_crud.get_quest_eligible_dwellers(async_session, vault.id)
+    assert dweller.id in {candidate.id for candidate in eligible}
+
+    await quest_service.start_quest_for_vault(async_session, vault.id, second_quest.id, dweller_ids=[dweller.id])
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.QUESTING
+
+    history = await crud.team_crud.get_quest_team(async_session, first_quest.id, vault.id)
+    assert [member.dweller_id for member in history] == [dweller.id]

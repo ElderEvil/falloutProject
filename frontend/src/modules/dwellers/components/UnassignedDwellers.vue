@@ -413,7 +413,8 @@ const handleDropZoneDrop = async (event: DragEvent) => {
   gap: 0.875rem;
   max-height: 440px;
   overflow-y: auto;
-  padding-right: 0.5rem;
+  /* Room for the hover lift and its shadow inside the scroll clip. */
+  padding: 0.25rem 0.5rem 0.5rem 0;
 }
 
 .dweller-grid::-webkit-scrollbar {
@@ -452,6 +453,7 @@ const handleDropZoneDrop = async (event: DragEvent) => {
   background: rgba(0, 0, 0, 0.6);
   transform: translateY(-2px);
   box-shadow: 0 4px 8px var(--color-theme-glow);
+  z-index: 1;
 }
 
 .dweller-card:active {

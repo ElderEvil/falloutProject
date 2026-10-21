@@ -26,6 +26,9 @@ class NotificationType(StrEnum):
     CRAFTING_COMPLETE = "crafting_complete"
     RECIPE_UNLOCKED = "recipe_unlocked"
 
+    STORAGE_ITEM_DEGRADED = "storage_item_degraded"
+    STORAGE_ITEM_UPGRADED = "storage_item_upgraded"
+
     # Social events
     RELATIONSHIP_FORMED = "relationship_formed"
     PREGNANCY_DETECTED = "pregnancy_detected"

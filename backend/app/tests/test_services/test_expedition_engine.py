@@ -14,7 +14,7 @@ from app.schemas.expedition import EnemySpec, ExpeditionResolveRequest, ItemRoll
 from app.schemas.exploration_event import JunkSchema
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
-from app.services.exploration import data_loader
+from app.services import catalog_service as data_loader
 from app.services.exploration import expedition as expedition_module
 from app.services.exploration.expedition import (
     expedition_service,

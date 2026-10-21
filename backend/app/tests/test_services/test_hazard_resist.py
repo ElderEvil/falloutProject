@@ -164,7 +164,7 @@ async def test_both_hazard_outfit_protects_against_fire_and_radiation(
 
 
 def _legendary_catalog() -> list[dict]:
-    from app.services.exploration.data_loader import load_outfits
+    from app.services.catalog_service import load_outfits
 
     return [row for row in load_outfits() if row.get("rarity") == "Legendary"]
 

@@ -30,7 +30,11 @@ export function useSoundProfileSync(): void {
     timer = setTimeout(() => {
       timer = null
       if (!profileStore.profile) return
-      const sound = { muted: audioManager.muted, volumes: { ...audioManager.volumes } }
+      const sound = {
+        muted: audioManager.muted,
+        alarmEnabled: audioManager.alarmEnabled,
+        volumes: { ...audioManager.volumes },
+      }
       void profileStore.savePreferences({ sound }).catch(() => {})
     }, SAVE_DEBOUNCE_MS)
   })

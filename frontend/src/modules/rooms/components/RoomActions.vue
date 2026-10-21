@@ -7,6 +7,8 @@ import {
   getMergeCandidates,
   getRoomSegmentCount,
 } from '../utils/room'
+import { isOverseersOffice } from '../models/roomParts'
+import { officeSpeedPercent } from '@/modules/progression/models/quest'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
 import { Button } from '@/core/components/ui/button'
@@ -71,7 +73,7 @@ const emit = defineEmits<{
         :disabled="busy"
         variant="secondary"
         size="sm"
-        class="action-btn action-btn--upgrade h-auto min-h-9 flex-wrap justify-start whitespace-normal py-2 text-left"
+        class="action-btn action-btn--upgrade justify-start text-left"
       >
         <span class="flex min-w-0 items-center gap-1">
           <Icon icon="mdi:arrow-up-circle" class="h-4 w-4" />
@@ -90,12 +92,23 @@ const emit = defineEmits<{
         <span>Max tier reached ({{ room.tier }}/{{ upgradeInfo.maxTier }})</span>
       </Button>
 
+      <p v-if="isOverseersOffice(room)" class="text-xs text-theme-primary/70">
+        {{ room.tier }} quest slot{{ room.tier === 1 ? '' : 's' }}
+        <template v-if="officeSpeedPercent(room.tier) > 0">
+          · missions {{ officeSpeedPercent(room.tier) }}% faster
+        </template>
+        <template v-if="upgradeInfo?.canUpgrade">
+          · next tier: {{ upgradeInfo.nextTier }} slots, missions
+          {{ officeSpeedPercent(upgradeInfo.nextTier) }}% faster
+        </template>
+      </p>
+
       <Button
         @click="emit('unassignAll')"
         :disabled="busy || assignedDwellerCount === 0"
         variant="secondary"
         size="sm"
-        class="action-btn action-btn--half justify-start"
+        class="action-btn justify-start"
       >
         <Icon icon="mdi:account-remove" class="h-4 w-4" />
         Unassign All Dwellers
@@ -132,7 +145,7 @@ const emit = defineEmits<{
               disabled
               variant="secondary"
               size="sm"
-              class="action-btn action-btn--half destroy-btn justify-start"
+              class="action-btn destroy-btn justify-start"
             >
               <Icon icon="mdi:delete" class="h-4 w-4" />
               Destroy Room
@@ -148,7 +161,7 @@ const emit = defineEmits<{
         :title="isInnerRoom ? 'Remove the outer rooms first.' : undefined"
         variant="secondary"
         size="sm"
-        class="action-btn action-btn--half destroy-btn justify-start"
+        class="action-btn destroy-btn justify-start"
       >
         <Icon icon="mdi:delete" class="h-4 w-4" />
         Destroy Room
@@ -183,14 +196,16 @@ const emit = defineEmits<{
 
 .actions-grid {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.5rem;
+  overflow-x: auto;
   padding: 0.25rem 0 0;
 }
 
 .action-btn {
-  flex: 1 1 200px;
-  min-width: 200px;
+  flex: 1 0 auto;
+  height: 2.25rem;
+  white-space: nowrap;
 }
 
 .action-btn.destroy-btn {
@@ -205,6 +220,7 @@ const emit = defineEmits<{
 
 .cost-badge {
   margin-left: auto;
+  white-space: nowrap;
   padding: 0.125rem 0.5rem;
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-theme-primary);

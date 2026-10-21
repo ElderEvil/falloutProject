@@ -186,6 +186,11 @@ const toggleSound = () => {
   if (!audioManager.muted) audioManager.play('success', 'ui')
 }
 
+const toggleAlarm = () => {
+  audioManager.setAlarmEnabled(!audioManager.alarmEnabled)
+  if (audioManager.alarmEnabled && !audioManager.muted) audioManager.play('alarm', 'sfx')
+}
+
 const setBusVolume = (bus: AudioBus, volume: number) => {
   audioManager.setVolume(bus, volume)
   // Audible feedback: play that bus's sample so the change is heard live.
@@ -568,6 +573,22 @@ const handleGlowSelect = (value: unknown) => {
                     :checked="audioManager.muted === false"
                     :aria-label="audioManager.muted ? 'Enable sound' : 'Disable sound'"
                     @update:checked="() => toggleSound()"
+                  />
+                </Label>
+
+                <!-- Incident Alarm (independent of the master switch) -->
+                <Label class="setting-row cursor-pointer">
+                  <div class="setting-info">
+                    <h4 class="setting-label">Incident Alarm</h4>
+                    <p class="setting-description">
+                      Looping siren while an incident is active; music and effects are unaffected
+                    </p>
+                  </div>
+                  <Switch
+                    :checked="audioManager.alarmEnabled"
+                    :disabled="audioManager.muted"
+                    aria-label="Toggle incident alarm"
+                    @update:checked="() => toggleAlarm()"
                   />
                 </Label>
 

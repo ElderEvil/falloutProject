@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick, ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -122,6 +122,7 @@ describe('NavBar', () => {
     vaultHeader.resourceRates!.value = { power: 1, food: 2, water: 3 }
     vaultHeader.nukaColaCount!.value = 42
     audioManager.setMuted(true)
+    audioManager.setAlarmEnabled(true)
     audioManager.setVolume('ui', 0.6)
     audioManager.setVolume('sfx', 0.8)
     audioManager.setVolume('music', 0.4)
@@ -129,7 +130,29 @@ describe('NavBar', () => {
 
   afterEach(() => {
     roomsLoadState.failNext = false
+    localStorage.removeItem('visual-effects:glow')
     vi.restoreAllMocks()
+  })
+
+  it('applies the configured text glow to the vault number', async () => {
+    localStorage.setItem('visual-effects:glow', 'subtle')
+    vaultHeader.vault!.value = { number: 42 }
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/vault/:id', component: { template: '<div />' } }],
+    })
+    await router.push('/vault/vault-1')
+    await router.isReady()
+
+    const wrapper = mount(NavBar, {
+      global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
+    })
+
+    const vaultNumber = wrapper.find('[aria-label="Current vault 42"]')
+    expect(vaultNumber.classes()).toContain('terminal-glow-subtle')
+    expect(vaultNumber.classes()).not.toContain('terminal-glow')
+    wrapper.unmount()
   })
 
   it('keeps the Vaults link aria-label verbatim', async () => {
@@ -345,6 +368,45 @@ describe('NavBar', () => {
     expect(wrapper.findAllComponents(ResourceBar)).toHaveLength(0)
   })
 
+  it('closes the user menu on logout so it stays closed after re-login', async () => {
+    const authStore = useAuthStore()
+    authStore.token = 'test-token'
+    authStore.user = testUser
+    vi.spyOn(authStore, 'logout').mockImplementation(async () => {
+      authStore.token = null
+      authStore.user = null
+    })
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/vault/:id', component: { template: '<div />' } },
+        { path: '/login', component: { template: '<div />' } },
+      ],
+    })
+    await router.push('/vault/vault-1')
+    await router.isReady()
+
+    const wrapper = mount(NavBar, {
+      global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
+    })
+
+    await wrapper.get('button[aria-label="User menu for Overseer"]').trigger('click')
+    expect(wrapper.find('[role="menu"]').exists()).toBe(true)
+
+    await wrapper.get('button[aria-label="Logout"]').trigger('click')
+    await flushPromises()
+
+    authStore.token = 'next-token'
+    authStore.user = testUser
+    await nextTick()
+
+    const button = wrapper.get('button[aria-label="User menu for Overseer"]')
+    expect(button.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('[role="menu"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('uses a terminal-green highlight for user menu items', async () => {
     const authStore = useAuthStore()
     authStore.token = 'test-token'
@@ -423,6 +485,7 @@ describe('NavBar', () => {
     const img = button.find('img')
     expect(img.exists()).toBe(true)
     expect(img.attributes('src')).toBe('https://example.com/overseer.png')
+    expect(img.classes()).toContain('size-7')
     wrapper.unmount()
   })
 
@@ -452,6 +515,7 @@ describe('NavBar', () => {
       global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
     })
     expect(wrapper.find('button[aria-label="User menu for Overseer"] img').exists()).toBe(false)
+    expect(wrapper.find('button[aria-label="User menu for Overseer"] .h-7.w-7').exists()).toBe(true)
     wrapper.unmount()
   })
 
@@ -479,7 +543,7 @@ describe('NavBar', () => {
     wrapper.unmount()
   })
 
-  describe('sound toggle', () => {
+  describe('alarm toggle', () => {
     async function mountNavBar() {
       const router = createRouter({
         history: createMemoryHistory(),
@@ -499,28 +563,30 @@ describe('NavBar', () => {
     it('is hidden while no incident is active', async () => {
       const wrapper = await mountNavBar()
 
-      expect(wrapper.find('button[aria-label="Unmute sounds"]').exists()).toBe(false)
-      expect(wrapper.find('button[aria-label="Mute sounds"]').exists()).toBe(false)
+      expect(wrapper.find('button[aria-label="Silence incident alarm"]').exists()).toBe(false)
+      expect(wrapper.find('button[aria-label="Enable incident alarm"]').exists()).toBe(false)
     })
 
-    it('shows the unmute action while sounds are muted', async () => {
+    it('offers to silence the alarm while an incident is active', async () => {
       useIncidentStore().activeIncidentIds = ['incident-1']
 
       const wrapper = await mountNavBar()
 
-      expect(wrapper.find('button[aria-label="Unmute sounds"]').exists()).toBe(true)
+      expect(wrapper.find('button[aria-label="Silence incident alarm"]').exists()).toBe(true)
     })
 
-    it('mutes and unmutes without leaving the page', async () => {
+    it('toggles the alarm without changing the master mute', async () => {
       useIncidentStore().activeIncidentIds = ['incident-1']
       audioManager.setMuted(false)
+      audioManager.setAlarmEnabled(true)
 
       const wrapper = await mountNavBar()
 
-      await wrapper.find('button[aria-label="Mute sounds"]').trigger('click')
+      await wrapper.find('button[aria-label="Silence incident alarm"]').trigger('click')
 
-      expect(audioManager.muted).toBe(true)
-      expect(wrapper.find('button[aria-label="Unmute sounds"]').exists()).toBe(true)
+      expect(audioManager.alarmEnabled).toBe(false)
+      expect(audioManager.muted).toBe(false)
+      expect(wrapper.find('button[aria-label="Enable incident alarm"]').exists()).toBe(true)
     })
   })
 

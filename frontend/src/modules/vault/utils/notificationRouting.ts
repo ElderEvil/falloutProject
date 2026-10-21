@@ -1,8 +1,53 @@
+import type { SoundKey } from '@/core/audio/soundManifest'
+import type { components } from '@/core/types/api.generated'
+
 export interface NotificationNavigationContext {
   vault_id?: string | null
   from_dweller_id?: string | null
   notification_type: string
   meta_data?: Record<string, unknown> | null
+}
+
+const NOTIFICATION_SOUNDS = {
+  exploration_update: 'explorationLoot',
+  exploration_complete: 'explorationComplete',
+  level_up: 'levelUp',
+  training_complete: 'trainingComplete',
+  training_started: 'trainingStart',
+  crafting_complete: 'craftComplete',
+  storage_item_degraded: 'resourceLow',
+  storage_item_upgraded: 'craftComplete',
+  recipe_unlocked: 'recipeUnlocked',
+  relationship_formed: 'relationshipFormed',
+  pregnancy_detected: 'pregnancyDetected',
+  baby_born: 'babyBorn',
+  // The incident store already plays the per-threat and victory/defeat cues when
+  // the incident stream updates, so the bell stays on the generic alert here.
+  combat_started: 'notification',
+  combat_victory: 'notification',
+  combat_defeat: 'notification',
+  arena_morale_boost: 'arenaMorale',
+  dweller_injured: 'dwellerInjured',
+  dweller_died: 'dwellerDied',
+  dweller_exit_requested: 'dwellerExit',
+  hazard_team_joined: 'hazardTeamJoined',
+  resource_low: 'resourceLow',
+  resource_critical: 'resourceCritical',
+  power_outage: 'powerOutage',
+  quest_complete: 'questComplete',
+  objective_completed: 'objectiveReady',
+  objectives_refreshed: 'objectivesRefreshed',
+  achievement_unlocked: 'success',
+  radio_new_dweller: 'radioRecruit',
+  radio_auto_switched_to_happiness: 'tabSwitch',
+  map_registration_failed: 'mapRegistrationFailed',
+  location_cleared: 'locationCleared',
+  location_ready: 'locationReady',
+} as const satisfies Record<components['schemas']['NotificationType'], SoundKey>
+
+/** Resolve a notification type to its bell cue, falling back to the generic alert. */
+export function getNotificationSound(notificationType: string): SoundKey {
+  return NOTIFICATION_SOUNDS[notificationType as keyof typeof NOTIFICATION_SOUNDS] ?? 'notification'
 }
 
 function metadataString(notification: NotificationNavigationContext, key: string): string | null {
@@ -35,6 +80,9 @@ export function getNotificationRoute(notification: NotificationNavigationContext
       }
       return `${vaultPath}/training`
     }
+    case 'storage_item_degraded':
+    case 'storage_item_upgraded':
+      return `${vaultPath}/storage`
     case 'training_started':
       return `${vaultPath}/training`
     case 'quest_complete': {

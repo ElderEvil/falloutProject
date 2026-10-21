@@ -10,6 +10,7 @@ from app.core.enums import DwellerStatusEnum
 from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.quest_reward import QuestReward, RewardType
+from app.models.room import Room
 from app.models.vault import Vault
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.common import AgeGroupEnum
@@ -17,6 +18,7 @@ from app.schemas.quest import QuestCreate
 from app.services.progression.quests.service import quest_service
 from app.services.team_service import team_service
 from app.tests.factory.dwellers import create_fake_dweller
+from app.tests.factory.rooms import create_overseers_office
 from app.utils.exceptions import ValidationException
 
 
@@ -39,6 +41,7 @@ async def _expired_quest(
         QuestReward(quest_id=quest.id, reward_type=RewardType.CAPS, reward_data={"amount": 50}, reward_chance=1.0)
     )
     link = await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+    async_session.add(Room(**create_overseers_office(), vault_id=vault.id))
     dweller_data = create_fake_dweller()
     dweller_data.update(age_group=AgeGroupEnum.ADULT)
     dweller = Dweller(**dweller_data, vault_id=vault.id)

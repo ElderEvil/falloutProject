@@ -1,4 +1,5 @@
 import { computed } from 'vue'
+import { useStorageStore } from '@/modules/storage/stores/storage'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import { handleStoreError } from '@/core/utils/errorHandler'
@@ -45,6 +46,7 @@ export const useAuthStore = defineStore('auth', () => {
   // Invalidate account-owned state before replacing credentials or user identity.
   function clearSession(): void {
     useVaultStore().clearSession()
+    useStorageStore().reset()
     useProfileStore().clearProfile()
   }
 

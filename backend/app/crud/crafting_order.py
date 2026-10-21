@@ -21,6 +21,36 @@ class CRUDCraftingOrder(CRUDBase[CraftingOrder, CraftingOrderCreate, CraftingOrd
         )
         return list(result.scalars().all())
 
+    async def get_active_by_vault_for_update(self, db_session: AsyncSession, vault_id: UUID4) -> list[CraftingOrder]:
+        """Lock active orders for the tick so a concurrent cancel cannot be overwritten.
+
+        ``skip_locked`` lets a tick skip an order a cancel already holds; after
+        waiting, PostgreSQL re-checks the ACTIVE predicate, so a committed
+        cancellation is never resurrected as completed.
+        """
+        result = await db_session.execute(
+            select(CraftingOrder)
+            .where(CraftingOrder.vault_id == vault_id, CraftingOrder.status == CraftingOrderStatus.ACTIVE)
+            .order_by(CraftingOrder.started_at)
+            .with_for_update(skip_locked=True)
+            .execution_options(populate_existing=True)
+        )
+        return list(result.scalars().all())
+
+    async def has_uncollected(self, db_session: AsyncSession, vault_id: UUID4, item_type: str, item_name: str) -> bool:
+        """True while an order for this exact item is active or awaiting collection."""
+        result = await db_session.execute(
+            select(CraftingOrder.id)
+            .where(
+                CraftingOrder.vault_id == vault_id,
+                CraftingOrder.item_type == item_type,
+                CraftingOrder.item_name == item_name,
+                CraftingOrder.status.notin_([CraftingOrderStatus.COLLECTED, CraftingOrderStatus.CANCELLED]),
+            )
+            .limit(1)
+        )
+        return result.first() is not None
+
     async def get_by_vault(self, db_session: AsyncSession, vault_id: UUID4) -> list[CraftingOrder]:
         """Every order for a vault, newest first."""
         result = await db_session.execute(

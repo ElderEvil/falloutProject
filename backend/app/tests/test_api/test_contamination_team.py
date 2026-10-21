@@ -10,7 +10,7 @@ from app.models.incident import IncidentType
 from app.models.team import ACTIVE_STATUS, RESERVE_STATUS
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
-from app.services.exploration.data_loader import load_outfits
+from app.services.catalog_service import load_outfits
 from app.services.hazard_team_service import TEAM_SIZE
 from app.tests.test_services._hazard_team_helpers import ensure_station, make_member, raise_incident
 from app.utils.item_factory import build_outfit

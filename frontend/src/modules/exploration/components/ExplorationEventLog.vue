@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { getEventIcon, getEventColor } from '@/modules/exploration/models/exploration'
+import { getRarityBorderClass, getRarityTextClass } from '@/core/models/items'
 import { formatClock } from '@/core/utils/format'
 import type { ExplorationEvent } from '@/modules/exploration/stores/exploration'
 
@@ -45,6 +46,13 @@ const getLootDisplay = (event: ExplorationEvent): string => {
   }
 
   return parts.join(' + ')
+}
+
+const getLootClasses = (event: ExplorationEvent): string[] => {
+  const rarity = event.loot?.item?.rarity
+  return rarity
+    ? [getRarityBorderClass(rarity), getRarityTextClass(rarity)]
+    : ['border-theme-primary/40', 'text-theme-primary']
 }
 </script>
 
@@ -112,7 +120,8 @@ const getLootDisplay = (event: ExplorationEvent): string => {
             </button>
             <div
               v-if="showLoot && hasLoot(event)"
-              class="loot-line inline-flex items-center gap-1 self-start rounded-[3px] border border-rarity-legendary/30 bg-rarity-legendary/10 px-1.5 py-0.5 text-[0.75rem] font-semibold text-rarity-legendary"
+              class="loot-line inline-flex items-center gap-1 self-start rounded-[3px] border bg-terminal-background px-1.5 py-0.5 text-[0.75rem] font-semibold"
+              :class="getLootClasses(event)"
             >
               <Icon icon="mdi:treasure-chest" class="h-3.5 w-3.5" />
               {{ getLootDisplay(event) }}

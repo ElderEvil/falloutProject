@@ -40,8 +40,8 @@ from app.schemas.arena import (
 from app.schemas.arena import (
     ArenaState as ArenaStateOut,
 )
+from app.services.catalog_service import list_arena_creatures
 from app.services.combat.weapon_skill_service import CHARGE_PER_SECOND, MAX_CHARGE, weapon_skill
-from app.services.exploration.data_loader import list_arena_creatures
 from app.services.game_tick.tick_results import ArenaEventStats, ArenaRoomStats, ArenaStats
 from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException

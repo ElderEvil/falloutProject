@@ -18,6 +18,8 @@ class OutfitRead(OutfitBase):
     updated_at: datetime
     dweller_id: UUID4 | None = None
     storage_id: UUID4 | None = None
+    # Read-time workshop summary; outfits carry no flavor-text column.
+    description: str | None = None
 
 
 @optional()

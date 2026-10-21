@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from app.utils.weapon_naming import family_key
+
 WEAPON_NAME_TO_IMAGE_FILE = {
     ".32 pistol": "32 pistol FOS.png",
     "10mm pistol": "10mm pistol FOS.png",
@@ -54,33 +56,6 @@ WEAPON_NAME_TO_IMAGE_FILE = {
 _WEAPON_IMAGE_DIR = Path(__file__).parent.parent / "static" / "weapon_images"
 _FALLBACK_IMAGE_FILE = "10mm pistol FOS.png"
 
-#: Variant prefixes stripped to reach the family base name (FOS naming:
-#: "Hardened Gauss pistol" shares the Gauss pistol look). Grounded in the
-#: wiki titles harvested for the rare-variant backfill.
-_VARIANT_PREFIXES: tuple[str, ...] = (
-    "armor piercing",
-    "recoil compensated",
-    "night-vision",
-    "bayoneted",
-    "double-barrel",
-    "double barrel",
-    "hardened",
-    "enhanced",
-    "focused",
-    "amplified",
-    "tuned",
-    "pressurized",
-    "incendiary",
-    "improved",
-    "excited",
-    "scoped",
-    "calibrated",
-    "tactical",
-    "rusty",
-    "auto",
-    "long",
-)
-
 _file_index: dict[str, str] | None = None
 
 
@@ -98,14 +73,6 @@ def _disk_index() -> dict[str, str]:
             else {}
         )
     return _file_index
-
-
-def _family_key(weapon_name: str) -> str:
-    lowered = weapon_name.strip().casefold()
-    for prefix in _VARIANT_PREFIXES:
-        if lowered.startswith(prefix + " "):
-            return lowered[len(prefix) + 1 :]
-    return lowered
 
 
 def _convention_lookup(weapon_name: str) -> str | None:
@@ -135,7 +102,7 @@ def get_weapon_image_url(weapon_name: str | None) -> str | None:
         key = weapon_name.strip().casefold()
         filename = WEAPON_NAME_TO_IMAGE_FILE.get(key) or _convention_lookup(key)
         if filename is None:
-            family = _family_key(key)
+            family = family_key(key)
             filename = WEAPON_NAME_TO_IMAGE_FILE.get(family) or _convention_lookup(family)
         filename = filename or _FALLBACK_IMAGE_FILE
     return f"/static/weapon_images/{filename}" if (_WEAPON_IMAGE_DIR / filename).exists() else None

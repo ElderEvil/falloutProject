@@ -34,6 +34,22 @@ must surface via modal/pop-up or toast **in addition to** the notification bell 
 notification-only. A new progression flow without visible surfacing is incomplete; keep existing surfacing
 intact when touching these flows.
 
+## Continuous training
+
+The Training Queue's repeat toggle is an opt-in vault setting, disabled for existing and new vaults.
+It applies to current and future training sessions. Each completed round grants one stat point and,
+while the same dweller remains eligible in that room, starts the next round until the stat reaches that session’s individual goal (default 10).
+Goals are editable per dweller even while repeat is off, between the current round’s next stat value
+and 10, and carry into every successor round. Lowering a goal never cancels or resets the round already in progress.
+The game loop performs this while the app is closed. Every round snapshots the current room tier and
+equipped pet bonus; the gain, completed session and successor persist together. Completion events and
+bell/toast notifications still fire for every round, distinguishing continued training from reaching the goal.
+
+Turning repeat off lets the current round finish normally. Canceling, reassigning or losing a dweller
+stops that dweller's training. A capped trainee is released normally; the toggle does not auto-assign
+idle dwellers or switch their training stat. Demolishing a training room cancels active rounds without
+awarding stats and preserves completed/cancelled history with an empty room reference.
+
 ## Objectives: guidance, earned progress and explicit claims
 
 - Objective progress advances automatically from game events; **rewards do not**. Reaching the target creates
@@ -57,6 +73,9 @@ intact when touching these flows.
   already-claimed links. Objective rewards never count toward another resource-collection objective.
 - Ready rewards keep their routine bell/toast event; successful claims show a modal or toast. Notification opt-outs
   affect notification delivery, not reward settlement or the player-opened guide.
+- The Objectives and Quests headers let owners collect all currently ready rewards. Claims run sequentially;
+  objectives stop on the first failure and announce any rewards already collected, while quests show each
+  claim's result and continue after failures. Failed claims remain available to retry.
 
 ### Objective renewal
 
@@ -125,11 +144,31 @@ become available without resetting an existing stage.
 
 ## Timed quest capacity
 
-A vault can have three timed quests in flight at once. Both outbound and returning parties occupy a slot
-until rewards become ready to claim. Unclaimed rewards, completed quests and state-based building,
-population and training quests do not occupy slots. Start requests serialize on the vault row before
-counting active timed links; a fourth start is rejected with 409. The frontend mirrors the count,
-disables timed start/party actions at capacity, and leaves state objectives usable.
+The Overseer's Office sets the timed-quest slot count: no office means no quests, and office tier 1, 2 or 3
+allows one, two or three timed quests in flight. Both outbound and returning parties occupy a slot until
+rewards become ready to claim. Unclaimed rewards, completed quests and state-based building, population and
+training quests do not occupy slots. Start requests serialize on the vault row before counting active timed
+links; a start above the office's slot count is rejected with 409.
+
+The start request carries the selected party. Its transaction locks and revalidates each member, then commits
+the roster, departure (status QUESTING, room cleared), and timer together. A rejected start persists nothing
+and preserves the dwellers' previous assignments. Availability is status-based: dwellers are QUESTING while
+away and selectable again on return; old roster rows are history, never reservations.
+
+The UI always sends `dweller_ids` to `POST /quests/{vault_id}/{quest_id}/start` for timed missions. The standalone
+`POST /quests/{vault_id}/{quest_id}/assign-party` endpoint has been removed; external clients must send their
+selection with Start instead. Bodyless starts remain for state objectives and existing roster callers.
+Migration `d9e2f4a6b801` releases legacy QUESTING dwellers without a started, unreturned quest to IDLE with no
+room; their pre-assignment postings cannot be recovered. Actual outbound and returning parties are preserved.
+
+Tier 2 and tier 3 shorten missions by 10% and 20%. The four-hour cap applies to the base duration before the
+office bonus, so the discount always reduces the timer. The multiplier is applied once at start and persisted
+on the link, so an upgrade never retimes a quest already in flight; the return leg derives from the same
+persisted duration. A vault that predates this rule may temporarily hold more active quests than its office
+allows: it drains down as parties return, and only new starts are blocked.
+
+The frontend reads the office tier from the vault's room list, shows the used/limit count and mission-speed
+bonus as a header metric, disables timed start/party actions at capacity, and leaves state objectives usable.
 
 ## Quest gates: one scope per requirement type
 
@@ -498,3 +537,43 @@ All paths write the audio under the cache key (`pa/<hash>.mp3`) so subsequent
 calls hit the cache even when the provider chain differs. The existing
 "already has an audio line" guard (`voice_line_url` present) fires before
 cache lookup and raises `ContentNoChangeException` unchanged.
+
+## Room themes (Diner and Living Quarters)
+
+- Only Diner and Living Quarters accept non-default themes; `apply_room_style` rejects any other room.
+- Applying a non-default theme requires **tier 3** and a theme the vault has **crafted**. The standard
+  style is always available, including below tier 3.
+- Themes are crafted **once per vault** at the Theme workshop through the normal order queue
+  (`junk + caps + time`). Collecting the order writes the permanent `vault_theme` row; there is no
+  per-room application item and no second craft. A theme with an active or uncollected order cannot
+  be queued again.
+- Boosted vaults are seeded with every catalog theme already crafted, so the selector is usable
+  immediately. Standard vaults unlock themes only by crafting them.
+- The room selector lists standard plus crafted themes. Below tier 3 it is disabled with a tier hint;
+  at tier 3 with no crafted themes it points the player at the Theme workshop.
+
+## Storage weapon maintenance
+
+Storage rooms (CAPACITY + ENDURANCE) share a vault-wide protection pool. Only living
+adult workers posted there contribute effective END, including outfit/pet and identity
+production modifiers. Living Quarters are CAPACITY + CHARISMA; storage workers are
+never included in conception or family-scenario living-quarter selection.
+
+When `STORAGE_MAINTENANCE_ENABLED=true`, each eligible stored weapon gets at most one
+trial per configured hour. Below 20 effective END the trial can downgrade one catalog
+rung; above 20 it can upgrade one. At zero or at least 40 END the chance caps at 2%.
+Catalog ladders sort by average damage, not rarity. Swaps preserve item identity and
+rewrite catalog-owned fields through the item factory; there is no condition meter.
+Single-rung and unknown items are excluded. Upgrades and rarity crossings have separate
+configuration switches; blocked and unsuccessful attempts still consume the hour.
+
+New legacy clocks initialize without rolling. Missed hours never accumulate; offline
+passes advance clocks without rolling by default. Pause/resume shifts stored-item
+clocks, and every return to storage resets the clock. ORM returns share a Weapon mapper
+hook, while bulk unequip updates explicitly set the timestamp. Trial processing locks
+storage and due weapons, persists aggregated notifications in the same transaction,
+and delivers the bell/toast event only after commit. Notifications are limited to one
+per direction per vault per 24 hours. Both storage notification types are intentionally always
+delivered: upgrades are progression and degradation needs player attention, so routine category
+preferences do not mute them. Maintenance is enabled by default; set
+`STORAGE_MAINTENANCE_ENABLED=false` to disable it.

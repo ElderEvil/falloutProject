@@ -15,8 +15,8 @@ from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
 from app.models.exploration import ExpeditionRunStatus
 from app.schemas.dweller import DwellerCreate
 from app.schemas.vault import VaultNumber
+from app.services import catalog_service as data_loader
 from app.services.dweller_service import dweller_service
-from app.services.exploration import data_loader
 from app.services.exploration.expedition import expedition_service
 from app.services.exploration_service import exploration_service
 from app.services.leveling_service import leveling_service

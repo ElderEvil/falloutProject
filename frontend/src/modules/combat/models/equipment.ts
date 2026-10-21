@@ -29,7 +29,7 @@ export type Rarity = 'common' | 'rare' | 'legendary'
 export interface ItemBase {
   id: string
   name: string
-  description?: string
+  description?: string | null
   rarity: Rarity
   value?: number | null
   icon_url?: string

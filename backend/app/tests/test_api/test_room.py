@@ -163,7 +163,109 @@ async def test_read_room(async_client: AsyncClient, superuser_token_headers: dic
     assert response_room["size_max"] == room.size_max
 
 
+async def _styled_room(
+    async_session: AsyncSession, vault: Vault, *, tier: int = 3, room_style: str = "default"
+) -> Room:
+    return await crud.room.create(
+        async_session,
+        obj_in=RoomCreate(
+            **(
+                create_fake_room()
+                | {
+                    "name": "Diner",
+                    "category": RoomTypeEnum.PRODUCTION,
+                    "tier": tier,
+                    "room_style": room_style,
+                }
+            ),
+            vault_id=vault.id,
+        ),
+    )
+
+
 @pytest.mark.smoke
+@pytest.mark.asyncio
+async def test_apply_room_style_endpoint(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+) -> None:
+    """A crafted theme on a tier-3 room updates the style and sprite URL."""
+    room = await _styled_room(async_session, vault)
+    await crud.vault_theme.mark_crafted(async_session, vault_id=vault.id, style="party")
+    await async_session.commit()
+
+    response = await async_client.post(
+        f"/rooms/style/{room.id}",
+        json={"style": "party"},
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["room_style"] == "party"
+    assert response.json()["image_url"] == "/static/room_images/FOS Diner Party.png"
+
+
+@pytest.mark.asyncio
+async def test_apply_room_style_rejects_rooms_below_tier_three(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+) -> None:
+    room = await _styled_room(async_session, vault, tier=2)
+    await crud.vault_theme.mark_crafted(async_session, vault_id=vault.id, style="party")
+    await async_session.commit()
+
+    response = await async_client.post(
+        f"/rooms/style/{room.id}",
+        json={"style": "party"},
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 400
+    assert "tier 3" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_apply_room_style_rejects_uncrafted_themes(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+) -> None:
+    room = await _styled_room(async_session, vault)
+
+    response = await async_client.post(
+        f"/rooms/style/{room.id}",
+        json={"style": "halloween"},
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 400
+    assert "Craft the halloween theme" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_apply_room_style_resets_to_standard_at_any_tier(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+) -> None:
+    room = await _styled_room(async_session, vault, tier=1, room_style="party")
+
+    response = await async_client.post(
+        f"/rooms/style/{room.id}",
+        json={"style": "default"},
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["room_style"] == "default"
+
+
 @pytest.mark.asyncio
 @pytest.mark.skip(
     reason="Flaky: fails with 400 only when run in the full suite (passes in isolation and "

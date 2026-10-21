@@ -7,6 +7,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useTrainingStore } from '@/modules/progression/stores/training'
+import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.vue'
 import { useRoomInteractions } from '../composables/useRoomInteractions'
 import { useHoverPreview } from '../composables/useHoverPreview'
 import { useRoomRendering } from '@/core/composables/useRoomRendering'
@@ -67,7 +68,15 @@ const isPowerOutage = computed(() => {
   return (vaultStore.activeVault?.power ?? 1) <= 0
 })
 
-const { selectedRoomId, toggleRoomSelection, destroyRoom } = useRoomInteractions()
+const {
+  selectedRoomId,
+  toggleRoomSelection,
+  destroyRoom,
+  destroyTitle,
+  showDestroyConfirmation,
+  confirmDestroy,
+  cancelDestroy,
+} = useRoomInteractions()
 const {
   hoverPosition,
   handleHover,
@@ -423,6 +432,14 @@ const closeDetailModal = () => {
       </div>
     </div>
   </TooltipProvider>
+  <TerminalConfirmation
+    :open="showDestroyConfirmation"
+    :title="destroyTitle"
+    message="Dwellers will be unassigned. You will receive a partial refund."
+    confirm-label="Destroy room"
+    @confirm="confirmDestroy()"
+    @cancel="cancelDestroy()"
+  />
 </template>
 
 <style src="./RoomGrid.css" scoped></style>

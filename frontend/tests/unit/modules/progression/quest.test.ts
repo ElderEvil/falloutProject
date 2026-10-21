@@ -3,6 +3,7 @@ import {
   describeGrantedReward,
   formatGrantedReward,
   questRewardIcon,
+  questSlotLimitForVault,
   type GrantedReward,
   type QuestReward,
 } from '@/modules/progression/models/quest'
@@ -39,7 +40,11 @@ describe('describeGrantedReward', () => {
   })
 
   it('renders experience with the granted name when present, else the amount', () => {
-    const named: GrantedReward = { reward_type: 'experience', amount: 100, name: 'Quest experience' }
+    const named: GrantedReward = {
+      reward_type: 'experience',
+      amount: 100,
+      name: 'Quest experience',
+    }
     expect(describeGrantedReward(named).value).toBe('Quest experience')
 
     const unnamed: GrantedReward = { reward_type: 'experience', amount: 100 }
@@ -65,7 +70,12 @@ describe('describeGrantedReward', () => {
   })
 
   it('renders an item with quantity prefix and type-specific icon and label', () => {
-    const reward: GrantedReward = { reward_type: 'item', item_type: 'weapon', name: 'Rifle', amount: 3 }
+    const reward: GrantedReward = {
+      reward_type: 'item',
+      item_type: 'weapon',
+      name: 'Rifle',
+      amount: 3,
+    }
     expect(describeGrantedReward(reward)).toEqual({
       icon: 'mdi:pistol',
       label: 'Weapon',
@@ -74,7 +84,12 @@ describe('describeGrantedReward', () => {
   })
 
   it('renders a dweller-granting item reward with the dweller label and icon', () => {
-    const reward: GrantedReward = { reward_type: 'item', item_type: 'dweller', name: 'Legendary Dweller', amount: 1 }
+    const reward: GrantedReward = {
+      reward_type: 'item',
+      item_type: 'dweller',
+      name: 'Legendary Dweller',
+      amount: 1,
+    }
     expect(describeGrantedReward(reward)).toEqual({
       icon: 'mdi:account-plus',
       label: 'Dweller',
@@ -83,7 +98,12 @@ describe('describeGrantedReward', () => {
   })
 
   it('falls back to the generic item icon and label for an unknown item type', () => {
-    const reward: GrantedReward = { reward_type: 'item', item_type: 'unknown', name: 'Mystery Trinket', amount: 1 }
+    const reward: GrantedReward = {
+      reward_type: 'item',
+      item_type: 'unknown',
+      name: 'Mystery Trinket',
+      amount: 1,
+    }
     expect(describeGrantedReward(reward)).toEqual({
       icon: 'mdi:package-variant',
       label: 'Item',
@@ -101,7 +121,12 @@ describe('formatGrantedReward', () => {
   it('matches the backend format_reward_summary strings', () => {
     const caps: GrantedReward = { reward_type: 'caps', amount: 25 }
     const food: GrantedReward = { reward_type: 'resource', resource_type: 'food', amount: 10 }
-    const box: GrantedReward = { reward_type: 'item', item_type: 'lunchbox', name: 'Lunchbox', amount: 1 }
+    const box: GrantedReward = {
+      reward_type: 'item',
+      item_type: 'lunchbox',
+      name: 'Lunchbox',
+      amount: 1,
+    }
 
     expect(formatGrantedReward(caps)).toBe('25 caps')
     expect(formatGrantedReward(food)).toBe('10 food')
@@ -109,15 +134,19 @@ describe('formatGrantedReward', () => {
   })
 
   it('renders named experience by name and unnamed by amount', () => {
-    expect(formatGrantedReward({ reward_type: 'experience', amount: 100, name: 'Quest experience' })).toBe(
-      'Quest experience'
-    )
+    expect(
+      formatGrantedReward({ reward_type: 'experience', amount: 100, name: 'Quest experience' })
+    ).toBe('Quest experience')
     expect(formatGrantedReward({ reward_type: 'experience', amount: 100 })).toBe('100 XP')
   })
 
   it('renders a dweller by name and items with a quantity prefix', () => {
-    expect(formatGrantedReward({ reward_type: 'dweller', dweller_id: 'd-1', name: 'Jane Doe' })).toBe('Jane Doe')
-    expect(formatGrantedReward({ reward_type: 'item', item_type: 'weapon', name: 'Rifle', amount: 3 })).toBe('3x Rifle')
+    expect(
+      formatGrantedReward({ reward_type: 'dweller', dweller_id: 'd-1', name: 'Jane Doe' })
+    ).toBe('Jane Doe')
+    expect(
+      formatGrantedReward({ reward_type: 'item', item_type: 'weapon', name: 'Rifle', amount: 3 })
+    ).toBe('3x Rifle')
   })
 
   it('renders a zero-amount medication as its bare label, like the backend summary', () => {
@@ -144,30 +173,63 @@ describe('questRewardIcon', () => {
 
   it('resolves resource rewards by their resource type', () => {
     expect(
-      questRewardIcon(questReward({ reward_type: 'resource', reward_data: { resource_type: 'food' } }))
+      questRewardIcon(
+        questReward({ reward_type: 'resource', reward_data: { resource_type: 'food' } })
+      )
     ).toBe('mdi:silverware')
     expect(
-      questRewardIcon(questReward({ reward_type: 'resource', reward_data: { resource_type: 'mystery' } }))
+      questRewardIcon(
+        questReward({ reward_type: 'resource', reward_data: { resource_type: 'mystery' } })
+      )
     ).toBe('mdi:database')
   })
 
   it('keeps item rewards on category, then name, then the generic fallback', () => {
     expect(
-      questRewardIcon(questReward({ reward_type: 'item', reward_data: { item_type: 'weapon', item_name: 'Rifle' } }))
+      questRewardIcon(
+        questReward({
+          reward_type: 'item',
+          reward_data: { item_type: 'weapon', item_name: 'Rifle' },
+        })
+      )
     ).toBe('mdi:pistol')
     expect(
       questRewardIcon(questReward({ reward_type: 'item', reward_data: { item_name: 'RadAway' } }))
     ).toBe('mdi:radiation')
     expect(
-      questRewardIcon(questReward({ reward_type: 'item', reward_data: { item_name: 'Mystery Trinket' } }))
+      questRewardIcon(
+        questReward({ reward_type: 'item', reward_data: { item_name: 'Mystery Trinket' } })
+      )
     ).toBe('mdi:package-variant')
   })
 
   it('uses the item-type icon for dweller-granting item rewards', () => {
     expect(
       questRewardIcon(
-        questReward({ reward_type: 'item', reward_data: { item_type: 'dweller', item_name: 'Legendary Dweller' } })
+        questReward({
+          reward_type: 'item',
+          reward_data: { item_type: 'dweller', item_name: 'Legendary Dweller' },
+        })
       )
     ).toBe('mdi:account-plus')
+  })
+})
+
+describe('questSlotLimitForVault', () => {
+  const office = (tier: number) => ({ category: 'quests', tier })
+  const production = { category: 'production', tier: 3 }
+
+  it('uses the office tier as the slot count', () => {
+    expect(questSlotLimitForVault([production, office(1)], 'vault-1', 'vault-1')).toBe(1)
+    expect(questSlotLimitForVault([production, office(2)], 'vault-1', 'vault-1')).toBe(2)
+    expect(questSlotLimitForVault([production, office(3)], 'vault-1', 'vault-1')).toBe(3)
+  })
+
+  it('returns zero without an office', () => {
+    expect(questSlotLimitForVault([production], 'vault-1', 'vault-1')).toBe(0)
+  })
+
+  it("ignores another vault's rooms while the switch is loading", () => {
+    expect(questSlotLimitForVault([office(3)], 'vault-1', 'vault-2')).toBe(0)
   })
 })

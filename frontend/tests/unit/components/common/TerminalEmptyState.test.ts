@@ -18,6 +18,15 @@ describe('TerminalEmptyState', () => {
     expect(wrapper.text()).toContain('Open expedition')
   })
 
+  it('can blend into a parent surface when requested', () => {
+    const wrapper = mount(TerminalEmptyState, {
+      props: { icon: 'mdi:package-variant-closed', title: 'Storage Empty', transparent: true },
+    })
+
+    expect(wrapper.classes()).toContain('bg-transparent')
+    expect(wrapper.classes()).not.toContain('bg-surface')
+  })
+
   it('uses only compact spacing and icon dimensions in compact mode', () => {
     const wrapper = mount(TerminalEmptyState, {
       props: { icon: 'mdi:package-variant-closed', title: 'Storage Empty', compact: true },

@@ -30,6 +30,7 @@ class RoomBase(SQLModel):
     coordinate_x: int | None = Field(default=None, ge=GRID_X_MIN, le=GRID_X_MAX)
     coordinate_y: int | None = Field(default=None, ge=GRID_Y_MIN, le=GRID_Y_MAX)
     image_url: str | None = Field(default=None)
+    room_style: str = Field(default="default", max_length=16)
     speedup_multiplier: float = Field(default=1.0, ge=1.0, le=10.0)
 
     @property

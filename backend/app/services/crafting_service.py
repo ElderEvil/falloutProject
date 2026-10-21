@@ -5,6 +5,10 @@ costs derive from rarity. Materials are junk of the crafted item's rarity or
 better, spent cheapest-first, so scrapping duplicates feeds crafting. Materials
 are consumed when an order starts; the item is collected once the tick marks
 the order complete.
+
+The Theme workshop uses the same queue, but a theme order grants permanent
+vault ownership instead of a storage item: collecting it writes ``crafted_at``
+to ``vault_theme`` and the theme becomes selectable on eligible rooms.
 """
 
 import logging
@@ -23,7 +27,7 @@ from app.models.junk import Junk
 from app.models.room import Room
 from app.models.storage import Storage
 from app.schemas.crafting import CraftingRecipeRead, CraftResultRead
-from app.services.exploration import data_loader
+from app.services import catalog_service as data_loader
 from app.services.recipe_unlock_service import is_gated, recipe_unlock_service, unlock_hint
 from app.services.vault_service import vault_service
 from app.utils.exceptions import (
@@ -32,12 +36,18 @@ from app.utils.exceptions import (
     ResourceNotFoundException,
     ValidationException,
 )
-from app.utils.item_factory import build_outfit, build_weapon
+from app.utils.item_factory import build_junk, build_outfit, build_weapon
 from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
 
-CRAFTABLE_ITEM_TYPES = ("weapon", "outfit")
+CRAFTABLE_ITEM_TYPES = ("weapon", "outfit", "theme")
+
+_WORKSHOP_CATEGORIES = {
+    "weapon": RoomTypeEnum.CRAFTING,
+    "outfit": RoomTypeEnum.CRAFTING,
+    "theme": RoomTypeEnum.THEME,
+}
 
 _RARITY_ORDER: dict[RarityEnum, int] = {
     RarityEnum.COMMON: 0,
@@ -52,16 +62,75 @@ class CraftingService:
     @staticmethod
     def workshop_name(item_type: str) -> str:
         """Catalog room name that crafts this item type (e.g. ``Weapon workshop``)."""
+        category = _WORKSHOP_CATEGORIES.get(item_type)
+        if category is None:
+            raise ValidationException(f"Unknown craftable item type: {item_type}")
         for room in game_data_store.rooms:
-            if room.category == RoomTypeEnum.CRAFTING and item_type in room.name.lower():
+            if room.category == category and item_type in room.name.lower():
                 return room.name
         raise ValidationException(f"No workshop room is configured for {item_type}s")
 
     @staticmethod
     def _catalog(item_type: str) -> list[dict[str, Any]]:
         """Catalog entries for one workshop type; the loader behind it is cached."""
+        if item_type == "theme":
+            return data_loader.load_themes()
         loader = data_loader.load_weapons if item_type == "weapon" else data_loader.load_outfits
         return loader()
+
+    @staticmethod
+    def _theme_style(entry: dict[str, Any]) -> str:
+        """The room-style key a theme catalog entry owns."""
+        return str(entry.get("style") or "")
+
+    @staticmethod
+    def _junk_snapshot(spent: list[Junk]) -> list[dict[str, Any]]:
+        """The exact junk rows an order consumed, so cancellation can restore them."""
+        return [
+            {
+                "name": item.name,
+                "junk_type": item.junk_type.value,
+                "rarity": item.rarity.value,
+                "value": item.value,
+                "description": item.description,
+                "image_url": item.image_url,
+            }
+            for item in spent
+        ]
+
+    @staticmethod
+    def _legacy_junk_refund(order: CraftingOrder) -> list[dict[str, Any]]:
+        """Rebuild an equivalent refund for orders queued before junk snapshots existed."""
+        if order.junk_snapshot or order.junk_spent <= 0:
+            return []
+        entry = order.item_snapshot or {}
+        craft_types = {str(junk_type).lower() for junk_type in ((entry.get("craft") or {}).get("types") or [])}
+        recipe = game_config.crafting.junk_recipe(order.rarity.value)
+        catalog = data_loader.load_junk_items()
+        refund: list[dict[str, Any]] = []
+        for material, needed in recipe.items():
+            matches = [
+                item
+                for item in catalog
+                if str(item.get("rarity", "")).lower() == material
+                and (not craft_types or str(item.get("junk_type", "")).lower() in craft_types)
+            ]
+            matches = matches or [item for item in catalog if str(item.get("rarity", "")).lower() == material]
+            for index in range(needed):
+                if not matches:
+                    break
+                item = matches[index % len(matches)]
+                refund.append(
+                    {
+                        "name": str(item["name"]),
+                        "junk_type": str(item.get("junk_type", "Valuables")).lower(),
+                        "rarity": str(item.get("rarity", material)).lower(),
+                        "value": item.get("value"),
+                        "description": str(item.get("description") or "Recovered from a cancelled order"),
+                        "image_url": item.get("image_url"),
+                    }
+                )
+        return refund[: order.junk_spent]
 
     @staticmethod
     def craft_types(entry: dict[str, Any]) -> list[str]:
@@ -131,13 +200,26 @@ class CraftingService:
         room = await self._workshop_room(db_session, vault_id, self.workshop_name(item_type))
         crew = await crud.dweller.get_by_room(db_session, room.id) if room else []
 
-        unlocked_names = await crud.vault_recipe_unlock.unlocked_names(db_session, vault_id, item_type)
+        if item_type == "theme":
+            crafted_styles = await crud.vault_theme.crafted_styles(db_session, vault_id)
+            unlocked_names: set[str] = set()
+        else:
+            crafted_styles = set()
+            unlocked_names = await crud.vault_recipe_unlock.unlocked_names(db_session, vault_id, item_type)
+
         recipes: list[CraftingRecipeRead] = []
         for entry in self._catalog(item_type):
             if not entry.get("craftable", False):
                 continue
             recipe_name = str(entry["name"])
-            unlocked = not is_gated(entry) or recipe_name in unlocked_names
+            if item_type == "theme":
+                unlocked = True
+                owned = self._theme_style(entry) in crafted_styles
+                hint = None
+            else:
+                unlocked = not is_gated(entry) or recipe_name in unlocked_names
+                owned = False
+                hint = None if unlocked else unlock_hint(entry)
             rarity = RarityEnum(entry["rarity"])
             junk_cost, caps_cost = self._cost(rarity)
             craft_types = self.craft_types(entry)
@@ -161,11 +243,13 @@ class CraftingService:
                     duration_seconds=self.order_duration_seconds(rarity, ability_sum),
                     junk_cost=junk_cost,
                     caps_cost=caps_cost,
-                    can_craft=missing == 0 and vault.bottle_caps >= caps_cost,
+                    can_craft=missing == 0 and vault.bottle_caps >= caps_cost and not owned,
                     has_junk=missing == 0,
                     missing_junk=missing,
                     unlocked=unlocked,
-                    unlock_hint=None if unlocked else unlock_hint(entry),
+                    unlock_hint=hint,
+                    style=self._theme_style(entry) if item_type == "theme" else None,
+                    owned=owned,
                 )
             )
 
@@ -226,7 +310,14 @@ class CraftingService:
 
         entry = await self._find_craftable(item_type, item_name)
         recipe_name = str(entry["name"])
-        if not await recipe_unlock_service.is_unlocked(db_session, vault_id=vault_id, item_type=item_type, entry=entry):
+        if item_type == "theme":
+            if await crud.vault_theme.is_crafted(db_session, vault_id, self._theme_style(entry)):
+                raise ValidationException(f"{recipe_name} has already been crafted")
+            if await crud.crafting_order.has_uncollected(db_session, vault_id, "theme", recipe_name):
+                raise ValidationException(f"{recipe_name} is already being crafted")
+        elif not await recipe_unlock_service.is_unlocked(
+            db_session, vault_id=vault_id, item_type=item_type, entry=entry
+        ):
             raise ValidationException(f"{recipe_name} is locked. {unlock_hint(entry)}")
 
         rarity = RarityEnum(entry["rarity"])
@@ -263,6 +354,7 @@ class CraftingService:
             item_snapshot=dict(entry),
             junk_spent=len(spent),
             caps_spent=caps_cost,
+            junk_snapshot=self._junk_snapshot(spent),
         )
         db_session.add(order)
         await db_session.commit()
@@ -277,9 +369,56 @@ class CraftingService:
         """Every order for a vault, newest first."""
         return await crud.crafting_order.get_by_vault(db_session, vault_id)
 
+    async def cancel_order(self, db_session: AsyncSession, vault_id: UUID4, order_id: UUID4) -> CraftingOrder:
+        """Cancel an active order and refund the caps and junk it consumed.
+
+        Completed orders must be collected; collected and cancelled orders cannot
+        be cancelled again.
+        """
+        order = await crud.crafting_order.get_for_vault_for_update(db_session, order_id, vault_id)
+        if order is None:
+            raise ResourceNotFoundException(CraftingOrder, order_id)
+        if not order.is_active():
+            raise ValidationException(f"Only active orders can be cancelled; this order is {order.status}")
+
+        vault = await crud.vault.lock_for_update(db_session, vault_id)
+        if order.caps_spent:
+            await vault_service.deposit_caps(
+                db_session=db_session,
+                vault_obj=vault,
+                amount=order.caps_spent,
+                commit=False,
+                emit_event=False,
+                track_earnings=False,
+            )
+
+        storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
+        if storage is not None:
+            for snapshot in order.junk_snapshot or self._legacy_junk_refund(order):
+                db_session.add(
+                    build_junk(
+                        name=str(snapshot["name"]),
+                        rarity=RarityEnum(snapshot["rarity"]),
+                        storage_id=storage.id,
+                        value=snapshot.get("value"),
+                        description=str(snapshot.get("description") or "Recovered from a cancelled order"),
+                        junk_type=JunkTypeEnum(str(snapshot.get("junk_type", "valuables")).lower()),
+                        image_url=snapshot.get("image_url"),
+                    )
+                )
+
+        order.status = CraftingOrderStatus.CANCELLED
+        order.cancelled_at = datetime.utcnow()
+        order.progress = 0.0
+        db_session.add(order)
+        await db_session.commit()
+        await db_session.refresh(order)
+        logger.info(f"Cancelled {order.item_type} '{order.item_name}' for vault {vault_id}")
+        return order
+
     async def advance_orders(self, db_session: AsyncSession, vault_id: UUID4) -> int:
         """Advance the queue one tick; returns how many orders just completed."""
-        orders = await crud.crafting_order.get_active_by_vault(db_session, vault_id)
+        orders = await crud.crafting_order.get_active_by_vault_for_update(db_session, vault_id)
         if not orders:
             return 0
 
@@ -315,6 +454,25 @@ class CraftingService:
 
         # Lock the vault so a concurrent collect cannot claim the same free slot.
         await crud.vault.lock_for_update(db_session, vault_id)
+        snapshot = order.item_snapshot or {}
+
+        if order.item_type == "theme":
+            style = self._theme_style(snapshot)
+            await crud.vault_theme.mark_crafted(db_session, vault_id=vault_id, style=style)
+            order.status = CraftingOrderStatus.COLLECTED
+            db_session.add(order)
+            await db_session.commit()
+            await event_bus.emit(GameEvent.THEME_CRAFTED, vault_id, {"style": style, "name": order.item_name})
+            logger.info(f"Crafted theme '{order.item_name}' ({style}) for vault {vault_id}")
+            return CraftResultRead(
+                item_type=order.item_type,
+                item_id=None,
+                name=order.item_name,
+                rarity=order.rarity,
+                junk_spent=order.junk_spent,
+                caps_spent=order.caps_spent,
+            )
+
         storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
         if storage is None:
             raise ResourceNotFoundException(Storage, vault_id, identifier_type="vault_id")
@@ -323,7 +481,6 @@ class CraftingService:
             raise ResourceConflictException("Storage is full")
 
         # Build from the snapshot the order was paid for, not the live catalog.
-        snapshot = order.item_snapshot or {}
         crafted = (
             build_weapon(snapshot, order.rarity, storage.id)
             if order.item_type == "weapon"

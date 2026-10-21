@@ -24,6 +24,7 @@ config.global.stubs = {
   DialogContent: { template: '<div><slot /></div>' },
   DialogHeader: { template: '<div><slot /></div>' },
   DialogTitle: { template: '<div><slot /></div>' },
+  DialogDescription: { template: '<p><slot /></p>' },
   Button: {
     props: ['disabled'],
     template: '<button class="mock-button" :disabled="disabled"><slot /></button>',
@@ -83,6 +84,9 @@ vi.mock('@/core/plugins/axios', () => ({
       if (url.includes('/arena/') && url.endsWith('/creatures')) {
         return Promise.resolve({ data: [] })
       }
+      if (url.includes('/crafting/') && url.includes('/recipes/')) {
+        return Promise.resolve({ data: { recipes: [] } })
+      }
       if (url.includes('game/balance')) {
         return Promise.resolve({
           data: {
@@ -131,6 +135,7 @@ describe('RoomDetailModal', () => {
     incremental_cost: null,
     population_required: null,
     image_url: null,
+    room_style: 'default',
     vault_id: 'vault-123',
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
@@ -141,7 +146,7 @@ describe('RoomDetailModal', () => {
     const store = useRoomStore()
     store.rooms = [room, { ...room, id: 'neighbor', size: 3, coordinate_x: room.size }]
     useAuthStore().token = 'token'
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const nativeConfirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     vi.mocked(axios.post).mockResolvedValueOnce({
       data: action === 'split' ? [room, { ...room, id: 'piece-2' }] : { ...room, size: 6 },
     })
@@ -153,6 +158,13 @@ describe('RoomDetailModal', () => {
       .find((b) => b.text().includes(action === 'split' ? 'Split into' : 'Merge right'))!
     await button.trigger('click')
     await flushPromises()
+    expect(nativeConfirm).not.toHaveBeenCalled()
+    expect(axios.post).not.toHaveBeenCalled()
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === (action === 'split' ? 'Split room' : 'Merge rooms'))!
+      .trigger('click')
+    await flushPromises()
     expect(axios.post).toHaveBeenCalledWith(
       `/api/v1/rooms/${action}/room-1`,
       action === 'split' ? {} : { other_room_id: 'neighbor' },
@@ -161,6 +173,45 @@ describe('RoomDetailModal', () => {
     expect(wrapper.emitted('roomUpdated')).toHaveLength(1)
     expect(wrapper.emitted('close')).toHaveLength(1)
     vi.mocked(window.confirm).mockRestore()
+  })
+
+  it('applies the Party theme through the room style API', async () => {
+    const room = { ...mockRoom, name: 'Diner', room_style: 'default' }
+    const store = useRoomStore()
+    store.rooms = [room]
+    useAuthStore().token = 'token'
+    vi.mocked(axios.post).mockResolvedValueOnce({
+      data: { ...room, room_style: 'party', image_url: '/static/room_images/FOS Diner Party.png' },
+    })
+
+    const wrapper = mount(RoomDetailModal, {
+      props: { room, modelValue: true, vaultId: 'vault-123' },
+    })
+
+    const select = wrapper.findComponent({ name: 'Select' })
+    expect(select.exists()).toBe(true)
+    expect(wrapper.find('.preview-header [data-slot="select-trigger"]').exists()).toBe(true)
+    expect(wrapper.find('.room-management [data-slot="select-trigger"]').exists()).toBe(false)
+    select.vm.$emit('update:modelValue', 'party')
+    await flushPromises()
+
+    expect(axios.post).toHaveBeenCalledWith(
+      '/api/v1/rooms/style/room-1',
+      { style: 'party' },
+      { headers: { Authorization: 'Bearer token' } }
+    )
+    expect(wrapper.emitted('roomUpdated')).toHaveLength(1)
+  })
+
+  it('names any active theme in the header', async () => {
+    const room = { ...mockRoom, name: 'Diner', room_style: 'halloween', tier: 3 }
+
+    const wrapper = mount(RoomDetailModal, {
+      props: { room, modelValue: true, vaultId: 'vault-123' },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.header-metadata').text()).toContain('Halloween theme')
   })
 
   const mockDwellers = [
@@ -288,9 +339,7 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.find('.room-scene').exists()).toBe(true)
-      expect(wrapper.find('.room-preview-section > .section-title').text()).toContain(
-        'Room Preview'
-      )
+      expect(wrapper.find('.room-preview-section .section-title').text()).toContain('Room Preview')
       expect(wrapper.findAll('.slot-filled')).toHaveLength(2)
       expect(wrapper.find('.staffing-summary').exists()).toBe(false)
       expect(wrapper.find('.header-metadata').text()).toContain('Capacity: 4')
@@ -392,7 +441,7 @@ describe('RoomDetailModal', () => {
       await flushPromises()
 
       expect(fetchSpy).toHaveBeenCalledWith('room-1', 'test-token')
-      expect(wrapper.text()).toContain('Training STRENGTH')
+      expect(wrapper.text()).toContain('Strength')
       expect(wrapper.text()).toContain('Jane Smith')
       expect(wrapper.text()).toContain('John Doe')
     })
@@ -920,6 +969,49 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.text()).toContain('Unassign All Dwellers')
+    })
+
+    it('confirms unassign-all in a themed dialog and cancels without changing dwellers', async () => {
+      const { filter, management } = useDwellerStore()
+      filter.dwellers = mockDwellers
+      useAuthStore().token = 'test-token'
+      const unassign = vi
+        .spyOn(management, 'unassignDwellerFromRoom')
+        .mockResolvedValue({} as never)
+      const nativeConfirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true, vaultId: 'vault-123' },
+      })
+      const request = wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('Unassign All Dwellers'))!
+      await request.trigger('click')
+      expect(nativeConfirm).not.toHaveBeenCalled()
+      expect(unassign).not.toHaveBeenCalled()
+      const confirmation = wrapper
+        .findAllComponents({ name: 'TerminalConfirmation' })
+        .find((dialog) => dialog.props('title') === 'Unassign dwellers?')!
+      expect(confirmation.props('open')).toBe(true)
+      expect(confirmation.text()).toContain('Unassign all 2 dwellers from this room?')
+      await confirmation
+        .findAll('button')
+        .find((button) => button.text() === 'Cancel')!
+        .trigger('click')
+      expect(unassign).not.toHaveBeenCalled()
+      await request.trigger('click')
+      await confirmation
+        .findAll('button')
+        .find((button) => button.text() === 'Unassign all')!
+        .trigger('click')
+      await flushPromises()
+      expect(unassign.mock.calls).toEqual([
+        ['dweller-1', 'test-token'],
+        ['dweller-2', 'test-token'],
+      ])
+      expect(wrapper.emitted('roomUpdated')).toHaveLength(1)
+      expect(confirmation.props('open')).toBe(false)
+      wrapper.unmount()
+      nativeConfirm.mockRestore()
     })
 
     it('groups room-wide controls under Management without restoring Staffing', () => {
@@ -1528,31 +1620,46 @@ describe('RoomDetailModal', () => {
   })
 
   describe('Ambience', () => {
-    it('starts ambience for an initially-open modal', () => {
+    it('starts the per-room ambience for an initially-open modal', () => {
       const ambienceSpy = vi.spyOn(audioManager, 'playAmbience')
       mount(RoomDetailModal, {
         props: { room: mockRoom, modelValue: true },
       })
 
-      expect(ambienceSpy).toHaveBeenCalledWith('production')
+      expect(ambienceSpy).toHaveBeenCalledWith('power generator')
       ambienceSpy.mockRestore()
     })
 
-    it('switches ambience when the room category changes while open', async () => {
+    it('switches ambience between two rooms of the same category', async () => {
       const ambienceSpy = vi.spyOn(audioManager, 'playAmbience')
       const playSpy = vi.spyOn(audioManager, 'play')
       const wrapper = mount(RoomDetailModal, {
-        props: { room: mockRoom, modelValue: true },
+        props: { room: { ...mockRoom, name: 'Armory', category: 'TRAINING' }, modelValue: true },
       })
-      expect(ambienceSpy).toHaveBeenCalledWith('production')
+      expect(ambienceSpy).toHaveBeenCalledWith('armory')
 
-      await wrapper.setProps({ room: { ...mockRoom, category: 'training' } })
+      await wrapper.setProps({
+        room: { ...mockRoom, id: 'room-2', name: 'Classroom', category: 'TRAINING' },
+      })
 
-      expect(ambienceSpy).toHaveBeenCalledWith('training')
+      expect(ambienceSpy).toHaveBeenCalledWith('classroom')
       const modalOpenCalls = playSpy.mock.calls.filter(([key]) => key === 'modalOpen')
       expect(modalOpenCalls).toHaveLength(1)
       ambienceSpy.mockRestore()
       playSpy.mockRestore()
+    })
+
+    it('falls back to the category loop for a room with no per-room ambience', () => {
+      const ambienceSpy = vi.spyOn(audioManager, 'playAmbience')
+      mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Broom Closet', category: 'TRAINING' },
+          modelValue: true,
+        },
+      })
+
+      expect(ambienceSpy).toHaveBeenCalledWith('training')
+      ambienceSpy.mockRestore()
     })
   })
 })
@@ -1577,6 +1684,7 @@ describe('Response Station surface', () => {
     incremental_cost: null,
     population_required: 15,
     image_url: null,
+    room_style: 'default',
     vault_id: 'vault-123',
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',

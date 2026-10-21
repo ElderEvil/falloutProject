@@ -1,5 +1,6 @@
 """CRUD operations for GameState model."""
 
+import logging
 from datetime import datetime
 
 from pydantic import UUID4
@@ -7,6 +8,8 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.game_state import GameState
+
+logger = logging.getLogger(__name__)
 
 
 class CRUDGameState:
@@ -21,17 +24,30 @@ class CRUDGameState:
 
     @staticmethod
     async def get_or_create(db_session: AsyncSession, vault_id: UUID4, *, commit: bool = True) -> GameState:
-        """Get or create state, optionally leaving the insert in the caller's transaction."""
+        """Get or create state, race-safe against concurrent first ticks.
+
+        Concurrent first ticks can both see "no row" and both INSERT; the loser
+        hits the unique constraint on ``vault_id``. The insert is issued as
+        ``INSERT ... ON CONFLICT DO NOTHING`` so the loser's statement is a
+        no-op instead of an error — no exception, no rollback, no change to the
+        caller's transaction topology — then the row is re-selected and the
+        winner's state is returned to both racers.
+        """
         game_state = await CRUDGameState.get_by_vault_id(db_session, vault_id)
 
         if not game_state:
-            game_state = GameState(vault_id=vault_id)
-            db_session.add(game_state)
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            stmt = (
+                pg_insert(GameState)
+                .values(vault_id=vault_id, resource_remainders={})
+                .on_conflict_do_nothing(index_elements=["vault_id"])
+            )
+            await db_session.execute(stmt)
+            game_state = await CRUDGameState.get_by_vault_id(db_session, vault_id)
             if commit:
                 await db_session.commit()
                 await db_session.refresh(game_state)
-            else:
-                await db_session.flush()
 
         return game_state
 

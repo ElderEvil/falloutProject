@@ -12,7 +12,7 @@
   },
   {
     "challenge": "Build a Living Quarters",
-    "reward": "dweller:Wanderer",
+    "reward": "dweller:Juno Pike",
     "category": "starter",
     "objective_type": "build",
     "target_entity": {
@@ -27,7 +27,7 @@
   },
   {
     "challenge": "Send a dweller exploring",
-    "reward": "dweller:Settler",
+    "reward": "dweller:Elias Reed",
     "category": "starter",
     "objective_type": "explore",
     "target_entity": {},
@@ -52,7 +52,7 @@
   {
     "template_key": "starter:equip an outfit",
     "challenge": "Equip an outfit",
-    "reward": "dweller:Scout",
+    "reward": "dweller:Mara Voss",
     "category": "starter",
     "objective_type": "equip",
     "target_entity": {
@@ -65,7 +65,7 @@
   {
     "template_key": "starter:produce 50 power",
     "challenge": "Collect 50 Power",
-    "reward": "dweller:Mechanic",
+    "reward": "dweller:Tessa Ward",
     "category": "starter",
     "objective_type": "collect",
     "target_entity": {
@@ -79,7 +79,7 @@
   {
     "template_key": "starter:produce 50 food",
     "challenge": "Collect 50 Food",
-    "reward": "dweller:Cook",
+    "reward": "dweller:Owen Hale",
     "category": "starter",
     "objective_type": "collect",
     "target_entity": {
@@ -93,7 +93,7 @@
   {
     "template_key": "starter:produce 50 water",
     "challenge": "Collect 50 Water",
-    "reward": "dweller:Rover",
+    "reward": "dweller:Rhea Cole",
     "category": "starter",
     "objective_type": "collect",
     "target_entity": {
@@ -120,7 +120,7 @@
   {
     "template_key": "starter:expand power production",
     "challenge": "Expand power production",
-    "reward": "dweller:Builder",
+    "reward": "dweller:Silas Knox",
     "category": "starter",
     "objective_type": "build",
     "target_entity": {

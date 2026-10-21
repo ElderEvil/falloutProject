@@ -88,7 +88,7 @@ async def _roll_lunchbox_contents(
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Roll 3 random items and 1 dweller into storage for a lunchbox opening."""
     from app.crud.dweller import dweller as dweller_crud
-    from app.services.exploration import data_loader
+    from app.services import catalog_service as data_loader
 
     catalogs = {"weapon": data_loader.load_weapons(), "outfit": data_loader.load_outfits()}
 

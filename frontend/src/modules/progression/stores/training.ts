@@ -3,8 +3,10 @@ import { defineStore } from 'pinia'
 import type { components } from '@/core/types/api.generated'
 import * as trainingService from '../services/trainingService'
 import { useToast } from '@/core/composables/useToast'
-import { getErrorMessage } from '@/core/types/utils'
+import { getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
+import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 
 type TrainingRead = components['schemas']['TrainingRead']
 type TrainingProgress = components['schemas']['TrainingProgress']
@@ -16,6 +18,8 @@ export const useTrainingStore = defineStore('training', () => {
   const activeTrainings = ref<Map<string, TrainingRead | TrainingProgress>>(new Map())
   const trainingHistory = ref<(TrainingRead | TrainingProgress)[]>([])
   const error = ref<string | null>(null)
+  const savingGoals = ref(new Set<string>())
+  const isSettingContinuousTraining = ref(false)
   const {
     run: runFetchVaultTrainings,
     isLoading,
@@ -25,7 +29,8 @@ export const useTrainingStore = defineStore('training', () => {
       const trainings = await trainingService.getVaultTrainings(vaultId, token)
       activeTrainings.value.clear()
       trainings.forEach((training) => {
-        if (training.id && training.status === 'active') activeTrainings.value.set(training.id, training)
+        if (training.id && training.status === 'active')
+          activeTrainings.value.set(training.id, training)
       })
       return true
     },
@@ -61,6 +66,53 @@ export const useTrainingStore = defineStore('training', () => {
   })
 
   // Actions
+  async function setContinuousTraining(
+    vaultId: string,
+    enabled: boolean,
+    token: string
+  ): Promise<boolean> {
+    if (isSettingContinuousTraining.value) return false
+    isSettingContinuousTraining.value = true
+    try {
+      const saved = await trainingService.setContinuousTraining(vaultId, enabled, token)
+      if (useAuthStore().token !== token) return false
+      const vault = useVaultStore().loadedVaults[vaultId]
+      if (vault) vault.continuous_training = saved.continuous_training
+      toast.success(
+        saved.continuous_training
+          ? 'Continuous training on. Repeat to individual goals.'
+          : 'Continuous training off. Current rounds will finish.'
+      )
+      return true
+    } catch (err: unknown) {
+      handleStoreError(err, 'Failed to update continuous training')
+      return false
+    } finally {
+      isSettingContinuousTraining.value = false
+    }
+  }
+
+  async function setTrainingGoal(
+    trainingId: string,
+    goal: number,
+    token: string
+  ): Promise<boolean> {
+    if (savingGoals.value.has(trainingId)) return false
+    savingGoals.value.add(trainingId)
+    try {
+      const saved = await trainingService.setTrainingGoal(trainingId, goal, token)
+      if (useAuthStore().token !== token) return false
+      const current = activeTrainings.value.get(trainingId)
+      if (current) Object.assign(current, saved)
+      return true
+    } catch (err: unknown) {
+      handleStoreError(err, 'Failed to save training goal')
+      return false
+    } finally {
+      savingGoals.value.delete(trainingId)
+    }
+  }
+
   async function startTraining(
     dwellerId: string,
     roomId: string,
@@ -94,7 +146,6 @@ export const useTrainingStore = defineStore('training', () => {
       const training = await trainingService.completeTraining(trainingId, token)
       activeTrainings.value.delete(trainingId)
       trainingHistory.value.push(training)
-      toast.success(`Training completed! ${training.stat_being_trained} increased!`)
       return true
     } catch (err: unknown) {
       toast.error(getErrorMessage(err))
@@ -127,7 +178,10 @@ export const useTrainingStore = defineStore('training', () => {
     try {
       const trainings = await trainingService.getRoomTrainings(roomId, token)
 
-      // Update active trainings map with room trainings
+      // A completed round may already have a different successor id.
+      for (const [id, training] of activeTrainings.value) {
+        if (training.room_id === roomId) activeTrainings.value.delete(id)
+      }
       trainings.forEach((training) => {
         if (training.id && training.status === 'active') {
           activeTrainings.value.set(training.id, training)
@@ -152,9 +206,6 @@ export const useTrainingStore = defineStore('training', () => {
           // Move to history and remove from active
           activeTrainings.value.delete(progress.id)
           trainingHistory.value.push(progress)
-
-          // Show completion notification
-          toast.success(`Training completed! ${progress.stat_being_trained} increased!`)
         } else if (progress.status === 'cancelled') {
           activeTrainings.value.delete(progress.id)
         }
@@ -180,6 +231,10 @@ export const useTrainingStore = defineStore('training', () => {
     trainingHistory,
     isLoading,
     error,
+    isSettingContinuousTraining,
+    setContinuousTraining,
+    savingGoals,
+    setTrainingGoal,
 
     // Getters
     allActiveTrainings,

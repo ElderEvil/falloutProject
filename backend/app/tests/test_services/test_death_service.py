@@ -110,6 +110,21 @@ class TestDeathService:
                 DeathCauseEnum.HEALTH,
             )
 
+    async def test_mark_as_dead_records_bio_and_clears_happiness(
+        self,
+        async_session: AsyncSession,
+        alive_dweller: Dweller,
+    ):
+        """Death is a durable life event, and a corpse has no remaining happiness."""
+        updated = await death_service.mark_as_dead(async_session, alive_dweller, DeathCauseEnum.COMBAT)
+
+        assert updated.status == DwellerStatusEnum.DEAD
+        assert updated.is_dead is True
+        assert updated.happiness == 0
+        death_entry = next(entry for entry in updated.bio_entries if entry["source"] == "family")
+        assert "died" in death_entry["text"].lower()
+        assert death_entry["ref"] == {"cause": DeathCauseEnum.COMBAT.value}
+
     async def test_revive_dweller_success(
         self,
         async_session: AsyncSession,

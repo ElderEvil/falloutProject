@@ -83,6 +83,19 @@ describe('DwellerPortrait', () => {
     expect(wrapper.find('[role="img"]').attributes('aria-label')).toBe('Lucy MacLean portrait')
   })
 
+  it('renders a provided fallback slot when the portrait cannot be loaded', async () => {
+    const wrapper = mount(DwellerPortrait, {
+      props: { imageUrl: 'example.com/lucy.png', alt: 'Lucy MacLean portrait' },
+      slots: { fallback: '<span class="custom-fallback" />' },
+    })
+
+    await wrapper.find('img').trigger('error')
+
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.find('.custom-fallback').exists()).toBe(true)
+    expect(wrapper.find('.icon-mock').exists()).toBe(false)
+  })
+
   it('tries again when the portrait URL changes', async () => {
     const wrapper = mount(DwellerPortrait, {
       props: { imageUrl: 'example.com/lucy.png', alt: 'Lucy MacLean portrait' },

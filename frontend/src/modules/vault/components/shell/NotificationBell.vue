@@ -14,13 +14,16 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSse, type SseEvent } from '@/core/composables/useEventStream'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useSound } from '@/core/composables/useSound'
-import type { SoundKey } from '@/core/audio/soundManifest'
 import { useToast } from '@/core/composables/useToast'
 import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 import { addPendingReport } from '@/modules/exploration/composables/usePendingReports'
-import { getNotificationRoute } from '@/modules/vault/utils/notificationRouting'
+import {
+  getNotificationRoute,
+  getNotificationSound,
+} from '@/modules/vault/utils/notificationRouting'
 import { formatRelativeTime } from '@/core/utils/time'
 import axios from '@/core/plugins/axios'
+import { useStorageStore } from '@/modules/storage/stores/storage'
 
 interface Notification {
   id: string
@@ -39,12 +42,6 @@ const authStore = useAuthStore()
 const objectivesStore = useObjectivesStore()
 const router = useRouter()
 const { playSound } = useSound()
-const notificationSounds: Partial<Record<string, SoundKey>> = {
-  objective_completed: 'objectiveReady',
-  level_up: 'levelUp',
-  training_complete: 'trainingComplete',
-  radio_new_dweller: 'radioRecruit',
-}
 const toast = useToast()
 const POPUP_ID = 'notifications-popup'
 const showPopup = ref(false)
@@ -158,9 +155,18 @@ watch(currentSseEvent, (evt) => {
   }
   notifications.value.unshift(newNotif)
   unreadCount.value++
-  playSound(notificationSounds[notificationData.notification_type] ?? 'notification')
+  playSound(getNotificationSound(notificationData.notification_type))
   // A hazard team join surfaces beyond the bell (progression red line).
-  if (notificationData.notification_type === 'hazard_team_joined') {
+  if (
+    ['storage_item_degraded', 'storage_item_upgraded'].includes(notificationData.notification_type)
+  ) {
+    if (notificationData.notification_type === 'storage_item_upgraded')
+      toast.success(notificationData.message)
+    else toast.info(notificationData.message)
+    if (notificationData.vault_id) useStorageStore().refreshIfActive(notificationData.vault_id)
+  }
+
+  if (['hazard_team_joined', 'training_complete'].includes(notificationData.notification_type)) {
     toast.success(notificationData.message)
   }
   // An arena morale boost is vault-wide and asynchronous; announce it beyond the bell
@@ -278,6 +284,8 @@ const handleNotificationClick = async (notification: Notification) => {
 const getNotificationIcon = (type: string): string => {
   const iconMap: Record<string, string> = {
     baby_born: 'mdi:baby-face',
+    storage_item_degraded: 'mdi:tools',
+    storage_item_upgraded: 'mdi:arrow-up-bold',
     dweller_died: 'mdi:skull',
     dweller_exit_requested: 'mdi:exit-run',
     exploration_complete: 'mdi:map-marker-check',

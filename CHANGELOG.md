@@ -2,6 +2,102 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.245.0 (2026-10-21)
+
+### Features
+
+* **quests:** scale mission slots and speed with Office upgrades ([#1121](https://github.com/ElderEvil/falloutProject/issues/1121)) 53eed3a
+
+## 2.244.0 (2026-10-21)
+
+### Features
+
+* **training:** repeat rounds to individual goals and unify training UI ([#1120](https://github.com/ElderEvil/falloutProject/issues/1120)) a46f485
+
+## 2.243.2 (2026-10-21)
+
+### Bug Fixes
+
+* **ui:** theme all confirmation dialogs ([#1119](https://github.com/ElderEvil/falloutProject/issues/1119)) eaf2f97
+
+## 2.243.1 (2026-10-21)
+
+### Bug Fixes
+
+* **ui:** theme room tooltips and action confirmations ([#1118](https://github.com/ElderEvil/falloutProject/issues/1118)) 9650ca2
+
+## 2.243.0 (2026-10-20)
+
+### Features
+
+* **progression:** collect ready rewards in one click ([#1110](https://github.com/ElderEvil/falloutProject/issues/1110)) 24370d7
+
+## 2.242.0 (2026-10-20)
+
+### Features
+
+* **storage:** add weapon maintenance and recipe status ([#1108](https://github.com/ElderEvil/falloutProject/issues/1108)) 5c73d58
+
+## 2.241.0 (2026-10-20)
+
+### Features
+
+* **rooms:** add themed rooms, selector, and theme crafting ([#1106](https://github.com/ElderEvil/falloutProject/issues/1106)) 78330c2
+
+## 2.240.0 (2026-10-19)
+
+### Features
+
+* **progression:** name the starter resident rewards 421e63f
+* **vault:** equip legendary pets on boosted starts 5157c78
+
+### Bug Fixes
+
+* **backend:** race-safe get_or_create for GameState and ArenaState ([#1099](https://github.com/ElderEvil/falloutProject/issues/1099)) 80686f9, closes #1065 #1065
+* **dwellers:** link known parents in bios and family trees a62328c
+
+## 2.239.2 (2026-10-19)
+
+### Bug Fixes
+
+* **ui:** polish vault, exploration, and dweller surfaces ([#1102](https://github.com/ElderEvil/falloutProject/issues/1102)) 0963bf4
+
+## 2.239.1 (2026-10-19)
+
+### Bug Fixes
+
+* record dweller death in bio ([#1097](https://github.com/ElderEvil/falloutProject/issues/1097)) 0a7585e
+
+## 2.239.0 (2026-10-19)
+
+### Features
+
+* polish exploration detail UI ([#1096](https://github.com/ElderEvil/falloutProject/issues/1096)) 15bf74b
+
+## 2.238.2 (2026-10-19)
+
+### Bug Fixes
+
+* **ui:** refine room dweller previews ([#1095](https://github.com/ElderEvil/falloutProject/issues/1095)) 6e10132
+
+## 2.238.1 (2026-10-19)
+
+### Bug Fixes
+
+* **quests:** detach questing dwellers from their pre-departure room ([#1094](https://github.com/ElderEvil/falloutProject/issues/1094)) fd58f0f, closes #1092
+
+## 2.238.0 (2026-10-19)
+
+### Features
+
+* **audio:** give the incident alarm its own toggle ([#1093](https://github.com/ElderEvil/falloutProject/issues/1093)) b216ca7
+
+## 2.237.0 (2026-10-19)
+
+### Features
+
+* **audio:** rotate context music, per-room ambience, per-notification cues ([#1088](https://github.com/ElderEvil/falloutProject/issues/1088)) 91bb837
+
 ## 2.236.1 (2026-10-19)
 
 ### Bug Fixes

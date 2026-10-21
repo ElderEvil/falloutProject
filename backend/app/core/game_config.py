@@ -1255,6 +1255,21 @@ class VaultSlotConfig(BaseSettings):
     columns: int = Field(default=10, description="Slot grid columns (rows are derived)", ge=1)
 
 
+class StorageConfig(BaseSettings):
+    """Online-only hourly weapon maintenance, enabled by default."""
+
+    model_config = SettingsConfigDict(env_prefix="STORAGE_")
+    maintenance_enabled: bool = True
+    trial_interval_seconds: int = Field(default=3600, gt=0)
+    end_for_full_protection: float = Field(default=20, gt=0)
+    chance_at_extreme: float = Field(default=0.02, ge=0, le=1)
+    deadband: float = Field(default=0.02, ge=0, lt=1)
+    allow_upgrade: bool = True
+    allow_rarity_upgrade: bool = True
+    trials_require_online: bool = True
+    notify_cooldown_hours: float = Field(default=24, gt=0)
+
+
 class GameConfig(BaseSettings):
     """Master game configuration."""
 
@@ -1282,6 +1297,7 @@ class GameConfig(BaseSettings):
     exit_request: ExitConfig = Field(default_factory=ExitConfig)
     features: FeatureConfig = Field(default_factory=FeatureConfig)
     vault_slots: VaultSlotConfig = Field(default_factory=VaultSlotConfig)
+    storage: StorageConfig = Field(default_factory=StorageConfig)
 
 
 # Singleton instance

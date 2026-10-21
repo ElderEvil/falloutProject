@@ -3,6 +3,7 @@
 import os
 import time
 from datetime import datetime, timedelta
+from uuid import UUID
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,14 @@ from app.schemas.vault import VaultCreateWithUserID
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
+
+
+async def _add_office(async_session: AsyncSession, vault_id: UUID) -> None:
+    from app.models.room import Room
+    from app.tests.factory.rooms import create_overseers_office
+
+    async_session.add(Room(**create_overseers_office(), vault_id=vault_id))
+    await async_session.commit()
 
 
 @pytest.mark.asyncio
@@ -339,6 +348,8 @@ async def test_start_quest(async_session: AsyncSession) -> None:
     vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
+    await _add_office(async_session, vault.id)
+
     quest_data = QuestCreate(
         title="Timed Quest",
         short_description="Test timer",
@@ -379,6 +390,7 @@ async def test_start_quest_requires_an_assigned_party(async_session: AsyncSessio
         async_session,
         obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
     )
+    await _add_office(async_session, vault.id)
     quest = await crud.quest_crud.create(
         async_session,
         obj_in=QuestCreate(
@@ -464,6 +476,7 @@ async def test_quest_cannot_complete_before_its_duration(async_session: AsyncSes
         async_session,
         obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
     )
+    await _add_office(async_session, vault.id)
     quest = await crud.quest_crud.create(
         async_session,
         obj_in=QuestCreate(
@@ -716,6 +729,8 @@ async def test_assign_party_replaces_existing(async_session: AsyncSession) -> No
     vault_data = create_fake_vault()
     vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
     vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    await _add_office(async_session, vault.id)
 
     quest_data = QuestCreate(
         title="Replace Party Quest",

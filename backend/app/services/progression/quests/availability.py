@@ -114,12 +114,17 @@ async def get_quests_for_vault(
     The full vault quest set is fetched, reveal/availability filtering applied, then
     ``skip``/``limit`` paginate the filtered result so later visible quests fill a page.
     """
+    office_tier = await crud.room.get_room_tier_by_name(db_session, vault_id, OFFICE_ROOM_TYPE)
+    has_office = office_tier is not None
     quest_reads = await crud.quest_crud.get_multi_for_vault(
-        db_session=db_session, vault_id=vault_id, skip=0, limit=_AVAILABLE_QUESTS_FETCH_LIMIT
+        db_session=db_session,
+        vault_id=vault_id,
+        skip=0,
+        limit=_AVAILABLE_QUESTS_FETCH_LIMIT,
+        office_tier=office_tier,
     )
     quests = await crud.quest_crud.get_multi_by_ids(db_session, [quest_read.id for quest_read in quest_reads])
     quest_by_id = {quest.id: quest for quest in quests}
-    has_office = await crud.room.has_room_type(db_session, vault_id, OFFICE_ROOM_TYPE)
     completed_quest_ids = await crud.quest_crud.get_completed_quest_ids(db_session, vault_id)
     max_dweller_level = await crud.dweller.get_max_level(db_session, vault_id) or 0
     reveal_threshold = max_dweller_level + REVEAL_MARGIN

@@ -8,6 +8,7 @@ import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
 const routerReplaceMock = vi.hoisted(() => vi.fn())
+const routerPushMock = vi.hoisted(() => vi.fn())
 
 // Reactive query for claim reward links.
 const routeQuery = reactive<Record<string, string | undefined>>({})
@@ -19,6 +20,7 @@ vi.mock('vue-router', () => ({
   }),
   useRouter: () => ({
     replace: routerReplaceMock,
+    push: routerPushMock,
   }),
 }))
 
@@ -163,6 +165,30 @@ describe('QuestsView', () => {
 
       const tabs = wrapper.findAll('[role="tab"]')
       expect(tabs[1].attributes('aria-selected')).toBe('true')
+    })
+
+    it('opens the Overseer Office room from the parties metric', async () => {
+      wrapper = mount(QuestsView, {
+        global: {
+          stubs: {
+            SidePanel: true,
+            Icon: true,
+          },
+        },
+      })
+      await flushPromises()
+
+      const metric = wrapper
+        .findAll('[role="button"]')
+        .find((element) => element.attributes('aria-label')?.startsWith('Open Office'))
+      expect(metric).toBeTruthy()
+
+      await metric!.trigger('click')
+
+      expect(routerPushMock).toHaveBeenCalledWith({
+        path: '/vault/vault-123',
+        query: { roomId: 'room-1' },
+      })
     })
 
     it('should switch to completed tab when clicked', async () => {
@@ -591,6 +617,57 @@ describe('QuestsView', () => {
       await startButton.trigger('click')
 
       expect(startSpy).not.toHaveBeenCalled()
+    })
+
+    it('keeps party selection open when both start and its recovery refresh fail', async () => {
+      roomStore.rooms[0]!.tier = 1
+      roomStore.roomsLoadedVaultId = 'vault-123'
+      questStore.vaultQuests = [
+        {
+          id: 'quest-1',
+          title: 'Available Quest',
+          short_description: 'Test quest',
+          long_description: 'Test quest description',
+          requirements: 'None',
+          rewards: '50 caps',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          started_at: null,
+          duration_minutes: 60,
+        },
+      ]
+      wrapper = mount(QuestsView, {
+        global: {
+          stubs: { SidePanel: true, Icon: true, QuestCard: true, PartySelectionModal: true },
+        },
+      })
+      await flushPromises()
+      vi.spyOn(questStore, 'startQuest').mockRejectedValue(new Error('No quest slots'))
+      const refreshError = new Error('Connection lost')
+      vi.spyOn(questStore, 'fetchVaultQuests').mockRejectedValue(refreshError)
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const actions = wrapper.vm as unknown as {
+        handleAssignParty: (id: string) => void
+        handleAssignAndStart: (ids: string[]) => Promise<void>
+      }
+      actions.handleAssignParty('quest-1')
+
+      try {
+        await expect(actions.handleAssignAndStart(['dweller-1'])).resolves.toBeUndefined()
+        expect(questStore.startQuest).toHaveBeenCalledWith('vault-123', 'quest-1', ['dweller-1'])
+        expect(questStore.fetchVaultQuests).toHaveBeenLastCalledWith('vault-123', { silent: true })
+        expect(
+          wrapper.findComponent({ name: 'PartySelectionModal' }).attributes('modelvalue')
+        ).toBe('true')
+        expect(warn).toHaveBeenCalledWith(
+          'Failed to refresh quests after rejected start',
+          'Connection lost'
+        )
+      } finally {
+        warn.mockRestore()
+      }
     })
 
     it('orders available quests by required level', async () => {

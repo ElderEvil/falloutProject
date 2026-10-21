@@ -15,11 +15,11 @@ from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 
 
-async def _vault_with_office(async_session: AsyncSession):
+async def _vault_with_office(async_session: AsyncSession, tier: int = 1):
     """A vault that has built the Overseer's Office."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
-    async_session.add(Room(**create_overseers_office(), vault_id=vault.id))
+    async_session.add(Room(**create_overseers_office(tier=tier), vault_id=vault.id))
     await async_session.commit()
     return vault
 
@@ -1026,8 +1026,8 @@ async def test_timed_quest_limit_counts_outbound_and_returning_only(async_sessio
     from app.tests.factory.dwellers import create_fake_adult_dweller
     from app.utils.exceptions import ResourceConflictException
 
-    vault = await _vault_with_office(async_session)
-    other_vault = await _vault_with_office(async_session)
+    vault = await _vault_with_office(async_session, tier=3)
+    other_vault = await _vault_with_office(async_session, tier=3)
     now = datetime.utcnow()
     for index in range(running_count + 3):
         quest = await _create_quest(async_session, title=f"Existing {index}")
@@ -1065,7 +1065,7 @@ async def test_timed_quest_limit_counts_outbound_and_returning_only(async_sessio
     await team_service.assign_quest_team(async_session, candidate.id, vault.id, [dweller.id])
 
     if running_count == 3:
-        with pytest.raises(ResourceConflictException, match="3 timed quests"):
+        with pytest.raises(ResourceConflictException, match="3 quest slots"):
             await quest_service.start_quest(async_session, candidate.id, vault.id)
         link = await crud.quest_crud.get_link(async_session, quest_id=candidate.id, vault_id=vault.id)
         assert link.started_at is None
@@ -1088,3 +1088,40 @@ async def test_timed_quest_limit_counts_outbound_and_returning_only(async_sessio
         await async_session.commit()
         started = await quest_service.start_quest(async_session, candidate.id, vault.id)
         assert started.started_at is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("office_tier", [1, 2, 3])
+async def test_quest_slots_follow_office_tier(async_session: AsyncSession, office_tier: int) -> None:
+    """A tier-N office allows N simultaneous timed quests and shortens their duration."""
+    from app.models.dweller import Dweller
+    from app.services.team_service import team_service
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+    from app.utils.exceptions import ResourceConflictException
+    from app.utils.quest_duration import effective_quest_duration_minutes
+
+    vault = await _vault_with_office(async_session, tier=office_tier)
+
+    first_link = None
+    for index in range(office_tier):
+        quest = await _create_quest(async_session, title=f"Tier quest {index}")
+        await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+        dweller = Dweller(**create_fake_adult_dweller(), vault_id=vault.id)
+        async_session.add(dweller)
+        await async_session.commit()
+        await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
+        link = await quest_service.start_quest(async_session, quest.id, vault.id)
+        first_link = first_link or link
+
+    assert first_link is not None
+    assert first_link.duration_minutes == effective_quest_duration_minutes(60, office_tier=office_tier)
+
+    overflow = await _create_quest(async_session, title="One too many")
+    await crud.quest_crud.assign_to_vault(async_session, overflow.id, vault.id, is_visible=True)
+    dweller = Dweller(**create_fake_adult_dweller(), vault_id=vault.id)
+    async_session.add(dweller)
+    await async_session.commit()
+    await team_service.assign_quest_team(async_session, overflow.id, vault.id, [dweller.id])
+
+    with pytest.raises(ResourceConflictException, match=f"All {office_tier} quest slots"):
+        await quest_service.start_quest(async_session, overflow.id, vault.id)

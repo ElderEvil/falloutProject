@@ -28,6 +28,18 @@ describe('Quest Store', () => {
     })
   })
 
+  it('sends the selected party with start in one mutation request', async () => {
+    const store = useQuestStore()
+    vi.mocked(axios.post).mockResolvedValue({ data: {} })
+    vi.mocked(axios.get).mockResolvedValue({ data: [] })
+
+    await store.startQuest('vault-1', 'quest-1', ['dweller-1', 'dweller-2'])
+
+    expect(axios.post).toHaveBeenCalledExactlyOnceWith('/api/v1/quests/vault-1/quest-1/start', {
+      dweller_ids: ['dweller-1', 'dweller-2'],
+    })
+  })
+
   describe('Computed Properties', () => {
     it('should filter active quests', () => {
       const store = useQuestStore()
@@ -355,7 +367,12 @@ describe('Quest Store', () => {
       }
 
       vi.mocked(axios.post).mockResolvedValueOnce({
-        data: { quest_id: 'quest-1', quest_title: 'Quest 1', is_completed: true, granted_rewards: [] },
+        data: {
+          quest_id: 'quest-1',
+          quest_title: 'Quest 1',
+          is_completed: true,
+          granted_rewards: [],
+        },
       })
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [completedQuest] })
 
@@ -373,7 +390,9 @@ describe('Quest Store', () => {
       vi.mocked(axios.post).mockRejectedValueOnce(new Error('Quest not found'))
 
       const store = useQuestStore()
-      await expect(store.claimQuestRewards('vault-123', 'quest-1')).rejects.toThrow('Quest not found')
+      await expect(store.claimQuestRewards('vault-123', 'quest-1')).rejects.toThrow(
+        'Quest not found'
+      )
     })
   })
 

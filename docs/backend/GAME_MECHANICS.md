@@ -144,11 +144,31 @@ become available without resetting an existing stage.
 
 ## Timed quest capacity
 
-A vault can have three timed quests in flight at once. Both outbound and returning parties occupy a slot
-until rewards become ready to claim. Unclaimed rewards, completed quests and state-based building,
-population and training quests do not occupy slots. Start requests serialize on the vault row before
-counting active timed links; a fourth start is rejected with 409. The frontend mirrors the count,
-disables timed start/party actions at capacity, and leaves state objectives usable.
+The Overseer's Office sets the timed-quest slot count: no office means no quests, and office tier 1, 2 or 3
+allows one, two or three timed quests in flight. Both outbound and returning parties occupy a slot until
+rewards become ready to claim. Unclaimed rewards, completed quests and state-based building, population and
+training quests do not occupy slots. Start requests serialize on the vault row before counting active timed
+links; a start above the office's slot count is rejected with 409.
+
+The start request carries the selected party. Its transaction locks and revalidates each member, then commits
+the roster, departure (status QUESTING, room cleared), and timer together. A rejected start persists nothing
+and preserves the dwellers' previous assignments. Availability is status-based: dwellers are QUESTING while
+away and selectable again on return; old roster rows are history, never reservations.
+
+The UI always sends `dweller_ids` to `POST /quests/{vault_id}/{quest_id}/start` for timed missions. The standalone
+`POST /quests/{vault_id}/{quest_id}/assign-party` endpoint has been removed; external clients must send their
+selection with Start instead. Bodyless starts remain for state objectives and existing roster callers.
+Migration `d9e2f4a6b801` releases legacy QUESTING dwellers without a started, unreturned quest to IDLE with no
+room; their pre-assignment postings cannot be recovered. Actual outbound and returning parties are preserved.
+
+Tier 2 and tier 3 shorten missions by 10% and 20%. The four-hour cap applies to the base duration before the
+office bonus, so the discount always reduces the timer. The multiplier is applied once at start and persisted
+on the link, so an upgrade never retimes a quest already in flight; the return leg derives from the same
+persisted duration. A vault that predates this rule may temporarily hold more active quests than its office
+allows: it drains down as parties return, and only new starts are blocked.
+
+The frontend reads the office tier from the vault's room list, shows the used/limit count and mission-speed
+bonus as a header metric, disables timed start/party actions at capacity, and leaves state objectives usable.
 
 ## Quest gates: one scope per requirement type
 

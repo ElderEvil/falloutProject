@@ -31,6 +31,12 @@ def test_age_portrait_defaults_backfill(monkeypatch):
             "'/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Female.webp')"
         )
         connection.exec_driver_sql(
+            "INSERT INTO dweller VALUES (4, 'TEEN', 'male', "
+            '\'{"race":"super_mutant","state_of_being":"average"}\', '
+            "'/static/dweller_images/base/FOS_Dw_Default_SuperMutant_Male_Average.webp', "
+            "'/static/dweller_thumbnails/base/FOS_Dw_Default_SuperMutant_Male_Average.webp')"
+        )
+        connection.exec_driver_sql(
             "INSERT INTO dweller VALUES (3, 'ADULT', 'male', '{}', "
             "'/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp', "
             "'/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Male.webp')"
@@ -46,4 +52,5 @@ def test_age_portrait_defaults_backfill(monkeypatch):
             "/static/dweller_images/variants/elder/FOS_Dw_Default_Human_Elder_Female_SkinPale_HairGray.webp"
         )
         assert rows[2][1] == "/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp"
+        assert rows[3][1] == ("/static/dweller_images/base/FOS_Dw_Default_SuperMutant_Male_Average.webp")
     engine.dispose()

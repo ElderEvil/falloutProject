@@ -42,6 +42,9 @@ def upgrade() -> None:
         if isinstance(attrs, str):
             attrs = json.loads(attrs)
         attrs = attrs or {}
+        race = attrs.get("race")
+        if str(race or "human").casefold() != "human":
+            continue
         image_url, thumbnail_url = default_dweller_image_urls(
             "human",
             row["gender"],

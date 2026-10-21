@@ -43,6 +43,12 @@ def test_age_portrait_backfill(monkeypatch):
             "'/static/dweller_images/custom.png', '/static/dweller_thumbnails/custom.png')"
         )
         connection.exec_driver_sql(
+            "INSERT INTO dweller VALUES (6, 'CHILD', 'male', "
+            '\'{"race":"ghoul","state_of_being":"sane"}\', '
+            "'/static/dweller_images/base/FOS_Dw_Default_Ghoul_Male_Sane.webp', "
+            "'/static/dweller_thumbnails/base/FOS_Dw_Default_Ghoul_Male_Sane.webp')"
+        )
+        connection.exec_driver_sql(
             "INSERT INTO dweller VALUES (5, 'ELDER', 'male', "
             '\'{"race":"human","skin_tone":"Ebony","hair_color":"black"}\', '
             "'/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp', "
@@ -65,6 +71,10 @@ def test_age_portrait_backfill(monkeypatch):
         assert rows[4][1:] == (
             "/static/dweller_images/variants/elder/FOS_Dw_Default_Human_Elder_Male_SkinEbony_HairGray.webp",
             "/static/dweller_thumbnails/variants/elder/FOS_Dw_Default_Human_Elder_Male_SkinEbony_HairGray.webp",
+        )
+        assert rows[5][1:] == (
+            "/static/dweller_images/base/FOS_Dw_Default_Ghoul_Male_Sane.webp",
+            "/static/dweller_thumbnails/base/FOS_Dw_Default_Ghoul_Male_Sane.webp",
         )
 
         migration.upgrade()

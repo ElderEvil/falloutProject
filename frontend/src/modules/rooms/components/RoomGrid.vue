@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
+
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
@@ -131,7 +133,7 @@ const placeRoom = async (x: number, y: number) => {
       await dwellerStore.fetchDwellersByVault(vaultId, authStore.token as string)
     }
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : 'Failed to build room')
+    notifyErrorOnce(error, error instanceof Error ? error.message : 'Failed to build room')
   }
 }
 
@@ -231,7 +233,7 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
     const action = currentRoomId ? 'moved' : 'assigned'
     toast.success(`${firstName} ${lastName} ${action} successfully!`)
   } catch (error) {
-    toast.error('Failed to assign dweller to room')
+    notifyErrorOnce(error, 'Failed to assign dweller to room')
   }
 }
 
@@ -277,7 +279,7 @@ const handleUpgradeRoom = async (roomId: string, event: MouseEvent) => {
     await roomStore.upgradeRoom(roomId, authStore.token as string, vaultId)
     toast.success('Room upgraded successfully!')
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : 'Failed to upgrade room')
+    notifyErrorOnce(error, error instanceof Error ? error.message : 'Failed to upgrade room')
   }
 }
 

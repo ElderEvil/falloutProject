@@ -27,7 +27,7 @@ import { useToast } from '@/core/composables/useToast'
 import { useSound } from '@/core/composables/useSound'
 import { useNow } from '@/core/composables/useNow'
 import { computeRemainingSeconds, formatDuration } from '@/core/utils/time'
-import { getErrorMessage } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, getErrorMessage } from '@/core/utils/errorHandler'
 import { craftingService } from '../services/craftingService'
 import type { CraftableItemType, CraftingOrder, CraftingRecipe } from '../models/crafting'
 
@@ -171,7 +171,7 @@ async function loadAll() {
     orders.value = loadedOrders
   } catch (error) {
     if (sequence !== loadSequence) return
-    toast.error(getErrorMessage(error) || 'Failed to load the workshop')
+    notifyErrorOnce(error, getErrorMessage(error) || 'Failed to load the workshop')
     recipes.value = []
     orders.value = []
   } finally {
@@ -191,7 +191,7 @@ async function handleStart(recipe: CraftingRecipe) {
     await loadAll()
     emit('crafted')
   } catch (error) {
-    toast.error(getErrorMessage(error) || `Failed to queue ${recipe.name}`)
+    notifyErrorOnce(error, getErrorMessage(error) || `Failed to queue ${recipe.name}`)
   } finally {
     busyKey.value = null
   }
@@ -222,7 +222,7 @@ async function handleCancel(order: CraftingOrder) {
     toast.success(`Cancelled ${order.item_name}; materials refunded.`)
     await loadAll()
   } catch (error) {
-    toast.error(getErrorMessage(error) || `Failed to cancel ${order.item_name}`)
+    notifyErrorOnce(error, getErrorMessage(error) || `Failed to cancel ${order.item_name}`)
   } finally {
     busyKey.value = null
   }
@@ -238,7 +238,7 @@ async function handleCollect(order: CraftingOrder) {
     await loadAll()
     emit('crafted')
   } catch (error) {
-    toast.error(getErrorMessage(error) || `Failed to collect ${order.item_name}`)
+    notifyErrorOnce(error, getErrorMessage(error) || `Failed to collect ${order.item_name}`)
   } finally {
     busyKey.value = null
   }

@@ -90,6 +90,7 @@ describe('ResponseTeamsView (compatibility redirect)', () => {
     storeState.fetchRooms.mockImplementation(async () => {
       storeState.rooms = []
       storeState.roomsLoadedVaultId = null
+      mockToast.error('Failed to fetch rooms')
       return 'failed'
     })
 

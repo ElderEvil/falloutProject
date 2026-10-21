@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
+
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -74,7 +76,7 @@ onMounted(async () => {
 
       explorationStore.startSseSubscription(vaultId.value, authStore.token)
     } catch (error) {
-      toast.error('Failed to load explorations')
+      notifyErrorOnce(error, 'Failed to load explorations')
     }
   }
 })
@@ -121,7 +123,7 @@ const pollExplorations = async () => {
       }
     }
   } catch (error) {
-    toast.error('Failed to refresh explorations')
+    notifyErrorOnce(error, 'Failed to refresh explorations')
   }
 }
 

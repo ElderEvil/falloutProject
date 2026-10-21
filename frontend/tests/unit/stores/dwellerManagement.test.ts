@@ -42,6 +42,17 @@ describe('useDwellerManagementStore', () => {
     expect(filter.detailedDwellers.d1).toMatchObject({ first_name: 'Jane', last_name: 'Smith' })
   })
 
+  it('keeps Gary feedback in a single rename confirmation', async () => {
+    vi.mocked(axios.patch).mockResolvedValueOnce({ data: { id: 'd1', first_name: 'Gary' } })
+    await useDwellerManagementStore().renameDweller('d1', 'Gary', 'token')
+    expect(mockToast.success).toHaveBeenCalledTimes(1)
+    expect(mockToast.success).toHaveBeenCalledWith(
+      expect.stringContaining('VAULT 108 PROTOCOL ACTIVATED'),
+      5000
+    )
+    expect(mockToast.info).not.toHaveBeenCalled()
+  })
+
   it('assigns only available dwellers to production rooms and refreshes the list', async () => {
     const filterStore = useDwellerFilterStore()
     const managementStore = useDwellerManagementStore()

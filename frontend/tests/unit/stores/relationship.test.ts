@@ -5,7 +5,10 @@ import axios from '@/core/plugins/axios'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
 vi.mock('@/core/plugins/axios')
-vi.mock('@/core/utils/errorHandler', () => ({ handleStoreError: vi.fn() }))
+vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/utils/errorHandler')>()),
+  handleStoreError: vi.fn(),
+}))
 
 describe('Relationship Store', () => {
   beforeEach(() => {

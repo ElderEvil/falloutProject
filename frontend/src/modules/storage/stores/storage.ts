@@ -57,7 +57,7 @@ export const useStorageStore = defineStore('storage', () => {
     } catch (error) {
       if (request === sequence) {
         console.error('Failed to refresh vault storage', error)
-        handleStoreError(error, 'Failed to refresh storage', false)
+        handleStoreError(error, 'Failed to refresh storage')
         return 'error'
       }
       return 'stale'

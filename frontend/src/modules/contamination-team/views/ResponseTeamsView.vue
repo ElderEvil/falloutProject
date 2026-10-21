@@ -44,7 +44,6 @@ async function openStationOrExplain(): Promise<void> {
   handled.value = true
 
   if (result === 'failed') {
-    toast.error('Could not load this vault’s rooms — open it from the vault list.')
     await router.replace({ path: `/vault/${id}` })
     return
   }

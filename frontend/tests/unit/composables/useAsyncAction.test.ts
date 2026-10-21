@@ -9,7 +9,10 @@ vi.mock('@/core/composables/useToast', () => ({
   useToast: () => toast,
 }))
 
-vi.mock('@/core/utils/errorHandler', () => ({ handleStoreError }))
+vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/utils/errorHandler')>()),
+  handleStoreError,
+}))
 
 describe('useAsyncAction', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -17,9 +20,10 @@ describe('useAsyncAction', () => {
   it('tracks loading and returns the action result', async () => {
     let resolveAction!: (value: string) => void
     const action = vi.fn(
-      () => new Promise<string>((resolve) => {
-        resolveAction = resolve
-      })
+      () =>
+        new Promise<string>((resolve) => {
+          resolveAction = resolve
+        })
     )
     const { run, isLoading } = useAsyncAction(action)
 

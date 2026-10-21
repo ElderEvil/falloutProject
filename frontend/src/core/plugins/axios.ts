@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useToast } from '@/core/composables/useToast'
+import { claimErrorNotification } from '@/core/utils/errorNotifications'
 import { dispatchRefreshedAuthTokens } from '@/core/utils/authSessionEvents'
 
 declare module 'axios' {
@@ -94,8 +95,6 @@ apiClient.interceptors.response.use(
     return response
   },
   async (err: unknown) => {
-    const { error: showError } = useToast()
-
     // Type guard to check if error is an AxiosError
     if (!axios.isAxiosError(err)) {
       return Promise.reject(err)
@@ -233,7 +232,7 @@ apiClient.interceptors.response.use(
       }
 
       // Show user-friendly toast (no technical suffix)
-      showError(`${title}: ${message}`)
+      if (claimErrorNotification(error)) useToast().error(`${title}: ${message}`)
     }
 
     return Promise.reject(error)

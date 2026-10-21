@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import type { components } from '@/core/types/api.generated'
 import * as trainingService from '../services/trainingService'
 import { useToast } from '@/core/composables/useToast'
-import { getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -123,7 +123,7 @@ export const useTrainingStore = defineStore('training', () => {
       activeTrainings.value.set(training.id!, training)
       return training
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err))
+      notifyErrorOnce(err, getErrorMessage(err))
       return null
     }
   }
@@ -136,7 +136,7 @@ export const useTrainingStore = defineStore('training', () => {
       toast.success('Training cancelled')
       return true
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err))
+      notifyErrorOnce(err, getErrorMessage(err))
       return false
     }
   }
@@ -148,7 +148,7 @@ export const useTrainingStore = defineStore('training', () => {
       trainingHistory.value.push(training)
       return true
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err))
+      notifyErrorOnce(err, getErrorMessage(err))
       return false
     }
   }
@@ -164,7 +164,7 @@ export const useTrainingStore = defineStore('training', () => {
         }
       }
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err))
+      notifyErrorOnce(err, getErrorMessage(err))
     }
   }
 
@@ -190,7 +190,7 @@ export const useTrainingStore = defineStore('training', () => {
 
       return trainings
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err))
+      notifyErrorOnce(err, getErrorMessage(err))
       return []
     }
   }
@@ -211,7 +211,7 @@ export const useTrainingStore = defineStore('training', () => {
         }
       }
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err))
+      notifyErrorOnce(err, getErrorMessage(err))
     }
   }
 

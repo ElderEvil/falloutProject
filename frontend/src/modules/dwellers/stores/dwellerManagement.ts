@@ -216,13 +216,13 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
         }
       }
 
-      toast.success('Dweller renamed successfully!')
-
       // Trigger Gary easter egg if renamed to "Gary" (case-insensitive)
       if (firstName.toLowerCase() === 'gary') {
         const { triggerGaryMode } = useGaryMode()
         triggerGaryMode()
-        toast.info('VAULT 108 PROTOCOL ACTIVATED', 5000)
+        toast.success('Dweller renamed successfully! VAULT 108 PROTOCOL ACTIVATED', 5000)
+      } else {
+        toast.success('Dweller renamed successfully!')
       }
 
       return response.data

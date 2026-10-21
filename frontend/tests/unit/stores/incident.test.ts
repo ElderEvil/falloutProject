@@ -61,6 +61,12 @@ describe('Incident Store', () => {
     vi.useRealTimers()
   })
 
+  it('reports a held-item sale failure once', async () => {
+    vi.mocked(incidentApi.sellOverflow).mockRejectedValueOnce(new Error('Sale unavailable'))
+    await useIncidentStore().sellOverflow('vault-1', 'incident-1', 0, 'token')
+    expect(sseMock.toast.error).toHaveBeenCalledTimes(1)
+  })
+
   const mockIncident: Incident = {
     id: 'incident-1',
     vault_id: 'vault-1',
@@ -1354,6 +1360,7 @@ describe('Incident Store', () => {
 
       vi.mocked(incidentApi.takeOverflow).mockRejectedValueOnce({ response: { status: 409 } })
       await store.takeOverflow('vault-1', 'incident-1', 0, 'token')
+      expect(sseMock.toast.error).toHaveBeenCalledTimes(1)
       expect(sseMock.toast.error).toHaveBeenCalledWith(
         'Storage is full — sell the item or free a slot.'
       )
@@ -1361,6 +1368,7 @@ describe('Incident Store', () => {
       sseMock.toast.error.mockClear()
       vi.mocked(incidentApi.takeOverflow).mockRejectedValueOnce({ response: { status: 500 } })
       await store.takeOverflow('vault-1', 'incident-1', 0, 'token')
+      expect(sseMock.toast.error).toHaveBeenCalledTimes(1)
       expect(sseMock.toast.error).toHaveBeenCalledWith('Could not store the held item.')
       expect(sseMock.toast.error).not.toHaveBeenCalledWith(
         'Storage is full — sell the item or free a slot.'

@@ -1,7 +1,6 @@
 import { computed, ref } from 'vue'
-import { useToast } from './useToast'
 import { getErrorMessage } from '@/core/types/utils'
-import { handleStoreError } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, handleStoreError } from '@/core/utils/errorHandler'
 
 export interface AsyncActionOptions {
   /** Re-throw after the error has been recorded and surfaced. */
@@ -24,7 +23,7 @@ export function useAsyncAction<Args extends unknown[], Result>(
 ) {
   const pendingCount = ref(0)
   const error = ref<string | null>(null)
-  const toast = useToast()
+
   const isLoading = computed(() => pendingCount.value > 0)
 
   async function run(...args: Args): Promise<Result | null> {
@@ -37,7 +36,7 @@ export function useAsyncAction<Args extends unknown[], Result>(
       const message = getErrorMessage(caught)
       error.value = message
       handleStoreError(caught, context, false)
-      if (showToast) toast.error(message)
+      if (showToast) notifyErrorOnce(caught, message)
       if (rethrow) throw caught
       return null
     } finally {

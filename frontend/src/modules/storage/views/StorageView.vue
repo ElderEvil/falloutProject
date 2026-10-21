@@ -12,7 +12,7 @@ import { useSound } from '@/core/composables/useSound'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { type StorageItemsResponse } from '../services/storageService'
 import type { components } from '@/core/types/api.generated'
-import { handleStoreError } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, handleStoreError } from '@/core/utils/errorHandler'
 import { Icon } from '@iconify/vue'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import SidePanel from '@/core/components/common/SidePanel.vue'
@@ -77,10 +77,7 @@ const tabs = computed<Array<{ key: StorageTab; label: string }>>(() => [
 const fetchStorageData = async () => {
   if (!vaultId.value || !authStore.token) return
 
-  const result = await runFetchStorageData(vaultId.value)
-  if (result === 'error') {
-    toast.error('Failed to load storage data')
-  }
+  await runFetchStorageData(vaultId.value)
 }
 
 onMounted(async () => {
@@ -215,8 +212,8 @@ const handleSellItem = async (itemId: string | string[], itemType: string) => {
     if (vaultId.value && authStore.token) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
     }
-  } catch {
-    toast.error('Failed to sell item')
+  } catch (error) {
+    notifyErrorOnce(error, 'Failed to sell item')
   }
 }
 
@@ -245,8 +242,8 @@ const handleScrapItem = async (
     if (vaultId.value && authStore.token) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
     }
-  } catch {
-    toast.error('Failed to scrap item')
+  } catch (error) {
+    notifyErrorOnce(error, 'Failed to scrap item')
   }
 }
 

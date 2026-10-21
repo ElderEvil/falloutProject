@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
+
 import { computed, defineAsyncComponent, inject, onMounted, ref, shallowRef, watch } from 'vue'
 import {
   RouterLink,
@@ -16,7 +18,6 @@ import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import { useToast } from '@/core/composables/useToast'
 import { happinessService } from '@/modules/dwellers/services/happinessService'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { setRadioMode } from '@/modules/radio/api/radio'
@@ -71,7 +72,7 @@ const incidentStore = useIncidentStore()
 const explorationStore = useExplorationStore()
 const { isCollapsed } = useSidePanel()
 const isFlickeringEnabled = inject('isFlickering', ref(false))
-const toast = useToast()
+
 const router = useRouter()
 const route = useRoute()
 const happinessOverviewOpen = ref(false)
@@ -541,8 +542,8 @@ const generateDwellerInfo = async (dwellerId: string) => {
       // Force refresh the detailed dweller data
       await dwellerStore.fetchDwellerDetails(dwellerId, authStore.token as string, true)
     }
-  } catch {
-    toast.error('Failed to generate dweller information')
+  } catch (error) {
+    notifyErrorOnce(error, 'Failed to generate dweller information')
   } finally {
     generatingAI.value[dwellerId] = false
   }
@@ -566,8 +567,8 @@ const handleQuickUnassign = async (dwellerId: string) => {
   if (!authStore.token) return
   try {
     await dwellerManagementStore.unassignDwellerFromRoom(dwellerId, authStore.token)
-  } catch {
-    toast.error('Failed to unassign dweller from room')
+  } catch (error) {
+    notifyErrorOnce(error, 'Failed to unassign dweller from room')
   }
 }
 

@@ -74,7 +74,7 @@ describe('Pets Store', () => {
 
     expect(store.error).toBe('Failed to load pets')
     expect(toastMock.error).toHaveBeenCalledTimes(1)
-    expect(toastMock.error).toHaveBeenCalledWith('Failed to load pets')
+    expect(toastMock.error).toHaveBeenCalledWith('Network error')
     expect(store.pets).toHaveLength(1)
   })
 

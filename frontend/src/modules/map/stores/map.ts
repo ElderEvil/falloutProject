@@ -13,7 +13,7 @@ import type {
 } from '../models/map'
 import * as mapService from '../services/mapService'
 import { isKnownLocation } from '../utils/visibility'
-import { handleStoreError } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 
 export const VIEWED_LOCATIONS_STORAGE_KEY = 'map:viewed-location-keys'
@@ -34,16 +34,12 @@ export const useMapStore = defineStore('map', () => {
   const snapshotError = ref<string | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-  const viewedLocationKeys = useLocalStorage<Set<string>>(
-    VIEWED_LOCATIONS_STORAGE_KEY,
-    new Set(),
-    {
-      serializer: {
-        read: (raw) => new Set<string>(JSON.parse(raw) as string[]),
-        write: (value) => JSON.stringify([...value]),
-      },
-    }
-  )
+  const viewedLocationKeys = useLocalStorage<Set<string>>(VIEWED_LOCATIONS_STORAGE_KEY, new Set(), {
+    serializer: {
+      read: (raw) => new Set<string>(JSON.parse(raw) as string[]),
+      write: (value) => JSON.stringify([...value]),
+    },
+  })
 
   const viewedKey = (vaultId: string, locationId: string) => `${vaultId}:${locationId}`
 
@@ -80,7 +76,9 @@ export const useMapStore = defineStore('map', () => {
 
   // Getters
   const hasUnseenDiscoveries = computed(() => locations.value.some(isUnseenDiscovery))
-  const placeGroupByKey = computed(() => new Map(placeGroups.value.map((group) => [group.key, group])))
+  const placeGroupByKey = computed(
+    () => new Map(placeGroups.value.map((group) => [group.key, group]))
+  )
 
   function isUnseenDiscovery(loc: WastelandLocationWithDwellers): boolean {
     return (
@@ -190,11 +188,12 @@ export const useMapStore = defineStore('map', () => {
       snapshotError.value = handleStoreError(err, 'Failed to fetch world snapshot')
       // Visible, non-blocking: markers/routes/fog still render over the empty
       // terrain rather than failing the whole map load.
-      toast.error('World terrain unavailable — showing markers only')
+      notifyErrorOnce(err, 'World terrain unavailable — showing markers only')
     }
   }
 
-  async function refreshMap(vaultId: string, token?: string): Promise<void> {    const effectiveToken = token ?? _pollToken.value
+  async function refreshMap(vaultId: string, token?: string): Promise<void> {
+    const effectiveToken = token ?? _pollToken.value
     if (!effectiveToken) return
     const gen = _pollGeneration
     try {

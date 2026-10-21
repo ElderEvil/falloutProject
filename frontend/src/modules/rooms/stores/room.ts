@@ -124,7 +124,7 @@ export const useRoomStore = defineStore('room', () => {
     } catch (error) {
       handleStoreError(error, 'Failed to build room')
       if (error instanceof AxiosError && error.response?.data?.detail) {
-        throw new Error(error.response.data.detail)
+        throw new Error(error.response.data.detail, { cause: error })
       }
       throw error
     }
@@ -147,7 +147,7 @@ export const useRoomStore = defineStore('room', () => {
     } catch (error) {
       handleStoreError(error, 'Failed to destroy room')
       if (error instanceof AxiosError && error.response?.data?.detail) {
-        throw new Error(error.response.data.detail)
+        throw new Error(error.response.data.detail, { cause: error })
       }
       throw error
     }
@@ -178,7 +178,7 @@ export const useRoomStore = defineStore('room', () => {
     } catch (error) {
       handleStoreError(error, 'Failed to upgrade room')
       if (error instanceof AxiosError && error.response?.data?.detail) {
-        throw new Error(error.response.data.detail)
+        throw new Error(error.response.data.detail, { cause: error })
       }
       throw error
     }
@@ -219,7 +219,7 @@ export const useRoomStore = defineStore('room', () => {
     } catch (error) {
       handleStoreError(error, 'Failed to apply room style')
       if (error instanceof AxiosError && error.response?.data?.detail) {
-        throw new Error(error.response.data.detail)
+        throw new Error(error.response.data.detail, { cause: error })
       }
       throw error
     }

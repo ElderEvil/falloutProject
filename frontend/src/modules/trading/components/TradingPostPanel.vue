@@ -8,7 +8,7 @@ import DwellerBioBadge from '@/modules/dwellers/components/DwellerBioBadge.vue'
 import DwellerPlacesBadge from '@/modules/dwellers/components/DwellerPlacesBadge.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
-import { getErrorMessage } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, getErrorMessage } from '@/core/utils/errorHandler'
 import { tradingService } from '../services/tradingService'
 import type { TradeOffer } from '../models/trading'
 
@@ -32,7 +32,7 @@ async function refreshMarket() {
     myListings.value = market.my_listings
     bottleCaps.value = market.bottle_caps
   } catch (error) {
-    toast.error(getErrorMessage(error, 'Failed to load the Trading Post'))
+    notifyErrorOnce(error, getErrorMessage(error, 'Failed to load the Trading Post'))
   } finally {
     isLoading.value = false
   }
@@ -42,11 +42,15 @@ async function sell(offer: TradeOffer) {
   if (!authStore.token) return
   busyDwellerId.value = offer.dweller.id
   try {
-    const result = await tradingService.sellDweller(props.vaultId, offer.dweller.id, authStore.token)
+    const result = await tradingService.sellDweller(
+      props.vaultId,
+      offer.dweller.id,
+      authStore.token
+    )
     toast.success(`Sold for ${result.price} caps!`)
     await refreshMarket()
   } catch (error) {
-    toast.error(getErrorMessage(error, 'Failed to sell dweller'))
+    notifyErrorOnce(error, getErrorMessage(error, 'Failed to sell dweller'))
   } finally {
     busyDwellerId.value = null
   }
@@ -60,7 +64,7 @@ async function buy(offer: TradeOffer) {
     toast.success(`${offer.dweller.first_name} joined the vault for ${result.price} caps!`)
     await refreshMarket()
   } catch (error) {
-    toast.error(getErrorMessage(error, 'Failed to buy dweller'))
+    notifyErrorOnce(error, getErrorMessage(error, 'Failed to buy dweller'))
   } finally {
     busyDwellerId.value = null
   }
@@ -88,9 +92,16 @@ watch(
     <template v-else>
       <section class="offer-section">
         <h3 class="section-title">Your Listings</h3>
-        <p v-if="myListings.length === 0" class="state-message">Soft-delete a dweller to list them here.</p>
+        <p v-if="myListings.length === 0" class="state-message">
+          Soft-delete a dweller to list them here.
+        </p>
         <ul v-else class="space-y-4">
-          <DwellerListRow v-for="offer in myListings" :key="offer.dweller.id" :dweller="offer.dweller" :clickable="false">
+          <DwellerListRow
+            v-for="offer in myListings"
+            :key="offer.dweller.id"
+            :dweller="offer.dweller"
+            :clickable="false"
+          >
             <template #middle>
               <div class="h-10 w-px flex-shrink-0 bg-theme-primary/20"></div>
               <div class="flex items-center gap-1.5">
@@ -121,9 +132,16 @@ watch(
 
       <section class="offer-section">
         <h3 class="section-title">Market</h3>
-        <p v-if="marketOffers.length === 0" class="state-message">No dwellers on the market right now.</p>
+        <p v-if="marketOffers.length === 0" class="state-message">
+          No dwellers on the market right now.
+        </p>
         <ul v-else class="space-y-4">
-          <DwellerListRow v-for="offer in marketOffers" :key="offer.dweller.id" :dweller="offer.dweller" :clickable="false">
+          <DwellerListRow
+            v-for="offer in marketOffers"
+            :key="offer.dweller.id"
+            :dweller="offer.dweller"
+            :clickable="false"
+          >
             <template #middle>
               <div class="h-10 w-px flex-shrink-0 bg-theme-primary/20"></div>
               <div class="flex items-center gap-1.5">

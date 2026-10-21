@@ -1,7 +1,7 @@
 import { onScopeDispose, ref, watch, type Ref } from 'vue'
 import { useConfirmDialog } from '@vueuse/core'
 import { isRoomAtRowEnd } from '../utils/room'
-import { getErrorMessage } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, getErrorMessage } from '@/core/utils/errorHandler'
 import { useRoute } from 'vue-router'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -72,7 +72,7 @@ export function useRoomDestroy() {
     } catch (error) {
       const message = getErrorMessage(error)
       if (options?.actionError) options.actionError.value = message
-      toast.error(message, 5000)
+      notifyErrorOnce(error, message, 5000)
     } finally {
       isDestroying.value = false
     }

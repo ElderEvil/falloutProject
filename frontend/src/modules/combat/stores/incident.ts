@@ -10,7 +10,7 @@ import type {
   IncidentOutcome,
   IncidentTeamMember,
 } from '../models/incident'
-import { handleStoreError } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { audioManager } from '@/core/audio/audioManager'
 import { useSse } from '@/core/composables/useEventStream'
@@ -143,9 +143,10 @@ export const useIncidentStore = defineStore('incident', () => {
       applyOverflow(incidentId, response.unclaimed_loot)
       showSuccess('Held loot stored.')
     } catch (error) {
-      handleStoreError(error, 'Failed to store held incident loot')
+      handleStoreError(error, 'Failed to store held incident loot', false)
       const status = (error as { response?: { status?: number } } | null)?.response?.status
-      showError(
+      notifyErrorOnce(
+        error,
         status === 409
           ? 'Storage is full — sell the item or free a slot.'
           : 'Could not store the held item.'
@@ -165,7 +166,6 @@ export const useIncidentStore = defineStore('incident', () => {
       showSuccess(`Sold for ${response.caps_granted} caps.`)
     } catch (error) {
       handleStoreError(error, 'Failed to sell held incident loot')
-      showError('Could not sell the held item.')
     }
   }
 
@@ -296,7 +296,6 @@ export const useIncidentStore = defineStore('incident', () => {
       }
     } catch (err) {
       handleStoreError(err, 'Failed to assign incident responders')
-      showError('Responder assignment failed')
       throw err
     }
   }
@@ -483,13 +482,6 @@ export const useIncidentStore = defineStore('incident', () => {
     } catch (err: unknown) {
       handleStoreError(err, 'Failed to spawn incident')
 
-      let errorMessage = 'Failed to spawn incident'
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosError = err as { response?: { data?: { detail?: string } } }
-        errorMessage = axiosError.response?.data?.detail || errorMessage
-      }
-
-      showError(`Spawn Failed: ${errorMessage}`)
       throw err
     }
   }

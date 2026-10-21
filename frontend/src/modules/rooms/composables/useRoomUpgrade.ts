@@ -7,7 +7,7 @@ import { useRoomStore } from '../stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 import { useRoomDestroy } from './useRoomDestroy'
-import { getErrorMessage } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, getErrorMessage } from '@/core/utils/errorHandler'
 import { getRoomSegmentCount } from '../utils/room'
 
 export function useRoomUpgrade(
@@ -112,7 +112,11 @@ export function useRoomUpgrade(
       }, 800)
     } catch (error) {
       actionError.value = error instanceof Error ? error.message : 'Failed to upgrade room'
-      toast.error(error instanceof Error ? error.message : 'Failed to upgrade room', 5000)
+      notifyErrorOnce(
+        error,
+        error instanceof Error ? error.message : 'Failed to upgrade room',
+        5000
+      )
     } finally {
       isUpgrading.value = false
     }
@@ -148,7 +152,7 @@ export function useRoomUpgrade(
       emitClose()
     } catch (error) {
       actionError.value = getErrorMessage(error)
-      toast.error(actionError.value)
+      notifyErrorOnce(error, actionError.value)
     } finally {
       isRemodeling.value = false
     }

@@ -31,9 +31,7 @@ import {
 } from '@/core/components/ui/tooltip'
 import { useExplorationStore } from '../stores/exploration'
 import type { PendingOverflow } from '../stores/exploration'
-import { expeditionSiteApi } from '../api/expeditionSite'
-import type { ExplorationSiteOpportunityView } from '../api/expeditionSite'
-import { handleStoreError } from '@/core/utils/errorHandler'
+import { useExpeditionSiteStore } from '../stores/expeditionSite'
 import { usePendingReports, removePendingReport } from '../composables/usePendingReports'
 import { useExplorationFinish } from '../composables/useExplorationFinish'
 
@@ -43,6 +41,8 @@ const { isCollapsed } = useSidePanel()
 const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const questStore = useQuestStore()
+const siteStore = useExpeditionSiteStore()
+const { siteOpportunities } = storeToRefs(siteStore)
 const toast = useToast()
 const { playMusic } = useSound()
 
@@ -74,9 +74,6 @@ const { isLoading: explorationLoading, error: explorationError } = storeToRefs(e
 const activeQueuedReportId = ref<string | null>(null)
 const isPendingOverflowModal = ref(false)
 const pendingOverflow = ref<PendingOverflow[]>([])
-// Active free-roam journeys' current site offers, keyed by exploration id.
-const siteOpportunities = ref<Record<string, ExplorationSiteOpportunityView>>({})
-let latestSiteOpportunityRequest = 0
 
 const {
   showRewardsModal,
@@ -129,23 +126,12 @@ function showNextPendingOverflow(): boolean {
 }
 
 const loadSiteOpportunities = async () => {
-  const requestedVaultId = vaultId.value
-  if (!requestedVaultId || !authStore.token) return
-  const requestId = ++latestSiteOpportunityRequest
-  try {
-    const opportunities = await expeditionSiteApi.getVaultOpportunities(requestedVaultId)
-    if (requestedVaultId !== vaultId.value || requestId !== latestSiteOpportunityRequest) return
-    siteOpportunities.value = Object.fromEntries(
-      opportunities.map((opportunity) => [opportunity.exploration_id, opportunity])
-    )
-  } catch (error) {
-    // Best-effort discovery hint: the explorer list itself stays usable.
-    handleStoreError(error, 'Failed to load expedition site opportunities', false)
-  }
+  if (!vaultId.value || !authStore.token) return
+  await siteStore.fetchVaultOpportunities(vaultId.value)
 }
 
 watch(vaultId, () => {
-  siteOpportunities.value = {}
+  siteStore.resetOpportunities()
   void loadSiteOpportunities()
 })
 

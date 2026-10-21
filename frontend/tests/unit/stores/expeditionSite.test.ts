@@ -61,6 +61,44 @@ describe('Expedition Site Store', () => {
     vi.clearAllMocks()
   })
 
+  it('keeps only the newest vault opportunity response', async () => {
+    let finishOld!: (
+      value: Awaited<ReturnType<typeof expeditionSiteApi.getVaultOpportunities>>
+    ) => void
+    vi.mocked(expeditionSiteApi.getVaultOpportunities)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishOld = resolve
+          })
+      )
+      .mockResolvedValueOnce([{ exploration_id: 'run-2', sites: [], reason: 'trail' }])
+    const store = useExpeditionSiteStore()
+    const old = store.fetchVaultOpportunities('vault-1')
+    await store.fetchVaultOpportunities('vault-1')
+    finishOld([{ exploration_id: 'run-1', sites: [], reason: 'cooldown' }])
+    await old
+    expect(Object.keys(store.siteOpportunities)).toEqual(['run-2'])
+  })
+
+  it('clears vault opportunities and ignores a pending response after reset', async () => {
+    let finish!: (
+      value: Awaited<ReturnType<typeof expeditionSiteApi.getVaultOpportunities>>
+    ) => void
+    vi.mocked(expeditionSiteApi.getVaultOpportunities).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    const store = useExpeditionSiteStore()
+    const pending = store.fetchVaultOpportunities('vault-1')
+    store.resetOpportunities()
+    finish([{ exploration_id: 'run-1', sites: [], reason: 'trail' }])
+    await pending
+    expect(store.siteOpportunities).toEqual({})
+  })
+
   it('fetchAvailability populates availability and availableSites', async () => {
     vi.mocked(expeditionSiteApi.getAvailability).mockResolvedValue(mockAvailability)
     const store = useExpeditionSiteStore()

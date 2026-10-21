@@ -1,7 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { expeditionSiteApi } from '../api/expeditionSite'
-import type { AvailableSiteView, SiteAvailabilityView, SiteRoomView } from '../api/expeditionSite'
+import type {
+  AvailableSiteView,
+  SiteAvailabilityView,
+  SiteRoomView,
+  ExplorationSiteOpportunityView,
+} from '../api/expeditionSite'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
 export type SiteRunStatus = 'in_room' | 'retreated' | 'cleared' | 'died'
@@ -21,6 +26,35 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
   const currentExplorationId = ref<string | null>(null)
   let scopeVersion = 0
   let availabilityRequest = 0
+
+  const siteOpportunities = ref<Record<string, ExplorationSiteOpportunityView>>({})
+  let opportunityVaultId: string | null = null
+  let opportunityRequest = 0
+
+  function resetOpportunities(): void {
+    opportunityRequest++
+    opportunityVaultId = null
+    siteOpportunities.value = {}
+  }
+
+  async function fetchVaultOpportunities(vaultId: string): Promise<void> {
+    if (vaultId !== opportunityVaultId) {
+      resetOpportunities()
+      opportunityVaultId = vaultId
+    }
+    const requestId = ++opportunityRequest
+    try {
+      const opportunities = await expeditionSiteApi.getVaultOpportunities(vaultId)
+      if (vaultId !== opportunityVaultId || requestId !== opportunityRequest) return
+      siteOpportunities.value = Object.fromEntries(
+        opportunities.map((opportunity) => [opportunity.exploration_id, opportunity])
+      )
+    } catch (err) {
+      if (vaultId === opportunityVaultId && requestId === opportunityRequest) {
+        handleStoreError(err, 'Failed to load expedition site opportunities', false)
+      }
+    }
+  }
 
   // Gap 4.3: room state is scoped to the exploration that loaded it. Acting on
   // a different exploration must never render a stale room from a previous one.
@@ -132,6 +166,9 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
   }
 
   return {
+    siteOpportunities,
+    fetchVaultOpportunities,
+    resetOpportunities,
     availableSites,
     availability,
     room,

@@ -110,7 +110,7 @@ const containmentGain = computed(() =>
       </div>
 
       <div
-        class="absolute inset-x-3 top-12 bottom-16 grid grid-cols-[3fr_2fr] items-end gap-5 sm:inset-x-6 sm:gap-10"
+        class="absolute inset-x-3 top-12 bottom-16 grid grid-cols-2 items-end gap-5 sm:inset-x-6 sm:gap-10"
       >
         <div class="relative min-w-0">
           <span
@@ -120,11 +120,12 @@ const containmentGain = computed(() =>
             aria-hidden="true"
             >-{{ Math.round(dwellerDamage) }}</span
           >
-          <div class="flex min-w-0 items-end gap-2 overflow-x-auto pt-6 pb-1">
+          <!-- Keep responders spread across their half of the scene instead of clustering left. -->
+          <div class="flex w-full min-w-0 items-end justify-evenly gap-2 overflow-x-auto pt-6 pb-1">
             <div
               v-for="responder in responders"
               :key="responder.id"
-              class="incident-responder relative flex w-12 min-w-12 max-w-16 flex-1 flex-col items-center gap-1 sm:w-14 sm:min-w-14"
+              class="incident-responder relative flex w-12 min-w-12 max-w-16 shrink-0 flex-col items-center gap-1 sm:w-14 sm:min-w-14"
               :class="{
                 'opacity-40 grayscale': responder.dweller && responder.dweller.health <= 0,
               }"

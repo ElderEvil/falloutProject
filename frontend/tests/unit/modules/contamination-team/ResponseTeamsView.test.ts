@@ -90,14 +90,13 @@ describe('ResponseTeamsView (compatibility redirect)', () => {
     storeState.fetchRooms.mockImplementation(async () => {
       storeState.rooms = []
       storeState.roomsLoadedVaultId = null
-      mockToast.error('Failed to fetch rooms')
       return 'failed'
     })
 
     mountWithSetup(ResponseTeamsView)
     await flushPromises()
 
-    expect(mockToast.error).toHaveBeenCalledTimes(1)
+    expect(mockToast.error).not.toHaveBeenCalled()
     expect(mockToast.info).not.toHaveBeenCalled()
     expect(mockReplace).toHaveBeenCalledWith({ path: '/vault/vault-1' })
   })

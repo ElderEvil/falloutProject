@@ -180,7 +180,7 @@ describe('ExplorationRewardsModal', () => {
     expect(wrapper.find('.sell-all-btn').exists()).toBe(false)
   })
 
-  it('keeps unsold items and reports a partial bulk-sale failure once', async () => {
+  it('keeps unsold items and reports the partial total and failure', async () => {
     mockResolve
       .mockResolvedValueOnce({ caps_granted: 25, unclaimed_loot: [item('Dropped B')] })
       .mockRejectedValueOnce(new Error('Sale unavailable'))
@@ -188,7 +188,7 @@ describe('ExplorationRewardsModal', () => {
     await wrapper.get('.sell-all-btn').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Dropped B')
-    expect(mockToast.success).not.toHaveBeenCalled()
+    expect(mockToast.success).toHaveBeenCalledWith('Sold 1 item for +25 caps')
     expect(mockToast.error).toHaveBeenCalledTimes(1)
   })
 

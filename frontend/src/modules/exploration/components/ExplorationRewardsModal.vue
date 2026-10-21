@@ -91,16 +91,23 @@ const resolveOverflow = async (action: 'take' | 'sell', index: number, notify = 
   }
 }
 
+const reportBulkSale = (sold: number, caps: number) => {
+  if (sold) toast.success(`Sold ${sold} item${sold === 1 ? '' : 's'} for +${caps} caps`)
+}
+
 const sellAll = async () => {
   let sold = 0
   let caps = 0
   while (unclaimed.value.length > 0) {
     const result = await resolveOverflow('sell', 0, false)
-    if (!result) return
+    if (!result) {
+      reportBulkSale(sold, caps)
+      return
+    }
     sold++
     caps += result.caps_granted
   }
-  if (sold) toast.success(`Sold ${sold} item${sold === 1 ? '' : 's'} for +${caps} caps`)
+  reportBulkSale(sold, caps)
 }
 
 const tryClose = () => emit('close', requiresResolution.value)

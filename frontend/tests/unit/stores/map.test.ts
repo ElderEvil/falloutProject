@@ -552,7 +552,10 @@ describe('Map Store unlock toasts', () => {
 
       expect(store.worldSnapshot).toBeNull()
       expect(store.snapshotError).not.toBeNull()
-      expect(mockToast.error).toHaveBeenCalled()
+      expect(mockToast.error).toHaveBeenCalledTimes(1)
+      expect(mockToast.error).toHaveBeenCalledWith(
+        'World terrain unavailable — showing markers only: offline'
+      )
     })
 
     it('rejects a non-square grid explicitly', async () => {

@@ -13,7 +13,7 @@ import type {
 } from '../models/map'
 import * as mapService from '../services/mapService'
 import { isKnownLocation } from '../utils/visibility'
-import { notifyErrorOnce, handleStoreError } from '@/core/utils/errorHandler'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 
 export const VIEWED_LOCATIONS_STORAGE_KEY = 'map:viewed-location-keys'
@@ -185,10 +185,9 @@ export const useMapStore = defineStore('map', () => {
       worldSnapshot.value = snapshot
     } catch (err) {
       worldSnapshot.value = null
-      snapshotError.value = handleStoreError(err, 'Failed to fetch world snapshot')
+      snapshotError.value = handleStoreError(err, 'World terrain unavailable — showing markers only')
       // Visible, non-blocking: markers/routes/fog still render over the empty
       // terrain rather than failing the whole map load.
-      notifyErrorOnce(err, 'World terrain unavailable — showing markers only')
     }
   }
 

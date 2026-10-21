@@ -694,3 +694,49 @@ async def test_finished_session_goal_cannot_be_changed(async_session, training_s
     await training_service.complete_training(async_session, training.id)
     with pytest.raises(VaultOperationException, match="cannot"):
         await training_service.set_training_goal(async_session, training.id, 7)
+
+
+async def test_roomless_training_cancels_without_stat_gain(
+    async_session, dweller, training_service, continuous_trainee
+):
+    """A room removed outside the service cannot leave a payable training round behind."""
+    training, _ = continuous_trainee
+    training.room_id = None
+    dweller.room_id = None
+    async_session.add_all([training, dweller])
+    await async_session.commit()
+    result = await training_service.complete_training(async_session, training.id)
+    await async_session.refresh(dweller)
+    assert result.is_cancelled()
+    assert dweller.strength == 5
+    assert dweller.status == DwellerStatusEnum.IDLE
+
+
+async def test_failed_demolition_rolls_back_training_cancellation(
+    async_session, dweller, training_service, continuous_trainee
+):
+    from sqlalchemy import event
+
+    from app.models.room import Room
+    from app.services.room_service import room_service
+
+    training, room = continuous_trainee
+    room_id = room.id
+
+    def fail_delete(_mapper, _connection, _target):
+        raise RuntimeError("demolition failed")
+
+    event.listen(Room, "before_delete", fail_delete)
+    try:
+        with pytest.raises(RuntimeError, match="demolition failed"):
+            await room_service.destroy_room(async_session, room_id)
+    finally:
+        event.remove(Room, "before_delete", fail_delete)
+        await async_session.rollback()
+    await async_session.refresh(training)
+    await async_session.refresh(dweller)
+    assert training.is_active()
+    assert training.room_id == room_id
+    assert dweller.room_id == room_id
+    assert dweller.status == DwellerStatusEnum.TRAINING
+    assert dweller.strength == 5

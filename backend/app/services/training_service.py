@@ -220,7 +220,7 @@ class TrainingService:
 
     async def _repeat_training(self, db_session: AsyncSession, training: Training, dweller: Dweller) -> Training | None:
         vault = await vault_crud.get(db_session, training.vault_id)
-        if not vault or not vault.continuous_training:
+        if not vault or not vault.continuous_training or training.room_id is None:
             return None
         if SPECIALModel.get_stat(dweller, training.stat_being_trained) >= training.goal_stat_value:
             return None
@@ -305,7 +305,12 @@ class TrainingService:
             VaultOperationException: If training not active
         """
         training, dweller = await self._lock_active_training(db_session, training_id, "complete")
-        if dweller.room_id != training.room_id or dweller.status != DwellerStatusEnum.TRAINING or dweller.health <= 0:
+        if (
+            training.room_id is None
+            or dweller.room_id != training.room_id
+            or dweller.status != DwellerStatusEnum.TRAINING
+            or dweller.health <= 0
+        ):
             return await self.cancel_training(db_session, training_id)
 
         # Increase SPECIAL stat
@@ -385,6 +390,8 @@ class TrainingService:
         db_session: AsyncSession,
         training_id: UUID4,
         dweller: Dweller | None = None,
+        *,
+        commit: bool = True,
     ) -> Training:
         """Cancel an active training session.
         Dweller does not gain the stat increase.
@@ -393,6 +400,7 @@ class TrainingService:
             db_session: Database session
             training_id: Training session ID
             dweller: Optional pre-fetched dweller to avoid N+1 query
+            commit: False lets room demolition commit cancellation and deletion together.
 
         Returns:
             Cancelled training session
@@ -418,7 +426,10 @@ class TrainingService:
 
         # One transaction: the cancelled session and the dweller's release must
         # land together or not at all.
-        await db_session.commit()
+        if commit:
+            await db_session.commit()
+        else:
+            await db_session.flush()
         await db_session.refresh(training)
 
         self.logger.info(

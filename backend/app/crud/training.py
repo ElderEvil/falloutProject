@@ -1,7 +1,7 @@
 """CRUD operations for training."""
 
 from pydantic import UUID4
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -22,6 +22,10 @@ class CRUDTraining(CRUDBase[Training, TrainingCreate, TrainingUpdate]):
             .execution_options(populate_existing=True)
         )
         return result.scalar_one_or_none()
+
+    async def detach_room_history(self, db_session: AsyncSession, room_id: UUID4) -> None:
+        """Keep training records when their former room is demolished; caller commits."""
+        await db_session.execute(update(Training).where(Training.room_id == room_id).values(room_id=None))
 
     async def get_active_by_dweller(
         self,

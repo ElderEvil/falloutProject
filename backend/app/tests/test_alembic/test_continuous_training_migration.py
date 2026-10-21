@@ -158,3 +158,97 @@ def test_training_goals_backfill_and_round_trip():
                 ]
     finally:
         engine.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("active_round", [True, False])
+def test_destroy_training_room_preserves_history_and_cancels_active_round(harness, monkeypatch, active_round):
+    """Real PostgreSQL must allow demolition after any training status, without losing history."""
+    import asyncio
+    from unittest.mock import AsyncMock
+    from uuid import UUID
+
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.core.enums import DwellerStatusEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
+    from app.models.dweller import Dweller
+    from app.models.room import Room
+    from app.models.training import Training, TrainingStatus
+    from app.models.vault import Vault
+    from app.services.notification_service import notification_service
+    from app.services.room_service import room_service
+    from app.services.training_service import training_service
+
+    harness.upgrade("head")
+    harness.downgrade("a3c7e9b1d602")
+    harness.upgrade("head")
+    vault_id = UUID(legacy._seed_vault(harness, number=928))
+    monkeypatch.setattr(notification_service, "_deliver", AsyncMock())
+
+    async def demolish():
+        engine = create_async_engine(harness.url)
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with sessions() as db:
+                vault = await db.get(Vault, vault_id)
+                vault.continuous_training = True
+                dweller = Dweller(
+                    first_name="Demolition",
+                    gender=GenderEnum.MALE,
+                    rarity=RarityEnum.COMMON,
+                    vault_id=vault_id,
+                    strength=5,
+                    health=100,
+                    max_health=100,
+                )
+                room = Room(
+                    name="Weight Room",
+                    category=RoomTypeEnum.TRAINING,
+                    ability=SPECIALEnum.STRENGTH,
+                    vault_id=vault_id,
+                    base_cost=100,
+                    size=3,
+                    size_min=3,
+                    size_max=9,
+                    capacity=2,
+                    coordinate_x=7,
+                    coordinate_y=0,
+                )
+                db.add_all([vault, dweller, room])
+                await db.commit()
+                training = await training_service.start_training(db, dweller.id, room.id)
+                await training_service.complete_training(db, training.id)
+                from app.crud.training import training as training_crud
+
+                successor = await training_crud.get_active_by_dweller(db, dweller.id)
+                await training_service.cancel_training(db, successor.id)
+                active = await training_service.start_training(db, dweller.id, room.id)
+                if not active_round:
+                    await training_service.cancel_training(db, active.id)
+                room_id, dweller_id = room.id, dweller.id
+                before_caps = vault.bottle_caps
+                await room_service.destroy_room(db, room_id)
+                await db.refresh(dweller)
+                await db.refresh(vault)
+                assert dweller.strength == 6
+                assert dweller.status == DwellerStatusEnum.IDLE
+                assert dweller.room_id is None
+                assert vault.bottle_caps > before_caps
+            async with sessions() as db:
+                assert await db.get(Room, room_id) is None
+                history = (await db.execute(select(Training).where(Training.dweller_id == dweller_id))).scalars().all()
+                assert len(history) == 3
+                assert all(record.room_id is None for record in history)
+                assert sorted(record.status for record in history) == [
+                    TrainingStatus.CANCELLED,
+                    TrainingStatus.CANCELLED,
+                    TrainingStatus.COMPLETED,
+                ]
+                assert next(record for record in history if record.id == active.id).completed_at is not None
+        finally:
+            await engine.dispose()
+
+    asyncio.run(demolish())
+    with pytest.raises(RuntimeError, match="Cannot downgrade"):
+        harness.downgrade("a3c7e9b1d602")

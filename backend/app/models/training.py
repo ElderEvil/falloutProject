@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
@@ -28,7 +28,7 @@ class TrainingBase(SQLModel):
     """Base model for training sessions."""
 
     dweller_id: UUID4 = Field(foreign_key="dweller.id", index=True)
-    room_id: UUID4 = Field(foreign_key="room.id", index=True)
+    room_id: UUID4 | None = Field(default=None, foreign_key="room.id", index=True, ondelete="SET NULL")
     vault_id: UUID4 = Field(foreign_key="vault.id", index=True)
 
     stat_being_trained: SPECIALEnum
@@ -51,7 +51,7 @@ class Training(BaseUUIDModel, TrainingBase, TimeStampMixin, table=True):
 
     # Relationships
     dweller: "Dweller" = Relationship(back_populates="trainings")
-    room: "Room" = Relationship()
+    room: Optional["Room"] = Relationship()
     vault: "Vault" = Relationship()
 
     def is_active(self) -> bool:

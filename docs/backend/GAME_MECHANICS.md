@@ -47,7 +47,8 @@ bell/toast notifications still fire for every round.
 
 Turning repeat off lets the current round finish normally. Canceling, reassigning or losing a dweller
 stops that dweller's training. A capped trainee is released normally; the toggle does not auto-assign
-idle dwellers or switch their training stat.
+idle dwellers or switch their training stat. Demolishing a training room cancels active rounds without
+awarding stats and preserves completed/cancelled history with an empty room reference.
 
 ## Objectives: guidance, earned progress and explicit claims
 

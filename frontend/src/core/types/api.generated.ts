@@ -10681,11 +10681,8 @@ export interface components {
              * Format: uuid4
              */
             dweller_id: string;
-            /**
-             * Room Id
-             * Format: uuid4
-             */
-            room_id: string;
+            /** Room Id */
+            room_id?: string | null;
             /**
              * Vault Id
              * Format: uuid4
@@ -10736,11 +10733,8 @@ export interface components {
              * Format: uuid4
              */
             dweller_id: string;
-            /**
-             * Room Id
-             * Format: uuid4
-             */
-            room_id: string;
+            /** Room Id */
+            room_id?: string | null;
             /**
              * Vault Id
              * Format: uuid4

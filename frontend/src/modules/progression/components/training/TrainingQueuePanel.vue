@@ -31,6 +31,7 @@ const activeTrainings = computed(() =>
 const roomGroups = computed(() => {
   const groups = new Map<string, typeof activeTrainings.value>()
   for (const training of activeTrainings.value) {
+    if (!training.room_id) continue
     const group = groups.get(training.room_id) ?? []
     group.push(training)
     groups.set(training.room_id, group)

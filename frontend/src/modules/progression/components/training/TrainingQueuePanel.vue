@@ -7,6 +7,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import { useRoomStore } from '@/modules/rooms/stores/room'
+import { getTrainingRoomCapacity } from '@/modules/rooms/utils/room'
 import { usePolling } from '@/core/composables/usePolling'
 import TrainingProgressCard from './TrainingProgressCard.vue'
 import { ABILITY_CONFIG, getAbilityConfig } from '@/modules/dwellers/models/dweller'
@@ -77,17 +78,17 @@ const dwellerLookup = computed(() => {
   return lookup
 })
 
-const roomLookup = computed(() => {
-  const lookup = new Map<string, string>()
-  for (const room of roomStore.rooms) {
-    lookup.set(room.id, room.name)
-  }
-  return lookup
-})
+const roomLookup = computed(() => new Map(roomStore.rooms.map((room) => [room.id, room])))
 
 const getDweller = (dwellerId: string) => dwellerLookup.value.get(dwellerId)
 
-const getRoomName = (roomId: string) => roomLookup.value.get(roomId) ?? 'Training Room'
+const getRoomName = (roomId: string) => roomLookup.value.get(roomId)?.name ?? 'Training Room'
+const getRoomColumns = (roomId: string) => {
+  const room = roomLookup.value.get(roomId)
+  const capacity = room ? getTrainingRoomCapacity(room) : 4
+  if (capacity <= 2) return 'xl:grid-cols-2'
+  return capacity <= 4 ? 'xl:grid-cols-4' : 'xl:grid-cols-3'
+}
 
 const fetchTrainings = async () => {
   if (!vaultStore.activeVault?.id || !authStore.token) return
@@ -222,7 +223,10 @@ onMounted(() => {
                   group.trainings.length
                 }}</span>
               </h5>
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div
+                class="grid grid-cols-1 gap-3 sm:grid-cols-2"
+                :class="getRoomColumns(group.roomId)"
+              >
                 <TrainingProgressCard
                   class="min-w-0"
                   v-for="training in group.trainings"

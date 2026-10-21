@@ -71,7 +71,7 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
       if (route.request().url().includes('/rooms/vault/'))
         return route.fulfill({
           json: [
-            { id: 'r1', name: 'Weight Room' },
+            { id: 'r1', name: 'Weight Room', size: 6 },
             { id: 'r2', name: 'Fitness Room' },
             { id: 'r3', name: 'Diner', tier: 1 },
             { id: 'r4', name: 'Annex' },
@@ -306,4 +306,78 @@ for (const width of [1280, 360]) {
     }
     await page.screenshot({ path: test.info().outputPath(`training-rooms-${width}.png`) })
   })
+}
+
+for (const [size, capacity, desktopColumns] of [
+  [3, 2, 2],
+  [6, 4, 4],
+  [9, 6, 3],
+] as const) {
+  for (const width of [1280, 360]) {
+    test(`capacity ${capacity} uses its room shape at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 1000 })
+      const sessions = Array.from({ length: capacity }, (_, index) => ({
+        id: `training-${index}`,
+        dweller_id: `dweller-${index}`,
+        room_id: 'room-1',
+        stat_being_trained: 'strength',
+        status: 'active',
+        current_stat_value: 5,
+        target_stat_value: 6,
+        goal_stat_value: 10,
+        progress: 0,
+        started_at: new Date().toISOString(),
+        estimated_completion_at: new Date(Date.now() + 3600_000).toISOString(),
+      }))
+      await page.route('**/api/v1/**', async (route) => {
+        const url = route.request().url()
+        if (url.endsWith('/cancel')) {
+          const cancelled = sessions.shift()!
+          return route.fulfill({ json: { ...cancelled, status: 'cancelled' } })
+        }
+        if (url.endsWith('/vaults/vault-1'))
+          return route.fulfill({ json: { id: 'vault-1', number: 1 } })
+        if (url.includes('/training/vault/')) return route.fulfill({ json: sessions })
+        if (url.includes('/rooms/vault/'))
+          return route.fulfill({ json: [{ id: 'room-1', name: 'Weight Room', size }] })
+        if (url.includes('/dwellers/'))
+          return route.fulfill({
+            json: sessions.map((session) => ({
+              id: session.dweller_id,
+              first_name: 'Training',
+              last_name: session.dweller_id,
+            })),
+          })
+        return route.fulfill({ json: [] })
+      })
+      await page.goto('/tests/e2e/fixtures/continuous-training.html')
+      const cards = page
+        .getByRole('region', { name: 'Weight Room', exact: true })
+        .locator('.training-progress-card')
+      await expect(cards).toHaveCount(capacity)
+      const bounds = await cards.evaluateAll((elements) =>
+        elements.map((element) => {
+          const rect = element.getBoundingClientRect()
+          return { x: rect.x, y: rect.y, width: rect.width, right: rect.right }
+        })
+      )
+      const columns = width === 360 ? 1 : desktopColumns
+      expect(new Set(bounds.map((rect) => rect.x)).size).toBe(columns)
+      expect(new Set(bounds.map((rect) => rect.y)).size).toBe(Math.ceil(capacity / columns))
+      const grid = (await cards.first().locator('..').boundingBox())!
+      expect(Math.abs(bounds[columns - 1]!.right - grid.x - grid.width)).toBeLessThan(1)
+      expect(
+        await page.locator('body').evaluate((element) => element.scrollWidth <= innerWidth)
+      ).toBe(true)
+      await page.screenshot({
+        path: test.info().outputPath(`room-${capacity}-${width}.png`),
+        fullPage: true,
+      })
+      await cards.first().getByRole('button', { name: 'Cancel', exact: true }).click()
+      await expect(cards).toHaveCount(capacity - 1)
+      expect(Math.abs((await cards.first().boundingBox())!.width - bounds[0]!.width)).toBeLessThan(
+        1
+      )
+    })
+  }
 }

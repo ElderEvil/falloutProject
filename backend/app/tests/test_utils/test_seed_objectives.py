@@ -283,7 +283,9 @@ def test_starter_seed_file_integrity() -> None:
         elif step["objective_type"] == "reach":
             assert target.get("reach_type") in VALID_REACH_TYPES
 
-    assert sequences == list(range(len(steps))), "sequences must be unique and contiguous"
+    # Sequence 12 belongs to the retired radio lesson retained by existing vaults.
+    expected = [sequence for sequence in range(len(steps) + 1) if sequence != 12]
+    assert sequences == expected, "keep ordered unique positions, including the retired radio gap"
 
 
 def test_objective_item_rewards_are_catalog_backed() -> None:

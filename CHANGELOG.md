@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.243.1 (2026-10-21)
+
+### Bug Fixes
+
+* **ui:** theme room tooltips and action confirmations ([#1118](https://github.com/ElderEvil/falloutProject/issues/1118)) 9650ca2
+
 ## 2.243.0 (2026-10-20)
 
 ### Features

@@ -3175,32 +3175,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quests/{vault_id}/{quest_id}/assign-party": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Assign Party To Quest
-         * @description Assign dwellers to a quest party (1-3 dwellers).
-         *
-         *     Returns:
-         *         The assigned party members.
-         *
-         *     Raises:
-         *         ValidationException: If party size is invalid or assignment fails.
-         */
-        post: operations["assign_party_to_quest_api_v1_quests__vault_id___quest_id__assign_party_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/quests/{vault_id}/{quest_id}/party": {
         parameters: {
             query?: never;
@@ -3235,7 +3209,10 @@ export interface paths {
         put?: never;
         /**
          * Start Quest
-         * @description Start a quest (starts the timer).
+         * @description Start a quest, atomically assigning and departing the supplied party.
+         *
+         *     The UI supplies dweller_ids for timed missions. Bodyless requests support
+         *     state objectives and callers with an existing roster.
          *
          *     Returns:
          *         The started quest.
@@ -4433,6 +4410,26 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/training/{training_id}/goal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set Training Goal
+         * @description Set a dweller's goal for the current training chain.
+         */
+        patch: operations["set_training_goal_api_v1_training__training_id__goal_patch"];
         trace?: never;
     };
     "/api/v1/users/": {
@@ -10644,6 +10641,14 @@ export interface components {
             bottle_caps: number;
         };
         /**
+         * TrainingGoalUpdate
+         * @description Change the final goal without restarting the current round.
+         */
+        TrainingGoalUpdate: {
+            /** Goal Stat Value */
+            goal_stat_value: number;
+        };
+        /**
          * TrainingProgress
          * @description Detailed training progress information.
          */
@@ -10653,11 +10658,8 @@ export interface components {
              * Format: uuid4
              */
             dweller_id: string;
-            /**
-             * Room Id
-             * Format: uuid4
-             */
-            room_id: string;
+            /** Room Id */
+            room_id?: string | null;
             /**
              * Vault Id
              * Format: uuid4
@@ -10668,6 +10670,11 @@ export interface components {
             current_stat_value: number;
             /** Target Stat Value */
             target_stat_value: number;
+            /**
+             * Goal Stat Value
+             * @default 10
+             */
+            goal_stat_value: number;
             /**
              * Progress
              * @default 0
@@ -10703,11 +10710,8 @@ export interface components {
              * Format: uuid4
              */
             dweller_id: string;
-            /**
-             * Room Id
-             * Format: uuid4
-             */
-            room_id: string;
+            /** Room Id */
+            room_id?: string | null;
             /**
              * Vault Id
              * Format: uuid4
@@ -10718,6 +10722,11 @@ export interface components {
             current_stat_value: number;
             /** Target Stat Value */
             target_stat_value: number;
+            /**
+             * Goal Stat Value
+             * @default 10
+             */
+            goal_stat_value: number;
             /**
              * Progress
              * @default 0
@@ -11015,6 +11024,12 @@ export interface components {
              */
             incidents_disabled: boolean;
             /**
+             * Continuous Training
+             * @description Repeat training rounds until each dweller reaches their training goal (default 10)
+             * @default false
+             */
+            continuous_training: boolean;
+            /**
              * Id
              * Format: uuid4
              */
@@ -11091,6 +11106,12 @@ export interface components {
              * @default false
              */
             incidents_disabled: boolean;
+            /**
+             * Continuous Training
+             * @description Repeat training rounds until each dweller reaches their training goal (default 10)
+             * @default false
+             */
+            continuous_training: boolean;
         };
         /**
          * VaultMapResponse
@@ -11267,6 +11288,12 @@ export interface components {
              */
             incidents_disabled: boolean;
             /**
+             * Continuous Training
+             * @description Repeat training rounds until each dweller reaches their training goal (default 10)
+             * @default false
+             */
+            continuous_training: boolean;
+            /**
              * Id
              * Format: uuid4
              */
@@ -11350,6 +11377,12 @@ export interface components {
              * @default false
              */
             incidents_disabled: boolean;
+            /**
+             * Continuous Training
+             * @description Repeat training rounds until each dweller reaches their training goal (default 10)
+             * @default false
+             */
+            continuous_training: boolean;
             /**
              * Id
              * Format: uuid4
@@ -11442,6 +11475,12 @@ export interface components {
              * @default false
              */
             incidents_disabled: boolean;
+            /**
+             * Continuous Training
+             * @description Repeat training rounds until each dweller reaches their training goal (default 10)
+             * @default false
+             */
+            continuous_training: boolean;
             /**
              * Id
              * Format: uuid4
@@ -11536,6 +11575,11 @@ export interface components {
              * @description Suppresses incident spawns and processing
              */
             incidents_disabled?: boolean | null;
+            /**
+             * Continuous Training
+             * @description Repeat training rounds until each dweller reaches their training goal (default 10)
+             */
+            continuous_training?: boolean | null;
         };
         /**
          * WastelandLocationWithDwellers
@@ -16297,42 +16341,6 @@ export interface operations {
             };
         };
     };
-    assign_party_to_quest_api_v1_quests__vault_id___quest_id__assign_party_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                vault_id: string;
-                quest_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["QuestPartyAssign"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["QuestPartyMemberRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_quest_party_api_v1_quests__vault_id___quest_id__party_get: {
         parameters: {
             query?: never;
@@ -16375,7 +16383,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["QuestPartyAssign"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -17993,6 +18005,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TrainingRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_training_goal_api_v1_training__training_id__goal_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrainingGoalUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingRead"];
                 };
             };
             /** @description Validation Error */

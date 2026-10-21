@@ -1,4 +1,5 @@
-import { computed, ref, type Ref } from 'vue'
+import { computed, onScopeDispose, ref, type Ref } from 'vue'
+import { useConfirmDialog } from '@vueuse/core'
 import { useRoute } from 'vue-router'
 import type { Room } from '../models/room'
 import { isVaultDoor } from '../models/roomParts'
@@ -20,11 +21,26 @@ export function useRoomUpgrade(
   const authStore = useAuthStore()
   const toast = useToast()
 
-  const { isDestroying, destroyRoom } = useRoomDestroy()
+  const {
+    isDestroying,
+    destroyRoom,
+    destroyTitle,
+    showDestroyConfirmation,
+    confirmDestroy,
+    cancelDestroy,
+  } = useRoomDestroy()
 
   const isUpgrading = ref(false)
   const justUpgraded = ref(false)
   const isRemodeling = ref(false)
+  const remodelTitle = ref('')
+  const {
+    isRevealed: showRemodelConfirmation,
+    reveal: revealRemodel,
+    confirm: confirmRemodel,
+    cancel: cancelRemodel,
+  } = useConfirmDialog()
+  onScopeDispose(cancelRemodel)
 
   const upgradeInfo = computed(() => {
     if (!room.value) return null
@@ -115,18 +131,18 @@ export function useRoomUpgrade(
   }
 
   const handleRemodel = async (otherRoomId?: string) => {
-    if (!room.value || !authStore.token || isRemodeling.value) return
-    const verb = otherRoomId ? 'Merge' : 'Split'
-    if (
-      !confirm(
-        `${verb} ${room.value.name}? This is free and preserves dwellers, capacity and refund value.`
-      )
-    )
+    if (!room.value || !authStore.token || isRemodeling.value || showRemodelConfirmation.value)
       return
+    const roomId = room.value.id
+    const token = authStore.token
+    const verb = otherRoomId ? 'Merge' : 'Split'
+    remodelTitle.value = `${verb} ${room.value.name}?`
+    const { isCanceled } = await revealRemodel()
+    if (isCanceled || room.value?.id !== roomId || authStore.token !== token) return
     isRemodeling.value = true
     actionError.value = null
     try {
-      await roomStore.remodelRoom(room.value.id, authStore.token, otherRoomId)
+      await roomStore.remodelRoom(roomId, token, otherRoomId)
       toast.success(otherRoomId ? 'Rooms merged.' : 'Room split into base segments.')
       emitRoomUpdated()
       emitClose()
@@ -141,8 +157,16 @@ export function useRoomUpgrade(
   return {
     isUpgrading,
     isRemodeling,
+    remodelTitle,
+    showRemodelConfirmation,
+    confirmRemodel,
+    cancelRemodel,
     handleRemodel,
     isDestroying,
+    destroyTitle,
+    showDestroyConfirmation,
+    confirmDestroy,
+    cancelDestroy,
     justUpgraded,
     upgradeInfo,
     isVaultDoor: isVaultDoorRoom,

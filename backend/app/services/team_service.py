@@ -1,8 +1,8 @@
 """Team roster orchestration: assigning dwellers to quest teams.
 
 Owns the assignment rules that used to live in ``CRUDQuestParty.assign_party``;
-the quest endpoints call this service and map the resulting ``TeamMember`` rows
-back into the ``QuestPartyMemberRead`` wire contract.
+quest start uses this service to stage its ``TeamMember`` rows before departure.
+The caller owns the transaction.
 """
 
 import logging
@@ -11,7 +11,6 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import DwellerStatusEnum
 from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.team import TeamMember
@@ -27,7 +26,11 @@ class TeamService:
     async def assign_quest_team(
         self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, dweller_ids: list[UUID4]
     ) -> list[TeamMember]:
-        """Assign dwellers to a quest team, replacing any existing roster."""
+        """Assign dwellers to a quest team, replacing any existing roster.
+
+        Stages the roster in the caller's transaction; ``start_quest`` owns
+        validation, departure, and commit.
+        """
         if len(set(dweller_ids)) != len(dweller_ids):
             raise ValidationException("Choose each dweller only once")
         if len(dweller_ids) > 3 or len(dweller_ids) < 1:
@@ -49,10 +52,8 @@ class TeamService:
             raise ResourceConflictException("Quest is already in progress")
 
         existing_members = await crud.team_crud.get_quest_team(db_session, quest_id, vault_id)
-        existing_dweller_ids = {member.dweller_id for member in existing_members}
 
         # Validate the full replacement before clearing the current team.
-        dwellers_by_id = {}
         for dweller_id in dweller_ids:
             # include_deleted so availability_error can reject soft-deleted dwellers explicitly.
             dweller = await crud.dweller.get_or_none(db_session, dweller_id, include_deleted=True)
@@ -61,19 +62,10 @@ class TeamService:
             if dweller.vault_id != vault_id:
                 raise ValidationException(f"Dweller {dweller_id} does not belong to vault {vault_id}")
             error = availability_error(dweller, require_healthy=False)
-            # A dweller already on THIS quest's team may stay QUESTING.
-            if error is not None and not (
-                dweller.status == DwellerStatusEnum.QUESTING and dweller_id in existing_dweller_ids
-            ):
+            if error is not None:
                 raise ValidationException(f"Dweller {dweller_id} {error}")
-            dwellers_by_id[dweller_id] = dweller
 
         for member in existing_members:
-            if member.dweller:
-                # Unposted IDLE, matching the exploration return: the pre-quest
-                # posting was cleared at departure, so there is nothing to restore.
-                member.dweller.status = DwellerStatusEnum.IDLE
-                member.dweller.room_id = None
             await db_session.delete(member)
         await db_session.flush()
 
@@ -81,12 +73,6 @@ class TeamService:
 
         members = []
         for i, dweller_id in enumerate(dweller_ids):
-            dweller = dwellers_by_id[dweller_id]
-            dweller.status = DwellerStatusEnum.QUESTING
-            # Detach from the pre-departure room: a QUESTING dweller is outside the
-            # vault and must not keep occupying (or counting toward) their old room.
-            dweller.room_id = None
-
             member = TeamMember(
                 team_id=team.id,
                 dweller_id=dweller_id,
@@ -96,11 +82,9 @@ class TeamService:
             db_session.add(member)
             members.append(member)
 
-        await db_session.commit()
-        for member in members:
-            await db_session.refresh(member)
+        await db_session.flush()
 
-        logger.info(f"Assigned {len(members)} dwellers to quest {quest_id}")
+        logger.debug("Staged %s dwellers for quest %s; caller owns commit", len(members), quest_id)
         return members
 
 

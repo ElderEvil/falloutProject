@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.245.0 (2026-10-21)
+
+### Features
+
+* **quests:** scale mission slots and speed with Office upgrades ([#1121](https://github.com/ElderEvil/falloutProject/issues/1121)) 53eed3a
+
+## 2.244.0 (2026-10-21)
+
+### Features
+
+* **training:** repeat rounds to individual goals and unify training UI ([#1120](https://github.com/ElderEvil/falloutProject/issues/1120)) a46f485
+
+## 2.243.2 (2026-10-21)
+
+### Bug Fixes
+
+* **ui:** theme all confirmation dialogs ([#1119](https://github.com/ElderEvil/falloutProject/issues/1119)) eaf2f97
+
+## 2.243.1 (2026-10-21)
+
+### Bug Fixes
+
+* **ui:** theme room tooltips and action confirmations ([#1118](https://github.com/ElderEvil/falloutProject/issues/1118)) 9650ca2
+
 ## 2.243.0 (2026-10-20)
 
 ### Features

@@ -18,6 +18,7 @@ from app.crud.training import training as training_crud
 from app.models.room import Room
 from app.schemas.room import RoomBuild, RoomCreate, RoomUpdate
 from app.services.room_assignment_policy import vault_placement_lock_key
+from app.services.training_service import training_service
 from app.services.user_service import user_service
 from app.services.vault_service import vault_service
 from app.utils import room_rules
@@ -604,6 +605,9 @@ class RoomService:
         # provenance pointing here before the row goes, so the incident return pass
         # reads "no posting to restore" instead of a room that no longer exists.
         await crud.room.clear_origin_room_references(db_session, room_id)
+        for training in await training_crud.get_active_by_room(db_session, room_id):
+            await training_service.cancel_training(db_session, training.id, commit=False)
+        await training_crud.detach_room_history(db_session, room_id)
         db_obj = await crud.room.delete(db_session, id=room_id)
 
         refund = room_rules.room_refund(db_obj)

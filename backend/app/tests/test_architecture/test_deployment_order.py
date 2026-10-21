@@ -161,3 +161,39 @@ def test_maintenance_backup_verification_and_failure_recovery(tmp_path: Path, sc
             ["kubectl", "-n", "fallout", "scale", "deployment/backend", "--replicas=2"],
             ["kubectl", "-n", "fallout", "scale", "deployment/dramatiq-worker", "--replicas=1"],
         ]
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="Requires bash")
+@pytest.mark.parametrize("migration_status", [0, 21])
+def test_dev_backend_starts_only_after_successful_migration(tmp_path: Path, migration_status: int) -> None:
+    tasks = json.loads((WORKFLOW.parents[2] / ".zed/tasks.json").read_text())
+    command = next(task["command"] for task in tasks if task["label"] == "Fallout: Run backend server")
+    tools = tmp_path / "bin"
+    tools.mkdir()
+    podman = tools / "podman"
+    podman.write_text("#!/bin/sh\nexit 0\n")
+    podman.chmod(0o755)
+    uv = tools / "uv"
+    uv.write_text(
+        "#!/bin/sh\n"
+        'if [ "$2" = "alembic" ]; then\n'
+        f'  if [ {migration_status} -ne 0 ]; then echo "migration failed" >&2; fi\n'
+        f"  exit {migration_status}\n"
+        "fi\n"
+        'echo "backend started"\n'
+    )
+    uv.chmod(0o755)
+    result = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - checked-in task, isolated tool fakes
+        [shutil.which("bash") or "bash", "-c", command],
+        env=os.environ | {"PATH": f"{tools}{os.pathsep}{os.environ['PATH']}"},
+        capture_output=True,
+        text=True,
+        timeout=5,
+        check=False,
+    )
+    assert result.returncode == migration_status
+    if migration_status:
+        assert "backend started" not in result.stdout
+        assert "migration failed" in result.stderr
+    else:
+        assert "backend started" in result.stdout

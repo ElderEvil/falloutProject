@@ -218,13 +218,18 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         }
 
     @staticmethod
+    async def get_room_tier_by_name(db_session: AsyncSession, vault_id: UUID4, room_name: str) -> int | None:
+        """The tier of the vault's room matching the normalized name, or None when absent."""
+        normalized = normalize_room_type(room_name)
+        if normalized is None:
+            return None
+        rooms = await CRUDRoom.get_all_by_vault(db_session, vault_id)
+        return next((room.tier for room in rooms if normalize_room_type(room.name) == normalized), None)
+
+    @staticmethod
     async def has_room_type(db_session: AsyncSession, vault_id: UUID4, room_type: str) -> bool:
         """Whether the vault has a built room matching the normalized room type."""
-        normalized = normalize_room_type(room_type)
-        if normalized is None:
-            return False
-        names = await CRUDRoom.get_names_by_vault(db_session, vault_id)
-        return any(normalize_room_type(name) == normalized for name in names)
+        return await CRUDRoom.get_room_tier_by_name(db_session, vault_id, room_type) is not None
 
     @staticmethod
     async def get_by_name_pattern(db_session: AsyncSession, vault_id: UUID4, pattern: str) -> list[Room]:

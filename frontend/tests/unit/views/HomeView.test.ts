@@ -813,7 +813,11 @@ describe('HomeView', () => {
       if (deleteBtn) {
         await deleteBtn.trigger('click')
         await settleView()
-        expect(global.confirm).toHaveBeenCalled()
+        expect(global.confirm).not.toHaveBeenCalled()
+        const dialog = wrapper.findComponent({ name: 'TerminalConfirmation' })
+        expect(dialog.props('open')).toBe(true)
+        dialog.vm.$emit('cancel')
+        await settleView()
       }
       expect(axios.delete).not.toHaveBeenCalled()
     })
@@ -840,6 +844,11 @@ describe('HomeView', () => {
         await deleteBtn.trigger('click')
         await settleView()
 
+        expect(axios.delete).not.toHaveBeenCalled()
+        const dialog = wrapper.findComponent({ name: 'TerminalConfirmation' })
+        expect(dialog.props('open')).toBe(true)
+        dialog.vm.$emit('confirm')
+        await settleView()
         expect(axios.delete).toHaveBeenCalledWith(
           '/api/v1/vaults/vault-1',
           expect.objectContaining({

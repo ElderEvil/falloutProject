@@ -66,8 +66,7 @@ const order = (overrides: Partial<CraftingOrder> = {}): CraftingOrder =>
     ...overrides,
   }) as CraftingOrder
 
-const mountPanel = () =>
-  mount(CraftingPanel, { props: { vaultId: 'vault-1', itemType: 'weapon' } })
+const mountPanel = () => mount(CraftingPanel, { props: { vaultId: 'vault-1', itemType: 'weapon' } })
 
 // The filter bar's shadcn SelectTrigger is also a <button>, so target the Start
 // action by its label rather than by DOM position.
@@ -102,7 +101,12 @@ describe('CraftingPanel', () => {
 
   it('flags a material shortfall and explains the recipe', async () => {
     vi.mocked(craftingService.listRecipes).mockResolvedValue([
-      recipe({ can_craft: false, junk_materials: { common: 3, rare: 3 }, available_junk: { common: 3, rare: 0 }, missing_junk: 3 }),
+      recipe({
+        can_craft: false,
+        junk_materials: { common: 3, rare: 3 },
+        available_junk: { common: 3, rare: 0 },
+        missing_junk: 3,
+      }),
     ])
     const wrapper = mountPanel()
     await flushPromises()
@@ -114,7 +118,13 @@ describe('CraftingPanel', () => {
   it('filters schematics by rarity, craftability and name', async () => {
     vi.mocked(craftingService.listRecipes).mockResolvedValue([
       recipe({ name: 'Pipe pistol', rarity: 'common', can_craft: true, has_junk: true }),
-      recipe({ name: 'Baseball bat', rarity: 'rare', can_craft: false, has_junk: false, junk_materials: { common: 3, rare: 3 } }),
+      recipe({
+        name: 'Baseball bat',
+        rarity: 'rare',
+        can_craft: false,
+        has_junk: false,
+        junk_materials: { common: 3, rare: 3 },
+      }),
     ])
     const wrapper = mountPanel()
     await flushPromises()
@@ -146,7 +156,12 @@ describe('CraftingPanel', () => {
 
   it('disables starting when the recipe cannot be afforded', async () => {
     vi.mocked(craftingService.listRecipes).mockResolvedValue([
-      recipe({ can_craft: false, junk_materials: { common: 3, rare: 3 }, available_junk: { common: 3, rare: 0 }, missing_junk: 3 }),
+      recipe({
+        can_craft: false,
+        junk_materials: { common: 3, rare: 3 },
+        available_junk: { common: 3, rare: 0 },
+        missing_junk: 3,
+      }),
     ])
     const wrapper = mountPanel()
     await flushPromises()
@@ -202,7 +217,9 @@ describe('CraftingPanel', () => {
   })
 
   it('renders the queue progress bar with the live percentage', async () => {
-    vi.mocked(craftingService.listOrders).mockResolvedValue([order({ status: 'active', progress: 0.5 })])
+    vi.mocked(craftingService.listOrders).mockResolvedValue([
+      order({ status: 'active', progress: 0.5 }),
+    ])
     const wrapper = mountPanel()
     await flushPromises()
 
@@ -223,6 +240,16 @@ describe('CraftingPanel', () => {
     await cancel.trigger('click')
     await flushPromises()
 
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(craftingService.cancelOrder).not.toHaveBeenCalled()
+    const dialog = wrapper.findComponent({ name: 'TerminalConfirmation' })
+    expect(dialog.props('open')).toBe(true)
+    dialog.vm.$emit('cancel')
+    await flushPromises()
+    expect(craftingService.cancelOrder).not.toHaveBeenCalled()
+    await cancel.trigger('click')
+    dialog.vm.$emit('confirm')
+    await flushPromises()
     expect(craftingService.cancelOrder).toHaveBeenCalledWith('vault-1', 'order-1')
     expect(mockToast.success).toHaveBeenCalledWith(expect.stringContaining('refunded'))
     expect(craftingService.listOrders).toHaveBeenCalledTimes(2)
@@ -230,11 +257,13 @@ describe('CraftingPanel', () => {
   })
 
   it('collects a finished order', async () => {
-    vi.mocked(craftingService.listOrders).mockResolvedValue([order({ status: 'completed', progress: 1 })])
+    vi.mocked(craftingService.listOrders).mockResolvedValue([
+      order({ status: 'completed', progress: 1 }),
+    ])
     const wrapper = mountPanel()
     await flushPromises()
 
-    const collect = wrapper.findAll('button').find(button => button.text().includes('Collect'))
+    const collect = wrapper.findAll('button').find((button) => button.text().includes('Collect'))
     expect(collect?.exists()).toBe(true)
     await collect!.trigger('click')
     await flushPromises()
@@ -245,12 +274,14 @@ describe('CraftingPanel', () => {
   })
 
   it('stays silent when collecting fails', async () => {
-    vi.mocked(craftingService.listOrders).mockResolvedValue([order({ status: 'completed', progress: 1 })])
+    vi.mocked(craftingService.listOrders).mockResolvedValue([
+      order({ status: 'completed', progress: 1 }),
+    ])
     vi.mocked(craftingService.collectOrder).mockRejectedValue(new Error('Order vanished'))
     const wrapper = mountPanel()
     await flushPromises()
 
-    const collect = wrapper.findAll('button').find(button => button.text().includes('Collect'))
+    const collect = wrapper.findAll('button').find((button) => button.text().includes('Collect'))
     await collect!.trigger('click')
     await flushPromises()
 
@@ -269,7 +300,12 @@ describe('CraftingPanel', () => {
   it('ignores a stale response when the workshop changes mid-flight', async () => {
     let resolveFirst: (value: CraftingRecipe[]) => void = () => {}
     vi.mocked(craftingService.listRecipes)
-      .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve }))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve
+          })
+      )
       .mockImplementationOnce(async () => [recipe({ name: 'Assault rifle' })])
 
     const wrapper = mountPanel()
@@ -335,7 +371,13 @@ describe('CraftingPanel', () => {
 
   it('offers a first craft for a theme and locks a crafted theme', async () => {
     vi.mocked(craftingService.listRecipes).mockResolvedValue([
-      recipe({ name: 'Party theme', item_type: 'theme', style: 'party', owned: true, can_craft: false }),
+      recipe({
+        name: 'Party theme',
+        item_type: 'theme',
+        style: 'party',
+        owned: true,
+        can_craft: false,
+      }),
       recipe({ name: 'Halloween theme', item_type: 'theme', style: 'halloween', owned: false }),
     ])
     const wrapper = mount(CraftingPanel, {

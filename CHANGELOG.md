@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.244.0 (2026-10-21)
+
+### Features
+
+* **training:** repeat rounds to individual goals and unify training UI ([#1120](https://github.com/ElderEvil/falloutProject/issues/1120)) a46f485
+
 ## 2.243.2 (2026-10-21)
 
 ### Bug Fixes

@@ -14,7 +14,7 @@ from app.schemas.exploration_event import (
     LootSchema,
     RestEventSchema,
 )
-from app.services.exploration import data_loader
+from app.services import catalog_service as data_loader
 from app.services.exploration.combat_calculator import combat_calculator
 from app.services.exploration.loot_calculator import loot_calculator
 from app.utils.combat import ExpeditionCombatProfile

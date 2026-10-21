@@ -25,9 +25,10 @@ from app.services.progression.quests.requirements import (
     vault_missing_item_requirements,
 )
 from app.services.reward_service import reward_service
+from app.services.team_service import team_service
+from app.utils.dweller_availability import availability_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 from app.utils.quest_duration import (
-    MAX_ACTIVE_TIMED_QUESTS,
     STATE_QUEST_CATEGORIES,
     effective_quest_duration_minutes,
     quest_return_leg_minutes,
@@ -111,7 +112,9 @@ class QuestService:
         logger.info(f"Quest {quest_id} party started travelling home for vault {vault_id}")
         return link
 
-    async def start_quest(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> VaultQuestCompletionLink:
+    async def start_quest(
+        self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, *, dweller_ids: list[UUID4] | None = None
+    ) -> VaultQuestCompletionLink:
         """Start a quest or ready a state objective."""
         from app.utils.exceptions import (
             AccessDeniedException,
@@ -139,6 +142,8 @@ class QuestService:
         if quest is None:
             raise ResourceNotFoundException(Quest, identifier=quest_id)
         if quest.quest_category in STATE_QUEST_CATEGORIES:
+            if dweller_ids is not None:
+                raise ValidationException("State objectives cannot take a quest party")
             link.is_reward_ready = True
             await db_session.commit()
             await db_session.refresh(link)
@@ -146,9 +151,15 @@ class QuestService:
         if quest.duration_minutes is None or quest.duration_minutes <= 0:
             raise ValidationException("Quest duration must be a positive value")
 
-        if await crud.quest_crud.count_active_timed_quests(db_session, vault_id) >= MAX_ACTIVE_TIMED_QUESTS:
-            raise ResourceConflictException(f"Only {MAX_ACTIVE_TIMED_QUESTS} timed quests can run at once")
+        office_tier = await crud.room.get_room_tier_by_name(db_session, vault_id, availability.OFFICE_ROOM_TYPE)
+        slot_limit = office_tier or 0
+        if slot_limit == 0:
+            raise ResourceConflictException("No quest slots available. Build the Overseer's Office.")
+        if await crud.quest_crud.count_active_timed_quests(db_session, vault_id) >= slot_limit:
+            raise ResourceConflictException(f"All {slot_limit} quest slots are in use")
 
+        if dweller_ids is not None:
+            await team_service.assign_quest_team(db_session, quest_id, vault_id, dweller_ids)
         members = await crud.team_crud.get_quest_team(db_session, quest_id, vault_id)
         if not members:
             raise ValidationException("Assign at least one dweller before starting this quest")
@@ -156,7 +167,14 @@ class QuestService:
         state = inspect(quest)
         if state is not None and "quest_requirements" in state.unloaded:
             await db_session.refresh(quest, ["quest_requirements"])
-        party_dwellers = await crud.team_crud.get_quest_team_dwellers(db_session, quest_id, vault_id)
+        locked_party = await crud.dweller.get_many_for_update(db_session, [member.dweller_id for member in members])
+        if len(locked_party) != len(members):
+            raise ValidationException("A selected dweller is no longer available")
+        for dweller in locked_party:
+            error = availability_error(dweller, require_healthy=False)
+            if error is not None:
+                raise ValidationException(f"Dweller {dweller.id} {error}")
+        party_dwellers = locked_party
         # ITEM is vault-scoped, so it is gated here. The other vault gates
         # (ROOM/DWELLER_COUNT/QUEST_COMPLETED) live in `vault_missing_requirements`
         # and are enforced by `start_quest_for_vault` via `quest_availability`,
@@ -166,9 +184,13 @@ class QuestService:
         if missing:
             raise ValidationException("; ".join(missing))
 
+        for dweller in party_dwellers:
+            dweller.status = DwellerStatusEnum.QUESTING
+            dweller.room_id = None
+
         link.started_at = datetime.utcnow()
         link.is_reward_ready = False
-        link.duration_minutes = effective_quest_duration_minutes(quest.duration_minutes)
+        link.duration_minutes = effective_quest_duration_minutes(quest.duration_minutes, office_tier=office_tier)
 
         await db_session.commit()
         await db_session.refresh(link)
@@ -176,7 +198,9 @@ class QuestService:
         logger.info(f"Started quest {quest_id} for vault {vault_id} with duration {link.duration_minutes} minutes")
         return link
 
-    async def start_quest_for_vault(self, db_session: AsyncSession, vault_id: UUID4, quest_id: UUID4) -> Quest:
+    async def start_quest_for_vault(
+        self, db_session: AsyncSession, vault_id: UUID4, quest_id: UUID4, *, dweller_ids: list[UUID4] | None = None
+    ) -> Quest:
         """Start a quest for a vault, checking availability first.
 
         The whole start workflow lives here so the router only authorizes and
@@ -201,7 +225,7 @@ class QuestService:
             )
             raise ValidationException(detail=detail)
 
-        await self.start_quest(db_session, quest_id, vault_id)
+        await self.start_quest(db_session, quest_id, vault_id, dweller_ids=dweller_ids)
         await db_session.refresh(quest, ["quest_requirements", "quest_rewards"])
         return quest
 

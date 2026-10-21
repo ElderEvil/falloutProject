@@ -249,3 +249,12 @@ describe('findProductionRoom', () => {
     expect(findProductionRoom([], 'power')).toBeNull()
   })
 })
+
+it('adds maintenance only to Endurance storage rooms', () => {
+  expect(getRoomDetailParts(room({ category: 'capacity', ability: 'endurance' }))).toContain(
+    'storageMaintenance'
+  )
+  expect(getRoomDetailParts(room({ category: 'capacity', ability: 'charisma' }))).not.toContain(
+    'storageMaintenance'
+  )
+})

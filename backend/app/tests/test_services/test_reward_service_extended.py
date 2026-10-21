@@ -522,7 +522,7 @@ def test_parse_objective_reward_lunchbox() -> None:
 @pytest.mark.asyncio
 async def test_lunchbox_roll_is_catalog_backed(async_session: AsyncSession) -> None:
     """Every lunchbox roll is a real catalog row whose rarity matches the rolled tier."""
-    from app.services.exploration import data_loader
+    from app.services import catalog_service as data_loader
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
@@ -545,7 +545,7 @@ async def test_lunchbox_roll_is_catalog_backed(async_session: AsyncSession) -> N
 @pytest.mark.asyncio
 async def test_grant_item_outfit_uses_catalog_stats(async_session: AsyncSession) -> None:
     """Objective/quest gear resolves through the catalog instead of a zero-SPECIAL default row."""
-    from app.services.exploration import data_loader
+    from app.services import catalog_service as data_loader
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
@@ -648,6 +648,35 @@ async def test_process_quest_rewards_multiple(async_session: AsyncSession) -> No
     types = {r["reward_type"] for r in results}
     assert RewardType.CAPS in types
     assert RewardType.STIMPAK in types
+
+
+def test_parse_starter_resident_reward_returns_profile() -> None:
+    """Named starter rewards carry their curated name, bio, and appearance."""
+    reward_type, reward_data = settlement._parse_objective_reward("dweller:Juno Pike")
+
+    assert reward_type == RewardType.DWELLER
+    assert reward_data["first_name"] == "Juno"
+    assert reward_data["last_name"] == "Pike"
+    assert reward_data["bio"].startswith("Followed a pre-war radio signal")
+    assert reward_data["visual_attributes"]["hair_style"] == "short"
+
+
+@pytest.mark.asyncio
+async def test_starter_resident_reward_creates_named_dweller(async_session: AsyncSession) -> None:
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    _, reward_data = settlement._parse_objective_reward("dweller:Juno Pike")
+
+    result = await reward_service.grant_dweller(async_session, vault.id, reward_data)
+    dweller = await crud.dweller.get(async_session, UUID(result["dweller_id"]))
+
+    assert dweller.first_name == "Juno"
+    assert dweller.last_name == "Pike"
+    assert dweller.bio.startswith("Followed a pre-war radio signal")
+    assert dweller.visual_attributes["hair_style"] == "short"
 
 
 @pytest.mark.parametrize(

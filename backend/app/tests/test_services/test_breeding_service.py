@@ -911,3 +911,70 @@ def test_breeding_config_values():
     assert 0.0 <= game_config.breeding.conception_chance_per_tick <= 1.0
     assert game_config.breeding.pregnancy_duration_hours > 0
     assert game_config.breeding.child_growth_duration_hours == 60
+
+
+async def test_storage_workers_are_not_living_quarters_partners(
+    async_session: AsyncSession,
+    vault: Vault,
+    living_quarters: Room,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+):
+    from app.services.family.family_scenario_service import FamilyScenarioService
+
+    living_quarters.name = "Storage Room"
+    living_quarters.ability = SPECIALEnum.ENDURANCE
+    male_dweller.partner_id = female_dweller.id
+    female_dweller.partner_id = male_dweller.id
+    male_dweller.room_id = female_dweller.room_id = living_quarters.id
+    await async_session.commit()
+    with patch("random.random", return_value=0.0):
+        assert await BreedingService.check_for_conception(async_session, vault.id) == []
+    assert await FamilyScenarioService.find_living_quarters(async_session, vault.id) is None
+
+
+async def test_auto_family_scenario_selects_living_quarters(
+    async_session: AsyncSession,
+    vault: Vault,
+    living_quarters: Room,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+):
+    from app.services.family.family_scenario_service import FamilyScenarioService
+
+    scenario = await FamilyScenarioService.setup(async_session, vault.id, count=1)
+    assert len(scenario.couples) == 1
+    assert {scenario.couples[0].dweller_1.id, scenario.couples[0].dweller_2.id} == {male_dweller.id, female_dweller.id}
+    assert male_dweller.room_id == female_dweller.room_id == living_quarters.id
+
+
+@pytest.mark.parametrize(
+    ("category", "ability", "valid"),
+    [
+        (RoomTypeEnum.CAPACITY, SPECIALEnum.ENDURANCE, False),
+        (RoomTypeEnum.PRODUCTION, SPECIALEnum.CHARISMA, False),
+        (RoomTypeEnum.CAPACITY, SPECIALEnum.CHARISMA, True),
+    ],
+)
+async def test_explicit_family_room_must_be_living_quarters(
+    async_session, vault, living_quarters, male_dweller, female_dweller, category, ability, valid
+):
+    from app.crud.relationship import relationship_crud
+    from app.services.family.family_scenario_service import FamilyScenarioService
+
+    living_quarters.category = category
+    living_quarters.ability = ability
+    await async_session.commit()
+    kwargs = {"pairs": [(male_dweller.id, female_dweller.id)], "room_id": living_quarters.id}
+    if valid:
+        result = await FamilyScenarioService.setup(async_session, vault.id, **kwargs)
+        assert len(result.couples) == 1
+        assert male_dweller.room_id == female_dweller.room_id == living_quarters.id
+    else:
+        with pytest.raises(ValueError, match="Living Quarters"):
+            await FamilyScenarioService.setup(async_session, vault.id, **kwargs)
+        assert male_dweller.partner_id is None
+        assert female_dweller.partner_id is None
+        assert male_dweller.room_id is None
+        assert female_dweller.room_id is None
+        assert await relationship_crud.get_by_dweller(async_session, male_dweller.id) == []

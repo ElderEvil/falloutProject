@@ -38,7 +38,7 @@ from app.schemas.expedition import (
     rarity_meets_floor,
 )
 from app.schemas.exploration_event import CombatOutcomeSchema, EnemySchema, LootItemSchema
-from app.services.exploration import data_loader
+from app.services import catalog_service as data_loader
 from app.services.exploration.combat_calculator import combat_calculator
 from app.services.exploration.event_service import (
     apply_exploration_damage,

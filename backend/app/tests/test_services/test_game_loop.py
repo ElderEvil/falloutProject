@@ -807,3 +807,43 @@ async def test_resume_excludes_paused_time_without_counting_it_twice(async_sessi
     last_tick = state.last_tick_time
     await game_loop_service.resume_vault(async_session, vault.id)
     assert state.last_tick_time == last_tick
+
+
+async def test_storage_database_failure_recovers_before_remaining_tick_phases(async_session, vault, monkeypatch):
+    from sqlalchemy import event
+
+    from app.models.storage import Storage
+    from app.services.catalog_service import load_weapons
+    from app.utils.item_factory import build_weapon
+
+    monkeypatch.setattr(game_config.storage, "maintenance_enabled", True)
+    storage = Storage(vault_id=vault.id)
+    entry = next(entry for entry in load_weapons() if entry["name"] == "Gauss pistol")
+    weapon = build_weapon(entry, entry["rarity"], storage.id)
+    async_session.add_all([storage, weapon])
+    await async_session.commit()
+    vault_id = vault.id
+    connection = await async_session.connection()
+    failed = False
+
+    def break_trial_query(conn, cursor, statement, parameters, context, executemany):
+        nonlocal failed
+        if "FROM weapon" in statement and "weapon.last_maintenance_trial_at" in statement and not failed:
+            failed = True
+            return "SELECT * FROM missing_storage_trial_table", ()
+        return statement, parameters
+
+    event.listen(connection.sync_connection, "before_cursor_execute", break_trial_query, retval=True)
+    try:
+        with patch("app.services.game_loop.sse_manager.publish", new_callable=AsyncMock) as publish:
+            result = await game_loop_service.process_vault_tick(async_session, vault_id)
+    finally:
+        event.remove(connection.sync_connection, "before_cursor_execute", break_trial_query)
+    assert failed
+    assert result["updates"]["storage"] == {"checked": 0, "changed": 0}
+    assert {"happiness", "radio", "breeding", "events"} <= result["updates"].keys()
+    assert "error" not in result["updates"]["events"]
+    publish.assert_awaited_once()
+    await async_session.refresh(weapon)
+    assert weapon.name == "Gauss pistol"
+    assert weapon.last_maintenance_trial_at is None

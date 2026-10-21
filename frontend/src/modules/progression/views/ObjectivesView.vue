@@ -17,6 +17,7 @@ import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
+import { useToast } from '@/core/composables/useToast'
 import { Icon } from '@iconify/vue'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { Badge } from '@/core/components/ui/badge'
@@ -45,7 +46,8 @@ const STARTER_TAB = 'starter'
 const vaultId = computed(() => route.params.id as string)
 
 // Claim + celebration modal (mirrors the quest claim flow)
-const { claiming: isClaiming, error: claimError, claim } = useObjectiveClaim(vaultId)
+const { claiming: isClaiming, error: claimError, claim, claimAll } = useObjectiveClaim(vaultId)
+const toast = useToast()
 const claimedObjective = ref<Objective | null>(null)
 const showClaimModal = ref(false)
 const loadError = ref<string | null>(null)
@@ -108,19 +110,22 @@ const emptyMessage = computed(() =>
     : `No ${effectiveTab.value} objectives available`
 )
 
+const claimableObjectives = computed(() =>
+  objectivesStore.objectives.filter(
+    (objective) =>
+      visibleTabs.value.some((tab) => tab.key === objective.category) &&
+      isObjectiveClaimable(objective)
+  )
+)
+
 /** Claimable rewards per category, so a tab shows its pending claims at a glance. */
 const claimableCounts = computed(() => {
   const counts: Record<string, number> = {}
-  for (const objective of objectivesStore.objectives) {
-    if (!visibleTabs.value.some((tab) => tab.key === objective.category)) continue
-    if (isObjectiveClaimable(objective))
-      counts[objective.category] = (counts[objective.category] ?? 0) + 1
-  }
+  for (const objective of claimableObjectives.value)
+    counts[objective.category] = (counts[objective.category] ?? 0) + 1
   return counts
 })
-const claimableTotal = computed(() =>
-  Object.values(claimableCounts.value).reduce((total, count) => total + count, 0)
-)
+const claimableTotal = computed(() => claimableObjectives.value.length)
 function claimTooltip(count: number): string {
   return `${count} reward${count === 1 ? '' : 's'} ready to claim`
 }
@@ -130,6 +135,12 @@ function handleClaimObjective(objectiveId: string): void {
     claimedObjective.value = claimed
     showClaimModal.value = claimed !== null
   })
+}
+
+async function handleCollectAll(): Promise<void> {
+  const claimed = await claimAll(claimableObjectives.value.map((objective) => objective.id))
+  if (claimed === 0) return
+  toast.success(`Collected ${claimed} reward${claimed === 1 ? '' : 's'}`)
 }
 
 function closeClaimModal(): void {
@@ -201,7 +212,10 @@ function closeClaimModal(): void {
                   icon="mdi:treasure-chest"
                   :value="claimableTotal"
                   label="Rewards ready"
+                  hover-text="Collect rewards"
                   tooltip="Finished objectives with rewards ready to claim"
+                  :disabled="isClaiming || claimableTotal === 0"
+                  @click="handleCollectAll"
                 />
               </template>
             </PageHeader>

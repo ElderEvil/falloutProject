@@ -436,6 +436,21 @@ describe('ExplorationDetailView', () => {
       expect(mockToast.success).toHaveBeenCalledWith('Expedition site available: Hidden Bunker')
     })
 
+    it('keeps the site explanation accessible while availability loads', async () => {
+      let resolveSites!: (value: SiteAvailabilityView) => void
+      vi.spyOn(siteStore, 'fetchAvailability').mockImplementationOnce(
+        () => new Promise((resolve) => { resolveSites = resolve })
+      )
+      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
+      await flushPromises()
+      const siteButton = wrapper.findAll('button').find((button) => button.text().includes('Expedition sites'))
+      expect(siteButton?.attributes('disabled')).toBeUndefined()
+      resolveSites({ sites: [], reason: 'trail' })
+      await flushPromises()
+      expect(siteButton?.attributes('disabled')).toBeUndefined()
+      wrapper.unmount()
+    })
+
     it('keeps the Expedition site CTA enabled when sites are available', async () => {
       const wrapper = mount(ExplorationDetailView, {
         global: {

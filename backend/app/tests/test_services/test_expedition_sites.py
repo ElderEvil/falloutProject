@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas.expedition import SiteDefinition
-from app.services.exploration import data_loader
+from app.services import catalog_service as data_loader
 
 
 def test_sites_load_and_validate():

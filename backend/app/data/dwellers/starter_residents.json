@@ -1,0 +1,142 @@
+{
+  "Juno Pike": {
+    "first_name": "Juno",
+    "last_name": "Pike",
+    "gender": "female",
+    "bio": "Followed a pre-war radio signal to your door. Knows which ruins still have canned food and which ones lie.",
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 29,
+      "height": "average",
+      "build": "athletic",
+      "hair_style": "short",
+      "hair_color": "black",
+      "eye_color": "brown",
+      "appearance": "weathered",
+      "expression": "wry",
+      "clothing_style": "rugged",
+      "background": "ruined highway"
+    }
+  },
+  "Elias Reed": {
+    "first_name": "Elias",
+    "last_name": "Reed",
+    "gender": "male",
+    "bio": "Came in from a farmstead that stopped answering. Good with soil, better with silence.",
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 41,
+      "height": "tall",
+      "build": "stocky",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "green",
+      "appearance": "plain",
+      "expression": "calm",
+      "clothing_style": "work clothes",
+      "background": "dusty farmland"
+    }
+  },
+  "Mara Voss": {
+    "first_name": "Mara",
+    "last_name": "Voss",
+    "gender": "female",
+    "bio": "Maps dead highways for fun. Returns with dust in her teeth and a story for every bullet hole.",
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 26,
+      "height": "average",
+      "build": "lean",
+      "hair_style": "braided",
+      "hair_color": "red",
+      "eye_color": "hazel",
+      "appearance": "sharp",
+      "expression": "curious",
+      "clothing_style": "scavenger",
+      "background": "cracked overpass"
+    }
+  },
+  "Tessa Ward": {
+    "first_name": "Tessa",
+    "last_name": "Ward",
+    "gender": "female",
+    "bio": "Rebuilt her first generator from a washing machine and a prayer. Keeps your vault humming.",
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 34,
+      "height": "short",
+      "build": "sturdy",
+      "hair_style": "ponytail",
+      "hair_color": "blonde",
+      "eye_color": "gray",
+      "appearance": "grease-stained",
+      "expression": "focused",
+      "clothing_style": "mechanic",
+      "background": "machine shop"
+    }
+  },
+  "Owen Hale": {
+    "first_name": "Owen",
+    "last_name": "Hale",
+    "gender": "male",
+    "bio": "Ran a diner on the old interstate. Can make three days of rations taste like a Sunday dinner.",
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 38,
+      "height": "average",
+      "build": "round",
+      "hair_style": "balding",
+      "hair_color": "brown",
+      "eye_color": "blue",
+      "appearance": "friendly",
+      "expression": "smiling",
+      "clothing_style": "apron",
+      "background": "roadside diner"
+    }
+  },
+  "Rhea Cole": {
+    "first_name": "Rhea",
+    "last_name": "Cole",
+    "gender": "female",
+    "bio": "Walks the outer roads with a battered compass. Knows when to move and when to hide.",
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 31,
+      "height": "tall",
+      "build": "wiry",
+      "hair_style": "long",
+      "hair_color": "black",
+      "eye_color": "dark brown",
+      "appearance": "windburned",
+      "expression": "watchful",
+      "clothing_style": "traveler",
+      "background": "open wasteland"
+    }
+  },
+  "Silas Knox": {
+    "first_name": "Silas",
+    "last_name": "Knox",
+    "gender": "male",
+    "bio": "Learned construction from collapse patterns. If it stands after the first winter, he built it.",
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 45,
+      "height": "tall",
+      "build": "broad",
+      "hair_style": "buzz cut",
+      "hair_color": "graying",
+      "eye_color": "brown",
+      "appearance": "scarred",
+      "expression": "stern",
+      "clothing_style": "work clothes",
+      "background": "scaffolded ruin"
+    }
+  }
+}

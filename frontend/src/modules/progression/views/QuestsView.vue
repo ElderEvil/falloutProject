@@ -10,6 +10,7 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
+import { getErrorMessage } from '@/core/utils/errorHandler'
 import { usePolling } from '@/core/composables/usePolling'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
@@ -35,7 +36,8 @@ import type { QuestAvailableSortBy, VaultQuest } from '../models/quest'
 import {
   compareQuestsByAvailableSort,
   isQuestReturning,
-  MAX_ACTIVE_TIMED_QUESTS,
+  officeSpeedPercent,
+  questSlotLimitForVault,
 } from '../models/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 
@@ -91,7 +93,6 @@ const sortedAvailableQuests = computed(() =>
 // Modal state
 const showPartyModal = ref(false)
 const selectedQuest = ref<VaultQuest | null>(null)
-const questPartyMembers = ref<DwellerShort[]>([])
 const questPartyMembersMap = ref<Record<string, DwellerShort[]>>({})
 const showClaimModal = ref(false)
 const claimQuest = ref<VaultQuest | null>(null)
@@ -158,19 +159,6 @@ watch(
   { immediate: true }
 )
 
-// Get party members for a specific quest
-const getPartyMembersForQuest = async (quest: VaultQuest): Promise<DwellerShort[]> => {
-  if (!vaultId.value) return []
-  try {
-    const party = await questStore.getParty(vaultId.value, quest.id)
-    return party
-      .map((p) => dwellerStore.dwellers.find((d) => d.id === p.dweller_id))
-      .filter((d): d is DwellerShort => d !== undefined)
-  } catch {
-    return []
-  }
-}
-
 const loadPartyMembers = async () => {
   if (!vaultId.value) return
   await questStore.fetchPartiesForActiveQuests(vaultId.value)
@@ -184,14 +172,11 @@ const loadPartyMembers = async () => {
 }
 
 // Handle opening party selection modal
-const handleAssignParty = async (questId: string) => {
+const handleAssignParty = (questId: string) => {
   const quest = questStore.vaultQuests.find((q) => q.id === questId)
   if (!quest || !vaultId.value) return
 
   selectedQuest.value = quest
-
-  // Load current party members
-  questPartyMembers.value = await getPartyMembersForQuest(quest)
 
   showPartyModal.value = true
 }
@@ -208,31 +193,18 @@ const handleAssignAndStart = async (dwellerIds: string[]) => {
   }
 
   try {
-    await questStore.assignParty(vaultId.value, selectedQuest.value.id, dwellerIds)
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Failed to assign party'
-    toast.error(errorMessage)
+    await questStore.startQuest(vaultId.value, selectedQuest.value.id, dwellerIds)
+  } catch {
+    await questStore.fetchVaultQuests(vaultId.value, { silent: true }).catch((error: unknown) => {
+      console.warn('Failed to refresh quests after rejected start', getErrorMessage(error))
+    })
     return
   }
 
-  try {
-    await questStore.startQuest(vaultId.value, selectedQuest.value.id)
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Failed to start quest'
-    toast.error(errorMessage)
-    await questStore.fetchVaultQuests(vaultId.value)
-    showPartyModal.value = false
-    selectedQuest.value = null
-    questPartyMembers.value = []
-    return
-  }
-
-  await questStore.fetchVaultQuests(vaultId.value)
   await loadPartyMembers()
 
   showPartyModal.value = false
   selectedQuest.value = null
-  questPartyMembers.value = []
 }
 
 const handleClaimRewards = (questId: string, openedFromQuery = false) => {
@@ -287,20 +259,68 @@ const confirmClaimRewards = async () => {
   }
 }
 
-// Fetch quests on mount
+async function collectAllQuestRewards(): Promise<void> {
+  const id = vaultId.value
+  if (!id || isClaiming.value || readyToClaimQuests.value.length === 0) return
+  const questIds = readyToClaimQuests.value.map((quest) => quest.id)
+  isClaiming.value = true
+  try {
+    // Settle one claim at a time: rewards share the same vault balance.
+    // The store announces each success/error; a failed claim leaves the rest collectable.
+    for (const questId of questIds) {
+      if (vaultId.value !== id) break
+      await questStore.claimQuestRewards(id, questId).catch(() => null)
+    }
+  } finally {
+    isClaiming.value = false
+  }
+}
+
+const questSlotLimit = computed(() =>
+  questSlotLimitForVault(roomStore.rooms, roomStore.roomsLoadedVaultId, vaultId.value)
+)
+watch(
+  questSlotLimit,
+  (limit) => {
+    questStore.questSlotLimit = limit
+  },
+  { immediate: true }
+)
+
+const missionSpeedPercent = computed(() => officeSpeedPercent(questSlotLimit.value))
+const partyMetricLabel = computed(() =>
+  missionSpeedPercent.value > 0
+    ? `Parties · Missions ${missionSpeedPercent.value}% faster`
+    : 'Parties'
+)
+
+function openOverseersOffice(): void {
+  const office = roomStore.rooms.find((room) => room.category === 'quests')
+  router.push({ path: `/vault/${vaultId.value}`, query: office ? { roomId: office.id } : {} })
+}
+
+async function loadVault(id: string): Promise<void> {
+  const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
+  if (!token) return
+  await roomStore.fetchRooms(id, token)
+  await dwellerStore.fetchDwellersByVault(id, token)
+
+  // Fetch the catalog first so chain badges resolve on the vault quests' first paint,
+  // then the vault quests (filtered client-side, including locked ones).
+  await questStore.fetchAllQuests()
+  await questStore.fetchVaultQuests(id)
+  await loadPartyMembers()
+}
+
 onMounted(async () => {
   const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
+  if (vaultId.value && token) await loadVault(vaultId.value)
+  selectAvailableIfEmpty()
+})
 
-  if (vaultId.value && token) {
-    await roomStore.fetchRooms(vaultId.value, token)
-    await dwellerStore.fetchDwellersByVault(vaultId.value, token)
-
-    // Fetch the catalog first so chain badges resolve on the vault quests' first paint,
-    // then the vault quests (filtered client-side, including locked ones).
-    await questStore.fetchAllQuests()
-    await questStore.fetchVaultQuests(vaultId.value)
-    await loadPartyMembers()
-  }
+watch(vaultId, async (id) => {
+  if (!id) return
+  await loadVault(id)
   selectAvailableIfEmpty()
 })
 </script>
@@ -370,7 +390,18 @@ onMounted(async () => {
                   icon="mdi:treasure-chest"
                   :value="readyToClaimQuests.length"
                   label="Rewards ready"
+                  hover-text="Collect rewards"
                   tooltip="Finished quests with rewards ready to claim"
+                  :disabled="isClaiming || readyToClaimQuests.length === 0"
+                  @click="collectAllQuestRewards"
+                />
+                <PageHeaderMetric
+                  icon="mdi:account-multiple"
+                  :value="`${questStore.activeTimedQuestCount}/${questStore.questSlotLimit}`"
+                  :label="partyMetricLabel"
+                  :tooltip="`${questStore.activeTimedQuestCount} of ${questStore.questSlotLimit} timed quest slots used`"
+                  hover-text="Open Office"
+                  @click="openOverseersOffice"
                 />
               </template>
             </PageHeader>
@@ -415,6 +446,12 @@ onMounted(async () => {
                 </TabsList>
 
                 <div v-if="activeTab === 'available'" class="filter-row">
+                  <!-- Raw checkbox: no Checkbox/Switch primitive is vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
+                  <label class="toggle-label">
+                    <input v-model="showAllQuests" type="checkbox" class="toggle-input" />
+                    <span class="toggle-text">Show All</span>
+                  </label>
+                  <span v-if="showAllQuests" class="filter-hint">(Showing All)</span>
                   <Select :model-value="availableSort" @update:model-value="onAvailableSortChange">
                     <SelectTrigger
                       size="sm"
@@ -433,23 +470,8 @@ onMounted(async () => {
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  <span v-if="showAllQuests" class="filter-hint">(Showing All)</span>
-                  <!-- Raw checkbox: no Checkbox/Switch primitive is vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
-                  <label class="toggle-label">
-                    <input v-model="showAllQuests" type="checkbox" class="toggle-input" />
-                    <span class="toggle-text">Show All</span>
-                  </label>
                 </div>
               </div>
-              <p
-                v-if="questStore.timedQuestLimitReached"
-                class="mt-4 text-sm text-theme-accent"
-                role="status"
-              >
-                {{ questStore.activeTimedQuestCount }}/{{ MAX_ACTIVE_TIMED_QUESTS }} timed quest
-                slots occupied. Wait for a party to return before starting another. Rewards ready to
-                claim do not use slots.
-              </p>
               <!-- Active Quests -->
               <div v-if="activeTab === 'active'" class="tab-content">
                 <div v-if="activeQuestsList.length > 0" class="quest-section">
@@ -538,7 +560,7 @@ onMounted(async () => {
             :quest="selectedQuest"
             :vault-id="vaultId"
             :dwellers="dwellerStore.dwellers"
-            :current-party="questPartyMembers"
+            :current-party="[]"
             @assign="handleAssignAndStart"
           />
 

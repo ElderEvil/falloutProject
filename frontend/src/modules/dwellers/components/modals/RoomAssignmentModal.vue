@@ -4,7 +4,7 @@ import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import { Button } from '@/core/components/ui/button'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useRoomStore } from '@/modules/rooms/stores/room'
-import { producesResources } from '@/modules/rooms/models/roomParts'
+import { producesResources, isStorageRoom } from '@/modules/rooms/models/roomParts'
 import { getTrainingRoomCapacity } from '@/modules/rooms/utils/room'
 import { useDwellerStore } from '../../stores/dweller'
 import {
@@ -39,12 +39,15 @@ const unavailable = computed(() => {
 })
 const choices = computed(() =>
   roomStore.rooms
-    .filter(producesResources)
+    .filter((room) => producesResources(room) || (isMature(props.dweller) && isStorageRoom(room)))
     .map((room) => {
       const residents = filter.allDwellers.filter((dweller) => dweller.room_id === room.id)
       const workers = residents.filter((dweller) => !dweller.apprentice_stat).length
       const capacity = getTrainingRoomCapacity(room)
-      const ability = getAbilityConfig(room.ability)!
+      const baseAbility = getAbilityConfig(room.ability)!
+      const ability = isStorageRoom(room)
+        ? { ...baseAbility, label: 'END Protection', resourceName: 'Protection' }
+        : baseAbility
       const stat =
         getSpecialBreakdown(props.dweller).find((stat) => stat.letter === ability.letter)
           ?.effective ?? 1
@@ -114,7 +117,7 @@ async function assignSelected() {
 <template>
   <TerminalModal
     :open="open"
-    title="Choose a production room"
+    title="Choose a room"
     size="xl"
     max-height="80"
     :show-close="!saving"
@@ -129,7 +132,8 @@ async function assignSelected() {
       </p>
       <p class="text-sm text-muted-foreground">
         Compare the SPECIAL each room uses. Highest effective stat appears first. Training, Arena,
-        and the Response Station have separate controls.
+        and the Response Station have separate controls. Storage workers still need housing space in
+        Living Quarters.
       </p>
       <p v-if="loading" role="status">Loading rooms and occupancy…</p>
       <div v-else-if="error" role="alert" class="flex flex-col gap-2">
@@ -139,7 +143,7 @@ async function assignSelected() {
       <p v-if="unavailable" role="status">{{ unavailable }}</p>
       <template v-if="!loading && loaded">
         <p v-if="!choices.length" role="status">
-          No production rooms yet. Build one in the vault to assign this dweller.
+          No assignable rooms yet. Build one in the vault to assign this dweller.
         </p>
         <div v-for="choice in choices" :key="choice.room.id" class="flex flex-col gap-1">
           <Button
@@ -177,7 +181,11 @@ async function assignSelected() {
       </template>
       <p v-if="selected" role="status" class="text-sm">
         {{ selected.room.name }}: {{ selected.ability.label }} {{ selected.stat }} contributes to
-        this room's {{ selected.ability.resourceName.toLowerCase() }} production.
+        {{
+          isStorageRoom(selected.room)
+            ? 'vault-wide weapon protection.'
+            : `this room's ${selected.ability.resourceName.toLowerCase()} production.`
+        }}
         <template v-if="!isMature(dweller)"
           >As an apprentice, this dweller also trains {{ selected.ability.label }}.</template
         >

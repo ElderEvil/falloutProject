@@ -2,7 +2,12 @@
 import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { Progress } from '@/core/components/ui/progress'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import TrainingQueuePanel from '@/modules/progression/components/training/TrainingQueuePanel.vue'
 import TrainingRoomCard from '@/modules/progression/components/training/TrainingRoomCard.vue'
 import ApprenticeSection from '@/modules/progression/components/training/ApprenticeSection.vue'
@@ -14,6 +19,7 @@ import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
+import { ABILITY_CONFIG, getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import { getTrainingRoomCapacity } from '@/modules/rooms/utils/room'
 
 const route = useRoute()
@@ -26,6 +32,20 @@ const vaultId = route.params.id as string
 
 const trainingRooms = computed(() => {
   return roomStore.rooms.filter((room) => room.category === 'training')
+})
+
+const roomsByStat = computed(() => {
+  const groups = new Map<string, typeof trainingRooms.value>()
+  for (const room of trainingRooms.value) {
+    const stat = room.ability?.toLowerCase() ?? 'other'
+    const rooms = groups.get(stat) ?? []
+    rooms.push(room)
+    groups.set(stat, rooms)
+  }
+  const order = [...Object.keys(ABILITY_CONFIG), 'other']
+  return [...groups]
+    .sort(([a], [b]) => order.indexOf(a) - order.indexOf(b))
+    .map(([stat, rooms]) => ({ stat, ability: getAbilityConfig(stat), rooms }))
 })
 
 const activeTrainings = computed(() => trainingStore.allActiveTrainings)
@@ -41,11 +61,6 @@ const roomsInUse = computed(() => {
 
 const totalCapacity = computed(() => {
   return trainingRooms.value.reduce((sum, room) => sum + getTrainingRoomCapacity(room), 0)
-})
-
-const capacityPercent = computed(() => {
-  if (totalCapacity.value <= 0) return 0
-  return Math.min(100, Math.round((activeTrainings.value.length / totalCapacity.value) * 100))
 })
 
 onMounted(async () => {
@@ -74,19 +89,7 @@ onMounted(async () => {
                 <Icon icon="mdi:dumbbell" class="size-4 shrink-0" />
                 Improve SPECIAL stats
               </h2>
-              <p>
-                Assign dwellers to dedicated training rooms to improve the matching stat, up to its
-                maximum.
-              </p>
-              <ul class="mt-2 list-disc space-y-1 pl-5">
-                <li>Strength — Weight Room</li>
-                <li>Perception — Armory</li>
-                <li>Endurance — Fitness Room</li>
-                <li>Charisma — Lounge</li>
-                <li>Intelligence — Classroom</li>
-                <li>Agility — Athletics Room</li>
-                <li>Luck — Game Room</li>
-              </ul>
+              <p>Adult dwellers gain one SPECIAL point per round.</p>
             </section>
             <section>
               <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
@@ -104,8 +107,8 @@ onMounted(async () => {
                 Plan your training
               </h2>
               <p>
-                Room capacity limits simultaneous trainees. Monitor progress in the queue, cancel
-                when needed, and reassign dwellers after they finish training.
+                Open a room to assign dwellers. Set their goals, then enable Repeat training.
+                Turning repeat off lets the current round finish.
               </p>
             </section>
           </template>
@@ -126,16 +129,29 @@ onMounted(async () => {
         </PageHeader>
 
         <section class="flex w-full flex-col gap-4">
-          <div class="flex items-center gap-3">
-            <Icon
-              icon="mdi:office-building"
-              class="text-2xl text-theme-primary [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
-            />
-            <h3
-              class="m-0 font-mono text-xl font-bold uppercase tracking-[0.05em] text-theme-primary"
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <Icon
+                icon="mdi:office-building"
+                class="text-2xl text-theme-primary [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
+              />
+              <h3
+                class="m-0 font-mono text-xl font-bold uppercase tracking-[0.05em] text-theme-primary"
+              >
+                Training Rooms
+              </h3>
+            </div>
+            <div
+              v-if="trainingRooms.length > 0"
+              class="ml-auto flex items-center gap-3 font-mono text-xs text-theme-primary"
+              role="group"
+              aria-label="Overall training capacity"
             >
-              Training Rooms
-            </h3>
+              <span class="uppercase opacity-70">Overall Capacity</span>
+              <span class="font-bold tabular-nums"
+                >{{ activeTrainings.length }} / {{ totalCapacity }}</span
+              >
+            </div>
           </div>
 
           <div
@@ -151,40 +167,54 @@ onMounted(async () => {
             </p>
           </div>
 
-          <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
-            <TrainingRoomCard
-              v-for="room in trainingRooms"
-              :key="room.id"
-              :room="room"
-              :active-count="getRoomActiveCount(room.id)"
-            />
-          </div>
-
           <div
-            v-if="trainingRooms.length > 0"
-            class="flex flex-col gap-1.5 rounded-md border border-theme-glow bg-black/30 px-4 py-3"
+            v-else
+            class="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7"
+            role="region"
+            aria-label="Training rooms by SPECIAL stat"
           >
-            <div class="flex items-center justify-between">
-              <span class="font-mono text-xs uppercase text-theme-primary opacity-70"
-                >Overall Capacity</span
+            <section
+              v-for="group in roomsByStat"
+              :key="group.stat"
+              :aria-label="`${group.ability?.label ?? 'Other'} training rooms`"
+              class="flex min-w-0 flex-col gap-2"
+            >
+              <h4
+                class="flex min-w-0 items-center gap-1.5 font-mono text-xs font-bold text-theme-primary"
               >
-              <span class="font-mono text-xs font-bold text-theme-primary"
-                >{{ activeTrainings.length }} / {{ totalCapacity }}</span
-              >
-            </div>
-            <Progress
-              class="h-2"
-              :fill="'linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent))'"
-              :model-value="capacityPercent"
-            />
+                <Icon :icon="group.ability?.icon ?? 'mdi:star'" class="size-4 shrink-0" />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span
+                        tabindex="0"
+                        class="truncate rounded-sm focus-visible:outline-2 focus-visible:outline-theme-primary"
+                        >{{ group.ability?.label ?? 'Other' }}</span
+                      >
+                    </TooltipTrigger>
+                    <TooltipContent>{{ group.ability?.label ?? 'Other' }}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </h4>
+              <div class="flex flex-col gap-3">
+                <TrainingRoomCard
+                  v-for="room in group.rooms"
+                  :key="room.id"
+                  class="min-w-0"
+                  :room="room"
+                  :vault-id="vaultId"
+                  :active-count="getRoomActiveCount(room.id)"
+                />
+              </div>
+            </section>
           </div>
         </section>
-
-        <ApprenticeSection />
 
         <div class="w-full">
           <TrainingQueuePanel />
         </div>
+
+        <ApprenticeSection />
       </PageContentRail>
     </VaultPageShell>
   </div>

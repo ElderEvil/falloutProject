@@ -1,5 +1,7 @@
 """Storage schemas for API responses."""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.schemas.item import ItemRead
@@ -36,3 +38,15 @@ class StorageItemsResponse(BaseModel):
     pets: list[PetRead] = Field(default_factory=list, description="Pets in storage")
 
     model_config = {"from_attributes": True}
+
+
+class StorageMaintenanceRead(BaseModel):
+    """Vault-wide protection from storage-room staffing; chance is per trial interval."""
+
+    enabled: bool
+    worker_count: int
+    total_endurance: float
+    protection_pct: float
+    mode: Literal["disabled", "rusting", "stable", "improving"]
+    hourly_chance: float
+    trial_interval_seconds: int

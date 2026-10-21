@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, onUnmounted, ref, watch } from 'vue'
+import { useConfirmDialog } from '@vueuse/core'
+import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.vue'
 import { Icon } from '@iconify/vue'
 import type { AcceptableValue } from 'reka-ui'
 import { Button } from '@/core/components/ui/button'
@@ -32,6 +34,7 @@ import type { CraftableItemType, CraftingOrder, CraftingRecipe } from '../models
 interface Props {
   vaultId: string
   itemType: CraftableItemType
+  crewKey?: string
 }
 
 const props = defineProps<Props>()
@@ -53,10 +56,17 @@ let recheckTimer: number | null = null
 let lastRecheck = 0
 const RECHECK_MS = 5000
 
-const itemIcon = computed(() => getItemIcon(props.itemType, {}))
-const workshopLabel = computed(() =>
-  props.itemType === 'weapon' ? 'Weapon workshop' : 'Outfit workshop'
+const itemIcon = computed(() =>
+  props.itemType === 'theme' ? 'mdi:palette-outline' : getItemIcon(props.itemType, {})
 )
+const workshopLabel = computed(() =>
+  props.itemType === 'weapon'
+    ? 'Weapon workshop'
+    : props.itemType === 'outfit'
+      ? 'Outfit workshop'
+      : 'Theme workshop'
+)
+const startLabel = computed(() => (props.itemType === 'theme' ? 'Craft' : 'Start'))
 
 const STAT_META: Record<string, { icon: string; label: string }> = {
   strength: { icon: 'mdi:arm-flex', label: 'STR' },
@@ -107,6 +117,7 @@ const filteredRecipes = computed(() =>
 )
 
 const isLocked = (recipe: CraftingRecipe) => recipe.unlocked === false
+const isOwned = (recipe: CraftingRecipe) => recipe.owned === true
 
 /** "3 common · 3 rare" — what the recipe consumes, by material rarity. */
 function materialsLabel(recipe: CraftingRecipe): string {
@@ -116,7 +127,12 @@ function materialsLabel(recipe: CraftingRecipe): string {
 }
 const craftableCount = computed(() => recipes.value.filter((recipe) => recipe.can_craft).length)
 const queue = computed(() =>
-  orders.value.filter((order) => order.status !== 'collected' && order.item_type === props.itemType)
+  orders.value.filter(
+    (order) =>
+      order.status !== 'collected' &&
+      order.status !== 'cancelled' &&
+      order.item_type === props.itemType
+  )
 )
 
 function remainingSeconds(order: CraftingOrder): number {
@@ -181,6 +197,37 @@ async function handleStart(recipe: CraftingRecipe) {
   }
 }
 
+const cancelTitle = ref('')
+const {
+  isRevealed: showCancelConfirmation,
+  reveal: revealCancel,
+  confirm: confirmCancel,
+  cancel: cancelCancellation,
+} = useConfirmDialog()
+onScopeDispose(cancelCancellation)
+watch(
+  () => [props.vaultId, props.itemType],
+  () => cancelCancellation()
+)
+
+async function handleCancel(order: CraftingOrder) {
+  if (!props.vaultId || busyKey.value || showCancelConfirmation.value) return
+  const vaultId = props.vaultId
+  cancelTitle.value = `Cancel ${order.item_name}?`
+  const { isCanceled } = await revealCancel()
+  if (isCanceled || props.vaultId !== vaultId || busyKey.value) return
+  busyKey.value = order.id
+  try {
+    await craftingService.cancelOrder(vaultId, order.id)
+    toast.success(`Cancelled ${order.item_name}; materials refunded.`)
+    await loadAll()
+  } catch (error) {
+    toast.error(getErrorMessage(error) || `Failed to cancel ${order.item_name}`)
+  } finally {
+    busyKey.value = null
+  }
+}
+
 async function handleCollect(order: CraftingOrder) {
   if (!props.vaultId || busyKey.value) return
   busyKey.value = order.id
@@ -216,7 +263,7 @@ onUnmounted(() => {
   if (recheckTimer) clearInterval(recheckTimer)
 })
 
-watch(() => [props.vaultId, props.itemType], loadAll)
+watch(() => [props.vaultId, props.itemType, props.crewKey], loadAll)
 </script>
 
 <template>
@@ -270,6 +317,21 @@ watch(() => [props.vaultId, props.itemType], loadAll)
                 {{ progressPercent(order).toFixed(0) }}%
               </span>
               <Button
+                v-if="order.status === 'active'"
+                variant="destructive"
+                size="sm"
+                class="shrink-0 border-2 font-mono"
+                :disabled="busyKey !== null"
+                @click="handleCancel(order)"
+              >
+                <Icon
+                  :icon="busyKey === order.id ? 'mdi:loading' : 'mdi:close'"
+                  class="h-4 w-4"
+                  :class="{ 'animate-spin': busyKey === order.id }"
+                />
+                Cancel
+              </Button>
+              <Button
                 v-if="order.status === 'completed'"
                 variant="default"
                 size="sm"
@@ -301,10 +363,7 @@ watch(() => [props.vaultId, props.itemType], loadAll)
           class="min-w-32 h-auto flex-1 rounded-sm border-theme-primary/30 bg-surface-sunken/60 px-2 py-1 text-xs text-theme-primary placeholder:text-theme-primary/40"
         />
         <Select v-model="rarityFilterSelect">
-          <SelectTrigger
-            size="sm"
-            class="text-xs"
-          >
+          <SelectTrigger size="sm" class="text-xs">
             <SelectValue placeholder="All rarities" />
           </SelectTrigger>
           <SelectContent>
@@ -329,7 +388,7 @@ watch(() => [props.vaultId, props.itemType], loadAll)
         <li
           v-for="recipe in filteredRecipes"
           :key="recipe.name"
-          class="flex items-center gap-3 rounded-sm border border-theme-primary/20 bg-surface-sunken/60 px-3 py-2"
+          class="recipe-row rounded-sm border border-theme-primary/20 bg-surface-sunken/60 px-3 py-2"
           :class="{ 'locked-recipe': isLocked(recipe) }"
         >
           <!--
@@ -338,56 +397,55 @@ watch(() => [props.vaultId, props.itemType], loadAll)
             stronger a11y contract (same pattern as StorageItemCard.vue).
           -->
           <TooltipProvider :delay-duration="200">
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2">
-                <Icon v-if="isLocked(recipe)" icon="mdi:lock" class="h-3.5 w-3.5 shrink-0 text-warning" />
-                <span class="truncate text-sm font-bold" :class="getRarityTextClass(recipe.rarity)">
-                  {{ recipe.name }}
-                </span>
-                <span
-                  class="shrink-0 text-[0.65rem] uppercase tracking-wider text-theme-primary/50"
-                >
-                  {{ recipe.rarity }}
-                </span>
-                <span class="ml-auto flex shrink-0 items-center gap-1 text-theme-accent/80">
-                  <Icon :icon="statMeta(recipe.stat).icon" class="h-3.5 w-3.5" />
-                  {{ statMeta(recipe.stat).label }} {{ recipe.ability_sum }}
-                </span>
-              </div>
-              <div
-                class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-theme-primary/70"
+            <span :class="['recipe-icon', `recipe-icon-${recipe.item_type}`]">
+              <Icon :icon="itemIcon" class="h-6 w-6" :class="getRarityTextClass(recipe.rarity)" />
+            </span>
+            <div class="flex min-w-0 flex-1 items-center gap-2">
+              <span
+                v-if="isLocked(recipe)"
+                class="flex shrink-0 items-center text-warning"
+                :title="recipe.unlock_hint ?? 'Recipe locked'"
               >
-                <span
-                  v-for="(needed, material) in recipe.junk_materials"
-                  :key="material"
-                  class="flex items-center gap-1"
-                  :class="{
-                    'text-danger/80': (recipe.available_junk[material] ?? 0) < needed,
-                  }"
-                >
-                  <Icon icon="mdi:wrench" class="h-3.5 w-3.5 shrink-0" />
-                  {{ recipe.available_junk[material] ?? 0 }}/{{ needed }} {{ material }}
-                </span>
-                <span class="flex items-center gap-1 opacity-80">
+                <Icon icon="mdi:lock" class="h-3.5 w-3.5" />
+              </span>
+              <span class="truncate text-sm font-bold" :class="getRarityTextClass(recipe.rarity)">
+                {{ recipe.name }}
+              </span>
+              <span class="recipe-meta">{{ recipe.rarity }}</span>
+              <span v-if="isOwned(recipe)" class="recipe-meta text-theme-accent">Crafted</span>
+            </div>
+            <div class="recipe-details">
+              <span class="recipe-materials">
+                <span class="flex shrink-0 items-center gap-1 opacity-80">
                   <Tooltip v-for="junkType in recipe.junk_types" :key="junkType">
                     <TooltipTrigger as-child>
-                      <Icon :icon="junkTypeMeta(junkType).icon" class="h-3.5 w-3.5 shrink-0" />
+                      <Icon :icon="junkTypeMeta(junkType).icon" class="h-4 w-4" />
                     </TooltipTrigger>
                     <TooltipContent>{{ junkTypeMeta(junkType).label }}</TooltipContent>
                   </Tooltip>
                 </span>
-                <span class="flex items-center gap-1">
-                  <Icon icon="mdi:clock-outline" class="h-3.5 w-3.5 shrink-0" />
+                <span
+                  v-for="(needed, material) in recipe.junk_materials"
+                  :key="material"
+                  class="flex shrink-0 items-center gap-1"
+                  :class="{
+                    'text-danger/80': (recipe.available_junk[material] ?? 0) < needed,
+                  }"
+                >
+                  <Icon icon="mdi:wrench" class="h-4 w-4" />
+                  {{ recipe.available_junk[material] ?? 0 }}/{{ needed }} {{ material }}
+                </span>
+              </span>
+              <span class="recipe-speed">
+                <span class="flex shrink-0 items-center gap-1 text-theme-accent/80">
+                  <Icon :icon="statMeta(recipe.stat).icon" class="h-4 w-4" />
+                  {{ statMeta(recipe.stat).label }} {{ recipe.ability_sum }}
+                </span>
+                <span class="flex shrink-0 items-center gap-1">
+                  <Icon icon="mdi:clock-outline" class="h-4 w-4" />
                   {{ formatDuration(recipe.duration_seconds, { rounding: 'round' }) }}
                 </span>
-                <span
-                  v-if="isLocked(recipe) && recipe.unlock_hint"
-                  class="flex items-center gap-1 text-warning"
-                >
-                  <Icon icon="mdi:hammer-wrench" class="h-3.5 w-3.5 shrink-0" />
-                  {{ recipe.unlock_hint }}
-                </span>
-              </div>
+              </span>
             </div>
             <Tooltip>
               <TooltipTrigger as-child>
@@ -395,19 +453,33 @@ watch(() => [props.vaultId, props.itemType], loadAll)
                   variant="default"
                   size="sm"
                   class="shrink-0 border-2 border-theme-primary font-mono"
-                  :disabled="isLocked(recipe) || !recipe.can_craft || busyKey !== null"
+                  :disabled="
+                    isLocked(recipe) || isOwned(recipe) || !recipe.can_craft || busyKey !== null
+                  "
                   @click="handleStart(recipe)"
                 >
                   <Icon
-                    :icon="busyKey === recipe.name ? 'mdi:loading' : 'mdi:hammer'"
+                    :icon="
+                      busyKey === recipe.name
+                        ? 'mdi:loading'
+                        : isOwned(recipe)
+                          ? 'mdi:check'
+                          : 'mdi:hammer'
+                    "
                     class="h-4 w-4"
                     :class="{ 'animate-spin': busyKey === recipe.name }"
                   />
-                  Start
+                  {{ isOwned(recipe) ? 'Crafted' : startLabel }}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{{
-                isLocked(recipe) ? (recipe.unlock_hint ?? 'Recipe locked') : recipe.can_craft ? `Queue ${recipe.name}` : materialsLabel(recipe)
+                isOwned(recipe)
+                  ? 'Already crafted'
+                  : isLocked(recipe)
+                    ? (recipe.unlock_hint ?? 'Recipe locked')
+                    : recipe.can_craft
+                      ? `Queue ${recipe.name}`
+                      : materialsLabel(recipe)
               }}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -420,10 +492,18 @@ watch(() => [props.vaultId, props.itemType], loadAll)
 
       <p class="mt-2 text-[0.7rem] text-theme-primary/50">
         Materials come from scrapping gear and wasteland salvage. Dwellers working the workshop
-        finish orders faster. Scrap an item to reverse-engineer its schematic.
+        finish orders faster. Locked schematics are learned by scrapping the matching item.
       </p>
     </template>
   </Card>
+  <TerminalConfirmation
+    :open="showCancelConfirmation"
+    :title="cancelTitle"
+    message="Spent materials will be refunded."
+    confirm-label="Cancel crafting"
+    @confirm="confirmCancel()"
+    @cancel="cancelCancellation()"
+  />
 </template>
 
 <style scoped>
@@ -431,8 +511,60 @@ watch(() => [props.vaultId, props.itemType], loadAll)
   border: 1px solid color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
 }
 
+.recipe-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.recipe-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.recipe-details {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.75rem;
+  color: color-mix(in srgb, var(--color-theme-primary) 70%, transparent);
+  font-size: 0.75rem;
+}
+
+.recipe-materials,
+.recipe-speed {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.recipe-speed {
+  padding-left: 0.75rem;
+  border-left: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
+}
+
+.recipe-meta {
+  flex-shrink: 0;
+  color: color-mix(in srgb, var(--color-theme-primary) 50%, transparent);
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
 .queue-ready {
   border-color: color-mix(in srgb, var(--color-theme-accent) 60%, transparent);
+}
+
+@media (max-width: 720px) {
+  .recipe-row {
+    flex-wrap: wrap;
+  }
+
+  .recipe-details {
+    order: 3;
+    width: 100%;
+    flex-wrap: wrap;
+  }
 }
 
 .locked-recipe {

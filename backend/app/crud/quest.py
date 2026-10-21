@@ -138,7 +138,7 @@ class CRUDQuest(
         return result_items
 
     async def get_multi_for_vault(
-        self, *, db_session: AsyncSession, skip: int, limit: int, vault_id: UUID4
+        self, *, db_session: AsyncSession, skip: int, limit: int, vault_id: UUID4, office_tier: int | None = None
     ) -> Sequence[QuestRead]:
         existing_link_query = select(self.link_model.quest_id).where(self.link_model.vault_id == vault_id)
 
@@ -203,7 +203,7 @@ class CRUDQuest(
                     granted_rewards=link.granted_rewards if link else None,
                     duration_minutes=link.duration_minutes
                     if link and link.duration_minutes is not None
-                    else effective_quest_duration_minutes(quest.duration_minutes),
+                    else effective_quest_duration_minutes(quest.duration_minutes, office_tier=office_tier),
                     quest_requirements=[
                         QuestRequirementRead(
                             id=req.id,

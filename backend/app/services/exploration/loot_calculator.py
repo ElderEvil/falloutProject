@@ -5,7 +5,7 @@ import random
 from app.core.game_config import game_config
 from app.schemas.expedition import rarity_meets_floor
 from app.schemas.exploration_event import ItemSchema, JunkSchema, LootItemSchema, OutfitSchema, WeaponSchema
-from app.services.exploration import data_loader
+from app.services import catalog_service as data_loader
 from app.utils.exceptions import ValidationException
 
 

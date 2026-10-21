@@ -1,7 +1,7 @@
 """Tests for the shared enemy-by-difficulty selector."""
 
+from app.services import catalog_service as data_loader
 from app.services.exploration import combat_calculator as combat_module
-from app.services.exploration import data_loader
 from app.services.exploration.combat_calculator import combat_calculator
 
 

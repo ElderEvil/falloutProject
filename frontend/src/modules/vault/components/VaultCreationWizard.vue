@@ -9,9 +9,11 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/core/com
 import { ToggleGroup, ToggleGroupItem } from '@/core/components/ui/toggle-group'
 import VaultNumberField from './VaultNumberField.vue'
 import { parseVaultNumber, type VaultNumberData } from '../schemas/vault'
+import { useVisualEffects } from '@/core/composables/useVisualEffects'
 
 const props = defineProps<{ creating: boolean }>()
 const emit = defineEmits<{ create: [options: VaultNumberData] }>()
+const { glowClass } = useVisualEffects()
 const steps = ['Vault number', 'Setup', 'Review']
 const step = ref(0)
 const number = ref('')
@@ -81,7 +83,7 @@ function advance() {
       </div>
       <div class="flex items-center justify-between gap-3">
         <div class="flex flex-col gap-2">
-          <CardTitle class="text-2xl terminal-glow"><h2>Create New Vault</h2></CardTitle>
+          <CardTitle class="text-2xl" :class="glowClass"><h2>Create New Vault</h2></CardTitle>
           <p class="text-xs leading-5 text-theme-primary/65">
             Building a brighter future. Underground.
           </p>
@@ -232,7 +234,12 @@ function advance() {
               class="flex items-center justify-between gap-4 py-4"
             >
               <dt class="text-sm text-theme-primary/65">{{ label }}</dt>
-              <dd :class="index === 0 ? 'text-2xl font-bold terminal-glow' : 'font-semibold'">
+              <dd
+                :class="[
+                  index === 0 ? 'text-2xl font-bold' : 'font-semibold',
+                  index === 0 ? glowClass : '',
+                ]"
+              >
                 {{ value }}
               </dd>
             </div>

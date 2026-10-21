@@ -6,7 +6,7 @@ from operator import itemgetter
 from app.core.game_config import game_config
 from app.models.exploration import Exploration
 from app.schemas.exploration_event import CombatOutcomeSchema, EnemySchema
-from app.services.exploration import data_loader
+from app.services import catalog_service as data_loader
 from app.utils.combat import ExpeditionCombatProfile
 
 

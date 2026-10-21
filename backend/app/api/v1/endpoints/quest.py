@@ -23,7 +23,6 @@ from app.schemas.quest import (
 )
 from app.schemas.rewards import granted_reward_adapter
 from app.services.progression.quests.service import quest_service
-from app.services.team_service import team_service
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 router = APIRouter(prefix="/quests", tags=["Quest"])
@@ -209,28 +208,6 @@ async def claim_quest_rewards(
     )
 
 
-@router.post("/{vault_id}/{quest_id}/assign-party", response_model=list[QuestPartyMemberRead], status_code=201)
-async def assign_party_to_quest(
-    vault_id: UUID4,
-    quest_id: UUID4,
-    party_data: QuestPartyAssign,
-    user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
-):
-    """Assign dwellers to a quest party (1-3 dwellers).
-
-    Returns:
-        The assigned party members.
-
-    Raises:
-        ValidationException: If party size is invalid or assignment fails.
-    """
-    await get_user_vault_or_403(vault_id, user, db_session)
-
-    members = await team_service.assign_quest_team(db_session, quest_id, vault_id, party_data.dweller_ids)
-    return [_to_party_member_read(member, quest_id, vault_id) for member in members]
-
-
 @router.get("/{vault_id}/{quest_id}/party", response_model=list[QuestPartyMemberRead])
 async def get_quest_party(
     vault_id: UUID4,
@@ -254,8 +231,12 @@ async def start_quest(
     quest_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    party_data: QuestPartyAssign | None = None,
 ) -> Quest:
-    """Start a quest (starts the timer).
+    """Start a quest, atomically assigning and departing the supplied party.
+
+    The UI supplies dweller_ids for timed missions. Bodyless requests support
+    state objectives and callers with an existing roster.
 
     Returns:
         The started quest.
@@ -265,7 +246,9 @@ async def start_quest(
         ValidationException: If requirements not met or quest cannot be started.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await quest_service.start_quest_for_vault(db_session, vault_id, quest_id)
+    return await quest_service.start_quest_for_vault(
+        db_session, vault_id, quest_id, dweller_ids=party_data.dweller_ids if party_data else None
+    )
 
 
 @router.get("/{vault_id}/{quest_id}/eligible-dwellers", response_model=list[EligibleDwellerRead])

@@ -8,7 +8,7 @@ from sqlalchemy import delete, update
 from sqlmodel import and_, func, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import RoomTypeEnum
+from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.crud.base import CRUDBase
 from app.models.room import Room
 from app.schemas.room import RoomCreate, RoomRead, RoomUpdate
@@ -139,6 +139,18 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return replacements
 
     @staticmethod
+    async def get_living_quarters(db_session: AsyncSession, vault_id: UUID4) -> list[Room]:
+        """Storage rooms share CAPACITY, but only Charisma rooms are living quarters."""
+        result = await db_session.execute(
+            select(Room).where(
+                Room.vault_id == vault_id,
+                Room.category == RoomTypeEnum.CAPACITY,
+                Room.ability == SPECIALEnum.CHARISMA,
+            )
+        )
+        return list(result.scalars().all())
+
+    @staticmethod
     async def get_by_category(db_session: AsyncSession, vault_id: UUID4, category: RoomTypeEnum) -> list[Room]:
         """Rooms of one category for a vault."""
         query = select(Room).where(Room.vault_id == vault_id).where(Room.category == category)
@@ -206,13 +218,18 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         }
 
     @staticmethod
+    async def get_room_tier_by_name(db_session: AsyncSession, vault_id: UUID4, room_name: str) -> int | None:
+        """The tier of the vault's room matching the normalized name, or None when absent."""
+        normalized = normalize_room_type(room_name)
+        if normalized is None:
+            return None
+        rooms = await CRUDRoom.get_all_by_vault(db_session, vault_id)
+        return next((room.tier for room in rooms if normalize_room_type(room.name) == normalized), None)
+
+    @staticmethod
     async def has_room_type(db_session: AsyncSession, vault_id: UUID4, room_type: str) -> bool:
         """Whether the vault has a built room matching the normalized room type."""
-        normalized = normalize_room_type(room_type)
-        if normalized is None:
-            return False
-        names = await CRUDRoom.get_names_by_vault(db_session, vault_id)
-        return any(normalize_room_type(name) == normalized for name in names)
+        return await CRUDRoom.get_room_tier_by_name(db_session, vault_id, room_type) is not None
 
     @staticmethod
     async def get_by_name_pattern(db_session: AsyncSession, vault_id: UUID4, pattern: str) -> list[Room]:

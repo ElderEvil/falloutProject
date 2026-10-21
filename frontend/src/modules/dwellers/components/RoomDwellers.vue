@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useDwellerStore } from '../stores/dweller'
-import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '../models/dweller'
 import { getDwellerDisplayName } from '../models/dweller'
 import DwellerPortrait from './DwellerPortrait.vue'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/core/components/ui/tooltip'
 
 interface Props {
   roomId: string
@@ -42,28 +42,31 @@ const handleDragStart = (event: DragEvent, dweller: DwellerShort) => {
 const handleDragEnd = () => {
   emit('dragEnd')
 }
-
 </script>
 
 <template>
   <div v-if="roomDwellers.length > 0" class="room-dwellers">
-    <div
-      v-for="dweller in roomDwellers"
-      :key="dweller.id"
-      class="dweller-avatar"
-      draggable="true"
-      @dragstart="handleDragStart($event, dweller)"
-      @dragend="handleDragEnd"
-      :title="`${getDwellerDisplayName(dweller)} (Lv${dweller.level})`"
-    >
-      <DwellerPortrait
-        :thumbnail-url="dweller.thumbnail_url"
-        :alt="getDwellerDisplayName(dweller)"
-        image-class="avatar-image"
-        fallback-class="h-10 w-10 icon-primary"
-      />
-      <div class="dweller-level">{{ dweller.level }}</div>
-    </div>
+    <Tooltip v-for="dweller in roomDwellers" :key="dweller.id">
+      <TooltipTrigger as-child>
+        <div
+          class="dweller-avatar"
+          draggable="true"
+          tabindex="0"
+          @dragstart="handleDragStart($event, dweller)"
+          @dragend="handleDragEnd"
+          :aria-label="`${getDwellerDisplayName(dweller)} (Lv${dweller.level})`"
+        >
+          <DwellerPortrait
+            :thumbnail-url="dweller.thumbnail_url"
+            :alt="getDwellerDisplayName(dweller)"
+            image-class="avatar-image"
+            fallback-class="h-10 w-10 icon-primary"
+          />
+          <div class="dweller-level">{{ dweller.level }}</div>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>{{ getDwellerDisplayName(dweller) }} (Lv{{ dweller.level }})</TooltipContent>
+    </Tooltip>
   </div>
 </template>
 

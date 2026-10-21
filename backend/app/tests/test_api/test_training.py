@@ -17,6 +17,29 @@ from app.schemas.room import RoomCreate
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
 
 
+async def test_continuous_training_setting_round_trips(async_client, superuser_token_headers, async_session, vault):
+    assert vault.continuous_training is False
+    for enabled in (True, False):
+        response = await async_client.put(
+            f"/vaults/{vault.id}", headers=superuser_token_headers, json={"continuous_training": enabled}
+        )
+        assert response.status_code == 200
+        assert response.json()["continuous_training"] is enabled
+        await async_session.refresh(vault)
+        assert vault.continuous_training is enabled
+
+
+async def test_continuous_training_setting_rejects_foreign_vault(
+    async_client, normal_user_token_headers, async_session, vault
+):
+    response = await async_client.put(
+        f"/vaults/{vault.id}", headers=normal_user_token_headers, json={"continuous_training": True}
+    )
+    assert response.status_code == 403
+    await async_session.refresh(vault)
+    assert vault.continuous_training is False
+
+
 @pytest.mark.asyncio
 async def test_unassigning_a_training_dweller_cancels_active_session(
     async_client: AsyncClient,
@@ -142,6 +165,7 @@ def _make_mock_training(**overrides):
         "stat_being_trained": SPECIALEnum.STRENGTH,
         "current_stat_value": 5,
         "target_stat_value": 6,
+        "goal_stat_value": 10,
         "progress": 0.5,
         "started_at": now - timedelta(hours=1),
         "estimated_completion_at": now + timedelta(hours=1),
@@ -558,3 +582,45 @@ async def test_list_room_training_success(
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 2
+
+
+async def test_training_goal_is_saved_and_owner_only(
+    async_client, superuser_token_headers, normal_user_token_headers, async_session, vault, dweller
+):
+    from app.services.training_service import training_service
+
+    room = await crud.room.create(
+        async_session,
+        RoomCreate(
+            name="Weight Room",
+            vault_id=vault.id,
+            category=RoomTypeEnum.TRAINING,
+            ability=SPECIALEnum.STRENGTH,
+            size=3,
+            size_min=3,
+            size_max=9,
+            capacity=2,
+            base_cost=100,
+            t2_upgrade_cost=2500,
+            t3_upgrade_cost=5000,
+        ),
+    )
+    dweller.strength = 5
+    dweller.status = DwellerStatusEnum.IDLE
+    async_session.add(dweller)
+    await async_session.commit()
+    training = await training_service.start_training(async_session, dweller.id, room.id)
+    url = f"/training/{training.id}/goal"
+    forbidden = await async_client.patch(url, headers=normal_user_token_headers, json={"goal_stat_value": 7})
+    assert forbidden.status_code == 403
+    await async_session.refresh(training)
+    assert training.goal_stat_value == 10
+    for goal, status in [(11, 422), (5, 400), (7, 200)]:
+        response = await async_client.patch(url, headers=superuser_token_headers, json={"goal_stat_value": goal})
+        assert response.status_code == status
+    response = await async_client.get(f"/training/vault/{vault.id}", headers=superuser_token_headers)
+    assert response.json()[0]["goal_stat_value"] == 7
+    missing = await async_client.patch(
+        f"/training/{uuid4()}/goal", headers=superuser_token_headers, json={"goal_stat_value": 7}
+    )
+    assert missing.status_code == 404

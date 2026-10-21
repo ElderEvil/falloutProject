@@ -35,6 +35,8 @@ NOTIFICATION_CATEGORY_BY_TYPE: dict[NotificationType, NotificationCategory | Non
     NotificationType.LOCATION_READY: NotificationCategory.EXPLORATION_UPDATES,
     # These are intentionally always enabled: they are urgent, actionable, or
     # progression-critical. Unknown future types also default to enabled.
+    NotificationType.STORAGE_ITEM_DEGRADED: None,
+    NotificationType.STORAGE_ITEM_UPGRADED: None,
     NotificationType.COMBAT_STARTED: None,
     NotificationType.COMBAT_VICTORY: None,
     NotificationType.COMBAT_DEFEAT: None,

@@ -16,6 +16,7 @@ from app.models.user import User
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerRead, DwellerReviveResponse, DwellerUpdate, RevivalCostResponse
 from app.services.access_service import assert_vault_owner
+from app.services.bio_service import bio_service, compile_bio
 from app.services.notification_service import notification_service
 from app.utils.dweller_lifecycle import is_dead, is_permanently_dead
 from app.utils.exceptions import (
@@ -75,6 +76,12 @@ class DeathService:
         # NOTE: Using naive datetime to match database TIMESTAMP WITHOUT TIME ZONE
         # This is a temporary fix - should migrate to timezone-aware in future
         now_naive = datetime.now(UTC).replace(tzinfo=None)
+        bio_entries = bio_service.with_entry(
+            dweller,
+            "family",
+            f"Died from {cause.value} at level {dweller.level}.",
+            {"cause": cause.value},
+        )
 
         updated_dweller = await dweller_crud.update(
             db_session,
@@ -86,6 +93,9 @@ class DeathService:
                 epitaph=epitaph,
                 status=DwellerStatusEnum.DEAD,
                 health=0,
+                happiness=0,
+                bio=compile_bio(bio_entries),
+                bio_entries=bio_entries,
                 room_id=None,  # Remove from room
                 is_permanently_dead=permanent,
                 lifecycle=LifecycleEnum.DEAD_PERMANENT if permanent else LifecycleEnum.DEAD_REVIVABLE,

@@ -149,6 +149,23 @@ describe('HomeView', () => {
       expect(wrapper.find('input[type="number"]').exists()).toBe(true)
     })
 
+    it('navigates into a newly created vault instead of staying on the list', async () => {
+      vaultStore.vaults = []
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      vi.spyOn(vaultStore, 'createVault').mockResolvedValue('vault-99')
+
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await settleView()
+
+      await wrapper.get('input[type="number"]').setValue('101')
+      await goToReview(wrapper)
+      await wrapper.get('form').trigger('submit')
+      await settleView()
+
+      expect(vaultStore.createVault).toHaveBeenCalled()
+      expect(router.currentRoute.value.path).toBe('/vault/vault-99')
+    })
+
     it('should show vault list when vaults exist', async () => {
       vaultStore.vaults = [
         {
@@ -796,7 +813,11 @@ describe('HomeView', () => {
       if (deleteBtn) {
         await deleteBtn.trigger('click')
         await settleView()
-        expect(global.confirm).toHaveBeenCalled()
+        expect(global.confirm).not.toHaveBeenCalled()
+        const dialog = wrapper.findComponent({ name: 'TerminalConfirmation' })
+        expect(dialog.props('open')).toBe(true)
+        dialog.vm.$emit('cancel')
+        await settleView()
       }
       expect(axios.delete).not.toHaveBeenCalled()
     })
@@ -823,6 +844,11 @@ describe('HomeView', () => {
         await deleteBtn.trigger('click')
         await settleView()
 
+        expect(axios.delete).not.toHaveBeenCalled()
+        const dialog = wrapper.findComponent({ name: 'TerminalConfirmation' })
+        expect(dialog.props('open')).toBe(true)
+        dialog.vm.$emit('confirm')
+        await settleView()
         expect(axios.delete).toHaveBeenCalledWith(
           '/api/v1/vaults/vault-1',
           expect.objectContaining({

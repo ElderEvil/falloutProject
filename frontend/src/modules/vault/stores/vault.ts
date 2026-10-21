@@ -5,6 +5,7 @@ import axios from '@/core/plugins/axios'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useSse } from '@/core/composables/useEventStream'
 import { useToast } from '@/core/composables/useToast'
+import { useStorageStore } from '@/modules/storage/stores/storage'
 import type { components } from '@/core/types/api.generated'
 
 // Use generated API types
@@ -392,6 +393,7 @@ export const useVaultStore = defineStore('vault', () => {
       () => stream.event.value,
       (evt) => {
         if (!evt || evt.event !== 'tick') return
+        useStorageStore().refreshIfActive(vaultId)
         const tickData = evt.data as GameTickUpdate | undefined
         const resourceUpdate = tickData?.updates?.resources
         const vault = loadedVaults.value[vaultId]

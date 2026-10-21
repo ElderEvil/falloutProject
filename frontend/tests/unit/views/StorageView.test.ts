@@ -3,6 +3,7 @@ import { createIconifyMock, createToastMock } from '../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
+import { useStorageStore } from '@/modules/storage/stores/storage'
 import StorageView from '@/modules/storage/views/StorageView.vue'
 import LunchboxOpenModal from '@/modules/storage/components/LunchboxOpenModal.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -97,8 +98,12 @@ describe('StorageView', () => {
     vi.clearAllMocks()
   })
 
-  async function mountWith(items: Record<string, unknown[]>) {
+  async function mountWith(
+    items: Record<string, unknown[]>,
+    maintenance: Record<string, unknown> = { enabled: false }
+  ) {
     vi.mocked(axios.get).mockImplementation(async (url: string) => {
+      if (url.includes('/maintenance')) return { data: maintenance }
       if (url.includes('/space')) return { data: spaceData }
       if (url.includes('/items')) return { data: items }
       return { data: {} }
@@ -117,6 +122,39 @@ describe('StorageView', () => {
     await trigger.trigger('mousedown')
     await flushPromises()
   }
+
+  it.each([
+    ['rusting', 0, 0.02],
+    ['stable', 2, 0],
+    ['improving', 4, 0.02],
+  ] as const)(
+    'shows the %s maintenance badge with workers and trial odds',
+    async (mode, workers, chance) => {
+      const wrapper = await mountWith(
+        { weapons: [], outfits: [], junk: [], items: [], pets: [] },
+        {
+          enabled: true,
+          mode,
+          worker_count: workers,
+          total_endurance: workers * 10,
+          protection_pct: Math.min(workers * 50, 100),
+          hourly_chance: chance,
+          trial_interval_seconds: 3600,
+        }
+      )
+      expect(wrapper.text()).toContain(mode.charAt(0).toUpperCase() + mode.slice(1))
+      expect(wrapper.text()).toContain(
+        `${workers} workers · ${(chance * 100).toFixed(1)}% per trial`
+      )
+      wrapper.unmount()
+    }
+  )
+
+  it('hides the maintenance badge when disabled', async () => {
+    const wrapper = await mountWith({ weapons: [], outfits: [], junk: [], items: [], pets: [] })
+    expect(wrapper.text()).not.toContain('per trial')
+    wrapper.unmount()
+  })
 
   it('keeps a lunchbox unopened when its sealed preview is dismissed', async () => {
     vi.mocked(axios.post).mockResolvedValue({
@@ -228,6 +266,7 @@ describe('StorageView', () => {
       let finishRefresh!: (value: unknown) => void
       vi.mocked(axios.post).mockResolvedValue({ data: {} })
       vi.mocked(axios.get).mockImplementation(async (url: string) => {
+        if (url.includes('/maintenance')) return { data: { enabled: false } }
         if (url.includes('/space')) return { data: spaceData }
         return new Promise((resolve) => {
           finishRefresh = resolve
@@ -253,6 +292,47 @@ describe('StorageView', () => {
       wrapper.unmount()
     }
   )
+
+  it('does not show a load error when a tick supersedes a sell refresh', async () => {
+    const items = {
+      weapons: [{ id: 'w1', name: 'Pistol', rarity: 'common', value: 10 }],
+      outfits: [],
+      junk: [],
+      items: [],
+      pets: [],
+    }
+    const wrapper = await mountWith(items)
+    const pending: Array<{ url: string; resolve: (response: { data: unknown }) => void }> = []
+    vi.mocked(axios.get).mockImplementation(
+      (url: string) =>
+        new Promise((resolve) => {
+          pending.push({ url, resolve })
+        })
+    )
+    vi.mocked(axios.post).mockResolvedValue({ data: {} })
+    wrapper.findComponent({ name: 'StorageItemCard' }).vm.$emit('sell')
+    await flushPromises()
+    expect(pending).toHaveLength(3)
+    useStorageStore().refreshIfActive('vault-1')
+    expect(pending).toHaveLength(6)
+    const complete = ({ url, resolve }: (typeof pending)[number]) =>
+      resolve({
+        data: url.endsWith('/maintenance')
+          ? { enabled: false }
+          : url.endsWith('/space')
+            ? spaceData
+            : items,
+      })
+    pending.slice(3).forEach(complete)
+    await flushPromises()
+    pending.slice(0, 3).forEach(complete)
+    await flushPromises()
+    expect(mockToast.error).not.toHaveBeenCalled()
+    wrapper.unmount()
+    vi.mocked(axios.get).mockClear()
+    useStorageStore().refreshIfActive('vault-1')
+    expect(axios.get).not.toHaveBeenCalled()
+  })
 
   it('renders returned pets with name and art in the pets tab', async () => {
     const wrapper = await mountWith({
@@ -316,5 +396,17 @@ describe('StorageView', () => {
     await vi.waitFor(() => {
       expect(wrapper.find('button[aria-label="About Vault Storage"]').exists()).toBe(true)
     })
+    expect(wrapper.text()).not.toContain(
+      'Storage workers pool END across the vault, including equipment bonuses.'
+    )
+    await wrapper.find('button[aria-label="About Vault Storage"]').trigger('click')
+    await flushPromises()
+    expect(document.body.textContent?.replace(/\s+/g, ' ')).toContain(
+      'Storage workers pool END across the vault, including equipment bonuses.'
+    )
+    expect(document.body.textContent?.replace(/\s+/g, ' ')).toContain(
+      'eligible weapons have up to a 2% hourly chance'
+    )
+    wrapper.unmount()
   })
 })

@@ -177,6 +177,73 @@ describe('ObjectivesView claim flow', () => {
   })
 })
 
+describe('ObjectivesView collect all', () => {
+  it('claims every earned objective from the header button', async () => {
+    const play = vi.spyOn(audioManager, 'play').mockImplementation(() => {})
+    objectivesStore.objectives = [
+      { ...dailyObjective, id: 'ready-1' },
+      { ...dailyObjective, id: 'ready-2', category: 'weekly' },
+      { ...dailyObjective, id: 'pending-1', progress: 0 },
+      { ...dailyObjective, id: 'claimed-1', is_completed: true },
+    ]
+    const completeSpy = vi
+      .spyOn(objectivesStore, 'completeObjective')
+      .mockImplementation(async (_vaultId, objectiveId) => ({
+        ...objectivesStore.objectives.find((objective) => objective.id === objectiveId)!,
+        is_completed: true,
+      }))
+
+    wrapper = mountWithRealHeader()
+    await flushPromises()
+
+    const collectAll = wrapper.find('[data-slot="tooltip-trigger"][role="button"]')
+    expect(collectAll.attributes('aria-label')).toBe('Collect rewards: 2')
+    await collectAll.trigger('click')
+    await flushPromises()
+
+    expect(completeSpy.mock.calls.map(([, objectiveId]) => objectiveId)).toEqual([
+      'ready-1',
+      'ready-2',
+    ])
+    expect(play.mock.calls.filter(([key]) => key === 'objectiveClaim')).toEqual([
+      ['objectiveClaim', 'ui'],
+    ])
+    expect(wrapper.findComponent(ObjectiveCompleteModal).props('show')).toBe(false)
+    play.mockRestore()
+  })
+
+  it('disables Collect All when no reward is ready', async () => {
+    objectivesStore.objectives = [{ ...dailyObjective, progress: 0 }]
+
+    wrapper = mountWithRealHeader()
+    await flushPromises()
+
+    expect(
+      wrapper.find('[data-slot="tooltip-trigger"][role="button"]').attributes('aria-disabled')
+    ).toBe('true')
+  })
+
+  it('stops at the first failed claim and keeps the error visible', async () => {
+    vi.spyOn(audioManager, 'play').mockImplementation(() => {})
+    objectivesStore.objectives = [
+      { ...dailyObjective, id: 'ready-1' },
+      { ...dailyObjective, id: 'ready-2' },
+    ]
+    const completeSpy = vi
+      .spyOn(objectivesStore, 'completeObjective')
+      .mockResolvedValueOnce({ ...dailyObjective, id: 'ready-1', is_completed: true })
+      .mockRejectedValueOnce(new Error('Claim failed'))
+
+    wrapper = mountWithRealHeader()
+    await flushPromises()
+    await wrapper.find('[data-slot="tooltip-trigger"][role="button"]').trigger('click')
+    await flushPromises()
+
+    expect(completeSpy).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('Claim failed')
+  })
+})
+
 describe('ObjectivesView objective gating', () => {
   it('keeps the Starter tab claimable and hides the regular tabs before the Office', async () => {
     objectivesStore.objectives = [
@@ -365,7 +432,7 @@ describe('ObjectivesView claimable counters', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.text()).not.toContain('Open objectives')
-    expect(wrapper.text()).toContain('Rewards ready')
+    expect(wrapper.text()).toContain('Collect rewards')
   })
 
   it('offers header help about objectives', async () => {

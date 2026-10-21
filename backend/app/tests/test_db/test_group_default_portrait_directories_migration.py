@@ -9,7 +9,10 @@ from alembic.operations import Operations
 
 
 def test_grouped_portrait_migration(monkeypatch):
-    path = Path(__file__).parents[2] / "alembic/versions/2026_10_25_0001-e3a7c1b9d5f2_group_default_portrait_directories.py"
+    path = (
+        Path(__file__).parents[2]
+        / "alembic/versions/2026_10_25_0001-e3a7c1b9d5f2_group_default_portrait_directories.py"
+    )
     spec = importlib.util.spec_from_file_location("grouped_portrait_migration", path)
     migration = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(migration)

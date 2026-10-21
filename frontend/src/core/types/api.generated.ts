@@ -11048,7 +11048,7 @@ export interface components {
             incidents_disabled: boolean;
             /**
              * Continuous Training
-             * @description Repeat training rounds until the selected stat reaches 10
+             * @description Repeat training rounds until each dweller reaches their training goal (default 10)
              * @default false
              */
             continuous_training: boolean;
@@ -11131,7 +11131,7 @@ export interface components {
             incidents_disabled: boolean;
             /**
              * Continuous Training
-             * @description Repeat training rounds until the selected stat reaches 10
+             * @description Repeat training rounds until each dweller reaches their training goal (default 10)
              * @default false
              */
             continuous_training: boolean;
@@ -11312,7 +11312,7 @@ export interface components {
             incidents_disabled: boolean;
             /**
              * Continuous Training
-             * @description Repeat training rounds until the selected stat reaches 10
+             * @description Repeat training rounds until each dweller reaches their training goal (default 10)
              * @default false
              */
             continuous_training: boolean;
@@ -11402,7 +11402,7 @@ export interface components {
             incidents_disabled: boolean;
             /**
              * Continuous Training
-             * @description Repeat training rounds until the selected stat reaches 10
+             * @description Repeat training rounds until each dweller reaches their training goal (default 10)
              * @default false
              */
             continuous_training: boolean;
@@ -11500,7 +11500,7 @@ export interface components {
             incidents_disabled: boolean;
             /**
              * Continuous Training
-             * @description Repeat training rounds until the selected stat reaches 10
+             * @description Repeat training rounds until each dweller reaches their training goal (default 10)
              * @default false
              */
             continuous_training: boolean;
@@ -11600,7 +11600,7 @@ export interface components {
             incidents_disabled?: boolean | null;
             /**
              * Continuous Training
-             * @description Repeat training rounds until the selected stat reaches 10
+             * @description Repeat training rounds until each dweller reaches their training goal (default 10)
              */
             continuous_training?: boolean | null;
         };

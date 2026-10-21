@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.247.0 (2026-10-21)
+
+### Features
+
+* **dwellers:** tune race/state distribution and enforce legendary level floor ([#1128](https://github.com/ElderEvil/falloutProject/issues/1128)) d3d2af9
+
 ## 2.246.0 (2026-10-21)
 
 ### Features

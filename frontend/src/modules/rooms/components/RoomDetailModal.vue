@@ -56,6 +56,7 @@ const emit = defineEmits<{
 }>()
 
 const actionError = ref<string | null>(null)
+const showUnassignConfirmation = ref(false)
 const assignmentMode = ref<'worker' | 'apprentice' | null>(null)
 
 const roomRef = toRef(props, 'room')
@@ -93,6 +94,16 @@ const {
   handleAssignDweller,
   openDwellerDetails,
 } = useRoomDwellers(roomRef, actionError, () => emit('roomUpdated'))
+
+const confirmUnassignAll = async () => {
+  if (!showUnassignConfirmation.value) return
+  showUnassignConfirmation.value = false
+  await handleUnassignAll()
+}
+
+watch([() => props.modelValue, () => props.room?.id], () => {
+  showUnassignConfirmation.value = false
+})
 
 const { filter: dwellerStore } = useDwellerStore()
 const vaultDwellers = computed(() => dwellerStore.dwellers)
@@ -229,7 +240,7 @@ onUnmounted(stopAmbience)
           :is-vault-door="isVaultDoor"
           @upgrade="handleUpgrade"
           @destroy="handleDestroy"
-          @unassign-all="handleUnassignAll"
+          @unassign-all="showUnassignConfirmation = true"
           @assign-dweller="handleAssignDweller"
           @unassign-dweller="handleUnassignDweller"
           @view-dweller="openDwellerDetails"
@@ -332,7 +343,7 @@ onUnmounted(stopAmbience)
             @destroy="handleDestroy"
             @split="handleRemodel()"
             @merge="handleRemodel"
-            @unassign-all="handleUnassignAll"
+            @unassign-all="showUnassignConfirmation = true"
           />
         </template>
       </div>
@@ -345,6 +356,14 @@ onUnmounted(stopAmbience)
     :confirm-label="remodelTitle.startsWith('Merge') ? 'Merge rooms' : 'Split room'"
     @confirm="confirmRemodel()"
     @cancel="cancelRemodel()"
+  />
+  <TerminalConfirmation
+    :open="showUnassignConfirmation"
+    title="Unassign dwellers?"
+    :message="`Unassign all ${assignedDwellers.length} dwellers from this room?`"
+    confirm-label="Unassign all"
+    @cancel="showUnassignConfirmation = false"
+    @confirm="confirmUnassignAll"
   />
 </template>
 

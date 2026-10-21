@@ -971,6 +971,47 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).toContain('Unassign All Dwellers')
     })
 
+    it('confirms unassign-all in a themed dialog and cancels without changing dwellers', async () => {
+      const { filter, management } = useDwellerStore()
+      filter.dwellers = mockDwellers
+      useAuthStore().token = 'test-token'
+      const unassign = vi
+        .spyOn(management, 'unassignDwellerFromRoom')
+        .mockResolvedValue({} as never)
+      const nativeConfirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true, vaultId: 'vault-123' },
+      })
+      const request = wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('Unassign All Dwellers'))!
+      await request.trigger('click')
+      expect(nativeConfirm).not.toHaveBeenCalled()
+      expect(unassign).not.toHaveBeenCalled()
+      const confirmation = wrapper.findComponent({ name: 'TerminalConfirmation' })
+      expect(confirmation.props('open')).toBe(true)
+      expect(confirmation.text()).toContain('Unassign all 2 dwellers from this room?')
+      await confirmation
+        .findAll('button')
+        .find((button) => button.text() === 'Cancel')!
+        .trigger('click')
+      expect(unassign).not.toHaveBeenCalled()
+      await request.trigger('click')
+      await confirmation
+        .findAll('button')
+        .find((button) => button.text() === 'Unassign all')!
+        .trigger('click')
+      await flushPromises()
+      expect(unassign.mock.calls).toEqual([
+        ['dweller-1', 'test-token'],
+        ['dweller-2', 'test-token'],
+      ])
+      expect(wrapper.emitted('roomUpdated')).toHaveLength(1)
+      expect(confirmation.props('open')).toBe(false)
+      wrapper.unmount()
+      nativeConfirm.mockRestore()
+    })
+
     it('groups room-wide controls under Management without restoring Staffing', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {

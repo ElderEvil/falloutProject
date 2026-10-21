@@ -11,6 +11,8 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
       ['later', 120, 'r1'],
       ['soon', 5, 'r2'],
       ['first', 1, 'r1'],
+      ['second', 30, 'r1'],
+      ['third', 60, 'r1'],
     ].map(([id, minutes, roomId]) => ({
       id,
       dweller_id: id,
@@ -100,7 +102,7 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
     await page.reload()
     await expect(toggle).toHaveAttribute('aria-pressed', 'true')
     const cards = page.locator('.training-progress-card')
-    await expect(cards).toHaveCount(3)
+    await expect(cards).toHaveCount(5)
     const queueHeading = (await page
       .getByRole('heading', { name: 'Training Queue', exact: true })
       .boundingBox())!
@@ -108,7 +110,7 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
     expect(queueHeading.y + queueHeading.height).toBeLessThan(queueBox.y)
     await expect(cards.nth(0)).toContainText('Alice Vault')
     await expect(cards.nth(1)).toContainText('Carol Vault')
-    await expect(cards.nth(2)).toContainText('Bob Vault')
+    await expect(cards.nth(4)).toContainText('Bob Vault')
     await expect(cards.nth(0)).toContainText('Strength 5 → 6')
     const aliceGoal = page.getByRole('group', { name: 'Training goal for Alice Vault' })
     const goalValue = aliceGoal.locator('output')
@@ -130,7 +132,7 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
     ).toHaveText('10')
     await expect(
       page.getByRole('region', { name: 'Weight Room' }).locator('.training-progress-card')
-    ).toHaveCount(2)
+    ).toHaveCount(4)
     await expect(
       page.getByRole('region', { name: 'Fitness Room' }).locator('.training-progress-card')
     ).toHaveCount(1)
@@ -147,7 +149,7 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
         return Math.abs(bounds.right - rail.right) < 1 && Math.abs(bounds.left - rail.left) < 1
       })
     ).toBe(true)
-    await expect(page.locator('.learning-progress-card')).toHaveCount(4)
+    await expect(page.locator('.learning-progress-card')).toHaveCount(6)
     const first = (await cards.nth(0).boundingBox())!
     const second = (await cards.nth(1).boundingBox())!
     if (theme === 'fnv') {
@@ -156,6 +158,12 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
       expect(second.y).toBe(first.y)
       expect(second.x).toBeGreaterThan(first.x)
       expect(first.width).toBeLessThanOrEqual(320)
+      const roomCards = await page
+        .getByRole('region', { name: 'Weight Room' })
+        .locator('.training-progress-card')
+        .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()))
+      expect(new Set(roomCards.map((bounds) => bounds.y)).size).toBe(1)
+      expect(roomCards[3]!.right).toBeLessThanOrEqual(queueBox.x + queueBox.width)
     }
     await expect(cards.nth(0)).toContainText('Soon')
     const rowsFit = await page

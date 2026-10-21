@@ -184,9 +184,9 @@ onMounted(() => {
               group.trainings.length
             }}</span>
           </h4>
-          <div class="flex flex-wrap gap-3">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <TrainingProgressCard
-              class="w-80 max-w-full min-w-0"
+              class="min-w-0"
               v-for="training in group.trainings"
               :key="training.id"
               :training="training"

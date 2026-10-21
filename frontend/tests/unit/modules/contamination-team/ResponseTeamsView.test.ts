@@ -96,7 +96,7 @@ describe('ResponseTeamsView (compatibility redirect)', () => {
     mountWithSetup(ResponseTeamsView)
     await flushPromises()
 
-    expect(mockToast.error).toHaveBeenCalledTimes(1)
+    expect(mockToast.error).not.toHaveBeenCalled()
     expect(mockToast.info).not.toHaveBeenCalled()
     expect(mockReplace).toHaveBeenCalledWith({ path: '/vault/vault-1' })
   })

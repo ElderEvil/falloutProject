@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
+
 import { computed, ref, watch } from 'vue'
 import { useDwellerStore, compareDwellers, matchesAgeGroup } from '../stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -150,8 +152,8 @@ const handleDropZoneDrop = async (event: DragEvent) => {
     await dwellerManagementStore.unassignDwellerFromRoom(dwellerId, authStore.token as string)
 
     toast.success(`${firstName} ${lastName} unassigned from room`)
-  } catch {
-    toast.error('Failed to unassign dweller')
+  } catch (error) {
+    notifyErrorOnce(error, 'Failed to unassign dweller')
   }
 }
 </script>

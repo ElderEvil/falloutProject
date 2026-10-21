@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
+
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Alert, AlertDescription, AlertTitle } from '@/core/components/ui/alert'
@@ -24,7 +26,6 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useSound } from '@/core/composables/useSound'
-import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import ArenaFighterSlot from './ArenaFighterSlot.vue'
 import ArenaRing from './ArenaRing.vue'
@@ -71,7 +72,7 @@ type DraftSlots = Record<ArenaSlotKey, string | null>
 const EMPTY_DRAFT: DraftSlots = { a: null, b: null, c: null, d: null }
 
 const authStore = useAuthStore()
-const toast = useToast()
+
 const { playSound } = useSound()
 const { management: dwellerManagementStore } = useDwellerStore()
 const medicalStore = useDwellerMedicalStore()
@@ -588,8 +589,8 @@ const unassign = async (entry: ArenaRosterEntry) => {
   if (!authStore.token) return
   try {
     await dwellerManagementStore.unassignDwellerFromRoom(entry.id, authStore.token)
-  } catch {
-    toast.error('Failed to remove dweller from the Arena')
+  } catch (error) {
+    notifyErrorOnce(error, 'Failed to remove dweller from the Arena')
   }
 }
 

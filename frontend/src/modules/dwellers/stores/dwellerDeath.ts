@@ -82,14 +82,7 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
       )
       return response.data
     } catch (error: unknown) {
-      const errorMessage =
-        (
-          error as {
-            response?: { data?: { detail?: string } }
-          }
-        )?.response?.data?.detail || 'Failed to get revival cost'
       handleStoreError(error, `Failed to get revival cost for dweller ${dwellerId}`)
-      toast.error(errorMessage)
       return null
     }
   }
@@ -140,14 +133,7 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
       )
       return response.data
     } catch (error: unknown) {
-      const errorMessage =
-        (
-          error as {
-            response?: { data?: { detail?: string } }
-          }
-        )?.response?.data?.detail || 'Failed to revive dweller'
       handleStoreError(error, `Failed to revive dweller ${dwellerId}`)
-      toast.error(errorMessage)
       return null
     }
   }

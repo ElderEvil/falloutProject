@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
+
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -177,7 +179,7 @@ const loadVaultData = async (id: string) => {
 
     isLoading.value = false
   } catch (error) {
-    toast.error('Failed to load vault')
+    notifyErrorOnce(error, 'Failed to load vault')
     errorMessage.value = error instanceof Error ? error.message : 'Failed to load vault data'
     isLoading.value = false
   }

@@ -1,3 +1,4 @@
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
 import { ref, computed } from 'vue'
 import { useToast } from '@/core/composables/useToast'
 import { formatClock } from '@/core/utils/format'
@@ -50,9 +51,9 @@ export function useAudioRecorder() {
       recordingTimer.value = window.setInterval(() => {
         recordingDuration.value += 1
       }, 1000)
-    } catch {
-      toast.error('Failed to access microphone')
-      throw new Error('Failed to access microphone. Please grant permission.')
+    } catch (error) {
+      notifyErrorOnce(error, 'Failed to access microphone')
+      throw new Error('Failed to access microphone. Please grant permission.', { cause: error })
     }
   }
 
@@ -134,7 +135,8 @@ export function useAudioRecorder() {
     recordingDuration.value = 0
   }
 
-  const formatDuration = (seconds: number): string => formatClock(seconds, { showHours: false, padMinutes: false })
+  const formatDuration = (seconds: number): string =>
+    formatClock(seconds, { showHours: false, padMinutes: false })
 
   return {
     // State

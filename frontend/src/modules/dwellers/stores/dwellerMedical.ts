@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import type { DwellerShort } from '../models/dweller'
-import { getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { useDwellerFilterStore } from './dwellerFilter'
 import type { components } from '@/core/types/api.generated'
@@ -47,12 +47,16 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
 
       applyDwellerUpdate(dwellerId, response.data)
 
-      toast.success(supply === 'stimpack' ? 'Stimpack used! Dweller healed.' : 'RadAway used! Radiation reduced.')
+      toast.success(
+        supply === 'stimpack'
+          ? 'Stimpack used! Dweller healed.'
+          : 'RadAway used! Radiation reduced.'
+      )
       return response.data
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error, `Failed to use ${label}`)
       handleStoreError(error, `Failed to use ${label} for dweller ${dwellerId}`, false)
-      toast.error(errorMessage)
+      notifyErrorOnce(error, errorMessage)
       return null
     }
   }
@@ -82,7 +86,6 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
         { headers: { Authorization: `Bearer ${token}` } }
       )
 
-      toast.success(`${supply === 'stimpack' ? 'Stimpack' : 'RadAway'} issued from vault storage`)
       return response.data
     } catch (error: unknown) {
       handleStoreError(error, `Failed to issue ${supply} to dweller ${dwellerId}`)
@@ -104,10 +107,15 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
       await filterStore.fetchDwellersByVault(vaultId, token)
       await filterStore.fetchAllDwellers(vaultId, token)
 
-      const { dwellers_treated: treated, radaways_used: radaways, stimpaks_used: stimpaks } =
-        response.data
+      const {
+        dwellers_treated: treated,
+        radaways_used: radaways,
+        stimpaks_used: stimpaks,
+      } = response.data
       if (treated > 0) {
-        toast.success(`Treated ${treated} dwellers with ${radaways} RadAway and ${stimpaks} Stimpack`)
+        toast.success(
+          `Treated ${treated} dwellers with ${radaways} RadAway and ${stimpaks} Stimpack`
+        )
       } else {
         toast.info('No irradiated dwellers needed treatment')
       }

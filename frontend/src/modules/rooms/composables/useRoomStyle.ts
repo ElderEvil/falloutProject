@@ -5,7 +5,7 @@ import { roomStyleLabel } from '../models/room'
 import { useRoomStore } from '../stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
-import { getErrorMessage } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, getErrorMessage } from '@/core/utils/errorHandler'
 
 export function useRoomStyle(
   room: Ref<Room | null>,
@@ -37,7 +37,7 @@ export function useRoomStyle(
       emitRoomUpdated()
     } catch (error) {
       actionError.value = getErrorMessage(error)
-      toast.error(actionError.value)
+      notifyErrorOnce(error, actionError.value)
     } finally {
       isApplyingStyle.value = false
     }

@@ -7,7 +7,7 @@ import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useToast } from '@/core/composables/useToast'
 import { useSendToWasteland } from '@/modules/exploration/composables/useSendToWasteland'
 import { useGaryMode } from '@/core/composables/useGaryMode'
-import { getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
 import { getVaultMap } from '@/modules/map/services/mapService'
 import {
   canUseRadaway,
@@ -187,8 +187,8 @@ export function useDwellerDetail(
       if (opts.refetch !== false) await refetch()
       if (opts.refreshVault) await vaultStore.refreshVault(vaultId.value, authStore.token as string)
       opts.onSuccess?.()
-    } catch {
-      toast.error(opts.errorMessage ?? 'Action failed')
+    } catch (error) {
+      notifyErrorOnce(error, opts.errorMessage ?? 'Action failed')
     } finally {
       if (opts.flag) opts.flag.value = false
     }
@@ -428,7 +428,7 @@ export function useDwellerDetail(
       // matching the outcome of the old manual issue-then-use two-click flow.
       if (used) await refetch()
     } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to heal dweller'))
+      notifyErrorOnce(error, getErrorMessage(error, 'Failed to heal dweller'))
     } finally {
       healingSupply.value = null
     }

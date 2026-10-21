@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
+
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -9,7 +11,6 @@ import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { usePolling } from '@/core/composables/usePolling'
-import { useToast } from '@/core/composables/useToast'
 import { useSound } from '@/core/composables/useSound'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
@@ -40,7 +41,7 @@ const { isCollapsed } = useSidePanel()
 const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const questStore = useQuestStore()
-const toast = useToast()
+
 const { playMusic } = useSound()
 
 const vaultId = computed(() => route.params.id as string)
@@ -136,7 +137,7 @@ const loadData = async () => {
       await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
     }
   } catch (error) {
-    toast.error('Failed to load exploration data')
+    notifyErrorOnce(error, 'Failed to load exploration data')
   }
 }
 
@@ -197,7 +198,7 @@ const pollExplorations = async () => {
     await questStore.fetchVaultQuests(vaultId.value, { silent: true })
     await questStore.fetchPartiesForActiveQuests(vaultId.value)
   } catch (error) {
-    toast.error('Failed to refresh activities')
+    notifyErrorOnce(error, 'Failed to refresh activities')
   }
 }
 

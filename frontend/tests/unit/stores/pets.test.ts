@@ -73,7 +73,8 @@ describe('Pets Store', () => {
     await store.fetchPets('vault-1')
 
     expect(store.error).toBe('Failed to load pets')
-    expect(toastMock.error).toHaveBeenCalledWith('Failed to load pets')
+    expect(toastMock.error).toHaveBeenCalledTimes(1)
+    expect(toastMock.error).toHaveBeenCalledWith('Network error')
     expect(store.pets).toHaveLength(1)
   })
 
@@ -94,12 +95,15 @@ describe('Pets Store', () => {
   it('equipPet failure goes through handleStoreError and returns null', async () => {
     const store = usePetsStore()
     store.pets = [makePet()]
-    vi.mocked(petsService.equipPet).mockRejectedValueOnce(new Error('Equip failed'))
+    vi.mocked(petsService.equipPet).mockRejectedValueOnce({
+      response: { status: 409, data: { detail: 'Pet is already equipped' } },
+    })
 
     const result = await store.equipPet('dweller-1', 'pet-1')
 
     expect(result).toBeNull()
-    expect(toastMock.error).toHaveBeenCalledWith('Failed to equip pet: Equip failed')
+    expect(toastMock.error).toHaveBeenCalledTimes(1)
+    expect(toastMock.error).toHaveBeenCalledWith('Failed to equip pet: Pet is already equipped')
     expect(store.pets[0].dweller_id).toBeNull()
   })
 
@@ -118,12 +122,15 @@ describe('Pets Store', () => {
 
   it('unequipPet failure goes through handleStoreError and returns null', async () => {
     const store = usePetsStore()
-    vi.mocked(petsService.unequipPet).mockRejectedValueOnce(new Error('Unequip failed'))
+    vi.mocked(petsService.unequipPet).mockRejectedValueOnce({
+      response: { status: 404, data: { detail: 'Pet is not equipped' } },
+    })
 
     const result = await store.unequipPet('pet-1')
 
     expect(result).toBeNull()
-    expect(toastMock.error).toHaveBeenCalledWith('Failed to unequip pet: Unequip failed')
+    expect(toastMock.error).toHaveBeenCalledTimes(1)
+    expect(toastMock.error).toHaveBeenCalledWith('Failed to unequip pet: Pet is not equipped')
   })
 
   it('getEquippedPet returns the pet equipped to a dweller', () => {

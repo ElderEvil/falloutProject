@@ -26,7 +26,10 @@ const incidentStore = {
 vi.mock('@/modules/vault/stores/vault', () => ({ useVaultStore: () => vaultStore }))
 vi.mock('@/modules/auth/stores/auth', () => ({ useAuthStore: () => authStore }))
 vi.mock('@/modules/combat/stores/incident', () => ({ useIncidentStore: () => incidentStore }))
-vi.mock('@/core/utils/errorHandler', () => ({ handleStoreError: vi.fn() }))
+vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/utils/errorHandler')>()),
+  handleStoreError: vi.fn(),
+}))
 vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span />', props: [] }))
 
 describe('GameControlPanel', () => {

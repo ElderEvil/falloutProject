@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createIconifyMock } from '../../helpers/mocks'
-import { mount } from '@vue/test-utils'
+import { createIconifyMock, createToastMock } from '../../helpers/mocks'
+import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { Dialog } from '@/core/components/ui/dialog'
 import ExplorationRewardsModal from '@/modules/exploration/components/ExplorationRewardsModal.vue'
 import type { RewardsSummary } from '@/modules/exploration/stores/exploration'
 
 vi.mock('@iconify/vue', () => createIconifyMock())
+
+const mockToast = createToastMock()
+vi.mock('@/core/composables/useToast', () => ({ useToast: () => mockToast }))
 
 const { mockResolve } = vi.hoisted(() => ({ mockResolve: vi.fn() }))
 
@@ -35,7 +38,10 @@ const rewardsWithOverflow = {
   events_encountered: 3,
 } as RewardsSummary
 
-const mountModal = (rewards: RewardsSummary | null = rewardsWithOverflow, explorationId = 'exp-1') =>
+const mountModal = (
+  rewards: RewardsSummary | null = rewardsWithOverflow,
+  explorationId = 'exp-1'
+) =>
   mount(ExplorationRewardsModal, {
     props: { show: true, rewards, dwellerName: 'Lucy MacLean', explorationId },
     global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
@@ -44,6 +50,7 @@ const mountModal = (rewards: RewardsSummary | null = rewardsWithOverflow, explor
 describe('ExplorationRewardsModal', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    vi.clearAllMocks()
     mockResolve.mockReset()
     mockResolve.mockResolvedValue({ caps_granted: 0, unclaimed_loot: [] })
   })
@@ -119,7 +126,10 @@ describe('ExplorationRewardsModal', () => {
 
   it('uses the rewards exploration ID when a stale caller ID is supplied', async () => {
     mockResolve.mockResolvedValueOnce({ caps_granted: 25, unclaimed_loot: [item('Dropped B')] })
-    const wrapper = mountModal({ ...rewardsWithOverflow, exploration_id: 'authoritative-exp' }, 'stale-exp')
+    const wrapper = mountModal(
+      { ...rewardsWithOverflow, exploration_id: 'authoritative-exp' },
+      'stale-exp'
+    )
 
     await wrapper
       .findAll('.overflow-actions button')
@@ -146,7 +156,9 @@ describe('ExplorationRewardsModal', () => {
     const wrapper = mountModal()
 
     await wrapper.findAll('.overflow-actions button')[0]!.trigger('click')
-    await wrapper.setProps({ rewards: { ...rewardsWithOverflow, overflow_items: [item('Dropped C')] } })
+    await wrapper.setProps({
+      rewards: { ...rewardsWithOverflow, overflow_items: [item('Dropped C')] },
+    })
 
     expect(wrapper.find('.overflow-actions').exists()).toBe(true)
     expect(wrapper.text()).not.toContain('This report predates overflow resolution')
@@ -159,10 +171,25 @@ describe('ExplorationRewardsModal', () => {
     const wrapper = mountModal()
 
     await wrapper.get('.sell-all-btn').trigger('click')
+    await flushPromises()
 
     expect(mockResolve).toHaveBeenNthCalledWith(1, 'exp-1', 'sell', 0, 'test-token')
     expect(mockResolve).toHaveBeenNthCalledWith(2, 'exp-1', 'sell', 0, 'test-token')
+    expect(mockToast.success).toHaveBeenCalledTimes(1)
+    expect(mockToast.success).toHaveBeenCalledWith('Sold 2 items for +50 caps')
     expect(wrapper.find('.sell-all-btn').exists()).toBe(false)
+  })
+
+  it('keeps unsold items and reports the partial total and failure', async () => {
+    mockResolve
+      .mockResolvedValueOnce({ caps_granted: 25, unclaimed_loot: [item('Dropped B')] })
+      .mockRejectedValueOnce(new Error('Sale unavailable'))
+    const wrapper = mountModal()
+    await wrapper.get('.sell-all-btn').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Dropped B')
+    expect(mockToast.success).toHaveBeenCalledWith('Sold 1 item for +25 caps')
+    expect(mockToast.error).toHaveBeenCalledTimes(1)
   })
 
   it('collects once every overflow item is decided', async () => {

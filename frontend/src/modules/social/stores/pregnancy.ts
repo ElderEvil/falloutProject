@@ -1,3 +1,4 @@
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
@@ -35,7 +36,7 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
       const response = await axios.get(`/api/v1/pregnancies/vault/${vaultId}`)
       pregnancies.value = response.data
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error))
+      notifyErrorOnce(error, getErrorMessage(error))
       throw error
     } finally {
       isLoading.value = false
@@ -47,7 +48,7 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
       const response = await axios.get(`/api/v1/pregnancies/${pregnancyId}`)
       return response.data
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error))
+      notifyErrorOnce(error, getErrorMessage(error))
       return null
     }
   }
@@ -67,7 +68,7 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
       toast.success(result.message)
       return result
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error))
+      notifyErrorOnce(error, getErrorMessage(error))
       return null
     } finally {
       isLoading.value = false

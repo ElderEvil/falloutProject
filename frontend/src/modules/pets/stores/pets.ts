@@ -14,7 +14,7 @@ export const usePetsStore = defineStore('pets', () => {
   const error = ref<string | null>(null)
   const { run: runFetchPets, isLoading: isPetsLoading } = useAsyncAction(
     (vaultId: string) => petsService.fetchPets(vaultId),
-    { context: 'Failed to fetch pets', showToast: false }
+    { context: 'Failed to fetch pets' }
   )
   const isLoading = computed(() => isPetsLoading.value)
 
@@ -26,7 +26,6 @@ export const usePetsStore = defineStore('pets', () => {
       pets.value = result
     } else {
       error.value = 'Failed to load pets'
-      toast.error('Failed to load pets')
     }
   }
 
@@ -44,7 +43,6 @@ export const usePetsStore = defineStore('pets', () => {
       return pet
     } catch (err) {
       handleStoreError(err, 'Failed to equip pet')
-      toast.error('Failed to equip pet')
       return null
     }
   }
@@ -65,7 +63,6 @@ export const usePetsStore = defineStore('pets', () => {
       return updated
     } catch (err) {
       handleStoreError(err, 'Failed to unequip pet')
-      toast.error('Failed to unequip pet')
       return null
     }
   }

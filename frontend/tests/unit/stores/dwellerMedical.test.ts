@@ -73,4 +73,17 @@ describe('useDwellerMedicalStore', () => {
 
     expect(result).toBeNull()
   })
+
+  it('emits one detail-only toast when using a stimpack fails', async () => {
+    const medicalStore = useDwellerMedicalStore()
+    vi.mocked(axios.post).mockRejectedValueOnce({
+      response: { status: 400, data: { detail: 'No stimpacks available' } },
+    })
+
+    const result = await medicalStore.useStimpack('d1', 'token-1')
+
+    expect(result).toBeNull()
+    expect(toastMock.error).toHaveBeenCalledTimes(1)
+    expect(toastMock.error).toHaveBeenCalledWith('No stimpacks available')
+  })
 })

@@ -127,4 +127,47 @@ describe('useDwellerManagementStore', () => {
     expect(result).toEqual({ id: 'dweller-1', room_id: null, status: 'idle' })
     expect(audioManager.play).toHaveBeenCalledWith('cardDrop', 'ui')
   })
+
+  it('emits one toast with the backend detail when a rename fails', async () => {
+    const managementStore = useDwellerManagementStore()
+    vi.mocked(axios.patch).mockRejectedValueOnce({
+      response: { status: 409, data: { detail: 'Name already taken' } },
+    })
+
+    const result = await managementStore.renameDweller('d1', 'Jane', 'token-1', 'Smith')
+
+    expect(result).toBeNull()
+    expect(mockToast.error).toHaveBeenCalledTimes(1)
+    expect(mockToast.error).toHaveBeenCalledWith('Failed to rename dweller d1: Name already taken')
+  })
+
+  it('emits one toast with the backend detail when bulk unassign fails', async () => {
+    const managementStore = useDwellerManagementStore()
+    vi.mocked(axios.post).mockRejectedValueOnce({
+      response: { status: 400, data: { detail: 'Vault is locked down' } },
+    })
+
+    const result = await managementStore.unassignAllDwellers('vault-1', 'token-1')
+
+    expect(result).toBeNull()
+    expect(mockToast.error).toHaveBeenCalledTimes(1)
+    expect(mockToast.error).toHaveBeenCalledWith(
+      'Failed to unassign all dwellers for vault vault-1: Vault is locked down'
+    )
+  })
+
+  it('emits one toast with the action label and backend detail when bulk auto-assign fails', async () => {
+    const managementStore = useDwellerManagementStore()
+    vi.mocked(axios.post).mockRejectedValueOnce({
+      response: { status: 400, data: { detail: 'No eligible dwellers' } },
+    })
+
+    const result = await managementStore.autoAssignProductionDwellers('vault-1', 'token-1')
+
+    expect(result).toBeNull()
+    expect(mockToast.error).toHaveBeenCalledTimes(1)
+    expect(mockToast.error).toHaveBeenCalledWith(
+      'Failed to auto-assign dwellers to production rooms for vault vault-1: No eligible dwellers'
+    )
+  })
 })

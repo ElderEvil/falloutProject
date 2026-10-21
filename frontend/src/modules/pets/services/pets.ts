@@ -1,32 +1,19 @@
-import axios from '@/core/plugins/axios'
+import { apiGet, apiPost } from '@/core/utils/api'
 import type { Pet } from '../models/pet'
 
 // Pet API calls
-export async function fetchPets(token: string, vaultId: string): Promise<Pet[]> {
-  const params = { vault_id: vaultId }
-  const response = await axios.get('/api/v1/pets/', {
-    params,
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  return response.data
+export async function fetchPets(vaultId: string): Promise<Pet[]> {
+  return apiGet<Pet[]>('/api/v1/pets/', { params: { vault_id: vaultId } })
 }
 
-export async function fetchPet(petId: string, token: string): Promise<Pet> {
-  const response = await axios.get(`/api/v1/pets/${petId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  return response.data
+export async function fetchPet(petId: string): Promise<Pet> {
+  return apiGet<Pet>(`/api/v1/pets/${petId}`)
 }
 
-export async function equipPet(dwellerId: string, petId: string, token: string): Promise<Pet> {
-  const response = await axios.post(`/api/v1/pets/${dwellerId}/equip/${petId}`, null, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  return response.data
+export async function equipPet(dwellerId: string, petId: string): Promise<Pet> {
+  return apiPost<Pet>(`/api/v1/pets/${dwellerId}/equip/${petId}`)
 }
 
-export async function unequipPet(petId: string, token: string): Promise<void> {
-  await axios.post(`/api/v1/pets/${petId}/unequip/`, null, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
+export async function unequipPet(petId: string): Promise<void> {
+  await apiPost<void>(`/api/v1/pets/${petId}/unequip/`)
 }

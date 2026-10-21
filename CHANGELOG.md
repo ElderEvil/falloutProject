@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.245.0 (2026-10-21)
+
+### Features
+
+* **quests:** scale mission slots and speed with Office upgrades ([#1121](https://github.com/ElderEvil/falloutProject/issues/1121)) 53eed3a
+
 ## 2.244.0 (2026-10-21)
 
 ### Features

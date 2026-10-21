@@ -22,6 +22,7 @@ import RoomDetailHeader from './RoomDetailHeader.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.vue'
 import RoomPreviewSection from './RoomPreviewSection.vue'
+import BarbershopPanel from './BarbershopPanel.vue'
 import ProductionStats from './ProductionStats.vue'
 import DwellerList from './DwellerList.vue'
 import RadioControls from './RadioControls.vue'
@@ -267,6 +268,14 @@ onUnmounted(stopAmbience)
             @assign-worker="assignmentMode = 'worker'"
             @assign-apprentice="assignmentMode = 'apprentice'"
             @apply-style="handleApplyStyle"
+          />
+
+          <BarbershopPanel
+            v-if="has('barbershop')"
+            :room="room"
+            :vault-id="vaultId"
+            :assigned-dwellers="assignedDwellers"
+            @changed="emit('roomUpdated')"
           />
 
           <StorageMaintenancePanel

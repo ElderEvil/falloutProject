@@ -47,7 +47,7 @@ const fill = computed(() =>
       'border-theme-glow opacity-60': inactive,
     }"
   >
-    <div class="mb-1 flex items-center gap-2">
+    <div class="mb-3 flex items-start gap-2">
       <DwellerPortrait
         :thumbnail-url="image"
         :alt="name"
@@ -55,40 +55,43 @@ const fill = computed(() =>
         fallback-class="flex size-16 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-surface-sunken text-theme-primary"
       />
       <div class="min-w-0 flex-1">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <p
-                tabindex="0"
-                class="truncate rounded-sm font-mono text-sm font-bold text-theme-primary focus-visible:outline-2 focus-visible:outline-theme-primary"
-              >
-                {{ name }}
-              </p>
-            </TooltipTrigger>
-            <TooltipContent>{{ name }}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <span class="mt-1.5 inline-flex min-w-0 items-center gap-1 font-mono text-xs text-theme-primary">
-          <Icon :icon="ability?.icon ?? 'mdi:star'" class="completion-stat-icon size-4 shrink-0" />
-          <span class="truncate">{{ ability?.label ?? stat }} {{ currentStat }} → {{ targetStat }}</span>
-        </span>
-        <p v-if="roomName" class="truncate font-mono text-xs text-muted-foreground">
-          {{ roomName }}
-        </p>
+        <div class="flex items-start gap-2">
+          <div class="min-w-0 flex-1">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <p
+                    tabindex="0"
+                    class="truncate rounded-sm font-mono text-sm font-bold text-theme-primary focus-visible:outline-2 focus-visible:outline-theme-primary"
+                  >
+                    {{ name }}
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent>{{ name }}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <p v-if="roomName" class="truncate font-mono text-xs text-muted-foreground">
+              {{ roomName }}
+            </p>
+          </div>
+          <Badge :variant="kind === 'apprentice' ? 'secondary' : 'outline'" class="shrink-0 gap-1">
+            <Icon :icon="kind === 'apprentice' ? 'mdi:school' : 'mdi:dumbbell'" class="size-3" />
+            {{ kind === 'apprentice' ? 'Apprentice' : 'Training' }}
+          </Badge>
+        </div>
+        <div
+          class="mt-1 flex flex-wrap items-center justify-between gap-2 font-mono text-xs text-theme-primary"
+        >
+          <span class="inline-flex min-w-0 items-center gap-1">
+            <Icon :icon="ability?.icon ?? 'mdi:star'" class="completion-stat-icon size-4 shrink-0" />
+            <span class="truncate">{{ ability?.label ?? stat }} {{ currentStat }} → {{ targetStat }}</span>
+          </span>
+          <slot name="goal" />
+        </div>
       </div>
-      <Badge :variant="kind === 'apprentice' ? 'secondary' : 'outline'" class="shrink-0 gap-1">
-        <Icon :icon="kind === 'apprentice' ? 'mdi:school' : 'mdi:dumbbell'" class="size-3" />
-        {{ kind === 'apprentice' ? 'Apprentice' : 'Training' }}
-      </Badge>
-    </div>
-    <div
-      v-if="$slots.goal"
-      class="mb-2 flex flex-wrap items-center justify-end gap-2 font-mono text-xs text-theme-primary"
-    >
-      <slot name="goal" />
     </div>
     <Progress
-      class="mb-2 h-1.5"
+      class="mb-1 h-1.5"
       :fill="fill"
       :model-value="progress"
       :label="`${ability?.label ?? stat} ${kind} progress for ${name}`"

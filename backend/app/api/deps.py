@@ -26,6 +26,8 @@ reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login",
 )
 
+DBSession = Annotated[AsyncSession, Depends(get_async_session)]
+
 
 async def get_redis_client():
     """Provide a Redis client as a FastAPI dependency.

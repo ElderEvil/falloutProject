@@ -28,7 +28,7 @@ from app.core.grid_config import (
 )
 from app.models.incident import IncidentType
 from app.options.factions import faction_restrictions
-from app.options.races import RaceOption
+from app.options.races import STATE_OF_BEING_OPTIONS, RaceOption
 
 __all__ = [
     "GRID_BUILD_X_MAX",
@@ -683,12 +683,12 @@ class LevelingConfig(BaseSettings):
     max_level: int = Field(default=50, description="Maximum dweller level", ge=1, le=100)
 
     # Starting level bands for generated dwellers, canon-shaped (Fallout Shelter
-    # rare ~6-10, legendary 19-43). Commons always start at level 1.
+    # rare ~6-10, legendary 25-40). Commons always start at level 1.
     base_max_health: int = Field(default=100, description="Max health at level 1", ge=1)
     rare_start_level_min: int = Field(default=6, ge=1)
     rare_start_level_max: int = Field(default=10, ge=1)
-    legendary_start_level_min: int = Field(default=19, ge=1)
-    legendary_start_level_max: int = Field(default=43, ge=1)
+    legendary_start_level_min: int = Field(default=25, ge=1)
+    legendary_start_level_max: int = Field(default=40, ge=1)
 
     # XP sources
     exploration_xp_per_distance: int = Field(default=10, description="Per mile traveled", ge=0)
@@ -850,10 +850,22 @@ class DwellerConfig(BaseSettings):
     )
 
     # Race distribution for generated dwellers — global (standard and boosted
-    # vaults share it). Env: DWELLER_RACE_WEIGHTS='{"human":70,"ghoul":15,...}'.
+    # vaults share it). Env: DWELLER_RACE_WEIGHTS='{"human":85,"ghoul":7,...}'.
     race_weights: dict[str, int] = Field(
-        default_factory=lambda: {"human": 70, "ghoul": 15, "synth": 10, "super_mutant": 5},
+        default_factory=lambda: {"human": 85, "ghoul": 7, "synth": 5, "super_mutant": 3},
         description="Seeded race roll weights; keys must cover every RaceOption",
+    )
+
+    state_weights: dict[str, dict[str, int]] = Field(
+        default_factory=lambda: {
+            "ghoul": {"sane": 70, "wild": 22, "feral": 8},
+            "super_mutant": {"mild": 55, "average": 35, "behemoth": 10},
+            "synth": {"gen_3": 70, "gen_2": 22, "gen_1": 8},
+        },
+        description=(
+            "State-of-being roll weights per non-human race; keys must cover every state. "
+            "The more human-passing state should dominate."
+        ),
     )
 
     # Faction-weighting policy: humans stay lore-coherent with vault_dweller
@@ -916,9 +928,46 @@ class DwellerConfig(BaseSettings):
             raise ValueError(f"{info.field_name} must have a positive total weight")
         return normalized
 
+    @field_validator("state_weights", mode="before")
+    @classmethod
+    def _validate_state_weights(cls, value: Any) -> dict[str, dict[str, int]]:
+        expected = {race.value: {state.value for state in states} for race, states in STATE_OF_BEING_OPTIONS.items()}
+        if not isinstance(value, dict):
+            raise TypeError("state_weights must map race names to state weight maps")
+        normalized: dict[str, dict[str, int]] = {}
+        for raw_race, raw_states in value.items():
+            race = str(raw_race).strip().lower().replace(" ", "_").replace("-", "_")
+            if race not in expected:
+                raise ValueError(f"Unknown race '{raw_race}' in state_weights; valid races: {sorted(expected)}")
+            if not isinstance(raw_states, dict):
+                raise TypeError(f"state_weights['{race}'] must map state names to integer weights")
+            states: dict[str, int] = {}
+            for raw_state, raw_weight in raw_states.items():
+                state = str(raw_state).strip().lower().replace(" ", "_").replace("-", "_")
+                if state not in expected[race]:
+                    raise ValueError(
+                        f"Unknown state '{raw_state}' for race '{race}'; valid states: {sorted(expected[race])}"
+                    )
+                if isinstance(raw_weight, bool) or not isinstance(raw_weight, int) or raw_weight < 0:
+                    raise ValueError(
+                        f"state_weights['{race}']['{state}'] must be a non-negative integer, got {raw_weight!r}"
+                    )
+                states[state] = raw_weight
+            if missing := expected[race] - states.keys():
+                raise ValueError(f"state_weights['{race}'] is missing states: {sorted(missing)}")
+            if sum(states.values()) <= 0:
+                raise ValueError(f"state_weights['{race}'] must have a positive total weight")
+            normalized[race] = states
+        if missing := expected.keys() - normalized.keys():
+            raise ValueError(f"state_weights is missing races: {sorted(missing)}")
+        return normalized
+
     def get_race_weights(self) -> dict[str, int]:
         """Get a validated copy of the race weights (keys = RaceOption values)."""
         return dict(self.race_weights)
+
+    def get_state_weights(self, race: str) -> dict[str, int]:
+        return dict(self.state_weights.get(race, {}))
 
     elder_age_years: int = Field(
         default=70,

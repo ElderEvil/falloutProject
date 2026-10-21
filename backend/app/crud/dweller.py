@@ -40,7 +40,12 @@ from app.utils.dweller_lifecycle import (
     not_memorial_conditions,
     pool_eligible_conditions,
 )
-from app.utils.dwellers import create_dweller_from_template, create_random_common_dweller
+from app.utils.dwellers import (
+    clamp_level_for_rarity,
+    create_dweller_from_template,
+    create_random_common_dweller,
+    level_progress,
+)
 from app.utils.exceptions import ContentNoChangeException, ResourceConflictException, ResourceNotFoundException
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
 from app.utils.static_data import game_data_store
@@ -666,6 +671,14 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             for field in ("level", "experience", "happiness", "health", "max_health"):
                 if (value := overrides.get(field)) is not None:
                     data[field] = value
+        rarity = RarityEnum(template.rarity)
+        if rarity in (RarityEnum.RARE, RarityEnum.LEGENDARY):
+            level = clamp_level_for_rarity(rarity, data.get("level", 1))
+            max_health, experience = level_progress(level)
+            data["level"] = level
+            data["max_health"] = max_health
+            data["health"] = min(int(data.get("health") or max_health), max_health)
+            data["experience"] = experience
         return data
 
     async def get_active_template_names(self, db_session: AsyncSession, vault_id: UUID4) -> set[str]:

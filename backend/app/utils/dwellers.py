@@ -118,18 +118,26 @@ def _identity_for_race(race: RaceOption, source: random.Random | ModuleType) -> 
         faction = source.choice(faction_restrictions[race])
     identity: dict[str, Any] = {"race": race.value, "faction": FactionOption(faction).value}
     if states := STATE_OF_BEING_OPTIONS.get(race):
-        identity["state_of_being"] = source.choice(states).value
+        state_values = [state.value for state in states]
+        weights = game_config.dweller.get_state_weights(race.value)
+        if weights:
+            identity["state_of_being"] = source.choices(
+                state_values, weights=[weights[value] for value in state_values]
+            )[0]
+        else:
+            identity["state_of_being"] = source.choice(state_values)
     return identity
 
 
 def _roll_identity(rng: random.Random | ModuleType) -> dict[str, Any]:
     """Roll race/faction/state_of_being from game_config weights using ``rng``.
 
-    Race follows ``DwellerConfig.race_weights`` (70/15/10/5 by default). Humans
+    Race follows ``DwellerConfig.race_weights`` (85/7/5/3 by default). Humans
     draw factions from the vault_dweller-dominant ``human_faction_weights``
     policy; non-humans draw uniformly from the canonical
-    ``faction_restrictions[race]``. Non-humans also carry a ``state_of_being``
-    from ``STATE_OF_BEING_OPTIONS``. Every emitted pair passes the
+    ``faction_restrictions[race]``. Non-humans also carry a weighted
+    ``state_of_being`` from ``STATE_OF_BEING_OPTIONS`` and
+    ``DwellerConfig.state_weights``. Every emitted pair passes the
     ``DwellerVisualAttributes`` identity validator.
     """
     weights = game_config.dweller.get_race_weights()
@@ -163,8 +171,7 @@ def roll_child_identity(mother: Any, father: Any, source: random.Random | Module
     return identity
 
 
-def _rarity_start_level(rarity: RarityEnum | str, rng: random.Random | ModuleType) -> int:
-    """Starting level for a dweller of the given rarity (commons start at 1)."""
+def rarity_level_bounds(rarity: RarityEnum | str) -> tuple[int, int]:
     value = rarity.value if isinstance(rarity, RarityEnum) else str(rarity).lower()
     cfg = game_config.leveling
     bands = {
@@ -173,10 +180,25 @@ def _rarity_start_level(rarity: RarityEnum | str, rng: random.Random | ModuleTyp
     }
     band = bands.get(value)
     if band is None:
-        return 1
+        return 1, 1
     low, high = band
     high = min(high, cfg.max_level)
     low = min(low, high)
+    return low, high
+
+
+def clamp_level_for_rarity(rarity: RarityEnum | str, level: int) -> int:
+    low, high = rarity_level_bounds(rarity)
+    return max(low, min(int(level), high))
+
+
+def level_progress(level: int) -> tuple[int, int]:
+    return _max_health_for_level(level), _xp_for_level(level)
+
+
+def _rarity_start_level(rarity: RarityEnum | str, rng: random.Random | ModuleType) -> int:
+    """Starting level for a dweller of the given rarity (commons start at 1)."""
+    low, high = rarity_level_bounds(rarity)
     return rng.randint(low, high)
 
 

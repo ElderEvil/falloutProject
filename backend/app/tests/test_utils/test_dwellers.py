@@ -1,6 +1,7 @@
 """Tests for dweller bio generation utilities."""
 
 import random
+from collections import Counter
 from datetime import UTC, datetime
 
 import pytest
@@ -15,7 +16,9 @@ from app.utils.bios import maybe_zone_rumor, render_adopted_child_bio, render_bi
 from app.utils.dwellers import (
     _PLACE_POOL,
     _calendar_years_ago,
+    _identity_for_race,
     _procedural_bio_places,
+    _roll_identity,
     create_dweller_from_template,
     create_random_common_dweller,
     roll_spawn_birth_date,
@@ -76,8 +79,9 @@ def test_starting_level_scales_with_rarity() -> None:
     for seed in range(25):
         rare = create_random_common_dweller(seed=seed, rarity=RarityEnum.RARE)
         legendary = create_random_common_dweller(seed=seed, rarity=RarityEnum.LEGENDARY)
-        assert 6 <= rare["level"] <= 10
-        assert 19 <= legendary["level"] <= 43
+        cfg = game_config.leveling
+        assert cfg.rare_start_level_min <= rare["level"] <= cfg.rare_start_level_max
+        assert cfg.legendary_start_level_min <= legendary["level"] <= cfg.legendary_start_level_max
 
 
 def test_starting_health_matches_starting_level() -> None:
@@ -110,7 +114,7 @@ def test_legendary_template_starts_in_band_with_matching_health() -> None:
     assert template is not None
     data = create_dweller_from_template(template, seed=1)
     cfg = game_config.leveling
-    assert 19 <= data["level"] <= 43
+    assert cfg.legendary_start_level_min <= data["level"] <= cfg.legendary_start_level_max
     assert data["max_health"] == cfg.base_max_health + (data["level"] - 1) * cfg.hp_gain_per_level
     assert data["experience"] == int(cfg.base_xp_requirement * (data["level"] ** cfg.xp_curve_exponent))
 
@@ -325,3 +329,88 @@ def test_zone_rumor_stays_text_only(monkeypatch: pytest.MonkeyPatch) -> None:
     origin, visited = create_random_common_dweller(seed=7)["_bio_places"]
     assert "The Quiet Zone" not in visited
     assert origin != "The Quiet Zone"
+
+
+def _state_weight_defaults() -> dict[str, dict[str, int]]:
+    return {
+        "ghoul": {"sane": 70, "wild": 22, "feral": 8},
+        "super_mutant": {"mild": 55, "average": 35, "behemoth": 10},
+        "synth": {"gen_3": 70, "gen_2": 22, "gen_1": 8},
+    }
+
+
+def test_default_race_weights_keep_non_humans_rare() -> None:
+    weights = game_config.dweller.get_race_weights()
+    total = sum(weights.values())
+
+    assert weights == {"human": 85, "ghoul": 7, "synth": 5, "super_mutant": 3}
+    assert weights["human"] / total >= 0.85
+
+
+def test_default_state_weights_favor_human_like_states() -> None:
+    ghoul = game_config.dweller.get_state_weights("ghoul")
+    mutant = game_config.dweller.get_state_weights("super_mutant")
+    synth = game_config.dweller.get_state_weights("synth")
+
+    assert ghoul["sane"] > ghoul["wild"] > ghoul["feral"]
+    assert mutant["mild"] > mutant["average"] > mutant["behemoth"]
+    assert synth["gen_3"] > synth["gen_2"] > synth["gen_1"]
+
+
+@pytest.mark.parametrize(
+    ("race", "expected"),
+    [
+        (RaceOption.GHOUL, "sane"),
+        (RaceOption.SUPER_MUTANT, "mild"),
+        (RaceOption.SYNTH, "gen_3"),
+    ],
+)
+def test_identity_state_roll_favors_human_like_state(race: RaceOption, expected: str) -> None:
+    rng = random.Random(0)
+    counts = Counter(_identity_for_race(race, rng)["state_of_being"] for _ in range(600))
+
+    assert counts.most_common(1)[0][0] == expected
+
+
+def test_roll_identity_keeps_non_humans_rare() -> None:
+    rng = random.Random(0)
+    counts = Counter(_roll_identity(rng)["race"] for _ in range(1000))
+
+    assert counts["human"] > 800
+    assert counts["ghoul"] > counts["synth"] > counts["super_mutant"]
+
+
+def test_dweller_config_state_weights_rejects_missing_race() -> None:
+    weights = _state_weight_defaults()
+    weights.pop("synth")
+
+    with pytest.raises(ValueError, match="missing races"):
+        DwellerConfig(state_weights=weights)
+
+
+def test_dweller_config_state_weights_rejects_unknown_state() -> None:
+    weights = _state_weight_defaults()
+    weights["ghoul"]["decayed"] = 1
+
+    with pytest.raises(ValueError, match="Unknown state"):
+        DwellerConfig(state_weights=weights)
+
+
+def test_dweller_config_state_weights_rejects_missing_state() -> None:
+    weights = _state_weight_defaults()
+    weights["ghoul"].pop("feral")
+
+    with pytest.raises(ValueError, match="missing states"):
+        DwellerConfig(state_weights=weights)
+
+
+def test_dweller_config_state_weights_rejects_invalid_weights() -> None:
+    weights = _state_weight_defaults()
+    weights["ghoul"]["sane"] = -1
+    with pytest.raises(ValueError, match="non-negative integer"):
+        DwellerConfig(state_weights=weights)
+
+    weights = _state_weight_defaults()
+    weights["ghoul"] = {"sane": 0, "wild": 0, "feral": 0}
+    with pytest.raises(ValueError, match="positive total"):
+        DwellerConfig(state_weights=weights)

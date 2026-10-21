@@ -105,7 +105,7 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
       )
 
       await filterStore.fetchDwellersByVault(vaultId, token)
-      await filterStore.fetchAllDwellers(vaultId, token)
+      await filterStore.fetchAllDwellers(vaultId, token, false, true)
 
       const {
         dwellers_treated: treated,

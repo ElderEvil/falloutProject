@@ -99,7 +99,7 @@ describe('Pets Store', () => {
       response: { status: 409, data: { detail: 'Pet is already equipped' } },
     })
 
-    const result = await store.equipPet('dweller-1', 'pet-1')
+    const result = await store.equipPet('dweller-1', 'pet-1', 'token')
 
     expect(result).toBeNull()
     expect(toastMock.error).toHaveBeenCalledTimes(1)
@@ -126,7 +126,7 @@ describe('Pets Store', () => {
       response: { status: 404, data: { detail: 'Pet is not equipped' } },
     })
 
-    const result = await store.unequipPet('pet-1')
+    const result = await store.unequipPet('dweller-1', 'pet-1', 'token')
 
     expect(result).toBeNull()
     expect(toastMock.error).toHaveBeenCalledTimes(1)

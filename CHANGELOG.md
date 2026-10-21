@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.243.2 (2026-10-21)
+
+### Bug Fixes
+
+* **ui:** theme all confirmation dialogs ([#1119](https://github.com/ElderEvil/falloutProject/issues/1119)) eaf2f97
+
 ## 2.243.1 (2026-10-21)
 
 ### Bug Fixes

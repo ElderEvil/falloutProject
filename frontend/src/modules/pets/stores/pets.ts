@@ -44,7 +44,6 @@ export const usePetsStore = defineStore('pets', () => {
       return pet
     } catch (err) {
       handleStoreError(err, 'Failed to equip pet')
-      toast.error('Failed to equip pet')
       return null
     }
   }
@@ -65,7 +64,6 @@ export const usePetsStore = defineStore('pets', () => {
       return updated
     } catch (err) {
       handleStoreError(err, 'Failed to unequip pet')
-      toast.error('Failed to unequip pet')
       return null
     }
   }

@@ -64,7 +64,6 @@ export const useEquipmentStore = defineStore('equipment', () => {
       return weapon
     } catch (err) {
       handleStoreError(err, 'Failed to equip weapon')
-      toast.error('Failed to equip weapon')
       return null
     }
   }
@@ -87,7 +86,6 @@ export const useEquipmentStore = defineStore('equipment', () => {
       return weapon
     } catch (err) {
       handleStoreError(err, 'Failed to unequip weapon')
-      toast.error('Failed to unequip weapon')
       return null
     }
   }
@@ -110,7 +108,6 @@ export const useEquipmentStore = defineStore('equipment', () => {
       return outfit
     } catch (err) {
       handleStoreError(err, 'Failed to equip outfit')
-      toast.error('Failed to equip outfit')
       return null
     }
   }
@@ -133,7 +130,6 @@ export const useEquipmentStore = defineStore('equipment', () => {
       return outfit
     } catch (err) {
       handleStoreError(err, 'Failed to unequip outfit')
-      toast.error('Failed to unequip outfit')
       return null
     }
   }

@@ -143,14 +143,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       toast.success('Dweller auto-assigned to best matching room!')
       return response.data
     } catch (error: unknown) {
-      const errorMessage =
-        (
-          error as {
-            response?: { data?: { detail?: string } }
-          }
-        )?.response?.data?.detail || 'Failed to auto-assign dweller'
       handleStoreError(error, `Failed to auto-assign dweller ${dwellerId}`)
-      toast.error(errorMessage)
       return null
     }
   }
@@ -166,7 +159,6 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       await filterStore.fetchAllDwellers(vaultId, token)
     } catch (error) {
       handleStoreError(error, 'Failed to load rooms for apprentice assignment')
-      toast.error('Could not load production rooms')
       return null
     }
 
@@ -235,14 +227,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
       return response.data
     } catch (error: unknown) {
-      const errorMessage =
-        (
-          error as {
-            response?: { data?: { detail?: string } }
-          }
-        )?.response?.data?.detail || 'Failed to rename dweller'
       handleStoreError(error, `Failed to rename dweller ${dwellerId}`)
-      toast.error(errorMessage)
       return null
     }
   }
@@ -271,14 +256,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       toast.success('Appearance updated successfully!')
       return response.data
     } catch (error: unknown) {
-      const errorMessage =
-        (
-          error as {
-            response?: { data?: { detail?: string } }
-          }
-        )?.response?.data?.detail || 'Failed to update appearance'
       handleStoreError(error, `Failed to update appearance for dweller ${dwellerId}`)
-      toast.error(errorMessage)
       return null
     }
   }
@@ -304,14 +282,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       toast.success(`Unassigned ${response.data.unassigned_count} dwellers`)
       return response.data
     } catch (error: unknown) {
-      const errorMessage =
-        (
-          error as {
-            response?: { data?: { detail?: string } }
-          }
-        )?.response?.data?.detail || 'Failed to unassign all dwellers'
       handleStoreError(error, `Failed to unassign all dwellers for vault ${vaultId}`)
-      toast.error(errorMessage)
       return null
     }
   }
@@ -347,8 +318,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       toast.success(`Assigned ${response.data.assigned_count} dwellers ${successSuffix}`)
       return response.data
     } catch (error) {
-      const errorMessage = handleStoreError(error, `${failureLabel} for vault ${vaultId}`)
-      toast.error(errorMessage || failureLabel)
+      handleStoreError(error, `${failureLabel} for vault ${vaultId}`)
       return null
     }
   }

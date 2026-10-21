@@ -66,6 +66,17 @@ describe('TerminalModal', () => {
     expect(wrapper.text()).not.toContain('Ignored')
   })
 
+  it('explains the full-page action with a themed tooltip on keyboard focus', async () => {
+    const wrapper = mountModal({ fullscreenTo: '/dwellers/one', fullscreenLabel: 'Open dweller' })
+    const button = wrapper.get('button[aria-label="Open dweller"]')
+
+    expect(button.attributes('title')).toBeUndefined()
+    await button.trigger('focus')
+    await flushPromises()
+
+    expect(wrapper.get('[role="tooltip"]').text()).toBe('Open dweller')
+  })
+
   it('omits the footer when no footer slot is provided', () => {
     const wrapper = mountModal()
 

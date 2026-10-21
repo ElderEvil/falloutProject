@@ -4,6 +4,12 @@ import { Icon } from '@iconify/vue'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { Button } from '@/core/components/ui/button'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -129,17 +135,22 @@ const handleOpenChange = (open: boolean) => {
 <template>
   <Dialog :open="open" @update:open="handleOpenChange">
     <DialogContent :show-close-button="showClose" :class="contentClasses">
-      <Button
-        v-if="fullscreenTo"
-        variant="ghost"
-        size="icon-sm"
-        class="absolute top-4 right-12 z-10"
-        :aria-label="fullscreenLabel"
-        :title="fullscreenLabel"
-        @click="openFullscreen"
-      >
-        <Icon icon="mdi:arrow-expand" />
-      </Button>
+      <TooltipProvider v-if="fullscreenTo">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              class="absolute top-4 right-12 z-10"
+              :aria-label="fullscreenLabel"
+              @click="openFullscreen"
+            >
+              <Icon icon="mdi:arrow-expand" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{{ fullscreenLabel }}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <DialogHeader :class="headerClass ?? HEADER_CLASS">
         <Icon v-if="icon" :icon="icon" :class="iconClass" />

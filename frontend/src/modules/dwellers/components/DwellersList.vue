@@ -29,7 +29,6 @@ import { useRoomLookup } from '../composables/useRoomLookup'
 
 interface Props {
   dwellers: DwellerShort[]
-  generatingAI: Record<string, boolean>
   isLoading: boolean
   rooms: Room[]
   viewMode: DwellerViewMode
@@ -45,7 +44,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   (e: 'view-details', dwellerId: string): void
-  (e: 'generate-ai', dwellerId: string): void
   (e: 'open-room', roomId: string): void
   (e: 'quick-unassign', dwellerId: string): void
   (e: 'room-click', roomId: string): void
@@ -197,9 +195,7 @@ const getRoomStat = (
       :dweller="dweller"
       :room-name="roomFor(dweller.room_id)?.name"
       :room-stat="getRoomStat(dweller)"
-      :generating-a-i="generatingAI[dweller.id]"
       @click="emit('view-details', dweller.id)"
-      @generate-ai="emit('generate-ai', dweller.id)"
       @room-click="dweller.room_id && emit('room-click', dweller.room_id)"
     />
   </div>

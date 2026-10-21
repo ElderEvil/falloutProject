@@ -38,6 +38,23 @@ export function formatIdentityLabel(value: string): string {
   return humanizePreserveCase(value)
 }
 
+/** State-of-being labels shared by badges and the appearance text rows. */
+export const STATE_OF_BEING_LABELS: Record<string, string> = {
+  sane: 'Sane',
+  wild: 'Wild',
+  feral: 'Feral',
+  gen_1: 'Gen I',
+  gen_2: 'Gen II',
+  gen_3: 'Gen III',
+  mild: 'Mild Mutation',
+  average: 'Average Mutation',
+  behemoth: 'Behemoth',
+}
+
+export function formatStateOfBeing(value: string): string {
+  return STATE_OF_BEING_LABELS[value] ?? formatIdentityLabel(value)
+}
+
 /** Dweller display name; last names are nullable, so this never renders `"null"`. */
 export function getDwellerDisplayName(
   dweller: { first_name?: string | null; last_name?: string | null } | null | undefined

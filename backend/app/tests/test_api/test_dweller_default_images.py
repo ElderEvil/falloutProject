@@ -6,6 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.models.dweller import Dweller
+from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.common import GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
@@ -134,6 +135,7 @@ async def test_color_update_swaps_human_variant(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
     vault: Vault,
+    staffed_barbershop: Room,
 ) -> None:
     dweller = await _create_dweller(async_session, vault, visual_attributes={"race": "human"})
 
@@ -154,6 +156,7 @@ async def test_unsupported_color_update_falls_back_to_base(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
     vault: Vault,
+    staffed_barbershop: Room,
 ) -> None:
     dweller = await _create_dweller(
         async_session,
@@ -177,6 +180,7 @@ async def test_color_update_preserves_custom_portrait(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
     vault: Vault,
+    staffed_barbershop: Room,
 ) -> None:
     dweller = await _create_dweller(
         async_session,
@@ -203,6 +207,7 @@ async def test_identity_update_refreshes_default_portrait(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
     vault: Vault,
+    staffed_barbershop: Room,
 ) -> None:
     dweller = await _create_dweller(async_session, vault, visual_attributes={"race": "human"})
 
@@ -224,6 +229,7 @@ async def test_identity_update_preserves_custom_portrait(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
     vault: Vault,
+    staffed_barbershop: Room,
 ) -> None:
     dweller = await _create_dweller(
         async_session,

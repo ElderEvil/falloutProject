@@ -29,7 +29,6 @@ const dweller = (overrides: Record<string, unknown> = {}) => ({
 
 const baseProps = (overrides: Record<string, unknown> = {}) => ({
   dwellers: [],
-  generatingAI: {},
   isLoading: false,
   rooms: [],
   viewMode: 'list',
@@ -140,7 +139,6 @@ describe('DwellersList', () => {
             luck: 4,
           },
         ],
-        generatingAI: {},
         isLoading: false,
         rooms: [{ id: 'room-1', name: 'Arena', category: 'arena', ability: 'strength' }],
         viewMode: 'list',
@@ -180,7 +178,6 @@ describe('DwellersList', () => {
             luck: 4,
           },
         ],
-        generatingAI: {},
         isLoading: false,
         rooms: [],
         viewMode: 'list',

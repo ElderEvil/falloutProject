@@ -69,11 +69,6 @@ describe('DwellerBio', () => {
       expect(ctx.actions.generateBio).toHaveBeenCalledOnce()
     })
 
-    it('should call the generateAll action when complete dossier clicked', async () => {
-      await wrapper.find('.complete-dossier-button').trigger('click')
-      expect(ctx.actions.generateAll).toHaveBeenCalledOnce()
-    })
-
     it('should disable button when isAnyGenerating is true', () => {
       ctx.isAnyGenerating = ref(true) as never
       wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })

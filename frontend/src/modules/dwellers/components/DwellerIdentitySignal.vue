@@ -2,12 +2,18 @@
 import { computed, onMounted } from 'vue'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import DwellerBadge from './DwellerBadge.vue'
-import { formatIdentityLabel, RACE_CONFIG_MAP, type VisualAttributes } from '../models/dweller'
+import {
+  formatIdentityLabel,
+  RACE_CONFIG_MAP,
+  STATE_OF_BEING_LABELS,
+  type VisualAttributes,
+} from '../models/dweller'
 
 interface Props {
   visualAttributes?: VisualAttributes | null
   compact?: boolean
   hideRace?: boolean
+  hideState?: boolean
 }
 
 interface IdentitySignal {
@@ -19,7 +25,11 @@ interface IdentitySignal {
 
 type IdentityMetadata = Omit<IdentitySignal, 'marker'>
 
-const props = withDefaults(defineProps<Props>(), { compact: false, hideRace: false })
+const props = withDefaults(defineProps<Props>(), {
+  compact: false,
+  hideRace: false,
+  hideState: false,
+})
 
 const featureFlags = useFeatureFlagsStore()
 
@@ -41,18 +51,18 @@ const IDENTITY_CONFIG: Record<string, IdentityMetadata> = {
   ncr: { icon: 'mdi:star-four-points-outline', label: 'NCR' },
   caesars_legion: { icon: 'mdi:shield-sun-outline', label: "Caesar's Legion" },
   none: { icon: 'mdi:account-question-outline', label: 'Unaffiliated' },
-  sane: { icon: 'mdi:head-heart-outline', label: 'Sane' },
-  wild: { icon: 'mdi:head-alert-outline', label: 'Wild' },
-  feral: { icon: 'mdi:skull-outline', label: 'Feral' },
+  sane: { icon: 'mdi:head-heart-outline', label: STATE_OF_BEING_LABELS.sane },
+  wild: { icon: 'mdi:head-alert-outline', label: STATE_OF_BEING_LABELS.wild },
+  feral: { icon: 'mdi:skull-outline', label: STATE_OF_BEING_LABELS.feral },
   // Ordered tiers carry a numeral instead of an icon: there is no glyph that
   // reads as "how mutated", so the icons repeated and told the player nothing.
   // Synth generations use Roman numerals; other states use a state-specific glyph.
-  gen_1: { monogram: 'I', label: 'Gen I' },
-  gen_2: { monogram: 'II', label: 'Gen II' },
-  gen_3: { monogram: 'III', label: 'Gen III' },
-  mild: { icon: 'mdi:circle-outline', label: 'Mild Mutation' },
-  average: { icon: 'mdi:circle-slice-4', label: 'Average Mutation' },
-  behemoth: { icon: 'mdi:arm-flex', label: 'Behemoth' },
+  gen_1: { monogram: 'I', label: STATE_OF_BEING_LABELS.gen_1 },
+  gen_2: { monogram: 'II', label: STATE_OF_BEING_LABELS.gen_2 },
+  gen_3: { monogram: 'III', label: STATE_OF_BEING_LABELS.gen_3 },
+  mild: { icon: 'mdi:circle-outline', label: STATE_OF_BEING_LABELS.mild },
+  average: { icon: 'mdi:circle-slice-4', label: STATE_OF_BEING_LABELS.average },
+  behemoth: { icon: 'mdi:arm-flex', label: STATE_OF_BEING_LABELS.behemoth },
 }
 
 const getIdentitySignal = (value: string): IdentityMetadata => {
@@ -69,7 +79,7 @@ const identitySignals = computed<IdentitySignal[]>(() => {
   if (!attributes) return []
 
   const raceValue = props.hideRace ? undefined : attributes.race
-  const stateValue = attributes.state_of_being
+  const stateValue = props.hideState ? undefined : attributes.state_of_being
   const showStandaloneState = !(props.hideRace && attributes.race === 'synth')
   const signals: IdentitySignal[] = []
 

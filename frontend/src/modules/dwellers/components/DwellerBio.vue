@@ -194,28 +194,6 @@ function entryHtml(text: string): string {
     <div class="bio-header">
       <div class="header-buttons">
         <TooltipProvider :delay-duration="200">
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button
-                class="complete-dossier-button"
-                variant="outline"
-                size="sm"
-                :disabled="isAnyGenerating"
-                @click="ctx.actions.generateAll()"
-              >
-                <Icon
-                  :icon="ctx.generatingAI.value ? 'mdi:loading' : 'mdi:sparkles'"
-                  class="h-5 w-5"
-                  :class="{ 'animate-spin': ctx.generatingAI.value }"
-                />
-                <span>Complete dossier</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top"
-              >Creates or replaces appearance, portrait, and biography</TooltipContent
-            >
-          </Tooltip>
-
           <Tooltip v-if="bio">
             <TooltipTrigger as-child>
               <Button

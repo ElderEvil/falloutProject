@@ -96,7 +96,6 @@ const breadcrumbs = computed(() => [
           :dweller="dweller"
           :image-url="dweller.image_url"
           :loading="ctx.cardLoading.value"
-          :generating-portrait="ctx.generatingPortrait.value"
           :available-stimpaks="ctx.availableStimpaks.value"
           :available-radaways="ctx.availableRadaways.value"
           :healing-supply="ctx.healingSupply.value"
@@ -108,7 +107,6 @@ const breadcrumbs = computed(() => [
           @heal-radaway="ctx.actions.healSupply('radaway')"
           @train="ctx.trainingModalOpen.value = true"
           @send-wasteland="ctx.actions.openSendToWasteland()"
-          @generate-portrait="ctx.actions.generatePortrait()"
         />
 
         <!-- Revival Section for Dead Dwellers -->

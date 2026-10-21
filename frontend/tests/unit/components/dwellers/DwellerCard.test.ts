@@ -66,7 +66,7 @@ describe('DwellerCard', () => {
       expect(placeholder.exists()).toBe(true)
     })
 
-    it('makes the empty portrait a direct generate action', async () => {
+    it('renders a non-interactive placeholder when no portrait exists', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
@@ -75,10 +75,8 @@ describe('DwellerCard', () => {
       })
 
       const placeholder = wrapper.find('.portrait-placeholder')
-      expect(placeholder.text()).toContain('Generate portrait')
-
-      await placeholder.trigger('click')
-      expect(wrapper.emitted('generate-portrait')).toHaveLength(1)
+      expect(placeholder.text()).toContain('No portrait')
+      expect(wrapper.find('button[aria-label="Generate custom portrait"]').exists()).toBe(false)
     })
 
     it('should render portrait image when imageUrl is provided', () => {
@@ -92,35 +90,6 @@ describe('DwellerCard', () => {
       const image = wrapper.find('.portrait-image')
       expect(image.exists()).toBe(true)
       expect(image.attributes('src')).toContain('example.com/image.jpg')
-    })
-
-    it('keeps a generate action on a default portrait', async () => {
-      const wrapper = mount(DwellerCard, {
-        props: {
-          dweller: { ...mockDweller, is_default_portrait: true },
-          imageUrl: '/static/dweller_images/FOS_Dw_Default_Human_Male.webp',
-        },
-      })
-
-      expect(wrapper.find('.portrait-image').exists()).toBe(true)
-      const button = wrapper.find('button[aria-label="Generate custom portrait"]')
-      expect(button.exists()).toBe(true)
-
-      await button.trigger('click')
-      expect(wrapper.emitted('generate-portrait')).toHaveLength(1)
-    })
-
-    it('disables the default portrait generate action while generating', () => {
-      const wrapper = mount(DwellerCard, {
-        props: {
-          dweller: { ...mockDweller, is_default_portrait: true },
-          imageUrl: '/static/dweller_images/FOS_Dw_Default_Human_Male.webp',
-          generatingPortrait: true,
-        },
-      })
-
-      const button = wrapper.find('button[aria-label="Generate custom portrait"]')
-      expect(button.attributes('disabled')).toBeDefined()
     })
 
     it('uses the API origin for backend static portraits', () => {

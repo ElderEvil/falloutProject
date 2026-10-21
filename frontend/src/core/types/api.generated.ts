@@ -3773,6 +3773,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/{room_id}/barbershop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Barbershop Status
+         * @description Return the Barbershop's availability, fee, and preset swatches.
+         */
+        get: operations["read_barbershop_status_api_v1_rooms__room_id__barbershop_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rooms/{room_id}/barbershop/dwellers/{dweller_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Dweller Appearance
+         * @description Change a human adult's skin tone and hair color for the Barbershop fee.
+         */
+        post: operations["change_dweller_appearance_api_v1_rooms__room_id__barbershop_dwellers__dweller_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rooms/buildable/{vault_id}/": {
         parameters: {
             query?: never;
@@ -5552,6 +5592,49 @@ export interface components {
             min_dweller_level: number;
             /** Room Total */
             room_total: number;
+        };
+        /**
+         * BarbershopChangeRequest
+         * @description A requested skin-tone / hair-color change.
+         */
+        BarbershopChangeRequest: {
+            /** Skin Tone */
+            skin_tone: string;
+            /** Hair Color */
+            hair_color: string;
+        };
+        /**
+         * BarbershopChangeResponse
+         * @description Result of a Barbershop appearance change.
+         */
+        BarbershopChangeResponse: {
+            dweller: components["schemas"]["DwellerReadFull"];
+            /** Portrait Updated */
+            portrait_updated: boolean;
+            /** Fee */
+            fee: number;
+            /** Remaining Caps */
+            remaining_caps: number;
+        };
+        /**
+         * BarbershopStatus
+         * @description Availability, fee, and preset swatches for a vault's Barbershop.
+         */
+        BarbershopStatus: {
+            /** Room Id */
+            room_id?: string | null;
+            /** Built */
+            built: boolean;
+            /** Staffed */
+            staffed: boolean;
+            /** Fee */
+            fee: number;
+            /** Vault Caps */
+            vault_caps: number;
+            /** Skin Tones */
+            skin_tones: string[];
+            /** Hair Colors */
+            hair_colors: string[];
         };
         /**
          * BioAddendumAction
@@ -17166,6 +17249,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RoomRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_barbershop_status_api_v1_rooms__room_id__barbershop_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BarbershopStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_dweller_appearance_api_v1_rooms__room_id__barbershop_dwellers__dweller_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+                dweller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BarbershopChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BarbershopChangeResponse"];
                 };
             };
             /** @description Validation Error */

@@ -45,6 +45,7 @@ from app.schemas.dweller import (
 from app.schemas.exit_request import ExitDecisionResponse, ExitRequestRead
 from app.schemas.happiness import HappinessModifiersResponse
 from app.services import medical_service
+from app.services.barbershop_service import barbershop_service
 from app.services.bio_service import bio_service
 from app.services.dweller_ai import dweller_ai
 from app.services.dweller_service import dweller_service
@@ -155,6 +156,11 @@ async def update_dweller(
         DwellerRead: The updated dweller.
     """
     await verify_dweller_access(dweller_id, user, db_session)
+    await barbershop_service.ensure_can_edit_appearance(
+        db_session,
+        dweller_id,
+        dweller_data.model_dump(exclude_unset=True),
+    )
     return await dweller_service.update_dweller(db_session=db_session, dweller_id=dweller_id, dweller_data=dweller_data)
 
 
@@ -319,6 +325,8 @@ async def generate_visual_attributes(
     Returns:
         DwellerReadFull: The dweller with generated visual attributes.
     """
+    await verify_dweller_access(dweller_id, user, db_session)
+    await barbershop_service.require_available_for_dweller(db_session, dweller_id)
     return await dweller_ai.generate_visual_attributes(db_session=db_session, dweller_id=dweller_id, user=user)
 
 
@@ -334,6 +342,8 @@ async def generate_photo(
     Returns:
         DwellerReadFull: The dweller with generated photo.
     """
+    await verify_dweller_access(dweller_id, user, db_session)
+    await barbershop_service.require_available_for_dweller(db_session, dweller_id)
     return await dweller_ai.generate_photo(db_session=db_session, dweller_id=dweller_id, user=user, force=force)
 
 
@@ -364,6 +374,8 @@ async def generate_data_with_ai(
     Returns:
         DwellerReadFull: The dweller with all AI-generated data.
     """
+    await verify_dweller_access(dweller_id, user, db_session)
+    await barbershop_service.require_available_for_dweller(db_session, dweller_id)
     return await dweller_ai.dweller_generate_pipeline(
         db_session=db_session, dweller_id=dweller_id, origin=origin, user=user
     )
@@ -383,6 +395,8 @@ async def generate_dweller_avatar(
     Returns:
         DwellerReadFull: The dweller with generated avatar.
     """
+    await verify_dweller_access(dweller_id, current_user, db_session)
+    await barbershop_service.require_available_for_dweller(db_session, dweller_id)
     return await dweller_ai.generate_dweller_avatar(
         db_session=db_session,
         dweller_id=dweller_id,

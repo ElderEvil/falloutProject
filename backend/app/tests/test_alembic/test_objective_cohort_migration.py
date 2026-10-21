@@ -1,12 +1,14 @@
 """Corrective cohort migration: restore legacy starter rows and version the revised ones."""
 
 import importlib.util
+import json
 from pathlib import Path
 from uuid import uuid4
 
 import sqlalchemy as sa
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
+from alembic.script import ScriptDirectory
 
 VERSIONS = Path(__file__).parents[2] / "alembic/versions"
 SPINE_MIGRATION = "2026_10_14_0001-e5c2b7f19a04_spine_starter_objectives.py"
@@ -195,3 +197,18 @@ def test_retire_radio_migration_stops_fresh_assignment(monkeypatch):
         assert restored
 
     engine.dispose()
+
+
+def test_migration_graph_has_one_upgrade_head():
+    scripts = ScriptDirectory(str(VERSIONS.parent))
+    assert len(scripts.get_heads()) == 1, scripts.get_heads()
+
+
+def test_retired_radio_keeps_the_later_starter_sequence_positions():
+    starters = json.loads((VERSIONS.parents[1] / "data/objectives/starter.json").read_text())
+    by_key = {step["template_key"]: step["sequence"] for step in starters}
+    assert RADIO_STEP not in by_key
+    # Existing vaults retain the radio at 12; catalog sync must not move other steps onto it.
+    assert by_key["starter:reach 16 dwellers"] == 13
+    assert by_key["starter:reach 18 dwellers"] == 14
+    assert by_key["starter:grow a 50-dweller vault"] == 20

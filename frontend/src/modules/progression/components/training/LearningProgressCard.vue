@@ -51,8 +51,8 @@ const fill = computed(() =>
       <DwellerPortrait
         :thumbnail-url="image"
         :alt="name"
-        image-class="size-12 shrink-0 rounded-md border border-theme-glow object-cover [image-rendering:pixelated]"
-        fallback-class="flex size-12 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-surface-sunken text-theme-primary"
+        image-class="size-16 shrink-0 rounded-md border border-theme-glow object-cover [image-rendering:pixelated]"
+        fallback-class="flex size-16 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-surface-sunken text-theme-primary"
       />
       <div class="min-w-0 flex-1">
         <TooltipProvider>
@@ -68,6 +68,10 @@ const fill = computed(() =>
             <TooltipContent>{{ name }}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
+        <span class="mt-0.5 inline-flex min-w-0 items-center gap-1 font-mono text-xs text-theme-primary">
+          <Icon :icon="ability?.icon ?? 'mdi:star'" class="completion-stat-icon size-4 shrink-0" />
+          <span class="truncate">{{ ability?.label ?? stat }} {{ currentStat }} → {{ targetStat }}</span>
+        </span>
         <p v-if="roomName" class="truncate font-mono text-xs text-muted-foreground">
           {{ roomName }}
         </p>
@@ -78,12 +82,9 @@ const fill = computed(() =>
       </Badge>
     </div>
     <div
-      class="mb-2 flex flex-wrap items-center justify-between gap-2 font-mono text-xs text-theme-primary"
+      v-if="$slots.goal"
+      class="mb-2 flex flex-wrap items-center justify-end gap-2 font-mono text-xs text-theme-primary"
     >
-      <span class="inline-flex items-center gap-1">
-        <Icon :icon="ability?.icon ?? 'mdi:star'" class="completion-stat-icon size-4 shrink-0" />
-        {{ ability?.label ?? stat }} {{ currentStat }} → {{ targetStat }}
-      </span>
       <slot name="goal" />
     </div>
     <Progress

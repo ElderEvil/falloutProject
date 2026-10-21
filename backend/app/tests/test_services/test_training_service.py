@@ -740,3 +740,25 @@ async def test_failed_demolition_rolls_back_training_cancellation(
     assert dweller.room_id == room_id
     assert dweller.status == DwellerStatusEnum.TRAINING
     assert dweller.strength == 5
+
+
+@pytest.mark.parametrize(
+    ("repeat", "goal", "outcome"),
+    [(True, 10, "Training continues"), (True, 6, "Goal reached"), (False, 10, "Training complete")],
+)
+async def test_training_notification_explains_round_outcome(
+    async_session, vault, dweller, training_service, continuous_trainee, repeat, goal, outcome
+):
+    from app.crud.notification import notification as notification_crud
+    from app.models.notification import NotificationType
+
+    training, _ = continuous_trainee
+    vault.continuous_training = repeat
+    async_session.add(vault)
+    await async_session.commit()
+    await training_service.set_training_goal(async_session, training.id, goal)
+    await training_service.complete_training(async_session, training.id)
+    notifications = await notification_crud.get_user_notifications(async_session, vault.user_id)
+    completed = next(item for item in notifications if item.notification_type == NotificationType.TRAINING_COMPLETE)
+    assert completed.title == f"{dweller.first_name} {dweller.last_name or ''}".strip() + f" — {outcome}"
+    assert completed.message == f"[Vault {vault.number}] Strength +1 (6). {outcome}."

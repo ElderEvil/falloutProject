@@ -2,6 +2,12 @@
 import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import TrainingQueuePanel from '@/modules/progression/components/training/TrainingQueuePanel.vue'
 import TrainingRoomCard from '@/modules/progression/components/training/TrainingRoomCard.vue'
 import ApprenticeSection from '@/modules/progression/components/training/ApprenticeSection.vue'
@@ -83,19 +89,7 @@ onMounted(async () => {
                 <Icon icon="mdi:dumbbell" class="size-4 shrink-0" />
                 Improve SPECIAL stats
               </h2>
-              <p>
-                Assign dwellers to dedicated training rooms to improve the matching stat, up to its
-                maximum.
-              </p>
-              <ul class="mt-2 list-disc space-y-1 pl-5">
-                <li>Strength — Weight Room</li>
-                <li>Perception — Armory</li>
-                <li>Endurance — Fitness Room</li>
-                <li>Charisma — Lounge</li>
-                <li>Intelligence — Classroom</li>
-                <li>Agility — Athletics Room</li>
-                <li>Luck — Game Room</li>
-              </ul>
+              <p>Adult dwellers gain one SPECIAL point per round.</p>
             </section>
             <section>
               <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
@@ -113,8 +107,8 @@ onMounted(async () => {
                 Plan your training
               </h2>
               <p>
-                Room capacity limits simultaneous trainees. Monitor progress in the queue, cancel
-                when needed, and reassign dwellers after they finish training.
+                Open a room to assign dwellers. Set their goals, then enable Repeat training.
+                Turning repeat off lets the current round finish.
               </p>
             </section>
           </template>
@@ -189,9 +183,18 @@ onMounted(async () => {
                 class="flex min-w-0 items-center gap-1.5 font-mono text-xs font-bold text-theme-primary"
               >
                 <Icon :icon="group.ability?.icon ?? 'mdi:star'" class="size-4 shrink-0" />
-                <span class="truncate" :title="group.ability?.label">{{
-                  group.ability?.label ?? 'Other'
-                }}</span>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span
+                        tabindex="0"
+                        class="truncate rounded-sm focus-visible:outline-2 focus-visible:outline-theme-primary"
+                        >{{ group.ability?.label ?? 'Other' }}</span
+                      >
+                    </TooltipTrigger>
+                    <TooltipContent>{{ group.ability?.label ?? 'Other' }}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </h4>
               <div class="flex flex-col gap-3">
                 <TrainingRoomCard
@@ -199,6 +202,7 @@ onMounted(async () => {
                   :key="room.id"
                   class="min-w-0"
                   :room="room"
+                  :vault-id="vaultId"
                   :active-count="getRoomActiveCount(room.id)"
                 />
               </div>

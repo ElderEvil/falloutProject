@@ -39,11 +39,11 @@ intact when touching these flows.
 The Training Queue's repeat toggle is an opt-in vault setting, disabled for existing and new vaults.
 It applies to current and future training sessions. Each completed round grants one stat point and,
 while the same dweller remains eligible in that room, starts the next round until the stat reaches that session’s individual goal (default 10).
-Goals are editable per dweller, between the current round’s next stat value and 10, and carry into
-every successor round. Lowering a goal never cancels or resets the round already in progress.
+Goals are editable per dweller even while repeat is off, between the current round’s next stat value
+and 10, and carry into every successor round. Lowering a goal never cancels or resets the round already in progress.
 The game loop performs this while the app is closed. Every round snapshots the current room tier and
 equipped pet bonus; the gain, completed session and successor persist together. Completion events and
-bell/toast notifications still fire for every round.
+bell/toast notifications still fire for every round, distinguishing continued training from reaching the goal.
 
 Turning repeat off lets the current round finish normally. Canceling, reassigning or losing a dweller
 stops that dweller's training. A capped trainee is released normally; the toggle does not auto-assign

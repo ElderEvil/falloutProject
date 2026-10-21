@@ -142,13 +142,14 @@ describe('TrainingQueuePanel', () => {
       ['later', 120, 'r1'],
       ['soon', 5, 'r2'],
       ['first', 1, 'r1'],
+      ['another', 10, 'r3'],
     ] as const) {
       trainingStore.activeTrainings.set(id, {
         id,
         room_id: roomId,
         dweller_id: id,
         status: 'active',
-        stat_being_trained: 'strength',
+        stat_being_trained: roomId === 'r2' ? 'endurance' : 'strength',
         current_stat_value: 5,
         target_stat_value: 6,
         progress: 0,
@@ -158,13 +159,24 @@ describe('TrainingQueuePanel', () => {
     }
     await flushPromises()
     const cards = wrapper.findAllComponents(TrainingProgressCard)
-    expect(cards.map((card) => card.props('training').id)).toEqual(['first', 'later', 'soon'])
+    expect(cards.map((card) => card.props('training').id)).toEqual([
+      'first',
+      'later',
+      'another',
+      'soon',
+    ])
     expect(wrapper.findAll('section[aria-label]').map((group) => group.attributes('id'))).toEqual([
       'training-room-r1',
+      'training-room-r3',
       'training-room-r2',
     ])
+    expect(wrapper.findAll('details')).toHaveLength(2)
+    expect(wrapper.findAll('summary').map((summary) => summary.text())).toEqual([
+      'Strength 3 training · 2 rooms',
+      'Endurance 1 training · 1 room',
+    ])
     expect(cards.every((card) => card.text().includes('Goal:'))).toBe(true)
-    expect(cards.filter((card) => card.text().includes('Soon'))).toHaveLength(2)
+    expect(cards.filter((card) => card.text().includes('Soon'))).toHaveLength(3)
     expect(wrapper.text()).not.toContain('Completing Soon')
   })
 })

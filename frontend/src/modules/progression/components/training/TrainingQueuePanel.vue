@@ -9,6 +9,7 @@ import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { usePolling } from '@/core/composables/usePolling'
 import TrainingProgressCard from './TrainingProgressCard.vue'
+import { ABILITY_CONFIG, getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import { Button } from '@/core/components/ui/button'
 import {
   Tooltip,
@@ -37,6 +38,24 @@ const roomGroups = computed(() => {
     groups.set(training.room_id, group)
   }
   return [...groups].map(([roomId, trainings]) => ({ roomId, trainings }))
+})
+const typeGroups = computed(() => {
+  const groups = new Map<string, typeof roomGroups.value>()
+  for (const room of roomGroups.value) {
+    const stat = room.trainings[0]!.stat_being_trained.toLowerCase()
+    const rooms = groups.get(stat) ?? []
+    rooms.push(room)
+    groups.set(stat, rooms)
+  }
+  const order = Object.keys(ABILITY_CONFIG)
+  return [...groups]
+    .sort(([a], [b]) => order.indexOf(a) - order.indexOf(b))
+    .map(([stat, rooms]) => ({
+      stat,
+      ability: getAbilityConfig(stat),
+      rooms,
+      count: rooms.reduce((sum, room) => sum + room.trainings.length, 0),
+    }))
 })
 const continuousTraining = computed(() => !!vaultStore.activeVault?.continuous_training)
 
@@ -157,49 +176,69 @@ onMounted(() => {
       </TooltipProvider>
     </div>
 
-    <div
-      class="training-queue-content flex flex-1 flex-col gap-6 overflow-y-auto rounded-lg border-2 border-theme-primary p-4 shadow-[0_0_10px_var(--color-theme-glow)]"
-    >
+    <div class="training-queue-content flex-1">
       <!-- Empty State -->
       <TerminalEmptyState
         v-if="activeTrainings.length === 0"
         compact
         icon="mdi:sleep"
         title="No dwellers currently training"
-        description="Assign dwellers to training rooms to improve their SPECIAL stats."
+        description="Open a training room above to assign dwellers."
       />
 
       <div v-else class="flex flex-col gap-5">
-        <section
-          v-for="group in roomGroups"
-          :key="group.roomId"
-          :id="`training-room-${group.roomId}`"
-          :aria-label="getRoomName(group.roomId)"
-          class="flex flex-col gap-2"
+        <details
+          v-for="type in typeGroups"
+          :key="type.stat"
+          open
+          class="group rounded-lg border-2 border-theme-primary p-4 shadow-[0_0_10px_var(--color-theme-glow)]"
         >
-          <h4 class="flex items-center gap-2 font-mono text-sm font-bold text-theme-primary">
-            <Icon icon="mdi:dumbbell" class="size-4" />
-            {{ getRoomName(group.roomId) }}
-            <span class="text-xs font-normal text-muted-foreground">{{
-              group.trainings.length
-            }}</span>
-          </h4>
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <TrainingProgressCard
-              class="min-w-0"
-              v-for="training in group.trainings"
-              :key="training.id"
-              :training="training"
-              :dweller-name="getDweller(training.dweller_id)?.name"
-              :dweller-image="getDweller(training.dweller_id)?.image"
-              :continuous-training="continuousTraining"
-              :is-saving-goal="trainingStore.savingGoals.has(training.id)"
-              @goal="handleGoal"
-              @cancel="handleCancelTraining"
-              @complete="handleCompleteTraining"
+          <summary
+            class="flex cursor-pointer list-none items-center gap-2 rounded py-2 font-mono text-sm font-bold text-theme-primary focus-visible:outline-2 focus-visible:outline-theme-primary [&::-webkit-details-marker]:hidden"
+          >
+            <Icon
+              icon="mdi:chevron-right"
+              class="size-4 transition-transform group-open:rotate-90"
             />
+            <Icon :icon="type.ability?.icon ?? 'mdi:dumbbell'" class="size-4" />
+            {{ type.ability?.label ?? type.stat }}
+            <span class="text-xs font-normal text-muted-foreground"
+              >{{ type.count }} training · {{ type.rooms.length }}
+              {{ type.rooms.length === 1 ? 'room' : 'rooms' }}</span
+            >
+          </summary>
+          <div class="flex flex-col gap-4 pt-2">
+            <section
+              v-for="group in type.rooms"
+              :key="group.roomId"
+              :id="`training-room-${group.roomId}`"
+              :aria-label="getRoomName(group.roomId)"
+              class="flex flex-col gap-2"
+            >
+              <h5 class="flex items-center gap-2 font-mono text-sm font-bold text-theme-primary">
+                <Icon icon="mdi:dumbbell" class="size-4" />
+                {{ getRoomName(group.roomId) }}
+                <span class="text-xs font-normal text-muted-foreground">{{
+                  group.trainings.length
+                }}</span>
+              </h5>
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <TrainingProgressCard
+                  class="min-w-0"
+                  v-for="training in group.trainings"
+                  :key="training.id"
+                  :training="training"
+                  :dweller-name="getDweller(training.dweller_id)?.name"
+                  :dweller-image="getDweller(training.dweller_id)?.image"
+                  :is-saving-goal="trainingStore.savingGoals.has(training.id)"
+                  @goal="handleGoal"
+                  @cancel="handleCancelTraining"
+                  @complete="handleCompleteTraining"
+                />
+              </div>
+            </section>
           </div>
-        </section>
+        </details>
       </div>
     </div>
   </div>

@@ -103,7 +103,7 @@ const handleComplete = () => {
     :soon="isCompletingSoon"
     :inactive="training.status !== 'active'"
   >
-    <template v-if="continuousTraining && training.status === 'active'" #goal>
+    <template v-if="training.status === 'active'" #goal>
       <div
         role="group"
         :aria-label="`Training goal for ${dwellerName ?? 'Dweller'}`"

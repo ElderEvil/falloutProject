@@ -146,7 +146,6 @@ export const useTrainingStore = defineStore('training', () => {
       const training = await trainingService.completeTraining(trainingId, token)
       activeTrainings.value.delete(trainingId)
       trainingHistory.value.push(training)
-      toast.success(`Training completed! ${training.stat_being_trained} increased!`)
       return true
     } catch (err: unknown) {
       toast.error(getErrorMessage(err))
@@ -207,9 +206,6 @@ export const useTrainingStore = defineStore('training', () => {
           // Move to history and remove from active
           activeTrainings.value.delete(progress.id)
           trainingHistory.value.push(progress)
-
-          // Show completion notification
-          toast.success(`Training completed! ${progress.stat_being_trained} increased!`)
         } else if (progress.status === 'cancelled') {
           activeTrainings.value.delete(progress.id)
         }

@@ -374,6 +374,8 @@ class TrainingService:
                     "stat_name": training.stat_being_trained.value,
                     "old_value": current_value,
                     "new_value": new_value,
+                    "training_continues": next_round is not None,
+                    "goal_reached": new_value >= training.goal_stat_value,
                 },
             ),
         )

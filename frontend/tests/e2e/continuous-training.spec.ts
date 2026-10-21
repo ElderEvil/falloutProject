@@ -13,11 +13,12 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
       ['first', 1, 'r1'],
       ['second', 30, 'r1'],
       ['third', 60, 'r1'],
+      ['annex', 15, 'r4'],
     ].map(([id, minutes, roomId]) => ({
       id,
       dweller_id: id,
       room_id: roomId,
-      stat_being_trained: 'strength',
+      stat_being_trained: roomId === 'r2' ? 'endurance' : 'strength',
       status: 'active',
       current_stat_value: 5,
       target_stat_value: 6,
@@ -73,6 +74,7 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
             { id: 'r1', name: 'Weight Room' },
             { id: 'r2', name: 'Fitness Room' },
             { id: 'r3', name: 'Diner', tier: 1 },
+            { id: 'r4', name: 'Annex' },
           ],
         })
       return route.fulfill({ json: [] })
@@ -84,6 +86,12 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
     await toggle.hover()
     const tooltip = page.locator('[data-slot="tooltip-content"]')
     await expect(tooltip).toContainText('Repeat training rounds to each dweller’s goal.')
+    const initialGoal = page.getByRole('group', { name: 'Training goal for Alice Vault' })
+    await initialGoal.getByRole('button', { name: 'Decrease goal for Alice Vault' }).click()
+    await expect(initialGoal.locator('output')).toHaveText('9')
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await initialGoal.getByRole('button', { name: 'Increase goal for Alice Vault' }).click()
+    await expect(initialGoal.locator('output')).toHaveText('10')
     await toggle.click()
     await expect(toggle).toHaveAttribute('aria-pressed', 'true')
     expect(changes).toEqual([true])
@@ -102,7 +110,7 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
     await page.reload()
     await expect(toggle).toHaveAttribute('aria-pressed', 'true')
     const cards = page.locator('.training-progress-card')
-    await expect(cards).toHaveCount(5)
+    await expect(cards).toHaveCount(6)
     const queueHeading = (await page
       .getByRole('heading', { name: 'Training Queue', exact: true })
       .boundingBox())!
@@ -110,7 +118,7 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
     expect(queueHeading.y + queueHeading.height).toBeLessThan(queueBox.y)
     await expect(cards.nth(0)).toContainText('Alice Vault')
     await expect(cards.nth(1)).toContainText('Carol Vault')
-    await expect(cards.nth(4)).toContainText('Bob Vault')
+    await expect(cards.nth(5)).toContainText('Bob Vault')
     await expect(cards.nth(0)).toContainText('Strength 5 → 6')
     const aliceGoal = page.getByRole('group', { name: 'Training goal for Alice Vault' })
     const goalValue = aliceGoal.locator('output')
@@ -149,7 +157,7 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
         return Math.abs(bounds.right - rail.right) < 1 && Math.abs(bounds.left - rail.left) < 1
       })
     ).toBe(true)
-    await expect(page.locator('.learning-progress-card')).toHaveCount(6)
+    await expect(page.locator('.learning-progress-card')).toHaveCount(7)
     const first = (await cards.nth(0).boundingBox())!
     const second = (await cards.nth(1).boundingBox())!
     if (theme === 'fnv') {
@@ -165,7 +173,43 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
       expect(new Set(roomCards.map((bounds) => bounds.y)).size).toBe(1)
       expect(roomCards[3]!.right).toBeLessThanOrEqual(queueBox.x + queueBox.width)
     }
+    const strengthGroup = page
+      .locator('details')
+      .filter({ has: page.locator('summary').filter({ hasText: 'Strength' }) })
+    await expect(page.locator('.training-queue-content')).toHaveCSS('border-top-width', '0px')
+    await expect(strengthGroup).toHaveCSS('border-top-width', '2px')
+    const summary = strengthGroup.locator('summary')
+    await expect(summary).toHaveText('Strength 5 training · 2 rooms')
+    await expect(page.locator('details')).toHaveCount(2)
+    await summary.focus()
+    await page.keyboard.press('Enter')
+    await expect(cards.nth(0)).not.toBeVisible()
+    await expect(summary).toBeVisible()
+    await expect(
+      page
+        .getByRole('region', { name: 'Fitness Room', exact: true })
+        .locator('.training-progress-card')
+    ).toBeVisible()
+    const bobGoal = page.getByRole('group', { name: 'Training goal for Bob Vault' })
+    await bobGoal.getByRole('button', { name: 'Decrease goal for Bob Vault' }).click()
+    await expect(bobGoal.locator('output')).toHaveText('9')
+    await expect(strengthGroup).not.toHaveAttribute('open')
+    await summary.focus()
+    await page.keyboard.press('Enter')
+    await expect(cards.nth(0)).toBeVisible()
     await expect(cards.nth(0)).toContainText('Soon')
+    await expect(
+      cards.nth(0).getByRole('progressbar', { name: 'Strength training progress for Alice Vault' })
+    ).toBeVisible()
+    const name = cards.nth(0).getByText('Alice Vault', { exact: true })
+    await name.focus()
+    await expect(page.getByRole('tooltip')).toHaveText('Alice Vault')
+    await expect(page.getByRole('tooltip')).toHaveCSS(
+      'color',
+      theme === 'fo4' ? 'rgb(0, 255, 0)' : theme === 'fo3' ? 'rgb(0, 255, 159)' : 'rgb(255, 183, 0)'
+    )
+    await page.keyboard.press('Escape')
+    await expect(name).not.toHaveAttribute('title')
     const rowsFit = await page
       .locator('.learning-progress-card')
       .evaluateAll((rows) => rows.every((row) => row.scrollWidth <= row.clientWidth))
@@ -232,6 +276,12 @@ for (const width of [1280, 360]) {
     expect(await region.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
       true
     )
+    const roomLink = page.getByRole('link', { name: 'Open Weight Room', exact: true })
+    await expect(roomLink).toHaveAttribute('href', '/vault/vault-1?roomId=strength')
+    await roomLink.focus()
+    await expect(page.getByRole('tooltip')).toHaveText('Open Weight Room')
+    await expect(roomLink).not.toHaveAttribute('title')
+    await page.keyboard.press('Escape')
     const capacityGroup = page.getByRole('group', { name: 'Overall training capacity' })
     await expect(capacityGroup.getByRole('progressbar')).toHaveCount(0)
     expect(

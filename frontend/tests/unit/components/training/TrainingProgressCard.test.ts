@@ -39,11 +39,10 @@ describe('TrainingProgressCard', () => {
     wrapper.unmount()
   })
 
-  it('shows the next stat gain and the repeat goal only for active repeating training', async () => {
+  it('lets players set an active training goal before enabling repeat', async () => {
     const wrapper = mount(TrainingProgressCard, {
       props: {
         dwellerName: 'Alice',
-        continuousTraining: true,
         training: {
           id: 't1',
           dweller_id: 'd1',
@@ -86,8 +85,11 @@ describe('TrainingProgressCard', () => {
     await wrapper.setProps({ training: { ...wrapper.props('training'), goal_stat_value: 10 } })
     expect(increase.attributes()).toHaveProperty('disabled')
     expect(decrease.attributes()).not.toHaveProperty('disabled')
-    await wrapper.setProps({ continuousTraining: false })
-    expect(wrapper.text()).not.toContain('Goal:')
+    expect(wrapper.text()).toContain('Goal:')
+    expect(wrapper.get('[role=progressbar]').attributes('aria-label')).toBe(
+      'Strength training progress for Alice'
+    )
+    expect(wrapper.find('[title]').exists()).toBe(false)
     await wrapper.setProps({
       training: {
         ...wrapper.props('training'),

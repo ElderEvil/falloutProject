@@ -3,6 +3,12 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Badge } from '@/core/components/ui/badge'
 import { Progress } from '@/core/components/ui/progress'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 
@@ -49,9 +55,19 @@ const fill = computed(() =>
         fallback-class="flex size-9 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-surface-sunken text-theme-primary"
       />
       <div class="min-w-0 flex-1">
-        <p class="truncate font-mono text-sm font-bold text-theme-primary" :title="name">
-          {{ name }}
-        </p>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <p
+                tabindex="0"
+                class="truncate rounded-sm font-mono text-sm font-bold text-theme-primary focus-visible:outline-2 focus-visible:outline-theme-primary"
+              >
+                {{ name }}
+              </p>
+            </TooltipTrigger>
+            <TooltipContent>{{ name }}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <p v-if="roomName" class="truncate font-mono text-xs text-muted-foreground">
           {{ roomName }}
         </p>
@@ -70,7 +86,12 @@ const fill = computed(() =>
       </span>
       <slot name="goal" />
     </div>
-    <Progress class="mb-2 h-1.5" :fill="fill" :model-value="progress" />
+    <Progress
+      class="mb-2 h-1.5"
+      :fill="fill"
+      :model-value="progress"
+      :label="`${ability?.label ?? stat} ${kind} progress for ${name}`"
+    />
     <div class="flex flex-wrap items-center gap-2">
       <span
         class="completion-time font-mono text-xs text-theme-primary"

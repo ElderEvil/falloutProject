@@ -166,7 +166,7 @@ watch(currentSseEvent, (evt) => {
     if (notificationData.vault_id) useStorageStore().refreshIfActive(notificationData.vault_id)
   }
 
-  if (notificationData.notification_type === 'hazard_team_joined') {
+  if (['hazard_team_joined', 'training_complete'].includes(notificationData.notification_type)) {
     toast.success(notificationData.message)
   }
   // An arena morale boost is vault-wide and asynchronous; announce it beyond the bell

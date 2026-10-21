@@ -1,19 +1,24 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Icon } from '@iconify/vue'
+import { RouterLink } from 'vue-router'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import type { Room } from '@/modules/rooms/models/room'
-import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
-import { getRoomImageUrl } from '@/core/utils/image'
 import { getTrainingRoomCapacity } from '@/modules/rooms/utils/room'
 
 interface Props {
   room: Room
+  vaultId: string
   activeCount: number
 }
 
-const props = defineProps<Props>()
+defineOptions({ inheritAttrs: false })
 
-const ability = computed(() => getAbilityConfig(props.room.ability))
+const props = defineProps<Props>()
 
 // Room.capacity is null for training rooms (capacity_formula is null in room data).
 // Fall back to the same formula RoomGrid uses: 2 dwellers per 3-tile segment.
@@ -23,8 +28,6 @@ const occupancySlots = computed(() =>
   Array.from({ length: capacity.value }, (_, index) => index < props.activeCount)
 )
 
-const roomImageUrl = computed(() => getRoomImageUrl(props.room.image_url))
-
 const occupancyLabel = computed(() => {
   if (capacity.value <= 0) return `${props.activeCount} training`
   return `${props.activeCount} / ${capacity.value}`
@@ -32,61 +35,51 @@ const occupancyLabel = computed(() => {
 </script>
 
 <template>
-  <div
-    class="flex items-stretch gap-3 rounded-lg border-2 border-theme-primary bg-transparent p-3 shadow-[0_0_10px_var(--color-theme-glow)] transition-all duration-200 hover:border-theme-primary hover:shadow-[0_0_15px_var(--color-theme-glow)]"
-  >
-    <div
-      class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-theme-glow bg-black/30"
-    >
-      <img
-        v-if="roomImageUrl"
-        :src="roomImageUrl"
-        :alt="room.name"
-        class="h-full w-full object-cover [image-rendering:pixelated]"
-      />
-      <Icon
-        v-else
-        :icon="ability?.icon ?? 'mdi:star'"
-        class="text-3xl text-theme-primary [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
-      />
-    </div>
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger as-child>
+        <RouterLink
+          v-bind="$attrs"
+          :to="{ path: `/vault/${vaultId}`, query: { roomId: room.id } }"
+          :aria-label="`Open ${room.name}`"
+          class="flex min-w-0 items-stretch rounded-lg border border-theme-primary bg-transparent p-2 shadow-[0_0_10px_var(--color-theme-glow)] transition-all duration-200 hover:border-theme-primary hover:shadow-[0_0_15px_var(--color-theme-glow)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary"
+        >
+          <div class="flex min-w-0 flex-1 flex-col gap-2">
+            <div class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-0.5">
+              <span class="truncate font-mono text-xs font-bold text-theme-primary">{{
+                room.name
+              }}</span>
+              <span
+                class="shrink-0 rounded border border-theme-primary px-1.5 py-0.5 font-mono text-xs font-bold text-theme-primary"
+                >T{{ room.tier }}</span
+              >
+            </div>
 
-    <div class="flex min-w-0 flex-1 flex-col gap-2">
-      <div class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-0.5">
-        <span
-          class="truncate font-mono text-sm font-bold uppercase tracking-[0.05em] text-theme-primary"
-          >{{ room.name }}</span
-        >
-        <span
-          class="shrink-0 rounded border border-theme-primary px-1.5 py-0.5 font-mono text-xs font-bold text-theme-primary"
-          >T{{ room.tier }}</span
-        >
-        <span
-          v-if="ability"
-          class="col-span-2 flex items-center gap-1.5 whitespace-nowrap font-mono text-xs text-theme-primary opacity-70"
-        >
-          <Icon :icon="ability.icon" class="text-sm" />
-          {{ ability.letter }} - {{ ability.label }}
-        </span>
-      </div>
-
-      <div
-        class="flex items-center gap-2"
-        :aria-label="`${occupancyLabel} training spaces occupied`"
-        role="img"
-      >
-        <div class="flex min-w-0 flex-1 gap-1">
-          <span
-            v-for="(isFilled, index) in occupancySlots"
-            :key="index"
-            class="occupancy-slot h-2 flex-1 rounded-sm border border-theme-primary/35"
-            :class="isFilled ? 'occupancy-slot--filled bg-theme-primary shadow-[0_0_6px_var(--color-theme-glow)]' : 'bg-transparent'"
-          />
-        </div>
-        <span class="shrink-0 font-mono text-xs font-bold text-theme-primary">{{
-          occupancyLabel
-        }}</span>
-      </div>
-    </div>
-  </div>
+            <div
+              class="flex items-center gap-2"
+              :aria-label="`${occupancyLabel} training spaces occupied`"
+              role="img"
+            >
+              <div class="flex min-w-0 flex-1 gap-1">
+                <span
+                  v-for="(isFilled, index) in occupancySlots"
+                  :key="index"
+                  class="occupancy-slot h-2 flex-1 rounded-sm border border-theme-primary/35"
+                  :class="
+                    isFilled
+                      ? 'occupancy-slot--filled bg-theme-primary shadow-[0_0_6px_var(--color-theme-glow)]'
+                      : 'bg-transparent'
+                  "
+                />
+              </div>
+              <span class="shrink-0 font-mono text-xs font-bold text-theme-primary">{{
+                occupancyLabel
+              }}</span>
+            </div>
+          </div>
+        </RouterLink>
+      </TooltipTrigger>
+      <TooltipContent>Open {{ room.name }}</TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
 </template>

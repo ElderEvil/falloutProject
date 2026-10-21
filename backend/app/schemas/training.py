@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import UUID4, field_serializer
+from pydantic import UUID4, BaseModel, Field, field_serializer
 
 from app.models.training import TrainingBase
 from app.utils.serialize import serialize_optional_utc_datetime, serialize_utc_datetime
@@ -70,3 +70,9 @@ class TrainingProgress(TrainingBase):
     @field_serializer("completed_at", when_used="json")
     def serialize_optional_datetime(self, value: datetime | None) -> str | None:
         return serialize_optional_utc_datetime(value)
+
+
+class TrainingGoalUpdate(BaseModel):
+    """Change the final goal without restarting the current round."""
+
+    goal_stat_value: int = Field(ge=2, le=10)

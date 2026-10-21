@@ -1,15 +1,16 @@
 # Spotlight onboarding
 
-> Status: **implemented** in PR #1000, not yet released. This document records the behaviour
-> that is implemented, its ownership boundaries and the checks still outstanding. Deferred
-> work is summarised at the end and tracked in [`../ROADMAP.md`](../ROADMAP.md).
+> Current work: draft PR #1060, tracked by #1034. The short opening and guided departure below
+> describe this branch. Earlier validation records are historical; mocked browser coverage does
+> not establish a successful fresh-vault playthrough against real services. Delivery direction:
+> [integration plan](../features/INTEGRATION_PLAN.md).
 
 ## Implemented behaviour
 
 A first-session guide that shows one useful action at a time, then hands off to the Briefing.
 
-- **Five authored orientation lessons** (`frontend/src/modules/progression/models/onboardingSteps.ts`):
-  power bar → generator → SPECIAL staffing → housing → departure. This definition list is the
+- **Six short orientation prompts** (`frontend/src/modules/progression/models/onboardingSteps.ts`):
+  reserves → generator → SPECIAL staffing → housing/newcomer → equipment preparation → wasteland drop. This definition list is the
   only source of **teaching** order.
 - **Local teaching progress is separate from server reward progress.** Teaching state is a
   per-vault ledger in `core/composables/useOnboardingState.ts`; reward order, completion
@@ -22,7 +23,7 @@ A first-session guide that shows one useful action at a time, then hands off to 
   lowest unclaimed starter step; otherwise the card shows a blocker with an Open Starter link.
   Replay reaches claimed explanations with Continue and no reward action.
 - **Eligibility checks** (`onboardingSteps.ts`). Housing prices the build as
-  `base_cost + existing same-category rooms × incremental_cost` (matching backend
+  `base_cost + existing same-type segments × incremental_cost` (matching the build menu and backend
   `get_room_build_price`); departure uses the complete vault roster (mature, not away,
   `health > 0`). Unloaded data reads `unknown` and never dims.
 - **Persistence and error recovery.** One shared state per session, created in a detached
@@ -36,13 +37,15 @@ A first-session guide that shows one useful action at a time, then hands off to 
   confirmation or the About help owns attention, and the same pending lesson resumes on
   dismissal without acknowledging, skipping or completing it. Nested dialogs keep it suspended
   until the whole stack closes, and an overlay torn down by navigation releases immediately.
+  During the actionable housing lesson, the build menu alone allows the guide to highlight
+  Living room (or its search field). Any additional dialog suspends the guide again.
   Tooltips and ordinary popovers deliberately do not suspend it. `TerminalModal` registers once
   for every Reka dialog shell; `RoomMenu`, `NotificationBell`, `DwellerBulkActions`,
   `ChangelogModal` and `PageHelp` register their own non-`TerminalModal` dialogs.
 - **Responsive placement.** The card sits on the opposite side of the highlighted control so it
-  never covers what it explains. When the control is below the fold the card moves above it and
-  collapses to its title (the lesson is preserved); a manual collapse/expand toggle wins until
-  the lesson changes, so a background poll never reopens the card, moves focus or re-announces
+  stays opposite the control. Short instructions remain expanded by default; Collapse/Expand is
+  a player choice that persists until the lesson changes, so a background poll never
+  reopens the card, moves focus or re-announces
   unchanged copy. When the control is on the current page but out of view, the guide offers an
   explicit **Show control** action that scrolls only when clicked; navigating to the route you
   are already on is not offered. Anchor selection and card placement re-resolve on scroll and
@@ -78,8 +81,8 @@ separate revised templates rather than an in-place rewrite.
 
 Tap and inspection lessons advance by Continue; objective-backed lessons advance by claim or
 Skip step. Selection changes, navigation and background polling never count as acknowledgement.
-The overlay signal carries only that boolean — lesson selection, placement and progress stay in
-the onboarding module.
+The overlay registry exposes whether any dialog is open and whether a named overlay is the
+only one open; lesson selection, placement and progress stay in the onboarding module.
 
 ## Acceptance criteria
 
@@ -142,7 +145,7 @@ Out of scope for this PR; tracked in [`../ROADMAP.md`](../ROADMAP.md).
 The presentation work above is followed by three small handoffs, using existing
 lessons, reward claims and game data:
 
-1. **Connect the five explanations.** Reserves lead to the generator, then SPECIAL
+1. **Connect the explanations.** Reserves lead to the generator, then SPECIAL
    staffing, housing, the newcomer and exploration preparation. Keep stable teaching
    IDs and all server objective keys. The starting crew needs inspection rather than
    an artificial reassignment. Explain that dispatching a worker reduces production.
@@ -177,3 +180,64 @@ Validation for this follow-up: frontend lint/typecheck clean; full unit suite
 **3159 passed across 263 files**; all **8 onboarding browser tests passed**. Browser
 checks cover housing claim → celebration → roster, the optional handoff at phone
 width, dialog suspension/resumption, and dismissal surviving reload.
+
+## Housing spotlight repair (#1034)
+
+The housing lesson follows Build → Living room → a valid placement slot. The build menu
+supports case-insensitive search by room name or category, a clear action, and an empty
+result message. Filtering out Living room moves the spotlight to search. Placement anchors
+reuse the grid's existing rules for adjacency, space and row limits.
+
+Anchor selection considers every matching node, ignores hidden or disabled controls, and
+checks clipping within scrolling panels. Styling changes refresh selection. Once the build
+objective is earned, the guide offers its reward without highlighting construction or checking
+whether another build is affordable. Earlier unclaimed objectives link back to Starter.
+
+Objective responses omit vault identity; the existing scoped service attaches the requested
+vault ID so guide filtering and reward roster links work with the actual response shape.
+Search, room selection and building do not acknowledge the teaching step or claim its reward.
+
+Regression coverage includes scoped/nested dialogs, duplicate and asynchronously hidden anchors,
+earned housing rewards, room search, keyboard selection, and desktop/phone browser flows through
+room selection and placement. Browser tests mock backend responses; they do not replace a fresh
+vault walkthrough against real services. The wider tutorial coverage remains a separate design task.
+
+Validation: frontend lint/typecheck and staged `prek` checks passed; **3260 unit tests**
+across **266 files** and all **10 onboarding browser tests** passed.
+
+## Short opening and guided departure (current #1060 revision)
+
+Keep resource reserves in one short overview; do not repeat the opening for food and water.
+Generator inspection introduces production; staffing explains Strength/power, Agility/food and
+Perception/water. Each prompt uses short action-led copy. Housing guidance
+continues through Build, room selection, legal placement and the explicit newcomer claim.
+
+Equipment preparation comes before departure. It opens the existing Dwellers screen and points
+at the equipment panel when present; dialogs still own attention while gear is selected. Continue
+acknowledges this inspection, not a gameplay achievement. Existing vaults whose departure was already
+handled do not reopen preparation; Replay includes it without granting rewards.
+
+On the vault screen the departure guide highlights a healthy adult in Unassigned, then moves the
+spotlight to The Wasteland when dragging starts. **Release to prepare** opens the existing duration
+and medicine dialog. The dialog explains that the dweller leaves only after confirming; cancellation
+returns to the same lesson. The guide also offers **Use send button**, opening Dwellers for keyboard,
+touch or unavailable/filtered drag-source cases. Drops and navigation never earn or claim rewards.
+Only server-reported dispatch progress makes the departure reward claimable. Successful sends refresh
+objectives immediately through the shared send flow; no polling delay or reload is required. The fallback route
+returns to the vault drop zone, rather than the exploration list.
+
+The guide reuses the build menu's segment counter when assessing housing affordability. Storage
+rooms do not inflate Living Quarters prices; merged quarters count each segment. Successful builds
+refresh objective progress immediately. Earned rewards stay explicit and do not ask for another build.
+
+Stable existing lesson IDs and server objective keys remain unchanged. The four removed resource/room
+explanations are retired from the active sequence; their saved acknowledgements remain valid data.
+Preparation adds only a teaching ID, with no migration or reward/catalog changes.
+
+Earlier #1060 validation: 3264 unit tests / 266 files and 11 mocked-backend browser tests. That record
+covers the earlier nine-prompt version and does not describe current validation or live gameplay.
+
+Current revision validation: full frontend suite **3458 passed across 274 files**; final guide/send-flow
+checks **82 passed**; all **12 mocked-backend onboarding browser tests passed without retries**.
+Typecheck, lint, module/color/raw-control guards, production build, bundle budget (189.0 kB gzip /
+205 kB) and staged `prek` checks passed. A fresh standard-vault real-service walkthrough remains owed.

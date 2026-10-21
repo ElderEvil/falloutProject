@@ -15,6 +15,7 @@ import {
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { audioManager } from '@/core/audio/audioManager'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 
 type GridConfig = components['schemas']['GridConfig']
 
@@ -132,6 +133,9 @@ export const useRoomStore = defineStore('room', () => {
     await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after building room')
     // A merge can absorb several rooms, so resync the list instead of trusting one response.
     await fetchRooms(vaultId, token)
+    void useObjectivesStore()
+      .fetchObjectives(vaultId)
+      .catch((error) => handleStoreError(error, 'Failed to refresh objectives after building room'))
     audioManager.play('vaultBuild', 'sfx')
     return result
   }

@@ -13,7 +13,7 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useObjectiveClaim } from '../composables/useObjectiveClaim'
 import { useOnboardingState } from '@/core/composables/useOnboardingState'
-import { isOverlayBlocking } from '@/core/composables/useBlockingOverlay'
+import { isOverlayBlocking, isOnlyBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 import {
   ORIENTATION_STEPS,
   type OnboardingLesson,
@@ -68,6 +68,11 @@ const objectiveFor = (lesson: OnboardingLesson): Objective | undefined =>
 
 const isHandled = (lesson: OnboardingLesson): boolean => {
   if (ledger.value[lesson.id]) return true
+  // Adding preparation must not reopen an introduction whose send-off is already handled.
+  if (lesson.id === 'orientation.preparation' && !replayMode.value) {
+    const departure = ORIENTATION_STEPS.find((step) => step.id === 'orientation.departure')!
+    if (ledger.value[departure.id] || objectiveFor(departure)?.is_completed) return true
+  }
   // Explicit replay reaches claimed steps; otherwise a claimed objective retires the lesson.
   return !replayMode.value && objectiveFor(lesson)?.is_completed === true
 }
@@ -81,15 +86,36 @@ const lessonObjective = computed(() => {
 
 const optedIn = computed(() => !!vaultState.value.created || replayMode.value)
 const welcomePending = computed(() => !!vaultState.value.created && !vaultState.value.welcomed)
-const active = computed(
-  () => !!vaultId.value && !vaultState.value.skipped && optedIn.value && !!currentLesson.value
-)
-const showHandoff = computed(() =>
-  !!vaultId.value && optedIn.value && !vaultState.value.skipped && !replayMode.value &&
-  !vaultState.value.handoffDismissed && !currentLesson.value &&
-  ORIENTATION_STEPS.some((lesson) =>
-    lesson.id === 'orientation.departure' && objectiveFor(lesson)?.is_completed
+const canPresentLesson = computed(() => {
+  if (!['orientation.preparation', 'orientation.departure'].includes(currentLesson.value?.id ?? ''))
+    return true
+  const objective = lessonObjective.value
+  // An earned reward remains claimable even if the vault no longer has a dweller.
+  if (objective && objective.progress >= objective.total) return true
+  return (
+    dwellerStore.filter.allDwellersLoadedVaultId === vaultId.value &&
+    dwellerStore.filter.allDwellers.length > 0
   )
+})
+const active = computed(
+  () =>
+    !!vaultId.value &&
+    !vaultState.value.skipped &&
+    optedIn.value &&
+    !!currentLesson.value &&
+    canPresentLesson.value
+)
+const showHandoff = computed(
+  () =>
+    !!vaultId.value &&
+    optedIn.value &&
+    !vaultState.value.skipped &&
+    !replayMode.value &&
+    !vaultState.value.handoffDismissed &&
+    !currentLesson.value &&
+    ORIENTATION_STEPS.some(
+      (lesson) => lesson.id === 'orientation.departure' && objectiveFor(lesson)?.is_completed
+    )
 )
 const showWelcome = computed(() => active.value && welcomePending.value)
 const showLesson = computed(() => active.value && !showWelcome.value && !!currentLesson.value)
@@ -106,6 +132,14 @@ const earned = computed(() => {
   return !!objective && objective.progress >= objective.total
 })
 const ready = computed(() => !replayMode.value && earned.value && isServerCurrent.value)
+const needsEarlierClaim = computed(
+  () =>
+    !replayMode.value &&
+    currentLesson.value?.kind === 'objective-explanation' &&
+    !!lessonObjective.value &&
+    !isServerCurrent.value
+)
+
 const showContinue = computed(() => {
   const lesson = currentLesson.value
   return !!lesson && (replayMode.value || lesson.kind !== 'objective-explanation')
@@ -117,22 +151,27 @@ const snapshot = computed<TeachingSnapshot>(() => ({
   builtRooms: roomStore.rooms,
   roomsLoaded: !!vaultId.value && roomStore.roomsLoadedVaultId === vaultId.value,
   dwellers: dwellerStore.filter.allDwellers,
-  dwellersLoaded:
-    !!vaultId.value && dwellerStore.filter.allDwellersLoadedVaultId === vaultId.value,
+  dwellersLoaded: !!vaultId.value && dwellerStore.filter.allDwellersLoadedVaultId === vaultId.value,
   objectives: store.objectives,
 }))
 const lessonEligibility = computed<TeachingEligibility>(() => {
   const lesson = currentLesson.value
-  return lesson ? lesson.eligibility(snapshot.value) : 'unknown'
+  return earned.value ? 'eligible' : lesson ? lesson.eligibility(snapshot.value) : 'unknown'
 })
 const actionable = computed(() => lessonEligibility.value === 'eligible')
 const blockedReason = computed(() => {
+  if (needsEarlierClaim.value)
+    return 'Claim your earlier starter reward before continuing this step.'
   const eligibility = lessonEligibility.value
   return typeof eligibility === 'object' ? eligibility.blocked : undefined
 })
 
-const { claiming, error: claimError, claim, clearError: clearClaimError } =
-  useObjectiveClaim(vaultId)
+const {
+  claiming,
+  error: claimError,
+  claim,
+  clearError: clearClaimError,
+} = useObjectiveClaim(vaultId)
 
 watch([() => currentLesson.value?.id, vaultId], () => clearClaimError())
 
@@ -151,7 +190,7 @@ watch(
       }
     }
     if (
-      lesson.id === 'orientation.departure' &&
+      ['orientation.preparation', 'orientation.departure'].includes(lesson.id) &&
       dwellerStore.filter.allDwellersLoadedVaultId !== vaultId.value
     ) {
       void dwellerStore.filter.fetchAllDwellers(vaultId.value, token)
@@ -163,10 +202,20 @@ watch(
 const loadFailed = ref(false)
 const claimedObjective = ref<Objective | null>(null)
 const handoffCard = ref<InstanceType<typeof IntroHandoffCard> | null>(null)
-watch(vaultId, () => { claimedObjective.value = null })
+watch(vaultId, () => {
+  claimedObjective.value = null
+})
 const refresh = () => {
   if (!vaultId.value || vaultState.value.skipped) return
   void handoffCard.value?.refresh()
+  if (
+    currentLesson.value?.id === 'orientation.departure' &&
+    dwellerStore.filter.allDwellersLoadedVaultId === vaultId.value &&
+    dwellerStore.filter.allDwellers.length === 0 &&
+    auth.token
+  ) {
+    void dwellerStore.filter.fetchAllDwellers(vaultId.value, auth.token)
+  }
   store
     .fetchObjectives(vaultId.value)
     .then(() => {
@@ -180,30 +229,73 @@ watch([vaultId, () => route.fullPath], () => refresh(), { immediate: true })
 usePolling(refresh, { interval: 30_000, immediate: false })
 
 const targetEl = ref<HTMLElement | null>(null)
+const draggingDweller = ref(false)
 // The first anchor rendered on this page regardless of viewport position, so an
 // off-screen control can be scrolled to instead of "navigated" to in place.
 const presentAnchorEl = ref<HTMLElement | null>(null)
 
 /** True while a dialog or confirmation owns attention; the guide yields to it. */
-const blockedByOverlay = isOverlayBlocking
+const guidingRoomMenu = computed(
+  () =>
+    currentLesson.value?.id === 'orientation.housing' &&
+    !earned.value &&
+    !needsEarlierClaim.value &&
+    actionable.value &&
+    isOnlyBlockingOverlay('room-menu')
+)
+const blockedByOverlay = computed(() => isOverlayBlocking.value && !guidingRoomMenu.value)
 
 function hasSize(element: HTMLElement): boolean {
+  if (
+    element.matches(':disabled, [aria-disabled="true"]') ||
+    element.closest('[hidden], [inert], [aria-hidden="true"]')
+  )
+    return false
+  if (getComputedStyle(element).visibility === 'hidden') return false
   const rect = element.getBoundingClientRect()
   return rect.width > 0 && rect.height > 0
 }
 
 function isUsableAnchor(element: HTMLElement): boolean {
+  if (!hasSize(element)) return false
   const rect = element.getBoundingClientRect()
-  if (rect.width <= 0 || rect.height <= 0) return false
-  const viewportWidth = window.innerWidth || 0
-  const viewportHeight = window.innerHeight || 0
-  return rect.bottom > 0 && rect.top < viewportHeight && rect.right > 0 && rect.left < viewportWidth
+  let left = Math.max(0, rect.left)
+  let right = Math.min(window.innerWidth, rect.right)
+  let top = Math.max(0, rect.top)
+  let bottom = Math.min(window.innerHeight, rect.bottom)
+  // A node can be inside the viewport but clipped by a scrolling panel.
+  for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+    const style = getComputedStyle(parent)
+    const bounds = parent.getBoundingClientRect()
+    if (/(auto|scroll|hidden|clip)/.test(style.overflowX)) {
+      left = Math.max(left, bounds.left)
+      right = Math.min(right, bounds.right)
+    }
+    if (/(auto|scroll|hidden|clip)/.test(style.overflowY)) {
+      top = Math.max(top, bounds.top)
+      bottom = Math.min(bottom, bounds.bottom)
+    }
+  }
+  if (right <= left || bottom <= top) return false
+  const hit = document.elementFromPoint?.((left + right) / 2, (top + bottom) / 2)
+  return !hit || element.contains(hit)
 }
 
 function anchorCandidates(): HTMLElement[] {
-  return (currentLesson.value?.anchors ?? [])
-    .map((key) => document.querySelector<HTMLElement>(`[data-onboarding="${key}"]`))
-    .filter((element): element is HTMLElement => element !== null)
+  let keys = guidingRoomMenu.value
+    ? document.querySelector('[data-onboarding="build-living-room"]')
+      ? ['build-living-room']
+      : ['room-search']
+    : (currentLesson.value?.anchors ?? [])
+  if (currentLesson.value?.id === 'orientation.departure') {
+    const sources = [
+      ...document.querySelectorAll<HTMLElement>('[data-onboarding="exploration-dweller"]'),
+    ]
+    keys = !draggingDweller.value && sources.some(hasSize) ? ['exploration-dweller'] : ['wasteland']
+  }
+  return keys.flatMap((key) => [
+    ...document.querySelectorAll<HTMLElement>(`[data-onboarding="${key}"]`),
+  ])
 }
 
 function resolveTarget() {
@@ -214,24 +306,74 @@ function resolveTarget() {
   // in the same frame as the cut-out that depends on its bounds.
   void nextTick(() => updateBounds())
 }
-watch([() => currentLesson.value?.id, showWelcome], () => resolveTarget(), { flush: 'post' })
+watch(
+  [() => currentLesson.value?.id, showWelcome, guidingRoomMenu, draggingDweller],
+  () => resolveTarget(),
+  {
+    flush: 'post',
+  }
+)
 
 let observer: MutationObserver | null = null
+const startDwellerDrag = (event: DragEvent) => {
+  if (
+    event.target instanceof Element &&
+    event.target.closest('[data-onboarding="exploration-dweller"]')
+  ) {
+    draggingDweller.value = true
+  }
+}
+const endDwellerDrag = () => {
+  draggingDweller.value = false
+}
+watch([vaultId, () => route.path, () => currentLesson.value?.id], endDwellerDrag)
 onMounted(() => {
+  document.addEventListener('dragstart', startDwellerDrag, true)
+  document.addEventListener('dragend', endDwellerDrag, true)
+  document.addEventListener('drop', endDwellerDrag, true)
   resolveTarget()
-  observer = new MutationObserver(() => resolveTarget())
+  observer = new MutationObserver((records) => {
+    if (
+      records.some(
+        ({ target }) =>
+          !(target instanceof Element) || !target.closest('.onboarding-card, .onboarding-cutout')
+      )
+    )
+      resolveTarget()
+  })
   observer.observe(document.body, {
     childList: true,
     subtree: true,
-    attributeFilter: ['data-onboarding'],
+    attributes: true,
+    attributeFilter: [
+      'data-onboarding',
+      'class',
+      'style',
+      'hidden',
+      'aria-hidden',
+      'disabled',
+      'aria-disabled',
+      'inert',
+    ],
   })
 })
-onBeforeUnmount(() => observer?.disconnect())
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  document.removeEventListener('dragstart', startDwellerDrag, true)
+  document.removeEventListener('dragend', endDwellerDrag, true)
+  document.removeEventListener('drop', endDwellerDrag, true)
+})
 
 const { top, left, width, height, update: updateBounds } = useElementBounding(targetEl)
 const rectReady = computed(() => width.value > 0 && height.value > 0)
 const showCutout = computed(
-  () => showLesson.value && actionable.value && targetEl.value !== null && rectReady.value
+  () =>
+    showLesson.value &&
+    !earned.value &&
+    !needsEarlierClaim.value &&
+    actionable.value &&
+    targetEl.value !== null &&
+    rectReady.value
 )
 const cutoutStyle = computed(() => ({
   top: `${top.value - 4}px`,
@@ -265,24 +407,24 @@ onBeforeUnmount(() => {
   if (anchorFrame) cancelAnimationFrame(anchorFrame)
 })
 
-// The card sits opposite the control being explained, so it never covers it on
-// small screens; when the control is below the fold the card reduces itself so
-// the lesson stays visible without pushing the control off-screen. Placement
-// reads the reactive element bounds, so scroll and resize update it too.
+// Keep the short instruction visible opposite the control; collapse is a player choice.
 const anchorBelowFold = computed(() => {
   if (!viewportHeight.value || height.value <= 0) return false
-  return top.value > viewportHeight.value / 2
+  return top.value + height.value / 2 > viewportHeight.value / 2
 })
 const cardPlacement = computed(() => (anchorBelowFold.value ? 'top' : 'bottom'))
 
 // A manual toggle wins until the lesson changes; data refreshes never reopen or
 // re-collapse the card or move focus.
 const userCollapsed = ref<boolean | null>(null)
-const collapsed = computed(() => userCollapsed.value ?? anchorBelowFold.value)
+const collapsed = computed(() => userCollapsed.value ?? false)
 const cardClass = computed(() => [
   'onboarding-card',
   `onboarding-card--${cardPlacement.value}`,
-  { 'onboarding-card--collapsed': collapsed.value },
+  {
+    'onboarding-card--collapsed': collapsed.value,
+    'onboarding-card--modal': guidingRoomMenu.value,
+  },
 ])
 const toggleCollapsed = () => {
   userCollapsed.value = !collapsed.value
@@ -296,15 +438,20 @@ watch(
 
 const navPath = computed(() => {
   const lesson = currentLesson.value
-  if (!lesson || lesson.route === undefined || !vaultId.value) return undefined
+  if (!lesson || !vaultId.value) return undefined
+  if (needsEarlierClaim.value) return `/vault/${vaultId.value}/objectives`
+  if (lesson.route === undefined) return undefined
   return lesson.route ? `/vault/${vaultId.value}/${lesson.route}` : `/vault/${vaultId.value}`
 })
-const navLabel = computed(() => currentLesson.value?.routeLabel ?? 'Open')
+const navLabel = computed(() =>
+  needsEarlierClaim.value ? 'Open Starter' : (currentLesson.value?.routeLabel ?? 'Open')
+)
 // The control is on this page but out of view: scroll to it rather than pushing
 // the same route, which would navigate nowhere. Position for the anchor is
 // re-resolved after the scroll by the existing MutationObserver + layout watch.
 const showScrollToControl = computed(
-  () => !!presentAnchorEl.value && targetEl.value === null
+  () =>
+    !earned.value && !needsEarlierClaim.value && !!presentAnchorEl.value && targetEl.value === null
 )
 const scrollToControl = () => {
   presentAnchorEl.value?.scrollIntoView({
@@ -316,7 +463,11 @@ const scrollToControl = () => {
   refreshViewport()
 }
 const showNavigate = computed(
-  () => !!navPath.value && targetEl.value === null && presentAnchorEl.value === null
+  () =>
+    !ready.value &&
+    !guidingRoomMenu.value &&
+    !!navPath.value &&
+    (needsEarlierClaim.value || (targetEl.value === null && presentAnchorEl.value === null))
 )
 const navigateToLesson = () => {
   if (navPath.value) void router.push(navPath.value)
@@ -353,6 +504,7 @@ function onClaim() {
         :class="{
           'onboarding-cutout--static': reducedMotion === 'reduce',
           'onboarding-cutout--off': blockedByOverlay,
+          'onboarding-cutout--modal': guidingRoomMenu,
         }"
         :style="cutoutStyle"
         aria-hidden="true"
@@ -366,8 +518,7 @@ function onClaim() {
           <p class="onboarding-eyebrow">VAULT-TEC // ORIENTATION</p>
           <h2 class="onboarding-title">Welcome, Overseer</h2>
           <p class="onboarding-body">
-            You run this vault. Keep power, food and water flowing, put dwellers where their SPECIAL
-            fits, and grow. This guide shows you one thing to do at a time.
+            Build your vault. Prepare your crew. Send your first explorer. One action at a time.
           </p>
           <div class="onboarding-actions">
             <Button size="sm" @click="start">Start</Button>
@@ -394,52 +545,90 @@ function onClaim() {
           </div>
           <h2 class="onboarding-title">{{ currentLesson.title }}</h2>
           <div v-show="!collapsed" id="onboarding-guide-body" class="onboarding-details">
-            <p class="onboarding-body">{{ currentLesson.body }}</p>
+            <p class="onboarding-body">
+              {{
+                ready
+                  ? 'Ready. Claim your reward to continue.'
+                  : needsEarlierClaim
+                    ? 'Claim the earlier starter reward first. Your progress is saved.'
+                    : guidingRoomMenu
+                      ? 'Choose Living room. Then select a highlighted empty slot beside your vault.'
+                      : currentLesson.id === 'orientation.departure' && draggingDweller
+                        ? 'Drop onto The Wasteland to choose duration and medicine.'
+                        : currentLesson.id === 'orientation.departure' &&
+                            presentAnchorEl?.dataset.onboarding === 'wasteland'
+                          ? 'No adult is visible in Unassigned. Use the send button instead.'
+                          : currentLesson.body
+              }}
+            </p>
+            <p v-if="replayMode" class="onboarding-note">
+              Replay explains the controls; you do not need to repeat actions.
+            </p>
             <p v-if="lessonObjective" class="onboarding-progress">
               {{ lessonObjective.progress }} / {{ lessonObjective.total }}
             </p>
             <div class="onboarding-actions">
-            <Button v-if="ready" size="sm" :disabled="claiming" @click="onClaim">
-              {{ claiming ? 'Claiming…' : `Claim ${lessonObjective?.reward}` }}
-            </Button>
-            <Button v-else-if="showContinue" size="sm" :disabled="claiming" @click="continueLesson">
-              Continue
-            </Button>
-            <Button
-              v-if="showScrollToControl"
-              size="sm"
-              variant="outline"
-              :disabled="claiming"
-              @click="scrollToControl"
-            >
-              Show control
-            </Button>
-            <Button
-              v-if="showNavigate"
-              size="sm"
-              variant="outline"
-              :disabled="claiming"
-              @click="navigateToLesson"
-            >
-              {{ navLabel }}
-            </Button>
-            <Button size="sm" variant="ghost" :disabled="claiming" @click="skipStepAction">
-              Skip step
-            </Button>
-            <Button size="sm" variant="ghost" :disabled="claiming" @click="skipTourAction">
-              Skip tour
-            </Button>
-            <Button v-if="loadFailed" size="sm" variant="outline" :disabled="claiming" @click="refresh">
-              Retry
-            </Button>
-          </div>
-          <Alert v-if="loadFailed" class="onboarding-note">
-            Could not refresh the guide. Retry.
-          </Alert>
-          <Alert v-if="blockedReason" class="onboarding-note">{{ blockedReason }}</Alert>
-          <Alert v-if="claimError" variant="destructive" class="onboarding-error">
-            {{ claimError }}
-          </Alert>
+              <Button v-if="ready" size="sm" :disabled="claiming" @click="onClaim">
+                {{ claiming ? 'Claiming…' : `Claim ${lessonObjective?.reward}` }}
+              </Button>
+              <Button
+                v-else-if="showContinue"
+                size="sm"
+                :disabled="claiming"
+                @click="continueLesson"
+              >
+                Continue
+              </Button>
+              <Button
+                v-if="currentLesson.id === 'orientation.departure' && !earned && !needsEarlierClaim"
+                size="sm"
+                variant="outline"
+                :disabled="claiming"
+                @click="router.push(`/vault/${vaultId}/dwellers`)"
+              >
+                Use send button
+              </Button>
+              <Button
+                v-if="showScrollToControl"
+                size="sm"
+                variant="outline"
+                :disabled="claiming"
+                @click="scrollToControl"
+              >
+                Show control
+              </Button>
+              <Button
+                v-if="showNavigate"
+                size="sm"
+                variant="outline"
+                :disabled="claiming"
+                @click="navigateToLesson"
+              >
+                {{ navLabel }}
+              </Button>
+              <Button size="sm" variant="ghost" :disabled="claiming" @click="skipStepAction">
+                Skip step
+              </Button>
+              <Button size="sm" variant="ghost" :disabled="claiming" @click="skipTourAction">
+                Skip tour
+              </Button>
+              <Button
+                v-if="loadFailed"
+                size="sm"
+                variant="outline"
+                :disabled="claiming"
+                @click="refresh"
+              >
+                Retry
+              </Button>
+            </div>
+            <Alert v-if="loadFailed" class="onboarding-note">
+              Could not refresh the guide. Retry.
+            </Alert>
+            <Alert v-if="blockedReason" class="onboarding-note">{{ blockedReason }}</Alert>
+            <Alert v-if="claimError" variant="destructive" class="onboarding-error">
+              {{ claimError }}
+            </Alert>
           </div>
         </template>
       </Card>
@@ -470,9 +659,19 @@ function onClaim() {
   z-index: 60;
   pointer-events: none;
   border-radius: 6px;
+  outline: 2px solid var(--color-theme-primary);
+  outline-offset: 2px;
   box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.7);
   transition: opacity 0.2s ease-out;
   animation: onboarding-pulse 1.6s ease-in-out infinite;
+}
+
+.onboarding-cutout--modal {
+  z-index: 1001;
+}
+
+.onboarding-card.onboarding-card--modal {
+  z-index: 1002;
 }
 
 .onboarding-cutout--off {
@@ -550,7 +749,7 @@ function onClaim() {
   background: transparent;
   color: var(--color-theme-accent);
   font-family: inherit;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -563,7 +762,7 @@ function onClaim() {
 
 .onboarding-eyebrow {
   margin: 0;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   color: var(--color-theme-accent);
@@ -571,20 +770,20 @@ function onClaim() {
 
 .onboarding-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 700;
 }
 
 .onboarding-body {
   margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.4;
+  font-size: 0.875rem;
+  line-height: 1.5;
   color: color-mix(in srgb, var(--color-theme-primary) 75%, transparent);
 }
 
 .onboarding-progress {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 700;
 }
 
@@ -593,7 +792,7 @@ function onClaim() {
   padding: 0;
   border: 0;
   background: transparent;
-  font-size: 0.7rem;
+  font-size: 0.875rem;
   color: var(--color-theme-accent);
 }
 
@@ -602,7 +801,7 @@ function onClaim() {
   padding: 0;
   border: 0;
   background: transparent;
-  font-size: 0.7rem;
+  font-size: 0.875rem;
   color: var(--color-danger);
 }
 

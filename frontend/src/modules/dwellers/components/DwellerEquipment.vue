@@ -144,7 +144,7 @@ const modalIcon = computed(() => {
 </script>
 
 <template>
-  <div class="dweller-equipment">
+  <div class="dweller-equipment" v-bind="{ 'data-onboarding': 'dweller-equipment' }">
     <p v-if="!mature" class="text-sm text-theme-accent mb-4" role="status">
       Equipment unlocks at adulthood.
     </p>

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import { audioManager } from '@/core/audio/audioManager'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
@@ -240,6 +241,21 @@ describe('Room Store', () => {
   })
 
   describe('buildRoom', () => {
+    it('refreshes server objective progress after building', async () => {
+      const room = makeRoom()
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: room })
+      vi.mocked(axios.get)
+        .mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 900 } })
+        .mockResolvedValueOnce({ data: [room] })
+        .mockResolvedValueOnce({ data: [{ id: 'housing', progress: 1, total: 1 }] })
+      await useRoomStore().buildRoom('Living room', 0, 0, 'token', 'vault-1')
+      await vi.waitFor(() =>
+        expect(useObjectivesStore().objectives).toEqual([
+          { id: 'housing', vault_id: 'vault-1', progress: 1, total: 1 },
+        ])
+      )
+    })
+
     it('should build a new room and refresh vault', async () => {
       const newRoom = makeRoom({
         id: 'room-3',

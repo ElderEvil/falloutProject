@@ -26,7 +26,7 @@ const emit = defineEmits<{
 }>()
 
 // Mounted only while the build menu is open (`v-if` at the call site).
-useBlockingOverlay(() => true)
+useBlockingOverlay(() => true, 'room-menu')
 
 const selectRoom = (room: RoomTemplate) => {
   emit('roomSelected', room)
@@ -70,7 +70,7 @@ onUnmounted(() => {
         <Input
           v-model="search"
           type="search"
-          v-bind="{ 'aria-label': 'Search rooms' }"
+          v-bind="{ 'aria-label': 'Search rooms', 'data-onboarding': 'room-search' }"
           placeholder="Search rooms by name or category…"
           autocomplete="off"
         />

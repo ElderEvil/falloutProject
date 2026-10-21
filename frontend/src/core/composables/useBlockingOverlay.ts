@@ -5,20 +5,25 @@ import { computed, onScopeDispose, ref, watch, type WatchSource } from 'vue'
  * overlays and full-screen popups. Consumers (the onboarding guide) read
  * `isOverlayBlocking` instead of sniffing the DOM for `[role="dialog"]`.
  */
-const openBlockers = ref<ReadonlySet<symbol>>(new Set())
+const openBlockers = ref<ReadonlyMap<symbol, string | undefined>>(new Map())
 
 /** True while any registered blocking overlay is open. */
 export const isOverlayBlocking = computed(() => openBlockers.value.size > 0)
+
+/** A lesson may guide a named overlay only while no other overlay owns attention. */
+export function isOnlyBlockingOverlay(scope: string): boolean {
+  return openBlockers.value.size === 1 && [...openBlockers.value.values()][0] === scope
+}
 
 /**
  * Register a blocking overlay for as long as `open` is true. Released
  * automatically when the calling component unmounts.
  */
-export function useBlockingOverlay(open: WatchSource<boolean>): void {
+export function useBlockingOverlay(open: WatchSource<boolean>, onboardingScope?: string): void {
   const key = Symbol('blocking-overlay')
   const sync = (value: boolean) => {
-    const next = new Set(openBlockers.value)
-    if (value) next.add(key)
+    const next = new Map(openBlockers.value)
+    if (value) next.set(key, onboardingScope)
     else next.delete(key)
     openBlockers.value = next
   }

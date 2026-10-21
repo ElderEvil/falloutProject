@@ -3,6 +3,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { isMature, type Dweller } from '@/modules/dwellers/models/dweller'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
+import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import { explorationApi } from '@/modules/exploration/api/exploration'
 import { useToast } from '@/core/composables/useToast'
 
@@ -142,7 +143,9 @@ export function useSendToWasteland(vaultId: () => string | null) {
         payload.radaways,
         heading ?? undefined
       )
-      toast.success(`${firstName} ${lastName ?? ''} sent to the wasteland for ${payload.duration} hour(s)!`)
+      toast.success(
+        `${firstName} ${lastName ?? ''} sent to the wasteland for ${payload.duration} hour(s)!`
+      )
       toast.info(`Overseer: "${OVERSEER_FAREWELL}"`)
       showModal.value = false
       pendingDweller.value = null
@@ -157,9 +160,9 @@ export function useSendToWasteland(vaultId: () => string | null) {
     }
 
     // Refresh is best-effort: a refresh failure must not mask a successful dispatch.
-    if (dispatched && refresh) {
+    if (dispatched && vaultId() === vId && authStore.token) {
       try {
-        await refresh()
+        await Promise.all([useObjectivesStore().fetchObjectives(vId), refresh?.()])
       } catch {
         // dispatch already succeeded; ignore refresh errors
       }

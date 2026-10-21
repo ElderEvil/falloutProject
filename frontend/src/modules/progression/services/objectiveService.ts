@@ -5,7 +5,7 @@ export async function fetchObjectives(vaultId: string, skip: number, limit: numb
   const { data } = await axios.get<Objective[]>(`/api/v1/objectives/${vaultId}/`, {
     params: { skip, limit },
   })
-  return data
+  return data.map((objective) => ({ ...objective, vault_id: vaultId }))
 }
 
 export async function addObjective(vaultId: string, objective: ObjectiveCreate) {
@@ -14,7 +14,7 @@ export async function addObjective(vaultId: string, objective: ObjectiveCreate) 
 
 export async function getObjective(vaultId: string, objectiveId: string) {
   const { data } = await axios.get<Objective>(`/api/v1/objectives/${vaultId}/${objectiveId}`)
-  return data
+  return { ...data, vault_id: vaultId }
 }
 
 export async function claimObjective(vaultId: string, objectiveId: string) {
@@ -29,5 +29,5 @@ export async function updateProgress(vaultId: string, objectiveId: string, progr
     `/api/v1/objectives/${vaultId}/${objectiveId}/progress`,
     { progress }
   )
-  return data
+  return { ...data, vault_id: vaultId }
 }

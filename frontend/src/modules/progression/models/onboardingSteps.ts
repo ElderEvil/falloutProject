@@ -1,4 +1,6 @@
 import type { Objective } from './objective'
+import { getRoomSegmentCount } from '@/modules/rooms/utils/room'
+import type { Room } from '@/modules/rooms/models/room'
 
 /**
  * Stable teaching IDs. These are the only keys persisted in the per-vault teaching
@@ -7,8 +9,13 @@ import type { Objective } from './objective'
 export type LessonId =
   | 'orientation.resources'
   | 'orientation.generator'
+  | 'orientation.food'
+  | 'orientation.diner'
+  | 'orientation.water'
+  | 'orientation.water-treatment'
   | 'orientation.staffing'
   | 'orientation.housing'
+  | 'orientation.preparation'
   | 'orientation.departure'
 
 /** How a lesson is presented and acknowledged. */
@@ -28,7 +35,7 @@ export interface SnapshotRoom {
   incremental_cost?: number | null
 }
 
-export interface SnapshotBuiltRoom {
+export interface SnapshotBuiltRoom extends Pick<Room, 'name' | 'size' | 'size_min'> {
   category: string
 }
 
@@ -97,18 +104,16 @@ const isMature = (dweller: SnapshotDweller): boolean => MATURE_AGE_GROUPS.has(dw
 const canDepart = (dweller: SnapshotDweller): boolean =>
   isMature(dweller) && !UNAVAILABLE_DEPARTURE_STATUSES.has(dweller.status) && dweller.health > 0
 
-// Mirrors backend get_room_build_price: catalog cost plus an increment per existing room
-// in the same category, so an already-built vault raises the next Living Quarters above base.
+// Match the build menu: incremental cost is per segment of the same room type.
 const livingQuartersPrice = (snapshot: TeachingSnapshot): number | undefined => {
   const template = snapshot.buildableRooms.find(
     (candidate) => candidate.name.trim().toLowerCase() === 'living room'
   )
   if (!template || typeof template.incremental_cost !== 'number') return undefined
   if (!snapshot.roomsLoaded) return undefined
-  const category = template.category.trim().toLowerCase()
-  const existing = snapshot.builtRooms.filter(
-    (room) => room.category.trim().toLowerCase() === category
-  ).length
+  const existing = snapshot.builtRooms
+    .filter((room) => room.name === template.name)
+    .reduce((count, room) => count + getRoomSegmentCount(room), 0)
   return template.base_cost + existing * template.incremental_cost
 }
 
@@ -143,7 +148,7 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     id: 'orientation.resources',
     kind: 'tap',
     title: 'Keep the power on',
-    body: 'Your crew keeps power, food and water flowing. Check whether the reserves are growing or draining, then open the generator to meet the workers keeping the lights on.',
+    body: 'Power, food and water keep your vault alive. Watch their reserves and net rates.',
     anchors: ['resource-power'],
     eligibility: alwaysEligible,
   },
@@ -151,15 +156,17 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     id: 'orientation.generator',
     kind: 'tap',
     title: 'Open the Power Generator',
-    body: 'Open the generator to see its crew and output. Strength helps these workers produce power; other rooms use different SPECIAL stats. Next, review who is suited to each job.',
+    body: 'Open the generator to inspect workers and output. Strength boosts power production.',
     anchors: ['room-power'],
+    route: '',
+    routeLabel: 'Open Vault',
     eligibility: alwaysEligible,
   },
   {
     id: 'orientation.staffing',
     kind: 'inspection',
     title: 'Understand SPECIAL staffing',
-    body: 'Open Dwellers and compare a worker’s SPECIAL with their room. Your starting crew is already matched, so there is no need to move anyone just for the guide. Next, make room for a newcomer.',
+    body: 'Open Dwellers. Match SPECIAL to the job: Strength for power, Agility for food, Perception for water. Your crew already fits.',
     templateKeys: OBJECTIVE_KEYS.staffing,
     anchors: ['nav-dwellers'],
     route: 'dwellers',
@@ -170,22 +177,32 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     id: 'orientation.housing',
     kind: 'objective-explanation',
     title: 'Build more Living Quarters',
-    body: 'Build another Living Quarters segment, or merge it with the existing room, to raise capacity. Claim this objective’s reward to welcome a new dweller immediately, then review them before exploring.',
+    body: 'Open Build. Choose Living room, then a highlighted empty slot. Claim your reward to welcome a newcomer.',
     templateKeys: OBJECTIVE_KEYS.housing,
-    anchors: ['build-living-room', 'build'],
+    anchors: ['build-living-room-slot', 'build-living-room', 'build'],
     route: '',
     routeLabel: 'Open Vault',
     eligibility: housingEligibility,
   },
   {
+    id: 'orientation.preparation',
+    kind: 'inspection',
+    title: 'Prepare your explorer',
+    body: 'Open a healthy adult in Dwellers. Equip a weapon and outfit before sending them out.',
+    anchors: ['dweller-equipment', 'nav-dwellers'],
+    route: 'dwellers',
+    routeLabel: 'Open Dwellers',
+    eligibility: departureEligibility,
+  },
+  {
     id: 'orientation.departure',
     kind: 'objective-explanation',
-    title: 'Send a dweller exploring',
-    body: 'Your newcomer is an option if they are healthy and available. Review equipment, supplies and the run length before sending an adult out. Sending a worker leaves their production room short; the guide will suggest something useful to do while they are away.',
+    title: 'Drag a dweller to the wasteland',
+    body: 'Drag a healthy adult from Unassigned onto The Wasteland. Dropping opens preparation; it does not send them yet.',
     templateKeys: OBJECTIVE_KEYS.departure,
-    anchors: ['wasteland', 'nav-exploration'],
-    route: 'exploration',
-    routeLabel: 'Open Exploration',
+    anchors: ['exploration-dweller', 'wasteland'],
+    route: '',
+    routeLabel: 'Open Vault',
     eligibility: departureEligibility,
   },
 ]

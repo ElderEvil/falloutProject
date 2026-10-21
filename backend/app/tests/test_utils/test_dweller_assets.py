@@ -236,3 +236,67 @@ def test_accepts_uppercase_db_values() -> None:
 )
 def test_is_default_dweller_image(url: str | None, expected: bool) -> None:
     assert is_default_dweller_image(url) is expected
+
+
+def test_child_and_teen_variants() -> None:
+    child, child_thumb = default_dweller_image_urls("human", "male", None, "Ebony", "black", "child")
+    teen, teen_thumb = default_dweller_image_urls("human", "female", None, "Pale", "red", "teen")
+
+    assert child == f"{IMAGE_DIR}/variants/child/FOS_Dw_Default_Human_Child_Male_SkinEbony_HairBlack.webp"
+    assert child_thumb == (f"{THUMBNAIL_DIR}/variants/child/FOS_Dw_Default_Human_Child_Male_SkinEbony_HairBlack.webp")
+    assert teen == f"{IMAGE_DIR}/variants/teen/FOS_Dw_Default_Human_Teen_Female_SkinPale_HairRed.webp"
+    assert teen_thumb == (f"{THUMBNAIL_DIR}/variants/teen/FOS_Dw_Default_Human_Teen_Female_SkinPale_HairRed.webp")
+
+
+def test_grey_child_and_teen_fall_back_to_brown() -> None:
+    child, _ = default_dweller_image_urls("human", "female", None, "Tan", "gray", "child")
+    teen, _ = default_dweller_image_urls("human", "male", None, "Brown", "gray", "teen")
+
+    assert child == f"{IMAGE_DIR}/variants/child/FOS_Dw_Default_Human_Child_Female_SkinTan_HairBrown.webp"
+    assert teen == f"{IMAGE_DIR}/variants/teen/FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairBrown.webp"
+
+
+def test_teen_female_ebony_variant() -> None:
+    image, _ = default_dweller_image_urls("human", "female", None, "Ebony", "black", "teen")
+
+    assert image == f"{IMAGE_DIR}/variants/teen/FOS_Dw_Default_Human_Teen_Female_SkinEbony_HairBlack.webp"
+
+
+def test_resolve_uses_age_group() -> None:
+    from app.core.enums import AgeGroupEnum
+
+    dweller = SimpleNamespace(
+        image_url=None,
+        thumbnail_url=None,
+        gender=GenderEnum.MALE,
+        age_group=AgeGroupEnum.CHILD,
+        visual_attributes={"race": "human", "skin_tone": "Pale", "hair_color": "Blonde"},
+    )
+
+    assert resolve_dweller_image_urls(dweller) == (
+        f"{IMAGE_DIR}/variants/child/FOS_Dw_Default_Human_Child_Male_SkinPale_HairBlonde.webp",
+        f"{THUMBNAIL_DIR}/variants/child/FOS_Dw_Default_Human_Child_Male_SkinPale_HairBlonde.webp",
+    )
+
+
+def test_elder_variant_locks_grey_hair() -> None:
+    image, thumbnail = default_dweller_image_urls("human", "female", None, "Ebony", "black", "elder")
+
+    assert image == f"{IMAGE_DIR}/variants/elder/FOS_Dw_Default_Human_Elder_Female_SkinEbony_HairGray.webp"
+    assert thumbnail == (f"{THUMBNAIL_DIR}/variants/elder/FOS_Dw_Default_Human_Elder_Female_SkinEbony_HairGray.webp")
+
+
+def test_age_defaults_when_skin_and_hair_are_missing() -> None:
+    child, _ = default_dweller_image_urls("human", "male", None, None, None, "child")
+    elder, _ = default_dweller_image_urls("human", "female", None, None, None, "elder")
+
+    assert child == f"{IMAGE_DIR}/variants/child/FOS_Dw_Default_Human_Child_Male_SkinPale_HairBrown.webp"
+    assert elder == f"{IMAGE_DIR}/variants/elder/FOS_Dw_Default_Human_Elder_Female_SkinPale_HairGray.webp"
+
+
+def test_age_skin_aliases() -> None:
+    child, _ = default_dweller_image_urls("human", "male", None, "Light", "blonde", "child")
+    teen, _ = default_dweller_image_urls("human", "female", None, "Dark Brown", "brunette", "teen")
+
+    assert child == f"{IMAGE_DIR}/variants/child/FOS_Dw_Default_Human_Child_Male_SkinPale_HairBlonde.webp"
+    assert teen == f"{IMAGE_DIR}/variants/teen/FOS_Dw_Default_Human_Teen_Female_SkinBrown_HairBrunette.webp"

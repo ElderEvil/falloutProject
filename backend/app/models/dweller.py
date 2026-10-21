@@ -258,7 +258,13 @@ def _apply_default_dweller_portrait(_mapper: object, _connection: object, target
 @event.listens_for(Dweller, "before_update")
 def _refresh_default_dweller_portrait(_mapper: object, _connection: object, target: Dweller) -> None:
     state = inspect(target)
-    identity_changed = state.attrs.visual_attributes.history.has_changes() or state.attrs.gender.history.has_changes()
+    if state is None:
+        return
+    identity_changed = (
+        state.attrs.visual_attributes.history.has_changes()
+        or state.attrs.gender.history.has_changes()
+        or state.attrs.age_group.history.has_changes()
+    )
     if not identity_changed:
         return
     custom_art = (target.image_url and not is_default_dweller_image(target.image_url)) or (

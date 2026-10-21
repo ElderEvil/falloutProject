@@ -22,9 +22,19 @@ THUMBNAIL_DIR = "/static/dweller_thumbnails"
 BASE_SUBDIR = "base"
 VARIANT_SUBDIR = "variants"
 ADULT_VARIANT_SUBDIR = f"{VARIANT_SUBDIR}/adult"
+AGE_VARIANT_SUBDIRS = {
+    "child": f"{VARIANT_SUBDIR}/child",
+    "teen": f"{VARIANT_SUBDIR}/teen",
+    "elder": f"{VARIANT_SUBDIR}/elder",
+}
 
 HUMAN_PORTRAIT_SKIN_TONES = ("Pale", "Tan", "Brown", "Ebony")
 HUMAN_PORTRAIT_HAIR_COLORS = ("Blonde", "Brunette", "Black", "Brown", "Red", "Gray")
+# Children and teens have no grey-haired set; grey falls back to the same age/skin in brown.
+AGE_PORTRAIT_HAIR_COLORS = ("Blonde", "Brunette", "Black", "Brown", "Red")
+ELDER_HAIR_COLORS = ("Gray",)
+_SKIN_ALIASES = {"fair": "pale", "light": "pale", "dark brown": "brown"}
+_CANONICAL_SKINS = frozenset(skin.casefold() for skin in HUMAN_PORTRAIT_SKIN_TONES)
 
 _GHOUL_STATES = frozenset({"sane", "wild", "feral"})
 _SUPER_MUTANT_STATES = frozenset({"mild", "average", "behemoth"})
@@ -51,12 +61,30 @@ _ASSETS: dict[tuple[str, str | None, str | None], str] = {
     ("synth", "female", "gen_3"): "FOS_Dw_Default_Synth_Female_Gen3.webp",
 }
 
-_HUMAN_VARIANTS: dict[tuple[str, str, str], str] = {
-    (gender, skin.casefold(), hair.casefold()): (f"FOS_Dw_Default_Human_{gender.title()}_Skin{skin}_Hair{hair}.webp")
-    for gender in ("male", "female")
-    for skin in HUMAN_PORTRAIT_SKIN_TONES
-    for hair in HUMAN_PORTRAIT_HAIR_COLORS
-}
+
+def _build_human_variants() -> dict[tuple[str, str, str, str], tuple[str, str]]:
+    variants: dict[tuple[str, str, str, str], tuple[str, str]] = {}
+    for age in ("adult", "child", "teen", "elder"):
+        if age == "adult":
+            hair_colors = HUMAN_PORTRAIT_HAIR_COLORS
+        elif age == "elder":
+            hair_colors = ELDER_HAIR_COLORS
+        else:
+            hair_colors = AGE_PORTRAIT_HAIR_COLORS
+        for gender in ("male", "female"):
+            for skin in HUMAN_PORTRAIT_SKIN_TONES:
+                for hair in hair_colors:
+                    if age == "adult":
+                        subdir = ADULT_VARIANT_SUBDIR
+                        filename = f"FOS_Dw_Default_Human_{gender.title()}_Skin{skin}_Hair{hair}.webp"
+                    else:
+                        subdir = AGE_VARIANT_SUBDIRS[age]
+                        filename = f"FOS_Dw_Default_Human_{age.title()}_{gender.title()}_Skin{skin}_Hair{hair}.webp"
+                    variants[(age, gender, skin.casefold(), hair.casefold())] = (subdir, filename)
+    return variants
+
+
+_HUMAN_VARIANTS = _build_human_variants()
 
 _RACE_VALUES = frozenset(race.value for race in RaceOption)
 
@@ -110,11 +138,44 @@ def _normalize(race: Any, gender: Any, state_of_being: Any) -> tuple[str, str | 
     return race_value, gender_value, state_value
 
 
-def _human_variant(gender: str | None, skin_tone: Any, hair_color: Any) -> str | None:
+def _normalize_age(age_group: Any) -> str:
+    value = (_as_str(age_group) or "adult").casefold()
+    return value if value in AGE_VARIANT_SUBDIRS else "adult"
+
+
+def _human_variant(
+    age_group: Any,
+    gender: str | None,
+    skin_tone: Any,
+    hair_color: Any,
+) -> tuple[str, str] | None:
+    age = _normalize_age(age_group)
     gender_value = (_as_str(gender) or "").lower()
     skin_value = (_as_str(skin_tone) or "").strip().casefold()
     hair_value = (_as_str(hair_color) or "").strip().casefold()
-    return _HUMAN_VARIANTS.get((gender_value, skin_value, hair_value))
+    if age != "adult":
+        skin_value = _SKIN_ALIASES.get(skin_value, skin_value)
+        if skin_value not in _CANONICAL_SKINS:
+            skin_value = "pale"
+    if age == "elder":
+        hair_value = "gray"
+    elif age != "adult" and not hair_value:
+        hair_value = "brown"
+
+    exact = _HUMAN_VARIANTS.get((age, gender_value, skin_value, hair_value))
+    if exact is not None:
+        return exact
+    if age == "adult":
+        return None
+
+    # A grey or unsupported child/teen colour falls back to the same age/skin in brown.
+    brown = _HUMAN_VARIANTS.get((age, gender_value, skin_value, "brown"))
+    if brown is not None:
+        return brown
+
+    # Teen female Ebony has no generated age variants yet; preserve the current adult art.
+    adult_hair = "brown" if hair_value == "gray" else hair_value
+    return _HUMAN_VARIANTS.get(("adult", gender_value, skin_value, adult_hair))
 
 
 def default_dweller_image_urls(
@@ -123,14 +184,16 @@ def default_dweller_image_urls(
     state_of_being: Any,
     skin_tone: Any = None,
     hair_color: Any = None,
+    age_group: Any = None,
 ) -> tuple[str | None, str | None]:
     race_value, gender_value, state_value = _normalize(race, gender, state_of_being)
     if race_value == RaceOption.HUMAN.value:
-        variant = _human_variant(gender_value, skin_tone, hair_color)
+        variant = _human_variant(age_group, gender_value, skin_tone, hair_color)
         if variant is not None:
+            subdir, filename = variant
             return (
-                f"{IMAGE_DIR}/{ADULT_VARIANT_SUBDIR}/{variant}",
-                f"{THUMBNAIL_DIR}/{ADULT_VARIANT_SUBDIR}/{variant}",
+                f"{IMAGE_DIR}/{subdir}/{filename}",
+                f"{THUMBNAIL_DIR}/{subdir}/{filename}",
             )
 
     filename = _ASSETS.get((race_value, gender_value, state_value))
@@ -164,4 +227,5 @@ def resolve_dweller_image_urls(dweller: object) -> tuple[str | None, str | None]
         state_of_being,
         skin_tone,
         hair_color,
+        getattr(dweller, "age_group", None),
     )

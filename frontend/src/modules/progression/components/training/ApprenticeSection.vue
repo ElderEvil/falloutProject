@@ -113,11 +113,11 @@ const apprenticeCards = computed<ApprenticeProgress[]>(() => {
       description="Assign youth dwellers to production rooms as apprentices to learn SPECIAL stats."
     />
 
-    <div v-else class="flex flex-wrap gap-3">
+    <div v-else class="grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-3">
       <LearningProgressCard
         v-for="apprentice in apprenticeCards"
         :key="apprentice.id"
-        class="w-80 max-w-full min-w-0"
+        class="min-w-0"
         kind="apprentice"
         :name="apprentice.name"
         :image="apprentice.thumbnailUrl"

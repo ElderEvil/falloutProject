@@ -2,7 +2,6 @@
 import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { Progress } from '@/core/components/ui/progress'
 import TrainingQueuePanel from '@/modules/progression/components/training/TrainingQueuePanel.vue'
 import TrainingRoomCard from '@/modules/progression/components/training/TrainingRoomCard.vue'
 import ApprenticeSection from '@/modules/progression/components/training/ApprenticeSection.vue'
@@ -56,11 +55,6 @@ const roomsInUse = computed(() => {
 
 const totalCapacity = computed(() => {
   return trainingRooms.value.reduce((sum, room) => sum + getTrainingRoomCapacity(room), 0)
-})
-
-const capacityPercent = computed(() => {
-  if (totalCapacity.value <= 0) return 0
-  return Math.min(100, Math.round((activeTrainings.value.length / totalCapacity.value) * 100))
 })
 
 onMounted(async () => {
@@ -141,7 +135,7 @@ onMounted(async () => {
         </PageHeader>
 
         <section class="flex w-full flex-col gap-4">
-          <div class="flex flex-wrap items-center gap-4">
+          <div class="flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center gap-3">
               <Icon
                 icon="mdi:office-building"
@@ -155,23 +149,14 @@ onMounted(async () => {
             </div>
             <div
               v-if="trainingRooms.length > 0"
-              class="flex w-56 max-w-full flex-col gap-1.5"
+              class="ml-auto flex items-center gap-3 font-mono text-xs text-theme-primary"
               role="group"
               aria-label="Overall training capacity"
             >
-              <div class="flex items-center justify-between">
-                <span class="font-mono text-xs uppercase text-theme-primary opacity-70"
-                  >Overall Capacity</span
-                >
-                <span class="font-mono text-xs font-bold text-theme-primary"
-                  >{{ activeTrainings.length }} / {{ totalCapacity }}</span
-                >
-              </div>
-              <Progress
-                class="h-2"
-                :fill="'linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent))'"
-                :model-value="capacityPercent"
-              />
+              <span class="uppercase opacity-70">Overall Capacity</span>
+              <span class="font-bold tabular-nums"
+                >{{ activeTrainings.length }} / {{ totalCapacity }}</span
+              >
             </div>
           </div>
 
@@ -221,11 +206,11 @@ onMounted(async () => {
           </div>
         </section>
 
-        <ApprenticeSection />
-
         <div class="w-full">
           <TrainingQueuePanel />
         </div>
+
+        <ApprenticeSection />
       </PageContentRail>
     </VaultPageShell>
   </div>

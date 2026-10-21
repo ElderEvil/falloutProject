@@ -139,6 +139,14 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
     await expect(apprentice).toContainText('Agility 3 → 4')
     await expect(apprentice).toContainText('Diner')
     await expect(apprentice.getByRole('button')).toHaveCount(0)
+    expect(
+      await apprentice.evaluate((element) => {
+        const grid = element.parentElement!
+        const bounds = element.getBoundingClientRect()
+        const rail = grid.getBoundingClientRect()
+        return Math.abs(bounds.right - rail.right) < 1 && Math.abs(bounds.left - rail.left) < 1
+      })
+    ).toBe(true)
     await expect(page.locator('.learning-progress-card')).toHaveCount(4)
     const first = (await cards.nth(0).boundingBox())!
     const second = (await cards.nth(1).boundingBox())!
@@ -216,6 +224,17 @@ for (const width of [1280, 360]) {
     expect(await region.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
       true
     )
+    const capacityGroup = page.getByRole('group', { name: 'Overall training capacity' })
+    await expect(capacityGroup.getByRole('progressbar')).toHaveCount(0)
+    expect(
+      await capacityGroup.evaluate(
+        (element) =>
+          Math.abs(
+            element.getBoundingClientRect().right -
+              element.parentElement!.getBoundingClientRect().right
+          ) < 1
+      )
+    ).toBe(true)
     if (width === 1280) {
       expect(new Set(bounds.map((element) => element.top)).size).toBe(1)
       const title = (await page

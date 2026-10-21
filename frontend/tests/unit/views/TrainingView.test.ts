@@ -31,6 +31,9 @@ describe('TrainingView', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('Training Center')
     expect(wrapper.text()).toContain('Training Queue')
+    expect(wrapper.text().indexOf('Training Queue')).toBeLessThan(
+      wrapper.text().indexOf('Apprentices')
+    )
     expect(wrapper.get('button[aria-label="Repeat training"]').exists()).toBe(true)
     wrapper.unmount()
   })
@@ -121,7 +124,9 @@ describe('TrainingView', () => {
       '0',
       '0 / 3',
     ])
-    expect(wrapper.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('0')
+    const capacity = wrapper.get('[role="group"][aria-label="Overall training capacity"]')
+    expect(capacity.text()).toContain('0 / 6')
+    expect(capacity.find('[role="progressbar"]').exists()).toBe(false)
     const rows = wrapper.findAll('section[aria-label$="training rooms"]')
     expect(rows.map((row) => row.attributes('aria-label'))).toEqual([
       'Strength training rooms',

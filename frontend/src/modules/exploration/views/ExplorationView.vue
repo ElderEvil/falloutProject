@@ -31,6 +31,7 @@ import {
 } from '@/core/components/ui/tooltip'
 import { useExplorationStore } from '../stores/exploration'
 import type { PendingOverflow } from '../stores/exploration'
+import { useExpeditionSiteStore } from '../stores/expeditionSite'
 import { usePendingReports, removePendingReport } from '../composables/usePendingReports'
 import { useExplorationFinish } from '../composables/useExplorationFinish'
 
@@ -40,6 +41,8 @@ const { isCollapsed } = useSidePanel()
 const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const questStore = useQuestStore()
+const siteStore = useExpeditionSiteStore()
+const { siteOpportunities } = storeToRefs(siteStore)
 const toast = useToast()
 const { playMusic } = useSound()
 
@@ -122,6 +125,16 @@ function showNextPendingOverflow(): boolean {
   return true
 }
 
+const loadSiteOpportunities = async () => {
+  if (!vaultId.value || !authStore.token) return
+  await siteStore.fetchVaultOpportunities(vaultId.value)
+}
+
+watch(vaultId, () => {
+  siteStore.resetOpportunities()
+  void loadSiteOpportunities()
+})
+
 const loadData = async () => {
   if (!vaultId.value || !authStore.token) return
 
@@ -135,6 +148,7 @@ const loadData = async () => {
     for (const exploration of activeExplorationsArray.value) {
       await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
     }
+    await loadSiteOpportunities()
   } catch (error) {
     toast.error('Failed to load exploration data')
   }
@@ -196,6 +210,7 @@ const pollExplorations = async () => {
     await explorationStore.fetchPartiesForActiveExplorations(vaultId.value)
     await questStore.fetchVaultQuests(vaultId.value, { silent: true })
     await questStore.fetchPartiesForActiveQuests(vaultId.value)
+    await loadSiteOpportunities()
   } catch (error) {
     toast.error('Failed to refresh activities')
   }
@@ -395,6 +410,7 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
                     :exploration="exploration"
                     :dweller="getDetailedDweller(exploration.dweller_id) ?? undefined"
                     :party-members="getPartyMembersForExploration(exploration.id)"
+                    :site-opportunity="siteOpportunities[exploration.id]"
                     :selected="selectedExplorerId === exploration.id"
                     @select="selectedExplorerId = exploration.id"
                     @complete="handleCompleteExploration"

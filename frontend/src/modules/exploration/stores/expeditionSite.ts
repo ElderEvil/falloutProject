@@ -1,7 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { expeditionSiteApi } from '../api/expeditionSite'
-import type { AvailableSiteView, SiteRoomView } from '../api/expeditionSite'
+import type {
+  AvailableSiteView,
+  SiteAvailabilityView,
+  SiteRoomView,
+  ExplorationSiteOpportunityView,
+} from '../api/expeditionSite'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
 export type SiteRunStatus = 'in_room' | 'retreated' | 'cleared' | 'died'
@@ -14,19 +19,52 @@ export function isTerminal(status: string): boolean {
 
 export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
   const availableSites = ref<AvailableSiteView[]>([])
+  const availability = ref<SiteAvailabilityView | null>(null)
   const room = ref<SiteRoomView | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const currentExplorationId = ref<string | null>(null)
   let scopeVersion = 0
+  let availabilityRequest = 0
+
+  const siteOpportunities = ref<Record<string, ExplorationSiteOpportunityView>>({})
+  let opportunityVaultId: string | null = null
+  let opportunityRequest = 0
+
+  function resetOpportunities(): void {
+    opportunityRequest++
+    opportunityVaultId = null
+    siteOpportunities.value = {}
+  }
+
+  async function fetchVaultOpportunities(vaultId: string): Promise<void> {
+    if (vaultId !== opportunityVaultId) {
+      resetOpportunities()
+      opportunityVaultId = vaultId
+    }
+    const requestId = ++opportunityRequest
+    try {
+      const opportunities = await expeditionSiteApi.getVaultOpportunities(vaultId)
+      if (vaultId !== opportunityVaultId || requestId !== opportunityRequest) return
+      siteOpportunities.value = Object.fromEntries(
+        opportunities.map((opportunity) => [opportunity.exploration_id, opportunity])
+      )
+    } catch (err) {
+      if (vaultId === opportunityVaultId && requestId === opportunityRequest) {
+        handleStoreError(err, 'Failed to load expedition site opportunities', false)
+      }
+    }
+  }
 
   // Gap 4.3: room state is scoped to the exploration that loaded it. Acting on
   // a different exploration must never render a stale room from a previous one.
   function scopeToExploration(explorationId: string): void {
     if (explorationId !== currentExplorationId.value) {
       scopeVersion++
+      availabilityRequest++
       room.value = null
       availableSites.value = []
+      availability.value = null
       error.value = null
       currentExplorationId.value = explorationId
     }
@@ -57,13 +95,17 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
     }
   }
 
-  function fetchAvailableSites(explorationId: string): Promise<AvailableSiteView[]> {
+  function fetchAvailability(explorationId: string): Promise<SiteAvailabilityView> {
+    scopeToExploration(explorationId)
+    const requestId = ++availabilityRequest
     return runRequest(
       explorationId,
-      () => expeditionSiteApi.listAvailableSites(explorationId),
+      () => expeditionSiteApi.getAvailability(explorationId),
       'Failed to load available expedition sites',
-      (sites) => {
-        availableSites.value = sites
+      (nextAvailability) => {
+        if (requestId !== availabilityRequest) return
+        availability.value = nextAvailability
+        availableSites.value = nextAvailability.sites
       }
     )
   }
@@ -114,20 +156,26 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
 
   function reset(): void {
     scopeVersion++
+    availabilityRequest++
     room.value = null
     availableSites.value = []
+    availability.value = null
     error.value = null
     currentExplorationId.value = null
     isLoading.value = false
   }
 
   return {
+    siteOpportunities,
+    fetchVaultOpportunities,
+    resetOpportunities,
     availableSites,
+    availability,
     room,
     isLoading,
     error,
     currentExplorationId,
-    fetchAvailableSites,
+    fetchAvailability,
     enterSite,
     resolveNode,
     retreat,

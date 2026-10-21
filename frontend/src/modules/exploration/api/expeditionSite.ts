@@ -2,12 +2,21 @@ import axios from '@/core/plugins/axios'
 import type { components } from '@/core/types/api.generated'
 
 export type AvailableSiteView = components['schemas']['AvailableSiteView']
+export type SiteAvailabilityView = components['schemas']['SiteAvailabilityView']
+export type ExplorationSiteOpportunityView = components['schemas']['ExplorationSiteOpportunityView']
 export type SiteRoomView = components['schemas']['SiteRoomView']
 
 export const expeditionSiteApi = {
-  async listAvailableSites(explorationId: string): Promise<AvailableSiteView[]> {
-    const response = await axios.get<AvailableSiteView[]>(
+  async getAvailability(explorationId: string): Promise<SiteAvailabilityView> {
+    const response = await axios.get<SiteAvailabilityView>(
       `/api/v1/explorations/${explorationId}/site/available`
+    )
+    return response.data
+  },
+
+  async getVaultOpportunities(vaultId: string): Promise<ExplorationSiteOpportunityView[]> {
+    const response = await axios.get<ExplorationSiteOpportunityView[]>(
+      `/api/v1/explorations/vault/${vaultId}/site/opportunities`
     )
     return response.data
   },

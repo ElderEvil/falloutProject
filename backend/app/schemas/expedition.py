@@ -188,6 +188,32 @@ class AvailableSiteView(BaseModel):
     room_total: int
 
 
+SiteAvailabilityReason = Literal[
+    "available",
+    "dead",
+    "catalog_empty",
+    "level",
+    "trail",
+    "consumed",
+    "cooldown",
+    "open",
+    "unavailable",
+]
+
+
+class SiteAvailabilityView(BaseModel):
+    """Sites a journey may enter now, plus why the list is empty when it is."""
+
+    sites: list[AvailableSiteView]
+    reason: SiteAvailabilityReason
+
+
+class ExplorationSiteOpportunityView(SiteAvailabilityView):
+    """One active free-roam journey's current expedition-site offer."""
+
+    exploration_id: UUID
+
+
 class ExpeditionResolveRequest(BaseModel):
     """Resolve the current node; choice_id required for choice/trap-with-options nodes."""
 

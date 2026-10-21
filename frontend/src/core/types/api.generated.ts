@@ -1508,6 +1508,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/explorations/vault/{vault_id}/site/opportunities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Vault Site Opportunities
+         * @description List current expedition-site offers for the vault's active free-roam journeys.
+         */
+        get: operations["list_vault_site_opportunities_api_v1_explorations_vault__vault_id__site_opportunities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/explorations/{exploration_id}": {
         parameters: {
             query?: never;
@@ -1704,7 +1724,7 @@ export interface paths {
         };
         /**
          * List Available Expedition Sites
-         * @description List expedition sites the dweller may currently enter (level + anti-farm gates).
+         * @description List expedition sites the dweller may enter and why the list is empty otherwise.
          */
         get: operations["list_available_expedition_sites_api_v1_explorations__exploration_id__site_available_get"];
         put?: never;
@@ -7839,6 +7859,24 @@ export interface components {
             radaways: number;
         };
         /**
+         * ExplorationSiteOpportunityView
+         * @description One active free-roam journey's current expedition-site offer.
+         */
+        ExplorationSiteOpportunityView: {
+            /** Sites */
+            sites: components["schemas"]["AvailableSiteView"][];
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "available" | "dead" | "catalog_empty" | "level" | "trail" | "consumed" | "cooldown" | "open" | "unavailable";
+            /**
+             * Exploration Id
+             * Format: uuid
+             */
+            exploration_id: string;
+        };
+        /**
          * ExplorationStatus
          * @description Status of a wasteland exploration.
          * @enum {string}
@@ -10324,6 +10362,19 @@ export interface components {
          * @enum {string}
          */
         SPECIALEnum: "strength" | "perception" | "endurance" | "charisma" | "intelligence" | "agility" | "luck";
+        /**
+         * SiteAvailabilityView
+         * @description Sites a journey may enter now, plus why the list is empty when it is.
+         */
+        SiteAvailabilityView: {
+            /** Sites */
+            sites: components["schemas"]["AvailableSiteView"][];
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "available" | "dead" | "catalog_empty" | "level" | "trail" | "consumed" | "cooldown" | "open" | "unavailable";
+        };
         /**
          * SiteNodeView
          * @description Player-facing node prompt.
@@ -13893,6 +13944,37 @@ export interface operations {
             };
         };
     };
+    list_vault_site_opportunities_api_v1_explorations_vault__vault_id__site_opportunities_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplorationSiteOpportunityView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_exploration_api_v1_explorations__exploration_id__get: {
         parameters: {
             query?: never;
@@ -14170,7 +14252,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AvailableSiteView"][];
+                    "application/json": components["schemas"]["SiteAvailabilityView"];
                 };
             };
             /** @description Validation Error */

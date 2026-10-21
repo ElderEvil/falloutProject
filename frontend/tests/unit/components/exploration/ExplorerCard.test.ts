@@ -105,6 +105,55 @@ describe('ExplorerCard', () => {
     expect(wrapper.text()).toContain('Vault Suit')
   })
 
+  it('surfaces an available expedition site on the card', () => {
+    const wrapper = mount(ExplorerCard, {
+      props: {
+        exploration,
+        dweller,
+        siteOpportunity: {
+          exploration_id: exploration.id,
+          sites: [
+            {
+              id: 'red_rocket',
+              name: 'Red Rocket',
+              flavor: 'A lonely gas station.',
+              min_dweller_level: 3,
+              room_total: 3,
+            },
+          ],
+          reason: 'available',
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('1 site on this trail')
+  })
+
+  it('leaves empty site blockers to the detail page', () => {
+    const wrapper = mount(ExplorerCard, {
+      props: {
+        exploration,
+        dweller,
+        siteOpportunity: { exploration_id: exploration.id, sites: [], reason: 'trail' },
+      },
+    })
+
+    expect(wrapper.text()).not.toContain('No sites on this trail')
+    expect(wrapper.text()).not.toContain('site on this trail')
+  })
+
+  it('marks a site run in progress instead of advertising more sites', () => {
+    const wrapper = mount(ExplorerCard, {
+      props: {
+        exploration,
+        dweller,
+        siteOpportunity: { exploration_id: exploration.id, sites: [], reason: 'open' },
+      },
+    })
+
+    expect(wrapper.text()).toContain('Site run in progress')
+  })
+
   it('updates progress and remaining time while mounted, then stops its clock when unmounted', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-01-01T01:00:00Z'))

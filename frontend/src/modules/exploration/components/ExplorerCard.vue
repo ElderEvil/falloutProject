@@ -27,11 +27,13 @@ import { getItemIcon } from '@/core/models/items'
 import ExplorationStatusBadges from './ExplorationStatusBadges.vue'
 import ExplorerActions from './ExplorerActions.vue'
 import PartyRoster from './PartyRoster.vue'
+import type { ExplorationSiteOpportunityView } from '../api/expeditionSite'
 
 interface Props {
   exploration: Exploration
   dweller: Dweller | undefined
   partyMembers?: DwellerShort[]
+  siteOpportunity?: ExplorationSiteOpportunityView
   selected?: boolean
 }
 
@@ -66,6 +68,22 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 const isParty = computed(
   () => !!props.exploration.target_location_id || (props.partyMembers?.length ?? 0) > 1
 )
+// Site discovery belongs on the card: the detail page CTA alone hides the
+// feature from anyone scanning the explorer list.
+const siteSummary = computed(() => {
+  const opportunity = props.siteOpportunity
+  if (!opportunity) return null
+  if (opportunity.reason === 'open') {
+    return { ready: true, text: 'Site run in progress' }
+  }
+  if (opportunity.reason !== 'available' || opportunity.sites.length === 0) return null
+  const count = opportunity.sites.length
+  return {
+    ready: true,
+    text: count === 1 ? '1 site on this trail' : `${count} sites on this trail`,
+  }
+})
+
 const party = computed<(DwellerShort | Dweller)[]>(() => {
   const members = props.partyMembers ?? []
   const anchor =
@@ -181,6 +199,19 @@ const party = computed<(DwellerShort | Dweller)[]>(() => {
         label="Enemies"
         :value="exploration.enemies_encountered"
       />
+    </div>
+
+    <div
+      v-if="!isParty && siteSummary"
+      class="flex items-center gap-2 rounded-[3px] border px-2 py-1 text-xs font-semibold"
+      :class="
+        siteSummary.ready
+          ? 'border-theme-primary/50 bg-theme-primary/10 text-theme-primary'
+          : 'border-theme-primary/20 bg-black/20 text-theme-primary/60'
+      "
+    >
+      <Icon icon="mdi:radio-tower" class="size-4 shrink-0" />
+      <span>{{ siteSummary.text }}</span>
     </div>
 
     <!-- Equipment Slots -->

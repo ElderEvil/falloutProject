@@ -370,7 +370,13 @@ function isAvailableForDeparture(dweller: DwellerShort): boolean {
   )
 }
 
-const departureCandidates = computed(() => dwellerStore.dwellers.filter(isAvailableForDeparture))
+// Idle dwellers first: dispatching a team should not make the player scroll
+// past everyone already busy in a room before finding someone free.
+const departureCandidates = computed(() =>
+  dwellerStore.dwellers
+    .filter(isAvailableForDeparture)
+    .sort((a, b) => Number(b.status === 'idle') - Number(a.status === 'idle'))
+)
 
 function handleMarkerClick(
   payload:
@@ -489,25 +495,25 @@ const hasNoData = computed(
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <PageContentRail>
-            <PageHeader
-              title="World Map"
-              icon="mdi:map"
-              subtitle="Track discoveries, expeditions & the wider wasteland."
-            >
-              <template #help>
-                <section>
-                  <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
-                    <Icon icon="mdi:map" class="size-4 shrink-0" />
-                    Follow parties and sites
-                  </h2>
-                  <p>
-                    Parties out counts groups travelling to a chosen expedition site. Ready to
-                    clear counts discovered expedition sites with their conditions met that no
-                    party is visiting — toggle the filter to focus them.
-                  </p>
-                </section>
-              </template>
-              <template #actions>
+          <PageHeader
+            title="World Map"
+            icon="mdi:map"
+            subtitle="Track discoveries, expeditions & the wider wasteland."
+          >
+            <template #help>
+              <section>
+                <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                  <Icon icon="mdi:map" class="size-4 shrink-0" />
+                  Follow parties and sites
+                </h2>
+                <p>
+                  Parties out counts groups travelling to a chosen expedition site. Ready to clear
+                  counts discovered expedition sites with their conditions met that no party is
+                  visiting — toggle the filter to focus them.
+                </p>
+              </section>
+            </template>
+            <template #actions>
               <PageHeaderMetric
                 icon="mdi:account-group"
                 :value="partiesOut"

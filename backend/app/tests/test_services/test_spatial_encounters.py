@@ -298,3 +298,49 @@ async def test_tick_does_not_expire_a_paused_journey(
     await async_session.refresh(exploration)
     assert exploration.status == ExplorationStatus.ACTIVE
     assert exploration.paused_at is not None
+
+
+@pytest.mark.asyncio
+async def test_spatial_availability_reports_trail_reason(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """An off-trail journey explains the empty list instead of hiding the feature."""
+    exploration = await _spatial_run(async_session, vault, dweller)
+    exploration.trail = [{"x": 99.0, "y": 1.0, "t": datetime.utcnow().isoformat()}]
+    exploration.pos_x, exploration.pos_y = 99.0, 1.0
+    async_session.add(exploration)
+    await async_session.commit()
+    await async_session.refresh(exploration)
+
+    availability = await expedition_module.expedition_service.get_site_availability(async_session, exploration.id)
+
+    assert availability.sites == []
+    assert availability.reason == "trail"
+
+
+@pytest.mark.asyncio
+async def test_spatial_availability_reports_consumed_reason(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A cleared trail site reports that the journey's offers are spent."""
+    exploration = await _spatial_run_at_site(async_session, vault, dweller)
+    site = next(site for site in data_loader.load_expedition_sites() if site.id == SITE_ID)
+    near = (site.coord_x - 2.0, site.coord_y)
+    exploration.trail = [{"x": near[0], "y": near[1], "t": datetime.utcnow().isoformat()}]
+    async_session.add(exploration)
+    await async_session.commit()
+    run = await crud.expedition_run.create_run(
+        async_session,
+        exploration_id=exploration.id,
+        vault_id=vault.id,
+        site_id=SITE_ID,
+    )
+    run.status = ExpeditionRunStatus.CLEARED
+    run.finished_at = datetime.utcnow()
+    async_session.add(run)
+    await async_session.commit()
+
+    availability = await expedition_module.expedition_service.get_site_availability(async_session, exploration.id)
+
+    assert availability.sites == []
+    assert availability.reason == "consumed"

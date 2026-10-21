@@ -37,6 +37,8 @@ starting evidence. Their dated findings and PR statuses need rechecking rather t
 - Deferred experiments #1109, #1107, #1024 and #973 leave the active PR queue with exact recovery heads,
   source branches, findings and limitations preserved in the [integration plan](features/INTEGRATION_PLAN.md).
 
+- [ ] Review expedition site discoverability (#1098): list and detail entry points explain availability.
+
 No PR is approved for merge by this roadmap.
 
 ## Supporting work

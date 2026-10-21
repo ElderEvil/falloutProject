@@ -26,9 +26,12 @@ from app.schemas.expedition import (
     AvailableSiteView,
     EnemySpec,
     ExpeditionResolveRequest,
+    ExplorationSiteOpportunityView,
     NodeBranch,
     NodeOptionView,
     NodeOutcome,
+    SiteAvailabilityReason,
+    SiteAvailabilityView,
     SiteDefinition,
     SiteNodeView,
     SiteRoomView,
@@ -552,38 +555,51 @@ class ExpeditionService:
         await db_session.commit()
         return build_view(exploration_id, site, run, exploration, dweller=dweller_obj)
 
-    async def list_available_sites(self, db_session: AsyncSession, exploration_id: UUID4) -> list[AvailableSiteView]:
-        """List expedition sites the dweller may currently enter.
-
-        Spatial runs are offered the catalog sites near their traveled trail
-        (one-time journey consumption replaces the vault-wide repeat cooldown);
-        legacy runs keep catalog listing with the anti-farm gates.
-        """
-        exploration = await _get_exploration(db_session, exploration_id)
+    async def _availability_for_exploration(
+        self, db_session: AsyncSession, exploration: Exploration
+    ) -> SiteAvailabilityView:
+        """Sites this journey may enter, plus the dominant reason when none are."""
         if not exploration.is_in_progress():
             raise ValidationException("Expedition sites need an active exploration")
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+        catalog = data_loader.load_expedition_sites()
+        if not catalog:
+            return SiteAvailabilityView(sites=[], reason="catalog_empty")
         if dweller_obj.is_dead:
-            return []
+            return SiteAvailabilityView(sites=[], reason="dead")
+
         context = await journey_offer_context(db_session, exploration)
         consumed = (
             context.consumed_site_ids
             if context is not None
             else await crud.expedition_run.get_consumed_site_ids_for_exploration(
-                db_session, exploration_id=exploration_id
+                db_session, exploration_id=exploration.id
             )
         )
         available: list[AvailableSiteView] = []
-        for site in data_loader.load_expedition_sites():
+        level_blocked = trail_blocked = consumed_blocked = cooldown_blocked = open_blocked = 0
+        for site in catalog:
             if dweller_obj.level < site.min_dweller_level:
+                level_blocked += 1
                 continue
             if context is not None:
-                if not site_is_offered(site, context):
+                if not world_terrain.path_passes_near(context.trail, (site.coord_x, site.coord_y), context.radius):
+                    trail_blocked += 1
                     continue
-            elif await _site_block_reason(db_session, exploration.vault_id, site.id) is not None:
-                continue
-            if site.id in consumed:
-                continue
+                if site.id in consumed:
+                    consumed_blocked += 1
+                    continue
+            else:
+                blocked = await _site_block_reason(db_session, exploration.vault_id, site.id)
+                if blocked == "open":
+                    open_blocked += 1
+                    continue
+                if blocked == "cooldown":
+                    cooldown_blocked += 1
+                    continue
+                if site.id in consumed:
+                    consumed_blocked += 1
+                    continue
             available.append(
                 AvailableSiteView(
                     id=site.id,
@@ -593,7 +609,66 @@ class ExpeditionService:
                     room_total=len(site.rooms),
                 )
             )
-        return available
+
+        reason: SiteAvailabilityReason
+        if available:
+            reason = "available"
+        elif level_blocked == len(catalog):
+            reason = "level"
+        elif consumed_blocked:
+            reason = "consumed"
+        elif context is not None:
+            if trail_blocked:
+                reason = "trail"
+            else:
+                reason = "unavailable"
+        elif open_blocked:
+            reason = "open"
+        elif cooldown_blocked:
+            reason = "cooldown"
+        else:
+            reason = "consumed"
+        return SiteAvailabilityView(sites=available, reason=reason)
+
+    async def get_site_availability(self, db_session: AsyncSession, exploration_id: UUID4) -> SiteAvailabilityView:
+        """Return the journey's offered sites and an empty-list reason."""
+        exploration = await _get_exploration(db_session, exploration_id)
+        return await self._availability_for_exploration(db_session, exploration)
+
+    async def list_available_sites(self, db_session: AsyncSession, exploration_id: UUID4) -> list[AvailableSiteView]:
+        """List expedition sites the dweller may currently enter."""
+        return (await self.get_site_availability(db_session, exploration_id)).sites
+
+    async def list_vault_opportunities(
+        self, db_session: AsyncSession, vault_id: UUID4
+    ) -> list[ExplorationSiteOpportunityView]:
+        """Return each active free-roam journey's current site offer for the list page."""
+        explorations = await crud.exploration.get_by_vault(db_session, vault_id=vault_id, active_only=True)
+        opportunities: list[ExplorationSiteOpportunityView] = []
+        for exploration in explorations:
+            if exploration.team_id is not None or not exploration.is_in_progress():
+                continue
+            if await crud.expedition_run.get_open_for_exploration(db_session, exploration.id) is not None:
+                opportunities.append(
+                    ExplorationSiteOpportunityView(
+                        exploration_id=exploration.id,
+                        sites=[],
+                        reason="open",
+                    )
+                )
+                continue
+            try:
+                availability = await self._availability_for_exploration(db_session, exploration)
+            except ResourceNotFoundException:
+                continue
+            opportunities.append(
+                ExplorationSiteOpportunityView(
+                    exploration_id=exploration.id,
+                    sites=availability.sites,
+                    reason=availability.reason,
+                )
+            )
+        return opportunities
 
     async def current_view(self, db_session: AsyncSession, exploration_id: UUID4) -> SiteRoomView | None:
         """Return the open run view for reconnects, or None when there is none."""

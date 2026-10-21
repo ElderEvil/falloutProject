@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.245.1 (2026-10-21)
+
+### Bug Fixes
+
+* **frontend:** avoid duplicate action confirmations and error toasts ([#1123](https://github.com/ElderEvil/falloutProject/issues/1123)) e8ff0a5
+
 ## 2.245.0 (2026-10-21)
 
 ### Features

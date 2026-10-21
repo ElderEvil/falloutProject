@@ -8,6 +8,7 @@ import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
 const routerReplaceMock = vi.hoisted(() => vi.fn())
+const routerPushMock = vi.hoisted(() => vi.fn())
 
 // Reactive query for claim reward links.
 const routeQuery = reactive<Record<string, string | undefined>>({})
@@ -19,6 +20,7 @@ vi.mock('vue-router', () => ({
   }),
   useRouter: () => ({
     replace: routerReplaceMock,
+    push: routerPushMock,
   }),
 }))
 
@@ -163,6 +165,30 @@ describe('QuestsView', () => {
 
       const tabs = wrapper.findAll('[role="tab"]')
       expect(tabs[1].attributes('aria-selected')).toBe('true')
+    })
+
+    it('opens the Overseer Office room from the parties metric', async () => {
+      wrapper = mount(QuestsView, {
+        global: {
+          stubs: {
+            SidePanel: true,
+            Icon: true,
+          },
+        },
+      })
+      await flushPromises()
+
+      const metric = wrapper
+        .findAll('[role="button"]')
+        .find((element) => element.attributes('aria-label')?.startsWith('Open Office'))
+      expect(metric).toBeTruthy()
+
+      await metric!.trigger('click')
+
+      expect(routerPushMock).toHaveBeenCalledWith({
+        path: '/vault/vault-123',
+        query: { roomId: 'room-1' },
+      })
     })
 
     it('should switch to completed tab when clicked', async () => {

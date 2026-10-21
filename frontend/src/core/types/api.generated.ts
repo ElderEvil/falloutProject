@@ -3175,32 +3175,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quests/{vault_id}/{quest_id}/assign-party": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Assign Party To Quest
-         * @description Assign dwellers to a quest party (1-3 dwellers).
-         *
-         *     Returns:
-         *         The assigned party members.
-         *
-         *     Raises:
-         *         ValidationException: If party size is invalid or assignment fails.
-         */
-        post: operations["assign_party_to_quest_api_v1_quests__vault_id___quest_id__assign_party_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/quests/{vault_id}/{quest_id}/party": {
         parameters: {
             query?: never;
@@ -3235,7 +3209,10 @@ export interface paths {
         put?: never;
         /**
          * Start Quest
-         * @description Start a quest (starts the timer).
+         * @description Start a quest, atomically assigning and departing the supplied party.
+         *
+         *     The UI supplies dweller_ids for timed missions. Bodyless requests support
+         *     state objectives and callers with an existing roster.
          *
          *     Returns:
          *         The started quest.
@@ -16364,42 +16341,6 @@ export interface operations {
             };
         };
     };
-    assign_party_to_quest_api_v1_quests__vault_id___quest_id__assign_party_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                vault_id: string;
-                quest_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["QuestPartyAssign"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["QuestPartyMemberRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_quest_party_api_v1_quests__vault_id___quest_id__party_get: {
         parameters: {
             query?: never;
@@ -16442,7 +16383,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["QuestPartyAssign"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

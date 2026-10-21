@@ -955,6 +955,24 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         result = await db_session.execute(query.with_for_update().execution_options(populate_existing=True))
         return result.scalars().one_or_none()
 
+    async def get_many_for_update(self, db_session: AsyncSession, dweller_ids: list[UUID4]) -> list[Dweller]:
+        """Load fresh dweller state locked FOR UPDATE, including quest-relevant equipment."""
+        if not dweller_ids:
+            return []
+        result = await db_session.execute(
+            select(self.model)
+            .where(self.model.id.in_(dweller_ids), ~col(self.model.is_deleted))
+            .options(
+                selectinload(self.model.weapon),
+                selectinload(self.model.outfit),
+                selectinload(self.model.pet),
+            )
+            .order_by(self.model.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return list(result.scalars().all())
+
     async def get_soft_deleted_before(
         self, db_session: AsyncSession, cutoff: datetime, limit: int
     ) -> Sequence[Dweller]:

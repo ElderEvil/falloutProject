@@ -120,6 +120,10 @@ export function questSlotLimitForVault(
   return rooms.find((room) => room.category === 'quests')?.tier ?? 0
 }
 
+export function officeSpeedPercent(tier: number): number {
+  return tier >= 3 ? 20 : tier === 2 ? 10 : 0
+}
+
 /** Display name for an authored dweller reward, without the rarity suffix. */
 export function questDwellerName(reward: QuestReward): string {
   const data = reward.reward_data || {}

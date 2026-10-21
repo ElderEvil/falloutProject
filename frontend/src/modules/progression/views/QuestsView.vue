@@ -10,6 +10,7 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
+import { getErrorMessage } from '@/core/utils/errorHandler'
 import { usePolling } from '@/core/composables/usePolling'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
@@ -35,6 +36,7 @@ import type { QuestAvailableSortBy, VaultQuest } from '../models/quest'
 import {
   compareQuestsByAvailableSort,
   isQuestReturning,
+  officeSpeedPercent,
   questSlotLimitForVault,
 } from '../models/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
@@ -193,7 +195,9 @@ const handleAssignAndStart = async (dwellerIds: string[]) => {
   try {
     await questStore.startQuest(vaultId.value, selectedQuest.value.id, dwellerIds)
   } catch {
-    await questStore.fetchVaultQuests(vaultId.value)
+    await questStore.fetchVaultQuests(vaultId.value, { silent: true }).catch((error: unknown) => {
+      console.warn('Failed to refresh quests after rejected start', getErrorMessage(error))
+    })
     return
   }
 
@@ -283,9 +287,7 @@ watch(
   { immediate: true }
 )
 
-const missionSpeedPercent = computed(() =>
-  questSlotLimit.value >= 3 ? 20 : questSlotLimit.value === 2 ? 10 : 0
-)
+const missionSpeedPercent = computed(() => officeSpeedPercent(questSlotLimit.value))
 const partyMetricLabel = computed(() =>
   missionSpeedPercent.value > 0
     ? `Parties · Missions ${missionSpeedPercent.value}% faster`

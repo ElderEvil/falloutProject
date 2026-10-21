@@ -8,6 +8,7 @@ import {
   getRoomSegmentCount,
 } from '../utils/room'
 import { isOverseersOffice } from '../models/roomParts'
+import { officeSpeedPercent } from '@/modules/progression/models/quest'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
 import { Button } from '@/core/components/ui/button'
@@ -49,7 +50,6 @@ const mergeCandidates = computed(() => getMergeCandidates(roomStore.rooms, props
 const busy = computed(
   () => props.disabled || props.isUpgrading || props.isDestroying || props.isRemodeling
 )
-const officeSpeedPercent = (tier: number): number => (tier >= 3 ? 20 : tier === 2 ? 10 : 0)
 
 const emit = defineEmits<{
   upgrade: []

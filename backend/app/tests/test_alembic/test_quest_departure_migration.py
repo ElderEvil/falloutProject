@@ -10,8 +10,10 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.core.enums import DwellerStatusEnum, GenderEnum, RarityEnum
 from app.models.dweller import Dweller
 from app.models.quest import Quest
+from app.models.room import Room
 from app.models.team import Team, TeamMember
 from app.models.vault_quest import VaultQuestCompletionLink
+from app.tests.factory.rooms import create_overseers_office
 from app.tests.test_alembic import test_data_migrations as legacy
 
 harness = legacy.harness
@@ -29,6 +31,10 @@ def test_recovers_orphaned_questing_dwellers_and_preserves_active_parties(harnes
         ids = {}
         try:
             async with async_sessionmaker(engine, expire_on_commit=False)() as db:
+                room = Room(**create_overseers_office(), vault_id=vault_id)
+                db.add(room)
+                await db.flush()
+                room_id = str(room.id)
                 for state in (
                     "orphan",
                     "unlinked",
@@ -45,6 +51,7 @@ def test_recovers_orphaned_questing_dwellers_and_preserves_active_parties(harnes
                         gender=GenderEnum.MALE,
                         rarity=RarityEnum.COMMON,
                         status=DwellerStatusEnum.EXPLORING if state == "exploring" else DwellerStatusEnum.QUESTING,
+                        room_id=room.id if state in ("orphan", "outbound") else None,
                     )
                     db.add(dweller)
                     await db.flush()
@@ -79,11 +86,11 @@ def test_recovers_orphaned_questing_dwellers_and_preserves_active_parties(harnes
                             )
                         )
                 await db.commit()
-            return ids
+            return ids, room_id
         finally:
             await engine.dispose()
 
-    ids = asyncio.run(seed())
+    ids, room_id = asyncio.run(seed())
     harness.upgrade(REVISION)
 
     def assert_recovered():
@@ -91,8 +98,8 @@ def test_recovers_orphaned_questing_dwellers_and_preserves_active_parties(harnes
             expected = (
                 "QUESTING" if state in ("outbound", "returning") else "EXPLORING" if state == "exploring" else "IDLE"
             )
-            assert harness.fetch("SELECT status::text, room_id FROM dweller WHERE id = :id", id=dweller_id) == [
-                (expected, None)
+            assert harness.fetch("SELECT status::text, room_id::text FROM dweller WHERE id = :id", id=dweller_id) == [
+                (expected, room_id if state == "outbound" else None)
             ]
         assert harness.scalar("SELECT COUNT(*) FROM team_member") == 6
 

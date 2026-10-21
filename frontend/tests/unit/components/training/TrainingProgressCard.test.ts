@@ -74,8 +74,11 @@ describe('TrainingProgressCard', () => {
       ['t1', 9],
     ])
     await wrapper.setProps({ isSavingGoal: true })
-    expect(decrease.attributes()).toHaveProperty('disabled')
-    expect(increase.attributes()).toHaveProperty('disabled')
+    expect(decrease.attributes('aria-disabled')).toBe('true')
+    expect(increase.attributes('aria-disabled')).toBe('true')
+    expect(decrease.attributes()).not.toHaveProperty('disabled')
+    await decrease.trigger('click')
+    expect(wrapper.emitted('goal')).toHaveLength(2)
     await wrapper.setProps({
       isSavingGoal: false,
       training: { ...wrapper.props('training'), goal_stat_value: 6 },

@@ -373,7 +373,18 @@ for (const [size, capacity, desktopColumns] of [
         path: test.info().outputPath(`room-${capacity}-${width}.png`),
         fullPage: true,
       })
-      await cards.first().getByRole('button', { name: 'Cancel', exact: true }).click()
+      const cancel = cards.first().getByRole('button', { name: 'Cancel', exact: true })
+      await page.mouse.move(0, 0)
+      await expect(cancel).toHaveCSS('opacity', '0')
+      await cards
+        .first()
+        .getByRole('button', { name: /Decrease goal/ })
+        .focus()
+      await expect(cancel).toHaveCSS('opacity', '1')
+      await cancel.focus()
+      await expect(cancel).toBeFocused()
+      await cards.first().hover()
+      await cancel.click()
       await expect(cards).toHaveCount(capacity - 1)
       expect(Math.abs((await cards.first().boundingBox())!.width - bounds[0]!.width)).toBeLessThan(
         1

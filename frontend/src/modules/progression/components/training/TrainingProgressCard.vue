@@ -108,14 +108,16 @@ const handleComplete = () => {
         role="group"
         :aria-label="`Training goal for ${dwellerName ?? 'Dweller'}`"
         class="flex items-center gap-1 text-theme-accent"
+        :aria-busy="isSavingGoal"
       >
         <span class="mr-1">Goal:</span>
         <Button
           size="icon-sm"
-          class="size-7"
+          class="size-7 aria-disabled:opacity-50"
           variant="outline"
           :aria-label="`Decrease goal for ${dwellerName ?? 'Dweller'}`"
-          :disabled="isSavingGoal || goal <= training.target_stat_value"
+          :disabled="goal <= training.target_stat_value"
+          :aria-disabled="isSavingGoal || goal <= training.target_stat_value"
           @click="changeGoal(-1)"
         >
           <Icon icon="mdi:minus" />
@@ -123,10 +125,11 @@ const handleComplete = () => {
         <output class="min-w-5 text-center tabular-nums" aria-live="polite">{{ goal }}</output>
         <Button
           size="icon-sm"
-          class="size-7"
+          class="size-7 aria-disabled:opacity-50"
           variant="outline"
           :aria-label="`Increase goal for ${dwellerName ?? 'Dweller'}`"
-          :disabled="isSavingGoal || goal >= 10"
+          :disabled="goal >= 10"
+          :aria-disabled="isSavingGoal || goal >= 10"
           @click="changeGoal(1)"
         >
           <Icon icon="mdi:plus" />
@@ -138,10 +141,24 @@ const handleComplete = () => {
         <Icon icon="mdi:check-circle" />
         Complete
       </Button>
-      <Button size="xs" variant="destructive" @click="handleCancel">
+      <Button class="training-cancel" size="xs" variant="destructive" @click="handleCancel">
         <Icon icon="mdi:close-circle" />
         Cancel
       </Button>
     </template>
   </LearningProgressCard>
 </template>
+
+<style scoped>
+@media (hover: hover) and (pointer: fine) {
+  .training-cancel {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .training-progress-card:hover .training-cancel,
+  .training-progress-card:focus-within .training-cancel {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+</style>

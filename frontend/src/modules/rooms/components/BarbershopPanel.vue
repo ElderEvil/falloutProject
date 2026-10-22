@@ -305,7 +305,7 @@ async function handleRegenerate(): Promise<void> {
             class="border-theme-primary/40 text-theme-primary/80"
             data-testid="barbershop-staffing"
           >
-            {{ status?.staffed ? 'Staffed' : 'Unstaffed' }}
+            {{ status ? (status.staffed ? 'Staffed' : 'Unstaffed') : '—' }}
           </Badge>
         </div>
         <p class="text-xs leading-relaxed text-theme-primary/65">
@@ -329,8 +329,9 @@ async function handleRegenerate(): Promise<void> {
           </div>
           <div class="rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5">
             <dt class="text-[0.6rem] tracking-wider text-theme-primary/60 uppercase">Chair</dt>
-            <dd class="text-sm font-bold text-theme-primary">
-              {{ status?.staffed ? 'Ready' : 'Empty' }}
+            <!-- @vue-ignore -->
+            <dd class="text-sm font-bold text-theme-primary" data-testid="barbershop-chair">
+              {{ status ? (status.staffed ? 'Ready' : 'Empty') : '—' }}
             </dd>
           </div>
         </dl>

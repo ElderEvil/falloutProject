@@ -220,6 +220,16 @@ describe('BarbershopPanel', () => {
     expect(store.filter.detailedDwellers[ADULT_ID]).toEqual(updated)
   })
 
+  it('shows neutral status placeholders until the Barbershop status loads', async () => {
+    vi.mocked(fetchBarbershopStatus).mockReturnValue(new Promise<BarbershopStatus>(() => {}))
+
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="barbershop-staffing"]').text()).toBe('—')
+    expect(wrapper.get('[data-testid="barbershop-chair"]').text()).toBe('—')
+  })
+
   it('shows the assignment hint and disables saving while unstaffed', async () => {
     vi.mocked(fetchBarbershopStatus).mockResolvedValue(status({ staffed: false }))
 

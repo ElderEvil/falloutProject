@@ -13,7 +13,7 @@ import {
   TooltipContent,
 } from '@/core/components/ui/tooltip'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
-import { getDwellerPortraitScale } from '@/modules/dwellers/models/dweller'
+import { getDwellerBodySize } from '@/modules/dwellers/models/dweller'
 import ArenaDamageNumbers from './ArenaDamageNumbers.vue'
 import CombatantMeters from './CombatantMeters.vue'
 import { useFallbackImage } from '../composables/useFallbackImage'
@@ -50,11 +50,12 @@ const readySkills = computed(() => {
   })
 })
 const imageFor = (id: string) => getStaticImageUrl(getCreatureImagePath(creatureKeyOf(id)))
-const dwellerScale = (fighter: ArenaFighter) =>
-  getDwellerPortraitScale({
+const bodySizeFor = (fighter: ArenaFighter) =>
+  getDwellerBodySize({
     age_group: fighter.age_group,
     visual_attributes: fighter.race ? { race: fighter.race } : null,
   })
+const bodySizeClass = (fighter: ArenaFighter) => `arena-body--${bodySizeFor(fighter)}`
 
 const isAttacking = (fighter: ArenaFighter, side: 'A' | 'B') =>
   fighter.health > 0 &&
@@ -169,7 +170,7 @@ const actionFor = (fighter: ArenaFighter) => {
               :class="[
                 fighter.is_creature || fighter.is_robot
                   ? getCreatureModelSizeClass(creatureKeyOf(fighter.id))
-                  : 'h-32 w-full sm:h-44',
+                  : ['h-32 w-full sm:h-44', bodySizeClass(fighter)],
               ]"
             >
               <div class="absolute inset-x-0 top-1/3 z-20 flex flex-wrap justify-center gap-1">
@@ -217,7 +218,7 @@ const actionFor = (fighter: ArenaFighter) => {
                 :alt="fighter.name"
                 :class="{ '-scale-x-100': team.side === 'B' }"
                 object-position="center top"
-                :scale="dwellerScale(fighter)"
+                :zoom="false"
                 image-class="size-full object-contain drop-shadow-lg"
                 fallback-class="hidden"
               />
@@ -254,6 +255,24 @@ const actionFor = (fighter: ArenaFighter) => {
   min-height: 250px;
   aspect-ratio: 2 / 1;
 }
+.arena-body--large {
+  height: 9.5rem;
+}
+
+.arena-body--small {
+  height: 6.5rem;
+}
+
+@media (min-width: 640px) {
+  .arena-body--large {
+    height: 13rem;
+  }
+
+  .arena-body--small {
+    height: 9rem;
+  }
+}
+
 .ring-attacking {
   animation: ring-attack 400ms ease-out;
 }

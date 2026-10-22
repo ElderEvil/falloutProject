@@ -58,16 +58,25 @@ describe('ArenaPreview', () => {
     expect(wrapper.get('[aria-label="Arena preview"]').text()).toContain('b')
   })
 
-  it('scales arena dwellers by body size', () => {
+  it('maps arena dwellers to body-size classes', () => {
     const teen = fighter('a', { age_group: 'teen', race: 'human' })
     const mutant = fighter('b', { age_group: 'adult', race: 'super_mutant' })
     const wrapper = mount(ArenaPreview, {
       props: { state: state({ team_a: [teen], team_b: [mutant] }) },
     })
+    const exposed = wrapper.vm as unknown as { bodySizeFor: (fighter: typeof teen) => string }
 
-    expect(
-      wrapper.findAllComponents(DwellerPortrait).map((portrait) => portrait.props('scale'))
-    ).toEqual([0.8, 1.18])
+    expect(exposed.bodySizeFor(teen)).toBe('small')
+    expect(exposed.bodySizeFor(mutant)).toBe('large')
+  })
+
+  it('does not apply the curated portrait zoom in the arena', () => {
+    const curated = fighter('a', { image_url: '/static/dweller_images/test.png' })
+    const wrapper = mount(ArenaPreview, {
+      props: { state: state({ team_a: [curated], team_b: [] }) },
+    })
+
+    expect(wrapper.findComponent(DwellerPortrait).props('zoom')).toBe(false)
   })
 
   it('shows silhouette slots for empty team positions', () => {

@@ -6,7 +6,7 @@ import { creatureKeyOf } from '../models/arena'
 import { getCreatureImagePath } from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
-import { getDwellerPortraitScale } from '@/modules/dwellers/models/dweller'
+import { getDwellerBodySize } from '@/modules/dwellers/models/dweller'
 import ArenaRing from './ArenaRing.vue'
 import CombatantMeters from './CombatantMeters.vue'
 import { useFallbackImage } from '../composables/useFallbackImage'
@@ -51,11 +51,13 @@ const emptySilhouetteUrl = getStaticImageUrl(
   '/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp'
 )
 
-const dwellerScale = (fighter: ArenaFighter) =>
-  getDwellerPortraitScale({
+const bodySizeFor = (fighter: ArenaFighter) =>
+  getDwellerBodySize({
     age_group: fighter.age_group,
     visual_attributes: fighter.race ? { race: fighter.race } : null,
   })
+const bodySizeClass = (fighter: ArenaFighter) => `arena-body--${bodySizeFor(fighter)}`
+defineExpose({ bodySizeFor })
 
 const actionFor = (fighter: ArenaFighter) => {
   const skill = fighter.active_skill
@@ -132,7 +134,12 @@ const imageFor = (fighter: ArenaFighter) =>
                 :tone="side === 'A' ? 'success' : 'danger'"
                 :action="actionFor(fighter)"
               />
-              <div class="relative flex h-32 w-full shrink-0 items-end justify-center sm:h-44">
+              <div
+                class="relative flex h-32 w-full shrink-0 items-end justify-center sm:h-44"
+                :class="
+                  !fighter.is_creature && !fighter.is_robot ? bodySizeClass(fighter) : undefined
+                "
+              >
                 <img
                   v-if="imageFor(fighter)"
                   :src="imageFor(fighter) ?? undefined"
@@ -147,7 +154,7 @@ const imageFor = (fighter: ArenaFighter) =>
                   :alt="fighter.name"
                   :class="{ '-scale-x-100': side === 'B' }"
                   object-position="center top"
-                  :scale="dwellerScale(fighter)"
+                  :zoom="false"
                   image-class="size-full object-contain drop-shadow-lg"
                   fallback-class="hidden"
                 />
@@ -245,5 +252,23 @@ const imageFor = (fighter: ArenaFighter) =>
   height: 1rem;
   color: var(--color-theme-primary);
   opacity: 0.75;
+}
+
+.arena-body--large {
+  height: 9.5rem;
+}
+
+.arena-body--small {
+  height: 6.5rem;
+}
+
+@media (min-width: 640px) {
+  .arena-body--large {
+    height: 13rem;
+  }
+
+  .arena-body--small {
+    height: 9rem;
+  }
 }
 </style>

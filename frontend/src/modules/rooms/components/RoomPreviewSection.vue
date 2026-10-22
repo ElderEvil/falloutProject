@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { PersonStanding } from '@lucide/vue'
 import {
@@ -76,6 +76,14 @@ const apprenticeStatLabel = computed(
 const emptyDwellerSilhouetteUrl = getStaticImageUrl(
   '/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp'
 )
+const imageAspect = ref(1.53)
+
+function rememberImageAspect(event: Event) {
+  const image = event.target as HTMLImageElement
+  if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+    imageAspect.value = image.naturalWidth / image.naturalHeight
+  }
+}
 </script>
 
 <template>
@@ -100,145 +108,152 @@ const emptyDwellerSilhouetteUrl = getStaticImageUrl(
     </div>
     <div class="preview-container">
       <div class="room-image-container">
-        <img
-          v-if="sceneImageUrl"
-          :src="sceneImageUrl"
-          :alt="roomName || 'Room'"
-          class="room-image"
-          @error="imageFailed"
-        />
-        <div class="room-image-placeholder" :class="{ 'has-image': sceneImageUrl }">
-          <template v-if="!sceneImageUrl">
-            <Icon icon="mdi:home-variant-outline" class="h-16 w-16 opacity-30" />
-            <p class="placeholder-text">Room Sprite</p>
-            <p class="placeholder-subtext">No Image Available</p>
-          </template>
+        <div
+          class="room-image-frame"
+          :class="{ 'has-image': sceneImageUrl }"
+          :style="{ '--room-image-aspect': imageAspect }"
+        >
+          <img
+            v-if="sceneImageUrl"
+            :src="sceneImageUrl"
+            :alt="roomName || 'Room'"
+            class="room-image"
+            @load="rememberImageAspect"
+            @error="imageFailed"
+          />
+          <div class="room-image-placeholder" :class="{ 'has-image': sceneImageUrl }">
+            <template v-if="!sceneImageUrl">
+              <Icon icon="mdi:home-variant-outline" class="h-16 w-16 opacity-30" />
+              <p class="placeholder-text">Room Sprite</p>
+              <p class="placeholder-subtext">No Image Available</p>
+            </template>
 
-          <div
-            class="dweller-sprites-overlay"
-            :style="{
-              '--dweller-silhouette': emptyDwellerSilhouetteUrl
-                ? `url('${emptyDwellerSilhouetteUrl}')`
-                : 'none',
-            }"
-          >
             <div
-              v-for="slot in dwellerCapacity"
-              :key="`slot-${slot}`"
-              class="dweller-sprite-slot dweller-sprite-slot-lg"
-              :class="{ 'slot-filled': workerDwellers[slot - 1] }"
+              class="dweller-sprites-overlay"
+              :style="{
+                '--dweller-silhouette': emptyDwellerSilhouetteUrl
+                  ? `url('${emptyDwellerSilhouetteUrl}')`
+                  : 'none',
+              }"
             >
-              <template v-if="workerDwellers[slot - 1]">
-                <div class="scene-occupant">
-                  <button
-                    type="button"
-                    class="placeholder-dweller scene-dweller"
-                    :aria-label="`Open ${workerDwellers[slot - 1]?.first_name} ${workerDwellers[slot - 1]?.last_name ?? ''}`"
-                    @click="emit('activate', workerDwellers[slot - 1]!.id)"
-                  >
-                    <DwellerPortrait
-                      :thumbnail-url="workerDwellers[slot - 1]?.thumbnail_url"
-                      :alt="`${workerDwellers[slot - 1]?.first_name} ${workerDwellers[slot - 1]?.last_name ?? ''}`"
-                      image-class="scene-dweller-portrait h-full w-full"
-                      prefer-thumbnail
-                      :zoom="false"
-                    >
-                      <template #fallback>
-                        <PersonStanding
-                          class="scene-dweller-icon text-theme-primary"
-                          aria-hidden="true"
-                        />
-                      </template>
-                    </DwellerPortrait>
-                  </button>
-                  <button
-                    v-if="assignEnabled"
-                    type="button"
-                    class="scene-unassign"
-                    :aria-label="`Unassign ${workerDwellers[slot - 1]?.first_name} ${workerDwellers[slot - 1]?.last_name ?? ''}`"
-                    @click="emit('unassign', workerDwellers[slot - 1]!.id)"
-                  >
-                    <Icon icon="mdi:account-minus-outline" />
-                  </button>
-                </div>
-              </template>
-              <button
-                v-else-if="assignEnabled"
-                type="button"
-                class="placeholder-dweller empty scene-empty-slot scene-empty-worker"
-                aria-label="Assign worker"
-                @click="emit('assignWorker')"
+              <div
+                v-for="slot in dwellerCapacity"
+                :key="`slot-${slot}`"
+                class="dweller-sprite-slot dweller-sprite-slot-lg"
+                :class="{ 'slot-filled': workerDwellers[slot - 1] }"
               >
-                <span class="empty-dweller-silhouette" aria-hidden="true" />
-                <span class="empty-dweller-plus" aria-hidden="true">
-                  <Icon icon="mdi:plus" />
-                </span>
-              </button>
-              <div v-else class="placeholder-dweller empty scene-empty-slot" aria-hidden="true">
-                <span class="empty-dweller-silhouette" aria-hidden="true" />
+                <template v-if="workerDwellers[slot - 1]">
+                  <div class="scene-occupant">
+                    <button
+                      type="button"
+                      class="placeholder-dweller scene-dweller"
+                      :aria-label="`Open ${workerDwellers[slot - 1]?.first_name} ${workerDwellers[slot - 1]?.last_name ?? ''}`"
+                      @click="emit('activate', workerDwellers[slot - 1]!.id)"
+                    >
+                      <DwellerPortrait
+                        :thumbnail-url="workerDwellers[slot - 1]?.thumbnail_url"
+                        :alt="`${workerDwellers[slot - 1]?.first_name} ${workerDwellers[slot - 1]?.last_name ?? ''}`"
+                        image-class="scene-dweller-portrait h-full w-full"
+                        prefer-thumbnail
+                        :zoom="false"
+                      >
+                        <template #fallback>
+                          <PersonStanding
+                            class="scene-dweller-icon text-theme-primary"
+                            aria-hidden="true"
+                          />
+                        </template>
+                      </DwellerPortrait>
+                    </button>
+                    <button
+                      v-if="assignEnabled"
+                      type="button"
+                      class="scene-unassign"
+                      :aria-label="`Unassign ${workerDwellers[slot - 1]?.first_name} ${workerDwellers[slot - 1]?.last_name ?? ''}`"
+                      @click="emit('unassign', workerDwellers[slot - 1]!.id)"
+                    >
+                      <Icon icon="mdi:account-minus-outline" />
+                    </button>
+                  </div>
+                </template>
+                <button
+                  v-else-if="assignEnabled"
+                  type="button"
+                  class="placeholder-dweller empty scene-empty-slot scene-empty-worker"
+                  aria-label="Assign worker"
+                  @click="emit('assignWorker')"
+                >
+                  <span class="empty-dweller-silhouette" aria-hidden="true" />
+                  <span class="empty-dweller-plus" aria-hidden="true">
+                    <Icon icon="mdi:plus" />
+                  </span>
+                </button>
+                <div v-else class="placeholder-dweller empty scene-empty-slot" aria-hidden="true">
+                  <span class="empty-dweller-silhouette" aria-hidden="true" />
+                </div>
               </div>
-            </div>
-            <div
-              v-if="showApprenticeSlot"
-              class="dweller-sprite-slot dweller-sprite-slot-lg apprentice-slot"
-              :class="{ 'slot-filled': apprentice }"
-            >
-              <template v-if="apprentice">
-                <div class="scene-occupant">
-                  <button
-                    type="button"
-                    class="placeholder-dweller scene-dweller"
-                    :aria-label="`Open ${apprentice.first_name} ${apprentice.last_name ?? ''}`"
-                    @click="emit('activate', apprentice.id)"
-                  >
-                    <DwellerPortrait
-                      :thumbnail-url="apprentice.thumbnail_url"
-                      :alt="`${apprentice.first_name} ${apprentice.last_name ?? ''}`"
-                      image-class="scene-dweller-portrait h-full w-full"
-                      prefer-thumbnail
-                      :zoom="false"
-                    >
-                      <template #fallback>
-                        <PersonStanding
-                          class="scene-dweller-icon text-theme-primary"
-                          aria-hidden="true"
-                        />
-                      </template>
-                    </DwellerPortrait>
-                    <span
-                      class="apprentice-marker"
-                      :aria-label="`Apprentice training ${apprentice.apprentice_stat}`"
-                      role="img"
-                    >
-                      <Icon icon="mdi:school-outline" />
-                      {{ apprenticeStatLabel }}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    class="scene-unassign"
-                    :aria-label="`Unassign ${apprentice.first_name} ${apprentice.last_name ?? ''}`"
-                    @click="emit('unassign', apprentice.id)"
-                  >
-                    <Icon icon="mdi:account-minus-outline" />
-                  </button>
-                </div>
-              </template>
-              <button
-                v-else
-                type="button"
-                class="placeholder-dweller empty scene-empty-slot scene-empty-apprentice"
-                aria-label="Assign child or teen apprentice to this slot"
-                @click="emit('assignApprentice')"
+              <div
+                v-if="showApprenticeSlot"
+                class="dweller-sprite-slot dweller-sprite-slot-lg apprentice-slot"
+                :class="{ 'slot-filled': apprentice }"
               >
-                <span
-                  class="empty-dweller-silhouette empty-dweller-silhouette--apprentice"
-                  aria-hidden="true"
-                />
-                <span class="apprentice-marker" aria-label="Apprentice slot" role="img">
-                  <Icon icon="mdi:school-outline" />+
-                </span>
-              </button>
+                <template v-if="apprentice">
+                  <div class="scene-occupant">
+                    <button
+                      type="button"
+                      class="placeholder-dweller scene-dweller"
+                      :aria-label="`Open ${apprentice.first_name} ${apprentice.last_name ?? ''}`"
+                      @click="emit('activate', apprentice.id)"
+                    >
+                      <DwellerPortrait
+                        :thumbnail-url="apprentice.thumbnail_url"
+                        :alt="`${apprentice.first_name} ${apprentice.last_name ?? ''}`"
+                        image-class="scene-dweller-portrait h-full w-full"
+                        prefer-thumbnail
+                        :zoom="false"
+                      >
+                        <template #fallback>
+                          <PersonStanding
+                            class="scene-dweller-icon text-theme-primary"
+                            aria-hidden="true"
+                          />
+                        </template>
+                      </DwellerPortrait>
+                      <span
+                        class="apprentice-marker"
+                        :aria-label="`Apprentice training ${apprentice.apprentice_stat}`"
+                        role="img"
+                      >
+                        <Icon icon="mdi:school-outline" />
+                        {{ apprenticeStatLabel }}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      class="scene-unassign"
+                      :aria-label="`Unassign ${apprentice.first_name} ${apprentice.last_name ?? ''}`"
+                      @click="emit('unassign', apprentice.id)"
+                    >
+                      <Icon icon="mdi:account-minus-outline" />
+                    </button>
+                  </div>
+                </template>
+                <button
+                  v-else
+                  type="button"
+                  class="placeholder-dweller empty scene-empty-slot scene-empty-apprentice"
+                  aria-label="Assign child or teen apprentice to this slot"
+                  @click="emit('assignApprentice')"
+                >
+                  <span
+                    class="empty-dweller-silhouette empty-dweller-silhouette--apprentice"
+                    aria-hidden="true"
+                  />
+                  <span class="apprentice-marker" aria-label="Apprentice slot" role="img">
+                    <Icon icon="mdi:school-outline" />+
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -299,15 +314,44 @@ const emptyDwellerSilhouetteUrl = getStaticImageUrl(
   background: rgba(0, 0, 0, 0.8);
 }
 
+.room-image-frame {
+  position: relative;
+  display: flex;
+  width: min(100%, calc(260px * var(--room-image-aspect, 1.53)));
+  aspect-ratio: var(--room-image-aspect, 1.53);
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.room-image-frame:not(.has-image) {
+  width: 100%;
+  min-height: 180px;
+  aspect-ratio: auto;
+}
+
+.room-scene--compact .room-image-frame:not(.has-image) {
+  min-height: 130px;
+}
+
+.room-scene--wide .room-image-frame {
+  width: 100%;
+  aspect-ratio: 3 / 1;
+}
+
+.room-scene--wide-native .room-image-frame {
+  width: 100%;
+  aspect-ratio: 2 / 1;
+}
+
 .room-scene--compact .room-image-container {
   min-height: 130px;
 }
 
 .room-scene--small .dweller-sprites-overlay {
-  right: clamp(0.25rem, 8%, 22%);
-  left: clamp(0.25rem, 8%, 22%);
-  justify-content: center;
-  gap: 0.5rem;
+  right: 0.25rem;
+  left: 0.25rem;
+  justify-content: space-evenly;
+  gap: 0;
 }
 
 .room-scene--wide .room-image-container {
@@ -341,10 +385,11 @@ const emptyDwellerSilhouetteUrl = getStaticImageUrl(
 }
 
 .room-image {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
-  height: auto;
-  max-height: 260px;
+  height: 100%;
   object-fit: contain;
   background: rgba(0, 0, 0, 0.8);
 }

@@ -34,6 +34,30 @@ export function canUseRadaway(
   return race !== 'ghoul' && race !== 'super_mutant' && race !== 'synth'
 }
 
+export type DwellerBodySize = 'small' | 'medium' | 'large'
+
+export const DWELLER_PORTRAIT_SCALE: Record<DwellerBodySize, number> = {
+  small: 0.8,
+  medium: 1,
+  large: 1.18,
+}
+
+export function getDwellerBodySize(dweller: {
+  age_group?: string | null
+  visual_attributes?: { race?: string | null } | null
+}): DwellerBodySize {
+  if (dweller.visual_attributes?.race === 'super_mutant') return 'large'
+  if (dweller.age_group === 'child' || dweller.age_group === 'teen') return 'small'
+  return 'medium'
+}
+
+export function getDwellerPortraitScale(dweller: {
+  age_group?: string | null
+  visual_attributes?: { race?: string | null } | null
+}): number {
+  return DWELLER_PORTRAIT_SCALE[getDwellerBodySize(dweller)]
+}
+
 export function formatIdentityLabel(value: string): string {
   return humanizePreserveCase(value)
 }

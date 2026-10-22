@@ -6,6 +6,7 @@ import DwellerAgeBadge from '../DwellerAgeBadge.vue'
 import DwellerGenderBadge from '../DwellerGenderBadge.vue'
 import DwellerRarityBadge from '../DwellerRarityBadge.vue'
 import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
+import { Progress } from '@/core/components/ui/progress'
 import {
   Tooltip,
   TooltipContent,
@@ -14,6 +15,8 @@ import {
 } from '@/core/components/ui/tooltip'
 import type { DwellerShort } from '../../models/dweller'
 import {
+  DWELLER_PORTRAIT_SCALE,
+  getDwellerBodySize,
   getDwellerDisplayName,
   getEffectiveMaxHealth,
   getHealthDisplay,
@@ -58,6 +61,20 @@ const radiationPercentage = computed(() =>
   getRadiationPercentage(props.dweller.radiation, props.dweller.max_health)
 )
 
+const portraitScale = computed(() => DWELLER_PORTRAIT_SCALE[getDwellerBodySize(props.dweller)])
+
+const portraitScaleClass = computed(() => {
+  const size = getDwellerBodySize(props.dweller)
+  if (size === 'large') return 'thumbnail-image--large'
+  if (size === 'small') return 'thumbnail-image--small'
+  return ''
+})
+
+const roomStatProgress = computed(() => {
+  if (!props.roomStat || props.roomStat.isPower) return null
+  return Math.min(100, Math.max(0, (props.roomStat.value / 10) * 100))
+})
+
 // Room stat is passed precomputed from the list view (DwellersList.getRoomStat)
 // so the grid and list render identical values (combat power for arena, else SPECIAL).
 
@@ -80,14 +97,13 @@ const getStatColorClass = (value: number) => {
   >
     <!-- Thumbnail / Avatar -->
     <div class="thumbnail-container">
-      <div class="status-overlay">
-        <DwellerStatusBadge :status="dweller.status" size="medium" show-label />
-      </div>
       <template v-if="dweller.thumbnail_url">
         <DwellerPortrait
           :thumbnail-url="dweller.thumbnail_url"
           alt=""
-          image-class="thumbnail-image"
+          :image-class="`thumbnail-image ${portraitScaleClass}`"
+          :scale="portraitScale"
+          object-position="center bottom"
         />
       </template>
       <template v-else>
@@ -95,6 +111,24 @@ const getStatColorClass = (value: number) => {
           <Icon icon="mdi:account-circle" class="placeholder-icon" />
         </div>
       </template>
+      <div class="status-overlay">
+        <DwellerStatusBadge :status="dweller.status" size="medium" show-label />
+      </div>
+      <div class="portrait-meters">
+        <HealthRadiationBar
+          :value="healthPercentage"
+          :radiation="radiationPercentage"
+          :height="5"
+          :aria-label="`${getDwellerDisplayName(dweller)} health`"
+        />
+        <Progress
+          v-if="roomStatProgress !== null && roomStat"
+          size="xs"
+          tone="success"
+          :model-value="roomStatProgress"
+          :label="`${roomStat.label} progress`"
+        />
+      </div>
     </div>
 
     <!-- Info Section -->
@@ -127,9 +161,6 @@ const getStatColorClass = (value: number) => {
           <span class="stat-value">{{ dweller.happiness }}%</span>
         </div>
       </div>
-
-      <!-- Health Bar -->
-      <HealthRadiationBar :value="healthPercentage" :radiation="radiationPercentage" :height="6" />
 
       <!-- Job-relevant stat (matches list view: combat power for arena, else SPECIAL) -->
       <div v-if="roomStat" class="job-stat">
@@ -202,10 +233,35 @@ const getStatColorClass = (value: number) => {
   z-index: 10;
 }
 
-.thumbnail-image {
+:deep(img.thumbnail-image) {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+:deep(img.thumbnail-image--large) {
+  transform-origin: center top;
+}
+
+:deep(img.thumbnail-image--small) {
+  transform-origin: center bottom;
+}
+
+.portrait-meters {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.375rem;
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 35%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-surface-sunken) 88%, transparent);
+  backdrop-filter: blur(3px);
 }
 
 .thumbnail-placeholder {

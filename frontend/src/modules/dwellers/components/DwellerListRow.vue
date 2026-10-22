@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { DwellerShort } from '../models/dweller'
-import { getDwellerDisplayName } from '../models/dweller'
+import {
+  DWELLER_PORTRAIT_SCALE,
+  getDwellerBodySize,
+  getDwellerDisplayName,
+} from '../models/dweller'
 import DwellerPortrait from './DwellerPortrait.vue'
 import DwellerMetaBadges from './DwellerMetaBadges.vue'
 
@@ -27,6 +31,7 @@ const portraitClass = computed(() =>
 const fallbackClass = computed(() =>
   dense ? 'h-10 w-10 text-theme-primary/60' : 'h-16 w-16 text-theme-primary/60'
 )
+const portraitScale = computed(() => DWELLER_PORTRAIT_SCALE[getDwellerBodySize(dweller)])
 
 const emit = defineEmits<{
   (e: 'activate', dwellerId: string): void
@@ -54,14 +59,19 @@ function activate() {
         fallback-icon="mdi:account-circle"
         :image-class="portraitClass"
         :fallback-class="fallbackClass"
+        :scale="portraitScale"
       />
     </div>
 
-    <div class="dweller-identity flex min-w-0 flex-col gap-0.5" :class="identityClass">
+    <div class="dweller-identity flex min-w-0 flex-col" :class="identityClass">
       <h3 class="truncate font-bold text-terminal-green" :class="nameClass">
         {{ getDwellerDisplayName(dweller) }}
       </h3>
       <p v-if="dense" class="text-theme-primary/60" :class="metaClass">Level {{ dweller.level }}</p>
+      <div v-else class="flex flex-wrap items-center gap-2">
+        <p class="text-theme-primary/60" :class="metaClass">Level {{ dweller.level }}</p>
+        <DwellerMetaBadges :dweller="dweller" :show-identity="showIdentity" />
+      </div>
     </div>
 
     <template v-if="dense">
@@ -70,15 +80,7 @@ function activate() {
       <span v-if="$slots.middle" class="dweller-column-divider" aria-hidden="true"></span>
       <slot name="middle" />
     </template>
-
-    <template v-else>
-      <div class="dweller-meta flex items-center gap-2">
-        <p class="text-theme-primary/60" :class="metaClass">Level {{ dweller.level }}</p>
-        <span class="dweller-meta-divider" aria-hidden="true"></span>
-        <DwellerMetaBadges :dweller="dweller" :show-identity="showIdentity" />
-      </div>
-      <slot name="middle" />
-    </template>
+    <slot v-else name="middle" />
 
     <div class="ml-auto flex items-center gap-2">
       <slot name="actions" />
@@ -96,16 +98,5 @@ function activate() {
   width: 1px;
   align-self: stretch;
   background: color-mix(in srgb, var(--color-theme-glow) 45%, transparent);
-}
-
-.dweller-meta-divider {
-  display: inline-block;
-  width: 1px;
-  height: 0.9rem;
-  background: color-mix(in srgb, var(--color-theme-glow) 45%, transparent);
-}
-
-.dweller-meta {
-  flex-wrap: wrap;
 }
 </style>

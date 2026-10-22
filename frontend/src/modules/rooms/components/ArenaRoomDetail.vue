@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { getRoomImageUrl } from '@/core/utils/image'
-import { useArenaStore } from '../stores/arena'
 import DwellerList from './DwellerList.vue'
 import type { Room } from '../models/room'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import RoomPreviewSection from './RoomPreviewSection.vue'
+import ArenaPreview from './ArenaPreview.vue'
+import { useArenaRoom } from '../composables/useArenaRoom'
 import ArenaModal from './ArenaModal.vue'
+import { Button } from '@/core/components/ui/button'
+import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.vue'
 import RoomActions from './RoomActions.vue'
 
 interface UpgradeInfo {
@@ -39,37 +41,67 @@ const emit = defineEmits<{
   viewDweller: [dwellerId: string]
 }>()
 
-const arenaStore = useArenaStore()
-const roomState = computed(() => arenaStore.getRoom(props.room.id))
+const controller = useArenaRoom(props.vaultId, props.room.id)
+const roomState = controller.roomState
 const isFighting = computed(() => !!roomState.value?.fight_started && !roomState.value.match_done)
 const managementLocked = computed(() => !roomState.value || isFighting.value)
 
 const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMode', {
   default: null,
 })
+
+const stopConfirmOpen = ref(false)
+const isStopping = ref(false)
+const confirmStop = async () => {
+  stopConfirmOpen.value = false
+  if (isStopping.value) return
+  isStopping.value = true
+  try {
+    await controller.stopFight()
+  } finally {
+    isStopping.value = false
+  }
+}
 </script>
 
 <template>
   <div class="arena-room-detail flex flex-col gap-3">
-    <details
-      v-if="!isFighting"
-      :open="!roomState?.team_a.length && !roomState?.team_b.length"
-      class="group"
+    <ArenaPreview
+      :state="roomState"
+      :scene-image-url="roomImageUrl ?? getRoomImageUrl(room.image_url)"
+      :pending-skills="controller.pendingSkills.value"
+      :attacking-team="controller.attackingTeam.value"
+      :attacking-fighter-id="controller.attackingFighterId.value"
+      :damage-numbers="controller.damageNumbers.value"
+      :skill-burst="controller.skillBurst.value"
+      @skill="controller.queueSkill"
+    />
+    <Button
+      v-if="isFighting"
+      variant="destructive"
+      size="sm"
+      class="self-start"
+      @click="stopConfirmOpen = true"
     >
-      <summary class="cursor-pointer text-xs text-theme-primary">Manage Arena roster</summary>
-      <RoomPreviewSection
-        :room-name="room.name"
-        :image-url="room.image_url ?? null"
-        :room-image-url="roomImageUrl"
-        :room-units="room.size ?? room.size_min ?? 3"
-        :dweller-capacity="dwellerCapacity"
-        :assigned-dwellers="assignedDwellers"
-        :assign-enabled="!managementLocked"
-        @activate="emit('viewDweller', $event)"
-        @unassign="emit('unassignDweller', $event)"
-        @assign-worker="assignmentMode = 'worker'"
-      />
-    </details>
+      Stop Fight
+    </Button>
+    <TerminalConfirmation
+      :open="stopConfirmOpen"
+      title="Stop Arena Fight"
+      message="Stop this match? Fighters keep their current health and no rewards are awarded."
+      confirm-label="Stop Fight"
+      @confirm="confirmStop"
+      @cancel="stopConfirmOpen = false"
+    />
+    <Button
+      v-if="!managementLocked && assignedDwellers.length < dwellerCapacity"
+      variant="outline"
+      size="sm"
+      class="self-start"
+      @click="assignmentMode = 'worker'"
+    >
+      Assign Dwellers
+    </Button>
     <p v-if="!roomState" class="text-xs text-muted-foreground">
       Room management is unavailable until match state loads.
     </p>
@@ -84,11 +116,7 @@ const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMo
       empty-text="No unassigned adults available. Unassign an adult from another room first."
       @assign-dweller="emit('assignDweller', $event)"
     />
-    <ArenaModal
-      :vault-id="vaultId"
-      :room-id="room.id"
-      :scene-image-url="roomImageUrl ?? getRoomImageUrl(room.image_url)"
-    />
+    <ArenaModal :vault-id="vaultId" :room-id="room.id" :controller="controller" />
     <RoomActions
       :disabled="managementLocked"
       :room="room"

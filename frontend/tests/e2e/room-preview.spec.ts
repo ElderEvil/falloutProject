@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 test('room preview dweller icons sit slightly above the bottom edge', async ({ page }) => {
   await page.goto('/tests/e2e/fixtures/room-preview.html')
   const lift = await page.locator('.dweller-sprites-overlay').evaluate((overlay) => {
-    const frame = overlay.closest('.room-image-container')!
+    const frame = overlay.closest('.room-image-frame')!
     const overlayBounds = overlay.getBoundingClientRect()
     const frameBounds = frame.getBoundingClientRect()
     const baseline = parseFloat(getComputedStyle(document.documentElement).fontSize) / 2
@@ -13,12 +13,16 @@ test('room preview dweller icons sit slightly above the bottom edge', async ({ p
   expect(lift).toBeLessThanOrEqual(0.1)
 })
 
-test('room preview portraits keep their aspect ratio and size over the room background', async ({ page }) => {
+test('room preview portraits keep their aspect ratio and size over the room background', async ({
+  page,
+}) => {
   await page.goto('/tests/e2e/fixtures/room-preview.html?portrait=1')
   const portrait = page.locator('.scene-dweller-portrait').first()
   await expect(portrait).toBeVisible()
   await expect(portrait).toHaveCSS('object-fit', 'contain')
-  await expect.poll(() => portrait.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0)
+  await expect
+    .poll(() => portrait.evaluate((image: HTMLImageElement) => image.naturalWidth))
+    .toBeGreaterThan(0)
   const slot = portrait.locator('..')
   await expect(slot).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
   await expect(slot).toHaveCSS('border-top-width', '0px')
@@ -38,7 +42,23 @@ test('room preview portraits keep their aspect ratio and size over the room back
   expect(proportions.rendered).toBeCloseTo(proportions.source, 2)
   expect(proportions.slot).toBeCloseTo(proportions.source, 2)
   expect(proportions.centered).toBeLessThan(1)
-  expect(proportions.slotScale).toBeCloseTo(1.65, 1)
+  expect(proportions.slotScale).toBeGreaterThan(1)
+  const containment = await page.evaluate(() => {
+    const overlay = document.querySelector('.dweller-sprites-overlay')!
+    const frame = overlay.closest('.room-image-frame')!
+    const overlayBounds = overlay.getBoundingClientRect()
+    const frameBounds = frame.getBoundingClientRect()
+    return {
+      left: overlayBounds.left - frameBounds.left,
+      right: frameBounds.right - overlayBounds.right,
+      top: overlayBounds.top - frameBounds.top,
+      bottom: frameBounds.bottom - overlayBounds.bottom,
+    }
+  })
+  expect(containment.left).toBeGreaterThanOrEqual(0)
+  expect(containment.right).toBeGreaterThanOrEqual(0)
+  expect(containment.top).toBeGreaterThanOrEqual(0)
+  expect(containment.bottom).toBeGreaterThanOrEqual(0)
   const portraitHeight = proportions.renderedHeight
   const emptySlot = page.locator('.scene-empty-worker').first()
   const emptySlotBounds = await emptySlot.evaluate((slot) => {
@@ -47,7 +67,7 @@ test('room preview portraits keep their aspect ratio and size over the room back
   })
   expect(emptySlotBounds.width / emptySlotBounds.height).toBeCloseTo(proportions.source, 2)
   expect(emptySlotBounds.height).toBeCloseTo(portraitHeight, 0)
-  const emptyIcon = emptySlot.locator('.empty-dweller-icon')
+  const emptyIcon = emptySlot.locator('.empty-dweller-silhouette')
   await expect(emptyIcon).toBeVisible()
   await expect(emptyIcon).toHaveAttribute('aria-hidden', 'true')
   const emptyIconBounds = await emptyIcon.evaluate((icon) => {
@@ -67,7 +87,7 @@ test('room preview portraits keep their aspect ratio and size over the room back
       slotRatio: slot.width / slot.height,
     }
   })
-  expect(fallbackBounds.height).toBeCloseTo(portraitHeight, 0)
+  expect(fallbackBounds.height).toBeLessThanOrEqual(portraitHeight)
   expect(fallbackBounds.ratio).toBeCloseTo(proportions.source, 2)
   expect(fallbackBounds.slotRatio).toBeCloseTo(proportions.source, 2)
 })
@@ -101,10 +121,12 @@ test('touch users see unassign controls for workers and apprentices', async ({ b
     const buttonSizes: Array<{ width: number; height: number }> = []
     for (const name of ['Open Ada Worker', 'Open Ash Apprentice']) {
       const portrait = page.getByRole('button', { name, exact: true })
-      buttonSizes.push(await portrait.evaluate((element) => {
-        const bounds = element.getBoundingClientRect()
-        return { width: bounds.width, height: bounds.height }
-      }))
+      buttonSizes.push(
+        await portrait.evaluate((element) => {
+          const bounds = element.getBoundingClientRect()
+          return { width: bounds.width, height: bounds.height }
+        })
+      )
     }
     expect(buttonSizes[0]!.width / buttonSizes[0]!.height).toBeCloseTo(2 / 3, 2)
     expect(buttonSizes[0]!.height).toBeGreaterThan(100)

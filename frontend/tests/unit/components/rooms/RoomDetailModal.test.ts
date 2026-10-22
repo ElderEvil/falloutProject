@@ -815,7 +815,10 @@ describe('RoomDetailModal', () => {
       })
 
       await flushPromises()
-      await wrapper.get('[aria-label="Assign worker"]').trigger('click')
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('Assign Dwellers'))!
+        .trigger('click')
       expect(wrapper.get('.picker-title').text()).toBe('Assign to Arena')
       expect(wrapper.findAll('.dweller-picker .dweller-list-row')).toHaveLength(1)
       await wrapper.get('.dweller-picker .dweller-list-row').trigger('click')
@@ -847,7 +850,10 @@ describe('RoomDetailModal', () => {
         },
       })
       await flushPromises()
-      await wrapper.get('[aria-label="Assign worker"]').trigger('click')
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('Assign Dwellers'))!
+        .trigger('click')
       await wrapper.get('.dweller-picker .dweller-list-row').trigger('click')
       await flushPromises()
       expect(wrapper.text()).toContain('Failed to assign dweller to room')

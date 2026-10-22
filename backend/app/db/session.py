@@ -36,8 +36,8 @@ async def get_async_session() -> AsyncGenerator[AsyncSession]:
 
 
 @asynccontextmanager
-async def task_session() -> AsyncGenerator[AsyncSession]:
-    """Open a short-lived engine + session for background tick tasks.
+async def task_session_maker() -> AsyncGenerator[async_sessionmaker[AsyncSession]]:
+    """Open a short-lived engine and its session maker for background tick tasks.
 
     Background actors (game/arena/incident ticks) run in the dramatiq worker
     process, separate from the web app, so they get their own engine per run
@@ -64,8 +64,14 @@ async def task_session() -> AsyncGenerator[AsyncSession]:
 
     token = set_current_session_maker(session_maker)
     try:
-        async with session_maker() as session:
-            yield session
+        yield session_maker
     finally:
         current_session_maker.reset(token)
         await engine.dispose()
+
+
+@asynccontextmanager
+async def task_session() -> AsyncGenerator[AsyncSession]:
+    """Open one session from a run-scoped engine; see ``task_session_maker``."""
+    async with task_session_maker() as session_maker, session_maker() as session:
+        yield session

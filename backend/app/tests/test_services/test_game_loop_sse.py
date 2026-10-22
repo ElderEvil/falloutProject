@@ -17,6 +17,7 @@ from app.services.stream_manager import sse_manager
 @pytest.mark.asyncio
 async def test_process_game_tick_publishes_sse_once_per_vault(
     async_session: AsyncSession,
+    session_factory,
     vault: Vault,
 ):
     """process_game_tick publishes SSE exactly ONCE per vault (not twice).
@@ -29,7 +30,7 @@ async def test_process_game_tick_publishes_sse_once_per_vault(
     await game_loop_service.process_vault_tick(async_session, vault.id)
 
     with patch.object(sse_manager, "publish", new_callable=MagicMock) as mock_publish:
-        stats = await game_loop_service.process_game_tick(async_session)
+        stats = await game_loop_service.process_game_tick(session_factory)
 
         # This assertion FAILS before the fix (it's called twice)
         mock_publish.assert_called_once()

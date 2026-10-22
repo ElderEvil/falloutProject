@@ -74,7 +74,9 @@ async def test_read_barbershop_status(
     assert body["room_id"] == str(room.id)
     assert body["built"] is True
     assert body["staffed"] is False
-    assert body["fee"] == 100
+    assert body["fee"] == 350
+    assert body["skin_fee"] == 200
+    assert body["hair_fee"] == 150
     assert body["skin_tones"] == ["Pale", "Tan", "Brown", "Ebony"]
     assert body["hair_colors"] == ["blonde", "brunette", "black", "brown", "red", "gray"]
 
@@ -121,8 +123,8 @@ async def test_change_appearance_endpoint(
     assert response.status_code == 200
     body = response.json()
     assert body["portrait_updated"] is True
-    assert body["fee"] == 100
-    assert body["remaining_caps"] == 400
+    assert body["fee"] == 350
+    assert body["remaining_caps"] == 150
     assert body["dweller"]["visual_attributes"]["skin_tone"] == "Tan"
     assert body["dweller"]["visual_attributes"]["hair_color"] == "black"
     assert "SkinTan_HairBlack" in body["dweller"]["image_url"]

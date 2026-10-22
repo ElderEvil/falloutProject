@@ -77,7 +77,9 @@ async def test_status_reports_built_unstaffed_barbershop(async_session: AsyncSes
 
     assert status.built is True
     assert status.staffed is False
-    assert status.fee == 100
+    assert status.fee == 350
+    assert status.skin_fee == 200
+    assert status.hair_fee == 150
     assert status.skin_tones == ["Pale", "Tan", "Brown", "Ebony"]
     assert status.hair_colors == ["blonde", "brunette", "black", "brown", "red", "gray"]
 
@@ -113,14 +115,44 @@ async def test_change_appearance_deducts_fee_and_swaps_default_portrait(
     )
 
     assert response.portrait_updated is True
-    assert response.fee == 100
-    assert response.remaining_caps == 400
+    assert response.fee == 350
+    assert response.remaining_caps == 150
     assert response.dweller.visual_attributes["skin_tone"] == "Tan"
     assert response.dweller.visual_attributes["hair_color"] == "black"
     assert response.dweller.image_url != before_image
     assert "SkinTan_HairBlack" in response.dweller.image_url
     await async_session.refresh(vault)
-    assert vault.bottle_caps == 400
+    assert vault.bottle_caps == 150
+
+
+async def test_change_appearance_charges_only_for_the_changed_attribute(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    room = await _make_barbershop(async_session, vault)
+    await _staff(async_session, room, dweller)
+    await _set_human(async_session, dweller)
+    vault.bottle_caps = 500
+    async_session.add(vault)
+    await async_session.commit()
+
+    skin_response = await barbershop_service.change_appearance(
+        async_session,
+        room=room,
+        dweller_id=dweller.id,
+        request=BarbershopChangeRequest(skin_tone="Tan", hair_color="blonde"),
+    )
+    assert skin_response.fee == 200
+    assert skin_response.remaining_caps == 300
+
+    await async_session.refresh(dweller)
+    hair_response = await barbershop_service.change_appearance(
+        async_session,
+        room=room,
+        dweller_id=dweller.id,
+        request=BarbershopChangeRequest(skin_tone="Tan", hair_color="black"),
+    )
+    assert hair_response.fee == 150
+    assert hair_response.remaining_caps == 150
 
 
 async def test_change_appearance_preserves_custom_art(

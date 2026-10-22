@@ -29,7 +29,6 @@ import { changeBarbershopAppearance, fetchBarbershopStatus } from '../services/b
 
 const props = defineProps<{
   room: Room
-  vaultId: string
   assignedDwellers: DwellerShort[]
 }>()
 
@@ -45,8 +44,10 @@ const token = computed(() => (typeof authStore.token === 'string' ? authStore.to
 
 const status = ref<BarbershopStatus | null>(null)
 const isLoadingStatus = ref(false)
-const isLoadingDwellers = ref(false)
-const selectedDwellerId = ref<string | null>(null)
+const roster = ref<DwellerShort[]>([...props.assignedDwellers])
+const barberId = ref<string | null>(null)
+const clientId = ref<string | null>(null)
+const selectingBarber = ref(false)
 const skinTone = ref<string>('Pale')
 const hairColor = ref<string>('Brown')
 const saving = ref(false)
@@ -73,8 +74,12 @@ const HAIR_SWATCH_CLASS: Record<string, string> = {
 const swatchClass = (map: Record<string, string>, value: string): string =>
   map[value] ?? 'bg-theme-primary/30'
 
-const eligibleDwellers = computed(() =>
-  filterStore.allDwellers.filter(
+const barberCandidates = computed(() =>
+  roster.value.filter((dweller) => isMature(dweller) && dweller.status !== 'dead')
+)
+
+const clientCandidates = computed(() =>
+  roster.value.filter(
     (dweller) =>
       isMature(dweller) &&
       dweller.status !== 'dead' &&
@@ -82,9 +87,48 @@ const eligibleDwellers = computed(() =>
   )
 )
 
-const selectedDweller = computed(
-  () => eligibleDwellers.value.find((dweller) => dweller.id === selectedDwellerId.value) ?? null
+const barber = computed(
+  () => barberCandidates.value.find((dweller) => dweller.id === barberId.value) ?? null
 )
+
+const availableClients = computed(() =>
+  clientCandidates.value.filter((dweller) => dweller.id !== barberId.value)
+)
+
+const selectedDweller = computed(
+  () => availableClients.value.find((dweller) => dweller.id === clientId.value) ?? null
+)
+
+const waitingClients = computed(() =>
+  availableClients.value.filter((dweller) => dweller.id !== clientId.value)
+)
+
+const currentSkinTone = computed(() =>
+  normalizeSkinTone(selectedDweller.value?.visual_attributes?.skin_tone)
+)
+
+const currentHairColor = computed(() =>
+  normalizeHairColor(
+    selectedDweller.value?.visual_attributes?.hair_color,
+    selectedDweller.value?.age_group
+  )
+)
+
+const skinChanged = computed(
+  () => !!selectedDweller.value && skinTone.value !== currentSkinTone.value
+)
+const hairChanged = computed(
+  () => !!selectedDweller.value && hairColor.value !== currentHairColor.value
+)
+const hasAppearanceChange = computed(() => skinChanged.value || hairChanged.value)
+
+const changeFee = computed(() => {
+  if (!status.value) return 0
+  return (
+    (skinChanged.value ? status.value.skin_fee : 0) +
+    (hairChanged.value ? status.value.hair_fee : 0)
+  )
+})
 
 const isElder = computed(() => selectedDweller.value?.age_group === 'elder')
 const isDefaultPortrait = computed(() => selectedDweller.value?.is_default_portrait === true)
@@ -134,27 +178,53 @@ const previewThumbnailUrl = computed(() =>
     : customPortraitUrl.value
 )
 
-const capsSufficient = computed(() => (status.value?.vault_caps ?? 0) >= (status.value?.fee ?? 0))
+const capsSufficient = computed(() => (status.value?.vault_caps ?? 0) >= changeFee.value)
 
 const canSave = computed(
   () =>
     !!status.value?.staffed &&
+    !!barber.value &&
     !!selectedDweller.value &&
+    hasAppearanceChange.value &&
     !saving.value &&
     !generating.value &&
     capsSufficient.value
 )
 
 const canRegenerate = computed(
-  () => !!status.value?.staffed && !!selectedDweller.value && !saving.value && !generating.value
+  () =>
+    !!status.value?.staffed &&
+    !!barber.value &&
+    !!selectedDweller.value &&
+    !saving.value &&
+    !generating.value
 )
 
 watch(
-  eligibleDwellers,
+  () => props.assignedDwellers,
   (dwellers) => {
-    const current = selectedDwellerId.value
+    roster.value = [...dwellers]
+  },
+  { immediate: true, deep: true }
+)
+
+watch(
+  barberCandidates,
+  (dwellers) => {
+    const current = barberId.value
     if (current && dwellers.some((dweller) => dweller.id === current)) return
-    selectedDwellerId.value = dwellers[0]?.id ?? null
+    barberId.value = dwellers[0]?.id ?? null
+  },
+  { immediate: true }
+)
+
+watch(
+  [clientCandidates, barberId],
+  ([dwellers, currentBarberId]) => {
+    const available = dwellers.filter((dweller) => dweller.id !== currentBarberId)
+    const current = clientId.value
+    if (current && available.some((dweller) => dweller.id === current)) return
+    clientId.value = available[0]?.id ?? null
   },
   { immediate: true }
 )
@@ -175,6 +245,21 @@ watch(
   { immediate: true }
 )
 
+function selectBarber(dwellerId: string): void {
+  const previousBarberId = barberId.value
+  barberId.value = dwellerId
+  selectingBarber.value = false
+
+  if (clientId.value !== dwellerId) return
+  const available = clientCandidates.value.filter((dweller) => dweller.id !== dwellerId)
+  const preferred = available.find((dweller) => dweller.id !== previousBarberId)
+  clientId.value = preferred?.id ?? available[0]?.id ?? null
+}
+
+function selectClient(dwellerId: string): void {
+  clientId.value = dwellerId
+}
+
 async function loadStatus(): Promise<void> {
   if (!props.room.id || !token.value) return
   isLoadingStatus.value = true
@@ -188,26 +273,13 @@ async function loadStatus(): Promise<void> {
   }
 }
 
-async function loadDwellers(): Promise<void> {
-  if (!props.vaultId || !token.value) return
-  isLoadingDwellers.value = true
-  try {
-    await filterStore.fetchAllDwellers(props.vaultId, token.value)
-  } catch (error) {
-    inlineError.value = handleStoreError(error, 'Failed to load vault dwellers')
-  } finally {
-    isLoadingDwellers.value = false
-  }
-}
-
 function reload(): void {
   inlineError.value = null
   void loadStatus()
-  void loadDwellers()
 }
 
 watch(
-  [() => props.room.id, () => props.vaultId, token],
+  [() => props.room.id, token],
   () => {
     status.value = null
     reload()
@@ -218,7 +290,8 @@ watch(
 function patchPortraitSnapshot(
   dwellerId: string,
   thumbnailUrl: string | null | undefined,
-  isDefaultPortrait: boolean | undefined
+  isDefaultPortrait: boolean | undefined,
+  visualAttributes?: DwellerShort['visual_attributes']
 ): void {
   const update = (list: DwellerShort[]) => {
     const index = list.findIndex((dweller) => dweller.id === dwellerId)
@@ -228,8 +301,10 @@ function patchPortraitSnapshot(
       ...entry,
       thumbnail_url: thumbnailUrl ?? null,
       ...(isDefaultPortrait === undefined ? {} : { is_default_portrait: isDefaultPortrait }),
+      ...(visualAttributes === undefined ? {} : { visual_attributes: visualAttributes }),
     }
   }
+  update(roster.value)
   update(filterStore.allDwellers)
   update(filterStore.dwellers)
 }
@@ -252,7 +327,8 @@ async function handleSave(): Promise<void> {
     patchPortraitSnapshot(
       dweller.id,
       response.dweller.thumbnail_url,
-      response.dweller.is_default_portrait
+      response.dweller.is_default_portrait,
+      response.dweller.visual_attributes as DwellerShort['visual_attributes']
     )
     status.value = { ...current, vault_caps: response.remaining_caps }
     emit('changed')
@@ -309,15 +385,22 @@ async function handleRegenerate(): Promise<void> {
           </Badge>
         </div>
         <p class="text-xs leading-relaxed text-theme-primary/65">
-          Pick a human adult or elder and swap a preset skin tone and hair color. The fee is charged
-          from the vault's caps when the change saves.
+          Put one dweller in the barber chair and one human customer in the styling chair. Barbers
+          are never offered as customers, and only real changes are charged.
         </p>
-        <dl class="grid grid-cols-3 gap-2 text-center">
+        <dl class="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
           <div class="rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5">
-            <dt class="text-[0.6rem] tracking-wider text-theme-primary/60 uppercase">Fee</dt>
+            <dt class="text-[0.6rem] tracking-wider text-theme-primary/60 uppercase">Skin</dt>
             <!-- @vue-ignore -->
-            <dd class="text-sm font-bold text-theme-primary" data-testid="barbershop-fee">
-              {{ status ? `${status.fee} caps` : '—' }}
+            <dd class="text-sm font-bold text-theme-primary" data-testid="barbershop-skin-fee">
+              {{ status ? `${status.skin_fee} caps` : '—' }}
+            </dd>
+          </div>
+          <div class="rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5">
+            <dt class="text-[0.6rem] tracking-wider text-theme-primary/60 uppercase">Hair</dt>
+            <!-- @vue-ignore -->
+            <dd class="text-sm font-bold text-theme-primary" data-testid="barbershop-hair-fee">
+              {{ status ? `${status.hair_fee} caps` : '—' }}
             </dd>
           </div>
           <div class="rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5">
@@ -331,7 +414,15 @@ async function handleRegenerate(): Promise<void> {
             <dt class="text-[0.6rem] tracking-wider text-theme-primary/60 uppercase">Chair</dt>
             <!-- @vue-ignore -->
             <dd class="text-sm font-bold text-theme-primary" data-testid="barbershop-chair">
-              {{ status ? (status.staffed ? 'Ready' : 'Empty') : '—' }}
+              {{
+                status
+                  ? barber && selectedDweller
+                    ? 'Ready'
+                    : status.staffed
+                      ? 'Pair needed'
+                      : 'Empty'
+                  : '—'
+              }}
             </dd>
           </div>
         </dl>
@@ -379,72 +470,211 @@ async function handleRegenerate(): Promise<void> {
 
         <!-- @vue-ignore -->
         <p
-          v-else-if="isLoadingDwellers"
-          class="text-xs text-theme-primary/60"
-          data-testid="barbershop-roster-loading"
+          v-else-if="status && !barberCandidates.length"
+          class="rounded border border-theme-primary/20 bg-surface-sunken px-3 py-2 text-xs text-theme-primary/60"
+          data-testid="barbershop-empty-barber"
         >
-          Reading dweller records…
+          Assign an adult barber to the Barbershop.
         </p>
 
         <!-- @vue-ignore -->
         <p
-          v-else-if="status && !eligibleDwellers.length"
+          v-else-if="status && !availableClients.length"
           class="rounded border border-theme-primary/20 bg-surface-sunken px-3 py-2 text-xs text-theme-primary/60"
-          data-testid="barbershop-empty"
+          data-testid="barbershop-empty-client"
         >
-          No adult human dwellers are available for a trim.
+          Assign a human customer to the Barbershop to complete the pair.
         </p>
 
         <!-- @vue-ignore -->
         <div
-          v-if="status && eligibleDwellers.length"
-          class="grid gap-4 sm:grid-cols-2"
+          v-if="status && barberCandidates.length && availableClients.length"
+          class="grid gap-4 lg:grid-cols-3"
           data-testid="barbershop-workspace"
         >
-          <div class="flex min-w-0 flex-col gap-4">
-            <div class="flex flex-col gap-2">
-              <h4 class="text-xs font-semibold tracking-wider text-theme-primary/70 uppercase">
-                Dwellers
-              </h4>
-              <div class="flex max-h-64 flex-col gap-1.5 overflow-y-auto pr-1">
+          <div class="flex min-w-0 flex-col gap-3">
+            <div class="rounded border border-theme-primary/20 bg-surface-sunken p-3">
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <h4 class="text-xs font-semibold tracking-wider text-theme-primary/70 uppercase">
+                  Barber chair
+                </h4>
                 <!-- @vue-ignore -->
                 <Button
-                  v-for="dweller in eligibleDwellers"
-                  :key="dweller.id"
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  class="border-theme-primary/30 text-theme-primary hover:bg-theme-primary/10"
+                  data-testid="barbershop-barber-change"
+                  @click="selectingBarber = !selectingBarber"
+                >
+                  {{ selectingBarber ? 'Close' : 'Change' }}
+                </Button>
+              </div>
+
+              <!-- @vue-ignore -->
+              <div
+                v-if="barber"
+                class="flex items-center gap-3"
+                data-testid="barbershop-barber-chair"
+              >
+                <DwellerPortrait
+                  :image-url="barber.thumbnail_url"
+                  :thumbnail-url="barber.thumbnail_url"
+                  :alt="`${getDwellerDisplayName(barber)} barber`"
+                  prefer-thumbnail
+                  image-class="h-12 w-12 object-cover"
+                  fallback-class="h-8 w-8 text-theme-primary/60"
+                />
+                <div class="flex min-w-0 flex-col gap-0.5">
+                  <span class="truncate text-sm font-semibold text-theme-primary">
+                    {{ getDwellerDisplayName(barber) }}
+                  </span>
+                  <span class="text-[0.65rem] tracking-wide text-theme-primary/60 uppercase">
+                    Barber · Level {{ barber.level }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- @vue-ignore -->
+              <div v-if="selectingBarber" class="mt-2 flex flex-col gap-1" role="list">
+                <!-- @vue-ignore -->
+                <Button
+                  v-for="candidate in barberCandidates"
+                  :key="candidate.id"
                   type="button"
                   variant="ghost"
-                  class="h-auto w-full justify-start gap-3 rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5 text-left hover:bg-theme-primary/10"
-                  :class="{
-                    'border-theme-primary bg-theme-primary/10': selectedDwellerId === dweller.id,
-                  }"
-                  :aria-pressed="selectedDwellerId === dweller.id"
-                  data-testid="barbershop-dweller-row"
-                  :data-dweller-id="dweller.id"
-                  @click="selectedDwellerId = dweller.id"
+                  class="h-auto w-full justify-start gap-2 rounded border border-theme-primary/20 px-2 py-1.5 text-left hover:bg-theme-primary/10"
+                  :class="{ 'border-theme-primary bg-theme-primary/10': barberId === candidate.id }"
+                  :aria-pressed="barberId === candidate.id"
+                  data-testid="barbershop-barber-option"
+                  :data-dweller-id="candidate.id"
+                  @click="selectBarber(candidate.id)"
                 >
-                  <DwellerPortrait
-                    :image-url="dweller.thumbnail_url"
-                    :thumbnail-url="dweller.thumbnail_url"
-                    :alt="`${getDwellerDisplayName(dweller)} portrait`"
-                    prefer-thumbnail
-                    image-class="h-10 w-10 object-cover"
-                    fallback-class="h-6 w-6 text-theme-primary/60"
-                  />
-                  <span class="flex min-w-0 flex-col items-start gap-1">
-                    <span class="w-full truncate text-sm font-semibold text-theme-primary">
-                      {{ getDwellerDisplayName(dweller) }}
-                    </span>
-                    <span class="flex flex-wrap items-center gap-1.5 text-theme-primary/60">
-                      <DwellerAgeBadge :age-group="dweller.age_group" size="sm" show-label />
-                      <span class="text-[0.65rem] tracking-wide uppercase">
-                        Level {{ dweller.level }}
-                      </span>
-                    </span>
+                  <span class="truncate text-xs text-theme-primary">
+                    {{ getDwellerDisplayName(candidate) }}
+                  </span>
+                  <span class="ml-auto text-[0.6rem] text-theme-primary/50 uppercase">
+                    Lv {{ candidate.level }}
                   </span>
                 </Button>
               </div>
             </div>
 
+            <div class="rounded border border-theme-primary/20 bg-surface-sunken p-3">
+              <h4 class="mb-2 text-xs font-semibold tracking-wider text-theme-primary/70 uppercase">
+                Customer chair
+              </h4>
+              <!-- @vue-ignore -->
+              <div
+                v-if="selectedDweller"
+                class="flex items-center gap-3"
+                data-testid="barbershop-customer-chair"
+              >
+                <DwellerPortrait
+                  :image-url="selectedDweller.thumbnail_url"
+                  :thumbnail-url="selectedDweller.thumbnail_url"
+                  :alt="`${getDwellerDisplayName(selectedDweller)} customer`"
+                  prefer-thumbnail
+                  image-class="h-12 w-12 object-cover"
+                  fallback-class="h-8 w-8 text-theme-primary/60"
+                />
+                <div class="flex min-w-0 flex-col gap-0.5">
+                  <span class="truncate text-sm font-semibold text-theme-primary">
+                    {{ getDwellerDisplayName(selectedDweller) }}
+                  </span>
+                  <span class="text-[0.65rem] tracking-wide text-theme-primary/60 uppercase">
+                    Customer · Level {{ selectedDweller.level }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded border border-theme-primary/20 bg-surface-sunken p-3">
+              <h4 class="mb-2 text-xs font-semibold tracking-wider text-theme-primary/70 uppercase">
+                Waiting room
+              </h4>
+              <!-- @vue-ignore -->
+              <p
+                v-if="!waitingClients.length"
+                class="text-xs text-theme-primary/55"
+                data-testid="barbershop-waiting-empty"
+              >
+                No other human customers waiting.
+              </p>
+              <!-- @vue-ignore -->
+              <div v-else class="flex max-h-40 flex-col gap-1 overflow-y-auto pr-1" role="list">
+                <!-- @vue-ignore -->
+                <Button
+                  v-for="candidate in waitingClients"
+                  :key="candidate.id"
+                  type="button"
+                  variant="ghost"
+                  class="h-auto w-full justify-start gap-2 rounded border border-theme-primary/20 px-2 py-1.5 text-left hover:bg-theme-primary/10"
+                  data-testid="barbershop-waiting-row"
+                  :data-dweller-id="candidate.id"
+                  @click="selectClient(candidate.id)"
+                >
+                  <DwellerPortrait
+                    :image-url="candidate.thumbnail_url"
+                    :thumbnail-url="candidate.thumbnail_url"
+                    :alt="`${getDwellerDisplayName(candidate)} portrait`"
+                    prefer-thumbnail
+                    image-class="h-8 w-8 object-cover"
+                    fallback-class="h-5 w-5 text-theme-primary/60"
+                  />
+                  <span class="truncate text-xs text-theme-primary">
+                    {{ getDwellerDisplayName(candidate) }}
+                  </span>
+                  <span class="ml-auto text-[0.6rem] text-theme-primary/50 uppercase">
+                    Lv {{ candidate.level }}
+                  </span>
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex min-w-0 flex-col gap-3">
+            <div
+              class="mx-auto flex h-64 w-full max-w-56 items-center justify-center overflow-hidden rounded border border-theme-primary/25 bg-surface-sunken"
+            >
+              <!-- @vue-ignore -->
+              <div data-testid="barbershop-portrait" class="h-full w-full">
+                <DwellerPortrait
+                  :image-url="previewImageUrl"
+                  :thumbnail-url="previewThumbnailUrl"
+                  :alt="
+                    selectedDweller
+                      ? `${getDwellerDisplayName(selectedDweller)} preview`
+                      : 'Preview'
+                  "
+                  :prefer-thumbnail="!isDefaultPortrait"
+                  image-class="h-full w-full object-contain"
+                  fallback-class="h-16 w-16 text-theme-primary/40"
+                />
+              </div>
+            </div>
+
+            <div v-if="selectedDweller" class="flex flex-col gap-1 text-xs">
+              <p class="text-theme-primary/60">
+                <span class="uppercase tracking-wider">Barber</span>
+                {{ barber ? getDwellerDisplayName(barber) : '—' }}
+              </p>
+              <p class="font-semibold text-theme-primary">
+                <span class="font-normal text-theme-primary/60 uppercase tracking-wider">
+                  Customer
+                </span>
+                {{ getDwellerDisplayName(selectedDweller) }}
+              </p>
+              <p class="text-theme-primary/60">
+                {{ formatIdentityLabel(skinTone) }} skin · {{ formatIdentityLabel(hairColor) }} hair
+              </p>
+              <p v-if="!isDefaultPortrait" class="text-theme-primary/55">
+                Custom portrait preserved when saving.
+              </p>
+            </div>
+          </div>
+
+          <div class="flex min-w-0 flex-col gap-4">
             <div class="flex flex-col gap-2" role="group" aria-label="Skin tone">
               <h4 class="text-xs font-semibold tracking-wider text-theme-primary/70 uppercase">
                 Skin tone
@@ -508,38 +738,26 @@ async function handleRegenerate(): Promise<void> {
                 </Button>
               </div>
             </div>
-          </div>
 
-          <div class="flex min-w-0 flex-col gap-3">
-            <div
-              class="mx-auto flex h-56 w-full max-w-48 items-center justify-center overflow-hidden rounded border border-theme-primary/25 bg-surface-sunken"
-            >
-              <!-- @vue-ignore -->
-              <div data-testid="barbershop-portrait" class="h-full w-full">
-                <DwellerPortrait
-                  :image-url="previewImageUrl"
-                  :thumbnail-url="previewThumbnailUrl"
-                  :alt="
-                    selectedDweller
-                      ? `${getDwellerDisplayName(selectedDweller)} preview`
-                      : 'Preview'
-                  "
-                  :prefer-thumbnail="!isDefaultPortrait"
-                  image-class="h-full w-full object-contain"
-                  fallback-class="h-16 w-16 text-theme-primary/40"
-                />
+            <div class="rounded border border-theme-primary/20 bg-surface-sunken p-3">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs tracking-wider text-theme-primary/60 uppercase">
+                  Change total
+                </span>
+                <!-- @vue-ignore -->
+                <span
+                  class="text-base font-bold text-theme-primary"
+                  data-testid="barbershop-change-fee"
+                >
+                  {{ changeFee }} caps
+                </span>
               </div>
-            </div>
-
-            <div v-if="selectedDweller" class="flex flex-col gap-1 text-xs">
-              <p class="font-semibold text-theme-primary">
-                {{ getDwellerDisplayName(selectedDweller) }}
+              <p class="mt-1 text-[0.65rem] text-theme-primary/55">
+                Skin {{ skinChanged ? `+${status?.skin_fee ?? 0}` : '—' }} · Hair
+                {{ hairChanged ? `+${status?.hair_fee ?? 0}` : '—' }}
               </p>
-              <p class="text-theme-primary/60">
-                {{ formatIdentityLabel(skinTone) }} skin · {{ formatIdentityLabel(hairColor) }} hair
-              </p>
-              <p v-if="!isDefaultPortrait" class="text-theme-primary/55">
-                Custom portrait preserved when saving.
+              <p v-if="!hasAppearanceChange" class="mt-1 text-[0.65rem] text-theme-primary/55">
+                Pick a different skin tone or hair color to enable saving.
               </p>
             </div>
 
@@ -555,7 +773,13 @@ async function handleRegenerate(): Promise<void> {
                 @click="handleSave"
               >
                 <Icon icon="mdi:content-save-outline" class="h-4 w-4" :ariaHidden="true" />
-                {{ saving ? 'Saving…' : `Save appearance (${status?.fee ?? 0} caps)` }}
+                {{
+                  saving
+                    ? 'Saving…'
+                    : hasAppearanceChange
+                      ? `Save appearance (${changeFee} caps)`
+                      : 'No changes to save'
+                }}
               </Button>
 
               <!-- @vue-ignore -->
@@ -578,8 +802,13 @@ async function handleRegenerate(): Promise<void> {
                 }}
               </Button>
 
-              <p v-if="!capsSufficient" class="text-[0.65rem] text-warning">
-                This change costs {{ status?.fee ?? 0 }} caps, but the vault holds
+              <!-- @vue-ignore -->
+              <p
+                v-if="hasAppearanceChange && !capsSufficient"
+                class="text-[0.65rem] text-warning"
+                data-testid="barbershop-insufficient-caps"
+              >
+                This change costs {{ changeFee }} caps, but the vault holds
                 {{ status?.vault_caps ?? 0 }}.
               </p>
             </div>

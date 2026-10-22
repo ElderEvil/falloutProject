@@ -273,7 +273,6 @@ onUnmounted(stopAmbience)
           <BarbershopPanel
             v-if="has('barbershop')"
             :room="room"
-            :vault-id="vaultId"
             :assigned-dwellers="assignedDwellers"
             @changed="emit('roomUpdated')"
           />

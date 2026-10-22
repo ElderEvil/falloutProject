@@ -19,7 +19,7 @@ vi.mock('@iconify/vue', () =>
 vi.mock('@/modules/rooms/components/BarbershopPanel.vue', () => ({
   default: {
     name: 'BarbershopPanel',
-    props: ['room', 'vaultId', 'assignedDwellers'],
+    props: ['room', 'assignedDwellers'],
     emits: ['changed'],
     template: '<div class="mock-barbershop-panel"></div>',
   },

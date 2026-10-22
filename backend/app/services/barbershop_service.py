@@ -76,7 +76,9 @@ class BarbershopService:
             room_id=room.id if room is not None else None,
             built=room is not None,
             staffed=await self._is_staffed(db_session, room),
-            fee=game_config.barbershop.change_cost,
+            fee=game_config.barbershop.skin_change_cost + game_config.barbershop.hair_change_cost,
+            skin_fee=game_config.barbershop.skin_change_cost,
+            hair_fee=game_config.barbershop.hair_change_cost,
             vault_caps=vault.bottle_caps,
             skin_tones=list(HUMAN_PORTRAIT_SKIN_TONES),
             hair_colors=[color.casefold() for color in HUMAN_PORTRAIT_HAIR_COLORS],
@@ -174,12 +176,9 @@ class BarbershopService:
         current = dweller.visual_attributes or {}
         current_skin = current.get("skin_tone")
         current_hair = current.get("hair_color")
-        if (
-            isinstance(current_skin, str)
-            and isinstance(current_hair, str)
-            and current_skin.casefold() == skin_tone.casefold()
-            and current_hair.casefold() == hair_color.casefold()
-        ):
+        skin_changed = not (isinstance(current_skin, str) and current_skin.casefold() == skin_tone.casefold())
+        hair_changed = not (isinstance(current_hair, str) and current_hair.casefold() == hair_color.casefold())
+        if not skin_changed and not hair_changed:
             raise ContentNoChangeException(detail="The dweller already has that appearance.")
 
         if not await self._is_staffed(db_session, room):
@@ -195,7 +194,9 @@ class BarbershopService:
         custom_art = (dweller.image_url and not is_default_dweller_image(dweller.image_url)) or (
             dweller.thumbnail_url and not is_default_dweller_image(dweller.thumbnail_url)
         )
-        fee = game_config.barbershop.change_cost
+        fee = (game_config.barbershop.skin_change_cost if skin_changed else 0) + (
+            game_config.barbershop.hair_change_cost if hair_changed else 0
+        )
         remaining_caps = vault.bottle_caps - fee
 
         try:

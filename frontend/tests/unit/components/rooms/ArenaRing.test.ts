@@ -53,6 +53,31 @@ const render = (room = state(), pendingSkills = new Set<string>(), skillEnabled 
   })
 
 describe('Arena ring', () => {
+  it('anchors dweller portraits at the top so faces remain visible', () => {
+    const room = state(
+      [fighter('Alpha', { thumbnail_url: '/static/dwellers/alpha.webp' })],
+      [fighter('Bravo')]
+    )
+    const wrapper = render(room)
+
+    expect(wrapper.get('img[alt="Alpha"]').attributes('style')).toContain(
+      'object-position: center top'
+    )
+  })
+
+  it('floats the health and skill meters above the fighter portrait', () => {
+    const wrapper = render(
+      state([fighter('Alpha', { thumbnail_url: '/static/dwellers/alpha.webp' })])
+    )
+    const plate = wrapper.get('.fighter-meters')
+    const portrait = wrapper.get('.fighter-portrait')
+
+    expect(plate.element.nextElementSibling).toBe(portrait.element)
+    expect(portrait.find('img[alt="Alpha"]').exists()).toBe(true)
+    expect(plate.get('[role="progressbar"][aria-label="Alpha HP"]').exists()).toBe(true)
+    expect(plate.get('[role="progressbar"][aria-label="Alpha skill charge"]').exists()).toBe(true)
+  })
+
   it('places each ready dweller activation on its paired target and emits the attacker ID', async () => {
     const wrapper = render()
     const marker = wrapper.get('button[aria-label="Use Aimed Shot from Alpha on Bravo"]')

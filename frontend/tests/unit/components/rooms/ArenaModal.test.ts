@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { computed, ref } from 'vue'
 import { createIconifyMock, createToastMock } from '../../helpers/mocks'
 import { mount, flushPromises, enableAutoUnmount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
@@ -16,14 +17,6 @@ vi.mock('@iconify/vue', () =>
 )
 
 vi.mock('@/core/composables/useToast', () => ({ useToast: () => mockToast }))
-
-const pollMock = vi.hoisted(() => ({ run: null as null | (() => Promise<unknown>) }))
-vi.mock('@/core/composables/usePolling', () => ({
-  usePolling: (callback: () => Promise<unknown>) => {
-    pollMock.run = callback
-    return vi.fn()
-  },
-}))
 
 vi.mock('@/modules/auth/stores/auth', () => ({
   useAuthStore: () => ({ token: 'test-token' }),
@@ -188,9 +181,26 @@ vi.mock('@/modules/rooms/stores/arena', () => ({
   }),
 }))
 
+const roomState = ref<ArenaRoomState | null>(storeMock.readyRoom)
+const controller = {
+  roomState: computed(() => roomState.value),
+  isLoading: ref(false),
+  loadFailed: ref(false),
+  pendingSkills: ref(new Set<string>()),
+  damageNumbers: ref<Array<{ id: number; fighterId: string; amount: number }>>([]),
+  attackingTeam: ref<'A' | 'B' | null>(null),
+  skillBurst: ref<{ id: string; message: string } | null>(null),
+  load: vi.fn(),
+  retry: vi.fn(),
+  refresh: vi.fn().mockResolvedValue(undefined),
+  queueSkill: vi.fn(),
+  startFight: vi.fn().mockResolvedValue(true),
+  resetDamageTracking: vi.fn(),
+}
+
 const mountModal = () =>
   mount(ArenaModal, {
-    props: { vaultId: 'vault-1', roomId: 'room-1' },
+    props: { vaultId: 'vault-1', roomId: 'room-1', controller },
     global: { plugins: [createPinia()] },
   })
 
@@ -220,57 +230,13 @@ const pickOption = async (slot: ReturnType<typeof slots>[number], name: string) 
 
 describe('ArenaModal', () => {
   it.each([
-    [100, false, 80, 0, true],
-    [99, false, 80, 0, false],
-    [100, true, 80, 0, false],
-    [100, false, 0, 0, false],
-    [100, false, 80, 3, false],
-  ] as const)(
-    'gates a skill at charge %i, queued %s, hp %i, countdown %i',
-    async (charge, queued, health, countdown, enabled) => {
-      const fighter = {
-        ...storeMock.readyRoom.team_a[0],
-        health,
-        active_skill: { name: 'Aimed Shot', description: 'Deal bonus damage.', charge, queued },
-      }
-      storeMock.currentRoom = {
-        ...storeMock.readyRoom,
-        team_a: [fighter],
-        fighters: [fighter, ...storeMock.readyRoom.team_b],
-        fight_started: true,
-        can_start: false,
-        countdown_remaining: countdown,
-      }
-      const wrapper = mountModal()
-      await flushPromises()
-      const ring = wrapper.get('[aria-label="Arena ring"]')
-      expect(
-        ring.get('[aria-label="Alpha Dweller skill charge"]').attributes('aria-valuenow')
-      ).toBe(String(charge))
-      const button = ring.get('button[aria-label^="Use Aimed Shot for"]')
-      expect(wrapper.find('.teams-row').exists()).toBe(false)
-      expect(button.attributes('disabled') === undefined).toBe(enabled)
-      if (enabled) {
-        await button.trigger('click')
-        await flushPromises()
-        expect(storeMock.queueSkill).toHaveBeenCalledWith(
-          'vault-1',
-          'room-1',
-          fighter.id,
-          'test-token'
-        )
-      }
-    }
-  )
-
-  it.each([
     [1, ['duel'], true, true],
     [2, ['duel', 'brawl'], false, true],
     [3, ['duel', 'brawl', 'hunt'], false, false],
   ] as const)(
     'shows the server mode unlocks at tier %i',
     async (tier, availableModes, brawlLocked, huntLocked) => {
-      storeMock.currentRoom = { ...storeMock.readyRoom, tier, available_modes: [...availableModes] }
+      roomState.value = { ...storeMock.readyRoom, tier, available_modes: [...availableModes] }
       const wrapper = mountModal()
       await flushPromises()
       const options = modeTabs(wrapper)
@@ -282,15 +248,19 @@ describe('ArenaModal', () => {
 
   beforeEach(() => {
     setActivePinia(createPinia())
-    storeMock.currentRoom = storeMock.readyRoom
-    storeMock.queueSkill.mockClear()
-    storeMock.fetchState.mockReset().mockResolvedValue(true)
+    roomState.value = storeMock.readyRoom
+    controller.isLoading.value = false
+    controller.loadFailed.value = false
+    controller.retry.mockClear()
+    controller.refresh.mockClear()
+    controller.startFight.mockClear()
+    controller.resetDamageTracking.mockClear()
     storeMock.setFighters.mockReset().mockResolvedValue(true)
     storeMock.fetchCreatures.mockReset().mockResolvedValue(true)
   })
 
   it('explains assignment before offering match slots for an empty roster', async () => {
-    storeMock.currentRoom = {
+    roomState.value = {
       ...storeMock.readyRoom,
       roster: [],
       fighter_a_id: null,
@@ -303,7 +273,7 @@ describe('ArenaModal', () => {
     const wrapper = mountModal()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Assign adult dwellers to the Arena first')
+    expect(wrapper.text()).toContain('Assign adult dwellers to the Arena to build a roster.')
     expect(wrapper.find('.fighter-slot-empty').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('START FIGHT')
   })
@@ -329,7 +299,6 @@ describe('ArenaModal', () => {
     expect(wrapper.text()).toContain('Alpha Dweller')
     expect(wrapper.text()).toContain('Bravo Dweller')
     expect(wrapper.text()).toContain('POW 42')
-    expect(storeMock.fetchState).toHaveBeenCalledWith('vault-1', 'test-token', false)
   })
 
   it('shows START FIGHT when the room is ready', async () => {
@@ -353,12 +322,12 @@ describe('ArenaModal', () => {
   })
 
   it('labels readiness with the mode-sized fighter count', async () => {
-    storeMock.currentRoom = { ...storeMock.readyRoom, can_start: false }
+    roomState.value = { ...storeMock.readyRoom, can_start: false }
     const duel = mountModal()
     await flushPromises()
     expect(duel.text()).toContain('NEEDS 2 FIGHTERS')
 
-    storeMock.currentRoom = { ...storeMock.readyRoom, mode: 'brawl', can_start: false }
+    roomState.value = { ...storeMock.readyRoom, mode: 'brawl', can_start: false }
     const brawl = mountModal()
     await flushPromises()
     expect(brawl.text()).toContain('NEEDS 3 DWELLERS + A PARTNER')
@@ -381,7 +350,7 @@ describe('ArenaModal', () => {
   })
 
   it('keeps roster portraits on the bench and in pending brawl selections', async () => {
-    storeMock.currentRoom = {
+    roomState.value = {
       ...storeMock.readyRoom,
       roster: storeMock.readyRoom.roster.map((entry) => ({
         ...entry,
@@ -436,7 +405,7 @@ describe('ArenaModal', () => {
   })
 
   it('auto-fills the last empty brawl slot when one candidate remains', async () => {
-    storeMock.currentRoom = {
+    roomState.value = {
       ...storeMock.readyRoom,
       roster: storeMock.readyRoom.roster.slice(0, 4),
     }
@@ -545,7 +514,7 @@ describe('ArenaModal', () => {
     ['Wasteland Pack', ['mole-rat-pack', 'night-stalker'], 50],
     ['Heavyweights', ['mirelurk', 'yao-guai'], 80],
   ] as const)('selects %s through the existing hunt draft', async (name, keys, power) => {
-    storeMock.currentRoom = storeMock.huntRoom
+    roomState.value = storeMock.huntRoom
     const wrapper = mountModal()
     await flushPromises()
     const group = wrapper.get('[aria-label="Hunt preset"]')
@@ -571,7 +540,7 @@ describe('ArenaModal', () => {
   })
 
   it('allows customizing a preset and clears its selected state', async () => {
-    storeMock.currentRoom = storeMock.huntRoom
+    roomState.value = storeMock.huntRoom
     const wrapper = mountModal()
     await flushPromises()
     const group = wrapper.get('[aria-label="Hunt preset"]')
@@ -597,7 +566,7 @@ describe('ArenaModal', () => {
     await flushPromises()
     expect(wrapper.find('[aria-label="Hunt preset"]').exists()).toBe(false)
     wrapper.unmount()
-    storeMock.currentRoom = { ...storeMock.huntRoom, fight_started: true, match_done: false }
+    roomState.value = { ...storeMock.huntRoom, fight_started: true, match_done: false }
     wrapper = mountModal()
     await flushPromises()
     expect(wrapper.find('[aria-label="Hunt preset"]').exists()).toBe(false)
@@ -606,7 +575,7 @@ describe('ArenaModal', () => {
   })
 
   it('renders hunted creatures on team B with matching artwork and live stats', async () => {
-    storeMock.currentRoom = storeMock.huntRoom
+    roomState.value = storeMock.huntRoom
     const wrapper = mountModal()
     await flushPromises()
 
@@ -628,7 +597,7 @@ describe('ArenaModal', () => {
   })
 
   it('labels hunt readiness with dwellers plus creatures', async () => {
-    storeMock.currentRoom = { ...storeMock.huntRoom, can_start: false }
+    roomState.value = { ...storeMock.huntRoom, can_start: false }
     const wrapper = mountModal()
     await flushPromises()
 
@@ -638,7 +607,7 @@ describe('ArenaModal', () => {
   it.each([true, false])(
     'refreshes vault stock and stops on a failed heal (success=%s)',
     async (success) => {
-      storeMock.currentRoom = {
+      roomState.value = {
         ...storeMock.readyRoom,
         match_done: true,
         team_a: storeMock.readyRoom.team_a.map((fighter) => ({ ...fighter, health: 10 })),
@@ -663,7 +632,7 @@ describe('ArenaModal', () => {
   )
 
   it('excludes defeated creatures from the heal-injured action', async () => {
-    storeMock.currentRoom = {
+    roomState.value = {
       ...storeMock.huntRoom,
       match_done: true,
       winner_name: 'Alpha Dweller',
@@ -686,17 +655,18 @@ describe('ArenaModal', () => {
   })
 
   it('shows a retry state when loading the arena fails', async () => {
-    storeMock.fetchState.mockResolvedValueOnce(false)
+    controller.loadFailed.value = true
     const wrapper = mountModal()
     await flushPromises()
 
     expect(wrapper.text()).toContain('Unable to load Arena status.')
     await wrapper.get('button').trigger('click')
-    expect(storeMock.fetchState).toHaveBeenCalledTimes(2)
+    expect(controller.retry).toHaveBeenCalledTimes(1)
+    controller.loadFailed.value = false
   })
 
   it('shows the winner banner when a match is done', async () => {
-    storeMock.currentRoom = {
+    roomState.value = {
       ...storeMock.readyRoom,
       match_done: true,
       winner_name: 'Alpha Dweller',
@@ -710,7 +680,7 @@ describe('ArenaModal', () => {
 
   it('shows the server-awarded XP in the completed match result', async () => {
     const reward = 'Alpha +120 XP, Charlie +120 XP, Alpha & Charlie happiness +10'
-    storeMock.currentRoom = {
+    roomState.value = {
       ...storeMock.huntRoom,
       match_done: true,
       winner_name: 'Alpha Dweller & Charlie Dweller',
@@ -728,7 +698,7 @@ describe('ArenaModal', () => {
   })
 
   it('does not show an older reward beside a new legacy result', async () => {
-    storeMock.currentRoom = {
+    roomState.value = {
       ...storeMock.huntRoom,
       match_done: true,
       winner_name: 'Alpha Dweller',
@@ -743,7 +713,7 @@ describe('ArenaModal', () => {
   })
 
   it.each(['hunt', 'brawl'])('credits the complete winning side in %s mode', async (mode) => {
-    storeMock.currentRoom = {
+    roomState.value = {
       ...storeMock.readyRoom,
       mode,
       match_done: true,
@@ -757,7 +727,7 @@ describe('ArenaModal', () => {
   })
 
   it('renders legacy journal entries in order without round labels', async () => {
-    storeMock.currentRoom = {
+    roomState.value = {
       ...storeMock.readyRoom,
       events: [
         {
@@ -786,7 +756,7 @@ describe('ArenaModal', () => {
   })
 
   it('orders timestamped events by real time without collapsing separate hits', async () => {
-    storeMock.currentRoom = {
+    roomState.value = {
       ...storeMock.readyRoom,
       events: [
         {
@@ -857,7 +827,7 @@ describe('ArenaModal', () => {
     expect(wrapper.text()).not.toContain('NEEDS 2 FIGHTERS')
   })
   it.each(['hunt', 'brawl'] as const)('never offers a Team A bot in %s', async (mode) => {
-    storeMock.currentRoom = { ...storeMock.huntRoom, mode }
+    roomState.value = { ...storeMock.huntRoom, mode }
     const wrapper = mountModal()
     await flushPromises()
     expect(wrapper.find('[aria-label="Team A partner"]').exists()).toBe(false)
@@ -875,7 +845,7 @@ describe('ArenaModal', () => {
       .find((b) => b.text() === 'Bot')!
       .trigger('click')
     await flushPromises()
-    await pollMock.run!()
+    roomState.value = { ...roomState.value! }
     await flushPromises()
     expect(
       group

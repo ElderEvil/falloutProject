@@ -78,9 +78,7 @@ for (const width of [1280, 390]) {
     })
     await page.goto('/tests/e2e/fixtures/arena-room.html')
     const dialog = page.getByRole('dialog')
-    await expect(
-      dialog.locator('.arena-room-detail > details > .room-preview-section')
-    ).toHaveAttribute('aria-label', 'Arena room preview')
+    await expect(dialog.locator('.arena-room-detail [aria-label="Arena preview"]')).toBeVisible()
     await expect(dialog.getByRole('tablist', { name: 'Match mode' })).toBeVisible()
     await expect(dialog.getByText('Build your arena roster', { exact: true })).toBeVisible()
     await expect(
@@ -89,7 +87,7 @@ for (const width of [1280, 390]) {
     await page.screenshot({ path: testInfo.outputPath('empty-arena.png'), fullPage: true })
 
     for (const name of names) {
-      await dialog.getByRole('button', { name: 'Assign worker', exact: true }).first().click()
+      await dialog.getByRole('button', { name: 'Assign Dwellers', exact: true }).click()
       await expect(dialog.getByText('Assign to Arena', { exact: true })).toBeVisible()
       await dialog
         .locator('.dweller-picker')

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.250.0 (2026-10-22)
+
+### Features
+
+* **breeding:** allow twin and triplet deliveries ([#1142](https://github.com/ElderEvil/falloutProject/issues/1142)) bde4275
+
+### Bug Fixes
+
+* **dwellers:** share roster reads without reusing stale refreshes ([#1116](https://github.com/ElderEvil/falloutProject/issues/1116)) 32c3fd4
+
 ## 2.249.0 (2026-10-22)
 
 ### Features

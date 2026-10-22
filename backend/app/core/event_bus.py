@@ -78,7 +78,7 @@ class EventBus:
                 logger.debug(f"[EVENT] No handlers for {event_type}, skipping (vault: {vault_id})")
                 return
 
-            logger.info(f"[EVENT] Emitting {event_type} for vault {vault_id} to {len(handlers)} handler(s): {data}")
+            logger.debug(f"[EVENT] Emitting {event_type} for vault {vault_id} to {len(handlers)} handler(s): {data}")
             logger.debug(f"[EVENT] Handlers: {[_handler_name(h) for h in handlers]}")
 
             for handler in handlers:

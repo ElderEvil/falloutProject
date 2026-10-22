@@ -230,7 +230,7 @@ class ResourceManager:
         production = output * ability_sum * rate * tier_mult * seconds_passed
 
         juniors = sum(1 for dweller in dwellers if dweller.apprentice_stat is not None)
-        self.logger.info(
+        self.logger.debug(
             f"Room {room.name} producing: output={room.output}, ability_sum={ability_sum}, "
             f"production={production:.2f} (tier={room.tier}, adults={len(dwellers) - juniors}, juniors={juniors})"
         )
@@ -269,15 +269,24 @@ class ResourceManager:
 
     @staticmethod
     async def emit_production_events(vault_id: UUID4, events: ResourceTickEvents) -> None:
-        """Emit objective events after the resource transaction has committed."""
-        for resource_type, amount in (events.objective_production or events.production).model_dump().items():
+        """Emit one batched objective event after the resource transaction has committed.
+
+        One event per vault (not per resource) removes one handler session, vault
+        lock, and objectives query per additional resource.
+        """
+        production = events.objective_production or events.production
+        resources: dict[str, int] = {}
+        for resource_type, amount in production.model_dump().items():
             int_amount = int(amount)
             if int_amount > 0:
-                await event_bus.emit(
-                    GameEvent.RESOURCE_COLLECTED,
-                    vault_id,
-                    {"resource_type": resource_type, "amount": int_amount, "source": "production"},
-                )
+                resources[resource_type] = int_amount
+
+        if resources:
+            await event_bus.emit(
+                GameEvent.RESOURCE_COLLECTED,
+                vault_id,
+                {"resources": resources, "source": "production"},
+            )
 
     async def check_resource_availability(self, vault: Vault) -> dict[str, bool]:
         """Check if vault has sufficient resources for basic operations.

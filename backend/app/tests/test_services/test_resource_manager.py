@@ -4,6 +4,7 @@ import pytest
 
 from app.cli.simulate_resources import ResourceEconomyConfig, simulate
 from app.core.enums import RarityEnum
+from app.core.event_bus import GameEvent
 from app.core.game_config import game_config
 from app.crud import room as room_crud
 from app.crud.resource import VaultResourceData
@@ -124,11 +125,33 @@ class TestResourceManager:
             _, events = await ResourceManager().process_vault_resources(MagicMock(), vault.id, 60)
             await ResourceManager.emit_production_events(vault.id, events)
 
-        medical_amounts = [
-            call.args[2]["amount"] for call in emit.await_args_list if call.args[2]["resource_type"] == "stimpack"
-        ]
+        resources = emit.await_args.args[2]["resources"] if emit.await_args else {}
         assert storage.stimpack == starting_stimpacks + expected_delta
-        assert medical_amounts == ([expected_delta] if expected_delta else [])
+        assert resources.get("stimpack", 0) == expected_delta
+
+    @pytest.mark.asyncio
+    async def test_production_events_emit_one_batched_event(self, vault: Vault) -> None:
+        """Every positive production amount rides one event; zero amounts are dropped."""
+        events = ResourceTickEvents(
+            production=ResourceProduction(power=12.4, food=0.0, water=3.6, stimpack=1.0, radaway=0.0)
+        )
+
+        with patch("app.services.resource_manager.event_bus.emit", new_callable=AsyncMock) as emit:
+            await ResourceManager.emit_production_events(vault.id, events)
+
+        emit.assert_awaited_once()
+        event_type, vault_id, payload = emit.await_args.args
+        assert event_type == GameEvent.RESOURCE_COLLECTED
+        assert vault_id == vault.id
+        assert payload == {"resources": {"power": 12, "water": 3, "stimpack": 1}, "source": "production"}
+
+    @pytest.mark.asyncio
+    async def test_production_events_skip_an_empty_batch(self, vault: Vault) -> None:
+        """A tick with no positive production must not emit an empty event."""
+        with patch("app.services.resource_manager.event_bus.emit", new_callable=AsyncMock) as emit:
+            await ResourceManager.emit_production_events(vault.id, ResourceTickEvents())
+
+        emit.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_junior_worker_assists_production_at_the_reduced_rate(self):

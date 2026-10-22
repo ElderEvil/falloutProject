@@ -30,6 +30,7 @@ from app.services.progression.objectives.evaluators import (
 )
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
+from app.tests.utils.query_counter import count_sql_statements
 
 
 @pytest.fixture
@@ -96,6 +97,122 @@ async def test_collect_evaluator_wrong_resource(
     # Refresh and check progress unchanged
     await async_session.refresh(link)
     assert link.progress == 0
+
+
+@pytest.mark.asyncio
+async def test_collect_evaluator_credits_batched_production_resources(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """One batched event credits each matching objective, and a wildcard sums them."""
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    targets = {
+        "power": {"resource_type": "power"},
+        "food": {"resource_type": "food"},
+        "any": {},
+    }
+    objectives = {}
+    for label, target_entity in targets.items():
+        objective = Objective(
+            challenge=f"Collect from {label}",
+            reward="50 caps",
+            objective_type="collect",
+            target_entity=target_entity,
+            target_amount=100,
+            category=ObjectiveCategoryEnum.DAILY,
+        )
+        async_session.add(objective)
+        objectives[label] = objective
+    await async_session.commit()
+    for objective in objectives.values():
+        await async_session.refresh(objective)
+
+    links = {}
+    for label, objective in objectives.items():
+        link = VaultObjectiveProgressLink(
+            vault_id=vault.id, objective_id=objective.id, progress=0, total=100, is_completed=False
+        )
+        async_session.add(link)
+        links[label] = link
+    await async_session.commit()
+
+    CollectEvaluator(fresh_event_bus)
+
+    await fresh_event_bus.emit(
+        GameEvent.RESOURCE_COLLECTED,
+        vault.id,
+        {"resources": {"power": 10, "food": 5}, "source": "production"},
+    )
+
+    for link in links.values():
+        await async_session.refresh(link)
+    assert links["power"].progress == 10
+    assert links["food"].progress == 5
+    assert links["any"].progress == 15
+
+
+@pytest.mark.asyncio
+async def test_batched_production_uses_fewer_statements(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """One batch costs fewer statements than one emit per resource."""
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    links = {}
+    for resource_type in ("power", "food"):
+        objective = Objective(
+            challenge=f"Collect 100 {resource_type}",
+            reward="50 caps",
+            objective_type="collect",
+            target_entity={"resource_type": resource_type},
+            target_amount=100,
+            category=ObjectiveCategoryEnum.DAILY,
+        )
+        async_session.add(objective)
+        await async_session.commit()
+        await async_session.refresh(objective)
+        link = VaultObjectiveProgressLink(
+            vault_id=vault.id, objective_id=objective.id, progress=0, total=100, is_completed=False
+        )
+        async_session.add(link)
+        links[resource_type] = link
+    await async_session.commit()
+
+    CollectEvaluator(fresh_event_bus)
+
+    with count_sql_statements(async_session) as per_resource:
+        for resource_type in ("power", "food"):
+            await fresh_event_bus.emit(
+                GameEvent.RESOURCE_COLLECTED,
+                vault.id,
+                {"resource_type": resource_type, "amount": 1, "source": "production"},
+            )
+
+    for link in links.values():
+        link.progress = 0
+    await async_session.commit()
+
+    with count_sql_statements(async_session) as batched:
+        await fresh_event_bus.emit(
+            GameEvent.RESOURCE_COLLECTED,
+            vault.id,
+            {"resources": {"power": 1, "food": 1}, "source": "production"},
+        )
+
+    assert per_resource.value - batched.value >= 2, f"batched={batched.value} per_resource={per_resource.value}"
+    for link in links.values():
+        await async_session.refresh(link)
+        assert link.progress == 1
 
 
 @pytest.mark.asyncio

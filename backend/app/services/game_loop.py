@@ -97,17 +97,19 @@ class GameLoopService:
                 return True
 
         outcomes = await asyncio.gather(*(_process_vault(vault_id) for vault_id in vault_ids), return_exceptions=True)
-        unexpected: list[BaseException] = []
-        for outcome in outcomes:
+        unexpected: list[tuple[UUID4, BaseException]] = []
+        for vault_id, outcome in zip(vault_ids, outcomes, strict=True):
             if isinstance(outcome, BaseException):
-                unexpected.append(outcome)
+                unexpected.append((vault_id, outcome))
             elif outcome:
                 stats["vaults_processed"] += 1
             else:
                 stats["errors"] += 1
 
         if unexpected:
-            raise unexpected[0]
+            for vault_id, exc in unexpected[1:]:
+                self.logger.error("Unexpected error processing vault %s", vault_id, exc_info=exc)
+            raise unexpected[0][1]
         stats["total_time"] = (datetime.utcnow() - start_time).total_seconds()
 
         self.logger.info(

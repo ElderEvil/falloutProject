@@ -13,6 +13,7 @@ need patches at the SOURCE module (e.g. `app.services.X.Y`), NOT at
 """
 
 import asyncio
+import logging
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -162,6 +163,28 @@ class TestProcessGameTick:
             await game_loop_service.process_game_tick(_fake_session_maker, max_concurrency=2)
 
         assert sorted(completed) == sorted(vault.id for vault in vaults[1:])
+
+    @pytest.mark.asyncio
+    async def test_logs_every_unexpected_vault_failure(self, caplog):
+        vaults = [SimpleNamespace(id=uuid4()) for _ in range(3)]
+
+        async def fake_tick(_session, vault_id):
+            raise RuntimeError(f"boom {vault_id}")
+
+        with (
+            patch.object(game_loop_service, "_get_active_vaults", new=AsyncMock(return_value=vaults)),
+            patch.object(game_loop_service, "process_vault_tick", new=fake_tick),
+            caplog.at_level(logging.ERROR, logger="app.services.game_loop"),
+            pytest.raises(RuntimeError, match="boom"),
+        ):
+            await game_loop_service.process_game_tick(_fake_session_maker, max_concurrency=2)
+
+        logged = [
+            record.getMessage()
+            for record in caplog.records
+            if "Unexpected error processing vault" in record.getMessage()
+        ]
+        assert len(logged) == 2
 
 
 # ═════════════════════════════════════════════════════════════════════

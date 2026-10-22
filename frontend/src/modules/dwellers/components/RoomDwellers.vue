@@ -126,13 +126,13 @@ const handleDragEnd = () => {
 .apprentice-badge {
   position: absolute;
   top: 0;
-  left: 0;
+  right: 0;
   z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 1px;
-  border-bottom-right-radius: 3px;
+  border-bottom-left-radius: 3px;
   background: var(--color-warning);
   color: var(--color-surface-sunken);
   line-height: 0;

@@ -117,10 +117,10 @@ const handleDragEnd = () => {
 }
 
 .dweller-avatar--apprentice {
-  border-color: var(--color-warning);
+  border-color: var(--badge-age-teen);
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--color-warning) 70%, transparent),
-    0 0 8px color-mix(in srgb, var(--color-warning) 35%, transparent);
+    0 0 0 1px color-mix(in srgb, var(--badge-age-teen) 70%, transparent),
+    0 0 8px color-mix(in srgb, var(--badge-age-teen) 35%, transparent);
 }
 
 .apprentice-badge {
@@ -133,7 +133,7 @@ const handleDragEnd = () => {
   justify-content: center;
   padding: 1px;
   border-bottom-left-radius: 3px;
-  background: var(--color-warning);
+  background: var(--badge-age-teen);
   color: var(--color-surface-sunken);
   line-height: 0;
 }
@@ -147,6 +147,11 @@ const handleDragEnd = () => {
   transform: scale(1.1);
   border-color: var(--color-theme-primary);
   box-shadow: 0 0 8px var(--color-theme-glow);
+}
+
+.dweller-avatar--apprentice:hover {
+  border-color: var(--badge-age-teen);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--badge-age-teen) 55%, transparent);
 }
 
 .dweller-avatar:active {

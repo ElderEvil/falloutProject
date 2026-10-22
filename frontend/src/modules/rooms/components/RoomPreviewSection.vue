@@ -76,6 +76,9 @@ const apprenticeStatLabel = computed(
 const emptyDwellerSilhouetteUrl = getStaticImageUrl(
   '/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp'
 )
+const emptyApprenticeSilhouetteUrl = getStaticImageUrl(
+  '/static/dweller_images/variants/teen/FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairBrown.webp'
+)
 const imageAspect = ref(1.53)
 
 function rememberImageAspect(event: Event) {
@@ -247,6 +250,11 @@ function rememberImageAspect(event: Event) {
                 >
                   <span
                     class="empty-dweller-silhouette empty-dweller-silhouette--apprentice"
+                    :style="{
+                      '--dweller-silhouette': emptyApprenticeSilhouetteUrl
+                        ? `url('${emptyApprenticeSilhouetteUrl}')`
+                        : 'none',
+                    }"
                     aria-hidden="true"
                   />
                   <span class="apprentice-marker" aria-label="Apprentice slot" role="img">
@@ -590,14 +598,14 @@ function rememberImageAspect(event: Event) {
 
 .empty-dweller-silhouette--apprentice {
   opacity: 0.82;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-warning) 35%, transparent));
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--badge-age-teen) 35%, transparent));
 }
 
 .scene-empty-apprentice:hover .empty-dweller-silhouette,
 .scene-empty-apprentice:focus-visible .empty-dweller-silhouette {
-  background-color: var(--color-warning);
+  background-color: var(--badge-age-teen);
   opacity: 1;
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--color-warning) 70%, transparent));
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--badge-age-teen) 70%, transparent));
 }
 
 .empty-dweller-plus {
@@ -656,10 +664,10 @@ function rememberImageAspect(event: Event) {
   align-items: center;
   gap: 0.1rem;
   padding: 0.1rem 0.2rem;
-  border: 1px solid var(--color-warning);
+  border: 1px solid var(--badge-age-teen);
   border-radius: 999px;
   background: var(--color-surface-sunken);
-  color: var(--color-warning);
+  color: var(--badge-age-teen);
   font-size: 0.625rem;
   font-weight: 700;
 }

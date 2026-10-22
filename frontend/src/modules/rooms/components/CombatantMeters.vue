@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Heart, Zap } from '@lucide/vue'
+import { Button } from '@/core/components/ui/button'
 import { Progress } from '@/core/components/ui/progress'
 
 interface CombatantAction {
@@ -69,10 +70,12 @@ const actionPulsing = computed(
         :value-text="`${health}/${maxHealth}`"
       />
     </div>
-    <button
+    <Button
       v-if="action"
       type="button"
-      class="flex min-h-4 w-full items-center gap-1 rounded p-0 text-left hover:bg-transparent focus-visible:outline-2 focus-visible:outline-theme-primary disabled:cursor-default"
+      variant="ghost"
+      size="xs"
+      class="min-h-4 h-auto w-full justify-start gap-1 p-0 text-left hover:bg-transparent disabled:cursor-default"
       :class="{ 'animate-pulse motion-reduce:animate-none': actionPulsing }"
       :disabled="actionDisabled"
       :aria-label="`Use ${action.name} for ${name}, ${action.charge}% charged${action.queued ? ', queued' : ''}`"
@@ -89,6 +92,6 @@ const actionPulsing = computed(
         :model-value="action.charge"
         :label="`${name} skill charge`"
       />
-    </button>
+    </Button>
   </div>
 </template>

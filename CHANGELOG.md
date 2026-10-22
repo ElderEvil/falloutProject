@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.248.1 (2026-10-22)
+
+### Bug Fixes
+
+* **ui:** minor visual fixes ([#1131](https://github.com/ElderEvil/falloutProject/issues/1131)) efb6bf5
+
 ## 2.248.0 (2026-10-22)
 
 ### Features

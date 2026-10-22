@@ -31,7 +31,7 @@ STATE_OF_BEING_VALUES: dict[RaceOption, list[str]] = {
 }
 
 #: Whether a race can conceive. Non-humans do not give birth; they enter the
-#: population through recruitment, seeding, recycling, and breeding mutation.
+#: population through recruitment, pregeneration, and recycling.
 BREEDING_ELIGIBLE: dict[RaceOption, bool] = {
     RaceOption.HUMAN: True,
     RaceOption.GHOUL: False,

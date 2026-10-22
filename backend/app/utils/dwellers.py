@@ -146,28 +146,17 @@ def _roll_identity(rng: random.Random | ModuleType) -> dict[str, Any]:
 
 
 def roll_child_identity(mother: Any, father: Any, source: random.Random | ModuleType = random) -> dict[str, Any]:
-    """Roll a newborn's identity: inherit a parent's race, with a configurable mutation chance.
+    """Roll a newborn's identity: inherit one of the parents' races.
 
-    Mutation (``BreedingConfig.race_mutation_chance``) picks a race *different*
-    from the parents, weighted by ``race_weights`` over the remaining candidates,
-    which is how non-humans arise from breeding given that only humans are
-    breeding-eligible. When the mutated race differs from both parents, the
-    finer appearance is re-rolled for that race (issue #1036): skin/hair/eye
-    traits that cannot transfer re-roll cleanly inside the new race's options.
+    Only humans are breeding-eligible, so the child's race is always one of
+    its parents'; every emitted pair still passes the ``DwellerVisualAttributes``
+    identity validator. Non-humans enter the population via recruitment,
+    pregeneration and recycling, never births.
     """
     parent_races = [race for race in (race_of(mother), race_of(father)) if race is not None] or [RaceOption.HUMAN]
-    if source.random() < game_config.breeding.race_mutation_chance:
-        weights = game_config.dweller.get_race_weights()
-        candidates = [race for race in RaceOption if race not in parent_races]
-        race = source.choices(candidates, weights=[weights[candidate.value] for candidate in candidates])[0]
-    else:
-        race = source.choice(parent_races)
+    race = source.choice(parent_races)
     identity = _identity_for_race(race, source)
-
-    if race not in parent_races:
-        identity.update(roll_appearance(race, None, source, AgeGroupEnum.CHILD))
-    else:
-        identity.update(inherit_appearance_for_child(race, mother, father, source))
+    identity.update(inherit_appearance_for_child(race, mother, father, source))
     return identity
 
 

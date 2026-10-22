@@ -1,9 +1,8 @@
 """Race and faction mechanics: modifiers, perks, breeding, ghoul immunity."""
 
-import random
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -219,9 +218,8 @@ def test_non_reasoning_states_cannot_take_purposeful_actions(race: str, state: s
 
 
 class TestNewbornIdentity:
-    def test_child_inherits_parent_race_without_mutation(self) -> None:
-        with patch("app.utils.dwellers.game_config.breeding.race_mutation_chance", 0.0):
-            identity = roll_child_identity(_dweller("human"), _dweller("human"))
+    def test_child_inherits_parent_race(self) -> None:
+        identity = roll_child_identity(_dweller("human"), _dweller("human"))
         assert identity["race"] == RaceOption.HUMAN.value
 
     def test_newborn_gets_no_faction_while_switch_off(self, monkeypatch) -> None:
@@ -232,18 +230,8 @@ class TestNewbornIdentity:
 
         assert identity["faction"] == "none"
 
-    def test_mutation_never_keeps_a_parent_race(self) -> None:
-        with patch("app.utils.dwellers.game_config.breeding.race_mutation_chance", 1.0):
-            races = {
-                roll_child_identity(_dweller("human"), _dweller("human"), random.Random(seed))["race"]
-                for seed in range(50)
-            }
-        assert RaceOption.HUMAN.value not in races
-        assert races <= {race.value for race in RaceOption}
-
     def test_child_identity_uses_lore_valid_faction(self) -> None:
-        with patch("app.utils.dwellers.game_config.breeding.race_mutation_chance", 0.0):
-            identity = roll_child_identity(_dweller("human"), _dweller("human"))
+        identity = roll_child_identity(_dweller("human"), _dweller("human"))
         valid = {faction.value for faction in faction_restrictions[RaceOption(identity["race"])]}
         assert identity["faction"] in valid
 

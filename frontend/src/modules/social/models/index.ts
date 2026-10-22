@@ -6,4 +6,4 @@ export type {
   RelationshipUpdate,
 } from './relationship'
 
-export type { Pregnancy, PregnancyStatus, PregnancyProgress, DeliveryResult } from './pregnancy'
+export type { Pregnancy, PregnancyStatus, PregnancyProgress, DeliveredChild, DeliveryResult } from './pregnancy'

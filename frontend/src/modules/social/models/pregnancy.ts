@@ -32,10 +32,17 @@ export interface PregnancyProgress {
   is_due: boolean
 }
 
-/** Result of delivering a baby, linking the newborn dweller. */
+/** A newborn born during delivery. */
+export interface DeliveredChild {
+  id: string
+  first_name: string
+  last_name: string | null
+}
+
+/** Result of delivering a baby, listing the newborn dwellers. */
 export interface DeliveryResult {
   pregnancy_id: string
-  child_id: string
+  children: DeliveredChild[]
   message: string
 }
 

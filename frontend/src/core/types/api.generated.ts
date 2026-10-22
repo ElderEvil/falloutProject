@@ -6323,6 +6323,21 @@ export interface components {
             deleted_count: number;
         };
         /**
+         * DeliveredChild
+         * @description A newborn born during delivery.
+         */
+        DeliveredChild: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name: string | null;
+        };
+        /**
          * DeliveryResult
          * @description Result of a pregnancy delivery.
          */
@@ -6332,11 +6347,8 @@ export interface components {
              * Format: uuid4
              */
             pregnancy_id: string;
-            /**
-             * Child Id
-             * Format: uuid4
-             */
-            child_id: string;
+            /** Children */
+            children: components["schemas"]["DeliveredChild"][];
             /** Message */
             message: string;
         };

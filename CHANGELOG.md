@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.251.0 (2026-10-22)
+
+### Features
+
+* clarify apprentice visuals with teen styling ([#1143](https://github.com/ElderEvil/falloutProject/issues/1143)) 086b363
+* **rooms:** highlight assignment stats and fit hints to small rooms ([#1115](https://github.com/ElderEvil/falloutProject/issues/1115)) a6fa3d5
+
 ## 2.250.0 (2026-10-22)
 
 ### Features

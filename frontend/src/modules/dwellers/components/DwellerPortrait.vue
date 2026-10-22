@@ -12,6 +12,8 @@ interface Props {
   fallbackIcon?: string
   preferThumbnail?: boolean
   zoom?: boolean
+  objectPosition?: string
+  scale?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -22,6 +24,8 @@ const props = withDefaults(defineProps<Props>(), {
   fallbackIcon: 'mdi:account',
   preferThumbnail: false,
   zoom: true,
+  objectPosition: undefined,
+  scale: 1,
 })
 
 const portraitSource = computed(() =>
@@ -49,7 +53,9 @@ const isCuratedDefault = computed(() => {
 
 const clipClass = computed(() => {
   if (
-    /(^|\s)(avatar-image|thumbnail-image|header-avatar-image)(\s|$)/.test(props.imageClass) ||
+    /(^|\s)(avatar-image|thumbnail-image|header-avatar-image|size-full)(\s|$)/.test(
+      props.imageClass
+    ) ||
     props.imageClass.includes('h-full')
   ) {
     return 'portrait-clip-all'
@@ -59,6 +65,11 @@ const clipClass = computed(() => {
   }
   return 'portrait-clip'
 })
+
+const imageStyle = computed(() => ({
+  objectPosition: props.objectPosition ?? (isThumbnailPreview.value ? 'center top' : undefined),
+  '--portrait-scale': String(props.scale),
+}))
 
 const hasImageError = ref(false)
 
@@ -77,7 +88,7 @@ watch(portraitUrl, () => {
         imageClass,
         { 'default-portrait-zoom': isCuratedDefault && zoom },
       ]"
-      :style="{ objectPosition: isThumbnailPreview ? 'center top' : undefined }"
+      :style="imageStyle"
       @error="hasImageError = true"
     />
   </span>
@@ -109,10 +120,12 @@ watch(portraitUrl, () => {
 
 .portrait-clip-image {
   display: block;
+  transform: scale(var(--portrait-scale, 1));
+  transform-origin: center bottom;
 }
 
 .portrait-clip-image.default-portrait-zoom {
-  transform: scale(1.1);
+  transform: scale(calc(var(--portrait-scale, 1) * 1.1));
   transform-origin: top center;
 }
 </style>

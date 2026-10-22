@@ -49,6 +49,30 @@ describe('DwellerPortrait', () => {
     expect(wrapper.find('img').attributes('src')).toBe('http://example.com/lucy-thumb.png')
   })
 
+  it('allows scene callers to anchor portraits on the head', () => {
+    const wrapper = mount(DwellerPortrait, {
+      props: {
+        imageUrl: 'example.com/lucy.png',
+        alt: 'Lucy MacLean portrait',
+        objectPosition: 'center top',
+      },
+    })
+
+    expect(wrapper.find('img').attributes('style')).toContain('object-position: center top')
+  })
+
+  it('applies a body-size scale to the image', () => {
+    const wrapper = mount(DwellerPortrait, {
+      props: {
+        imageUrl: 'example.com/lucy.png',
+        alt: 'Lucy MacLean portrait',
+        scale: 1.18,
+      },
+    })
+
+    expect(wrapper.find('img').attributes('style')).toContain('--portrait-scale: 1.18')
+  })
+
   it('uses the API origin for backend static portraits', () => {
     const wrapper = mount(DwellerPortrait, {
       props: {

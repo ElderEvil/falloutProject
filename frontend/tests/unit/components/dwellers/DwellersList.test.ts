@@ -190,4 +190,16 @@ describe('DwellersList', () => {
     expect(wrapper.find('li').classes()).toContain('bg-surface-canvas')
     expect(wrapper.find('li').classes()).toContain('border-theme-primary/20')
   })
+
+  it('keeps level below the name and does not add a short divider to the standard row', () => {
+    const wrapper = mount(DwellersList, {
+      props: baseProps({ dwellers: [dweller()] }),
+      global: { stubs: { DwellerListRow: false } },
+    })
+
+    const identity = wrapper.get('.dweller-identity')
+    expect(identity.text()).toContain('Sarah Lyons')
+    expect(identity.text()).toContain('Level 5')
+    expect(identity.find('.dweller-meta-divider').exists()).toBe(false)
+  })
 })

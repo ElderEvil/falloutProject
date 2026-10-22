@@ -734,7 +734,7 @@ class TestProcessPregnancies:
             call_count[0] += 1
             if call_count[0] == 1:
                 raise ValueError("Delivery failed")
-            return mb
+            return [mb]
 
         with patch("app.services.family.breeding_service.breeding_service") as mbs:
             mbs.check_for_conception = AsyncMock(return_value=[])

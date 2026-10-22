@@ -2,6 +2,7 @@
 
 import logging
 import random
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
@@ -309,32 +310,12 @@ class BreedingService:
             logger.exception("Failed to increment birth statistics for vault %s", vault_id)
 
     @staticmethod
-    async def deliver_baby(
+    async def _create_newborn(
         db_session: AsyncSession,
-        pregnancy_id: UUID4,
+        mother: Dweller,
+        father: Dweller,
     ) -> Dweller:
-        """Deliver a baby from a pregnancy.
-
-        Args:
-            db_session: Database session
-            pregnancy_id: Pregnancy ID
-
-        Returns:
-            Newly created child dweller
-
-        Raises:
-            ResourceNotFoundException: If pregnancy or parents not found.
-            ValueError: If pregnancy is not due yet.
-        """
-        pregnancy = await pregnancy_crud.get(db_session, pregnancy_id)
-
-        if not pregnancy.is_due:
-            msg = "Pregnancy is not due yet"
-            raise ValueError(msg)
-
-        mother = await dweller_crud.get(db_session, pregnancy.mother_id)
-        father = await dweller_crud.get(db_session, pregnancy.father_id)
-
+        """Create one newborn child of ``mother`` and ``father`` (caller owns the commit)."""
         # Calculate inherited traits
         child_stats = BreedingService._calculate_inherited_stats(mother, father)
         child_rarity = BreedingService._calculate_inherited_rarity(mother, father)
@@ -387,14 +368,83 @@ class BreedingService:
         child.bio_entries = bio_service.with_origin(child, newborn_bio)
         logger.info(f"Generated newborn bio for {child.first_name}: {newborn_bio[:50]}...")
 
+        return child
+
+    @staticmethod
+    async def _record_parents_of_birth(
+        db_session: AsyncSession,
+        mother: Dweller,
+        father: Dweller,
+        children: Sequence[Dweller],
+    ) -> None:
+        """Narrate parenthood into both parents' bios, one entry per newborn."""
+        father_name = f"{father.first_name} {father.last_name or ''}".strip()
+        mother_name = f"{mother.first_name} {mother.last_name or ''}".strip()
+        for child in children:
+            child_name = f"{child.first_name} {child.last_name or ''}".strip()
+            await bio_service.append_entry(
+                db_session,
+                mother.id,
+                "family",
+                f"Became a parent: {child_name} was born.",
+                ref={"child_id": str(child.id), "partner_id": str(father.id), "partner_name": father_name},
+            )
+            await bio_service.append_entry(
+                db_session,
+                father.id,
+                "family",
+                f"Became a parent: {child_name} was born.",
+                ref={"child_id": str(child.id), "partner_id": str(mother.id), "partner_name": mother_name},
+            )
+
+    @staticmethod
+    async def deliver_baby(
+        db_session: AsyncSession,
+        pregnancy_id: UUID4,
+    ) -> list[Dweller]:
+        """Deliver a pregnancy.
+
+        A single newborn by default; ``BreedingConfig.twin_chance`` rolls twins,
+        then a hit ``BreedingConfig.triplet_chance`` upgrades twins to triplets.
+
+        Args:
+            db_session: Database session
+            pregnancy_id: Pregnancy ID
+
+        Returns:
+            Newly created child dwellers (one, two for twins, three for triplets)
+
+        Raises:
+            ResourceNotFoundException: If pregnancy or parents not found.
+            ValueError: If pregnancy is not due yet.
+        """
+        pregnancy = await pregnancy_crud.get(db_session, pregnancy_id)
+
+        if not pregnancy.is_due:
+            msg = "Pregnancy is not due yet"
+            raise ValueError(msg)
+
+        mother = await dweller_crud.get(db_session, pregnancy.mother_id)
+        father = await dweller_crud.get(db_session, pregnancy.father_id)
+
+        children = [await BreedingService._create_newborn(db_session, mother, father)]
+        if random.random() < game_config.breeding.twin_chance:
+            children.append(await BreedingService._create_newborn(db_session, mother, father))
+            if random.random() < game_config.breeding.triplet_chance:
+                children.append(await BreedingService._create_newborn(db_session, mother, father))
+
         await db_session.commit()
-        await db_session.refresh(child)
-        logger.info(f"Baby delivered with bio: {child.bio is not None}")
+        for child in children:
+            await db_session.refresh(child)
 
-        vault_id = child_in.vault_id
+        vault_id = children[0].vault_id
+        if vault_id is None:
+            msg = "Newborn has no home vault"
+            raise ValueError(msg)
 
-        # Link newborn to home vault on world map (best-effort, non-critical)
-        await BreedingService._link_newborn_to_home(db_session, child, vault_id)
+        # Link newborns to home vault on world map (best-effort, non-critical)
+        for child in children:
+            await BreedingService._link_newborn_to_home(db_session, child, vault_id)
 
         # Update pregnancy status
         pregnancy.status = PregnancyStatusEnum.DELIVERED
@@ -402,30 +452,16 @@ class BreedingService:
         await db_session.commit()
         await db_session.refresh(pregnancy)
 
-        logger.info(f"Baby delivered: {child.first_name} {child.last_name}, Mother={mother.id}, Father={father.id}")
+        names = ", ".join(f"{child.first_name} {child.last_name or ''}".strip() for child in children)
+        logger.info(f"Delivered {len(children)} babies ({names}): Mother={mother.id}, Father={father.id}")
 
-        child_name = f"{child.first_name} {child.last_name or ''}".strip()
-        mother_name = f"{mother.first_name} {mother.last_name or ''}".strip()
-        father_name = f"{father.first_name} {father.last_name or ''}".strip()
-        await bio_service.append_entry(
-            db_session,
-            mother.id,
-            "family",
-            f"Became a parent: {child_name} was born.",
-            ref={"child_id": str(child.id), "partner_id": str(father.id), "partner_name": father_name},
-        )
-        await bio_service.append_entry(
-            db_session,
-            father.id,
-            "family",
-            f"Became a parent: {child_name} was born.",
-            ref={"child_id": str(child.id), "partner_id": str(mother.id), "partner_name": mother_name},
-        )
+        await BreedingService._record_parents_of_birth(db_session, mother, father, children)
 
         # Increment birth statistics for the vault owner (best-effort, don't fail birth on stats error)
-        await BreedingService._increment_birth_statistics(db_session, mother, child, vault_id)
+        for child in children:
+            await BreedingService._increment_birth_statistics(db_session, mother, child, vault_id)
 
-        return child
+        return children
 
     @staticmethod
     def _calculate_inherited_stats(mother: Dweller, father: Dweller) -> dict:
@@ -497,7 +533,7 @@ class BreedingService:
 
         Fallout rule: non-human races never senesce, so ageless adults are left
         untouched even with an ancient ``birth_date``. Youth maturation still
-        runs for every race so a mutated newborn can reach adulthood.
+        runs for every race so a newborn can reach adulthood.
         """
         now = datetime.now(UTC).replace(tzinfo=None)
         maturity_hours = game_config.breeding.child_growth_duration_hours

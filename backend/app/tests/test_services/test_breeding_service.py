@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
@@ -25,6 +25,7 @@ from app.schemas.common import (
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.family.breeding_service import BreedingService, conception_potential
+from app.services.notification_service import NotificationService, notification_service
 from app.utils.dwellers import elder_birth_threshold
 from app.utils.exceptions import ResourceNotFoundException
 
@@ -724,13 +725,114 @@ async def test_deliver_baby_random_gender(
     pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
     await async_session.commit()
 
-    child = await BreedingService.deliver_baby(
-        async_session,
-        pregnancy.id,
-    )
+    child = (await BreedingService.deliver_baby(async_session, pregnancy.id))[0]
 
     # Gender should be valid
     assert child.gender in [GenderEnum.MALE, GenderEnum.FEMALE]
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_twins_when_chance_hit(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A hit twin roll delivers two newborns, both parent-linked and birth-notified."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    with patch.object(NotificationService, "_deliver", new_callable=AsyncMock) as deliver:
+        children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+        await notification_service.deliver_deferred_notifications(async_session)
+
+    assert len(children) == 2
+    child_ids = {child.id for child in children}
+    assert len(child_ids) == 2
+    for child in children:
+        assert child.parent_1_id == female_dweller.id
+        assert child.parent_2_id == male_dweller.id
+        assert child.age_group == AgeGroupEnum.CHILD
+        assert child.bio is not None
+    siblings = await crud.dweller.get_all_in_vault(async_session, female_dweller.vault_id)
+    assert child_ids <= {dweller.id for dweller in siblings}
+
+    assert deliver.await_count == 2
+    for parent in (female_dweller, male_dweller):
+        refreshed = await crud.dweller.get(async_session, parent.id)
+        family = [
+            entry
+            for entry in refreshed.bio_entries
+            if entry["source"] == "family" and entry["ref"]["child_id"] in {str(c.id) for c in children}
+        ]
+        assert len(family) == 2
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_no_twins_when_chance_missed(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A missed twin roll delivers exactly one newborn."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    assert len(children) == 1
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_triplets_when_chance_hit(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Twin chance escalating through triplet chance delivers three newborns."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 1.0)
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    with patch.object(NotificationService, "_deliver", new_callable=AsyncMock) as deliver:
+        children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+        await notification_service.deliver_deferred_notifications(async_session)
+
+    assert len(children) == 3
+    assert len({child.id for child in children}) == 3
+    for child in children:
+        assert child.parent_1_id == female_dweller.id
+        assert child.parent_2_id == male_dweller.id
+        assert child.bio is not None
+    assert deliver.await_count == 3
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_triplets_require_twin_roll(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A missed twin roll cannot escalate to triplets, whatever triplet chance says."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 1.0)
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    assert len(children) == 1
 
 
 @pytest.mark.asyncio
@@ -881,8 +983,10 @@ async def test_deliver_baby_records_family_entries(
     async_session: AsyncSession,
     male_dweller: Dweller,
     female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     """Birth seeds the child's origin entry and narrates parenthood into both parents."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
     pregnancy = await BreedingService.create_pregnancy(
         async_session,
         female_dweller.id,
@@ -891,7 +995,7 @@ async def test_deliver_baby_records_family_entries(
     pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
     await async_session.commit()
 
-    child = await BreedingService.deliver_baby(async_session, pregnancy.id)
+    child = (await BreedingService.deliver_baby(async_session, pregnancy.id))[0]
 
     assert [entry["source"] for entry in child.bio_entries] == ["template"]
     assert child.bio_entries[0]["text"] == child.bio

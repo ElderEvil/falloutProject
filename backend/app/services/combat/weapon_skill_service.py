@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 from app.models.dweller import Dweller
 
-CHARGE_PER_SECOND = 20
 MAX_CHARGE = 100
 
 

@@ -110,7 +110,9 @@ async def test_deliver_baby_success(
     )
     assert response.status_code == 200
     data = response.json()
-    assert "child_id" in data
+    assert data["children"]
+    for child in data["children"]:
+        assert "id" in child
     assert "message" in data
 
     # Verify pregnancy status updated

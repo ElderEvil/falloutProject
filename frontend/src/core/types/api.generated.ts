@@ -9519,6 +9519,11 @@ export interface components {
              * @default 0
              */
             training_speed_pct: number;
+            /**
+             * Twin Chance Pct
+             * @default 0
+             */
+            twin_chance_pct: number;
         };
         /** PetRead */
         PetRead: {

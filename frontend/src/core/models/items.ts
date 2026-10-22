@@ -268,6 +268,7 @@ const PET_PERCENT_LABELS: Record<string, string> = {
   caps_pct: 'Caps',
   xp_pct: 'XP',
   training_speed_pct: 'Training speed',
+  twin_chance_pct: 'Twins chance',
 }
 
 export interface PetEffectSource {
@@ -286,6 +287,7 @@ export interface PetEffectSource {
   caps_pct?: number
   xp_pct?: number
   training_speed_pct?: number
+  twin_chance_pct?: number
 }
 
 /**

@@ -183,6 +183,20 @@ describe('DwellerGridItem', () => {
     ).toBe('80')
   })
 
+  it('anchors scaled portraits to the bottom of the grid frame', () => {
+    const wrapper = mount(DwellerGridItem, {
+      props: {
+        dweller: {
+          ...mockDweller,
+          age_group: 'teen',
+          thumbnail_url: '/static/portrait.webp',
+        },
+      },
+    })
+
+    expect(wrapper.get('img').attributes('style')).toContain('object-position: center bottom')
+  })
+
   it.each([
     ['teen', 'human', 'thumbnail-image--small', '0.8'],
     ['adult', 'super_mutant', 'thumbnail-image--large', '1.18'],

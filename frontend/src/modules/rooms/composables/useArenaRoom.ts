@@ -56,6 +56,7 @@ export function useArenaRoom(vaultId: string, roomId: string) {
       await new Promise((resolve) => setTimeout(resolve, 320))
       if (generation !== attackQueueGeneration) break
       attackingFighterId.value = null
+      attackingTeam.value = null
       await new Promise((resolve) => setTimeout(resolve, 60))
     }
     if (generation === attackQueueGeneration) {

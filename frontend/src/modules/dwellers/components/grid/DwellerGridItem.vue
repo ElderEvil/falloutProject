@@ -103,6 +103,7 @@ const getStatColorClass = (value: number) => {
           alt=""
           :image-class="`thumbnail-image ${portraitScaleClass}`"
           :scale="portraitScale"
+          object-position="center bottom"
         />
       </template>
       <template v-else>

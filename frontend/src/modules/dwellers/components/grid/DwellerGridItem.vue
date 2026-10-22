@@ -5,13 +5,13 @@ import DwellerStatusBadge from '../stats/DwellerStatusBadge.vue'
 import DwellerAgeBadge from '../DwellerAgeBadge.vue'
 import DwellerGenderBadge from '../DwellerGenderBadge.vue'
 import DwellerRarityBadge from '../DwellerRarityBadge.vue'
+import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/core/components/ui/tooltip'
-import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 import type { DwellerShort } from '../../models/dweller'
 import {
   getDwellerDisplayName,
@@ -33,14 +33,12 @@ interface Props {
   dweller: DwellerShort
   roomName?: string | null
   roomStat?: RoomStat | null
-  generatingAI?: boolean
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'click'): void
-  (e: 'generate-ai'): void
   (e: 'room-click'): void
 }>()
 
@@ -97,26 +95,6 @@ const getStatColorClass = (value: number) => {
           <Icon icon="mdi:account-circle" class="placeholder-icon" />
         </div>
       </template>
-
-      <TooltipProvider v-if="!dweller.thumbnail_url || dweller.is_default_portrait" :delay-duration="200">
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <button
-              @click.stop="emit('generate-ai')"
-              class="ai-generate-button"
-              :disabled="generatingAI"
-              aria-label="Generate AI portrait"
-            >
-              <Icon
-                :icon="generatingAI ? 'mdi:loading' : 'mdi:sparkles'"
-                class="ai-icon"
-                :class="{ 'animate-spin': generatingAI }"
-              />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="top">Generate AI portrait</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
     </div>
 
     <!-- Info Section -->
@@ -244,34 +222,6 @@ const getStatColorClass = (value: number) => {
   height: 60%;
   color: var(--color-theme-primary);
   opacity: 0.6;
-}
-
-.ai-generate-button {
-  position: absolute;
-  bottom: 0.5rem;
-  right: 0.5rem;
-  background: var(--color-surface-raised);
-  border: none;
-  border-radius: 50%;
-  padding: 0.5rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.ai-generate-button:hover:not(:disabled) {
-  box-shadow: var(--glow-2);
-  background: var(--color-surface-hover);
-}
-
-.ai-generate-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.ai-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-  color: var(--color-theme-primary);
 }
 
 .info-section {

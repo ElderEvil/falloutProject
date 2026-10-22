@@ -1,0 +1,203 @@
+{
+  "description": "Lore-inspired alternate ghoul portraits.",
+  "source": "OpenAI Images API (images.edit) using the matching base portrait as reference; gpt-image-2.5-flare, medium quality; Lanczos downscale to 300x600.",
+  "theme": {
+    "ghoul": "wasteland scavenger / Children of Atom-adjacent rags",
+    "super_mutant": "Super Mutant Tribe war paint and scrap armor",
+    "synth": "Railgut/Institute: salvaged Gen1, Railroad escapee Gen2, Courser Gen3"
+  },
+  "assets": [
+    {
+      "file": "FOS_Dw_Default_Ghoul_Female_Feral_Alt.webp",
+      "base_file": "FOS_Dw_Default_Ghoul_Female_Feral.webp",
+      "race": "ghoul",
+      "prompt": "Create an alternate portrait variant of the reference ghoul. Keep the same identity, feral state, gender, pose, line weight, framing, and transparent background. Give them a wasteland scavenger look: a patched duster or rags, worn goggles, and additional radiation scarring. Keep the same skin and remaining hair colour. No text, no background.",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Ghoul_Female_Feral_Alt.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "usage": {
+        "input_tokens": 602,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 90
+        },
+        "output_tokens": 295,
+        "total_tokens": 897,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Ghoul_Female_Sane_Alt.webp",
+      "base_file": "FOS_Dw_Default_Ghoul_Female_Sane.webp",
+      "race": "ghoul",
+      "prompt": "Create an alternate portrait variant of the reference ghoul. Keep the same identity, sane state, gender, pose, line weight, framing, and transparent background. Give them a wasteland scavenger look: a patched duster or rags, worn goggles, and additional radiation scarring. Keep the same skin and remaining hair colour. No text, no background.",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Ghoul_Female_Sane_Alt.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "usage": {
+        "input_tokens": 601,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 89
+        },
+        "output_tokens": 295,
+        "total_tokens": 896,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Ghoul_Female_Wild_Alt.webp",
+      "base_file": "FOS_Dw_Default_Ghoul_Female_Wild.webp",
+      "race": "ghoul",
+      "prompt": "Create an alternate portrait variant of the reference ghoul. Keep the same identity, wild state, gender, pose, line weight, framing, and transparent background. Give them a wasteland scavenger look: a patched duster or rags, worn goggles, and additional radiation scarring. Keep the same skin and remaining hair colour. No text, no background.",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Ghoul_Female_Wild_Alt.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "usage": {
+        "input_tokens": 601,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 89
+        },
+        "output_tokens": 295,
+        "total_tokens": 896,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Ghoul_Male_Feral_Alt.webp",
+      "base_file": "FOS_Dw_Default_Ghoul_Male_Feral.webp",
+      "race": "ghoul",
+      "prompt": "Create an alternate portrait variant of the reference ghoul. Keep the same identity, feral state, gender, pose, line weight, framing, and transparent background. Give them a wasteland scavenger look: a patched duster or rags, worn goggles, and additional radiation scarring. Keep the same skin and remaining hair colour. No text, no background.",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Ghoul_Male_Feral_Alt.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "usage": {
+        "input_tokens": 602,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 90
+        },
+        "output_tokens": 295,
+        "total_tokens": 897,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Ghoul_Male_Sane_Alt.webp",
+      "base_file": "FOS_Dw_Default_Ghoul_Male_Sane.webp",
+      "race": "ghoul",
+      "prompt": "Create an alternate portrait variant of the reference ghoul. Keep the same identity, sane state, gender, pose, line weight, framing, and transparent background. Give them a wasteland scavenger look: a patched duster or rags, worn goggles, and additional radiation scarring. Keep the same skin and remaining hair colour. No text, no background.",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Ghoul_Male_Sane_Alt.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "usage": {
+        "input_tokens": 601,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 89
+        },
+        "output_tokens": 295,
+        "total_tokens": 896,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Ghoul_Male_Wild_Alt.webp",
+      "base_file": "FOS_Dw_Default_Ghoul_Male_Wild.webp",
+      "race": "ghoul",
+      "prompt": "Create an alternate portrait variant of the reference ghoul. Keep the same identity, wild state, gender, pose, line weight, framing, and transparent background. Give them a wasteland scavenger look: a patched duster or rags, worn goggles, and additional radiation scarring. Keep the same skin and remaining hair colour. No text, no background.",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Ghoul_Male_Wild_Alt.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "usage": {
+        "input_tokens": 601,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 89
+        },
+        "output_tokens": 295,
+        "total_tokens": 896,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    }
+  ]
+}

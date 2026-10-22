@@ -32,6 +32,24 @@ const portraitUrl = computed(() => getStaticImageUrl(normalizeImageUrl(portraitS
 
 const isThumbnailPreview = computed(() => portraitSource.value === props.thumbnailUrl && Boolean(props.thumbnailUrl))
 
+const isCuratedDefault = computed(() => {
+  const source = portraitSource.value
+  return (
+    Boolean(source) &&
+    (source!.startsWith('/static/dweller_images/') || source!.startsWith('/static/dweller_thumbnails/'))
+  )
+})
+
+const clipClass = computed(() => {
+  if (/(^|\s)(avatar-image|thumbnail-image|header-avatar-image)(\s|$)/.test(props.imageClass) || props.imageClass.includes('h-full')) {
+    return 'portrait-clip-all'
+  }
+  if (props.imageClass.includes('w-full')) {
+    return 'portrait-clip-wide'
+  }
+  return 'portrait-clip'
+})
+
 const hasImageError = ref(false)
 
 watch(portraitUrl, () => {
@@ -40,16 +58,51 @@ watch(portraitUrl, () => {
 </script>
 
 <template>
-  <img
-    v-if="portraitUrl && !hasImageError"
-    :src="portraitUrl"
-    :alt="alt"
-    :class="imageClass"
-    :style="{ objectPosition: isThumbnailPreview ? 'center top' : undefined }"
-    @error="hasImageError = true"
-  />
+  <span v-if="portraitUrl && !hasImageError" :class="clipClass">
+    <img
+      :src="portraitUrl"
+      :alt="alt"
+      :class="[
+        'portrait-clip-image',
+        imageClass,
+        { 'default-portrait-zoom': isCuratedDefault },
+      ]"
+      :style="{ objectPosition: isThumbnailPreview ? 'center top' : undefined }"
+      @error="hasImageError = true"
+    />
+  </span>
   <slot v-else-if="$slots.fallback" name="fallback" />
   <span v-else role="img" :aria-label="alt">
     <Icon :icon="fallbackIcon" :ariaHidden="true" :class="fallbackClass" />
   </span>
 </template>
+
+<style scoped>
+.portrait-clip {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.portrait-clip-wide {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+
+.portrait-clip-all {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.portrait-clip-image {
+  display: block;
+}
+
+.portrait-clip-image.default-portrait-zoom {
+  transform: scale(1.1);
+  transform-origin: top center;
+}
+</style>

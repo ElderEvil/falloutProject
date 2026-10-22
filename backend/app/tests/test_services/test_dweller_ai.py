@@ -238,7 +238,7 @@ async def test_generate_photo_allows_regeneration_of_default_portrait(
     mock_crud.update = AsyncMock()
     mock_llm.create = AsyncMock()
 
-    mock_dweller = _make_dweller_mock(image_url="/static/dweller_images/FOS_Dw_Default_Human_Male.webp")
+    mock_dweller = _make_dweller_mock(image_url="/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp")
 
     with patch.object(dweller_ai, "storage_service", None), pytest.raises(AIStorageException):
         await dweller_ai.generate_photo(
@@ -579,7 +579,7 @@ async def test_pipeline_regenerates_default_portrait(mock_crud: MagicMock) -> No
     """A curated default must not make the dossier complete; the pipeline still generates a custom photo."""
     mock_dweller = _make_dweller_mock(
         bio="Full bio.",
-        image_url="/static/dweller_images/FOS_Dw_Default_Human_Male.webp",
+        image_url="/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp",
         visual_attributes={"race": "human", "height": "tall", "hair_color": "brown"},
     )
     mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)

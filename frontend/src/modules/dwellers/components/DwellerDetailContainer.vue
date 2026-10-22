@@ -15,12 +15,6 @@ import { canUseRadaway, getDwellerDisplayName } from '../models/dweller'
 import { dwellerDetailKey } from './DwellerDetailContext'
 import { formatHeading } from '@/modules/map/utils/bearing'
 
-const DwellerAppearanceEditor = defineAsyncComponent({
-  loader: () => import('./DwellerAppearanceEditor.vue'),
-  loadingComponent: ComponentLoader,
-  delay: 200,
-  timeout: 10000,
-})
 const TrainingStartModal = defineAsyncComponent({
   loader: () => import('./modals/TrainingStartModal.vue'),
   loadingComponent: ComponentLoader,
@@ -51,7 +45,6 @@ const ctx = useDwellerDetail(dwellerId, vaultId)
 provide(dwellerDetailKey, ctx)
 
 const dweller = computed(() => ctx.dweller.value)
-const appearanceEditorOpen = ctx.appearanceEditorOpen
 const trainingModalOpen = ctx.trainingModalOpen
 const renameDialogOpen = ctx.renameDialogOpen
 const renameDialogName = ctx.renameDialogName
@@ -84,12 +77,6 @@ const wastelandModalOpen = ctx.wastelandModalOpen
       @assigned="ctx.actions.refresh()"
     />
 
-    <DwellerAppearanceEditor
-      v-if="dweller"
-      v-model="appearanceEditorOpen"
-      :dweller="dweller"
-      @saved="ctx.actions.saveAppearance"
-    />
     <TrainingStartModal
       v-if="dweller"
       v-model="trainingModalOpen"

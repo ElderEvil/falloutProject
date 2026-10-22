@@ -60,7 +60,6 @@ const RoomDetailModal = defineAsyncComponent({
 const authStore = useAuthStore()
 const {
   filter: dwellerStore,
-  generation: dwellerGenerationStore,
   management: dwellerManagementStore,
   medical: dwellerMedicalStore,
   death: dwellerDeathStore,
@@ -76,7 +75,6 @@ const isFlickeringEnabled = inject('isFlickering', ref(false))
 const router = useRouter()
 const route = useRoute()
 const happinessOverviewOpen = ref(false)
-const generatingAI = ref<Record<string, boolean>>({})
 
 // Room detail modal state
 const showDetailModal = ref(false)
@@ -529,26 +527,6 @@ const handleViewDetails = (dwellerId: string) => {
   router.push(`/vault/${vaultId.value}/dwellers/${dwellerId}`)
 }
 
-const generateDwellerInfo = async (dwellerId: string) => {
-  generatingAI.value[dwellerId] = true
-  try {
-    const result = await dwellerGenerationStore.generateDwellerInfo(
-      dwellerId,
-      authStore.token as string
-    )
-    if (result) {
-      // Refresh the dweller list to get the updated thumbnail_url
-      await fetchDwellers()
-      // Force refresh the detailed dweller data
-      await dwellerStore.fetchDwellerDetails(dwellerId, authStore.token as string, true)
-    }
-  } catch (error) {
-    notifyErrorOnce(error, 'Failed to generate dweller information')
-  } finally {
-    generatingAI.value[dwellerId] = false
-  }
-}
-
 // Open room detail modal
 const openRoomModal = (roomId: string) => {
   const room = roomStore.rooms.find((r) => r.id === roomId)
@@ -753,14 +731,12 @@ const handleTreatIrradiated = async () => {
             <DwellersList
               v-else
               :dwellers="dwellerStore.dwellers"
-              :generating-a-i="generatingAI"
               :has-active-filters="hasActiveFilters"
               :is-loading="dwellerStore.isLoading"
               :rooms="roomStore.rooms"
               :view-mode="dwellerStore.viewMode"
               :columns="dwellerStore.tableColumns"
               @view-details="handleViewDetails"
-              @generate-ai="generateDwellerInfo"
               @open-room="openRoomModal"
               @quick-unassign="handleQuickUnassign"
               @room-click="(roomId) => router.push(`/vault/${vaultId}?roomId=${roomId}`)"

@@ -1,0 +1,1489 @@
+{
+  "description": "Human teen skin-tone / hair-color portrait variants.",
+  "source": "OpenAI Images API (images.edit) using the matching adult variant as reference; gpt-image-2.5-flare, medium quality; Lanczos downscale to 300x600.",
+  "skin_tones": [
+    "Pale",
+    "Tan",
+    "Brown",
+    "Ebony"
+  ],
+  "hair_colors": [
+    "Blonde",
+    "Brunette",
+    "Black",
+    "Brown",
+    "Red",
+    "Gray"
+  ],
+  "age_groups": [
+    "child",
+    "teen"
+  ],
+  "assets": [
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinBrown_HairBlack.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Brown",
+      "hair_color": "Black",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinBrown_HairBlack.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same black hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinBrown_HairBlonde.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Brown",
+      "hair_color": "Blonde",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinBrown_HairBlonde.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same blonde hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinBrown_HairBrown.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Brown",
+      "hair_color": "Brown",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinBrown_HairBrown.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same brown hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinBrown_HairBrunette.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Brown",
+      "hair_color": "Brunette",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinBrown_HairBrunette.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same brunette hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinBrown_HairRed.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Brown",
+      "hair_color": "Red",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinBrown_HairRed.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same red hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 3
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinEbony_HairBlack.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Ebony",
+      "hair_color": "Black",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinEbony_HairBlack.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same black hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinEbony_HairBlonde.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Ebony",
+      "hair_color": "Blonde",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinEbony_HairBlonde.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same blonde hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinEbony_HairBrown.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Ebony",
+      "hair_color": "Brown",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinEbony_HairBrown.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same brown hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinEbony_HairBrunette.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Ebony",
+      "hair_color": "Brunette",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinEbony_HairBrunette.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same brunette hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinEbony_HairRed.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Ebony",
+      "hair_color": "Red",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinEbony_HairRed.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same red hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinPale_HairBlack.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Pale",
+      "hair_color": "Black",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinPale_HairBlack.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same black hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinPale_HairBlonde.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Pale",
+      "hair_color": "Blonde",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinPale_HairBlonde.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same blonde hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinPale_HairBrown.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Pale",
+      "hair_color": "Brown",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinPale_HairBrown.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same brown hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinPale_HairBrunette.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Pale",
+      "hair_color": "Brunette",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinPale_HairBrunette.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same brunette hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinPale_HairRed.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Pale",
+      "hair_color": "Red",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinPale_HairRed.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same red hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinTan_HairBlack.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Tan",
+      "hair_color": "Black",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinTan_HairBlack.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same black hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinTan_HairBlonde.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Tan",
+      "hair_color": "Blonde",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinTan_HairBlonde.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same blonde hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinTan_HairBrown.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Tan",
+      "hair_color": "Brown",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinTan_HairBrown.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same brown hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinTan_HairBrunette.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Tan",
+      "hair_color": "Brunette",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinTan_HairBrunette.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same brunette hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Female_SkinTan_HairRed.webp",
+      "age_group": "teen",
+      "gender": "Female",
+      "skin_tone": "Tan",
+      "hair_color": "Red",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Female_SkinTan_HairRed.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same red hair color. Preserve the female identity and ponytail; do not turn her into a boy. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 671,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 159
+        },
+        "output_tokens": 295,
+        "total_tokens": 966,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairBlack.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Brown",
+      "hair_color": "Black",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairBlack.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same black hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairBlonde.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Brown",
+      "hair_color": "Blonde",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairBlonde.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same blonde hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairBrown.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Brown",
+      "hair_color": "Brown",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairBrown.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same brown hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairBrunette.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Brown",
+      "hair_color": "Brunette",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairBrunette.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same brunette hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairRed.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Brown",
+      "hair_color": "Red",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairRed.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same red hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinEbony_HairBlack.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Ebony",
+      "hair_color": "Black",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinEbony_HairBlack.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same black hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinEbony_HairBlonde.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Ebony",
+      "hair_color": "Blonde",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinEbony_HairBlonde.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same blonde hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinEbony_HairBrown.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Ebony",
+      "hair_color": "Brown",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinEbony_HairBrown.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same brown hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinEbony_HairBrunette.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Ebony",
+      "hair_color": "Brunette",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinEbony_HairBrunette.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same brunette hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinEbony_HairRed.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Ebony",
+      "hair_color": "Red",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinEbony_HairRed.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same red hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinPale_HairBlack.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Pale",
+      "hair_color": "Black",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinPale_HairBlack.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same black hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinPale_HairBlonde.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Pale",
+      "hair_color": "Blonde",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinPale_HairBlonde.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same blonde hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinPale_HairBrown.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Pale",
+      "hair_color": "Brown",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinPale_HairBrown.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same brown hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinPale_HairBrunette.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Pale",
+      "hair_color": "Brunette",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinPale_HairBrunette.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same brunette hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinPale_HairGray.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Pale",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinPale_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same gray hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinPale_HairRed.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Pale",
+      "hair_color": "Red",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinPale_HairRed.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same red hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinTan_HairBlack.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Tan",
+      "hair_color": "Black",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinTan_HairBlack.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same black hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinTan_HairBlonde.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Tan",
+      "hair_color": "Blonde",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinTan_HairBlonde.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same blonde hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinTan_HairBrown.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Tan",
+      "hair_color": "Brown",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinTan_HairBrown.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same brown hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinTan_HairBrunette.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Tan",
+      "hair_color": "Brunette",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinTan_HairBrunette.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same brunette hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinTan_HairGray.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Tan",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinTan_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same gray hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Teen_Male_SkinTan_HairRed.webp",
+      "age_group": "teen",
+      "gender": "Male",
+      "skin_tone": "Tan",
+      "hair_color": "Red",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Teen_Male_SkinTan_HairRed.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into a 15-year-old teenager, but keep the reference's body proportions and leg length unchanged. Do not stretch the legs, torso, or height. Keep the exact pose, blue vault suit, skin tone, line weight, framing, and transparent background. Change only the face subtly: make it slightly younger with a softer jawline and adolescent features, while still recognizable as the same character. The result must not have elongated legs or an adult bodybuilder frame. Preserve the adult identity and hairstyle; keep the same red hair color. Preserve the male identity. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 660,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 148
+        },
+        "output_tokens": 295,
+        "total_tokens": 955,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      },
+      "attempt": 1
+    }
+  ]
+}

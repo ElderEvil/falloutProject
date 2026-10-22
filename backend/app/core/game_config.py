@@ -510,6 +510,15 @@ class TrainingConfig(BaseSettings):
         return multipliers.get(tier, 1.0)
 
 
+class BarbershopConfig(BaseSettings):
+    """Barbershop appearance-change configuration."""
+
+    model_config = SettingsConfigDict(env_prefix="BARBERSHOP_")
+
+    skin_change_cost: int = Field(default=200, description="Caps charged for a skin-tone change", ge=0)
+    hair_change_cost: int = Field(default=150, description="Caps charged for a hair-color change", ge=0)
+
+
 class ResourceConfig(BaseSettings):
     """Resource production and consumption configuration."""
 
@@ -1332,6 +1341,7 @@ class GameConfig(BaseSettings):
     health: HealthConfig = Field(default_factory=HealthConfig)
     happiness: HappinessConfig = Field(default_factory=HappinessConfig)
     training: TrainingConfig = Field(default_factory=TrainingConfig)
+    barbershop: BarbershopConfig = Field(default_factory=BarbershopConfig)
     resource: ResourceConfig = Field(default_factory=ResourceConfig)
     relationship: RelationshipConfig = Field(default_factory=RelationshipConfig)
     breeding: BreedingConfig = Field(default_factory=BreedingConfig)

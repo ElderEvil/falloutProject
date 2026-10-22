@@ -151,6 +151,31 @@ async def dweller_fixture(async_session: AsyncSession, vault: Vault, dweller_dat
     return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
 
 
+@pytest_asyncio.fixture(name="staffed_barbershop")
+async def staffed_barbershop_fixture(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> Room:
+    """A Barbershop with the fixture dweller assigned as its worker."""
+    room_in = RoomCreate(
+        name="Barbershop",
+        category=RoomTypeEnum.MISC,
+        ability=SPECIALEnum.CHARISMA,
+        population_required=50,
+        base_cost=10000,
+        incremental_cost=None,
+        t2_upgrade_cost=50000,
+        t3_upgrade_cost=None,
+        size_min=6,
+        size_max=6,
+        size=6,
+        tier=1,
+        vault_id=vault.id,
+    )
+    room = await crud.room.create(db_session=async_session, obj_in=room_in)
+    dweller.room_id = room.id
+    async_session.add(dweller)
+    await async_session.commit()
+    return room
+
+
 @pytest_asyncio.fixture(name="vault_with_caps")
 async def vault_with_caps_fixture(async_session: AsyncSession) -> Vault:
     user_in = UserCreate(

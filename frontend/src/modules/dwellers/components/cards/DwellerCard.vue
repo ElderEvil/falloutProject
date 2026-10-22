@@ -24,7 +24,6 @@ interface Props {
   dweller: DwellerDetailRead
   imageUrl?: string | null
   loading?: boolean
-  generatingPortrait?: boolean
   availableStimpaks?: number
   availableRadaways?: number
   healingSupply?: 'stimpack' | 'radaway' | null
@@ -41,7 +40,6 @@ const emit = defineEmits<{
   (e: 'heal-radaway'): void
   (e: 'unassign'): void
   (e: 'send-wasteland'): void
-  (e: 'generate-portrait'): void
 }>()
 
 const getImageUrl = (imagePath: string) => {
@@ -119,29 +117,17 @@ const canHealRadaway = computed(
 <template>
   <div class="dweller-card">
     <div class="portrait-rail">
-      <div class="portrait-container">
+      <div class="portrait-container" :class="{ 'default-portrait-frame': dweller.is_default_portrait }">
         <template v-if="imageUrl">
           <img
             :src="getImageUrl(imageUrl)"
             alt="Dweller Portrait"
-            :class="['portrait-image', { 'grayscale brightness-50 contrast-125': dweller.is_dead }]"
+            :class="[
+              'portrait-image',
+              { 'grayscale brightness-50 contrast-125': dweller.is_dead },
+              { 'default-portrait-zoom': dweller.is_default_portrait },
+            ]"
           />
-          <Button
-            v-if="dweller.is_default_portrait"
-            variant="ghost"
-            size="icon-sm"
-            class="absolute bottom-2 left-2 rounded-full border border-theme-primary bg-black/75 text-theme-primary opacity-80 hover:opacity-100"
-            :disabled="loading || generatingPortrait"
-            aria-label="Generate custom portrait"
-            @click="emit('generate-portrait')"
-          >
-            <Icon
-              :icon="generatingPortrait ? 'mdi:loading' : 'mdi:sparkles'"
-              class="h-5 w-5"
-              :class="{ 'animate-spin': generatingPortrait }"
-              :ariaHidden="true"
-            />
-          </Button>
           <span
             v-if="dweller.is_dead"
             class="dead-portrait-marker absolute right-3 top-3 rounded-full border border-danger/70 bg-black/75 p-2 text-danger shadow-[0_0_12px_rgba(248,113,113,0.6)]"
@@ -152,21 +138,10 @@ const canHealRadaway = computed(
           </span>
         </template>
         <template v-else>
-          <button
-            type="button"
-            class="portrait-placeholder"
-            :disabled="loading"
-            @click="emit('generate-portrait')"
-          >
-            <Icon
-              :icon="generatingPortrait ? 'mdi:loading' : 'mdi:account-circle'"
-              class="placeholder-icon text-theme-primary opacity-30"
-              :class="{ 'animate-spin': generatingPortrait }"
-            />
-            <span class="placeholder-hint">{{
-              generatingPortrait ? 'Generating portrait…' : 'Generate portrait'
-            }}</span>
-          </button>
+          <div class="portrait-placeholder">
+            <Icon icon="mdi:account-circle" class="placeholder-icon text-theme-primary opacity-30" />
+            <span class="placeholder-hint">No portrait</span>
+          </div>
         </template>
       </div>
 
@@ -308,6 +283,13 @@ const canHealRadaway = computed(
   aspect-ratio: 1;
 }
 
+.portrait-container.default-portrait-frame {
+  overflow: hidden;
+  border-radius: 8px;
+  border: 2px solid var(--color-theme-primary);
+  box-shadow: 0 0 15px var(--color-theme-glow);
+}
+
 .stats-container {
   flex: 1 1 auto;
   min-width: 0;
@@ -325,6 +307,13 @@ const canHealRadaway = computed(
   border-radius: 8px;
   border: 2px solid var(--color-theme-primary);
   box-shadow: 0 0 15px var(--color-theme-glow);
+}
+
+.portrait-image.default-portrait-zoom {
+  transform: scale(1.1);
+  transform-origin: top center;
+  border: none;
+  box-shadow: none;
 }
 
 /* The placeholder has no intrinsic size to borrow, so it takes a definite box

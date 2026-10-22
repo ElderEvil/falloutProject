@@ -23,9 +23,10 @@ from app.agents.dweller_chat_agent import DwellerChatOutput
 from app.models.dweller import Dweller
 from app.models.llm_interaction import LLMInteraction
 from app.models.user import User
-from app.schemas.common import GenderEnum, RarityEnum
+from app.schemas.common import GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate, DwellerReadFull, DwellerVisualAttributes
 from app.schemas.dweller_ai import DwellerBackstory
+from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreate
 from app.services.conversation_service import conversation_service
@@ -94,6 +95,25 @@ async def quota_dweller_fixture(async_session: AsyncSession, quota_user: User) -
         luck=5,
     )
     dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    barbershop_in = RoomCreate(
+        name="Barbershop",
+        category=RoomTypeEnum.MISC,
+        ability=SPECIALEnum.CHARISMA,
+        population_required=50,
+        base_cost=10000,
+        incremental_cost=None,
+        t2_upgrade_cost=50000,
+        t3_upgrade_cost=None,
+        size_min=6,
+        size_max=6,
+        size=6,
+        tier=1,
+        vault_id=vault.id,
+    )
+    barbershop = await crud.room.create(db_session=async_session, obj_in=barbershop_in)
+    dweller.room_id = barbershop.id
+    async_session.add(dweller)
+    await async_session.commit()
     return await crud.dweller.get_full_info(async_session, dweller.id)
 
 

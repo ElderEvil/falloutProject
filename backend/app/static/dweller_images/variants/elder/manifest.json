@@ -1,0 +1,288 @@
+{
+  "description": "Human elder portrait variants. Grey hair and a slightly stooped walking pose are fixed; one portrait per skin tone and gender.",
+  "source": "OpenAI Images API (images.edit) using the matching adult grey-hair variant as reference; gpt-image-2.5-flare, medium quality; Lanczos downscale to 300x600.",
+  "skin_tones": [
+    "Pale",
+    "Tan",
+    "Brown",
+    "Ebony"
+  ],
+  "hair_colors": [
+    "Gray"
+  ],
+  "age_group": "elder",
+  "assets": [
+    {
+      "file": "FOS_Dw_Default_Human_Elder_Female_SkinBrown_HairGray.webp",
+      "age_group": "elder",
+      "gender": "Female",
+      "skin_tone": "Brown",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Elder_Female_SkinBrown_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into an elder, age 70. Keep the exact face identity, skin tone, blue vault suit, walking pose and stride, line weight, framing, and transparent background. Do not change the walking action or make them stand still. Make the walking posture slower and slightly stooped/leaning forward, as an older person walking with less energy; relax the arms. Add age: wrinkles, thinner limbs, and an aged face. Replace the adult high ponytail with a short, chin-length grey bob; keep the same grey hair colour. Preserve the female identity and do not turn her into a man. Preserve the gender. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 674,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 162
+        },
+        "output_tokens": 295,
+        "total_tokens": 969,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Elder_Female_SkinEbony_HairGray.webp",
+      "age_group": "elder",
+      "gender": "Female",
+      "skin_tone": "Ebony",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Elder_Female_SkinEbony_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into an elder, age 70. Keep the exact face identity, skin tone, blue vault suit, walking pose and stride, line weight, framing, and transparent background. Do not change the walking action or make them stand still. Make the walking posture slower and slightly stooped/leaning forward, as an older person walking with less energy; relax the arms. Add age: wrinkles, thinner limbs, and an aged face. Replace the adult high ponytail with a short, chin-length grey bob; keep the same grey hair colour. Preserve the female identity and do not turn her into a man. Preserve the gender. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 674,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 162
+        },
+        "output_tokens": 295,
+        "total_tokens": 969,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Elder_Female_SkinPale_HairGray.webp",
+      "age_group": "elder",
+      "gender": "Female",
+      "skin_tone": "Pale",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Elder_Female_SkinPale_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into an elder, age 70. Keep the exact face identity, skin tone, blue vault suit, walking pose and stride, line weight, framing, and transparent background. Do not change the walking action or make them stand still. Make the walking posture slower and slightly stooped/leaning forward, as an older person walking with less energy; relax the arms. Add age: wrinkles, thinner limbs, and an aged face. Replace the adult high ponytail with a short, chin-length grey bob; keep the same grey hair colour. Preserve the female identity and do not turn her into a man. Preserve the gender. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 674,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 162
+        },
+        "output_tokens": 295,
+        "total_tokens": 969,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Elder_Female_SkinTan_HairGray.webp",
+      "age_group": "elder",
+      "gender": "Female",
+      "skin_tone": "Tan",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Elder_Female_SkinTan_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into an elder, age 70. Keep the exact face identity, skin tone, blue vault suit, walking pose and stride, line weight, framing, and transparent background. Do not change the walking action or make them stand still. Make the walking posture slower and slightly stooped/leaning forward, as an older person walking with less energy; relax the arms. Add age: wrinkles, thinner limbs, and an aged face. Replace the adult high ponytail with a short, chin-length grey bob; keep the same grey hair colour. Preserve the female identity and do not turn her into a man. Preserve the gender. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 674,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 162
+        },
+        "output_tokens": 295,
+        "total_tokens": 969,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Elder_Male_SkinBrown_HairGray.webp",
+      "age_group": "elder",
+      "gender": "Male",
+      "skin_tone": "Brown",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Elder_Male_SkinBrown_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into an elder, age 70. Keep the exact face identity, skin tone, blue vault suit, walking pose and stride, line weight, framing, and transparent background. Do not change the walking action or make them stand still. Make the walking posture slower and slightly stooped/leaning forward, as an older person walking with less energy; relax the arms. Add age: wrinkles, thinner limbs, and an aged face. Replace the adult quiff with short, thinning, receding grey hair and a slightly balding crown; keep the same grey hair colour. Preserve the gender. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 667,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 155
+        },
+        "output_tokens": 295,
+        "total_tokens": 962,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Elder_Male_SkinEbony_HairGray.webp",
+      "age_group": "elder",
+      "gender": "Male",
+      "skin_tone": "Ebony",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Elder_Male_SkinEbony_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into an elder, age 70. Keep the exact face identity, skin tone, blue vault suit, walking pose and stride, line weight, framing, and transparent background. Do not change the walking action or make them stand still. Make the walking posture slower and slightly stooped/leaning forward, as an older person walking with less energy; relax the arms. Add age: wrinkles, thinner limbs, and an aged face. Replace the adult quiff with short, thinning, receding grey hair and a slightly balding crown; keep the same grey hair colour. Preserve the gender. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 667,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 155
+        },
+        "output_tokens": 295,
+        "total_tokens": 962,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Elder_Male_SkinPale_HairGray.webp",
+      "age_group": "elder",
+      "gender": "Male",
+      "skin_tone": "Pale",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Elder_Male_SkinPale_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into an elder, age 70. Keep the exact face identity, skin tone, blue vault suit, walking pose and stride, line weight, framing, and transparent background. Do not change the walking action or make them stand still. Make the walking posture slower and slightly stooped/leaning forward, as an older person walking with less energy; relax the arms. Add age: wrinkles, thinner limbs, and an aged face. Replace the adult quiff with short, thinning, receding grey hair and a slightly balding crown; keep the same grey hair colour. Preserve the gender. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 667,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 155
+        },
+        "output_tokens": 295,
+        "total_tokens": 962,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    },
+    {
+      "file": "FOS_Dw_Default_Human_Elder_Male_SkinTan_HairGray.webp",
+      "age_group": "elder",
+      "gender": "Male",
+      "skin_tone": "Tan",
+      "hair_color": "Gray",
+      "encoding": "webp",
+      "mode": "RGBA",
+      "width": 300,
+      "height": 600,
+      "thumbnail_file": "FOS_Dw_Default_Human_Elder_Male_SkinTan_HairGray.webp",
+      "thumbnail_width": 150,
+      "thumbnail_height": 300,
+      "thumbnail_encoding": "webp",
+      "model": "gpt-image-2.5-flare",
+      "quality": "medium",
+      "background": "transparent",
+      "size_requested": "1024x2048",
+      "downscaled_to": "300x600",
+      "prompt": "Transform the reference adult vault dweller into an elder, age 70. Keep the exact face identity, skin tone, blue vault suit, walking pose and stride, line weight, framing, and transparent background. Do not change the walking action or make them stand still. Make the walking posture slower and slightly stooped/leaning forward, as an older person walking with less energy; relax the arms. Add age: wrinkles, thinner limbs, and an aged face. Replace the adult quiff with short, thinning, receding grey hair and a slightly balding crown; keep the same grey hair colour. Preserve the gender. Do not add or remove anything. No text, no background.",
+      "usage": {
+        "input_tokens": 667,
+        "input_tokens_details": {
+          "image_tokens": 512,
+          "text_tokens": 155
+        },
+        "output_tokens": 295,
+        "total_tokens": 962,
+        "output_tokens_details": {
+          "image_tokens": 295,
+          "text_tokens": 0
+        }
+      }
+    }
+  ]
+}

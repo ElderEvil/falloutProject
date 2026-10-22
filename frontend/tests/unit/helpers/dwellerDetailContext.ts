@@ -86,12 +86,12 @@ export function mountWithDwellerContext(
   Component: unknown,
   options: MountingOptions<unknown> & { context?: DwellerDetailContext } = {}
 ): VueWrapper {
-  const { context, props: _props, ...mountOptions } = options
+  const { context, props, ...mountOptions } = options
   const ctx = context ?? createMockDwellerDetailContext()
   const Wrapper = defineComponent({
     setup() {
       provide(dwellerDetailKey, ctx)
-      return () => h(Component as never)
+      return () => h(Component as never, props)
     },
   })
   return mount(Wrapper, mountOptions as never)

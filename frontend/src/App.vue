@@ -28,9 +28,22 @@ const ChangelogModal = defineAsyncComponent(
 const DwellerChatModal = defineAsyncComponent(
   () => import('@/modules/chat/components/DwellerChatModal.vue')
 )
+const DwellerDetailModal = defineAsyncComponent(
+  () => import('@/modules/dwellers/components/modals/DwellerDetailModal.vue')
+)
 
 const route = useRoute()
 const router = useRouter()
+const dwellerVaultId = computed(() =>
+  route.path.startsWith('/vault/') && typeof route.params.id === 'string' ? route.params.id : ''
+)
+const detailDwellerId = computed(() => {
+  const id = route.query.dweller
+  return dwellerVaultId.value && typeof id === 'string' ? id : ''
+})
+const closeDweller = () => {
+  void router.replace({ query: { ...route.query, dweller: undefined } })
+}
 
 // Deep-linked dweller chat: a non-empty `?chat=` query opens the modal while the
 // underlying route stays mounted, so closing it resumes the previous view.
@@ -128,6 +141,14 @@ provide('availableThemes', availableThemes)
       :last-seen-version="versionInfo.lastSeen ?? undefined"
       @close="hideChangelog"
       @mark-as-seen="markVersionAsSeen"
+    />
+
+    <DwellerDetailModal
+      v-if="authStore.isAuthenticated && detailDwellerId"
+      :key="`${dwellerVaultId}:${detailDwellerId}`"
+      :dweller-id="detailDwellerId"
+      :vault-id="dwellerVaultId"
+      @close="closeDweller"
     />
 
     <!-- Dweller chat modal: deep-linked via ?chat=<dwellerId>; the underlying view stays mounted. -->

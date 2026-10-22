@@ -258,9 +258,10 @@ const handleIncidentClick = (incidentId: string) => {
 // Lets a parent (alert banner, notification click-through) open a room's overlay.
 // Immediate so a deep link set before this grid mounts still opens the room.
 watch(
-  () => openRoomId,
-  (roomId) => {
-    if (roomId && openRoomOverlay(roomId)) emit('roomOpened')
+  [() => openRoomId, rooms, () => route.query.dweller],
+  ([roomId, , dwellerId]) => {
+    // A restored detail modal must stay above rooms that finish loading later.
+    if (!dwellerId && roomId && openRoomOverlay(roomId)) emit('roomOpened')
   },
   { immediate: true }
 )

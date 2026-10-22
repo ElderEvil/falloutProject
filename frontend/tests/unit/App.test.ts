@@ -10,9 +10,10 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 // App hosts the global chat modal via the ?chat= query param; without a router
 // installed the composables would throw, so stub them for the mount smoke tests.
 const routeQuery = reactive<Record<string, string | undefined>>({})
+const { mockRouterReplace } = vi.hoisted(() => ({ mockRouterReplace: vi.fn() }))
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ query: routeQuery }),
-  useRouter: () => ({ replace: vi.fn() }),
+  useRoute: () => ({ query: routeQuery, params: { id: 'vault-1' }, path: '/vault/vault-1' }),
+  useRouter: () => ({ replace: mockRouterReplace }),
 }))
 
 const profileStoreMock = vi.hoisted(() => ({
@@ -72,7 +73,7 @@ vi.mock('@/core/composables/useFakeCrash', () => ({
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    routeQuery.chat = undefined
+    for (const key of Object.keys(routeQuery)) delete routeQuery[key]
   })
 
   afterEach(() => {
@@ -165,6 +166,43 @@ describe('App', () => {
 
     expect(profileStoreMock.clearProfile).toHaveBeenCalled()
     expect(profileStoreMock.ensureProfileLoaded).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('hosts dweller details for the current vault and keeps the room when closing', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useAuthStore().token = 'mock-token'
+    routeQuery.dweller = 'dweller-1'
+    routeQuery.roomId = 'room-1'
+    const wrapper = mount(App, {
+      global: {
+        plugins: [pinia],
+        stubs: {
+          DefaultLayout: { template: '<main><slot /></main>' },
+          DwellerDetailModal: {
+            name: 'DwellerDetailModal',
+            props: ['dwellerId', 'vaultId'],
+            emits: ['close'],
+            template: `<button data-testid="close-dweller" @click="$emit('close')">Close</button>`,
+          },
+          GaryOverlay: true,
+          FakeCrashOverlay: true,
+          'router-view': true,
+        },
+      },
+    })
+    await flushPromises()
+    const modal = wrapper.findComponent({ name: 'DwellerDetailModal' })
+    expect(modal.props('dwellerId')).toBe('dweller-1')
+    expect(modal.props('vaultId')).toBe('vault-1')
+    await wrapper.get('[data-testid="close-dweller"]').trigger('click')
+    expect(mockRouterReplace).toHaveBeenCalledWith({
+      query: { roomId: 'room-1', dweller: undefined },
+    })
+    useAuthStore().token = null
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'DwellerDetailModal' }).exists()).toBe(false)
     wrapper.unmount()
   })
 

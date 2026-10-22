@@ -539,7 +539,20 @@ const openRoomModal = (roomId: string) => {
 const closeRoomModal = () => {
   showDetailModal.value = false
   selectedRoomForDetail.value = null
+  if (route.query.roomId) {
+    void router.replace({ query: { ...route.query, roomId: undefined } })
+  }
 }
+
+// Restore the originating room after returning from an expanded dweller page,
+// including when room data arrives after the route has mounted.
+watch(
+  [() => route.query.roomId, () => roomStore.rooms, () => route.query.dweller],
+  ([roomId, , dwellerId]) => {
+    if (!dwellerId && typeof roomId === 'string') openRoomModal(roomId)
+  },
+  { immediate: true }
+)
 
 const handleQuickUnassign = async (dwellerId: string) => {
   if (!authStore.token) return

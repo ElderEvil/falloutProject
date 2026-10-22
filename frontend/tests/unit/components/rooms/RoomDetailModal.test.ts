@@ -1381,8 +1381,7 @@ describe('RoomDetailModal', () => {
       await wrapper.get('.scene-dweller').trigger('click')
 
       expect(mockRouterPush).toHaveBeenCalledWith({
-        name: 'dwellerDetail',
-        params: { id: 'vault-123', dwellerId: 'dweller-2' },
+        query: { roomId: 'room-1', dweller: 'dweller-2' },
       })
     })
 
@@ -1413,8 +1412,7 @@ describe('RoomDetailModal', () => {
       await wrapper.get('.apprentice-slot .scene-dweller').trigger('click')
 
       expect(mockRouterPush).toHaveBeenCalledWith({
-        name: 'dwellerDetail',
-        params: { id: 'vault-123', dwellerId: 'dweller-1' },
+        query: { roomId: 'room-1', dweller: 'dweller-1' },
       })
     })
   })

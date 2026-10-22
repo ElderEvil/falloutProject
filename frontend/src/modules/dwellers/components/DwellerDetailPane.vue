@@ -18,6 +18,7 @@ import { RevivalSection } from './death'
 import { canUseRadaway, getActivitySummary, getDwellerDisplayName } from '../models/dweller'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 
+defineProps<{ embedded?: boolean }>()
 const emit = defineEmits<{ chooseRoom: [] }>()
 const ctx = useDwellerDetailContext()
 
@@ -37,8 +38,10 @@ const breadcrumbs = computed(() => [
     <!-- Header -->
     <div class="detail-header">
       <PageNavigation
-        back-label="Back to Dwellers"
+        v-if="!embedded"
+        back-label="Back"
         :back-to="`/vault/${ctx.vaultId.value}/dwellers`"
+        history-first
         :breadcrumbs="breadcrumbs"
       />
 
@@ -273,7 +276,7 @@ const breadcrumbs = computed(() => [
 
 @media (max-width: 1280px) {
   .detail-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

@@ -24,6 +24,7 @@ from app.services.progression.objectives.evaluators import (
     ExpeditionEvaluator,
     ExploreEvaluator,
     LevelUpEvaluator,
+    ObjectiveEvaluator,
     ReachEvaluator,
     ScrapEvaluator,
     TrainEvaluator,
@@ -213,6 +214,55 @@ async def test_batched_production_uses_fewer_statements(
     for link in links.values():
         await async_session.refresh(link)
         assert link.progress == 1
+
+
+@pytest.mark.asyncio
+async def test_batched_production_continues_after_one_payload_fails(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """A failure crediting one resource must not skip the next resource in the batch."""
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    objective = Objective(
+        challenge="Collect any resource",
+        reward="50 caps",
+        objective_type="collect",
+        target_entity={},
+        target_amount=100,
+        category=ObjectiveCategoryEnum.DAILY,
+    )
+    async_session.add(objective)
+    await async_session.commit()
+    await async_session.refresh(objective)
+
+    link = VaultObjectiveProgressLink(
+        vault_id=vault.id, objective_id=objective.id, progress=0, total=100, is_completed=False
+    )
+    async_session.add(link)
+    await async_session.commit()
+
+    CollectEvaluator(fresh_event_bus)
+    original_credit = ObjectiveEvaluator._credit_event
+
+    async def flaky_credit(self, db_session, vault_id, target, target_link, data):
+        if data.get("resource_type") == "power":
+            raise RuntimeError("simulated power credit failure")
+        return await original_credit(self, db_session, vault_id, target, target_link, data)
+
+    with patch.object(ObjectiveEvaluator, "_credit_event", flaky_credit):
+        await fresh_event_bus.emit(
+            GameEvent.RESOURCE_COLLECTED,
+            vault.id,
+            {"resources": {"power": 10, "food": 5}, "source": "production"},
+        )
+
+    await async_session.refresh(link)
+    assert link.progress == 5
 
 
 @pytest.mark.asyncio

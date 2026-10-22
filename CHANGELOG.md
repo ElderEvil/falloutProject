@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.249.0 (2026-10-22)
+
+### Features
+
+* **arena:** unify the preview, combat pacing, and dweller sizing ([#1141](https://github.com/ElderEvil/falloutProject/issues/1141)) ede51fc
+
 ## 2.248.2 (2026-10-22)
 
 ### Performance Improvements

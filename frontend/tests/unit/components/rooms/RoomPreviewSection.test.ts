@@ -62,7 +62,7 @@ describe('RoomPreviewSection unassign affordance (issue #1083)', () => {
     expect(wrapper.find('.apprentice-ribbon').exists()).toBe(false)
     expect(wrapper.get('.apprentice-marker').text()).toContain('S')
     expect(wrapper.get('.apprentice-marker').attributes('aria-label')).toContain('strength')
-    expect(wrapper.get('.apprentice-slot').classes()).toContain('slot-filled')
+    expect(wrapper.get('.apprentice-slot').attributes('class')).toContain('slot-filled')
     wrapper.unmount()
   })
 
@@ -79,9 +79,9 @@ describe('RoomPreviewSection unassign affordance (issue #1083)', () => {
     )
     expect(workerSilhouette.element.tagName).toBe('SPAN')
     expect(wrapper.get('.scene-empty-worker .empty-dweller-plus').exists()).toBe(true)
-    expect(wrapper.get('.scene-empty-apprentice .empty-dweller-silhouette').classes()).toContain(
-      'empty-dweller-silhouette--apprentice'
-    )
+    expect(
+      wrapper.get('.scene-empty-apprentice .empty-dweller-silhouette').attributes('class')
+    ).toContain('empty-dweller-silhouette--apprentice')
     wrapper.unmount()
   })
 
@@ -98,7 +98,7 @@ describe('RoomPreviewSection unassign affordance (issue #1083)', () => {
 
     const button = wrapper.get('button[aria-label="Open Ada "]')
     expect(button.find('.portrait-clip-all').exists()).toBe(true)
-    expect(button.get('img').classes()).not.toContain('default-portrait-zoom')
+    expect(button.get('img').attributes('class')).not.toContain('default-portrait-zoom')
     wrapper.unmount()
   })
 

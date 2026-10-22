@@ -70,7 +70,7 @@ describe('DwellerPortrait', () => {
       },
     })
 
-    expect(wrapper.find('img').classes()).toContain('default-portrait-zoom')
+    expect(wrapper.find('img').attributes('class')).toContain('default-portrait-zoom')
   })
 
   it('can opt out of the curated zoom for scene portraits', () => {
@@ -82,7 +82,7 @@ describe('DwellerPortrait', () => {
       },
     })
 
-    expect(wrapper.find('img').classes()).not.toContain('default-portrait-zoom')
+    expect(wrapper.find('img').attributes('class')).not.toContain('default-portrait-zoom')
   })
 
   it('renders an accessible account fallback when neither image exists', () => {

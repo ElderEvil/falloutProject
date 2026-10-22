@@ -81,8 +81,8 @@ it('orders workers before apprentices and marks the apprentice avatar', () => {
   expect(avatars[1].attributes('aria-label')).toContain(
     'Ash Apprentice (Lv2), apprentice in Strength'
   )
-  expect(avatars[0].classes()).not.toContain('dweller-avatar--apprentice')
-  expect(avatars[1].classes()).toContain('dweller-avatar--apprentice')
+  expect(avatars[0].attributes('class')).not.toContain('dweller-avatar--apprentice')
+  expect(avatars[1].attributes('class')).toContain('dweller-avatar--apprentice')
   expect(avatars[0].find('.apprentice-badge').exists()).toBe(false)
   expect(avatars[1].find('.apprentice-badge').exists()).toBe(true)
 })

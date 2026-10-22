@@ -1,0 +1,82 @@
+name: Frontend Coverage
+
+on:
+  schedule:
+    # Run nightly at 02:00 UTC
+    - cron: '0 2 * * *'
+  push:
+    branches: [ master ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-coverage.yml'
+  workflow_dispatch:
+
+jobs:
+  frontend-coverage:
+    name: Frontend Tests with Coverage
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.9.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          check-latest: true
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests with coverage
+        working-directory: frontend
+        run: pnpm run test:coverage
+
+      - name: Generate coverage badge JSON
+        working-directory: frontend
+        run: |
+          python3 - <<'PY'
+          import json
+
+          pct = float(json.load(open("coverage/coverage-summary.json"))["total"]["lines"]["pct"])
+          color = (
+              "brightgreen" if pct >= 90
+              else "green" if pct >= 80
+              else "yellowgreen" if pct >= 70
+              else "yellow" if pct >= 60
+              else "orange" if pct >= 50
+              else "red"
+          )
+          badge = {"schemaVersion": 1, "label": "frontend coverage", "message": f"{pct:.2f}%", "color": color}
+          with open("coverage-badge.json", "w") as f:
+              json.dump(badge, f)
+          PY
+
+      - name: Upload coverage badge to Gist
+        uses: exuanbo/actions-deploy-gist@47697fceaeea2006a90594ee24eb9cd0a1121ef8 # v1.1.4
+        with:
+          token: ${{ secrets.GIST_TOKEN }}
+          gist_id: 7cc382e5dbf89fbe5bc026b6d8a0ab88
+          file_path: frontend/coverage-badge.json
+          gist_file_name: coverage-badge-fe.json
+          file_type: text
+
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: frontend-coverage-report
+          path: frontend/coverage

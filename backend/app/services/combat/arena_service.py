@@ -390,6 +390,16 @@ class ArenaService:
             is_robot=participant.is_robot,
             image_url=participant.dweller.image_url if participant.dweller else None,
             thumbnail_url=participant.dweller.thumbnail_url if participant.dweller else None,
+            age_group=(
+                participant.dweller.age_group.value
+                if participant.dweller and participant.dweller.age_group
+                else None
+            ),
+            race=(
+                (participant.dweller.visual_attributes or {}).get("race")
+                if participant.dweller
+                else None
+            ),
         )
 
     @staticmethod
@@ -487,6 +497,8 @@ class ArenaService:
                             max_health=d.effective_max_health,
                             image_url=d.image_url,
                             thumbnail_url=d.thumbnail_url,
+                            age_group=d.age_group.value if d.age_group else None,
+                            race=(d.visual_attributes or {}).get("race"),
                         )
                         for d in roster
                     ],

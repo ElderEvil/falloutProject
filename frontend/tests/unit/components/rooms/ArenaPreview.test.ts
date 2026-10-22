@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ArenaPreview from '@/modules/rooms/components/ArenaPreview.vue'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import type { ArenaFighter, ArenaRoomState } from '@/modules/rooms/api/arena'
 
 const fighter = (id: string, overrides: Partial<ArenaFighter> = {}): ArenaFighter => ({
@@ -57,10 +58,28 @@ describe('ArenaPreview', () => {
     expect(wrapper.get('[aria-label="Arena preview"]').text()).toContain('b')
   })
 
+  it('scales arena dwellers by body size', () => {
+    const teen = fighter('a', { age_group: 'teen', race: 'human' })
+    const mutant = fighter('b', { age_group: 'adult', race: 'super_mutant' })
+    const wrapper = mount(ArenaPreview, {
+      props: { state: state({ team_a: [teen], team_b: [mutant] }) },
+    })
+
+    expect(
+      wrapper.findAllComponents(DwellerPortrait).map((portrait) => portrait.props('scale'))
+    ).toEqual([0.8, 1.18])
+  })
+
   it('shows silhouette slots for empty team positions', () => {
     const wrapper = mount(ArenaPreview, {
       props: {
-        state: state({ team_a: [], team_b: [], fighter_a_id: null, fighter_b_id: null, fighters: [] }),
+        state: state({
+          team_a: [],
+          team_b: [],
+          fighter_a_id: null,
+          fighter_b_id: null,
+          fighters: [],
+        }),
       },
     })
 
@@ -81,7 +100,9 @@ describe('ArenaPreview', () => {
   it('keeps setup actions read-only', () => {
     const wrapper = mount(ArenaPreview, { props: { state: state() } })
 
-    expect(wrapper.get('button[aria-label^="Use Aimed Shot for a"]').attributes('disabled')).toBeDefined()
+    expect(
+      wrapper.get('button[aria-label^="Use Aimed Shot for a"]').attributes('disabled')
+    ).toBeDefined()
   })
 
   it('passes fighter skill activation through during the fight', async () => {

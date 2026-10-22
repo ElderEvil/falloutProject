@@ -15,6 +15,12 @@ for (const width of [1280, 390]) {
     let fighting = false
     let finished = false
     const names = ['Lucy MacLean', 'Maximus', 'Cooper Howard']
+    await page.route('**/static/**', (route) =>
+      route.fulfill({
+        contentType: 'image/svg+xml',
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="200"><rect width="100" height="200" fill="#2f6f4f"/></svg>',
+      })
+    )
     await page.route('**/api/v1/**', async (route) => {
       const request = route.request()
       const move = request.url().match(/dwellers\/dweller-(\d)\/move_to\/arena-1/)

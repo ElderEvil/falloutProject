@@ -5417,6 +5417,10 @@ export interface components {
             image_url?: string | null;
             /** Thumbnail Url */
             thumbnail_url?: string | null;
+            /** Age Group */
+            age_group?: string | null;
+            /** Race */
+            race?: string | null;
         };
         /**
          * ArenaFightersRequest
@@ -5542,6 +5546,10 @@ export interface components {
             image_url?: string | null;
             /** Thumbnail Url */
             thumbnail_url?: string | null;
+            /** Age Group */
+            age_group?: string | null;
+            /** Race */
+            race?: string | null;
         };
         /**
          * ArenaSkillQueued

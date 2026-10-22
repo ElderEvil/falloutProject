@@ -13,6 +13,7 @@ import {
   TooltipContent,
 } from '@/core/components/ui/tooltip'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import { getDwellerPortraitScale } from '@/modules/dwellers/models/dweller'
 import ArenaDamageNumbers from './ArenaDamageNumbers.vue'
 import CombatantMeters from './CombatantMeters.vue'
 import { useFallbackImage } from '../composables/useFallbackImage'
@@ -28,7 +29,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ skill: [fighterId: string] }>()
 const { url: scene, onError: imageFailed } = useFallbackImage(() => [props.sceneImageUrl])
-const teams = computed(() => [
+const teams = computed<Array<{ side: 'A' | 'B'; fighters: ArenaFighter[] }>>(() => [
   { side: 'A', fighters: props.state.team_a },
   { side: 'B', fighters: props.state.team_b },
 ])
@@ -49,6 +50,12 @@ const readySkills = computed(() => {
   })
 })
 const imageFor = (id: string) => getStaticImageUrl(getCreatureImagePath(creatureKeyOf(id)))
+const dwellerScale = (fighter: ArenaFighter) =>
+  getDwellerPortraitScale({
+    age_group: fighter.age_group,
+    visual_attributes: fighter.race ? { race: fighter.race } : null,
+  })
+
 const isAttacking = (fighter: ArenaFighter, side: 'A' | 'B') =>
   fighter.health > 0 &&
   (props.attackingFighterId
@@ -125,7 +132,7 @@ const actionFor = (fighter: ArenaFighter) => {
             v-for="(fighter, index) in team.fighters"
             :key="fighter.id"
             class="ring-fighter relative flex min-w-0 max-w-28 flex-1 flex-col items-center gap-1"
-            :data-attacking="isAttacking(fighter, team.side) ? 'true' : undefined"
+            :aria-current="isAttacking(fighter, team.side) ? 'true' : undefined"
             :class="[
               {
                 'ring-attacking': isAttacking(fighter, team.side),
@@ -162,7 +169,7 @@ const actionFor = (fighter: ArenaFighter) => {
               :class="[
                 fighter.is_creature || fighter.is_robot
                   ? getCreatureModelSizeClass(creatureKeyOf(fighter.id))
-                  : 'h-20 w-full sm:h-28',
+                  : 'h-32 w-full sm:h-44',
               ]"
             >
               <div class="absolute inset-x-0 top-1/3 z-20 flex flex-wrap justify-center gap-1">
@@ -210,6 +217,7 @@ const actionFor = (fighter: ArenaFighter) => {
                 :alt="fighter.name"
                 :class="{ '-scale-x-100': team.side === 'B' }"
                 object-position="center top"
+                :scale="dwellerScale(fighter)"
                 image-class="size-full object-contain drop-shadow-lg"
                 fallback-class="hidden"
               />
@@ -220,7 +228,7 @@ const actionFor = (fighter: ArenaFighter) => {
                   !fighter.image_url &&
                   !fighter.thumbnail_url
                 "
-                class="absolute bottom-0 h-20 w-12 text-theme-primary sm:h-28 sm:w-16"
+                class="absolute bottom-0 h-32 w-16 text-theme-primary sm:h-44 sm:w-20"
                 :class="{ '-scale-x-100': team.side === 'B' }"
               />
             </div>

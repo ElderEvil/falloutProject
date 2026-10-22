@@ -6,6 +6,7 @@ import { creatureKeyOf } from '../models/arena'
 import { getCreatureImagePath } from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import { getDwellerPortraitScale } from '@/modules/dwellers/models/dweller'
 import ArenaRing from './ArenaRing.vue'
 import CombatantMeters from './CombatantMeters.vue'
 import { useFallbackImage } from '../composables/useFallbackImage'
@@ -49,6 +50,12 @@ const teamBLabel = computed(() => (mode.value === 'hunt' ? 'CREATURES' : 'TEAM B
 const emptySilhouetteUrl = getStaticImageUrl(
   '/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp'
 )
+
+const dwellerScale = (fighter: ArenaFighter) =>
+  getDwellerPortraitScale({
+    age_group: fighter.age_group,
+    visual_attributes: fighter.race ? { race: fighter.race } : null,
+  })
 
 const actionFor = (fighter: ArenaFighter) => {
   const skill = fighter.active_skill
@@ -125,7 +132,7 @@ const imageFor = (fighter: ArenaFighter) =>
                 :tone="side === 'A' ? 'success' : 'danger'"
                 :action="actionFor(fighter)"
               />
-              <div class="relative flex h-20 w-full shrink-0 items-end justify-center sm:h-28">
+              <div class="relative flex h-32 w-full shrink-0 items-end justify-center sm:h-44">
                 <img
                   v-if="imageFor(fighter)"
                   :src="imageFor(fighter) ?? undefined"
@@ -140,6 +147,7 @@ const imageFor = (fighter: ArenaFighter) =>
                   :alt="fighter.name"
                   :class="{ '-scale-x-100': side === 'B' }"
                   object-position="center top"
+                  :scale="dwellerScale(fighter)"
                   image-class="size-full object-contain drop-shadow-lg"
                   fallback-class="hidden"
                 />
@@ -151,7 +159,7 @@ const imageFor = (fighter: ArenaFighter) =>
                     !fighter.image_url &&
                     !fighter.thumbnail_url
                   "
-                  class="absolute bottom-0 h-20 w-12 text-theme-primary sm:h-28 sm:w-16"
+                  class="absolute bottom-0 h-32 w-16 text-theme-primary sm:h-44 sm:w-20"
                   :class="{ '-scale-x-100': side === 'B' }"
                 />
               </div>
@@ -195,7 +203,7 @@ const imageFor = (fighter: ArenaFighter) =>
   display: flex;
   width: 100%;
   height: 100%;
-  min-height: 7.25rem;
+  min-height: 8rem;
   align-items: center;
   justify-content: center;
 }
@@ -203,7 +211,7 @@ const imageFor = (fighter: ArenaFighter) =>
 .arena-dweller-silhouette {
   display: block;
   width: 100%;
-  height: 7.25rem;
+  height: 8rem;
   background-color: var(--color-surface-sunken);
   -webkit-mask-image: var(--dweller-silhouette);
   mask-image: var(--dweller-silhouette);
@@ -217,6 +225,16 @@ const imageFor = (fighter: ArenaFighter) =>
   mask-mode: alpha;
   opacity: 0.65;
   filter: drop-shadow(0 0 4px color-mix(in srgb, var(--color-theme-primary) 30%, transparent));
+}
+
+@media (min-width: 640px) {
+  .arena-empty-slot {
+    min-height: 11rem;
+  }
+
+  .arena-dweller-silhouette {
+    height: 11rem;
+  }
 }
 
 .arena-empty-plus {

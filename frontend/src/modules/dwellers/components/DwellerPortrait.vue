@@ -69,6 +69,7 @@ const clipClass = computed(() => {
 const imageStyle = computed(() => ({
   objectPosition: props.objectPosition ?? (isThumbnailPreview.value ? 'center top' : undefined),
   '--portrait-scale': String(props.scale),
+  transformOrigin: props.scale > 1 ? 'center top' : undefined,
 }))
 
 const hasImageError = ref(false)

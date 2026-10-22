@@ -67,6 +67,8 @@ class ArenaFighter(BaseModel):
     is_robot: bool = False
     image_url: str | None = None
     thumbnail_url: str | None = None
+    age_group: str | None = None
+    race: str | None = None
 
 
 class ArenaRosterEntry(BaseModel):
@@ -79,6 +81,8 @@ class ArenaRosterEntry(BaseModel):
     max_health: int
     image_url: str | None = None
     thumbnail_url: str | None = None
+    age_group: str | None = None
+    race: str | None = None
 
 
 class ArenaMatchEventOut(BaseModel):

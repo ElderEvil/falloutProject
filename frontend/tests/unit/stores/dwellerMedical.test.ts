@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAxiosMock, createToastMock } from '../helpers/mocks'
+import { flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import axios from '@/core/plugins/axios'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
@@ -55,6 +56,31 @@ describe('useDwellerMedicalStore', () => {
     await medical.useStimpack('d1', 'token')
     expect(toastMock.success).toHaveBeenCalledTimes(1)
     expect(toastMock.success).toHaveBeenCalledWith('Stimpack used! Dweller healed.')
+  })
+
+  it('refreshes recovery results even when a pre-treatment roster is still loading', async () => {
+    const filter = useDwellerFilterStore()
+    const medical = useDwellerMedicalStore()
+    vi.spyOn(filter, 'fetchDwellersByVault').mockResolvedValue()
+    let finishOld!: (value: unknown) => void
+    vi.mocked(axios.get)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishOld = resolve
+          })
+      )
+      .mockResolvedValueOnce({ data: [{ id: 'treated', radiation: 0 }] })
+    const old = filter.fetchAllDwellers('vault-1', 'token-1')
+    vi.mocked(axios.post).mockResolvedValue({
+      data: { dwellers_treated: 1, radaways_used: 1, stimpaks_used: 0 },
+    })
+    const treatment = medical.distributeRecoverySupplies('vault-1', 'token-1')
+    await flushPromises()
+    finishOld({ data: [{ id: 'treated', radiation: 50 }] })
+    await Promise.all([old, treatment])
+    expect(axios.get).toHaveBeenCalledTimes(2)
+    expect(filter.allDwellers[0].radiation).toBe(0)
   })
 
   it('reports nothing to do when no dweller was irradiated', async () => {

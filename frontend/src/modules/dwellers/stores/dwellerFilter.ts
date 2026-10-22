@@ -178,13 +178,26 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   const detailedDwellers = ref<Record<string, Dweller | null>>({})
   let dwellersRequestSeq = 0
   let cacheGeneration = 0
+  // Vault-scoped request tracking for fetchAllDwellers: results are applied
+  // only when they still match the active vault and the latest request.
+  let allDwellersVaultId: string | null = null
+  let allDwellersRequestSeq = 0
+  const allDwellersLoadedVaultId = ref<string | null>(null)
+  let allDwellersInFlight: { vaultId: string; token: string; promise: Promise<boolean> } | null =
+    null
+
   const cacheIdentity = computed(() => authStore.user?.id ?? authStore.token)
 
   watch(
-    cacheIdentity,
+    [cacheIdentity, () => authStore.token],
     () => {
       detailedDwellers.value = {}
       ++cacheGeneration
+      ++allDwellersRequestSeq
+      allDwellersInFlight = null
+      allDwellersVaultId = null
+      allDwellers.value = []
+      allDwellersLoadedVaultId.value = null
     },
     { flush: 'sync' }
   )
@@ -219,12 +232,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   )
 
   const featureFlags = useFeatureFlagsStore()
-
-  // Vault-scoped request tracking for fetchAllDwellers: results are applied
-  // only when they still match the active vault and the latest request.
-  let allDwellersVaultId: string | null = null
-  let allDwellersRequestSeq = 0
-  const allDwellersLoadedVaultId = ref<string | null>(null)
 
   // Filter and sort state (persisted in localStorage)
   const filterFocus = useLocalStorage<DwellerRosterFocus>('dwellerFilterFocus', 'all', {
@@ -440,35 +447,55 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   async function fetchAllDwellers(
     vaultId: string,
     token: string,
-    throwOnError = false
+    throwOnError = false,
+    forceRefresh = false
   ): Promise<void> {
+    // Read-only callers share work. Mutation refreshes must start after the write.
+    let request = allDwellersInFlight
+    if (forceRefresh || request?.vaultId !== vaultId || request.token !== token) {
+      request = {
+        vaultId,
+        token,
+        promise: loadAllDwellers(vaultId, token).catch((error: unknown) => {
+          handleStoreError(error, `Failed to fetch all dwellers for vault ${vaultId}`)
+          throw error
+        }),
+      }
+      allDwellersInFlight = request
+    }
+    try {
+      const applied = await request.promise
+      if (!applied && throwOnError)
+        throw new Error('Dweller list changed while loading. Try again.')
+    } catch (error) {
+      if (throwOnError) throw error
+    } finally {
+      if (allDwellersInFlight === request) allDwellersInFlight = null
+    }
+  }
+
+  async function loadAllDwellers(vaultId: string, token: string): Promise<boolean> {
     allDwellers.value = []
+    allDwellersLoadedVaultId.value = null
     allDwellersVaultId = vaultId
     const requestSeq = ++allDwellersRequestSeq
 
-    try {
-      let page = await getDwellersByVault(vaultId, token, {
-        skip: 0,
+    let page = await getDwellersByVault(vaultId, token, {
+      skip: 0,
+      limit: ALL_DWELLERS_FETCH_LIMIT,
+    })
+    const collected: DwellerShort[] = [...page]
+    while (page.length === ALL_DWELLERS_FETCH_LIMIT) {
+      page = await getDwellersByVault(vaultId, token, {
+        skip: collected.length,
         limit: ALL_DWELLERS_FETCH_LIMIT,
       })
-      const collected: DwellerShort[] = [...page]
-      while (page.length === ALL_DWELLERS_FETCH_LIMIT) {
-        page = await getDwellersByVault(vaultId, token, {
-          skip: collected.length,
-          limit: ALL_DWELLERS_FETCH_LIMIT,
-        })
-        collected.push(...page)
-      }
-      if (requestSeq === allDwellersRequestSeq && allDwellersVaultId === vaultId) {
-        allDwellers.value = collected
-        allDwellersLoadedVaultId.value = vaultId
-      } else if (throwOnError) {
-        throw new Error('Dweller list changed while loading. Try again.')
-      }
-    } catch (error) {
-      handleStoreError(error, `Failed to fetch all dwellers for vault ${vaultId}`)
-      if (throwOnError) throw error
+      collected.push(...page)
     }
+    if (requestSeq !== allDwellersRequestSeq || allDwellersVaultId !== vaultId) return false
+    allDwellers.value = collected
+    allDwellersLoadedVaultId.value = vaultId
+    return true
   }
 
   async function fetchDwellerDetails(

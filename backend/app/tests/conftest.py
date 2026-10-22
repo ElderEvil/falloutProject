@@ -1,6 +1,6 @@
 import sys
 from collections.abc import AsyncGenerator
-from contextlib import suppress
+from contextlib import asynccontextmanager, suppress
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -132,6 +132,17 @@ async def async_session(db_connection: AsyncConnection) -> AsyncSession:  # type
         await nested.rollback()
     with suppress(Exception):
         await db_connection.rollback()
+
+
+@pytest_asyncio.fixture
+async def session_factory(async_session: AsyncSession):
+    """Session maker yielding the shared test session for APIs that open their own."""
+
+    @asynccontextmanager
+    async def _factory():
+        yield async_session
+
+    return _factory
 
 
 @pytest_asyncio.fixture(name="superuser")

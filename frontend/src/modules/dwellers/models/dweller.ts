@@ -504,6 +504,30 @@ export function isMature(dweller: Pick<Dweller, 'age_group'>): boolean {
   return ADULT_AGE_GROUPS.has(dweller.age_group)
 }
 
+/** True when the dweller occupies a production room's dedicated apprentice slot. */
+export function isApprentice(
+  dweller: { apprentice_stat?: string | null } | null | undefined
+): boolean {
+  return Boolean(dweller?.apprentice_stat)
+}
+
+/**
+ * Stable room roster order: regular workers first, apprentice slots last.
+ * RoomPreviewSection and the room-grid avatars must both use this so the
+ * same dwellers appear in the same order everywhere.
+ */
+export function orderRoomDwellers<T extends { apprentice_stat?: string | null }>(
+  dwellers: readonly T[]
+): T[] {
+  const workers: T[] = []
+  const apprentices: T[] = []
+  for (const dweller of dwellers) {
+    if (isApprentice(dweller)) apprentices.push(dweller)
+    else workers.push(dweller)
+  }
+  return [...workers, ...apprentices]
+}
+
 /** A dweller with no room assignment that is not dead or away from the vault (available to assign). */
 export function isAvailableUnassignedDweller(dweller: {
   room_id?: string | null

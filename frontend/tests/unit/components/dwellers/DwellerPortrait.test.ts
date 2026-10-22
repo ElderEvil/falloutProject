@@ -62,6 +62,29 @@ describe('DwellerPortrait', () => {
     )
   })
 
+  it('applies the curated card zoom by default', () => {
+    const wrapper = mount(DwellerPortrait, {
+      props: {
+        thumbnailUrl: '/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp',
+        alt: 'Portrait',
+      },
+    })
+
+    expect(wrapper.find('img').attributes('class')).toContain('default-portrait-zoom')
+  })
+
+  it('can opt out of the curated zoom for scene portraits', () => {
+    const wrapper = mount(DwellerPortrait, {
+      props: {
+        thumbnailUrl: '/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp',
+        alt: 'Portrait',
+        zoom: false,
+      },
+    })
+
+    expect(wrapper.find('img').attributes('class')).not.toContain('default-portrait-zoom')
+  })
+
   it('renders an accessible account fallback when neither image exists', () => {
     const wrapper = mount(DwellerPortrait, {
       props: { alt: 'Unknown dweller portrait' },

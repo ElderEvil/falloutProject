@@ -11,6 +11,7 @@ interface Props {
   fallbackClass?: string
   fallbackIcon?: string
   preferThumbnail?: boolean
+  zoom?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -20,28 +21,37 @@ const props = withDefaults(defineProps<Props>(), {
   fallbackClass: '',
   fallbackIcon: 'mdi:account',
   preferThumbnail: false,
+  zoom: true,
 })
 
 const portraitSource = computed(() =>
-  props.preferThumbnail ? props.thumbnailUrl || props.imageUrl : props.imageUrl || props.thumbnailUrl
+  props.preferThumbnail
+    ? props.thumbnailUrl || props.imageUrl
+    : props.imageUrl || props.thumbnailUrl
 )
 // Backend static paths (/static/...) must resolve against the API origin;
 // data:, blob:, absolute, and schemeless-host URLs pass through unchanged
 // (issue #620). normalizeImageUrl repairs the schemeless-hostname legacy case.
 const portraitUrl = computed(() => getStaticImageUrl(normalizeImageUrl(portraitSource.value)) ?? '')
 
-const isThumbnailPreview = computed(() => portraitSource.value === props.thumbnailUrl && Boolean(props.thumbnailUrl))
+const isThumbnailPreview = computed(
+  () => portraitSource.value === props.thumbnailUrl && Boolean(props.thumbnailUrl)
+)
 
 const isCuratedDefault = computed(() => {
   const source = portraitSource.value
   return (
     Boolean(source) &&
-    (source!.startsWith('/static/dweller_images/') || source!.startsWith('/static/dweller_thumbnails/'))
+    (source!.startsWith('/static/dweller_images/') ||
+      source!.startsWith('/static/dweller_thumbnails/'))
   )
 })
 
 const clipClass = computed(() => {
-  if (/(^|\s)(avatar-image|thumbnail-image|header-avatar-image)(\s|$)/.test(props.imageClass) || props.imageClass.includes('h-full')) {
+  if (
+    /(^|\s)(avatar-image|thumbnail-image|header-avatar-image)(\s|$)/.test(props.imageClass) ||
+    props.imageClass.includes('h-full')
+  ) {
     return 'portrait-clip-all'
   }
   if (props.imageClass.includes('w-full')) {
@@ -65,7 +75,7 @@ watch(portraitUrl, () => {
       :class="[
         'portrait-clip-image',
         imageClass,
-        { 'default-portrait-zoom': isCuratedDefault },
+        { 'default-portrait-zoom': isCuratedDefault && zoom },
       ]"
       :style="{ objectPosition: isThumbnailPreview ? 'center top' : undefined }"
       @error="hasImageError = true"

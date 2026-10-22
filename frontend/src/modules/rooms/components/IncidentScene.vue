@@ -82,9 +82,9 @@ const containmentGain = computed(() =>
 </script>
 
 <template>
-  <TooltipProvider :delay-duration="200">
+  <TooltipProvider :delay-duration="200" :ignore-non-keyboard-focus="true">
     <section
-      class="incident-scene relative isolate aspect-[5/2] min-h-64 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
+      class="incident-scene relative isolate aspect-[5/2] min-h-80 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
       aria-label="Incident live status"
     >
       <img
@@ -110,7 +110,7 @@ const containmentGain = computed(() =>
       </div>
 
       <div
-        class="absolute inset-x-3 top-12 bottom-16 grid grid-cols-[3fr_2fr] items-end gap-5 sm:inset-x-6 sm:gap-10"
+        class="absolute inset-x-3 top-12 bottom-16 grid grid-cols-2 items-end gap-5 sm:inset-x-6 sm:gap-10"
       >
         <div class="relative min-w-0">
           <span
@@ -120,11 +120,12 @@ const containmentGain = computed(() =>
             aria-hidden="true"
             >-{{ Math.round(dwellerDamage) }}</span
           >
-          <div class="flex min-w-0 items-end gap-2 overflow-x-auto pt-6 pb-1">
+          <!-- Keep responders spread across their half of the scene instead of clustering left. -->
+          <div class="flex w-full min-w-0 items-end justify-evenly gap-2 overflow-x-auto pt-6 pb-1">
             <div
               v-for="responder in responders"
               :key="responder.id"
-              class="incident-responder relative flex w-12 min-w-12 max-w-16 flex-1 flex-col items-center gap-1 sm:w-14 sm:min-w-14"
+              class="incident-responder relative flex w-[4.85rem] min-w-[4.85rem] max-w-[4.85rem] shrink-0 flex-col items-center gap-1"
               :class="{
                 'opacity-40 grayscale': responder.dweller && responder.dweller.health <= 0,
               }"
@@ -167,13 +168,14 @@ const containmentGain = computed(() =>
                   }}</TooltipContent
                 ></Tooltip
               >
-              <div class="flex h-12 w-full items-end justify-center sm:h-16">
+              <div class="flex h-[7.25rem] w-full items-end justify-center">
                 <DwellerPortrait
                   v-if="responder.dweller?.thumbnail_url"
                   :thumbnail-url="responder.dweller.thumbnail_url"
                   :alt="responder.name"
-                  image-class="max-h-full w-full object-contain drop-shadow-lg"
+                  image-class="incident-dweller-portrait h-full w-full object-contain drop-shadow-lg"
                   fallback-class="size-10 text-theme-primary"
+                  :zoom="false"
                 />
                 <UserRound
                   v-else
@@ -228,7 +230,7 @@ const containmentGain = computed(() =>
           >
           <svg
             v-if="incident.type === 'fire'"
-            class="hazard-flame h-24 w-20 drop-shadow-lg sm:h-36 sm:w-28"
+            class="hazard-flame h-32 w-24 drop-shadow-lg sm:h-44 sm:w-32"
             viewBox="0 0 24 24"
             aria-hidden="true"
           >
@@ -243,7 +245,7 @@ const containmentGain = computed(() =>
           </svg>
           <div
             v-else-if="creatureImage"
-            class="flex max-w-full items-end justify-center"
+            class="flex max-w-full origin-bottom scale-110 items-end justify-center sm:scale-125"
             :class="getCreatureModelSizeClass(creatureKey ?? '')"
           >
             <img
@@ -255,14 +257,14 @@ const containmentGain = computed(() =>
           </div>
           <UserRound
             v-else-if="incident.type === 'raider_attack'"
-            class="h-20 w-16 text-danger drop-shadow-lg sm:h-28 sm:w-20"
+            class="h-28 w-20 text-danger drop-shadow-lg sm:h-36 sm:w-24"
             role="img"
             aria-label="Raider"
           />
           <Icon
             v-else
             :icon="getIncidentIcon(incident.type)"
-            class="hazard-icon size-16 text-warning"
+            class="hazard-icon size-24 text-warning"
             :ariaHidden="true"
           />
           <span

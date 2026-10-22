@@ -16,6 +16,15 @@ vi.mock('@iconify/vue', () =>
   createIconifyMock({ template: '<div class="mock-icon" :data-icon="icon"></div>' })
 )
 
+vi.mock('@/modules/rooms/components/BarbershopPanel.vue', () => ({
+  default: {
+    name: 'BarbershopPanel',
+    props: ['room', 'assignedDwellers'],
+    emits: ['changed'],
+    template: '<div class="mock-barbershop-panel"></div>',
+  },
+}))
+
 // The modal now composes shadcn primitives; stub them onto the same `mock-*`
 // hooks this suite already selects on (`mock-modal`, `mock-button`, …) and keep
 // Dialog/DialogContent context-free by stubbing both together.
@@ -323,6 +332,26 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.text()).toContain('PRODUCTION')
+    })
+
+    it('renders the Barbershop panel only for the Barbershop room', () => {
+      const barbershop = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Barbershop', category: 'misc.', ability: 'charisma' },
+          modelValue: true,
+          vaultId: 'vault-123',
+        },
+      })
+      expect(barbershop.find('.mock-barbershop-panel').exists()).toBe(true)
+
+      const other = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Radio Studio', category: 'misc.', ability: 'charisma' },
+          modelValue: true,
+          vaultId: 'vault-123',
+        },
+      })
+      expect(other.find('.mock-barbershop-panel').exists()).toBe(false)
     })
   })
 

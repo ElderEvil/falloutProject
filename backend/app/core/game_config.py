@@ -515,7 +515,8 @@ class BarbershopConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="BARBERSHOP_")
 
-    change_cost: int = Field(default=100, description="Caps charged per appearance change", ge=0)
+    skin_change_cost: int = Field(default=200, description="Caps charged for a skin-tone change", ge=0)
+    hair_change_cost: int = Field(default=150, description="Caps charged for a hair-color change", ge=0)
 
 
 class ResourceConfig(BaseSettings):

@@ -14,6 +14,8 @@ class BarbershopStatus(SQLModel):
     built: bool
     staffed: bool
     fee: int
+    skin_fee: int
+    hair_fee: int
     vault_caps: int
     skin_tones: list[str]
     hair_colors: list[str]

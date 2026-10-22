@@ -5629,6 +5629,10 @@ export interface components {
             staffed: boolean;
             /** Fee */
             fee: number;
+            /** Skin Fee */
+            skin_fee: number;
+            /** Hair Fee */
+            hair_fee: number;
             /** Vault Caps */
             vault_caps: number;
             /** Skin Tones */

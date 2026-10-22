@@ -304,10 +304,10 @@ const emptyDwellerSilhouetteUrl = getStaticImageUrl(
 }
 
 .room-scene--small .dweller-sprites-overlay {
-  right: clamp(0.25rem, 8%, 22%);
-  left: clamp(0.25rem, 8%, 22%);
-  justify-content: center;
-  gap: 0.5rem;
+  right: 0.25rem;
+  left: 0.25rem;
+  justify-content: space-evenly;
+  gap: 0;
 }
 
 .room-scene--wide .room-image-container {

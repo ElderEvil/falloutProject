@@ -93,8 +93,8 @@ describe('Arena ring', () => {
     })
 
     const actors = wrapper.findAll('.ring-fighter')
-    expect(actors[0].attributes('data-attacking')).toBe('true')
-    expect(actors[1].attributes('data-attacking')).toBeUndefined()
+    expect(actors[0].attributes('aria-current')).toBe('true')
+    expect(actors[1].attributes('aria-current')).toBeUndefined()
   })
 
   it('skips the attack animation for a knocked-out attacker', () => {
@@ -111,7 +111,7 @@ describe('Arena ring', () => {
       attachTo: document.body,
     })
 
-    expect(wrapper.findAll('.ring-fighter')[0].attributes('data-attacking')).toBeUndefined()
+    expect(wrapper.findAll('.ring-fighter')[0].attributes('aria-current')).toBeUndefined()
   })
 
   it('places each ready dweller activation on its paired target and emits the attacker ID', async () => {

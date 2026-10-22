@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.252.0 (2026-10-22)
+
+### Features
+
+* **ui:** expand chat and dweller detail modals into pages ([#1100](https://github.com/ElderEvil/falloutProject/issues/1100)) eb5c442
+
 ## 2.251.0 (2026-10-22)
 
 ### Features

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.248.2 (2026-10-22)
+
+### Performance Improvements
+
+* **tick:** batch production objective events ([#1135](https://github.com/ElderEvil/falloutProject/issues/1135)) 3c8a0bf
+* **tick:** process vaults concurrently ([#1137](https://github.com/ElderEvil/falloutProject/issues/1137)) 7ac5f96
+
 ## 2.248.1 (2026-10-22)
 
 ### Bug Fixes

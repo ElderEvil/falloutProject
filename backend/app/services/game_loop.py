@@ -60,8 +60,9 @@ class GameLoopService:
     ) -> GameTickResult:
         """Process a single game tick for all active vaults.
 
-        Each vault runs on its own session, bounded by ``max_concurrency``; a
-        failing vault never aborts another vault's tick.
+        Each vault runs on its own session, bounded by ``max_concurrency``. An
+        expected vault failure is isolated to that vault; an unexpected error is
+        re-raised only after every vault task has settled.
 
         Returns:
             dict: Statistics about the tick processing
@@ -95,9 +96,18 @@ class GameLoopService:
                     return False
                 return True
 
-        outcomes = await asyncio.gather(*(_process_vault(vault_id) for vault_id in vault_ids))
-        stats["vaults_processed"] = sum(outcomes)
-        stats["errors"] = len(outcomes) - stats["vaults_processed"]
+        outcomes = await asyncio.gather(*(_process_vault(vault_id) for vault_id in vault_ids), return_exceptions=True)
+        unexpected: list[BaseException] = []
+        for outcome in outcomes:
+            if isinstance(outcome, BaseException):
+                unexpected.append(outcome)
+            elif outcome:
+                stats["vaults_processed"] += 1
+            else:
+                stats["errors"] += 1
+
+        if unexpected:
+            raise unexpected[0]
         stats["total_time"] = (datetime.utcnow() - start_time).total_seconds()
 
         self.logger.info(

@@ -58,6 +58,18 @@ class TestPauseResume:
         assert "offline_time" in status
 
 
+class _FakeSession:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_args):
+        return False
+
+
+def _fake_session_maker():
+    return _FakeSession()
+
+
 # ═════════════════════════════════════════════════════════════════════
 # process_game_tick
 # ═════════════════════════════════════════════════════════════════════
@@ -91,16 +103,6 @@ class TestProcessGameTick:
         max_active = 0
         sessions = []
 
-        class FakeSession:
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *_args):
-                return False
-
-        def maker():
-            return FakeSession()
-
         async def fake_tick(session, _vault_id):
             nonlocal active, max_active
             sessions.append(session)
@@ -113,7 +115,7 @@ class TestProcessGameTick:
             patch.object(game_loop_service, "_get_active_vaults", new=AsyncMock(return_value=vaults)),
             patch.object(game_loop_service, "process_vault_tick", new=fake_tick),
         ):
-            stats = await game_loop_service.process_game_tick(maker, max_concurrency=3)
+            stats = await game_loop_service.process_game_tick(_fake_session_maker, max_concurrency=3)
 
         assert max_active == 3
         assert len({id(session) for session in sessions}) == len(vaults)
@@ -125,16 +127,6 @@ class TestProcessGameTick:
         vaults = [SimpleNamespace(id=uuid4()) for _ in range(3)]
         processed: list = []
 
-        class FakeSession:
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *_args):
-                return False
-
-        def maker():
-            return FakeSession()
-
         async def fake_tick(_session, vault_id):
             if vault_id == vaults[0].id:
                 raise VaultOperationException("Simulated failure")
@@ -145,11 +137,31 @@ class TestProcessGameTick:
             patch.object(game_loop_service, "process_vault_tick", new=fake_tick),
             patch("app.services.game_loop.recover_session", new=AsyncMock()),
         ):
-            stats = await game_loop_service.process_game_tick(maker, max_concurrency=2)
+            stats = await game_loop_service.process_game_tick(_fake_session_maker, max_concurrency=2)
 
         assert sorted(processed) == sorted(vault.id for vault in vaults[1:])
         assert stats["vaults_processed"] == 2
         assert stats["errors"] == 1
+
+    @pytest.mark.asyncio
+    async def test_unexpected_failure_waits_for_sibling_vaults(self):
+        vaults = [SimpleNamespace(id=uuid4()) for _ in range(3)]
+        completed: list = []
+
+        async def fake_tick(_session, vault_id):
+            if vault_id == vaults[0].id:
+                raise RuntimeError("boom")
+            await asyncio.sleep(0.01)
+            completed.append(vault_id)
+
+        with (
+            patch.object(game_loop_service, "_get_active_vaults", new=AsyncMock(return_value=vaults)),
+            patch.object(game_loop_service, "process_vault_tick", new=fake_tick),
+            pytest.raises(RuntimeError, match="boom"),
+        ):
+            await game_loop_service.process_game_tick(_fake_session_maker, max_concurrency=2)
+
+        assert sorted(completed) == sorted(vault.id for vault in vaults[1:])
 
 
 # ═════════════════════════════════════════════════════════════════════

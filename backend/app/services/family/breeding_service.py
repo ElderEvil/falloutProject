@@ -24,6 +24,7 @@ from app.crud.relationship import relationship_crud
 from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
+from app.options.pet_modifiers import pet_modifiers_for
 from app.options.races import can_breed, is_ageless, race_of
 from app.schemas.dweller import DwellerCreate
 from app.services.bio_service import bio_service
@@ -404,8 +405,9 @@ class BreedingService:
     ) -> list[Dweller]:
         """Deliver a pregnancy.
 
-        A single newborn by default; ``BreedingConfig.twin_chance`` rolls twins,
-        then a hit ``BreedingConfig.triplet_chance`` upgrades twins to triplets.
+        A single newborn by default; ``BreedingConfig.twin_chance`` plus the
+        mother's equipped Twins-chance pet bonus rolls twins, then a hit
+        ``BreedingConfig.triplet_chance`` upgrades twins to triplets.
 
         Args:
             db_session: Database session
@@ -427,8 +429,12 @@ class BreedingService:
         mother = await dweller_crud.get(db_session, pregnancy.mother_id)
         father = await dweller_crud.get(db_session, pregnancy.father_id)
 
+        # Only the mother's pet counts: Fallout Shelter FAQ §5.2 puts the pet on
+        # the female at birth, so the father's pet never influences the roll.
+        twin_chance = min(1.0, game_config.breeding.twin_chance + pet_modifiers_for(mother).twin_chance_pct)
+
         children = [await BreedingService._create_newborn(db_session, mother, father)]
-        if random.random() < game_config.breeding.twin_chance:
+        if random.random() < twin_chance:
             children.append(await BreedingService._create_newborn(db_session, mother, father))
             if random.random() < game_config.breeding.triplet_chance:
                 children.append(await BreedingService._create_newborn(db_session, mother, father))

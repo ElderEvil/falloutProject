@@ -657,7 +657,7 @@ class BreedingConfig(BaseSettings):
     )
     twin_chance: float = Field(
         default=0.05,
-        description="5% chance a birth delivers twins",
+        description="Base 5% chance a birth delivers twins, raised by the mother's equipped Twins-chance pet",
         ge=0.0,
         le=1.0,
     )

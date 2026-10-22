@@ -35,6 +35,7 @@ class PetEffectRead(BaseModel):
     caps_pct: float = 0.0
     xp_pct: float = 0.0
     training_speed_pct: float = 0.0
+    twin_chance_pct: float = 0.0
 
 
 class PetRead(ItemBase):

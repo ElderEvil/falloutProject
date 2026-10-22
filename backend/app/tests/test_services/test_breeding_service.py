@@ -835,6 +835,96 @@ async def test_deliver_baby_triplets_require_twin_roll(
     assert len(children) == 1
 
 
+async def _equip_pet(async_session: AsyncSession, dweller: Dweller, name: str) -> None:
+    """Create a pet and equip it through the real CRUD path."""
+    pet = await crud.pet.create(async_session, {"name": name, "rarity": RarityEnum.LEGENDARY, "value": 500})
+    await crud.pet.equip(db_session=async_session, item_id=pet.id, dweller_id=dweller.id)
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_mothers_twins_chance_pet_raises_the_roll(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """With base 0%, the mother's +75% Twins-chance pet turns a 0.5 roll into twins."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+    await _equip_pet(async_session, female_dweller, "Shakespeare")  # twin_chance_pct 0.75
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    with patch("random.random", return_value=0.5):
+        children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    assert len(children) == 2
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_fathers_twins_chance_pet_is_ignored(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Only the mother's pet counts: the father's +75% pet leaves a 0.5 roll short of base 0%."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+    await _equip_pet(async_session, male_dweller, "Shakespeare")  # twin_chance_pct 0.75
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    with patch("random.random", return_value=0.5):
+        children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    assert len(children) == 1
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_twins_chance_sums_base_and_pet(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Base 50% + the mother's +75% pet (clamped to 100%) clears a 0.99 roll."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.5)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+    await _equip_pet(async_session, female_dweller, "Shakespeare")  # twin_chance_pct 0.75
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    with patch("random.random", return_value=0.99):
+        children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    assert len(children) == 2
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_twins_chance_is_clamped_to_one(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A roll at/above 1.0 misses even when base + pet would sum past 100%."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.5)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+    await _equip_pet(async_session, female_dweller, "Shakespeare")  # 1.25 unclamped
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    with patch("random.random", return_value=1.05):
+        children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    assert len(children) == 1
+
+
 @pytest.mark.asyncio
 async def test_age_children_progress_through_teen_to_adult(
     async_session: AsyncSession,

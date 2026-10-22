@@ -44,6 +44,7 @@ class PetEffect:
     caps_pct: float = 0.0
     xp_pct: float = 0.0
     training_speed_pct: float = 0.0
+    twin_chance_pct: float = 0.0
 
 
 #: The no-bonus effect returned for unlisted pets.
@@ -61,6 +62,11 @@ PET_EFFECT_BY_NAME: dict[str, PetEffect] = {
     "st. bernard": PetEffect(endurance=2, max_health=30, radiation_resist_pct=0.25),
     "husky": PetEffect(agility=2, damage_pct=0.25),
     "abyssinian": PetEffect(intelligence=1, xp_pct=0.25),
+    "genius": PetEffect(twin_chance_pct=0.25),
+    "stubbs": PetEffect(twin_chance_pct=0.50),
+    "shakespeare": PetEffect(twin_chance_pct=0.75),
+    "lucky": PetEffect(twin_chance_pct=0.50),
+    "pongo": PetEffect(twin_chance_pct=0.75),
 }
 
 

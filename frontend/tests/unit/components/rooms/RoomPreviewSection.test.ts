@@ -82,6 +82,9 @@ describe('RoomPreviewSection unassign affordance (issue #1083)', () => {
     expect(
       wrapper.get('.scene-empty-apprentice .empty-dweller-silhouette').attributes('class')
     ).toContain('empty-dweller-silhouette--apprentice')
+    expect(
+      wrapper.get('.scene-empty-apprentice .empty-dweller-silhouette').attributes('style')
+    ).toContain('FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairBrown.webp')
     wrapper.unmount()
   })
 

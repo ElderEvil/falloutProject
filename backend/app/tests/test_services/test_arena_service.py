@@ -779,9 +779,7 @@ class TestArenaService:
         assert arena_state.fighter_a_id == replacement.id
 
     @pytest.mark.asyncio
-    async def test_resolve_round_1v1_alternates_with_full_damage(
-        self, async_session, arena_room, fighter_a, fighter_b
-    ):
+    async def test_resolve_round_1v1_alternates_with_full_damage(self, async_session, arena_room, fighter_a, fighter_b):
         for fighter in (fighter_a, fighter_b):
             fighter.room_id = arena_room.id
             await async_session.refresh(fighter, ["weapon"])
@@ -2248,7 +2246,11 @@ async def test_stop_fight_cancels_without_reward(async_session, arena_room, figh
     assert fighter_a.health == 40
     assert fighter_b.health == 30
     assert fighter_a.status == DwellerStatusEnum.IDLE
-    events = (await async_session.execute(select(ArenaMatchEvent).where(ArenaMatchEvent.room_id == arena_room.id))).scalars().all()
+    events = (
+        (await async_session.execute(select(ArenaMatchEvent).where(ArenaMatchEvent.room_id == arena_room.id)))
+        .scalars()
+        .all()
+    )
     assert events == []
 
     with pytest.raises(ValidationException):

@@ -391,15 +391,9 @@ class ArenaService:
             image_url=participant.dweller.image_url if participant.dweller else None,
             thumbnail_url=participant.dweller.thumbnail_url if participant.dweller else None,
             age_group=(
-                participant.dweller.age_group.value
-                if participant.dweller and participant.dweller.age_group
-                else None
+                participant.dweller.age_group.value if participant.dweller and participant.dweller.age_group else None
             ),
-            race=(
-                (participant.dweller.visual_attributes or {}).get("race")
-                if participant.dweller
-                else None
-            ),
+            race=((participant.dweller.visual_attributes or {}).get("race") if participant.dweller else None),
         )
 
     @staticmethod
@@ -890,8 +884,7 @@ class ArenaService:
             state.skill_charge = {
                 p.key: min(
                     MAX_CHARGE,
-                    (state.skill_charge or {}).get(p.key, 0)
-                    + max(0, seconds_passed) * self._charge_per_second(p),
+                    (state.skill_charge or {}).get(p.key, 0) + max(0, seconds_passed) * self._charge_per_second(p),
                 )
                 for p in (*team_a, *team_b)
                 if p.dweller is not None and p.health > 0

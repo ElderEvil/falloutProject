@@ -54,6 +54,16 @@ export const useArenaStore = defineStore('arena', () => {
     }
   }
 
+  async function stopFight(vaultId: string, roomId: string, token: string): Promise<boolean> {
+    try {
+      await arenaApi.stopFight(vaultId, roomId, token)
+      return await fetchState(vaultId, token, true)
+    } catch (error) {
+      handleStoreError(error, 'Failed to stop fight')
+      return false
+    }
+  }
+
   async function queueSkill(
     vaultId: string,
     roomId: string,
@@ -95,6 +105,7 @@ export const useArenaStore = defineStore('arena', () => {
     fetchCreatures,
     setFighters,
     startFight,
+    stopFight,
     queueSkill,
     clearEvents,
     getRoom,

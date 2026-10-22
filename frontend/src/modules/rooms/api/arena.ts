@@ -64,6 +64,12 @@ export const arenaApi = {
     })
   },
 
+  async stopFight(vaultId: string, roomId: string, token: string): Promise<void> {
+    await axios.post(`/api/v1/arena/vault/${vaultId}/rooms/${roomId}/stop`, null, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  },
+
   async queueSkill(
     vaultId: string,
     roomId: string,

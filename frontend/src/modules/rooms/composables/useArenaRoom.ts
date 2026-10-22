@@ -15,6 +15,7 @@ export function useArenaRoom(vaultId: string, roomId: string) {
   const pendingSkills = ref(new Set<string>())
   const damageNumbers = ref<Array<{ id: number; fighterId: string; amount: number }>>([])
   const attackingTeam = ref<'A' | 'B' | null>(null)
+  const attackingFighterId = ref<string | null>(null)
   const skillBurst = ref<{ id: string; message: string } | null>(null)
   const previousHp = ref<Record<string, number>>({})
 
@@ -27,13 +28,55 @@ export function useArenaRoom(vaultId: string, roomId: string) {
   let damageSeq = 0
   let loadSequence = 0
   let burstTimer: ReturnType<typeof setTimeout> | undefined
-  let attackTimer: ReturnType<typeof setTimeout> | undefined
 
   const roomState = computed(() => arenaStore.getRoom(roomId))
   const teamFighters = computed<ArenaFighter[]>(() => [
     ...(roomState.value?.team_a ?? []),
     ...(roomState.value?.team_b ?? []),
   ])
+
+  const attackQueue: string[] = []
+  let attackQueueRunning = false
+  let attackQueueGeneration = 0
+
+  const teamOf = (fighterId: string) => {
+    if (roomState.value?.team_a.some((fighter) => fighter.id === fighterId)) return 'A'
+    if (roomState.value?.team_b.some((fighter) => fighter.id === fighterId)) return 'B'
+    return null
+  }
+
+  const runAttackQueue = async () => {
+    if (attackQueueRunning) return
+    attackQueueRunning = true
+    const generation = attackQueueGeneration
+    while (attackQueue.length && generation === attackQueueGeneration) {
+      const fighterId = attackQueue.shift()!
+      attackingFighterId.value = fighterId
+      attackingTeam.value = teamOf(fighterId)
+      await new Promise((resolve) => setTimeout(resolve, 320))
+      if (generation !== attackQueueGeneration) break
+      attackingFighterId.value = null
+      await new Promise((resolve) => setTimeout(resolve, 60))
+    }
+    if (generation === attackQueueGeneration) {
+      attackingFighterId.value = null
+      attackingTeam.value = null
+      attackQueueRunning = false
+    }
+  }
+
+  const enqueueAttacks = (fighterIds: string[]) => {
+    attackQueue.push(...fighterIds)
+    void runAttackQueue()
+  }
+
+  const resetAttackQueue = () => {
+    attackQueueGeneration += 1
+    attackQueue.length = 0
+    attackingFighterId.value = null
+    attackingTeam.value = null
+    attackQueueRunning = false
+  }
 
   const recordDamage = (fighter: ArenaFighter) => {
     const prev = previousHp.value[fighter.id]
@@ -62,13 +105,13 @@ export function useArenaRoom(vaultId: string, roomId: string) {
     })
     const ready = newlyReady.some(Boolean)
     if (feedbackPrimed) {
-      if (fresh.some((event) => event.kind === 'turn')) {
-        attackingTeam.value = state.next_attack_team === 'B' ? 'A' : 'B'
-        clearTimeout(attackTimer)
-        attackTimer = setTimeout(() => {
-          attackingTeam.value = null
-        }, 550)
-      }
+      const actorIds = fresh
+        .filter((event) => event.actor_id && (event.kind === 'hit' || event.kind === 'skill'))
+        .map((event) => event.actor_id as string)
+      const orderedActorIds = actorIds.filter(
+        (fighterId, index) => index === 0 || fighterId !== actorIds[index - 1]
+      )
+      if (orderedActorIds.length) enqueueAttacks(orderedActorIds)
       const skill = [...fresh].reverse().find((event) => event.kind === 'skill')
       if (fresh.some((event) => event.kind === 'finish')) playSound('arenaFinish')
       else if (skill) playSound('arenaSkill')
@@ -136,9 +179,20 @@ export function useArenaRoom(vaultId: string, roomId: string) {
     return ok
   }
 
+  const stopFight = async (): Promise<boolean> => {
+    if (!authStore.token) return false
+    const ok = await arenaStore.stopFight(vaultId, roomId, authStore.token)
+    if (ok) {
+      resetDamageTracking()
+      applyState()
+    }
+    return ok
+  }
+
   const resetDamageTracking = () => {
     previousHp.value = {}
     damageNumbers.value = []
+    resetAttackQueue()
   }
 
   onMounted(() => {
@@ -151,7 +205,7 @@ export function useArenaRoom(vaultId: string, roomId: string) {
     for (const timer of pendingDamageTimers) clearTimeout(timer)
     pendingDamageTimers.clear()
     clearTimeout(burstTimer)
-    clearTimeout(attackTimer)
+    resetAttackQueue()
   })
 
   return {
@@ -161,12 +215,14 @@ export function useArenaRoom(vaultId: string, roomId: string) {
     pendingSkills,
     damageNumbers,
     attackingTeam,
+    attackingFighterId,
     skillBurst,
     load,
     retry: () => load(false),
     refresh: () => load(true),
     queueSkill,
     startFight,
+    stopFight,
     resetDamageTracking,
   }
 }

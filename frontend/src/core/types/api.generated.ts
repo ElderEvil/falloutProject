@@ -3351,6 +3351,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/arena/vault/{vault_id}/rooms/{room_id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop Arena Fight
+         * @description Cancel an active arena match; fighters keep their current health.
+         */
+        post: operations["stop_arena_fight_api_v1_arena_vault__vault_id__rooms__room_id__stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/arena/vault/{vault_id}/rooms/{room_id}/skill": {
         parameters: {
             query?: never;
@@ -5356,6 +5376,16 @@ export interface components {
             started: boolean;
         };
         /**
+         * ArenaFightStopped
+         * @description Result of cancelling an active arena match.
+         */
+        ArenaFightStopped: {
+            /** Room Id */
+            room_id: string;
+            /** Stopped */
+            stopped: boolean;
+        };
+        /**
          * ArenaFighter
          * @description A single selected fighter with live HP and combat power.
          */
@@ -5435,6 +5465,8 @@ export interface components {
             kind: string;
             /** Message */
             message: string;
+            /** Actor Id */
+            actor_id?: string | null;
             /** Created At */
             created_at?: string | null;
         };
@@ -16685,6 +16717,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ArenaFightStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stop_arena_fight_api_v1_arena_vault__vault_id__rooms__room_id__stop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArenaFightStopped"];
                 };
             };
             /** @description Validation Error */

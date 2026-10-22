@@ -15,12 +15,14 @@ vi.mock('@/modules/rooms/composables/useArenaRoom', async () => {
       pendingSkills: ref(new Set<string>()),
       damageNumbers: ref([]),
       attackingTeam: ref(null),
+      attackingFighterId: ref(null),
       skillBurst: ref(null),
       load: () => Promise.resolve(),
       retry: () => Promise.resolve(),
       refresh: () => Promise.resolve(),
       queueSkill: () => Promise.resolve(),
       startFight: () => Promise.resolve(true),
+      stopFight: () => Promise.resolve(true),
       resetDamageTracking: () => {},
     }),
   }
@@ -59,6 +61,9 @@ describe('ArenaRoomDetail', () => {
       .findAll('button')
       .find((button) => button.text().includes('Assign Dwellers'))
     expect(Boolean(assign)).toBe(!fighting && count < 6)
+    expect(
+      wrapper.findAll('button').some((button) => button.text().includes('Stop Fight'))
+    ).toBe(fighting)
     expect(wrapper.text()).not.toMatch(/\d+ \/ \d+ assigned/)
     expect(wrapper.find('[aria-label="Arena preview"]').exists()).toBe(false)
   })

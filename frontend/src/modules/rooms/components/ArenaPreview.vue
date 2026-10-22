@@ -15,6 +15,7 @@ interface Props {
   sceneImageUrl?: string | null
   pendingSkills?: Set<string>
   attackingTeam?: 'A' | 'B' | null
+  attackingFighterId?: string | null
   damageNumbers?: Array<{ id: number; fighterId: string; amount: number }>
   skillBurst?: { id: string; message: string } | null
 }
@@ -23,6 +24,7 @@ const props = withDefaults(defineProps<Props>(), {
   sceneImageUrl: null,
   pendingSkills: () => new Set<string>(),
   attackingTeam: null,
+  attackingFighterId: null,
   damageNumbers: () => [],
   skillBurst: null,
 })
@@ -75,6 +77,7 @@ const imageFor = (fighter: ArenaFighter) =>
       :skill-enabled="countdown === 0"
       :pending-skills="pendingSkills"
       :attacking-team="attackingTeam"
+      :attacking-fighter-id="attackingFighterId"
       :damage-numbers="damageNumbers"
       @skill="emit('skill', $event)"
     />

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { getRoomImageUrl } from '@/core/utils/image'
 import DwellerList from './DwellerList.vue'
 import type { Room } from '../models/room'
@@ -8,6 +8,7 @@ import ArenaPreview from './ArenaPreview.vue'
 import { useArenaRoom } from '../composables/useArenaRoom'
 import ArenaModal from './ArenaModal.vue'
 import { Button } from '@/core/components/ui/button'
+import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.vue'
 import RoomActions from './RoomActions.vue'
 
 interface UpgradeInfo {
@@ -48,6 +49,19 @@ const managementLocked = computed(() => !roomState.value || isFighting.value)
 const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMode', {
   default: null,
 })
+
+const stopConfirmOpen = ref(false)
+const isStopping = ref(false)
+const confirmStop = async () => {
+  stopConfirmOpen.value = false
+  if (isStopping.value) return
+  isStopping.value = true
+  try {
+    await controller.stopFight()
+  } finally {
+    isStopping.value = false
+  }
+}
 </script>
 
 <template>
@@ -57,9 +71,27 @@ const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMo
       :scene-image-url="roomImageUrl ?? getRoomImageUrl(room.image_url)"
       :pending-skills="controller.pendingSkills.value"
       :attacking-team="controller.attackingTeam.value"
+      :attacking-fighter-id="controller.attackingFighterId.value"
       :damage-numbers="controller.damageNumbers.value"
       :skill-burst="controller.skillBurst.value"
       @skill="controller.queueSkill"
+    />
+    <Button
+      v-if="isFighting"
+      variant="destructive"
+      size="sm"
+      class="self-start"
+      @click="stopConfirmOpen = true"
+    >
+      Stop Fight
+    </Button>
+    <TerminalConfirmation
+      :open="stopConfirmOpen"
+      title="Stop Arena Fight"
+      message="Stop this match? Fighters keep their current health and no rewards are awarded."
+      confirm-label="Stop Fight"
+      @confirm="confirmStop"
+      @cancel="stopConfirmOpen = false"
     />
     <Button
       v-if="!managementLocked && assignedDwellers.length < dwellerCapacity"

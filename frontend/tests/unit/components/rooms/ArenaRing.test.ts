@@ -78,6 +78,42 @@ describe('Arena ring', () => {
     expect(plate.get('[role="progressbar"][aria-label="Alpha skill charge"]').exists()).toBe(true)
   })
 
+  it('animates only the current attacker and skips dead fighters', () => {
+    const room = state([fighter('Alpha')], [fighter('Bravo', { health: 0 })])
+    const wrapper = mount(ArenaRing, {
+      props: {
+        state: room,
+        skillEnabled: true,
+        pendingSkills: new Set<string>(),
+        attackingTeam: null,
+        attackingFighterId: 'Alpha',
+        damageNumbers: [],
+      },
+      attachTo: document.body,
+    })
+
+    const actors = wrapper.findAll('.ring-fighter')
+    expect(actors[0].attributes('data-attacking')).toBe('true')
+    expect(actors[1].attributes('data-attacking')).toBeUndefined()
+  })
+
+  it('skips the attack animation for a knocked-out attacker', () => {
+    const room = state([fighter('Alpha', { health: 0 })], [fighter('Bravo')])
+    const wrapper = mount(ArenaRing, {
+      props: {
+        state: room,
+        skillEnabled: true,
+        pendingSkills: new Set<string>(),
+        attackingTeam: null,
+        attackingFighterId: 'Alpha',
+        damageNumbers: [],
+      },
+      attachTo: document.body,
+    })
+
+    expect(wrapper.findAll('.ring-fighter')[0].attributes('data-attacking')).toBeUndefined()
+  })
+
   it('places each ready dweller activation on its paired target and emits the attacker ID', async () => {
     const wrapper = render()
     const marker = wrapper.get('button[aria-label="Use Aimed Shot from Alpha on Bravo"]')

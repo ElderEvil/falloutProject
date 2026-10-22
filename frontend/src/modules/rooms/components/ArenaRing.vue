@@ -23,6 +23,7 @@ const props = defineProps<{
   skillEnabled: boolean
   pendingSkills: Set<string>
   attackingTeam: 'A' | 'B' | null
+  attackingFighterId?: string | null
   damageNumbers: Array<{ id: number; fighterId: string; amount: number }>
 }>()
 const emit = defineEmits<{ skill: [fighterId: string] }>()
@@ -48,6 +49,12 @@ const readySkills = computed(() => {
   })
 })
 const imageFor = (id: string) => getStaticImageUrl(getCreatureImagePath(creatureKeyOf(id)))
+const isAttacking = (fighter: ArenaFighter, side: 'A' | 'B') =>
+  fighter.health > 0 &&
+  (props.attackingFighterId
+    ? props.attackingFighterId === fighter.id
+    : props.attackingTeam === side)
+
 const actionFor = (fighter: ArenaFighter) => {
   const skill = fighter.active_skill
   if (!skill) return null
@@ -118,13 +125,15 @@ const actionFor = (fighter: ArenaFighter) => {
             v-for="(fighter, index) in team.fighters"
             :key="fighter.id"
             class="ring-fighter relative flex min-w-0 max-w-28 flex-1 flex-col items-center gap-1"
+            :data-attacking="isAttacking(fighter, team.side) ? 'true' : undefined"
             :class="[
               {
-                'ring-attacking': attackingTeam === team.side,
+                'ring-attacking': isAttacking(fighter, team.side),
                 'ring-team-b': team.side === 'B',
                 'bottom-8 z-0 scale-90 sm:bottom-12': index % 2 === 1,
                 'z-10': index % 2 === 0,
-                'ring-hit': damageNumbers.some((d) => d.fighterId === fighter.id),
+                'ring-hit':
+                  fighter.health > 0 && damageNumbers.some((d) => d.fighterId === fighter.id),
                 'opacity-40 grayscale': fighter.health <= 0,
               },
               // Center solo fighters; offset only multi-fighter lanes.

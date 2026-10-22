@@ -926,6 +926,117 @@ async def test_deliver_baby_twins_chance_is_clamped_to_one(
 
 
 @pytest.mark.asyncio
+async def test_deliver_baby_caps_twins_to_available_population_slots(
+    async_session: AsyncSession,
+    vault: Vault,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A twin roll is capped to the vault's single free living slot."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+
+    population = await crud.vault.get_population(db_session=async_session, vault_id=vault.id)
+    vault.population_max = population + 1
+    async_session.add(vault)
+    await async_session.commit()
+
+    with patch("random.random", return_value=0.5):
+        children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    assert len(children) == 1
+    refreshed = await crud.pregnancy.get(async_session, pregnancy.id)
+    assert refreshed.status == PregnancyStatusEnum.DELIVERED
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_defers_delivery_when_no_living_space(
+    async_session: AsyncSession,
+    vault: Vault,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A full vault raises without creating a newborn, leaving the pregnancy due."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+
+    population = await crud.vault.get_population(db_session=async_session, vault_id=vault.id)
+    vault.population_max = population
+    async_session.add(vault)
+    await async_session.commit()
+
+    with (
+        pytest.raises(ValueError, match="No living space available for a newborn"),
+        patch("random.random", return_value=0.5),
+    ):
+        await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    newborns = [
+        dweller
+        for dweller in await crud.dweller.get_all_in_vault(async_session, vault.id)
+        if dweller.parent_1_id == female_dweller.id and dweller.parent_2_id == male_dweller.id
+    ]
+    assert newborns == []
+
+    refreshed = await crud.pregnancy.get(async_session, pregnancy.id)
+    assert refreshed.status == PregnancyStatusEnum.PREGNANT
+    assert refreshed.is_due
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_rolls_back_partial_delivery(
+    async_session: AsyncSession,
+    vault: Vault,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A failure on the second newborn rolls back the first one's flush."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+    vault_id, mother_id, father_id, pregnancy_id = (
+        vault.id,
+        female_dweller.id,
+        male_dweller.id,
+        pregnancy.id,
+    )
+
+    original_create_newborn = BreedingService._create_newborn
+    calls = 0
+
+    async def flaky_create_newborn(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("boom")
+        return await original_create_newborn(*args, **kwargs)
+
+    monkeypatch.setattr(BreedingService, "_create_newborn", staticmethod(flaky_create_newborn))
+
+    with pytest.raises(RuntimeError, match="boom"), patch("random.random", return_value=0.5):
+        await BreedingService.deliver_baby(async_session, pregnancy_id)
+
+    newborns = [
+        dweller
+        for dweller in await crud.dweller.get_all_in_vault(async_session, vault_id)
+        if dweller.parent_1_id == mother_id and dweller.parent_2_id == father_id
+    ]
+    assert newborns == []
+
+    refreshed = await crud.pregnancy.get(async_session, pregnancy_id)
+    assert refreshed.status != PregnancyStatusEnum.DELIVERED
+
+
+@pytest.mark.asyncio
 async def test_age_children_progress_through_teen_to_adult(
     async_session: AsyncSession,
     vault: Vault,

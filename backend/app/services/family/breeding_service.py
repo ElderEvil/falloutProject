@@ -16,6 +16,7 @@ from app.core.enums import (
     PregnancyStatusEnum,
     RarityEnum,
 )
+from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import vault as vault_crud
 from app.crud.dweller import dweller as dweller_crud
@@ -315,6 +316,8 @@ class BreedingService:
         db_session: AsyncSession,
         mother: Dweller,
         father: Dweller,
+        *,
+        commit: bool = True,
     ) -> Dweller:
         """Create one newborn child of ``mother`` and ``father`` (caller owns the commit)."""
         # Calculate inherited traits
@@ -352,7 +355,7 @@ class BreedingService:
         child_in = DwellerCreate.model_validate(child_data | {"vault_id": mother.vault_id})
         from app.services.dweller_service import dweller_service
 
-        child = await dweller_service.create_dweller(db_session=db_session, obj_in=child_in)
+        child = await dweller_service.create_dweller(db_session=db_session, obj_in=child_in, commit=commit)
 
         # Set parent IDs (not part of DwellerCreate schema)
         child.parent_1_id = mother.id
@@ -418,7 +421,7 @@ class BreedingService:
 
         Raises:
             ResourceNotFoundException: If pregnancy or parents not found.
-            ValueError: If pregnancy is not due yet.
+            ValueError: If pregnancy is not due yet, the mother has no vault, or the vault has no free slot.
         """
         pregnancy = await pregnancy_crud.get(db_session, pregnancy_id)
 
@@ -429,34 +432,56 @@ class BreedingService:
         mother = await dweller_crud.get(db_session, pregnancy.mother_id)
         father = await dweller_crud.get(db_session, pregnancy.father_id)
 
-        # Only the mother's pet counts: Fallout Shelter FAQ §5.2 puts the pet on
-        # the female at birth, so the father's pet never influences the roll.
-        twin_chance = min(1.0, game_config.breeding.twin_chance + pet_modifiers_for(mother).twin_chance_pct)
-
-        children = [await BreedingService._create_newborn(db_session, mother, father)]
-        if random.random() < twin_chance:
-            children.append(await BreedingService._create_newborn(db_session, mother, father))
-            if random.random() < game_config.breeding.triplet_chance:
-                children.append(await BreedingService._create_newborn(db_session, mother, father))
-
-        await db_session.commit()
-        for child in children:
-            await db_session.refresh(child)
-
-        vault_id = children[0].vault_id
+        vault_id = mother.vault_id
         if vault_id is None:
             msg = "Newborn has no home vault"
             raise ValueError(msg)
 
+        # Only the mother's pet counts: Fallout Shelter FAQ §5.2 puts the pet on
+        # the female at birth, so the father's pet never influences the roll.
+        twin_chance = min(1.0, game_config.breeding.twin_chance + pet_modifiers_for(mother).twin_chance_pct)
+
+        vault, population = await vault_crud.lock_population_for_update(db_session, vault_id)
+        active_pregnancies = await BreedingService.get_active_pregnancies(db_session, vault_id)
+        reserved_elsewhere = sum(1 for other in active_pregnancies if other.id != pregnancy.id)
+        available = vault_crud.available_population_slots(vault.population_max, population, reserved=reserved_elsewhere)
+
+        count = 1
+        if random.random() < twin_chance:
+            count = 2
+            if random.random() < game_config.breeding.triplet_chance:
+                count = 3
+
+        if available is not None:
+            count = min(count, available)
+
+        if count == 0:
+            msg = "No living space available for a newborn"
+            raise ValueError(msg)
+
+        try:
+            children = [
+                await BreedingService._create_newborn(db_session, mother, father, commit=False) for _ in range(count)
+            ]
+            pregnancy.status = PregnancyStatusEnum.DELIVERED
+            pregnancy.updated_at = datetime.now(UTC).replace(tzinfo=None)
+            await db_session.commit()
+        except Exception:
+            await db_session.rollback()
+            raise
+
+        for child in children:
+            await db_session.refresh(child)
+        await db_session.refresh(pregnancy)
+
+        # Emit only after commit: the objectives evaluator reads population
+        # through its own session and would undercount pre-commit.
+        for child in children:
+            await event_bus.emit(GameEvent.DWELLER_ADDED, vault_id, {"dweller_id": str(child.id)})
+
         # Link newborns to home vault on world map (best-effort, non-critical)
         for child in children:
             await BreedingService._link_newborn_to_home(db_session, child, vault_id)
-
-        # Update pregnancy status
-        pregnancy.status = PregnancyStatusEnum.DELIVERED
-        pregnancy.updated_at = datetime.now(UTC).replace(tzinfo=None)
-        await db_session.commit()
-        await db_session.refresh(pregnancy)
 
         names = ", ".join(f"{child.first_name} {child.last_name or ''}".strip() for child in children)
         logger.info(f"Delivered {len(children)} babies ({names}): Mother={mother.id}, Father={father.id}")

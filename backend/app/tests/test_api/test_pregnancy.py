@@ -1,6 +1,7 @@
 """Tests for pregnancy API endpoints."""
 
 from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 from uuid import UUID
 
 import pytest
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
+from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
@@ -79,12 +81,13 @@ async def test_deliver_baby_success(
     async_client: AsyncClient,
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
 ):
     """Test successful baby delivery."""
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
-        obj_in={"number": 795},
+        obj_in={"number": 795, "population_max": 10},
         user_id=user.id,
     )
 
@@ -104,15 +107,26 @@ async def test_deliver_baby_success(
     pregnancy.due_at = datetime.now(UTC) - timedelta(minutes=1)
     await async_session.commit()
 
-    response = await async_client.post(
-        f"/pregnancies/{pregnancy.id}/deliver",
-        headers=superuser_token_headers,
-    )
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+
+    with patch("random.random", return_value=0.5):
+        response = await async_client.post(
+            f"/pregnancies/{pregnancy.id}/deliver",
+            headers=superuser_token_headers,
+        )
+
     assert response.status_code == 200
     data = response.json()
-    assert data["children"]
-    for child in data["children"]:
-        assert "id" in child
+    assert len(data["children"]) == 2
+    returned_ids = {child["id"] for child in data["children"]}
+
+    newborns = [
+        dweller
+        for dweller in await crud.dweller.get_all_in_vault(async_session, vault.id)
+        if dweller.parent_1_id == mother.id and dweller.parent_2_id == father.id
+    ]
+    assert {str(dweller.id) for dweller in newborns} == returned_ids
     assert "message" in data
 
     # Verify pregnancy status updated

@@ -113,22 +113,29 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         response = await db_session.execute(query)
         return response.scalars().all()
 
-    async def create(self, db_session: AsyncSession, obj_in: CreateSchemaType) -> ModelType:
+    async def create(self, db_session: AsyncSession, obj_in: CreateSchemaType, *, commit: bool = True) -> ModelType:
         """
         Creates a new item of the specified model type in the database.
 
         :param db_session: A database session.
         :param obj_in: The item to create.
+        :param commit: Whether to commit the transaction (default: True).
         :returns: The created object, with any auto-generated fields populated by the database.
         :raises NameExistException: If the item already exists.
         """
         db_obj = self.model.model_validate(obj_in)
         try:
             db_session.add(db_obj)
-            await db_session.commit()
+            if commit:
+                await db_session.commit()
+            else:
+                await db_session.flush()
         except IntegrityError as e:
             await db_session.rollback()
             raise ResourceAlreadyExistsException(self.model, obj_in.name, headers={"detail": str(e)}) from e
+        if not commit:
+            # The caller owns the transaction; flush already populated defaults.
+            return db_obj
         await db_session.refresh(db_obj)
         return db_obj
 

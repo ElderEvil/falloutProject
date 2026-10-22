@@ -45,10 +45,68 @@ describe('RoomPreviewSection unassign affordance (issue #1083)', () => {
     wrapper.unmount()
   })
 
+  it('orders workers before the dedicated apprentice slot', () => {
+    const wrapper = mountPreview({
+      showApprenticeSlot: true,
+      dwellerCapacity: 2,
+      assignedDwellers: [
+        { ...dweller('a1', 'Ash'), apprentice_stat: 'strength' },
+        dweller('d1', 'Ada'),
+      ],
+    })
+
+    const openLabels = wrapper
+      .findAll('button[aria-label^="Open"]')
+      .map((button) => button.attributes('aria-label'))
+    expect(openLabels).toEqual(['Open Ada ', 'Open Ash '])
+    expect(wrapper.find('.apprentice-ribbon').exists()).toBe(false)
+    expect(wrapper.get('.apprentice-marker').text()).toContain('S')
+    expect(wrapper.get('.apprentice-marker').attributes('aria-label')).toContain('strength')
+    expect(wrapper.get('.apprentice-slot').classes()).toContain('slot-filled')
+    wrapper.unmount()
+  })
+
+  it('renders visible silhouette placeholders for empty worker and apprentice slots', () => {
+    const wrapper = mountPreview({
+      showApprenticeSlot: true,
+      dwellerCapacity: 1,
+      assignedDwellers: [],
+    })
+
+    const workerSilhouette = wrapper.get('.scene-empty-worker .empty-dweller-silhouette')
+    expect(wrapper.get('.dweller-sprites-overlay').attributes('style')).toContain(
+      'FOS_Dw_Default_Human_Male.webp'
+    )
+    expect(workerSilhouette.element.tagName).toBe('SPAN')
+    expect(wrapper.get('.scene-empty-worker .empty-dweller-plus').exists()).toBe(true)
+    expect(wrapper.get('.scene-empty-apprentice .empty-dweller-silhouette').classes()).toContain(
+      'empty-dweller-silhouette--apprentice'
+    )
+    wrapper.unmount()
+  })
+
+  it('fits assigned portraits inside the slot without the card zoom', () => {
+    const wrapper = mountPreview({
+      dwellerCapacity: 1,
+      assignedDwellers: [
+        {
+          ...dweller('d1', 'Ada'),
+          thumbnail_url: '/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp',
+        },
+      ],
+    })
+
+    const button = wrapper.get('button[aria-label="Open Ada "]')
+    expect(button.find('.portrait-clip-all').exists()).toBe(true)
+    expect(button.get('img').classes()).not.toContain('default-portrait-zoom')
+    wrapper.unmount()
+  })
+
   it('hides worker assignment actions in a read-only preview', () => {
     const wrapper = mountPreview({ assignEnabled: false })
     expect(wrapper.find('button[aria-label^="Unassign"]').exists()).toBe(false)
     expect(wrapper.find('button[aria-label="Assign worker"]').exists()).toBe(false)
+    expect(wrapper.find('.empty-dweller-plus').exists()).toBe(false)
     expect(wrapper.get('button[aria-label="Open Ada "]').exists()).toBe(true)
     wrapper.unmount()
   })

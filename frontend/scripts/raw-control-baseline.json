@@ -27,7 +27,6 @@
   "src/modules/progression/views/QuestsView.vue": 1,
   "src/modules/rooms/components/DwellerList.vue": 1,
   "src/modules/rooms/components/RadioControls.vue": 2,
-  "src/modules/rooms/components/RoomDwellerCard.vue": 1,
   "src/modules/rooms/components/RoomGridCell.vue": 3,
   "src/modules/rooms/components/RoomMenu.vue": 1,
   "src/modules/rooms/components/RoomPreviewSection.vue": 6,

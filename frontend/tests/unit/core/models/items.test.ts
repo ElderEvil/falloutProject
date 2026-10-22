@@ -187,6 +187,11 @@ describe('stat rows', () => {
     expect(stats).toContainEqual({ label: 'RAD resist', value: '+100%', icon: 'mdi:percent' })
   })
 
+  it('renders the twins chance pet stat as a percentage', () => {
+    const stats = getPetStats({ twin_chance_pct: 0.75 })
+    expect(stats).toEqual([{ label: 'Twins chance', value: '+75%', icon: 'mdi:percent' }])
+  })
+
   it('renders no pet stat rows for a neutral effect', () => {
     expect(getPetStats({})).toEqual([])
     expect(

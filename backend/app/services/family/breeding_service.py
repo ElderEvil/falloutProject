@@ -2,6 +2,7 @@
 
 import logging
 import random
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
@@ -15,6 +16,7 @@ from app.core.enums import (
     PregnancyStatusEnum,
     RarityEnum,
 )
+from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import vault as vault_crud
 from app.crud.dweller import dweller as dweller_crud
@@ -23,6 +25,7 @@ from app.crud.relationship import relationship_crud
 from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
+from app.options.pet_modifiers import pet_modifiers_for
 from app.options.races import can_breed, is_ageless, race_of
 from app.schemas.dweller import DwellerCreate
 from app.services.bio_service import bio_service
@@ -309,32 +312,14 @@ class BreedingService:
             logger.exception("Failed to increment birth statistics for vault %s", vault_id)
 
     @staticmethod
-    async def deliver_baby(
+    async def _create_newborn(
         db_session: AsyncSession,
-        pregnancy_id: UUID4,
+        mother: Dweller,
+        father: Dweller,
+        *,
+        commit: bool = True,
     ) -> Dweller:
-        """Deliver a baby from a pregnancy.
-
-        Args:
-            db_session: Database session
-            pregnancy_id: Pregnancy ID
-
-        Returns:
-            Newly created child dweller
-
-        Raises:
-            ResourceNotFoundException: If pregnancy or parents not found.
-            ValueError: If pregnancy is not due yet.
-        """
-        pregnancy = await pregnancy_crud.get(db_session, pregnancy_id)
-
-        if not pregnancy.is_due:
-            msg = "Pregnancy is not due yet"
-            raise ValueError(msg)
-
-        mother = await dweller_crud.get(db_session, pregnancy.mother_id)
-        father = await dweller_crud.get(db_session, pregnancy.father_id)
-
+        """Create one newborn child of ``mother`` and ``father`` (caller owns the commit)."""
         # Calculate inherited traits
         child_stats = BreedingService._calculate_inherited_stats(mother, father)
         child_rarity = BreedingService._calculate_inherited_rarity(mother, father)
@@ -370,7 +355,7 @@ class BreedingService:
         child_in = DwellerCreate.model_validate(child_data | {"vault_id": mother.vault_id})
         from app.services.dweller_service import dweller_service
 
-        child = await dweller_service.create_dweller(db_session=db_session, obj_in=child_in)
+        child = await dweller_service.create_dweller(db_session=db_session, obj_in=child_in, commit=commit)
 
         # Set parent IDs (not part of DwellerCreate schema)
         child.parent_1_id = mother.id
@@ -387,45 +372,127 @@ class BreedingService:
         child.bio_entries = bio_service.with_origin(child, newborn_bio)
         logger.info(f"Generated newborn bio for {child.first_name}: {newborn_bio[:50]}...")
 
-        await db_session.commit()
-        await db_session.refresh(child)
-        logger.info(f"Baby delivered with bio: {child.bio is not None}")
+        return child
 
-        vault_id = child_in.vault_id
+    @staticmethod
+    async def _record_parents_of_birth(
+        db_session: AsyncSession,
+        mother: Dweller,
+        father: Dweller,
+        children: Sequence[Dweller],
+    ) -> None:
+        """Narrate parenthood into both parents' bios, one entry per newborn."""
+        father_name = f"{father.first_name} {father.last_name or ''}".strip()
+        mother_name = f"{mother.first_name} {mother.last_name or ''}".strip()
+        for child in children:
+            child_name = f"{child.first_name} {child.last_name or ''}".strip()
+            await bio_service.append_entry(
+                db_session,
+                mother.id,
+                "family",
+                f"Became a parent: {child_name} was born.",
+                ref={"child_id": str(child.id), "partner_id": str(father.id), "partner_name": father_name},
+            )
+            await bio_service.append_entry(
+                db_session,
+                father.id,
+                "family",
+                f"Became a parent: {child_name} was born.",
+                ref={"child_id": str(child.id), "partner_id": str(mother.id), "partner_name": mother_name},
+            )
 
-        # Link newborn to home vault on world map (best-effort, non-critical)
-        await BreedingService._link_newborn_to_home(db_session, child, vault_id)
+    @staticmethod
+    async def deliver_baby(
+        db_session: AsyncSession,
+        pregnancy_id: UUID4,
+    ) -> list[Dweller]:
+        """Deliver a pregnancy.
 
-        # Update pregnancy status
-        pregnancy.status = PregnancyStatusEnum.DELIVERED
-        pregnancy.updated_at = datetime.now(UTC).replace(tzinfo=None)
-        await db_session.commit()
+        A single newborn by default; ``BreedingConfig.twin_chance`` plus the
+        mother's equipped Twins-chance pet bonus rolls twins, then a hit
+        ``BreedingConfig.triplet_chance`` upgrades twins to triplets.
+
+        Args:
+            db_session: Database session
+            pregnancy_id: Pregnancy ID
+
+        Returns:
+            Newly created child dwellers (one, two for twins, three for triplets)
+
+        Raises:
+            ResourceNotFoundException: If pregnancy or parents not found.
+            ValueError: If pregnancy is not due yet, the mother has no vault, or the vault has no free slot.
+        """
+        pregnancy = await pregnancy_crud.get(db_session, pregnancy_id)
+
+        if not pregnancy.is_due:
+            msg = "Pregnancy is not due yet"
+            raise ValueError(msg)
+
+        mother = await dweller_crud.get(db_session, pregnancy.mother_id)
+        father = await dweller_crud.get(db_session, pregnancy.father_id)
+
+        vault_id = mother.vault_id
+        if vault_id is None:
+            msg = "Newborn has no home vault"
+            raise ValueError(msg)
+
+        # Only the mother's pet counts: Fallout Shelter FAQ §5.2 puts the pet on
+        # the female at birth, so the father's pet never influences the roll.
+        twin_chance = min(1.0, game_config.breeding.twin_chance + pet_modifiers_for(mother).twin_chance_pct)
+
+        vault, population = await vault_crud.lock_population_for_update(db_session, vault_id)
+        active_pregnancies = await BreedingService.get_active_pregnancies(db_session, vault_id)
+        reserved_elsewhere = sum(1 for other in active_pregnancies if other.id != pregnancy.id)
+        available = vault_crud.available_population_slots(vault.population_max, population, reserved=reserved_elsewhere)
+
+        count = 1
+        if random.random() < twin_chance:
+            count = 2
+            if random.random() < game_config.breeding.triplet_chance:
+                count = 3
+
+        if available is not None:
+            count = min(count, available)
+
+        if count == 0:
+            msg = "No living space available for a newborn"
+            raise ValueError(msg)
+
+        try:
+            children = [
+                await BreedingService._create_newborn(db_session, mother, father, commit=False) for _ in range(count)
+            ]
+            pregnancy.status = PregnancyStatusEnum.DELIVERED
+            pregnancy.updated_at = datetime.now(UTC).replace(tzinfo=None)
+            await db_session.commit()
+        except Exception:
+            await db_session.rollback()
+            raise
+
+        for child in children:
+            await db_session.refresh(child)
         await db_session.refresh(pregnancy)
 
-        logger.info(f"Baby delivered: {child.first_name} {child.last_name}, Mother={mother.id}, Father={father.id}")
+        # Emit only after commit: the objectives evaluator reads population
+        # through its own session and would undercount pre-commit.
+        for child in children:
+            await event_bus.emit(GameEvent.DWELLER_ADDED, vault_id, {"dweller_id": str(child.id)})
 
-        child_name = f"{child.first_name} {child.last_name or ''}".strip()
-        mother_name = f"{mother.first_name} {mother.last_name or ''}".strip()
-        father_name = f"{father.first_name} {father.last_name or ''}".strip()
-        await bio_service.append_entry(
-            db_session,
-            mother.id,
-            "family",
-            f"Became a parent: {child_name} was born.",
-            ref={"child_id": str(child.id), "partner_id": str(father.id), "partner_name": father_name},
-        )
-        await bio_service.append_entry(
-            db_session,
-            father.id,
-            "family",
-            f"Became a parent: {child_name} was born.",
-            ref={"child_id": str(child.id), "partner_id": str(mother.id), "partner_name": mother_name},
-        )
+        # Link newborns to home vault on world map (best-effort, non-critical)
+        for child in children:
+            await BreedingService._link_newborn_to_home(db_session, child, vault_id)
+
+        names = ", ".join(f"{child.first_name} {child.last_name or ''}".strip() for child in children)
+        logger.info(f"Delivered {len(children)} babies ({names}): Mother={mother.id}, Father={father.id}")
+
+        await BreedingService._record_parents_of_birth(db_session, mother, father, children)
 
         # Increment birth statistics for the vault owner (best-effort, don't fail birth on stats error)
-        await BreedingService._increment_birth_statistics(db_session, mother, child, vault_id)
+        for child in children:
+            await BreedingService._increment_birth_statistics(db_session, mother, child, vault_id)
 
-        return child
+        return children
 
     @staticmethod
     def _calculate_inherited_stats(mother: Dweller, father: Dweller) -> dict:
@@ -497,7 +564,7 @@ class BreedingService:
 
         Fallout rule: non-human races never senesce, so ageless adults are left
         untouched even with an ancient ``birth_date``. Youth maturation still
-        runs for every race so a mutated newborn can reach adulthood.
+        runs for every race so a newborn can reach adulthood.
         """
         now = datetime.now(UTC).replace(tzinfo=None)
         maturity_hours = game_config.breeding.child_growth_duration_hours

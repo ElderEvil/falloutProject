@@ -655,9 +655,15 @@ class BreedingConfig(BaseSettings):
         ge=0.0,
         le=1.0,
     )
-    race_mutation_chance: float = Field(
+    twin_chance: float = Field(
         default=0.05,
-        description="5% chance a newborn mutates into a different race than its parents",
+        description="Base 5% chance a birth delivers twins, raised by the mother's equipped Twins-chance pet",
+        ge=0.0,
+        le=1.0,
+    )
+    triplet_chance: float = Field(
+        default=0.02,
+        description="2% global chance a twin birth delivers triplets (Fallout Shelter FAQ 5.2)",
         ge=0.0,
         le=1.0,
     )

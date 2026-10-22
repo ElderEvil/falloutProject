@@ -70,7 +70,6 @@ def test_child_appearance_is_deterministic():
 
 def test_child_shares_a_parent_trait_without_mutation(monkeypatch):
     monkeypatch.setattr(game_config.breeding, "trait_mutation_chance", 0.0)
-    monkeypatch.setattr(game_config.breeding, "race_mutation_chance", 0.0)
     for seed in range(20):
         child = roll_child_identity(HUMAN_MOTHER, HUMAN_FATHER, random.Random(seed))
         parent_values = {
@@ -82,7 +81,6 @@ def test_child_shares_a_parent_trait_without_mutation(monkeypatch):
 
 def test_trait_mutation_picks_a_different_valid_option(monkeypatch):
     monkeypatch.setattr(game_config.breeding, "trait_mutation_chance", 1.0)
-    monkeypatch.setattr(game_config.breeding, "race_mutation_chance", 0.0)
     mother = _parent("human", "Pale", "brunette", "Long Hair", "green")
     father = _parent("human", "Pale", "black", "Short Hair", "blue")
     child = roll_child_identity(mother, father, random.Random(5))
@@ -90,16 +88,6 @@ def test_trait_mutation_picks_a_different_valid_option(monkeypatch):
     assert child["skin_tone"] in skin_tone_options[race]
     assert child["hair_style"] in haircuts[race]
     assert child["skin_tone"] != "Pale"
-
-
-def test_race_mutation_rerolls_appearance_for_the_mutated_race(monkeypatch):
-    monkeypatch.setattr(game_config.breeding, "race_mutation_chance", 1.0)
-    for seed in (1, 2, 3, 7, 11):
-        child = roll_child_identity(HUMAN_MOTHER, HUMAN_FATHER, random.Random(seed))
-        race = RaceOption(child["race"])
-        assert race != RaceOption.HUMAN
-        assert child["skin_tone"] in skin_tone_options[race]
-        assert child["hair_style"] in haircuts[race]
 
 
 def test_non_adult_cannot_get_facial_hair_from_roll():
@@ -111,7 +99,6 @@ def test_non_adult_cannot_get_facial_hair_from_roll():
 
 def test_both_parents_contribute_traits(monkeypatch):
     monkeypatch.setattr(game_config.breeding, "trait_mutation_chance", 0.0)
-    monkeypatch.setattr(game_config.breeding, "race_mutation_chance", 0.0)
     children = [roll_child_identity(HUMAN_MOTHER, HUMAN_FATHER, random.Random(seed)) for seed in range(40)]
     assert {child["skin_tone"] for child in children} == {"Pale", "Tan"}
     assert {child["eye_color"] for child in children} == {"green", "blue"}

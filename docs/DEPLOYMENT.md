@@ -67,6 +67,10 @@ The `backend` and `dramatiq-worker` deployments in the `fallout` namespace load 
 `ENVIRONMENT` must be `production`: the deployment verifies this before serving traffic, and admin session cookies are
 marked Secure only in production.
 
+Traffic enters through the Traefik ingress in `deployment/k3s/ingress.yaml`: `fallout.evillab.tech` routes to
+`frontend-service` and `fallout-api.evillab.tech` to `backend-service`, with cert-manager issuing the
+`fallout-ingress-tls` certificate. There is no in-cluster Caddy.
+
 Verify a running release (including its reported version and environment) with:
 
 ```bash

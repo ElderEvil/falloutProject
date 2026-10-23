@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.259.0 (2026-10-23)
+
+### Features
+
+* add notification inbox with vault and read filters ([#1160](https://github.com/ElderEvil/falloutProject/issues/1160)) 205e714
+
 ## 2.258.0 (2026-10-23)
 
 ### Features

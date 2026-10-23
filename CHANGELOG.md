@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.253.4 (2026-10-23)
+
+### Bug Fixes
+
+* pause background updates and coordinate session recovery ([#1152](https://github.com/ElderEvil/falloutProject/issues/1152)) a520dc0
+
 ## 2.253.3 (2026-10-23)
 
 ### Code Refactoring

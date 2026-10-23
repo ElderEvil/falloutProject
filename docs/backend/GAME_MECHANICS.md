@@ -258,23 +258,26 @@ the ask keeps its always-on bell notification.
 
 ## Adoption of orphaned youth
 
-Orphaned children and teens are adopted automatically during the family tick, after births and aging.
-There is no player action and no placement choice:
+The family tick checks adoption after aging. It is occasional, not an automatic consequence of becoming orphaned.
 
-- **Eligible orphan** — a living child or teen in the vault, not deleted, with at least one recorded
-  parent and zero living, non-deleted parents. Missing parent rows count as absent.
-- **Eligible couple** — living, non-deleted adults in the same vault, with reciprocal partner links
-  and a relationship in `PARTNER_LINKED_STAGES`, regardless of gender or race. Each couple adopts at most
-  one orphan per scan; candidates are assigned in stable order. A couple can adopt again on later ticks.
-- **Effect** — both parent links are replaced. Mixed-gender couples put the mother first; other pairs
-  use stable ID order. The child receives an adoption bio entry with adopter references, and both
-  adopters receive a family entry referencing the child. Adoption never claims a biological birth.
-- Parent changes, biographies and notifications commit together. `CHILD_ADOPTED` delivery happens only
-  after commit and surfaces through the bell and a toast, subject to social-notification preferences.
+- **Child eligibility** — living, non-deleted children/teens with at least one recorded parent and no living,
+  non-deleted parent. Missing parent rows count as absent. Youth who age into adults this tick are excluded.
+- **Family eligibility** — living adults in the same vault, reciprocal PARTNER/MARRIED links, affinity at least
+  the configured marriage threshold, both at or above `adoption_min_happiness` (60 by default), and fewer than
+  `adoption_max_youth_per_family` (2) living children/teens between them. Adult offspring do not fill these slots.
+- **Chance** — `adoption_chance_per_hour` defaults to 2%. Each eligible orphan gets one roll using elapsed tick
+  time: `1 - (1 - hourly_chance) ** (seconds_passed / 3600)`. More couples do not multiply the chance. Tick time
+  already follows the game's offline catch-up cap. On success, choose an eligible couple at random; each couple
+  adopts at most once per pass. Manual breeding requests do not run adoption rolls.
+- **Effect** — replace both parent links; mixed-gender couples put the mother first, otherwise use stable ID
+  order. The child and both adopters receive structured family bio entries. The entries describe adoption,
+  never a biological birth. A missed roll changes no family links or biographies.
+- Commit parent changes, biographies and notifications together, then deliver after commit. Use the existing
+  `RELATIONSHIP_FORMED` notification with `meta_data.event = "child_adopted"`; adoption surfaces through the bell
+  and a toast, subject to social preferences, and links to the child. No new notification enum or migration.
 
-The pass makes no changes when there are no eligible orphans or couples. Teens who become adults during
-this tick are no longer eligible. Adoption is derived from parent links, so a repeat pass is a no-op
-while the adoptive parents are alive.
+A child already adopted by living parents is no longer eligible. A family can adopt again on a later pass while
+it has room under the dependent-youth limit.
 
 ## Vault difficulty: Survival Mode
 

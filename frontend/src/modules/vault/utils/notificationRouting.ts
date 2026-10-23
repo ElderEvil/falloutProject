@@ -21,7 +21,6 @@ const NOTIFICATION_SOUNDS = {
   relationship_formed: 'relationshipFormed',
   pregnancy_detected: 'pregnancyDetected',
   baby_born: 'babyBorn',
-  child_adopted: 'babyBorn',
   // The incident store already plays the per-threat and victory/defeat cues when
   // the incident stream updates, so the bell stays on the generic alert here.
   combat_started: 'notification',
@@ -99,7 +98,6 @@ export function getNotificationRoute(notification: NotificationNavigationContext
     case 'dweller_injured':
     case 'dweller_exit_requested':
     case 'baby_born':
-    case 'child_adopted':
     case 'relationship_formed':
     case 'pregnancy_detected':
     case 'radio_new_dweller':

@@ -150,6 +150,13 @@ const currentSseEvent = computed<SseEvent | null>(() => {
   return instance?.event.value ?? null
 })
 
+function isAdoptionNotification(notification: Notification): boolean {
+  return (
+    notification.notification_type === 'relationship_formed' &&
+    notification.meta_data?.event === 'child_adopted'
+  )
+}
+
 // The same delivery path surfaces live events and unread events missed while paused.
 function processNotification(notificationData: Notification) {
   if (seenNotificationIds.has(notificationData.id)) return
@@ -179,7 +186,10 @@ function processNotification(notificationData: Notification) {
     if (notificationData.vault_id) useStorageStore().refreshIfActive(notificationData.vault_id)
   }
 
-  if (['hazard_team_joined', 'training_complete', 'child_adopted'].includes(notificationData.notification_type)) {
+  if (
+    ['hazard_team_joined', 'training_complete'].includes(notificationData.notification_type) ||
+    isAdoptionNotification(notificationData)
+  ) {
     toast.success(notificationData.message)
   }
   // An arena morale boost is vault-wide and asynchronous; announce it beyond the bell
@@ -314,10 +324,10 @@ const handleNotificationClick = async (notification: Notification) => {
   if (route) await router.push(route)
 }
 
-const getNotificationIcon = (type: string): string => {
+const getNotificationIcon = (notification: Notification): string => {
+  if (isAdoptionNotification(notification)) return 'mdi:account-heart'
   const iconMap: Record<string, string> = {
     baby_born: 'mdi:baby-face',
-    child_adopted: 'mdi:account-heart',
     storage_item_degraded: 'mdi:tools',
     storage_item_upgraded: 'mdi:arrow-up-bold',
     dweller_died: 'mdi:skull',
@@ -337,7 +347,7 @@ const getNotificationIcon = (type: string): string => {
     location_cleared: 'mdi:flag-checkered',
     location_ready: 'mdi:map-marker-refresh',
   }
-  return iconMap[type] || 'mdi:information'
+  return iconMap[notification.notification_type] || 'mdi:information'
 }
 
 const getPriorityColor = (priority: string): string => {
@@ -459,7 +469,7 @@ onBeforeUnmount(() => {
             >
               <div class="flex items-start space-x-3">
                 <Icon
-                  :icon="getNotificationIcon(notification.notification_type)"
+                  :icon="getNotificationIcon(notification)"
                   class="h-5 w-5 mt-0.5 flex-shrink-0"
                   :class="getPriorityColor(notification.priority)"
                 />

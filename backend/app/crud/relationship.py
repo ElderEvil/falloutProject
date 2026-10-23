@@ -24,7 +24,9 @@ if TYPE_CHECKING:
 class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUpdate]):
     """CRUD operations for relationships."""
 
-    async def get_committed_both_alive(self, db: AsyncSession, vault_id: UUID4) -> list[tuple[Dweller, Dweller]]:
+    async def get_committed_both_alive(
+        self, db: AsyncSession, vault_id: UUID4, *, minimum_affinity: int = 0
+    ) -> list[tuple[Dweller, Dweller]]:
         from sqlalchemy.orm import aliased
 
         from app.core.enums import AgeGroupEnum
@@ -38,6 +40,7 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
             .join(first_parent, Relationship.dweller_1_id == first_parent.id)
             .join(second_parent, Relationship.dweller_2_id == second_parent.id)
             .where(Relationship.relationship_type.in_(PARTNER_LINKED_STAGES))
+            .where(Relationship.affinity >= minimum_affinity)
             .where(first_parent.vault_id == vault_id, second_parent.vault_id == vault_id)
             .where(~first_parent.is_deleted, ~second_parent.is_deleted)
             .where(~first_parent.is_dead, ~second_parent.is_dead)

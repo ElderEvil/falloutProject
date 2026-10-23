@@ -226,7 +226,7 @@ class GameLoopService:
         radio_update = await self._process_radio(db_session, vault_id)
         results["updates"]["radio"] = radio_update
 
-        breeding_update = await self._process_breeding(db_session, vault_id)
+        breeding_update = await self._process_breeding(db_session, vault_id, seconds_passed=seconds_passed)
         results["updates"]["breeding"] = breeding_update
         # Family-phase recovery expires this instance; later events and SSE read it.
         if inspect(game_state, raiseerr=True).expired:
@@ -410,9 +410,11 @@ class GameLoopService:
         """Age children to adults if they're ready."""
         return await family_tick.age_children(db_session, vault_id)
 
-    async def _process_breeding(self, db_session: AsyncSession, vault_id: UUID4) -> BreedingStats:
+    async def _process_breeding(
+        self, db_session: AsyncSession, vault_id: UUID4, *, seconds_passed: int = 0
+    ) -> BreedingStats:
         """Process relationships and breeding for a vault."""
-        return await family_tick.process_breeding(self, db_session, vault_id)
+        return await family_tick.process_breeding(self, db_session, vault_id, seconds_passed=seconds_passed)
 
     async def process_vault_breeding(self, db_session: AsyncSession, vault_id: UUID4) -> BreedingStats:
         """Process relationships and breeding for one vault on demand.

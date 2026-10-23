@@ -33,7 +33,6 @@ class NotificationType(StrEnum):
     RELATIONSHIP_FORMED = "relationship_formed"
     PREGNANCY_DETECTED = "pregnancy_detected"
     BABY_BORN = "baby_born"
-    CHILD_ADOPTED = "child_adopted"
 
     # Combat events
     COMBAT_STARTED = "combat_started"

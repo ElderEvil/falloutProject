@@ -79,7 +79,6 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
         "RELATIONSHIP_FORMED",
         "PREGNANCY_DETECTED",
         "BABY_BORN",
-        "CHILD_ADOPTED",
         "COMBAT_STARTED",
         "COMBAT_VICTORY",
         "COMBAT_DEFEAT",

@@ -325,7 +325,9 @@ async def age_children(db_session: AsyncSession, vault_id: UUID4) -> AgeStats:
     return stats
 
 
-async def process_breeding(service: "GameLoopService", db_session: AsyncSession, vault_id: UUID4) -> BreedingStats:
+async def process_breeding(
+    service: "GameLoopService", db_session: AsyncSession, vault_id: UUID4, *, seconds_passed: int = 0
+) -> BreedingStats:
     """Process relationships and breeding for a vault.
 
     - Update relationship affinity for dwellers in the same room
@@ -344,7 +346,7 @@ async def process_breeding(service: "GameLoopService", db_session: AsyncSession,
 
     # Adopt orphaned youth into committed couples
     try:
-        adopted = await adoption_service.process_adoptions(db_session, vault_id)
+        adopted = await adoption_service.process_adoptions(db_session, vault_id, seconds_passed=seconds_passed)
     except SQLAlchemyError:
         await recover_session(db_session)
         logger.exception("Database error processing adoptions in vault %s", vault_id)

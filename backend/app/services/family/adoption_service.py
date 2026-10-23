@@ -1,11 +1,13 @@
 """Automatic adoption of orphaned children and teens by committed couples."""
 
 import logging
+import random
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import GenderEnum
+from app.core.enums import AgeGroupEnum, GenderEnum
+from app.core.game_config import game_config
 from app.crud import dweller as crud_dweller
 from app.crud.relationship import relationship_crud as crud_relationship
 from app.crud.vault import vault as vault_crud
@@ -35,7 +37,12 @@ def _ordered_parents(first: Dweller, second: Dweller) -> tuple[Dweller, Dweller]
 class AdoptionService:
     """Pair orphaned youth with committed, living couples during the family tick."""
 
-    async def process_adoptions(self, db_session: AsyncSession, vault_id: UUID4) -> list[Dweller]:
+    async def process_adoptions(
+        self, db_session: AsyncSession, vault_id: UUID4, *, seconds_passed: int = 0
+    ) -> list[Dweller]:
+        if seconds_passed <= 0 or game_config.breeding.adoption_chance_per_hour <= 0:
+            return []
+        chance = 1 - (1 - game_config.breeding.adoption_chance_per_hour) ** (seconds_passed / 3600)
         candidates = await crud_dweller.get_orphaned_youth(db_session, vault_id)
         if not candidates:
             return []
@@ -57,14 +64,45 @@ class AdoptionService:
         if not orphans:
             return []
 
-        couples = await crud_relationship.get_committed_both_alive(db_session, vault_id)
+        couples = await crud_relationship.get_committed_both_alive(
+            db_session, vault_id, minimum_affinity=game_config.relationship.marriage_threshold
+        )
+        couples = [
+            (first, second)
+            for first, second in couples
+            if min(first.happiness, second.happiness) >= game_config.breeding.adoption_min_happiness
+        ]
+        if not couples:
+            return []
+        parent_ids = {parent.id for couple in couples for parent in couple}
+        children = await crud_dweller.get_children_of(db_session, vault_id=vault_id, parent_ids=list(parent_ids))
+        youth_by_parent: dict[UUID4, set[UUID4]] = {parent_id: set() for parent_id in parent_ids}
+        for child in children:
+            if child.age_group in (AgeGroupEnum.CHILD, AgeGroupEnum.TEEN):
+                for parent_id in (child.parent_1_id, child.parent_2_id):
+                    if parent_id is not None and parent_id in youth_by_parent:
+                        youth_by_parent[parent_id].add(child.id)
+        couples = [
+            (first, second)
+            for first, second in couples
+            if len(youth_by_parent[first.id] | youth_by_parent[second.id])
+            < game_config.breeding.adoption_max_youth_per_family
+        ]
+        if not couples:
+            return []
         vault = await vault_crud.get(db_session, vault_id)
-        if not couples or vault is None:
+        if vault is None:
             return []
 
         adopted: list[Dweller] = []
         try:
-            for child, (first, second) in zip(orphans, couples, strict=False):
+            for child in orphans:
+                if not couples:
+                    break
+                # One roll per orphan; extra couples do not multiply the chance.
+                if random.random() >= chance:
+                    continue
+                first, second = couples.pop(random.randrange(len(couples)))
                 first_parent, second_parent = _ordered_parents(first, second)
                 child.parent_1_id = first_parent.id
                 child.parent_2_id = second_parent.id
@@ -85,15 +123,18 @@ class AdoptionService:
                 await notification_service.create_and_send(
                     db_session,
                     vault.user_id,
-                    NotificationType.CHILD_ADOPTED,
+                    NotificationType.RELATIONSHIP_FORMED,
                     "Child adopted",
                     f"{_name(first_parent)} and {_name(second_parent)} adopted {_name(child)}.",
                     vault_id=vault_id,
                     from_dweller_id=child.id,
+                    meta_data={"event": "child_adopted"},
                     commit=False,
                 )
                 adopted.append(child)
 
+            if not adopted:
+                return []
             await db_session.commit()
         except Exception:
             await recover_session(db_session)

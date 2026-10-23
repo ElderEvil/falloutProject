@@ -231,31 +231,38 @@ describe('NotificationBell SSE watcher null-safety', () => {
     wrapper.unmount()
   })
 
-  it('announces adoption once through the bell and toast', async () => {
-    useAuthStore().token = 'test-token'
-    const { toasts } = useToast()
-    toasts.value = []
-    const notification = {
-      ...JSON.parse(notifData).notification,
-      id: 'adopted-child',
-      notification_type: 'child_adopted',
-      message: 'Alice and Bob adopted Lucy.',
-      from_dweller_id: 'child-1',
-      vault_id: 'vault-1',
+  it.each([
+    { event: 'child_adopted', toastCount: 1 },
+    { event: 'partner', toastCount: 0 },
+  ])(
+    'announces adoption without toasting other relationship events ($event)',
+    async ({ event, toastCount }) => {
+      useAuthStore().token = 'test-token'
+      const { toasts } = useToast()
+      toasts.value = []
+      const notification = {
+        ...JSON.parse(notifData).notification,
+        id: 'adopted-child',
+        notification_type: 'relationship_formed',
+        meta_data: { event },
+        message: 'Alice and Bob adopted Lucy.',
+        from_dweller_id: 'child-1',
+        vault_id: 'vault-1',
+      }
+      const data = encodeSse(JSON.stringify({ notification }), 'notification')
+      fetchMock.mockResolvedValue(createMockResponse([data, data], { hang: true }))
+      const wrapper = mount(NotificationBell)
+      await vi.advanceTimersByTimeAsync(0)
+      await flushPromises()
+      const matching = toasts.value.filter((toast) => toast.message === notification.message)
+      expect(matching).toHaveLength(toastCount)
+      if (toastCount) expect(matching[0].count).toBe(1)
+      await wrapper.get('button[aria-label="Notifications"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain(notification.message)
+      wrapper.unmount()
     }
-    const data = encodeSse(JSON.stringify({ notification }), 'notification')
-    fetchMock.mockResolvedValue(createMockResponse([data, data], { hang: true }))
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
-    const matching = toasts.value.filter((toast) => toast.message === notification.message)
-    expect(matching).toHaveLength(1)
-    expect(matching[0].count).toBe(1)
-    await wrapper.get('button[aria-label="Notifications"]').trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).toContain(notification.message)
-    wrapper.unmount()
-  })
+  )
 
   it.each(['Training continues', 'Goal reached', 'Training complete'])(
     'shows the %s outcome in both toast and bell',

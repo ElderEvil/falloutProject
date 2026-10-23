@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, beforeEach, vi } from 'vite-plus/test'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { createApiClientMock } from '../helpers/mocks'
 import rawAxios from 'axios'
 import { authService } from '@/modules/auth/services/authService'

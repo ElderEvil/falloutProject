@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vite-plus/test'
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { nextTick, ref } from 'vue'
 import { flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
@@ -495,6 +495,16 @@ describe('Incident Store', () => {
 
       expect(store.totalResponderCount).toBe(0)
     })
+  })
+
+  it('rejects malformed lists for the scheduler without clearing active incidents', async () => {
+    const store = useIncidentStore()
+    store.activeIncidentIds = ['existing-incident']
+    vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue({} as never)
+    await expect(store.fetchIncidents('vault-1', 'token', true)).rejects.toThrow(
+      'Malformed incident list response'
+    )
+    expect(store.activeIncidentIds).toEqual(['existing-incident'])
   })
 
   describe('Polling', () => {

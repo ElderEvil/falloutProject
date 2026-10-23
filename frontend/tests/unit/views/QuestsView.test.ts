@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
 import { nextTick, reactive } from 'vue'
 import { createPinia, disposePinia, getActivePinia, setActivePinia } from 'pinia'

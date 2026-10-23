@@ -165,9 +165,7 @@ export const useMapStore = defineStore('map', () => {
     _pollVaultId.value = null
     _pollToken.value = null
     _pollGeneration += 1
-    if (isPollingActive.value) {
-      pausePolling()
-    }
+    pausePolling()
   }
 
   async function fetchWorldSnapshot(token: string): Promise<void> {

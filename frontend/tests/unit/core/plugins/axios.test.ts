@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ref } from 'vue'
 import { createPinia, setActivePinia, disposePinia, getActivePinia } from 'pinia'
@@ -432,6 +432,59 @@ describe('axios response interceptor', () => {
     finishRefresh({ data: { access_token: 'late-token', refresh_token: 'late-refresh' } })
     await rejected
     expect(localStorage.getItem('token')).toBeNull()
+  })
+
+  it('uses credentials rotated by another tab while refresh is pending', async () => {
+    const token = (version: number) =>
+      `header.${btoa(JSON.stringify({ sub: 'same-user', version }))}.signature`
+    localStorage.setItem('token', token(1))
+    localStorage.setItem('refreshToken', 'old-refresh')
+    const seen = failOnceThenResolve((config) => statusError(config, 401))
+    let finishRefresh!: (value: unknown) => void
+    const post = vi.spyOn(axios, 'post').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishRefresh = resolve
+        })
+    )
+    const request = apiClient.get('/protected')
+    const completed = expect(request).resolves.toMatchObject({ status: 200 })
+    await vi.waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    localStorage.setItem('token', token(2))
+    localStorage.setItem('refreshToken', 'rotated-refresh')
+    finishRefresh({ data: { access_token: 'stale-token', refresh_token: 'stale-refresh' } })
+    await completed
+    expect(seen).toHaveLength(2)
+    expect(seen[1].headers.Authorization).toBe(`Bearer ${token(2)}`)
+    expect(localStorage.getItem('token')).toBe(token(2))
+    expect(localStorage.getItem('refreshToken')).toBe('rotated-refresh')
+    expect(locationStub.href).toBe('')
+  })
+
+  it('does not retry an old request under a different account', async () => {
+    const token = (sub: string) => `header.${btoa(JSON.stringify({ sub }))}.signature`
+    localStorage.setItem('token', token('old-user'))
+    localStorage.setItem('refreshToken', 'old-refresh')
+    const seen = failOnceThenResolve((config) => statusError(config, 401))
+    let finishRefresh!: (value: unknown) => void
+    const post = vi.spyOn(axios, 'post').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishRefresh = resolve
+        })
+    )
+    const request = expect(apiClient.post('/protected-action')).rejects.toMatchObject({
+      code: 'ERR_CANCELED',
+    })
+    await vi.waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    localStorage.setItem('token', token('new-user'))
+    localStorage.setItem('refreshToken', 'new-login-refresh')
+    finishRefresh({ data: { access_token: 'stale-token', refresh_token: 'stale-refresh' } })
+    await request
+    expect(seen).toHaveLength(1)
+    expect(localStorage.getItem('token')).toBe(token('new-user'))
+    expect(localStorage.getItem('refreshToken')).toBe('new-login-refresh')
+    expect(locationStub.href).toBe('')
   })
 
   it('shares one refresh between simultaneous unauthorized requests', async () => {

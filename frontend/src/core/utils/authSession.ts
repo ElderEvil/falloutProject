@@ -1,4 +1,4 @@
-import axios, { type AxiosResponse } from 'axios'
+import axios, { CanceledError, type AxiosResponse } from 'axios'
 import type { components } from '@/core/types/api.generated'
 import { jwtDecode } from 'jwt-decode'
 import { getErrorStatus } from '@/core/types/utils'
@@ -42,9 +42,20 @@ export function refreshSession(): Promise<AxiosResponse<Token>> {
     })
     .then((response) => {
       const { data } = response
-      // Logout or a different login must win over an old refresh response.
-      if (readStoredToken('refreshToken') !== refreshToken || getStoredToken() !== previousToken)
-        throw Object.assign(new Error('Session changed during refresh'), { status: 401 })
+      // A second tab can rotate credentials before this response arrives.
+      const storedRefresh = readStoredToken('refreshToken')
+      const storedToken = getStoredToken()
+      if (storedRefresh !== refreshToken || storedToken !== previousToken) {
+        if (!storedRefresh || !storedToken)
+          throw Object.assign(new Error('Session changed during refresh'), { status: 401 })
+        const previousSubject = previousToken && decodeToken(previousToken)?.sub
+        if (!previousSubject || decodeToken(storedToken)?.sub !== previousSubject)
+          throw new CanceledError('Account changed during refresh')
+        return {
+          ...response,
+          data: { ...data, access_token: storedToken, refresh_token: storedRefresh },
+        }
+      }
       if (!data.access_token) throw new Error('Refresh response has no access token')
       localStorage.setItem('token', JSON.stringify(data.access_token))
       if (data.refresh_token)
@@ -67,16 +78,19 @@ export function refreshSession(): Promise<AxiosResponse<Token>> {
   return refreshInFlight
 }
 
+function decodeToken(token: string) {
+  try {
+    return jwtDecode<{ exp?: number; sub?: string }>(token)
+  } catch {
+    return undefined
+  }
+}
+
 /** Opaque tokens are left for the server to validate. */
 export async function ensureAccessToken(): Promise<string | null> {
   const token = getStoredToken()
   if (!token) return null
-  let expiresAt: number | undefined
-  try {
-    expiresAt = jwtDecode<{ exp?: number }>(token).exp
-  } catch {
-    return token
-  }
+  const expiresAt = decodeToken(token)?.exp
   if (expiresAt === undefined || expiresAt * 1000 > Date.now() + 60_000) return token
   if (!readStoredToken('refreshToken') && expiresAt * 1000 > Date.now()) return token
   return (await refreshSession()).data.access_token

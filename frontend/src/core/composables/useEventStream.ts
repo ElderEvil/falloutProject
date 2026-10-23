@@ -218,14 +218,14 @@ function useSseBase(
         signal: abortController.signal,
       })
       if (abortController !== controller || controller.signal.aborted) return
-      if (response.status === 401 && !authRetried) {
+      if (response.status === 401 && options?.headers && !authRetried) {
         if (!getStoredToken() || getStoredToken() === token) await refreshSession()
         if (abortController === controller && !controller.signal.aborted)
           return connect(undefined, false, true)
         return
       }
       if (!response.ok) {
-        if (response.status === 401) expireSession()
+        if (response.status === 401 && options?.headers) expireSession()
         throw Object.assign(new Error(`HTTP error! status: ${response.status}`), {
           status: response.status,
         })

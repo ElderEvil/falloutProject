@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { nextTick, ref, type Ref } from 'vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -489,6 +489,31 @@ describe('Vault Store', () => {
   })
 
   describe('resource polling', () => {
+    it('keeps an explicit stop effective when the tab returns', async () => {
+      vi.useFakeTimers()
+      const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+      localStorage.setItem('token', 'test-token')
+      const store = useVaultStore()
+      store.loadedVaults = { 'vault-1': mockVault }
+      store.setActiveVault('vault-1')
+      vi.mocked(axios.get).mockResolvedValue({ data: mockVault })
+      try {
+        store.startResourcePolling()
+        visibility.mockReturnValue('hidden')
+        document.dispatchEvent(new Event('visibilitychange'))
+        await nextTick()
+        store.stopResourcePolling()
+        visibility.mockReturnValue('visible')
+        document.dispatchEvent(new Event('visibilitychange'))
+        await vi.advanceTimersByTimeAsync(30_000)
+        expect(axios.get).not.toHaveBeenCalled()
+      } finally {
+        store.stopResourcePolling()
+        visibility.mockRestore()
+        vi.useRealTimers()
+      }
+    })
+
     it('does not write an old vault response into the newly selected vault', async () => {
       vi.useFakeTimers()
       try {

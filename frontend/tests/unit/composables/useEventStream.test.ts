@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vite-plus/test'
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { effectScope } from 'vue'
 import rawAxios from 'axios'
 import { useSse, usePostEventStream } from '@/core/composables/useEventStream'
@@ -119,6 +119,24 @@ describe('useEventStream auto-reconnect', () => {
     localStorage.setItem('token', 'new-token')
     await vi.advanceTimersByTimeAsync(1000)
     expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer new-token')
+    sse.close()
+  })
+
+  it('does not refresh or clear the session for a headerless stream rejection', async () => {
+    localStorage.setItem('token', 'valid-token')
+    localStorage.setItem('refreshToken', 'valid-refresh')
+    const refresh = vi
+      .spyOn(rawAxios, 'post')
+      .mockResolvedValue({ data: { access_token: 'unexpected-token' } })
+    fetchMock.mockResolvedValue({ ok: false, status: 401 })
+    const sse = useSse('/public-stream')
+    await sse.start()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(refresh).not.toHaveBeenCalled()
+    expect(localStorage.getItem('token')).toBe('valid-token')
+    expect(localStorage.getItem('refreshToken')).toBe('valid-refresh')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(sse.error.value?.message).toContain('401')
     sse.close()
   })
 

@@ -180,8 +180,7 @@ export const useIncidentStore = defineStore('incident', () => {
 
       if (!response || !response.incidents || !Array.isArray(response.incidents)) {
         // An unconfirmed list is not a confirmed empty vault; fail closed.
-        handleStoreError(new Error('Malformed incident list response'), 'Failed to fetch incidents')
-        return
+        throw new Error('Malformed incident list response')
       }
 
       // Update active incidents list

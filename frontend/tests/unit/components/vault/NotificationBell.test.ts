@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createAxiosMock, createIconifyMock, createRouterMock } from '../../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
@@ -170,9 +170,11 @@ describe('NotificationBell SSE watcher null-safety', () => {
     document.dispatchEvent(new Event('visibilitychange'))
     await vi.advanceTimersByTimeAsync(0)
     await flushPromises()
-    expect(
-      toasts.value.filter((toast) => toast.message === 'Training finished while away')
-    ).toHaveLength(1)
+    const matching = toasts.value.filter(
+      (toast) => toast.message === 'Training finished while away'
+    )
+    expect(matching).toHaveLength(1)
+    expect(matching[0].count).toBe(1)
     wrapper.unmount()
   })
 

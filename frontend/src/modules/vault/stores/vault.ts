@@ -457,9 +457,7 @@ export const useVaultStore = defineStore('vault', () => {
 
   function stopResourcePolling() {
     stopGameTickSse()
-    if (isPollingActive.value) {
-      pausePolling()
-    }
+    pausePolling()
   }
 
   return {

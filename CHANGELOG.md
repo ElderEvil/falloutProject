@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.257.0 (2026-10-23)
+
+### Features
+
+* refresh admin panel and support actions ([#1159](https://github.com/ElderEvil/falloutProject/issues/1159)) efac7e8
+
 ## 2.256.0 (2026-10-23)
 
 ### Features

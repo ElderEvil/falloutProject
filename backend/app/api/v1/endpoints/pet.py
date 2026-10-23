@@ -3,11 +3,11 @@
 from collections.abc import Sequence
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.deps import CurrentActiveUser, get_current_active_user
+from app.api.deps import CurrentActiveUser, PetPaginationParams, get_current_active_user
 from app.db.session import get_async_session
 from app.models.pet import Pet
 from app.schemas.pet import PetRead
@@ -21,8 +21,7 @@ async def read_pet_list(
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
-    skip: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=100)] = 100,
+    pagination: PetPaginationParams,
 ) -> Sequence[Pet]:
     """Retrieve a paginated list of a vault's pets.
 
@@ -36,7 +35,7 @@ async def read_pet_list(
     Raises:
         AccessDeniedException: If the user doesn't own the vault.
     """
-    return await pet_service.list_pets(db_session, vault_id, user, skip, limit)
+    return await pet_service.list_pets(db_session, vault_id, user, pagination.skip, pagination.limit)
 
 
 @router.get("/{pet_id}", response_model=PetRead)

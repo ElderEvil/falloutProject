@@ -8,7 +8,13 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_current_active_user, get_user_vault_or_403
+from app.api.deps import (
+    CurrentActiveUser,
+    CurrentSuperuser,
+    PaginationParams,
+    get_current_active_user,
+    get_user_vault_or_403,
+)
 from app.db.session import get_async_session
 from app.models.objective import Objective
 from app.models.vault import Vault
@@ -43,8 +49,7 @@ async def read_objective_list(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     vault_id: UUID4,
     user: CurrentActiveUser,
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> Sequence[ObjectiveRead]:
     """Retrieve objectives for a vault.
 
@@ -55,7 +60,7 @@ async def read_objective_list(
         AccessDeniedException: If the user doesn't own the vault.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await read_objectives(db_session, vault_id, skip=skip, limit=limit)
+    return await read_objectives(db_session, vault_id, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.get("/{objective_id}", response_model=ObjectiveRead)

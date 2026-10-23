@@ -12,6 +12,7 @@ from app.api.deps import (
     CurrentActiveUser,
     CurrentSuperuser,
     CurrentVerifiedUser,
+    PaginationParams,
     get_user_vault_or_403,
     verify_dweller_access,
 )
@@ -84,15 +85,14 @@ async def read_dweller_list(
     # vault_id: UUID4,
     _: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> Sequence[Dweller]:
     """Retrieve a paginated list of dwellers.
 
     Returns:
         list[DwellerReadLess]: List of dwellers.
     """
-    return await crud.dweller.get_multi(db_session=db_session, skip=skip, limit=limit)
+    return await crud.dweller.get_multi(db_session=db_session, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.get("/identity-options", response_model=DwellerIdentityOptions)
@@ -211,8 +211,7 @@ async def read_dwellers_by_vault(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
     status: DwellerStatusEnum | None = None,
     focus: DwellerRosterFocus | None = None,
     age_group: AgeGroupEnum | None = None,
@@ -233,8 +232,8 @@ async def read_dwellers_by_vault(
     return await dweller_service.list_vault_dwellers(
         db_session=db_session,
         vault_id=vault_id,
-        skip=skip,
-        limit=limit,
+        skip=pagination.skip,
+        limit=pagination.limit,
         status=status,
         focus=focus,
         age_group=age_group,
@@ -504,8 +503,7 @@ async def get_dead_dwellers(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> list[DwellerDeadRead]:
     """Get all dead dwellers (revivable) for a vault.
 
@@ -514,7 +512,7 @@ async def get_dead_dwellers(
     """
     await get_user_vault_or_403(vault_id, user, db_session)
     dwellers = await crud.dweller.get_dead_dwellers(
-        db_session, vault_id, include_permanent=False, skip=skip, limit=limit
+        db_session, vault_id, include_permanent=False, skip=pagination.skip, limit=pagination.limit
     )
 
     # Enrich with days_until_permanent
@@ -532,8 +530,7 @@ async def get_graveyard(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> list[DwellerDeadRead]:
     """Get permanently dead dwellers (graveyard) for a vault.
 
@@ -541,7 +538,7 @@ async def get_graveyard(
         list[DwellerDeadRead]: List of permanently dead dwellers.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    dwellers = await crud.dweller.get_graveyard(db_session, vault_id, skip=skip, limit=limit)
+    dwellers = await crud.dweller.get_graveyard(db_session, vault_id, skip=pagination.skip, limit=pagination.limit)
     return [DwellerDeadRead.model_validate(dweller) for dweller in dwellers]
 
 
@@ -620,8 +617,7 @@ async def read_deleted_dwellers_by_vault(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> Sequence[Dweller]:
     """Get soft-deleted dwellers for a specific vault.
 
@@ -629,7 +625,9 @@ async def read_deleted_dwellers_by_vault(
         list[DwellerReadLess]: List of soft-deleted dwellers.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.dweller.get_deleted_by_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)
+    return await crud.dweller.get_deleted_by_vault(
+        db_session=db_session, vault_id=vault_id, skip=pagination.skip, limit=pagination.limit
+    )
 
 
 # ============================================================================

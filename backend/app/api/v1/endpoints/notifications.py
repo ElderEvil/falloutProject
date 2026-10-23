@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.deps import CurrentActiveUser
+from app.api.deps import CurrentActiveUser, NotificationPaginationParams
 from app.crud.notification import notification as notification_crud
 from app.db.session import get_async_session
 from app.models.notification import Notification, NotificationRead
@@ -19,9 +19,8 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
 async def get_notifications(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    pagination: NotificationPaginationParams,
     unread_only: bool = False,
-    limit: int = 50,
-    offset: int = 0,
 ) -> list[Notification]:
     """Get notifications for the current user.
 
@@ -32,8 +31,8 @@ async def get_notifications(
         db_session,
         user_id=user.id,
         unread_only=unread_only,
-        limit=limit,
-        offset=offset,
+        limit=pagination.limit,
+        offset=pagination.skip,
     )
 
 

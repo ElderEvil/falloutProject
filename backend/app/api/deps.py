@@ -19,6 +19,7 @@ from app.models.outfit import Outfit
 from app.models.user import User
 from app.models.vault import Vault
 from app.models.weapon import Weapon
+from app.schemas.pagination import NotificationPagination, OffsetPagination, Pagination, PetPagination
 from app.schemas.token import TokenPayload
 from app.services import access_service
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
@@ -28,6 +29,13 @@ reusable_oauth2 = OAuth2PasswordBearer(
 )
 
 DBSession = Annotated[AsyncSession, Depends(get_async_session)]
+
+# Model dependencies keep query fields flat alongside endpoint filters. Direct
+# Query() models cannot be combined with scalar query parameters in this FastAPI version.
+PaginationParams = Annotated[Pagination, Depends()]
+OffsetPaginationParams = Annotated[OffsetPagination, Depends()]
+NotificationPaginationParams = Annotated[NotificationPagination, Depends()]
+PetPaginationParams = Annotated[PetPagination, Depends()]
 
 
 async def get_redis_client():

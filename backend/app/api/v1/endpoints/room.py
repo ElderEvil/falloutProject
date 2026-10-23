@@ -8,7 +8,13 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_room_access
+from app.api.deps import (
+    CurrentActiveUser,
+    CurrentSuperuser,
+    PaginationParams,
+    get_user_vault_or_403,
+    verify_room_access,
+)
 from app.db.session import get_async_session
 from app.models.room import Room
 from app.schemas.barbershop import BarbershopChangeRequest, BarbershopChangeResponse, BarbershopStatus
@@ -31,15 +37,14 @@ async def read_grid_config(_: CurrentActiveUser) -> GridConfig:
 async def read_room_list(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> Sequence[Room]:
     """Retrieve a paginated list of rooms.
 
     Returns:
         List of rooms.
     """
-    return await crud.room.get_multi(db_session, skip=skip, limit=limit)
+    return await crud.room.get_multi(db_session, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.get("/vault/{vault_id}/", response_model=list[RoomRead])
@@ -47,8 +52,7 @@ async def read_rooms_by_vault(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     vault_id: UUID4,
     user: CurrentActiveUser,
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> Sequence[Room]:
     """Retrieve rooms for a specific vault.
 
@@ -56,7 +60,9 @@ async def read_rooms_by_vault(
         List of rooms in the vault.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.room.get_multy_by_vault(db_session=db_session, skip=skip, limit=limit, vault_id=vault_id)
+    return await crud.room.get_multy_by_vault(
+        db_session=db_session, skip=pagination.skip, limit=pagination.limit, vault_id=vault_id
+    )
 
 
 @router.get("/{room_id}", response_model=RoomRead)

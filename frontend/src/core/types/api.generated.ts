@@ -12362,8 +12362,8 @@ export interface operations {
     get_chat_history_api_v1_chat_history__dweller_id__get: {
         parameters: {
             query?: {
-                limit?: number;
                 offset?: number;
+                limit?: number;
             };
             header?: never;
             path: {
@@ -12972,8 +12972,6 @@ export interface operations {
     read_dwellers_by_vault_api_v1_dwellers_vault__vault_id___get: {
         parameters: {
             query?: {
-                skip?: number;
-                limit?: number;
                 status?: components["schemas"]["DwellerStatusEnum"] | null;
                 focus?: components["schemas"]["DwellerRosterFocus"] | null;
                 age_group?: components["schemas"]["AgeGroupEnum"] | null;
@@ -12984,6 +12982,8 @@ export interface operations {
                 faction?: components["schemas"]["FactionEnum"] | null;
                 sort_by?: string;
                 order?: string;
+                skip?: number;
+                limit?: number;
             };
             header?: never;
             path: {
@@ -15206,8 +15206,8 @@ export interface operations {
         parameters: {
             query?: {
                 unread_only?: boolean;
-                limit?: number;
                 offset?: number;
+                limit?: number;
             };
             header?: never;
             path?: never;

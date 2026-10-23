@@ -11,6 +11,7 @@ from app.api.deps import (
     CurrentActiveUser,
     CurrentSuperuser,
     DBSession,
+    PaginationParams,
     get_current_active_user,
     get_user_vault_or_403,
     verify_dweller_access,
@@ -46,8 +47,7 @@ async def read_outfit_list(
     vault_id: UUID4,
     db_session: DBSession,
     user: CurrentActiveUser,
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> Sequence[Outfit]:
     """Retrieve a paginated list of a vault's outfits.
 
@@ -62,7 +62,7 @@ async def read_outfit_list(
         AccessDeniedException: If the user doesn't own the vault.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await get_items_by_vault(db_session, Outfit, vault_id, skip, limit)
+    return await get_items_by_vault(db_session, Outfit, vault_id, pagination.skip, pagination.limit)
 
 
 @router.get("/{outfit_id}", response_model=OutfitRead)

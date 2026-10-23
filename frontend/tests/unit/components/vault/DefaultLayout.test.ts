@@ -12,7 +12,13 @@ const mountLayout = (scanlines?: boolean) =>
     props: { isFlickering: false },
     global: {
       provide: scanlines === undefined ? {} : { scanlines: ref(scanlines) },
-      stubs: { NavBar: true, ExitRequestModal: true },
+      // Boolean stubs still invoke async loaders in Vue Test Utils. Explicit
+      // components keep unrelated overlay imports from outliving these tests.
+      stubs: {
+        NavBar: true,
+        ExitRequestModal: { template: '<div />' },
+        OnboardingSpotlight: { template: '<div />' },
+      },
     },
   })
 

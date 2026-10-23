@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.253.0 (2026-10-23)
+
+### Features
+
+* **auth:** verify email before AI use and tighten account changes ([#1148](https://github.com/ElderEvil/falloutProject/issues/1148)) 296b383
+
 ## 2.252.0 (2026-10-22)
 
 ### Features

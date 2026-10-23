@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = "==3.13.*"
 
 [manifest]
@@ -539,8 +539,9 @@ lua = [
 
 [[package]]
 name = "fallout-shelter-fast-api"
-version = "2.252.0"
+version = "2.253.0"
 source = { editable = "." }
+default-groups = ["lint", "test"]
 dependencies = [
     { name = "aiosmtplib" },
     { name = "alembic" },

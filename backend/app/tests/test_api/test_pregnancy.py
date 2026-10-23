@@ -203,6 +203,7 @@ async def test_accelerate_pregnancy_success(
     async_client: AsyncClient,
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
+    caplog,
 ):
     """Test accelerate-pregnancy sets due_at to past for superuser."""
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
@@ -221,15 +222,20 @@ async def test_accelerate_pregnancy_success(
 
     assert not pregnancy.is_due
 
-    response = await async_client.post(
-        f"/pregnancies/{pregnancy.id}/debug/accelerate",
-        headers=superuser_token_headers,
-    )
+    with caplog.at_level("INFO", logger="app.api.v1.endpoints.pregnancy"):
+        response = await async_client.post(
+            f"/pregnancies/{pregnancy.id}/debug/accelerate",
+            headers=superuser_token_headers,
+        )
 
     assert response.status_code == 200
     data = response.json()
     assert data["is_due"] is True
     assert data["progress_percentage"] == 100.0
+
+    audit = next(record for record in caplog.records if record.message == "DEBUG pregnancy accelerated")
+    assert audit.triggered_by == str(user.id)
+    assert not hasattr(audit, "new_due_at")
 
 
 async def _pregnancy_in_new_vault(async_session: AsyncSession, number: int):
@@ -269,3 +275,23 @@ async def test_deliver_foreign_vault_pregnancy_returns_404(
     response = await async_client.post(f"/pregnancies/{pregnancy.id}/deliver", headers=normal_user_token_headers)
 
     assert response.status_code == 404
+
+
+async def test_tick_birth_log_records_count_without_names(async_session, vault, monkeypatch, caplog):
+    from app.services.family.breeding_service import breeding_service
+    from app.services.game_tick.family_tick import _deliver_due_baby
+
+    vault.population_max = 10
+    async_session.add(vault)
+    await async_session.commit()
+    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
+    father = await _adult(async_session, vault.id, GenderEnum.MALE)
+    pregnancy = await breeding_service.create_pregnancy(async_session, mother.id, father.id)
+    await breeding_service.accelerate_pregnancy(async_session, pregnancy.id)
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
+
+    with caplog.at_level("INFO", logger="app.services.game_tick.family_tick"):
+        assert await _deliver_due_baby(async_session, vault.id, pregnancy.id)
+
+    birth = next(record for record in caplog.records if record.name == "app.services.game_tick.family_tick")
+    assert birth.args == (vault.id, 1)

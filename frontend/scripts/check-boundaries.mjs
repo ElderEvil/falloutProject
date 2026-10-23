@@ -17,7 +17,7 @@ function collectFiles(directory) {
 
 function scriptContent(source, fileName) {
   if (!fileName.endsWith('.vue')) return source
-  return [...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
+  return [...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
     .map((match) => match[1])
     .join('\n')
 }

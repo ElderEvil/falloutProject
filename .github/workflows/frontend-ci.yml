@@ -11,6 +11,10 @@ on:
       - 'frontend/**'
       - '.github/workflows/frontend-ci.yml'
 
+permissions:
+  contents: read
+  pull-requests: read # paths-filter reads changed files on pull requests
+
 jobs:
   frontend-ci:
     name: Frontend Tests

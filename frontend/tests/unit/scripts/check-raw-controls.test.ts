@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, it } from 'vitest'
 import { findRawControls, isInScope } from '../../../scripts/check-raw-controls.mjs'
 
 describe('check-raw-controls', () => {
@@ -9,9 +9,11 @@ describe('check-raw-controls', () => {
   })
 
   it('flags every occurrence, not just the first', () => {
-    expect(
-      findRawControls('<template><button /><button /><input /></template>')
-    ).toEqual(['button', 'button', 'input'])
+    expect(findRawControls('<template><button /><button /><input /></template>')).toEqual([
+      'button',
+      'button',
+      'input',
+    ])
   })
 
   it('exempts controls whose primitive is not vendored yet', () => {
@@ -25,7 +27,15 @@ describe('check-raw-controls', () => {
   })
 
   it('ignores commented-out controls', () => {
-    expect(findRawControls('<template><!-- <button /> --><select /></template>')).toEqual(['select'])
+    expect(findRawControls('<template><!-- <button /> --><select /></template>')).toEqual([
+      'select',
+    ])
+  })
+
+  it('does not create tags by joining text around comments', () => {
+    expect(findRawControls('<template><but<!-- split -->ton /><input /></template>')).toEqual([
+      'input',
+    ])
   })
 
   it('ignores PascalCase component usage (shared primitives, not native controls)', () => {

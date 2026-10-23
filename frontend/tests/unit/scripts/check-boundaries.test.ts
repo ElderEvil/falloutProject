@@ -1,7 +1,13 @@
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, it } from 'vitest'
 import { collectModuleSpecifiers, hasModuleDependency } from '../../../scripts/check-boundaries.mjs'
 
 describe('check-boundaries', () => {
+  it.each(['SCRIPT', 'ScRiPt'])('reads imports from %s blocks', (tag) => {
+    expect(
+      collectModuleSpecifiers(`<${tag}>import x from '@/modules/auth/x'</${tag}>`, 'Example.vue')
+    ).toEqual(['@/modules/auth/x'])
+  })
+
   it('detects static imports, re-exports, and dynamic imports from modules', () => {
     const source = `
       import type { AuthUser } from '@/modules/auth/models/auth'
@@ -25,8 +31,6 @@ describe('check-boundaries', () => {
       <template>import('@/modules/not-a-script')</template>
     `
 
-    expect(collectModuleSpecifiers(source, 'Example.vue')).toEqual([
-      '@/modules/auth/stores/auth',
-    ])
+    expect(collectModuleSpecifiers(source, 'Example.vue')).toEqual(['@/modules/auth/stores/auth'])
   })
 })

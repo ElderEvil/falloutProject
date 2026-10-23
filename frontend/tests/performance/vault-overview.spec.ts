@@ -603,7 +603,12 @@ test('[large] measures grown boosted vault, roster scrolling, and populated trai
       testInfo,
       'navigate-to-dwellers',
       () => nav.locator(`a[href="/vault/${vault.id}/dwellers"]`).click(),
-      () => expect(rows).toHaveCount(roster.length)
+      async () => {
+        await expect(rows).toHaveCount(20)
+        await expect(page.getByRole('navigation', { name: 'Dweller pages' })).toContainText(
+          '1–20 of 100'
+        )
+      }
     )
   )
   await rows.first().scrollIntoViewIfNeeded()
@@ -628,6 +633,27 @@ test('[large] measures grown boosted vault, roster scrolling, and populated trai
   )
   expect(scrollReport.animationFrameIntervalsMs?.length ?? 0).toBeGreaterThan(10)
   reports.push(scrollReport)
+  const nextPage = page.getByRole('button', { name: 'Next dweller page', exact: true })
+  reports.push(
+    await measureInteraction(
+      page,
+      testInfo,
+      'next-dweller-page',
+      () => nextPage.click(),
+      async () => {
+        await expect(rows).toHaveCount(20)
+        await expect(rows.first()).toContainText(roster[20]!.first_name)
+        await expect(page.getByRole('navigation', { name: 'Dweller pages' })).toContainText(
+          '21–40 of 100'
+        )
+      }
+    )
+  )
+  for (let currentPage = 3; currentPage <= 5; currentPage++) {
+    await nextPage.click()
+  }
+  await expect(nextPage).toBeDisabled()
+  await expect(rows).toHaveCount(20)
   const lastResident = roster.at(-1)!
   reports.push(
     await measureInteraction(
@@ -731,7 +757,7 @@ async function saveRun(
         browser: 'chromium',
         browserVersion,
         viewport: '1280x900',
-        measurementVersion: 4,
+        measurementVersion: 5,
         tracing: process.env.UI_PERF_TRACE === '1',
         workload: fixture.name,
         fixture: {

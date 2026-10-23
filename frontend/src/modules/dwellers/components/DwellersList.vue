@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, toRef } from 'vue'
+import { computed, ref, toRef, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
 import {
@@ -50,6 +50,19 @@ const emit = defineEmits<{
   (e: 'clear-filters'): void
 }>()
 
+const pageSize = 20
+const currentPage = ref(1)
+const pageCount = computed(() => Math.ceil(props.dwellers.length / pageSize))
+const pageStart = computed(() => (currentPage.value - 1) * pageSize)
+const pageDwellers = computed(() =>
+  props.dwellers.slice(pageStart.value, pageStart.value + pageSize)
+)
+
+// Filters and sorting apply to the entire roster before it reaches this component.
+watch([() => props.dwellers, () => props.dwellers.length], () => {
+  currentPage.value = 1
+})
+
 /** The empty state outranks the view-mode branches: without rows there is nothing to lay out. */
 const showEmptyState = computed(() => !props.isLoading && props.dwellers.length === 0)
 
@@ -93,6 +106,35 @@ const getRoomStat = (
 </script>
 
 <template>
+  <nav
+    v-if="!isLoading && pageCount > 1"
+    aria-label="Dweller pages"
+    class="mb-4 flex items-center justify-end gap-3 text-sm text-theme-primary"
+  >
+    <span role="status" aria-live="polite">
+      {{ pageStart + 1 }}–{{ Math.min(pageStart + pageSize, dwellers.length) }} of
+      {{ dwellers.length }}
+    </span>
+    <Button
+      variant="outline"
+      size="icon"
+      aria-label="Previous dweller page"
+      :disabled="currentPage === 1"
+      @click="currentPage--"
+    >
+      <Icon icon="mdi:chevron-left" class="h-4 w-4" />
+    </Button>
+    <Button
+      variant="outline"
+      size="icon"
+      aria-label="Next dweller page"
+      :disabled="currentPage === pageCount"
+      @click="currentPage++"
+    >
+      <Icon icon="mdi:chevron-right" class="h-4 w-4" />
+    </Button>
+  </nav>
+
   <TerminalEmptyState
     v-if="showEmptyState"
     :icon="emptyState.icon"
@@ -118,7 +160,7 @@ const getRoomStat = (
     </template>
 
     <DwellerListRow
-      v-for="dweller in dwellers"
+      v-for="dweller in pageDwellers"
       v-else
       :key="dweller.id"
       :dweller="dweller"
@@ -189,7 +231,7 @@ const getRoomStat = (
       <DwellerGridItemSkeleton v-for="i in 6" :key="`grid-skeleton-${i}`" />
     </template>
     <DwellerGridItem
-      v-for="dweller in dwellers"
+      v-for="dweller in pageDwellers"
       v-else
       :key="dweller.id"
       :dweller="dweller"
@@ -202,7 +244,7 @@ const getRoomStat = (
 
   <DwellersTable
     v-else
-    :dwellers="dwellers"
+    :dwellers="pageDwellers"
     :rooms="rooms"
     :columns="columns"
     :is-loading="isLoading"

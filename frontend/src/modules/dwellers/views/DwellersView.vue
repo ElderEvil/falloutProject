@@ -723,7 +723,7 @@ const handleTreatIrradiated = async () => {
 
           <div class="list-toolbar">
             <DwellerDisplayControls :show-view="true" />
-            <span class="list-toolbar-count">{{ shownCount }} shown</span>
+            <span class="list-toolbar-count">{{ shownCount }} dwellers</span>
           </div>
 
           <!-- Bulk Actions - Separate Section -->

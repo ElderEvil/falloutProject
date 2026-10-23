@@ -4,6 +4,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import axios from '@/core/plugins/axios'
 import { useProfileStore } from '@/modules/profile/stores/profile'
+import { useToast } from '@/core/composables/useToast'
 
 vi.mock('@/core/plugins/axios')
 
@@ -342,6 +343,15 @@ describe('Auth Store', () => {
       })
       expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me')
       expect(store.user?.email_verified).toBe(true)
+    })
+
+    it('shows a success toast after verification', async () => {
+      const store = useAuthStore()
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { msg: 'Email verified' } })
+
+      await store.verifyEmail('verify-token')
+
+      expect(useToast().toasts.value.some((toast) => toast.message === 'Email verified')).toBe(true)
     })
 
     it('does not fetch the user after verification without a session token', async () => {

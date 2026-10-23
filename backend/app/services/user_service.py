@@ -70,6 +70,9 @@ class UserService:
         if locked_user is None:
             raise ResourceNotFoundException(model=User, identifier=str(user.id))
 
+        if password is not None and not 8 <= len(password) <= 128:
+            raise ValidationException("Password must be between 8 and 128 characters.")
+
         username_change = await self._validate_username_change(db_session, locked_user, username)
 
         email_change = email if email is not None and email != locked_user.email else None
@@ -111,6 +114,7 @@ class UserService:
                     token=verification_token,
                 )
             except Exception as exc:
+                logger.exception("Failed to send verification email after email change")
                 raise EmailDeliveryException(
                     detail="Failed to send the verification email to the new address."
                 ) from exc

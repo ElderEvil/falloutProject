@@ -351,3 +351,22 @@ async def test_update_me_applies_username_and_email_together(
     stored = await crud.user.get_by_email(db_session=async_session, email=new_email)
     assert stored is not None
     assert stored.username == new_username
+
+
+@pytest.mark.parametrize("password", ["short", "x" * 129])
+async def test_update_me_rejects_passwords_outside_policy(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    password: str,
+) -> None:
+    """The account-update path enforces the same 8-128 password bounds as registration."""
+    token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
+
+    response = await async_client.put(
+        "/users/me",
+        json={"password": password},
+        headers=token_headers,
+    )
+
+    assert response.status_code == 400
+    assert "8 and 128" in response.json()["detail"]

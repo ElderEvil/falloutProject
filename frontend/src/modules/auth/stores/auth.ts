@@ -172,6 +172,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       await authService.verifyEmail(verificationToken)
       if (token.value) await fetchUser()
+      toast.success('Email verified')
       return true
     } catch (error) {
       handleStoreError(error, 'Email verification failed')

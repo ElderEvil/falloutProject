@@ -11,7 +11,7 @@ from redis.asyncio import Redis
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_redis_client
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, PaginationParams, get_redis_client
 from app.crud.user_profile import profile_crud
 from app.db.session import get_async_session
 from app.models.user import User
@@ -57,16 +57,15 @@ async def create_user(
 async def read_users(
     *,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    skip: int = 0,
-    limit: int = 100,
     _: CurrentSuperuser,
+    pagination: PaginationParams,
 ) -> Sequence[User]:
     """Retrieve users.
 
     Returns:
         List of users.
     """
-    return await crud.user.get_multi(db_session, skip=skip, limit=limit)
+    return await crud.user.get_multi(db_session, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.put("/me", response_model=UserRead)

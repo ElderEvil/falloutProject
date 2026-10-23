@@ -8,7 +8,7 @@ from fastapi.responses import Response
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.deps import CurrentActiveUser
+from app.api.deps import CurrentActiveUser, OffsetPaginationParams
 from app.db.session import get_async_session
 from app.models.chat_message import ChatMessage as ChatMessageRow
 from app.models.chat_message import ChatMessageRead
@@ -52,11 +52,10 @@ async def get_chat_history(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    limit: int = 100,
-    offset: int = 0,
+    pagination: OffsetPaginationParams,
 ) -> list[ChatMessageRow]:
     """Get the user's conversation with an accessible dweller."""
-    return await chat_service.get_history(db_session, user, dweller_id, limit, offset)
+    return await chat_service.get_history(db_session, user, dweller_id, pagination.limit, pagination.skip)
 
 
 @router.post(

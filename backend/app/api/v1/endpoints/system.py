@@ -7,6 +7,7 @@ from fastapi import APIRouter
 
 from app.core.config import settings
 from app.core.game_config import game_config
+from app.schemas.pagination import PageLimit
 from app.schemas.system import ChangelogEntry, FeaturesResponse, InfoResponse
 from app.services.changelog_service import changelog_service
 from app.utils.version import get_app_version, get_python_version
@@ -32,7 +33,7 @@ async def get_info() -> InfoResponse:
 
 
 @router.get("/changelog", response_model=list[ChangelogEntry])
-async def get_changelog(limit: int | None = 10, since: str | None = None) -> list[ChangelogEntry]:
+async def get_changelog(limit: PageLimit | None = 10, since: str | None = None) -> list[ChangelogEntry]:
     """Get changelog entries with optional version filtering.
 
     Returns:

@@ -11,6 +11,7 @@ from app.api.deps import (
     CurrentActiveUser,
     CurrentSuperuser,
     DBSession,
+    PaginationParams,
     get_current_active_user,
     get_user_vault_or_403,
     verify_item_access,
@@ -43,8 +44,7 @@ async def read_junk_list(
     vault_id: UUID4,
     db_session: DBSession,
     user: CurrentActiveUser,
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> Sequence[Junk]:
     """Retrieve a paginated list of a vault's junk inventory.
 
@@ -59,7 +59,7 @@ async def read_junk_list(
         AccessDeniedException: If the user doesn't own the vault.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.junk.get_multi_for_vault(db_session, vault_id, skip=skip, limit=limit)
+    return await crud.junk.get_multi_for_vault(db_session, vault_id, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.get("/{junk_id}", response_model=JunkRead)

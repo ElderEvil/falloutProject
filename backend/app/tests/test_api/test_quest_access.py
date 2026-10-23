@@ -7,6 +7,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.api.v1.endpoints.quest import read_vault_quests
+from app.schemas.pagination import Pagination
 
 
 @pytest.mark.asyncio
@@ -24,6 +25,6 @@ async def test_read_vault_quests_checks_access_before_querying() -> None:
         patch("app.api.v1.endpoints.quest.quest_service.get_quests_for_vault", new=AsyncMock()) as get_quests,
         pytest.raises(HTTPException, match="Forbidden"),
     ):
-        await read_vault_quests(vault_id, db_session, user)
+        await read_vault_quests(vault_id, db_session, user, Pagination())
 
     get_quests.assert_not_awaited()

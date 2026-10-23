@@ -8,7 +8,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, PaginationParams, get_user_vault_or_403
 from app.core.enums import AgeGroupEnum
 from app.db.session import get_async_session
 from app.models.vault import Vault
@@ -45,17 +45,16 @@ async def create_vault(
 @router.get("/", response_model=list[VaultReadWithUser])
 async def read_vault_list(
     *,
-    skip: int = 0,
-    limit: int = 100,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
+    pagination: PaginationParams,
 ) -> Sequence[Vault]:
     """Retrieve a paginated list of all vaults (admin only).
 
     Returns:
         List of vaults with user details.
     """
-    return await crud.vault.get_multi(db_session, skip=skip, limit=limit)
+    return await crud.vault.get_multi(db_session, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.get("/my", response_model=list[VaultReadWithNumbers])

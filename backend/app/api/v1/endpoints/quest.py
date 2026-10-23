@@ -8,7 +8,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, PaginationParams, get_user_vault_or_403
 from app.db.session import get_async_session
 from app.models.quest import Quest
 from app.models.team import TeamMember
@@ -49,15 +49,14 @@ def _to_party_member_read(member: TeamMember, quest_id: UUID4, vault_id: UUID4) 
 async def read_all_quests(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _user: CurrentActiveUser,
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> Sequence[QuestRead]:
     """Get all available quests (not vault-specific).
 
     Returns:
         List of quests.
     """
-    return await crud.quest_crud.get_multi(db_session, skip=skip, limit=limit)
+    return await crud.quest_crud.get_multi(db_session, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.post("/{vault_id}/", response_model=QuestRead)
@@ -79,8 +78,7 @@ async def read_vault_quests(
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> Sequence[QuestRead]:
     """Get all quests assigned to a specific vault.
 
@@ -89,7 +87,7 @@ async def read_vault_quests(
     """
     await get_user_vault_or_403(vault_id, user, db_session)
     await quest_service.check_and_complete_quests(db_session, vault_id=vault_id)
-    return await quest_service.get_quests_for_vault(db_session, vault_id, skip, limit)
+    return await quest_service.get_quests_for_vault(db_session, vault_id, pagination.skip, pagination.limit)
 
 
 @router.get("/{vault_id}/available", response_model=list[QuestRead])
@@ -97,8 +95,7 @@ async def get_available_quests(
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> Sequence[QuestRead]:
     """Get available quests for a vault (respects chain unlocks, requirements, and the Office rule).
 
@@ -106,7 +103,9 @@ async def get_available_quests(
         List of available quests.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await quest_service.get_quests_for_vault(db_session, vault_id, skip, limit, available_only=True)
+    return await quest_service.get_quests_for_vault(
+        db_session, vault_id, pagination.skip, pagination.limit, available_only=True
+    )
 
 
 @router.get("/{vault_id}/{quest_id}", response_model=QuestRead)

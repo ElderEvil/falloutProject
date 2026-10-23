@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.258.0 (2026-10-23)
+
+### Features
+
+* **rooms:** order build list by population and add facility limits ([#1161](https://github.com/ElderEvil/falloutProject/issues/1161)) b7a51c0
+
 ## 2.257.0 (2026-10-23)
 
 ### Features

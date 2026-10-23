@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.254.0 (2026-10-23)
+
+### Features
+
+* Oauth passwordless ([#1156](https://github.com/ElderEvil/falloutProject/issues/1156)) 4c0220a
+
 ## 2.253.7 (2026-10-23)
 
 ### Bug Fixes

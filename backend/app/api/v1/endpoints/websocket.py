@@ -4,8 +4,8 @@ import json
 import logging
 from typing import TYPE_CHECKING, cast
 
-from fastapi import APIRouter, WebSocket
 import jwt
+from fastapi import APIRouter, WebSocket
 from jwt import InvalidTokenError as JWTError
 from pydantic import UUID4
 

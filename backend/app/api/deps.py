@@ -3,9 +3,9 @@
 from typing import Annotated
 from uuid import UUID
 
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-import jwt
 from jwt import InvalidTokenError as JWTError
 from pydantic import UUID4, ValidationError
 from redis.asyncio import Redis

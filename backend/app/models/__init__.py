@@ -12,6 +12,7 @@ from .item import Item
 from .junk import Junk
 from .llm_interaction import LLMInteraction
 from .notification import Notification, NotificationCreate, NotificationRead
+from .oauth_account import OAuthAccount
 from .objective import Objective
 from .outfit import Outfit
 from .pet import Pet

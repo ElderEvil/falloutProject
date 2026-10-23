@@ -26,6 +26,10 @@ PUBLIC_OPERATIONS: dict[str, str] = {
     "GET /api/v1/system/changelog": "public changelog",
     "GET /api/v1/system/changelog/latest": "public changelog",
     "GET /api/v1/system/features": "public feature switches; clients must know them before sign-in paint",
+    "GET /api/v1/auth/oauth/providers": "provider discovery before sign-in",
+    "GET /api/v1/auth/oauth/{provider}/authorize": "starts the OAuth redirect",
+    "GET /api/v1/auth/oauth/{provider}/callback": "provider callback; bound by oauth_bid cookie",
+    "POST /api/v1/auth/oauth/handoff": "redeems a browser-bound, single-use handoff code",
 }
 
 HTTP_METHODS = ("get", "post", "put", "patch", "delete")

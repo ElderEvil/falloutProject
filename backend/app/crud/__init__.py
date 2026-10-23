@@ -13,6 +13,7 @@ from .incident_participant import incident_participant_crud
 from .item_base import CRUDItem
 from .junk import junk
 from .llm_interaction import llm_interaction
+from .oauth_account import oauth_account
 from .objective import objective_crud
 from .pet import pet
 from .pregnancy import pregnancy

@@ -8,6 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.security import get_password_hash, verify_password
 from app.crud.base import CRUDBase
+from app.models.oauth_account import OAuthAccount
 from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.schemas.user import UserCreate, UserUpdate
@@ -70,6 +71,31 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             raise ResourceConflictException(detail="User already exists") from e
         await db_session.refresh(db_obj)
         return db_obj
+
+    async def create_with_oauth_account(
+        self,
+        db_session: AsyncSession,
+        *,
+        provider: str,
+        provider_user_id: str,
+        username: str,
+        email: str,
+    ) -> tuple[User, OAuthAccount]:
+        """Create user, profile, and provider link in one transaction."""
+        db_obj = build_user_model(username=username, email=email)
+        db_obj.email_verified = True
+        link = OAuthAccount(provider=provider, provider_user_id=provider_user_id, user_id=db_obj.id)
+        try:
+            db_session.add(db_obj)
+            db_session.add(UserProfile(user_id=db_obj.id))
+            db_session.add(link)
+            await db_session.commit()
+        except IntegrityError as exc:
+            await db_session.rollback()
+            raise ResourceConflictException(detail="User or OAuth identity already exists") from exc
+        await db_session.refresh(db_obj)
+        await db_session.refresh(link)
+        return db_obj, link
 
     async def update(
         self,

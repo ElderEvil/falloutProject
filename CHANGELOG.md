@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.253.3 (2026-10-23)
+
+### Code Refactoring
+
+* share validated API pagination parameters ([#1151](https://github.com/ElderEvil/falloutProject/issues/1151)) c56faea
+
 ## 2.253.2 (2026-10-23)
 
 ### Performance Improvements

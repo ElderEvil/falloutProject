@@ -14,6 +14,7 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
   const notifications = ref<InboxNotification[]>([])
   const hasMore = ref(false)
   const readRevision = ref(0)
+  let hasLoaded = false
   let generation = 0
   let vaultId: string | null = null
   let status: ReadFilter = 'all'
@@ -25,6 +26,7 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
     error,
   } = useAsyncAction(
     async (selectedVault: string | null, selectedStatus: ReadFilter, append = false) => {
+      hasLoaded = true
       const requestGeneration = ++generation
       if (!append) {
         vaultId = selectedVault
@@ -54,15 +56,14 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
     { context: 'Failed to mark notifications as read' }
   )
 
-  watch(
-    () => useAuthStore().token,
-    () => {
-      generation++
-      notifications.value = []
-      hasMore.value = false
-      offset = 0
-    }
-  )
+  const auth = useAuthStore()
+  watch([() => auth.isAuthenticated, () => auth.user?.id], ([isAuthenticated]) => {
+    generation++
+    notifications.value = []
+    hasMore.value = false
+    offset = 0
+    if (isAuthenticated && hasLoaded) void load(vaultId, status)
+  })
 
   return { notifications, hasMore, isLoading, error, isSaving, readRevision, load, markRead }
 })

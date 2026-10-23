@@ -8,7 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.notification_preferences import should_deliver_notification
 from app.crud.notification import notification as notification_crud
 from app.crud.user_profile import profile_crud
-from app.models.notification import NotificationCreate, NotificationPriority, NotificationType
+from app.models.notification import Notification, NotificationCreate, NotificationPriority, NotificationType
 from app.services.stream_manager import sse_manager
 from app.services.websocket_manager import manager
 
@@ -17,6 +17,31 @@ logger = logging.getLogger(__name__)
 
 class NotificationService:
     """Service for creating and sending notifications."""
+
+    @staticmethod
+    async def get_notifications(
+        db: AsyncSession,
+        user_id: UUID,
+        *,
+        vault_id: UUID | None = None,
+        is_read: bool | None = None,
+        unread_only: bool = False,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[Notification]:
+        return await notification_crud.get_user_notifications(
+            db,
+            user_id=user_id,
+            vault_id=vault_id,
+            is_read=is_read,
+            unread_only=unread_only,
+            limit=limit,
+            offset=offset,
+        )
+
+    @staticmethod
+    async def mark_all_read(db: AsyncSession, user_id: UUID, *, vault_id: UUID | None = None) -> int:
+        return await notification_crud.mark_all_as_read(db, user_id=user_id, vault_id=vault_id)
 
     @staticmethod
     async def _get_vault_prefix(db: AsyncSession, vault_id: UUID | None) -> str:

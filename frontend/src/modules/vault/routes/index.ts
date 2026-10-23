@@ -8,6 +8,12 @@ const HappinessView = () => import('../views/HappinessView.vue')
 
 export const vaultRoutes: RouteRecordRaw[] = [
   {
+    path: '/notifications',
+    name: 'notifications',
+    component: () => import('../views/NotificationsView.vue'),
+    meta: { requiresAuth: true, hideFromNav: true },
+  },
+  {
     path: '/',
     name: 'home',
     component: HomeView,

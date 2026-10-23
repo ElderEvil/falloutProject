@@ -23,6 +23,8 @@ import {
 } from '@/modules/vault/utils/notificationRouting'
 import { formatRelativeTime } from '@/core/utils/time'
 import axios from '@/core/plugins/axios'
+import { Button } from '@/core/components/ui/button'
+import { useNotificationInboxStore } from '@/modules/vault/stores/notificationInbox'
 import { useStorageStore } from '@/modules/storage/stores/storage'
 
 interface Notification {
@@ -38,6 +40,7 @@ interface Notification {
   meta_data?: Record<string, any>
 }
 
+const inboxStore = useNotificationInboxStore()
 const authStore = useAuthStore()
 const objectivesStore = useObjectivesStore()
 const router = useRouter()
@@ -267,6 +270,14 @@ const fetchUnreadCount = async () => {
   if (authStore.token) await runFetchUnreadCount(authStore.token)
 }
 
+watch(
+  () => inboxStore.readRevision,
+  () => {
+    void fetchNotifications()
+    void fetchUnreadCount()
+  }
+)
+
 const isActionable = (notification: Notification): boolean =>
   getNotificationRoute(notification) !== null
 
@@ -432,6 +443,12 @@ onBeforeUnmount(() => {
           >
             Mark all read
           </button>
+        </div>
+
+        <div class="border-b border-surface-warm-hover px-4 py-2">
+          <Button variant="link" as-child>
+            <RouterLink to="/notifications" @click="closePopup">View all notifications</RouterLink>
+          </Button>
         </div>
 
         <!-- Notification List -->

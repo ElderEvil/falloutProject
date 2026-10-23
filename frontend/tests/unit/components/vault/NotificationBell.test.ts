@@ -4,6 +4,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import NotificationBell from '@/modules/vault/components/shell/NotificationBell.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useNotificationInboxStore } from '@/modules/vault/stores/notificationInbox'
 import { useToast } from '@/core/composables/useToast'
 import { audioManager } from '@/core/audio/audioManager'
 import {
@@ -832,6 +833,18 @@ describe('NotificationBell popup accessibility', () => {
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
     expect(document.activeElement).toBe(wrapper.get('button[aria-label="Notifications"]').element)
 
+    wrapper.unmount()
+  })
+
+  it('refreshes its unread count when a message is marked read in the full inbox', async () => {
+    const wrapper = await mountBell([informationalNotification])
+    mockNotificationList([{ ...informationalNotification, is_read: true }])
+    useNotificationInboxStore().readRevision++
+    await flushPromises()
+    expect(wrapper.findAll('span').some((span) => span.text() === '1')).toBe(false)
+    await wrapper.get('button[aria-label="Notifications"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-notification-id="info-1"]').text()).not.toContain('New')
     wrapper.unmount()
   })
 

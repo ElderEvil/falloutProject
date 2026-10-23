@@ -266,3 +266,88 @@ async def test_unread_count_excludes_dismissed(
 
     assert response.status_code == 200
     assert response.json()["count"] == 1
+
+
+async def _inbox_other_user_and_vault(async_session: AsyncSession):
+    from app.schemas.vault import VaultCreate
+
+    other_user = await crud.user.create(
+        async_session,
+        obj_in=UserCreate(username="inbox_other", email="inbox_other@example.com", password="testpass123"),
+    )
+    vault = await crud.vault.create_with_user_id(
+        db_session=async_session,
+        obj_in=VaultCreate(number=102, name="Other Vault"),
+        user_id=other_user.id,
+    )
+    return other_user, vault
+
+
+async def test_notification_inbox_filters_before_pagination(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+) -> None:
+    """Vault/read filters combine and never expose another user's notifications."""
+    user = await _normal_user(async_session)
+    other_user, vault = await _inbox_other_user_and_vault(async_session)
+    for owner, vault_id, is_read, title in [
+        (user, vault.id, True, "Read in vault"),
+        (user, vault.id, False, "Unread in vault"),
+        (user, None, True, "System read"),
+        (other_user, vault.id, True, "Other user's read"),
+    ]:
+        await notification_crud.create(
+            async_session,
+            obj_in=NotificationCreate(
+                user_id=owner.id,
+                vault_id=vault_id,
+                is_read=is_read,
+                notification_type=NotificationType.LEVEL_UP,
+                title=title,
+                message="Test",
+            ),
+        )
+
+    for params, expected in [
+        ({"vault_id": str(vault.id), "is_read": True, "limit": 1}, ["Read in vault"]),
+        ({"vault_id": str(vault.id), "is_read": False}, ["Unread in vault"]),
+        ({"is_read": True}, ["System read", "Read in vault"]),
+        ({"vault_id": str(vault.id), "unread_only": True}, ["Unread in vault"]),
+        ({"vault_id": str(vault.id), "is_read": True, "offset": 1}, []),
+    ]:
+        response = await async_client.get("/notifications/", headers=normal_user_token_headers, params=params)
+        assert response.status_code == 200
+        assert [item["title"] for item in response.json()] == expected
+
+
+async def test_mark_all_read_is_scoped_to_selected_vault(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+) -> None:
+    user = await _normal_user(async_session)
+    other_user, vault = await _inbox_other_user_and_vault(async_session)
+    rows = []
+    for owner, vault_id in [(user, vault.id), (user, None), (other_user, vault.id)]:
+        rows.append(
+            await notification_crud.create(
+                async_session,
+                obj_in=NotificationCreate(
+                    user_id=owner.id,
+                    vault_id=vault_id,
+                    notification_type=NotificationType.LEVEL_UP,
+                    title="Unread",
+                    message="Test",
+                ),
+            )
+        )
+
+    response = await async_client.post(
+        "/notifications/mark-all-read", headers=normal_user_token_headers, params={"vault_id": str(vault.id)}
+    )
+    assert response.status_code == 200
+    assert response.json()["marked_read"] == 1
+    for row in rows:
+        await async_session.refresh(row)
+    assert [row.is_read for row in rows] == [True, False, False]

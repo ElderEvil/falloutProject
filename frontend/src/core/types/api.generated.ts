@@ -15420,6 +15420,8 @@ export interface operations {
         parameters: {
             query?: {
                 unread_only?: boolean;
+                vault_id?: string | null;
+                is_read?: boolean | null;
                 offset?: number;
                 limit?: number;
             };
@@ -15502,7 +15504,9 @@ export interface operations {
     };
     mark_all_notifications_as_read_api_v1_notifications_mark_all_read_post: {
         parameters: {
-            query?: never;
+            query?: {
+                vault_id?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -15516,6 +15520,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MarkReadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

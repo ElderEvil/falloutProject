@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.253.1 (2026-10-23)
+
+### Bug Fixes
+
+* unify cumulative dweller XP progression ([#1149](https://github.com/ElderEvil/falloutProject/issues/1149)) 5cbd1b6
+
 ## 2.253.0 (2026-10-23)
 
 ### Features

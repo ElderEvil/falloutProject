@@ -21,9 +21,13 @@ async def test_room_unlock_summary_at_population_threshold(async_session, vault)
     await async_session.commit()
 
     rows = (
-        await async_session.execute(
-            select(Notification).where(Notification.notification_type == NotificationType.ROOM_UNLOCKED)
+        (
+            await async_session.execute(
+                select(Notification).where(Notification.notification_type == NotificationType.ROOM_UNLOCKED)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(rows) == 1
     assert "Response Station" in rows[0].message

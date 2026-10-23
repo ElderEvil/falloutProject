@@ -315,11 +315,7 @@ class NotificationService:
         population = await dweller_crud.count_alive_in_vault(db, vault_id)
         game_data = await get_static_game_data()
         built = {room.name.lower() for room in await room_crud.get_all_by_vault(db, vault_id)}
-        unlocked = [
-            room
-            for room in game_data.get_buildable_rooms(built)
-            if room.population_required == population
-        ]
+        unlocked = [room for room in game_data.get_buildable_rooms(built) if room.population_required == population]
         if not unlocked:
             return
         names = ", ".join(sorted(room.name for room in unlocked))

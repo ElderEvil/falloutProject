@@ -317,6 +317,7 @@ const handleNotificationClick = async (notification: Notification) => {
 const getNotificationIcon = (type: string): string => {
   const iconMap: Record<string, string> = {
     baby_born: 'mdi:baby-face',
+    child_adopted: 'mdi:account-heart',
     storage_item_degraded: 'mdi:tools',
     storage_item_upgraded: 'mdi:arrow-up-bold',
     dweller_died: 'mdi:skull',

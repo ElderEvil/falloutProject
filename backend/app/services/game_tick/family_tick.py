@@ -23,6 +23,7 @@ from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.relationship import Relationship
+from app.services.family.adoption_service import adoption_service
 from app.services.game_tick.guard import recover_session
 from app.services.game_tick.tick_results import (
     AgeStats,
@@ -338,6 +339,9 @@ async def process_breeding(service: "GameLoopService", db_session: AsyncSession,
     # Process pregnancies and births
     pregnancy_stats = await service._process_pregnancies_and_births(db_session, vault_id)
 
+    # Adopt orphaned youth into committed couples
+    adoptions = await adoption_service.process_adoptions(db_session, vault_id)
+
     # Age children
     aging_stats = await service._age_children(db_session, vault_id)
 
@@ -347,4 +351,5 @@ async def process_breeding(service: "GameLoopService", db_session: AsyncSession,
         "conceptions": pregnancy_stats["conceptions"],
         "births": pregnancy_stats["births"],
         "children_aged": aging_stats["children_aged"],
+        "adoptions": adoptions,
     }

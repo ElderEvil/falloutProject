@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import UUID4
 from sqlalchemy import case, exists, func, update
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import aliased, selectinload
 from sqlmodel import and_, col, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -723,6 +723,32 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     @staticmethod
     def is_alive(dweller_obj: Dweller) -> bool:
         return dweller_obj.health > 0
+
+    async def get_orphaned_youth(self, db_session: AsyncSession, vault_id: UUID4) -> list[Dweller]:
+        parent_1 = aliased(Dweller)
+        parent_2 = aliased(Dweller)
+        living_parent_1 = exists().where(
+            parent_1.id == Dweller.parent_1_id,
+            parent_1.health > 0,
+            ~parent_1.is_deleted,
+        )
+        living_parent_2 = exists().where(
+            parent_2.id == Dweller.parent_2_id,
+            parent_2.health > 0,
+            ~parent_2.is_deleted,
+        )
+        query = (
+            select(Dweller)
+            .where(Dweller.vault_id == vault_id)
+            .where(~Dweller.is_deleted)
+            .where(Dweller.age_group.in_((AgeGroupEnum.CHILD, AgeGroupEnum.TEEN)))
+            .where(or_(Dweller.parent_1_id.is_not(None), Dweller.parent_2_id.is_not(None)))
+            .where(~living_parent_1)
+            .where(~living_parent_2)
+            .order_by(Dweller.created_at, Dweller.id)
+        )
+        result = await db_session.execute(query)
+        return list(result.scalars().all())
 
     async def get_dweller_by_name(self, db_session: AsyncSession, name: str) -> Dweller | None:
         """Get dweller by name."""

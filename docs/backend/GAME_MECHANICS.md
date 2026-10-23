@@ -256,6 +256,22 @@ is real, not a rerollable button:
 The UI states the cost before the click (modal copy + button label) and surfaces the outcome as a toast;
 the ask keeps its always-on bell notification.
 
+## Adoption of orphaned youth
+
+Orphaned children and teens are adopted automatically during the family tick, after births and before
+aging. There is no player action and no placement choice:
+
+- **Eligible orphan** — a child or teen in the vault, not deleted, with at least one recorded parent and
+  **zero** living parents (`health > 0` and not deleted). A missing parent row counts as dead.
+- **Eligible couple** — a relationship in `PARTNER_LINKED_STAGES` where both dwellers are adults, alive,
+  not deleted, and in the same vault. A couple may adopt more than one orphan; orphans are assigned
+  oldest-first, round-robin across eligible couples.
+- **Effect** — both `parent_1_id` and `parent_2_id` are set, a `family` bio entry uses
+  `render_adopted_child_bio`, and a `CHILD_ADOPTED` notification reaches the bell and toast. Adoption never
+  claims a biological birth.
+
+The pass is skipped entirely when there are no eligible orphans or no eligible couples.
+
 ## Vault difficulty: Survival Mode
 
 `vault.vault_mode` is `standard` (default) or `survival`. It is chosen once at vault creation and is

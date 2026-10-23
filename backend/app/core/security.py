@@ -2,13 +2,16 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any
 
-from jose import JWTError, jwt
+import jwt
 from passlib.context import CryptContext
 from redis.asyncio import Redis
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+JWTError = jwt.InvalidTokenError
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

@@ -5,7 +5,8 @@ from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError as JWTError
 from pydantic import UUID4, ValidationError
 from redis.asyncio import Redis
 from sqlmodel.ext.asyncio.session import AsyncSession

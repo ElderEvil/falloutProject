@@ -78,9 +78,9 @@ pnpm install
 pnpm run dev
 ```
 
-The infrastructure worker bind-mounts `backend/app` and automatically reloads both Dramatiq and
-Periodiq when application code or catalog data changes. Generated files under `app/static` and test
-files are ignored. The image's Python environment stays separate from the source mount.
+The infrastructure worker bind-mounts `backend/app`, but does not hot-reload. Reload timeouts
+can leave orphan worker children holding PostgreSQL connections. After changing worker code,
+restart it with `podman restart dramatiq_worker_infra` (or the equivalent Docker command).
 
 After dependency or Dockerfile changes, rebuild the worker:
 `podman compose -f docker-compose.infra.yml up -d --build --force-recreate --no-deps dramatiq_worker`

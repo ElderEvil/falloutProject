@@ -52,7 +52,8 @@ services:
     # Development source mount preserves the image's /app/.venv dependencies.
     volumes:
       - ./backend/app:/app/app:z
-    # watchfiles is locked via fastapi[standard] -> uvicorn[standard]; keep that extra installed.
+    # Restart this container after worker-code changes. Killing a reload supervisor
+    # can orphan its worker children and exhaust PostgreSQL connections.
     command:
       - sh
       - -c
@@ -60,8 +61,8 @@ services:
         PERIODIQ_PID=; DRAMATIQ_PID=;
         shutdown() { exit_code=$${1:-0}; trap - TERM INT; for pid in "$$PERIODIQ_PID" "$$DRAMATIQ_PID"; do [ -n "$$pid" ] && kill "$$pid" 2>/dev/null; done; elapsed=0; while [ "$$elapsed" -lt 30 ]; do alive=0; for pid in "$$PERIODIQ_PID" "$$DRAMATIQ_PID"; do if [ -n "$$pid" ] && kill -0 "$$pid" 2>/dev/null; then alive=1; fi; done; [ "$$alive" -eq 0 ] && break; sleep 1; elapsed=$$((elapsed + 1)); done; for pid in "$$PERIODIQ_PID" "$$DRAMATIQ_PID"; do [ -n "$$pid" ] && kill -KILL "$$pid" 2>/dev/null; done; wait; exit "$$exit_code"; };
         trap 'shutdown 0' TERM INT;
-        uv run watchfiles --ignore-paths /app/app/static,/app/app/tests --sigint-timeout 20 'periodiq app.core.dramatiq app.api.tasks' /app/app & PERIODIQ_PID=$$!;
-        uv run watchfiles --ignore-paths /app/app/static,/app/app/tests --sigint-timeout 20 'dramatiq --processes 1 --worker-shutdown-timeout 15000 app.api.tasks' /app/app & DRAMATIQ_PID=$$!;
+        uv run periodiq app.core.dramatiq app.api.tasks & PERIODIQ_PID=$$!;
+        uv run dramatiq --processes 1 --worker-shutdown-timeout 15000 app.api.tasks & DRAMATIQ_PID=$$!;
         while [ -n "$$PERIODIQ_PID" ] && kill -0 "$$PERIODIQ_PID" 2>/dev/null && [ -n "$$DRAMATIQ_PID" ] && kill -0 "$$DRAMATIQ_PID" 2>/dev/null; do sleep 1; done;
         shutdown 1
 

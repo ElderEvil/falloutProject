@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.256.0 (2026-10-23)
+
+### Features
+
+* **objectives:** gate achievement stages on reward claims ([#1158](https://github.com/ElderEvil/falloutProject/issues/1158)) 41f48c9
+
 ## 2.255.0 (2026-10-23)
 
 ### Features

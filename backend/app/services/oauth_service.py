@@ -216,9 +216,7 @@ class OAuthService:
             return settings.GOOGLE_CLIENT_SECRET or ""
         return settings.GITHUB_CLIENT_SECRET or ""
 
-    async def _exchange_code(
-        self, provider: OAuthProviderEnum, code: str, verifier: str, redirect_uri: str
-    ) -> dict:
+    async def _exchange_code(self, provider: OAuthProviderEnum, code: str, verifier: str, redirect_uri: str) -> dict:
         payload = {
             "client_id": self._client_id(provider),
             "client_secret": self._client_secret(provider),
@@ -255,9 +253,7 @@ class OAuthService:
 
     async def _google_profile(self, client: httpx.AsyncClient, access_token: str) -> dict:
         try:
-            response = await client.get(
-                _GOOGLE_USERINFO_URL, headers={"Authorization": f"Bearer {access_token}"}
-            )
+            response = await client.get(_GOOGLE_USERINFO_URL, headers={"Authorization": f"Bearer {access_token}"})
         except httpx.HTTPError as exc:
             logger.exception("Google userinfo failed")
             raise OAuthFlowError("provider_error") from exc

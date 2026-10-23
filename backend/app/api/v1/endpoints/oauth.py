@@ -45,16 +45,12 @@ async def list_oauth_providers(response: Response) -> OAuthProvidersResponse:
 
 
 @router.get("/{provider}/authorize")
-async def authorize_provider(
-    provider: str, request: Request, redis_client: RedisClient
-) -> RedirectResponse:
+async def authorize_provider(provider: str, request: Request, redis_client: RedisClient) -> RedirectResponse:
     """Start the provider consent redirect and bind the flow to this browser."""
     authorize_url, browser_token = await oauth_service.start(
         provider, request.cookies.get(OAUTH_BROWSER_COOKIE_NAME), redis_client
     )
-    response = RedirectResponse(
-        authorize_url, status_code=302, headers={"Cache-Control": "no-store"}
-    )
+    response = RedirectResponse(authorize_url, status_code=302, headers={"Cache-Control": "no-store"})
     response.set_cookie(
         OAUTH_BROWSER_COOKIE_NAME,
         browser_token,
@@ -90,9 +86,7 @@ async def oauth_callback(
     if not browser_token:
         return _frontend_redirect(error="state_invalid")
     try:
-        user = await oauth_service.complete(
-            provider, code or "", state or "", browser_token, db_session, redis_client
-        )
+        user = await oauth_service.complete(provider, code or "", state or "", browser_token, db_session, redis_client)
         handoff_code = await oauth_service.create_handoff(user.id, browser_token, redis_client)
     except OAuthFlowError as exc:
         return _frontend_redirect(error=exc.code)

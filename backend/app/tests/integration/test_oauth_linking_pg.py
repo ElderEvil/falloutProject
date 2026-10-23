@@ -78,9 +78,7 @@ async def _overlapping_same_identity() -> None:
                 service._link_existing(second, OAuthProviderEnum.GITHUB, profile, user),
             )
             assert all(result is not None and result.id == user.id for result in results)
-            links = (
-                await first.execute(select(OAuthAccount).where(OAuthAccount.user_id == user.id))
-            ).scalars().all()
+            links = (await first.execute(select(OAuthAccount).where(OAuthAccount.user_id == user.id))).scalars().all()
             assert len(links) == 1
         finally:
             await second.rollback()
@@ -97,15 +95,11 @@ async def _email_change_race() -> None:
                 locked = await crud.user.get_for_update(first, user.id)
                 assert locked is not None
                 locked.email = f"changed{uuid4().hex[:8]}@example.com"
-                pending = asyncio.create_task(
-                    service._link_existing(second, OAuthProviderEnum.GITHUB, profile, user)
-                )
+                pending = asyncio.create_task(service._link_existing(second, OAuthProviderEnum.GITHUB, profile, user))
                 await asyncio.sleep(0.3)
 
             assert await pending is None
-            links = (
-                await first.execute(select(OAuthAccount).where(OAuthAccount.user_id == user.id))
-            ).scalars().all()
+            links = (await first.execute(select(OAuthAccount).where(OAuthAccount.user_id == user.id))).scalars().all()
             assert links == []
         finally:
             await second.rollback()
@@ -171,10 +165,10 @@ async def _creation_conflict_rolls_back() -> None:
             await second.rollback()
             leftover = (await first.execute(select(User).where(User.email == second_email))).scalars().all()
             links = (
-                await first.execute(
-                    select(OAuthAccount).where(OAuthAccount.provider_user_id == "duplicate-subject")
-                )
-            ).scalars().all()
+                (await first.execute(select(OAuthAccount).where(OAuthAccount.provider_user_id == "duplicate-subject")))
+                .scalars()
+                .all()
+            )
             assert leftover == []
             assert len(links) == 1
         finally:

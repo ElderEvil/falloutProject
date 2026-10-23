@@ -669,3 +669,33 @@ migrations or contact infrastructure.
 ---
 
 **Last Updated:** 2026-08-24
+
+## Social sign-in (Google / GitHub)
+
+Each provider is enabled only when its client ID **and** secret are present; a
+missing pair disables that provider without blocking startup.
+
+1. Register the clients:
+   - Google: Google Auth Platform → Clients → Web application, redirect
+     `https://fallout-api.evillab.tech/api/v1/auth/oauth/google/callback`.
+   - GitHub: OAuth App, callback
+     `https://fallout-api.evillab.tech/api/v1/auth/oauth/github/callback`.
+2. Add repository secrets: `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GOOGLE_CLIENT_SECRET`,
+   `OAUTH_GITHUB_CLIENT_ID`, `OAUTH_GITHUB_CLIENT_SECRET`, and optionally
+   `OAUTH_REDIRECT_BASE` (GitHub Actions forbids the `GITHUB_` prefix). (defaults to `https://fallout-api.evillab.tech`).
+3. The deploy workflow writes them into the `backend-env` Secret alongside the
+   existing settings; `kubectl -n fallout set env` picks them up. To patch
+   manually:
+
+   ```bash
+   kubectl -n fallout create secret generic backend-env \
+     --from-literal=GOOGLE_CLIENT_ID=... \
+     --from-literal=GOOGLE_CLIENT_SECRET=... \
+     --from-literal=GITHUB_CLIENT_ID=... \
+     --from-literal=GITHUB_CLIENT_SECRET=... \
+     --from-literal=OAUTH_REDIRECT_BASE=https://fallout-api.evillab.tech \
+     --dry-run=client -o yaml | kubectl apply -f -
+   kubectl -n fallout rollout restart deployment/backend deployment/dramatiq-worker
+   ```
+
+4. `GET /api/v1/auth/oauth/providers` reports which pairs are live.

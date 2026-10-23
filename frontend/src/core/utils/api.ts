@@ -20,6 +20,7 @@ export interface ApiRequestOptions {
   signal?: AbortSignal
   headers?: Record<string, string>
   skipErrorNotification?: boolean
+  withCredentials?: boolean
 }
 
 export interface ApiErrorInit {
@@ -122,6 +123,7 @@ export async function apiRequest<T = unknown>(
   if (options.signal) config.signal = options.signal
   if (options.headers) config.headers = options.headers
   if (options.skipErrorNotification) config._skipErrorNotification = true
+  if (options.withCredentials) config.withCredentials = true
   const hasConfig = Object.keys(config).length > 0
 
   try {

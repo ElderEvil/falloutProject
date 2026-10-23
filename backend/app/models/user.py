@@ -20,7 +20,7 @@ class UserBase(SQLModel):
 
 
 class User(BaseUUIDModel, UserBase, TimeStampMixin, SoftDeleteMixin, table=True):
-    hashed_password: str = Field(nullable=False)
+    hashed_password: str | None = Field(default=None, nullable=True)
     monthly_token_limit: int | None = Field(default=500000, nullable=True)
     email_verified: bool = Field(default=False)
     email_verification_token: str | None = Field(default=None, index=True)
@@ -34,6 +34,11 @@ class User(BaseUUIDModel, UserBase, TimeStampMixin, SoftDeleteMixin, table=True)
     )
     llm_interactions: list["LLMInteraction"] = Relationship(back_populates="user")
     vaults: list["Vault"] = Relationship(back_populates="user", cascade_delete=True)
+
+    @property
+    def has_password(self) -> bool:
+        """Whether a local password is set; never exposes the hash."""
+        return self.hashed_password is not None
 
     def __str__(self):
         return self.username

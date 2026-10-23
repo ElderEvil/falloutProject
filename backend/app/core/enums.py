@@ -350,3 +350,10 @@ class DamageChannel(StrEnum):
 
 
 STATE_OF_BEING_TYPE = GhoulFeralnessEnum | SuperMutantMutationEnum | SynthTypeEnum
+
+
+class OAuthProviderEnum(StrEnum):
+    """External identity providers supported by the sign-in flow."""
+
+    GOOGLE = "google"
+    GITHUB = "github"

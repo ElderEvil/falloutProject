@@ -188,6 +188,13 @@ class Settings(BaseSettings):
     EMAIL_FROM_NAME: str = "Fallout Shelter"
     FRONTEND_URL: str = "http://localhost:5173"  # For email links
 
+    # OAuth providers. Each is enabled iff its client id + secret pair is set.
+    GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_SECRET: str | None = None
+    GITHUB_CLIENT_ID: str | None = None
+    GITHUB_CLIENT_SECRET: str | None = None
+    OAUTH_REDIRECT_BASE: str = "http://localhost:8000"
+
     # Logging Configuration
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     LOG_JSON_FORMAT: bool = False  # True for production (JSON), False for development (human-readable)

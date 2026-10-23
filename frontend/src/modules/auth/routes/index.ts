@@ -5,6 +5,7 @@ const RegisterPage = () => import('../components/RegisterForm.vue')
 const ForgotPasswordView = () => import('../views/ForgotPasswordView.vue')
 const ResetPasswordView = () => import('../views/ResetPasswordView.vue')
 const VerifyEmailView = () => import('../views/VerifyEmailView.vue')
+const OAuthCallbackView = () => import('../views/OAuthCallbackView.vue')
 
 export const authRoutes: RouteRecordRaw[] = [
   {
@@ -29,6 +30,12 @@ export const authRoutes: RouteRecordRaw[] = [
     path: '/reset-password',
     name: 'reset-password',
     component: ResetPasswordView,
+    meta: { hideFromNav: true },
+  },
+  {
+    path: '/auth/callback',
+    name: 'oauth-callback',
+    component: OAuthCallbackView,
     meta: { hideFromNav: true },
   },
   {

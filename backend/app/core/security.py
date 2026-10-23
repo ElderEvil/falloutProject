@@ -1,4 +1,7 @@
+import base64
+import hashlib
 import logging
+import secrets
 from datetime import datetime, timedelta
 from typing import Any
 from uuid import uuid4
@@ -33,6 +36,19 @@ def create_access_token(
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
+
+
+def generate_pkce_pair() -> tuple[str, str]:
+    """Return a PKCE verifier and its unpadded S256 challenge."""
+    verifier = secrets.token_urlsafe(64)
+    digest = hashlib.sha256(verifier.encode()).digest()
+    challenge = base64.urlsafe_b64encode(digest).decode().rstrip("=")
+    return verifier, challenge
+
+
+def hash_browser_token(value: str) -> str:
+    """SHA-256 hex of a browser-binding cookie or handoff code."""
+    return hashlib.sha256(value.encode()).hexdigest()
 
 
 def get_password_hash(password: str) -> str:

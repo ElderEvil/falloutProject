@@ -1,7 +1,10 @@
 import pytest
 from httpx import AsyncClient
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
+from app.models.user import User
+from app.tests.factory.users import create_fake_user
 
 pytestmark = pytest.mark.asyncio(scope="module")
 
@@ -36,3 +39,18 @@ async def test_refresh_token(async_client: AsyncClient) -> None:
 
     assert new_access_token, "New access token is missing"
     assert new_token_type == "bearer", f"Unexpected new token type: {new_token_type}"
+
+
+@pytest.mark.asyncio
+async def test_passwordless_account_login_returns_400(async_client: AsyncClient, async_session: AsyncSession) -> None:
+    data = create_fake_user()
+    async_session.add(User(username=data["username"], email=data["email"], hashed_password=None))
+    await async_session.commit()
+
+    response = await async_client.post(
+        "/auth/login",
+        data={"username": data["email"], "password": data["password"]},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Incorrect email or password"

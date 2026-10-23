@@ -5,6 +5,7 @@ import { Button } from '@/core/components/ui/button'
 import { useAuthStore } from '../stores/auth'
 import { useEmailVerificationResend } from '../composables/useEmailVerificationResend'
 import AuthTerminalField from './AuthTerminalField.vue'
+import OAuthProviderButtons from './OAuthProviderButtons.vue'
 import AuthTerminalFrame from './AuthTerminalFrame.vue'
 
 const authStore = useAuthStore()
@@ -133,6 +134,8 @@ const handleSubmit = async () => {
         <span aria-hidden="true">◄</span>
       </Button>
     </form>
+
+    <OAuthProviderButtons v-if="!registrationSucceeded" label="OR REGISTER WITH" />
 
     <template #links>
       <p>

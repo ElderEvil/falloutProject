@@ -680,9 +680,9 @@ missing pair disables that provider without blocking startup.
      `https://fallout-api.evillab.tech/api/v1/auth/oauth/google/callback`.
    - GitHub: OAuth App, callback
      `https://fallout-api.evillab.tech/api/v1/auth/oauth/github/callback`.
-2. Add repository secrets: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
-   `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and optionally
-   `OAUTH_REDIRECT_BASE` (defaults to `https://fallout-api.evillab.tech`).
+2. Add repository secrets: `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GOOGLE_CLIENT_SECRET`,
+   `OAUTH_GITHUB_CLIENT_ID`, `OAUTH_GITHUB_CLIENT_SECRET`, and optionally
+   `OAUTH_REDIRECT_BASE` (GitHub Actions forbids the `GITHUB_` prefix). (defaults to `https://fallout-api.evillab.tech`).
 3. The deploy workflow writes them into the `backend-env` Secret alongside the
    existing settings; `kubectl -n fallout set env` picks them up. To patch
    manually:

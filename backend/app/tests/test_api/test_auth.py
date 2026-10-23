@@ -552,6 +552,7 @@ async def test_passwordless_account_can_recover_through_password_reset(
         after = await async_client.get("users/me", headers={"Authorization": f"Bearer {login.json()['access_token']}"})
         assert after.status_code == 200
         assert after.json()["has_password"] is True
+        assert after.json()["id"] == str(user.id)
         assert "hashed_password" not in after.json()
     finally:
         app.dependency_overrides.pop(get_redis_client, None)

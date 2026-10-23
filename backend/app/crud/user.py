@@ -26,7 +26,7 @@ def build_user_model(
     return User(
         username=username,
         email=email,
-        hashed_password=get_password_hash(password) if password else None,
+        hashed_password=get_password_hash(password) if password is not None else None,
         is_superuser=is_superuser,
     )
 

@@ -117,6 +117,26 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function loginWithTokens(tokens: {
+    access_token: string
+    refresh_token: string
+  }): Promise<boolean> {
+    clearSession()
+    user.value = null
+    token.value = tokens.access_token
+    refreshToken.value = tokens.refresh_token
+
+    if (!token.value || !refreshToken.value) return false
+
+    await fetchUser()
+    if (!user.value) {
+      token.value = null
+      refreshToken.value = null
+      return false
+    }
+    return true
+  }
+
   async function fetchUser(): Promise<void> {
     if (!token.value) return
 
@@ -225,6 +245,7 @@ export const useAuthStore = defineStore('auth', () => {
     // Actions
     login,
     register,
+    loginWithTokens,
     fetchUser,
     refreshAccessToken,
     updateAccount,

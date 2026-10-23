@@ -42,9 +42,28 @@ _SCOPES = {
     OAuthProviderEnum.GOOGLE: "openid email profile",
     OAuthProviderEnum.GITHUB: "read:user user:email",
 }
+_ALLOWED_PROVIDER_ERRORS = {
+    "invalid_grant",
+    "invalid_client",
+    "invalid_request",
+    "redirect_uri_mismatch",
+    "unsupported_grant_type",
+    "access_denied",
+    "invalid_scope",
+    "server_error",
+    "temporarily_unavailable",
+}
 _GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 _GITHUB_USER_URL = "https://api.github.com/user"
 _GITHUB_EMAILS_URL = "https://api.github.com/user/emails"
+
+
+def _provider_error_code(response: httpx.Response) -> str:
+    try:
+        code = response.json().get("error")
+    except ValueError:
+        return "unknown"
+    return code if isinstance(code, str) and code in _ALLOWED_PROVIDER_ERRORS else "unknown"
 
 
 def _state_key(state: str) -> str:
@@ -68,8 +87,10 @@ def _username_base(profile: dict) -> str:
     return slug or "user"
 
 
-def _username_candidates(base: str, limit: int = 5) -> list[str]:
-    return [base, *(f"{base}{index}" for index in range(2, limit + 1))]
+def _username_candidates(base: str) -> list[str]:
+    candidates = [base, *(f"{base}{index}" for index in range(2, 100))]
+    candidates.extend(f"{base}_{secrets.token_hex(2)}" for _ in range(10))
+    return candidates
 
 
 class OAuthService:
@@ -215,6 +236,12 @@ class OAuthService:
                 logger.exception("OAuth token exchange failed")
                 raise OAuthFlowError("provider_error") from exc
             if response.status_code != 200:
+                logger.warning(
+                    "OAuth token exchange rejected: provider=%s status=%s error=%s",
+                    provider.value,
+                    response.status_code,
+                    _provider_error_code(response),
+                )
                 raise OAuthFlowError("provider_error")
             try:
                 token = response.json().get("access_token")
@@ -235,6 +262,11 @@ class OAuthService:
             logger.exception("Google userinfo failed")
             raise OAuthFlowError("provider_error") from exc
         if response.status_code != 200:
+            logger.warning(
+                "Google userinfo rejected: status=%s error=%s",
+                response.status_code,
+                _provider_error_code(response),
+            )
             raise OAuthFlowError("provider_error")
         data = response.json()
         if not data.get("sub"):

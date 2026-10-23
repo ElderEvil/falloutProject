@@ -321,6 +321,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/oauth/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Oauth Providers
+         * @description Report which providers have a complete credential pair configured.
+         */
+        get: operations["list_oauth_providers_api_v1_auth_oauth_providers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oauth/{provider}/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Authorize Provider
+         * @description Start the provider consent redirect and bind the flow to this browser.
+         */
+        get: operations["authorize_provider_api_v1_auth_oauth__provider__authorize_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oauth/{provider}/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Oauth Callback
+         * @description Exchange the provider code, then hand off to the SPA without tokens in the URL.
+         */
+        get: operations["oauth_callback_api_v1_auth_oauth__provider__callback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oauth/handoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redeem Handoff
+         * @description Redeem a single-use handoff code for the token pair, bound to this browser.
+         */
+        post: operations["redeem_handoff_api_v1_auth_oauth_handoff_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai-settings/": {
         parameters: {
             query?: never;
@@ -9002,6 +9082,18 @@ export interface components {
          * @enum {string}
          */
         NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "storage_item_degraded" | "storage_item_upgraded" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "objective_completed" | "objectives_refreshed" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
+        /** OAuthHandoffRequest */
+        OAuthHandoffRequest: {
+            /** Code */
+            code: string;
+        };
+        /** OAuthProvidersResponse */
+        OAuthProvidersResponse: {
+            /** Google */
+            google: boolean;
+            /** Github */
+            github: boolean;
+        };
         /** Objective */
         Objective: {
             /** Challenge */
@@ -12231,6 +12323,124 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    list_oauth_providers_api_v1_auth_oauth_providers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthProvidersResponse"];
+                };
+            };
+        };
+    };
+    authorize_provider_api_v1_auth_oauth__provider__authorize_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    oauth_callback_api_v1_auth_oauth__provider__callback_get: {
+        parameters: {
+            query?: {
+                code?: string | null;
+                state?: string | null;
+            };
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    redeem_handoff_api_v1_auth_oauth_handoff_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthHandoffRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Token"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

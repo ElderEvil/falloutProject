@@ -22,7 +22,7 @@ from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.schemas.user import UserCreate
 from app.services.oauth_service import OAuthService
-from app.utils.exceptions import OAuthFlowError
+from app.utils.exceptions import OAuthFlowError, ResourceConflictException
 
 pytestmark = pytest.mark.integration
 
@@ -146,3 +146,41 @@ def test_email_change_during_link_writes_nothing():
 
 def test_different_identity_is_rejected():
     asyncio.run(_different_identity_rejected())
+
+
+async def _creation_conflict_rolls_back() -> None:
+    async with _sessions() as (first, second):
+        email = f"rollback{uuid4().hex[:8]}@example.com"
+        user, _ = await crud.user.create_with_oauth_account(
+            first,
+            provider="github",
+            provider_user_id="duplicate-subject",
+            username=f"rollback{uuid4().hex[:8]}",
+            email=email,
+        )
+        second_email = f"other{uuid4().hex[:8]}@example.com"
+        try:
+            with pytest.raises(ResourceConflictException):
+                await crud.user.create_with_oauth_account(
+                    second,
+                    provider="github",
+                    provider_user_id="duplicate-subject",
+                    username=f"other{uuid4().hex[:8]}",
+                    email=second_email,
+                )
+            await second.rollback()
+            leftover = (await first.execute(select(User).where(User.email == second_email))).scalars().all()
+            links = (
+                await first.execute(
+                    select(OAuthAccount).where(OAuthAccount.provider_user_id == "duplicate-subject")
+                )
+            ).scalars().all()
+            assert leftover == []
+            assert len(links) == 1
+        finally:
+            await second.rollback()
+            await _cleanup(first, user.id)
+
+
+def test_creation_conflict_rolls_back():
+    asyncio.run(_creation_conflict_rolls_back())

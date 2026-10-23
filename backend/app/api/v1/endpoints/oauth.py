@@ -99,7 +99,7 @@ async def oauth_callback(
     except Exception:
         logger.exception("OAuth callback failed")
         return _frontend_redirect(error="oauth_failed")
-    return _frontend_redirect(code=handoff_code)
+    return _frontend_redirect(code=handoff_code, provider=provider)
 
 
 @router.post("/handoff", response_model=Token)

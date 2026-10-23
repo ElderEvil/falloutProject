@@ -153,3 +153,81 @@ async def test_handoff_is_single_use_and_browser_bound(redis_client, async_sessi
     assert token.access_token
     with pytest.raises(OAuthFlowError):
         await service.redeem_handoff(code, "browser-a", async_session, redis_client)
+
+
+async def test_unverified_local_account_is_not_linked(redis_client, async_session: AsyncSession):
+    local = await crud.user.create(
+        async_session,
+        obj_in=UserCreate(username="unverified", password="Secret123!", email="ada@gmail.com"),
+    )
+    service = OAuthService(transport=_google_transport("ada@gmail.com"))
+    url, browser_token = await service.start("google", None, redis_client)
+
+    with pytest.raises(OAuthFlowError) as exc:
+        await service.complete("google", "code", _state(url), browser_token, async_session, redis_client)
+
+    assert exc.value.code == "local_account_unverified"
+    assert await crud.oauth_account.get_for_user(async_session, local.id, "google") is None
+
+
+async def test_registration_closed_rejects_new_identity(redis_client, async_session: AsyncSession, monkeypatch):
+    monkeypatch.setattr(settings, "USERS_OPEN_REGISTRATION", False)
+    service = OAuthService(transport=_google_transport("new@gmail.com"))
+    url, browser_token = await service.start("google", None, redis_client)
+
+    with pytest.raises(OAuthFlowError) as exc:
+        await service.complete("google", "code", _state(url), browser_token, async_session, redis_client)
+
+    assert exc.value.code == "registration_closed"
+    assert await crud.user.get_by_email(async_session, email="new@gmail.com") is None
+
+
+async def test_expired_and_wrong_provider_state_are_rejected(redis_client):
+    service = OAuthService(transport=_google_transport())
+    url, browser_token = await service.start("google", None, redis_client)
+    state = _state(url)
+    await redis_client.delete(f"oauth_state:{state}")
+
+    with pytest.raises(OAuthFlowError) as exc:
+        await service.complete("google", "code", state, browser_token, None, redis_client)
+    assert exc.value.code == "state_invalid"
+
+    url, browser_token = await service.start("google", None, redis_client)
+    with pytest.raises(OAuthFlowError) as exc:
+        await service.complete("github", "code", _state(url), browser_token, None, redis_client)
+    assert exc.value.code == "state_invalid"
+
+
+async def test_inactive_and_deleted_linked_users_are_rejected(redis_client, async_session: AsyncSession):
+    service = OAuthService(transport=_google_transport("ada@gmail.com"))
+    user = await crud.user.create(
+        async_session,
+        obj_in=UserCreate(username="inactive", password="Secret123!", email="ada@gmail.com"),
+    )
+    user.email_verified = True
+    user.is_active = False
+    await async_session.commit()
+    await crud.oauth_account.link_to_user(
+        async_session, user_id=user.id, provider="google", provider_user_id="google-1"
+    )
+    url, browser_token = await service.start("google", None, redis_client)
+    with pytest.raises(OAuthFlowError) as exc:
+        await service.complete("google", "code", _state(url), browser_token, async_session, redis_client)
+    assert exc.value.code == "account_inactive"
+
+    user.is_active = True
+    user.is_deleted = True
+    await async_session.commit()
+    url, browser_token = await service.start("google", None, redis_client)
+    with pytest.raises(OAuthFlowError) as exc:
+        await service.complete("google", "code", _state(url), browser_token, async_session, redis_client)
+    assert exc.value.code == "account_deleted"
+
+
+def test_username_candidates_include_planned_fallback():
+    from app.services.oauth_service import _username_candidates
+
+    candidates = _username_candidates("overseer")
+    assert "overseer6" in candidates
+    assert "overseer99" in candidates
+    assert any(candidate.startswith("overseer_") and len(candidate) == len("overseer_") + 4 for candidate in candidates)

@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router'
 import { Button } from '@/core/components/ui/button'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useAuthStore } from '../stores/auth'
+import { getLastAuthMethod, setLastAuthMethod } from '../utils/lastAuthMethod'
+import OAuthProviderButtons from './OAuthProviderButtons.vue'
 import AuthTerminalField from './AuthTerminalField.vue'
 import AuthTerminalFrame from './AuthTerminalFrame.vue'
 
@@ -12,6 +14,8 @@ const router = useRouter()
 const email = ref('')
 const password = ref('')
 const error = ref('')
+const lastMethod = ref(getLastAuthMethod())
+
 const { run: runLogin, isLoading } = useAsyncAction(
   (currentEmail: string, currentPassword: string) => authStore.login(currentEmail, currentPassword),
   { context: 'Unable to authenticate', showToast: false }
@@ -22,6 +26,7 @@ const handleSubmit = async () => {
   error.value = ''
   const success = await runLogin(email.value, password.value)
   if (success) {
+    setLastAuthMethod('password')
     await router.push('/')
   } else {
     error.value = 'Invalid username or password'
@@ -60,7 +65,15 @@ const handleSubmit = async () => {
         {{ isLoading ? 'AUTHENTICATING...' : 'AUTHENTICATE' }}
         <span v-if="!isLoading" aria-hidden="true">◄</span>
       </Button>
+      <p
+        v-if="lastMethod === 'password'"
+        class="text-right font-mono text-[10px] tracking-widest text-theme-primary/60"
+      >
+        LAST USED
+      </p>
     </form>
+
+    <OAuthProviderButtons label="OR AUTHENTICATE WITH" />
 
     <template #links>
       <p>

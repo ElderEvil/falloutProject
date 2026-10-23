@@ -164,9 +164,7 @@ async def test_distinct_dwellers_get_a_fresh_counting_window(async_session, vaul
         await bus.emit(GameEvent.DWELLER_ASSIGNED_CORRECTLY, vault.id, {"dweller_id": dweller_id, "is_correct": True})
     await claim_objective_reward(async_session, stages[0].id, vault.id)
     next_dweller = str(uuid4())
-    await bus.emit(
-        GameEvent.DWELLER_ASSIGNED_CORRECTLY, vault.id, {"dweller_id": next_dweller, "is_correct": True}
-    )
+    await bus.emit(GameEvent.DWELLER_ASSIGNED_CORRECTLY, vault.id, {"dweller_id": next_dweller, "is_correct": True})
     second = await objective_crud.get_link_for_update(async_session, stages[1].id, vault.id)
     assert second.progress == 1
     assert second.credited_dweller_ids == [next_dweller]

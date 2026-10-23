@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vite-plus/test'
 import { createApiClientMock } from '../helpers/mocks'
+import rawAxios from 'axios'
 import { authService } from '@/modules/auth/services/authService'
 import { apiRequest } from '@/core/utils/api'
 import { AuthError } from '@/modules/auth/types/auth'
@@ -7,6 +8,7 @@ import { AuthError } from '@/modules/auth/types/auth'
 vi.mock('@/core/utils/api', () => createApiClientMock())
 
 describe('authService', () => {
+  afterEach(() => vi.restoreAllMocks())
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -141,31 +143,27 @@ describe('authService', () => {
   })
 
   describe('refreshToken', () => {
-    it('should successfully refresh token', async () => {
-      const mockResponse = {
-        data: {
-          access_token: 'new-access-token',
-          refresh_token: 'new-refresh-token',
-        },
+    it('refreshes through the shared session boundary', async () => {
+      localStorage.setItem('token', 'old-token')
+      localStorage.setItem('refreshToken', 'old-refresh-token')
+      const response = {
+        data: { access_token: 'new-access-token', refresh_token: 'new-refresh-token' },
       }
-
-      vi.mocked(apiRequest).mockResolvedValueOnce(mockResponse)
-
-      const result = await authService.refreshToken('old-refresh-token')
-
-      expect(result.data).toEqual(mockResponse.data)
-      expect(apiRequest).toHaveBeenCalledWith('post', '/api/v1/auth/refresh', {
+      const post = vi.spyOn(rawAxios, 'post').mockResolvedValueOnce(response)
+      const result = await authService.refreshToken()
+      expect(result).toBe(response)
+      expect(post).toHaveBeenCalledWith(expect.stringContaining('/api/v1/auth/refresh'), {
         refresh_token: 'old-refresh-token',
       })
     })
 
-    it('should throw AuthError on refresh failure', async () => {
-      vi.mocked(apiRequest).mockRejectedValue(new Error('Invalid token'))
-
-      await expect(authService.refreshToken('invalid-token')).rejects.toThrow(AuthError)
-      await expect(authService.refreshToken('invalid-token')).rejects.toThrow(
-        'Token refresh failed'
-      )
+    it('preserves refresh failure status so temporary failures remain recoverable', async () => {
+      localStorage.setItem('token', 'old-token')
+      localStorage.setItem('refreshToken', 'old-refresh-token')
+      const failure = Object.assign(new Error('Unavailable'), { response: { status: 503 } })
+      vi.spyOn(rawAxios, 'post').mockRejectedValueOnce(failure)
+      await expect(authService.refreshToken()).rejects.toBe(failure)
+      expect(localStorage.getItem('refreshToken')).toBe('old-refresh-token')
     })
   })
 
@@ -241,7 +239,6 @@ describe('authService', () => {
       const methods = [
         () => authService.login({ username: 'test', password: 'test' }),
         () => authService.register({ username: 'test', email: 'test', password: 'test' }),
-        () => authService.refreshToken('token'),
         () => authService.logout(),
         () => authService.getCurrentUser(),
       ]

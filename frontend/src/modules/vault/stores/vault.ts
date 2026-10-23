@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { useLocalStorage, useIntervalFn } from '@vueuse/core'
+import { useLocalStorage } from '@vueuse/core'
+import { usePolling } from '@/core/composables/usePolling'
 import { ref, computed, watch } from 'vue'
 import axios from '@/core/plugins/axios'
 import { handleStoreError } from '@/core/utils/errorHandler'
@@ -76,23 +77,20 @@ export const useVaultStore = defineStore('vault', () => {
     pause: pausePolling,
     resume: resumePolling,
     isActive: isPollingActive,
-  } = useIntervalFn(
+  } = usePolling(
     async () => {
       const vaultId = activeVaultId.value
       if (vaultId) {
-        try {
-          const response = await axios.get(`/api/v1/vaults/${vaultId}`)
-          if (activeVaultId.value === vaultId && loadedVaults.value[vaultId]) {
-            loadedVaults.value[vaultId] = response.data
-          }
-        } catch (error) {
-          handleStoreError(error, 'Failed to poll resources')
+        const response = await axios.get(`/api/v1/vaults/${vaultId}`)
+        if (activeVaultId.value === vaultId && loadedVaults.value[vaultId]) {
+          loadedVaults.value[vaultId] = response.data
         }
       }
     },
-    10000,
-    { immediate: false }
+    { interval: 10000, immediate: false }
   )
+
+  pausePolling()
 
   // Getters
   const selectedVault = computed(

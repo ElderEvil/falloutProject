@@ -45,6 +45,7 @@ vi.mock('@/core/audio/audioManager', () => ({
 
 describe('Incident Store', () => {
   beforeEach(() => {
+    localStorage.setItem('token', 'test-token')
     setActivePinia(createPinia())
     vi.clearAllMocks()
     vi.useFakeTimers()

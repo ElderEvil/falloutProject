@@ -120,7 +120,8 @@ afterEach(() => {
   const pinia = getActivePinia()
   if (pinia) disposePinia(pinia)
   for (const [type, listener] of vi.mocked(window.addEventListener).mock.calls) {
-    if (type === AUTH_TOKENS_REFRESHED_EVENT) window.removeEventListener(type, listener)
+    if (type === AUTH_TOKENS_REFRESHED_EVENT || type === 'auth-session-expired')
+      window.removeEventListener(type, listener)
   }
   vi.restoreAllMocks()
   if (originalLocationDescriptor) {
@@ -243,14 +244,15 @@ describe('axios response interceptor', () => {
     expect(mockToast.error).toHaveBeenCalledWith('Invalid Request: Bad payload')
   })
 
-  it('maps 401 to Unauthorized when the retried request fails again', async () => {
+  it('ends the session without toast spam when the retried request is still unauthorized', async () => {
     rejectWithError((config) => statusError(config, 401))
 
     await expect(apiClient.get('/api/v1/thing', { _retry: true })).rejects.toBeInstanceOf(
       AxiosError
     )
 
-    expect(mockToast.error).toHaveBeenCalledWith('Unauthorized: Please log in to continue')
+    expect(mockToast.error).not.toHaveBeenCalled()
+    expect(localStorage.getItem('token')).toBeNull()
   })
 
   it('maps 403 to Access Denied', async () => {
@@ -399,12 +401,86 @@ describe('axios response interceptor', () => {
     expect(seen[1]?.headers.Authorization).toBe('Bearer new-token')
   })
 
+  it('refreshes an expired token before sending the protected request', async () => {
+    const expiredToken = `header.${btoa(JSON.stringify({ exp: 1 }))}.signature`
+    localStorage.setItem('token', expiredToken)
+    localStorage.setItem('refreshToken', 'refresh-expired')
+    const seen = captureRequests()
+    const refresh = vi
+      .spyOn(axios, 'post')
+      .mockResolvedValue({ data: { access_token: 'fresh-token' } })
+    await apiClient.get('/protected')
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(seen).toHaveLength(1)
+    expect(seen[0].headers.Authorization).toBe('Bearer fresh-token')
+  })
+
+  it('does not restore credentials after logout while refresh is pending', async () => {
+    localStorage.setItem('token', 'old-token')
+    localStorage.setItem('refreshToken', 'refresh-logout-race')
+    rejectWithError((config) => statusError(config, 401))
+    let finishRefresh!: (value: unknown) => void
+    const post = vi.spyOn(axios, 'post').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishRefresh = resolve
+        })
+    )
+    const rejected = expect(apiClient.get('/protected')).rejects.toThrow('Session changed')
+    await vi.waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    localStorage.clear()
+    finishRefresh({ data: { access_token: 'late-token', refresh_token: 'late-refresh' } })
+    await rejected
+    expect(localStorage.getItem('token')).toBeNull()
+  })
+
+  it('shares one refresh between simultaneous unauthorized requests', async () => {
+    localStorage.setItem('token', 'old-token')
+    localStorage.setItem('refreshToken', 'refresh-concurrent')
+    const seen: string[] = []
+    apiClient.defaults.adapter = async (config) => {
+      seen.push(String(config.headers.Authorization))
+      if (!config._retry) throw statusError(config, 401)
+      return { data: {}, status: 200, statusText: 'OK', headers: {}, config }
+    }
+    let finishRefresh!: (value: unknown) => void
+    const post = vi.spyOn(axios, 'post').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishRefresh = resolve
+        })
+    )
+    const requests = Promise.all([apiClient.get('/first'), apiClient.get('/second')])
+    await vi.waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    finishRefresh({ data: { access_token: 'fresh-token', refresh_token: 'refresh-next' } })
+    await requests
+    expect(post).toHaveBeenCalledTimes(1)
+    expect(seen).toEqual([
+      'Bearer old-token',
+      'Bearer old-token',
+      'Bearer fresh-token',
+      'Bearer fresh-token',
+    ])
+  })
+
+  it('keeps the session after a temporary refresh failure', async () => {
+    localStorage.setItem('token', 'old-token')
+    localStorage.setItem('refreshToken', 'refresh-temporary')
+    rejectWithError((config) => statusError(config, 401))
+    vi.spyOn(axios, 'post').mockRejectedValue(new Error('Network down'))
+    await expect(apiClient.get('/thing')).rejects.toThrow('Network down')
+    expect(localStorage.getItem('token')).toBe('old-token')
+    expect(locationStub.href).toBe('')
+  })
+
   it('clears auth data and redirects to /login when the refresh call fails', async () => {
     localStorage.setItem('token', JSON.stringify('old-token'))
     localStorage.setItem('refreshToken', JSON.stringify('refresh-1'))
     localStorage.setItem('user', JSON.stringify({ id: 'u1' }))
     rejectWithError((config) => statusError(config, 401))
-    vi.spyOn(axios, 'post').mockRejectedValue(new Error('refresh unavailable'))
+    vi.spyOn(axios, 'post').mockRejectedValue(
+      Object.assign(new Error('refresh unavailable'), { response: { status: 400 } })
+    )
 
     await expect(apiClient.get('/api/v1/thing')).rejects.toThrow('refresh unavailable')
 
@@ -420,7 +496,7 @@ describe('axios response interceptor', () => {
     localStorage.setItem('user', JSON.stringify({ id: 'u1' }))
     rejectWithError((config) => statusError(config, 401))
 
-    await expect(apiClient.get('/api/v1/thing')).rejects.toBeInstanceOf(AxiosError)
+    await expect(apiClient.get('/api/v1/thing')).rejects.toMatchObject({ status: 401 })
 
     expect(locationStub.href).toBe('/login')
     expect(localStorage.getItem('token')).toBeNull()

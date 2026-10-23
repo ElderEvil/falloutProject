@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+import { computed, onScopeDispose } from 'vue'
 import { useStorageStore } from '@/modules/storage/stores/storage'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
@@ -6,6 +6,7 @@ import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import {
   AUTH_TOKENS_REFRESHED_EVENT,
+  AUTH_SESSION_EXPIRED_EVENT,
   type RefreshedAuthTokens,
 } from '@/core/utils/authSessionEvents'
 import { authService } from '../services/authService'
@@ -17,8 +18,8 @@ export const useAuthStore = defineStore('auth', () => {
   const toast = useToast()
 
   // State (using VueUse for reactive localStorage)
-  const token = useLocalStorage<string | null>('token', null)
-  const refreshToken = useLocalStorage<string | null>('refreshToken', null)
+  const token = useLocalStorage<string | null>('token', null, { flush: 'sync' })
+  const refreshToken = useLocalStorage<string | null>('refreshToken', null, { flush: 'sync' })
   const user = useLocalStorage<User | null>('user', null, {
     serializer: {
       read: (v: string) => {
@@ -33,12 +34,24 @@ export const useAuthStore = defineStore('auth', () => {
   })
 
   if (typeof window !== 'undefined') {
-    window.addEventListener(AUTH_TOKENS_REFRESHED_EVENT, (event) => {
+    const onExpired = () => {
+      clearSession()
+      token.value = null
+      refreshToken.value = null
+      user.value = null
+    }
+    const onRefreshed = (event: Event) => {
       const { token: refreshedToken, refreshToken: refreshedRefreshToken } = (
         event as CustomEvent<RefreshedAuthTokens>
       ).detail
       token.value = refreshedToken
       if (refreshedRefreshToken) refreshToken.value = refreshedRefreshToken
+    }
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, onExpired)
+    window.addEventListener(AUTH_TOKENS_REFRESHED_EVENT, onRefreshed)
+    onScopeDispose(() => {
+      window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, onExpired)
+      window.removeEventListener(AUTH_TOKENS_REFRESHED_EVENT, onRefreshed)
     })
   }
 
@@ -121,18 +134,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function refreshAccessToken(): Promise<void> {
     if (!refreshToken.value) return
-
-    try {
-      const response = await authService.refreshToken(refreshToken.value)
-      token.value = response.data.access_token
-      // Backend rotates refresh tokens, so update it
-      if (response.data.refresh_token) {
-        refreshToken.value = response.data.refresh_token
-      }
-    } catch (error) {
-      handleStoreError(error, 'Failed to refresh token')
-      await logout()
-    }
+    await authService.refreshToken()
   }
 
   async function updateAccount(payload: {

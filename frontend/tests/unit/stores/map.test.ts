@@ -68,6 +68,7 @@ describe('Map Store', () => {
   }
 
   beforeEach(() => {
+    localStorage.setItem('token', 'test-token')
     setActivePinia(createPinia())
     localStorage.removeItem(VIEWED_LOCATIONS_STORAGE_KEY)
     vi.clearAllMocks()
@@ -439,6 +440,7 @@ describe('Map Store', () => {
 
 describe('Map Store unlock toasts', () => {
   beforeEach(() => {
+    localStorage.setItem('token', 'test-token')
     setActivePinia(createPinia())
     vi.clearAllMocks()
   })
@@ -500,7 +502,11 @@ describe('Map Store unlock toasts', () => {
     await load(store, 'vault-1', [loc('a', 'Alpha', true)])
     await load(store, 'vault-2', [loc('x', 'Xi', true), loc('y', 'Psi', true)])
     expect(mockToast.success).not.toHaveBeenCalled()
-    await refresh(store, 'vault-2', [loc('x', 'Xi', true), loc('y', 'Psi', true), loc('z', 'Zed', true)])
+    await refresh(store, 'vault-2', [
+      loc('x', 'Xi', true),
+      loc('y', 'Psi', true),
+      loc('z', 'Zed', true),
+    ])
     expect(mockToast.success).toHaveBeenCalledTimes(1)
     expect(mockToast.success).toHaveBeenCalledWith('New discovery: Zed')
     await refresh(store, 'vault-1', [loc('a', 'Alpha', true)])

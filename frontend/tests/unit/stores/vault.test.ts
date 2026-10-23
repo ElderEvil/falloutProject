@@ -492,6 +492,7 @@ describe('Vault Store', () => {
     it('does not write an old vault response into the newly selected vault', async () => {
       vi.useFakeTimers()
       try {
+        localStorage.setItem('token', 'test-token')
         const store = useVaultStore()
         const vaultB = { ...mockVault, id: 'vault-2', power: 70 }
         store.loadedVaults = { 'vault-1': mockVault, 'vault-2': vaultB }
@@ -505,7 +506,8 @@ describe('Vault Store', () => {
         )
 
         store.startResourcePolling()
-        vi.advanceTimersByTime(10000)
+        // Authentication is checked before entering each scheduled refresh.
+        await vi.advanceTimersByTimeAsync(10000)
         store.setActiveVault('vault-2')
         resolvePoll({ data: { ...mockVault, power: 10 } })
         await nextTick()

@@ -3,6 +3,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import axios from '@/core/plugins/axios'
+import rawAxios from 'axios'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useToast } from '@/core/composables/useToast'
 
@@ -24,6 +25,7 @@ describe('Auth Store', () => {
 
   afterEach(() => {
     localStorage.clear()
+    vi.restoreAllMocks()
   })
 
   describe('State Initialization', () => {
@@ -448,7 +450,7 @@ describe('Auth Store', () => {
         },
       }
 
-      vi.mocked(axios.post).mockResolvedValueOnce(mockResponse)
+      vi.spyOn(rawAxios, 'post').mockResolvedValueOnce(mockResponse)
 
       await store.refreshAccessToken()
 
@@ -463,17 +465,13 @@ describe('Auth Store', () => {
       expect(axios.post).not.toHaveBeenCalled()
     })
 
-    it('should logout on refresh failure', async () => {
+    it('clears the session when refresh credentials are rejected', async () => {
       const store = useAuthStore()
       store.refreshToken = 'old-refresh-token'
       store.token = 'old-token'
-      // First mock will be called by refreshAccessToken (refresh endpoint)
-      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Refresh failed'))
-      // Second mock will be called by logout (logout endpoint)
-      vi.mocked(axios.post).mockResolvedValueOnce({})
-
-      await store.refreshAccessToken()
-
+      const failure = Object.assign(new Error('Refresh rejected'), { response: { status: 400 } })
+      vi.spyOn(rawAxios, 'post').mockRejectedValueOnce(failure)
+      await expect(store.refreshAccessToken()).rejects.toBe(failure)
       expect(store.token).toBeNull()
       expect(store.refreshToken).toBeNull()
     })

@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
-import { createPinia, setActivePinia } from 'pinia'
-import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { createPinia, disposePinia, getActivePinia, setActivePinia } from 'pinia'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import VaultView from '@/modules/vault/views/VaultView.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -10,6 +10,12 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import BuildModeButton from '@/core/components/common/BuildModeButton.vue'
+
+enableAutoUnmount(afterEach)
+afterEach(() => {
+  const pinia = getActivePinia()
+  if (pinia) disposePinia(pinia)
+})
 
 const vaultFixture = {
   id: 'vault-1',

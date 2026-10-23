@@ -169,6 +169,13 @@ class DwellerNotFoundError(NotFoundException):
     """Raised when a dweller is not found."""
 
 
+class AccountChangeCooldownException(DomainError):
+    """Raised when an account field is changed again before its cooldown elapses."""
+
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    default_detail = "This change is temporarily unavailable. Please try again later."
+
+
 class QuotaExceededException(DomainError):
     """Raised when a user exceeds their monthly token quota."""
 

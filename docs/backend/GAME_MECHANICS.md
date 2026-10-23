@@ -136,9 +136,10 @@ become available without resetting an existing stage.
 ### Starter teaching rewards (wave 1)
 
 - Fresh standard vaults currently seed **9 residents**, including the family. The starter arc grants seven
-  more through housing, departure, equipment, production and expansion lessons. Without a seeded Radio Studio, two births reach the unchanged 18-resident Office requirement.
-  Pregnancy takes three real hours; the six-hour breeding cooldown makes pacing a required fresh-vault playtest.
-  The Office still costs 1,000 caps.
+  more through housing, departure, equipment, production and expansion lessons. Two births reach the
+  unchanged 18-resident Office requirement; children count. The guide explicitly teaches this family wait:
+  pregnancy takes three real hours after conception, and each mother has a six-hour post-birth cooldown.
+  Two eligible couples can progress in parallel. The Office still costs 1,000 caps.
 - The first three orientation keys remain staffing, housing and departure. Additional lessons use stable
   `starter:*` template keys; expanded spotlight teaching is wave 2 and must attach to these keys rather than
   introduce a second progression sequence. Dismissing guidance must not claim or skip an objective.
@@ -148,8 +149,9 @@ become available without resetting an existing stage.
   three workers. Population rewards require available housing, as with all other dweller rewards.
 - Pre-Office starter payouts total 1,100 caps, alongside seven dwellers, Wasteland gear and a Hunting rifle.
   The service test builds housing and a generator and reaches the Office with two births and at least
-  200 caps left, without exploration returns, random loot or daily rewards. It backdates pregnancy timers
-  to prove reachability; it does not validate real-time pacing.
+  200 caps left, without exploration returns, random loot or daily rewards. It uses distinct eligible
+  mothers and advances only the clock, asserting no births before the configured due time. This validates
+  timing and reachability, not whether the wait feels right in a playtest.
 - The Office grants a guaranteed rare Hardened shotgun before the rare-weapon scrap lesson. Equipment reward
   strings may specify rarity as `weapon:rare:Hardened shotgun`; omitted rarity remains common.
 - During balance development, the JSON starter catalog updates matching template definitions on startup.

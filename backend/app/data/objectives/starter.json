@@ -168,7 +168,7 @@
       "reach_type": "dweller_count"
     },
     "target_amount": 16,
-    "description": "Starter rewards supply most of your new residents. Build housing before claiming them, and let couples in Living Quarters grow the vault to 16.",
+    "description": "Claim all seven starter residents to reach 16 dwellers. Keep housing ahead of rewards, then pair adults in Living Quarters for the Office population goal.",
     "sequence": 13
   },
   {
@@ -181,7 +181,7 @@
     },
     "target_amount": 18,
     "sequence": 14,
-    "description": "The Office requires 18 living residents. Starter rewards bring the fresh vault to 16; two births in Living Quarters close the gap.",
+    "description": "The Office requires 18 living residents, including children. From 16, arrange two couples in Living Quarters and leave housing for two births. Pregnancy takes three real hours after conception; each mother has a six-hour cooldown after delivery. Keep exploring while families grow.",
     "template_key": "starter:reach 18 dwellers"
   },
   {

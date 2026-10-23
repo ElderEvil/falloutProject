@@ -2,16 +2,18 @@
 
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
+from importlib import import_module
+from unittest.mock import Mock
 
 import pytest
 
 from app import crud
-from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
+from app.core.enums import RarityEnum
+from app.core.game_config import game_config
 from app.models.objective import Objective
 from app.models.outfit import Outfit
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.weapon import Weapon
-from app.options.races import can_breed
 from app.schemas.room import RoomBuild
 from app.schemas.vault import VaultNumber
 from app.services import catalog_service as data_loader
@@ -51,7 +53,7 @@ def objective_events(async_session):
     current_session_maker.reset(token)
 
 
-async def test_fresh_starter_rewards_reach_office_without_loot(async_session, superuser, objective_events):
+async def test_fresh_starter_rewards_reach_office_without_loot(async_session, superuser, objective_events, monkeypatch):
     await seed_objectives_from_json(async_session)
     vault = await vault_service.initiate_vault(async_session, VaultNumber(number=random_vault_number()), superuser.id)
     initial_population = await crud.dweller.count_living_in_vault(async_session, vault.id)
@@ -116,26 +118,37 @@ async def test_fresh_starter_rewards_reach_office_without_loot(async_session, su
             await dweller_service.move_to_room(async_session, worker.id, room.id)
         elif step.objective_type == "reach":
             if target["reach_type"] == "dweller_count":
-                for _ in range(10):
-                    if await crud.dweller.count_living_in_vault(async_session, vault.id) >= step.total:
-                        break
-                    mother = next(
-                        d
-                        for d in dwellers
-                        if d.age_group == AgeGroupEnum.ADULT and d.gender == GenderEnum.FEMALE and can_breed(d)
+                missing = step.total - await crud.dweller.count_living_in_vault(async_session, vault.id)
+                if missing > 0:
+                    residents = {f"{d.first_name} {d.last_name}": d for d in dwellers}
+                    couples = [
+                        (residents["Mara Voss"], residents["Elias Reed"]),
+                        (residents["Tessa Ward"], residents["Owen Hale"]),
+                    ]
+                    assert missing == len(couples)
+                    clock = Mock(wraps=datetime)
+                    clock.now.return_value = datetime.now(UTC)
+                    clock.utcnow.side_effect = lambda clock=clock: clock.now.return_value.replace(tzinfo=None)
+                    for module in (
+                        "app.services.family.breeding_service",
+                        "app.crud.pregnancy",
+                        "app.models.pregnancy",
+                    ):
+                        monkeypatch.setattr(import_module(module), "datetime", clock)
+                    pregnancies = [
+                        await breeding_service.create_pregnancy(async_session, mother.id, father.id)
+                        for mother, father in couples
+                    ]
+                    duration = timedelta(hours=game_config.breeding.pregnancy_duration_hours)
+                    assert all(p.due_at - p.conceived_at == duration for p in pregnancies)
+                    clock.now.return_value += duration - timedelta(seconds=1)
+                    assert (await process_pregnancies_and_births(async_session, vault.id))["births"] == 0
+                    clock.now.return_value += timedelta(seconds=1)
+                    assert (await process_pregnancies_and_births(async_session, vault.id))["births"] == missing
+                    unavailable = await crud.pregnancy.get_unavailable_mother_ids(
+                        async_session, vault.id, game_config.breeding.birth_cooldown_hours
                     )
-                    father = next(
-                        d
-                        for d in dwellers
-                        if d.age_group == AgeGroupEnum.ADULT and d.gender == GenderEnum.MALE and can_breed(d)
-                    )
-                    pregnancy = await breeding_service.create_pregnancy(async_session, mother.id, father.id)
-                    pregnancy.due_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=1)
-                    async_session.add(pregnancy)
-                    await async_session.commit()
-                    await process_pregnancies_and_births(async_session, vault.id)
-                else:
-                    pytest.fail(f"Breeding did not reach {step.challenge}")
+                    assert {mother.id for mother, _ in couples} <= unavailable
             elif step.progress < step.total:
                 worker = next(d for d in dwellers if d.is_mature and d.room_id is not None)
                 await dweller_service.add_experience(

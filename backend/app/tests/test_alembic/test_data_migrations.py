@@ -734,8 +734,8 @@ class TestDeadDwellerStateMigration:
         harness.downgrade(DEAD_DWELLER_STATE_PARENT)
 
 
-@pytest.mark.parametrize("parent", ["d9e2f4a6b801", "e4b8d2a6c1f9"])
-def test_radio_merge_upgrades_either_parent_without_changing_earned_progress(harness, parent):
+@pytest.mark.parametrize("parent", ["d9e2f4a6b801", "e4b8d2a6c1f9", "f7a1c3e5b902", "c4d9e2f7a1b3"])
+def test_radio_merge_upgrades_each_parent_without_changing_earned_progress(harness, parent):
     harness.upgrade("c8a4d6e2f901")
     vault_id = _seed_vault(harness, number=881)
     objective_id = str(uuid.uuid4())

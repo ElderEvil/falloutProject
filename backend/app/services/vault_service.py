@@ -40,11 +40,10 @@ class VaultService:
         - Vault door and elevators (infrastructure)
         - Production rooms (power generator, diner, water treatment) with assigned dwellers
         - Storage room and 1 living room
-        - No radio studio: recruitment is a build decision for the player
-        - Weight room (training room for testing leveling system)
-        - 6 dwellers with boosted SPECIAL stats assigned to production rooms
+        - 6 production workers, 2 living-quarter residents and their family child
 
         Boosted vault additionally includes:
+        - Radio Studio, Overseer's Office, Response Station and Arena
         - All 7 training rooms (one for each SPECIAL stat)
         - A merged living room plus the base room (capacity for more than 32 dwellers)
         - Both crafting workshops staffed with two dwellers each

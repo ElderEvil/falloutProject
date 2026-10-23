@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { useIntervalFn, useLocalStorage } from '@vueuse/core'
+import { useLocalStorage } from '@vueuse/core'
+import { usePolling } from '@/core/composables/usePolling'
 import type {
   DiscoveryRouteRead,
   ExpeditionSiteMarkerRead,
@@ -48,7 +49,7 @@ export const useMapStore = defineStore('map', () => {
     pause: pausePolling,
     resume: resumePolling,
     isActive: isPollingActive,
-  } = useIntervalFn(
+  } = usePolling(
     async () => {
       if (_pollVaultId.value && _pollToken.value) {
         const gen = _pollGeneration
@@ -61,13 +62,14 @@ export const useMapStore = defineStore('map', () => {
           notifyNewUnlocks(data, vaultId)
         } catch (err) {
           if (gen !== _pollGeneration || vaultId !== _pollVaultId.value) return
-          handleStoreError(err, 'Failed to poll map')
+          throw err
         }
       }
     },
-    30000,
-    { immediate: false }
+    { interval: 30000, immediate: false }
   )
+
+  pausePolling()
 
   // Internal refs for polling context
   const _pollVaultId = ref<string | null>(null)
@@ -163,9 +165,7 @@ export const useMapStore = defineStore('map', () => {
     _pollVaultId.value = null
     _pollToken.value = null
     _pollGeneration += 1
-    if (isPollingActive.value) {
-      pausePolling()
-    }
+    pausePolling()
   }
 
   async function fetchWorldSnapshot(token: string): Promise<void> {
@@ -185,7 +185,10 @@ export const useMapStore = defineStore('map', () => {
       worldSnapshot.value = snapshot
     } catch (err) {
       worldSnapshot.value = null
-      snapshotError.value = handleStoreError(err, 'World terrain unavailable — showing markers only')
+      snapshotError.value = handleStoreError(
+        err,
+        'World terrain unavailable — showing markers only'
+      )
       // Visible, non-blocking: markers/routes/fog still render over the empty
       // terrain rather than failing the whole map load.
     }

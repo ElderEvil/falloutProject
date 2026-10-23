@@ -170,14 +170,17 @@ export const useIncidentStore = defineStore('incident', () => {
   }
 
   // Actions
-  async function fetchIncidents(vaultId: string, token: string): Promise<void> {
+  async function fetchIncidents(
+    vaultId: string,
+    token: string,
+    propagateError = false
+  ): Promise<void> {
     try {
       const response: IncidentListResponse = await incidentApi.getActiveIncidents(vaultId, token)
 
       if (!response || !response.incidents || !Array.isArray(response.incidents)) {
         // An unconfirmed list is not a confirmed empty vault; fail closed.
-        handleStoreError(new Error('Malformed incident list response'), 'Failed to fetch incidents')
-        return
+        throw new Error('Malformed incident list response')
       }
 
       // Update active incidents list
@@ -241,6 +244,7 @@ export const useIncidentStore = defineStore('incident', () => {
       )
     } catch (error) {
       // Fail closed: a transient failure must not make a live incident vanish.
+      if (propagateError) throw error
       handleStoreError(error, 'Failed to fetch incidents')
     }
   }
@@ -301,13 +305,13 @@ export const useIncidentStore = defineStore('incident', () => {
   }
 
   function startIncidentPolling(vaultId: string, token: string, intervalMs: number): void {
-    incidentPolling?.pause()
+    incidentPolling?.stop()
     incidentPolling = usePolling(
       async () => {
         // The stream carries spawn, spread and resolution only — never a round — so
         // an active overlay still needs this refresh to advance its battle log.
         if (!sseConnected.value || activeIncidentIds.value.length > 0) {
-          await fetchIncidents(vaultId, token)
+          await fetchIncidents(vaultId, token, true)
         }
       },
       { interval: intervalMs, immediate: false }
@@ -443,7 +447,7 @@ export const useIncidentStore = defineStore('incident', () => {
 
   function stopPolling(): void {
     stopSseSubscription()
-    incidentPolling?.pause()
+    incidentPolling?.stop()
     incidentPolling = null
     isPolling.value = false
     // Clearing the active set unwinds the alarm and music through the watcher.

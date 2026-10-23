@@ -103,3 +103,12 @@ export function getErrorMessage(error: unknown, fallback = 'An unknown error occ
   }
   return fallback
 }
+
+/** HTTP status from either an Axios failure or the normalized API boundary. */
+export function getErrorStatus(error: unknown): number | undefined {
+  if (isAxiosError(error)) return error.response.status
+  if (typeof error === 'object' && error !== null && 'status' in error) {
+    return typeof error.status === 'number' ? error.status : undefined
+  }
+  return undefined
+}

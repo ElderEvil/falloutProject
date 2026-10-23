@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
@@ -15,7 +15,9 @@ import type { DeathStatistics } from '@/modules/profile/stores/profile'
 
 vi.mock('@/core/plugins/axios')
 
-const { usePollingMock } = vi.hoisted(() => ({ usePollingMock: vi.fn() }))
+const { usePollingMock } = vi.hoisted(() => ({
+  usePollingMock: vi.fn(() => ({ pause: vi.fn(), resume: vi.fn(), isActive: { value: false } })),
+}))
 
 vi.mock('@/core/composables/usePolling', () => ({
   usePolling: usePollingMock,
@@ -84,7 +86,7 @@ describe('ProfileView', () => {
     })
 
     vi.clearAllMocks()
-    usePollingMock.mockReturnValue({})
+    usePollingMock.mockReturnValue({ pause: vi.fn(), resume: vi.fn(), isActive: { value: false } })
   })
 
   // Helper to mock both API calls
@@ -801,9 +803,7 @@ describe('ProfileView', () => {
 
   describe('Email verification actions', () => {
     const findResendButton = (wrapper: { findAll: (selector: string) => any[] }) =>
-      wrapper
-        .findAll('button')
-        .find((button) => button.text().includes('RESEND EMAIL'))
+      wrapper.findAll('button').find((button) => button.text().includes('RESEND EMAIL'))
 
     it('shows a resend action for unverified accounts', async () => {
       mockBothApis()

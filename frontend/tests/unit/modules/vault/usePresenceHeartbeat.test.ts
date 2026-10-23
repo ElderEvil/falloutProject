@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vite-plus/test'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { defineComponent, h } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
@@ -25,6 +25,7 @@ const mountHeartbeat = (vaultId: string | null = 'vault-1', token: string | null
 describe('usePresenceHeartbeat', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    localStorage.setItem('token', 'token')
     setVisibility('visible')
     vi.useFakeTimers()
   })
@@ -53,9 +54,11 @@ describe('usePresenceHeartbeat', () => {
     expect(ping).toHaveBeenCalledTimes(1)
 
     setVisibility('hidden')
+    document.dispatchEvent(new Event('visibilitychange'))
     await vi.advanceTimersByTimeAsync(120_000)
     expect(ping).toHaveBeenCalledTimes(1)
 
+    localStorage.setItem('token', 'token')
     setVisibility('visible')
     document.dispatchEvent(new Event('visibilitychange'))
     await flushPromises()

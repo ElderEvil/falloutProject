@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createAxiosMock, createIconifyMock, createRouterMock } from '../../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
@@ -143,6 +143,39 @@ describe('NotificationBell SSE watcher null-safety', () => {
     vi.useRealTimers()
     vi.restoreAllMocks()
     errorSpy.mockRestore()
+  })
+
+  it('surfaces a training completion missed while the stream was paused', async () => {
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    useAuthStore().token = 'test-token'
+    fetchMock.mockImplementation(() => Promise.resolve(createMockResponse([], { hang: true })))
+    const wrapper = mount(NotificationBell)
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+    const { toasts } = useToast()
+    toasts.value = []
+    visibility.mockReturnValue('hidden')
+    document.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(0)
+    const completed = {
+      ...JSON.parse(notifData).notification,
+      notification_type: 'training_complete',
+      message: 'Training finished while away',
+      is_read: false,
+    }
+    vi.mocked(axios.get).mockImplementation(async (url) => ({
+      data: String(url).includes('unread-count') ? { count: 1 } : [completed],
+    }))
+    visibility.mockReturnValue('visible')
+    document.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+    const matching = toasts.value.filter(
+      (toast) => toast.message === 'Training finished while away'
+    )
+    expect(matching).toHaveLength(1)
+    expect(matching[0].count).toBe(1)
+    wrapper.unmount()
   })
 
   it.each([

@@ -1,4 +1,12 @@
-import { ref, type Ref } from 'vue'
+import { ref, watch, type Ref } from 'vue'
+import { getErrorStatus } from '@/core/types/utils'
+import {
+  ensureAccessToken,
+  expireSession,
+  getStoredToken,
+  refreshSession,
+} from '@/core/utils/authSession'
+import { useBackgroundActivity } from './useBackgroundActivity'
 
 function safeJsonParse(raw: string): unknown {
   try {
@@ -111,6 +119,12 @@ function useSseBase(
     headers?: Record<string, string> | (() => Record<string, string>)
   }
 ) {
+  const backgroundStream = options?.method !== 'POST'
+  let activity: ReturnType<typeof useBackgroundActivity> | null = null
+  const canRun = () => activity?.canRun.value ?? true
+  let requested = false
+  let blocked = false
+  let stopActivityWatch: (() => void) | null = null
   const event = ref<SseEvent | null>(null)
   const status = ref<'idle' | 'connecting' | 'open' | 'closed'>('idle')
   const error = ref<Error | null>(null)
@@ -130,7 +144,14 @@ function useSseBase(
   }
 
   const close = (isIntentional = true) => {
-    if (isIntentional) intentionalClose = true
+    if (isIntentional) {
+      intentionalClose = true
+      requested = false
+      stopActivityWatch?.()
+      stopActivityWatch = null
+      activity?.stop()
+      activity = null
+    }
     stopReconnect()
     if (abortController) {
       abortController.abort()
@@ -144,7 +165,8 @@ function useSseBase(
   }
 
   const scheduleReconnect = () => {
-    if (intentionalClose || reconnectTimer) return
+    // A submitted POST must never be replayed automatically.
+    if (!backgroundStream || intentionalClose || blocked || reconnectTimer || !canRun()) return
     const delay = Math.min(1000 * 2 ** attempt, 30000)
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null
@@ -153,9 +175,23 @@ function useSseBase(
     }, delay)
   }
 
-  const connect = async (body?: Record<string, unknown>, fromReconnect = false) => {
+  const connect = async (
+    body?: Record<string, unknown>,
+    fromReconnect = false,
+    authRetried = false
+  ): Promise<void> => {
     close(false)
+    requested = true
+    if (!fromReconnect && !authRetried) blocked = false
+    if (backgroundStream && !stopActivityWatch) {
+      activity = useBackgroundActivity(!!options?.headers)
+      stopActivityWatch = watch(activity.canRun, (active) => {
+        if (!active) close(false)
+        else if (requested && !blocked) void connect(undefined, true)
+      })
+    }
     intentionalClose = false
+    if (backgroundStream && !canRun()) return
     if (body !== undefined) lastBody = body
     if (fromReconnect) reconnected.value++
     status.value = 'connecting'
@@ -165,11 +201,15 @@ function useSseBase(
     abortController = controller
 
     try {
+      if (options?.headers) await ensureAccessToken()
+      if (abortController !== controller || controller.signal.aborted) return
       const isPost = (options?.method ?? 'GET') === 'POST'
       const rawHeaders = options?.headers
       const resolvedHeaders: Record<string, string> =
         typeof rawHeaders === 'function' ? rawHeaders() : (rawHeaders ?? {})
       const headers: Record<string, string> = { ...resolvedHeaders }
+      const token = getStoredToken()
+      if (headers.Authorization && token) headers.Authorization = `Bearer ${token}`
       if (isPost) headers['Content-Type'] = 'application/json'
       const response = await fetch(url, {
         method: options?.method ?? 'GET',
@@ -177,15 +217,29 @@ function useSseBase(
         body: isPost ? JSON.stringify(lastBody ?? {}) : undefined,
         signal: abortController.signal,
       })
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+      if (abortController !== controller || controller.signal.aborted) return
+      if (response.status === 401 && options?.headers && !authRetried) {
+        if (!getStoredToken() || getStoredToken() === token) await refreshSession()
+        if (abortController === controller && !controller.signal.aborted)
+          return connect(undefined, false, true)
+        return
+      }
+      if (!response.ok) {
+        if (response.status === 401 && options?.headers) expireSession()
+        throw Object.assign(new Error(`HTTP error! status: ${response.status}`), {
+          status: response.status,
+        })
+      }
       if (!response.body) throw new Error('Response body is null')
 
       status.value = 'open'
       attempt = 0
-      reader = response.body.getReader()
-      await readSseStream(reader, (evt) => {
-        event.value = evt
+      const activeReader = response.body.getReader()
+      reader = activeReader
+      await readSseStream(activeReader, (evt) => {
+        if (abortController === controller) event.value = evt
       })
+      if (abortController !== controller) return
       status.value = 'closed'
       scheduleReconnect()
     } catch (err) {
@@ -196,6 +250,8 @@ function useSseBase(
         error.value = err instanceof Error ? err : new Error(String(err))
         status.value = 'closed'
       }
+      const statusCode = getErrorStatus(err)
+      if (statusCode && [401, 403, 404].includes(statusCode)) blocked = true
       scheduleReconnect()
     } finally {
       if (abortController === controller && intentionalClose) {

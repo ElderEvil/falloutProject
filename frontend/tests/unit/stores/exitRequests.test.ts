@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAxiosMock, createIconifyMock, createToastMock } from '../helpers/mocks'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
@@ -14,7 +14,9 @@ vi.mock('@/core/composables/useToast', () => ({
   useToast: () => toastMock,
 }))
 
-vi.mock('@iconify/vue', () => createIconifyMock({ template: '<div class="mock-icon" :data-icon="icon"></div>' }))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<div class="mock-icon" :data-icon="icon"></div>' })
+)
 
 vi.mock('@/modules/vault/stores/vault', () => ({
   useVaultStore: () => ({ activeVaultId: 'vault-1' }),
@@ -154,6 +156,7 @@ describe('ExitRequestModal', () => {
   })
 
   it('re-checks for a raised ask on an interval', async () => {
+    localStorage.setItem('token', 'test-token')
     vi.useFakeTimers()
     try {
       vi.mocked(axios.get).mockResolvedValue({ data: [] })

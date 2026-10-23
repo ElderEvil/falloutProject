@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onScopeDispose, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, ref, watch } from 'vue'
 import { useConfirmDialog } from '@vueuse/core'
 import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.vue'
 import { Icon } from '@iconify/vue'
@@ -25,6 +25,7 @@ import {
 import { getItemIcon, getRarityTextClass } from '@/core/models/items'
 import { useToast } from '@/core/composables/useToast'
 import { useSound } from '@/core/composables/useSound'
+import { usePolling } from '@/core/composables/usePolling'
 import { useNow } from '@/core/composables/useNow'
 import { computeRemainingSeconds, formatDuration } from '@/core/utils/time'
 import { notifyErrorOnce, getErrorMessage } from '@/core/utils/errorHandler'
@@ -52,7 +53,6 @@ const isLoading = ref(false)
 const busyKey = ref<string | null>(null)
 const now = useNow(1000)
 let loadSequence = 0
-let recheckTimer: number | null = null
 let lastRecheck = 0
 const RECHECK_MS = 5000
 
@@ -244,24 +244,20 @@ async function handleCollect(order: CraftingOrder) {
   }
 }
 
-onMounted(() => {
-  loadAll()
-  // The game tick flips an order to completed server-side; re-poll once its
-  // timer has elapsed so Collect appears without closing the panel.
-  recheckTimer = window.setInterval(() => {
+onMounted(loadAll)
+// The server tick completes orders; refresh due orders without polling hidden tabs.
+usePolling(
+  () => {
     if (
       Date.now() - lastRecheck > RECHECK_MS &&
       queue.value.some((order) => remainingSeconds(order) === 0 && order.status === 'active')
     ) {
       lastRecheck = Date.now()
-      loadAll()
+      return loadAll()
     }
-  }, 1000)
-})
-
-onUnmounted(() => {
-  if (recheckTimer) clearInterval(recheckTimer)
-})
+  },
+  { interval: 1000, immediate: false }
+)
 
 watch(() => [props.vaultId, props.itemType, props.crewKey], loadAll)
 </script>

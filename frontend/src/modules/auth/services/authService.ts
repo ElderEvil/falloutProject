@@ -1,3 +1,4 @@
+import { refreshSession } from '@/core/utils/authSession'
 import { apiRequest } from '@/core/utils/api'
 import type { AxiosResponse } from 'axios'
 import type { components } from '@/core/types/api.generated'
@@ -19,11 +20,16 @@ export const authService = {
         username: form.username,
         password: form.password,
       }
-      return await apiRequest<Token>('post', '/api/v1/auth/login', new URLSearchParams(formAsRecord), {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      })
+      return await apiRequest<Token>(
+        'post',
+        '/api/v1/auth/login',
+        new URLSearchParams(formAsRecord),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        }
+      )
     } catch {
       throw new AuthError('Login failed')
     }
@@ -35,14 +41,8 @@ export const authService = {
       throw new AuthError('Registration failed')
     }
   },
-  async refreshToken(refreshToken: string): Promise<AxiosResponse<Token>> {
-    try {
-      return await apiRequest<Token>('post', '/api/v1/auth/refresh', {
-        refresh_token: refreshToken,
-      })
-    } catch {
-      throw new AuthError('Token refresh failed')
-    }
+  refreshToken(): Promise<AxiosResponse<Token>> {
+    return refreshSession()
   },
   async logout(): Promise<AxiosResponse<void>> {
     try {
@@ -59,7 +59,9 @@ export const authService = {
     }
   },
   async updateAccount(payload: AccountUpdate): Promise<AxiosResponse<User>> {
-    return await apiRequest<User>('put', '/api/v1/users/me', payload, { skipErrorNotification: true })
+    return await apiRequest<User>('put', '/api/v1/users/me', payload, {
+      skipErrorNotification: true,
+    })
   },
   async verifyEmail(token: string): Promise<AxiosResponse<MessageResponse>> {
     return await apiRequest<MessageResponse>('post', '/api/v1/auth/verify-email', { token })

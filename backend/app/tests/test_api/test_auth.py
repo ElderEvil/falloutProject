@@ -465,3 +465,12 @@ async def test_full_change_password_flow(
     finally:
         # Cleanup
         app.dependency_overrides.pop(get_redis_client, None)
+
+
+@pytest.mark.parametrize("payload", [{"sub": str(uuid4()), "exp": 1}, {"sub": "not-a-uuid"}, {}])
+async def test_invalid_access_credentials_request_reauthentication(async_client: AsyncClient, payload: dict):
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    response = await async_client.get("users/me", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"
+    assert response.json()["detail"] == "Could not validate credentials"

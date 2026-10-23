@@ -109,21 +109,17 @@ watch(
 const pollExplorations = async () => {
   if (!vaultId.value || !authStore.token || !explorationStore.activeExplorations) return
 
-  try {
-    await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token, true, true)
+  await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token, true, true)
 
-    // Check for completed explorations and fetch detailed data for new explorers
-    for (const exploration of activeExplorationsArray.value) {
-      if (!dwellerStore.detailedDwellers[exploration.dweller_id]) {
-        await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
-      }
-
-      if (isReadyToComplete(exploration) && !completingExplorations.value.has(exploration.id)) {
-        await handleCompleteExploration(exploration.id)
-      }
+  // Check for completed explorations and fetch detailed data for new explorers
+  for (const exploration of activeExplorationsArray.value) {
+    if (!dwellerStore.detailedDwellers[exploration.dweller_id]) {
+      await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
     }
-  } catch (error) {
-    notifyErrorOnce(error, 'Failed to refresh explorations')
+
+    if (isReadyToComplete(exploration) && !completingExplorations.value.has(exploration.id)) {
+      await handleCompleteExploration(exploration.id)
+    }
   }
 }
 

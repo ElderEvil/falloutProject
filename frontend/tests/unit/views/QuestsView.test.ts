@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
 import { nextTick, reactive } from 'vue'
-import { createPinia, setActivePinia } from 'pinia'
+import { createPinia, disposePinia, getActivePinia, setActivePinia } from 'pinia'
 import QuestsView from '@/modules/progression/views/QuestsView.vue'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useRoomStore } from '@/modules/rooms/stores/room'
@@ -50,6 +50,9 @@ describe('QuestsView', () => {
   })
 
   afterEach(() => {
+    wrapper?.unmount()
+    const pinia = getActivePinia()
+    if (pinia) disposePinia(pinia)
     vi.useRealTimers()
     document.querySelectorAll('[role="tooltip"]').forEach((element) => element.remove())
   })
@@ -291,6 +294,9 @@ describe('QuestsView', () => {
     })
 
     it('refreshes active quests while a party is away', async () => {
+      localStorage.setItem('token', 'test-token')
+      localStorage.setItem('user', JSON.stringify({ id: 'test-user' }))
+      vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue('loaded')
       questStore.vaultQuests = [
         {
           id: 'quest-1',
@@ -319,6 +325,9 @@ describe('QuestsView', () => {
     })
 
     it('renders travelling quests without a claim action and keeps polling', async () => {
+      localStorage.setItem('token', 'test-token')
+      localStorage.setItem('user', JSON.stringify({ id: 'test-user' }))
+      vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue('loaded')
       questStore.vaultQuests = [
         {
           id: 'quest-1',

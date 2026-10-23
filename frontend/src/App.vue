@@ -76,13 +76,7 @@ useBadgeStyle()
 
 // Token refresh system (auto-refreshes tokens before expiry)
 const authStore = useAuthStore()
-useTokenRefresh({
-  getToken: () => authStore.token,
-  getRefreshToken: () => authStore.refreshToken,
-  isAuthenticated: () => authStore.isAuthenticated,
-  refreshAccessToken: () => authStore.refreshAccessToken(),
-  logout: () => authStore.logout(),
-})
+useTokenRefresh()
 
 // Load the profile on login, reload and account changes; clear on logout.
 const profileStore = useProfileStore()

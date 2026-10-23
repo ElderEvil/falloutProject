@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useIntervalFn, useLocalStorage } from '@vueuse/core'
+import { useLocalStorage } from '@vueuse/core'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
+import { usePolling } from '@/core/composables/usePolling'
 import { useNow } from '@/core/composables/useNow'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useExitRequestStore } from '../../stores/exitRequests'
@@ -18,9 +19,7 @@ const snoozedUntil = useLocalStorage<number | null>('exitRequestSnoozedUntil', n
 const now = useNow(30_000)
 
 const current = computed(() => store.requests[0] ?? null)
-const isSnoozed = computed(
-  () => snoozedUntil.value !== null && now.value < snoozedUntil.value
-)
+const isSnoozed = computed(() => snoozedUntil.value !== null && now.value < snoozedUntil.value)
 const isOpen = computed(() => current.value !== null && !isSnoozed.value)
 
 const refresh = async () => {
@@ -32,7 +31,7 @@ onMounted(refresh)
 watch(() => vaultStore.activeVaultId, refresh)
 // The ask is raised server-side on a tick, so the open session has to re-check;
 // otherwise the modal only appears after a reload.
-useIntervalFn(refresh, 60_000)
+usePolling(refresh, { interval: 60_000, immediate: false })
 
 const decide = async (grant: boolean) => {
   const request = current.value

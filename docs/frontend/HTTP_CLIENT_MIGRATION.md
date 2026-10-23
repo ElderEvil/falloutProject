@@ -107,7 +107,7 @@ store + SettingsView, and ai-settings service.
 
 ## Guardrail policy during transition
 
-- **Prohibited**: Any new direct runtime imports from the `axios` package (e.g., `import axios from 'axios'`) (type-only imports like `import type { AxiosResponse } from 'axios'` are allowed).
+- **Prohibited in feature code**: Any new direct runtime imports from the `axios` package (e.g., `import axios from 'axios'`) (type-only imports like `import type { AxiosResponse } from 'axios'` are allowed).
 - **Prohibited**: Any new direct plugin-level axios consumers (e.g., `import apiClient from '@/core/plugins/axios'`).
 - **Required**: Use the centralized HTTP boundary in `src/core/utils/api.ts` for runtime calls (e.g., `apiGet`, `apiPost`, `apiPut`, or `api.patch`/`api.delete`).
 - **Allowed**: Type-only imports from `axios` for typing purposes only (e.g., `import type { AxiosResponse } from 'axios'`), but prefer migrating to adapter-compatible types.
@@ -115,3 +115,23 @@ store + SettingsView, and ai-settings service.
   - Wrap it with a `// TODO: Migrate to src/core/utils/api.ts - see HTTP_CLIENT_MIGRATION.md` comment.
   - Immediately replace direct calls with the adapter/api functions (use `apiGet`, `apiPost`, etc. from `src/core/utils/api.ts`).
   - If a specific pattern is not yet supported, add a short-term shim in `src/core/utils/api.ts` that delegates to `apiClient` and add a migration note pointing to `api.ts` as the single source of truth.
+
+The transport infrastructure (`core/plugins/axios.ts` and `core/utils/authSession.ts`)
+uses Axios directly. The shared refresh request bypasses the authenticated client
+so it cannot recursively trigger its own interceptor. Feature calls still go
+through `api.ts`.
+
+## Background requests
+
+`usePolling` and GET SSE streams pause while the tab is hidden, the browser is
+offline, or the session is absent. Returning refreshes the visible data once;
+missed timer ticks are not replayed. Explicitly paused subscriptions stay paused.
+One shared refresh operation serves HTTP, SSE, and the proactive refresh timer.
+Invalid credentials use HTTP 401; permission failures remain 403. Rejected refresh
+credentials end the session, while temporary failures preserve it and back off.
+GET streams reconnect with the current token. The bell reloads its latest
+notifications on reconnect and surfaces new unread progression events through
+the same delivery handler. A submitted POST stream may finish while hidden and is never automatically replayed.
+
+Store-owned subscriptions created outside a component scope must call `stop()`
+(polling) or `close()` (SSE) when replaced, so their activity listeners are disposed.

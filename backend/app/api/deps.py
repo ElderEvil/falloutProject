@@ -61,7 +61,7 @@ async def get_current_user(
         The authenticated user.
 
     Raises:
-        HTTPException: 403 if credentials cannot be validated.
+        HTTPException: 401 if credentials cannot be validated.
         HTTPException: 404 if user not found.
     """
     try:
@@ -74,10 +74,11 @@ async def get_current_user(
         user_id = UUID(token_data.sub)
     except (JWTError, ValidationError, ValueError, TypeError) as e:
         # A signed token with a missing or non-UUID subject is a credential
-        # failure (403), not a server error.
+        # failure (401), not a server error.
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
         ) from e
     user = await crud.user.get(db_session=db_session, id=user_id)
     if not user:

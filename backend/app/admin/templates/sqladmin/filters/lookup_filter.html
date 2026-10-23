@@ -1,0 +1,16 @@
+{% extends "sqladmin/filters/base_filter.html" %}
+{% block filter_body %}
+<form method="get" class="d-flex gap-2">
+  {% for key, value in request.query_params.multi_items() %}
+  {% if key not in [filter.parameter_name, 'page', 'error'] %}
+  <input type="hidden" name="{{ key }}" value="{{ value }}">
+  {% endif %}
+  {% endfor %}
+  <select name="{{ filter.parameter_name }}" class="form-select form-select-sm" aria-label="{{ filter.title }}">
+    {% for value, label in filter.lookups(request, model_view.model, model_view._run_arbitrary_query) %}
+    <option value="{{ value }}" {% if request.query_params.get(filter.parameter_name) == value %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn-sm" aria-label="Apply {{ filter.title }} filter">Apply</button>
+</form>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "sqladmin_original/base.html" %}
+{% block head_meta %}
+{{ super() }}
+<script src="{{ url_for('static', path='admin/theme.js') }}"></script>
+{% endblock %}
+{% block head_css %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', path='admin/theme.css') }}">
+{% endblock %}

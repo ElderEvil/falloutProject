@@ -1,0 +1,15 @@
+{% extends "sqladmin_original/layout.html" %}
+{% block topbar %}
+{{ super() }}
+<div class="container-fluid pt-3 d-flex align-items-center justify-content-between gap-3">
+  <a href="{{ url_for('admin:index') }}" class="text-secondary">Vault Control / Administration</a>
+  <div class="d-flex align-items-center gap-2">
+    <label for="admin-theme" class="text-secondary">Theme</label>
+    <select id="admin-theme" class="form-select form-select-sm w-auto">
+      <option value="dark">Dark</option>
+      <option value="light">Light</option>
+      <option value="system">System</option>
+    </select>
+  </div>
+</div>
+{% endblock %}

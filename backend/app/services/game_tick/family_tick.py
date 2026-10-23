@@ -267,8 +267,7 @@ async def _deliver_due_baby(db_session: AsyncSession, vault_id: UUID4, pregnancy
         logger.error(f"Error delivering baby for pregnancy {pregnancy_id}: {e}", exc_info=True)
         return False
     if babies:
-        names = ", ".join(f"{baby.first_name} {baby.last_name}" for baby in babies)
-        logger.info(f"Baby born in vault {vault_id}: {names}")
+        logger.info("Babies born in vault %s: count=%d", vault_id, len(babies))
     return bool(babies)
 
 

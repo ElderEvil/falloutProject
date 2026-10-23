@@ -51,7 +51,7 @@ class ConversationService:
         self, audio_bytes: bytes, user_id: UUID4, dweller_id: UUID4, audio_filename: str
     ) -> tuple[str, str | None, float | None]:
         transcribed_text = await self.ai_service.transcribe_audio(audio_bytes, filename=audio_filename)
-        logger.debug("Transcription result: %s", transcribed_text)
+        logger.debug("Audio transcription completed")
 
         user_audio_url = None
         if self.storage_service is not None:
@@ -77,7 +77,7 @@ class ConversationService:
         self, text: str, gender: GenderEnum | None, user_id: UUID4, dweller_id: UUID4
     ) -> tuple[bytes, str | None]:
         voice = self._select_voice_for_gender(gender)
-        logger.info("Generating TTS audio (gender=%s, voice=%s)", gender, voice)
+        logger.info("Generating TTS audio")
         audio_bytes = await self.ai_service.generate_audio(text=text, voice=voice, model="tts-1")
         audio_url = None
         if self.storage_service is not None:

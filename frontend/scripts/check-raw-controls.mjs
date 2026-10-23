@@ -21,7 +21,7 @@ const PRIMITIVE_BACKED = new Set(['button', 'input', 'select'])
 // match is case-sensitive by design — counting components as raw would punish
 // exactly the primitive reuse this gate exists to encourage.
 const SCAN_EXT = /\.vue$/
-const TAG = /<(button|input|select|textarea|table)\b/g
+const TAG = /<!--[\s\S]*?-->|<(button|input|select|textarea|table)\b/g
 
 export function collectFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -38,10 +38,11 @@ export function collectFiles(directory) {
 export function findRawControls(source) {
   const template = source.match(/<template\b[^>]*>([\s\S]*)<\/template>/)
   if (!template) return []
-  const markup = template[1].replace(/<!--[\s\S]*?-->/g, '')
   const found = []
-  for (const match of markup.matchAll(TAG)) {
-    const tag = match[1].toLowerCase()
+  // Consume comments without rewriting source: deletion can join text into new tags.
+  for (const match of template[1].matchAll(TAG)) {
+    if (!match[1]) continue
+    const tag = match[1]
     if (PRIMITIVE_BACKED.has(tag)) found.push(tag)
   }
   return found
@@ -132,7 +133,9 @@ if (isMainModule) {
       lines.push(...stale.map((v) => `  ↓ ${v.file} (${v.allowed} → ${v.count})`))
     }
     const mode = strict ? 'error' : 'warning'
-    console[mode === 'error' ? 'error' : 'warn'](`Raw control check (${mode}):\n${lines.join('\n')}`)
+    console[mode === 'error' ? 'error' : 'warn'](
+      `Raw control check (${mode}):\n${lines.join('\n')}`
+    )
   }
 
   if (strict && problems > 0) process.exitCode = 1

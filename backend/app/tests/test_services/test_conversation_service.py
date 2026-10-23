@@ -140,3 +140,22 @@ async def test_voice_generation_uses_shared_audio_agent_runner() -> None:
 
     assert result is generated
     runner.assert_awaited_once_with(db_session, dweller, "Status?", "Chat", for_audio=True)
+
+
+async def test_audio_helpers_do_not_log_transcript_or_gender(caplog, monkeypatch):
+    private_text = "Private audio transcript: personal account details"
+    transcribe = AsyncMock(return_value=private_text)
+    generate = AsyncMock(return_value=b"generated audio")
+    monkeypatch.setattr(conversation_service.ai_service, "transcribe_audio", transcribe)
+    monkeypatch.setattr(conversation_service.ai_service, "generate_audio", generate)
+    monkeypatch.setattr(conversation_service, "storage_service", None)
+
+    with caplog.at_level("DEBUG", logger="app.services.conversation_service"):
+        transcript, _, _ = await conversation_service._transcribe_audio(b"audio", uuid4(), uuid4(), "audio.webm")
+        audio, _ = await conversation_service._generate_tts_audio(private_text, GenderEnum.FEMALE, uuid4(), uuid4())
+
+    assert transcript == private_text
+    assert audio == b"generated audio"
+    assert private_text not in caplog.text
+    assert "gender=" not in caplog.text
+    generate.assert_awaited_once()

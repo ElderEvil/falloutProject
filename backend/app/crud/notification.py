@@ -1,7 +1,8 @@
 from datetime import datetime
+from typing import cast
 from uuid import UUID
 
-from sqlalchemy import func, update
+from sqlalchemy import CursorResult, func, update
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -34,19 +35,28 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         user_id: UUID,
         *,
         unread_only: bool = False,
+        vault_id: UUID | None = None,
+        is_read: bool | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[Notification]:
         """Get notifications for a user"""
         from sqlalchemy import desc
 
-        query = select(Notification).where(Notification.user_id == user_id).where(~Notification.is_dismissed)
+        query = select(Notification).where(Notification.user_id == user_id).where(~col(Notification.is_dismissed))
+
+        if vault_id is not None:
+            query = query.where(Notification.vault_id == vault_id)
+        if is_read is not None:
+            query = query.where(col(Notification.is_read) == is_read)
 
         if unread_only:
-            query = query.where(~Notification.is_read)
+            query = query.where(~col(Notification.is_read))
 
-        query = query.order_by(desc(Notification.created_at)).offset(offset).limit(limit)
-        result = await db.execute(query)
+        query = (
+            query.order_by(desc(col(Notification.created_at)), desc(col(Notification.id))).offset(offset).limit(limit)
+        )
+        result = await db.execute(query)  # ty: ignore[deprecated] -- Compatible with tick/test SQLAlchemy sessions.
         return list(result.scalars().all())
 
     async def get_unread_count(self, db: AsyncSession, user_id: UUID) -> int:
@@ -55,10 +65,10 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
             select(func.count())
             .select_from(Notification)
             .where(Notification.user_id == user_id)
-            .where(~Notification.is_read)
-            .where(~Notification.is_dismissed)
+            .where(~col(Notification.is_read))
+            .where(~col(Notification.is_dismissed))
         )
-        result = await db.execute(query)
+        result = await db.execute(query)  # ty: ignore[deprecated] -- Compatible with tick/test SQLAlchemy sessions.
         return int(result.scalar_one())
 
     async def mark_as_read(self, db: AsyncSession, notification_id: UUID, user_id: UUID) -> Notification | None:
@@ -73,21 +83,20 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
             return notification
         return None
 
-    async def mark_all_as_read(self, db: AsyncSession, user_id: UUID) -> int:
-        """Mark every visible unread notification as read; dismissed rows are left alone.
-
-        Set-based so the sweep does not load and mutate every row, and scoped to
-        visible records so a dismissed notification's read state never flips.
-        """
-        result = await db.execute(
+    async def mark_all_as_read(self, db: AsyncSession, user_id: UUID, *, vault_id: UUID | None = None) -> int:
+        """Mark visible unread notifications read, optionally within a single vault."""
+        query = (
             update(Notification)
-            .where(Notification.user_id == user_id)
-            .where(~Notification.is_read)
-            .where(~Notification.is_dismissed)
+            .where(col(Notification.user_id) == user_id)
+            .where(~col(Notification.is_read))
+            .where(~col(Notification.is_dismissed))
             .values(is_read=True, read_at=datetime.utcnow())
         )
+        if vault_id is not None:
+            query = query.where(col(Notification.vault_id) == vault_id)
+        result = await db.execute(query)  # ty: ignore[deprecated] -- ORM UPDATE requires execute, not exec.
         await db.commit()
-        return result.rowcount or 0
+        return cast("CursorResult", result).rowcount or 0
 
     async def dismiss(self, db: AsyncSession, notification_id: UUID, user_id: UUID) -> Notification | None:
         """Dismiss (soft delete) a notification"""
@@ -108,11 +117,11 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
             .order_by(col(Notification.created_at).asc())
             .limit(limit)
         )
-        result = await db_session.execute(query)
+        result = await db_session.execute(query)  # ty: ignore[deprecated] -- Compatible with SQLAlchemy sessions.
         return list(result.scalars().all())
 
     async def latest_for_vault(self, db: AsyncSession, vault_id: UUID, notification_type) -> datetime | None:
-        result = await db.execute(
+        result = await db.execute(  # ty: ignore[deprecated] -- Compatible with SQLAlchemy sessions.
             select(func.max(Notification.created_at)).where(
                 Notification.vault_id == vault_id, Notification.notification_type == notification_type
             )

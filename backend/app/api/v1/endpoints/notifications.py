@@ -11,6 +11,7 @@ from app.crud.notification import notification as notification_crud
 from app.db.session import get_async_session
 from app.models.notification import Notification, NotificationRead
 from app.schemas.responses import CountResponse, MarkReadResponse
+from app.services.notification_service import NotificationService
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
@@ -21,16 +22,20 @@ async def get_notifications(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     pagination: NotificationPaginationParams,
     unread_only: bool = False,
+    vault_id: UUID4 | None = None,
+    is_read: bool | None = None,
 ) -> list[Notification]:
     """Get notifications for the current user.
 
     Returns:
         List of notifications for the user.
     """
-    return await notification_crud.get_user_notifications(
+    return await NotificationService.get_notifications(
         db_session,
         user_id=user.id,
         unread_only=unread_only,
+        vault_id=vault_id,
+        is_read=is_read,
         limit=pagination.limit,
         offset=pagination.skip,
     )
@@ -74,13 +79,14 @@ async def mark_notification_as_read(
 async def mark_all_notifications_as_read(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    vault_id: UUID4 | None = None,
 ) -> MarkReadResponse:
     """Mark all notifications as read for the current user.
 
     Returns:
         Response with count of notifications marked as read.
     """
-    count = await notification_crud.mark_all_as_read(db_session, user_id=user.id)
+    count = await NotificationService.mark_all_read(db_session, user_id=user.id, vault_id=vault_id)
     return MarkReadResponse(marked_read=count)
 
 

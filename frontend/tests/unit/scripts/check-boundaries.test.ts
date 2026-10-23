@@ -8,13 +8,35 @@ describe('check-boundaries', () => {
     ).toEqual(['@/modules/auth/x'])
   })
 
-  it.each(['</script >', '</SCRIPT\n>'])('accepts whitespace in closing tag %s', (closingTag) => {
+  it.each(['</script >', '</SCRIPT\n>', '</script\t\n bar>'])(
+    'accepts whitespace in closing tag %s',
+    (closingTag) => {
+      expect(
+        collectModuleSpecifiers(
+          `<script>import x from '@/modules/auth/x'${closingTag}`,
+          'Example.vue'
+        )
+      ).toEqual(['@/modules/auth/x'])
+    }
+  )
+
+  it('ignores script blocks inside comments', () => {
     expect(
       collectModuleSpecifiers(
-        `<script>import x from '@/modules/auth/x'${closingTag}`,
+        "<!-- <script>import x from '@/modules/auth/x'</script> --><template />",
         'Example.vue'
       )
-    ).toEqual(['@/modules/auth/x'])
+    ).toEqual([])
+  })
+
+  it('reads both normal and setup scripts while preserving source text', () => {
+    const source = `<script>export { x } from '@/modules/auth/x'</script>
+      <script setup lang="ts">const load = () => import('@/modules/vault/x')</script>
+      <template><div>&lt;script&gt;</div></template>`
+    expect(collectModuleSpecifiers(source, 'Example.vue')).toEqual([
+      '@/modules/auth/x',
+      '@/modules/vault/x',
+    ])
   })
 
   it('detects static imports, re-exports, and dynamic imports from modules', () => {

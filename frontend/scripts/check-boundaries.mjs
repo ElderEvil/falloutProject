@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { NodeTypes, parse } from '@vue/compiler-dom'
 import ts from 'typescript'
 
 // Boundary checks are release gates. `--warn` remains available for local
@@ -17,8 +18,11 @@ function collectFiles(directory) {
 
 function scriptContent(source, fileName) {
   if (!fileName.endsWith('.vue')) return source
-  return [...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script\s*>/gi)]
-    .map((match) => match[1])
+  return parse(source, { parseMode: 'html' })
+    .children.filter(
+      (node) => node.type === NodeTypes.ELEMENT && node.tag.toLowerCase() === 'script'
+    )
+    .map((node) => node.children.map((child) => child.loc.source).join(''))
     .join('\n')
 }
 

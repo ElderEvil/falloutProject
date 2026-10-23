@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 import { describeBonusSources, getSpecialBreakdown } from '@/modules/dwellers/models/specialBreakdown'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 

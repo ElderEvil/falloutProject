@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import DeadDwellerCard from '@/modules/dwellers/components/death/DeadDwellerCard.vue'
 import type { DwellerDead } from '@/modules/dwellers/models/dweller'

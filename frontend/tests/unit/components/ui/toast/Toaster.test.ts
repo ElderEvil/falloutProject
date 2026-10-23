@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vite-plus/test'
 
 import { mountWithSetup } from '../../../helpers/mountWithSetup'
 import { Toaster } from '@/core/components/ui/toast'

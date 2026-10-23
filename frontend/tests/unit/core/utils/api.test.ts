@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createAxiosMock } from '../../helpers/mocks'
 import type { AxiosResponse } from 'axios'
 import apiClient from '@/core/plugins/axios'

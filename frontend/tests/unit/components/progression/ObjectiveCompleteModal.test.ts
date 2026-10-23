@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import RewardItemCard from '@/core/components/common/RewardItemCard.vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import ObjectiveCompleteModal from '@/modules/progression/components/ObjectiveCompleteModal.vue'

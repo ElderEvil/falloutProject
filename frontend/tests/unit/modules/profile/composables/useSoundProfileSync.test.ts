@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createPinia, setActivePinia } from 'pinia'
 import { effectScope, nextTick, type EffectScope } from 'vue'
 import { useProfileStore } from '@/modules/profile/stores/profile'

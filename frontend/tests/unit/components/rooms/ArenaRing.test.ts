@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vite-plus/test'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import ArenaRing from '@/modules/rooms/components/ArenaRing.vue'
 import type { ArenaFighter, ArenaRoomState } from '@/modules/rooms/api/arena'

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import { Badge } from '@/core/components/ui/badge'
 import QuestTypeBadge from '@/modules/progression/components/QuestTypeBadge.vue'

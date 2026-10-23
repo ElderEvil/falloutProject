@@ -1,5 +1,5 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { Progress } from '@/core/components/ui/progress'
 import ObjectiveCard from '@/modules/progression/components/ObjectiveCard.vue'
 import type { Objective } from '@/modules/progression/models/objective'

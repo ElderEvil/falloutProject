@@ -1,6 +1,6 @@
 import { mount, type MountingOptions, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { vi } from 'vitest'
+import { vi } from 'vite-plus/test'
 
 /**
  * Centralised stub for `@iconify/vue` so components render icons as inert

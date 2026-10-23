@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import IncidentAftermath from '@/modules/rooms/components/IncidentAftermath.vue'
 import type { IncidentAftermath as Aftermath } from '@/modules/combat/models/incident'

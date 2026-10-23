@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { mountWithSetup } from '../../helpers/mountWithSetup'
 import ResponseTeamsPanel from '@/modules/contamination-team/components/ResponseTeamsPanel.vue'
 import type { ContaminationTeamRead } from '@/modules/contamination-team/models/contaminationTeam'

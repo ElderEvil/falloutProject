@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import {
   DECLUTTER_REVEAL_ZOOM,
   isMarkerVisible,

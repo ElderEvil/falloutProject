@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 import { explorerHeading } from '@/modules/map/utils/explorerHeading'
 import type { DiscoveryRouteRead, ExplorerTrack } from '@/modules/map/models/map'
 

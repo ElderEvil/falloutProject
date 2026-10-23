@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import DwellersTable from '@/modules/dwellers/components/table/DwellersTable.vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import SupplySliders from '@/modules/progression/components/party/SupplySliders.vue'
 import { Slider } from '@/core/components/ui/slider'

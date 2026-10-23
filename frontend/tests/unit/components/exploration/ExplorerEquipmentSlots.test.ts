@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import { createIconifyMock } from '../../helpers/mocks'
 import ExplorerEquipmentSlots from '@/modules/exploration/components/ExplorerEquipmentSlots.vue'

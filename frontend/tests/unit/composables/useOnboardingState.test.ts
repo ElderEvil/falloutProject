@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vite-plus/test'
 import { useOnboardingState } from '@/core/composables/useOnboardingState'
 
 const EMPTY_TEACHING = { version: 1, lessons: {}, replayOrientation: false }

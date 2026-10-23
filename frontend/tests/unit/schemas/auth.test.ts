@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 import { loginSchema, registerSchema } from '@/modules/auth/schemas/auth'
 import { ZodError } from 'zod'
 

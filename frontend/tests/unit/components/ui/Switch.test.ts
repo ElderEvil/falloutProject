@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 
 import { mountWithSetup } from '../../helpers/mountWithSetup'
 import Switch from '@/core/components/ui/switch/Switch.vue'

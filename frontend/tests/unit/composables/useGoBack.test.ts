@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test'
 
 // vi.hoisted ensures mock objects exist before vi.mock factory runs
 const mocks = vi.hoisted(() => ({

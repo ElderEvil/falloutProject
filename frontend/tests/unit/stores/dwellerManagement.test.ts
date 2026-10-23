@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createAxiosMock, createToastMock } from '../helpers/mocks'
 import { createPinia, setActivePinia } from 'pinia'
 import axios from '@/core/plugins/axios'

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { setActivePinia, createPinia } from 'pinia'
 import { ref } from 'vue'
 import axios from '@/core/plugins/axios'

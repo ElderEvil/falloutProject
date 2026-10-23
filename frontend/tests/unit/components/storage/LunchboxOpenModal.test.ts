@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createIconifyMock } from '../../helpers/mocks'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import LunchboxOpenModal from '@/modules/storage/components/LunchboxOpenModal.vue'

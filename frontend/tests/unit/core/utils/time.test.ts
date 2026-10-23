@@ -1,5 +1,5 @@
 import { formatClock } from '@/core/utils/format'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import {
   computeRemainingSeconds,
   formatDaysRemaining,

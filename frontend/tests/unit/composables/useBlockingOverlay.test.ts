@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { effectScope, ref } from 'vue'
 import { isOverlayBlocking, useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 

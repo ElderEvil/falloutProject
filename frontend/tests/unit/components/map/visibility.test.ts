@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { isHintLocation, isKnownLocation } from '@/modules/map/utils/visibility'
 
 describe('discovery-only visibility', () => {

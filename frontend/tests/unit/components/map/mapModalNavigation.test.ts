@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory, useRoute, useRouter } from 'vue-router'
 import { defineComponent, h, ref, watch } from 'vue'

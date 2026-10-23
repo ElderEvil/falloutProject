@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { setActivePinia, createPinia } from 'pinia'
 import { useRelationshipStore } from '@/modules/social/stores/relationship'
 import axios from '@/core/plugins/axios'

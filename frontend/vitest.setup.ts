@@ -1,5 +1,5 @@
 // Mock localStorage for jsdom environment
-import { beforeEach } from 'vitest'
+import { beforeEach } from 'vite-plus/test'
 import apiClient from '@/core/plugins/axios'
 
 // Never let tests hit the network: jsdom XHRs settle on macrotasks and can

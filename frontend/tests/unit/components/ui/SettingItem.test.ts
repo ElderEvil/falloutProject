@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 
 import { mountWithSetup } from '../../helpers/mountWithSetup'
 import SettingItem from '@/core/components/ui/SettingItem.vue'

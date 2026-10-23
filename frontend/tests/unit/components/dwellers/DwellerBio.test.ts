@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vite-plus/test'
 import type { VueWrapper } from '@vue/test-utils'
 import { ref } from 'vue'
 import DwellerBio from '@/modules/dwellers/components/DwellerBio.vue'

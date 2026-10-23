@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach } from 'vite-plus/test'
 import { useBackNavigation } from '@/core/composables/useBackNavigation'
 
 function setHistoryState(state: unknown): void {

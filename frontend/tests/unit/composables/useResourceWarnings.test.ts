@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test'
 import { createToastMock } from '../helpers/mocks'
 import { useResourceWarnings } from '@/modules/vault/composables/useResourceWarnings'
 import { nextTick } from 'vue'

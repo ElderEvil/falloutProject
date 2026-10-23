@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { mountWithSetup } from '../../helpers/mountWithSetup'
 import ResourceBar from '@/modules/vault/components/shell/ResourceBar.vue'
 

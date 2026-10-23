@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vite-plus/test'
 import { createAxiosMock, createRouterMock, createToastMock } from '../helpers/mocks'
 import { ref, effectScope } from 'vue'
 import { flushPromises } from '@vue/test-utils'

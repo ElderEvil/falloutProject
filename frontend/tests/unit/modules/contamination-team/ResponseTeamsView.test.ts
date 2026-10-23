@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test'
 import { reactive } from 'vue'
 import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { mountWithSetup } from '../../helpers/mountWithSetup'

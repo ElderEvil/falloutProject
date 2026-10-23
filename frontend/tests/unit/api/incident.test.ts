@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vite-plus/test'
 import axios from '@/core/plugins/axios'
 import { incidentApi } from '@/modules/combat/api/incident'
 import type { IncidentTeamMember } from '@/modules/combat/models/incident'

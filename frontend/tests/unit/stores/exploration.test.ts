@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test'
 import { setActivePinia, createPinia } from 'pinia'
 import { ref, nextTick } from 'vue'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'

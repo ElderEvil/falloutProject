@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 import {
   DWELLER_TABLE_COLUMNS,
   DWELLER_TABLE_PRESETS,

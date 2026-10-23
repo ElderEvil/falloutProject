@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { nextTick, ref } from 'vue'
 import DwellerPanel from '@/modules/dwellers/components/DwellerPanel.vue'
 import { createMockDwellerDetailContext, mountWithDwellerContext } from '../../helpers/dwellerDetailContext'

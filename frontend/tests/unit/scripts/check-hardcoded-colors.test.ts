@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { findHardcodedColors } from '../../../scripts/check-hardcoded-colors.mjs'
 
 describe('check-hardcoded-colors', () => {

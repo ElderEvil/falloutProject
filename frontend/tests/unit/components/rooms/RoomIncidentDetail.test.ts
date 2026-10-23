@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vite-plus/test'
 import { mount, flushPromises } from '@vue/test-utils'
 import { reactive } from 'vue'
 import RoomIncidentDetail from '@/modules/rooms/components/RoomIncidentDetail.vue'

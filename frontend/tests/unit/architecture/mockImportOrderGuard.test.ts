@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 
 /**
  * Import-order guard for the shared test mocks (see tests/unit/helpers/mocks).
@@ -20,7 +20,7 @@ const SELF = 'architecture/mockImportOrderGuard.test.ts'
 const FACTORY_CALL = /create(?:Axios|Router|Iconify|ApiClient)Mock\s*\(/
 const IMPORT_RE = /^import\s+(?:[\s\S]*?\sfrom\s+)?['"]([^'"]+)['"]/gm
 const HELPER_SOURCE_SUFFIX = 'helpers/mocks'
-const INERT_SOURCE = /^(vitest|vue|pinia|@vue\/test-utils)(\/|$)/
+const INERT_SOURCE = /^(vitest|vite-plus|vue|pinia|@vue\/test-utils)(\/|$)/
 
 function walkTestFiles(dir: string): string[] {
   const files: string[] = []

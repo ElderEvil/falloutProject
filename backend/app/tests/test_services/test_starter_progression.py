@@ -1,6 +1,9 @@
 """Fresh-vault teaching rewards must fund the unchanged Office gate."""
 
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
+from importlib import import_module
+from unittest.mock import Mock
 
 import pytest
 
@@ -16,12 +19,13 @@ from app.schemas.vault import VaultNumber
 from app.services import catalog_service as data_loader
 from app.services.dweller_service import dweller_service
 from app.services.exploration_service import exploration_service
+from app.services.family.breeding_service import breeding_service
+from app.services.game_tick.family_tick import process_pregnancies_and_births
 from app.services.item_service import item_service
 from app.services.leveling_service import leveling_service
 from app.services.progression.objectives.evaluators import evaluator_manager
 from app.services.progression.objectives.evaluators.base import current_session_maker
 from app.services.progression.objectives.guidance import current_state_progress, read_objectives
-from app.services.radio_service import RadioService
 from app.services.resource_manager import ResourceManager
 from app.services.rewards.settlement import claim_objective_reward
 from app.services.room_service import room_service
@@ -49,14 +53,14 @@ def objective_events(async_session):
     current_session_maker.reset(token)
 
 
-async def test_fresh_starter_rewards_reach_office_without_loot(async_session, superuser, objective_events):
+async def test_fresh_starter_rewards_reach_office_without_loot(async_session, superuser, objective_events, monkeypatch):
     await seed_objectives_from_json(async_session)
     vault = await vault_service.initiate_vault(async_session, VaultNumber(number=random_vault_number()), superuser.id)
     initial_population = await crud.dweller.count_living_in_vault(async_session, vault.id)
     storage = await crud.storage.storage.get_by_vault(async_session, vault.id)
-    assert initial_population == 10
-    assert game_config.radio.manual_recruitment_cost == 500
-    paid_recruits = 0
+    initial_rooms = await crud.room.get_all_by_vault(async_session, vault.id)
+    assert initial_population == 9
+    assert not any("radio" in room.name.lower() for room in initial_rooms)
     production_seconds = 0
     granted_residents = 0
 
@@ -114,9 +118,37 @@ async def test_fresh_starter_rewards_reach_office_without_loot(async_session, su
             await dweller_service.move_to_room(async_session, worker.id, room.id)
         elif step.objective_type == "reach":
             if target["reach_type"] == "dweller_count":
-                while await crud.dweller.count_living_in_vault(async_session, vault.id) < step.total:
-                    await RadioService.manual_recruit(async_session, vault.id)
-                    paid_recruits += 1
+                missing = step.total - await crud.dweller.count_living_in_vault(async_session, vault.id)
+                if missing > 0:
+                    residents = {f"{d.first_name} {d.last_name}": d for d in dwellers}
+                    couples = [
+                        (residents["Mara Voss"], residents["Elias Reed"]),
+                        (residents["Tessa Ward"], residents["Owen Hale"]),
+                    ]
+                    assert missing == len(couples)
+                    clock = Mock(wraps=datetime)
+                    clock.now.return_value = datetime.now(UTC)
+                    clock.utcnow.side_effect = lambda clock=clock: clock.now.return_value.replace(tzinfo=None)
+                    for module in (
+                        "app.services.family.breeding_service",
+                        "app.crud.pregnancy",
+                        "app.models.pregnancy",
+                    ):
+                        monkeypatch.setattr(import_module(module), "datetime", clock)
+                    pregnancies = [
+                        await breeding_service.create_pregnancy(async_session, mother.id, father.id)
+                        for mother, father in couples
+                    ]
+                    duration = timedelta(hours=game_config.breeding.pregnancy_duration_hours)
+                    assert all(p.due_at - p.conceived_at == duration for p in pregnancies)
+                    clock.now.return_value += duration - timedelta(seconds=1)
+                    assert (await process_pregnancies_and_births(async_session, vault.id))["births"] == 0
+                    clock.now.return_value += timedelta(seconds=1)
+                    assert (await process_pregnancies_and_births(async_session, vault.id))["births"] == missing
+                    unavailable = await crud.pregnancy.get_unavailable_mother_ids(
+                        async_session, vault.id, game_config.breeding.birth_cooldown_hours
+                    )
+                    assert {mother.id for mother, _ in couples} <= unavailable
             elif step.progress < step.total:
                 worker = next(d for d in dwellers if d.is_mature and d.room_id is not None)
                 await dweller_service.add_experience(
@@ -136,7 +168,6 @@ async def test_fresh_starter_rewards_reach_office_without_loot(async_session, su
 
     await async_session.refresh(vault)
     assert granted_residents == 7
-    assert paid_recruits == 1
     assert production_seconds <= 30 * 60
     assert await crud.dweller.count_living_in_vault(async_session, vault.id) == 18
     assert vault.bottle_caps >= 200

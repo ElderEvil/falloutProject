@@ -65,6 +65,13 @@ separate revised templates rather than an in-place rewrite.
 - **Links are never touched** by the cohort migration: progress, totals, completed claims and
   reward snapshots survive. No template is retired while assigned links still depend on it.
 - **Boosted-vault assignment is unchanged.**
+- **Standard vaults no longer seed a Radio Studio.** The room requires 20 dwellers to build, so
+  the seeded copy bypassed its own gate. The `starter:staff the radio` template stops fresh
+  assignment (migration `2026_10_24_1001-d6e8f0a2b4c9`) while existing links keep their progress
+  and rewards. Seven starter rewards carry a standard vault from 9 to 16 residents. The guide then
+  teaches two births to reach the Office gate at 18; children count. Pregnancy takes three real hours
+  after conception, with a six-hour cooldown per mother after delivery. Two couples can progress
+  in parallel while the player explores and develops the vault.
 - Implemented by the corrective migration `2026_10_14_0002-f6a1b2c3d4e5`, applied on top of the
   spine revision `2026_10_14_0001-e5c2b7f19a04`.
 

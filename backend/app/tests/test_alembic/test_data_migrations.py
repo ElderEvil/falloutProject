@@ -732,3 +732,32 @@ class TestDeadDwellerStateMigration:
             0,
         )
         harness.downgrade(DEAD_DWELLER_STATE_PARENT)
+
+
+@pytest.mark.parametrize("parent", ["c8a4d6e2f901", "d9e2f4a6b801", "c4d9e2f7a1b3", "e2f4a6c8d0b1"])
+def test_radio_retirement_upgrades_master_history_without_changing_earned_progress(harness, parent):
+    harness.upgrade("c8a4d6e2f901")
+    vault_id = _seed_vault(harness, number=881)
+    objective_id = str(uuid.uuid4())
+    harness.execute(
+        "INSERT INTO objective (id, challenge, reward, category, objective_type, target_amount, sequence, "
+        "template_key, assignable) VALUES (:id, 'Staff the Radio Studio', '200 caps', 'starter', "
+        "'assign', 1, 12, 'starter:staff the radio', true)",
+        id=objective_id,
+    )
+    harness.execute(
+        "INSERT INTO vaultobjectiveprogresslink (vault_id, objective_id, progress, total, is_completed, "
+        "reward_snapshot) VALUES (:vault, :objective, 1, 1, true, '200 caps')",
+        vault=vault_id,
+        objective=objective_id,
+    )
+    harness.upgrade(parent)
+    harness.upgrade("head")
+    assert harness.scalar("SELECT COUNT(*) FROM alembic_version") == 1
+    assert harness.scalar("SELECT assignable FROM objective WHERE id = :id", id=objective_id) is False
+    assert harness.fetch(
+        "SELECT progress, total, is_completed, reward_snapshot FROM vaultobjectiveprogresslink "
+        "WHERE vault_id = :vault AND objective_id = :objective",
+        vault=vault_id,
+        objective=objective_id,
+    ) == [(1, 1, True, "200 caps")]

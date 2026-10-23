@@ -1171,6 +1171,15 @@ class TestInitiateVault:
             )
             assert elevators == [(SHAFT_X, level) for level in range(5 if is_boosted else 4)]
 
+    async def test_standard_seed_omits_the_radio_studio(self) -> None:
+        """A new player builds recruitment themselves; only the boosted dev vault seeds radio."""
+        game_data = await get_static_game_data()
+        standard = seeding.prepare_initial_rooms(game_data.rooms, uuid4(), is_boosted=False)
+        boosted = seeding.prepare_initial_rooms(game_data.rooms, uuid4(), is_boosted=True)
+
+        assert [room.name for room in standard.misc if "radio" in room.name.lower()] == []
+        assert [room.name for room in boosted.misc if "radio" in room.name.lower()] == ["Radio studio"]
+
     async def test_boosted_housing_has_no_internal_gap_after_seeding(self, boosted_seed: SimpleNamespace) -> None:
         """Keep the three households and their capacity without a blank room between them."""
         rooms = await crud.room.get_all_by_vault(boosted_seed.session, boosted_seed.vault.id)

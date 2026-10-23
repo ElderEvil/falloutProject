@@ -159,19 +159,6 @@
     "sequence": 11
   },
   {
-    "template_key": "starter:staff the radio",
-    "challenge": "Staff the Radio Studio",
-    "reward": "200 caps",
-    "category": "starter",
-    "objective_type": "assign",
-    "target_entity": {
-      "room_type": "radio_studio"
-    },
-    "target_amount": 1,
-    "description": "Your starter broadcaster is already working. Open the Radio Studio to review recruitment: passive arrivals take time, while manual recruitment costs 500 caps.",
-    "sequence": 12
-  },
-  {
     "template_key": "starter:reach 16 dwellers",
     "challenge": "Reach 16 Dwellers",
     "reward": "400 caps",
@@ -181,7 +168,7 @@
       "reach_type": "dweller_count"
     },
     "target_amount": 16,
-    "description": "Starter rewards supply most of your new residents. Save these caps toward the final radio recruit and the Office; build housing before claiming residents.",
+    "description": "Claim all seven starter residents to reach 16 dwellers. Keep housing ahead of rewards, then pair adults in Living Quarters for the Office population goal.",
     "sequence": 13
   },
   {
@@ -194,7 +181,7 @@
     },
     "target_amount": 18,
     "sequence": 14,
-    "description": "The Office requires 18 living residents. Starter rewards bring the fresh vault to 17; recruit once for 500 caps, or use passive recruitment or breeding.",
+    "description": "The Office requires 18 living residents, including children. From 16, arrange two couples in Living Quarters and leave housing for two births. Pregnancy takes three real hours after conception; each mother has a six-hour cooldown after delivery. Keep exploring while families grow.",
     "template_key": "starter:reach 18 dwellers"
   },
   {

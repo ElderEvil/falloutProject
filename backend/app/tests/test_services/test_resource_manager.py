@@ -341,8 +341,8 @@ def _outfitted_workers(stat: str, count: int) -> list[Dweller]:
 
 
 @pytest.mark.asyncio
-async def test_seeded_standard_vault_live_power_survives_when_staffed_and_deficits_on_one_worker() -> None:
-    """All-room draw (14/min), not the simulator's three rooms, is the live starter tripwire (§10)."""
+async def test_seeded_standard_vault_live_power_survives_when_staffed_and_deficits_unstaffed() -> None:
+    """The full seeded draw, not the simulator's three rooms, is the live starter tripwire (§10)."""
     from uuid import uuid4
 
     from app.core.game_data import get_static_game_data
@@ -351,7 +351,7 @@ async def test_seeded_standard_vault_live_power_survives_when_staffed_and_defici
     prepared = seeding.prepare_initial_rooms((await get_static_game_data()).rooms, uuid4(), is_boosted=False)
 
     assert _seeded_net(prepared, 10, [_adults(5, 2)], "power", "power") > 0
-    assert _seeded_net(prepared, 10, [_adults(5, 1)], "power", "power") < 0
+    assert _seeded_net(prepared, 10, [_adults(5, 0)], "power", "power") < 0
 
 
 @pytest.mark.asyncio

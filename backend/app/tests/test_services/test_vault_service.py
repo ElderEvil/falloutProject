@@ -1244,7 +1244,8 @@ class TestInitiateVault:
         )
         arena = next(room for room in (await get_static_game_data()).rooms if room.name.lower() == "arena")
         if is_boosted:
-            assert result.bottle_caps >= arena.t2_upgrade_cost + arena.t3_upgrade_cost + 1_000
+            # Boosted starts cover the Arena through T2; T3 is a later sink.
+            assert result.bottle_caps >= arena.base_cost + arena.t2_upgrade_cost
         else:
             assert result.bottle_caps == 1_000
         objectives = await objective_crud.get_multi_for_vault(async_session, result.id)

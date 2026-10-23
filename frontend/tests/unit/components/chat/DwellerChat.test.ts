@@ -239,6 +239,64 @@ describe('DwellerChat', () => {
     })
   })
 
+  describe('Voice verification reminder', () => {
+    const reminder = '.voice-verification-reminder'
+
+    const signIn = (emailVerified: boolean) => {
+      useAuthStore().$patch({
+        user: { id: 'user-123', username: 'TestUser', email_verified: emailVerified },
+      })
+    }
+
+    const switchToVoice = async (wrapper: ReturnType<typeof mountComponent>) => {
+      await wrapper.get('button[aria-label="Switch to voice input"]').trigger('click')
+    }
+
+    it('stays hidden while the composer is in text mode', async () => {
+      signIn(false)
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      expect(wrapper.find(reminder).exists()).toBe(false)
+    })
+
+    it('appears when an unverified user switches to voice', async () => {
+      signIn(false)
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      await switchToVoice(wrapper)
+
+      expect(wrapper.get(reminder).text()).toContain('Voice chat uses AI credits')
+    })
+
+    it('stays hidden for verified users in voice mode', async () => {
+      signIn(true)
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      await switchToVoice(wrapper)
+
+      expect(wrapper.find(reminder).exists()).toBe(false)
+    })
+
+    it('resends the verification email from the reminder', async () => {
+      signIn(false)
+      const resendSpy = vi
+        .spyOn(useAuthStore(), 'resendVerificationEmail')
+        .mockResolvedValue(true)
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      await switchToVoice(wrapper)
+      await wrapper.get(reminder).get('button').trigger('click')
+      await flushPromises()
+
+      expect(resendSpy).toHaveBeenCalledOnce()
+      expect(wrapper.get(reminder).text()).toContain('EMAIL SENT')
+    })
+  })
+
   describe('Scenario D: Happiness Impact Display', () => {
     it('should render happiness impact badge when response includes happiness_impact', async () => {
       const wrapper = mountComponent()

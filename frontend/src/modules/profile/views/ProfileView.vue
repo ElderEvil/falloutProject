@@ -21,6 +21,7 @@ import { formatLongDateTime } from '@/core/utils/format'
 import ProfileEditor from '../components/ProfileEditor.vue'
 import AIUsageCard from '../components/AIUsageCard.vue'
 import VaultOperationsCard from '../components/VaultOperationsCard.vue'
+import { useEmailVerificationResend } from '@/modules/auth/composables/useEmailVerificationResend'
 import AISettingsPanel from '@/modules/ai-settings/components/AISettingsPanel.vue'
 import type { ProfileUpdate } from '../models/profile'
 
@@ -33,6 +34,12 @@ const backNav = useBackNavigation('User Profile', () =>
 const isEditing = ref(false)
 const avatarLoadFailed = ref(false)
 const activeTab = ref('dossier')
+const isSubmittingAccount = ref(false)
+const {
+  status: resendStatus,
+  label: resendLabel,
+  resend: resendVerification,
+} = useEmailVerificationResend()
 
 type VaultShortcut = { id: string; number?: number }
 const vaultShortcut = computed<VaultShortcut | null>(() => {
@@ -98,15 +105,24 @@ const cancelEditing = () => {
   profileStore.clearError()
 }
 
-const handleProfileUpdate = async (data: ProfileUpdate, username: string | null) => {
+const handleProfileUpdate = async (
+  data: ProfileUpdate,
+  username: string | null,
+  email: string | null
+) => {
+  if (isSubmittingAccount.value) return
+  isSubmittingAccount.value = true
   try {
-    if (username) {
-      const saved = await authStore.updateUsername(username)
+    if (username || email) {
+      const saved = await authStore.updateAccount({ username, email })
       if (!saved) return
     }
     await profileStore.updateProfile(data)
     isEditing.value = false
-  } catch {}
+  } catch {
+  } finally {
+    isSubmittingAccount.value = false
+  }
 }
 
 const handleAvatarError = () => {
@@ -176,7 +192,8 @@ watch(
               v-if="isEditing"
               :initial-data="profileStore.profile"
               :username="authStore.user?.username"
-              :loading="profileStore.loading"
+              :email="authStore.user?.email"
+              :loading="isSubmittingAccount || profileStore.loading"
               :error="profileStore.error"
               @submit="handleProfileUpdate"
               @cancel="cancelEditing"
@@ -232,9 +249,24 @@ watch(
                           <h3 class="truncate text-2xl font-bold text-theme-primary">
                             {{ authStore.user?.username || 'User' }}
                           </h3>
-                          <p class="mt-2 break-all text-sm text-theme-primary/75">
-                            {{ authStore.user?.email || 'No account email on file' }}
-                          </p>
+                          <div class="mt-2 flex flex-wrap items-center gap-2">
+                            <p class="break-all text-sm text-theme-primary/75">
+                              {{ authStore.user?.email || 'No account email on file' }}
+                            </p>
+                            <!-- @vue-ignore -->
+                            <Button
+                              v-if="!authStore.user?.email_verified"
+                              data-testid="resend-verification"
+                              variant="outline"
+                              size="xs"
+                              class="gap-1.5 border-theme-primary/40 text-theme-primary hover:bg-theme-primary/10"
+                              :disabled="resendStatus === 'sending'"
+                              @click="resendVerification"
+                            >
+                              <Icon icon="mdi:email-send-outline" />
+                              {{ resendLabel }}
+                            </Button>
+                          </div>
                           <div class="mt-3 flex flex-wrap gap-2">
                             <Badge
                               :variant="authStore.user?.email_verified ? 'default' : 'destructive'"

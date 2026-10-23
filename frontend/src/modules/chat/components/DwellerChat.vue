@@ -5,6 +5,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import apiClient from '@/core/plugins/axios'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useEmailVerificationResend } from '@/modules/auth/composables/useEmailVerificationResend'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { getErrorMessage } from '@/core/types/utils'
@@ -87,6 +88,15 @@ const chatAllowRadaway = computed(() => canUseRadaway(chatDweller.value))
 
 const isSendingAudio = ref(false)
 const audioMode = ref(false)
+const {
+  status: resendStatus,
+  label: resendLabel,
+  resend: resendVerification,
+} = useEmailVerificationResend()
+
+const showVoiceVerificationReminder = computed(
+  () => audioMode.value && !isDead.value && authStore.user?.email_verified === false
+)
 
 const userAvatarUrl = computed(() => profileStore.profile?.avatar_url ?? undefined)
 const dwellerActivity = computed(() => {
@@ -460,6 +470,28 @@ onUnmounted(() => {
       >
         Usage details
       </RouterLink>
+    </div>
+
+    <div
+      v-if="showVoiceVerificationReminder"
+      class="voice-verification-reminder flex flex-wrap items-center justify-between gap-2 border-t border-theme-primary/15 bg-surface-sunken px-4 py-2 text-xs text-theme-primary/80"
+      role="status"
+    >
+      <span class="flex items-center gap-1.5">
+        <Icon icon="mdi:email-alert-outline" class="h-4 w-4 shrink-0" />
+        Voice chat uses AI credits — verify your email to keep it available.
+      </span>
+      <span v-if="resendStatus === 'sent'" class="font-bold text-theme-primary">EMAIL SENT</span>
+      <Button
+        v-else
+        variant="outline"
+        size="xs"
+        class="border-theme-primary/40 text-theme-primary hover:bg-theme-primary/10"
+        :disabled="resendStatus === 'sending'"
+        @click="resendVerification"
+      >
+        {{ resendLabel }}
+      </Button>
     </div>
 
     <div v-if="isDead" class="flex flex-col gap-2 border-t border-theme-glow bg-black/80 p-4">

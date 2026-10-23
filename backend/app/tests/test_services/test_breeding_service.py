@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
@@ -25,6 +25,7 @@ from app.schemas.common import (
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.family.breeding_service import BreedingService, conception_potential
+from app.services.notification_service import NotificationService, notification_service
 from app.utils.dwellers import elder_birth_threshold
 from app.utils.exceptions import ResourceNotFoundException
 
@@ -724,13 +725,315 @@ async def test_deliver_baby_random_gender(
     pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
     await async_session.commit()
 
-    child = await BreedingService.deliver_baby(
-        async_session,
-        pregnancy.id,
-    )
+    child = (await BreedingService.deliver_baby(async_session, pregnancy.id))[0]
 
     # Gender should be valid
     assert child.gender in [GenderEnum.MALE, GenderEnum.FEMALE]
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_twins_when_chance_hit(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A hit twin roll delivers two newborns, both parent-linked and birth-notified."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    with patch.object(NotificationService, "_deliver", new_callable=AsyncMock) as deliver:
+        children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+        await notification_service.deliver_deferred_notifications(async_session)
+
+    assert len(children) == 2
+    child_ids = {child.id for child in children}
+    assert len(child_ids) == 2
+    for child in children:
+        assert child.parent_1_id == female_dweller.id
+        assert child.parent_2_id == male_dweller.id
+        assert child.age_group == AgeGroupEnum.CHILD
+        assert child.bio is not None
+    siblings = await crud.dweller.get_all_in_vault(async_session, female_dweller.vault_id)
+    assert child_ids <= {dweller.id for dweller in siblings}
+
+    assert deliver.await_count == 2
+    for parent in (female_dweller, male_dweller):
+        refreshed = await crud.dweller.get(async_session, parent.id)
+        family = [
+            entry
+            for entry in refreshed.bio_entries
+            if entry["source"] == "family" and entry["ref"]["child_id"] in {str(c.id) for c in children}
+        ]
+        assert len(family) == 2
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_no_twins_when_chance_missed(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A missed twin roll delivers exactly one newborn."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    assert len(children) == 1
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_triplets_when_chance_hit(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Twin chance escalating through triplet chance delivers three newborns."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 1.0)
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    with patch.object(NotificationService, "_deliver", new_callable=AsyncMock) as deliver:
+        children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+        await notification_service.deliver_deferred_notifications(async_session)
+
+    assert len(children) == 3
+    assert len({child.id for child in children}) == 3
+    for child in children:
+        assert child.parent_1_id == female_dweller.id
+        assert child.parent_2_id == male_dweller.id
+        assert child.bio is not None
+    assert deliver.await_count == 3
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_triplets_require_twin_roll(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A missed twin roll cannot escalate to triplets, whatever triplet chance says."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 1.0)
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    assert len(children) == 1
+
+
+async def _equip_pet(async_session: AsyncSession, dweller: Dweller, name: str) -> None:
+    """Create a pet and equip it through the real CRUD path."""
+    pet = await crud.pet.create(async_session, {"name": name, "rarity": RarityEnum.LEGENDARY, "value": 500})
+    await crud.pet.equip(db_session=async_session, item_id=pet.id, dweller_id=dweller.id)
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_mothers_twins_chance_pet_raises_the_roll(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """With base 0%, the mother's +75% Twins-chance pet turns a 0.5 roll into twins."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+    await _equip_pet(async_session, female_dweller, "Shakespeare")  # twin_chance_pct 0.75
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    with patch("random.random", return_value=0.5):
+        children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    assert len(children) == 2
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_fathers_twins_chance_pet_is_ignored(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Only the mother's pet counts: the father's +75% pet leaves a 0.5 roll short of base 0%."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+    await _equip_pet(async_session, male_dweller, "Shakespeare")  # twin_chance_pct 0.75
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    with patch("random.random", return_value=0.5):
+        children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    assert len(children) == 1
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_twins_chance_sums_base_and_pet(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Base 50% + the mother's +75% pet (clamped to 100%) clears a 0.99 roll."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.5)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+    await _equip_pet(async_session, female_dweller, "Shakespeare")  # twin_chance_pct 0.75
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    with patch("random.random", return_value=0.99):
+        children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    assert len(children) == 2
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_twins_chance_is_clamped_to_one(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A roll at/above 1.0 misses even when base + pet would sum past 100%."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.5)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+    await _equip_pet(async_session, female_dweller, "Shakespeare")  # 1.25 unclamped
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    with patch("random.random", return_value=1.05):
+        children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    assert len(children) == 1
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_caps_twins_to_available_population_slots(
+    async_session: AsyncSession,
+    vault: Vault,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A twin roll is capped to the vault's single free living slot."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+
+    population = await crud.vault.get_population(db_session=async_session, vault_id=vault.id)
+    vault.population_max = population + 1
+    async_session.add(vault)
+    await async_session.commit()
+
+    with patch("random.random", return_value=0.5):
+        children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    assert len(children) == 1
+    refreshed = await crud.pregnancy.get(async_session, pregnancy.id)
+    assert refreshed.status == PregnancyStatusEnum.DELIVERED
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_defers_delivery_when_no_living_space(
+    async_session: AsyncSession,
+    vault: Vault,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A full vault raises without creating a newborn, leaving the pregnancy due."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+
+    population = await crud.vault.get_population(db_session=async_session, vault_id=vault.id)
+    vault.population_max = population
+    async_session.add(vault)
+    await async_session.commit()
+
+    with (
+        pytest.raises(ValueError, match="No living space available for a newborn"),
+        patch("random.random", return_value=0.5),
+    ):
+        await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    newborns = [
+        dweller
+        for dweller in await crud.dweller.get_all_in_vault(async_session, vault.id)
+        if dweller.parent_1_id == female_dweller.id and dweller.parent_2_id == male_dweller.id
+    ]
+    assert newborns == []
+
+    refreshed = await crud.pregnancy.get(async_session, pregnancy.id)
+    assert refreshed.status == PregnancyStatusEnum.PREGNANT
+    assert refreshed.is_due
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_rolls_back_partial_delivery(
+    async_session: AsyncSession,
+    vault: Vault,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A failure on the second newborn rolls back the first one's flush."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+    vault_id, mother_id, father_id, pregnancy_id = (
+        vault.id,
+        female_dweller.id,
+        male_dweller.id,
+        pregnancy.id,
+    )
+
+    original_create_newborn = BreedingService._create_newborn
+    calls = 0
+
+    async def flaky_create_newborn(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("boom")
+        return await original_create_newborn(*args, **kwargs)
+
+    monkeypatch.setattr(BreedingService, "_create_newborn", staticmethod(flaky_create_newborn))
+
+    with pytest.raises(RuntimeError, match="boom"), patch("random.random", return_value=0.5):
+        await BreedingService.deliver_baby(async_session, pregnancy_id)
+
+    newborns = [
+        dweller
+        for dweller in await crud.dweller.get_all_in_vault(async_session, vault_id)
+        if dweller.parent_1_id == mother_id and dweller.parent_2_id == father_id
+    ]
+    assert newborns == []
+
+    refreshed = await crud.pregnancy.get(async_session, pregnancy_id)
+    assert refreshed.status != PregnancyStatusEnum.DELIVERED
 
 
 @pytest.mark.asyncio
@@ -881,8 +1184,10 @@ async def test_deliver_baby_records_family_entries(
     async_session: AsyncSession,
     male_dweller: Dweller,
     female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     """Birth seeds the child's origin entry and narrates parenthood into both parents."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
     pregnancy = await BreedingService.create_pregnancy(
         async_session,
         female_dweller.id,
@@ -891,7 +1196,7 @@ async def test_deliver_baby_records_family_entries(
     pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
     await async_session.commit()
 
-    child = await BreedingService.deliver_baby(async_session, pregnancy.id)
+    child = (await BreedingService.deliver_baby(async_session, pregnancy.id))[0]
 
     assert [entry["source"] for entry in child.bio_entries] == ["template"]
     assert child.bio_entries[0]["text"] == child.bio
@@ -911,3 +1216,70 @@ def test_breeding_config_values():
     assert 0.0 <= game_config.breeding.conception_chance_per_tick <= 1.0
     assert game_config.breeding.pregnancy_duration_hours > 0
     assert game_config.breeding.child_growth_duration_hours == 60
+
+
+async def test_storage_workers_are_not_living_quarters_partners(
+    async_session: AsyncSession,
+    vault: Vault,
+    living_quarters: Room,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+):
+    from app.services.family.family_scenario_service import FamilyScenarioService
+
+    living_quarters.name = "Storage Room"
+    living_quarters.ability = SPECIALEnum.ENDURANCE
+    male_dweller.partner_id = female_dweller.id
+    female_dweller.partner_id = male_dweller.id
+    male_dweller.room_id = female_dweller.room_id = living_quarters.id
+    await async_session.commit()
+    with patch("random.random", return_value=0.0):
+        assert await BreedingService.check_for_conception(async_session, vault.id) == []
+    assert await FamilyScenarioService.find_living_quarters(async_session, vault.id) is None
+
+
+async def test_auto_family_scenario_selects_living_quarters(
+    async_session: AsyncSession,
+    vault: Vault,
+    living_quarters: Room,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+):
+    from app.services.family.family_scenario_service import FamilyScenarioService
+
+    scenario = await FamilyScenarioService.setup(async_session, vault.id, count=1)
+    assert len(scenario.couples) == 1
+    assert {scenario.couples[0].dweller_1.id, scenario.couples[0].dweller_2.id} == {male_dweller.id, female_dweller.id}
+    assert male_dweller.room_id == female_dweller.room_id == living_quarters.id
+
+
+@pytest.mark.parametrize(
+    ("category", "ability", "valid"),
+    [
+        (RoomTypeEnum.CAPACITY, SPECIALEnum.ENDURANCE, False),
+        (RoomTypeEnum.PRODUCTION, SPECIALEnum.CHARISMA, False),
+        (RoomTypeEnum.CAPACITY, SPECIALEnum.CHARISMA, True),
+    ],
+)
+async def test_explicit_family_room_must_be_living_quarters(
+    async_session, vault, living_quarters, male_dweller, female_dweller, category, ability, valid
+):
+    from app.crud.relationship import relationship_crud
+    from app.services.family.family_scenario_service import FamilyScenarioService
+
+    living_quarters.category = category
+    living_quarters.ability = ability
+    await async_session.commit()
+    kwargs = {"pairs": [(male_dweller.id, female_dweller.id)], "room_id": living_quarters.id}
+    if valid:
+        result = await FamilyScenarioService.setup(async_session, vault.id, **kwargs)
+        assert len(result.couples) == 1
+        assert male_dweller.room_id == female_dweller.room_id == living_quarters.id
+    else:
+        with pytest.raises(ValueError, match="Living Quarters"):
+            await FamilyScenarioService.setup(async_session, vault.id, **kwargs)
+        assert male_dweller.partner_id is None
+        assert female_dweller.partner_id is None
+        assert male_dweller.room_id is None
+        assert female_dweller.room_id is None
+        assert await relationship_crud.get_by_dweller(async_session, male_dweller.id) == []

@@ -260,15 +260,16 @@ async def _deliver_due_baby(db_session: AsyncSession, vault_id: UUID4, pregnancy
     from app.services.family.breeding_service import breeding_service
 
     try:
-        baby = await breeding_service.deliver_baby(db_session, pregnancy_id)
+        babies = await breeding_service.deliver_baby(db_session, pregnancy_id)
     except (SQLAlchemyError, ValueError) as e:
         if isinstance(e, SQLAlchemyError):
             await recover_session(db_session)
         logger.error(f"Error delivering baby for pregnancy {pregnancy_id}: {e}", exc_info=True)
         return False
-    if baby:
-        logger.info(f"Baby born in vault {vault_id}: {baby.first_name} {baby.last_name}")
-    return bool(baby)
+    if babies:
+        names = ", ".join(f"{baby.first_name} {baby.last_name}" for baby in babies)
+        logger.info(f"Baby born in vault {vault_id}: {names}")
+    return bool(babies)
 
 
 async def process_pregnancies_and_births(db_session: AsyncSession, vault_id: UUID4) -> PregnancyStats:

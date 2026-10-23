@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
 import type { components } from '@/core/types/api.generated'
-import type { Room, RoomBuild, RoomTemplate } from '../models/room'
+import type { Room, RoomBuild, RoomStyleValue, RoomTemplate } from '../models/room'
 import {
   FLOOR_UNITS,
   ROOM_SLOT_STARTS,
@@ -124,7 +124,7 @@ export const useRoomStore = defineStore('room', () => {
     } catch (error) {
       handleStoreError(error, 'Failed to build room')
       if (error instanceof AxiosError && error.response?.data?.detail) {
-        throw new Error(error.response.data.detail)
+        throw new Error(error.response.data.detail, { cause: error })
       }
       throw error
     }
@@ -147,7 +147,7 @@ export const useRoomStore = defineStore('room', () => {
     } catch (error) {
       handleStoreError(error, 'Failed to destroy room')
       if (error instanceof AxiosError && error.response?.data?.detail) {
-        throw new Error(error.response.data.detail)
+        throw new Error(error.response.data.detail, { cause: error })
       }
       throw error
     }
@@ -178,7 +178,7 @@ export const useRoomStore = defineStore('room', () => {
     } catch (error) {
       handleStoreError(error, 'Failed to upgrade room')
       if (error instanceof AxiosError && error.response?.data?.detail) {
-        throw new Error(error.response.data.detail)
+        throw new Error(error.response.data.detail, { cause: error })
       }
       throw error
     }
@@ -200,6 +200,29 @@ export const useRoomStore = defineStore('room', () => {
       .concat(replacements)
     if (otherRoomId) flashMergedRoom(replacements[0]!.id)
     audioManager.play('vaultBuild', 'sfx')
+  }
+
+  async function applyRoomStyle(
+    roomId: string,
+    style: RoomStyleValue,
+    token: string
+  ): Promise<Room> {
+    try {
+      const response = await axios.post<Room>(
+        `/api/v1/rooms/style/${roomId}`,
+        { style },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      const index = rooms.value.findIndex((room) => room.id === roomId)
+      if (index !== -1) rooms.value[index] = response.data
+      return response.data
+    } catch (error) {
+      handleStoreError(error, 'Failed to apply room style')
+      if (error instanceof AxiosError && error.response?.data?.detail) {
+        throw new Error(error.response.data.detail, { cause: error })
+      }
+      throw error
+    }
   }
 
   function flashMergedRoom(roomId: string): void {
@@ -266,6 +289,7 @@ export const useRoomStore = defineStore('room', () => {
     buildRoom,
     destroyRoom,
     upgradeRoom,
+    applyRoomStyle,
     remodelRoom,
     selectRoom,
     deselectRoom,

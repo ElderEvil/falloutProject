@@ -16,6 +16,7 @@ enforces that. ``rarity`` is normalized to ``RarityEnum`` here so callers may pa
 raw catalog string.
 """
 
+from dataclasses import asdict
 from typing import Any
 
 from pydantic import UUID4
@@ -34,6 +35,7 @@ from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.pet import Pet
 from app.models.weapon import Weapon
+from app.schemas.weapon import LadderEntry
 from app.utils.outfit_assets import get_outfit_image_url
 from app.utils.pet_assets import get_pet_image_url
 from app.utils.weapon_assets import get_weapon_image_url
@@ -54,6 +56,25 @@ def build_weapon(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUI
         image_url=get_weapon_image_url(name),
         storage_id=storage_id,
     )
+
+
+def apply_weapon_catalog(weapon: Weapon, entry: LadderEntry | dict[str, Any]) -> None:
+    """Apply the factory's catalog mapping without replacing the stored item identity."""
+    if isinstance(entry, LadderEntry):
+        entry = asdict(entry)
+    replacement = build_weapon(entry, entry["rarity"])
+    for field in (
+        "name",
+        "rarity",
+        "weapon_type",
+        "weapon_subtype",
+        "stat",
+        "damage_min",
+        "damage_max",
+        "value",
+        "image_url",
+    ):
+        setattr(weapon, field, getattr(replacement, field))
 
 
 def build_outfit(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUID4 | None = None) -> Outfit:

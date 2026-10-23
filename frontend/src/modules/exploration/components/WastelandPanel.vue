@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
+
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -9,7 +11,11 @@ import { useExplorationFinish } from '@/modules/exploration/composables/useExplo
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
-import { canUseRadaway, getDwellerDisplayName, type Dweller } from '@/modules/dwellers/models/dweller'
+import {
+  canUseRadaway,
+  getDwellerDisplayName,
+  type Dweller,
+} from '@/modules/dwellers/models/dweller'
 import WastelandDropzone from '@/modules/exploration/components/WastelandDropzone.vue'
 import ActiveExplorationList from '@/modules/exploration/components/ActiveExplorationList.vue'
 import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
@@ -70,7 +76,7 @@ onMounted(async () => {
 
       explorationStore.startSseSubscription(vaultId.value, authStore.token)
     } catch (error) {
-      toast.error('Failed to load explorations')
+      notifyErrorOnce(error, 'Failed to load explorations')
     }
   }
 })
@@ -104,7 +110,7 @@ const pollExplorations = async () => {
   if (!vaultId.value || !authStore.token || !explorationStore.activeExplorations) return
 
   try {
-    await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+    await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token, true, true)
 
     // Check for completed explorations and fetch detailed data for new explorers
     for (const exploration of activeExplorationsArray.value) {
@@ -117,7 +123,7 @@ const pollExplorations = async () => {
       }
     }
   } catch (error) {
-    toast.error('Failed to refresh explorations')
+    notifyErrorOnce(error, 'Failed to refresh explorations')
   }
 }
 

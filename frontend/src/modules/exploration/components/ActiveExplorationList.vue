@@ -100,26 +100,27 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
               <span class="truncate text-xs font-bold text-wasteland">{{
                 getDwellerDisplayName(getDwellerById(exploration.dweller_id))
               }}</span>
-              <ExplorationStatusBadges
-                :exploration="exploration"
-                :dweller="getDwellerForBadges(exploration.dweller_id)"
-                compact
-              />
             </div>
-            <span class="flex shrink-0 items-center gap-1">
-              <span
-                class="whitespace-nowrap rounded-full border border-[rgba(205,133,63,0.35)] bg-[rgba(205,133,63,0.1)] px-1.5 py-0.5 font-mono text-[0.65rem] font-bold text-wasteland"
-                >{{ Math.round(getProgressPercentage(exploration)) }}%</span
-              >
-            </span>
+            <ExplorationStatusBadges
+              :exploration="exploration"
+              :dweller="getDwellerForBadges(exploration.dweller_id)"
+              compact
+              class="shrink-0"
+            />
           </div>
-          <!-- @vue-ignore -->
-          <Progress
-            :model-value="getProgressPercentage(exploration)"
-            class="h-1.5"
-            :fill="'linear-gradient(90deg, rgb(205 133 63 / 0.6), rgb(205 133 63))'"
-            :aria-label="`Exploration progress for ${getDwellerById(exploration.dweller_id)?.first_name ?? 'dweller'}`"
-          />
+          <div class="flex items-center gap-2">
+            <!-- @vue-ignore -->
+            <Progress
+              :model-value="getProgressPercentage(exploration)"
+              class="h-1.5 flex-1"
+              :fill="'linear-gradient(90deg, rgb(205 133 63 / 0.6), rgb(205 133 63))'"
+              :aria-label="`Exploration progress for ${getDwellerById(exploration.dweller_id)?.first_name ?? 'dweller'}`"
+            />
+            <span
+              class="shrink-0 whitespace-nowrap rounded-full border border-[rgba(205,133,63,0.35)] bg-[rgba(205,133,63,0.1)] px-1.5 py-0.5 font-mono text-[0.65rem] font-bold text-wasteland"
+              >{{ Math.round(getProgressPercentage(exploration)) }}%</span
+            >
+          </div>
           <div class="explorer-stats">
             <div class="stat-item">
               <Icon icon="mdi:map-marker-distance" class="h-3.5 w-3.5" />
@@ -276,7 +277,7 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
 
 .explorer-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 0.75rem;
 }
 

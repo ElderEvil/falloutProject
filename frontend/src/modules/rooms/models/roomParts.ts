@@ -10,6 +10,7 @@ export type RoomPart =
   | 'preview'
   | 'info'
   | 'productionStats'
+  | 'storageMaintenance'
   | 'radioStats'
   | 'crafting'
   | 'dwellerList'
@@ -21,6 +22,7 @@ export type RoomPart =
   | 'responseStation'
   | 'incident'
   | 'aftermath'
+  | 'barbershop'
 
 // Special rooms are identified by their seed-data-stable names; the string
 // matching lives here and nowhere else.
@@ -36,6 +38,11 @@ export function isElevator(room: Room | null): boolean {
   return room?.name.toLowerCase() === 'elevator'
 }
 
+/** The Barbershop is matched by exact name, mirroring the backend predicate (not its `misc.` category). */
+export function isBarbershop(room: Room | null): boolean {
+  return room?.name.toLowerCase() === 'barbershop'
+}
+
 export function isOverseersOffice(room: Room | null): boolean {
   return room?.name.toLowerCase() === "overseer's office"
 }
@@ -43,6 +50,10 @@ export function isOverseersOffice(room: Room | null): boolean {
 /** A room contributes to resource production when it is a production room with an ability. */
 export function producesResources(room: Room | null): boolean {
   return room?.category.toLowerCase() === 'production' && !!room.ability
+}
+
+export function isStorageRoom(room: Room | null): boolean {
+  return room?.category.toLowerCase() === 'capacity' && room.ability === 'endurance'
 }
 
 export type ResourceName = 'power' | 'food' | 'water'
@@ -71,6 +82,10 @@ export function isCraftingRoom(room: Room | null): boolean {
   return room?.category.toLowerCase() === 'crafting'
 }
 
+export function isThemeWorkshop(room: Room | null): boolean {
+  return room?.category.toLowerCase() === 'theme'
+}
+
 export function isTrainingRoom(room: Room | null): boolean {
   return room?.category.toLowerCase() === 'training'
 }
@@ -81,8 +96,10 @@ export function isResponseStation(room: Room | null): boolean {
 }
 
 /** Catalog a workshop crafts; workshop name-matching lives only here. */
-export function craftingItemType(room: Room | null): 'weapon' | 'outfit' | null {
-  if (!isCraftingRoom(room) || !room) return null
+export function craftingItemType(room: Room | null): 'weapon' | 'outfit' | 'theme' | null {
+  if (!room) return null
+  if (isThemeWorkshop(room)) return 'theme'
+  if (!isCraftingRoom(room)) return null
   const name = room.name.toLowerCase()
   if (name.includes('weapon')) return 'weapon'
   if (name.includes('outfit')) return 'outfit'
@@ -108,7 +125,9 @@ export function getRoomDetailParts(
   if (aftermath) return ['aftermath']
 
   const parts: RoomPart[] = ['preview', 'info']
+  if (isBarbershop(room)) parts.push('barbershop')
   if (isOverseersOffice(room)) parts.push('overseerBriefing')
+  if (isStorageRoom(room)) parts.push('storageMaintenance')
   if (isRadioRoom(room)) parts.push('radioStats')
   else if (producesResources(room)) parts.push('productionStats')
   if (craftingItemType(room)) parts.push('crafting')

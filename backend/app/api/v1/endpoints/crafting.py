@@ -9,6 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
 from app.db.session import get_async_session
+from app.models.crafting_order import CraftingOrder
 from app.schemas.crafting import (
     CraftingOrderRead,
     CraftingOrdersRead,
@@ -80,6 +81,25 @@ async def start_crafting_order(
     await get_user_vault_or_403(vault_id, user, db_session)
     order = await crafting_service.start_order(db_session, vault_id, request.item_name, request.item_type)
     return CraftingOrderRead.model_validate(order)
+
+
+@router.post("/vault/{vault_id}/orders/{order_id}/cancel", response_model=CraftingOrderRead)
+async def cancel_crafting_order(
+    vault_id: UUID4,
+    order_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    user: CurrentActiveUser,
+) -> CraftingOrder:
+    """Cancel an active order, refunding its caps and junk.
+
+    Returns:
+        The cancelled order.
+
+    Raises:
+        HTTPException: 403 if user lacks access to the vault.
+    """
+    await get_user_vault_or_403(vault_id, user, db_session)
+    return await crafting_service.cancel_order(db_session, vault_id, order_id)
 
 
 @router.post("/vault/{vault_id}/orders/{order_id}/collect", response_model=CraftResultRead)

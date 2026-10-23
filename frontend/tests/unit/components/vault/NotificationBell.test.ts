@@ -198,6 +198,38 @@ describe('NotificationBell SSE watcher null-safety', () => {
     wrapper.unmount()
   })
 
+  it.each(['Training continues', 'Goal reached', 'Training complete'])(
+    'shows the %s outcome in both toast and bell',
+    async (outcome) => {
+      useAuthStore().token = 'test-token'
+      const { toasts } = useToast()
+      toasts.value = []
+      const message = `Strength +1 (6). ${outcome}.`
+      const data = JSON.stringify({
+        notification: {
+          id: 'training-notification',
+          vault_id: 'vault-1',
+          notification_type: 'training_complete',
+          title: `Lucy — ${outcome}`,
+          message,
+          priority: 'normal',
+          created_at: '2026-10-21T12:00:00',
+        },
+      })
+      fetchMock.mockResolvedValue(
+        createMockResponse([encodeSse(data, 'notification')], { hang: true })
+      )
+      const wrapper = mount(NotificationBell)
+      await vi.advanceTimersByTimeAsync(0)
+      await flushPromises()
+      expect(toasts.value.some((toast) => toast.message === message)).toBe(true)
+      await wrapper.get('button[aria-label="Notifications"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain(message)
+      wrapper.unmount()
+    }
+  )
+
   it('toasts and adds a bell entry when a hazard team join notification arrives', async () => {
     // ARRANGE: authenticated user, SSE delivers a hazard_team_joined notification
     const authStore = useAuthStore()
@@ -797,6 +829,40 @@ describe('NotificationBell popup accessibility', () => {
     expect(badgeClass).not.toMatch(/bg-danger\/20/)
     expect(badgeClass).toMatch(/(^|\s)text-black(\s|$)/)
 
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['storage_item_degraded', 'mdi:tools'],
+    ['storage_item_upgraded', 'mdi:arrow-up-bold'],
+  ])('shows %s in both toast and bell', async (notification_type, icon) => {
+    useAuthStore().token = 'test-token'
+    const { toasts } = useToast()
+    toasts.value = []
+    const message = 'A stored weapon changed catalog variant'
+    const data = JSON.stringify({
+      notification: {
+        id: 'storage-notification',
+        vault_id: 'vault-1',
+        notification_type,
+        title: 'Storage maintenance',
+        message,
+        priority: 'normal',
+        created_at: '2026-10-20T12:00:00',
+      },
+    })
+    fetchMock.mockResolvedValue(
+      createMockResponse([encodeSse(data, 'notification')], { hang: true })
+    )
+    const wrapper = mount(NotificationBell)
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+    expect(toasts.value.some((toast) => toast.message === message)).toBe(true)
+    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find(`[data-icon="${icon}"]`).exists()).toBe(true)
+    expect(wrapper.text()).toContain('Storage maintenance')
+    expect(wrapper.text()).toContain(message)
     wrapper.unmount()
   })
 })

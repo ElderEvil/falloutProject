@@ -24,7 +24,6 @@ interface Props {
   dweller: DwellerDetailRead
   imageUrl?: string | null
   loading?: boolean
-  generatingPortrait?: boolean
   availableStimpaks?: number
   availableRadaways?: number
   healingSupply?: 'stimpack' | 'radaway' | null
@@ -41,7 +40,6 @@ const emit = defineEmits<{
   (e: 'heal-radaway'): void
   (e: 'unassign'): void
   (e: 'send-wasteland'): void
-  (e: 'generate-portrait'): void
 }>()
 
 const getImageUrl = (imagePath: string) => {
@@ -119,12 +117,16 @@ const canHealRadaway = computed(
 <template>
   <div class="dweller-card">
     <div class="portrait-rail">
-      <div class="portrait-container">
+      <div class="portrait-container" :class="{ 'default-portrait-frame': dweller.is_default_portrait }">
         <template v-if="imageUrl">
           <img
             :src="getImageUrl(imageUrl)"
             alt="Dweller Portrait"
-            :class="['portrait-image', { 'grayscale brightness-50 contrast-125': dweller.is_dead }]"
+            :class="[
+              'portrait-image',
+              { 'grayscale brightness-50 contrast-125': dweller.is_dead },
+              { 'default-portrait-zoom': dweller.is_default_portrait },
+            ]"
           />
           <span
             v-if="dweller.is_dead"
@@ -136,21 +138,10 @@ const canHealRadaway = computed(
           </span>
         </template>
         <template v-else>
-          <button
-            type="button"
-            class="portrait-placeholder"
-            :disabled="loading"
-            @click="emit('generate-portrait')"
-          >
-            <Icon
-              :icon="generatingPortrait ? 'mdi:loading' : 'mdi:account-circle'"
-              class="placeholder-icon text-theme-primary opacity-30"
-              :class="{ 'animate-spin': generatingPortrait }"
-            />
-            <span class="placeholder-hint">{{
-              generatingPortrait ? 'Generating portrait…' : 'Generate portrait'
-            }}</span>
-          </button>
+          <div class="portrait-placeholder">
+            <Icon icon="mdi:account-circle" class="placeholder-icon text-theme-primary opacity-30" />
+            <span class="placeholder-hint">No portrait</span>
+          </div>
         </template>
       </div>
 
@@ -268,31 +259,35 @@ const canHealRadaway = computed(
   container-type: inline-size;
 }
 
-/* Portrait and stats share one row while there is room for both. The portrait
-   is sized by its own ratio within a height budget, so a square portrait gets
-   the full width allowance while a vertical one stays narrow and hands the
-   space to the stats. */
+/* Portrait and stats share one row while there is room for both. The square
+   frame lets generated art fill the card; tall static art is anchored to the
+   top so the face and upper body stay visible. */
 .portrait-rail {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 1rem;
+  gap: 1.25rem;
   align-items: start;
 }
 
-/* Too narrow for two columns: stack, and let the portrait use the full width. */
+/* Too narrow for two columns: stack, keeping the portrait's frame. */
 @container (max-width: 360px) {
   .portrait-rail {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .portrait-image {
-    max-width: 100%;
   }
 }
 
 .portrait-container {
   position: relative;
-  min-width: 0;
+  width: 9rem;
+  max-width: 100%;
+  aspect-ratio: 1;
+}
+
+.portrait-container.default-portrait-frame {
+  overflow: hidden;
+  border-radius: 8px;
+  border: 2px solid var(--color-theme-primary);
+  box-shadow: 0 0 15px var(--color-theme-glow);
 }
 
 .stats-container {
@@ -305,21 +300,27 @@ const canHealRadaway = computed(
 
 .portrait-image {
   display: block;
-  width: auto;
-  height: auto;
-  max-width: 11rem;
-  max-height: 12rem;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
   border-radius: 8px;
   border: 2px solid var(--color-theme-primary);
   box-shadow: 0 0 15px var(--color-theme-glow);
 }
 
+.portrait-image.default-portrait-zoom {
+  transform: scale(1.1);
+  transform-origin: top center;
+  border: none;
+  box-shadow: none;
+}
+
 /* The placeholder has no intrinsic size to borrow, so it takes a definite box
    matching the image allowance and scales its glyph to the container. */
 .portrait-placeholder {
-  width: 11rem;
-  max-width: 100%;
-  aspect-ratio: 1;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -357,12 +358,6 @@ const canHealRadaway = computed(
   width: 45%;
   height: auto;
   aspect-ratio: 1;
-}
-
-.stats-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
 }
 
 .stat-row {
@@ -406,7 +401,7 @@ const canHealRadaway = computed(
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
-  margin-top: 0.25rem;
+  margin-top: 0.5rem;
 }
 
 .supply-row {

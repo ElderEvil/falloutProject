@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
+
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
@@ -7,6 +9,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useTrainingStore } from '@/modules/progression/stores/training'
+import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.vue'
 import { useRoomInteractions } from '../composables/useRoomInteractions'
 import { useHoverPreview } from '../composables/useHoverPreview'
 import { useRoomRendering } from '@/core/composables/useRoomRendering'
@@ -67,7 +70,15 @@ const isPowerOutage = computed(() => {
   return (vaultStore.activeVault?.power ?? 1) <= 0
 })
 
-const { selectedRoomId, toggleRoomSelection, destroyRoom } = useRoomInteractions()
+const {
+  selectedRoomId,
+  toggleRoomSelection,
+  destroyRoom,
+  destroyTitle,
+  showDestroyConfirmation,
+  confirmDestroy,
+  cancelDestroy,
+} = useRoomInteractions()
 const {
   hoverPosition,
   handleHover,
@@ -122,7 +133,7 @@ const placeRoom = async (x: number, y: number) => {
       await dwellerStore.fetchDwellersByVault(vaultId, authStore.token as string)
     }
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : 'Failed to build room')
+    notifyErrorOnce(error, error instanceof Error ? error.message : 'Failed to build room')
   }
 }
 
@@ -222,7 +233,7 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
     const action = currentRoomId ? 'moved' : 'assigned'
     toast.success(`${firstName} ${lastName} ${action} successfully!`)
   } catch (error) {
-    toast.error('Failed to assign dweller to room')
+    notifyErrorOnce(error, 'Failed to assign dweller to room')
   }
 }
 
@@ -247,9 +258,10 @@ const handleIncidentClick = (incidentId: string) => {
 // Lets a parent (alert banner, notification click-through) open a room's overlay.
 // Immediate so a deep link set before this grid mounts still opens the room.
 watch(
-  () => openRoomId,
-  (roomId) => {
-    if (roomId && openRoomOverlay(roomId)) emit('roomOpened')
+  [() => openRoomId, rooms, () => route.query.dweller],
+  ([roomId, , dwellerId]) => {
+    // A restored detail modal must stay above rooms that finish loading later.
+    if (!dwellerId && roomId && openRoomOverlay(roomId)) emit('roomOpened')
   },
   { immediate: true }
 )
@@ -268,7 +280,7 @@ const handleUpgradeRoom = async (roomId: string, event: MouseEvent) => {
     await roomStore.upgradeRoom(roomId, authStore.token as string, vaultId)
     toast.success('Room upgraded successfully!')
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : 'Failed to upgrade room')
+    notifyErrorOnce(error, error instanceof Error ? error.message : 'Failed to upgrade room')
   }
 }
 
@@ -423,6 +435,14 @@ const closeDetailModal = () => {
       </div>
     </div>
   </TooltipProvider>
+  <TerminalConfirmation
+    :open="showDestroyConfirmation"
+    :title="destroyTitle"
+    message="Dwellers will be unassigned. You will receive a partial refund."
+    confirm-label="Destroy room"
+    @confirm="confirmDestroy()"
+    @cancel="cancelDestroy()"
+  />
 </template>
 
 <style src="./RoomGrid.css" scoped></style>

@@ -23,6 +23,7 @@ class CraftingOrderStatus(StrEnum):
     ACTIVE = "active"
     COMPLETED = "completed"
     COLLECTED = "collected"
+    CANCELLED = "cancelled"
 
 
 class CraftingOrderBase(SQLModel):
@@ -41,10 +42,12 @@ class CraftingOrderBase(SQLModel):
     started_at: datetime
     estimated_completion_at: datetime
     completed_at: datetime | None = Field(default=None)
+    cancelled_at: datetime | None = Field(default=None)
 
     # Materials the order already consumed, kept for display and auditing.
     junk_spent: int = Field(default=0, ge=0)
     caps_spent: int = Field(default=0, ge=0)
+    junk_snapshot: list[dict[str, Any]] = Field(default_factory=list, sa_column=sa.Column(JSONB, nullable=False))
     # The SPECIAL this item's craft is keyed to, and the crew's total in it at start.
     required_stat: str = Field(max_length=16)
     ability_sum_at_start: int = Field(default=0, ge=0)
@@ -60,6 +63,9 @@ class CraftingOrderBase(SQLModel):
 
     def is_collected(self) -> bool:
         return self.status == CraftingOrderStatus.COLLECTED
+
+    def is_cancelled(self) -> bool:
+        return self.status == CraftingOrderStatus.CANCELLED
 
     def time_remaining_seconds(self) -> int:
         """Seconds until completion, or 0 once it is no longer active."""

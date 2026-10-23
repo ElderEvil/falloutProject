@@ -62,6 +62,7 @@ async def test_read_pet(
     assert data["id"] == str(pet.id)
     assert data["name"] == "Dogmeat"
     assert data["storage_id"] == str(storage.id)
+    assert data["effect"]["twin_chance_pct"] == 0.0
 
 
 @pytest.mark.asyncio

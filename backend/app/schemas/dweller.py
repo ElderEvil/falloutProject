@@ -31,6 +31,7 @@ from app.schemas.pet import PetRead
 from app.schemas.room import RoomRead
 from app.schemas.vault import VaultRead
 from app.schemas.weapon import WeaponRead
+from app.utils.dweller_assets import is_default_dweller_image
 from app.utils.partial import optional
 from app.utils.places import normalize_place_name
 
@@ -290,6 +291,11 @@ class DwellerReadLess(SQLModel):
 
     @computed_field
     @property
+    def is_default_portrait(self) -> bool:
+        return is_default_dweller_image(self.thumbnail_url)
+
+    @computed_field
+    @property
     def effective_max_health(self) -> int:
         """Maximum health available after radiation damage."""
         pet = getattr(self, "pet", None)
@@ -323,6 +329,11 @@ class DwellerRead(DwellerBase):
     updated_at: datetime
     visual_attributes: dict | None = Field(default=None)
     pet: PetRead | None = Field(default=None, validation_alias="pet_loaded")
+
+    @computed_field
+    @property
+    def is_default_portrait(self) -> bool:
+        return is_default_dweller_image(self.image_url)
 
     @computed_field
     @property

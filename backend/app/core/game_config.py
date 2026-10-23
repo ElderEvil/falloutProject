@@ -28,7 +28,7 @@ from app.core.grid_config import (
 )
 from app.models.incident import IncidentType
 from app.options.factions import faction_restrictions
-from app.options.races import RaceOption
+from app.options.races import STATE_OF_BEING_OPTIONS, RaceOption
 
 __all__ = [
     "GRID_BUILD_X_MAX",
@@ -510,6 +510,15 @@ class TrainingConfig(BaseSettings):
         return multipliers.get(tier, 1.0)
 
 
+class BarbershopConfig(BaseSettings):
+    """Barbershop appearance-change configuration."""
+
+    model_config = SettingsConfigDict(env_prefix="BARBERSHOP_")
+
+    skin_change_cost: int = Field(default=200, description="Caps charged for a skin-tone change", ge=0)
+    hair_change_cost: int = Field(default=150, description="Caps charged for a hair-color change", ge=0)
+
+
 class ResourceConfig(BaseSettings):
     """Resource production and consumption configuration."""
 
@@ -646,9 +655,15 @@ class BreedingConfig(BaseSettings):
         ge=0.0,
         le=1.0,
     )
-    race_mutation_chance: float = Field(
+    twin_chance: float = Field(
         default=0.05,
-        description="5% chance a newborn mutates into a different race than its parents",
+        description="Base 5% chance a birth delivers twins, raised by the mother's equipped Twins-chance pet",
+        ge=0.0,
+        le=1.0,
+    )
+    triplet_chance: float = Field(
+        default=0.02,
+        description="2% global chance a twin birth delivers triplets (Fallout Shelter FAQ 5.2)",
         ge=0.0,
         le=1.0,
     )
@@ -850,10 +865,22 @@ class DwellerConfig(BaseSettings):
     )
 
     # Race distribution for generated dwellers — global (standard and boosted
-    # vaults share it). Env: DWELLER_RACE_WEIGHTS='{"human":70,"ghoul":15,...}'.
+    # vaults share it). Env: DWELLER_RACE_WEIGHTS='{"human":85,"ghoul":7,...}'.
     race_weights: dict[str, int] = Field(
-        default_factory=lambda: {"human": 70, "ghoul": 15, "synth": 10, "super_mutant": 5},
+        default_factory=lambda: {"human": 85, "ghoul": 7, "synth": 5, "super_mutant": 3},
         description="Seeded race roll weights; keys must cover every RaceOption",
+    )
+
+    state_weights: dict[str, dict[str, int]] = Field(
+        default_factory=lambda: {
+            "ghoul": {"sane": 70, "wild": 22, "feral": 8},
+            "super_mutant": {"mild": 55, "average": 35, "behemoth": 10},
+            "synth": {"gen_3": 70, "gen_2": 22, "gen_1": 8},
+        },
+        description=(
+            "State-of-being roll weights per non-human race; keys must cover every state. "
+            "The more human-passing state should dominate."
+        ),
     )
 
     # Faction-weighting policy: humans stay lore-coherent with vault_dweller
@@ -916,9 +943,46 @@ class DwellerConfig(BaseSettings):
             raise ValueError(f"{info.field_name} must have a positive total weight")
         return normalized
 
+    @field_validator("state_weights", mode="before")
+    @classmethod
+    def _validate_state_weights(cls, value: Any) -> dict[str, dict[str, int]]:
+        expected = {race.value: {state.value for state in states} for race, states in STATE_OF_BEING_OPTIONS.items()}
+        if not isinstance(value, dict):
+            raise TypeError("state_weights must map race names to state weight maps")
+        normalized: dict[str, dict[str, int]] = {}
+        for raw_race, raw_states in value.items():
+            race = str(raw_race).strip().lower().replace(" ", "_").replace("-", "_")
+            if race not in expected:
+                raise ValueError(f"Unknown race '{raw_race}' in state_weights; valid races: {sorted(expected)}")
+            if not isinstance(raw_states, dict):
+                raise TypeError(f"state_weights['{race}'] must map state names to integer weights")
+            states: dict[str, int] = {}
+            for raw_state, raw_weight in raw_states.items():
+                state = str(raw_state).strip().lower().replace(" ", "_").replace("-", "_")
+                if state not in expected[race]:
+                    raise ValueError(
+                        f"Unknown state '{raw_state}' for race '{race}'; valid states: {sorted(expected[race])}"
+                    )
+                if isinstance(raw_weight, bool) or not isinstance(raw_weight, int) or raw_weight < 0:
+                    raise ValueError(
+                        f"state_weights['{race}']['{state}'] must be a non-negative integer, got {raw_weight!r}"
+                    )
+                states[state] = raw_weight
+            if missing := expected[race] - states.keys():
+                raise ValueError(f"state_weights['{race}'] is missing states: {sorted(missing)}")
+            if sum(states.values()) <= 0:
+                raise ValueError(f"state_weights['{race}'] must have a positive total weight")
+            normalized[race] = states
+        if missing := expected.keys() - normalized.keys():
+            raise ValueError(f"state_weights is missing races: {sorted(missing)}")
+        return normalized
+
     def get_race_weights(self) -> dict[str, int]:
         """Get a validated copy of the race weights (keys = RaceOption values)."""
         return dict(self.race_weights)
+
+    def get_state_weights(self, race: str) -> dict[str, int]:
+        return dict(self.state_weights.get(race, {}))
 
     elder_age_years: int = Field(
         default=70,
@@ -1255,6 +1319,21 @@ class VaultSlotConfig(BaseSettings):
     columns: int = Field(default=10, description="Slot grid columns (rows are derived)", ge=1)
 
 
+class StorageConfig(BaseSettings):
+    """Online-only hourly weapon maintenance, enabled by default."""
+
+    model_config = SettingsConfigDict(env_prefix="STORAGE_")
+    maintenance_enabled: bool = True
+    trial_interval_seconds: int = Field(default=3600, gt=0)
+    end_for_full_protection: float = Field(default=20, gt=0)
+    chance_at_extreme: float = Field(default=0.02, ge=0, le=1)
+    deadband: float = Field(default=0.02, ge=0, lt=1)
+    allow_upgrade: bool = True
+    allow_rarity_upgrade: bool = True
+    trials_require_online: bool = True
+    notify_cooldown_hours: float = Field(default=24, gt=0)
+
+
 class GameConfig(BaseSettings):
     """Master game configuration."""
 
@@ -1268,6 +1347,7 @@ class GameConfig(BaseSettings):
     health: HealthConfig = Field(default_factory=HealthConfig)
     happiness: HappinessConfig = Field(default_factory=HappinessConfig)
     training: TrainingConfig = Field(default_factory=TrainingConfig)
+    barbershop: BarbershopConfig = Field(default_factory=BarbershopConfig)
     resource: ResourceConfig = Field(default_factory=ResourceConfig)
     relationship: RelationshipConfig = Field(default_factory=RelationshipConfig)
     breeding: BreedingConfig = Field(default_factory=BreedingConfig)
@@ -1282,6 +1362,7 @@ class GameConfig(BaseSettings):
     exit_request: ExitConfig = Field(default_factory=ExitConfig)
     features: FeatureConfig = Field(default_factory=FeatureConfig)
     vault_slots: VaultSlotConfig = Field(default_factory=VaultSlotConfig)
+    storage: StorageConfig = Field(default_factory=StorageConfig)
 
 
 # Singleton instance

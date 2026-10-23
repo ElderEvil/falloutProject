@@ -12,7 +12,7 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import { isMature, type DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useGroupColors } from '@/core/composables/useGroupColors'
 import { useToast } from '@/core/composables/useToast'
-import { getErrorMessage } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, getErrorMessage } from '@/core/utils/errorHandler'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
@@ -321,7 +321,7 @@ async function handleDispatch(payload: {
     await mapStore.refreshMap(vaultId.value, authStore.token)
     toast.success(`${location.name} — dispatch sent`)
   } catch (err) {
-    toast.error(getErrorMessage(err))
+    notifyErrorOnce(err, getErrorMessage(err))
   } finally {
     isDispatching.value = false
   }
@@ -489,25 +489,25 @@ const hasNoData = computed(
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <PageContentRail>
-            <PageHeader
-              title="World Map"
-              icon="mdi:map"
-              subtitle="Track discoveries, expeditions & the wider wasteland."
-            >
-              <template #help>
-                <section>
-                  <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
-                    <Icon icon="mdi:map" class="size-4 shrink-0" />
-                    Follow parties and sites
-                  </h2>
-                  <p>
-                    Parties out counts groups travelling to a chosen expedition site. Ready to
-                    clear counts discovered expedition sites with their conditions met that no
-                    party is visiting — toggle the filter to focus them.
-                  </p>
-                </section>
-              </template>
-              <template #actions>
+          <PageHeader
+            title="World Map"
+            icon="mdi:map"
+            subtitle="Track discoveries, expeditions & the wider wasteland."
+          >
+            <template #help>
+              <section>
+                <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                  <Icon icon="mdi:map" class="size-4 shrink-0" />
+                  Follow parties and sites
+                </h2>
+                <p>
+                  Parties out counts groups travelling to a chosen expedition site. Ready to clear
+                  counts discovered expedition sites with their conditions met that no party is
+                  visiting — toggle the filter to focus them.
+                </p>
+              </section>
+            </template>
+            <template #actions>
               <PageHeaderMetric
                 icon="mdi:account-group"
                 :value="partiesOut"

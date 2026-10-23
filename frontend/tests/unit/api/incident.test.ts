@@ -40,6 +40,27 @@ describe('incidentApi.getIncidentTeam', () => {
   })
 })
 
+describe('incidentApi.takeOverflow', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('leaves the actionable storage-full error to the incident store', async () => {
+    vi.mocked(axios.post).mockResolvedValueOnce({ data: { unclaimed_loot: [], caps_granted: 0 } })
+
+    await incidentApi.takeOverflow('vault-1', 'incident-1', 2, 'token')
+
+    expect(axios.post).toHaveBeenCalledWith(
+      '/api/v1/game/vaults/vault-1/incidents/incident-1/overflow/take',
+      { index: 2 },
+      {
+        headers: { Authorization: 'Bearer token' },
+        _skipErrorNotification: true,
+      }
+    )
+  })
+})
+
 it('returns the responders actually accepted by the backend', async () => {
   const result = {
     incident_id: 'incident-1',

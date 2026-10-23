@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onScopeDispose, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useStorageStore } from '../stores/storage'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -8,9 +10,9 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
 import { useSound } from '@/core/composables/useSound'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
-import { storageService, type StorageItemsResponse } from '../services/storageService'
+import { type StorageItemsResponse } from '../services/storageService'
 import type { components } from '@/core/types/api.generated'
-import { handleStoreError } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, handleStoreError } from '@/core/utils/errorHandler'
 import { Icon } from '@iconify/vue'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import SidePanel from '@/core/components/common/SidePanel.vue'
@@ -29,36 +31,16 @@ const toast = useToast()
 const { playSound } = useSound()
 
 const vaultId = computed(() => route.params.id as string)
-const storageSpace = ref<{
-  used_space: number
-  max_space: number
-  available_space: number
-  utilization_pct: number
-  stimpack: number
-  radaway: number
-} | null>(null)
-
-const storageItems = ref<StorageItemsResponse>({
-  weapons: [],
-  outfits: [],
-  junk: [],
-  items: [],
-  pets: [],
-})
-
-const { run: runFetchStorageData, isLoading } = useAsyncAction(
-  async (currentVaultId: string) => {
-    const [spaceData, itemsData] = await Promise.all([
-      storageService.getStorageSpace(currentVaultId),
-      storageService.getStorageItems(currentVaultId),
-    ])
-
-    storageSpace.value = spaceData
-    storageItems.value = itemsData
-    return true
-  },
-  { context: 'Failed to load storage data', showToast: false }
-)
+const storageStore = useStorageStore()
+onScopeDispose(storageStore.retain())
+const {
+  space: storageSpace,
+  items: storageItems,
+  isLoading,
+  maintenance,
+  maintenanceMode,
+} = storeToRefs(storageStore)
+const runFetchStorageData = (id: string) => storageStore.refresh(id)
 
 const activeTab = ref<'weapons' | 'outfits' | 'junk' | 'supplies' | 'pets'>('weapons')
 type StorageTab = typeof activeTab.value
@@ -95,10 +77,7 @@ const tabs = computed<Array<{ key: StorageTab; label: string }>>(() => [
 const fetchStorageData = async () => {
   if (!vaultId.value || !authStore.token) return
 
-  const result = await runFetchStorageData(vaultId.value)
-  if (!result) {
-    toast.error('Failed to load storage data')
-  }
+  await runFetchStorageData(vaultId.value)
 }
 
 onMounted(async () => {
@@ -107,6 +86,10 @@ onMounted(async () => {
     await vaultStore.ensureVaultLoaded(vaultId.value, authStore.token)
   }
   fetchStorageData()
+})
+
+watch(vaultId, () => {
+  void fetchStorageData()
 })
 
 // Computed item lists
@@ -210,13 +193,13 @@ const handleSellItem = async (itemId: string | string[], itemType: string) => {
     for (const id of itemIds) {
       switch (normalizedType) {
         case 'weapon':
-          await storageService.sellWeapon(id)
+          await storageStore.sellWeapon(id)
           break
         case 'outfit':
-          await storageService.sellOutfit(id)
+          await storageStore.sellOutfit(id)
           break
         case 'junk':
-          await storageService.sellJunk(id)
+          await storageStore.sellJunk(id)
           break
       }
     }
@@ -229,8 +212,8 @@ const handleSellItem = async (itemId: string | string[], itemType: string) => {
     if (vaultId.value && authStore.token) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
     }
-  } catch {
-    toast.error('Failed to sell item')
+  } catch (error) {
+    notifyErrorOnce(error, 'Failed to sell item')
   }
 }
 
@@ -246,10 +229,10 @@ const handleScrapItem = async (
 
     switch (normalizedType) {
       case 'weapon':
-        await storageService.scrapWeapon(itemId)
+        await storageStore.scrapWeapon(itemId)
         break
       case 'outfit':
-        await storageService.scrapOutfit(itemId)
+        await storageStore.scrapOutfit(itemId)
         break
     }
 
@@ -259,8 +242,8 @@ const handleScrapItem = async (
     if (vaultId.value && authStore.token) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
     }
-  } catch {
-    toast.error('Failed to scrap item')
+  } catch (error) {
+    notifyErrorOnce(error, 'Failed to scrap item')
   }
 }
 
@@ -275,10 +258,7 @@ const {
 } = useAsyncAction(
   async () => {
     if (!vaultId.value || !selectedLunchboxId.value || lunchboxResult.value) return
-    lunchboxResult.value = await storageService.openLunchbox(
-      vaultId.value,
-      selectedLunchboxId.value
-    )
+    lunchboxResult.value = await storageStore.openLunchbox(vaultId.value, selectedLunchboxId.value)
     void refreshNukaColaCount(vaultId.value)
     playSound('lunchboxOpen', 'ui')
   },
@@ -333,6 +313,26 @@ const closeLunchboxModal = async () => {
                 total.
               </p>
             </section>
+            <section>
+              <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+                <Icon icon="mdi:tools" class="size-4 shrink-0" :ariaHidden="true" />
+                Weapon maintenance
+              </h2>
+              <p>
+                Storage workers pool
+                <Icon
+                  icon="mdi:heart"
+                  class="inline size-4 align-text-bottom text-special-endurance"
+                  :ariaHidden="true"
+                />
+                END across the vault, including equipment bonuses. Below 20 risks degradation; near
+                20 keeps weapons stable; above 20 allows upgrades.
+              </p>
+              <p class="mt-2">
+                While online, eligible weapons have up to a 2% hourly chance to move one variant up
+                or down, changing damage, value and sometimes rarity.
+              </p>
+            </section>
           </template>
           <template v-if="storageSpace" #actions>
             <PageHeaderMetric
@@ -340,6 +340,13 @@ const closeLunchboxModal = async () => {
               :value="`${storageSpace.used_space} / ${storageSpace.max_space}`"
               label="Slots used"
               tooltip="Storage slots occupied out of the vault total"
+            />
+            <PageHeaderMetric
+              v-if="maintenance?.enabled"
+              icon="mdi:shield-check"
+              :value="maintenanceMode"
+              :label="`${maintenance.worker_count} workers · ${(maintenance.hourly_chance * 100).toFixed(1)}% per trial`"
+              :tooltip="`${maintenance.total_endurance} effective END across all storage rooms`"
             />
             <PageHeaderMetric
               icon="mdi:medical-bag"

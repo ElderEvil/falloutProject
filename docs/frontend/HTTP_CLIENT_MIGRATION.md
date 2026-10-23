@@ -23,15 +23,25 @@ without user gain.
 3. **Later (separate slice):** remove the axios interceptor's notifications so toasts are
    caller-owned end to end.
 4. **Toasts stay caller-owned as the target state.** The boundary throws and never
-   notifies — but the axios interceptor's notifications remain byte-identical for now,
-   so both layers can notify today. Removing interceptor notifications is a separate
-   behavior-changing slice, not part of the boundary work.
+   notifies. During migration, the interceptor and callers share error-notification
+   ownership through `claimErrorNotification`: a failure and its `cause` chain are
+   notified once. Callers use `handleStoreError` or `notifyErrorOnce`; message extraction
+   and inline error state still work after another layer has notified. Independent
+   failures remain visible, including identical messages from separate requests.
 5. **`apiRequest` is for call sites that need status or headers.** Prefer the
    data-returning helpers for ordinary calls; keep response access where status
    or headers matter. No migration deadline — it rides the axios transport.
 
 Batch 1 migrates: core public reads (AssetGalleryView), auth service/views, profile services +
 store + SettingsView, and ai-settings service.
+
+## Action notifications
+
+- Show one final confirmation per action; use existing busy state for progress instead of an extra informational toast.
+- Bulk actions report one total. A partial failure keeps the remaining work available and must not report full success.
+- Preserve the original error or its `cause` when rethrowing, so HTTP/store/UI handlers recognize the same failure.
+- `_skipErrorNotification` leaves the caller responsible for feedback, including expected responses explained in the UI.
+- Distinct progression events and partial-success warnings remain visible; they are not duplicate confirmations.
 
 ## Why this consolidation (and why not fetch)
 

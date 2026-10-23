@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
+
 /**
  * ChangelogModal - Displays version updates and changelog information
  */
@@ -14,7 +16,6 @@ import {
 } from '@/modules/profile/services/changelogService'
 import FormattedChangeDescription from '@/modules/profile/components/FormattedChangeDescription.vue'
 import { getChangelogCategoryIcon } from '@/modules/profile/components/changelogCategoryIcons'
-import { useToast } from '@/core/composables/useToast'
 import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 
 interface Props {
@@ -37,7 +38,6 @@ useBlockingOverlay(() => show)
 const changelog = ref<ChangelogEntry[]>([])
 const loading = ref(false)
 const error = ref('')
-const toast = useToast()
 
 // Compute entries to show (either all or just new versions)
 const entriesToShow = computed(() => {
@@ -77,7 +77,7 @@ const fetchChangelog = async () => {
     changelog.value = await changelogService.getChangelog({ limit: 10 })
   } catch (err) {
     error.value = 'Failed to load changelog'
-    toast.error('Failed to load changelog')
+    notifyErrorOnce(err, 'Failed to load changelog')
   } finally {
     loading.value = false
   }

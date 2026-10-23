@@ -1,8 +1,32 @@
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createPinia, setActivePinia } from 'pinia'
 import { useArenaStore } from '@/modules/rooms/stores/arena'
 import { mount, flushPromises } from '@vue/test-utils'
 import ArenaRoomDetail from '@/modules/rooms/components/ArenaRoomDetail.vue'
+
+vi.mock('@/modules/rooms/composables/useArenaRoom', async () => {
+  const { computed, ref } = await import('vue')
+  const { useArenaStore } = await import('@/modules/rooms/stores/arena')
+  return {
+    useArenaRoom: (_vaultId: string, roomId: string) => ({
+      roomState: computed(() => useArenaStore().getRoom(roomId)),
+      isLoading: ref(false),
+      loadFailed: ref(false),
+      pendingSkills: ref(new Set<string>()),
+      damageNumbers: ref([]),
+      attackingTeam: ref(null),
+      attackingFighterId: ref(null),
+      skillBurst: ref(null),
+      load: () => Promise.resolve(),
+      retry: () => Promise.resolve(),
+      refresh: () => Promise.resolve(),
+      queueSkill: () => Promise.resolve(),
+      startFight: () => Promise.resolve(true),
+      stopFight: () => Promise.resolve(true),
+      resetDamageTracking: () => {},
+    }),
+  }
+})
 
 describe('ArenaRoomDetail', () => {
   beforeEach(() => setActivePinia(createPinia()))
@@ -31,16 +55,17 @@ describe('ArenaRoomDetail', () => {
         isDestroying: false,
         isVaultDoor: false,
       },
-      global: { stubs: { ArenaModal: true } },
+      global: { stubs: { ArenaModal: true, ArenaPreview: true } },
     })
-    expect(wrapper.findAll('[aria-label="Assign worker"]')).toHaveLength(fighting ? 0 : 6 - count)
-    expect(wrapper.findAll('button').some((button) => button.text() === 'Assign dwellers')).toBe(
-      false
-    )
+    const assign = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Assign Dwellers'))
+    expect(Boolean(assign)).toBe(!fighting && count < 6)
+    expect(
+      wrapper.findAll('button').some((button) => button.text().includes('Stop Fight'))
+    ).toBe(fighting)
     expect(wrapper.text()).not.toMatch(/\d+ \/ \d+ assigned/)
-    if (fighting) expect(wrapper.findComponent({ name: 'RoomPreviewSection' }).exists()).toBe(false)
-    else
-      expect(wrapper.getComponent({ name: 'RoomPreviewSection' }).props('assignEnabled')).toBe(true)
+    expect(wrapper.find('[aria-label="Arena preview"]').exists()).toBe(false)
   })
 
   it('locks management until match state is known and while a match is running', async () => {
@@ -57,12 +82,14 @@ describe('ArenaRoomDetail', () => {
         isDestroying: false,
         isVaultDoor: false,
       },
-      global: { stubs: { ArenaModal: true, RoomPreviewSection: true } },
+      global: { stubs: { ArenaModal: true, ArenaPreview: true } },
     })
     const buttons = () => wrapper.findAll('.room-management button')
     expect(buttons()).toHaveLength(3)
     expect(buttons().every((button) => button.attributes('disabled') !== undefined)).toBe(true)
-    expect(wrapper.getComponent({ name: 'RoomPreviewSection' }).props('assignEnabled')).toBe(false)
+    expect(
+      wrapper.findAll('button').some((button) => button.text().includes('Assign Dwellers'))
+    ).toBe(false)
     expect(wrapper.text()).toContain('Room management is unavailable until match state loads.')
 
     arenaStore.rooms.set('arena-1', {
@@ -73,7 +100,9 @@ describe('ArenaRoomDetail', () => {
     } as never)
     await flushPromises()
     expect(buttons().every((button) => button.attributes('disabled') === undefined)).toBe(true)
-    expect(wrapper.getComponent({ name: 'RoomPreviewSection' }).props('assignEnabled')).toBe(true)
+    expect(
+      wrapper.findAll('button').some((button) => button.text().includes('Assign Dwellers'))
+    ).toBe(true)
 
     arenaStore.rooms.set('arena-1', {
       fight_started: true,
@@ -82,6 +111,9 @@ describe('ArenaRoomDetail', () => {
       team_b: [],
     } as never)
     await flushPromises()
+    expect(
+      wrapper.findAll('button').some((button) => button.text().includes('Assign Dwellers'))
+    ).toBe(false)
     for (const button of buttons()) {
       expect(button.attributes('disabled')).toBeDefined()
       await button.trigger('click')
@@ -128,16 +160,14 @@ describe('ArenaRoomDetail', () => {
       global: {
         stubs: {
           ArenaModal: { template: '<div class="battle-panel">Battle UI</div>' },
-          RoomPreviewSection: { template: '<div class="preview-panel" />' },
+          ArenaPreview: { template: '<div class="preview-panel" />' },
         },
       },
     })
 
     expect(wrapper.get('.arena-room-detail').element.firstElementChild).toBe(
-      wrapper.get('details').element
+      wrapper.get('.preview-panel').element
     )
-    expect(wrapper.get('details .preview-panel').exists()).toBe(true)
-    expect(wrapper.get('details summary').text()).toBe('Manage Arena roster')
     expect(wrapper.text()).not.toMatch(/[12] ·/)
     expect(wrapper.text()).toContain('Battle UI')
     expect(wrapper.find('.room-management').text()).toContain('Management')

@@ -61,16 +61,6 @@ SEED_WEAPONS: list[dict[str, Any]] = [
         "damage_max": 12,
     },
     {
-        "name": "Sledgehammer",
-        "rarity": RarityEnum.RARE,
-        "value": 300,
-        "weapon_type": WeaponTypeEnum.MELEE,
-        "weapon_subtype": WeaponSubtypeEnum.BLUNT,
-        "stat": "strength",
-        "damage_min": 8,
-        "damage_max": 15,
-    },
-    {
         "name": "Laser Pistol",
         "rarity": RarityEnum.LEGENDARY,
         "value": 500,
@@ -99,15 +89,6 @@ SEED_OUTFITS: list[dict[str, Any]] = [
         "gender": None,
         "strength": 1,
         "agility": 1,
-    },
-    {
-        "name": "Metal Armor",
-        "rarity": RarityEnum.RARE,
-        "value": 250,
-        "outfit_type": OutfitTypeEnum.RARE,
-        "gender": None,
-        "strength": 2,
-        "endurance": 1,
     },
     {
         "name": "T-51b Power Armor",
@@ -167,6 +148,9 @@ BOOSTED_SEED_PETS: tuple[tuple[str, RarityEnum], ...] = (
     ("CX404", RarityEnum.LEGENDARY),
     ("Vault-Tec Parrot", RarityEnum.RARE),
 )
+# A boosted start equips these on its legendary roster; the remaining seed pet
+# stays in storage so the equip flow is still available immediately.
+BOOSTED_EQUIPPED_PETS: tuple[str, ...] = ("Dogmeat (Fallout 4)", "CX404")
 
 
 @dataclass(slots=True)

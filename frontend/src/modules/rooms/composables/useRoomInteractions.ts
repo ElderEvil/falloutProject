@@ -2,7 +2,13 @@ import { ref } from 'vue'
 import { useRoomDestroy } from './useRoomDestroy'
 
 export function useRoomInteractions() {
-  const { destroyRoom: sharedDestroy } = useRoomDestroy()
+  const {
+    destroyRoom: sharedDestroy,
+    destroyTitle,
+    showDestroyConfirmation,
+    confirmDestroy,
+    cancelDestroy,
+  } = useRoomDestroy()
   const selectedRoomId = ref<string | null>(null)
 
   const toggleRoomSelection = (roomId: string) => {
@@ -22,5 +28,9 @@ export function useRoomInteractions() {
     selectedRoomId,
     toggleRoomSelection,
     destroyRoom,
+    destroyTitle,
+    showDestroyConfirmation,
+    confirmDestroy,
+    cancelDestroy,
   }
 }

@@ -60,6 +60,23 @@ def test_pet_modifiers_for_resolves_equipped_pet_by_name() -> None:
     assert pet_modifiers_for(entity) is PET_EFFECT_BY_NAME["cx404"]
 
 
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        # Values are external balance data from the Fallout wiki Manx/Dalmatian pet tables.
+        ("Genius", 0.25),
+        ("Stubbs", 0.50),
+        ("Shakespeare", 0.75),
+        ("Lucky", 0.50),
+        ("Pongo", 0.75),
+        ("CX404", 0.0),
+    ],
+)
+def test_twins_chance_pets_resolve_to_their_canonical_bonus(name: str, expected: float) -> None:
+    """The canonical Twins-chance pets carry their Fallout Shelter bonus; others stay neutral."""
+    assert pet_effect_for_name(name).twin_chance_pct == pytest.approx(expected)
+
+
 def test_catalog_covers_every_effect_field_at_least_once() -> None:
     uncovered = [
         field

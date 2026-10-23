@@ -2,6 +2,132 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.252.0 (2026-10-22)
+
+### Features
+
+* **ui:** expand chat and dweller detail modals into pages ([#1100](https://github.com/ElderEvil/falloutProject/issues/1100)) eb5c442
+
+## 2.251.0 (2026-10-22)
+
+### Features
+
+* clarify apprentice visuals with teen styling ([#1143](https://github.com/ElderEvil/falloutProject/issues/1143)) 086b363
+* **rooms:** highlight assignment stats and fit hints to small rooms ([#1115](https://github.com/ElderEvil/falloutProject/issues/1115)) a6fa3d5
+
+## 2.250.0 (2026-10-22)
+
+### Features
+
+* **breeding:** allow twin and triplet deliveries ([#1142](https://github.com/ElderEvil/falloutProject/issues/1142)) bde4275
+
+### Bug Fixes
+
+* **dwellers:** share roster reads without reusing stale refreshes ([#1116](https://github.com/ElderEvil/falloutProject/issues/1116)) 32c3fd4
+
+## 2.249.0 (2026-10-22)
+
+### Features
+
+* **arena:** unify the preview, combat pacing, and dweller sizing ([#1141](https://github.com/ElderEvil/falloutProject/issues/1141)) ede51fc
+
+## 2.248.2 (2026-10-22)
+
+### Performance Improvements
+
+* **tick:** batch production objective events ([#1135](https://github.com/ElderEvil/falloutProject/issues/1135)) 3c8a0bf
+* **tick:** process vaults concurrently ([#1137](https://github.com/ElderEvil/falloutProject/issues/1137)) 7ac5f96
+
+## 2.248.1 (2026-10-22)
+
+### Bug Fixes
+
+* **ui:** minor visual fixes ([#1131](https://github.com/ElderEvil/falloutProject/issues/1131)) efb6bf5
+
+## 2.248.0 (2026-10-22)
+
+### Features
+
+* barbershop appearance gates and portrait variants ([#1129](https://github.com/ElderEvil/falloutProject/issues/1129)) 8ae705a, closes #1133
+
+## 2.247.0 (2026-10-21)
+
+### Features
+
+* **dwellers:** tune race/state distribution and enforce legendary level floor ([#1128](https://github.com/ElderEvil/falloutProject/issues/1128)) d3d2af9
+
+## 2.246.0 (2026-10-21)
+
+### Features
+
+* **dwellers:** default portraits for unillustrated dwellers ([#1127](https://github.com/ElderEvil/falloutProject/issues/1127)) 1975365
+
+## 2.245.1 (2026-10-21)
+
+### Bug Fixes
+
+* **frontend:** avoid duplicate action confirmations and error toasts ([#1123](https://github.com/ElderEvil/falloutProject/issues/1123)) e8ff0a5
+
+## 2.245.0 (2026-10-21)
+
+### Features
+
+* **quests:** scale mission slots and speed with Office upgrades ([#1121](https://github.com/ElderEvil/falloutProject/issues/1121)) 53eed3a
+
+## 2.244.0 (2026-10-21)
+
+### Features
+
+* **training:** repeat rounds to individual goals and unify training UI ([#1120](https://github.com/ElderEvil/falloutProject/issues/1120)) a46f485
+
+## 2.243.2 (2026-10-21)
+
+### Bug Fixes
+
+* **ui:** theme all confirmation dialogs ([#1119](https://github.com/ElderEvil/falloutProject/issues/1119)) eaf2f97
+
+## 2.243.1 (2026-10-21)
+
+### Bug Fixes
+
+* **ui:** theme room tooltips and action confirmations ([#1118](https://github.com/ElderEvil/falloutProject/issues/1118)) 9650ca2
+
+## 2.243.0 (2026-10-20)
+
+### Features
+
+* **progression:** collect ready rewards in one click ([#1110](https://github.com/ElderEvil/falloutProject/issues/1110)) 24370d7
+
+## 2.242.0 (2026-10-20)
+
+### Features
+
+* **storage:** add weapon maintenance and recipe status ([#1108](https://github.com/ElderEvil/falloutProject/issues/1108)) 5c73d58
+
+## 2.241.0 (2026-10-20)
+
+### Features
+
+* **rooms:** add themed rooms, selector, and theme crafting ([#1106](https://github.com/ElderEvil/falloutProject/issues/1106)) 78330c2
+
+## 2.240.0 (2026-10-19)
+
+### Features
+
+* **progression:** name the starter resident rewards 421e63f
+* **vault:** equip legendary pets on boosted starts 5157c78
+
+### Bug Fixes
+
+* **backend:** race-safe get_or_create for GameState and ArenaState ([#1099](https://github.com/ElderEvil/falloutProject/issues/1099)) 80686f9, closes #1065 #1065
+* **dwellers:** link known parents in bios and family trees a62328c
+
+## 2.239.2 (2026-10-19)
+
+### Bug Fixes
+
+* **ui:** polish vault, exploration, and dweller surfaces ([#1102](https://github.com/ElderEvil/falloutProject/issues/1102)) 0963bf4
+
 ## 2.239.1 (2026-10-19)
 
 ### Bug Fixes

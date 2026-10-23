@@ -210,3 +210,17 @@ describe('dweller-first room assignment', () => {
     expect(wrapper.emitted('update:open')).toEqual([[false]])
   })
 })
+
+it('offers adult storage protection while keeping youth in production', async () => {
+  rooms.push({ ...room('storage', 'Storage Room', 'endurance'), category: 'capacity' })
+  const adult = await mountPicker()
+  const storage = choiceButtons(adult).find((button) => button.text().includes('Storage Room'))!
+  expect(storage.text()).toContain('Protection')
+  await storage.trigger('click')
+  expect(adult.text()).toContain('vault-wide weapon protection')
+  expect(adult.text()).toContain('housing space')
+  adult.unmount()
+  const youth = await mountPicker({ age_group: 'teen' })
+  expect(choiceButtons(youth).some((button) => button.text().includes('Storage Room'))).toBe(false)
+  youth.unmount()
+})

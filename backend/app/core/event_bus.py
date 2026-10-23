@@ -37,6 +37,7 @@ class GameEvent(StrEnum):
     ITEM_EQUIPPED = "item_equipped"
     ITEM_SCRAPPED = "item_scrapped"
     RECIPE_UNLOCKED = "recipe_unlocked"
+    THEME_CRAFTED = "theme_crafted"
     QUEST_COMPLETED = "quest_completed"
     OBJECTIVE_COMPLETED = "objective_completed"
 
@@ -77,7 +78,7 @@ class EventBus:
                 logger.debug(f"[EVENT] No handlers for {event_type}, skipping (vault: {vault_id})")
                 return
 
-            logger.info(f"[EVENT] Emitting {event_type} for vault {vault_id} to {len(handlers)} handler(s): {data}")
+            logger.debug(f"[EVENT] Emitting {event_type} for vault {vault_id} to {len(handlers)} handler(s): {data}")
             logger.debug(f"[EVENT] Handlers: {[_handler_name(h) for h in handlers]}")
 
             for handler in handlers:

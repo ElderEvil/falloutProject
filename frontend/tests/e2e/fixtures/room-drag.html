@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Room drag hint sizes</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import '../../../src/modules/rooms/components/RoomGrid.css'
+      import { createApp, h } from 'vue'
+      import { createPinia } from 'pinia'
+      import { createRouter, createMemoryHistory } from 'vue-router'
+      import { TooltipProvider } from '../../../src/core/components/ui/tooltip'
+      import RoomGridCell from '../../../src/modules/rooms/components/RoomGridCell.vue'
+
+      createApp({
+        render: () =>
+          h(
+            TooltipProvider,
+            {},
+            {
+              default: () =>
+                h(
+                  'main',
+                  { class: 'flex flex-col gap-6 p-4' },
+                  [
+                    [3, 'w-[72px]'],
+                    [6, 'w-[144px]'],
+                    [9, 'w-[288px]'],
+                  ].map(([size, width]) =>
+                    h('section', { class: [width, 'h-[96px]'], 'data-size': size }, [
+                      h(RoomGridCell, {
+                        room: {
+                          id: `room-${size}`,
+                          name: 'Power Generator',
+                          ability: 'strength',
+                          category: 'production',
+                          size,
+                          size_min: 3,
+                          tier: 1,
+                          coordinate_x: 0,
+                          coordinate_y: 0,
+                        },
+                        isDraggingOver: true,
+                        selected: false,
+                        highlighted: false,
+                        merged: false,
+                        showRoomImages: false,
+                        isPowerOutage: false,
+                      }),
+                    ])
+                  )
+                ),
+            }
+          ),
+      })
+        .use(createPinia())
+        .use(createRouter({ history: createMemoryHistory(), routes: [] }))
+        .mount('#app')
+    </script>
+  </body>
+</html>

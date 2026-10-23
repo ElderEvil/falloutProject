@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import type { components } from '@/core/types/api.generated'
-import { getErrorMessage } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, getErrorMessage } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 
 type ExitRequest = components['schemas']['ExitRequestRead']
@@ -25,7 +25,7 @@ export const useExitRequestStore = defineStore('exitRequests', () => {
       const loaded = response.data ?? []
       if (sequence === loadSequence) requests.value = loaded
     } catch (error) {
-      toast.error(`Failed to load exit requests: ${getErrorMessage(error)}`)
+      notifyErrorOnce(error, `Failed to load exit requests: ${getErrorMessage(error)}`)
     } finally {
       if (sequence === loadSequence) isLoading.value = false
     }
@@ -39,7 +39,7 @@ export const useExitRequestStore = defineStore('exitRequests', () => {
       toast.warning(`${decision.dweller_name} walked out and did not look back.`)
       return true
     } catch (error) {
-      toast.error(`Failed to let the dweller go: ${getErrorMessage(error)}`)
+      notifyErrorOnce(error, `Failed to let the dweller go: ${getErrorMessage(error)}`)
       return false
     }
   }
@@ -58,7 +58,7 @@ export const useExitRequestStore = defineStore('exitRequests', () => {
       )
       return true
     } catch (error) {
-      toast.error(`Failed to refuse the request: ${getErrorMessage(error)}`)
+      notifyErrorOnce(error, `Failed to refuse the request: ${getErrorMessage(error)}`)
       return false
     }
   }

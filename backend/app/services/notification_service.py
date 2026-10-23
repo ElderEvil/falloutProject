@@ -237,7 +237,17 @@ class NotificationService:
         stat_name: str,
         meta_data: dict[str, Any] | None = None,
     ):
-        """Notify user that training is complete."""
+        """Explain whether a finished round continues or reached its goal."""
+        metadata = meta_data or {}
+        outcome = "Training complete"
+        if metadata.get("training_continues"):
+            outcome = "Training continues"
+        elif metadata.get("goal_reached"):
+            outcome = "Goal reached"
+        old_value, new_value = metadata.get("old_value"), metadata.get("new_value")
+        message = f"{dweller_name} finished training {stat_name}!"
+        if isinstance(old_value, int) and isinstance(new_value, int):
+            message = f"{stat_name.capitalize()} +{new_value - old_value} ({new_value}). {outcome}."
         return await NotificationService.create_and_send(
             db,
             user_id=user_id,
@@ -245,8 +255,8 @@ class NotificationService:
             from_dweller_id=dweller_id,
             notification_type=NotificationType.TRAINING_COMPLETE,
             priority=NotificationPriority.NORMAL,
-            title=f"{dweller_name} - Training Complete",
-            message=f"{dweller_name} finished training {stat_name}!",
+            title=f"{dweller_name} — {outcome}",
+            message=message,
             meta_data=meta_data,
         )
 

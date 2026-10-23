@@ -1,0 +1,109 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { Icon } from '@iconify/vue'
+import { Badge } from '@/core/components/ui/badge'
+import { Progress } from '@/core/components/ui/progress'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
+
+const props = withDefaults(
+  defineProps<{
+    name?: string
+    image?: string | null
+    stat: string
+    currentStat: number
+    targetStat: number
+    progress: number
+    timeRemaining: string
+    kind?: 'training' | 'apprentice'
+    roomName?: string
+    ready?: boolean
+    soon?: boolean
+    inactive?: boolean
+  }>(),
+  { name: 'Dweller', kind: 'training' }
+)
+
+const ability = computed(() => getAbilityConfig(props.stat))
+const fill = computed(() =>
+  props.ready
+    ? 'linear-gradient(to right, var(--color-theme-accent), var(--color-theme-primary), var(--color-theme-accent))'
+    : 'linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent), var(--color-theme-primary))'
+)
+</script>
+
+<template>
+  <article
+    class="learning-progress-card min-w-0 rounded-lg border bg-transparent p-3 transition-colors duration-200"
+    :class="{
+      'border-theme-primary shadow-[0_0_10px_var(--color-theme-glow)]': !ready && !inactive,
+      'completion-ready border-theme-accent shadow-[0_0_14px_var(--color-theme-glow)]': ready,
+      'border-theme-glow opacity-60': inactive,
+    }"
+  >
+    <div class="mb-3 flex items-start gap-2">
+      <DwellerPortrait
+        :thumbnail-url="image"
+        :alt="name"
+        image-class="size-16 shrink-0 rounded-md border border-theme-glow object-cover [image-rendering:pixelated]"
+        fallback-class="flex size-16 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-surface-sunken text-theme-primary"
+      />
+      <div class="min-w-0 flex-1">
+        <div class="flex items-start gap-2">
+          <div class="min-w-0 flex-1">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <p
+                    tabindex="0"
+                    class="truncate rounded-sm font-mono text-sm font-bold text-theme-primary focus-visible:outline-2 focus-visible:outline-theme-primary"
+                  >
+                    {{ name }}
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent>{{ name }}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <p v-if="roomName" class="truncate font-mono text-xs text-muted-foreground">
+              {{ roomName }}
+            </p>
+          </div>
+          <Badge :variant="kind === 'apprentice' ? 'secondary' : 'outline'" class="shrink-0 gap-1">
+            <Icon :icon="kind === 'apprentice' ? 'mdi:school' : 'mdi:dumbbell'" class="size-3" />
+            {{ kind === 'apprentice' ? 'Apprentice' : 'Training' }}
+          </Badge>
+        </div>
+        <div
+          class="mt-1 flex flex-wrap items-center justify-between gap-2 font-mono text-xs text-theme-primary"
+        >
+          <span class="inline-flex min-w-0 items-center gap-1">
+            <Icon :icon="ability?.icon ?? 'mdi:star'" class="completion-stat-icon size-4 shrink-0" />
+            <span class="truncate">{{ ability?.label ?? stat }} {{ currentStat }} → {{ targetStat }}</span>
+          </span>
+          <slot name="goal" />
+        </div>
+      </div>
+    </div>
+    <Progress
+      class="mb-1 h-1.5"
+      :fill="fill"
+      :model-value="progress"
+      :label="`${ability?.label ?? stat} ${kind} progress for ${name}`"
+    />
+    <div class="flex flex-wrap items-center gap-2">
+      <span
+        class="completion-time font-mono text-xs text-theme-primary"
+        :class="{ 'text-theme-accent': ready }"
+        >{{ timeRemaining }}</span
+      >
+      <Badge v-if="soon" variant="secondary">Soon</Badge>
+      <div v-if="$slots.actions" class="ml-auto flex gap-1"><slot name="actions" /></div>
+    </div>
+  </article>
+</template>

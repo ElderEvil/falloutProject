@@ -3,7 +3,8 @@ import { effectScope } from 'vue'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { usePolling } from '@/core/composables/usePolling'
 
-vi.mock('@/core/utils/errorHandler', () => ({
+vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/utils/errorHandler')>()),
   handleStoreError: vi.fn(),
 }))
 

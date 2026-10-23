@@ -493,6 +493,7 @@ async def test_update_dweller_accepts_player_editable_fields(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
     dweller: Dweller,
+    staffed_barbershop: Room,
 ) -> None:
     """Renaming and appearance edits still work through the player-facing schema."""
     response = await async_client.put(
@@ -513,6 +514,7 @@ async def test_changing_to_ageless_race_clears_old_age_and_radiation(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
     dweller: Dweller,
+    staffed_barbershop: Room,
 ) -> None:
     dweller.age_group = AgeGroupEnum.ELDER
     dweller.radiation = 30

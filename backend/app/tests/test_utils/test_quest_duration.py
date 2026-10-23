@@ -36,3 +36,25 @@ def test_return_leg_inherits_the_test_duration_multiplier(monkeypatch) -> None:
     effective = effective_quest_duration_minutes(240)
     assert effective == 48
     assert quest_return_leg_minutes(effective) == 24
+
+
+def test_office_tier_shortens_effective_duration(monkeypatch) -> None:
+    """A higher-tier Overseer's Office cuts mission time; no office keeps the base duration."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "QUEST_DURATION_MULTIPLIER", 1.0)
+    assert effective_quest_duration_minutes(60) == 60
+    assert effective_quest_duration_minutes(60, office_tier=1) == 60
+    assert effective_quest_duration_minutes(60, office_tier=2) == 54
+    assert effective_quest_duration_minutes(60, office_tier=3) == 48
+    assert effective_quest_duration_minutes(400, office_tier=3) == 192
+    assert effective_quest_duration_minutes(240, office_tier=2) == 216
+
+
+def test_office_tier_composes_with_the_test_duration_multiplier(monkeypatch) -> None:
+    """The office bonus multiplies the local test-time multiplier, with a one-minute floor."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "QUEST_DURATION_MULTIPLIER", 0.5)
+    assert effective_quest_duration_minutes(60, office_tier=2) == 27
+    assert effective_quest_duration_minutes(1, office_tier=3) == 1

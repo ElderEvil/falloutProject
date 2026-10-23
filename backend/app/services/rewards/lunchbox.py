@@ -88,7 +88,7 @@ async def _roll_lunchbox_contents(
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Roll 3 random items and 1 dweller into storage for a lunchbox opening."""
     from app.crud.dweller import dweller as dweller_crud
-    from app.services.exploration import data_loader
+    from app.services import catalog_service as data_loader
 
     catalogs = {"weapon": data_loader.load_weapons(), "outfit": data_loader.load_outfits()}
 
@@ -117,9 +117,7 @@ async def _roll_lunchbox_contents(
         active_names = await dweller_crud.lock_vault_for_template(db_session, vault_id)
         template = game_data_store.pick_template(lunchbox_rarity.value, exclude_names=active_names or None)
         if template is not None:
-            granted_dweller = await items.grant_dweller(
-                db_session, vault_id, {"template_id": template.template_id, "level": random.randint(1, 5)}
-            )
+            granted_dweller = await items.grant_dweller(db_session, vault_id, {"template_id": template.template_id})
         else:
             dweller_data = _lunchbox_common_dweller_data(random.randint(1, 5), RarityEnum.COMMON)
             granted_dweller = await items.grant_dweller(db_session, vault_id, dweller_data)

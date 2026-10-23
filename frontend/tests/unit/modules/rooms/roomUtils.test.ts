@@ -65,6 +65,7 @@ describe('manual merge candidates', () => {
     size_min: 3,
     size_max: 9,
     tier: 2,
+    room_style: 'default',
   } as Room
   it('finds either neighbor while excluding gaps, mismatched tiers, and oversized merges', () => {
     const left = { ...segment, id: 'left', coordinate_x: 4 }
@@ -78,5 +79,12 @@ describe('manual merge candidates', () => {
       )
     ).toEqual(['left', 'right'])
     expect(getMergeCandidates([left, right], { ...segment, incremental_cost: 0 })).toEqual([])
+  })
+
+  it('excludes adjacent rooms with a different theme', () => {
+    const left = { ...segment, id: 'left', coordinate_x: 4, room_style: 'party' }
+    const right = { ...segment, id: 'right', coordinate_x: 10 }
+
+    expect(getMergeCandidates([left, right], segment).map((r) => r.id)).toEqual(['right'])
   })
 })

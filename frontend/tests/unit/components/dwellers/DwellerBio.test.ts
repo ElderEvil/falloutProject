@@ -2,7 +2,10 @@ import { describe, it, expect, beforeEach } from 'vite-plus/test'
 import type { VueWrapper } from '@vue/test-utils'
 import { ref } from 'vue'
 import DwellerBio from '@/modules/dwellers/components/DwellerBio.vue'
-import { createMockDwellerDetailContext, mountWithDwellerContext } from '../../helpers/dwellerDetailContext'
+import {
+  createMockDwellerDetailContext,
+  mountWithDwellerContext,
+} from '../../helpers/dwellerDetailContext'
 import type { Dweller, MapPlaceLink } from '@/modules/dwellers/models/dweller'
 import type { DwellerDetailContext } from '@/modules/dwellers/components/DwellerDetailContext'
 
@@ -28,6 +31,10 @@ describe('DwellerBio', () => {
       expect(wrapper.find('.generate-button').exists()).toBe(true)
     })
 
+    it('renders a single generate action in the empty state', () => {
+      expect(wrapper.findAll('.generate-button')).toHaveLength(1)
+    })
+
     it('should render generate button when bio is empty string', () => {
       ctx.dweller = ref({ first_name: 'John', bio: '' } as unknown as Dweller)
       wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
@@ -39,13 +46,19 @@ describe('DwellerBio', () => {
     })
 
     it('should describe biography regeneration when bio exists', () => {
-      ctx.dweller = ref({ first_name: 'John', bio: 'John is a vault dweller.' } as unknown as Dweller)
+      ctx.dweller = ref({
+        first_name: 'John',
+        bio: 'John is a vault dweller.',
+      } as unknown as Dweller)
       wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
       expect(wrapper.find('.generate-button').text()).toContain('Regenerate biography')
     })
 
     it('offers biography extension only when a biography exists', () => {
-      ctx.dweller = ref({ first_name: 'John', bio: 'John is a vault dweller.' } as unknown as Dweller)
+      ctx.dweller = ref({
+        first_name: 'John',
+        bio: 'John is a vault dweller.',
+      } as unknown as Dweller)
       wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
 
       expect(wrapper.find('.extend-bio-button').text()).toContain('Extend biography')
@@ -54,11 +67,6 @@ describe('DwellerBio', () => {
     it('should call the generateBio action when button clicked', async () => {
       await wrapper.find('.generate-button').trigger('click')
       expect(ctx.actions.generateBio).toHaveBeenCalledOnce()
-    })
-
-    it('should call the generateAll action when complete dossier clicked', async () => {
-      await wrapper.find('.complete-dossier-button').trigger('click')
-      expect(ctx.actions.generateAll).toHaveBeenCalledOnce()
     })
 
     it('should disable button when isAnyGenerating is true', () => {
@@ -94,7 +102,10 @@ describe('DwellerBio', () => {
 
   describe('bio content', () => {
     it('should display bio text when bio exists', () => {
-      ctx.dweller = ref({ first_name: 'John', bio: 'John is a vault dweller.' } as unknown as Dweller)
+      ctx.dweller = ref({
+        first_name: 'John',
+        bio: 'John is a vault dweller.',
+      } as unknown as Dweller)
       wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
       expect(wrapper.text()).toContain('John is a vault dweller.')
     })
@@ -114,7 +125,10 @@ describe('DwellerBio', () => {
     })
 
     it('should display bio content in a styled container', () => {
-      ctx.dweller = ref({ first_name: 'John', bio: 'John is a vault dweller.' } as unknown as Dweller)
+      ctx.dweller = ref({
+        first_name: 'John',
+        bio: 'John is a vault dweller.',
+      } as unknown as Dweller)
       wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
       expect(wrapper.find('.bio-content').exists()).toBe(true)
       expect(wrapper.find('.bio-text').exists()).toBe(true)
@@ -128,7 +142,10 @@ describe('DwellerBio', () => {
 
   describe('sectioned formatting', () => {
     it('falls back to a single origin section when only bio text exists', () => {
-      ctx.dweller = ref({ first_name: 'John', bio: 'John is a vault dweller.' } as unknown as Dweller)
+      ctx.dweller = ref({
+        first_name: 'John',
+        bio: 'John is a vault dweller.',
+      } as unknown as Dweller)
       wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
 
       const sections = wrapper.findAll('.bio-section')
@@ -151,7 +168,7 @@ describe('DwellerBio', () => {
       wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
 
       const sections = wrapper.findAll('.bio-section')
-      expect(sections.map(s => s.classes()[1])).toEqual([
+      expect(sections.map((s) => s.classes()[1])).toEqual([
         'bio-section-origin',
         'bio-section-exploration',
         'bio-section-family',
@@ -172,7 +189,7 @@ describe('DwellerBio', () => {
       } as unknown as Dweller)
       wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
 
-      const entries = wrapper.findAll('.bio-entry-text').map(node => node.text())
+      const entries = wrapper.findAll('.bio-entry-text').map((node) => node.text())
       expect(entries).toEqual(['Visited Rivet City.', 'Visited Diamond City.'])
       expect(wrapper.findAll('.bio-entry-marker').length).toBeGreaterThan(0)
     })
@@ -196,7 +213,7 @@ describe('DwellerBio', () => {
       expect(fieldLog.attributes('open')).toBeUndefined()
 
       // Entries stay mounted behind the fold, so expanding needs no refetch.
-      expect(fieldLog.findAll('.bio-entry-text').map(node => node.text())).toEqual([
+      expect(fieldLog.findAll('.bio-entry-text').map((node) => node.text())).toEqual([
         'Visited Rivet City.',
         'Visited Diamond City.',
       ])
@@ -279,9 +296,7 @@ describe('DwellerBio', () => {
       ctx.dweller = ref({
         first_name: 'John',
         bio: 'Born in Megaton.',
-        bio_entries: [
-          { source: 'exploration', text: 'Visited Rivet City.' },
-        ],
+        bio_entries: [{ source: 'exploration', text: 'Visited Rivet City.' }],
       } as unknown as Dweller) as never
       ctx.vaultId = ref('v1') as never
       ctx.placeLinks = ref([{ name: 'Rivet City', locationId: 'loc9' }]) as never
@@ -291,6 +306,24 @@ describe('DwellerBio', () => {
       expect(anchor.text()).toBe('Rivet City')
       expect(anchor.attributes('href')).toBe('/vault/v1/map?place=loc9')
     })
+  })
+
+  it('renders backend-authored dweller family links', () => {
+    ctx.dweller = ref({
+      first_name: 'Lucy',
+      bio: 'Searching for <a href="/vault/v1/dwellers/h1" class="dweller-link">Hank</a>.',
+      bio_entries: [
+        {
+          source: 'template',
+          text: 'Searching for <a href="/vault/v1/dwellers/h1" class="dweller-link">Hank</a>.',
+        },
+      ],
+    } as unknown as Dweller) as never
+    wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
+
+    const anchor = wrapper.find('.dweller-link')
+    expect(anchor.text()).toBe('Hank')
+    expect(anchor.attributes('href')).toBe('/vault/v1/dwellers/h1')
   })
 
   describe('place links', () => {

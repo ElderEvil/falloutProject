@@ -16,7 +16,10 @@ maker; SQLModel's ``AsyncSession`` subclasses SQLAlchemy's, so the
    connects lazily): the session yielded by ``task_session()`` must be a
    SQLModel ``AsyncSession`` with ``.exec()``.
 
-2. ``test_raw_sessionmaker_without_class_lacks_exec`` — documents the failure
+2. ``test_task_session_maker_yields_sqlmodel_sessions`` — the injected maker used
+   by the parallel game tick must also build SQLModel sessions with ``.exec()``.
+
+3. ``test_raw_sessionmaker_without_class_lacks_exec`` — documents the failure
    mode: a maker built without ``class_`` yields a session lacking ``.exec()``.
 
 3. ``test_task_session_exec_runs_query`` — live-PostgreSQL check (skips when
@@ -32,7 +35,7 @@ from sqlalchemy.pool import NullPool
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
-from app.db.session import async_session_maker, task_session
+from app.db.session import async_session_maker, task_session, task_session_maker
 
 
 class TestTaskSessionExec:
@@ -49,6 +52,12 @@ class TestTaskSessionExec:
                 "task_session() yielded a raw SQLAlchemy session without SQLModel .exec(); "
                 "its async_sessionmaker must set class_=AsyncSession"
             )
+            assert hasattr(session, "exec")
+
+    async def test_task_session_maker_yields_sqlmodel_sessions(self) -> None:
+        """The tick's injected maker must build SQLModel sessions with ``.exec()``."""
+        async with task_session_maker() as session_maker, session_maker() as session:
+            assert isinstance(session, AsyncSession)
             assert hasattr(session, "exec")
 
     async def test_raw_sessionmaker_without_class_lacks_exec(self) -> None:

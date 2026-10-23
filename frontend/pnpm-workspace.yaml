@@ -49,7 +49,6 @@ overrides:
   postcss@<=8.5.22: ^8.5.23
   undici@>=7.0.0 <7.29.0: ^7.29.0
   vite@*: 'catalog:'
-  vitest@*: 'catalog:'
 
 # === PACKAGE MANAGER SETTINGS ===
 engineStrict: true
@@ -64,8 +63,10 @@ dedupePeerDependents: true
 shamefullyHoist: false
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@1.1.0
-  vitest: 5.0.3
   vite-plus: 1.1.0
+  # vitest itself is NOT a direct dep: it comes bundled with vite-plus
+  # (vite-plus pins it exactly). These two release in lockstep with vitest
+  # and must be bumped to match whenever vite-plus bumps its bundled vitest.
   '@vitest/coverage-v8': 5.0.3
   '@vitest/ui': 5.0.3
 peerDependencyRules:

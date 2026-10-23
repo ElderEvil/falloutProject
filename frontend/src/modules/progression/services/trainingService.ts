@@ -4,6 +4,15 @@ import type { components } from '@/core/types/api.generated'
 type TrainingRead = components['schemas']['TrainingRead']
 type TrainingProgress = components['schemas']['TrainingProgress']
 
+export async function setContinuousTraining(vaultId: string, enabled: boolean, token: string) {
+  const response = await axios.put<components['schemas']['Vault']>(
+    `/api/v1/vaults/${vaultId}`,
+    { continuous_training: enabled },
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+  return response.data
+}
+
 /**
  * Start training a dweller in a training room
  * @param dwellerId - UUID of the dweller to train
@@ -104,5 +113,18 @@ export async function getRoomTrainings(roomId: string, token: string): Promise<T
   const response = await axios.get(`/api/v1/training/room/${roomId}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
+  return response.data
+}
+
+export async function setTrainingGoal(
+  trainingId: string,
+  goal: number,
+  token: string
+): Promise<TrainingRead> {
+  const response = await axios.patch<TrainingRead>(
+    `/api/v1/training/${trainingId}/goal`,
+    { goal_stat_value: goal },
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
   return response.data
 }

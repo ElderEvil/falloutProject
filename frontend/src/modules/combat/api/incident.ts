@@ -77,7 +77,10 @@ export const incidentApi = {
     const response = await axios.post(
       `/api/v1/game/vaults/${vaultId}/incidents/${incidentId}/overflow/take`,
       { index },
-      { headers: { Authorization: `Bearer ${token}` } }
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        _skipErrorNotification: true,
+      }
     )
     return response.data
   },

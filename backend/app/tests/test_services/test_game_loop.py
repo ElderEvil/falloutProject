@@ -12,8 +12,12 @@ need patches at the SOURCE module (e.g. `app.services.X.Y`), NOT at
 `app.services.game_loop.Y` directly.
 """
 
+import asyncio
+import logging
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -26,6 +30,7 @@ from app.schemas.incident import IncidentRoundResult
 from app.schemas.vault import ResourceTickEvents
 from app.services.dweller_service import dweller_service
 from app.services.game_loop import game_loop_service
+from app.utils.exceptions import VaultOperationException
 
 # ═════════════════════════════════════════════════════════════════════
 # pause_vault / resume_vault / get_vault_status / _get_or_create
@@ -54,6 +59,18 @@ class TestPauseResume:
         assert "offline_time" in status
 
 
+class _FakeSession:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_args):
+        return False
+
+
+def _fake_session_maker():
+    return _FakeSession()
+
+
 # ═════════════════════════════════════════════════════════════════════
 # process_game_tick
 # ═════════════════════════════════════════════════════════════════════
@@ -63,24 +80,111 @@ class TestProcessGameTick:
     """Tests for the main game tick processing loop."""
 
     @pytest.mark.asyncio
-    async def test_paused_vaults_excluded(self, async_session: AsyncSession, vault: Vault):
+    async def test_paused_vaults_excluded(self, async_session: AsyncSession, session_factory, vault: Vault):
         await game_loop_service.pause_vault(async_session, vault.id)
         with patch.object(game_loop_service, "process_vault_tick", new_callable=AsyncMock) as mock_tick:
-            stats = await game_loop_service.process_game_tick(async_session)
+            stats = await game_loop_service.process_game_tick(session_factory)
             mock_tick.assert_not_called()
         assert "vaults_processed" in stats
         assert "errors" in stats
         assert "total_time" in stats
 
     @pytest.mark.asyncio
-    async def test_counts_errors(self, async_session: AsyncSession, vault: Vault):
-        from app.utils.exceptions import VaultOperationException
-
+    async def test_counts_errors(self, async_session: AsyncSession, session_factory, vault: Vault):
         await game_loop_service.process_vault_tick(async_session, vault.id)
         with patch.object(game_loop_service, "process_vault_tick", new_callable=AsyncMock) as mock_tick:
             mock_tick.side_effect = VaultOperationException("Simulated error")
-            stats = await game_loop_service.process_game_tick(async_session)
+            stats = await game_loop_service.process_game_tick(session_factory)
             assert stats["errors"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_runs_vaults_with_bounded_parallelism(self):
+        vaults = [SimpleNamespace(id=uuid4()) for _ in range(6)]
+        active = 0
+        max_active = 0
+        sessions = []
+
+        async def fake_tick(session, _vault_id):
+            nonlocal active, max_active
+            sessions.append(session)
+            active += 1
+            max_active = max(max_active, active)
+            await asyncio.sleep(0.02)
+            active -= 1
+
+        with (
+            patch.object(game_loop_service, "_get_active_vaults", new=AsyncMock(return_value=vaults)),
+            patch.object(game_loop_service, "process_vault_tick", new=fake_tick),
+        ):
+            stats = await game_loop_service.process_game_tick(_fake_session_maker, max_concurrency=3)
+
+        assert max_active == 3
+        assert len({id(session) for session in sessions}) == len(vaults)
+        assert stats["vaults_processed"] == len(vaults)
+        assert stats["errors"] == 0
+
+    @pytest.mark.asyncio
+    async def test_isolates_single_vault_failures(self):
+        vaults = [SimpleNamespace(id=uuid4()) for _ in range(3)]
+        processed: list = []
+
+        async def fake_tick(_session, vault_id):
+            if vault_id == vaults[0].id:
+                raise VaultOperationException("Simulated failure")
+            processed.append(vault_id)
+
+        with (
+            patch.object(game_loop_service, "_get_active_vaults", new=AsyncMock(return_value=vaults)),
+            patch.object(game_loop_service, "process_vault_tick", new=fake_tick),
+            patch("app.services.game_loop.recover_session", new=AsyncMock()),
+        ):
+            stats = await game_loop_service.process_game_tick(_fake_session_maker, max_concurrency=2)
+
+        assert sorted(processed) == sorted(vault.id for vault in vaults[1:])
+        assert stats["vaults_processed"] == 2
+        assert stats["errors"] == 1
+
+    @pytest.mark.asyncio
+    async def test_unexpected_failure_waits_for_sibling_vaults(self):
+        vaults = [SimpleNamespace(id=uuid4()) for _ in range(3)]
+        completed: list = []
+
+        async def fake_tick(_session, vault_id):
+            if vault_id == vaults[0].id:
+                raise RuntimeError("boom")
+            await asyncio.sleep(0.01)
+            completed.append(vault_id)
+
+        with (
+            patch.object(game_loop_service, "_get_active_vaults", new=AsyncMock(return_value=vaults)),
+            patch.object(game_loop_service, "process_vault_tick", new=fake_tick),
+            pytest.raises(RuntimeError, match="boom"),
+        ):
+            await game_loop_service.process_game_tick(_fake_session_maker, max_concurrency=2)
+
+        assert sorted(completed) == sorted(vault.id for vault in vaults[1:])
+
+    @pytest.mark.asyncio
+    async def test_logs_every_unexpected_vault_failure(self, caplog):
+        vaults = [SimpleNamespace(id=uuid4()) for _ in range(3)]
+
+        async def fake_tick(_session, vault_id):
+            raise RuntimeError(f"boom {vault_id}")
+
+        with (
+            patch.object(game_loop_service, "_get_active_vaults", new=AsyncMock(return_value=vaults)),
+            patch.object(game_loop_service, "process_vault_tick", new=fake_tick),
+            caplog.at_level(logging.ERROR, logger="app.services.game_loop"),
+            pytest.raises(RuntimeError, match="boom"),
+        ):
+            await game_loop_service.process_game_tick(_fake_session_maker, max_concurrency=2)
+
+        logged = [
+            record.getMessage()
+            for record in caplog.records
+            if "Unexpected error processing vault" in record.getMessage()
+        ]
+        assert len(logged) == 2
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -630,7 +734,7 @@ class TestProcessPregnancies:
             call_count[0] += 1
             if call_count[0] == 1:
                 raise ValueError("Delivery failed")
-            return mb
+            return [mb]
 
         with patch("app.services.family.breeding_service.breeding_service") as mbs:
             mbs.check_for_conception = AsyncMock(return_value=[])
@@ -807,3 +911,43 @@ async def test_resume_excludes_paused_time_without_counting_it_twice(async_sessi
     last_tick = state.last_tick_time
     await game_loop_service.resume_vault(async_session, vault.id)
     assert state.last_tick_time == last_tick
+
+
+async def test_storage_database_failure_recovers_before_remaining_tick_phases(async_session, vault, monkeypatch):
+    from sqlalchemy import event
+
+    from app.models.storage import Storage
+    from app.services.catalog_service import load_weapons
+    from app.utils.item_factory import build_weapon
+
+    monkeypatch.setattr(game_config.storage, "maintenance_enabled", True)
+    storage = Storage(vault_id=vault.id)
+    entry = next(entry for entry in load_weapons() if entry["name"] == "Gauss pistol")
+    weapon = build_weapon(entry, entry["rarity"], storage.id)
+    async_session.add_all([storage, weapon])
+    await async_session.commit()
+    vault_id = vault.id
+    connection = await async_session.connection()
+    failed = False
+
+    def break_trial_query(conn, cursor, statement, parameters, context, executemany):
+        nonlocal failed
+        if "FROM weapon" in statement and "weapon.last_maintenance_trial_at" in statement and not failed:
+            failed = True
+            return "SELECT * FROM missing_storage_trial_table", ()
+        return statement, parameters
+
+    event.listen(connection.sync_connection, "before_cursor_execute", break_trial_query, retval=True)
+    try:
+        with patch("app.services.game_loop.sse_manager.publish", new_callable=AsyncMock) as publish:
+            result = await game_loop_service.process_vault_tick(async_session, vault_id)
+    finally:
+        event.remove(connection.sync_connection, "before_cursor_execute", break_trial_query)
+    assert failed
+    assert result["updates"]["storage"] == {"checked": 0, "changed": 0}
+    assert {"happiness", "radio", "breeding", "events"} <= result["updates"].keys()
+    assert "error" not in result["updates"]["events"]
+    publish.assert_awaited_once()
+    await async_session.refresh(weapon)
+    assert weapon.name == "Gauss pistol"
+    assert weapon.last_maintenance_trial_at is None

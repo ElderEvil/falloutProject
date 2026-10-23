@@ -64,6 +64,44 @@ describe('DwellerAppearance', () => {
     expect(wrapper.text()).toContain('No appearance yet')
   })
 
+  it('renders state of being as a text row instead of a badge', async () => {
+    const wrapper = mountAppearance({
+      race: 'super_mutant',
+      state_of_being: 'behemoth',
+      height: 'tall',
+    })
+
+    await nextTick()
+
+    expect(wrapper.text()).toContain('State:')
+    expect(wrapper.text()).toContain('Behemoth')
+    expect(wrapper.find('.badge-state-marker').exists()).toBe(false)
+  })
+
+  it('does not render legacy appearance actions', async () => {
+    const wrapper = mountAppearance({ race: 'human' })
+
+    await nextTick()
+
+    expect(wrapper.findAll('button')).toHaveLength(0)
+  })
+
+  it('renders synth generation as a text row instead of a badge', async () => {
+    const wrapper = mountAppearance({
+      race: 'synth',
+      state_of_being: 'gen_1',
+      hair_style: 'ponytail',
+    })
+
+    await nextTick()
+
+    expect(wrapper.find('.appearance-content').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Dweller identity"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('State:')
+    expect(wrapper.text()).toContain('Gen I')
+    expect(wrapper.find('.badge-state-marker').exists()).toBe(false)
+  })
+
   it('renders generated attributes once they are substantial', async () => {
     const wrapper = mountAppearance({ race: 'human', hair_style: 'ponytail', eye_color: 'green' })
 

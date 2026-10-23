@@ -7,7 +7,10 @@ import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
 import type { Room } from '@/modules/rooms/models/room'
 
+const mockToast = vi.hoisted(() => ({ error: vi.fn() }))
+
 vi.mock('@/core/plugins/axios')
+vi.mock('@/core/composables/useToast', () => ({ useToast: () => mockToast }))
 
 vi.mock('@/core/audio/audioManager', () => ({
   audioManager: { play: vi.fn() },
@@ -122,6 +125,8 @@ describe('Room Store', () => {
 
       expect(store.rooms).toEqual([])
       expect(result).toBe('failed')
+      expect(mockToast.error).toHaveBeenCalledTimes(1)
+      expect(mockToast.error).toHaveBeenCalledWith('Failed to fetch rooms: Network error')
     })
 
     it('should ignore a stale room response after a newer modal request', async () => {

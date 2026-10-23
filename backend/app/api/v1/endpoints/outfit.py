@@ -5,12 +5,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.deps import (
     CurrentActiveUser,
     CurrentSuperuser,
+    DBSession,
     get_current_active_user,
     get_user_vault_or_403,
     verify_dweller_access,
@@ -18,7 +18,6 @@ from app.api.deps import (
 )
 from app.core.game_data import get_static_game_data
 from app.crud.item_base import get_items_by_vault
-from app.db.session import get_async_session
 from app.models.outfit import Outfit
 from app.schemas.outfit import OutfitCreate, OutfitRead, OutfitUpdate
 from app.schemas.responses import JunkListResponse
@@ -31,7 +30,7 @@ router = APIRouter(prefix="/outfits", tags=["Outfit"], dependencies=[Depends(get
 @router.post("/", response_model=OutfitRead)
 async def create_outfit(
     outfit_data: OutfitCreate,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Outfit:
     """Create a new outfit (administrators only).
@@ -45,7 +44,7 @@ async def create_outfit(
 @router.get("/", response_model=list[OutfitRead])
 async def read_outfit_list(
     vault_id: UUID4,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
     skip: int = 0,
     limit: int = 100,
@@ -69,7 +68,7 @@ async def read_outfit_list(
 @router.get("/{outfit_id}", response_model=OutfitRead)
 async def read_outfit(
     outfit_id: UUID4,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Outfit:
     """Retrieve an outfit by ID.
@@ -88,7 +87,7 @@ async def read_outfit(
 async def update_outfit(
     outfit_id: UUID4,
     outfit_data: OutfitUpdate,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Outfit:
     """Update an outfit (administrators only).
@@ -102,7 +101,7 @@ async def update_outfit(
 @router.delete("/{outfit_id}", status_code=204)
 async def delete_outfit(
     outfit_id: UUID4,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
 ) -> None:
     """Delete an outfit (administrators only)."""
@@ -113,7 +112,7 @@ async def delete_outfit(
 async def equip_outfit(
     dweller_id: UUID4,
     outfit_id: UUID4,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Outfit:
     """Equip an outfit on a dweller.
@@ -132,7 +131,7 @@ async def equip_outfit(
 @router.post("/{outfit_id}/unequip/", status_code=200, response_model=None)
 async def unequip_outfit(
     outfit_id: UUID4,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> None:
     """Unequip an outfit from a dweller.
@@ -147,7 +146,7 @@ async def unequip_outfit(
 @router.post("/{outfit_id}/scrap/", response_model=JunkListResponse)
 async def scrap_outfit(
     outfit_id: UUID4,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> JunkListResponse:
     """Scrap an outfit into junk items.
@@ -166,7 +165,7 @@ async def scrap_outfit(
 @router.post("/{outfit_id}/sell/", status_code=200, response_model=None)
 async def sell_outfit(
     outfit_id: UUID4,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> None:
     """Sell an outfit for caps.

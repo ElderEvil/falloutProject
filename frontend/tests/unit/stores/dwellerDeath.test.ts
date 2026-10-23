@@ -4,9 +4,6 @@ import { setActivePinia, createPinia } from 'pinia'
 import axios from '@/core/plugins/axios'
 
 vi.mock('@/core/plugins/axios')
-vi.mock('@/core/utils/errorHandler', () => ({
-  handleStoreError: vi.fn(),
-}))
 const mockToast = createToastMock()
 vi.mock('@/core/composables/useToast', () => ({
   useToast: () => mockToast,
@@ -180,6 +177,10 @@ describe('DwellerDeath Store', () => {
       const result = await store.getRevivalCost('d1', 'test-token')
 
       expect(result).toBeNull()
+      expect(mockToast.error).toHaveBeenCalledTimes(1)
+      expect(mockToast.error).toHaveBeenCalledWith(
+        'Failed to get revival cost for dweller d1: Dweller is permanently dead and cannot be revived'
+      )
     })
   })
 
@@ -213,12 +214,16 @@ describe('DwellerDeath Store', () => {
     })
 
     it('should return null on error', async () => {
-      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Revive failed'))
+      vi.mocked(axios.post).mockRejectedValueOnce({
+        response: { status: 400, data: { detail: 'Not enough caps' } },
+      })
 
       const store = useDwellerDeathStore()
       const result = await store.reviveDweller('d1', 'test-token')
 
       expect(result).toBeNull()
+      expect(mockToast.error).toHaveBeenCalledTimes(1)
+      expect(mockToast.error).toHaveBeenCalledWith('Failed to revive dweller d1: Not enough caps')
     })
   })
 })

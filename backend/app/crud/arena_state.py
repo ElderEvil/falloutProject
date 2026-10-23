@@ -25,11 +25,19 @@ class CRUDArenaState:
 
     @staticmethod
     async def get_or_create(db_session: AsyncSession, room_id: UUID4) -> ArenaState:
+        """Get or create state, race-safe against concurrent creation.
+
+        The insert is issued as ``INSERT ... ON CONFLICT DO NOTHING`` so the
+        loser of a creation race gets a no-op instead of an IntegrityError,
+        then the winner's row is re-selected and returned to both racers.
+        """
         state = await CRUDArenaState.get(db_session, room_id)
         if state is None:
-            state = ArenaState(room_id=room_id)
-            db_session.add(state)
-            await db_session.flush()
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            stmt = pg_insert(ArenaState).values(room_id=room_id).on_conflict_do_nothing(index_elements=["room_id"])
+            await db_session.execute(stmt)
+            state = await CRUDArenaState.get(db_session, room_id)
         return state
 
     @staticmethod

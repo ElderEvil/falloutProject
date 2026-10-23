@@ -17,6 +17,7 @@ from app.services.crafting_service import crafting_service
 from app.services.recipe_unlock_service import (
     catalog_entry,
     is_gated,
+    recipe_description,
     recipe_unlock_service,
     scrap_unlock_count,
     unlock_hint,
@@ -51,15 +52,28 @@ def test_rare_and_legendary_recipes_are_gated_by_default():
 
 
 def test_unlock_hint_names_the_exact_item():
-    assert (
-        unlock_hint(catalog_entry("weapon", RARE_WEAPON)) == "Scrap a Baseball bat to reverse-engineer this schematic"
-    )
-    assert (
-        unlock_hint(catalog_entry("weapon", LEGENDARY_WEAPON))
-        == "Scrap a Power fist to reverse-engineer this schematic"
-    )
+    assert unlock_hint(catalog_entry("weapon", RARE_WEAPON)) == "Scrap a Baseball bat to learn it"
+    assert unlock_hint(catalog_entry("weapon", LEGENDARY_WEAPON)) == "Scrap a Power fist to learn it"
     assert unlock_hint(catalog_entry("weapon", COMMON_WEAPON)) is None
     assert unlock_hint(None) is None
+
+
+def test_recipe_description_reports_craft_and_unlock_state():
+    assert recipe_description("weapon", COMMON_WEAPON, unlocked_names=set()) == "Craftable — recipe known"
+    assert recipe_description("weapon", RARE_WEAPON, unlocked_names=set()) == "Recipe locked — scrap 1 to learn it"
+    assert recipe_description("weapon", RARE_WEAPON, unlocked_names={RARE_WEAPON}) == "Craftable — recipe known"
+
+
+def test_recipe_description_honours_the_catalog_unlock_override():
+    assert recipe_description("outfit", "BOS casual", unlocked_names=set()) == "Craftable — recipe known"
+
+
+def test_recipe_description_flags_uncraftable_and_off_catalog_gear():
+    assert recipe_description("outfit", "Accountant outfit", unlocked_names=set()) == "Not craftable"
+    # Starter gear is seeded from vault_seed, so the catalog never lists it and cannot craft it.
+    assert recipe_description("outfit", "T-51b Power Armor", unlocked_names=set()) == "Not craftable"
+    assert recipe_description("weapon", "Rusty Pistol", unlocked_names=set()) == "Not craftable"
+    assert recipe_description("junk", RARE_WEAPON, unlocked_names=set()) is None
 
 
 def test_catalog_override_beats_the_rarity_default():
@@ -180,12 +194,12 @@ async def test_list_recipes_lists_locked_schematics_with_hint(async_session: Asy
     legendary = recipes[LEGENDARY_WEAPON]
     assert legendary.unlocked is False
     assert legendary.unlock_hint is not None
-    assert "reverse-engineer" in legendary.unlock_hint
+    assert "learn" in legendary.unlock_hint
 
     assert RARE_WEAPON in recipes
     rare = recipes[RARE_WEAPON]
     assert rare.unlocked is False
-    assert rare.unlock_hint == "Scrap a Baseball bat to reverse-engineer this schematic"
+    assert rare.unlock_hint == "Scrap a Baseball bat to learn it"
 
 
 @pytest.mark.asyncio
@@ -227,7 +241,7 @@ async def test_start_order_refuses_a_locked_recipe(async_session: AsyncSession, 
     await _make_storage(async_session, vault)
     await _add_workshop(async_session, vault, "Weapon workshop")
 
-    with pytest.raises(ValidationException, match="reverse-engineer"):
+    with pytest.raises(ValidationException, match="learn"):
         await crafting_service.start_order(async_session, vault.id, LEGENDARY_WEAPON, "weapon")
 
 

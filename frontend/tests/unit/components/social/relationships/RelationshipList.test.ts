@@ -3,11 +3,10 @@ import { createIconifyMock } from '../../../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import RelationshipList from '@/modules/social/components/relationships/RelationshipList.vue'
 
-vi.mock('@iconify/vue', () =>
-  createIconifyMock()
-)
+vi.mock('@iconify/vue', () => createIconifyMock())
 
-const { relationships, pregnancies, fetchVaultRelationships } = vi.hoisted(() => ({
+const { relationships, pregnancies, fetchVaultRelationships, breakUp } = vi.hoisted(() => ({
+  breakUp: vi.fn(),
   relationships: [] as Record<string, unknown>[],
   pregnancies: [] as Record<string, unknown>[],
   fetchVaultRelationships: vi.fn(),
@@ -21,7 +20,7 @@ vi.mock('@/modules/social/stores/relationship', () => ({
     initiateRomance: vi.fn(),
     makePartners: vi.fn(),
     marry: vi.fn(),
-    breakUp: vi.fn(),
+    breakUp,
   }),
 }))
 
@@ -59,6 +58,7 @@ function mountList() {
     props: { vaultId: 'v1' },
     global: {
       stubs: {
+        Teleport: { template: '<div><slot /></div>' },
         TerminalEmptyState: { template: '<div class="empty-stub" />' },
       },
     },
@@ -73,6 +73,7 @@ describe('RelationshipList', () => {
     dwellers.length = 0
     fetchVaultRelationships.mockReset()
     fetchVaultRelationships.mockResolvedValue(undefined)
+    breakUp.mockReset().mockResolvedValue(true)
   })
 
   it('renders a card only when both dwellers resolve', async () => {
@@ -143,5 +144,36 @@ describe('RelationshipList', () => {
     card.vm.$emit('select-dweller', 'd1')
 
     expect(wrapper.emitted('select-dweller')).toEqual([['d1']])
+  })
+
+  it('waits for a themed confirmation and supports canceling a breakup', async () => {
+    allDwellers.push({ ...dweller1 }, { ...dweller2 })
+    relationships.push({
+      id: 'r1',
+      dweller_1_id: 'd1',
+      dweller_2_id: 'd2',
+      relationship_type: 'partner',
+    })
+    const nativeConfirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const wrapper = mountList()
+    await flushPromises()
+    const request = async () => {
+      wrapper.findComponent({ name: 'RelationshipCard' }).vm.$emit('break-up')
+      await flushPromises()
+    }
+    await request()
+    expect(nativeConfirm).not.toHaveBeenCalled()
+    expect(breakUp).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="dialog"]').text()).toContain('End relationship?')
+    const button = (text: string) => wrapper.findAll('button').find((item) => item.text() === text)!
+    await button('Cancel').trigger('click')
+    await flushPromises()
+    expect(breakUp).not.toHaveBeenCalled()
+    await request()
+    await button('End relationship').trigger('click')
+    await flushPromises()
+    expect(breakUp).toHaveBeenCalledExactlyOnceWith('r1')
+    wrapper.unmount()
+    nativeConfirm.mockRestore()
   })
 })

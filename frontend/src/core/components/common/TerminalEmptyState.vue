@@ -6,15 +6,23 @@ interface Props {
   title: string
   description?: string
   compact?: boolean
+  transparent?: boolean
 }
 
-withDefaults(defineProps<Props>(), { compact: false, description: undefined })
+withDefaults(defineProps<Props>(), {
+  compact: false,
+  description: undefined,
+  transparent: false,
+})
 </script>
 
 <template>
   <section
-    class="flex flex-col items-center justify-center rounded-lg border border-theme-primary/15 bg-surface px-6 text-center"
-    :class="compact ? 'gap-2 py-8' : 'gap-3 py-12 sm:py-16'"
+    class="flex flex-col items-center justify-center rounded-lg border border-theme-primary/15 px-6 text-center"
+    :class="[
+      compact ? 'gap-2 py-8' : 'gap-3 py-12 sm:py-16',
+      transparent ? 'bg-transparent' : 'bg-surface',
+    ]"
   >
     <Icon :icon="icon" class="text-theme-primary/35" :class="compact ? 'h-12 w-12' : 'h-16 w-16'" />
     <h3 class="text-xl font-bold text-theme-primary">{{ title }}</h3>

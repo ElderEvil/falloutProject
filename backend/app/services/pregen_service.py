@@ -17,7 +17,7 @@ from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
 
 from app import crud
 from app.schemas.dweller import DwellerUpdate
-from app.services.exploration.data_loader import load_discovery_names
+from app.services.catalog_service import load_discovery_names
 from app.services.map_service import map_service
 from app.utils.places import GENERIC_ORIGIN_SKIP, normalize_place_name
 

@@ -66,7 +66,7 @@ describe('DwellerCard', () => {
       expect(placeholder.exists()).toBe(true)
     })
 
-    it('makes the empty portrait a direct generate action', async () => {
+    it('renders a non-interactive placeholder when no portrait exists', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
@@ -75,10 +75,8 @@ describe('DwellerCard', () => {
       })
 
       const placeholder = wrapper.find('.portrait-placeholder')
-      expect(placeholder.text()).toContain('Generate portrait')
-
-      await placeholder.trigger('click')
-      expect(wrapper.emitted('generate-portrait')).toHaveLength(1)
+      expect(placeholder.text()).toContain('No portrait')
+      expect(wrapper.find('button[aria-label="Generate custom portrait"]').exists()).toBe(false)
     })
 
     it('should render portrait image when imageUrl is provided', () => {

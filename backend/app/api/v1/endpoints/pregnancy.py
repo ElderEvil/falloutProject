@@ -10,7 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
 from app.db.session import get_async_session
-from app.schemas.pregnancy import DeliveryResult, PregnancyRead
+from app.schemas.pregnancy import DeliveredChild, DeliveryResult, PregnancyRead
 from app.services.family.breeding_service import breeding_service
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 
@@ -85,14 +85,20 @@ async def deliver_baby(
 
     # Attempt delivery
     try:
-        child = await breeding_service.deliver_baby(db_session, pregnancy_id)
+        children = await breeding_service.deliver_baby(db_session, pregnancy_id)
 
-        # Note: notification is already sent by deliver_baby() in breeding_service
+        # Note: notifications are already sent by deliver_baby() in breeding_service
 
+        if len(children) == 1:
+            message = f"Baby {children[0].first_name} {children[0].last_name} has been born!"
+        else:
+            names = " and ".join(child.first_name for child in children)
+            plural = "Triplets" if len(children) == 3 else "Twins"
+            message = f"{plural} {names} have been born!"
         return DeliveryResult(
             pregnancy_id=pregnancy_id,
-            child_id=child.id,
-            message=f"Baby {child.first_name} {child.last_name} has been born!",
+            children=[DeliveredChild.model_validate(child) for child in children],
+            message=message,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e

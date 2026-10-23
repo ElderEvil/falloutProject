@@ -10,7 +10,9 @@ import {
 
 describe('getRoomAmbienceKey', () => {
   it('prefers the per-room loop over the category loop', () => {
-    expect(getRoomAmbienceKey({ name: 'Power Generator', category: 'PRODUCTION' })).toBe('power generator')
+    expect(getRoomAmbienceKey({ name: 'Power Generator', category: 'PRODUCTION' })).toBe(
+      'power generator'
+    )
   })
 
   it('ignores case and surrounding whitespace', () => {

@@ -15,6 +15,8 @@ const NOTIFICATION_SOUNDS = {
   training_complete: 'trainingComplete',
   training_started: 'trainingStart',
   crafting_complete: 'craftComplete',
+  storage_item_degraded: 'resourceLow',
+  storage_item_upgraded: 'craftComplete',
   recipe_unlocked: 'recipeUnlocked',
   relationship_formed: 'relationshipFormed',
   pregnancy_detected: 'pregnancyDetected',
@@ -45,9 +47,7 @@ const NOTIFICATION_SOUNDS = {
 
 /** Resolve a notification type to its bell cue, falling back to the generic alert. */
 export function getNotificationSound(notificationType: string): SoundKey {
-  return (
-    NOTIFICATION_SOUNDS[notificationType as keyof typeof NOTIFICATION_SOUNDS] ?? 'notification'
-  )
+  return NOTIFICATION_SOUNDS[notificationType as keyof typeof NOTIFICATION_SOUNDS] ?? 'notification'
 }
 
 function metadataString(notification: NotificationNavigationContext, key: string): string | null {
@@ -80,6 +80,9 @@ export function getNotificationRoute(notification: NotificationNavigationContext
       }
       return `${vaultPath}/training`
     }
+    case 'storage_item_degraded':
+    case 'storage_item_upgraded':
+      return `${vaultPath}/storage`
     case 'training_started':
       return `${vaultPath}/training`
     case 'quest_complete': {

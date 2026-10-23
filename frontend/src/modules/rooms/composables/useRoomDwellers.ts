@@ -26,14 +26,11 @@ export function useRoomDwellers(
     return getTrainingRoomCapacity(room.value)
   })
 
-  const roomToken = (): string | null => (typeof authStore.token === 'string' ? authStore.token : null)
+  const roomToken = (): string | null =>
+    typeof authStore.token === 'string' ? authStore.token : null
 
   const handleUnassignAll = async () => {
     if (!room.value || assignedDwellers.value.length === 0) return
-
-    if (!confirm(`Unassign all ${assignedDwellers.value.length} dwellers from this room?`)) {
-      return
-    }
 
     const token = roomToken()
     if (!token) {
@@ -83,8 +80,7 @@ export function useRoomDwellers(
     const vaultId = route.params.id as string
     if (vaultId) {
       void router.push({
-        name: 'dwellerDetail',
-        params: { id: vaultId, dwellerId },
+        query: { ...route.query, roomId: room.value?.id, dweller: dwellerId },
       })
     }
   }

@@ -1,11 +1,13 @@
 """Main game loop coordinator for vault simulation."""
 
+import asyncio
 import logging
 import random
 from datetime import datetime
 
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
@@ -17,7 +19,7 @@ from app.models.game_state import GameState
 from app.models.relationship import Relationship
 from app.models.vault import Vault
 from app.services.combat.arena_service import arena_service
-from app.services.game_tick import crafting_tick, dwellers_tick, family_tick, radio_tick
+from app.services.game_tick import crafting_tick, dwellers_tick, family_tick, radio_tick, storage_tick
 from app.services.game_tick.guard import recover_session
 from app.services.game_tick.tick_results import (
     AgeStats,
@@ -40,6 +42,8 @@ from app.utils.exceptions import ResourceNotFoundException, VaultOperationExcept
 
 logger = logging.getLogger(__name__)
 
+MAX_CONCURRENT_VAULT_TICKS = 4
+
 
 class GameLoopService:
     """Main game loop coordinator."""
@@ -48,8 +52,17 @@ class GameLoopService:
         self.resource_manager = ResourceManager()
         self.logger = logging.getLogger(__name__)
 
-    async def process_game_tick(self, db_session: AsyncSession) -> GameTickResult:
+    async def process_game_tick(
+        self,
+        session_maker: async_sessionmaker[AsyncSession],
+        *,
+        max_concurrency: int = MAX_CONCURRENT_VAULT_TICKS,
+    ) -> GameTickResult:
         """Process a single game tick for all active vaults.
+
+        Each vault runs on its own session, bounded by ``max_concurrency``. An
+        expected vault failure is isolated to that vault; an unexpected error is
+        re-raised only after every vault task has settled.
 
         Returns:
             dict: Statistics about the tick processing
@@ -63,23 +76,40 @@ class GameLoopService:
 
         start_time = datetime.utcnow()
 
-        # Get all active vaults
-        active_vaults = await self._get_active_vaults(db_session)
-        # Iterate plain IDs: recovering a failed vault expires every loaded ORM
-        # instance, so touching vault attributes afterwards would lazy-load.
-        vault_ids = [vault.id for vault in active_vaults]
+        # Read plain IDs before spawning: recovering a failed vault expires every
+        # loaded ORM instance, so touching vault attributes afterwards would lazy-load.
+        async with session_maker() as db_session:
+            active_vaults = await self._get_active_vaults(db_session)
+            vault_ids = [vault.id for vault in active_vaults]
 
         self.logger.info(f"Processing game tick for {len(vault_ids)} vaults")
 
-        for vault_id in vault_ids:
-            try:
-                await self.process_vault_tick(db_session, vault_id)
+        semaphore = asyncio.Semaphore(max(1, max_concurrency))
+
+        async def _process_vault(vault_id: UUID4) -> bool:
+            async with semaphore, session_maker() as db_session:
+                try:
+                    await self.process_vault_tick(db_session, vault_id)
+                except (SQLAlchemyError, ResourceNotFoundException, VaultOperationException) as e:
+                    await recover_session(db_session)
+                    self.logger.error(f"Error processing vault {vault_id}: {e}", exc_info=True)
+                    return False
+                return True
+
+        outcomes = await asyncio.gather(*(_process_vault(vault_id) for vault_id in vault_ids), return_exceptions=True)
+        unexpected: list[tuple[UUID4, BaseException]] = []
+        for vault_id, outcome in zip(vault_ids, outcomes, strict=True):
+            if isinstance(outcome, BaseException):
+                unexpected.append((vault_id, outcome))
+            elif outcome:
                 stats["vaults_processed"] += 1
-            except (SQLAlchemyError, ResourceNotFoundException, VaultOperationException) as e:
-                await recover_session(db_session)
-                self.logger.error(f"Error processing vault {vault_id}: {e}", exc_info=True)
+            else:
                 stats["errors"] += 1
 
+        if unexpected:
+            for vault_id, exc in unexpected[1:]:
+                self.logger.error("Unexpected error processing vault %s", vault_id, exc_info=exc)
+            raise unexpected[0][1]
         stats["total_time"] = (datetime.utcnow() - start_time).total_seconds()
 
         self.logger.info(
@@ -180,6 +210,14 @@ class GameLoopService:
         crafting_update = await self._process_crafting(db_session, vault_id)
         results["updates"]["crafting"] = crafting_update
 
+        try:
+            results["updates"]["storage"] = await storage_tick.process_storage_maintenance(db_session, vault_id)
+        except (SQLAlchemyError, ResourceNotFoundException):
+            await recover_session(db_session)
+            self.logger.exception("Storage maintenance failed for vault %s", vault_id)
+            results["updates"]["storage"] = {"checked": 0, "changed": 0}
+            game_state = await self._get_or_create_game_state(db_session, vault_id)
+
         happiness_update = await self._process_happiness(db_session, vault_id, seconds_passed)
         results["updates"]["happiness"] = happiness_update
 
@@ -233,8 +271,14 @@ class GameLoopService:
     async def resume_vault(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
         """Resume game loop for a specific vault."""
         game_state = await game_state_crud.get_or_create(db_session, vault_id)
+        from app import crud
+
+        # Share the maintenance storage lock before adjusting per-item clocks.
+        await crud.storage.get_storage_by_vault_for_update(db_session, vault_id)
+        await db_session.refresh(game_state, with_for_update=True)
         if game_state.is_paused and game_state.paused_at:
             resumed_at = datetime.utcnow()
+            await crud.weapon.shift_trial_clocks(db_session, vault_id, resumed_at - game_state.paused_at, resumed_at)
             for incident in await incident_crud.get_active_by_vault(db_session, vault_id):
                 paused_since = max(game_state.paused_at, incident.start_time)
                 if resumed_at > paused_since:

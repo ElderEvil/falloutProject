@@ -1,15 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Icon } from '@iconify/vue'
-import { Button } from '@/core/components/ui/button'
 import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/core/components/ui/tooltip'
 import { capitalize } from '@/core/utils/format'
+import { formatStateOfBeing } from '../models/dweller'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 import { isMature } from '../models/dweller'
 import type { VisualAttributes } from '../models/dweller'
@@ -21,8 +14,6 @@ const visualAttributes = computed<VisualAttributes | null>(
   () => ctx.dweller.value?.visual_attributes ?? null
 )
 const mature = computed(() => !!ctx.dweller.value && isMature(ctx.dweller.value))
-const generatingAppearance = computed(() => ctx.generatingAppearance.value)
-const isAnyGenerating = computed(() => ctx.isAnyGenerating.value)
 
 // Format attributes for display
 const formattedAttributes = computed(() => {
@@ -35,6 +26,8 @@ const formattedAttributes = computed(() => {
   if (attrs.height) formatted.push({ label: 'Height', value: capitalize(attrs.height) })
   if (attrs.build) formatted.push({ label: 'Build', value: capitalize(attrs.build) })
   if (attrs.age) formatted.push({ label: 'Age', value: String(attrs.age) })
+  if (attrs.state_of_being)
+    formatted.push({ label: 'State', value: formatStateOfBeing(attrs.state_of_being) })
   if (attrs.hair_style || attrs.hair_color) {
     const hair = [attrs.hair_style, attrs.hair_color]
       .filter((val): val is string => Boolean(val))
@@ -86,63 +79,12 @@ const hasSubstantialAttributes = computed(() => {
     return !Array.isArray(value) || value.length > 0
   })
 })
-
-/** True if AI can still generate (no substantial attributes yet). */
-const canGenerateAppearance = computed(
-  () => !visualAttributes.value || !hasSubstantialAttributes.value
-)
 </script>
 
 <template>
   <div class="appearance-container">
-    <div class="appearance-header">
-      <div class="header-buttons">
-        <TooltipProvider :delay-duration="200">
-          <Tooltip v-if="canGenerateAppearance">
-            <TooltipTrigger as-child>
-              <Button
-                @click="ctx.actions.generateAppearance()"
-                class="generate-button"
-                variant="outline"
-                size="sm"
-                :disabled="isAnyGenerating"
-              >
-                <Icon
-                  :icon="generatingAppearance ? 'mdi:loading' : 'mdi:auto-fix'"
-                  class="h-5 w-5"
-                  :class="{ 'animate-spin': generatingAppearance }"
-                />
-                <span>{{
-                  hasSubstantialAttributes ? 'Regenerate appearance' : 'Generate appearance'
-                }}</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top"
-              >Creates or replaces visual attributes; it does not generate a
-              portrait</TooltipContent
-            >
-          </Tooltip>
-
-          <Tooltip v-if="hasSubstantialAttributes">
-            <TooltipTrigger as-child>
-              <Button
-                @click="ctx.actions.editAppearance()"
-                class="generate-button"
-                variant="outline"
-                size="sm"
-              >
-                <Icon icon="mdi:pencil" class="h-5 w-5" />
-                <span>Edit appearance</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top">Adjust visual attributes manually</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-    </div>
-
     <div v-if="hasSubstantialAttributes" class="appearance-content">
-      <DwellerIdentitySignal :visual-attributes="visualAttributes" hide-race />
+      <DwellerIdentitySignal :visual-attributes="visualAttributes" hide-race hide-state />
       <div v-for="attr in formattedAttributes" :key="attr.label" class="attribute-row">
         <span class="attribute-label">{{ attr.label }}:</span>
         <span class="attribute-value">{{ attr.value }}</span>
@@ -153,25 +95,10 @@ const canGenerateAppearance = computed(
       v-else
       icon="mdi:account-box-outline"
       title="No appearance yet"
-      description="Generate this dweller's look to fill in build, hair, facial features, clothing and pose."
+      description="No appearance details have been recorded for this dweller yet."
       compact
-    >
-      <template #actions>
-        <Button
-          variant="outline"
-          size="sm"
-          :disabled="isAnyGenerating"
-          @click="ctx.actions.generateAppearance()"
-        >
-          <Icon
-            :icon="generatingAppearance ? 'mdi:loading' : 'mdi:auto-fix'"
-            class="h-4 w-4"
-            :class="{ 'animate-spin': generatingAppearance }"
-          />
-          <span>Generate appearance</span>
-        </Button>
-      </template>
-    </TerminalEmptyState>
+      transparent
+    />
   </div>
 </template>
 
@@ -180,26 +107,11 @@ const canGenerateAppearance = computed(
   width: 100%;
 }
 
-.appearance-header {
-  display: flex;
-  justify-content: flex-start;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 1rem;
-}
-
-.header-buttons {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
 .appearance-content {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   padding: 1rem;
-  background: rgba(0, 0, 0, 0.3);
   border-left: 3px solid var(--color-theme-primary);
   border-radius: 4px;
 }
@@ -215,8 +127,9 @@ const canGenerateAppearance = computed(
   color: var(--color-theme-primary);
   opacity: 0.7;
   font-weight: 600;
-  min-width: 120px;
+  min-width: 9rem;
   flex-shrink: 0;
+  text-align: right;
 }
 
 .attribute-value {

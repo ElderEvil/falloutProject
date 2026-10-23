@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vite-plus/test'
-import { getNotificationRoute, getNotificationSound } from '@/modules/vault/utils/notificationRouting'
 
+import {
+  getNotificationRoute,
+  getNotificationSound,
+} from '@/modules/vault/utils/notificationRouting'
 const levelUpNotification = {
   vault_id: 'vault-1',
   from_dweller_id: 'dweller-1',
@@ -75,4 +78,14 @@ describe('getNotificationSound', () => {
   it('falls back to the generic alert for an unknown notification type', () => {
     expect(getNotificationSound('something_new')).toBe('notification')
   })
+})
+
+it.each([
+  ['storage_item_degraded', 'resourceLow'],
+  ['storage_item_upgraded', 'craftComplete'],
+])('routes %s to storage', (notification_type, sound) => {
+  expect(getNotificationRoute({ vault_id: 'vault-1', notification_type })).toBe(
+    '/vault/vault-1/storage'
+  )
+  expect(getNotificationSound(notification_type)).toBe(sound)
 })

@@ -18,12 +18,12 @@ def test_static_weapons_have_image_urls() -> None:
 
 def test_every_catalog_weapon_has_its_own_image() -> None:
     """No catalog weapon may use the generic fallback — except 10mm variants, whose family icon IS the fallback."""
-    from app.utils.weapon_assets import _family_key
+    from app.utils.weapon_naming import family_key
 
     fallback = "/static/weapon_images/10mm pistol FOS.png"
     for weapon in game_data_store.weapons:
         if weapon.image_url == fallback:
-            assert _family_key(weapon.name) == "10mm pistol", weapon.name
+            assert family_key(weapon.name) == "10mm pistol", weapon.name
 
 
 def test_rare_variant_resolves_to_family_icon() -> None:

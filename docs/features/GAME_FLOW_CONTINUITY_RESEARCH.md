@@ -1,5 +1,12 @@
 # Game-flow continuity and actionable rewards — research
 
+Current delivery direction (2026-10-20): the [integration plan](INTEGRATION_PLAN.md) and
+[#928](https://github.com/ElderEvil/falloutProject/issues/928) turn selected findings into the expedition
+outcome journey. This report remains the original dated evidence. Reconcile each observation with current
+master before implementation; explicit objective claims and batch collection have superseded its original
+objective-claim observation. Deferred research is indexed in
+[#1113](https://github.com/ElderEvil/falloutProject/issues/1113).
+
 Status: initial repository research, 2026-10-10. Product investigation only; no route removal, settlement change, automation policy, UI design or implementation is approved by this report.
 
 Subsequent maintainer direction: objective rewards should require an explicit player claim, and objectives should provide a curated tutorial-like progression from early to later game. These requirements guide the objectives workstream; broader continuity and reward-handoff design still needs research. This report preserves its original source snapshot: references to pending youth/map PRs and observed settlement behavior describe that baseline, not current production or PR status.

@@ -105,12 +105,23 @@ export interface VaultQuest extends Quest {
   quest_rewards?: QuestReward[]
 }
 
-// Mirrors MAX_ACTIVE_TIMED_QUESTS in backend/app/utils/quest_duration.py.
-export const MAX_ACTIVE_TIMED_QUESTS = 3
-
 /** True while a quest party is travelling home and rewards are not yet claimable. */
 export function isQuestReturning(quest: VaultQuest): boolean {
   return quest.return_completes_at != null && !quest.is_reward_ready && !quest.is_completed
+}
+
+/** Timed-quest slots for a vault, read from its Overseer's Office tier. */
+export function questSlotLimitForVault(
+  rooms: { category: string; tier: number }[],
+  loadedVaultId: string | null,
+  vaultId: string
+): number {
+  if (loadedVaultId !== vaultId) return 0
+  return rooms.find((room) => room.category === 'quests')?.tier ?? 0
+}
+
+export function officeSpeedPercent(tier: number): number {
+  return tier >= 3 ? 20 : tier === 2 ? 10 : 0
 }
 
 /** Display name for an authored dweller reward, without the rarity suffix. */

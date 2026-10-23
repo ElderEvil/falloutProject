@@ -15,11 +15,11 @@ export const useEquipmentStore = defineStore('equipment', () => {
   const error = ref<string | null>(null)
   const { run: runFetchWeapons, isLoading: isWeaponsLoading } = useAsyncAction(
     (token: string, vaultId: string) => equipmentService.fetchWeapons(token, vaultId),
-    { context: 'Failed to fetch weapons', showToast: false }
+    { context: 'Failed to fetch weapons' }
   )
   const { run: runFetchOutfits, isLoading: isOutfitsLoading } = useAsyncAction(
     (token: string, vaultId: string) => equipmentService.fetchOutfits(token, vaultId),
-    { context: 'Failed to fetch outfits', showToast: false }
+    { context: 'Failed to fetch outfits' }
   )
   const isLoading = computed(() => isWeaponsLoading.value || isOutfitsLoading.value)
 
@@ -31,7 +31,6 @@ export const useEquipmentStore = defineStore('equipment', () => {
       weapons.value = result
     } else {
       error.value = 'Failed to load weapons'
-      toast.error('Failed to load weapons')
     }
   }
 
@@ -42,7 +41,6 @@ export const useEquipmentStore = defineStore('equipment', () => {
       outfits.value = result
     } else {
       error.value = 'Failed to load outfits'
-      toast.error('Failed to load outfits')
     }
   }
 
@@ -64,7 +62,6 @@ export const useEquipmentStore = defineStore('equipment', () => {
       return weapon
     } catch (err) {
       handleStoreError(err, 'Failed to equip weapon')
-      toast.error('Failed to equip weapon')
       return null
     }
   }
@@ -87,7 +84,6 @@ export const useEquipmentStore = defineStore('equipment', () => {
       return weapon
     } catch (err) {
       handleStoreError(err, 'Failed to unequip weapon')
-      toast.error('Failed to unequip weapon')
       return null
     }
   }
@@ -110,7 +106,6 @@ export const useEquipmentStore = defineStore('equipment', () => {
       return outfit
     } catch (err) {
       handleStoreError(err, 'Failed to equip outfit')
-      toast.error('Failed to equip outfit')
       return null
     }
   }
@@ -133,7 +128,6 @@ export const useEquipmentStore = defineStore('equipment', () => {
       return outfit
     } catch (err) {
       handleStoreError(err, 'Failed to unequip outfit')
-      toast.error('Failed to unequip outfit')
       return null
     }
   }

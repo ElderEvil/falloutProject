@@ -32,6 +32,13 @@ class AccessDeniedException(DomainError):
     default_detail = "Access denied due to insufficient permissions."
 
 
+class BarbershopRequiredException(DomainError):
+    """Raised when a staffed Barbershop is required for an appearance change."""
+
+    status_code = status.HTTP_403_FORBIDDEN
+    default_detail = "Build and staff a Barbershop to change appearance or regenerate portraits."
+
+
 class ResourceNotFoundException(DomainError):
     """Raised when a resource identified by its unique identifier or name is not found."""
 

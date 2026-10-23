@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "2.239.1",
+  "version": "2.252.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -35,7 +35,7 @@
     "reka-ui": "2.11.0",
     "tailwind-merge": "3.7.0",
     "vue": "^3.5.43",
-    "vue-router": "^5.3.1",
+    "vue-router": "^5.4.0",
     "zod": "4.6.5"
   },
   "devDependencies": {
@@ -43,8 +43,8 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tsconfig/node22": "^22.0.6",
     "@types/jsdom": "30.0.0",
-    "@types/node": "^26.2.0",
-    "@vitejs/plugin-vue": "^6.0.9",
+    "@types/node": "^26.6.5",
+    "@vitejs/plugin-vue": "^6.0.10",
     "@vitest/coverage-v8": "catalog:",
     "@vitest/ui": "catalog:",
     "@vue/test-utils": "^2.5.1",
@@ -57,8 +57,7 @@
     "typescript": "^6.0.3",
     "vite": "catalog:",
     "vite-plus": "catalog:",
-    "vitest": "catalog:",
-    "vue-tsc": "^3.3.11"
+    "vue-tsc": "^3.3.13"
   },
   "engines": {
     "node": ">=22",

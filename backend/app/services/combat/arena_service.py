@@ -3,7 +3,7 @@
 Dwellers are parked in an Arena room, the player picks two of them as
 fighters (dweller-vs-dweller mode), then presses FIGHT: a 3-2-1 countdown
 elapses before the first combat tick. Combat power mirrors the incident combat
-math, with half-rate normal damage and alternating team turns. The first to reach
+math, with normal damage and alternating team turns. The first to reach
 zero HP loses; the winner gains happiness and XP, the loser loses happiness
 and is left standing at 1 HP. The room is marked done and stays stopped until
 the fighter selection changes, which resets it for a new match.
@@ -30,6 +30,7 @@ from app.models.arena_match_event import ArenaMatchEvent
 from app.models.arena_state import ArenaState
 from app.models.dweller import Dweller
 from app.models.room import Room
+from app.options.identity_modifiers import effective_stat
 from app.schemas.arena import (
     ArenaActiveSkill,
     ArenaFighter,
@@ -40,10 +41,13 @@ from app.schemas.arena import (
 from app.schemas.arena import (
     ArenaState as ArenaStateOut,
 )
-from app.services.combat.weapon_skill_service import CHARGE_PER_SECOND, MAX_CHARGE, weapon_skill
-from app.services.exploration.data_loader import list_arena_creatures
+from app.services.catalog_service import list_arena_creatures
+from app.services.combat.weapon_skill_service import MAX_CHARGE, weapon_skill
 from app.services.game_tick.tick_results import ArenaEventStats, ArenaRoomStats, ArenaStats
 from app.utils.combat import combat_power
+
+BASE_CHARGE_PER_SECOND = 2.0
+PERCEPTION_CHARGE_FACTOR = 0.4
 from app.utils.exceptions import ValidationException
 
 logger = logging.getLogger(__name__)
@@ -370,7 +374,7 @@ class ArenaService:
                 ArenaActiveSkill(
                     name=weapon_skill(participant.dweller).name,
                     description=weapon_skill(participant.dweller).description,
-                    charge=(state.skill_charge or {}).get(participant.key, 0),
+                    charge=int(min(MAX_CHARGE, (state.skill_charge or {}).get(participant.key, 0))),
                     queued=participant.key in (state.queued_skill_ids or []),
                 )
                 if participant.dweller
@@ -386,6 +390,10 @@ class ArenaService:
             is_robot=participant.is_robot,
             image_url=participant.dweller.image_url if participant.dweller else None,
             thumbnail_url=participant.dweller.thumbnail_url if participant.dweller else None,
+            age_group=(
+                participant.dweller.age_group.value if participant.dweller and participant.dweller.age_group else None
+            ),
+            race=((participant.dweller.visual_attributes or {}).get("race") if participant.dweller else None),
         )
 
     @staticmethod
@@ -411,6 +419,7 @@ class ArenaService:
             "id": str(event.id),
             "round_seq": event.round_seq,
             "kind": event.kind,
+            "actor_id": event.actor_id,
             "message": event.message,
             "created_at": event.created_at.replace(tzinfo=UTC).isoformat() if event.created_at else None,
         }
@@ -482,6 +491,8 @@ class ArenaService:
                             max_health=d.effective_max_health,
                             image_url=d.image_url,
                             thumbnail_url=d.thumbnail_url,
+                            age_group=d.age_group.value if d.age_group else None,
+                            race=(d.visual_attributes or {}).get("race"),
                         )
                         for d in roster
                     ],
@@ -553,6 +564,31 @@ class ArenaService:
             await db_session.flush()
             if commit:
                 await db_session.commit()
+
+    @staticmethod
+    def _charge_per_second(participant: ArenaParticipant) -> float:
+        if participant.dweller is None:
+            return BASE_CHARGE_PER_SECOND
+        return BASE_CHARGE_PER_SECOND + effective_stat(participant.dweller, "perception") * PERCEPTION_CHARGE_FACTOR
+
+    async def stop_fight(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
+        """Cancel an active match without rewards; fighters keep their current health."""
+        room = await self._get_arena_room(db_session, room_id, vault_id)
+        state = await arena_state_crud.get_for_update(db_session, room.id)
+        if state is None or state.fight_started_at is None or state.last_fight_at is not None:
+            raise ValidationException(detail="No active match to stop")
+        await self._release_fighters(db_session, state)
+        state.fight_started_at = None
+        state.last_fight_at = None
+        state.next_attack_team = "A"
+        state.skill_charge = None
+        state.queued_skill_ids = None
+        state.knocked_out_ids = None
+        self._clear_room_state(str(room.id))
+        await arena_match_event_crud.delete_for_room(db_session, room.id)
+        db_session.add(state)
+        await db_session.commit()
+        return room
 
     async def start_fight(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
         """Arm a match for an arena room: a full team on each side, not done.
@@ -660,6 +696,7 @@ class ArenaService:
                                 room_id=room.id,
                                 round_seq=seq,
                                 kind="skill" if attack_skill else "hit",
+                                actor_id=attacker.key,
                                 message=f"{attacker.short_name} {action} {target.short_name} for {dealt}",
                             )
                         )
@@ -749,7 +786,7 @@ class ArenaService:
     @staticmethod
     def _team_damage(team: list[ArenaParticipant], seconds_passed: int) -> float:
         """Damage per tick from standing attackers only; knocked-out members deal none."""
-        return sum(member.power for member in team if member.health > 0) / 10 * max(0, seconds_passed)
+        return sum(member.power for member in team if member.health > 0) / 5 * max(0, seconds_passed)
 
     def _apply_team_damage(
         self,
@@ -846,7 +883,8 @@ class ArenaService:
         if not a_defeated and not b_defeated:
             state.skill_charge = {
                 p.key: min(
-                    MAX_CHARGE, (state.skill_charge or {}).get(p.key, 0) + max(0, seconds_passed) * CHARGE_PER_SECOND
+                    MAX_CHARGE,
+                    (state.skill_charge or {}).get(p.key, 0) + max(0, seconds_passed) * self._charge_per_second(p),
                 )
                 for p in (*team_a, *team_b)
                 if p.dweller is not None and p.health > 0

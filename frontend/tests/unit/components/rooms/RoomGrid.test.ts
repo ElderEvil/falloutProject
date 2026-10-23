@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { createRouterMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
+import { useRoute } from 'vue-router'
 import { setActivePinia, createPinia } from 'pinia'
 import RoomGrid from '@/modules/rooms/components/RoomGrid.vue'
 import RoomGridCell from '@/modules/rooms/components/RoomGridCell.vue'
@@ -23,6 +24,7 @@ const tooltipLabelStub = {
 describe('RoomGrid', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    delete useRoute().query.dweller
     const { toasts } = useToast()
     toasts.value = []
   })
@@ -66,6 +68,21 @@ describe('RoomGrid', () => {
 
     await room.trigger('dragleave', { relatedTarget: document.body })
     expect(room.text()).not.toContain('Drop to assign')
+  })
+
+  it('highlights the room main stat while a dweller is dragged over it', async () => {
+    useRoomStore().rooms = [mockRoom]
+    const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+    const room = wrapper.get('.built-room')
+
+    expect(room.find('.ability-icon--drag-over').exists()).toBe(false)
+
+    await room.trigger('dragover', { dataTransfer: { dropEffect: '' } })
+    expect(room.find('.ability-icon--drag-over').exists()).toBe(true)
+    expect(room.text()).toContain('S · Strength')
+
+    await room.trigger('dragleave', { relatedTarget: document.body })
+    expect(room.find('.ability-icon--drag-over').exists()).toBe(false)
   })
 
   it('names empty room cells for screen-reader users', () => {
@@ -939,6 +956,33 @@ describe('RoomGrid', () => {
       await wrapper.vm.$nextTick()
 
       expect(wrapper.emitted('roomOpened')).toHaveLength(1)
+    })
+
+    it('keeps a restored dweller above rooms that finish loading later', async () => {
+      const roomStore = useRoomStore()
+      useRoute().query.dweller = 'dweller-1'
+      roomStore.rooms = []
+      const wrapper = mount(RoomGrid, { props: { incidents: [], openRoomId: 'room-123' } })
+      roomStore.rooms = [mockRoom]
+      await wrapper.vm.$nextTick()
+      expect(wrapper.emitted('roomOpened')).toBeUndefined()
+      delete useRoute().query.dweller
+      roomStore.rooms = [{ ...mockRoom }]
+      await wrapper.vm.$nextTick()
+      expect(wrapper.emitted('roomOpened')).toHaveLength(1)
+      wrapper.unmount()
+    })
+
+    it('restores a requested room after its data finishes loading', async () => {
+      const roomStore = useRoomStore()
+      roomStore.rooms = []
+      const wrapper = mount(RoomGrid, { props: { incidents: [], openRoomId: 'room-123' } })
+      await wrapper.vm.$nextTick()
+      expect(wrapper.emitted('roomOpened')).toBeUndefined()
+      roomStore.rooms = [mockRoom]
+      await wrapper.vm.$nextTick()
+      expect(wrapper.emitted('roomOpened')).toHaveLength(1)
+      wrapper.unmount()
     })
 
     it('ignores an unknown room id', async () => {

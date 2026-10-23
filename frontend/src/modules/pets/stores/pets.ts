@@ -13,26 +13,25 @@ export const usePetsStore = defineStore('pets', () => {
   const pets = ref<Pet[]>([])
   const error = ref<string | null>(null)
   const { run: runFetchPets, isLoading: isPetsLoading } = useAsyncAction(
-    (token: string, vaultId: string) => petsService.fetchPets(token, vaultId),
-    { context: 'Failed to fetch pets', showToast: false }
+    (vaultId: string) => petsService.fetchPets(vaultId),
+    { context: 'Failed to fetch pets' }
   )
   const isLoading = computed(() => isPetsLoading.value)
 
   // Actions
-  async function fetchPets(token: string, vaultId: string): Promise<void> {
+  async function fetchPets(vaultId: string): Promise<void> {
     error.value = null
-    const result = await runFetchPets(token, vaultId)
+    const result = await runFetchPets(vaultId)
     if (result) {
       pets.value = result
     } else {
       error.value = 'Failed to load pets'
-      toast.error('Failed to load pets')
     }
   }
 
-  async function equipPet(dwellerId: string, petId: string, token: string): Promise<Pet | null> {
+  async function equipPet(dwellerId: string, petId: string): Promise<Pet | null> {
     try {
-      const pet = await petsService.equipPet(dwellerId, petId, token)
+      const pet = await petsService.equipPet(dwellerId, petId)
 
       // Update local state: unequip from previous dweller, equip to new dweller
       const petIndex = pets.value.findIndex((p) => p.id === petId)
@@ -44,14 +43,13 @@ export const usePetsStore = defineStore('pets', () => {
       return pet
     } catch (err) {
       handleStoreError(err, 'Failed to equip pet')
-      toast.error('Failed to equip pet')
       return null
     }
   }
 
-  async function unequipPet(dwellerId: string, petId: string, token: string): Promise<Pet | null> {
+  async function unequipPet(petId: string): Promise<Pet | null> {
     try {
-      await petsService.unequipPet(petId, token)
+      await petsService.unequipPet(petId)
 
       // The API returns no body on unequip, so reflect the change locally.
       const petIndex = pets.value.findIndex((p) => p.id === petId)
@@ -65,7 +63,6 @@ export const usePetsStore = defineStore('pets', () => {
       return updated
     } catch (err) {
       handleStoreError(err, 'Failed to unequip pet')
-      toast.error('Failed to unequip pet')
       return null
     }
   }

@@ -118,12 +118,17 @@ class DwellerService:
             hair_colors=hair_color_options,
         )
 
-    async def create_dweller(self, db_session: AsyncSession, obj_in: DwellerCreate) -> Dweller:
-        """Create a dweller and record the overseer's lifetime total."""
+    async def create_dweller(self, db_session: AsyncSession, obj_in: DwellerCreate, *, commit: bool = True) -> Dweller:
+        """Create a dweller and record the overseer's lifetime total.
+
+        A ``commit=False`` caller owns the commit and must emit the DWELLER_ADDED event itself after committing.
+        """
         obj_in = obj_in.model_copy(update={"visual_attributes": complete_appearance(obj_in.model_dump())})
-        dweller = await crud.dweller.create(db_session, obj_in)
-        await user_service.record_vault_statistic(db_session, self._require_vault_id(dweller), "total_dwellers_created")
-        await event_bus.emit(GameEvent.DWELLER_ADDED, self._require_vault_id(dweller), {"dweller_id": str(dweller.id)})
+        dweller = await crud.dweller.create(db_session, obj_in, commit=commit)
+        vault_id = self._require_vault_id(dweller)
+        await user_service.record_vault_statistic(db_session, vault_id, "total_dwellers_created", commit=commit)
+        if commit:
+            await event_bus.emit(GameEvent.DWELLER_ADDED, vault_id, {"dweller_id": str(dweller.id)})
         return dweller
 
     async def create_random_dweller(
@@ -152,7 +157,11 @@ class DwellerService:
     ) -> Dweller:
         """Instantiate a dweller from a named template, recording the overseer's total and bio places."""
         payload = await crud.dweller.prepare_template_dweller(db_session, vault_id, template_id, overrides=overrides)
-        return await self._persist_registered_dweller(db_session, vault_id, payload, register_bio_places=True)
+        dweller = await self._persist_registered_dweller(db_session, vault_id, payload, register_bio_places=True)
+        from app.services.family.known_relations import reconcile_known_parent_links
+
+        await reconcile_known_parent_links(db_session, vault_id, template_id)
+        return dweller
 
     async def _persist_registered_dweller(
         self,

@@ -4,6 +4,7 @@ import type { VaultMapResponse, WastelandLocationWithDwellers, WorldSnapshotRead
 export async function getWorldSnapshot(token: string): Promise<WorldSnapshotRead> {
   const response = await axios.get('/api/v1/map/world', {
     headers: { Authorization: `Bearer ${token}` },
+    _skipErrorNotification: true,
   })
   return response.data
 }

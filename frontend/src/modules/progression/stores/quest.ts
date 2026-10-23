@@ -3,16 +3,11 @@ import { computed, ref } from 'vue'
 import axios from '@/core/plugins/axios'
 import type { components } from '@/core/types/api.generated'
 import type { Quest, QuestPartyMember, VaultQuest } from '../models/quest'
-import {
-  formatGrantedReward,
-  isQuestReturning,
-  isStateQuestCategory,
-  MAX_ACTIVE_TIMED_QUESTS,
-} from '../models/quest'
+import { formatGrantedReward, isQuestReturning, isStateQuestCategory } from '../models/quest'
 import { useToast } from '@/core/composables/useToast'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { refreshNukaColaCount } from '@/modules/vault/composables/useNukaColaCount'
-import { handleStoreError } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, handleStoreError } from '@/core/utils/errorHandler'
 
 type QuestCompleteResponse = components['schemas']['QuestCompleteResponse']
 
@@ -32,6 +27,7 @@ export const useQuestStore = defineStore('quest', () => {
   const quests = ref<Quest[]>([])
   const vaultQuests = ref<VaultQuest[]>([])
   const isLoading = ref(false)
+  const questSlotLimit = ref(3)
   const questPartyMap = ref<Record<string, QuestPartyMember[]>>({})
 
   const getAuthHeaders = () => {
@@ -79,9 +75,7 @@ export const useQuestStore = defineStore('quest', () => {
           !isStateQuestCategory(quest.quest_category)
       ).length
   )
-  const timedQuestLimitReached = computed(
-    () => activeTimedQuestCount.value >= MAX_ACTIVE_TIMED_QUESTS
-  )
+  const timedQuestLimitReached = computed(() => activeTimedQuestCount.value >= questSlotLimit.value)
 
   // Actions
   async function fetchAllQuests(): Promise<void> {
@@ -90,7 +84,7 @@ export const useQuestStore = defineStore('quest', () => {
       const response = await axios.get<Quest[]>('/api/v1/quests/', { headers: getAuthHeaders() })
       quests.value = response.data
     } catch (error: unknown) {
-      toast.error('Failed to load quests')
+      notifyErrorOnce(error, 'Failed to load quests')
       throw error
     } finally {
       isLoading.value = false
@@ -109,7 +103,7 @@ export const useQuestStore = defineStore('quest', () => {
       }
       vaultQuests.value = response.data as VaultQuest[]
     } catch (error: unknown) {
-      if (!silent) toast.error('Failed to load vault quests')
+      if (!silent) notifyErrorOnce(error, 'Failed to load vault quests')
       throw error
     } finally {
       if (!silent) isLoading.value = false
@@ -146,7 +140,7 @@ export const useQuestStore = defineStore('quest', () => {
       const errorMessage =
         (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         'Failed to assign quest'
-      toast.error(errorMessage)
+      notifyErrorOnce(error, errorMessage)
       throw error
     }
     // Refresh vault quests (silent — mutation already succeeded)
@@ -179,7 +173,7 @@ export const useQuestStore = defineStore('quest', () => {
       const errorMessage =
         (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         'Failed to claim quest rewards'
-      toast.error(errorMessage)
+      notifyErrorOnce(error, errorMessage)
       throw error
     }
     // Refresh vault quests (silent — mutation already succeeded)
@@ -191,31 +185,6 @@ export const useQuestStore = defineStore('quest', () => {
     return result
   }
 
-  async function assignParty(
-    vaultId: string,
-    questId: string,
-    dwellerIds: string[]
-  ): Promise<void> {
-    try {
-      await axios.post(`/api/v1/quests/${vaultId}/${questId}/assign-party`, {
-        dweller_ids: dwellerIds,
-      })
-      toast.success('Party assigned successfully')
-    } catch (error: unknown) {
-      const errorMessage =
-        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Failed to assign party'
-      toast.error(errorMessage)
-      throw error
-    }
-    // Refresh vault quests (silent — mutation already succeeded)
-    try {
-      await fetchVaultQuests(vaultId, { silent: true })
-    } catch {
-      toast.warning('Party was assigned, but the quest list could not refresh')
-    }
-  }
-
   async function getParty(vaultId: string, questId: string): Promise<QuestPartyMember[]> {
     try {
       const response = await axios.get<QuestPartyMember[]>(
@@ -223,7 +192,7 @@ export const useQuestStore = defineStore('quest', () => {
       )
       return response.data
     } catch (error: unknown) {
-      toast.error('Failed to load quest party')
+      notifyErrorOnce(error, 'Failed to load quest party')
       throw error
     }
   }
@@ -234,20 +203,27 @@ export const useQuestStore = defineStore('quest', () => {
       const response = await axios.get<EligibleDweller[]>(url)
       return response.data
     } catch (error: unknown) {
-      toast.error('Failed to load eligible dwellers')
+      notifyErrorOnce(error, 'Failed to load eligible dwellers')
       throw error
     }
   }
 
-  async function startQuest(vaultId: string, questId: string): Promise<void> {
+  async function startQuest(
+    vaultId: string,
+    questId: string,
+    dwellerIds?: string[]
+  ): Promise<void> {
     try {
-      await axios.post(`/api/v1/quests/${vaultId}/${questId}/start`)
+      await axios.post(
+        `/api/v1/quests/${vaultId}/${questId}/start`,
+        dwellerIds ? { dweller_ids: dwellerIds } : undefined
+      )
       toast.success('Quest started!')
     } catch (error: unknown) {
       const errorMessage =
         (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         'Failed to start quest'
-      toast.error(errorMessage)
+      notifyErrorOnce(error, errorMessage)
       throw error
     }
     // Refresh vault quests (silent — mutation already succeeded)
@@ -265,13 +241,13 @@ export const useQuestStore = defineStore('quest', () => {
     questPartyMap,
     questCategories,
     activeTimedQuestCount,
+    questSlotLimit,
     timedQuestLimitReached,
     fetchAllQuests,
     fetchVaultQuests,
     fetchPartiesForActiveQuests,
     assignQuest,
     claimQuestRewards,
-    assignParty,
     getParty,
     getEligibleDwellers,
     startQuest,

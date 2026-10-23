@@ -1,6 +1,7 @@
-import { ref, type Ref } from 'vue'
+import { onScopeDispose, ref, watch, type Ref } from 'vue'
+import { useConfirmDialog } from '@vueuse/core'
 import { isRoomAtRowEnd } from '../utils/room'
-import { getErrorMessage } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, getErrorMessage } from '@/core/utils/errorHandler'
 import { useRoute } from 'vue-router'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -20,9 +21,19 @@ export function useRoomDestroy() {
   const toast = useToast()
 
   const isDestroying = ref(false)
+  const destroyTitle = ref('')
+  const {
+    isRevealed: showDestroyConfirmation,
+    reveal: revealDestroy,
+    confirm: confirmDestroy,
+    cancel: cancelDestroy,
+  } = useConfirmDialog()
+  onScopeDispose(cancelDestroy)
+  watch([() => route.params.id, () => authStore.token], () => cancelDestroy())
 
   async function destroyRoom(roomId: string, options?: DestroyRoomOptions): Promise<void> {
     options?.event?.stopPropagation()
+    if (isDestroying.value || showDestroyConfirmation.value) return
 
     const room = roomStore.rooms.find((r) => r.id === roomId)
     if (room && room.name.toLowerCase() !== 'elevator' && !isRoomAtRowEnd(roomStore.rooms, room)) {
@@ -32,14 +43,6 @@ export function useRoomDestroy() {
       toast.error(message)
       return
     }
-
-    const name = options?.roomName || 'this room'
-    if (!confirm(`Are you sure you want to destroy ${name}? You will receive a partial refund.`)) {
-      return
-    }
-
-    isDestroying.value = true
-    if (options?.actionError) options.actionError.value = null
 
     const vaultId = route.params.id
     if (!vaultId || typeof vaultId !== 'string') {
@@ -55,6 +58,13 @@ export function useRoomDestroy() {
       return
     }
 
+    const name = options?.roomName || room?.name || 'this room'
+    destroyTitle.value = `Destroy ${name}?`
+    const { isCanceled } = await revealDestroy()
+    if (isCanceled || route.params.id !== vaultId || authStore.token !== token) return
+    isDestroying.value = true
+    if (options?.actionError) options.actionError.value = null
+
     try {
       await roomStore.destroyRoom(roomId, token, vaultId)
       toast.success(`${options?.roomName || 'Room'} destroyed. Caps refunded (50%).`)
@@ -62,7 +72,7 @@ export function useRoomDestroy() {
     } catch (error) {
       const message = getErrorMessage(error)
       if (options?.actionError) options.actionError.value = message
-      toast.error(message, 5000)
+      notifyErrorOnce(error, message, 5000)
     } finally {
       isDestroying.value = false
     }
@@ -70,6 +80,10 @@ export function useRoomDestroy() {
 
   return {
     isDestroying,
+    destroyTitle,
+    showDestroyConfirmation,
+    confirmDestroy,
+    cancelDestroy,
     destroyRoom,
   }
 }

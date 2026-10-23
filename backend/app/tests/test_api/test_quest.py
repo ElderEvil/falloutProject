@@ -8,14 +8,58 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.core.enums import DwellerStatusEnum
+from app.models.dweller import Dweller
+from app.models.room import Room
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
+from app.tests.factory.dwellers import create_fake_adult_dweller
+from app.tests.factory.rooms import create_overseers_office
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.tests.utils.user import user_authentication_headers
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
+
+
+@pytest.mark.asyncio
+async def test_start_accepts_and_departs_selected_party(async_client, async_session: AsyncSession) -> None:
+    """An owner's single start request saves the party and departs it."""
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    office = Room(**create_overseers_office(tier=2), vault_id=vault.id)
+    dweller = Dweller(**create_fake_adult_dweller(), vault_id=vault.id)
+    async_session.add_all([office, dweller])
+    quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Atomic Departure",
+            short_description="Depart",
+            long_description="Select and depart together",
+            requirements="None",
+            rewards="None",
+            duration_minutes=60,
+        ),
+    )
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+    headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
+
+    response = await async_client.post(
+        f"/quests/{vault.id}/{quest.id}/start", json={"dweller_ids": [str(dweller.id)]}, headers=headers
+    )
+
+    assert response.status_code == 200, response.text
+    await async_session.refresh(dweller)
+    assert dweller.status == DwellerStatusEnum.QUESTING
+    members = await crud.team_crud.get_quest_team(async_session, quest.id, vault.id)
+    assert [member.dweller_id for member in members] == [dweller.id]
+    link = await crud.quest_crud.get_link(async_session, quest_id=quest.id, vault_id=vault.id)
+    assert link.started_at is not None
+    from app.utils.quest_duration import effective_quest_duration_minutes
+
+    assert link.duration_minutes == effective_quest_duration_minutes(60, office_tier=2)
 
 
 @pytest.mark.asyncio

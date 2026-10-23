@@ -7,6 +7,8 @@ import {
   getMergeCandidates,
   getRoomSegmentCount,
 } from '../utils/room'
+import { isOverseersOffice } from '../models/roomParts'
+import { officeSpeedPercent } from '@/modules/progression/models/quest'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
 import { Button } from '@/core/components/ui/button'
@@ -89,6 +91,17 @@ const emit = defineEmits<{
         <Icon icon="mdi:arrow-up-circle" class="h-4 w-4" />
         <span>Max tier reached ({{ room.tier }}/{{ upgradeInfo.maxTier }})</span>
       </Button>
+
+      <p v-if="isOverseersOffice(room)" class="text-xs text-theme-primary/70">
+        {{ room.tier }} quest slot{{ room.tier === 1 ? '' : 's' }}
+        <template v-if="officeSpeedPercent(room.tier) > 0">
+          · missions {{ officeSpeedPercent(room.tier) }}% faster
+        </template>
+        <template v-if="upgradeInfo?.canUpgrade">
+          · next tier: {{ upgradeInfo.nextTier }} slots, missions
+          {{ officeSpeedPercent(upgradeInfo.nextTier) }}% faster
+        </template>
+      </p>
 
       <Button
         @click="emit('unassignAll')"

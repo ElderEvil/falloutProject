@@ -1,3 +1,4 @@
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
 import { computed, ref } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -8,9 +9,6 @@ import { useToast } from '@/core/composables/useToast'
 
 /** Search length used for the modal's initial suggestion before a duration is picked. */
 const DEFAULT_SUGGEST_DURATION = 4
-
-/** Overseer send-off line shared with every dweller leaving for the wasteland. */
-export const OVERSEER_FAREWELL = 'Mind your Rad-X, trust your Pip-Boy, and come back with stories.'
 
 export interface PendingExplorer {
   dwellerId: string
@@ -142,15 +140,16 @@ export function useSendToWasteland(vaultId: () => string | null) {
         payload.radaways,
         heading ?? undefined
       )
-      toast.success(`${firstName} ${lastName ?? ''} sent to the wasteland for ${payload.duration} hour(s)!`)
-      toast.info(`Overseer: "${OVERSEER_FAREWELL}"`)
+      toast.success(
+        `${firstName} ${lastName ?? ''} sent to the wasteland for ${payload.duration} hour(s)!`
+      )
       showModal.value = false
       pendingDweller.value = null
       pendingPrefill.value = null
       suggestedHeading.value = null
       dispatched = true
-    } catch {
-      toast.error('Failed to send dweller to wasteland')
+    } catch (error) {
+      notifyErrorOnce(error, 'Failed to send dweller to wasteland')
       return false
     } finally {
       isSending.value = false

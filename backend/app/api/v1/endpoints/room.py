@@ -11,8 +11,10 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_room_access
 from app.db.session import get_async_session
 from app.models.room import Room
+from app.schemas.barbershop import BarbershopChangeRequest, BarbershopChangeResponse, BarbershopStatus
 from app.schemas.grid import GridConfig, grid_config
-from app.schemas.room import RoomBuild, RoomCreateWithoutVaultID, RoomMerge, RoomRead
+from app.schemas.room import RoomBuild, RoomCreateWithoutVaultID, RoomMerge, RoomRead, RoomStyleUpdate
+from app.services.barbershop_service import barbershop_service
 from app.services.room_remodel_service import remodel_room
 from app.services.room_service import room_service
 
@@ -68,6 +70,37 @@ async def read_room(
     """
     await verify_room_access(room_id, user, db_session)
     return await crud.room.get(db_session, room_id)
+
+
+@router.get("/{room_id}/barbershop", response_model=BarbershopStatus)
+async def read_barbershop_status(
+    room_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> BarbershopStatus:
+    """Return the Barbershop's availability, fee, and preset swatches."""
+    await verify_room_access(room_id, user, db_session)
+    room = await crud.room.get(db_session, room_id)
+    return await barbershop_service.get_status_for_room(db_session, room)
+
+
+@router.post("/{room_id}/barbershop/dwellers/{dweller_id}", response_model=BarbershopChangeResponse)
+async def change_dweller_appearance(
+    room_id: UUID4,
+    dweller_id: UUID4,
+    request: BarbershopChangeRequest,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> BarbershopChangeResponse:
+    """Change a human adult's skin tone and hair color for the Barbershop fee."""
+    await verify_room_access(room_id, user, db_session)
+    room = await crud.room.get(db_session, room_id)
+    return await barbershop_service.change_appearance(
+        db_session,
+        room=room,
+        dweller_id=dweller_id,
+        request=request,
+    )
 
 
 @router.get("/buildable/{vault_id}/", response_model=list[RoomCreateWithoutVaultID])
@@ -128,6 +161,18 @@ async def upgrade_room(
     """
     await verify_room_access(room_id, user, db_session)
     return await room_service.upgrade_room(db_session, room_id)
+
+
+@router.post("/style/{room_id}", response_model=RoomRead)
+async def apply_room_style(
+    room_id: UUID4,
+    request: RoomStyleUpdate,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> Room:
+    """Apply a cosmetic room style (for example, the Party theme)."""
+    await verify_room_access(room_id, user, db_session)
+    return await room_service.apply_room_style(db_session, room_id, request.style)
 
 
 @router.post("/split/{room_id}", response_model=list[RoomRead])

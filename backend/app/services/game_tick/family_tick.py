@@ -264,7 +264,7 @@ async def _deliver_due_baby(db_session: AsyncSession, vault_id: UUID4, pregnancy
     except (SQLAlchemyError, ValueError) as e:
         if isinstance(e, SQLAlchemyError):
             await recover_session(db_session)
-        logger.error(f"Error delivering baby for pregnancy {pregnancy_id}: {e}", exc_info=True)
+        logger.exception("Error delivering baby in vault %s", vault_id)
         return False
     if babies:
         logger.info("Babies born in vault %s: count=%d", vault_id, len(babies))

@@ -236,6 +236,7 @@ async def test_accelerate_pregnancy_success(
     audit = next(record for record in caplog.records if record.message == "DEBUG pregnancy accelerated")
     assert audit.triggered_by == str(user.id)
     assert not hasattr(audit, "new_due_at")
+    assert not hasattr(audit, "pregnancy_id")
 
 
 async def _pregnancy_in_new_vault(async_session: AsyncSession, number: int):
@@ -295,3 +296,15 @@ async def test_tick_birth_log_records_count_without_names(async_session, vault, 
 
     birth = next(record for record in caplog.records if record.name == "app.services.game_tick.family_tick")
     assert birth.args == (vault.id, 1)
+
+
+async def test_tick_delivery_failure_does_not_log_pregnancy_id(async_session, vault, caplog):
+    from app.services.family.breeding_service import breeding_service
+    from app.services.game_tick.family_tick import _deliver_due_baby
+
+    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
+    father = await _adult(async_session, vault.id, GenderEnum.MALE)
+    pregnancy = await breeding_service.create_pregnancy(async_session, mother.id, father.id)
+    with caplog.at_level("ERROR", logger="app.services.game_tick.family_tick"):
+        assert not await _deliver_due_baby(async_session, vault.id, pregnancy.id)
+    assert str(pregnancy.id) not in caplog.text

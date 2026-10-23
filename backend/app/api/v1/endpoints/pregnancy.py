@@ -165,7 +165,6 @@ async def accelerate_pregnancy(
     logger.info(
         "DEBUG pregnancy accelerated",
         extra={
-            "pregnancy_id": str(pregnancy_id),
             "triggered_by": str(user.id),
         },
     )

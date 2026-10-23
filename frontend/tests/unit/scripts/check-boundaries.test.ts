@@ -8,6 +8,15 @@ describe('check-boundaries', () => {
     ).toEqual(['@/modules/auth/x'])
   })
 
+  it.each(['</script >', '</SCRIPT\n>'])('accepts whitespace in closing tag %s', (closingTag) => {
+    expect(
+      collectModuleSpecifiers(
+        `<script>import x from '@/modules/auth/x'${closingTag}`,
+        'Example.vue'
+      )
+    ).toEqual(['@/modules/auth/x'])
+  })
+
   it('detects static imports, re-exports, and dynamic imports from modules', () => {
     const source = `
       import type { AuthUser } from '@/modules/auth/models/auth'

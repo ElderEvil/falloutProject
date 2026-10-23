@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.255.0 (2026-10-23)
+
+### Features
+
+* let eligible families occasionally adopt orphaned youth ([#1154](https://github.com/ElderEvil/falloutProject/issues/1154)) 90f95d4
+
 ## 2.254.0 (2026-10-23)
 
 ### Features

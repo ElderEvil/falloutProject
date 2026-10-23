@@ -89,7 +89,7 @@ Reward XP, levels and health persist together; deferred rewards remain rollback-
 
 ### Objective renewal
 
-Daily objectives renew at 00:00 UTC; weekly objectives renew on Monday at 00:00 UTC.
+Daily objectives renew at 00:00 UTC; weekly objectives renew on Monday at 00:00 UTC. Each vault holds three daily and seven weekly objectives at a time.
 Vault ticks credit committed production before calling the same refresh policy used
 by the scheduler. Each category's successful UTC period is persisted in the same
 transaction as its assignments, under a vault row lock. Repeated or concurrent calls
@@ -104,23 +104,24 @@ resets.
 ### Achievement tracks
 
 Achievement templates have a stable `track_key` and stage `sequence`. Only one
-unfinished stage per family is unlocked. Reaching its target freezes the reward and
-unlocks the next stage immediately, independently of reward claims. Event counters
+unfinished stage per family is unlocked. Reaching its target freezes the reward; the
+next stage unlocks only when that reward is claimed, at zero. Event counters
 start at zero for each new stage: 100 Water followed by 500 Water requires 600 total
 new Water, and excess from the completing event does not spill into the next stage.
 Distinct-dweller counting windows also restart. Absolute **Reach** milestones continue
 to test current vault state, rather than counting additional residents or levels.
 When initially assigning a new **Reach** milestone, credit current living population
-or highest level, capped at its target. An already-met target freezes its reward,
-unlocks the next stage at zero and announces completion after commit. Existing links
-keep their recorded progress.
+or highest level, capped at its target. An already-met target freezes its reward and
+announces completion after commit; the next stage stays locked until the reward is
+claimed. Existing links keep their recorded progress.
 Achievements are permanent and never participate in daily/weekly resets.
 
 Collection tracks for Power, Food and Water now have targets 100, 500, 1,500 and 5,000.
 Other existing families are sequenced by their authored targets. The expanded
 achievement caps pool totals 45,745 (previously 43,765), including 1,980 caps across
-the nine new resource stages. The completion bell/toast announces the newly unlocked
-stage. Earlier earned rewards remain separately claimable. Objective cards show the
+the nine new resource stages. Claiming a reward unlocks the next stage; the completion
+bell/toast announces that the reward is ready to claim. Earlier earned rewards remain
+separately claimable. Objective cards show the
 goal, a short vault-aware description, progress, reward and claim action. Schedules,
 stage mechanics and counting rules live in the existing About help, outside the cards. Do not headline the unfinished-objective total.
 

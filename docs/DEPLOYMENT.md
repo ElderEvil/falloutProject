@@ -14,6 +14,8 @@ Use a row's detail page or select one row for support actions: verify email, pro
 
 Soft-deleting a user blocks sign-in, clears recovery links, and pauses their vaults in one transaction. It retains account and game data and cannot target the current admin. Incident controls support up to 50 selected vaults or an explicitly confirmed global change. Operational records are read-only to keep their state transitions inside gameplay services; catalog instances are also read-only because their data comes from catalog factories. Profile bio/avatar editing and existing exports remain available; credentials and AI audit views cannot be exported.
 
+The admin PostgreSQL concurrency test is opt-in: set `ADMIN_TEST_DATABASE_URI` to a dedicated, Alembic-migrated `postgresql+asyncpg` database, then run `uv run pytest app/tests/integration/test_admin_user_actions_pg.py` from `backend/`. It skips when unset and rejects the application's database name; never point it at a shared or production database.
+
 ## Quick Start
 
 ```bash

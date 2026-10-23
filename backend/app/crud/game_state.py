@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 
 from pydantic import UUID4
-from sqlmodel import col, select, update
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.game_state import GameState
@@ -64,11 +64,10 @@ class CRUDGameState:
     @staticmethod
     async def pause_many(db_session: AsyncSession, vault_ids: list[UUID4]) -> None:
         """Stage pauses without committing; an account operation owns the transaction."""
-        await db_session.execute(
-            update(GameState)
-            .where(col(GameState.vault_id).in_(vault_ids), ~col(GameState.is_paused))
-            .values(is_paused=True, paused_at=datetime.utcnow())
-        )
+        for vault_id in vault_ids:
+            game_state = await CRUDGameState.get_or_create(db_session, vault_id, commit=False)
+            game_state.pause()
+            db_session.add(game_state)
 
     @staticmethod
     async def record_presence(db_session: AsyncSession, vault_id: UUID4) -> GameState:

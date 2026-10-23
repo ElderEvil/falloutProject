@@ -698,8 +698,13 @@ async def test_admin_promotes_user_only_after_post_confirmation(
     assert (await admin_client.get("/admin/")).status_code == 200
 
 
+@pytest.mark.parametrize("existing_state", [False, True], ids=["missing-state", "existing-state"])
 async def test_admin_soft_deletes_user_and_pauses_vault_without_deleting_data(
-    admin_client: AsyncClient, async_client: AsyncClient, async_session: AsyncSession, vault: Vault
+    admin_client: AsyncClient,
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    vault: Vault,
+    existing_state: bool,
 ) -> None:
     from app.core.security import create_access_token
     from app.crud.game_state import game_state_crud
@@ -707,7 +712,10 @@ async def test_admin_soft_deletes_user_and_pauses_vault_without_deleting_data(
     target = await crud.user.get(async_session, vault.user_id)
     headers = {"Authorization": f"Bearer {create_access_token(str(target.id))}"}
     assert (await async_client.get("/users/me", headers=headers)).status_code == 200
-    state = await game_state_crud.get_or_create(async_session, vault.id)
+    if existing_state:
+        await game_state_crud.get_or_create(async_session, vault.id)
+    else:
+        assert await game_state_crud.get_by_vault_id(async_session, vault.id) is None
     target.email_verification_token = "old-verification-link"
     target.password_reset_token = "old-reset-link"
     async_session.add(target)
@@ -723,7 +731,8 @@ async def test_admin_soft_deletes_user_and_pauses_vault_without_deleting_data(
     assert response.status_code == 303
     await async_session.refresh(target)
     await async_session.refresh(vault)
-    await async_session.refresh(state)
+    state = await game_state_crud.get_by_vault_id(async_session, vault.id)
+    assert state is not None
     assert target.is_deleted is True
     assert target.is_active is False
     assert target.deleted_at is not None

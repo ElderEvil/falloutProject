@@ -1,10 +1,12 @@
 """Real row locks prevent two administrators from deleting one another concurrently."""
 
 import asyncio
+import os
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import delete
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -21,11 +23,19 @@ pytestmark = pytest.mark.integration
 
 
 def test_concurrent_admin_deletion_keeps_an_active_superuser() -> None:
-    asyncio.run(_concurrent_deletion())
+    database_uri = os.getenv("ADMIN_TEST_DATABASE_URI")
+    if not database_uri:
+        pytest.skip("Set ADMIN_TEST_DATABASE_URI to a dedicated, migrated PostgreSQL test database")
+    url = make_url(database_uri)
+    if url.drivername != "postgresql+asyncpg" or not url.database:
+        pytest.fail("ADMIN_TEST_DATABASE_URI must use postgresql+asyncpg and name a test database")
+    if url.database == make_url(str(settings.ASYNC_DATABASE_URI)).database:
+        pytest.fail("ADMIN_TEST_DATABASE_URI must name a different database from the application")
+    asyncio.run(_concurrent_deletion(database_uri))
 
 
-async def _concurrent_deletion() -> None:
-    engine = create_async_engine(str(settings.ASYNC_DATABASE_URI), pool_size=2, max_overflow=0)
+async def _concurrent_deletion(database_uri: str) -> None:
+    engine = create_async_engine(database_uri, pool_size=2, max_overflow=0)
     try:
         async with engine.connect() as connection:
             await connection.execute(select(1))
@@ -70,3 +80,16 @@ async def _concurrent_deletion() -> None:
             await session.execute(delete(User).where(col(User.id).in_(ids)))
             await session.commit()
         await engine.dispose()
+
+
+@pytest.mark.parametrize("database", [None, "application", "sqlite"])
+def test_admin_concurrency_requires_a_dedicated_database(monkeypatch: pytest.MonkeyPatch, database: str | None) -> None:
+    if database is None:
+        monkeypatch.delenv("ADMIN_TEST_DATABASE_URI", raising=False)
+        with pytest.raises(pytest.skip.Exception, match="dedicated"):
+            test_concurrent_admin_deletion_keeps_an_active_superuser()
+    else:
+        uri = str(settings.ASYNC_DATABASE_URI) if database == "application" else "sqlite+aiosqlite:///:memory:"
+        monkeypatch.setenv("ADMIN_TEST_DATABASE_URI", uri)
+        with pytest.raises(pytest.fail.Exception, match=r"different database|postgresql"):
+            test_concurrent_admin_deletion_keeps_an_active_superuser()

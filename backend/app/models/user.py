@@ -20,7 +20,7 @@ class UserBase(SQLModel):
 
 
 class User(BaseUUIDModel, UserBase, TimeStampMixin, SoftDeleteMixin, table=True):
-    hashed_password: str = Field(nullable=False)
+    hashed_password: str | None = Field(default=None, nullable=True)
     monthly_token_limit: int | None = Field(default=500000, nullable=True)
     email_verified: bool = Field(default=False)
     email_verification_token: str | None = Field(default=None, index=True)

@@ -57,6 +57,10 @@ class AuthService:
         if not crud.user.is_active(user):
             raise ValidationException(detail="Inactive user")
 
+        return await self.issue_tokens(user, redis_client)
+
+    async def issue_tokens(self, user: User, redis_client: Redis) -> Token:
+        """Mint the access/refresh pair shared by login and registration."""
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         refresh_token_expires = timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
 
@@ -250,6 +254,9 @@ class AuthService:
         Raises:
             ValidationException: If current password is incorrect
         """
+        if user.hashed_password is None:
+            raise ValidationException(detail="No password set for this account; use the password reset flow")
+
         # Verify current password
         if not security.verify_password(current_password, user.hashed_password):
             raise ValidationException(detail="Incorrect password")

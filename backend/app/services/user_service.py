@@ -18,6 +18,7 @@ from app.crud.user_profile import profile_crud
 from app.models.user import User
 from app.models.vault import Vault
 from app.schemas.user import UserCreate, UserWithTokens
+from app.services.auth_service import auth_service
 from app.utils.exceptions import (
     AccessDeniedException,
     AccountChangeCooldownException,
@@ -180,14 +181,13 @@ class UserService:
         except Exception:
             logger.exception("Failed to send verification email")
 
-        access_token = security.create_access_token(user.id)
-        refresh_token = await security.create_refresh_token(user.id, redis_client)
+        tokens = await auth_service.issue_tokens(user, redis_client)
 
         return UserWithTokens(
             **user.model_dump(),
-            access_token=access_token,
-            refresh_token=refresh_token,
-            token_type="bearer",  # ruff: ignore[hardcoded-password-func-arg]
+            access_token=tokens.access_token,
+            refresh_token=tokens.refresh_token,
+            token_type=tokens.token_type,
         )
 
     async def get_ai_usage(

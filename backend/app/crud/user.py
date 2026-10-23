@@ -14,6 +14,22 @@ from app.schemas.user import UserCreate, UserUpdate
 from app.utils.exceptions import ResourceConflictException
 
 
+def build_user_model(
+    *,
+    username: str,
+    email: str,
+    password: str | None = None,
+    is_superuser: bool = False,
+) -> User:
+    """Build a User row; ``password=None`` creates a provider-only account."""
+    return User(
+        username=username,
+        email=email,
+        hashed_password=get_password_hash(password) if password else None,
+        is_superuser=is_superuser,
+    )
+
+
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     async def get_for_update(self, db_session: SAAsyncSession, user_id: UUID4) -> User | None:
         result = await db_session.execute(
@@ -38,24 +54,21 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return response.scalar_one_or_none()
 
     async def create(self, db_session: AsyncSession, obj_in: UserCreate) -> User:
-        db_obj = User(
+        db_obj = build_user_model(
             username=obj_in.username,
             email=obj_in.email,
-            hashed_password=get_password_hash(obj_in.password),
+            password=obj_in.password,
             is_superuser=obj_in.is_superuser,
         )
         try:
             db_session.add(db_obj)
-            await db_session.commit()
-            await db_session.refresh(db_obj)
-
-            # Auto-create user profile
-            profile = UserProfile(user_id=db_obj.id)
-            db_session.add(profile)
+            await db_session.flush()
+            db_session.add(UserProfile(user_id=db_obj.id))
             await db_session.commit()
         except IntegrityError as e:
             await db_session.rollback()
             raise ResourceConflictException(detail="User already exists") from e
+        await db_session.refresh(db_obj)
         return db_obj
 
     async def update(
@@ -73,7 +86,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
 
     async def authenticate(self, db_session: AsyncSession, *, email: str, password: str) -> User | None:
         user = await self.get_by_email(db_session, email=email, include_deleted=False)
-        if not user:
+        if not user or not user.hashed_password:
             return None
         if not verify_password(password, user.hashed_password):
             return None

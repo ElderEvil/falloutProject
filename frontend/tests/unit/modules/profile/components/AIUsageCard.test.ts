@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test'
 import { mount, flushPromises } from '@vue/test-utils'
 import AIUsageCard from '@/modules/profile/components/AIUsageCard.vue'
 import type { AIUsageStats } from '@/modules/profile/models/aiUsage'

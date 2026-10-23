@@ -9,6 +9,16 @@ minimumReleaseAgeExclude:
   - postcss@8.5.18 || 8.5.23
   - undici@7.29.0
   - nanoid@3.3.17
+  - vite-plus
+  - '@voidzero-dev/*'
+  - oxlint
+  - '@oxlint/*'
+  - oxlint-tsgolint
+  - '@oxlint-tsgolint/*'
+  - oxfmt
+  - '@oxfmt/*'
+  - vitest
+  - '@vitest/*'
 
 # === BUILD PERMISSIONS ===
 # allowBuilds replaces pnpm 10's onlyBuiltDependencies
@@ -23,7 +33,6 @@ allowBuilds:
 overrides:
   # Pinned (not `@latest`): `@latest` re-resolves on every install and can pull a release newer
   # than `minimumReleaseAge`, which fails the lockfile supply-chain policy check (plan §10).
-  vite: npm:@voidzero-dev/vite-plus-core@0.3.2
   form-data: 4.0.6
   js-yaml: 4.2.0
   undici: 7.28.0
@@ -31,7 +40,6 @@ overrides:
   minimatch: 5.1.8
   defu: 6.1.5
   fast-uri: 3.1.2
-  '@vitest/browser@>=4.0.0 <4.1.10': ^4.1.10
   dompurify@<=3.4.12: 3.4.13
   esbuild@>=0.27.3 <0.28.1: ^0.28.1
   js-yaml@>=4.0.0 <4.3.0: 4.3.0
@@ -40,6 +48,7 @@ overrides:
   postcss@<=8.5.17: ^8.5.18
   postcss@<=8.5.22: ^8.5.23
   undici@>=7.0.0 <7.29.0: ^7.29.0
+  vite@*: 'catalog:'
 
 # === PACKAGE MANAGER SETTINGS ===
 engineStrict: true
@@ -52,3 +61,18 @@ storeDir: ~/.pnpm-store
 modulesCacheMaxAge: 604800
 dedupePeerDependents: true
 shamefullyHoist: false
+catalog:
+  vite: npm:@voidzero-dev/vite-plus-core@1.1.0
+  vite-plus: 1.1.0
+  # vitest itself is NOT a direct dep: it comes bundled with vite-plus
+  # (vite-plus pins it exactly). These two release in lockstep with vitest
+  # and must be bumped to match whenever vite-plus bumps its bundled vitest.
+  '@vitest/coverage-v8': 5.0.3
+  '@vitest/ui': 5.0.3
+peerDependencyRules:
+  allowAny:
+    - vite
+    - vitest
+  allowedVersions:
+    vite: '*'
+    vitest: '*'

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createPinia, setActivePinia } from 'pinia'
 import { useArenaStore } from '@/modules/rooms/stores/arena'
 import { mount, flushPromises } from '@vue/test-utils'

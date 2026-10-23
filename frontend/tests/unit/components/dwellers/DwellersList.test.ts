@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { shallowMount, mount } from '@vue/test-utils'
 import DwellersList from '@/modules/dwellers/components/DwellersList.vue'
 

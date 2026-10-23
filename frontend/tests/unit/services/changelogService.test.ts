@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createApiClientMock } from '../helpers/mocks'
 import { apiGet } from '@/core/utils/api'
 import { changelogService, type ChangelogEntry } from '@/modules/profile/services/changelogService'

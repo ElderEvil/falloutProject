@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createToastMock } from '../helpers/mocks'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 

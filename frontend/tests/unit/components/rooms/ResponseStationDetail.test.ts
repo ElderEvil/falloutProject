@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { flushPromises } from '@vue/test-utils'
 import { mountWithSetup } from '../../helpers/mountWithSetup'
 import ResponseStationDetail from '@/modules/rooms/components/ResponseStationDetail.vue'

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vite-plus/test'
 import { happinessService } from '@/modules/dwellers/services/happinessService'
 import type { AxiosResponse } from 'axios'
 import apiClient from '@/core/plugins/axios'

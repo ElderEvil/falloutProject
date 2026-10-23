@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi } from 'vite-plus/test'
 import { createIconifyMock } from '../../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import PregnancyCard from '@/modules/social/components/pregnancy/PregnancyCard.vue'

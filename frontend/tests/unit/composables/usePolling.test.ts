@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import { effectScope } from 'vue'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { usePolling } from '@/core/composables/usePolling'

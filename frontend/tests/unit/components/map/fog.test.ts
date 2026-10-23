@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { computeExploredMask, isExploredTile } from '@/modules/map/utils/fog'
 import { registryToTile } from '@/modules/map/utils/atlasProjection'
 

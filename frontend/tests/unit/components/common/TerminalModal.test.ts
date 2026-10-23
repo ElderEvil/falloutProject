@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createIconifyMock } from '../../helpers/mocks'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { Dialog } from '@/core/components/ui/dialog'

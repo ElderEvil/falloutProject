@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { createToastMock } from '../../../helpers/mocks'
 import { defineComponent, nextTick, ref } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'

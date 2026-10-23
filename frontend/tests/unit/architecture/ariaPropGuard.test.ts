@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 
 /**
  * Guard for the `aria-*` / `data-*` prop convention in docs/frontend/ACCESSIBILITY.md.

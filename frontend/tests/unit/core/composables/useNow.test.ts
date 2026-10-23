@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import { effectScope, type Ref } from 'vue'
 import { useNow } from '@/core/composables/useNow'
 

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 

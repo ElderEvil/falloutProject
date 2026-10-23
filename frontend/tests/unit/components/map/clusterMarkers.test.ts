@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 import { clusterMarkers, DEFAULT_CLUSTER_CELL_SIZE } from '@/modules/map/utils/clusterMarkers'
 
 describe('clusterMarkers', () => {

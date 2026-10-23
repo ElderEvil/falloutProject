@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vite-plus/test'
 import { createIconifyMock } from '../../helpers/mocks'
 import { flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'

@@ -1,5 +1,5 @@
 import { mount, flushPromises } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createPinia, setActivePinia } from 'pinia'
 import { effectScope, reactive, ref } from 'vue'
 import OnboardingSpotlight from '@/modules/progression/components/OnboardingSpotlight.vue'

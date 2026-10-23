@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { findRawControls, isInScope } from '../../../scripts/check-raw-controls.mjs'
 
 describe('check-raw-controls', () => {

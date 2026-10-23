@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createRouterMock, createToastMock } from '../helpers/mocks'
 import { flushPromises } from '@vue/test-utils'
 import { mountWithSetup } from '../helpers/mountWithSetup'

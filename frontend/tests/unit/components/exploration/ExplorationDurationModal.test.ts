@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vite-plus/test'
 import { createIconifyMock } from '../../helpers/mocks'
 import { config, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'

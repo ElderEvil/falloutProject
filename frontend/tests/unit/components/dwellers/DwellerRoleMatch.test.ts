@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vite-plus/test'
 import { ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import DwellerRoleMatch from '@/modules/dwellers/components/DwellerRoleMatch.vue'

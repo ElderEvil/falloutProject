@@ -1,6 +1,6 @@
 import { defineComponent, h, provide, ref, type Ref } from 'vue'
 import { mount, type MountingOptions, type VueWrapper } from '@vue/test-utils'
-import { vi } from 'vitest'
+import { vi } from 'vite-plus/test'
 import {
   dwellerDetailKey,
   type DwellerDetailContext,

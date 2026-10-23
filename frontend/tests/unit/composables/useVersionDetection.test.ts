@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vite-plus/test'
 
 vi.stubGlobal('__APP_VERSION__', '2.18.0')
 

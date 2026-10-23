@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+
 import { mount, VueWrapper, flushPromises, enableAutoUnmount } from '@vue/test-utils'
-import { afterEach } from 'vitest'
+
 import * as trainingService from '@/modules/progression/services/trainingService'
 
 enableAutoUnmount(afterEach)

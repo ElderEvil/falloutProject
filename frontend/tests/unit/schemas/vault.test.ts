@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 import { vaultNumberSchema, parseVaultNumber } from '@/modules/vault/schemas/vault'
 import { ZodError } from 'zod'
 

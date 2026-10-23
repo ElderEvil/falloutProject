@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 import { ref } from 'vue'
 import DwellerAlertLine from '@/modules/dwellers/components/DwellerAlertLine.vue'
 import {

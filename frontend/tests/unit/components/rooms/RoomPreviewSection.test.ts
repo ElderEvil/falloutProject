@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import RoomPreviewSection from '@/modules/rooms/components/RoomPreviewSection.vue'
 
 const dweller = (id: string, name: string) => ({

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.253.5 (2026-10-23)
+
+### Bug Fixes
+
+* prevent orphaned workers during development reloads ([#1153](https://github.com/ElderEvil/falloutProject/issues/1153)) 2ed2e09
+
 ## 2.253.4 (2026-10-23)
 
 ### Bug Fixes

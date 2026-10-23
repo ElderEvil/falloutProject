@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.253.2 (2026-10-23)
+
+### Performance Improvements
+
+* paginate dweller roster rendering ([#1150](https://github.com/ElderEvil/falloutProject/issues/1150)) 7f80ccd
+
 ## 2.253.1 (2026-10-23)
 
 ### Bug Fixes

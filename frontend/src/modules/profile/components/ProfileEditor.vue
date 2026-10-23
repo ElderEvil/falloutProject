@@ -14,9 +14,7 @@
     <CardContent class="px-0">
       <form class="space-y-5" @submit.prevent="handleSubmit">
         <div class="space-y-2">
-          <Label for="username" class="text-sm font-semibold text-theme-primary/85"
-            >Username</Label
-          >
+          <Label for="username" class="text-sm font-semibold text-theme-primary/85">Username</Label>
           <Input
             id="username"
             v-model="usernameField"
@@ -52,6 +50,38 @@
             dweller-voice generation stay paused until it is confirmed; chat remains available.
           </p>
         </div>
+
+        <div
+          v-if="hasPassword === false"
+          class="space-y-2 rounded-md border border-theme-primary/20 bg-surface-sunken p-4"
+        >
+          <p class="text-sm font-semibold text-theme-primary/85">Sign-in methods</p>
+          <p class="text-xs leading-5 text-theme-primary/60">
+            We'll email you a link to set a password. Google/GitHub sign-in will keep working.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            :disabled="resetStatus === 'sending'"
+            @click="requestPasswordReset"
+          >
+            {{ resetStatus === 'sending' ? 'SENDING...' : 'ADD PASSWORD SIGN-IN' }}
+          </Button>
+          <p v-if="resetStatus === 'sent'" class="text-xs text-theme-primary">EMAIL SENT</p>
+          <p v-if="resetStatus === 'error'" class="text-xs text-danger">
+            COULD NOT SEND - PLEASE TRY AGAIN
+          </p>
+        </div>
+        <div
+          v-else-if="hasPassword === true"
+          class="space-y-2 rounded-md border border-theme-primary/20 bg-surface-sunken p-4"
+        >
+          <p class="text-sm font-semibold text-theme-primary/85">Sign-in methods</p>
+          <p class="text-xs leading-5 text-theme-primary/60">Password sign-in is enabled.</p>
+        </div>
+        <p class="text-xs leading-5 text-theme-primary/50">
+          Changing your email does not change which Google or GitHub identity is linked.
+        </p>
 
         <div class="space-y-2">
           <div class="flex items-baseline justify-between gap-4">
@@ -115,10 +145,7 @@
             >Preferred theme</Label
           >
           <Select v-model="themeSelectModel">
-            <SelectTrigger
-              id="theme"
-              class="w-full"
-            >
+            <SelectTrigger id="theme" class="w-full">
               <SelectValue placeholder="Select a theme" />
             </SelectTrigger>
             <SelectContent>
@@ -182,6 +209,8 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import type { ProfileUpdate } from '@/modules/profile/models/profile'
+import { authService } from '@/modules/auth/services/authService'
+import { getErrorMessage } from '@/core/utils/errorHandler'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 import type { AcceptableValue } from 'reka-ui'
 import { Button } from '@/core/components/ui/button'
@@ -214,9 +243,24 @@ interface Props {
   email?: string | null
   loading?: boolean
   error?: string | null
+  hasPassword?: boolean | null
 }
 
 const props = defineProps<Props>()
+
+const resetStatus = ref<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+async function requestPasswordReset() {
+  if (!props.email || resetStatus.value === 'sending') return
+  resetStatus.value = 'sending'
+  try {
+    await authService.requestPasswordReset(props.email)
+    resetStatus.value = 'sent'
+  } catch (error) {
+    console.error('[profile] Password reset request failed:', getErrorMessage(error))
+    resetStatus.value = 'error'
+  }
+}
 
 const { loading = false, error = null, initialData } = props
 

@@ -522,6 +522,11 @@ async def test_passwordless_account_can_recover_through_password_reset(
     await async_session.commit()
     user = await crud.user.get_by_email(async_session, email=data["email"])
     assert user is not None
+    headers = {"Authorization": f"Bearer {security.create_access_token(user.id)}"}
+    before = await async_client.get("users/me", headers=headers)
+    assert before.status_code == 200
+    assert before.json()["has_password"] is False
+    assert "hashed_password" not in before.json()
 
     app.dependency_overrides[get_redis_client] = mock_redis_client
     try:
@@ -544,5 +549,9 @@ async def test_passwordless_account_can_recover_through_password_reset(
         )
         assert login.status_code == 200
         assert "access_token" in login.json()
+        after = await async_client.get("users/me", headers={"Authorization": f"Bearer {login.json()['access_token']}"})
+        assert after.status_code == 200
+        assert after.json()["has_password"] is True
+        assert "hashed_password" not in after.json()
     finally:
         app.dependency_overrides.pop(get_redis_client, None)

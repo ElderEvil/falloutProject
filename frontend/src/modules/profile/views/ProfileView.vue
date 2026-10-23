@@ -193,6 +193,7 @@ watch(
               :initial-data="profileStore.profile"
               :username="authStore.user?.username"
               :email="authStore.user?.email"
+              :has-password="authStore.user?.has_password"
               :loading="isSubmittingAccount || profileStore.loading"
               :error="profileStore.error"
               @submit="handleProfileUpdate"

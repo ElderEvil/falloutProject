@@ -11083,6 +11083,8 @@ export interface components {
             updated_at: string;
             /** Email Verified */
             email_verified: boolean;
+            /** Has Password */
+            has_password: boolean;
         };
         /** UserUpdate */
         UserUpdate: {
@@ -11133,6 +11135,8 @@ export interface components {
             updated_at: string;
             /** Email Verified */
             email_verified: boolean;
+            /** Has Password */
+            has_password: boolean;
             /** Access Token */
             access_token: string;
             /** Refresh Token */

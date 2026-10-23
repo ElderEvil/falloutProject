@@ -231,3 +231,48 @@ def test_username_candidates_include_planned_fallback():
     assert "overseer6" in candidates
     assert "overseer99" in candidates
     assert any(candidate.startswith("overseer_") and len(candidate) == len("overseer_") + 4 for candidate in candidates)
+
+
+async def test_adding_password_preserves_provider_login(redis_client, async_session: AsyncSession):
+    from app.core.security import get_password_hash
+
+    service = OAuthService(transport=_google_transport("ada@gmail.com"))
+    url, browser_token = await service.start("google", None, redis_client)
+    user = await service.complete("google", "code", _state(url), browser_token, async_session, redis_client)
+
+    user.hashed_password = get_password_hash("NewPass123!")
+    await async_session.commit()
+
+    url, browser_token = await service.start("google", None, redis_client)
+    again = await service.complete("google", "code", _state(url), browser_token, async_session, redis_client)
+
+    assert again.id == user.id
+    assert again.has_password is True
+
+
+async def test_second_provider_keeps_same_user(redis_client, async_session: AsyncSession):
+    github = OAuthService(transport=_github_transport("shared@gmail.com"))
+    url, browser_token = await github.start("github", None, redis_client)
+    user = await github.complete("github", "code", _state(url), browser_token, async_session, redis_client)
+
+    google = OAuthService(transport=_google_transport("shared@gmail.com"))
+    url, browser_token = await google.start("google", None, redis_client)
+    again = await google.complete("google", "code", _state(url), browser_token, async_session, redis_client)
+
+    assert again.id == user.id
+    assert await crud.oauth_account.get_for_user(async_session, user.id, "github") is not None
+    assert await crud.oauth_account.get_for_user(async_session, user.id, "google") is not None
+
+
+async def test_email_change_preserves_provider_login(redis_client, async_session: AsyncSession):
+    service = OAuthService(transport=_google_transport("ada@gmail.com"))
+    url, browser_token = await service.start("google", None, redis_client)
+    user = await service.complete("google", "code", _state(url), browser_token, async_session, redis_client)
+
+    user.email = "changed@example.com"
+    await async_session.commit()
+
+    url, browser_token = await service.start("google", None, redis_client)
+    again = await service.complete("google", "code", _state(url), browser_token, async_session, redis_client)
+
+    assert again.id == user.id

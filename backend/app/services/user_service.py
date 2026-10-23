@@ -185,6 +185,7 @@ class UserService:
 
         return UserWithTokens(
             **user.model_dump(),
+            has_password=user.hashed_password is not None,
             access_token=tokens.access_token,
             refresh_token=tokens.refresh_token,
             token_type=tokens.token_type,

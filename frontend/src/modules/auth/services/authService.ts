@@ -63,6 +63,14 @@ export const authService = {
       skipErrorNotification: true,
     })
   },
+  async requestPasswordReset(email: string): Promise<AxiosResponse<MessageResponse>> {
+    return apiRequest<MessageResponse>(
+      'post',
+      '/api/v1/auth/forgot-password',
+      { email },
+      { skipErrorNotification: true }
+    )
+  },
   async verifyEmail(token: string): Promise<AxiosResponse<MessageResponse>> {
     return await apiRequest<MessageResponse>('post', '/api/v1/auth/verify-email', { token })
   },

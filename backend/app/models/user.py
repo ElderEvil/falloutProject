@@ -35,5 +35,10 @@ class User(BaseUUIDModel, UserBase, TimeStampMixin, SoftDeleteMixin, table=True)
     llm_interactions: list["LLMInteraction"] = Relationship(back_populates="user")
     vaults: list["Vault"] = Relationship(back_populates="user", cascade_delete=True)
 
+    @property
+    def has_password(self) -> bool:
+        """Whether a local password is set; never exposes the hash."""
+        return self.hashed_password is not None
+
     def __str__(self):
         return self.username

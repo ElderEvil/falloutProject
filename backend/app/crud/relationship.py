@@ -49,7 +49,12 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
             .order_by(first_parent.id, second_parent.id)
         )
         result = await db.execute(query)
-        return [(row[0], row[1]) for row in result.all()]
+        couples = {}
+        for first, second in result.all():
+            # Legacy/imported rows may record the same pair in either direction.
+            key = frozenset((first.id, second.id))
+            couples.setdefault(key, (first, second))
+        return list(couples.values())
 
     async def get_by_dweller_pair(
         self,

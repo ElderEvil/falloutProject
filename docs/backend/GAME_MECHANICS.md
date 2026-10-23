@@ -258,19 +258,23 @@ the ask keeps its always-on bell notification.
 
 ## Adoption of orphaned youth
 
-Orphaned children and teens are adopted automatically during the family tick, after births and before
-aging. There is no player action and no placement choice:
+Orphaned children and teens are adopted automatically during the family tick, after births and aging.
+There is no player action and no placement choice:
 
-- **Eligible orphan** — a child or teen in the vault, not deleted, with at least one recorded parent and
-  **zero** living parents (`health > 0` and not deleted). A missing parent row counts as dead.
-- **Eligible couple** — a relationship in `PARTNER_LINKED_STAGES` where both dwellers are adults, alive,
-  not deleted, and in the same vault. A couple may adopt more than one orphan; orphans are assigned
-  oldest-first, round-robin across eligible couples.
-- **Effect** — both `parent_1_id` and `parent_2_id` are set, a `family` bio entry uses
-  `render_adopted_child_bio`, and a `CHILD_ADOPTED` notification reaches the bell and toast. Adoption never
-  claims a biological birth.
+- **Eligible orphan** — a living child or teen in the vault, not deleted, with at least one recorded
+  parent and zero living, non-deleted parents. Missing parent rows count as absent.
+- **Eligible couple** — living, non-deleted adults in the same vault, with reciprocal partner links
+  and a relationship in `PARTNER_LINKED_STAGES`, regardless of gender or race. Each couple adopts at most
+  one orphan per scan; candidates are assigned in stable order. A couple can adopt again on later ticks.
+- **Effect** — both parent links are replaced. Mixed-gender couples put the mother first; other pairs
+  use stable ID order. The child receives an adoption bio entry with adopter references, and both
+  adopters receive a family entry referencing the child. Adoption never claims a biological birth.
+- Parent changes, biographies and notifications commit together. `CHILD_ADOPTED` delivery happens only
+  after commit and surfaces through the bell and a toast, subject to social-notification preferences.
 
-The pass is skipped entirely when there are no eligible orphans or no eligible couples.
+The pass makes no changes when there are no eligible orphans or couples. Teens who become adults during
+this tick are no longer eligible. Adoption is derived from parent links, so a repeat pass is a no-op
+while the adoptive parents are alive.
 
 ## Vault difficulty: Survival Mode
 

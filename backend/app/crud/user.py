@@ -38,6 +38,17 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         )
         return result.scalar_one_or_none()
 
+    async def get_by_ids_for_update(self, db_session: SAAsyncSession, user_ids: list[UUID4]) -> list[User]:
+        """Lock actor and target in the same order, refreshing any cached identities."""
+        result = await db_session.execute(
+            select(User)
+            .where(col(User.id).in_(user_ids))
+            .order_by(User.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return list(result.scalars().all())
+
     async def get_by_email(self, db_session: AsyncSession, email: str, include_deleted: bool = False) -> User | None:
         query = select(self.model).where(self.model.email == email)
         if not include_deleted:

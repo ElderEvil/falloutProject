@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from sqladmin.authentication import AuthenticationBackend
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -20,8 +22,9 @@ class AdminAuth(AuthenticationBackend):
             user = await crud.user.authenticate(db_session=session, email=username, password=password)
 
             # Check if user exists and is superuser
-            if user and crud.user.is_superuser(user):
+            if user and crud.user.is_active(user) and crud.user.is_superuser(user):
                 # Store user ID in session
+                request.session.clear()
                 request.session.update({"user_id": str(user.id)})
                 return True
 
@@ -38,11 +41,17 @@ class AdminAuth(AuthenticationBackend):
         if not user_id:
             return False
 
-        # Verify user still exists and is superuser
+        try:
+            parsed_id = UUID(str(user_id))
+        except ValueError:
+            request.session.clear()
+            return False
+
+        # Verify user still exists, is active and is superuser
         maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
         async with maker() as session:
-            user = await crud.user.get(db_session=session, id=user_id)
-            if user and crud.user.is_superuser(user):
+            user = await crud.user.get_or_none(db_session=session, id=parsed_id)
+            if user and crud.user.is_active(user) and crud.user.is_superuser(user):
                 return True
 
         return False

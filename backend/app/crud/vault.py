@@ -4,7 +4,7 @@ from logging import getLogger
 from pydantic import UUID4
 from sqlalchemy import Row, and_, func
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
+from sqlmodel import col, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -304,6 +304,21 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         await db_session.commit()
         await db_session.refresh(obj)
         return obj
+
+    async def list_incident_controls(self, db_session: AsyncSession, *, skip: int, limit: int) -> list[Vault]:
+        result = await db_session.execute(
+            select(Vault).where(~col(Vault.is_deleted)).order_by(Vault.number, Vault.id).offset(skip).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def set_incidents_disabled(
+        self, db_session: AsyncSession, *, disabled: bool, vault_ids: list[UUID4] | None
+    ) -> int:
+        statement = update(Vault).where(~col(Vault.is_deleted)).values(incidents_disabled=disabled)
+        if vault_ids is not None:
+            statement = statement.where(col(Vault.id).in_(vault_ids))
+        result = await db_session.execute(statement)
+        return result.rowcount
 
 
 vault = CRUDVault(Vault)

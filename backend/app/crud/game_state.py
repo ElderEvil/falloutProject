@@ -62,6 +62,14 @@ class CRUDGameState:
         return game_state
 
     @staticmethod
+    async def pause_many(db_session: AsyncSession, vault_ids: list[UUID4]) -> None:
+        """Stage pauses without committing; an account operation owns the transaction."""
+        for vault_id in vault_ids:
+            game_state = await CRUDGameState.get_or_create(db_session, vault_id, commit=False)
+            game_state.pause()
+            db_session.add(game_state)
+
+    @staticmethod
     async def record_presence(db_session: AsyncSession, vault_id: UUID4) -> GameState:
         """Stamp a visibility-gated vault-view heartbeat for spawn gating."""
         game_state = await CRUDGameState.get_or_create(db_session, vault_id)

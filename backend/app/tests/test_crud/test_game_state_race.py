@@ -22,6 +22,28 @@ async def _make_vault(async_session: AsyncSession):
     return await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
 
 
+@pytest.mark.parametrize("existing_state", [False, True])
+async def test_pause_many_leaves_commit_to_caller(async_session: AsyncSession, existing_state: bool) -> None:
+    vault = await _make_vault(async_session)
+    vault_id = vault.id
+    if existing_state:
+        await crud.game_state_crud.get_or_create(async_session, vault_id)
+
+    await crud.game_state_crud.pause_many(async_session, [vault_id])
+    await async_session.flush()
+    state = await crud.game_state_crud.get_by_vault_id(async_session, vault_id)
+    assert state is not None
+    assert state.is_paused
+    await async_session.rollback()
+
+    state = await crud.game_state_crud.get_by_vault_id(async_session, vault_id)
+    if existing_state:
+        assert state is not None
+        assert not state.is_paused
+    else:
+        assert state is None
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("commit", [True, False], ids=["commit", "flush"])
 async def test_game_state_get_or_create_recovers_from_create_race(async_session: AsyncSession, commit: bool) -> None:

@@ -10,6 +10,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqladmin import Admin
+from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette import status
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse
@@ -17,6 +19,7 @@ from starlette.responses import JSONResponse
 from app.admin.auth import AdminAuth
 from app.admin.views import (
     ChatMessageAdmin,
+    CraftingOrderAdmin,
     DwellerAdmin,
     ExplorationAdmin,
     GameStateAdmin,
@@ -25,11 +28,15 @@ from app.admin.views import (
     JunkAdmin,
     LLInteractionAdmin,
     NotificationAdmin,
+    OAuthAccountAdmin,
     ObjectiveAdmin,
     OutfitAdmin,
+    PetAdmin,
     PregnancyAdmin,
     PromptAdmin,
     QuestAdmin,
+    QuestRequirementAdmin,
+    QuestRewardAdmin,
     RelationshipAdmin,
     RoomAdmin,
     StorageAdmin,
@@ -39,6 +46,7 @@ from app.admin.views import (
     UserAdmin,
     UserProfileAdmin,
     VaultAdmin,
+    VaultQuestAdmin,
     WeaponAdmin,
 )
 from app.api.v1.api import api_router as api_router_v1
@@ -196,6 +204,8 @@ admin = Admin(
     app,
     async_engine,
     authentication_backend=authentication_backend,
+    session_maker=async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False),
+    title="Vault Control",
     templates_dir=str(Path(__file__).resolve().parent / "app" / "admin" / "templates"),
 )
 
@@ -267,3 +277,11 @@ admin.add_view(ObjectiveAdmin)
 admin.add_view(PromptAdmin)
 admin.add_view(LLInteractionAdmin)
 admin.add_view(GameStateAdmin)
+
+admin.add_view(CraftingOrderAdmin)
+admin.add_view(VaultQuestAdmin)
+admin.add_view(PetAdmin)
+admin.add_view(OAuthAccountAdmin)
+
+admin.add_view(QuestRequirementAdmin)
+admin.add_view(QuestRewardAdmin)

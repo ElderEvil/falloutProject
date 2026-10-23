@@ -1,8 +1,8 @@
 """CSRF token helpers for the SQLAdmin panel.
 
 SQLAdmin registers every ``@action`` as a state-changing GET and adds no CSRF
-validation of its own, so the vault incident toggles are replaced with a
-session-backed CSRF-protected POST page. These helpers issue and validate the
+validation of its own. Our action handlers only show confirmation on GET;
+mutations use session-backed CSRF-protected POST routes. These helpers issue and validate the
 token stored in the admin session (``SessionMiddleware`` is configured in
 ``main.py``).
 """

@@ -1,0 +1,24 @@
+{% extends "sqladmin/layout.html" %}
+{% block content %}
+<div class="col-12">
+  <div class="card">
+    <div class="card-body">
+      <h2 class="card-title">Vault operations</h2>
+      <p class="text-secondary">Find a vault or user, inspect their current state, then use a targeted support action.</p>
+      <div class="d-flex flex-wrap gap-2">
+        {% for identity, label, query in [
+          ('vault', 'Vaults', ''), ('user', 'Users', ''),
+          ('game-state', 'Paused vaults', '?is_paused=true'),
+          ('training', 'Active training', '?status=active'),
+          ('crafting-order', 'Active crafting', '?status=active'),
+          ('exploration', 'Explorers away', '?status=active'),
+          ('vault-quest-completion-link', 'Quest rewards ready', '?is_reward_ready=true&is_completed=false')
+        ] %}
+        <a class="btn" href="{{ url_for('admin:list', identity=identity) }}{{ query }}">{{ label }}</a>
+        {% endfor %}
+        <a class="btn" href="{{ url_for('admin:view-vault-incidents_page') }}">Incident controls</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

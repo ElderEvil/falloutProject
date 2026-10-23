@@ -1,0 +1,81 @@
+.table td { max-width: 24rem; white-space: normal; overflow-wrap: anywhere; }
+.table th { white-space: nowrap; }
+
+/* Match the game's terminal green while keeping filled controls legible. */
+:root,
+[data-bs-theme="light"],
+[data-bs-theme="dark"] {
+  --tblr-primary: #00ff00;
+  --tblr-primary-rgb: 0, 255, 0;
+  --tblr-primary-darken: #00cc00;
+  --tblr-primary-fg: #031403;
+  --tblr-primary-lt: rgba(0, 255, 0, 0.12);
+  --tblr-primary-text-emphasis: #006600;
+  --tblr-link-color: #006600;
+  --tblr-link-hover-color: #004d00;
+  --tblr-focus-ring-color: rgba(0, 255, 0, 0.35);
+}
+[data-bs-theme="dark"] {
+  --tblr-primary-text-emphasis: #00ff00;
+  --tblr-link-color: #00ff00;
+  --tblr-link-hover-color: #80ff80;
+}
+.page-item.active .page-link { color: #031403; }
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  border-color: #00cc00;
+  box-shadow: 0 0 0 0.25rem var(--tblr-focus-ring-color);
+}
+
+/* Warm charcoal surfaces keep the green accents from feeling cold or blue. */
+[data-bs-theme="dark"] {
+  --tblr-body-bg: #1e1d1b;
+  --tblr-body-bg-rgb: 30, 29, 27;
+  --tblr-bg-surface-primary: #272522;
+  --tblr-bg-surface: var(--tblr-bg-surface-primary);
+  --tblr-bg-surface-secondary: #302d29;
+  --tblr-bg-surface-tertiary: #191816;
+  --tblr-secondary-bg: #302d29;
+  --tblr-secondary-bg-rgb: 48, 45, 41;
+  --tblr-tertiary-bg: #191816;
+  --tblr-tertiary-bg-rgb: 25, 24, 22;
+  --tblr-border-color: #454039;
+  --tblr-border-color-translucent: rgba(232, 222, 207, 0.16);
+  --tblr-body-color: #eee9e1;
+  --tblr-secondary-color: #bab3a8;
+  --tblr-secondary-rgb: 186, 179, 168;
+  --tblr-body-color-rgb: 238, 233, 225;
+  --tblr-emphasis-color: #f7f3ec;
+  --tblr-bg-forms: #1e1d1b;
+}
+[data-bs-theme="dark"] .navbar-vertical {
+  --tblr-navbar-bg: #191816;
+  background-color: var(--tblr-navbar-bg);
+}
+.form-check-input:checked[type="checkbox"] {
+  --tblr-form-check-bg-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23031403' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 8.5l2.5 2.5l5.5-5.5'/%3E%3C/svg%3E");
+}
+
+@media (max-width: 991px) {
+  .d-flex:has(> .filter-sidebar-col) { flex-direction: column; }
+  .filter-sidebar-col { width: 100%; margin-top: 1rem; }
+}
+
+/* Lists without actions do not need a disabled menu or selection checkboxes. */
+.card:has(#dropdownMenuButton:disabled) .dropdown:has(> #dropdownMenuButton),
+.card:has(#dropdownMenuButton:disabled) th:has(#select-all),
+.card:has(#dropdownMenuButton:disabled) td:has(.select-box) {
+  display: none;
+}
+
+/* Categories anchor the sidebar; their expanded links form the next level. */
+.navbar-vertical .navbar-nav > .nav-item > .dropdown-toggle {
+  padding-inline-start: 1rem;
+}
+.navbar-vertical .dropdown-toggle > .nav-link-icon:not(:has(i)) {
+  display: none !important;
+}
+.navbar-vertical .dropdown-menu .nav-link {
+  padding-inline-start: 2rem !important;
+}

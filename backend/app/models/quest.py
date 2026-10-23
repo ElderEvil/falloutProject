@@ -65,3 +65,6 @@ class Quest(BaseUUIDModel, QuestBase, TimeStampMixin, table=True):
         back_populates="quest",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
+
+    def __str__(self) -> str:
+        return self.title

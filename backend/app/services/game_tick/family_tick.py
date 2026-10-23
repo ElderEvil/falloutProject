@@ -339,11 +339,11 @@ async def process_breeding(service: "GameLoopService", db_session: AsyncSession,
     # Process pregnancies and births
     pregnancy_stats = await service._process_pregnancies_and_births(db_session, vault_id)
 
-    # Adopt orphaned youth into committed couples
-    adoptions = await adoption_service.process_adoptions(db_session, vault_id)
-
-    # Age children
+    # Age children first: a teen reaching adulthood mid-tick is no longer adoptable
     aging_stats = await service._age_children(db_session, vault_id)
+
+    # Adopt orphaned youth into committed couples
+    adopted = await adoption_service.process_adoptions(db_session, vault_id)
 
     # Combine stats
     return {
@@ -351,5 +351,5 @@ async def process_breeding(service: "GameLoopService", db_session: AsyncSession,
         "conceptions": pregnancy_stats["conceptions"],
         "births": pregnancy_stats["births"],
         "children_aged": aging_stats["children_aged"],
-        "adoptions": adoptions,
+        "adoptions": len(adopted),
     }

@@ -40,7 +40,8 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
             .where(Relationship.relationship_type.in_(PARTNER_LINKED_STAGES))
             .where(first_parent.vault_id == vault_id, second_parent.vault_id == vault_id)
             .where(~first_parent.is_deleted, ~second_parent.is_deleted)
-            .where(first_parent.health > 0, second_parent.health > 0)
+            .where(~first_parent.is_dead, ~second_parent.is_dead)
+            .where(first_parent.partner_id == second_parent.id, second_parent.partner_id == first_parent.id)
             .where(
                 first_parent.age_group == AgeGroupEnum.ADULT,
                 second_parent.age_group == AgeGroupEnum.ADULT,

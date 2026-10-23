@@ -13,7 +13,7 @@ from alembic.script import ScriptDirectory
 VERSIONS = Path(__file__).parents[2] / "alembic/versions"
 SPINE_MIGRATION = "2026_10_14_0001-e5c2b7f19a04_spine_starter_objectives.py"
 CORRECTIVE_MIGRATION = "2026_10_14_0002-f6a1b2c3d4e5_restore_legacy_starter_cohort.py"
-RETIRE_RADIO_MIGRATION = "2026_10_23_0001-e4b8d2a6c1f9_retire_staff_radio_objective.py"
+RETIRE_RADIO_MIGRATION = "2026_10_24_1001-d6e8f0a2b4c9_retire_staff_radio_objective.py"
 
 STAFFING = "starter:assign a dweller correctly"
 POWER_STEP = "starter:collect 150 power"

@@ -67,7 +67,7 @@ separate revised templates rather than an in-place rewrite.
 - **Boosted-vault assignment is unchanged.**
 - **Standard vaults no longer seed a Radio Studio.** The room requires 20 dwellers to build, so
   the seeded copy bypassed its own gate. The `starter:staff the radio` template stops fresh
-  assignment (migration `2026_10_23_0001-e4b8d2a6c1f9`) while existing links keep their progress
+  assignment (migration `2026_10_24_1001-d6e8f0a2b4c9`) while existing links keep their progress
   and rewards. Seven starter rewards carry a standard vault from 9 to 16 residents. The guide then
   teaches two births to reach the Office gate at 18; children count. Pregnancy takes three real hours
   after conception, with a six-hour cooldown per mother after delivery. Two couples can progress

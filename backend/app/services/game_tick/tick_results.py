@@ -70,6 +70,7 @@ class BreedingStats(TypedDict, total=False):
     conceptions: int
     births: int
     children_aged: int
+    adoptions: int
 
 
 class ResourcesStats(TypedDict, total=False):

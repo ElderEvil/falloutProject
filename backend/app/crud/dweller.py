@@ -724,6 +724,19 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     def is_alive(dweller_obj: Dweller) -> bool:
         return dweller_obj.health > 0
 
+    async def get_orphaned_youth(self, db_session: AsyncSession, vault_id: UUID4) -> list[Dweller]:
+        query = (
+            select(Dweller)
+            .where(Dweller.vault_id == vault_id)
+            .where(~Dweller.is_deleted)
+            .where(~Dweller.is_dead)
+            .where(Dweller.age_group.in_((AgeGroupEnum.CHILD, AgeGroupEnum.TEEN)))
+            .where(or_(Dweller.parent_1_id.is_not(None), Dweller.parent_2_id.is_not(None)))
+            .order_by(Dweller.created_at, Dweller.id)
+        )
+        result = await db_session.execute(query)
+        return list(result.scalars().all())
+
     async def get_dweller_by_name(self, db_session: AsyncSession, name: str) -> Dweller | None:
         """Get dweller by name."""
         query = select(self.model).where(self.model.first_name == name)

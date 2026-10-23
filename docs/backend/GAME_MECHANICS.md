@@ -256,6 +256,29 @@ is real, not a rerollable button:
 The UI states the cost before the click (modal copy + button label) and surfaces the outcome as a toast;
 the ask keeps its always-on bell notification.
 
+## Adoption of orphaned youth
+
+The family tick checks adoption after aging. It is occasional, not an automatic consequence of becoming orphaned.
+
+- **Child eligibility** — living, non-deleted children/teens with at least one recorded parent and no living,
+  non-deleted parent. Missing parent rows count as absent. Youth who age into adults this tick are excluded.
+- **Family eligibility** — living adults in the same vault, reciprocal PARTNER/MARRIED links, affinity at least
+  the configured marriage threshold, both at or above `adoption_min_happiness` (60 by default), and fewer than
+  `adoption_max_youth_per_family` (2) living children/teens between them. Adult offspring do not fill these slots.
+- **Chance** — `adoption_chance_per_hour` defaults to 2%. Each eligible orphan gets one roll using elapsed tick
+  time: `1 - (1 - hourly_chance) ** (seconds_passed / 3600)`. More couples do not multiply the chance. Tick time
+  already follows the game's offline catch-up cap. On success, choose an eligible couple at random; each couple
+  adopts at most once per pass. Manual breeding requests do not run adoption rolls.
+- **Effect** — replace both parent links; mixed-gender couples put the mother first, otherwise use stable ID
+  order. The child and both adopters receive structured family bio entries. The entries describe adoption,
+  never a biological birth. A missed roll changes no family links or biographies.
+- Commit parent changes, biographies and notifications together, then deliver after commit. Use the existing
+  `RELATIONSHIP_FORMED` notification with `meta_data.event = "child_adopted"`; adoption surfaces through the bell
+  and a toast, subject to social preferences, and links to the child. No new notification enum or migration.
+
+A child already adopted by living parents is no longer eligible. A family can adopt again on a later pass while
+it has room under the dependent-youth limit.
+
 ## Vault difficulty: Survival Mode
 
 `vault.vault_mode` is `standard` (default) or `survival`. It is chosen once at vault creation and is

@@ -23,6 +23,7 @@ from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.relationship import Relationship
+from app.services.family.adoption_service import adoption_service
 from app.services.game_tick.guard import recover_session
 from app.services.game_tick.tick_results import (
     AgeStats,
@@ -324,7 +325,9 @@ async def age_children(db_session: AsyncSession, vault_id: UUID4) -> AgeStats:
     return stats
 
 
-async def process_breeding(service: "GameLoopService", db_session: AsyncSession, vault_id: UUID4) -> BreedingStats:
+async def process_breeding(
+    service: "GameLoopService", db_session: AsyncSession, vault_id: UUID4, *, seconds_passed: int = 0
+) -> BreedingStats:
     """Process relationships and breeding for a vault.
 
     - Update relationship affinity for dwellers in the same room
@@ -338,8 +341,16 @@ async def process_breeding(service: "GameLoopService", db_session: AsyncSession,
     # Process pregnancies and births
     pregnancy_stats = await service._process_pregnancies_and_births(db_session, vault_id)
 
-    # Age children
+    # Age children first: a teen reaching adulthood mid-tick is no longer adoptable
     aging_stats = await service._age_children(db_session, vault_id)
+
+    # Adopt orphaned youth into committed couples
+    try:
+        adopted = await adoption_service.process_adoptions(db_session, vault_id, seconds_passed=seconds_passed)
+    except SQLAlchemyError:
+        await recover_session(db_session)
+        logger.exception("Database error processing adoptions in vault %s", vault_id)
+        adopted = []
 
     # Combine stats
     return {
@@ -347,4 +358,5 @@ async def process_breeding(service: "GameLoopService", db_session: AsyncSession,
         "conceptions": pregnancy_stats["conceptions"],
         "births": pregnancy_stats["births"],
         "children_aged": aging_stats["children_aged"],
+        "adoptions": len(adopted),
     }

@@ -674,6 +674,11 @@ class BreedingConfig(BaseSettings):
         le=1.0,
     )
 
+    # Adoption uses elapsed game-tick time, not a fixed chance per invocation.
+    adoption_chance_per_hour: float = Field(default=0.02, ge=0.0, le=1.0)
+    adoption_min_happiness: int = Field(default=60, ge=0, le=100)
+    adoption_max_youth_per_family: int = Field(default=2, ge=1)
+
     # Youth maturity
     child_growth_duration_hours: int = Field(default=60, description="Total hours from child to adult", ge=2)
     child_special_multiplier: float = Field(default=0.5, description="Children have 50% of adult stats", ge=0.0, le=1.0)

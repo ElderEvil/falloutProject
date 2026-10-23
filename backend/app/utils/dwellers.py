@@ -19,6 +19,7 @@ from app.utils.appearance_roll import (
     roll_appearance,
 )
 from app.utils.bios import maybe_zone_rumor, render_bio
+from app.utils.leveling import calculate_xp_required
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -182,7 +183,7 @@ def clamp_level_for_rarity(rarity: RarityEnum | str, level: int) -> int:
 
 
 def level_progress(level: int) -> tuple[int, int]:
-    return _max_health_for_level(level), _xp_for_level(level)
+    return _max_health_for_level(level), calculate_xp_required(level)
 
 
 def _rarity_start_level(rarity: RarityEnum | str, rng: random.Random | ModuleType) -> int:
@@ -194,18 +195,6 @@ def _rarity_start_level(rarity: RarityEnum | str, rng: random.Random | ModuleTyp
 def _max_health_for_level(level: int) -> int:
     """Health a dweller should hold at ``level`` under flat per-level gains."""
     return game_config.leveling.base_max_health + (level - 1) * game_config.leveling.hp_gain_per_level
-
-
-def _xp_for_level(level: int) -> int:
-    """Cumulative XP to reach ``level``.
-
-    Mirrors ``leveling_service.calculate_xp_required``; duplicated here to avoid a
-    utils -> services import cycle. The two formulas must stay in sync, or a
-    pre-leveled dweller starts with negative progress toward the next level.
-    """
-    if level <= 1:
-        return 0
-    return int(game_config.leveling.base_xp_requirement * (level**game_config.leveling.xp_curve_exponent))
 
 
 def _pick_archetype_for_race(race: RaceOption, rng: random.Random | ModuleType) -> DwellerArchetype | None:
@@ -268,7 +257,7 @@ def create_random_common_dweller(
 
     level = _rarity_start_level(rarity, rng)
     starting_health = _max_health_for_level(level)
-    starting_xp = _xp_for_level(level)
+    starting_xp = calculate_xp_required(level)
     return {
         "first_name": get_gender_based_name(gender, faker),
         "last_name": faker.last_name(),
@@ -333,7 +322,7 @@ def create_dweller_from_template(
         data["level"] = start_level
         data["max_health"] = _max_health_for_level(start_level)
         data["health"] = data["max_health"]
-        data["experience"] = _xp_for_level(start_level)
+        data["experience"] = calculate_xp_required(start_level)
     data["visual_attributes"] = complete_appearance(data, rng)
     data["_bio_places"] = (origin, visited) if origin or visited else None
     if not data.get("bio"):

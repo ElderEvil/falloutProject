@@ -493,7 +493,7 @@ async def test_grant_experience_level_up(async_session: AsyncSession) -> None:
         gender=GenderEnum.MALE,
         rarity=RarityEnum.COMMON,
         level=1,
-        experience=90,
+        experience=182,
         max_health=100,
         health=100,
         radiation=0,
@@ -512,6 +512,9 @@ async def test_grant_experience_level_up(async_session: AsyncSession) -> None:
     result = await reward_service.grant_experience(async_session, [dweller.id], 100)
 
     assert str(dweller.id) in result["leveled_up"]
+    await async_session.refresh(dweller)
+    assert dweller.level == 2
+    assert dweller.experience == 282
 
 
 @pytest.mark.asyncio

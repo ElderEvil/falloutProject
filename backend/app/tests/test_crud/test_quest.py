@@ -587,7 +587,7 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     vault_data = create_fake_vault()
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
     async_session.add(Storage(vault_id=vault.id, max_space=10))
-    dweller_data = create_fake_dweller() | {"age_group": AgeGroupEnum.ADULT}
+    dweller_data = create_fake_dweller() | {"age_group": AgeGroupEnum.ADULT, "level": 1, "experience": 0}
     dweller = Dweller(**dweller_data, vault_id=vault.id)
     async_session.add(dweller)
 
@@ -637,13 +637,6 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     assert vault.bottle_caps == vault_data["bottle_caps"]
     assert dweller.status == DwellerStatusEnum.IDLE
 
-    orig_level = dweller.level
-    orig_exp = dweller_data["experience"]
-    total_exp = orig_exp + 1200
-    required_for_next = int(100 * 1.5**orig_level)
-    expected_level = orig_level + 1 if total_exp >= required_for_next else orig_level
-    expected_exp = total_exp - required_for_next if expected_level > orig_level else total_exp
-
     events = []
 
     async def capture_event(_event_type, _vault_id, data) -> None:
@@ -661,8 +654,8 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     weapon = (await async_session.execute(select(Weapon).where(Weapon.name == "Laser pistol"))).scalar_one()
     assert link.is_completed is True
     assert weapon.storage_id is not None
-    assert dweller.level == expected_level
-    assert dweller.experience == expected_exp
+    assert dweller.level == 5
+    assert dweller.experience == 1200
     assert events == [{"quest_id": str(quest.id), "quest_title": quest.title, "quest_type": quest.quest_type.value}]
 
     with pytest.raises(ResourceConflictException, match="Already completed"):

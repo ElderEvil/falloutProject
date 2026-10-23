@@ -113,20 +113,20 @@ class DwellerBase(DwellerBaseWithoutStats, SPECIALModel):
     @property
     def current_level_xp(self) -> int:
         """Calculate total XP required for current level."""
-        from app.services.leveling_service import leveling_service
+        from app.utils.leveling import calculate_xp_required
 
-        return leveling_service.calculate_xp_required(self.level)
+        return calculate_xp_required(self.level)
 
     @property
     def next_level_xp(self) -> int:
         """Calculate total XP required for next level."""
         from app.core.game_config import game_config
-        from app.services.leveling_service import leveling_service
+        from app.utils.leveling import calculate_xp_required
 
         if self.level >= game_config.leveling.max_level:
             return self.current_level_xp  # Already at max
 
-        return leveling_service.calculate_xp_required(self.level + 1)
+        return calculate_xp_required(self.level + 1)
 
     @property
     def xp_progress_percentage(self) -> float:

@@ -130,7 +130,7 @@ async def force_conception(
         extra={
             "mother_id": str(mother_id),
             "father_id": str(father_id),
-            "triggered_by": user.username,
+            "triggered_by": str(user.id),
         },
     )
 
@@ -165,9 +165,7 @@ async def accelerate_pregnancy(
     logger.info(
         "DEBUG pregnancy accelerated",
         extra={
-            "pregnancy_id": str(pregnancy_id),
-            "new_due_at": pregnancy.due_at.isoformat(),
-            "triggered_by": user.username,
+            "triggered_by": str(user.id),
         },
     )
 

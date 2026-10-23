@@ -1,7 +1,51 @@
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, it } from 'vitest'
 import { collectModuleSpecifiers, hasModuleDependency } from '../../../scripts/check-boundaries.mjs'
 
 describe('check-boundaries', () => {
+  it.each(['SCRIPT', 'ScRiPt'])('fails closed for unsupported uppercase SFC block %s', (tag) => {
+    expect(() =>
+      collectModuleSpecifiers(`<${tag}>import x from '@/modules/auth/x'</${tag}>`, 'Example.vue')
+    ).toThrow('Element is missing end tag')
+  })
+
+  it.each(['</script >', '</SCRIPT\n>', '</script\t\n bar>'])(
+    'accepts whitespace in closing tag %s',
+    (closingTag) => {
+      expect(
+        collectModuleSpecifiers(
+          `<script>import x from '@/modules/auth/x'${closingTag}`,
+          'Example.vue'
+        )
+      ).toEqual(['@/modules/auth/x'])
+    }
+  )
+
+  it('treats custom blocks as raw text while inspecting scripts', () => {
+    const source = `<i18n lang="json">{"message":"</div>"}</i18n>
+      <script setup>import x from '@/modules/auth/x'</script>
+      <template><div /></template>`
+    expect(collectModuleSpecifiers(source, 'Example.vue')).toEqual(['@/modules/auth/x'])
+  })
+
+  it('ignores script blocks inside comments', () => {
+    expect(
+      collectModuleSpecifiers(
+        "<!-- <script>import x from '@/modules/auth/x'</script> --><template />",
+        'Example.vue'
+      )
+    ).toEqual([])
+  })
+
+  it('reads both normal and setup scripts while preserving source text', () => {
+    const source = `<script>export { x } from '@/modules/auth/x'</script>
+      <script setup lang="ts">const load = () => import('@/modules/vault/x')</script>
+      <template><div>&lt;script&gt;</div></template>`
+    expect(collectModuleSpecifiers(source, 'Example.vue')).toEqual([
+      '@/modules/auth/x',
+      '@/modules/vault/x',
+    ])
+  })
+
   it('detects static imports, re-exports, and dynamic imports from modules', () => {
     const source = `
       import type { AuthUser } from '@/modules/auth/models/auth'
@@ -25,8 +69,6 @@ describe('check-boundaries', () => {
       <template>import('@/modules/not-a-script')</template>
     `
 
-    expect(collectModuleSpecifiers(source, 'Example.vue')).toEqual([
-      '@/modules/auth/stores/auth',
-    ])
+    expect(collectModuleSpecifiers(source, 'Example.vue')).toEqual(['@/modules/auth/stores/auth'])
   })
 })

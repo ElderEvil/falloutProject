@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.253.7 (2026-10-23)
+
+### Bug Fixes
+
+* omit pregnancy identifiers from application logs ([#1157](https://github.com/ElderEvil/falloutProject/issues/1157)) bf2b2aa
+
+## 2.253.6 (2026-10-23)
+
+### Bug Fixes
+
+* address CodeQL logging, scanner, and workflow alerts ([#1155](https://github.com/ElderEvil/falloutProject/issues/1155)) 09f9814
+
 ## 2.253.5 (2026-10-23)
 
 ### Bug Fixes

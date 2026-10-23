@@ -1135,3 +1135,19 @@ async def test_remodeled_refunds_survive_upgrades_and_automatic_merging(async_se
     assert remaining[0].size == 9
     assert remaining[0].tier == 2
     assert room_refund(remaining[0]) == refund + 750
+
+
+@pytest.mark.asyncio
+async def test_buildable_rooms_are_sorted_by_population_requirement():
+    from app.core.game_data import get_static_game_data
+
+    game_data = await get_static_game_data()
+    rooms = game_data.get_buildable_rooms(set())
+    keys = [(room.population_required is not None, room.population_required or 0) for room in rooms]
+    assert keys == sorted(keys)
+    arena = next(room for room in rooms if room.name == "Arena")
+    assert arena.population_required == 55
+    assert arena.is_unique is True
+    assert arena.base_cost == 3000
+    assert arena.t2_upgrade_cost == 12000
+    assert arena.t3_upgrade_cost == 36000

@@ -113,7 +113,11 @@ class StaticGameData:
 
             buildable_rooms.append(room)
 
-        return buildable_rooms
+        # Ungated rooms first, then unlock thresholds ascending (stable ties).
+        return sorted(
+            buildable_rooms,
+            key=lambda room: (room.population_required is not None, room.population_required or 0),
+        )
 
     def get_room(self, room_name: str) -> RoomCreateWithoutVaultID | None:
         """Return the canonical template matching a room name."""

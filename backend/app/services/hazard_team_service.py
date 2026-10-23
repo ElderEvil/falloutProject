@@ -137,6 +137,17 @@ class HazardTeamService:
         """Whether the vault has built its Response Station — the gate on team formation."""
         return bool(await crud_room.get_by_category(db_session, vault_id, RoomTypeEnum.RESPONSE))
 
+    async def _active_responders(self, db_session: AsyncSession, vault_id: UUID4) -> int:
+        return sum([await team_crud.count_active_hazard(db_session, vault_id, team) for team in HazardTeam])
+
+    async def _has_response_capacity(self, db_session: AsyncSession, vault_id: UUID4) -> bool:
+        stations = await crud_room.get_by_category(db_session, vault_id, RoomTypeEnum.RESPONSE)
+        if not stations:
+            return False
+        station = stations[0]
+        capacity = station.capacity if station.capacity is not None else (station.size or 3)
+        return await self._active_responders(db_session, vault_id) < capacity
+
     async def _join_if_qualified(
         self, db_session: AsyncSession, vault_id: UUID4, dweller: Dweller, team: HazardTeam
     ) -> TeamMember | None:
@@ -152,7 +163,8 @@ class HazardTeamService:
         if fought < QUALIFYING_INCIDENTS:
             return None
         active = await team_crud.count_active_hazard(db_session, vault_id, team)
-        status = ACTIVE_STATUS if active < TEAM_SIZE else RESERVE_STATUS
+        has_room = await self._has_response_capacity(db_session, vault_id)
+        status = ACTIVE_STATUS if active < TEAM_SIZE and has_room else RESERVE_STATUS
         team_row = await team_crud.get_or_create_hazard_team(db_session, vault_id, team)
         slot_number = await self._next_free_slot(db_session, vault_id, team) if status == ACTIVE_STATUS else None
         place = TeamMember(team_id=team_row.id, dweller_id=dweller.id, status=status, slot_number=slot_number)
@@ -493,6 +505,10 @@ class HazardTeamService:
             if not await self._has_response_station(db_session, vault_id):
                 raise ValidationException(
                     detail="A Response Station is required before a dweller can be promoted into a fire or radiation team."
+                )
+            if not await self._has_response_capacity(db_session, vault_id):
+                raise ResourceConflictException(
+                    "The Response Station is at capacity — expand it or bench another responder."
                 )
             if await team_crud.count_active_hazard(db_session, vault_id, team) >= TEAM_SIZE:
                 raise ResourceConflictException("The team already has 3 active members — bench one first.")

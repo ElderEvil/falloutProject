@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.259.1 (2026-10-23)
+
+### Bug Fixes
+
+* **vault:** remove the Radio Studio from standard starts ([#1117](https://github.com/ElderEvil/falloutProject/issues/1117)) e3c1fb3
+
 ## 2.259.0 (2026-10-23)
 
 ### Features

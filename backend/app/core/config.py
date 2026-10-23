@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER_PASSWORD: str
     USERS_OPEN_REGISTRATION: bool
 
+    USERNAME_CHANGE_COOLDOWN_DAYS: int = 30
+    EMAIL_CHANGE_COOLDOWN_DAYS: int = 7
+
     POSTGRES_SERVER: str
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
@@ -184,6 +187,13 @@ class Settings(BaseSettings):
     EMAIL_FROM_ADDRESS: str = "noreply@falloutshelter.com"
     EMAIL_FROM_NAME: str = "Fallout Shelter"
     FRONTEND_URL: str = "http://localhost:5173"  # For email links
+
+    # OAuth providers. Each is enabled iff its client id + secret pair is set.
+    GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_SECRET: str | None = None
+    GITHUB_CLIENT_ID: str | None = None
+    GITHUB_CLIENT_SECRET: str | None = None
+    OAUTH_REDIRECT_BASE: str = "http://localhost:8000"
 
     # Logging Configuration
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"

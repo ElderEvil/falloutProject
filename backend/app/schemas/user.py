@@ -39,6 +39,8 @@ class UserRead(UserBase):
     id: UUID4
     created_at: datetime
     updated_at: datetime
+    email_verified: bool
+    has_password: bool
 
 
 class UserWithTokens(UserRead):

@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { effectScope } from 'vue'
+import rawAxios from 'axios'
 import { useSse, usePostEventStream } from '@/core/composables/useEventStream'
 
 /**
@@ -23,12 +25,13 @@ describe('useEventStream auto-reconnect', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     fetchMock = vi.fn()
-    global.fetch = fetchMock
+    vi.stubGlobal('fetch', fetchMock)
   })
 
   afterEach(() => {
     vi.useRealTimers()
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
   // Helper: create a mock fetch response with a controllable SSE stream
@@ -76,6 +79,104 @@ describe('useEventStream auto-reconnect', () => {
     result += `data: ${data}\n\n`
     return result
   }
+
+  it.each([403, 404])('does not reconnect after HTTP %s', async (status) => {
+    fetchMock.mockResolvedValue({ ok: false, status })
+    const sse = useSse('/test')
+    await sse.start()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    sse.close()
+  })
+
+  it('closes a hidden GET stream and reconnects once when visible', async () => {
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    fetchMock.mockImplementation(() => Promise.resolve(createMockResponse([], { hang: true })))
+    const scope = effectScope()
+    const sse = scope.run(() => useSse('/test'))!
+    void sse.start()
+    await vi.advanceTimersByTimeAsync(0)
+    const signal = fetchMock.mock.calls[0][1].signal as AbortSignal
+    visibility.mockReturnValue('hidden')
+    document.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(signal.aborted).toBe(true)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    visibility.mockReturnValue('visible')
+    document.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    sse.close()
+    scope.stop()
+  })
+
+  it('uses the current token when reconnecting a previously configured stream', async () => {
+    localStorage.setItem('token', 'current-token')
+    fetchMock.mockResolvedValue(createMockResponse([]))
+    const sse = useSse('/test', { headers: { Authorization: 'Bearer captured-old-token' } })
+    await sse.start()
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer current-token')
+    localStorage.setItem('token', 'new-token')
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer new-token')
+    sse.close()
+  })
+
+  it('does not refresh or clear the session for a headerless stream rejection', async () => {
+    localStorage.setItem('token', 'valid-token')
+    localStorage.setItem('refreshToken', 'valid-refresh')
+    const refresh = vi
+      .spyOn(rawAxios, 'post')
+      .mockResolvedValue({ data: { access_token: 'unexpected-token' } })
+    fetchMock.mockResolvedValue({ ok: false, status: 401 })
+    const sse = useSse('/public-stream')
+    await sse.start()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(refresh).not.toHaveBeenCalled()
+    expect(localStorage.getItem('token')).toBe('valid-token')
+    expect(localStorage.getItem('refreshToken')).toBe('valid-refresh')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(sse.error.value?.message).toContain('401')
+    sse.close()
+  })
+
+  it('refreshes on 401 and retries a stream only once', async () => {
+    localStorage.setItem('token', 'old-token')
+    localStorage.setItem('refreshToken', 'stream-refresh')
+    const refresh = vi
+      .spyOn(rawAxios, 'post')
+      .mockResolvedValue({ data: { access_token: 'new-token' } })
+    fetchMock.mockResolvedValue({ ok: false, status: 401 })
+    const sse = useSse('/test', { headers: { Authorization: 'Bearer old-token' } })
+    await sse.start()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(localStorage.getItem('token')).toBeNull()
+    sse.close()
+  })
+
+  it('does not replay a submitted POST when its stream finishes', async () => {
+    fetchMock.mockResolvedValue(createMockResponse([]))
+    const sse = usePostEventStream('/test')
+    await sse.connect({ message: 'hello' })
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    sse.close()
+  })
+
+  it('does not interrupt a submitted POST stream when hidden', async () => {
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    fetchMock.mockResolvedValue(createMockResponse([], { hang: true }))
+    const sse = usePostEventStream('/test')
+    void sse.connect({ message: 'hello' })
+    await vi.advanceTimersByTimeAsync(0)
+    visibility.mockReturnValue('hidden')
+    document.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(sse.status.value).toBe('open')
+    sse.close()
+  })
 
   describe('auto-reconnect on connection drop', () => {
     it('should trigger reconnect when stream closes unexpectedly', async () => {

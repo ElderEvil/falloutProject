@@ -545,11 +545,15 @@ export const useExplorationStore = defineStore('exploration', () => {
         { index },
         {
           headers: { Authorization: `Bearer ${token}` },
+          _skipErrorNotification: true,
         }
       )
       return response.data as OverflowResolution
     } catch (err) {
-      handleStoreError(err, action === 'take' ? 'Could not take item' : 'Could not sell item')
+      // Legacy reports are explained by the reward modal instead of a second error toast.
+      if ((err as { response?: { status?: number } } | null)?.response?.status !== 404) {
+        handleStoreError(err, action === 'take' ? 'Could not take item' : 'Could not sell item')
+      }
       throw err
     }
   }

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { flushPromises, mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DwellerFilterPanel from '@/modules/dwellers/components/DwellerFilterPanel.vue'
@@ -10,7 +10,8 @@ vi.mock('@/modules/auth/stores/auth', () => ({
   useAuthStore: () => ({ token: 'test-token' }),
 }))
 
-vi.mock('@/core/utils/errorHandler', () => ({
+vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/utils/errorHandler')>()),
   handleStoreError: vi.fn(),
 }))
 

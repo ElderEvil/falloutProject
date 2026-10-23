@@ -42,7 +42,8 @@ quiet: commons still seed origins, rangs/rares still arrive.
 | Legendary | 19+ | legendary outfit and/or weapon |
 
 Compressed where our content curve demands it, but canon-shaped: rares arrive
-experienced, legendaries arrive veteran. SPECIAL spreads stay as today (procedural
+experienced at 6–10; legendaries start at 19+ (band 19–43), and every template/reward
+override is clamped into its rarity band. SPECIAL spreads stay as today (procedural
 rolls / fixed template values); level is about power-now, not stat budget.
 
 ## Decision 3 — flat HP gain stands (the canon loophole stays closed)

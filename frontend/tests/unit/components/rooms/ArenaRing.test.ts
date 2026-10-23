@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vite-plus/test'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import ArenaRing from '@/modules/rooms/components/ArenaRing.vue'
 import type { ArenaFighter, ArenaRoomState } from '@/modules/rooms/api/arena'
@@ -53,6 +53,67 @@ const render = (room = state(), pendingSkills = new Set<string>(), skillEnabled 
   })
 
 describe('Arena ring', () => {
+  it('anchors dweller portraits at the top so faces remain visible', () => {
+    const room = state(
+      [fighter('Alpha', { thumbnail_url: '/static/dwellers/alpha.webp' })],
+      [fighter('Bravo')]
+    )
+    const wrapper = render(room)
+
+    expect(wrapper.get('img[alt="Alpha"]').attributes('style')).toContain(
+      'object-position: center top'
+    )
+  })
+
+  it('floats the health and skill meters above the fighter portrait', () => {
+    const wrapper = render(
+      state([fighter('Alpha', { thumbnail_url: '/static/dwellers/alpha.webp' })])
+    )
+    const plate = wrapper.get('.fighter-meters')
+    const portrait = wrapper.get('.fighter-portrait')
+
+    expect(plate.element.nextElementSibling).toBe(portrait.element)
+    expect(portrait.find('img[alt="Alpha"]').exists()).toBe(true)
+    expect(plate.get('[role="progressbar"][aria-label="Alpha HP"]').exists()).toBe(true)
+    expect(plate.get('[role="progressbar"][aria-label="Alpha skill charge"]').exists()).toBe(true)
+  })
+
+  it('animates only the current attacker and skips dead fighters', () => {
+    const room = state([fighter('Alpha')], [fighter('Bravo', { health: 0 })])
+    const wrapper = mount(ArenaRing, {
+      props: {
+        state: room,
+        skillEnabled: true,
+        pendingSkills: new Set<string>(),
+        attackingTeam: null,
+        attackingFighterId: 'Alpha',
+        damageNumbers: [],
+      },
+      attachTo: document.body,
+    })
+
+    const actors = wrapper.findAll('.ring-fighter')
+    expect(actors[0].attributes('aria-current')).toBe('true')
+    expect(actors[1].attributes('aria-current')).toBeUndefined()
+  })
+
+  it('skips the attack animation for a knocked-out attacker', () => {
+    const room = state([fighter('Alpha', { health: 0 })], [fighter('Bravo')])
+    const wrapper = mount(ArenaRing, {
+      props: {
+        state: room,
+        skillEnabled: true,
+        pendingSkills: new Set<string>(),
+        attackingTeam: null,
+        attackingFighterId: 'Alpha',
+        damageNumbers: [],
+      },
+      attachTo: document.body,
+    })
+
+    expect(wrapper.findAll('.ring-fighter')[0].attributes('aria-current')).toBeUndefined()
+  })
+
   it('places each ready dweller activation on its paired target and emits the attacker ID', async () => {
     const wrapper = render()
     const marker = wrapper.get('button[aria-label="Use Aimed Shot from Alpha on Bravo"]')

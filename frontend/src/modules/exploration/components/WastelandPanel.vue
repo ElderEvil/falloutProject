@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
+
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -74,7 +76,7 @@ onMounted(async () => {
 
       explorationStore.startSseSubscription(vaultId.value, authStore.token)
     } catch (error) {
-      toast.error('Failed to load explorations')
+      notifyErrorOnce(error, 'Failed to load explorations')
     }
   }
 })
@@ -107,21 +109,17 @@ watch(
 const pollExplorations = async () => {
   if (!vaultId.value || !authStore.token || !explorationStore.activeExplorations) return
 
-  try {
-    await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token, true, true)
+  await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token, true, true)
 
-    // Check for completed explorations and fetch detailed data for new explorers
-    for (const exploration of activeExplorationsArray.value) {
-      if (!dwellerStore.detailedDwellers[exploration.dweller_id]) {
-        await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
-      }
-
-      if (isReadyToComplete(exploration) && !completingExplorations.value.has(exploration.id)) {
-        await handleCompleteExploration(exploration.id)
-      }
+  // Check for completed explorations and fetch detailed data for new explorers
+  for (const exploration of activeExplorationsArray.value) {
+    if (!dwellerStore.detailedDwellers[exploration.dweller_id]) {
+      await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
     }
-  } catch (error) {
-    toast.error('Failed to refresh explorations')
+
+    if (isReadyToComplete(exploration) && !completingExplorations.value.has(exploration.id)) {
+      await handleCompleteExploration(exploration.id)
+    }
   }
 }
 

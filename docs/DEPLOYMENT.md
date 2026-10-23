@@ -6,6 +6,16 @@ Complete guide for deploying Fallout Shelter in various environments.
 
 The embedded `/admin` interface uses an HTTPS-only production cookie with `SameSite=Strict` and a 30,008-second maximum age. Keep the admin route behind the same TLS reverse proxy as the API.
 
+## Admin support interface
+
+Only active, non-deleted superusers can sign in to `/admin`; access is rechecked on each request. The panel defaults to dark mode and stores the dark/light/system choice in the browser.
+
+Use a row's detail page or select one row for support actions: verify email, promote to superuser, soft-delete a user, pause/resume a vault, cancel training, or recall an explorer. Each action requires POST confirmation. Provider-only accounts need to add a password from their profile before using the admin login.
+
+Soft-deleting a user blocks sign-in, clears recovery links, and pauses their vaults in one transaction. It retains account and game data and cannot target the current admin. Incident controls support up to 50 selected vaults or an explicitly confirmed global change. Operational records are read-only to keep their state transitions inside gameplay services; catalog instances are also read-only because their data comes from catalog factories. Profile bio/avatar editing and existing exports remain available; credentials and AI audit views cannot be exported.
+
+The admin PostgreSQL concurrency test is opt-in: set `ADMIN_TEST_DATABASE_URI` to a dedicated, Alembic-migrated `postgresql+asyncpg` database, then run `uv run pytest app/tests/integration/test_admin_user_actions_pg.py` from `backend/`. It skips when unset and rejects the application's database name; never point it at a shared or production database.
+
 ## Quick Start
 
 ```bash
@@ -66,6 +76,10 @@ The `backend` and `dramatiq-worker` deployments in the `fallout` namespace load 
 `backend-env` Kubernetes Secret. Deployment images are updated by the **Deploy to Hetzner** GitHub Actions workflow.
 `ENVIRONMENT` must be `production`: the deployment verifies this before serving traffic, and admin session cookies are
 marked Secure only in production.
+
+Traffic enters through the Traefik ingress in `deployment/k3s/ingress.yaml`: `fallout.evillab.tech` routes to
+`frontend-service` and `fallout-api.evillab.tech` to `backend-service`, with cert-manager issuing the
+`fallout-ingress-tls` certificate. There is no in-cluster Caddy.
 
 Verify a running release (including its reported version and environment) with:
 
@@ -665,3 +679,33 @@ migrations or contact infrastructure.
 ---
 
 **Last Updated:** 2026-08-24
+
+## Social sign-in (Google / GitHub)
+
+Each provider is enabled only when its client ID **and** secret are present; a
+missing pair disables that provider without blocking startup.
+
+1. Register the clients:
+   - Google: Google Auth Platform → Clients → Web application, redirect
+     `https://fallout-api.evillab.tech/api/v1/auth/oauth/google/callback`.
+   - GitHub: OAuth App, callback
+     `https://fallout-api.evillab.tech/api/v1/auth/oauth/github/callback`.
+2. Add repository secrets: `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GOOGLE_CLIENT_SECRET`,
+   `OAUTH_GITHUB_CLIENT_ID`, `OAUTH_GITHUB_CLIENT_SECRET`, and optionally
+   `OAUTH_REDIRECT_BASE` (GitHub Actions forbids the `GITHUB_` prefix). (defaults to `https://fallout-api.evillab.tech`).
+3. The deploy workflow writes them into the `backend-env` Secret alongside the
+   existing settings; `kubectl -n fallout set env` picks them up. To patch
+   manually:
+
+   ```bash
+   kubectl -n fallout create secret generic backend-env \
+     --from-literal=GOOGLE_CLIENT_ID=... \
+     --from-literal=GOOGLE_CLIENT_SECRET=... \
+     --from-literal=GITHUB_CLIENT_ID=... \
+     --from-literal=GITHUB_CLIENT_SECRET=... \
+     --from-literal=OAUTH_REDIRECT_BASE=https://fallout-api.evillab.tech \
+     --dry-run=client -o yaml | kubectl apply -f -
+   kubectl -n fallout rollout restart deployment/backend deployment/dramatiq-worker
+   ```
+
+4. `GET /api/v1/auth/oauth/providers` reports which pairs are live.

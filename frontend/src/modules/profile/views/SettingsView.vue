@@ -600,7 +600,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { useToast } from '@/core/composables/useToast'
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
 import { useBackNavigation } from '@/core/composables/useBackNavigation'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -625,8 +625,6 @@ const backNav = useBackNavigation('Settings', () =>
   vaultStore.currentVaultId ? `/vault/${vaultStore.currentVaultId}` : '/'
 )
 const { isCollapsed } = useSidePanel()
-
-const { error: showError } = useToast()
 
 const activeTab = ref('game-loop')
 const tabs = [
@@ -658,7 +656,7 @@ async function loadSettings() {
     settings.value = await apiGet('/api/v1/game/balance')
   } catch (err) {
     error.value = 'Failed to load game balance settings'
-    showError('Failed to load game balance settings')
+    notifyErrorOnce(err, 'Failed to load game balance settings')
   } finally {
     loading.value = false
   }

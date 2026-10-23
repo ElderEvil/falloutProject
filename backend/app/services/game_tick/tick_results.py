@@ -70,6 +70,7 @@ class BreedingStats(TypedDict, total=False):
     conceptions: int
     births: int
     children_aged: int
+    adoptions: int
 
 
 class ResourcesStats(TypedDict, total=False):
@@ -90,6 +91,7 @@ class ArenaEventStats(TypedDict):
     id: str
     round_seq: int
     kind: str
+    actor_id: str | None
     message: str
 
 

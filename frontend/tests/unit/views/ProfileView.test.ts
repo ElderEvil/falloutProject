@@ -15,7 +15,9 @@ import type { DeathStatistics } from '@/modules/profile/stores/profile'
 
 vi.mock('@/core/plugins/axios')
 
-const { usePollingMock } = vi.hoisted(() => ({ usePollingMock: vi.fn() }))
+const { usePollingMock } = vi.hoisted(() => ({
+  usePollingMock: vi.fn(() => ({ pause: vi.fn(), resume: vi.fn(), isActive: { value: false } })),
+}))
 
 vi.mock('@/core/composables/usePolling', () => ({
   usePolling: usePollingMock,
@@ -84,7 +86,7 @@ describe('ProfileView', () => {
     })
 
     vi.clearAllMocks()
-    usePollingMock.mockReturnValue({})
+    usePollingMock.mockReturnValue({ pause: vi.fn(), resume: vi.fn(), isActive: { value: false } })
   })
 
   // Helper to mock both API calls
@@ -668,6 +670,82 @@ describe('ProfileView', () => {
 
       expect(editorComponent.props('error')).toBe('Validation error')
     })
+
+    it('updates the account email before saving the profile', async () => {
+      mockBothApis()
+
+      const wrapper = mount(ProfileView, {
+        global: {
+          plugins: [router],
+        },
+      })
+      await flushPromises()
+
+      const editButton = findEditButton(wrapper)
+      await editButton?.trigger('click')
+      await flushPromises()
+
+      const editorComponent = wrapper.findComponent(ProfileEditor)
+      editorComponent.vm.$emit('submit', { bio: 'New bio' }, null, 'new@vault-tec.com')
+      await flushPromises()
+
+      expect(axios.put).toHaveBeenCalledWith(
+        '/api/v1/users/me',
+        { email: 'new@vault-tec.com' },
+        { _skipErrorNotification: true }
+      )
+    })
+
+    it('sends username and email in one account request', async () => {
+      mockBothApis()
+
+      const wrapper = mount(ProfileView, {
+        global: {
+          plugins: [router],
+        },
+      })
+      await flushPromises()
+
+      const editButton = findEditButton(wrapper)
+      await editButton?.trigger('click')
+      await flushPromises()
+
+      const editorComponent = wrapper.findComponent(ProfileEditor)
+      editorComponent.vm.$emit('submit', { bio: 'New bio' }, 'new_name', 'new@vault-tec.com')
+      await flushPromises()
+
+      const accountCalls = vi
+        .mocked(axios.put)
+        .mock.calls.filter(([url]) => url === '/api/v1/users/me')
+      expect(accountCalls).toHaveLength(1)
+      expect(accountCalls[0]?.[1]).toEqual({
+        username: 'new_name',
+        email: 'new@vault-tec.com',
+      })
+    })
+
+    it('ignores a second submit while the first is still saving', async () => {
+      mockBothApis()
+      const updateSpy = vi.spyOn(profileStore, 'updateProfile').mockResolvedValue(undefined)
+
+      const wrapper = mount(ProfileView, {
+        global: {
+          plugins: [router],
+        },
+      })
+      await flushPromises()
+
+      const editButton = findEditButton(wrapper)
+      await editButton?.trigger('click')
+      await flushPromises()
+
+      const editorComponent = wrapper.findComponent(ProfileEditor)
+      editorComponent.vm.$emit('submit', { bio: 'First' })
+      editorComponent.vm.$emit('submit', { bio: 'Second' })
+      await flushPromises()
+
+      expect(updateSpy).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('Error Clearing', () => {
@@ -720,6 +798,56 @@ describe('ProfileView', () => {
       await flushPromises()
 
       expect(profileStore.error).toBeNull()
+    })
+  })
+
+  describe('Email verification actions', () => {
+    const findResendButton = (wrapper: { findAll: (selector: string) => any[] }) =>
+      wrapper.findAll('button').find((button) => button.text().includes('RESEND EMAIL'))
+
+    it('shows a resend action for unverified accounts', async () => {
+      mockBothApis()
+
+      const wrapper = mount(ProfileView, {
+        global: {
+          plugins: [router],
+        },
+      })
+      await flushPromises()
+
+      expect(authStore.user?.email_verified).toBeFalsy()
+      expect(findResendButton(wrapper)).toBeDefined()
+    })
+
+    it('hides the resend action for verified accounts', async () => {
+      mockBothApis()
+      authStore.user = { ...authStore.user, email_verified: true }
+
+      const wrapper = mount(ProfileView, {
+        global: {
+          plugins: [router],
+        },
+      })
+      await flushPromises()
+
+      expect(findResendButton(wrapper)).toBeUndefined()
+    })
+
+    it('resends the verification email when clicked', async () => {
+      mockBothApis()
+      const resendSpy = vi.spyOn(authStore, 'resendVerificationEmail').mockResolvedValue(true)
+
+      const wrapper = mount(ProfileView, {
+        global: {
+          plugins: [router],
+        },
+      })
+      await flushPromises()
+
+      await findResendButton(wrapper)?.trigger('click')
+      await flushPromises()
+
+      expect(resendSpy).toHaveBeenCalledOnce()
     })
   })
 })

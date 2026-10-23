@@ -17,21 +17,28 @@ class UserBase(SQLModel):
     email: EmailStr = Field(nullable=True, index=True, sa_column_kwargs={"unique": True}, sa_type=AutoString)
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
+
+
+class User(BaseUUIDModel, UserBase, TimeStampMixin, SoftDeleteMixin, table=True):
+    hashed_password: str | None = Field(default=None, nullable=True)
+    monthly_token_limit: int | None = Field(default=500000, nullable=True)
     email_verified: bool = Field(default=False)
     email_verification_token: str | None = Field(default=None, index=True)
     password_reset_token: str | None = Field(default=None, index=True)
     password_reset_expires: datetime | None = Field(default=None)
-
-
-class User(BaseUUIDModel, UserBase, TimeStampMixin, SoftDeleteMixin, table=True):
-    hashed_password: str = Field(nullable=False)
-    monthly_token_limit: int | None = Field(default=500000, nullable=True)
+    username_changed_at: datetime | None = Field(default=None)
+    email_changed_at: datetime | None = Field(default=None)
 
     profile: "UserProfile" = Relationship(
         back_populates="user", cascade_delete=True, sa_relationship_kwargs={"uselist": False}
     )
     llm_interactions: list["LLMInteraction"] = Relationship(back_populates="user")
     vaults: list["Vault"] = Relationship(back_populates="user", cascade_delete=True)
+
+    @property
+    def has_password(self) -> bool:
+        """Whether a local password is set; never exposes the hash."""
+        return self.hashed_password is not None
 
     def __str__(self):
         return self.username

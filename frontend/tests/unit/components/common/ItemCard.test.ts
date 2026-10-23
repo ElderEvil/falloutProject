@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import ItemCard from '@/core/components/common/ItemCard.vue'
 import type { Weapon } from '@/modules/combat/models/equipment'

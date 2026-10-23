@@ -34,8 +34,49 @@ export function canUseRadaway(
   return race !== 'ghoul' && race !== 'super_mutant' && race !== 'synth'
 }
 
+export type DwellerBodySize = 'small' | 'medium' | 'large'
+
+export const DWELLER_PORTRAIT_SCALE: Record<DwellerBodySize, number> = {
+  small: 0.8,
+  medium: 1,
+  large: 1.18,
+}
+
+export function getDwellerBodySize(dweller: {
+  age_group?: string | null
+  visual_attributes?: { race?: string | null } | null
+}): DwellerBodySize {
+  if (dweller.visual_attributes?.race === 'super_mutant') return 'large'
+  if (dweller.age_group === 'child' || dweller.age_group === 'teen') return 'small'
+  return 'medium'
+}
+
+export function getDwellerPortraitScale(dweller: {
+  age_group?: string | null
+  visual_attributes?: { race?: string | null } | null
+}): number {
+  return DWELLER_PORTRAIT_SCALE[getDwellerBodySize(dweller)]
+}
+
 export function formatIdentityLabel(value: string): string {
   return humanizePreserveCase(value)
+}
+
+/** State-of-being labels shared by badges and the appearance text rows. */
+export const STATE_OF_BEING_LABELS: Record<string, string> = {
+  sane: 'Sane',
+  wild: 'Wild',
+  feral: 'Feral',
+  gen_1: 'Gen I',
+  gen_2: 'Gen II',
+  gen_3: 'Gen III',
+  mild: 'Mild Mutation',
+  average: 'Average Mutation',
+  behemoth: 'Behemoth',
+}
+
+export function formatStateOfBeing(value: string): string {
+  return STATE_OF_BEING_LABELS[value] ?? formatIdentityLabel(value)
 }
 
 /** Dweller display name; last names are nullable, so this never renders `"null"`. */
@@ -485,6 +526,30 @@ export const ADULT_AGE_GROUPS: ReadonlySet<string> = new Set(['adult', 'elder'])
 /** Mature by age group, mirroring the backend's ``Dweller.is_mature``. */
 export function isMature(dweller: Pick<Dweller, 'age_group'>): boolean {
   return ADULT_AGE_GROUPS.has(dweller.age_group)
+}
+
+/** True when the dweller occupies a production room's dedicated apprentice slot. */
+export function isApprentice(
+  dweller: { apprentice_stat?: string | null } | null | undefined
+): boolean {
+  return Boolean(dweller?.apprentice_stat)
+}
+
+/**
+ * Stable room roster order: regular workers first, apprentice slots last.
+ * RoomPreviewSection and the room-grid avatars must both use this so the
+ * same dwellers appear in the same order everywhere.
+ */
+export function orderRoomDwellers<T extends { apprentice_stat?: string | null }>(
+  dwellers: readonly T[]
+): T[] {
+  const workers: T[] = []
+  const apprentices: T[] = []
+  for (const dweller of dwellers) {
+    if (isApprentice(dweller)) apprentices.push(dweller)
+    else workers.push(dweller)
+  }
+  return [...workers, ...apprentices]
 }
 
 /** A dweller with no room assignment that is not dead or away from the vault (available to assign). */

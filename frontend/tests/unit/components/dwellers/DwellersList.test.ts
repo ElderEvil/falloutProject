@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { shallowMount, mount } from '@vue/test-utils'
 import DwellersList from '@/modules/dwellers/components/DwellersList.vue'
 
@@ -29,7 +29,6 @@ const dweller = (overrides: Record<string, unknown> = {}) => ({
 
 const baseProps = (overrides: Record<string, unknown> = {}) => ({
   dwellers: [],
-  generatingAI: {},
   isLoading: false,
   rooms: [],
   viewMode: 'list',
@@ -37,6 +36,76 @@ const baseProps = (overrides: Record<string, unknown> = {}) => ({
 })
 
 describe('DwellersList', () => {
+  const roster = Array.from({ length: 45 }, (_, index) => dweller({ id: `dweller-${index}` }))
+
+  it.each(['list', 'grid', 'table'])(
+    'paginates the %s layout without changing roster order',
+    async (viewMode) => {
+      const wrapper = shallowMount(DwellersList, {
+        props: baseProps({ dwellers: roster, viewMode }),
+        global: { stubs: { Button: false } },
+      })
+      const visibleIds = () =>
+        viewMode === 'table'
+          ? wrapper
+              .findComponent({ name: 'DwellersTable' })
+              .props('dwellers')
+              .map((d: { id: string }) => d.id)
+          : wrapper
+              .findAllComponents({
+                name: viewMode === 'list' ? 'DwellerListRow' : 'DwellerGridItem',
+              })
+              .map((row) => row.props('dweller').id)
+
+      expect(visibleIds()).toEqual(roster.slice(0, 20).map((d) => d.id))
+      expect(wrapper.text()).toContain('1–20 of 45')
+      expect(
+        wrapper.get('[aria-label="Previous dweller page"]').attributes('disabled')
+      ).toBeDefined()
+
+      await wrapper.get('[aria-label="Next dweller page"]').trigger('click')
+      expect(visibleIds()).toEqual(roster.slice(20, 40).map((d) => d.id))
+      expect(wrapper.text()).toContain('21–40 of 45')
+      await wrapper.get('[aria-label="Next dweller page"]').trigger('click')
+      expect(visibleIds()).toEqual(roster.slice(40).map((d) => d.id))
+      expect(wrapper.get('[aria-label="Next dweller page"]').attributes('disabled')).toBeDefined()
+      await wrapper.get('[aria-label="Previous dweller page"]').trigger('click')
+      expect(visibleIds()).toEqual(roster.slice(20, 40).map((d) => d.id))
+    }
+  )
+
+  it('resets to the first page when filtered or sorted results are replaced', async () => {
+    const wrapper = shallowMount(DwellersList, {
+      props: baseProps({ dwellers: roster }),
+      global: { stubs: { Button: false } },
+    })
+    await wrapper.get('[aria-label="Next dweller page"]').trigger('click')
+    const filtered = [roster[42]!]
+    await wrapper.setProps({ dwellers: filtered })
+    expect(wrapper.findComponent({ name: 'DwellerListRow' }).props('dweller')).toEqual(filtered[0])
+    expect(wrapper.find('[aria-label="Dweller pages"]').exists()).toBe(false)
+  })
+
+  it('preserves the page when changing layout and opens the dweller on that page', async () => {
+    const wrapper = shallowMount(DwellersList, {
+      props: baseProps({ dwellers: roster }),
+      global: { stubs: { Button: false } },
+    })
+    await wrapper.get('[aria-label="Next dweller page"]').trigger('click')
+    await wrapper.setProps({ viewMode: 'grid' })
+    wrapper.findComponent({ name: 'DwellerGridItem' }).vm.$emit('click')
+    expect(wrapper.emitted('view-details')).toEqual([['dweller-20']])
+  })
+
+  it('hides pagination for a single page and while loading', async () => {
+    const wrapper = shallowMount(DwellersList, {
+      props: baseProps({ dwellers: roster.slice(0, 20) }),
+    })
+    expect(wrapper.find('[aria-label="Dweller pages"]').exists()).toBe(false)
+    await wrapper.setProps({ dwellers: roster, isLoading: true })
+    expect(wrapper.find('[aria-label="Dweller pages"]').exists()).toBe(false)
+  })
+
   it('renders the list layout for list mode', () => {
     const wrapper = shallowMount(DwellersList, {
       props: baseProps({ dwellers: [dweller()] }),
@@ -140,7 +209,6 @@ describe('DwellersList', () => {
             luck: 4,
           },
         ],
-        generatingAI: {},
         isLoading: false,
         rooms: [{ id: 'room-1', name: 'Arena', category: 'arena', ability: 'strength' }],
         viewMode: 'list',
@@ -180,7 +248,6 @@ describe('DwellersList', () => {
             luck: 4,
           },
         ],
-        generatingAI: {},
         isLoading: false,
         rooms: [],
         viewMode: 'list',
@@ -192,5 +259,17 @@ describe('DwellersList', () => {
     expect(wrapper.find('h3').classes()).toContain('truncate')
     expect(wrapper.find('li').classes()).toContain('bg-surface-canvas')
     expect(wrapper.find('li').classes()).toContain('border-theme-primary/20')
+  })
+
+  it('keeps level below the name and does not add a short divider to the standard row', () => {
+    const wrapper = mount(DwellersList, {
+      props: baseProps({ dwellers: [dweller()] }),
+      global: { stubs: { DwellerListRow: false } },
+    })
+
+    const identity = wrapper.get('.dweller-identity')
+    expect(identity.text()).toContain('Sarah Lyons')
+    expect(identity.text()).toContain('Level 5')
+    expect(identity.find('.dweller-meta-divider').exists()).toBe(false)
   })
 })

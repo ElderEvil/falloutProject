@@ -489,9 +489,35 @@ describe('Vault Store', () => {
   })
 
   describe('resource polling', () => {
+    it('keeps an explicit stop effective when the tab returns', async () => {
+      vi.useFakeTimers()
+      const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+      localStorage.setItem('token', 'test-token')
+      const store = useVaultStore()
+      store.loadedVaults = { 'vault-1': mockVault }
+      store.setActiveVault('vault-1')
+      vi.mocked(axios.get).mockResolvedValue({ data: mockVault })
+      try {
+        store.startResourcePolling()
+        visibility.mockReturnValue('hidden')
+        document.dispatchEvent(new Event('visibilitychange'))
+        await nextTick()
+        store.stopResourcePolling()
+        visibility.mockReturnValue('visible')
+        document.dispatchEvent(new Event('visibilitychange'))
+        await vi.advanceTimersByTimeAsync(30_000)
+        expect(axios.get).not.toHaveBeenCalled()
+      } finally {
+        store.stopResourcePolling()
+        visibility.mockRestore()
+        vi.useRealTimers()
+      }
+    })
+
     it('does not write an old vault response into the newly selected vault', async () => {
       vi.useFakeTimers()
       try {
+        localStorage.setItem('token', 'test-token')
         const store = useVaultStore()
         const vaultB = { ...mockVault, id: 'vault-2', power: 70 }
         store.loadedVaults = { 'vault-1': mockVault, 'vault-2': vaultB }
@@ -505,7 +531,8 @@ describe('Vault Store', () => {
         )
 
         store.startResourcePolling()
-        vi.advanceTimersByTime(10000)
+        // Authentication is checked before entering each scheduled refresh.
+        await vi.advanceTimersByTimeAsync(10000)
         store.setActiveVault('vault-2')
         resolvePoll({ data: { ...mockVault, power: 10 } })
         await nextTick()

@@ -1,14 +1,21 @@
+import base64
+import hashlib
 import logging
+import secrets
 from datetime import datetime, timedelta
 from typing import Any
+from uuid import uuid4
 
-from jose import JWTError, jwt
+import jwt
 from passlib.context import CryptContext
 from redis.asyncio import Redis
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+JWTError = jwt.InvalidTokenError
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -29,6 +36,19 @@ def create_access_token(
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
+
+
+def generate_pkce_pair() -> tuple[str, str]:
+    """Return a PKCE verifier and its unpadded S256 challenge."""
+    verifier = secrets.token_urlsafe(64)
+    digest = hashlib.sha256(verifier.encode()).digest()
+    challenge = base64.urlsafe_b64encode(digest).decode().rstrip("=")
+    return verifier, challenge
+
+
+def hash_browser_token(value: str) -> str:
+    """SHA-256 hex of a browser-binding cookie or handoff code."""
+    return hashlib.sha256(value.encode()).hexdigest()
 
 
 def get_password_hash(password: str) -> str:
@@ -81,7 +101,7 @@ def create_email_verification_token(subject: str | Any) -> str:
     Create a token for email verification (7 day expiry).
     """
     expire = datetime.utcnow() + timedelta(days=7)
-    to_encode = {"exp": expire, "sub": str(subject), "type": "email_verification"}
+    to_encode = {"exp": expire, "sub": str(subject), "type": "email_verification", "jti": uuid4().hex}
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 

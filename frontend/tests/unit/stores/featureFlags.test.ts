@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { setActivePinia, createPinia } from 'pinia'
 import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
 import { getFeatureFlags } from '@/modules/dwellers/services/dwellerService'
 
-vi.mock('@/core/utils/errorHandler', () => ({
+vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/utils/errorHandler')>()),
   handleStoreError: vi.fn(),
 }))
 

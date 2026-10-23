@@ -3,9 +3,18 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import axios from '@/core/plugins/axios'
+import rawAxios from 'axios'
 import { useProfileStore } from '@/modules/profile/stores/profile'
+import { useToast } from '@/core/composables/useToast'
 
 vi.mock('@/core/plugins/axios')
+
+const { handleStoreErrorMock } = vi.hoisted(() => ({ handleStoreErrorMock: vi.fn() }))
+
+vi.mock('@/core/utils/errorHandler', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/core/utils/errorHandler')>()
+  return { ...actual, handleStoreError: handleStoreErrorMock }
+})
 
 describe('Auth Store', () => {
   beforeEach(() => {
@@ -16,6 +25,7 @@ describe('Auth Store', () => {
 
   afterEach(() => {
     localStorage.clear()
+    vi.restoreAllMocks()
   })
 
   describe('State Initialization', () => {
@@ -215,6 +225,181 @@ describe('Auth Store', () => {
     })
   })
 
+  describe('Account Update Action', () => {
+    it('updates the email and stores the refreshed user', async () => {
+      const store = useAuthStore()
+      store.user = {
+        id: '1',
+        username: 'testuser',
+        email: 'old@test.com',
+      } as NonNullable<typeof store.user>
+      vi.mocked(axios.put).mockResolvedValueOnce({
+        data: { id: '1', username: 'testuser', email: 'new@test.com', email_verified: false },
+      })
+
+      const result = await store.updateAccount({ email: 'new@test.com' })
+
+      expect(result).toBe(true)
+      expect(axios.put).toHaveBeenCalledWith(
+        '/api/v1/users/me',
+        { email: 'new@test.com' },
+        { _skipErrorNotification: true }
+      )
+      expect(store.user?.email).toBe('new@test.com')
+      expect(store.user?.email_verified).toBe(false)
+    })
+
+    it('sends username and email in one request', async () => {
+      const store = useAuthStore()
+      store.user = {
+        id: '1',
+        username: 'oldname',
+        email: 'old@test.com',
+      } as NonNullable<typeof store.user>
+      vi.mocked(axios.put).mockResolvedValueOnce({
+        data: { id: '1', username: 'newname', email: 'new@test.com', email_verified: false },
+      })
+
+      const result = await store.updateAccount({ username: 'newname', email: 'new@test.com' })
+
+      expect(result).toBe(true)
+      expect(axios.put).toHaveBeenCalledWith(
+        '/api/v1/users/me',
+        { username: 'newname', email: 'new@test.com' },
+        { _skipErrorNotification: true }
+      )
+    })
+
+    it('refreshes the account when delivery fails after the change', async () => {
+      const store = useAuthStore()
+      store.token = 'session-token'
+      store.user = {
+        id: '1',
+        username: 'testuser',
+        email: 'old@test.com',
+      } as NonNullable<typeof store.user>
+      vi.mocked(axios.put).mockRejectedValueOnce({ response: { status: 502 } })
+      vi.mocked(axios.get).mockResolvedValueOnce({
+        data: { id: '1', username: 'testuser', email: 'new@test.com', email_verified: false },
+      })
+
+      const result = await store.updateAccount({ email: 'new@test.com' })
+
+      expect(result).toBe(true)
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me')
+      expect(store.user?.email).toBe('new@test.com')
+      expect(store.user?.email_verified).toBe(false)
+      expect(handleStoreErrorMock).not.toHaveBeenCalled()
+    })
+
+    it('treats a 502 as failed when the refreshed account keeps the old email', async () => {
+      const store = useAuthStore()
+      store.token = 'session-token'
+      store.user = {
+        id: '1',
+        username: 'testuser',
+        email: 'old@test.com',
+      } as NonNullable<typeof store.user>
+      vi.mocked(axios.put).mockRejectedValueOnce({ response: { status: 502 } })
+      vi.mocked(axios.get).mockResolvedValueOnce({
+        data: { id: '1', username: 'testuser', email: 'old@test.com', email_verified: true },
+      })
+
+      const result = await store.updateAccount({ email: 'new@test.com' })
+
+      expect(result).toBe(false)
+      expect(store.user?.email).toBe('old@test.com')
+      expect(handleStoreErrorMock).toHaveBeenCalledWith(expect.any(Error), expect.any(String))
+    })
+
+    it('returns false and reports failures through handleStoreError', async () => {
+      const store = useAuthStore()
+      vi.mocked(axios.put).mockRejectedValueOnce(new Error('Email already in use'))
+
+      const result = await store.updateAccount({ email: 'taken@test.com' })
+
+      expect(result).toBe(false)
+      expect(handleStoreErrorMock).toHaveBeenCalledWith(expect.any(Error), expect.any(String))
+    })
+  })
+
+  describe('Email Verification Actions', () => {
+    it('verifies the email and refreshes the current user', async () => {
+      const store = useAuthStore()
+      store.token = 'session-token'
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { msg: 'Email verified' } })
+      vi.mocked(axios.get).mockResolvedValueOnce({
+        data: {
+          id: '1',
+          username: 'testuser',
+          email: 'test@test.com',
+          email_verified: true,
+        },
+      })
+
+      const result = await store.verifyEmail('verify-token')
+
+      expect(result).toBe(true)
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/auth/verify-email', {
+        token: 'verify-token',
+      })
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me')
+      expect(store.user?.email_verified).toBe(true)
+    })
+
+    it('shows a success toast after verification', async () => {
+      const store = useAuthStore()
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { msg: 'Email verified' } })
+
+      await store.verifyEmail('verify-token')
+
+      expect(useToast().toasts.value.some((toast) => toast.message === 'Email verified')).toBe(true)
+    })
+
+    it('does not fetch the user after verification without a session token', async () => {
+      const store = useAuthStore()
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { msg: 'Email verified' } })
+
+      const result = await store.verifyEmail('verify-token')
+
+      expect(result).toBe(true)
+      expect(axios.get).not.toHaveBeenCalled()
+    })
+
+    it('returns false and reports failures when verification fails', async () => {
+      const store = useAuthStore()
+      const error = new Error('Invalid token')
+      vi.mocked(axios.post).mockRejectedValueOnce(error)
+
+      const result = await store.verifyEmail('bad-token')
+
+      expect(result).toBe(false)
+      expect(handleStoreErrorMock).toHaveBeenCalledWith(expect.any(Error), expect.any(String))
+    })
+
+    it('resends the verification email successfully', async () => {
+      const store = useAuthStore()
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { msg: 'Verification email sent' } })
+
+      const result = await store.resendVerificationEmail()
+
+      expect(result).toBe(true)
+      expect(vi.mocked(axios.post).mock.calls[0]?.[0]).toBe('/api/v1/auth/resend-verification')
+      expect(handleStoreErrorMock).not.toHaveBeenCalled()
+    })
+
+    it('returns false and routes resend failures through handleStoreError', async () => {
+      const store = useAuthStore()
+      const error = new Error('Already verified')
+      vi.mocked(axios.post).mockRejectedValueOnce(error)
+
+      const result = await store.resendVerificationEmail()
+
+      expect(result).toBe(false)
+      expect(handleStoreErrorMock).toHaveBeenCalledWith(expect.any(Error), expect.any(String))
+    })
+  })
+
   describe('Fetch User Action', () => {
     it('should fetch user data successfully', async () => {
       const store = useAuthStore()
@@ -265,7 +450,7 @@ describe('Auth Store', () => {
         },
       }
 
-      vi.mocked(axios.post).mockResolvedValueOnce(mockResponse)
+      vi.spyOn(rawAxios, 'post').mockResolvedValueOnce(mockResponse)
 
       await store.refreshAccessToken()
 
@@ -280,17 +465,13 @@ describe('Auth Store', () => {
       expect(axios.post).not.toHaveBeenCalled()
     })
 
-    it('should logout on refresh failure', async () => {
+    it('clears the session when refresh credentials are rejected', async () => {
       const store = useAuthStore()
       store.refreshToken = 'old-refresh-token'
       store.token = 'old-token'
-      // First mock will be called by refreshAccessToken (refresh endpoint)
-      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Refresh failed'))
-      // Second mock will be called by logout (logout endpoint)
-      vi.mocked(axios.post).mockResolvedValueOnce({})
-
-      await store.refreshAccessToken()
-
+      const failure = Object.assign(new Error('Refresh rejected'), { response: { status: 400 } })
+      vi.spyOn(rawAxios, 'post').mockRejectedValueOnce(failure)
+      await expect(store.refreshAccessToken()).rejects.toBe(failure)
       expect(store.token).toBeNull()
       expect(store.refreshToken).toBeNull()
     })

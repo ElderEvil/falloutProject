@@ -321,6 +321,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/oauth/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Oauth Providers
+         * @description Report which providers have a complete credential pair configured.
+         */
+        get: operations["list_oauth_providers_api_v1_auth_oauth_providers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oauth/{provider}/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Authorize Provider
+         * @description Start the provider consent redirect and bind the flow to this browser.
+         */
+        get: operations["authorize_provider_api_v1_auth_oauth__provider__authorize_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oauth/{provider}/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Oauth Callback
+         * @description Exchange the provider code, then hand off to the SPA without tokens in the URL.
+         */
+        get: operations["oauth_callback_api_v1_auth_oauth__provider__callback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oauth/handoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redeem Handoff
+         * @description Redeem a single-use handoff code for the token pair, bound to this browser.
+         */
+        post: operations["redeem_handoff_api_v1_auth_oauth_handoff_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai-settings/": {
         parameters: {
             query?: never;
@@ -3351,6 +3431,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/arena/vault/{vault_id}/rooms/{room_id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop Arena Fight
+         * @description Cancel an active arena match; fighters keep their current health.
+         */
+        post: operations["stop_arena_fight_api_v1_arena_vault__vault_id__rooms__room_id__stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/arena/vault/{vault_id}/rooms/{room_id}/skill": {
         parameters: {
             query?: never;
@@ -3767,6 +3867,46 @@ export interface paths {
         get: operations["read_room_api_v1_rooms__room_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rooms/{room_id}/barbershop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Barbershop Status
+         * @description Return the Barbershop's availability, fee, and preset swatches.
+         */
+        get: operations["read_barbershop_status_api_v1_rooms__room_id__barbershop_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rooms/{room_id}/barbershop/dwellers/{dweller_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Dweller Appearance
+         * @description Change a human adult's skin tone and hair color for the Barbershop fee.
+         */
+        post: operations["change_dweller_appearance_api_v1_rooms__room_id__barbershop_dwellers__dweller_id__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5316,6 +5456,16 @@ export interface components {
             started: boolean;
         };
         /**
+         * ArenaFightStopped
+         * @description Result of cancelling an active arena match.
+         */
+        ArenaFightStopped: {
+            /** Room Id */
+            room_id: string;
+            /** Stopped */
+            stopped: boolean;
+        };
+        /**
          * ArenaFighter
          * @description A single selected fighter with live HP and combat power.
          */
@@ -5347,6 +5497,10 @@ export interface components {
             image_url?: string | null;
             /** Thumbnail Url */
             thumbnail_url?: string | null;
+            /** Age Group */
+            age_group?: string | null;
+            /** Race */
+            race?: string | null;
         };
         /**
          * ArenaFightersRequest
@@ -5395,6 +5549,8 @@ export interface components {
             kind: string;
             /** Message */
             message: string;
+            /** Actor Id */
+            actor_id?: string | null;
             /** Created At */
             created_at?: string | null;
         };
@@ -5470,6 +5626,10 @@ export interface components {
             image_url?: string | null;
             /** Thumbnail Url */
             thumbnail_url?: string | null;
+            /** Age Group */
+            age_group?: string | null;
+            /** Race */
+            race?: string | null;
         };
         /**
          * ArenaSkillQueued
@@ -5552,6 +5712,53 @@ export interface components {
             min_dweller_level: number;
             /** Room Total */
             room_total: number;
+        };
+        /**
+         * BarbershopChangeRequest
+         * @description A requested skin-tone / hair-color change.
+         */
+        BarbershopChangeRequest: {
+            /** Skin Tone */
+            skin_tone: string;
+            /** Hair Color */
+            hair_color: string;
+        };
+        /**
+         * BarbershopChangeResponse
+         * @description Result of a Barbershop appearance change.
+         */
+        BarbershopChangeResponse: {
+            dweller: components["schemas"]["DwellerReadFull"];
+            /** Portrait Updated */
+            portrait_updated: boolean;
+            /** Fee */
+            fee: number;
+            /** Remaining Caps */
+            remaining_caps: number;
+        };
+        /**
+         * BarbershopStatus
+         * @description Availability, fee, and preset swatches for a vault's Barbershop.
+         */
+        BarbershopStatus: {
+            /** Room Id */
+            room_id?: string | null;
+            /** Built */
+            built: boolean;
+            /** Staffed */
+            staffed: boolean;
+            /** Fee */
+            fee: number;
+            /** Skin Fee */
+            skin_fee: number;
+            /** Hair Fee */
+            hair_fee: number;
+            /** Vault Caps */
+            vault_caps: number;
+            /** Skin Tones */
+            skin_tones: string[];
+            /** Hair Colors */
+            hair_colors: string[];
         };
         /**
          * BioAddendumAction
@@ -6196,6 +6403,21 @@ export interface components {
             deleted_count: number;
         };
         /**
+         * DeliveredChild
+         * @description A newborn born during delivery.
+         */
+        DeliveredChild: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name: string | null;
+        };
+        /**
          * DeliveryResult
          * @description Result of a pregnancy delivery.
          */
@@ -6205,11 +6427,8 @@ export interface components {
              * Format: uuid4
              */
             pregnancy_id: string;
-            /**
-             * Child Id
-             * Format: uuid4
-             */
-            child_id: string;
+            /** Children */
+            children: components["schemas"]["DeliveredChild"][];
             /** Message */
             message: string;
         };
@@ -6815,6 +7034,8 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             pet?: components["schemas"]["PetRead"] | null;
+            /** Is Default Portrait */
+            readonly is_default_portrait: boolean;
             /**
              * Effective Max Health
              * @description Maximum health available after radiation damage.
@@ -6975,6 +7196,8 @@ export interface components {
             room: components["schemas"]["RoomRead"] | null;
             weapon: components["schemas"]["WeaponRead"] | null;
             outfit: components["schemas"]["OutfitRead"] | null;
+            /** Is Default Portrait */
+            readonly is_default_portrait: boolean;
             /**
              * Effective Max Health
              * @description Maximum health available after radiation damage.
@@ -7042,6 +7265,8 @@ export interface components {
             parent_1_id?: string | null;
             /** Parent 2 Id */
             parent_2_id?: string | null;
+            /** Is Default Portrait */
+            readonly is_default_portrait: boolean;
             /**
              * Effective Max Health
              * @description Maximum health available after radiation damage.
@@ -7196,6 +7421,8 @@ export interface components {
              * Format: uuid4
              */
             room_id: string;
+            /** Is Default Portrait */
+            readonly is_default_portrait: boolean;
             /**
              * Effective Max Health
              * @description Maximum health available after radiation damage.
@@ -8855,6 +9082,18 @@ export interface components {
          * @enum {string}
          */
         NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "storage_item_degraded" | "storage_item_upgraded" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "objective_completed" | "objectives_refreshed" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
+        /** OAuthHandoffRequest */
+        OAuthHandoffRequest: {
+            /** Code */
+            code: string;
+        };
+        /** OAuthProvidersResponse */
+        OAuthProvidersResponse: {
+            /** Google */
+            google: boolean;
+            /** Github */
+            github: boolean;
+        };
         /** Objective */
         Objective: {
             /** Challenge */
@@ -9372,6 +9611,11 @@ export interface components {
              * @default 0
              */
             training_speed_pct: number;
+            /**
+             * Twin Chance Pct
+             * @default 0
+             */
+            twin_chance_pct: number;
         };
         /** PetRead */
         PetRead: {
@@ -10800,17 +11044,6 @@ export interface components {
              * @default false
              */
             is_superuser: boolean;
-            /**
-             * Email Verified
-             * @default false
-             */
-            email_verified: boolean;
-            /** Email Verification Token */
-            email_verification_token?: string | null;
-            /** Password Reset Token */
-            password_reset_token?: string | null;
-            /** Password Reset Expires */
-            password_reset_expires?: string | null;
             /** Password */
             password: string;
         };
@@ -10834,17 +11067,6 @@ export interface components {
              */
             is_superuser: boolean;
             /**
-             * Email Verified
-             * @default false
-             */
-            email_verified: boolean;
-            /** Email Verification Token */
-            email_verification_token?: string | null;
-            /** Password Reset Token */
-            password_reset_token?: string | null;
-            /** Password Reset Expires */
-            password_reset_expires?: string | null;
-            /**
              * Id
              * Format: uuid4
              */
@@ -10859,6 +11081,10 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Email Verified */
+            email_verified: boolean;
+            /** Has Password */
+            has_password: boolean;
         };
         /** UserUpdate */
         UserUpdate: {
@@ -10870,14 +11096,6 @@ export interface components {
             is_active?: boolean | null;
             /** Is Superuser */
             is_superuser?: boolean | null;
-            /** Email Verified */
-            email_verified?: boolean | null;
-            /** Email Verification Token */
-            email_verification_token?: string | null;
-            /** Password Reset Token */
-            password_reset_token?: string | null;
-            /** Password Reset Expires */
-            password_reset_expires?: string | null;
             /** Password */
             password?: string | null;
         };
@@ -10901,17 +11119,6 @@ export interface components {
              */
             is_superuser: boolean;
             /**
-             * Email Verified
-             * @default false
-             */
-            email_verified: boolean;
-            /** Email Verification Token */
-            email_verification_token?: string | null;
-            /** Password Reset Token */
-            password_reset_token?: string | null;
-            /** Password Reset Expires */
-            password_reset_expires?: string | null;
-            /**
              * Id
              * Format: uuid4
              */
@@ -10926,6 +11133,10 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Email Verified */
+            email_verified: boolean;
+            /** Has Password */
+            has_password: boolean;
             /** Access Token */
             access_token: string;
             /** Refresh Token */
@@ -12120,6 +12331,124 @@ export interface operations {
             };
         };
     };
+    list_oauth_providers_api_v1_auth_oauth_providers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthProvidersResponse"];
+                };
+            };
+        };
+    };
+    authorize_provider_api_v1_auth_oauth__provider__authorize_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    oauth_callback_api_v1_auth_oauth__provider__callback_get: {
+        parameters: {
+            query?: {
+                code?: string | null;
+                state?: string | null;
+            };
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    redeem_handoff_api_v1_auth_oauth_handoff_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthHandoffRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Token"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_ai_settings_api_v1_ai_settings__get: {
         parameters: {
             query?: never;
@@ -12247,8 +12576,8 @@ export interface operations {
     get_chat_history_api_v1_chat_history__dweller_id__get: {
         parameters: {
             query?: {
-                limit?: number;
                 offset?: number;
+                limit?: number;
             };
             header?: never;
             path: {
@@ -12857,8 +13186,6 @@ export interface operations {
     read_dwellers_by_vault_api_v1_dwellers_vault__vault_id___get: {
         parameters: {
             query?: {
-                skip?: number;
-                limit?: number;
                 status?: components["schemas"]["DwellerStatusEnum"] | null;
                 focus?: components["schemas"]["DwellerRosterFocus"] | null;
                 age_group?: components["schemas"]["AgeGroupEnum"] | null;
@@ -12869,6 +13196,8 @@ export interface operations {
                 faction?: components["schemas"]["FactionEnum"] | null;
                 sort_by?: string;
                 order?: string;
+                skip?: number;
+                limit?: number;
             };
             header?: never;
             path: {
@@ -15091,8 +15420,8 @@ export interface operations {
         parameters: {
             query?: {
                 unread_only?: boolean;
-                limit?: number;
                 offset?: number;
+                limit?: number;
             };
             header?: never;
             path?: never;
@@ -16603,6 +16932,38 @@ export interface operations {
             };
         };
     };
+    stop_arena_fight_api_v1_arena_vault__vault_id__rooms__room_id__stop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArenaFightStopped"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     queue_arena_skill_api_v1_arena_vault__vault_id__rooms__room_id__skill_post: {
         parameters: {
             query?: never;
@@ -17158,6 +17519,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RoomRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_barbershop_status_api_v1_rooms__room_id__barbershop_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BarbershopStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_dweller_appearance_api_v1_rooms__room_id__barbershop_dwellers__dweller_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+                dweller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BarbershopChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BarbershopChangeResponse"];
                 };
             };
             /** @description Validation Error */

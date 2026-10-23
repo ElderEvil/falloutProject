@@ -1,6 +1,12 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useToast } from '@/core/composables/useToast'
-import { dispatchRefreshedAuthTokens } from '@/core/utils/authSessionEvents'
+import { claimErrorNotification } from '@/core/utils/errorNotifications'
+import {
+  ensureAccessToken,
+  expireSession,
+  getStoredToken,
+  refreshSession,
+} from '@/core/utils/authSession'
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -17,55 +23,6 @@ interface ValidationError {
   type: string
 }
 
-// Helper functions to access localStorage directly (avoid circular dependency with auth store)
-function getStoredToken(): string | null {
-  try {
-    const tokenData = localStorage.getItem('token')
-    if (!tokenData) return null
-    return tokenData.replace(/^"|"$/g, '')
-  } catch {
-    return null
-  }
-}
-
-function getStoredRefreshToken(): string | null {
-  try {
-    const refreshTokenData = localStorage.getItem('refreshToken')
-    if (!refreshTokenData) return null
-    // VueUse wraps values in quotes
-    return refreshTokenData.replace(/^"|"$/g, '')
-  } catch {
-    return null
-  }
-}
-
-function updateStoredToken(token: string): void {
-  try {
-    // Store in VueUse format (wrapped in quotes)
-    localStorage.setItem('token', JSON.stringify(token))
-  } catch {
-    console.error('Failed to update token in localStorage')
-  }
-}
-
-function updateStoredRefreshToken(refreshToken: string): void {
-  try {
-    localStorage.setItem('refreshToken', JSON.stringify(refreshToken))
-  } catch {
-    console.error('Failed to update refresh token in localStorage')
-  }
-}
-
-function clearAuthData(): void {
-  try {
-    localStorage.removeItem('token')
-    localStorage.removeItem('refreshToken')
-    localStorage.removeItem('user')
-  } catch {
-    console.error('Failed to clear auth data')
-  }
-}
-
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   headers: {
@@ -76,7 +33,7 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   async (config) => {
-    const token = getStoredToken()
+    const token = config.url?.includes('/auth/') ? getStoredToken() : await ensureAccessToken()
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
@@ -94,8 +51,6 @@ apiClient.interceptors.response.use(
     return response
   },
   async (err: unknown) => {
-    const { error: showError } = useToast()
-
     // Type guard to check if error is an AxiosError
     if (!axios.isAxiosError(err)) {
       return Promise.reject(err)
@@ -108,44 +63,21 @@ apiClient.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    // Handle 401 with token refresh
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
-
-      const refreshToken = getStoredRefreshToken()
-
-      if (refreshToken) {
-        try {
-          // Call refresh endpoint directly to avoid circular dependency
-          const response = await axios.post(
-            `${import.meta.env.VITE_API_BASE_URL}/api/v1/auth/refresh`,
-            {
-              refresh_token: refreshToken,
-            }
-          )
-
-          const newToken = response.data.access_token
-          const newRefreshToken = response.data.refresh_token
-          if (newToken) {
-            updateStoredToken(newToken)
-            if (newRefreshToken) {
-              updateStoredRefreshToken(newRefreshToken)
-            }
-            dispatchRefreshedAuthTokens({ token: newToken, refreshToken: newRefreshToken })
-            originalRequest.headers.Authorization = `Bearer ${newToken}`
-            return apiClient(originalRequest)
-          }
-        } catch (refreshError) {
-          console.error('Token refresh failed', refreshError)
-          clearAuthData()
-          window.location.href = '/login'
-          return Promise.reject(refreshError)
-        }
-      } else {
-        clearAuthData()
-        window.location.href = '/login'
+    if (error.response?.status === 401) {
+      if (originalRequest._retry) {
+        claimErrorNotification(error)
+        expireSession()
         return Promise.reject(error)
       }
+      originalRequest._retry = true
+      const currentToken = getStoredToken()
+      // Another request may already have refreshed while this one was in flight.
+      const token =
+        currentToken && originalRequest.headers.Authorization !== `Bearer ${currentToken}`
+          ? currentToken
+          : (await refreshSession()).data.access_token
+      originalRequest.headers.Authorization = `Bearer ${token}`
+      return apiClient(originalRequest)
     }
 
     // Skip notifications for specific endpoints or if explicitly disabled
@@ -233,7 +165,7 @@ apiClient.interceptors.response.use(
       }
 
       // Show user-friendly toast (no technical suffix)
-      showError(`${title}: ${message}`)
+      if (claimErrorNotification(error)) useToast().error(`${title}: ${message}`)
     }
 
     return Promise.reject(error)

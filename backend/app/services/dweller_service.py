@@ -72,6 +72,7 @@ from app.utils.exceptions import (
     ResourceNotFoundException,
     VaultOperationException,
 )
+from app.utils.reward_delivery import persist_reward_change
 
 if TYPE_CHECKING:
     from app.services.map.bio_registration import _MapDwellerLike
@@ -118,12 +119,17 @@ class DwellerService:
             hair_colors=hair_color_options,
         )
 
-    async def create_dweller(self, db_session: AsyncSession, obj_in: DwellerCreate) -> Dweller:
-        """Create a dweller and record the overseer's lifetime total."""
+    async def create_dweller(self, db_session: AsyncSession, obj_in: DwellerCreate, *, commit: bool = True) -> Dweller:
+        """Create a dweller and record the overseer's lifetime total.
+
+        A ``commit=False`` caller owns the commit and must emit the DWELLER_ADDED event itself after committing.
+        """
         obj_in = obj_in.model_copy(update={"visual_attributes": complete_appearance(obj_in.model_dump())})
-        dweller = await crud.dweller.create(db_session, obj_in)
-        await user_service.record_vault_statistic(db_session, self._require_vault_id(dweller), "total_dwellers_created")
-        await event_bus.emit(GameEvent.DWELLER_ADDED, self._require_vault_id(dweller), {"dweller_id": str(dweller.id)})
+        dweller = await crud.dweller.create(db_session, obj_in, commit=commit)
+        vault_id = self._require_vault_id(dweller)
+        await user_service.record_vault_statistic(db_session, vault_id, "total_dwellers_created", commit=commit)
+        if commit:
+            await event_bus.emit(GameEvent.DWELLER_ADDED, vault_id, {"dweller_id": str(dweller.id)})
         return dweller
 
     async def create_random_dweller(
@@ -183,19 +189,21 @@ class DwellerService:
         return dweller
 
     async def add_experience(self, db_session: AsyncSession, dweller_obj: Dweller, amount: int) -> Dweller:
-        """Add experience via CRUD, then surface any level-up through the shared settlement."""
+        """Add cumulative XP and settle levels/health in the reward transaction."""
         old_level = dweller_obj.level
-        updated_dweller = await crud.dweller.add_experience(db_session, dweller_obj, amount)
+        dweller_obj.experience += amount
+        await leveling_service.check_level_up(db_session, dweller_obj, commit=False)
+        await persist_reward_change(db_session, dweller_obj, refresh=True)
 
-        if updated_dweller.level > old_level:
+        if dweller_obj.level > old_level:
             await leveling_service.settle_level_up(
                 db_session,
-                updated_dweller,
+                dweller_obj,
                 old_level=old_level,
-                levels_gained=updated_dweller.level - old_level,
+                levels_gained=dweller_obj.level - old_level,
             )
 
-        return updated_dweller
+        return dweller_obj
 
     async def list_vault_dwellers(
         self,

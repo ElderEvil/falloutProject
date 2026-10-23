@@ -50,13 +50,27 @@ const bellButtonRef = ref<HTMLButtonElement | null>(null)
 const popupRef = ref<HTMLElement | null>(null)
 const notifications = ref<Notification[]>([])
 const unreadCount = ref(0)
+const seenNotificationIds = new Set<string>()
+let hasConnected = false
 const { run: runFetchNotifications, isLoading } = useAsyncAction(
-  async (token: string) => {
+  async (token: string, catchUp = false) => {
     const response = await axios.get('/api/v1/notifications/', {
       params: { limit: 20 },
       headers: { Authorization: `Bearer ${token}` },
     })
-    notifications.value = response.data
+    if (authStore.token !== token) return
+    const loaded = response.data as Notification[]
+    if (catchUp)
+      loaded
+        .filter((notification) => !notification.is_read)
+        .reverse()
+        .forEach(processNotification)
+    loaded.forEach((notification) => seenNotificationIds.add(notification.id))
+    const loadedIds = new Set(loaded.map((notification) => notification.id))
+    notifications.value = [
+      ...notifications.value.filter((notification) => !loadedIds.has(notification.id)),
+      ...loaded,
+    ]
   },
   { context: 'Failed to fetch notifications' }
 )
@@ -124,6 +138,8 @@ watch(
       sse.value?.close()
       sse.value = undefined
       notifications.value = []
+      seenNotificationIds.clear()
+      hasConnected = false
       unreadCount.value = 0
     }
   }
@@ -134,13 +150,17 @@ const currentSseEvent = computed<SseEvent | null>(() => {
   return instance?.event.value ?? null
 })
 
-// Process incoming SSE notification events
-watch(currentSseEvent, (evt) => {
-  if (!evt || evt.event !== 'notification') return
-  const notificationData = (evt.data as any)?.notification
-  if (!notificationData) return
-  if (notifications.value.some((notification) => notification.id === notificationData.id)) return
+function isAdoptionNotification(notification: Notification): boolean {
+  return (
+    notification.notification_type === 'relationship_formed' &&
+    notification.meta_data?.event === 'child_adopted'
+  )
+}
 
+// The same delivery path surfaces live events and unread events missed while paused.
+function processNotification(notificationData: Notification) {
+  if (seenNotificationIds.has(notificationData.id)) return
+  seenNotificationIds.add(notificationData.id)
   const newNotif: Notification = {
     id: notificationData.id,
     vault_id: notificationData.vault_id ?? null,
@@ -166,7 +186,10 @@ watch(currentSseEvent, (evt) => {
     if (notificationData.vault_id) useStorageStore().refreshIfActive(notificationData.vault_id)
   }
 
-  if (['hazard_team_joined', 'training_complete'].includes(notificationData.notification_type)) {
+  if (
+    ['hazard_team_joined', 'training_complete'].includes(notificationData.notification_type) ||
+    isAdoptionNotification(notificationData)
+  ) {
     toast.success(notificationData.message)
   }
   // An arena morale boost is vault-wide and asynchronous; announce it beyond the bell
@@ -214,7 +237,27 @@ watch(currentSseEvent, (evt) => {
       })
     }
   }
+}
+
+watch(currentSseEvent, (evt) => {
+  if (!evt || evt.event !== 'notification') return
+  const notification = (evt.data as { notification?: Notification })?.notification
+  if (notification) processNotification(notification)
 })
+
+// Reconnecting cannot replay Redis pub/sub history. Only reload after the
+// connection actually opens, including a new stream after token rotation.
+watch(
+  () => sse.value?.status.value,
+  async (status) => {
+    if (status !== 'open' || !authStore.token) return
+    if (hasConnected) {
+      await runFetchNotifications(authStore.token, true)
+      await fetchUnreadCount()
+    }
+    hasConnected = true
+  }
+)
 
 const fetchNotifications = async () => {
   if (authStore.token) await runFetchNotifications(authStore.token)
@@ -281,7 +324,8 @@ const handleNotificationClick = async (notification: Notification) => {
   if (route) await router.push(route)
 }
 
-const getNotificationIcon = (type: string): string => {
+const getNotificationIcon = (notification: Notification): string => {
+  if (isAdoptionNotification(notification)) return 'mdi:account-heart'
   const iconMap: Record<string, string> = {
     baby_born: 'mdi:baby-face',
     storage_item_degraded: 'mdi:tools',
@@ -303,7 +347,7 @@ const getNotificationIcon = (type: string): string => {
     location_cleared: 'mdi:flag-checkered',
     location_ready: 'mdi:map-marker-refresh',
   }
-  return iconMap[type] || 'mdi:information'
+  return iconMap[notification.notification_type] || 'mdi:information'
 }
 
 const getPriorityColor = (priority: string): string => {
@@ -319,6 +363,7 @@ const getPriorityColor = (priority: string): string => {
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
   fetchUnreadCount()
+  fetchNotifications()
   if (authStore.token) {
     startSse()
   }
@@ -424,7 +469,7 @@ onBeforeUnmount(() => {
             >
               <div class="flex items-start space-x-3">
                 <Icon
-                  :icon="getNotificationIcon(notification.notification_type)"
+                  :icon="getNotificationIcon(notification)"
                   class="h-5 w-5 mt-0.5 flex-shrink-0"
                   :class="getPriorityColor(notification.priority)"
                 />

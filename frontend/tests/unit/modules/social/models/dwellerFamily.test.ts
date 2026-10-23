@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { generationOf } from '@/modules/social/models/dwellerFamily'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 

@@ -40,9 +40,13 @@ from app.utils.dweller_lifecycle import (
     not_memorial_conditions,
     pool_eligible_conditions,
 )
-from app.utils.dwellers import create_dweller_from_template, create_random_common_dweller
+from app.utils.dwellers import (
+    clamp_level_for_rarity,
+    create_dweller_from_template,
+    create_random_common_dweller,
+    level_progress,
+)
 from app.utils.exceptions import ContentNoChangeException, ResourceConflictException, ResourceNotFoundException
-from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
 from app.utils.static_data import game_data_store
 
 #: Eager-load weapon/outfit — the shared baseline; callers that need pets add selectinload(Dweller.pet).
@@ -666,6 +670,14 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             for field in ("level", "experience", "happiness", "health", "max_health"):
                 if (value := overrides.get(field)) is not None:
                     data[field] = value
+        rarity = RarityEnum(template.rarity)
+        if rarity in (RarityEnum.RARE, RarityEnum.LEGENDARY):
+            level = clamp_level_for_rarity(rarity, data.get("level", 1))
+            max_health, experience = level_progress(level)
+            data["level"] = level
+            data["max_health"] = max_health
+            data["health"] = min(int(data.get("health") or max_health), max_health)
+            data["experience"] = experience
         return data
 
     async def get_active_template_names(self, db_session: AsyncSession, vault_id: UUID4) -> set[str]:
@@ -709,31 +721,21 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         return db_obj
 
     @staticmethod
-    def calculate_experience_required(dweller_obj: Dweller) -> int:
-        """Calculate the experience required for the next level."""
-        return int(100 * 1.5**dweller_obj.level)
-
-    @staticmethod
     def is_alive(dweller_obj: Dweller) -> bool:
         return dweller_obj.health > 0
 
-    async def add_experience(self, db_session: AsyncSession, dweller_obj: Dweller, amount: int) -> Dweller:
-        """Add experience to dweller and persist any level-up (event/notification are the caller's job)."""
-        dweller_obj.experience += amount
-        experience_required = self.calculate_experience_required(dweller_obj)
-
-        if dweller_obj.experience >= experience_required:
-            dweller_obj.level += 1
-            dweller_obj.experience -= experience_required
-
-        if reward_delivery_is_deferred(db_session):
-            await persist_reward_change(db_session, dweller_obj)
-            return dweller_obj
-        return await self.update(
-            db_session,
-            dweller_obj.id,
-            DwellerUpdate(level=dweller_obj.level, experience=dweller_obj.experience),
+    async def get_orphaned_youth(self, db_session: AsyncSession, vault_id: UUID4) -> list[Dweller]:
+        query = (
+            select(Dweller)
+            .where(Dweller.vault_id == vault_id)
+            .where(~Dweller.is_deleted)
+            .where(~Dweller.is_dead)
+            .where(Dweller.age_group.in_((AgeGroupEnum.CHILD, AgeGroupEnum.TEEN)))
+            .where(or_(Dweller.parent_1_id.is_not(None), Dweller.parent_2_id.is_not(None)))
+            .order_by(Dweller.created_at, Dweller.id)
         )
+        result = await db_session.execute(query)
+        return list(result.scalars().all())
 
     async def get_dweller_by_name(self, db_session: AsyncSession, name: str) -> Dweller | None:
         """Get dweller by name."""

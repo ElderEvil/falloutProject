@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import ChildrenList from '@/modules/social/components/relationships/ChildrenList.vue'

@@ -1,17 +1,38 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { apiPost } from '@/core/utils/api'
 import { getErrorMessage } from '@/core/utils/errorHandler'
 import { Button } from '@/core/components/ui/button'
+import { useAuthStore } from '../stores/auth'
+import { useEmailVerificationResend } from '../composables/useEmailVerificationResend'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
+const {
+  status: resendStatus,
+  label: resendLabel,
+  resend,
+} = useEmailVerificationResend()
 
 const token = ref('')
 const error = ref('')
 const success = ref(false)
 const loading = ref(true)
+
+const canResend = computed(
+  () => authStore.isAuthenticated && authStore.user?.email_verified === false
+)
+
+async function verifyEmail(verificationToken: string): Promise<void> {
+  const verified = await authStore.verifyEmail(verificationToken)
+  if (!verified) {
+    error.value = 'The verification link is invalid or has expired'
+    return
+  }
+  success.value = true
+  await router.push(authStore.isAuthenticated ? '/' : '/login')
+}
 
 onMounted(async () => {
   token.value = (route.query.token as string) || ''
@@ -23,11 +44,7 @@ onMounted(async () => {
   }
 
   try {
-    await apiPost('/api/v1/auth/verify-email', { token: token.value })
-    success.value = true
-    setTimeout(() => {
-      router.push('/login')
-    }, 3000)
+    await verifyEmail(token.value)
   } catch (err) {
     error.value = getErrorMessage(err, 'Failed to verify email')
   } finally {
@@ -64,7 +81,7 @@ onMounted(async () => {
         <div v-else-if="success" class="status-message success">
           <p class="terminal-text">> STATUS: VERIFICATION SUCCESSFUL</p>
           <p class="terminal-text">> YOUR EMAIL HAS BEEN VERIFIED</p>
-          <p class="terminal-text">> REDIRECTING TO LOGIN TERMINAL...</p>
+          <p class="terminal-text">> REDIRECTING...</p>
           <div class="success-indicator">✓✓✓</div>
         </div>
 
@@ -73,12 +90,23 @@ onMounted(async () => {
           <p class="terminal-text error-text">> {{ error }}</p>
           <div class="error-actions">
             <Button
+              v-if="canResend"
+              variant="default"
+              class="border-2 border-theme-primary hover:shadow-glow-md"
+              :disabled="resendStatus === 'sending'"
+              @click="resend"
+              >{{ resendLabel }}</Button
+            >
+            <Button
               variant="default"
               class="border-2 border-theme-primary hover:shadow-glow-md"
               @click="router.push('/login')"
               >RETURN TO LOGIN</Button
             >
           </div>
+          <p v-if="resendStatus === 'error'" class="terminal-text error-text">
+            > RESEND FAILED - TRY AGAIN LATER
+          </p>
         </div>
       </div>
     </div>
@@ -217,5 +245,8 @@ onMounted(async () => {
 
 .error-actions {
   margin-top: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 </style>

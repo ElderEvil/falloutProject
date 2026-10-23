@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { createIconifyMock, createRouterMock } from '../../helpers/mocks'
 import { config, flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
@@ -15,6 +15,15 @@ import { audioManager } from '@/core/audio/audioManager'
 vi.mock('@iconify/vue', () =>
   createIconifyMock({ template: '<div class="mock-icon" :data-icon="icon"></div>' })
 )
+
+vi.mock('@/modules/rooms/components/BarbershopPanel.vue', () => ({
+  default: {
+    name: 'BarbershopPanel',
+    props: ['room', 'assignedDwellers'],
+    emits: ['changed'],
+    template: '<div class="mock-barbershop-panel"></div>',
+  },
+}))
 
 // The modal now composes shadcn primitives; stub them onto the same `mock-*`
 // hooks this suite already selects on (`mock-modal`, `mock-button`, …) and keep
@@ -324,6 +333,26 @@ describe('RoomDetailModal', () => {
 
       expect(wrapper.text()).toContain('PRODUCTION')
     })
+
+    it('renders the Barbershop panel only for the Barbershop room', () => {
+      const barbershop = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Barbershop', category: 'misc.', ability: 'charisma' },
+          modelValue: true,
+          vaultId: 'vault-123',
+        },
+      })
+      expect(barbershop.find('.mock-barbershop-panel').exists()).toBe(true)
+
+      const other = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Radio Studio', category: 'misc.', ability: 'charisma' },
+          modelValue: true,
+          vaultId: 'vault-123',
+        },
+      })
+      expect(other.find('.mock-barbershop-panel').exists()).toBe(false)
+    })
   })
 
   describe('Room Information', () => {
@@ -352,6 +381,12 @@ describe('RoomDetailModal', () => {
           modelValue: true,
         },
       })
+      const small = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, size: 3, size_min: 3 },
+          modelValue: true,
+        },
+      })
       const wide = mount(RoomDetailModal, {
         props: {
           room: { ...mockRoom, size: 9, size_min: 3 },
@@ -360,6 +395,7 @@ describe('RoomDetailModal', () => {
       })
 
       expect(compact.find('.room-scene').classes()).toContain('room-scene--compact')
+      expect(small.find('.room-scene').classes()).toContain('room-scene--small')
       expect(wide.find('.room-scene').classes()).toContain('room-scene--wide')
     })
 
@@ -669,7 +705,7 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.text()).not.toContain('Staffing')
-      expect(wrapper.find('.dweller-card').exists()).toBe(false)
+      expect(wrapper.find('.dweller-list-row').exists()).toBe(false)
     })
 
     it('should show empty state when no dwellers assigned', () => {
@@ -742,10 +778,10 @@ describe('RoomDetailModal', () => {
       await wrapper.get('.scene-empty-worker').trigger('click')
 
       const pickerCard = wrapper
-        .findAll('.dweller-picker .dweller-card')
+        .findAll('.dweller-picker .dweller-list-row')
         .find((card) => card.text().includes('John'))
       expect(pickerCard).toBeTruthy()
-      await pickerCard!.get('.dweller-card__details').trigger('click')
+      await pickerCard!.trigger('click')
 
       expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
     })
@@ -779,10 +815,13 @@ describe('RoomDetailModal', () => {
       })
 
       await flushPromises()
-      await wrapper.get('[aria-label="Assign worker"]').trigger('click')
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('Assign Dwellers'))!
+        .trigger('click')
       expect(wrapper.get('.picker-title').text()).toBe('Assign to Arena')
-      expect(wrapper.findAll('.dweller-picker .dweller-card')).toHaveLength(1)
-      await wrapper.get('.dweller-picker .dweller-card__details').trigger('click')
+      expect(wrapper.findAll('.dweller-picker .dweller-list-row')).toHaveLength(1)
+      await wrapper.get('.dweller-picker .dweller-list-row').trigger('click')
       await flushPromises()
 
       expect(assign).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
@@ -811,8 +850,11 @@ describe('RoomDetailModal', () => {
         },
       })
       await flushPromises()
-      await wrapper.get('[aria-label="Assign worker"]').trigger('click')
-      await wrapper.get('.dweller-picker .dweller-card__details').trigger('click')
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('Assign Dwellers'))!
+        .trigger('click')
+      await wrapper.get('.dweller-picker .dweller-list-row').trigger('click')
       await flushPromises()
       expect(wrapper.text()).toContain('Failed to assign dweller to room')
     })
@@ -838,8 +880,8 @@ describe('RoomDetailModal', () => {
 
       await wrapper.get('.scene-empty-apprentice').trigger('click')
       expect(wrapper.find('.picker-title').text()).toBe('Select Apprentice')
-      expect(wrapper.findAll('.dweller-picker .dweller-card')).toHaveLength(1)
-      await wrapper.get('.dweller-picker .dweller-card__details').trigger('click')
+      expect(wrapper.findAll('.dweller-picker .dweller-list-row')).toHaveLength(1)
+      await wrapper.get('.dweller-picker .dweller-list-row').trigger('click')
 
       expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
     })
@@ -874,9 +916,11 @@ describe('RoomDetailModal', () => {
       })
       await wrapper.get('.scene-empty-worker').trigger('click')
 
-      const cards = wrapper.findAll('.dweller-picker .dweller-card')
+      const cards = wrapper.findAll('.dweller-picker .dweller-list-row')
       expect(cards).toHaveLength(2)
       expect(cards[0].text()).toContain('Strong')
+      expect(cards[0].get('.picker-room-stat').text()).toContain('Strength')
+      expect(cards[0].get('.picker-room-stat').text()).toContain('10')
     })
 
     it('keeps individual SPECIAL values out of the scene', () => {
@@ -1337,8 +1381,7 @@ describe('RoomDetailModal', () => {
       await wrapper.get('.scene-dweller').trigger('click')
 
       expect(mockRouterPush).toHaveBeenCalledWith({
-        name: 'dwellerDetail',
-        params: { id: 'vault-123', dwellerId: 'dweller-2' },
+        query: { roomId: 'room-1', dweller: 'dweller-2' },
       })
     })
 
@@ -1369,8 +1412,7 @@ describe('RoomDetailModal', () => {
       await wrapper.get('.apprentice-slot .scene-dweller').trigger('click')
 
       expect(mockRouterPush).toHaveBeenCalledWith({
-        name: 'dwellerDetail',
-        params: { id: 'vault-123', dwellerId: 'dweller-1' },
+        query: { roomId: 'room-1', dweller: 'dweller-1' },
       })
     })
   })

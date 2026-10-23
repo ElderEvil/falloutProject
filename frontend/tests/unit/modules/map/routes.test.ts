@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { setActivePinia, createPinia } from 'pinia'
 import { shallowMount } from '@vue/test-utils'
 import { useAuthStore } from '@/modules/auth/stores/auth'

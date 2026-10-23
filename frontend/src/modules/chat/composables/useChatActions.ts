@@ -1,3 +1,4 @@
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
 import { ref, type Ref } from 'vue'
 import type {
   ActionSuggestion,
@@ -16,7 +17,10 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '@/modules/map/stores/map'
 import { appendBioAddendum } from '@/modules/dwellers/services/dwellerService'
 import { isMature, type Dweller } from '@/modules/dwellers/models/dweller'
-import type { PendingExplorer, WastelandPrefill } from '@/modules/exploration/composables/useSendToWasteland'
+import type {
+  PendingExplorer,
+  WastelandPrefill,
+} from '@/modules/exploration/composables/useSendToWasteland'
 
 export interface UseChatActionsOptions {
   dwellerId: string
@@ -55,8 +59,8 @@ export function useChatActions(options: UseChatActionsOptions) {
       await dwellerManagementStore.assignDwellerToRoom(options.dwellerId, roomId, authStore.token)
       toast.success(`${options.dwellerName} assigned to ${roomName}`)
       return true
-    } catch {
-      toast.error('Failed to assign dweller to room')
+    } catch (error) {
+      notifyErrorOnce(error, 'Failed to assign dweller to room')
       return false
     } finally {
       isPerformingAction.value = false
@@ -119,7 +123,6 @@ export function useChatActions(options: UseChatActionsOptions) {
           return false
         }
 
-        toast.info(`Moving ${options.dwellerName} to training room...`)
         await dwellerManagementStore.assignDwellerToRoom(
           options.dwellerId,
           availableTrainingRoom.id,
@@ -136,8 +139,8 @@ export function useChatActions(options: UseChatActionsOptions) {
       await startTraining(options.dwellerId, trainingRoomId, authStore.token)
       toast.success(`${options.dwellerName} started ${stat} training`)
       return true
-    } catch {
-      toast.error('Failed to start training')
+    } catch (error) {
+      notifyErrorOnce(error, 'Failed to start training')
       return false
     } finally {
       isPerformingAction.value = false
@@ -202,19 +205,20 @@ export function useChatActions(options: UseChatActionsOptions) {
         typeof progress.progress_percentage === 'number' &&
         progress.progress_percentage >= 100
       ) {
-        toast.info(`Completing ${options.dwellerName}'s exploration...`)
-        await explorationStore.completeExploration(action.exploration_id, authStore.token)
-        toast.success(`${options.dwellerName}'s exploration completed!`)
+        const result = await explorationStore.completeExploration(
+          action.exploration_id,
+          authStore.token
+        )
+        if (!result?.rewards_summary)
+          toast.success(`${options.dwellerName}'s exploration completed!`)
       } else {
-        toast.info(`Recalling ${options.dwellerName} from wasteland...`)
         await explorationStore.recallDweller(action.exploration_id, authStore.token)
-        toast.success(`${options.dwellerName} recalled from wasteland!`)
       }
 
       await dwellerStore.fetchDwellerDetails(options.dwellerId, authStore.token, true)
       return true
-    } catch {
-      toast.error('Failed to recall dweller from wasteland')
+    } catch (error) {
+      notifyErrorOnce(error, 'Failed to recall dweller from wasteland')
       return false
     } finally {
       isPerformingAction.value = false
@@ -249,8 +253,8 @@ export function useChatActions(options: UseChatActionsOptions) {
           ? await dwellerMedicalStore.useStimpack(options.dwellerId, authStore.token)
           : await dwellerMedicalStore.useRadaway(options.dwellerId, authStore.token)
       return result !== null
-    } catch {
-      toast.error(`Failed to use ${supply === 'stimpack' ? 'Stimpak' : 'RadAway'}`)
+    } catch (error) {
+      notifyErrorOnce(error, `Failed to use ${supply === 'stimpack' ? 'Stimpak' : 'RadAway'}`)
       return false
     } finally {
       isPerformingAction.value = false
@@ -267,8 +271,8 @@ export function useChatActions(options: UseChatActionsOptions) {
       dwellerStore.detailedDwellers[options.dwellerId] = updated
       toast.success(`Recorded in ${options.dwellerName}'s biography`)
       return true
-    } catch {
-      toast.error('Failed to update biography')
+    } catch (error) {
+      notifyErrorOnce(error, 'Failed to update biography')
       return false
     } finally {
       isPerformingAction.value = false

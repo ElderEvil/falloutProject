@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { setActivePinia, createPinia } from 'pinia'
 import { ref } from 'vue'
 import axios from '@/core/plugins/axios'
 
 vi.mock('@/core/plugins/axios')
-vi.mock('@/core/utils/errorHandler', () => ({
+vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/utils/errorHandler')>()),
   handleStoreError: vi.fn(),
 }))
 vi.mock('@vueuse/core', () => ({
@@ -18,6 +19,7 @@ import {
 } from '@/modules/dwellers/stores/dwellerFilter'
 import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import { DEFAULT_TABLE_COLUMNS } from '@/modules/dwellers/models/dwellerTable'
 
 describe('DwellerFilter Store', () => {
@@ -217,6 +219,91 @@ describe('DwellerFilter Store', () => {
   })
 
   describe('fetchAllDwellers', () => {
+    it.each([false, true])(
+      'keeps each caller error policy when the first strict flag is %s',
+      async (firstStrict) => {
+        const failure = new Error('Roster unavailable')
+        let reject!: (error: Error) => void
+        vi.mocked(axios.get).mockImplementationOnce(
+          () =>
+            new Promise((_resolve, rejectRequest) => {
+              reject = rejectRequest
+            })
+        )
+        const store = useDwellerFilterStore()
+        const first = store.fetchAllDwellers('vault-1', 'test-token', firstStrict)
+        const second = store.fetchAllDwellers('vault-1', 'test-token', !firstStrict)
+        const results = Promise.allSettled([first, second])
+        reject(failure)
+        const settled = await results
+        expect(settled.map((result) => result.status)).toEqual(
+          firstStrict ? ['rejected', 'fulfilled'] : ['fulfilled', 'rejected']
+        )
+        expect(axios.get).toHaveBeenCalledTimes(1)
+        expect(handleStoreError).toHaveBeenCalledTimes(1)
+      }
+    )
+
+    it('lets a fresh same-vault load supersede an older shared request', async () => {
+      let finishOld!: (value: unknown) => void
+      vi.mocked(axios.get)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishOld = resolve
+            })
+        )
+        .mockResolvedValueOnce({ data: [{ id: 'fresh' }] })
+      const store = useDwellerFilterStore()
+      const old = store.fetchAllDwellers('vault-1', 'test-token')
+      const fresh = store.fetchAllDwellers('vault-1', 'test-token', false, true)
+      finishOld({ data: [{ id: 'stale' }] })
+      await Promise.all([old, fresh])
+      expect(axios.get).toHaveBeenCalledTimes(2)
+      expect(store.allDwellers.map((dweller) => dweller.id)).toEqual(['fresh'])
+    })
+
+    it('does not share a pending roster across tokens', async () => {
+      let finishOld!: (value: unknown) => void
+      vi.mocked(axios.get)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishOld = resolve
+            })
+        )
+        .mockResolvedValueOnce({ data: [{ id: 'current-account' }] })
+      const store = useDwellerFilterStore()
+      const old = store.fetchAllDwellers('vault-1', 'token-a')
+      const current = store.fetchAllDwellers('vault-1', 'token-b')
+      finishOld({ data: [{ id: 'previous-account' }] })
+      await Promise.all([old, current])
+      expect(axios.get).toHaveBeenCalledTimes(2)
+      expect(store.allDwellers.map((dweller) => dweller.id)).toEqual(['current-account'])
+    })
+
+    it('clears the loaded marker and rejects stale strict loads after logout', async () => {
+      const auth = useAuthStore()
+      auth.token = 'token-a'
+      const store = useDwellerFilterStore()
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [{ id: 'private' }] })
+      await store.fetchAllDwellers('vault-1', 'token-a')
+      let finish!: (value: unknown) => void
+      vi.mocked(axios.get).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve
+          })
+      )
+      const pending = store.fetchAllDwellers('vault-1', 'token-a', true)
+      const settled = Promise.allSettled([pending])
+      auth.token = null
+      finish({ data: [{ id: 'private' }] })
+      expect((await settled)[0].status).toBe('rejected')
+      expect(store.allDwellers).toEqual([])
+      expect(store.allDwellersLoadedVaultId).toBeNull()
+    })
+
     it('should request a complete fetch with skip=0 and a large limit', async () => {
       const mockDwellers = [
         { id: 'd1', first_name: 'John', last_name: 'Doe', status: 'idle', level: 5, happiness: 75 },
@@ -316,22 +403,12 @@ describe('DwellerFilter Store', () => {
       expect(store.allDwellers[0].id).toBe('new')
     })
 
-    it('should ignore a stale response from an older request', async () => {
-      let resolveFirst!: (value: unknown) => void
-      const freshData = [
+    it('shares one request between concurrent same-vault loads', async () => {
+      let resolveRequest!: (value: unknown) => void
+      const data = [
         {
-          id: 'fresh',
-          first_name: 'Fresh',
-          last_name: 'Data',
-          status: 'idle',
-          level: 1,
-          happiness: 50,
-        },
-      ]
-      const staleData = [
-        {
-          id: 'stale',
-          first_name: 'Stale',
+          id: 'shared',
+          first_name: 'Shared',
           last_name: 'Data',
           status: 'idle',
           level: 1,
@@ -339,28 +416,22 @@ describe('DwellerFilter Store', () => {
         },
       ]
 
-      vi.mocked(axios.get)
-        .mockImplementationOnce(
-          () =>
-            new Promise((resolve) => {
-              resolveFirst = resolve
-            })
-        )
-        .mockResolvedValueOnce({ data: freshData })
+      vi.mocked(axios.get).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRequest = resolve
+          })
+      )
 
       const store = useDwellerFilterStore()
-      const firstPromise = store.fetchAllDwellers('vault-1', 'test-token')
-      const secondPromise = store.fetchAllDwellers('vault-1', 'test-token')
+      const firstPromise = store.fetchAllDwellers('vault-1', 'test-token', true)
+      const secondPromise = store.fetchAllDwellers('vault-1', 'test-token', true)
 
-      await secondPromise
-      expect(store.allDwellers).toEqual(freshData)
+      resolveRequest({ data })
+      await Promise.all([firstPromise, secondPromise])
 
-      // Resolve the stale first request after the second
-      resolveFirst({ data: staleData })
-      await firstPromise
-
-      // Stale response must not overwrite the fresh one
-      expect(store.allDwellers).toEqual(freshData)
+      expect(vi.mocked(axios.get)).toHaveBeenCalledTimes(1)
+      expect(store.allDwellers).toEqual(data)
     })
 
     it('should ignore a response for a different vault than the current one', async () => {

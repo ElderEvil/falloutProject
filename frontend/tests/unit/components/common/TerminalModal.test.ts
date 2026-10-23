@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createIconifyMock } from '../../helpers/mocks'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { Dialog } from '@/core/components/ui/dialog'
@@ -10,6 +10,9 @@ import { isOverlayBlocking } from '@/core/composables/useBlockingOverlay'
 enableAutoUnmount(afterEach)
 
 vi.mock('@iconify/vue', () => createIconifyMock())
+
+const { routerPush } = vi.hoisted(() => ({ routerPush: vi.fn() }))
+vi.mock('vue-router', () => ({ useRouter: () => ({ push: routerPush }) }))
 
 const mountModal = (
   props: Record<string, unknown> = {},
@@ -24,6 +27,10 @@ const mountModal = (
   })
 
 describe('TerminalModal', () => {
+  beforeEach(() => {
+    routerPush.mockClear()
+  })
+
   it('renders the title, icon, default content and header-extra slot', () => {
     const wrapper = mountModal(
       { title: 'Test Modal', icon: 'mdi:test' },
@@ -39,11 +46,35 @@ describe('TerminalModal', () => {
     expect(wrapper.find('.icon-mock').attributes('data-icon')).toBe('mdi:test')
   })
 
+  it('renders a full-page action next to the close control and navigates', async () => {
+    const to = { name: 'DwellerChatPage', params: { id: 'dweller-1' } }
+    const wrapper = mountModal({ fullscreenTo: to })
+
+    await wrapper.get('button[aria-label="Open full page"]').trigger('click')
+
+    expect(wrapper.emitted('fullscreen')).toHaveLength(1)
+    expect(routerPush).toHaveBeenCalledWith(to)
+  })
+
   it('renders a custom title slot instead of the title prop', () => {
-    const wrapper = mountModal({ title: 'Ignored' }, { title: '<span class="custom-title">Custom</span>' })
+    const wrapper = mountModal(
+      { title: 'Ignored' },
+      { title: '<span class="custom-title">Custom</span>' }
+    )
 
     expect(wrapper.find('.custom-title').text()).toBe('Custom')
     expect(wrapper.text()).not.toContain('Ignored')
+  })
+
+  it('explains the full-page action with a themed tooltip on keyboard focus', async () => {
+    const wrapper = mountModal({ fullscreenTo: '/dwellers/one', fullscreenLabel: 'Open dweller' })
+    const button = wrapper.get('button[aria-label="Open dweller"]')
+
+    expect(button.attributes('title')).toBeUndefined()
+    await button.trigger('focus')
+    await flushPromises()
+
+    expect(wrapper.get('[role="tooltip"]').text()).toBe('Open dweller')
   })
 
   it('omits the footer when no footer slot is provided', () => {
@@ -130,16 +161,14 @@ describe('TerminalModal', () => {
     const wrapper = mountModal({}, {}, true)
 
     await new Promise((resolve) => setTimeout(resolve, 0))
-    wrapper
-      .get('[data-slot="dialog-overlay"]')
-      .element.dispatchEvent(
-        new PointerEvent('pointerdown', {
-          bubbles: true,
-          button: 0,
-          pointerType: 'mouse',
-          isPrimary: true,
-        })
-      )
+    wrapper.get('[data-slot="dialog-overlay"]').element.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        pointerType: 'mouse',
+        isPrimary: true,
+      })
+    )
     await flushPromises()
 
     expect(wrapper.emitted('update:open')).toEqual([[false]])

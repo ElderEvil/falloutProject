@@ -129,6 +129,9 @@ async function mockApi(page: Page) {
     }
     if (path === '/api/v1/users/me/profile/ai-usage') return route.fulfill({ json: AI_USAGE })
     if (path === '/api/v1/users/me') return route.fulfill({ json: AUTH_USER })
+    if (path === '/api/v1/auth/oauth/providers') {
+      return route.fulfill({ json: { google: false, github: false } })
+    }
     if (path === '/api/v1/vaults/my') return route.fulfill({ json: [VAULT] })
     if (path === '/api/v1/notifications/unread-count') return route.fulfill({ json: { count: 0 } })
     if (path === '/api/v1/notifications/') return route.fulfill({ json: [] })

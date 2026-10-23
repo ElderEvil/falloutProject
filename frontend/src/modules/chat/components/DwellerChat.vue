@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
+
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import apiClient from '@/core/plugins/axios'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useEmailVerificationResend } from '@/modules/auth/composables/useEmailVerificationResend'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { getErrorMessage } from '@/core/types/utils'
@@ -14,7 +17,6 @@ import { useChatAudio } from '../composables/useChatAudio'
 import { useTypingIndicator } from '../composables/useTypingIndicator'
 import { useChatActions } from '../composables/useChatActions'
 import { useSound } from '@/core/composables/useSound'
-import { useToast } from '@/core/composables/useToast'
 import { useMapStore } from '@/modules/map/stores/map'
 import { useDwellerDeathStore } from '@/modules/dwellers/stores/dwellerDeath'
 import type { MapPlaceLink } from '@/modules/dwellers/models/dweller'
@@ -86,16 +88,28 @@ const chatAllowRadaway = computed(() => canUseRadaway(chatDweller.value))
 
 const isSendingAudio = ref(false)
 const audioMode = ref(false)
+const {
+  status: resendStatus,
+  label: resendLabel,
+  resend: resendVerification,
+} = useEmailVerificationResend()
+
+const showVoiceVerificationReminder = computed(
+  () => audioMode.value && !isDead.value && authStore.user?.email_verified === false
+)
 
 const userAvatarUrl = computed(() => profileStore.profile?.avatar_url ?? undefined)
 const dwellerActivity = computed(() => {
   if (props.dwellerStatus === 'exploring') return 'EXPLORING'
   if (props.dwellerStatus === 'questing') return 'ON QUEST'
   if (props.roomName) {
-    const activity = props.dwellerStatus === 'working' ? 'ON DUTY' : props.dwellerStatus?.toUpperCase()
+    const activity =
+      props.dwellerStatus === 'working' ? 'ON DUTY' : props.dwellerStatus?.toUpperCase()
     return `${activity ?? 'ON DUTY'} · ${props.roomName.toUpperCase()}`
   }
-  return props.dwellerStatus && props.dwellerStatus !== 'idle' ? props.dwellerStatus.toUpperCase() : 'AVAILABLE'
+  return props.dwellerStatus && props.dwellerStatus !== 'idle'
+    ? props.dwellerStatus.toUpperCase()
+    : 'AVAILABLE'
 })
 
 // Quota exceeded state
@@ -112,9 +126,13 @@ const chatBudgetSummary = computed(() => {
   return `${stats.quota_remaining.toLocaleString()} tokens remaining`
 })
 
-const placeLinks = computed(() => mapStore.locations
-  .filter((location) => location.dwellers?.some((dweller) => dweller.dweller_id === props.dwellerId))
-  .map((location): MapPlaceLink => ({ name: location.name, locationId: location.id })))
+const placeLinks = computed(() =>
+  mapStore.locations
+    .filter((location) =>
+      location.dwellers?.some((dweller) => dweller.dweller_id === props.dwellerId)
+    )
+    .map((location): MapPlaceLink => ({ name: location.name, locationId: location.id }))
+)
 
 const {
   recordingState,
@@ -128,7 +146,6 @@ const {
 
 const userId = computed(() => authStore.user?.id || '')
 const chatWs = useChatWebSocket(userId.value, props.dwellerId, authStore.token)
-const toast = useToast()
 
 // Admin-only diagnostics: toggle requests the opt-in payload and shows the panel.
 const isSuperuser = computed(() => authStore.user?.is_superuser ?? false)
@@ -168,7 +185,9 @@ const { playSound } = useSound()
 const { handleTyping } = useTypingIndicator(chatWs)
 
 const conversationStarters = computed(() =>
-  messages.value.length ? [] : placeLinks.value.slice(0, 3).map(({ name }) => `What can you tell me about ${name}?`)
+  messages.value.length
+    ? []
+    : placeLinks.value.slice(0, 3).map(({ name }) => `What can you tell me about ${name}?`)
 )
 const prefillConversationStarter = (message: string) => {
   userMessage.value = message
@@ -178,7 +197,8 @@ const prefillConversationStarter = (message: string) => {
 // shadcn Input is a component; unwrap its root <input> for the composable's
 // element ref (focus + key-stroke target).
 const setChatInputRef = (el: unknown) => {
-  chatInputRef.value = (el as { $el?: HTMLInputElement } | null)?.$el ?? (el as HTMLInputElement | null)
+  chatInputRef.value =
+    (el as { $el?: HTMLInputElement } | null)?.$el ?? (el as HTMLInputElement | null)
 }
 
 const { isPerformingAction, handleActionConfirm, refreshAfterChat } = useChatActions({
@@ -221,20 +241,18 @@ const handleChatSendConfirm = async (payload: {
       await dwellerManagementStore.unassignDwellerFromRoom(props.dwellerId, authStore.token)
       releasedRoom = true
     }
-    toast.info(`Sending ${props.dwellerName} to wasteland...`)
     const sent = await sendWasteland.confirm(payload, async () => {
       await dwellerStore.fetchDwellerDetails(props.dwellerId, authStore.token as string, true)
     })
     if (!sent) {
       if (releasedRoom) await restoreDwellerRoom(originalRoomId)
-      toast.error('Failed to send dweller to wasteland')
       return false
     }
     dismissAction(latestActionSuggestionIndex.value)
     return true
-  } catch {
+  } catch (error) {
     if (releasedRoom) await restoreDwellerRoom(originalRoomId)
-    toast.error('Failed to send dweller to wasteland')
+    notifyErrorOnce(error, 'Failed to send dweller to wasteland')
     return false
   }
 }
@@ -347,7 +365,7 @@ const sendAudioMessage = async () => {
     refreshAfterChat()
   } catch (error: unknown) {
     const message = getErrorMessage(error, 'Unable to send audio message')
-    toast.error(`Failed to send audio: ${message}`)
+    notifyErrorOnce(error, `Failed to send audio: ${message}`)
   } finally {
     isSendingAudio.value = false
   }
@@ -437,20 +455,46 @@ onUnmounted(() => {
       />
     </div>
 
-    <div v-if="chatBudgetSummary" class="chat-budget-status flex items-center justify-between gap-3 border-t border-theme-primary/15 bg-surface-sunken px-4 py-2 text-xs text-theme-primary/70" role="status">
+    <div
+      v-if="chatBudgetSummary"
+      class="chat-budget-status flex items-center justify-between gap-3 border-t border-theme-primary/15 bg-surface-sunken px-4 py-2 text-xs text-theme-primary/70"
+      role="status"
+    >
       <span class="flex items-center gap-1.5">
         <Icon icon="mdi:robot-outline" class="h-4 w-4 text-theme-primary/70" />
         {{ chatBudgetSummary }}
       </span>
-      <RouterLink to="/profile" class="text-theme-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary">
+      <RouterLink
+        to="/profile"
+        class="text-theme-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary"
+      >
         Usage details
       </RouterLink>
     </div>
 
     <div
-      v-if="isDead"
-      class="flex flex-col gap-2 border-t border-theme-glow bg-black/80 p-4"
+      v-if="showVoiceVerificationReminder"
+      class="voice-verification-reminder flex flex-wrap items-center justify-between gap-2 border-t border-theme-primary/15 bg-surface-sunken px-4 py-2 text-xs text-theme-primary/80"
+      role="status"
     >
+      <span class="flex items-center gap-1.5">
+        <Icon icon="mdi:email-alert-outline" class="h-4 w-4 shrink-0" />
+        Voice chat uses AI credits — verify your email to keep it available.
+      </span>
+      <span v-if="resendStatus === 'sent'" class="font-bold text-theme-primary">EMAIL SENT</span>
+      <Button
+        v-else
+        variant="outline"
+        size="xs"
+        class="border-theme-primary/40 text-theme-primary hover:bg-theme-primary/10"
+        :disabled="resendStatus === 'sending'"
+        @click="resendVerification"
+      >
+        {{ resendLabel }}
+      </Button>
+    </div>
+
+    <div v-if="isDead" class="flex flex-col gap-2 border-t border-theme-glow bg-black/80 p-4">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <p class="dead-notice flex items-center gap-1.5 text-xs text-theme-primary/70">
           <Icon icon="mdi:heart-broken" class="h-4 w-4" />
@@ -606,9 +650,7 @@ onUnmounted(() => {
 
     <ExplorationDurationModal
       :show="sendWasteland.showModal.value"
-      :dweller-name="
-        `${sendWasteland.pendingDweller.value?.firstName ?? ''} ${sendWasteland.pendingDweller.value?.lastName ?? ''}`
-      "
+      :dweller-name="`${sendWasteland.pendingDweller.value?.firstName ?? ''} ${sendWasteland.pendingDweller.value?.lastName ?? ''}`"
       :max-stimpaks="chatMaxStimpaks"
       :max-radaways="chatMaxRadaways"
       :allow-radaway="chatAllowRadaway"

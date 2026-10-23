@@ -109,6 +109,9 @@ class Notification(BaseUUIDModel, NotificationBase, table=True):
         sa_relationship_kwargs={"foreign_keys": "[Notification.from_dweller_id]"}
     )
 
+    def __str__(self) -> str:
+        return f"{self.title} ({str(self.notification_type).replace('_', ' ')})"
+
 
 class NotificationCreate(NotificationBase):
     meta_data: dict[str, Any] | None = None

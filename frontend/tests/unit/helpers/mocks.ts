@@ -1,4 +1,4 @@
-import { vi, type Mock } from 'vitest'
+import { vi, type Mock } from 'vite-plus/test'
 
 /**
  * Shared factory mocks for the most-copied `vi.mock` blocks in the unit suite

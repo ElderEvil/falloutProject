@@ -229,6 +229,25 @@ async def test_generate_photo_already_has_image(mock_crud: MagicMock, mock_llm: 
 
 @patch("app.services.dweller_ai.llm_interaction_crud")
 @patch("app.services.dweller_ai.dweller_crud")
+async def test_generate_photo_allows_regeneration_of_default_portrait(
+    mock_crud: MagicMock, mock_llm: MagicMock
+) -> None:
+    """A curated default does not count as a custom photo, so generation may replace it."""
+    from app.utils.exceptions import AIStorageException
+
+    mock_crud.update = AsyncMock()
+    mock_llm.create = AsyncMock()
+
+    mock_dweller = _make_dweller_mock(image_url="/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp")
+
+    with patch.object(dweller_ai, "storage_service", None), pytest.raises(AIStorageException):
+        await dweller_ai.generate_photo(
+            user=_make_user_mock(), db_session=MagicMock(commit=AsyncMock()), dweller_info=mock_dweller
+        )
+
+
+@patch("app.services.dweller_ai.llm_interaction_crud")
+@patch("app.services.dweller_ai.dweller_crud")
 async def test_generate_photo_no_storage_service(mock_crud: MagicMock, mock_llm: MagicMock) -> None:
     """Should raise AIStorageException (503) if storage service is not available."""
     from app.utils.exceptions import AIStorageException
@@ -553,6 +572,25 @@ async def test_pipeline_dweller_already_complete(mock_crud: MagicMock) -> None:
         await dweller_ai.dweller_generate_pipeline(
             db_session=MagicMock(commit=AsyncMock()), dweller_id=mock_dweller.id, user=_make_user_mock()
         )
+
+
+@patch("app.services.dweller_ai.dweller_crud")
+async def test_pipeline_regenerates_default_portrait(mock_crud: MagicMock) -> None:
+    """A curated default must not make the dossier complete; the pipeline still generates a custom photo."""
+    mock_dweller = _make_dweller_mock(
+        bio="Full bio.",
+        image_url="/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp",
+        visual_attributes={"race": "human", "height": "tall", "hair_color": "brown"},
+    )
+    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
+
+    with patch.object(dweller_ai, "generate_photo", new=AsyncMock(return_value=mock_dweller)) as generate:
+        result = await dweller_ai.dweller_generate_pipeline(
+            db_session=MagicMock(commit=AsyncMock()), dweller_id=mock_dweller.id, user=_make_user_mock()
+        )
+
+    generate.assert_awaited_once()
+    assert result is mock_dweller
 
 
 @patch("app.services.dweller_ai.dweller_crud")

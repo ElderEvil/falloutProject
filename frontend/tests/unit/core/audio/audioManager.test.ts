@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { audioManager, parseSoundSettings } from '@/core/audio/audioManager'
 import { SOUND_MANIFEST, MUSIC_MANIFEST, AMBIENCE_MANIFEST, ROOM_AMBIENCE_MANIFEST } from '@/core/audio/soundManifest'
 import { existsSync } from 'node:fs'

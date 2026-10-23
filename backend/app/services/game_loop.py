@@ -1,11 +1,14 @@
 """Main game loop coordinator for vault simulation."""
 
+import asyncio
 import logging
 import random
 from datetime import datetime
 
 from pydantic import UUID4
+from sqlalchemy import inspect
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
@@ -40,6 +43,8 @@ from app.utils.exceptions import ResourceNotFoundException, VaultOperationExcept
 
 logger = logging.getLogger(__name__)
 
+MAX_CONCURRENT_VAULT_TICKS = 4
+
 
 class GameLoopService:
     """Main game loop coordinator."""
@@ -48,8 +53,17 @@ class GameLoopService:
         self.resource_manager = ResourceManager()
         self.logger = logging.getLogger(__name__)
 
-    async def process_game_tick(self, db_session: AsyncSession) -> GameTickResult:
+    async def process_game_tick(
+        self,
+        session_maker: async_sessionmaker[AsyncSession],
+        *,
+        max_concurrency: int = MAX_CONCURRENT_VAULT_TICKS,
+    ) -> GameTickResult:
         """Process a single game tick for all active vaults.
+
+        Each vault runs on its own session, bounded by ``max_concurrency``. An
+        expected vault failure is isolated to that vault; an unexpected error is
+        re-raised only after every vault task has settled.
 
         Returns:
             dict: Statistics about the tick processing
@@ -63,23 +77,40 @@ class GameLoopService:
 
         start_time = datetime.utcnow()
 
-        # Get all active vaults
-        active_vaults = await self._get_active_vaults(db_session)
-        # Iterate plain IDs: recovering a failed vault expires every loaded ORM
-        # instance, so touching vault attributes afterwards would lazy-load.
-        vault_ids = [vault.id for vault in active_vaults]
+        # Read plain IDs before spawning: recovering a failed vault expires every
+        # loaded ORM instance, so touching vault attributes afterwards would lazy-load.
+        async with session_maker() as db_session:
+            active_vaults = await self._get_active_vaults(db_session)
+            vault_ids = [vault.id for vault in active_vaults]
 
         self.logger.info(f"Processing game tick for {len(vault_ids)} vaults")
 
-        for vault_id in vault_ids:
-            try:
-                await self.process_vault_tick(db_session, vault_id)
+        semaphore = asyncio.Semaphore(max(1, max_concurrency))
+
+        async def _process_vault(vault_id: UUID4) -> bool:
+            async with semaphore, session_maker() as db_session:
+                try:
+                    await self.process_vault_tick(db_session, vault_id)
+                except (SQLAlchemyError, ResourceNotFoundException, VaultOperationException) as e:
+                    await recover_session(db_session)
+                    self.logger.error(f"Error processing vault {vault_id}: {e}", exc_info=True)
+                    return False
+                return True
+
+        outcomes = await asyncio.gather(*(_process_vault(vault_id) for vault_id in vault_ids), return_exceptions=True)
+        unexpected: list[tuple[UUID4, BaseException]] = []
+        for vault_id, outcome in zip(vault_ids, outcomes, strict=True):
+            if isinstance(outcome, BaseException):
+                unexpected.append((vault_id, outcome))
+            elif outcome:
                 stats["vaults_processed"] += 1
-            except (SQLAlchemyError, ResourceNotFoundException, VaultOperationException) as e:
-                await recover_session(db_session)
-                self.logger.error(f"Error processing vault {vault_id}: {e}", exc_info=True)
+            else:
                 stats["errors"] += 1
 
+        if unexpected:
+            for vault_id, exc in unexpected[1:]:
+                self.logger.error("Unexpected error processing vault %s", vault_id, exc_info=exc)
+            raise unexpected[0][1]
         stats["total_time"] = (datetime.utcnow() - start_time).total_seconds()
 
         self.logger.info(
@@ -195,8 +226,11 @@ class GameLoopService:
         radio_update = await self._process_radio(db_session, vault_id)
         results["updates"]["radio"] = radio_update
 
-        breeding_update = await self._process_breeding(db_session, vault_id)
+        breeding_update = await self._process_breeding(db_session, vault_id, seconds_passed=seconds_passed)
         results["updates"]["breeding"] = breeding_update
+        # Family-phase recovery expires this instance; later events and SSE read it.
+        if inspect(game_state, raiseerr=True).expired:
+            await db_session.refresh(game_state)
 
         # Read only: arena_tick owns combat cadence. Recover before later phases.
         try:
@@ -376,9 +410,11 @@ class GameLoopService:
         """Age children to adults if they're ready."""
         return await family_tick.age_children(db_session, vault_id)
 
-    async def _process_breeding(self, db_session: AsyncSession, vault_id: UUID4) -> BreedingStats:
+    async def _process_breeding(
+        self, db_session: AsyncSession, vault_id: UUID4, *, seconds_passed: int = 0
+    ) -> BreedingStats:
         """Process relationships and breeding for a vault."""
-        return await family_tick.process_breeding(self, db_session, vault_id)
+        return await family_tick.process_breeding(self, db_session, vault_id, seconds_passed=seconds_passed)
 
     async def process_vault_breeding(self, db_session: AsyncSession, vault_id: UUID4) -> BreedingStats:
         """Process relationships and breeding for one vault on demand.

@@ -26,6 +26,7 @@ from app.services.map_service import map_service
 from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import quota_service
 from app.services.storage import get_storage_client
+from app.utils.dweller_assets import is_default_dweller_image
 from app.utils.exceptions import (
     AIAudioException,
     AIProviderException,
@@ -393,7 +394,7 @@ class DwellerAIService:
     ) -> DwellerReadFull:
         """Generate a photo for a dweller."""
         dweller_obj = await _resolve_dweller(db_session, dweller_info, dweller_id)
-        if dweller_obj.image_url and not force:
+        if dweller_obj.image_url and not is_default_dweller_image(dweller_obj.image_url) and not force:
             raise ContentNoChangeException(detail="Dweller already has a photo")
 
         if self.storage_service is None:
@@ -646,7 +647,8 @@ class DwellerAIService:
     ) -> DwellerReadFull:
         """Generate Dweller's bio, visual attributes, and photo."""
         dweller_obj = await dweller_crud.get_full_info(db_session, dweller_id)
-        if dweller_obj.bio and dweller_obj.visual_attributes and dweller_obj.image_url:
+        needs_photo = not dweller_obj.image_url or is_default_dweller_image(dweller_obj.image_url)
+        if dweller_obj.bio and dweller_obj.visual_attributes and not needs_photo:
             raise ContentNoChangeException(detail="Dweller already has a bio, visual attributes, and photo")
 
         if not dweller_obj.bio:
@@ -657,7 +659,7 @@ class DwellerAIService:
             dweller_obj = await self.generate_visual_attributes(
                 db_session=db_session, dweller_info=dweller_obj, user=user
             )
-        if not dweller_obj.image_url:
+        if needs_photo:
             dweller_obj = await self.generate_photo(db_session=db_session, dweller_info=dweller_obj, user=user)
 
         return dweller_obj

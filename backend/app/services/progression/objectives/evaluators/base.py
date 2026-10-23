@@ -43,6 +43,21 @@ def set_current_session_maker(maker: Any) -> contextvars.Token:
     return current_session_maker.set(maker)
 
 
+def _expand_payloads(data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Split a batched ``resources`` payload into one payload per resource.
+
+    Production emits one event per vault carrying every positive resource, so
+    the evaluator credits the whole window in one handler session, with one
+    vault lock and objectives query instead of one per resource. Single-resource
+    events pass through unchanged.
+    """
+    resources = data.get("resources")
+    if not isinstance(resources, dict):
+        return [data]
+    shared = {key: value for key, value in data.items() if key != "resources"}
+    return [{**shared, "resource_type": resource_type, "amount": amount} for resource_type, amount in resources.items()]
+
+
 class ObjectiveEvaluator(abc.ABC):
     """Base class for objective evaluators.
 
@@ -65,6 +80,7 @@ class ObjectiveEvaluator(abc.ABC):
 
     async def _handle_event(self, event_type: str, vault_id: UUID4, data: dict[str, Any]) -> None:
         logger.debug(f"[DEBUG] {self.__class__.__name__} received {event_type} for vault {vault_id} with data: {data}")
+        payloads = _expand_payloads(data) if event_type == GameEvent.RESOURCE_COLLECTED else [data]
         maker = current_session_maker.get() or async_session_maker
         async with maker() as db_session:
             from app.crud.vault import vault as vault_crud
@@ -73,25 +89,28 @@ class ObjectiveEvaluator(abc.ABC):
             objectives = await self._get_active_objectives(db_session, vault_id)
             for objective, link in objectives:
                 objective_id, challenge = objective.id, objective.challenge
-                try:
-                    if self._matches(objective, event_type, data):
-                        logger.debug(f"[DEBUG] MATCH: Objective '{objective.challenge}' matches {event_type}")
-                        await self._credit_event(db_session, vault_id, objective, link, data)
-                    else:
-                        logger.debug(f"[DEBUG] NO MATCH: Objective '{objective.challenge}' does not match {event_type}")
-                except Exception:
-                    await db_session.rollback()
-                    logger.exception(
-                        "%s failed handling objective '%s' (id=%s) for vault %s on event %s",
-                        self.__class__.__name__,
-                        challenge,
-                        objective_id,
-                        vault_id,
-                        event_type,
-                    )
-                    # Rollback expires every loaded row, including the remaining objectives.
-                    # Reuse the active query to reload them before the next synchronous attribute access.
-                    await self._get_active_objectives(db_session, vault_id)
+                for payload in payloads:
+                    try:
+                        if self._matches(objective, event_type, payload):
+                            logger.debug(f"[DEBUG] MATCH: Objective '{objective.challenge}' matches {event_type}")
+                            await self._credit_event(db_session, vault_id, objective, link, payload)
+                        else:
+                            logger.debug(
+                                f"[DEBUG] NO MATCH: Objective '{objective.challenge}' does not match {event_type}"
+                            )
+                    except Exception:
+                        await db_session.rollback()
+                        logger.exception(
+                            "%s failed handling objective '%s' (id=%s) for vault %s on event %s",
+                            self.__class__.__name__,
+                            challenge,
+                            objective_id,
+                            vault_id,
+                            event_type,
+                        )
+                        # Rollback expires every loaded row, including the remaining objectives.
+                        # Reuse the active query to reload them before the next synchronous attribute access.
+                        await self._get_active_objectives(db_session, vault_id)
 
     async def _get_active_objectives(
         self, db_session: AsyncSession, vault_id: UUID4
@@ -127,7 +146,12 @@ class ObjectiveEvaluator(abc.ABC):
 
         await vault_crud.lock_for_update(db_session, vault_id)
         locked_link = await objective_crud.get_link_for_update(db_session, objective.id, vault_id)
-        if locked_link is None or locked_link.is_completed or locked_link.progress >= locked_link.total:
+        if (
+            locked_link is None
+            or locked_link.is_completed
+            or locked_link.is_locked
+            or locked_link.progress >= locked_link.total
+        ):
             return
         link = locked_link
         amount = self._extract_amount(data)

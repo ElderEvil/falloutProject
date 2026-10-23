@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 const apiGet = vi.fn()
 const handleStoreError = vi.fn()
@@ -7,7 +7,10 @@ vi.mock('@/core/utils/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/core/utils/api')>()
   return { ...actual, apiGet: (...args: unknown[]) => apiGet(...args) }
 })
-vi.mock('@/core/utils/errorHandler', () => ({ handleStoreError }))
+vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/utils/errorHandler')>()),
+  handleStoreError,
+}))
 
 async function importComposable() {
   vi.resetModules()

@@ -14,6 +14,7 @@ from app.schemas.arena import (
     ArenaFightersRequest,
     ArenaFightersResponse,
     ArenaFightStarted,
+    ArenaFightStopped,
     ArenaSkillQueued,
     ArenaSkillRequest,
     ArenaState,
@@ -104,6 +105,19 @@ async def start_arena_fight(
 
     arena_tick.send()
     return ArenaFightStarted(room_id=str(room.id), started=True)
+
+
+@router.post("/vault/{vault_id}/rooms/{room_id}/stop", response_model=ArenaFightStopped)
+async def stop_arena_fight(
+    vault_id: UUID4,
+    room_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> ArenaFightStopped:
+    """Cancel an active arena match; fighters keep their current health."""
+    await get_user_vault_or_403(vault_id, user, db_session)
+    room = await arena_service.stop_fight(db_session, room_id, vault_id)
+    return ArenaFightStopped(room_id=str(room.id), stopped=True)
 
 
 @router.post("/vault/{vault_id}/rooms/{room_id}/skill", response_model=ArenaSkillQueued)

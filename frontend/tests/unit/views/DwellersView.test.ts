@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { ref } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
@@ -10,6 +10,7 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import axios from '@/core/plugins/axios'
+import type { Room } from '@/modules/rooms/models/room'
 
 vi.mock('@/core/plugins/axios')
 
@@ -96,6 +97,41 @@ describe('DwellersView', () => {
 
     vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.clearAllMocks()
+  })
+
+  it('restores a room deep link after loading and clears it when the room closes', async () => {
+    vi.mocked(axios.get).mockResolvedValue({ data: [] })
+    await router.push('/vault/vault-1/dwellers?roomId=room-1&dweller=dweller-1')
+    const wrapper = mount(DwellersView, {
+      global: {
+        plugins: [router, pinia],
+        stubs: {
+          RoomDetailModal: {
+            name: 'RoomDetailModal',
+            props: ['room'],
+            emits: ['close'],
+            template: `<button @click="$emit('close')">Close room</button>`,
+          },
+        },
+      },
+    })
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'RoomDetailModal' }).exists()).toBe(false)
+    const room = { id: 'room-1', name: 'Power Generator', category: 'production' } as Room
+    useRoomStore().rooms = [room]
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'RoomDetailModal' }).exists()).toBe(false)
+    await router.replace({ query: { roomId: 'room-1' } })
+    await flushPromises()
+    const modal = wrapper.findComponent({ name: 'RoomDetailModal' })
+    expect(modal.props('room').id).toBe('room-1')
+    await modal.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.roomId).toBeUndefined()
+    useRoomStore().rooms = [{ ...room }]
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'RoomDetailModal' }).exists()).toBe(false)
+    wrapper.unmount()
   })
 
   describe('Initialization', () => {

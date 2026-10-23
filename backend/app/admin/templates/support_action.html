@@ -1,0 +1,31 @@
+{% extends "sqladmin/layout.html" %}
+{% block content %}
+<div class="col-12 col-lg-8">
+  <div class="card">
+    <div class="card-header"><h3 class="card-title">{{ title }}</h3></div>
+    <div class="card-body">
+      {% if error %}
+      <div class="alert alert-danger" role="alert">{{ error }}</div>
+      {% else %}
+      <p>Apply this action to the selected {{ model_view.name | lower }}?</p>
+      <p class="fw-semibold">{{ target }}</p>
+      <p class="text-muted text-break">Record: {{ record_id }}</p>
+      {% if operation == 'cancel-training' %}<p>This round ends without a stat gain. The dweller leaves training.</p>{% endif %}
+      {% if operation == 'recall' %}<p>The explorer starts travelling home. Rewards wait until arrival.</p>{% endif %}
+      {% if operation == 'pause' %}<p>The vault's simulation pauses until it is resumed.</p>{% endif %}
+      {% if operation == 'promote-superuser' %}<p>Grants full access to the admin panel and superuser API actions. Provider-only users must add a password to use the admin login.</p>{% endif %}
+      {% if operation == 'soft-delete' %}<p>Blocks sign-in and pauses the user's vaults. Account and game data are retained.</p>{% endif %}
+      {% if operation == 'verify-email' %}<p>Only confirm after checking that this user owns the address.</p>{% endif %}
+      <form method="post" action="{{ url_for('admin:view-' ~ model_view.identity ~ '-support') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="operation" value="{{ operation }}">
+        <input type="hidden" name="pks" value="{{ record_id }}">
+        <button class="btn btn-{{ 'danger' if operation == 'soft-delete' else 'primary' }}" type="submit">{{ title }}</button>
+        <a class="btn" href="{{ url_for('admin:list', identity=model_view.identity) }}">Cancel</a>
+      </form>
+      {% endif %}
+      {% if error %}<a class="btn" href="{{ url_for('admin:list', identity=model_view.identity) }}">Back to list</a>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

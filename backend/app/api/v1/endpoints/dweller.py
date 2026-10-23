@@ -8,7 +8,14 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_dweller_access
+from app.api.deps import (
+    CurrentActiveUser,
+    CurrentSuperuser,
+    CurrentVerifiedUser,
+    PaginationParams,
+    get_user_vault_or_403,
+    verify_dweller_access,
+)
 from app.core.enums import (
     AgeGroupEnum,
     DwellerRosterFocus,
@@ -45,6 +52,7 @@ from app.schemas.dweller import (
 from app.schemas.exit_request import ExitDecisionResponse, ExitRequestRead
 from app.schemas.happiness import HappinessModifiersResponse
 from app.services import medical_service
+from app.services.barbershop_service import barbershop_service
 from app.services.bio_service import bio_service
 from app.services.dweller_ai import dweller_ai
 from app.services.dweller_service import dweller_service
@@ -77,15 +85,14 @@ async def read_dweller_list(
     # vault_id: UUID4,
     _: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> Sequence[Dweller]:
     """Retrieve a paginated list of dwellers.
 
     Returns:
         list[DwellerReadLess]: List of dwellers.
     """
-    return await crud.dweller.get_multi(db_session=db_session, skip=skip, limit=limit)
+    return await crud.dweller.get_multi(db_session=db_session, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.get("/identity-options", response_model=DwellerIdentityOptions)
@@ -155,6 +162,11 @@ async def update_dweller(
         DwellerRead: The updated dweller.
     """
     await verify_dweller_access(dweller_id, user, db_session)
+    await barbershop_service.ensure_can_edit_appearance(
+        db_session,
+        dweller_id,
+        dweller_data.model_dump(exclude_unset=True),
+    )
     return await dweller_service.update_dweller(db_session=db_session, dweller_id=dweller_id, dweller_data=dweller_data)
 
 
@@ -199,8 +211,7 @@ async def read_dwellers_by_vault(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
     status: DwellerStatusEnum | None = None,
     focus: DwellerRosterFocus | None = None,
     age_group: AgeGroupEnum | None = None,
@@ -221,8 +232,8 @@ async def read_dwellers_by_vault(
     return await dweller_service.list_vault_dwellers(
         db_session=db_session,
         vault_id=vault_id,
-        skip=skip,
-        limit=limit,
+        skip=pagination.skip,
+        limit=pagination.limit,
         status=status,
         focus=focus,
         age_group=age_group,
@@ -274,7 +285,7 @@ async def create_random_common_dweller(
 @router.post("/{dweller_id}/generate_backstory/", response_model=DwellerReadFull)
 async def generate_backstory(
     dweller_id: UUID4,
-    user: CurrentActiveUser,
+    user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerReadFull:
     """Generate a backstory for a dweller using AI.
@@ -288,7 +299,7 @@ async def generate_backstory(
 @router.post("/{dweller_id}/extend_bio/", response_model=DwellerReadFull)
 async def extend_bio(
     dweller_id: UUID4,
-    user: CurrentActiveUser,
+    user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerReadFull:
     """Append new AI-generated detail to a dweller's existing biography."""
@@ -311,7 +322,7 @@ async def add_bio_addendum(
 @router.post("/{dweller_id}/generate_visual_attributes/", response_model=DwellerReadFull)
 async def generate_visual_attributes(
     dweller_id: UUID4,
-    user: CurrentActiveUser,
+    user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerReadFull:
     """Generate visual attributes for a dweller using AI.
@@ -319,13 +330,15 @@ async def generate_visual_attributes(
     Returns:
         DwellerReadFull: The dweller with generated visual attributes.
     """
+    await verify_dweller_access(dweller_id, user, db_session)
+    await barbershop_service.require_available_for_dweller(db_session, dweller_id)
     return await dweller_ai.generate_visual_attributes(db_session=db_session, dweller_id=dweller_id, user=user)
 
 
 @router.post("/{dweller_id}/generate_photo/", response_model=DwellerReadFull)
 async def generate_photo(
     dweller_id: UUID4,
-    user: CurrentActiveUser,
+    user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     force: Annotated[bool, Query(description="Regenerate even if a photo already exists")] = False,
 ) -> DwellerReadFull:
@@ -334,6 +347,8 @@ async def generate_photo(
     Returns:
         DwellerReadFull: The dweller with generated photo.
     """
+    await verify_dweller_access(dweller_id, user, db_session)
+    await barbershop_service.require_available_for_dweller(db_session, dweller_id)
     return await dweller_ai.generate_photo(db_session=db_session, dweller_id=dweller_id, user=user, force=force)
 
 
@@ -341,7 +356,7 @@ async def generate_photo(
 async def generate_audio(
     dweller_id: UUID4,
     text: str,
-    user: CurrentActiveUser,
+    user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerReadFull:
     """Generate audio for a dweller using AI.
@@ -355,7 +370,7 @@ async def generate_audio(
 @router.post("/{dweller_id}/generate_with_ai/", response_model=DwellerReadFull)
 async def generate_data_with_ai(
     dweller_id: UUID4,
-    user: CurrentActiveUser,
+    user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     origin: str | None = None,
 ) -> DwellerReadFull:
@@ -364,6 +379,8 @@ async def generate_data_with_ai(
     Returns:
         DwellerReadFull: The dweller with all AI-generated data.
     """
+    await verify_dweller_access(dweller_id, user, db_session)
+    await barbershop_service.require_available_for_dweller(db_session, dweller_id)
     return await dweller_ai.dweller_generate_pipeline(
         db_session=db_session, dweller_id=dweller_id, origin=origin, user=user
     )
@@ -376,13 +393,15 @@ async def generate_dweller_avatar(
     dweller_last_name: str,
     visual_attributes_input: DwellerVisualAttributes,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    current_user: CurrentActiveUser,
+    current_user: CurrentVerifiedUser,
 ) -> DwellerReadFull:
     """Generate an avatar for a dweller using AI.
 
     Returns:
         DwellerReadFull: The dweller with generated avatar.
     """
+    await verify_dweller_access(dweller_id, current_user, db_session)
+    await barbershop_service.require_available_for_dweller(db_session, dweller_id)
     return await dweller_ai.generate_dweller_avatar(
         db_session=db_session,
         dweller_id=dweller_id,
@@ -484,8 +503,7 @@ async def get_dead_dwellers(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> list[DwellerDeadRead]:
     """Get all dead dwellers (revivable) for a vault.
 
@@ -494,7 +512,7 @@ async def get_dead_dwellers(
     """
     await get_user_vault_or_403(vault_id, user, db_session)
     dwellers = await crud.dweller.get_dead_dwellers(
-        db_session, vault_id, include_permanent=False, skip=skip, limit=limit
+        db_session, vault_id, include_permanent=False, skip=pagination.skip, limit=pagination.limit
     )
 
     # Enrich with days_until_permanent
@@ -512,8 +530,7 @@ async def get_graveyard(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> list[DwellerDeadRead]:
     """Get permanently dead dwellers (graveyard) for a vault.
 
@@ -521,7 +538,7 @@ async def get_graveyard(
         list[DwellerDeadRead]: List of permanently dead dwellers.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    dwellers = await crud.dweller.get_graveyard(db_session, vault_id, skip=skip, limit=limit)
+    dwellers = await crud.dweller.get_graveyard(db_session, vault_id, skip=pagination.skip, limit=pagination.limit)
     return [DwellerDeadRead.model_validate(dweller) for dweller in dwellers]
 
 
@@ -600,8 +617,7 @@ async def read_deleted_dwellers_by_vault(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> Sequence[Dweller]:
     """Get soft-deleted dwellers for a specific vault.
 
@@ -609,7 +625,9 @@ async def read_deleted_dwellers_by_vault(
         list[DwellerReadLess]: List of soft-deleted dwellers.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.dweller.get_deleted_by_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)
+    return await crud.dweller.get_deleted_by_vault(
+        db_session=db_session, vault_id=vault_id, skip=pagination.skip, limit=pagination.limit
+    )
 
 
 # ============================================================================

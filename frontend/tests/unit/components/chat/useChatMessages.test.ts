@@ -1,11 +1,14 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vite-plus/test'
 import { createAxiosMock } from '../../helpers/mocks'
 import { ref } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 
 const post = vi.hoisted(() => vi.fn())
 vi.mock('@/core/plugins/axios', () => createAxiosMock({ post }))
-vi.mock('@/core/utils/errorHandler', () => ({ handleStoreError: () => 'error' }))
+vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/utils/errorHandler')>()),
+  handleStoreError: () => 'error',
+}))
 
 import { useChatMessages } from '@/modules/chat/composables/useChatMessages'
 
@@ -38,7 +41,11 @@ describe('useChatMessages debug payload', () => {
     setActivePinia(createPinia())
     post.mockReset()
     post.mockResolvedValue({
-      data: { response: 'hi', dweller_message_id: 'm1', debug: { model: 'gpt-5.4-mini', total_tokens: 42 } },
+      data: {
+        response: 'hi',
+        dweller_message_id: 'm1',
+        debug: { model: 'gpt-5.4-mini', total_tokens: 42 },
+      },
     })
   })
 
@@ -80,7 +87,11 @@ describe('useChatMessages debug payload', () => {
       },
     }
 
-    const { userMessage, sendMessage: send, lastChatDebug } = useChatMessages({
+    const {
+      userMessage,
+      sendMessage: send,
+      lastChatDebug,
+    } = useChatMessages({
       dwellerId: 'dweller-1',
       token: 'tok',
       debugEnabled: ref(true),

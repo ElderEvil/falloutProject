@@ -10,7 +10,7 @@ import type {
   IncidentOutcome,
   IncidentTeamMember,
 } from '../models/incident'
-import { handleStoreError } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { audioManager } from '@/core/audio/audioManager'
 import { useSse } from '@/core/composables/useEventStream'
@@ -143,9 +143,10 @@ export const useIncidentStore = defineStore('incident', () => {
       applyOverflow(incidentId, response.unclaimed_loot)
       showSuccess('Held loot stored.')
     } catch (error) {
-      handleStoreError(error, 'Failed to store held incident loot')
+      handleStoreError(error, 'Failed to store held incident loot', false)
       const status = (error as { response?: { status?: number } } | null)?.response?.status
-      showError(
+      notifyErrorOnce(
+        error,
         status === 409
           ? 'Storage is full — sell the item or free a slot.'
           : 'Could not store the held item.'
@@ -165,19 +166,21 @@ export const useIncidentStore = defineStore('incident', () => {
       showSuccess(`Sold for ${response.caps_granted} caps.`)
     } catch (error) {
       handleStoreError(error, 'Failed to sell held incident loot')
-      showError('Could not sell the held item.')
     }
   }
 
   // Actions
-  async function fetchIncidents(vaultId: string, token: string): Promise<void> {
+  async function fetchIncidents(
+    vaultId: string,
+    token: string,
+    propagateError = false
+  ): Promise<void> {
     try {
       const response: IncidentListResponse = await incidentApi.getActiveIncidents(vaultId, token)
 
       if (!response || !response.incidents || !Array.isArray(response.incidents)) {
         // An unconfirmed list is not a confirmed empty vault; fail closed.
-        handleStoreError(new Error('Malformed incident list response'), 'Failed to fetch incidents')
-        return
+        throw new Error('Malformed incident list response')
       }
 
       // Update active incidents list
@@ -241,6 +244,7 @@ export const useIncidentStore = defineStore('incident', () => {
       )
     } catch (error) {
       // Fail closed: a transient failure must not make a live incident vanish.
+      if (propagateError) throw error
       handleStoreError(error, 'Failed to fetch incidents')
     }
   }
@@ -296,19 +300,18 @@ export const useIncidentStore = defineStore('incident', () => {
       }
     } catch (err) {
       handleStoreError(err, 'Failed to assign incident responders')
-      showError('Responder assignment failed')
       throw err
     }
   }
 
   function startIncidentPolling(vaultId: string, token: string, intervalMs: number): void {
-    incidentPolling?.pause()
+    incidentPolling?.stop()
     incidentPolling = usePolling(
       async () => {
         // The stream carries spawn, spread and resolution only — never a round — so
         // an active overlay still needs this refresh to advance its battle log.
         if (!sseConnected.value || activeIncidentIds.value.length > 0) {
-          await fetchIncidents(vaultId, token)
+          await fetchIncidents(vaultId, token, true)
         }
       },
       { interval: intervalMs, immediate: false }
@@ -444,7 +447,7 @@ export const useIncidentStore = defineStore('incident', () => {
 
   function stopPolling(): void {
     stopSseSubscription()
-    incidentPolling?.pause()
+    incidentPolling?.stop()
     incidentPolling = null
     isPolling.value = false
     // Clearing the active set unwinds the alarm and music through the watcher.
@@ -483,13 +486,6 @@ export const useIncidentStore = defineStore('incident', () => {
     } catch (err: unknown) {
       handleStoreError(err, 'Failed to spawn incident')
 
-      let errorMessage = 'Failed to spawn incident'
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosError = err as { response?: { data?: { detail?: string } } }
-        errorMessage = axiosError.response?.data?.detail || errorMessage
-      }
-
-      showError(`Spawn Failed: ${errorMessage}`)
       throw err
     }
   }

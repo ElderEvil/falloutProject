@@ -1,6 +1,6 @@
 import sys
 from collections.abc import AsyncGenerator
-from contextlib import suppress
+from contextlib import asynccontextmanager, suppress
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -134,6 +134,17 @@ async def async_session(db_connection: AsyncConnection) -> AsyncSession:  # type
         await db_connection.rollback()
 
 
+@pytest_asyncio.fixture
+async def session_factory(async_session: AsyncSession):
+    """Session maker yielding the shared test session for APIs that open their own."""
+
+    @asynccontextmanager
+    async def _factory():
+        yield async_session
+
+    return _factory
+
+
 @pytest_asyncio.fixture(name="superuser")
 async def _superuser(async_session: AsyncSession):
     # Check if superuser already exists to avoid integrity errors on repeated fixture usage
@@ -142,6 +153,9 @@ async def _superuser(async_session: AsyncSession):
         db_session=async_session,
     )
     if existing_user is not None:
+        if not existing_user.email_verified:
+            existing_user.email_verified = True
+            await async_session.commit()
         return existing_user
 
     user_in = UserCreate(
@@ -150,7 +164,11 @@ async def _superuser(async_session: AsyncSession):
         password=settings.FIRST_SUPERUSER_PASSWORD,
         is_superuser=True,
     )
-    return await crud.user.create(db_session=async_session, obj_in=user_in)
+    user = await crud.user.create(db_session=async_session, obj_in=user_in)
+    user.email_verified = True
+    await async_session.commit()
+    await async_session.refresh(user)
+    return user
 
 
 @pytest_asyncio.fixture

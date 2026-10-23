@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vite-plus/test'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { ref, nextTick } from 'vue'
@@ -136,7 +136,7 @@ describe('DwellerEquipment', () => {
       }
       await flushPromises()
       expect(ctx.actions.refresh).toHaveBeenCalledTimes(3)
-      expect(petsStoreMock.unequipPet).toHaveBeenCalledWith('dweller-1', 'pet-1', 'test-token')
+      expect(petsStoreMock.unequipPet).toHaveBeenCalledWith('pet-1')
       dweller.value = makeDweller({ age_group })
       await nextTick()
       expect(
@@ -369,7 +369,7 @@ describe('DwellerEquipment', () => {
     await wrapper.find('.pet-slot').trigger('click')
     await flushPromises()
 
-    expect(petsStoreMock.equipPet).toHaveBeenCalledWith('dweller-1', 'pet-9', 'test-token')
+    expect(petsStoreMock.equipPet).toHaveBeenCalledWith('dweller-1', 'pet-9')
     expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
   })
 
@@ -399,7 +399,7 @@ describe('DwellerEquipment', () => {
     await wrapper.find('.pet-slot').trigger('click')
     await flushPromises()
 
-    expect(petsStoreMock.equipPet).toHaveBeenCalledWith('dweller-1', 'pet-9', 'test-token')
+    expect(petsStoreMock.equipPet).toHaveBeenCalledWith('dweller-1', 'pet-9')
     expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(true)
   })
 
@@ -461,6 +461,6 @@ describe('DwellerEquipment', () => {
     await wrapper.find('.pet-slot').trigger('click')
     await flushPromises()
 
-    expect(petsStoreMock.unequipPet).toHaveBeenCalledWith('dweller-1', 'pet-1', 'test-token')
+    expect(petsStoreMock.unequipPet).toHaveBeenCalledWith('pet-1')
   })
 })

@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Icon } from '@iconify/vue'
 import { useDwellerStore } from '../stores/dweller'
 import type { DwellerShort } from '../models/dweller'
-import { getDwellerDisplayName } from '../models/dweller'
+import {
+  getAbilityConfig,
+  getDwellerDisplayName,
+  isApprentice,
+  orderRoomDwellers,
+} from '../models/dweller'
 import DwellerPortrait from './DwellerPortrait.vue'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/core/components/ui/tooltip'
 
@@ -19,9 +25,12 @@ const emit = defineEmits<{
 }>()
 
 // Get dwellers assigned to this room
-const roomDwellers = computed(() => {
-  return dwellerStore.dwellers.filter((dweller) => dweller.room_id === props.roomId)
-})
+const roomDwellers = computed(() =>
+  orderRoomDwellers(dwellerStore.dwellers.filter((dweller) => dweller.room_id === props.roomId))
+)
+
+const apprenticeLabel = (dweller: DwellerShort): string =>
+  getAbilityConfig(dweller.apprentice_stat)?.label ?? dweller.apprentice_stat ?? ''
 
 const handleDragStart = (event: DragEvent, dweller: DwellerShort) => {
   if (event.dataTransfer) {
@@ -50,11 +59,14 @@ const handleDragEnd = () => {
       <TooltipTrigger as-child>
         <div
           class="dweller-avatar"
+          :class="{ 'dweller-avatar--apprentice': isApprentice(dweller) }"
           draggable="true"
           tabindex="0"
           @dragstart="handleDragStart($event, dweller)"
           @dragend="handleDragEnd"
-          :aria-label="`${getDwellerDisplayName(dweller)} (Lv${dweller.level})`"
+          :aria-label="`${getDwellerDisplayName(dweller)} (Lv${dweller.level})${
+            isApprentice(dweller) ? `, apprentice in ${apprenticeLabel(dweller)}` : ''
+          }`"
         >
           <DwellerPortrait
             :thumbnail-url="dweller.thumbnail_url"
@@ -63,9 +75,17 @@ const handleDragEnd = () => {
             fallback-class="h-10 w-10 icon-primary"
           />
           <div class="dweller-level">{{ dweller.level }}</div>
+          <span v-if="isApprentice(dweller)" class="apprentice-badge" aria-hidden="true">
+            <Icon icon="mdi:school-outline" />
+          </span>
         </div>
       </TooltipTrigger>
-      <TooltipContent>{{ getDwellerDisplayName(dweller) }} (Lv{{ dweller.level }})</TooltipContent>
+      <TooltipContent>
+        {{ getDwellerDisplayName(dweller) }} (Lv{{ dweller.level }})
+        <template v-if="isApprentice(dweller)">
+          · Apprentice {{ apprenticeLabel(dweller) }}
+        </template>
+      </TooltipContent>
     </Tooltip>
   </div>
 </template>
@@ -96,10 +116,42 @@ const handleDragEnd = () => {
   overflow: hidden;
 }
 
+.dweller-avatar--apprentice {
+  border-color: var(--badge-age-teen);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--badge-age-teen) 70%, transparent),
+    0 0 8px color-mix(in srgb, var(--badge-age-teen) 35%, transparent);
+}
+
+.apprentice-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px;
+  border-bottom-left-radius: 3px;
+  background: var(--badge-age-teen);
+  color: var(--color-surface-sunken);
+  line-height: 0;
+}
+
+.apprentice-badge :deep(svg) {
+  width: 0.6rem;
+  height: 0.6rem;
+}
+
 .dweller-avatar:hover {
   transform: scale(1.1);
   border-color: var(--color-theme-primary);
   box-shadow: 0 0 8px var(--color-theme-glow);
+}
+
+.dweller-avatar--apprentice:hover {
+  border-color: var(--badge-age-teen);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--badge-age-teen) 55%, transparent);
 }
 
 .dweller-avatar:active {

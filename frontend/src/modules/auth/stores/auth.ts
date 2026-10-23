@@ -1,10 +1,12 @@
-import { computed } from 'vue'
+import { computed, onScopeDispose } from 'vue'
 import { useStorageStore } from '@/modules/storage/stores/storage'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import { handleStoreError } from '@/core/utils/errorHandler'
+import { useToast } from '@/core/composables/useToast'
 import {
   AUTH_TOKENS_REFRESHED_EVENT,
+  AUTH_SESSION_EXPIRED_EVENT,
   type RefreshedAuthTokens,
 } from '@/core/utils/authSessionEvents'
 import { authService } from '../services/authService'
@@ -13,9 +15,11 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 
 export const useAuthStore = defineStore('auth', () => {
+  const toast = useToast()
+
   // State (using VueUse for reactive localStorage)
-  const token = useLocalStorage<string | null>('token', null)
-  const refreshToken = useLocalStorage<string | null>('refreshToken', null)
+  const token = useLocalStorage<string | null>('token', null, { flush: 'sync' })
+  const refreshToken = useLocalStorage<string | null>('refreshToken', null, { flush: 'sync' })
   const user = useLocalStorage<User | null>('user', null, {
     serializer: {
       read: (v: string) => {
@@ -30,12 +34,24 @@ export const useAuthStore = defineStore('auth', () => {
   })
 
   if (typeof window !== 'undefined') {
-    window.addEventListener(AUTH_TOKENS_REFRESHED_EVENT, (event) => {
+    const onExpired = () => {
+      clearSession()
+      token.value = null
+      refreshToken.value = null
+      user.value = null
+    }
+    const onRefreshed = (event: Event) => {
       const { token: refreshedToken, refreshToken: refreshedRefreshToken } = (
         event as CustomEvent<RefreshedAuthTokens>
       ).detail
       token.value = refreshedToken
       if (refreshedRefreshToken) refreshToken.value = refreshedRefreshToken
+    }
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, onExpired)
+    window.addEventListener(AUTH_TOKENS_REFRESHED_EVENT, onRefreshed)
+    onScopeDispose(() => {
+      window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, onExpired)
+      window.removeEventListener(AUTH_TOKENS_REFRESHED_EVENT, onRefreshed)
     })
   }
 
@@ -101,6 +117,26 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function loginWithTokens(tokens: {
+    access_token: string
+    refresh_token: string
+  }): Promise<boolean> {
+    clearSession()
+    user.value = null
+    token.value = tokens.access_token
+    refreshToken.value = tokens.refresh_token
+
+    if (!token.value || !refreshToken.value) return false
+
+    await fetchUser()
+    if (!user.value) {
+      token.value = null
+      refreshToken.value = null
+      return false
+    }
+    return true
+  }
+
   async function fetchUser(): Promise<void> {
     if (!token.value) return
 
@@ -118,27 +154,60 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function refreshAccessToken(): Promise<void> {
     if (!refreshToken.value) return
+    await authService.refreshToken()
+  }
+
+  async function updateAccount(payload: {
+    username?: string | null
+    email?: string | null
+  }): Promise<boolean> {
+    const requestedEmail = payload.email ?? null
+    const previousEmail = user.value?.email ?? null
+    const emailChanging =
+      requestedEmail !== null &&
+      requestedEmail.toLowerCase() !== (previousEmail ?? '').toLowerCase()
+
+    const body: { username?: string; email?: string } = {}
+    if (payload.username) body.username = payload.username
+    if (requestedEmail) body.email = requestedEmail
 
     try {
-      const response = await authService.refreshToken(refreshToken.value)
-      token.value = response.data.access_token
-      // Backend rotates refresh tokens, so update it
-      if (response.data.refresh_token) {
-        refreshToken.value = response.data.refresh_token
-      }
+      const response = await authService.updateAccount(body)
+      user.value = response.data
+      if (emailChanging) toast.success(`Verification link sent to ${requestedEmail}`)
+      return true
     } catch (error) {
-      handleStoreError(error, 'Failed to refresh token')
-      await logout()
+      const status = (error as { status?: number | null }).status
+      if (status === 502 && requestedEmail) {
+        await fetchUser()
+        if (user.value?.email?.toLowerCase() === requestedEmail.toLowerCase()) {
+          toast.warning('Email updated; verification email could not be sent.')
+          return true
+        }
+      }
+      handleStoreError(error, 'Failed to update account')
+      return false
     }
   }
 
-  async function updateUsername(username: string): Promise<boolean> {
+  async function verifyEmail(verificationToken: string): Promise<boolean> {
     try {
-      const response = await authService.updateUsername(username)
-      user.value = response.data
+      await authService.verifyEmail(verificationToken)
+      if (token.value) await fetchUser()
+      toast.success('Email verified')
       return true
     } catch (error) {
-      handleStoreError(error, 'Failed to update username')
+      handleStoreError(error, 'Email verification failed')
+      return false
+    }
+  }
+
+  async function resendVerificationEmail(): Promise<boolean> {
+    try {
+      await authService.resendVerificationEmail()
+      return true
+    } catch (error) {
+      handleStoreError(error, 'Failed to resend verification email')
       return false
     }
   }
@@ -176,9 +245,12 @@ export const useAuthStore = defineStore('auth', () => {
     // Actions
     login,
     register,
+    loginWithTokens,
     fetchUser,
     refreshAccessToken,
-    updateUsername,
+    updateAccount,
+    verifyEmail,
+    resendVerificationEmail,
     logout,
   }
 })

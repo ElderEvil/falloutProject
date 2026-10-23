@@ -45,6 +45,7 @@ vi.mock('@/core/audio/audioManager', () => ({
 
 describe('Incident Store', () => {
   beforeEach(() => {
+    localStorage.setItem('token', 'test-token')
     setActivePinia(createPinia())
     vi.clearAllMocks()
     vi.useFakeTimers()
@@ -59,6 +60,12 @@ describe('Incident Store', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it('reports a held-item sale failure once', async () => {
+    vi.mocked(incidentApi.sellOverflow).mockRejectedValueOnce(new Error('Sale unavailable'))
+    await useIncidentStore().sellOverflow('vault-1', 'incident-1', 0, 'token')
+    expect(sseMock.toast.error).toHaveBeenCalledTimes(1)
   })
 
   const mockIncident: Incident = {
@@ -488,6 +495,16 @@ describe('Incident Store', () => {
 
       expect(store.totalResponderCount).toBe(0)
     })
+  })
+
+  it('rejects malformed lists for the scheduler without clearing active incidents', async () => {
+    const store = useIncidentStore()
+    store.activeIncidentIds = ['existing-incident']
+    vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue({} as never)
+    await expect(store.fetchIncidents('vault-1', 'token', true)).rejects.toThrow(
+      'Malformed incident list response'
+    )
+    expect(store.activeIncidentIds).toEqual(['existing-incident'])
   })
 
   describe('Polling', () => {
@@ -1354,6 +1371,7 @@ describe('Incident Store', () => {
 
       vi.mocked(incidentApi.takeOverflow).mockRejectedValueOnce({ response: { status: 409 } })
       await store.takeOverflow('vault-1', 'incident-1', 0, 'token')
+      expect(sseMock.toast.error).toHaveBeenCalledTimes(1)
       expect(sseMock.toast.error).toHaveBeenCalledWith(
         'Storage is full — sell the item or free a slot.'
       )
@@ -1361,6 +1379,7 @@ describe('Incident Store', () => {
       sseMock.toast.error.mockClear()
       vi.mocked(incidentApi.takeOverflow).mockRejectedValueOnce({ response: { status: 500 } })
       await store.takeOverflow('vault-1', 'incident-1', 0, 'token')
+      expect(sseMock.toast.error).toHaveBeenCalledTimes(1)
       expect(sseMock.toast.error).toHaveBeenCalledWith('Could not store the held item.')
       expect(sseMock.toast.error).not.toHaveBeenCalledWith(
         'Storage is full — sell the item or free a slot.'

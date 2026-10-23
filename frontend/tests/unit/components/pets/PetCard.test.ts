@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import PetCard from '@/modules/pets/components/PetCard.vue'
 import type { Pet } from '@/modules/pets/models/pet'

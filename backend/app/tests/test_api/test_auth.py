@@ -10,14 +10,16 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
+import jwt
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core import security
 from app.core.config import settings
+from app.models.user import User
 from app.schemas.user import UserCreate
 from app.tests.factory.users import create_fake_user
 
@@ -105,6 +107,28 @@ async def test_verify_email_with_invalid_token(async_client: AsyncClient):
 
     assert response.status_code == 400
     assert "Invalid or expired token" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_expired_verification_token_rejected(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+):
+    """An expired verification JWT is rejected even when it was legitimately signed."""
+    user = await crud.user.create(db_session=async_session, obj_in=UserCreate(**create_fake_user()))
+    expired_token = jwt.encode(
+        {
+            "exp": datetime.now(tz=UTC) - timedelta(days=1),
+            "sub": str(user.id),
+            "type": "email_verification",
+        },
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
+    )
+
+    response = await async_client.post("auth/verify-email", json={"token": expired_token})
+
+    assert response.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -441,4 +465,94 @@ async def test_full_change_password_flow(
         assert "access_token" in new_login_response.json()
     finally:
         # Cleanup
+        app.dependency_overrides.pop(get_redis_client, None)
+
+
+@pytest.mark.parametrize("payload", [{"sub": str(uuid4()), "exp": 1}, {"sub": "not-a-uuid"}, {}])
+async def test_invalid_access_credentials_request_reauthentication(async_client: AsyncClient, payload: dict):
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    response = await async_client.get("users/me", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"
+    assert response.json()["detail"] == "Could not validate credentials"
+
+
+@pytest.mark.asyncio
+async def test_change_password_on_passwordless_account_returns_actionable_400(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    mock_redis_client,
+):
+    from app.api.deps import get_redis_client
+    from main import app
+
+    data = create_fake_user()
+    async_session.add(User(username=data["username"], email=data["email"], hashed_password=None))
+    await async_session.commit()
+    user = await crud.user.get_by_email(async_session, email=data["email"])
+    assert user is not None
+    headers = {"Authorization": f"Bearer {security.create_access_token(user.id)}"}
+
+    app.dependency_overrides[get_redis_client] = mock_redis_client
+    try:
+        response = await async_client.put(
+            "auth/change-password",
+            headers=headers,
+            json={"current_password": "anything", "new_password": "NewPassword123!"},
+        )
+
+        assert response.status_code == 400
+        assert "No password set for this account" in response.json()["detail"]
+    finally:
+        app.dependency_overrides.pop(get_redis_client, None)
+
+
+@pytest.mark.asyncio
+async def test_passwordless_account_can_recover_through_password_reset(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    mock_email_send,
+    mock_redis_client,
+):
+    from app.api.deps import get_redis_client
+    from main import app
+
+    data = create_fake_user()
+    async_session.add(User(username=data["username"], email=data["email"], hashed_password=None))
+    await async_session.commit()
+    user = await crud.user.get_by_email(async_session, email=data["email"])
+    assert user is not None
+    headers = {"Authorization": f"Bearer {security.create_access_token(user.id)}"}
+    before = await async_client.get("users/me", headers=headers)
+    assert before.status_code == 200
+    assert before.json()["has_password"] is False
+    assert "hashed_password" not in before.json()
+
+    app.dependency_overrides[get_redis_client] = mock_redis_client
+    try:
+        forgot = await async_client.post("auth/forgot-password", json={"email": user.email})
+        assert forgot.status_code == 200
+
+        await async_session.refresh(user)
+        assert user.password_reset_token is not None
+
+        new_password = "RecoveredPassword123!"
+        reset = await async_client.post(
+            "auth/reset-password",
+            json={"token": user.password_reset_token, "new_password": new_password},
+        )
+        assert reset.status_code == 200
+
+        login = await async_client.post(
+            "auth/login",
+            data={"username": user.email, "password": new_password},
+        )
+        assert login.status_code == 200
+        assert "access_token" in login.json()
+        after = await async_client.get("users/me", headers={"Authorization": f"Bearer {login.json()['access_token']}"})
+        assert after.status_code == 200
+        assert after.json()["has_password"] is True
+        assert after.json()["id"] == str(user.id)
+        assert "hashed_password" not in after.json()
+    finally:
         app.dependency_overrides.pop(get_redis_client, None)

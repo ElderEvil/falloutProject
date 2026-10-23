@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
+
 import {
   getNotificationRoute,
   getNotificationSound,
 } from '@/modules/vault/utils/notificationRouting'
-
 const levelUpNotification = {
   vault_id: 'vault-1',
   from_dweller_id: 'dweller-1',

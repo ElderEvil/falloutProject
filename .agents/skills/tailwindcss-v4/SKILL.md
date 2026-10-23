@@ -107,7 +107,7 @@ Use `@apply` sparingly. Prefer plain CSS classes with CSS variables when possibl
 
 ```css
 /* Good: uses theme variables */
-.terminal-card {
+.panel {
   border: 1px solid var(--color-theme-primary);
   background-color: rgba(0, 0, 0, 0.9);
   box-shadow: 0 0 10px var(--color-theme-glow);
@@ -150,7 +150,6 @@ The project has built-in utility classes for terminal aesthetics:
 - `.terminal-glow`, `.terminal-glow-subtle`, `.terminal-glow-strong` — Text shadow glow
 - `.glow-pulse`, `.glow-pulse-subtle`, `.text-glow-pulse` — Animated glow
 - `.crt-screen` — CRT screen curve effect
-- `.terminal-card`, `.terminal-button`, `.terminal-input`, `.terminal-badge` — Component classes
 
 These are defined in `src/assets/tailwind.css` outside the `@theme` block.
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import {
   formatItemLabel,
   getItemIcon,
@@ -185,6 +185,11 @@ describe('stat rows', () => {
     const stats = getPetStats({ incident_response_pct: 0.333, radiation_resist_pct: 1 })
     expect(stats).toContainEqual({ label: 'Incident response', value: '+33%', icon: 'mdi:percent' })
     expect(stats).toContainEqual({ label: 'RAD resist', value: '+100%', icon: 'mdi:percent' })
+  })
+
+  it('renders the twins chance pet stat as a percentage', () => {
+    const stats = getPetStats({ twin_chance_pct: 0.75 })
+    expect(stats).toEqual([{ label: 'Twins chance', value: '+75%', icon: 'mdi:percent' }])
   })
 
   it('renders no pet stat rows for a neutral effect', () => {

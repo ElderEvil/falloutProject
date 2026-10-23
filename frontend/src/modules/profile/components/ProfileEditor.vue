@@ -6,16 +6,15 @@
         Edit Profile
       </CardTitle>
       <CardDescription class="mt-2 max-w-xl text-sm leading-6 text-theme-primary/60">
-        Update the details other vault dwellers see when they visit your profile.
+        Update your account email and the details other vault dwellers see when they visit your
+        profile.
       </CardDescription>
     </CardHeader>
 
     <CardContent class="px-0">
       <form class="space-y-5" @submit.prevent="handleSubmit">
         <div class="space-y-2">
-          <Label for="username" class="text-sm font-semibold text-theme-primary/85"
-            >Username</Label
-          >
+          <Label for="username" class="text-sm font-semibold text-theme-primary/85">Username</Label>
           <Input
             id="username"
             v-model="usernameField"
@@ -32,6 +31,57 @@
             3–32 characters. This is how other dwellers see you across the vault.
           </p>
         </div>
+
+        <div class="space-y-2">
+          <Label for="email" class="text-sm font-semibold text-theme-primary/85">Email</Label>
+          <Input
+            id="email"
+            v-model="emailField"
+            type="email"
+            required
+            class="h-auto w-full rounded-md border-theme-primary/30 bg-surface-sunken px-3 py-2.5 text-sm text-theme-primary placeholder:text-theme-primary/35"
+            placeholder="overseer@vault-tec.com"
+          />
+          <p v-if="emailError" class="text-xs font-medium text-danger" role="alert">
+            {{ emailError }}
+          </p>
+          <p class="text-xs leading-5 text-theme-primary/50">
+            Changing this sends a verification link to the new address. Portrait, bio, and
+            dweller-voice generation stay paused until it is confirmed; chat remains available.
+          </p>
+        </div>
+
+        <div
+          v-if="hasPassword === false"
+          class="space-y-2 rounded-md border border-theme-primary/20 bg-surface-sunken p-4"
+        >
+          <p class="text-sm font-semibold text-theme-primary/85">Sign-in methods</p>
+          <p class="text-xs leading-5 text-theme-primary/60">
+            We'll email you a link to set a password. Google/GitHub sign-in will keep working.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            :disabled="resetStatus === 'sending'"
+            @click="requestPasswordReset"
+          >
+            {{ resetStatus === 'sending' ? 'SENDING...' : 'ADD PASSWORD SIGN-IN' }}
+          </Button>
+          <p v-if="resetStatus === 'sent'" class="text-xs text-theme-primary">EMAIL SENT</p>
+          <p v-if="resetStatus === 'error'" class="text-xs text-danger">
+            COULD NOT SEND - PLEASE TRY AGAIN
+          </p>
+        </div>
+        <div
+          v-else-if="hasPassword === true"
+          class="space-y-2 rounded-md border border-theme-primary/20 bg-surface-sunken p-4"
+        >
+          <p class="text-sm font-semibold text-theme-primary/85">Sign-in methods</p>
+          <p class="text-xs leading-5 text-theme-primary/60">Password sign-in is enabled.</p>
+        </div>
+        <p class="text-xs leading-5 text-theme-primary/50">
+          Changing your email does not change which Google or GitHub identity is linked.
+        </p>
 
         <div class="space-y-2">
           <div class="flex items-baseline justify-between gap-4">
@@ -95,10 +145,7 @@
             >Preferred theme</Label
           >
           <Select v-model="themeSelectModel">
-            <SelectTrigger
-              id="theme"
-              class="w-full"
-            >
+            <SelectTrigger id="theme" class="w-full">
               <SelectValue placeholder="Select a theme" />
             </SelectTrigger>
             <SelectContent>
@@ -162,6 +209,8 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import type { ProfileUpdate } from '@/modules/profile/models/profile'
+import { authService } from '@/modules/auth/services/authService'
+import { getErrorMessage } from '@/core/utils/errorHandler'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 import type { AcceptableValue } from 'reka-ui'
 import { Button } from '@/core/components/ui/button'
@@ -191,16 +240,32 @@ interface Props {
     preferences?: any
   }
   username?: string | null
+  email?: string | null
   loading?: boolean
   error?: string | null
+  hasPassword?: boolean | null
 }
 
 const props = defineProps<Props>()
 
+const resetStatus = ref<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+async function requestPasswordReset() {
+  if (!props.email || resetStatus.value === 'sending') return
+  resetStatus.value = 'sending'
+  try {
+    await authService.requestPasswordReset(props.email)
+    resetStatus.value = 'sent'
+  } catch (error) {
+    console.error('[profile] Password reset request failed:', getErrorMessage(error))
+    resetStatus.value = 'error'
+  }
+}
+
 const { loading = false, error = null, initialData } = props
 
 const emit = defineEmits<{
-  submit: [data: ProfileUpdate, username: string | null]
+  submit: [data: ProfileUpdate, username: string | null, email: string | null]
   cancel: []
 }>()
 
@@ -222,6 +287,22 @@ watch(usernameField, (value) => {
     usernameError.value = 'Username must be between 3 and 32 characters.'
   } else {
     usernameError.value = null
+  }
+})
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const emailField = ref(props.email ?? '')
+const emailError = ref<string | null>(null)
+
+watch(emailField, (value) => {
+  const trimmed = value.trim()
+  if (trimmed.length === 0) {
+    emailError.value = 'Email is required.'
+  } else if (!EMAIL_PATTERN.test(trimmed)) {
+    emailError.value = 'Enter a valid email address.'
+  } else {
+    emailError.value = null
   }
 })
 
@@ -274,7 +355,7 @@ const handleImageError = () => {
 }
 
 const handleSubmit = () => {
-  if (jsonError.value || usernameError.value) {
+  if (jsonError.value || usernameError.value || emailError.value) {
     return
   }
 
@@ -288,6 +369,10 @@ const handleSubmit = () => {
   const changedUsername =
     usernameField.value !== currentUsername && usernameField.value.trim().length > 0
 
+  const currentEmail = props.email ?? ''
+  const trimmedEmail = emailField.value.trim()
+  const changedEmail = trimmedEmail.length > 0 && trimmedEmail !== currentEmail
+
   emit(
     'submit',
     {
@@ -295,7 +380,8 @@ const handleSubmit = () => {
       avatar_url: formData.value.avatar_url || null,
       preferences: updatedPreferences,
     },
-    changedUsername ? usernameField.value.trim() : null
+    changedUsername ? usernameField.value.trim() : null,
+    changedEmail ? trimmedEmail : null
   )
 }
 </script>

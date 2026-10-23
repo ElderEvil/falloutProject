@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import {
   ADULT_AGE_GROUPS,
   hasLowHappiness,
@@ -8,8 +8,10 @@ import {
   getDwellerDisplayName,
   getHappinessColor,
   getHappinessLevel,
+  isApprentice,
   isMature,
   isSeverelyIrradiated,
+  orderRoomDwellers,
 } from '@/modules/dwellers/models/dweller'
 
 /**
@@ -137,5 +139,26 @@ describe('Roster attention predicates', () => {
     expect(hasLowHappiness({ ...dweller, happiness: 49 })).toBe(true)
     expect(hasLowHappiness({ ...dweller, happiness: 10 })).toBe(true)
     expect(hasLowHappiness({ ...dweller, status: 'dead', happiness: 10 })).toBe(false)
+  })
+})
+
+describe('orderRoomDwellers', () => {
+  it('keeps workers in stable order and moves apprentices last', () => {
+    const apprentice = { id: 'apprentice', apprentice_stat: 'strength' }
+    const workerA = { id: 'worker-a', apprentice_stat: null }
+    const workerB = { id: 'worker-b' }
+
+    expect(orderRoomDwellers([apprentice, workerA, workerB]).map((d) => d.id)).toEqual([
+      'worker-a',
+      'worker-b',
+      'apprentice',
+    ])
+  })
+
+  it('detects apprentices by apprentice_stat only', () => {
+    expect(isApprentice({ apprentice_stat: 'strength' })).toBe(true)
+    expect(isApprentice({ apprentice_stat: null })).toBe(false)
+    expect(isApprentice({})).toBe(false)
+    expect(isApprentice(null)).toBe(false)
   })
 })

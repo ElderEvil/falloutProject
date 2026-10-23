@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vite-plus/test'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
@@ -10,7 +10,8 @@ vi.mock('@/modules/auth/stores/auth', () => ({
   useAuthStore: () => ({ token: 'test-token' }),
 }))
 
-vi.mock('@/core/utils/errorHandler', () => ({
+vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/utils/errorHandler')>()),
   handleStoreError: vi.fn(),
 }))
 
@@ -279,26 +280,25 @@ describe('DwellerAppearanceEditor', () => {
     // But should have their allowed factions
     expect(factionOptions).toContain('Super Mutant Tribe')
   })
-
 })
 
-  it('upgrades the provisional faction default once the switch resolves', async () => {
-    // The immediate watcher runs before the flags land, so a dweller without attributes
-    // starts at the system value; the switch then restores the normal default.
-    const wrapper = await createWrapper(baseDweller as Dweller)
-    await flushPromises()
+it('upgrades the provisional faction default once the switch resolves', async () => {
+  // The immediate watcher runs before the flags land, so a dweller without attributes
+  // starts at the system value; the switch then restores the normal default.
+  const wrapper = await createWrapper(baseDweller as Dweller)
+  await flushPromises()
 
-    expect(wrapper.text()).toContain('Vault Dweller')
-  })
+  expect(wrapper.text()).toContain('Vault Dweller')
+})
 
-  it('hides the faction field while the switch is off', async () => {
-    const wrapper = await createWrapper(baseDweller as Dweller)
-    await flushPromises()
+it('hides the faction field while the switch is off', async () => {
+  const wrapper = await createWrapper(baseDweller as Dweller)
+  await flushPromises()
 
-    // The catalogue load settles first; the switch then hides the field reactively.
-    useFeatureFlagsStore().factionMechanics = false
-    await flushPromises()
+  // The catalogue load settles first; the switch then hides the field reactively.
+  useFeatureFlagsStore().factionMechanics = false
+  await flushPromises()
 
-    expect(wrapper.text()).not.toContain('Faction')
-    expect(wrapper.text()).toContain('Race')
-  })
+  expect(wrapper.text()).not.toContain('Faction')
+  expect(wrapper.text()).toContain('Race')
+})

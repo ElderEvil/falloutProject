@@ -80,8 +80,7 @@ export function useRoomDwellers(
     const vaultId = route.params.id as string
     if (vaultId) {
       void router.push({
-        name: 'dwellerDetail',
-        params: { id: vaultId, dwellerId },
+        query: { ...route.query, roomId: room.value?.id, dweller: dwellerId },
       })
     }
   }

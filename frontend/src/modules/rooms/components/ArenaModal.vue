@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
+
+import { computed, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Alert, AlertDescription, AlertTitle } from '@/core/components/ui/alert'
 import { Button } from '@/core/components/ui/button'
@@ -23,11 +25,7 @@ import {
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import { useSound } from '@/core/composables/useSound'
-import { useToast } from '@/core/composables/useToast'
-import { usePolling } from '@/core/composables/usePolling'
 import ArenaFighterSlot from './ArenaFighterSlot.vue'
-import ArenaRing from './ArenaRing.vue'
 import ArenaCreatureSlot from './ArenaCreatureSlot.vue'
 import BattleLog from './BattleLog.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
@@ -35,6 +33,7 @@ import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { useArenaStore } from '../stores/arena'
 import { useDwellerMedicalStore } from '@/modules/dwellers/stores/dwellerMedical'
 import type { ArenaCreature, ArenaFighter, ArenaMode, ArenaRosterEntry } from '../api/arena'
+import type { ArenaRoomController } from '../composables/useArenaRoom'
 import {
   arenaSlotsFor,
   creatureKeyOf,
@@ -49,7 +48,7 @@ import { parseUtcMs } from '@/core/utils/time'
 interface Props {
   vaultId: string
   roomId: string
-  sceneImageUrl?: string | null
+  controller: ArenaRoomController
 }
 
 const props = defineProps<Props>()
@@ -71,17 +70,12 @@ type DraftSlots = Record<ArenaSlotKey, string | null>
 const EMPTY_DRAFT: DraftSlots = { a: null, b: null, c: null, d: null }
 
 const authStore = useAuthStore()
-const toast = useToast()
-const { playSound } = useSound()
+
 const { management: dwellerManagementStore } = useDwellerStore()
 const medicalStore = useDwellerMedicalStore()
 const vaultStore = useVaultStore()
 const arenaStore = useArenaStore()
 
-const isLoading = ref(true)
-const loadFailed = ref(false)
-const damageNumbers = ref<Array<{ id: number; fighterId: string; amount: number }>>([])
-const previousHp = ref<Record<string, number>>({})
 const openPicker = ref<ArenaSlotKey | null>(null)
 const creaturePickerOpen = ref(false)
 const mode = ref<ArenaMode>('duel')
@@ -94,17 +88,10 @@ const botPicker = ref<ArenaTeamSide | null>(null)
 const partnerSlot = (side: ArenaTeamSide): ArenaSlotKey => (side === 'A' ? 'c' : 'd')
 const draftDirty = ref(false)
 const isStarting = ref(false)
-const pendingSkills = ref(new Set<string>())
-let damageSeq = 0
-let loadSequence = 0
-const pendingDamageTimers = new Set<ReturnType<typeof setTimeout>>()
-
-onUnmounted(() => {
-  for (const timer of pendingDamageTimers) clearTimeout(timer)
-  pendingDamageTimers.clear()
-})
-
-const roomState = computed(() => arenaStore.getRoom(props.roomId))
+const roomState = computed(() => props.controller.roomState.value)
+const isLoading = computed(() => props.controller.isLoading.value)
+const loadFailed = computed(() => props.controller.loadFailed.value)
+const attackingTeam = computed(() => props.controller.attackingTeam.value)
 
 const winnerName = computed(() => roomState.value?.winner_name ?? null)
 const matchReward = computed(() => {
@@ -120,101 +107,6 @@ const teamFighters = computed<ArenaFighter[]>(() => [
   ...(roomState.value?.team_a ?? []),
   ...(roomState.value?.team_b ?? []),
 ])
-
-const queueSkill = async (fighterId: string) => {
-  if (!authStore.token || pendingSkills.value.has(fighterId)) return
-  pendingSkills.value.add(fighterId)
-  try {
-    await arenaStore.queueSkill(props.vaultId, props.roomId, fighterId, authStore.token)
-    applyState()
-  } finally {
-    pendingSkills.value.delete(fighterId)
-  }
-}
-
-const recordDamage = (fighter: ArenaFighter) => {
-  const prev = previousHp.value[fighter.id]
-  if (prev !== undefined && fighter.health < prev) {
-    const entry = { id: ++damageSeq, fighterId: fighter.id, amount: prev - fighter.health }
-    damageNumbers.value.push(entry)
-    const timer = setTimeout(() => {
-      pendingDamageTimers.delete(timer)
-      damageNumbers.value = damageNumbers.value.filter((d) => d.id !== entry.id)
-    }, 900)
-    pendingDamageTimers.add(timer)
-  }
-  previousHp.value[fighter.id] = fighter.health
-}
-
-const seenEvents = new Set<string>()
-const previousCharge = new Map<string, number>()
-let feedbackPrimed = false
-let lastCountdown = 0
-let lastStarted = false
-const skillBurst = ref<{ id: string; message: string } | null>(null)
-let burstTimer: ReturnType<typeof setTimeout> | undefined
-const attackingTeam = ref<'A' | 'B' | null>(null)
-let attackTimer: ReturnType<typeof setTimeout> | undefined
-onUnmounted(() => {
-  clearTimeout(burstTimer)
-  clearTimeout(attackTimer)
-})
-
-const recordFeedback = () => {
-  const state = roomState.value
-  if (!state) return
-  const fresh = state.events.filter((event) => !seenEvents.has(event.id))
-  for (const event of state.events) seenEvents.add(event.id)
-  const newlyReady = teamFighters.value.map((fighter) => {
-    const charge = fighter.active_skill?.charge ?? 0
-    const before = previousCharge.get(fighter.id)
-    previousCharge.set(fighter.id, charge)
-    return before !== undefined && before < 100 && charge >= 100 && fighter.health > 0
-  })
-  const ready = newlyReady.some(Boolean)
-  if (feedbackPrimed) {
-    if (fresh.some((event) => event.kind === 'turn')) {
-      attackingTeam.value = state.next_attack_team === 'B' ? 'A' : 'B'
-      clearTimeout(attackTimer)
-      attackTimer = setTimeout(() => {
-        attackingTeam.value = null
-      }, 550)
-    }
-    const skill = [...fresh].reverse().find((event) => event.kind === 'skill')
-    if (fresh.some((event) => event.kind === 'finish')) playSound('arenaFinish')
-    else if (skill) playSound('arenaSkill')
-    else if (ready && !state.match_done) playSound('arenaReady')
-    else if (state.countdown_remaining > 0 && state.countdown_remaining !== lastCountdown)
-      playSound('arenaCountdown')
-    else if (
-      state.fight_started &&
-      !state.match_done &&
-      state.countdown_remaining === 0 &&
-      (!lastStarted || lastCountdown > 0)
-    )
-      playSound('arenaStart')
-    else if (fresh.some((event) => event.kind === 'hit')) playSound('incidentHit')
-    if (skill) {
-      skillBurst.value = { id: skill.id, message: skill.message }
-      clearTimeout(burstTimer)
-      burstTimer = setTimeout(() => {
-        skillBurst.value = null
-      }, 1600)
-    }
-  }
-  lastCountdown = state.countdown_remaining
-  lastStarted = state.fight_started
-  feedbackPrimed = true
-}
-
-const applyState = () => {
-  recordFeedback()
-  for (const fighter of teamFighters.value) recordDamage(fighter)
-  const liveIds = new Set(teamFighters.value.map((f) => f.id))
-  for (const id of Object.keys(previousHp.value)) {
-    if (!liveIds.has(id)) delete previousHp.value[id]
-  }
-}
 
 // The server only reveals teams for a fully selected match; without this the
 // half-built draft of a brawl would be wiped by the 1 s state poll.
@@ -253,28 +145,16 @@ const syncFromState = () => {
   }
 }
 
-const load = async (silent = false) => {
-  if (!authStore.token) return
-  const sequence = ++loadSequence
-  const loaded = await arenaStore.fetchState(props.vaultId, authStore.token, silent)
-  if (sequence !== loadSequence) return
-  loadFailed.value = !loaded
-  applyState()
-  syncFromState()
-  isLoading.value = false
-}
-
 const loadCreatures = async () => {
   if (!authStore.token) return
   await arenaStore.fetchCreatures(props.vaultId, authStore.token)
 }
 
+watch(roomState, syncFromState, { immediate: true })
+
 onMounted(() => {
-  void load()
   void loadCreatures()
 })
-
-usePolling(() => load(true), { interval: 1_000, immediate: false })
 
 const roster = computed(() => roomState.value?.roster ?? [])
 const isDone = computed(() => roomState.value?.match_done ?? false)
@@ -491,7 +371,7 @@ const commitDraft = async () => {
   draftDirty.value = false
   openPicker.value = null
   creaturePickerOpen.value = false
-  previousHp.value = {}
+  props.controller.resetDamageTracking()
 }
 
 const switchMode = (next: ArenaMode) => {
@@ -588,8 +468,8 @@ const unassign = async (entry: ArenaRosterEntry) => {
   if (!authStore.token) return
   try {
     await dwellerManagementStore.unassignDwellerFromRoom(entry.id, authStore.token)
-  } catch {
-    toast.error('Failed to remove dweller from the Arena')
+  } catch (error) {
+    notifyErrorOnce(error, 'Failed to remove dweller from the Arena')
   }
 }
 
@@ -611,8 +491,10 @@ const healInjured = async () => {
       const healed = await medicalStore.useStimpack(fighter.id, authStore.token)
       if (!healed) break
     }
-    previousHp.value = {}
-    await Promise.all([load(true), vaultStore.refreshVault(props.vaultId, authStore.token)])
+    await Promise.all([
+      props.controller.refresh(),
+      vaultStore.refreshVault(props.vaultId, authStore.token),
+    ])
   } finally {
     isHealing.value = false
   }
@@ -627,11 +509,7 @@ const startFight = async () => {
   if (!authStore.token || !canStart.value || isStarting.value) return
   isStarting.value = true
   try {
-    const ok = await arenaStore.startFight(props.vaultId, props.roomId, authStore.token)
-    if (ok) {
-      previousHp.value = {}
-      applyState()
-    }
+    await props.controller.startFight()
   } finally {
     isStarting.value = false
   }
@@ -696,26 +574,12 @@ const updateMode = (value: unknown) => {
     <Alert v-else-if="loadFailed" variant="destructive">
       <AlertTitle>Arena unavailable</AlertTitle>
       <AlertDescription>Unable to load Arena status.</AlertDescription>
-      <Button class="mt-3" variant="secondary" size="sm" @click="load()">RETRY</Button>
+      <Button class="mt-3" variant="secondary" size="sm" @click="controller.retry()">RETRY</Button>
     </Alert>
 
     <template v-else>
-      <ArenaRing
-        v-if="roomState && (roomState.team_a.length || roomState.team_b.length)"
-        :state="roomState"
-        :scene-image-url="sceneImageUrl"
-        :skill-enabled="isFighting && countdown === 0"
-        :pending-skills="pendingSkills"
-        :attacking-team="attackingTeam"
-        :damage-numbers="damageNumbers"
-        @skill="queueSkill"
-      />
       <Tabs as-child :model-value="mode" activation-mode="manual" @update:model-value="updateMode">
-        <Card
-          v-if="!isFighting || skillBurst"
-          size="sm"
-          class="overflow-visible border border-theme-primary/30"
-        >
+        <Card v-if="!isFighting" size="sm" class="overflow-visible border border-theme-primary/30">
           <CardHeader v-if="!isFighting">
             <CardTitle class="sr-only">Match</CardTitle>
             <div class="flex flex-wrap items-center justify-between gap-2">
@@ -758,8 +622,7 @@ const updateMode = (value: unknown) => {
                 <Icon icon="mdi:account-plus-outline" :ariaHidden="true" />
                 <AlertTitle>Build your arena roster</AlertTitle>
                 <AlertDescription>
-                  Assign adult dwellers to the Arena first using an empty dweller slot in the room
-                  preview.
+                  Assign adult dwellers to the Arena to build a roster.
                 </AlertDescription>
               </Alert>
               <template v-else>
@@ -915,15 +778,6 @@ const updateMode = (value: unknown) => {
                 </div>
               </template>
 
-              <div
-                v-if="skillBurst"
-                :key="skillBurst.id"
-                role="status"
-                class="arena-skill-burst relative overflow-hidden rounded border border-warning/40 px-3 py-2 text-center text-xs font-semibold text-warning"
-              >
-                <Icon icon="mdi:lightning-bolt" class="mr-1 inline size-4" :ariaHidden="true" />
-                {{ skillBurst.message }}
-              </div>
               <Alert v-if="winnerName" class="result-banner">
                 <Icon icon="mdi:trophy" :ariaHidden="true" />
                 <AlertTitle v-if="roomState?.mode === 'duel'"

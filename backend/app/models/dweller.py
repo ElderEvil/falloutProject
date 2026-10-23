@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from pydantic import UUID4
+from sqlalchemy import event, inspect
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -21,6 +22,7 @@ from app.core.enums import (
 )
 from app.models.base import BaseUUIDModel, SoftDeleteMixin, SPECIALModel, TimeStampMixin
 from app.options.pet_modifiers import pet_modifiers_for
+from app.utils.dweller_assets import is_default_dweller_image, resolve_dweller_image_urls
 
 BIO_MAX_CHARS = 2_048
 
@@ -111,20 +113,20 @@ class DwellerBase(DwellerBaseWithoutStats, SPECIALModel):
     @property
     def current_level_xp(self) -> int:
         """Calculate total XP required for current level."""
-        from app.services.leveling_service import leveling_service
+        from app.utils.leveling import calculate_xp_required
 
-        return leveling_service.calculate_xp_required(self.level)
+        return calculate_xp_required(self.level)
 
     @property
     def next_level_xp(self) -> int:
         """Calculate total XP required for next level."""
         from app.core.game_config import game_config
-        from app.services.leveling_service import leveling_service
+        from app.utils.leveling import calculate_xp_required
 
         if self.level >= game_config.leveling.max_level:
             return self.current_level_xp  # Already at max
 
-        return leveling_service.calculate_xp_required(self.level + 1)
+        return calculate_xp_required(self.level + 1)
 
     @property
     def xp_progress_percentage(self) -> float:
@@ -246,3 +248,30 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
         back_populates="dweller",
         sa_relationship_kwargs={"cascade": "all"},
     )
+
+
+@event.listens_for(Dweller, "before_insert")
+def _apply_default_dweller_portrait(_mapper: object, _connection: object, target: Dweller) -> None:
+    target.image_url, target.thumbnail_url = resolve_dweller_image_urls(target)
+
+
+@event.listens_for(Dweller, "before_update")
+def _refresh_default_dweller_portrait(_mapper: object, _connection: object, target: Dweller) -> None:
+    state = inspect(target)
+    if state is None:
+        return
+    identity_changed = (
+        state.attrs.visual_attributes.history.has_changes()
+        or state.attrs.gender.history.has_changes()
+        or state.attrs.age_group.history.has_changes()
+    )
+    if not identity_changed:
+        return
+    custom_art = (target.image_url and not is_default_dweller_image(target.image_url)) or (
+        target.thumbnail_url and not is_default_dweller_image(target.thumbnail_url)
+    )
+    if custom_art:
+        return
+    target.image_url = None
+    target.thumbnail_url = None
+    target.image_url, target.thumbnail_url = resolve_dweller_image_urls(target)

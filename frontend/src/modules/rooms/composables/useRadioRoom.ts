@@ -1,3 +1,4 @@
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
 import { computed, ref, watch, type Ref } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Room } from '../models/room'
@@ -77,8 +78,8 @@ export function useRadioRoom(
         radioMode: response.data?.radio_mode ?? 'recruitment',
         radioHappinessBonus: response.data?.radio_happiness_bonus ?? 0,
       }
-    } catch {
-      toast.error('Failed to load radio stats')
+    } catch (error) {
+      notifyErrorOnce(error, 'Failed to load radio stats')
     }
   }
 
@@ -112,10 +113,10 @@ export function useRadioRoom(
           headers: { Authorization: `Bearer ${token}` },
         }
       )
-    } catch {
+    } catch (error) {
       localRadioMode.value =
         (vaultStore.activeVault?.radio_mode as 'recruitment' | 'happiness') || 'recruitment'
-      toast.error('Failed to switch radio mode')
+      notifyErrorOnce(error, 'Failed to switch radio mode')
       return
     }
 
@@ -167,7 +168,7 @@ export function useRadioRoom(
       }
     } catch (error: any) {
       const message = error.response?.data?.detail || 'Failed to recruit dweller'
-      toast.error(message)
+      notifyErrorOnce(error, message)
     } finally {
       isRecruiting.value = false
     }

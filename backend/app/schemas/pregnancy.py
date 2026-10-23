@@ -50,9 +50,17 @@ class PregnancyProgress(SQLModel):
     model_config = ConfigDict(use_enum_values=True)
 
 
+class DeliveredChild(SQLModel):
+    """A newborn born during delivery."""
+
+    id: UUID4
+    first_name: str
+    last_name: str | None
+
+
 class DeliveryResult(SQLModel):
     """Result of a pregnancy delivery."""
 
     pregnancy_id: UUID4
-    child_id: UUID4
+    children: list[DeliveredChild]
     message: str

@@ -34,3 +34,8 @@ class QuestReward(QuestRewardBase, table=True):
     quest_id: UUID4 = Field(foreign_key="quest.id", index=True, ondelete="CASCADE")
 
     quest: "Quest" = Relationship(back_populates="quest_rewards")
+
+    def __str__(self) -> str:
+        label = str(self.reward_type).replace("_", " ").title()
+        details = ", ".join(f"{key.replace('_', ' ')}: {value}" for key, value in self.reward_data.items())
+        return f"{label} ({details})" if details else label

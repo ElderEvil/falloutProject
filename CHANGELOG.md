@@ -2,6 +2,144 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.257.0 (2026-10-23)
+
+### Features
+
+* refresh admin panel and support actions ([#1159](https://github.com/ElderEvil/falloutProject/issues/1159)) efac7e8
+
+## 2.256.0 (2026-10-23)
+
+### Features
+
+* **objectives:** gate achievement stages on reward claims ([#1158](https://github.com/ElderEvil/falloutProject/issues/1158)) 41f48c9
+
+## 2.255.0 (2026-10-23)
+
+### Features
+
+* let eligible families occasionally adopt orphaned youth ([#1154](https://github.com/ElderEvil/falloutProject/issues/1154)) 90f95d4
+
+## 2.254.0 (2026-10-23)
+
+### Features
+
+* Oauth passwordless ([#1156](https://github.com/ElderEvil/falloutProject/issues/1156)) 4c0220a
+
+## 2.253.7 (2026-10-23)
+
+### Bug Fixes
+
+* omit pregnancy identifiers from application logs ([#1157](https://github.com/ElderEvil/falloutProject/issues/1157)) bf2b2aa
+
+## 2.253.6 (2026-10-23)
+
+### Bug Fixes
+
+* address CodeQL logging, scanner, and workflow alerts ([#1155](https://github.com/ElderEvil/falloutProject/issues/1155)) 09f9814
+
+## 2.253.5 (2026-10-23)
+
+### Bug Fixes
+
+* prevent orphaned workers during development reloads ([#1153](https://github.com/ElderEvil/falloutProject/issues/1153)) 2ed2e09
+
+## 2.253.4 (2026-10-23)
+
+### Bug Fixes
+
+* pause background updates and coordinate session recovery ([#1152](https://github.com/ElderEvil/falloutProject/issues/1152)) a520dc0
+
+## 2.253.3 (2026-10-23)
+
+### Code Refactoring
+
+* share validated API pagination parameters ([#1151](https://github.com/ElderEvil/falloutProject/issues/1151)) c56faea
+
+## 2.253.2 (2026-10-23)
+
+### Performance Improvements
+
+* paginate dweller roster rendering ([#1150](https://github.com/ElderEvil/falloutProject/issues/1150)) 7f80ccd
+
+## 2.253.1 (2026-10-23)
+
+### Bug Fixes
+
+* unify cumulative dweller XP progression ([#1149](https://github.com/ElderEvil/falloutProject/issues/1149)) 5cbd1b6
+
+## 2.253.0 (2026-10-23)
+
+### Features
+
+* **auth:** verify email before AI use and tighten account changes ([#1148](https://github.com/ElderEvil/falloutProject/issues/1148)) 296b383
+
+## 2.252.0 (2026-10-22)
+
+### Features
+
+* **ui:** expand chat and dweller detail modals into pages ([#1100](https://github.com/ElderEvil/falloutProject/issues/1100)) eb5c442
+
+## 2.251.0 (2026-10-22)
+
+### Features
+
+* clarify apprentice visuals with teen styling ([#1143](https://github.com/ElderEvil/falloutProject/issues/1143)) 086b363
+* **rooms:** highlight assignment stats and fit hints to small rooms ([#1115](https://github.com/ElderEvil/falloutProject/issues/1115)) a6fa3d5
+
+## 2.250.0 (2026-10-22)
+
+### Features
+
+* **breeding:** allow twin and triplet deliveries ([#1142](https://github.com/ElderEvil/falloutProject/issues/1142)) bde4275
+
+### Bug Fixes
+
+* **dwellers:** share roster reads without reusing stale refreshes ([#1116](https://github.com/ElderEvil/falloutProject/issues/1116)) 32c3fd4
+
+## 2.249.0 (2026-10-22)
+
+### Features
+
+* **arena:** unify the preview, combat pacing, and dweller sizing ([#1141](https://github.com/ElderEvil/falloutProject/issues/1141)) ede51fc
+
+## 2.248.2 (2026-10-22)
+
+### Performance Improvements
+
+* **tick:** batch production objective events ([#1135](https://github.com/ElderEvil/falloutProject/issues/1135)) 3c8a0bf
+* **tick:** process vaults concurrently ([#1137](https://github.com/ElderEvil/falloutProject/issues/1137)) 7ac5f96
+
+## 2.248.1 (2026-10-22)
+
+### Bug Fixes
+
+* **ui:** minor visual fixes ([#1131](https://github.com/ElderEvil/falloutProject/issues/1131)) efb6bf5
+
+## 2.248.0 (2026-10-22)
+
+### Features
+
+* barbershop appearance gates and portrait variants ([#1129](https://github.com/ElderEvil/falloutProject/issues/1129)) 8ae705a, closes #1133
+
+## 2.247.0 (2026-10-21)
+
+### Features
+
+* **dwellers:** tune race/state distribution and enforce legendary level floor ([#1128](https://github.com/ElderEvil/falloutProject/issues/1128)) d3d2af9
+
+## 2.246.0 (2026-10-21)
+
+### Features
+
+* **dwellers:** default portraits for unillustrated dwellers ([#1127](https://github.com/ElderEvil/falloutProject/issues/1127)) 1975365
+
+## 2.245.1 (2026-10-21)
+
+### Bug Fixes
+
+* **frontend:** avoid duplicate action confirmations and error toasts ([#1123](https://github.com/ElderEvil/falloutProject/issues/1123)) e8ff0a5
+
 ## 2.245.0 (2026-10-21)
 
 ### Features

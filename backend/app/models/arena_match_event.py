@@ -17,4 +17,5 @@ class ArenaMatchEvent(TimeStampMixin, table=True):
     room_id: UUID4 = Field(foreign_key="room.id", index=True, ondelete="CASCADE")
     round_seq: int = Field(default=1, ge=1)
     kind: str = Field(index=True, description="'hit' | 'finish' | 'reward'")
+    actor_id: str | None = Field(default=None, max_length=64)
     message: str = Field(max_length=200)

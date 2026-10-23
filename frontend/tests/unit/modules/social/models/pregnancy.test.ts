@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { pregnancyForCouple, type Pregnancy } from '@/modules/social/models/pregnancy'
 
 function pregnancy(overrides: Partial<Pregnancy>): Pregnancy {

@@ -1,5 +1,4 @@
-import { onMounted, onUnmounted } from 'vue'
-import { useIntervalFn } from '@vueuse/core'
+import { usePolling } from '@/core/composables/usePolling'
 import { useVaultStore } from '../stores/vault'
 
 /** Heartbeat proving a watching player: pings only while the vault overview is visible. */
@@ -10,23 +9,11 @@ export function usePresenceHeartbeat(
 ): void {
   const vaultStore = useVaultStore()
 
-  const ping = (): void => {
+  const ping = () => {
     const vaultId = getVaultId()
     const token = getToken()
     if (vaultId && token && document.visibilityState === 'visible')
-      void vaultStore.pingPresence(vaultId, token)
+      return vaultStore.pingPresence(vaultId, token)
   }
-  const onVisibilityChange = (): void => {
-    if (document.visibilityState === 'visible') ping()
-  }
-
-  const { pause } = useIntervalFn(ping, intervalMs, { immediateCallback: true })
-
-  onMounted(() => {
-    document.addEventListener('visibilitychange', onVisibilityChange)
-  })
-  onUnmounted(() => {
-    document.removeEventListener('visibilitychange', onVisibilityChange)
-    pause()
-  })
+  usePolling(ping, { interval: intervalMs })
 }

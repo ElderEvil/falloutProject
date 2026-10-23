@@ -32,3 +32,8 @@ class QuestRequirement(QuestRequirementBase, table=True):
     quest_id: UUID4 = Field(foreign_key="quest.id", index=True, ondelete="CASCADE")
 
     quest: "Quest" = Relationship(back_populates="quest_requirements")
+
+    def __str__(self) -> str:
+        label = str(self.requirement_type).replace("_", " ").title()
+        details = ", ".join(f"{key.replace('_', ' ')}: {value}" for key, value in self.requirement_data.items())
+        return f"{label} ({details})" if details else label

@@ -3,17 +3,21 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button } from '@/core/components/ui/button'
 import { useAuthStore } from '../stores/auth'
+import { useEmailVerificationResend } from '../composables/useEmailVerificationResend'
 import AuthTerminalField from './AuthTerminalField.vue'
+import OAuthProviderButtons from './OAuthProviderButtons.vue'
 import AuthTerminalFrame from './AuthTerminalFrame.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const { status: resendStatus, resend } = useEmailVerificationResend()
 const username = ref('')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const error = ref('')
 const isLoading = ref(false)
+const registrationSucceeded = ref(false)
 
 const handleSubmit = async () => {
   if (isLoading.value) return
@@ -35,7 +39,7 @@ const handleSubmit = async () => {
   try {
     const success = await authStore.register(username.value, email.value, password.value)
     if (success) {
-      await router.push('/')
+      registrationSucceeded.value = true
     } else {
       error.value = 'Registration failed. Please try again.'
     }
@@ -52,7 +56,43 @@ const handleSubmit = async () => {
     :error="error"
     error-detail="REGISTRATION FAILED - PLEASE VERIFY INPUT"
   >
-    <form class="flex flex-col gap-5" @submit.prevent="handleSubmit">
+    <div v-if="registrationSucceeded" class="flex flex-col gap-5">
+      <div class="border border-theme-primary/40 bg-surface-sunken/70 p-5">
+        <p class="font-mono text-lg font-bold tracking-widest text-theme-primary terminal-glow">
+          CHECK YOUR EMAIL
+        </p>
+        <p class="mt-3 font-mono text-sm leading-6 text-theme-primary/80">
+          > A verification link was dispatched to
+          <span class="font-bold text-theme-primary">{{ email }}</span
+          >.
+        </p>
+        <p class="mt-2 font-mono text-sm leading-6 text-theme-primary/60">
+          > Confirm the address to secure your vault authorisation.
+        </p>
+        <p v-if="resendStatus === 'sent'" class="mt-3 font-mono text-xs text-theme-primary">
+          > EMAIL SENT
+        </p>
+        <p v-if="resendStatus === 'error'" class="mt-3 font-mono text-xs text-destructive">
+          > RESEND FAILED - PLEASE TRY AGAIN
+        </p>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        class="w-full border-theme-primary"
+        :disabled="resendStatus === 'sending'"
+        @click="resend"
+      >
+        {{ resendStatus === 'sending' ? 'SENDING...' : 'RESEND EMAIL' }}
+      </Button>
+      <Button type="button" class="w-full border-theme-primary" @click="router.push('/')">
+        <span aria-hidden="true">►</span>
+        CONTINUE TO VAULT
+        <span aria-hidden="true">◄</span>
+      </Button>
+    </div>
+
+    <form v-else class="flex flex-col gap-5" @submit.prevent="handleSubmit">
       <AuthTerminalField
         id="register-username"
         v-model="username"
@@ -94,6 +134,8 @@ const handleSubmit = async () => {
         <span aria-hidden="true">◄</span>
       </Button>
     </form>
+
+    <OAuthProviderButtons v-if="!registrationSucceeded" label="OR REGISTER WITH" />
 
     <template #links>
       <p>

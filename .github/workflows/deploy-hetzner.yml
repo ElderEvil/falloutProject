@@ -157,6 +157,11 @@ jobs:
           EMAIL_FROM_ADDRESS: ${{ secrets.EMAIL_FROM_ADDRESS }}
           EMAIL_FROM_NAME: ${{ secrets.EMAIL_FROM_NAME }}
           FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+          GOOGLE_CLIENT_ID: ${{ secrets.OAUTH_GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.OAUTH_GOOGLE_CLIENT_SECRET }}
+          GITHUB_CLIENT_ID: ${{ secrets.OAUTH_GITHUB_CLIENT_ID }}
+          GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
+          OAUTH_REDIRECT_BASE: ${{ secrets.OAUTH_REDIRECT_BASE }}
         run: |
           set -euo pipefail
           for name in PYDANTIC_AI_GATEWAY_API_KEY PYDANTIC_AI_GATEWAY_ROUTE PYDANTIC_AI_GATEWAY_BASE_URL LOGFIRE_TOKEN AI_MODEL OPENAI_API_KEY TYPESAFE_API_KEY; do
@@ -184,7 +189,12 @@ jobs:
             --arg email_from_address "${EMAIL_FROM_ADDRESS:-noreply@falloutshelter.com}" \
             --arg email_from_name "${EMAIL_FROM_NAME:-Fallout Shelter}" \
             --arg frontend_url "${FRONTEND_URL:-https://fallout.evillab.tech}" \
-            '{apiVersion: "v1", kind: "Secret", metadata: {name: "backend-env", namespace: "fallout"}, type: "Opaque", stringData: {PYDANTIC_AI_GATEWAY_API_KEY: $gateway_key, PYDANTIC_AI_GATEWAY_ROUTE: $gateway_route, PYDANTIC_AI_GATEWAY_BASE_URL: $gateway_base_url, LOGFIRE_TOKEN: $logfire_token, AI_PROVIDER: "openai", AI_MODEL: $ai_model, OPENAI_API_KEY: $openai_key, TYPESAFE_API_KEY: $typesafe_key, JEV_ENABLED: $jev_enabled, SMTP_HOST: $smtp_host, SMTP_PORT: $smtp_port, SMTP_USER: $smtp_user, SMTP_PASSWORD: $smtp_password, SMTP_TLS: $smtp_tls, SMTP_SSL: $smtp_ssl, EMAIL_FROM_ADDRESS: $email_from_address, EMAIL_FROM_NAME: $email_from_name, FRONTEND_URL: $frontend_url}}' \
+            --arg google_client_id "${GOOGLE_CLIENT_ID:-}" \
+            --arg google_client_secret "${GOOGLE_CLIENT_SECRET:-}" \
+            --arg github_client_id "${GITHUB_CLIENT_ID:-}" \
+            --arg github_client_secret "${GITHUB_CLIENT_SECRET:-}" \
+            --arg oauth_redirect_base "${OAUTH_REDIRECT_BASE:-https://fallout-api.evillab.tech}" \
+            '{apiVersion: "v1", kind: "Secret", metadata: {name: "backend-env", namespace: "fallout"}, type: "Opaque", stringData: {PYDANTIC_AI_GATEWAY_API_KEY: $gateway_key, PYDANTIC_AI_GATEWAY_ROUTE: $gateway_route, PYDANTIC_AI_GATEWAY_BASE_URL: $gateway_base_url, LOGFIRE_TOKEN: $logfire_token, AI_PROVIDER: "openai", AI_MODEL: $ai_model, OPENAI_API_KEY: $openai_key, TYPESAFE_API_KEY: $typesafe_key, JEV_ENABLED: $jev_enabled, SMTP_HOST: $smtp_host, SMTP_PORT: $smtp_port, SMTP_USER: $smtp_user, SMTP_PASSWORD: $smtp_password, SMTP_TLS: $smtp_tls, SMTP_SSL: $smtp_ssl, EMAIL_FROM_ADDRESS: $email_from_address, EMAIL_FROM_NAME: $email_from_name, FRONTEND_URL: $frontend_url, GOOGLE_CLIENT_ID: $google_client_id, GOOGLE_CLIENT_SECRET: $google_client_secret, GITHUB_CLIENT_ID: $github_client_id, GITHUB_CLIENT_SECRET: $github_client_secret, OAUTH_REDIRECT_BASE: $oauth_redirect_base}}' \
             | ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
               'kubectl apply -f - && kubectl -n fallout set env deployment/backend deployment/dramatiq-worker --from=secret/backend-env'
 

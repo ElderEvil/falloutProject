@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
+from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.llm_interaction import LLMInteraction
 from app.models.pregnancy import Pregnancy
@@ -89,18 +90,21 @@ async def test_deliver_baby_link_home_origin_failure_does_not_break_delivery(
     async_session: AsyncSession,
     male_dweller: Dweller,
     female_dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Failure: link_home_origin raises → delivery still completes, no exception propagates."""
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
     pregnancy = await _create_due_pregnancy(async_session, female_dweller.id, male_dweller.id)
 
     with patch(
         "app.services.map_service.map_service.link_home_origin",
         AsyncMock(side_effect=RuntimeError("DB connection lost")),
     ):
-        child = await BreedingService.deliver_baby(async_session, pregnancy.id)
+        children = await BreedingService.deliver_baby(async_session, pregnancy.id)
 
     # Delivery still succeeded
-    assert child is not None
+    assert len(children) == 1
+    child = children[0]
     assert child.age_group == AgeGroupEnum.CHILD
 
     # No DwellerLocation rows (link_home_origin failed)

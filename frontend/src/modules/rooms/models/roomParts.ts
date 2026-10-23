@@ -22,6 +22,7 @@ export type RoomPart =
   | 'responseStation'
   | 'incident'
   | 'aftermath'
+  | 'barbershop'
 
 // Special rooms are identified by their seed-data-stable names; the string
 // matching lives here and nowhere else.
@@ -35,6 +36,11 @@ export function isVaultDoor(room: Room | null): boolean {
 
 export function isElevator(room: Room | null): boolean {
   return room?.name.toLowerCase() === 'elevator'
+}
+
+/** The Barbershop is matched by exact name, mirroring the backend predicate (not its `misc.` category). */
+export function isBarbershop(room: Room | null): boolean {
+  return room?.name.toLowerCase() === 'barbershop'
 }
 
 export function isOverseersOffice(room: Room | null): boolean {
@@ -119,6 +125,7 @@ export function getRoomDetailParts(
   if (aftermath) return ['aftermath']
 
   const parts: RoomPart[] = ['preview', 'info']
+  if (isBarbershop(room)) parts.push('barbershop')
   if (isOverseersOffice(room)) parts.push('overseerBriefing')
   if (isStorageRoom(room)) parts.push('storageMaintenance')
   if (isRadioRoom(room)) parts.push('radioStats')

@@ -5,18 +5,18 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.deps import (
     CurrentActiveUser,
     CurrentSuperuser,
+    DBSession,
+    PaginationParams,
     get_current_active_user,
     get_user_vault_or_403,
     verify_item_access,
 )
 from app.core.game_data import get_static_game_data
-from app.db.session import get_async_session
 from app.models.junk import Junk
 from app.schemas.junk import JunkCreate, JunkRead, JunkUpdate
 from app.services.item_service import item_service
@@ -28,7 +28,7 @@ router = APIRouter(prefix="/junk", tags=["Junk"], dependencies=[Depends(get_curr
 @router.post("/", response_model=JunkRead)
 async def create_junk(
     junk_data: JunkCreate,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Junk:
     """Create a new junk item (administrators only).
@@ -42,10 +42,9 @@ async def create_junk(
 @router.get("/", response_model=list[JunkRead])
 async def read_junk_list(
     vault_id: UUID4,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> Sequence[Junk]:
     """Retrieve a paginated list of a vault's junk inventory.
 
@@ -60,13 +59,13 @@ async def read_junk_list(
         AccessDeniedException: If the user doesn't own the vault.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.junk.get_multi_for_vault(db_session, vault_id, skip=skip, limit=limit)
+    return await crud.junk.get_multi_for_vault(db_session, vault_id, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.get("/{junk_id}", response_model=JunkRead)
 async def read_junk(
     junk_id: UUID4,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Junk:
     """Retrieve a junk item by ID.
@@ -85,7 +84,7 @@ async def read_junk(
 async def update_junk(
     junk_id: UUID4,
     junk_data: JunkUpdate,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Junk:
     """Update a junk item (administrators only).
@@ -99,7 +98,7 @@ async def update_junk(
 @router.delete("/{junk_id}", status_code=204)
 async def delete_junk(
     junk_id: UUID4,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
 ) -> None:
     """Delete a junk item (administrators only)."""
@@ -119,7 +118,7 @@ async def read_junk_data(data_store: Annotated[StaticGameData, Depends(get_stati
 @router.post("/{junk_id}/sell/", status_code=200, response_model=None)
 async def sell_junk(
     junk_id: UUID4,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> None:
     """Sell a junk item for caps.

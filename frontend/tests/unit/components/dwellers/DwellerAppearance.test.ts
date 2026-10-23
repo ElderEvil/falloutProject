@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vite-plus/test'
 import { nextTick, ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import DwellerAppearance from '@/modules/dwellers/components/DwellerAppearance.vue'
@@ -64,18 +64,29 @@ describe('DwellerAppearance', () => {
     expect(wrapper.text()).toContain('No appearance yet')
   })
 
-  it('offers only the empty-state generate action when appearance is missing', async () => {
+  it('renders state of being as a text row instead of a badge', async () => {
+    const wrapper = mountAppearance({
+      race: 'super_mutant',
+      state_of_being: 'behemoth',
+      height: 'tall',
+    })
+
+    await nextTick()
+
+    expect(wrapper.text()).toContain('State:')
+    expect(wrapper.text()).toContain('Behemoth')
+    expect(wrapper.find('.badge-state-marker').exists()).toBe(false)
+  })
+
+  it('does not render legacy appearance actions', async () => {
     const wrapper = mountAppearance({ race: 'human' })
 
     await nextTick()
 
-    const generateButtons = wrapper
-      .findAll('button')
-      .filter((button) => button.text().includes('Generate appearance'))
-    expect(generateButtons).toHaveLength(1)
+    expect(wrapper.findAll('button')).toHaveLength(0)
   })
 
-  it('omits synth generation from the appearance badge', async () => {
+  it('renders synth generation as a text row instead of a badge', async () => {
     const wrapper = mountAppearance({
       race: 'synth',
       state_of_being: 'gen_1',
@@ -86,7 +97,9 @@ describe('DwellerAppearance', () => {
 
     expect(wrapper.find('.appearance-content').exists()).toBe(true)
     expect(wrapper.find('[aria-label="Dweller identity"]').exists()).toBe(false)
-    expect(wrapper.text()).not.toContain('Gen I')
+    expect(wrapper.text()).toContain('State:')
+    expect(wrapper.text()).toContain('Gen I')
+    expect(wrapper.find('.badge-state-marker').exists()).toBe(false)
   })
 
   it('renders generated attributes once they are substantial', async () => {

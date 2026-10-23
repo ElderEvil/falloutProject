@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vite-plus/test'
 import type { VueWrapper } from '@vue/test-utils'
 import { ref } from 'vue'
 import DwellerBio from '@/modules/dwellers/components/DwellerBio.vue'
@@ -67,11 +67,6 @@ describe('DwellerBio', () => {
     it('should call the generateBio action when button clicked', async () => {
       await wrapper.find('.generate-button').trigger('click')
       expect(ctx.actions.generateBio).toHaveBeenCalledOnce()
-    })
-
-    it('should call the generateAll action when complete dossier clicked', async () => {
-      await wrapper.find('.complete-dossier-button').trigger('click')
-      expect(ctx.actions.generateAll).toHaveBeenCalledOnce()
     })
 
     it('should disable button when isAnyGenerating is true', () => {

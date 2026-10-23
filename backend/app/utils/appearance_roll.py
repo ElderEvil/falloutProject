@@ -1,9 +1,9 @@
 """Semi-random, race-aware appearance rolls with parent inheritance.
 
 Fills ``visual_attributes`` for any newly created/generated dweller and derives
-newborn appearance from the parents, with a configurable mutation chance.
+newborn appearance from the parents, with a configurable trait-mutation chance.
 Every emitted value stays inside the canonical per-race option lists
-(``app.options.appearance``), including after a race mutation re-roll.
+(``app.options.appearance``).
 
 Deterministic: takes an injectable ``random.Random`` (or the ``random`` module)
 like ``roll_child_identity``; no AI dependency. The AI visual-attributes agent
@@ -202,9 +202,9 @@ def inherit_appearance_for_child(
 ) -> dict[str, Any]:
     """Build the child's appearance: inherit from parents, race-correct for the child.
 
-    The child's race may differ from both parents (race mutation), so every
-    inherited value is re-validated against the child's race options; values
-    that cannot transfer (e.g. human skin tones onto a ghoul) re-roll cleanly.
+    Every inherited value is re-validated against the child's race options;
+    values that cannot transfer (e.g. human skin tones onto a ghoul) re-roll
+    cleanly.
     """
     appearance: dict[str, Any] = {
         "skin_tone": _inherit(rng, mother, father, "skin_tone", skin_tone_options, child_race),

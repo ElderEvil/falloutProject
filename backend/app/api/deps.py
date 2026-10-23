@@ -3,9 +3,10 @@
 from typing import Annotated
 from uuid import UUID
 
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+from jwt import InvalidTokenError as JWTError
 from pydantic import UUID4, ValidationError
 from redis.asyncio import Redis
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -18,6 +19,7 @@ from app.models.outfit import Outfit
 from app.models.user import User
 from app.models.vault import Vault
 from app.models.weapon import Weapon
+from app.schemas.pagination import NotificationPagination, OffsetPagination, Pagination, PetPagination
 from app.schemas.token import TokenPayload
 from app.services import access_service
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
@@ -25,6 +27,15 @@ from app.utils.exceptions import AccessDeniedException, ResourceNotFoundExceptio
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login",
 )
+
+DBSession = Annotated[AsyncSession, Depends(get_async_session)]
+
+# Model dependencies keep query fields flat alongside endpoint filters. Direct
+# Query() models cannot be combined with scalar query parameters in this FastAPI version.
+PaginationParams = Annotated[Pagination, Depends()]
+OffsetPaginationParams = Annotated[OffsetPagination, Depends()]
+NotificationPaginationParams = Annotated[NotificationPagination, Depends()]
+PetPaginationParams = Annotated[PetPagination, Depends()]
 
 
 async def get_redis_client():
@@ -50,7 +61,7 @@ async def get_current_user(
         The authenticated user.
 
     Raises:
-        HTTPException: 403 if credentials cannot be validated.
+        HTTPException: 401 if credentials cannot be validated.
         HTTPException: 404 if user not found.
     """
     try:
@@ -63,10 +74,11 @@ async def get_current_user(
         user_id = UUID(token_data.sub)
     except (JWTError, ValidationError, ValueError, TypeError) as e:
         # A signed token with a missing or non-UUID subject is a credential
-        # failure (403), not a server error.
+        # failure (401), not a server error.
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
         ) from e
     user = await crud.user.get(db_session=db_session, id=user_id)
     if not user:
@@ -92,6 +104,23 @@ async def get_current_active_user(current_user: CurrentUser) -> User:
 
 
 CurrentActiveUser = Annotated[User, Depends(get_current_active_user)]
+
+
+async def get_current_verified_user(current_user: CurrentActiveUser) -> User:
+    """Verify the current user has confirmed their email address.
+
+    Returns:
+        The verified user.
+
+    Raises:
+        AccessDeniedException: 403 if the email address is not verified.
+    """
+    if not current_user.email_verified:
+        raise AccessDeniedException("Email verification required")
+    return current_user
+
+
+CurrentVerifiedUser = Annotated[User, Depends(get_current_verified_user)]
 
 
 async def get_current_active_superuser(current_user: CurrentActiveUser) -> User:

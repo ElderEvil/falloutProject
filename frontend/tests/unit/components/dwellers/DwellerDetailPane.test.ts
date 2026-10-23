@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vite-plus/test'
 import { ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
@@ -42,15 +42,22 @@ const dweller = {
   visual_attributes: { race: 'ghoul', faction: 'raiders', state_of_being: 'sane' },
 } as unknown as Dweller
 
-function mountPane(currentDweller: Dweller = dweller) {
+function mountPane(currentDweller: Dweller = dweller, embedded = false) {
   const ctx = createMockDwellerDetailContext({ dweller: ref(currentDweller) as never })
   return mountWithDwellerContext(DwellerDetailPane, {
     context: ctx,
+    props: { embedded },
     global: { plugins: [pinia], stubs: { RouterLink: true } },
   } as never)
 }
 
 describe('DwellerDetailPane header lockup', () => {
+  it('omits page navigation inside the modal while keeping the same detail content', () => {
+    const wrapper = mountPane(dweller, true)
+    expect(wrapper.find('[aria-label="Breadcrumb"]').exists()).toBe(false)
+    expect(wrapper.find('.dweller-name').text()).toContain('Nora Vance')
+  })
+
   it('names the dweller and says what they are doing', () => {
     const wrapper = mountPane()
 

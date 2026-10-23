@@ -110,6 +110,21 @@ class Team(BaseUUIDModel, TimeStampMixin, table=True):
         ),
     )
 
+    def __str__(self) -> str:
+        if self.name:
+            return self.name
+        if self.hazard_team:
+            purpose = f"{self.hazard_team.value.title()} team"
+        elif self.quest_id:
+            purpose = "Quest team"
+        elif self.incident_id:
+            purpose = "Incident team"
+        elif self.exploration_id:
+            purpose = "Exploration team"
+        else:
+            purpose = "Team"
+        return f"{purpose} ({str(self.id)[:8]})"
+
 
 class TeamMember(BaseUUIDModel, TimeStampMixin, table=True):
     """One dweller's slot on a team roster.

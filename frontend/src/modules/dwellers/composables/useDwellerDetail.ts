@@ -7,7 +7,7 @@ import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useToast } from '@/core/composables/useToast'
 import { useSendToWasteland } from '@/modules/exploration/composables/useSendToWasteland'
 import { useGaryMode } from '@/core/composables/useGaryMode'
-import { getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
+import { notifyErrorOnce, getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
 import { getVaultMap } from '@/modules/map/services/mapService'
 import {
   canUseRadaway,
@@ -105,7 +105,8 @@ interface RunOptions {
  */
 export function useDwellerDetail(
   dwellerId: Ref<string>,
-  vaultId: Ref<string>
+  vaultId: Ref<string>,
+  navigation: { onBack?: () => void; onNavigateToDweller?: (id: string) => void } = {}
 ): UseDwellerDetailReturn {
   const route = useRoute()
   const router = useRouter()
@@ -187,8 +188,8 @@ export function useDwellerDetail(
       if (opts.refetch !== false) await refetch()
       if (opts.refreshVault) await vaultStore.refreshVault(vaultId.value, authStore.token as string)
       opts.onSuccess?.()
-    } catch {
-      toast.error(opts.errorMessage ?? 'Action failed')
+    } catch (error) {
+      notifyErrorOnce(error, opts.errorMessage ?? 'Action failed')
     } finally {
       if (opts.flag) opts.flag.value = false
     }
@@ -247,11 +248,15 @@ export function useDwellerDetail(
     void loadDweller()
   })
 
-  const onBack = () => router.push(`/vault/${vaultId.value}/dwellers`)
+  const onBack = () =>
+    navigation.onBack ? navigation.onBack() : router.push(`/vault/${vaultId.value}/dwellers`)
   // Chat opens as a global modal over the current view via `?chat=<id>`; the
   // detail route stays mounted so closing the modal resumes it.
   const navigateToChat = () => router.push({ query: { ...route.query, chat: dwellerId.value } })
-  const navigateToDweller = (id: string) => router.push(`/vault/${vaultId.value}/dwellers/${id}`)
+  const navigateToDweller = (id: string) =>
+    navigation.onNavigateToDweller
+      ? navigation.onNavigateToDweller(id)
+      : router.push(`/vault/${vaultId.value}/dwellers/${id}`)
   const onHeaderNameClick = () => {
     if (dweller.value?.first_name?.toLowerCase() === 'gary') triggerGaryMode()
   }
@@ -428,7 +433,7 @@ export function useDwellerDetail(
       // matching the outcome of the old manual issue-then-use two-click flow.
       if (used) await refetch()
     } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to heal dweller'))
+      notifyErrorOnce(error, getErrorMessage(error, 'Failed to heal dweller'))
     } finally {
       healingSupply.value = null
     }

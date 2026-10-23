@@ -1,9 +1,9 @@
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
 import { ref, toValue, type MaybeRefOrGetter } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import { useToast } from '@/core/composables/useToast'
 import { useExplorationStore, type RewardsSummary } from '../stores/exploration'
 
 export type ExplorationFinishAction = (
@@ -23,7 +23,6 @@ export function useExplorationFinish(vaultId?: MaybeRefOrGetter<string | undefin
   const { filter: dwellerStore } = useDwellerStore()
   const vaultStore = useVaultStore()
   const explorationStore = useExplorationStore()
-  const toast = useToast()
 
   const showRewardsModal = ref(false)
   const completedExplorationRewards = ref<RewardsSummary | null>(null)
@@ -53,8 +52,8 @@ export function useExplorationFinish(vaultId?: MaybeRefOrGetter<string | undefin
       await vaultStore.refreshVault(vault, authStore.token)
       rewardsDirty.value = false
       return true
-    } catch {
-      toast.error('Failed to refresh vault rewards')
+    } catch (error) {
+      notifyErrorOnce(error, 'Failed to refresh vault rewards')
       return false
     }
   }
@@ -88,8 +87,8 @@ export function useExplorationFinish(vaultId?: MaybeRefOrGetter<string | undefin
         await vaultStore.refreshVault(vault, authStore.token)
         await dwellerStore.fetchDwellersByVault(vault, authStore.token)
       }
-    } catch {
-      toast.error(errorMessage)
+    } catch (error) {
+      notifyErrorOnce(error, errorMessage)
     }
   }
 

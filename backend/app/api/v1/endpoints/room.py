@@ -8,11 +8,19 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_room_access
+from app.api.deps import (
+    CurrentActiveUser,
+    CurrentSuperuser,
+    PaginationParams,
+    get_user_vault_or_403,
+    verify_room_access,
+)
 from app.db.session import get_async_session
 from app.models.room import Room
+from app.schemas.barbershop import BarbershopChangeRequest, BarbershopChangeResponse, BarbershopStatus
 from app.schemas.grid import GridConfig, grid_config
 from app.schemas.room import RoomBuild, RoomCreateWithoutVaultID, RoomMerge, RoomRead, RoomStyleUpdate
+from app.services.barbershop_service import barbershop_service
 from app.services.room_remodel_service import remodel_room
 from app.services.room_service import room_service
 
@@ -29,15 +37,14 @@ async def read_grid_config(_: CurrentActiveUser) -> GridConfig:
 async def read_room_list(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> Sequence[Room]:
     """Retrieve a paginated list of rooms.
 
     Returns:
         List of rooms.
     """
-    return await crud.room.get_multi(db_session, skip=skip, limit=limit)
+    return await crud.room.get_multi(db_session, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.get("/vault/{vault_id}/", response_model=list[RoomRead])
@@ -45,8 +52,7 @@ async def read_rooms_by_vault(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     vault_id: UUID4,
     user: CurrentActiveUser,
-    skip: int = 0,
-    limit: int = 100,
+    pagination: PaginationParams,
 ) -> Sequence[Room]:
     """Retrieve rooms for a specific vault.
 
@@ -54,7 +60,9 @@ async def read_rooms_by_vault(
         List of rooms in the vault.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.room.get_multy_by_vault(db_session=db_session, skip=skip, limit=limit, vault_id=vault_id)
+    return await crud.room.get_multy_by_vault(
+        db_session=db_session, skip=pagination.skip, limit=pagination.limit, vault_id=vault_id
+    )
 
 
 @router.get("/{room_id}", response_model=RoomRead)
@@ -68,6 +76,37 @@ async def read_room(
     """
     await verify_room_access(room_id, user, db_session)
     return await crud.room.get(db_session, room_id)
+
+
+@router.get("/{room_id}/barbershop", response_model=BarbershopStatus)
+async def read_barbershop_status(
+    room_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> BarbershopStatus:
+    """Return the Barbershop's availability, fee, and preset swatches."""
+    await verify_room_access(room_id, user, db_session)
+    room = await crud.room.get(db_session, room_id)
+    return await barbershop_service.get_status_for_room(db_session, room)
+
+
+@router.post("/{room_id}/barbershop/dwellers/{dweller_id}", response_model=BarbershopChangeResponse)
+async def change_dweller_appearance(
+    room_id: UUID4,
+    dweller_id: UUID4,
+    request: BarbershopChangeRequest,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> BarbershopChangeResponse:
+    """Change a human adult's skin tone and hair color for the Barbershop fee."""
+    await verify_room_access(room_id, user, db_session)
+    room = await crud.room.get(db_session, room_id)
+    return await barbershop_service.change_appearance(
+        db_session,
+        room=room,
+        dweller_id=dweller_id,
+        request=request,
+    )
 
 
 @router.get("/buildable/{vault_id}/", response_model=list[RoomCreateWithoutVaultID])

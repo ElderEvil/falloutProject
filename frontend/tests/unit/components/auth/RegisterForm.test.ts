@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { createIconifyMock } from '../../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
@@ -302,10 +302,11 @@ describe('RegisterForm', () => {
       await flushPromises()
 
       expect(registerSpy).toHaveBeenCalledWith('overseer', 'overseer@vault-tec.com', 'password123')
-      expect(pushSpy).toHaveBeenCalledWith('/')
+      expect(wrapper.text()).toContain('CHECK YOUR EMAIL')
+      expect(pushSpy).not.toHaveBeenCalled()
     })
 
-    it('should redirect to home on successful registration', async () => {
+    it('should show the inline check-your-email panel on successful registration', async () => {
       const wrapper = mount(RegisterForm, {
         global: {
           plugins: [router],
@@ -322,6 +323,67 @@ describe('RegisterForm', () => {
       await inputs[3].setValue('password123')
       await wrapper.find('form').trigger('submit.prevent')
 
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('CHECK YOUR EMAIL')
+      expect(wrapper.text()).toContain('CONTINUE TO VAULT')
+      expect(pushSpy).not.toHaveBeenCalled()
+    })
+
+    it('should resend the verification email from the success panel', async () => {
+      const wrapper = mount(RegisterForm, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      vi.spyOn(authStore, 'register').mockResolvedValue(true)
+      const resendSpy = vi.spyOn(authStore, 'resendVerificationEmail').mockResolvedValue(true)
+      const inputs = wrapper.findAll('input')
+
+      await inputs[0].setValue('overseer')
+      await inputs[1].setValue('overseer@vault-tec.com')
+      await inputs[2].setValue('password123')
+      await inputs[3].setValue('password123')
+      await wrapper.find('form').trigger('submit.prevent')
+      await flushPromises()
+
+      const resendButton = wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('RESEND EMAIL'))
+      expect(resendButton).toBeDefined()
+
+      await resendButton?.trigger('click')
+      await flushPromises()
+
+      expect(resendSpy).toHaveBeenCalledOnce()
+      expect(wrapper.text()).toContain('EMAIL SENT')
+    })
+
+    it('should continue to the vault from the success panel', async () => {
+      const wrapper = mount(RegisterForm, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      vi.spyOn(authStore, 'register').mockResolvedValue(true)
+      const pushSpy = vi.spyOn(router, 'push')
+      const inputs = wrapper.findAll('input')
+
+      await inputs[0].setValue('overseer')
+      await inputs[1].setValue('overseer@vault-tec.com')
+      await inputs[2].setValue('password123')
+      await inputs[3].setValue('password123')
+      await wrapper.find('form').trigger('submit.prevent')
+      await flushPromises()
+
+      const continueButton = wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('CONTINUE TO VAULT'))
+      expect(continueButton).toBeDefined()
+
+      await continueButton?.trigger('click')
       await flushPromises()
 
       expect(pushSpy).toHaveBeenCalledWith('/')

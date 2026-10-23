@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 import { useRelationshipMilestone } from '@/modules/social/composables/useRelationshipMilestone'
 
 function rel(relationship_type: string, affinity: number) {

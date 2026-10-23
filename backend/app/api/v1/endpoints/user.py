@@ -5,14 +5,13 @@ from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException
-from fastapi.encoders import jsonable_encoder
 from pydantic import UUID4
 from pydantic.networks import EmailStr
 from redis.asyncio import Redis
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_redis_client
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, PaginationParams, get_redis_client
 from app.crud.user_profile import profile_crud
 from app.db.session import get_async_session
 from app.models.user import User
@@ -58,16 +57,15 @@ async def create_user(
 async def read_users(
     *,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    skip: int = 0,
-    limit: int = 100,
     _: CurrentSuperuser,
+    pagination: PaginationParams,
 ) -> Sequence[User]:
     """Retrieve users.
 
     Returns:
         List of users.
     """
-    return await crud.user.get_multi(db_session, skip=skip, limit=limit)
+    return await crud.user.get_multi(db_session, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.put("/me", response_model=UserRead)
@@ -84,15 +82,13 @@ async def update_user_me(
     Returns:
         The updated user.
     """
-    if username is not None:
-        return await user_service.update_username(db_session, user, username)
-    user_data = jsonable_encoder(user)
-    user_in = UserUpdate(**user_data)
-    if password is not None:
-        user_in.password = password
-    if email is not None:
-        user_in.email = email
-    return await crud.user.update(db_session, id=user.id, obj_in=user_in)
+    return await user_service.update_account(
+        db_session,
+        user,
+        username=username,
+        password=password,
+        email=email,
+    )
 
 
 @router.get("/me", response_model=UserRead)

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, provide, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import BackButton from '@/core/components/common/BackButton.vue'
 import TerminalLoadingState from '@/core/components/common/TerminalLoadingState.vue'
@@ -15,12 +15,6 @@ import { canUseRadaway, getDwellerDisplayName } from '../models/dweller'
 import { dwellerDetailKey } from './DwellerDetailContext'
 import { formatHeading } from '@/modules/map/utils/bearing'
 
-const DwellerAppearanceEditor = defineAsyncComponent({
-  loader: () => import('./DwellerAppearanceEditor.vue'),
-  loadingComponent: ComponentLoader,
-  delay: 200,
-  timeout: 10000,
-})
 const TrainingStartModal = defineAsyncComponent({
   loader: () => import('./modals/TrainingStartModal.vue'),
   loadingComponent: ComponentLoader,
@@ -35,23 +29,33 @@ const ExplorationDurationModal = defineAsyncComponent({
 })
 
 const RoomAssignmentModal = defineAsyncComponent(() => import('./modals/RoomAssignmentModal.vue'))
+const props = defineProps<{ dwellerId?: string; vaultId?: string; embedded?: boolean }>()
+const emit = defineEmits<{ close: [] }>()
 const assignmentOpen = ref(false)
 const route = useRoute()
+const router = useRouter()
 
 // The full-page detail route carries the dweller id as :dwellerId.
 const dwellerId = computed<string>(() => {
+  if (props.dwellerId !== undefined) return props.dwellerId
   const fromParam = route.params.dwellerId
   if (typeof fromParam === 'string') return fromParam
   if (Array.isArray(fromParam) && typeof fromParam[0] === 'string') return fromParam[0]
   return ''
 })
-const vaultId = computed(() => route.params.id as string)
+const vaultId = computed(() => props.vaultId ?? (route.params.id as string))
 
-const ctx = useDwellerDetail(dwellerId, vaultId)
+const ctx = useDwellerDetail(dwellerId, vaultId, {
+  onBack: props.embedded ? () => emit('close') : undefined,
+  onNavigateToDweller: props.embedded
+    ? (id) => {
+        void router.replace({ query: { ...route.query, dweller: id } })
+      }
+    : undefined,
+})
 provide(dwellerDetailKey, ctx)
 
 const dweller = computed(() => ctx.dweller.value)
-const appearanceEditorOpen = ctx.appearanceEditorOpen
 const trainingModalOpen = ctx.trainingModalOpen
 const renameDialogOpen = ctx.renameDialogOpen
 const renameDialogName = ctx.renameDialogName
@@ -71,10 +75,10 @@ const wastelandModalOpen = ctx.wastelandModalOpen
     <div v-else-if="!dweller" class="error-container">
       <Icon icon="mdi:alert-circle" class="error-icon" />
       <p class="error-text">Dweller not found</p>
-      <BackButton label="Back to Dwellers" @click="ctx.actions.onBack()" />
+      <BackButton :label="embedded ? 'Close' : 'Back to Dwellers'" @click="ctx.actions.onBack()" />
     </div>
 
-    <DwellerDetailPane v-else @choose-room="assignmentOpen = true" />
+    <DwellerDetailPane v-else :embedded="embedded" @choose-room="assignmentOpen = true" />
 
     <RoomAssignmentModal
       v-if="dweller && assignmentOpen"
@@ -84,12 +88,6 @@ const wastelandModalOpen = ctx.wastelandModalOpen
       @assigned="ctx.actions.refresh()"
     />
 
-    <DwellerAppearanceEditor
-      v-if="dweller"
-      v-model="appearanceEditorOpen"
-      :dweller="dweller"
-      @saved="ctx.actions.saveAppearance"
-    />
     <TrainingStartModal
       v-if="dweller"
       v-model="trainingModalOpen"

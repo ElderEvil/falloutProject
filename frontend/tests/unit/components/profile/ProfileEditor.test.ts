@@ -1,7 +1,12 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import ProfileEditor from '@/modules/profile/components/ProfileEditor.vue'
 import type { ProfileUpdate } from '@/models/profile'
+import { authService } from '@/modules/auth/services/authService'
+
+vi.mock('@/modules/auth/services/authService', () => ({
+  authService: { requestPasswordReset: vi.fn() },
+}))
 
 describe('ProfileEditor', () => {
   const mockInitialData = {
@@ -303,6 +308,46 @@ describe('ProfileEditor', () => {
     })
   })
 
+  describe('Email Field', () => {
+    const mountEditor = (props = {}) =>
+      mount(ProfileEditor, {
+        props: { initialData: mockInitialData, email: 'old@test.com', ...props },
+      })
+
+    it('renders the current email', () => {
+      const wrapper = mountEditor()
+
+      expect((wrapper.find('#email').element as HTMLInputElement).value).toBe('old@test.com')
+    })
+
+    it('emits a changed email as the third submit argument', async () => {
+      const wrapper = mountEditor()
+
+      await wrapper.find('#email').setValue('new@test.com')
+      await wrapper.find('form').trigger('submit')
+
+      expect(wrapper.emitted('submit')?.[0]?.[2]).toBe('new@test.com')
+    })
+
+    it('does not emit an email when it is unchanged', async () => {
+      const wrapper = mountEditor()
+
+      await wrapper.find('form').trigger('submit')
+
+      expect(wrapper.emitted('submit')?.[0]?.[2]).toBeNull()
+    })
+
+    it('blocks submission and explains an invalid address', async () => {
+      const wrapper = mountEditor()
+
+      await wrapper.find('#email').setValue('not-an-email')
+      await wrapper.find('form').trigger('submit')
+
+      expect(wrapper.text()).toContain('Enter a valid email address.')
+      expect(wrapper.emitted('submit')).toBeFalsy()
+    })
+  })
+
   describe('Error Display', () => {
     it('should display error message when error prop is provided', () => {
       const wrapper = mount(ProfileEditor, {
@@ -325,5 +370,38 @@ describe('ProfileEditor', () => {
 
       expect(wrapper.find('.text-red-500').exists()).toBe(false)
     })
+  })
+})
+
+describe('Sign-in methods', () => {
+  it('offers adding a password for passwordless accounts', async () => {
+    const { flushPromises } = await import('@vue/test-utils')
+    const wrapper = mount(ProfileEditor, {
+      props: {
+        initialData: { bio: 'Test bio' },
+        email: 'overseer@example.com',
+        hasPassword: false,
+      },
+    })
+
+    expect(wrapper.text()).toContain("We'll email you a link to set a password")
+    const button = wrapper.findAll('button').find((item) => item.text().includes('ADD PASSWORD'))
+    expect(button).toBeTruthy()
+    await button!.trigger('click')
+    await flushPromises()
+
+    expect(authService.requestPasswordReset).toHaveBeenCalledWith('overseer@example.com')
+    expect(wrapper.text()).toContain('EMAIL SENT')
+  })
+
+  it('states when password sign-in is enabled', () => {
+    const wrapper = mount(ProfileEditor, {
+      props: { initialData: { bio: 'Test bio' }, hasPassword: true },
+    })
+
+    expect(wrapper.text()).toContain('Password sign-in is enabled')
+    expect(wrapper.text()).toContain(
+      'Changing your email does not change which Google or GitHub identity is linked'
+    )
   })
 })

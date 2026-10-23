@@ -65,8 +65,9 @@ onMounted(async () => {
       <PageContentRail width="narrow" class="dweller-chat-rail">
         <PageNavigation
           v-if="vaultId"
-          back-label="Back to Dweller"
+          back-label="Back"
           :back-to="`/vault/${vaultId}/dwellers/${dwellerId}`"
+          history-first
           :breadcrumbs="breadcrumbs"
         />
         <div class="chat-container">

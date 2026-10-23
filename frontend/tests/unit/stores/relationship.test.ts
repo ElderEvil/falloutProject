@@ -1,11 +1,14 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { setActivePinia, createPinia } from 'pinia'
 import { useRelationshipStore } from '@/modules/social/stores/relationship'
 import axios from '@/core/plugins/axios'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
 vi.mock('@/core/plugins/axios')
-vi.mock('@/core/utils/errorHandler', () => ({ handleStoreError: vi.fn() }))
+vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/utils/errorHandler')>()),
+  handleStoreError: vi.fn(),
+}))
 
 describe('Relationship Store', () => {
   beforeEach(() => {

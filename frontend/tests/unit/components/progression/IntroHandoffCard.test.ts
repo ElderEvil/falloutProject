@@ -1,6 +1,6 @@
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import IntroHandoffCard from '@/modules/progression/components/IntroHandoffCard.vue'
 import axios from '@/core/plugins/axios'
 import { useVaultStore, type VaultWithNumbers } from '@/modules/vault/stores/vault'

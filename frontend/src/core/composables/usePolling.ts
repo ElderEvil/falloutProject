@@ -1,52 +1,98 @@
-import { getCurrentScope, onScopeDispose, ref } from 'vue'
+import { getCurrentScope, onScopeDispose, ref, watch } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import { handleStoreError } from '@/core/utils/errorHandler'
+import { getErrorStatus } from '@/core/types/utils'
+import { ensureAccessToken } from '@/core/utils/authSession'
+import { useBackgroundActivity } from './useBackgroundActivity'
 
 export interface PollingOptions {
   interval?: number
   immediate?: boolean
 }
 
-/**
- * Runs a data refresh at a fixed interval with overlap protection.
- * The interval is disposed with the current Vue effect scope when one exists.
- */
+/** Authenticated refreshes pause when hidden/offline, with no overlap or catch-up burst. */
 export function usePolling(
   refresh: () => unknown,
   { interval = 30_000, immediate = true }: PollingOptions = {}
 ) {
+  const { canRun, stop: stopActivity } = useBackgroundActivity()
   const isRefreshing = ref(false)
-  let generation = 0
+  const delay = ref(interval)
+  let enabled = true
+  let blocked = false
+  let disposed = false
   let hasReportedError = false
 
   async function run() {
-    if (isRefreshing.value) return
-
-    const activeGeneration = ++generation
+    if (isRefreshing.value || disposed) return
     isRefreshing.value = true
     try {
+      await ensureAccessToken()
+      if (!canRun.value || disposed) return
       await refresh()
+      delay.value = interval
       hasReportedError = false
+    } catch (error) {
+      const status = getErrorStatus(error)
+      if (status && [401, 403, 404].includes(status)) {
+        blocked = true
+        pauseInterval()
+      } else {
+        delay.value = Math.min(delay.value * 2, Math.max(interval, 60_000))
+      }
+      throw error
     } finally {
-      // A late completion from a prior generation must not clear a newer run.
-      if (activeGeneration === generation) isRefreshing.value = false
+      isRefreshing.value = false
     }
   }
 
-  const runScheduledRefresh = () => {
+  const scheduledRefresh = () => {
+    if (!canRun.value || !enabled || blocked || disposed) return
     void run().catch((error) => {
-      if (hasReportedError) return
+      if (hasReportedError || getErrorStatus(error) === 401) return
       hasReportedError = true
       handleStoreError(error, 'Failed to refresh polled data')
     })
   }
 
-  const { pause, resume, isActive } = useIntervalFn(runScheduledRefresh, interval, {
-    immediate: true,
-    immediateCallback: immediate,
-  })
+  const {
+    pause: pauseInterval,
+    resume: resumeInterval,
+    isActive,
+  } = useIntervalFn(scheduledRefresh, delay, { immediate: false })
 
-  if (getCurrentScope()) onScopeDispose(pause)
+  const stopWatch = watch(
+    canRun,
+    (active, previous) => {
+      pauseInterval()
+      if (!active || !enabled || blocked) return
+      if (previous !== undefined || immediate) scheduledRefresh()
+      resumeInterval()
+    },
+    { immediate: true }
+  )
 
-  return { run, pause, resume, isActive, isRefreshing }
+  function pause() {
+    enabled = false
+    pauseInterval()
+  }
+
+  function resume() {
+    enabled = true
+    blocked = false
+    if (!canRun.value || disposed) return
+    if (immediate) scheduledRefresh()
+    resumeInterval()
+  }
+
+  function stop() {
+    disposed = true
+    pause()
+    stopWatch()
+    stopActivity()
+  }
+
+  if (getCurrentScope()) onScopeDispose(stop)
+
+  return { run, pause, resume, stop, isActive, isRefreshing }
 }

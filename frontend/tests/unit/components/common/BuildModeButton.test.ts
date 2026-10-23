@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import { Icon } from '@iconify/vue'
 import BuildModeButton from '@/core/components/common/BuildModeButton.vue'

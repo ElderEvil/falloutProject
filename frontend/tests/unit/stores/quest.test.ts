@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { setActivePinia, createPinia } from 'pinia'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import axios from '@/core/plugins/axios'

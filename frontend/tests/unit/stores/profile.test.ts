@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { createApiClientMock } from '../helpers/mocks'
 import { setActivePinia, createPinia } from 'pinia'
 import { useProfileStore } from '@/modules/profile/stores/profile'

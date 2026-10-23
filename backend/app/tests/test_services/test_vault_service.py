@@ -1260,9 +1260,9 @@ class TestInitiateVault:
         assert {"daily", "weekly", "achievement"} <= {o.category for o in objectives}
         achievements = [o for o in objectives if o.category == "achievement"]
         assert all(o.sequence == 1 for o in achievements if o.objective_type != "reach")
-        unfinished = [o for o in achievements if o.progress < o.total]
-        assert {o.track_key for o in achievements} == {o.track_key for o in unfinished}
-        assert len({o.track_key for o in unfinished}) == len(unfinished)
+        unclaimed = [o for o in achievements if not o.is_completed]
+        assert {o.track_key for o in achievements} == {o.track_key for o in unclaimed}
+        assert len({o.track_key for o in unclaimed}) == len(unclaimed)
         state = await crud.game_state_crud.get_or_create(async_session, result.id)
         assert state.achievement_tracks_initialized
         assert state.daily_objectives_period is not None

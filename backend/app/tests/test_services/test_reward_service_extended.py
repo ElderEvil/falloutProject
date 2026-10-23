@@ -26,6 +26,7 @@ from app.services.rewards import items, lunchbox, settlement
 from app.tests.factory.dwellers import create_fake_adult_dweller
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
+from app.utils.dwellers import level_progress, rarity_level_bounds
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 
 
@@ -296,6 +297,112 @@ async def test_grant_item_legendary_dweller_exhausted_pool_keeps_canonical_name(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("rarity", [RarityEnum.RARE, RarityEnum.LEGENDARY])
+async def test_grant_dweller_clamps_level_to_rarity_band(async_session: AsyncSession, rarity: RarityEnum) -> None:
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    low, high = rarity_level_bounds(rarity)
+
+    result = await reward_service.grant_dweller(
+        async_session,
+        vault.id,
+        {"first_name": "Band", "last_name": "Test", "gender": "male", "rarity": rarity.value, "level": 1},
+    )
+    dweller = await async_session.get(Dweller, UUID(result["dweller_id"]))
+
+    assert dweller is not None
+    assert low <= dweller.level <= high
+    max_health, experience = level_progress(dweller.level)
+    assert dweller.max_health == max_health
+    assert dweller.health == max_health
+    assert dweller.experience == experience
+
+
+@pytest.mark.asyncio
+async def test_grant_legendary_dweller_keeps_in_band_level(async_session: AsyncSession) -> None:
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+
+    result = await reward_service.grant_dweller(
+        async_session,
+        vault.id,
+        {"first_name": "Veteran", "last_name": "Test", "gender": "female", "rarity": "legendary", "level": 30},
+    )
+    dweller = await async_session.get(Dweller, UUID(result["dweller_id"]))
+
+    assert dweller is not None
+    assert dweller.level == 30
+
+
+@pytest.mark.asyncio
+async def test_grant_legendary_dweller_without_level_rolls_band(async_session: AsyncSession) -> None:
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    low, high = rarity_level_bounds(RarityEnum.LEGENDARY)
+
+    result = await reward_service.grant_dweller(
+        async_session,
+        vault.id,
+        {"first_name": "Rolled", "last_name": "Test", "gender": "male", "rarity": "legendary"},
+    )
+    dweller = await async_session.get(Dweller, UUID(result["dweller_id"]))
+
+    assert dweller is not None
+    assert low <= dweller.level <= high
+
+
+@pytest.mark.asyncio
+async def test_grant_common_dweller_keeps_supplied_level(async_session: AsyncSession) -> None:
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+
+    result = await reward_service.grant_dweller(
+        async_session,
+        vault.id,
+        {"first_name": "Common", "last_name": "Test", "gender": "male", "rarity": "common", "level": 3},
+    )
+    dweller = await async_session.get(Dweller, UUID(result["dweller_id"]))
+
+    assert dweller is not None
+    assert dweller.level == 3
+
+
+@pytest.mark.asyncio
+async def test_prepare_template_dweller_clamps_level_override(async_session: AsyncSession) -> None:
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+
+    data = await crud.dweller.prepare_template_dweller(
+        async_session,
+        vault.id,
+        "abraham-washington",
+        overrides={"level": 1},
+    )
+    low, high = rarity_level_bounds(RarityEnum.LEGENDARY)
+    max_health, experience = level_progress(data["level"])
+
+    assert low <= data["level"] <= high
+    assert data["max_health"] == max_health
+    assert data["health"] == max_health
+    assert data["experience"] == experience
+
+
+@pytest.mark.asyncio
+async def test_grant_template_dweller_clamps_level_override(async_session: AsyncSession) -> None:
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    low, high = rarity_level_bounds(RarityEnum.LEGENDARY)
+
+    result = await reward_service.grant_dweller(
+        async_session, vault.id, {"template_id": "abraham-washington", "level": 1}
+    )
+    dweller = await async_session.get(Dweller, UUID(result["dweller_id"]))
+
+    assert dweller is not None
+    assert low <= dweller.level <= high
+
+
+@pytest.mark.asyncio
 async def test_grant_dweller_item_uses_reward_name(async_session: AsyncSession) -> None:
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
@@ -386,7 +493,7 @@ async def test_grant_experience_level_up(async_session: AsyncSession) -> None:
         gender=GenderEnum.MALE,
         rarity=RarityEnum.COMMON,
         level=1,
-        experience=90,
+        experience=182,
         max_health=100,
         health=100,
         radiation=0,
@@ -405,6 +512,9 @@ async def test_grant_experience_level_up(async_session: AsyncSession) -> None:
     result = await reward_service.grant_experience(async_session, [dweller.id], 100)
 
     assert str(dweller.id) in result["leveled_up"]
+    await async_session.refresh(dweller)
+    assert dweller.level == 2
+    assert dweller.experience == 282
 
 
 @pytest.mark.asyncio

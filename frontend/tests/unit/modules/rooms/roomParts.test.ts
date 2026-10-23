@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import {
   craftingItemType,
   findProductionRoom,
   getRoomDetailParts,
+  isBarbershop,
   isCraftingRoom,
   isElevator,
   isOverseersOffice,
@@ -85,6 +86,20 @@ describe('getRoomDetailParts', () => {
     expect(names(parts)).toBe('preview,info,radioStats,dwellerList,actions,radioControls')
   })
 
+  it('renders the barbershop part first for the Barbershop', () => {
+    const parts = getRoomDetailParts(
+      room({ name: 'Barbershop', category: 'misc.', ability: 'charisma' })
+    )
+    expect(names(parts)).toBe('preview,info,barbershop,dwellerList,actions')
+  })
+
+  it('does not render the barbershop part for another Misc. room', () => {
+    const parts = getRoomDetailParts(
+      room({ name: 'Radio Studio', category: 'misc.', ability: 'charisma' })
+    )
+    expect(parts).not.toContain('barbershop')
+  })
+
   it('renders the briefing for the Overseer’s Office', () => {
     const parts = getRoomDetailParts(
       room({ name: "Overseer's Office", category: 'misc.', ability: null })
@@ -154,6 +169,14 @@ describe('special room predicates', () => {
     expect(isRadioRoom(room({ name: 'Radio Studio' }))).toBe(true)
     expect(isRadioRoom(room({ name: 'Power Generator' }))).toBe(false)
     expect(isRadioRoom(null)).toBe(false)
+  })
+
+  it('matches the Barbershop by exact name', () => {
+    expect(isBarbershop(room({ name: 'Barbershop' }))).toBe(true)
+    expect(isBarbershop(room({ name: 'barbershop' }))).toBe(true)
+    expect(isBarbershop(room({ name: 'Barbershop supplies' }))).toBe(false)
+    expect(isBarbershop(room({ name: 'Radio Studio', category: 'misc.' }))).toBe(false)
+    expect(isBarbershop(null)).toBe(false)
   })
 
   it('matches the vault door exactly', () => {

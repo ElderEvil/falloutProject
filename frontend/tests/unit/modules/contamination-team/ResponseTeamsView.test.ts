@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test'
 import { reactive } from 'vue'
 import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { mountWithSetup } from '../../helpers/mountWithSetup'
@@ -96,7 +96,7 @@ describe('ResponseTeamsView (compatibility redirect)', () => {
     mountWithSetup(ResponseTeamsView)
     await flushPromises()
 
-    expect(mockToast.error).toHaveBeenCalledTimes(1)
+    expect(mockToast.error).not.toHaveBeenCalled()
     expect(mockToast.info).not.toHaveBeenCalled()
     expect(mockReplace).toHaveBeenCalledWith({ path: '/vault/vault-1' })
   })

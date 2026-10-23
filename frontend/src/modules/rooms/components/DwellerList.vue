@@ -7,7 +7,8 @@ import {
   isAvailableUnassignedDweller,
   type SpecialKey,
 } from '@/modules/dwellers/models/dweller'
-import RoomDwellerCard from './RoomDwellerCard.vue'
+import DwellerAssignmentRow from './DwellerAssignmentRow.vue'
+import { useRoomStore } from '../stores/room'
 
 interface Props {
   ability: string | null
@@ -65,6 +66,9 @@ const pickerTitle = computed(
   () =>
     props.title ?? (assignmentMode.value === 'apprentice' ? 'Select Apprentice' : 'Select Worker')
 )
+const roomStore = useRoomStore()
+const currentRoomName = (dweller: (typeof dwellerStore.dwellers)[number]): string =>
+  roomStore.rooms.find((room) => room.id === dweller.room_id)?.name ?? 'Unassigned'
 </script>
 
 <template>
@@ -80,13 +84,16 @@ const pickerTitle = computed(
         ×
       </button>
     </div>
-    <RoomDwellerCard
-      v-for="dweller in availableDwellers"
-      :key="dweller.id"
-      :dweller="dweller"
-      :ability="ability"
-      @activate="pickDweller($event)"
-    />
+    <ul v-if="availableDwellers.length" class="picker-list">
+      <DwellerAssignmentRow
+        v-for="dweller in availableDwellers"
+        :key="dweller.id"
+        :dweller="dweller"
+        :ability="ability"
+        :current-room-name="currentRoomName(dweller)"
+        @activate="pickDweller($event)"
+      />
+    </ul>
     <p v-if="!availableDwellers.length" class="picker-empty">
       {{ emptyText ?? 'No available dwellers' }}
     </p>
@@ -97,8 +104,8 @@ const pickerTitle = computed(
 .dweller-picker {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.5rem;
+  gap: 0.25rem;
+  padding: 0.4rem;
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
@@ -140,5 +147,14 @@ const pickerTitle = computed(
   margin: 0;
   font-size: 0.75rem;
   color: var(--color-gray-400);
+}
+
+.picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 </style>

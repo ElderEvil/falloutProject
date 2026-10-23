@@ -24,7 +24,6 @@ interface Props {
   dweller: DwellerDetailRead
   imageUrl?: string | null
   loading?: boolean
-  generatingPortrait?: boolean
   availableStimpaks?: number
   availableRadaways?: number
   healingSupply?: 'stimpack' | 'radaway' | null
@@ -41,7 +40,6 @@ const emit = defineEmits<{
   (e: 'heal-radaway'): void
   (e: 'unassign'): void
   (e: 'send-wasteland'): void
-  (e: 'generate-portrait'): void
 }>()
 
 const getImageUrl = (imagePath: string) => {
@@ -119,12 +117,16 @@ const canHealRadaway = computed(
 <template>
   <div class="dweller-card">
     <div class="portrait-rail">
-      <div class="portrait-container">
+      <div class="portrait-container" :class="{ 'default-portrait-frame': dweller.is_default_portrait }">
         <template v-if="imageUrl">
           <img
             :src="getImageUrl(imageUrl)"
             alt="Dweller Portrait"
-            :class="['portrait-image', { 'grayscale brightness-50 contrast-125': dweller.is_dead }]"
+            :class="[
+              'portrait-image',
+              { 'grayscale brightness-50 contrast-125': dweller.is_dead },
+              { 'default-portrait-zoom': dweller.is_default_portrait },
+            ]"
           />
           <span
             v-if="dweller.is_dead"
@@ -136,21 +138,10 @@ const canHealRadaway = computed(
           </span>
         </template>
         <template v-else>
-          <button
-            type="button"
-            class="portrait-placeholder"
-            :disabled="loading"
-            @click="emit('generate-portrait')"
-          >
-            <Icon
-              :icon="generatingPortrait ? 'mdi:loading' : 'mdi:account-circle'"
-              class="placeholder-icon text-theme-primary opacity-30"
-              :class="{ 'animate-spin': generatingPortrait }"
-            />
-            <span class="placeholder-hint">{{
-              generatingPortrait ? 'Generating portrait…' : 'Generate portrait'
-            }}</span>
-          </button>
+          <div class="portrait-placeholder">
+            <Icon icon="mdi:account-circle" class="placeholder-icon text-theme-primary opacity-30" />
+            <span class="placeholder-hint">No portrait</span>
+          </div>
         </template>
       </div>
 
@@ -292,6 +283,13 @@ const canHealRadaway = computed(
   aspect-ratio: 1;
 }
 
+.portrait-container.default-portrait-frame {
+  overflow: hidden;
+  border-radius: 8px;
+  border: 2px solid var(--color-theme-primary);
+  box-shadow: 0 0 15px var(--color-theme-glow);
+}
+
 .stats-container {
   flex: 1 1 auto;
   min-width: 0;
@@ -309,6 +307,13 @@ const canHealRadaway = computed(
   border-radius: 8px;
   border: 2px solid var(--color-theme-primary);
   box-shadow: 0 0 15px var(--color-theme-glow);
+}
+
+.portrait-image.default-portrait-zoom {
+  transform: scale(1.1);
+  transform-origin: top center;
+  border: none;
+  box-shadow: none;
 }
 
 /* The placeholder has no intrinsic size to borrow, so it takes a definite box

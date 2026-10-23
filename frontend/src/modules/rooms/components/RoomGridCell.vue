@@ -61,9 +61,7 @@ const isRoomAffectedByOutage = (): boolean => {
   return props.room.ability?.toLowerCase() !== 'strength'
 }
 
-const getAbilityIcon = (ability: string | null | undefined): string => {
-  return getAbilityConfig(ability)?.icon ?? 'mdi:home'
-}
+const abilityConfig = computed(() => getAbilityConfig(props.room.ability))
 
 const canUpgrade = (r: Room): boolean => {
   const maxTier = r.t2_upgrade_cost && r.t3_upgrade_cost ? 3 : r.t2_upgrade_cost ? 2 : 1
@@ -151,7 +149,20 @@ function handleDragLeave(event: DragEvent): void {
         <div class="room-info-overlay">
           <div class="room-header">
             <h3 class="room-name">{{ room.name }}</h3>
-            <Icon v-if="room.ability" :icon="getAbilityIcon(room.ability)" class="ability-icon" />
+            <span v-if="room.ability" class="room-ability">
+              <Icon
+                :icon="abilityConfig?.icon ?? 'mdi:home'"
+                class="ability-icon"
+                :class="{ 'ability-icon--drag-over': isDraggingOver }"
+              />
+              <span
+                v-if="isDraggingOver && abilityConfig"
+                class="drag-ability-letter"
+                role="img"
+                :aria-label="`Assign a dweller with high ${abilityConfig.label}`"
+                >{{ abilityConfig.letter }}</span
+              >
+            </span>
           </div>
           <div v-if="room.tier" class="room-tier">T{{ room.tier }}</div>
         </div>
@@ -159,6 +170,9 @@ function handleDragLeave(event: DragEvent): void {
       <div v-if="isDraggingOver" class="drop-indicator">
         <Icon icon="mdi:account-plus" class="h-6 w-6" />
         <span>Drop to assign</span>
+        <span v-if="abilityConfig" class="drop-ability">
+          {{ abilityConfig.letter }} · {{ abilityConfig.label }}
+        </span>
       </div>
       <span v-if="attentionCount" class="overseer-alert-badge">
         {{ attentionCount }}
@@ -215,6 +229,7 @@ function handleDragLeave(event: DragEvent): void {
 }
 
 .room-content {
+  container-type: inline-size;
   padding: 0;
   text-align: center;
   position: relative;
@@ -310,11 +325,39 @@ function handleDragLeave(event: DragEvent): void {
   flex: 1;
 }
 
+.room-ability {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.drag-ability-letter {
+  display: none;
+  width: 14px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-theme-accent);
+  font-size: 0.75rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
 .ability-icon {
   width: 14px;
   height: 14px;
   color: var(--color-theme-primary);
   flex-shrink: 0;
+  transition:
+    color 120ms ease,
+    transform 120ms ease;
+}
+
+.ability-icon--drag-over {
+  color: var(--color-theme-accent);
+  transform: scale(1.35);
+  filter: drop-shadow(0 0 4px var(--color-theme-glow));
 }
 
 .room-dwellers-container {
@@ -338,6 +381,22 @@ function handleDragLeave(event: DragEvent): void {
   font-weight: bold;
   pointer-events: none;
   z-index: 10;
+}
+
+.drop-ability {
+  font-size: 0.75rem;
+  color: var(--color-theme-accent);
+}
+
+@container (max-width: 160px) {
+  .drop-indicator,
+  .room-ability:has(.drag-ability-letter) .ability-icon {
+    display: none;
+  }
+
+  .drag-ability-letter {
+    display: inline-flex;
+  }
 }
 
 .overseer-alert-badge {
@@ -438,6 +497,14 @@ function handleDragLeave(event: DragEvent): void {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .ability-icon {
+    transition: none;
+  }
+
+  .ability-icon--drag-over {
+    transform: none;
+  }
+
   .room.has-incident {
     animation: none;
   }

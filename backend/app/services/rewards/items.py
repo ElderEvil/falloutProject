@@ -25,6 +25,7 @@ from app.models.quest_reward import RewardType
 from app.models.storage import Storage
 from app.services.rewards.resources import _medication_kind, grant_radaway, grant_stimpak
 from app.services.user_service import user_service
+from app.utils.dwellers import clamp_level_for_rarity, level_progress, rarity_level_bounds
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 from app.utils.item_factory import build_item, build_outfit, build_weapon
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
@@ -277,10 +278,23 @@ async def grant_dweller(db_session: AsyncSession, vault_id: UUID4, dweller_templ
     first_name = dweller_template.get("first_name", dweller_template.get("name", "Unknown"))
     last_name = dweller_template.get("last_name")
     rarity = dweller_template.get("rarity", "common")
-    level = dweller_template.get("level", 1)
     gender = dweller_template.get("gender", "male")
 
     rarity_enum = RarityEnum(rarity)
+    if rarity_enum in (RarityEnum.RARE, RarityEnum.LEGENDARY):
+        supplied_level = dweller_template.get("level")
+        if supplied_level is None:
+            low, high = rarity_level_bounds(rarity_enum)
+            level = random.randint(low, high)
+        else:
+            level = clamp_level_for_rarity(rarity_enum, supplied_level)
+        max_health, experience = level_progress(level)
+        health = min(int(dweller_template.get("health") or max_health), max_health)
+    else:
+        level = dweller_template.get("level", 1)
+        experience = dweller_template.get("experience", 0)
+        max_health = dweller_template.get("max_health", 50)
+        health = dweller_template.get("health", 50)
 
     stat_range = STATS_RANGE_BY_RARITY.get(rarity_enum, (1, 3))
     default_stat = random.randint(stat_range[0], stat_range[1])
@@ -291,9 +305,9 @@ async def grant_dweller(db_session: AsyncSession, vault_id: UUID4, dweller_templ
         gender=gender,
         rarity=rarity_enum,
         level=level,
-        experience=dweller_template.get("experience", 0),
-        max_health=dweller_template.get("max_health", 50),
-        health=dweller_template.get("health", 50),
+        experience=experience,
+        max_health=max_health,
+        health=health,
         happiness=dweller_template.get("happiness", 50),
         strength=dweller_template.get("strength", default_stat),
         perception=dweller_template.get("perception", default_stat),

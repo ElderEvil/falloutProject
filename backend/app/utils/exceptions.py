@@ -32,6 +32,13 @@ class AccessDeniedException(DomainError):
     default_detail = "Access denied due to insufficient permissions."
 
 
+class BarbershopRequiredException(DomainError):
+    """Raised when a staffed Barbershop is required for an appearance change."""
+
+    status_code = status.HTTP_403_FORBIDDEN
+    default_detail = "Build and staff a Barbershop to change appearance or regenerate portraits."
+
+
 class ResourceNotFoundException(DomainError):
     """Raised when a resource identified by its unique identifier or name is not found."""
 
@@ -162,6 +169,13 @@ class DwellerNotFoundError(NotFoundException):
     """Raised when a dweller is not found."""
 
 
+class AccountChangeCooldownException(DomainError):
+    """Raised when an account field is changed again before its cooldown elapses."""
+
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    default_detail = "This change is temporarily unavailable. Please try again later."
+
+
 class QuotaExceededException(DomainError):
     """Raised when a user exceeds their monthly token quota."""
 
@@ -242,3 +256,15 @@ class EmailDeliveryException(DomainError):
 
     status_code = status.HTTP_502_BAD_GATEWAY
     default_detail = "Failed to deliver email via the configured SMTP server."
+
+
+class OAuthFlowError(DomainError):
+    """OAuth flow failure carrying a stable error code for redirects or JSON bodies."""
+
+    status_code = status.HTTP_400_BAD_REQUEST
+
+    def __init__(self, code: str, detail: str | None = None, status_code: int | None = None) -> None:
+        self.code = code
+        if status_code is not None:
+            self.status_code = status_code
+        super().__init__(detail=detail or code)

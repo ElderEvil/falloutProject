@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { createIconifyMock, createToastMock } from '../../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
@@ -43,7 +43,6 @@ vi.mock('@/modules/exploration/composables/useSendToWasteland', () => ({
 
 // The container lazily imports these; importing them up front keeps the dynamic
 // loaders from still being in flight when the test environment tears down.
-import '@/modules/dwellers/components/DwellerAppearanceEditor.vue'
 import '@/modules/dwellers/components/modals/TrainingStartModal.vue'
 import '@/modules/exploration/components/ExplorationDurationModal.vue'
 

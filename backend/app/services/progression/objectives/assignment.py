@@ -21,8 +21,8 @@ def _earned(link: VaultObjectiveProgressLink) -> bool:
 
 
 class ObjectiveAssignmentService:
-    DAILY_COUNT = 5
-    WEEKLY_COUNT = 3
+    DAILY_COUNT = 3
+    WEEKLY_COUNT = 7
 
     def __init__(self, db_session: AsyncSession):
         self._db_session = db_session
@@ -49,12 +49,14 @@ class ObjectiveAssignmentService:
             # Legacy vaults continue from their oldest assigned unfinished stage.
             # A newer, easier catalog stage is not retroactively rewarded.
             present = [o for o in stages if o.id in links]
-            unfinished = [o for o in present if not _earned(links[o.id]) and not links[o.id].is_locked]
-            if unfinished:
-                active = unfinished[0]
+            # An earned-but-unclaimed stage stays active: the next stage must not
+            # unlock (or count) until this reward is collected.
+            unclaimed = [o for o in present if not links[o.id].is_completed]
+            if unclaimed:
+                active = unclaimed[0]
             elif present:
-                last_earned = max((o.sequence or 0 for o in present if _earned(links[o.id])), default=0)
-                active = next((o for o in stages if (o.sequence or 0) > last_earned), None)
+                last_claimed = max((o.sequence or 0 for o in present if links[o.id].is_completed), default=0)
+                active = next((o for o in stages if (o.sequence or 0) > last_claimed), None)
             else:
                 active = stages[0]
             for objective in present:
@@ -85,15 +87,11 @@ class ObjectiveAssignmentService:
         """Freeze the reward and unlock a stage in the caller's transaction."""
         link.progress = objective.target_amount
         link.reward_snapshot = link.reward_snapshot or objective.reward
-        next_stage = None
-        if objective.category == ObjectiveCategoryEnum.ACHIEVEMENT:
-            await self._db_session.flush()
-            next_stage = await self.unlock_next_achievement(vault_id, objective)
+        # The next achievement stage unlocks only when this reward is claimed.
         return {
             "objective_id": str(objective.id),
             "challenge": objective.challenge,
             "ready_to_claim": True,
-            **({"next_achievement": next_stage.challenge} if next_stage else {}),
         }
 
     async def notify_completions(self, vault_id: UUID4) -> None:
@@ -115,8 +113,10 @@ class ObjectiveAssignmentService:
         links = {link.objective_id: link for link in await objective_crud.get_links_for_vault(db, vault_id)}
         for objective in stages:
             link = links.get(objective.id)
-            if link is not None and _earned(link):
+            if link is not None and link.is_completed:
                 continue
+            if link is not None and not link.is_locked:
+                return None  # Already unlocked; its own claim advances the chain.
             if link is None:
                 db.add(
                     VaultObjectiveProgressLink(

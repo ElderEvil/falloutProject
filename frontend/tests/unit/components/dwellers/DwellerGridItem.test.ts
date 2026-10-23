@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DwellerGridItem from '@/modules/dwellers/components/grid/DwellerGridItem.vue'
@@ -167,6 +167,56 @@ describe('DwellerGridItem', () => {
     expect(wrapper.findComponent(HealthRadiationBar).props('radiation')).toBe(12.5)
   })
 
+  it('floats health and assigned SPECIAL progress over the portrait', () => {
+    const wrapper = mount(DwellerGridItem, {
+      props: {
+        dweller: mockDweller,
+        roomStat: { icon: 'mdi:arm-flex', label: 'STR', value: 8, isPower: false },
+      },
+    })
+
+    const meters = wrapper.get('.portrait-meters')
+    expect(meters.element.parentElement?.classList.contains('thumbnail-container')).toBe(true)
+    expect(meters.get('[role="progressbar"][aria-label="John Doe health"]')).toBeDefined()
+    expect(
+      meters.get('[role="progressbar"][aria-label="STR progress"]').attributes('aria-valuenow')
+    ).toBe('80')
+  })
+
+  it('anchors scaled portraits to the bottom of the grid frame', () => {
+    const wrapper = mount(DwellerGridItem, {
+      props: {
+        dweller: {
+          ...mockDweller,
+          age_group: 'teen',
+          thumbnail_url: '/static/portrait.webp',
+        },
+      },
+    })
+
+    expect(wrapper.get('img').attributes('style')).toContain('object-position: center bottom')
+  })
+
+  it.each([
+    ['teen', 'human', 'thumbnail-image--small', '0.8'],
+    ['adult', 'super_mutant', 'thumbnail-image--large', '1.18'],
+  ])('scales %s %s portraits to reflect body size', (age_group, race, scaleClass, scale) => {
+    const wrapper = mount(DwellerGridItem, {
+      props: {
+        dweller: {
+          ...mockDweller,
+          age_group,
+          visual_attributes: { race },
+          thumbnail_url: '/static/portrait.webp',
+        },
+      },
+    })
+
+    const image = wrapper.get('img')
+    expect(image.classes()).toContain(scaleClass)
+    expect(image.attributes('style')).toContain(`--portrait-scale: ${scale}`)
+  })
+
   describe('Component Structure', () => {
     it('should render dweller name', () => {
       const wrapper = mount(DwellerGridItem, {
@@ -186,6 +236,22 @@ describe('DwellerGridItem', () => {
       })
 
       expect(wrapper.text()).toContain('5') // Level
+    })
+  })
+
+  describe('Default portrait', () => {
+    it('does not render the legacy AI portrait action', () => {
+      const wrapper = mount(DwellerGridItem, {
+        props: {
+          dweller: {
+            ...mockDweller,
+            thumbnail_url: '/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Male.webp',
+            is_default_portrait: true,
+          },
+        },
+      })
+
+      expect(wrapper.find('.ai-generate-button').exists()).toBe(false)
     })
   })
 })

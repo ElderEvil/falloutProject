@@ -1,6 +1,6 @@
 import { fileURLToPath, URL } from 'node:url'
 import { mergeConfig, defineConfig as defineVitestConfig } from 'vite-plus'
-import { configDefaults } from 'vitest/config'
+import { configDefaults } from 'vite-plus'
 import viteConfig from './vite.config'
 
 const resolvedViteConfig =
@@ -18,7 +18,7 @@ export default mergeConfig(
       setupFiles: ['./vitest.setup.ts'],
       coverage: {
         provider: 'v8',
-        reporter: ['text', 'json', 'html'],
+        reporter: ['text', 'json', 'json-summary', 'html'],
         reportsDirectory: './coverage',
         include: ['src/**/*.ts', 'src/**/*.vue'],
         exclude: [

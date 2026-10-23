@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { notifyErrorOnce } from '@/core/utils/errorHandler'
 import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
@@ -59,7 +60,7 @@ const busyIndex = ref<number | null>(null)
 const legacyOverflow = ref(false)
 const requiresResolution = computed(() => hasOverflow.value && !legacyOverflow.value)
 
-const resolveOverflow = async (action: 'take' | 'sell', index: number) => {
+const resolveOverflow = async (action: 'take' | 'sell', index: number, notify = true) => {
   if (!resolvedExplorationId.value || !authStore.token || busyIndex.value !== null) return undefined
   const name = unclaimed.value[index]?.item_name ?? 'Item'
   busyIndex.value = index
@@ -72,9 +73,10 @@ const resolveOverflow = async (action: 'take' | 'sell', index: number) => {
     )
     unclaimed.value = result.unclaimed_loot
     emit('resolved')
-    toast.success(
-      action === 'take' ? `Stored ${name}` : `Sold ${name} for +${result.caps_granted} caps`
-    )
+    if (notify)
+      toast.success(
+        action === 'take' ? `Stored ${name}` : `Sold ${name} for +${result.caps_granted} caps`
+      )
     return result
   } catch (error) {
     if ((error as { response?: { status?: number } }).response?.status === 404) {
@@ -82,16 +84,30 @@ const resolveOverflow = async (action: 'take' | 'sell', index: number) => {
       toast.info('These items were left behind before overflow resolution was available')
       return undefined
     }
-    throw error
+    notifyErrorOnce(error, action === 'take' ? 'Could not take item' : 'Could not sell item')
+    return undefined
   } finally {
     busyIndex.value = null
   }
 }
 
+const reportBulkSale = (sold: number, caps: number) => {
+  if (sold) toast.success(`Sold ${sold} item${sold === 1 ? '' : 's'} for +${caps} caps`)
+}
+
 const sellAll = async () => {
+  let sold = 0
+  let caps = 0
   while (unclaimed.value.length > 0) {
-    if (!(await resolveOverflow('sell', 0))) return
+    const result = await resolveOverflow('sell', 0, false)
+    if (!result) {
+      reportBulkSale(sold, caps)
+      return
+    }
+    sold++
+    caps += result.caps_granted
   }
+  reportBulkSale(sold, caps)
 }
 
 const tryClose = () => emit('close', requiresResolution.value)

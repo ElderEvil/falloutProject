@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import IncidentScene from '@/modules/rooms/components/IncidentScene.vue'
 import type { Incident } from '@/modules/combat/models/incident'

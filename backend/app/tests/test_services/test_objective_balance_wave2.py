@@ -110,8 +110,9 @@ async def test_earned_reward_snapshot_is_used_for_claim(async_session, vault):
         vault_id=vault.id, objective_id=objective.id, progress=1, total=1, reward_snapshot="100 caps"
     )
     async_session.add_all([objective, link])
+    initial_caps = 500
+    vault.bottle_caps = initial_caps
     await async_session.commit()
-    initial_caps = vault.bottle_caps
     await claim_objective_reward(async_session, objective.id, vault.id)
     await async_session.refresh(vault)
     assert vault.bottle_caps == initial_caps + 100

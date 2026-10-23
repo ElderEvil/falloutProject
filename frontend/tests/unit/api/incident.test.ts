@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vite-plus/test'
 import axios from '@/core/plugins/axios'
 import { incidentApi } from '@/modules/combat/api/incident'
 import type { IncidentTeamMember } from '@/modules/combat/models/incident'
@@ -37,6 +37,27 @@ describe('incidentApi.getIncidentTeam', () => {
       }
     )
     expect(team).toEqual([teamMember])
+  })
+})
+
+describe('incidentApi.takeOverflow', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('leaves the actionable storage-full error to the incident store', async () => {
+    vi.mocked(axios.post).mockResolvedValueOnce({ data: { unclaimed_loot: [], caps_granted: 0 } })
+
+    await incidentApi.takeOverflow('vault-1', 'incident-1', 2, 'token')
+
+    expect(axios.post).toHaveBeenCalledWith(
+      '/api/v1/game/vaults/vault-1/incidents/incident-1/overflow/take',
+      { index: 2 },
+      {
+        headers: { Authorization: 'Bearer token' },
+        _skipErrorNotification: true,
+      }
+    )
   })
 })
 

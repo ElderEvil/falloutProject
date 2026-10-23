@@ -1,0 +1,24 @@
+# UI performance probe
+
+Run `pnpm run e2e:install` once, then `pnpm run perf:ui`. It lints and typechecks the probe, builds the production frontend once, and runs each workload five times sequentially in Chromium at 1280×900 with fresh browser contexts. Use `UI_PERF_REPEATS=1 pnpm run perf:ui` for a diagnostic run, or `UI_PERF_WORKLOAD=large pnpm run perf:ui` to run only the larger vault (`small` selects the basic workload).
+
+Playwright's full tracing is off during normal measurements to avoid screenshot/DOM snapshot recording overhead. Use `UI_PERF_TRACE=1 UI_PERF_REPEATS=1 pnpm run perf:ui` to retain a diagnostic trace under `test-results/playwright/`. The summary records whether tracing was enabled; compare only runs with the same setting.
+
+The scenarios load the overview, open a room, open its assignment picker, assign and unassign a dweller, open dweller details, drag a dweller between rooms, and navigate to dwellers, training, exploration, and back to overview. Each action checks its visible result. Section navigation also waits for its data response. Unexpected API requests, runtime errors, and visible error toasts fail the probe.
+
+Measurements:
+
+- **Ready elapsed time:** navigation start to overview readiness, or the time around the Playwright action and its readiness assertions. Action measurements include automation and assertion overhead; they are not pure input latency.
+- **Event Timing:** browser-reported durations ≥16 ms, grouped by interaction ID. Chromium does not consistently give HTML drag events interaction IDs; an absent sample remains unreported.
+- **Long Animation Frames:** frames >50 ms, with blocking duration and script/layout attribution. Each action starts a new observation window so late entries from previous actions are excluded.
+- **Scrolling frame intervals:** requestAnimationFrame intervals while a paced wheel gesture traverses the roster, including median, p95, maximum, and the count over 32 ms. These sample main-thread frame delivery, rather than the display's exact FPS. The scroll scenario's elapsed time includes the deliberate gesture pacing.
+
+The small workload has two production rooms and two dwellers; training and exploration are empty. The large workload has **100 dwellers, 54 rooms, and 42 active trainees across 21 full training rooms**. It covers loading the overview, opening an occupied production room, rendering and scrolling the 100-row roster, opening its last dweller, loading the populated training queue, collapsing/expanding a stat group, and opening a full training room. Setup assertions reject overlapping rooms and overfilled worker slots.
+
+The large layout retains the boosted vault's five-floor shape from [the backend room builder](../../../backend/app/services/vault/seeding.py). `boosted-rooms.json` is a frozen snapshot produced by `prepare_initial_rooms(..., is_boosted=True)`, with the three storage rooms fused using `build_room(..., size=9)` as happens during seeding. The larger fixture repeats the existing training, housing, production, and elevator blocks below it. Regenerate that snapshot with those backend helpers when intentionally updating the benchmark layout; performance runs themselves do not load Python or connect to the database.
+
+API responses are stateful mocks, including their pagination limit. Portraits, silhouettes, and room art are served from the repository. There is no backend/database dependency; real backend latency, active expeditions, mobile input, and populations above the API's default 100-row response limit remain outside this benchmark.
+
+A local rendering experiment on 2026-10-23 compared the full roster with a temporary `dwellers.slice(0, 20)` at the roster component boundary. Both versions fetched the same 100 dwellers, retained the same dashboard aggregates and vault, and passed five runs with tracing disabled. Median roster opening time fell from **899.5 ms to 344.8 ms**; the longest observed roster-opening frame fell from **541.2 ms to 178.3 ms**. This supports reducing mounted rows as an optimization, but does not measure a finished pagination or virtualization implementation. The cap and adjusted row-count/detail assertions were removed after the experiment. Other scenarios, especially scrolling a shorter list and opening a different last dweller, are not equivalent comparisons. Raw runs are under `2026-10-23T09-09-11-883Z` (100 rows) and `2026-10-23T09-10-07-608Z` (20 rows); capped samples identify the experiment in fixture metadata.
+
+`test-results/performance-history/<run-id>/` stores separate sample files per workload and `summary.json`, whose `workloads.small` and `workloads.large` contain their own medians, worst samples, browser version, and fixture details. The console prints a comparison table. Results are git-ignored and kept across probe invocations. Compare the same measurement version, fixture, machine, and browser before introducing timing budgets.

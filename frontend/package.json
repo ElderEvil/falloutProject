@@ -19,7 +19,9 @@
     "typecheck": "vue-tsc --noEmit -p tsconfig.app.json",
     "e2e": "playwright install chromium && playwright test",
     "e2e:ui": "playwright install chromium && playwright test --ui",
-    "e2e:install": "playwright install chromium"
+    "e2e:install": "playwright install chromium",
+    "perf:ui:check": "vp lint playwright.perf.config.ts tests/performance scripts/run-ui-performance.mjs scripts/summarize-ui-performance.mjs && tsc --noEmit -p tsconfig.perf.json",
+    "perf:ui": "pnpm run perf:ui:check && pnpm run build && node scripts/run-ui-performance.mjs"
   },
   "dependencies": {
     "@iconify/vue": "5.0.3",

@@ -9,6 +9,7 @@ from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.schemas.dweller import DwellerUpdate
+from app.utils.leveling import calculate_xp_required
 from app.utils.reward_delivery import reward_delivery_is_deferred
 
 logger = logging.getLogger(__name__)
@@ -19,28 +20,7 @@ _DEFERRED_LEVEL_UP_DELIVERIES = "deferred_level_up_deliveries"
 class LevelingService:
     """Service for handling dweller leveling and experience progression."""
 
-    @staticmethod
-    def calculate_xp_required(level: int) -> int:
-        """Calculate total XP required to reach a specific level.
-
-        Uses exponential curve: BASE_XP * (level ^ EXPONENT)
-
-        Examples:
-            Level 1: 0 XP (starting level)
-            Level 2: 100 XP
-            Level 3: 283 XP
-            Level 10: 3,162 XP
-            Level 50: 353,553 XP
-
-        Args:
-            level: Target level (1-50)
-
-        Returns:
-            Total XP required to reach that level
-        """
-        if level <= 1:
-            return 0
-        return int(game_config.leveling.base_xp_requirement * (level**game_config.leveling.xp_curve_exponent))
+    calculate_xp_required = staticmethod(calculate_xp_required)
 
     @staticmethod
     def calculate_xp_for_level_range(current_level: int, target_level: int) -> int:

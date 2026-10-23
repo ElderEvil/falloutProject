@@ -72,6 +72,7 @@ from app.utils.exceptions import (
     ResourceNotFoundException,
     VaultOperationException,
 )
+from app.utils.reward_delivery import persist_reward_change
 
 if TYPE_CHECKING:
     from app.services.map.bio_registration import _MapDwellerLike
@@ -188,19 +189,21 @@ class DwellerService:
         return dweller
 
     async def add_experience(self, db_session: AsyncSession, dweller_obj: Dweller, amount: int) -> Dweller:
-        """Add experience via CRUD, then surface any level-up through the shared settlement."""
+        """Add cumulative XP and settle levels/health in the reward transaction."""
         old_level = dweller_obj.level
-        updated_dweller = await crud.dweller.add_experience(db_session, dweller_obj, amount)
+        dweller_obj.experience += amount
+        await leveling_service.check_level_up(db_session, dweller_obj, commit=False)
+        await persist_reward_change(db_session, dweller_obj, refresh=True)
 
-        if updated_dweller.level > old_level:
+        if dweller_obj.level > old_level:
             await leveling_service.settle_level_up(
                 db_session,
-                updated_dweller,
+                dweller_obj,
                 old_level=old_level,
-                levels_gained=updated_dweller.level - old_level,
+                levels_gained=dweller_obj.level - old_level,
             )
 
-        return updated_dweller
+        return dweller_obj
 
     async def list_vault_dwellers(
         self,

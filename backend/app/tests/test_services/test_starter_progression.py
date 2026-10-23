@@ -17,6 +17,7 @@ from app.services import catalog_service as data_loader
 from app.services.dweller_service import dweller_service
 from app.services.exploration_service import exploration_service
 from app.services.item_service import item_service
+from app.services.leveling_service import leveling_service
 from app.services.progression.objectives.evaluators import evaluator_manager
 from app.services.progression.objectives.evaluators.base import current_session_maker
 from app.services.progression.objectives.guidance import current_state_progress, read_objectives
@@ -119,7 +120,9 @@ async def test_fresh_starter_rewards_reach_office_without_loot(async_session, su
             elif step.progress < step.total:
                 worker = next(d for d in dwellers if d.is_mature and d.room_id is not None)
                 await dweller_service.add_experience(
-                    async_session, worker, crud.dweller.calculate_experience_required(worker)
+                    async_session,
+                    worker,
+                    leveling_service.calculate_xp_required(worker.level + 1) - worker.experience,
                 )
 
         before_population = await crud.dweller.count_living_in_vault(async_session, vault.id)

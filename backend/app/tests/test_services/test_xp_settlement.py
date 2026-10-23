@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app import crud
 from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.core.event_bus import GameEvent
 from app.crud.room import room as room_crud
@@ -75,7 +74,7 @@ async def test_canonical_path_surfaces_level_up(async_session: AsyncSession, vau
     dweller.experience = 0
     async_session.add(dweller)
     await async_session.commit()
-    amount = crud.dweller.calculate_experience_required(dweller) - dweller.experience
+    amount = LevelingService.calculate_xp_required(2) - dweller.experience
 
     with (
         patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit,

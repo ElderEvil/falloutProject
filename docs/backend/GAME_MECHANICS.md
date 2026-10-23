@@ -50,6 +50,16 @@ stops that dweller's training. A capped trainee is released normally; the toggle
 idle dwellers or switch their training stat. Demolishing a training room cancels active rounds without
 awarding stats and preserves completed/cancelled history with an empty room reference.
 
+## Dweller XP and leveling
+
+`experience` is cumulative lifetime XP, never progress reset on level-up. Seeding,
+reward grants, work ticks and model progress bars share `app/utils/leveling.py`:
+level 1 starts at 0; later thresholds are `int(base_xp_requirement * level**xp_curve_exponent)`.
+With defaults, level 2 needs 282 XP and level 3 needs 519 XP. Grants may advance
+multiple levels, capped at the configured maximum. Each gained level adds the
+configured health increment and fully heals up to the radiation-reduced maximum.
+Reward XP, levels and health persist together; deferred rewards remain rollback-safe.
+
 ## Objectives: guidance, earned progress and explicit claims
 
 - Objective progress advances automatically from game events; **rewards do not**. Reaching the target creates

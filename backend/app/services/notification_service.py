@@ -5,8 +5,11 @@ from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.game_data import get_static_game_data
 from app.core.notification_preferences import should_deliver_notification
+from app.crud.dweller import dweller as dweller_crud
 from app.crud.notification import notification as notification_crud
+from app.crud.room import room as room_crud
 from app.crud.user_profile import profile_crud
 from app.models.notification import Notification, NotificationCreate, NotificationPriority, NotificationType
 from app.services.stream_manager import sse_manager
@@ -307,6 +310,30 @@ class NotificationService:
         )
 
     @staticmethod
+    async def notify_room_unlocks(db: AsyncSession, user_id: UUID, vault_id: UUID) -> None:
+        """One summary when the vault's population reaches a room threshold."""
+        population = await dweller_crud.count_alive_in_vault(db, vault_id)
+        game_data = await get_static_game_data()
+        built = {room.name.lower() for room in await room_crud.get_all_by_vault(db, vault_id)}
+        unlocked = [
+            room
+            for room in game_data.get_buildable_rooms(built)
+            if room.population_required == population
+        ]
+        if not unlocked:
+            return
+        names = ", ".join(sorted(room.name for room in unlocked))
+        await NotificationService.create_and_send(
+            db,
+            user_id,
+            NotificationType.ROOM_UNLOCKED,
+            "New rooms available",
+            f"Population {population} unlocked: {names}.",
+            vault_id=vault_id,
+            priority=NotificationPriority.NORMAL,
+        )
+
+    @staticmethod
     async def notify_baby_born(
         db: AsyncSession,
         user_id: UUID,
@@ -317,7 +344,7 @@ class NotificationService:
         meta_data: dict[str, Any] | None = None,
     ):
         """Notify user that a baby was born."""
-        return await NotificationService.create_and_send(
+        notification = await NotificationService.create_and_send(
             db,
             user_id=user_id,
             vault_id=vault_id,
@@ -328,6 +355,8 @@ class NotificationService:
             message=f"{mother_name} gave birth to {baby_name}!",
             meta_data=meta_data,
         )
+        await NotificationService.notify_room_unlocks(db, user_id, vault_id)
+        return notification
 
     @staticmethod
     async def notify_resource_low(
@@ -404,7 +433,7 @@ class NotificationService:
         meta_data: dict[str, Any] | None = None,
     ):
         """Notify user that a new dweller arrived via radio."""
-        return await NotificationService.create_and_send(
+        notification = await NotificationService.create_and_send(
             db,
             user_id=user_id,
             vault_id=vault_id,
@@ -414,6 +443,8 @@ class NotificationService:
             message=f"{dweller_name} heard your radio broadcast and joined the vault!",
             meta_data=meta_data,
         )
+        await NotificationService.notify_room_unlocks(db, user_id, vault_id)
+        return notification
 
     @staticmethod
     async def notify_radio_auto_switched_to_happiness(

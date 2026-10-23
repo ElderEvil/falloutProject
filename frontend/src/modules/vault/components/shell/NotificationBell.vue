@@ -190,7 +190,7 @@ function processNotification(notificationData: Notification) {
   }
 
   if (
-    ['hazard_team_joined', 'training_complete'].includes(notificationData.notification_type) ||
+    ['hazard_team_joined', 'training_complete', 'room_unlocked'].includes(notificationData.notification_type) ||
     isAdoptionNotification(notificationData)
   ) {
     toast.success(notificationData.message)
@@ -346,6 +346,7 @@ const getNotificationIcon = (notification: Notification): string => {
     exploration_complete: 'mdi:map-marker-check',
     exploration_update: 'mdi:map-marker',
     hazard_team_joined: 'mdi:shield-account',
+    room_unlocked: 'mdi:door-open',
     level_up: 'mdi:arrow-up-bold',
     quest_complete: 'mdi:treasure-chest',
     training_complete: 'mdi:school',

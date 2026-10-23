@@ -38,6 +38,7 @@ const NOTIFICATION_SOUNDS = {
   objective_completed: 'objectiveReady',
   objectives_refreshed: 'objectivesRefreshed',
   achievement_unlocked: 'success',
+  room_unlocked: 'success',
   radio_new_dweller: 'radioRecruit',
   radio_auto_switched_to_happiness: 'tabSwitch',
   map_registration_failed: 'mapRegistrationFailed',
@@ -93,6 +94,7 @@ export function getNotificationRoute(notification: NotificationNavigationContext
       return `${vaultPath}/quests`
     }
     case 'level_up':
+    case 'room_unlocked':
     case 'hazard_team_joined':
     case 'dweller_died':
     case 'dweller_injured':

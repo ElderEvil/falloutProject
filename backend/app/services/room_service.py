@@ -411,6 +411,11 @@ class RoomService:
             room_template = game_data_store.get_room(room_request.room_name)
             if room_template is None or room_template.name.lower() == "vault door":
                 raise VaultOperationException(detail=f"Room cannot be built: {room_request.room_name}")
+            capacity = room_template.capacity
+            if room_template.capacity_formula:
+                capacity = crud.room.evaluate_capacity_formula(
+                    room_template.capacity_formula, room_template.tier, room_template.size_min
+                )
             room_data = RoomCreate(
                 vault_id=room_request.vault_id,
                 name=room_template.name,
@@ -421,7 +426,7 @@ class RoomService:
                 incremental_cost=room_template.incremental_cost,
                 t2_upgrade_cost=room_template.t2_upgrade_cost,
                 t3_upgrade_cost=room_template.t3_upgrade_cost,
-                capacity=room_template.capacity,
+                capacity=capacity,
                 output=room_template.output,
                 size_min=room_template.size_min,
                 size_max=room_template.size_max,

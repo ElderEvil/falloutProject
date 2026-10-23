@@ -116,7 +116,7 @@
     "incremental_cost": null,
     "t2_upgrade_cost": null,
     "t3_upgrade_cost": null,
-    "capacity_formula": null,
+    "capacity_formula": "S",
     "size_min": 3,
     "size_max": 9
   },
@@ -304,6 +304,19 @@
     "size_max": 6
   },
   {
+    "name": "Arena",
+    "category": "arena",
+    "ability": "Strength",
+    "population_required": 55,
+    "base_cost": 3000,
+    "incremental_cost": null,
+    "t2_upgrade_cost": 12000,
+    "t3_upgrade_cost": 36000,
+    "capacity_formula": null,
+    "size_min": 6,
+    "size_max": 6
+  },
+  {
     "name": "Nuclear reactor",
     "category": "Production",
     "ability": "Strength",
@@ -355,18 +368,5 @@
     "capacity_formula": "50*S*(L+1)",
     "size_min": 3,
     "size_max": 9
-  },
-  {
-    "name": "Arena",
-    "category": "arena",
-    "ability": "Strength",
-    "population_required": 20,
-    "base_cost": 800,
-    "incremental_cost": 200,
-    "t2_upgrade_cost": 3000,
-    "t3_upgrade_cost": 9000,
-    "capacity_formula": null,
-    "size_min": 6,
-    "size_max": 6
   }
 ]

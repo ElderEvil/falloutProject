@@ -10,10 +10,10 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
+import jwt
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud

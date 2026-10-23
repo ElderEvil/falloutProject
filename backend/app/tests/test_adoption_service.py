@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy import event
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession as RawAsyncSession
 from sqlmodel import select
 
@@ -15,8 +16,10 @@ from app.crud.relationship import relationship_crud
 from app.models.notification import Notification, NotificationType
 from app.schemas.user import UserCreate
 from app.services.family.adoption_service import adoption_service
+from app.services.game_loop import game_loop_service
 from app.services.game_tick import family_tick
 from app.services.notification_service import notification_service
+from app.services.stream_manager import sse_manager
 from app.tests.factory.dwellers import create_random_common_dweller
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import random_vault_number
@@ -284,3 +287,42 @@ async def test_duplicate_relationship_rows_do_not_reuse_a_couple(async_session):
     await _orphan(async_session, vault.id)
     await _orphan(async_session, vault.id)
     assert len(await adoption_service.process_adoptions(async_session, vault.id)) == 1
+
+
+async def test_adoption_lookup_failure_does_not_abort_later_tick_phases(async_session, vault, monkeypatch):
+    vault_id = vault.id
+    publish = AsyncMock()
+    monkeypatch.setattr(sse_manager, "publish", publish)
+    connection = await async_session.connection()
+    failed = False
+    rollbacks = []
+
+    def fail_lookup(_conn, _cursor, statement, parameters, _context, _executemany):
+        nonlocal failed
+        if not failed and "dweller.parent_1_id IS NOT NULL" in statement:
+            failed = True
+            raise OperationalError(statement, parameters, RuntimeError("adoption lookup unavailable"))
+
+    def record_rollback(_session):
+        rollbacks.append(True)
+
+    event.listen(connection.sync_connection, "before_cursor_execute", fail_lookup)
+    event.listen(async_session.sync_session, "after_rollback", record_rollback)
+    try:
+        result = await game_loop_service.process_vault_tick(async_session, vault_id)
+    finally:
+        event.remove(connection.sync_connection, "before_cursor_execute", fail_lookup)
+        event.remove(async_session.sync_session, "after_rollback", record_rollback)
+
+    assert failed
+    assert rollbacks
+    assert result["updates"]["breeding"] == {
+        "relationships_updated": 0,
+        "conceptions": 0,
+        "births": 0,
+        "children_aged": 0,
+        "adoptions": 0,
+    }
+    assert "arena" in result["updates"]
+    assert "events" in result["updates"]
+    assert any(call.args[1] == "game_ticks" for call in publish.call_args_list)

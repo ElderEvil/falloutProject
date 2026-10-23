@@ -343,7 +343,12 @@ async def process_breeding(service: "GameLoopService", db_session: AsyncSession,
     aging_stats = await service._age_children(db_session, vault_id)
 
     # Adopt orphaned youth into committed couples
-    adopted = await adoption_service.process_adoptions(db_session, vault_id)
+    try:
+        adopted = await adoption_service.process_adoptions(db_session, vault_id)
+    except SQLAlchemyError:
+        await recover_session(db_session)
+        logger.exception("Database error processing adoptions in vault %s", vault_id)
+        adopted = []
 
     # Combine stats
     return {

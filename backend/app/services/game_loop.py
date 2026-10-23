@@ -6,6 +6,7 @@ import random
 from datetime import datetime
 
 from pydantic import UUID4
+from sqlalchemy import inspect
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -227,6 +228,9 @@ class GameLoopService:
 
         breeding_update = await self._process_breeding(db_session, vault_id)
         results["updates"]["breeding"] = breeding_update
+        # Family-phase recovery expires this instance; later events and SSE read it.
+        if inspect(game_state, raiseerr=True).expired:
+            await db_session.refresh(game_state)
 
         # Read only: arena_tick owns combat cadence. Recover before later phases.
         try:

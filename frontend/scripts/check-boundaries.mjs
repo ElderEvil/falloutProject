@@ -18,7 +18,7 @@ function collectFiles(directory) {
 
 function scriptContent(source, fileName) {
   if (!fileName.endsWith('.vue')) return source
-  return parse(source, { parseMode: 'html' })
+  return parse(source, { parseMode: 'sfc' })
     .children.filter(
       (node) => node.type === NodeTypes.ELEMENT && node.tag.toLowerCase() === 'script'
     )

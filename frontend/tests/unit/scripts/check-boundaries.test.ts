@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { collectModuleSpecifiers, hasModuleDependency } from '../../../scripts/check-boundaries.mjs'
 
 describe('check-boundaries', () => {
-  it.each(['SCRIPT', 'ScRiPt'])('reads imports from %s blocks', (tag) => {
-    expect(
+  it.each(['SCRIPT', 'ScRiPt'])('fails closed for unsupported uppercase SFC block %s', (tag) => {
+    expect(() =>
       collectModuleSpecifiers(`<${tag}>import x from '@/modules/auth/x'</${tag}>`, 'Example.vue')
-    ).toEqual(['@/modules/auth/x'])
+    ).toThrow('Element is missing end tag')
   })
 
   it.each(['</script >', '</SCRIPT\n>', '</script\t\n bar>'])(
@@ -19,6 +19,13 @@ describe('check-boundaries', () => {
       ).toEqual(['@/modules/auth/x'])
     }
   )
+
+  it('treats custom blocks as raw text while inspecting scripts', () => {
+    const source = `<i18n lang="json">{"message":"</div>"}</i18n>
+      <script setup>import x from '@/modules/auth/x'</script>
+      <template><div /></template>`
+    expect(collectModuleSpecifiers(source, 'Example.vue')).toEqual(['@/modules/auth/x'])
+  })
 
   it('ignores script blocks inside comments', () => {
     expect(

@@ -40,7 +40,7 @@ export const useObjectivesStore = defineStore('objectives', () => {
       const index = objectives.value.findIndex((item) => item.id === objectiveId)
       if (index !== -1) objectives.value[index] = completed
       // Claiming an achievement unlocks the next stage server-side.
-      await fetchObjectives(vaultId)
+      if (objective.category === 'achievement') await fetchObjectives(vaultId)
     }
     return completed
   }

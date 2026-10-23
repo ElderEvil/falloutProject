@@ -11,7 +11,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlmodel import SQLModel, select
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -30,9 +30,10 @@ pytestmark = pytest.mark.integration
 @asynccontextmanager
 async def _sessions():
     engine = create_async_engine(str(settings.ASYNC_DATABASE_URI), pool_size=5, max_overflow=5)
+    # Schema comes from Alembic; never create_all on the shared database.
     try:
-        async with engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.create_all)
+        async with engine.connect() as conn:
+            await conn.execute(select(1))
     except Exception as exc:  # pragma: no cover - environment guard
         await engine.dispose()
         pytest.skip(f"PostgreSQL unavailable: {exc}")

@@ -82,6 +82,10 @@ async def claim_objective_reward(
     if progress < link.total:
         raise ValidationException("Complete the objective before claiming its reward")
     link.progress = max(link.progress, min(progress, link.total))
+    if objective.category == ObjectiveCategoryEnum.ACHIEVEMENT:
+        from app.services.progression.objectives.assignment import ObjectiveAssignmentService
+
+        await ObjectiveAssignmentService(db_session).unlock_next_achievement(vault_id, objective)
     try:
         await _settle_objective_link(db_session, vault_id, link)
     except Exception:

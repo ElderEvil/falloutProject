@@ -311,11 +311,11 @@ class TestAssignRandomObjectives:
 class TestConstants:
     """Verify service-level constants."""
 
-    def test_daily_count_is_5(self) -> None:
-        assert ObjectiveAssignmentService.DAILY_COUNT == 5
+    def test_daily_count_is_3(self) -> None:
+        assert ObjectiveAssignmentService.DAILY_COUNT == 3
 
-    def test_weekly_count_is_3(self) -> None:
-        assert ObjectiveAssignmentService.WEEKLY_COUNT == 3
+    def test_weekly_count_is_7(self) -> None:
+        assert ObjectiveAssignmentService.WEEKLY_COUNT == 7
 
 
 async def test_daily_reset_preserves_earned_unclaimed_rewards() -> None:

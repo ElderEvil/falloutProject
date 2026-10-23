@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 import pytest
 from sqlalchemy import event
+from sqlalchemy.exc import OperationalError
 
 from app.core.event_bus import EventBus, GameEvent, event_bus
 from app.crud.objective import objective_crud
@@ -13,7 +14,7 @@ from app.services.progression.objectives.assignment import ObjectiveAssignmentSe
 from app.services.progression.objectives.evaluators.base import current_session_maker
 from app.services.progression.objectives.evaluators.concrete import CollectEvaluator
 from app.services.rewards.settlement import claim_objective_reward
-from app.utils.exceptions import ResourceConflictException
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 
 
 async def water_stages(db):
@@ -57,7 +58,7 @@ async def water_events(async_session):
     current_session_maker.reset(token)
 
 
-async def test_achievement_unlocks_on_earning_at_zero_and_claims_stay_independent(async_session, vault, water_events):
+async def test_achievement_unlocks_only_on_claim(async_session, vault, water_events):
     stages = await water_stages(async_session)
     await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id, auto_commit=False)
     await async_session.commit()
@@ -69,13 +70,19 @@ async def test_achievement_unlocks_on_earning_at_zero_and_claims_stay_independen
     links = {link.objective_id: link for link in await objective_crud.get_links_for_vault(async_session, vault.id)}
     assert links[stages[0].id].progress == 100
     assert not links[stages[0].id].is_completed
-    assert links[stages[1].id].progress == 0
-    assert stages[2].id not in links
-    assert notifications[0]["next_achievement"] == "Collect 500 Water"
+    assert stages[1].id not in links
+    assert "next_achievement" not in notifications[0]
     await bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "water", "amount": 60})
+    links = {link.objective_id: link for link in await objective_crud.get_links_for_vault(async_session, vault.id)}
+    assert stages[1].id not in links
+    assert links[stages[0].id].progress == 100
     await claim_objective_reward(async_session, stages[0].id, vault.id)
     with pytest.raises(ResourceConflictException):
         await claim_objective_reward(async_session, stages[0].id, vault.id)
+    links = {link.objective_id: link for link in await objective_crud.get_links_for_vault(async_session, vault.id)}
+    assert links[stages[1].id].progress == 0
+    assert not links[stages[1].id].is_locked
+    await bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "water", "amount": 60})
     assert links[stages[1].id].progress == 60
     await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id, auto_commit=False)
     assert links[stages[1].id].progress == 60
@@ -101,6 +108,10 @@ async def test_legacy_parallel_progress_is_kept_until_the_next_counting_window(a
     assert hidden.progress == 300
     assert hidden.is_locked
     await water_events[0].emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "water", "amount": 20})
+    assert hidden.progress == 300
+    assert hidden.is_locked
+    await claim_objective_reward(async_session, stages[0].id, vault.id)
+    await async_session.refresh(hidden)
     assert hidden.progress == 0
     assert not hidden.is_locked
     pending = await objective_crud.get_link_for_update(async_session, stages[2].id, vault.id)
@@ -108,20 +119,20 @@ async def test_legacy_parallel_progress_is_kept_until_the_next_counting_window(a
     assert not pending.is_completed
 
 
-async def test_final_stage_can_be_claimed_before_older_rewards(async_session, vault, water_events):
+async def test_later_stage_cannot_be_claimed_before_the_active_stage(async_session, vault, water_events):
     stages = await water_stages(async_session)
     await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id, auto_commit=False)
     await async_session.commit()
     for amount in (100, 500, 1500):
         await water_events[0].emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "water", "amount": amount})
     links = await objective_crud.get_links_for_vault(async_session, vault.id)
-    assert len(links) == 3
-    assert all(link.progress == link.total and not link.is_completed for link in links)
-    assert "next_achievement" not in water_events[1][-1]
-    await claim_objective_reward(async_session, stages[2].id, vault.id)
-    first = await objective_crud.get_link_for_update(async_session, stages[0].id, vault.id)
-    assert not first.is_completed
-    assert first.reward_snapshot == "10 caps"
+    assert [link.objective_id for link in links] == [stages[0].id]
+    with pytest.raises(ResourceNotFoundException):
+        await claim_objective_reward(async_session, stages[2].id, vault.id)
+    await claim_objective_reward(async_session, stages[0].id, vault.id)
+    second = await objective_crud.get_link_for_update(async_session, stages[1].id, vault.id)
+    assert second is not None
+    assert not second.is_locked
 
 
 async def test_distinct_dwellers_get_a_fresh_counting_window(async_session, vault, water_events):
@@ -151,16 +162,22 @@ async def test_distinct_dwellers_get_a_fresh_counting_window(async_session, vaul
     dweller_id = str(uuid4())
     for _ in range(3):
         await bus.emit(GameEvent.DWELLER_ASSIGNED_CORRECTLY, vault.id, {"dweller_id": dweller_id, "is_correct": True})
+    await claim_objective_reward(async_session, stages[0].id, vault.id)
+    next_dweller = str(uuid4())
+    await bus.emit(
+        GameEvent.DWELLER_ASSIGNED_CORRECTLY, vault.id, {"dweller_id": next_dweller, "is_correct": True}
+    )
     second = await objective_crud.get_link_for_update(async_session, stages[1].id, vault.id)
     assert second.progress == 1
-    assert second.credited_dweller_ids == [dweller_id]
+    assert second.credited_dweller_ids == [next_dweller]
 
 
-async def test_stage_unlock_database_failure_rolls_back_completion(async_session, vault, water_events):
+async def test_claim_unlock_failure_rolls_back_the_claim(async_session, vault, water_events):
     stages = await water_stages(async_session)
     await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id, auto_commit=False)
     await async_session.commit()
     vault_id, first_id, next_id = vault.id, stages[0].id, stages[1].id
+    await water_events[0].emit(GameEvent.RESOURCE_COLLECTED, vault_id, {"resource_type": "water", "amount": 100})
     connection = await async_session.connection()
 
     def break_unlock(conn, cursor, statement, parameters, context, executemany):
@@ -170,17 +187,16 @@ async def test_stage_unlock_database_failure_rolls_back_completion(async_session
 
     event.listen(connection.sync_connection, "before_cursor_execute", break_unlock, retval=True)
     try:
-        await water_events[0].emit(GameEvent.RESOURCE_COLLECTED, vault_id, {"resource_type": "water", "amount": 100})
+        with pytest.raises(OperationalError):
+            await claim_objective_reward(async_session, first_id, vault_id)
     finally:
         event.remove(connection.sync_connection, "before_cursor_execute", break_unlock)
-    assert not water_events[1]
+        await async_session.rollback()
     first = await objective_crud.get_link_for_update(async_session, first_id, vault_id)
-    assert first.progress == 0
-    assert first.reward_snapshot is None
+    assert not first.is_completed
     assert await objective_crud.get_link_for_update(async_session, next_id, vault_id) is None
-    await water_events[0].emit(GameEvent.RESOURCE_COLLECTED, vault_id, {"resource_type": "water", "amount": 100})
-    assert first.progress == 100
-    assert (await objective_crud.get_link_for_update(async_session, next_id, vault_id)).progress == 0
+    await claim_objective_reward(async_session, first_id, vault_id)
+    assert await objective_crud.get_link_for_update(async_session, next_id, vault_id) is not None
 
 
 async def test_existing_vault_initializes_tracks_without_waiting_for_a_calendar_reset(async_session, vault):
@@ -289,24 +305,28 @@ async def test_new_population_milestone_credits_existing_residents(
         assert water_events[1] == []
     else:
         assert first.reward_snapshot == "10 caps"
-        assert links[stages[1].id].progress == 0
+        assert stages[1].id not in links
         assert stages[2].id not in links
         assert water_events[1] == [
             {
                 "objective_id": str(stages[0].id),
                 "challenge": "Reach 10 Dwellers",
                 "ready_to_claim": True,
-                "next_achievement": "Reach 25 Dwellers",
             }
         ]
         await claim_objective_reward(async_session, stages[0].id, vault.id)
         await async_session.refresh(first)
         assert first.is_completed
+        unlocked = await objective_crud.get_link_for_update(async_session, stages[1].id, vault.id)
+        assert unlocked is not None
+        assert unlocked.progress == 0
     before = len(water_events[1])
     await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id)
     assert len(water_events[1]) == before
     if population >= 10:
-        assert links[stages[1].id].progress == 0
+        refreshed = await objective_crud.get_link_for_update(async_session, stages[1].id, vault.id)
+        assert refreshed is not None
+        assert refreshed.progress == 0
 
 
 async def test_initial_population_completion_is_not_announced_before_commit(async_session, vault, water_events):

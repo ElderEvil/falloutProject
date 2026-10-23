@@ -39,6 +39,8 @@ export const useObjectivesStore = defineStore('objectives', () => {
       ++fetchGeneration
       const index = objectives.value.findIndex((item) => item.id === objectiveId)
       if (index !== -1) objectives.value[index] = completed
+      // Claiming an achievement unlocks the next stage server-side.
+      await fetchObjectives(vaultId)
     }
     return completed
   }

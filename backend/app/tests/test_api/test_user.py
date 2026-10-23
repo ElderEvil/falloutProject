@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -271,3 +273,100 @@ async def test_profile_endpoints_require_authentication(async_client: AsyncClien
 
     response = await async_client.put("/users/me/profile", json={"bio": "No auth"})
     assert response.status_code == 401
+
+
+# =============================================================================
+# Account secret exposure / mass-assignment tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_read_user_me_excludes_server_only_secret_fields(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+) -> None:
+    """GET /users/me serializes verification status but never the stored secrets."""
+    token_headers, user_data = await create_isolated_user_with_token(async_client, async_session)
+    user = await crud.user.get_by_email(db_session=async_session, email=user_data["email"])
+    assert user is not None
+    user.email_verification_token = "verification-secret"
+    user.password_reset_token = "reset-secret"
+    user.password_reset_expires = datetime.now(tz=UTC).replace(tzinfo=None)
+    async_session.add(user)
+    await async_session.commit()
+
+    response = await async_client.get("/users/me", headers=token_headers)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["email_verified"] is False
+    assert "email_verification_token" not in payload
+    assert "password_reset_token" not in payload
+    assert "password_reset_expires" not in payload
+
+
+@pytest.mark.asyncio
+async def test_admin_update_cannot_mass_assign_verification_state(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """An admin payload cannot flip verification state through the generic update route."""
+    _, user_data = await create_isolated_user_with_token(async_client, async_session)
+
+    response = await async_client.put(
+        f"/users/{user_data['id']}",
+        json={"email_verified": True},
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    stored = await crud.user.get_by_email(db_session=async_session, email=user_data["email"])
+    assert stored is not None
+    assert stored.email_verified is False
+
+
+@pytest.mark.asyncio
+async def test_update_me_applies_username_and_email_together(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+) -> None:
+    """Sending username and email in one request persists both, not just the username."""
+    token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
+    new_username = f"nyx_{uuid4().hex[:8]}"
+    new_email = f"{uuid4().hex[:8]}@example.com"
+
+    with patch("app.services.user_service.send_verification_email", new_callable=AsyncMock):
+        response = await async_client.put(
+            "/users/me",
+            json={"username": new_username, "email": new_email},
+            headers=token_headers,
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["username"] == new_username
+    assert payload["email"] == new_email
+
+    stored = await crud.user.get_by_email(db_session=async_session, email=new_email)
+    assert stored is not None
+    assert stored.username == new_username
+
+
+@pytest.mark.parametrize("password", ["short", "x" * 129])
+async def test_update_me_rejects_passwords_outside_policy(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    password: str,
+) -> None:
+    """The account-update path enforces the same 8-128 password bounds as registration."""
+    token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
+
+    response = await async_client.put(
+        "/users/me",
+        json={"password": password},
+        headers=token_headers,
+    )
+
+    assert response.status_code == 400
+    assert "8 and 128" in response.json()["detail"]

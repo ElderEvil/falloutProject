@@ -2,9 +2,9 @@
 
 import logging
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from pydantic import EmailStr
-from pydantic.types import UUID4
 from redis.asyncio import Redis
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -97,7 +97,7 @@ class AuthService:
         if not user_id:
             raise ValidationException(detail="Invalid refresh token")
 
-        user = await crud.user.get(db_session, id=UUID4(user_id))
+        user = await crud.user.get(db_session, id=UUID(user_id))
         if not user:
             raise ResourceNotFoundException(model=User, identifier=user_id)
 
@@ -192,7 +192,7 @@ class AuthService:
         # Get user by email
         user = await crud.user.get_by_email(db_session, email=email)
         if not user:
-            raise ResourceNotFoundException(model=User, name=email)
+            raise ResourceNotFoundException(model=User, identifier=email, identifier_type="email")
 
         # Check if token matches and hasn't expired
         if user.password_reset_token != token:
@@ -289,7 +289,7 @@ class AuthService:
             raise ValidationException(detail="Invalid or expired token")
 
         # Get user
-        user = await crud.user.get(db_session, id=UUID4(user_id))
+        user = await crud.user.get_for_update(db_session, UUID(user_id))
         if not user:
             raise ResourceNotFoundException(model=User, identifier=user_id)
 
@@ -320,22 +320,23 @@ class AuthService:
 
         Raises:
             ValidationException: If email already verified
+            ResourceNotFoundException: If the user row no longer exists
         """
-        # Check if already verified
-        if user.email_verified:
+        locked_user = await crud.user.get_for_update(db_session, user.id)
+        if locked_user is None:
+            raise ResourceNotFoundException(model=User, identifier=str(user.id))
+
+        if locked_user.email_verified:
             raise ValidationException(detail="Email already verified")
 
-        # Generate new verification token
-        token = security.create_email_verification_token(str(user.id))
+        token = security.create_email_verification_token(str(locked_user.id))
 
-        # Store token in database
-        user.email_verification_token = token
+        locked_user.email_verification_token = token
         await db_session.commit()
 
-        # Send verification email
         await send_verification_email(
-            email_to=user.email,
-            username=user.username,
+            email_to=locked_user.email,
+            username=locked_user.username,
             token=token,
         )
 

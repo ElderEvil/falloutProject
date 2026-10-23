@@ -6,7 +6,8 @@
         Edit Profile
       </CardTitle>
       <CardDescription class="mt-2 max-w-xl text-sm leading-6 text-theme-primary/60">
-        Update the details other vault dwellers see when they visit your profile.
+        Update your account email and the details other vault dwellers see when they visit your
+        profile.
       </CardDescription>
     </CardHeader>
 
@@ -30,6 +31,25 @@
           </p>
           <p class="text-xs leading-5 text-theme-primary/50">
             3–32 characters. This is how other dwellers see you across the vault.
+          </p>
+        </div>
+
+        <div class="space-y-2">
+          <Label for="email" class="text-sm font-semibold text-theme-primary/85">Email</Label>
+          <Input
+            id="email"
+            v-model="emailField"
+            type="email"
+            required
+            class="h-auto w-full rounded-md border-theme-primary/30 bg-surface-sunken px-3 py-2.5 text-sm text-theme-primary placeholder:text-theme-primary/35"
+            placeholder="overseer@vault-tec.com"
+          />
+          <p v-if="emailError" class="text-xs font-medium text-danger" role="alert">
+            {{ emailError }}
+          </p>
+          <p class="text-xs leading-5 text-theme-primary/50">
+            Changing this sends a verification link to the new address. Portrait, bio, and
+            dweller-voice generation stay paused until it is confirmed; chat remains available.
           </p>
         </div>
 
@@ -191,6 +211,7 @@ interface Props {
     preferences?: any
   }
   username?: string | null
+  email?: string | null
   loading?: boolean
   error?: string | null
 }
@@ -200,7 +221,7 @@ const props = defineProps<Props>()
 const { loading = false, error = null, initialData } = props
 
 const emit = defineEmits<{
-  submit: [data: ProfileUpdate, username: string | null]
+  submit: [data: ProfileUpdate, username: string | null, email: string | null]
   cancel: []
 }>()
 
@@ -222,6 +243,22 @@ watch(usernameField, (value) => {
     usernameError.value = 'Username must be between 3 and 32 characters.'
   } else {
     usernameError.value = null
+  }
+})
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const emailField = ref(props.email ?? '')
+const emailError = ref<string | null>(null)
+
+watch(emailField, (value) => {
+  const trimmed = value.trim()
+  if (trimmed.length === 0) {
+    emailError.value = 'Email is required.'
+  } else if (!EMAIL_PATTERN.test(trimmed)) {
+    emailError.value = 'Enter a valid email address.'
+  } else {
+    emailError.value = null
   }
 })
 
@@ -274,7 +311,7 @@ const handleImageError = () => {
 }
 
 const handleSubmit = () => {
-  if (jsonError.value || usernameError.value) {
+  if (jsonError.value || usernameError.value || emailError.value) {
     return
   }
 
@@ -288,6 +325,10 @@ const handleSubmit = () => {
   const changedUsername =
     usernameField.value !== currentUsername && usernameField.value.trim().length > 0
 
+  const currentEmail = props.email ?? ''
+  const trimmedEmail = emailField.value.trim()
+  const changedEmail = trimmedEmail.length > 0 && trimmedEmail !== currentEmail
+
   emit(
     'submit',
     {
@@ -295,7 +336,8 @@ const handleSubmit = () => {
       avatar_url: formData.value.avatar_url || null,
       preferences: updatedPreferences,
     },
-    changedUsername ? usernameField.value.trim() : null
+    changedUsername ? usernameField.value.trim() : null,
+    changedEmail ? trimmedEmail : null
   )
 }
 </script>

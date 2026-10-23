@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 from typing import Any
+from uuid import uuid4
 
 import jwt
 from passlib.context import CryptContext
@@ -84,7 +85,7 @@ def create_email_verification_token(subject: str | Any) -> str:
     Create a token for email verification (7 day expiry).
     """
     expire = datetime.utcnow() + timedelta(days=7)
-    to_encode = {"exp": expire, "sub": str(subject), "type": "email_verification"}
+    to_encode = {"exp": expire, "sub": str(subject), "type": "email_verification", "jti": uuid4().hex}
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 

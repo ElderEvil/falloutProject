@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
+import jwt
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
@@ -105,6 +106,28 @@ async def test_verify_email_with_invalid_token(async_client: AsyncClient):
 
     assert response.status_code == 400
     assert "Invalid or expired token" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_expired_verification_token_rejected(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+):
+    """An expired verification JWT is rejected even when it was legitimately signed."""
+    user = await crud.user.create(db_session=async_session, obj_in=UserCreate(**create_fake_user()))
+    expired_token = jwt.encode(
+        {
+            "exp": datetime.now(tz=UTC) - timedelta(days=1),
+            "sub": str(user.id),
+            "type": "email_verification",
+        },
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
+    )
+
+    response = await async_client.post("auth/verify-email", json={"token": expired_token})
+
+    assert response.status_code == 400
 
 
 @pytest.mark.asyncio

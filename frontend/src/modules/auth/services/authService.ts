@@ -1,8 +1,16 @@
 import { apiRequest } from '@/core/utils/api'
 import type { AxiosResponse } from 'axios'
+import type { components } from '@/core/types/api.generated'
 import { AuthError, type Token, type UserWithTokens } from '../types/auth'
 import type { User } from '../types/user'
 import type { LoginFormData, RegisterFormData } from '../schemas/auth'
+
+type MessageResponse = components['schemas']['MessageResponse']
+
+export interface AccountUpdate {
+  username?: string
+  email?: string
+}
 
 export const authService = {
   async login(form: LoginFormData): Promise<AxiosResponse<Token>> {
@@ -50,7 +58,13 @@ export const authService = {
       throw new AuthError('Failed to fetch current user')
     }
   },
-  async updateUsername(username: string): Promise<AxiosResponse<User>> {
-    return await apiRequest<User>('put', '/api/v1/users/me', { username })
+  async updateAccount(payload: AccountUpdate): Promise<AxiosResponse<User>> {
+    return await apiRequest<User>('put', '/api/v1/users/me', payload, { skipErrorNotification: true })
+  },
+  async verifyEmail(token: string): Promise<AxiosResponse<MessageResponse>> {
+    return await apiRequest<MessageResponse>('post', '/api/v1/auth/verify-email', { token })
+  },
+  async resendVerificationEmail(): Promise<AxiosResponse<MessageResponse>> {
+    return await apiRequest<MessageResponse>('post', '/api/v1/auth/resend-verification')
   },
 }

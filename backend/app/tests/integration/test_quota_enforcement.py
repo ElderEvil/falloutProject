@@ -47,7 +47,11 @@ async def quota_user_fixture(async_session: AsyncSession) -> User:
         password="testpass123",
         is_superuser=False,
     )
-    return await crud.user.create(db_session=async_session, obj_in=user_in)
+    user = await crud.user.create(db_session=async_session, obj_in=user_in)
+    user.email_verified = True
+    await async_session.commit()
+    await async_session.refresh(user)
+    return user
 
 
 @pytest_asyncio.fixture(name="user_at_quota_limit")

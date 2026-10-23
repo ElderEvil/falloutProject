@@ -10952,17 +10952,6 @@ export interface components {
              * @default false
              */
             is_superuser: boolean;
-            /**
-             * Email Verified
-             * @default false
-             */
-            email_verified: boolean;
-            /** Email Verification Token */
-            email_verification_token?: string | null;
-            /** Password Reset Token */
-            password_reset_token?: string | null;
-            /** Password Reset Expires */
-            password_reset_expires?: string | null;
             /** Password */
             password: string;
         };
@@ -10986,17 +10975,6 @@ export interface components {
              */
             is_superuser: boolean;
             /**
-             * Email Verified
-             * @default false
-             */
-            email_verified: boolean;
-            /** Email Verification Token */
-            email_verification_token?: string | null;
-            /** Password Reset Token */
-            password_reset_token?: string | null;
-            /** Password Reset Expires */
-            password_reset_expires?: string | null;
-            /**
              * Id
              * Format: uuid4
              */
@@ -11011,6 +10989,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Email Verified */
+            email_verified: boolean;
         };
         /** UserUpdate */
         UserUpdate: {
@@ -11022,14 +11002,6 @@ export interface components {
             is_active?: boolean | null;
             /** Is Superuser */
             is_superuser?: boolean | null;
-            /** Email Verified */
-            email_verified?: boolean | null;
-            /** Email Verification Token */
-            email_verification_token?: string | null;
-            /** Password Reset Token */
-            password_reset_token?: string | null;
-            /** Password Reset Expires */
-            password_reset_expires?: string | null;
             /** Password */
             password?: string | null;
         };
@@ -11053,17 +11025,6 @@ export interface components {
              */
             is_superuser: boolean;
             /**
-             * Email Verified
-             * @default false
-             */
-            email_verified: boolean;
-            /** Email Verification Token */
-            email_verification_token?: string | null;
-            /** Password Reset Token */
-            password_reset_token?: string | null;
-            /** Password Reset Expires */
-            password_reset_expires?: string | null;
-            /**
              * Id
              * Format: uuid4
              */
@@ -11078,6 +11039,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Email Verified */
+            email_verified: boolean;
             /** Access Token */
             access_token: string;
             /** Refresh Token */

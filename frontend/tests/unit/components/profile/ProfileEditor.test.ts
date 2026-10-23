@@ -303,6 +303,46 @@ describe('ProfileEditor', () => {
     })
   })
 
+  describe('Email Field', () => {
+    const mountEditor = (props = {}) =>
+      mount(ProfileEditor, {
+        props: { initialData: mockInitialData, email: 'old@test.com', ...props },
+      })
+
+    it('renders the current email', () => {
+      const wrapper = mountEditor()
+
+      expect((wrapper.find('#email').element as HTMLInputElement).value).toBe('old@test.com')
+    })
+
+    it('emits a changed email as the third submit argument', async () => {
+      const wrapper = mountEditor()
+
+      await wrapper.find('#email').setValue('new@test.com')
+      await wrapper.find('form').trigger('submit')
+
+      expect(wrapper.emitted('submit')?.[0]?.[2]).toBe('new@test.com')
+    })
+
+    it('does not emit an email when it is unchanged', async () => {
+      const wrapper = mountEditor()
+
+      await wrapper.find('form').trigger('submit')
+
+      expect(wrapper.emitted('submit')?.[0]?.[2]).toBeNull()
+    })
+
+    it('blocks submission and explains an invalid address', async () => {
+      const wrapper = mountEditor()
+
+      await wrapper.find('#email').setValue('not-an-email')
+      await wrapper.find('form').trigger('submit')
+
+      expect(wrapper.text()).toContain('Enter a valid email address.')
+      expect(wrapper.emitted('submit')).toBeFalsy()
+    })
+  })
+
   describe('Error Display', () => {
     it('should display error message when error prop is provided', () => {
       const wrapper = mount(ProfileEditor, {

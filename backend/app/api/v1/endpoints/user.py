@@ -5,7 +5,6 @@ from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException
-from fastapi.encoders import jsonable_encoder
 from pydantic import UUID4
 from pydantic.networks import EmailStr
 from redis.asyncio import Redis
@@ -84,15 +83,13 @@ async def update_user_me(
     Returns:
         The updated user.
     """
-    if username is not None:
-        return await user_service.update_username(db_session, user, username)
-    user_data = jsonable_encoder(user)
-    user_in = UserUpdate(**user_data)
-    if password is not None:
-        user_in.password = password
-    if email is not None:
-        user_in.email = email
-    return await crud.user.update(db_session, id=user.id, obj_in=user_in)
+    return await user_service.update_account(
+        db_session,
+        user,
+        username=username,
+        password=password,
+        email=email,
+    )
 
 
 @router.get("/me", response_model=UserRead)

@@ -153,6 +153,9 @@ async def _superuser(async_session: AsyncSession):
         db_session=async_session,
     )
     if existing_user is not None:
+        if not existing_user.email_verified:
+            existing_user.email_verified = True
+            await async_session.commit()
         return existing_user
 
     user_in = UserCreate(
@@ -161,7 +164,11 @@ async def _superuser(async_session: AsyncSession):
         password=settings.FIRST_SUPERUSER_PASSWORD,
         is_superuser=True,
     )
-    return await crud.user.create(db_session=async_session, obj_in=user_in)
+    user = await crud.user.create(db_session=async_session, obj_in=user_in)
+    user.email_verified = True
+    await async_session.commit()
+    await async_session.refresh(user)
+    return user
 
 
 @pytest_asyncio.fixture

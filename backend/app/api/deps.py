@@ -97,6 +97,23 @@ async def get_current_active_user(current_user: CurrentUser) -> User:
 CurrentActiveUser = Annotated[User, Depends(get_current_active_user)]
 
 
+async def get_current_verified_user(current_user: CurrentActiveUser) -> User:
+    """Verify the current user has confirmed their email address.
+
+    Returns:
+        The verified user.
+
+    Raises:
+        AccessDeniedException: 403 if the email address is not verified.
+    """
+    if not current_user.email_verified:
+        raise AccessDeniedException("Email verification required")
+    return current_user
+
+
+CurrentVerifiedUser = Annotated[User, Depends(get_current_verified_user)]
+
+
 async def get_current_active_superuser(current_user: CurrentActiveUser) -> User:
     """Verify the current user is a superuser.
 

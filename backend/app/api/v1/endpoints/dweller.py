@@ -8,7 +8,13 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_dweller_access
+from app.api.deps import (
+    CurrentActiveUser,
+    CurrentSuperuser,
+    CurrentVerifiedUser,
+    get_user_vault_or_403,
+    verify_dweller_access,
+)
 from app.core.enums import (
     AgeGroupEnum,
     DwellerRosterFocus,
@@ -280,7 +286,7 @@ async def create_random_common_dweller(
 @router.post("/{dweller_id}/generate_backstory/", response_model=DwellerReadFull)
 async def generate_backstory(
     dweller_id: UUID4,
-    user: CurrentActiveUser,
+    user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerReadFull:
     """Generate a backstory for a dweller using AI.
@@ -294,7 +300,7 @@ async def generate_backstory(
 @router.post("/{dweller_id}/extend_bio/", response_model=DwellerReadFull)
 async def extend_bio(
     dweller_id: UUID4,
-    user: CurrentActiveUser,
+    user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerReadFull:
     """Append new AI-generated detail to a dweller's existing biography."""
@@ -317,7 +323,7 @@ async def add_bio_addendum(
 @router.post("/{dweller_id}/generate_visual_attributes/", response_model=DwellerReadFull)
 async def generate_visual_attributes(
     dweller_id: UUID4,
-    user: CurrentActiveUser,
+    user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerReadFull:
     """Generate visual attributes for a dweller using AI.
@@ -333,7 +339,7 @@ async def generate_visual_attributes(
 @router.post("/{dweller_id}/generate_photo/", response_model=DwellerReadFull)
 async def generate_photo(
     dweller_id: UUID4,
-    user: CurrentActiveUser,
+    user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     force: Annotated[bool, Query(description="Regenerate even if a photo already exists")] = False,
 ) -> DwellerReadFull:
@@ -351,7 +357,7 @@ async def generate_photo(
 async def generate_audio(
     dweller_id: UUID4,
     text: str,
-    user: CurrentActiveUser,
+    user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerReadFull:
     """Generate audio for a dweller using AI.
@@ -365,7 +371,7 @@ async def generate_audio(
 @router.post("/{dweller_id}/generate_with_ai/", response_model=DwellerReadFull)
 async def generate_data_with_ai(
     dweller_id: UUID4,
-    user: CurrentActiveUser,
+    user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     origin: str | None = None,
 ) -> DwellerReadFull:
@@ -388,7 +394,7 @@ async def generate_dweller_avatar(
     dweller_last_name: str,
     visual_attributes_input: DwellerVisualAttributes,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    current_user: CurrentActiveUser,
+    current_user: CurrentVerifiedUser,
 ) -> DwellerReadFull:
     """Generate an avatar for a dweller using AI.
 

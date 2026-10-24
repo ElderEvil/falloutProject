@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.262.1 (2026-10-24)
+
+### Bug Fixes
+
+* **streaming:** release DB sessions before SSE streams ([#1170](https://github.com/ElderEvil/falloutProject/issues/1170)) 6935db1
+
 ## 2.262.0 (2026-10-24)
 
 ### Features

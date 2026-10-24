@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
+import { flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import { audioManager } from '@/core/audio/audioManager'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
@@ -586,6 +588,7 @@ describe('room rush', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    useAuthStore().token = 'token'
   })
 
   const quote = {
@@ -617,14 +620,12 @@ describe('room rush', () => {
     message: 'The rush succeeded.',
   }
 
-  it('fetches a rush quote with auth', async () => {
+  it('fetches a rush quote through the shared HTTP boundary', async () => {
     vi.mocked(axios.get).mockResolvedValueOnce({ data: quote })
     const store = useRoomStore()
 
-    await expect(store.fetchRushQuote('room-1', 'token')).resolves.toEqual(quote)
-    expect(axios.get).toHaveBeenCalledWith('/api/v1/rooms/room-1/rush', {
-      headers: { Authorization: 'Bearer token' },
-    })
+    await expect(store.fetchRushQuote('room-1')).resolves.toEqual(quote)
+    expect(axios.get).toHaveBeenCalledWith('/api/v1/rooms/room-1/rush')
   })
 
   it('rushes a room, flashes the outcome, and returns the result', async () => {
@@ -632,14 +633,22 @@ describe('room rush', () => {
     vi.mocked(axios.get).mockResolvedValue({ data: { id: 'vault-1' } })
     const store = useRoomStore()
 
-    await expect(store.rushRoom('room-1', 'token', 'vault-1')).resolves.toEqual(result)
-    expect(axios.post).toHaveBeenCalledWith(
-      '/api/v1/rooms/room-1/rush',
-      {},
-      { headers: { Authorization: 'Bearer token' } }
-    )
+    await expect(store.rushRoom('room-1', 'vault-1')).resolves.toEqual(result)
+    expect(axios.post).toHaveBeenCalledWith('/api/v1/rooms/room-1/rush', {})
     expect(store.rushedRoomId).toBe('room-1')
     expect(store.rushOutcome).toBe('success')
+  })
+
+  it('returns the confirmed outcome without waiting for background refreshes', async () => {
+    vi.mocked(axios.post).mockResolvedValueOnce({ data: result })
+    vi.mocked(axios.get).mockImplementation(() => new Promise(() => {}))
+    const store = useRoomStore()
+    let returned = false
+    void store.rushRoom('room-1', 'vault-1').then(() => {
+      returned = true
+    })
+    await flushPromises()
+    expect(returned).toBe(true)
   })
 
   it('surfaces a rush conflict detail', async () => {
@@ -650,7 +659,7 @@ describe('room rush', () => {
     vi.mocked(axios.post).mockRejectedValueOnce(error)
     const store = useRoomStore()
 
-    await expect(store.rushRoom('room-1', 'token', 'vault-1')).rejects.toThrow(
+    await expect(store.rushRoom('room-1', 'vault-1')).rejects.toThrow(
       'Resolve the active incident before rushing.'
     )
     expect(store.rushedRoomId).toBeNull()

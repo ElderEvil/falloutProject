@@ -3,7 +3,7 @@ import { useVaultBoyFeedback } from '@/core/composables/useVaultBoyFeedback'
 
 const feedback = useVaultBoyFeedback()
 const event = {
-  animation: 'empty-can' as const,
+  animation: 'food-low' as const,
   title: 'Food low',
   message: 'Make food',
   vaultId: 'v1',
@@ -24,7 +24,7 @@ it('suppresses repeated warning keys for 30 seconds', () => {
   expect(feedback.current.value).toBeNull()
   vi.advanceTimersByTime(30000)
   feedback.show({ ...event, key: 'low-food' })
-  expect(feedback.current.value?.animation).toBe('empty-can')
+  expect(feedback.current.value?.animation).toBe('food-low')
 })
 
 it('keeps warnings isolated by vault', () => {
@@ -51,4 +51,13 @@ it('clears both queued feedback and cooldowns at a session boundary', () => {
   expect(feedback.current.value).toBeNull()
   feedback.show({ ...event, key: 'low-food' })
   expect(feedback.current.value?.title).toBe('Food low')
+})
+
+it('plays a direct rush outcome ahead of queued warnings', () => {
+  feedback.show(event)
+  feedback.show({ ...event, title: 'Another warning' })
+  feedback.show({ ...event, animation: 'rush-failure', title: 'Rush failed' }, { priority: true })
+  expect(feedback.current.value?.animation).toBe('rush-failure')
+  feedback.dismiss()
+  expect(feedback.current.value?.title).toBe(event.title)
 })

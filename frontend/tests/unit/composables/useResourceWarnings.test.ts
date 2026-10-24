@@ -128,8 +128,8 @@ describe('useResourceWarnings', () => {
 })
 
 it.each([
-  ['low_food', 'empty-can'],
-  ['critical_food', 'empty-can'],
+  ['low_food', 'food-low'],
+  ['critical_food', 'food-low'],
   ['low_water', 'water-low'],
   ['critical_dehydration', 'water-low'],
   ['critical_power', 'power-low'],

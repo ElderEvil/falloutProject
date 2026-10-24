@@ -11,7 +11,6 @@ import {
   type RoomPart,
 } from '../models/roomParts'
 import { roomStyle, supportsRoomStyles } from '../models/room'
-import { formatRushPayout, rushConsequenceTags } from '../utils/roomRush'
 import { useRoomStore } from '../stores/room'
 import { useRoomProduction } from '../composables/useRoomProduction'
 import { useRoomUpgrade } from '../composables/useRoomUpgrade'
@@ -27,8 +26,7 @@ import { Button } from '@/core/components/ui/button'
 import RoomPreviewSection from './RoomPreviewSection.vue'
 import BarbershopPanel from './BarbershopPanel.vue'
 import ProductionStats from './ProductionStats.vue'
-import RoomRushPanel from './RoomRushPanel.vue'
-import RoomRushFeedback from './RoomRushFeedback.vue'
+import RoomRushDialog from './RoomRushDialog.vue'
 import DwellerList from './DwellerList.vue'
 import RadioControls from './RadioControls.vue'
 import RoomActions from './RoomActions.vue'
@@ -42,7 +40,6 @@ import StorageMaintenancePanel from '@/modules/storage/components/StorageMainten
 import OverseerBriefing from '@/modules/vault/components/shell/OverseerBriefing.vue'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 import { useSound } from '@/core/composables/useSound'
-import { useGameBalance } from '@/core/composables/useGameBalance'
 import { getRoomAmbienceKey } from '@/core/audio/soundManifest'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -71,7 +68,6 @@ const modelValueRef = toRef(props, 'modelValue')
 const vaultIdRef = toRef(props, 'vaultId')
 
 const incidentStore = useIncidentStore()
-const { rushHappinessDelta } = useGameBalance()
 const roomStore = useRoomStore()
 const liveIncident = computed(
   () => incidentStore.activeIncidents.find((inc) => inc.room_id === props.room?.id) ?? null
@@ -166,25 +162,15 @@ const {
 
 const {
   quote: rushQuote,
-  result: rushResult,
   error: rushError,
   isLoadingQuote,
   isRushing,
-  showConfirmation: showRushConfirmation,
+  showRushDialog,
   blockedMessage: rushBlockedMessage,
   requestRush,
   cancelRush,
   confirmRush,
-  clearRushResult,
 } = useRoomRush(roomRef, vaultIdRef, modelValueRef)
-
-const rushConfirmMessage = computed(() => {
-  const quote = rushQuote.value
-  if (!quote) return ''
-  const penalty = rushHappinessDelta.value
-  const happiness = penalty === null ? '' : ` · −${penalty} happiness`
-  return `On success: ${formatRushPayout(quote.payout)} · ${Math.round(quote.fail_chance)}% incident chance · Possible incidents: ${rushConsequenceTags(quote.eligible_incidents).join(' / ')}${happiness}`
-})
 
 const { playSound, playAmbience, stopAmbience } = useSound()
 
@@ -237,38 +223,6 @@ onUnmounted(stopAmbience)
 
     <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
       <div v-if="room" class="modal-content">
-        <div
-          v-if="rushResult"
-          class="rush-result-banner"
-          :class="
-            rushResult.outcome === 'success'
-              ? 'rush-result-banner--success'
-              : 'rush-result-banner--failure'
-          "
-          role="status"
-        >
-          <Icon
-            :icon="rushResult.outcome === 'success' ? 'mdi:check-circle' : 'mdi:alert-circle'"
-            class="h-5 w-5 shrink-0"
-          />
-          <div class="rush-result-banner__copy">
-            <strong>{{ rushResult.outcome === 'success' ? 'RUSH OK' : 'RUSH FAIL' }}</strong>
-            <span>{{ rushResult.message }}</span>
-            <span v-if="rushResult.happiness_delta !== 0" class="rush-result-banner__meta">
-              {{ rushResult.happiness_delta > 0 ? '+' : '−'
-              }}{{ Math.abs(rushResult.happiness_delta) }} happiness
-            </span>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            class="rush-result-banner__close"
-            aria-label="Dismiss rush result"
-            @click="clearRushResult"
-          >
-            &times;
-          </Button>
-        </div>
         <!-- Error display -->
         <div v-if="actionError && !has('incident') && !has('aftermath')" class="error-banner">
           <Icon icon="mdi:alert-circle" class="h-5 w-5" />
@@ -378,15 +332,17 @@ onUnmounted(stopAmbience)
             :production-info="productionInfo"
           />
 
-          <RoomRushPanel
+          <Button
             v-if="has('productionStats')"
-            :quote="rushQuote"
-            :loading="isLoadingQuote"
-            :rushing="isRushing"
-            :error="rushError"
-            :blocked-message="rushBlockedMessage"
-            @rush="requestRush"
-          />
+            variant="secondary"
+            size="sm"
+            class="self-start"
+            :disabled="isRushing"
+            @click="requestRush"
+          >
+            <Icon icon="mdi:lightning-bolt" />
+            Rush Production
+          </Button>
 
           <RoomTrainingSection
             v-if="has('training')"
@@ -432,7 +388,17 @@ onUnmounted(stopAmbience)
       </div>
     </div>
   </TerminalModal>
-  <RoomRushFeedback :result="rushResult" />
+  <RoomRushDialog
+    :open="showRushDialog"
+    :room-name="room?.name ?? 'room'"
+    :quote="rushQuote"
+    :loading="isLoadingQuote"
+    :rushing="isRushing"
+    :error="rushError"
+    :blocked-message="rushBlockedMessage"
+    @confirm="confirmRush"
+    @cancel="cancelRush"
+  />
   <TerminalConfirmation
     :open="showDestroyConfirmation"
     :title="destroyTitle"
@@ -457,14 +423,6 @@ onUnmounted(stopAmbience)
     @cancel="showUnassignConfirmation = false"
     @confirm="confirmUnassignAll"
   />
-  <TerminalConfirmation
-    :open="showRushConfirmation"
-    :title="`Rush ${room?.name ?? 'room'}?`"
-    :message="rushConfirmMessage"
-    confirm-label="Activate Rush"
-    @confirm="confirmRush"
-    @cancel="cancelRush"
-  />
 </template>
 
 <style scoped>
@@ -485,69 +443,5 @@ onUnmounted(stopAmbience)
   border-radius: 4px;
   color: var(--color-danger);
   font-size: 0.875rem;
-}
-
-.rush-result-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  padding: 0.7rem 0.8rem;
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 4px;
-  background: var(--color-surface-sunken);
-}
-
-.rush-result-banner--success {
-  border-color: var(--color-success);
-}
-
-.rush-result-banner--failure {
-  border-color: var(--color-danger);
-}
-
-.rush-result-banner__copy {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 0.15rem;
-  min-width: 0;
-}
-
-.rush-result-banner__copy strong {
-  letter-spacing: 0.08em;
-}
-
-.rush-result-banner--success strong {
-  color: var(--color-success);
-}
-
-.rush-result-banner--failure strong {
-  color: var(--color-danger);
-}
-
-.rush-result-banner__copy span {
-  color: var(--color-theme-primary);
-  font-size: 0.8125rem;
-}
-
-.rush-result-banner__meta {
-  color: var(--color-warning);
-  font-size: 0.6875rem;
-  letter-spacing: 0.04em;
-}
-
-.rush-result-banner__close {
-  flex: 0 0 auto;
-  padding: 0 0.25rem;
-  border: 0;
-  background: transparent;
-  color: var(--color-gray-400);
-  font-size: 1.1rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.rush-result-banner__close:hover {
-  color: var(--color-theme-primary);
 }
 </style>

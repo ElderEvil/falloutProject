@@ -1166,7 +1166,9 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      const upgradeButton = wrapper.findAll('.mock-button')[0]
+      const upgradeButton = wrapper
+        .findAll('.mock-button')
+        .find((button) => button.text().includes('Upgrade to Tier'))!
       await upgradeButton.trigger('click')
       await wrapper.vm.$nextTick()
 
@@ -1189,7 +1191,9 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      const upgradeButton = wrapper.findAll('.mock-button')[0]
+      const upgradeButton = wrapper
+        .findAll('.mock-button')
+        .find((button) => button.text().includes('Upgrade to Tier'))!
       await upgradeButton.trigger('click')
       await wrapper.vm.$nextTick()
       await new Promise((resolve) => setTimeout(resolve, 0))
@@ -1451,7 +1455,9 @@ describe('RoomDetailModal', () => {
           props: { room: mockRoom, modelValue: true },
         })
 
-        const upgradeButton = wrapper.findAll('.mock-button')[0]
+        const upgradeButton = wrapper
+          .findAll('.mock-button')
+          .find((button) => button.text().includes('Upgrade to Tier'))!
         await upgradeButton.trigger('click')
         await wrapper.vm.$nextTick()
         await new Promise((resolve) => setTimeout(resolve, 0))

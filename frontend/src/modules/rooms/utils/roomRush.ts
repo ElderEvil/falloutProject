@@ -1,4 +1,4 @@
-import type { RoomRushResourceGain } from '../models/room'
+import type { RoomRushResourceGain, RoomRushResult } from '../models/room'
 
 const CONSEQUENCE_TAGS: Record<string, string> = {
   fire: 'FIRE',
@@ -27,4 +27,30 @@ export function formatRushPayout(payout: RoomRushResourceGain): string {
     .filter(([, amount]) => amount > 0)
     .map(([key, amount]) => `+${amount} ${PAYOUT_LABELS[key]}`)
   return parts.length ? parts.join(', ') : 'no resources (at capacity)'
+}
+
+export function formatRushResult(result: RoomRushResult): string {
+  if (result.outcome === 'failure') {
+    const [incident] = rushConsequenceTags(result.incident_type ? [result.incident_type] : [])
+    const parts = [incident]
+    if (result.happiness_delta !== 0) {
+      const delta = result.happiness_delta
+      parts.push(`${delta > 0 ? '+' : '−'}${Math.abs(delta)} HAPPINESS`)
+    }
+    return parts.join(' · ')
+  }
+
+  const gains = (Object.entries(result.payout) as [keyof RoomRushResourceGain, number][])
+    .filter(([, amount]) => amount > 0)
+    .map(([key, amount]) => `+${amount} ${PAYOUT_LABELS[key].toUpperCase()}`)
+  if (result.caps > 0) gains.push(`+${result.caps} CAPS`)
+  if (result.happiness_delta !== 0) {
+    const delta = result.happiness_delta
+    gains.push(`${delta > 0 ? '+' : '−'}${Math.abs(delta)} HAPPINESS`)
+  }
+  const xp = result.xp_per_worker > 0 ? `+${result.xp_per_worker} XP` : ''
+  if (gains.length === 0)
+    return xp ? `No resources (at capacity) · ${xp}` : 'No resources (at capacity)'
+  if (xp) gains.push(xp)
+  return gains.join(' · ')
 }

@@ -61,7 +61,24 @@ describe('VaultBoyFeedback', () => {
     wrapper.unmount()
   })
 
-  it.each(['ok', 'baby'] as const)(
+  it.each([
+    ['rush-success', 'VaultBoy_AnimationsRushOk.webp'],
+    ['rush-failure', 'VaultBoy_AnimationsRushFail.webp'],
+  ] as const)('uses the %s sprite sheet in the shared overlay', (animation, asset) => {
+    const wrapper = mountFeedback({
+      ...success,
+      animation,
+      title: animation === 'rush-success' ? 'RUSH OK' : 'RUSH FAIL',
+      message: 'Rush result',
+    })
+
+    expect(wrapper.text()).toContain(animation === 'rush-success' ? 'RUSH OK' : 'RUSH FAIL')
+    expect(wrapper.get('.vault-boy-feedback image').attributes('href')).toContain(asset)
+
+    wrapper.unmount()
+  })
+
+  it.each(['ok', 'baby', 'rush-success', 'rush-failure'] as const)(
     'plays seven distinct poses once and holds the final pose for %s',
     async (animation) => {
       vi.useFakeTimers()

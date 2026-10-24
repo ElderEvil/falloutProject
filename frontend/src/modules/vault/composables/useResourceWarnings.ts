@@ -9,8 +9,8 @@ interface WarningState {
 }
 
 const WARNING_ANIMATIONS: Record<string, VaultBoyAnimationId> = {
-  low_food: 'empty-can',
-  critical_food: 'empty-can',
+  low_food: 'food-low',
+  critical_food: 'food-low',
   low_water: 'water-low',
   critical_water: 'water-low',
   critical_dehydration: 'water-low',

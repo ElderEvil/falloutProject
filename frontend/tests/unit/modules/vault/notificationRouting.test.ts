@@ -141,4 +141,3 @@ describe('rush notifications', () => {
     expect(getNotificationSound('rush_failed')).toBe('rushFail')
   })
 })
-})

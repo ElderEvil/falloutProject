@@ -16,7 +16,7 @@ let nextId = 0
 export const VAULT_BOY_FEEDBACK_MS = 4200
 
 export function useVaultBoyFeedback() {
-  function show(event: VaultBoyFeedbackEvent) {
+  function show(event: VaultBoyFeedbackEvent, { priority = false }: { priority?: boolean } = {}) {
     if (event.key) {
       const key = `${event.vaultId}:${event.key}`
       const previous = lastShown.get(key)
@@ -25,7 +25,9 @@ export function useVaultBoyFeedback() {
     }
     // Preserve the current animation and keep queued feedback fresh during event bursts.
     if (queue.value.length >= 4) queue.value.splice(1, 1)
-    queue.value.push({ ...event, id: ++nextId })
+    const entry = { ...event, id: ++nextId }
+    if (priority) queue.value.unshift(entry)
+    else queue.value.push(entry)
   }
   const dismiss = () => {
     queue.value.shift()

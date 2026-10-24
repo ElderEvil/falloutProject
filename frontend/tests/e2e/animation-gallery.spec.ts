@@ -44,7 +44,7 @@ test('inspects poses, edits playback order, and plays the shared rush animation'
   await expect(success.getByText('Paused', { exact: true })).toBeVisible()
   await expect(failure.getByText('Pose 2 · Step 1 / 7', { exact: true })).toBeVisible()
 
-  await expect(page.getByRole('img', { name: /sprite sheet$/ })).toHaveCount(10)
+  await expect(page.getByRole('img', { name: /sprite sheet$/ })).toHaveCount(9)
   for (const image of await page.getByRole('img', { name: /sprite sheet$/ }).all()) {
     await image.scrollIntoViewIfNeeded()
     await expect
@@ -99,41 +99,6 @@ test('plays each additional Vault Boy gesture once and holds its final pose', as
   }
 })
 
-test('plays the empty-can food warning in order and holds its final pose', async ({ page }) => {
-  await page.clock.install()
-  await page.goto('/dev/animation-gallery')
-  const prototype = page.getByRole('region', {
-    name: 'Food running low',
-    exact: true,
-  })
-  const steps = prototype.getByLabel('Playback steps').getByRole('button')
-  await expect(steps).toHaveText(['0', '1', '2', '3', '4', '5'])
-  await expect(
-    page.getByRole('region', { name: 'Rush success · AI frame trial', exact: true })
-  ).toHaveCount(0)
-  await expect(prototype.locator('svg image').first()).toHaveAttribute(
-    'href',
-    '/assets/vault-boy/VaultBoy_EmptyCanCheck-v1.webp'
-  )
-  await expect(prototype.locator('svg image').first()).toHaveAttribute('width', '1536')
-  await expect(prototype.locator('svg image').first()).toHaveAttribute('height', '1024')
-  await prototype.getByRole('button', { name: 'Play', exact: true }).click()
-  for (let step = 1; step < 6; step += 1) {
-    await page.clock.runFor(180)
-    await expect(
-      prototype.getByText(`Pose ${step} · Step ${step + 1} / 6`, { exact: true })
-    ).toBeVisible()
-  }
-  await page.clock.runFor(1000)
-  await expect(prototype.getByText('Pose 5 · Step 6 / 6', { exact: true })).toBeVisible()
-  await expect(prototype.getByText('Paused', { exact: true })).toBeVisible()
-  await expect(
-    page
-      .getByRole('region', { name: 'Rush success', exact: true })
-      .getByText('Pose 4 · Step 1 / 7', { exact: true })
-  ).toBeVisible()
-})
-
 test('dev index lists all menus without gallery cross-links', async ({ page }) => {
   await page.goto('/dev/')
   const menus = page.getByRole('navigation', { name: 'Development menus' })
@@ -155,7 +120,7 @@ for (const viewport of [
   test(`corner feedback fits ${viewport.width}px and respects reduced motion`, async ({ page }) => {
     await page.setViewportSize(viewport)
     await page.goto('/dev/animation-gallery')
-    const food = page.getByRole('region', { name: 'Food running low', exact: true })
+    const food = page.getByRole('region', { name: 'Low food', exact: true })
     await food.getByRole('button', { name: 'Show in corner', exact: true }).click()
     const overlay = page.locator('.vault-boy-feedback')
     await expect(overlay).toBeVisible()
@@ -171,14 +136,14 @@ for (const viewport of [
     await food.getByRole('button', { name: 'Show in corner', exact: true }).click()
     await expect(overlay.locator(':scope > svg > svg')).toHaveAttribute(
       'viewBox',
-      '1024 512 512 512'
+      '1314 116 391 465'
     )
     await overlay.getByRole('button', { name: 'Dismiss animation' }).click()
   })
 }
 
 for (const scenario of [
-  { warning: 'low_food', sheet: 'VaultBoy_EmptyCanCheck-v1.webp' },
+  { warning: 'low_food', sheet: 'VaultBoy_AnimationsFoodLow.webp' },
   { warning: 'low_water', sheet: 'VaultBoy_AnimationsWaterLow.webp' },
   { warning: 'low_power', sheet: 'VaultBoy_AnimationsPowerLow.webp' },
   { warning: 'happiness', sheet: 'VaultBoy_AnimationsHappynessLow.webp' },

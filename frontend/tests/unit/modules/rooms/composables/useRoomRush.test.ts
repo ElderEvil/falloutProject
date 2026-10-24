@@ -1,12 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
 import { useRoomRush } from '@/modules/rooms/composables/useRoomRush'
 import type { Room, RoomRushResult } from '@/modules/rooms/models/room'
-import { useAuthStore } from '@/modules/auth/stores/auth'
 
-const { mockStore, notifyErrorOnce, playSound, stopSound } = vi.hoisted(() => ({
+const { mockStore, notifyErrorOnce, playSound, stopSound, showFeedback } = vi.hoisted(() => ({
   mockStore: {
     fetchRushQuote: vi.fn(),
     rushRoom: vi.fn(),
@@ -14,6 +13,7 @@ const { mockStore, notifyErrorOnce, playSound, stopSound } = vi.hoisted(() => ({
   notifyErrorOnce: vi.fn(),
   playSound: vi.fn(),
   stopSound: vi.fn(),
+  showFeedback: vi.fn(),
 }))
 
 vi.mock('@/modules/rooms/stores/room', () => ({
@@ -27,6 +27,10 @@ vi.mock('@/core/utils/errorHandler', () => ({
 
 vi.mock('@/core/composables/useSound', () => ({
   useSound: () => ({ playSound, stopSound }),
+}))
+
+vi.mock('@/core/composables/useVaultBoyFeedback', () => ({
+  useVaultBoyFeedback: () => ({ show: showFeedback }),
 }))
 
 const room = { id: 'room-1', name: 'Power Generator' } as Room
@@ -63,88 +67,159 @@ describe('useRoomRush', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    useAuthStore().token = 'token'
   })
 
-  it('loads the quote when the modal opens', async () => {
-    mockStore.fetchRushQuote.mockResolvedValueOnce(quote)
-    const { quote: current, isLoadingQuote } = useRoomRush(ref(room), ref('vault-1'), ref(true))
-
+  it('does not load a quote until the rush popup opens', async () => {
+    const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
     await flushPromises()
 
-    expect(mockStore.fetchRushQuote).toHaveBeenCalledWith('room-1', 'token')
-    expect(current.value).toEqual(quote)
-    expect(isLoadingQuote.value).toBe(false)
+    expect(mockStore.fetchRushQuote).not.toHaveBeenCalled()
+
+    mockStore.fetchRushQuote.mockResolvedValueOnce(quote)
+    state.requestRush()
+    await flushPromises()
+
+    expect(mockStore.fetchRushQuote).toHaveBeenCalledWith('room-1')
+    expect(state.showRushDialog.value).toBe(true)
+    expect(state.quote.value).toEqual(quote)
+    expect(playSound).toHaveBeenCalledWith('rushMode', 'music')
   })
 
-  it('does not fetch a quote while the modal is closed', () => {
+  it('does not fetch a quote while the room modal is closed', () => {
     useRoomRush(ref(room), ref('vault-1'), ref(false))
 
     expect(mockStore.fetchRushQuote).not.toHaveBeenCalled()
   })
 
-  it('opens the confirmation with the rush-mode music and can cancel it', async () => {
+  it('closes the popup and stops rush music on cancel', async () => {
     mockStore.fetchRushQuote.mockResolvedValueOnce(quote)
-    const { requestRush, cancelRush, showConfirmation } = useRoomRush(
-      ref(room),
-      ref('vault-1'),
-      ref(true)
-    )
+    const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
+    state.requestRush()
     await flushPromises()
 
-    requestRush()
+    state.cancelRush()
 
-    expect(showConfirmation.value).toBe(true)
-    expect(playSound).toHaveBeenCalledWith('rushMode', 'music')
-
-    cancelRush()
-
-    expect(showConfirmation.value).toBe(false)
+    expect(state.showRushDialog.value).toBe(false)
+    expect(state.quote.value).toBeNull()
     expect(stopSound).toHaveBeenCalledWith('rushMode')
   })
 
-  it('submits the rush, keeps the result, and refreshes the quote', async () => {
-    mockStore.fetchRushQuote
-      .mockResolvedValueOnce(quote)
-      .mockResolvedValueOnce({ ...quote, stacks: 3, fail_chance: 33, success_chance: 67 })
+  it('submits once and queues the shared Vault-Boy feedback without refetching the quote', async () => {
+    mockStore.fetchRushQuote.mockResolvedValueOnce(quote)
     mockStore.rushRoom.mockResolvedValueOnce(result)
-    const {
-      confirmRush,
-      result: currentResult,
-      quote: currentQuote,
-    } = useRoomRush(ref(room), ref('vault-1'), ref(true))
+    const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
+    state.requestRush()
     await flushPromises()
 
-    await confirmRush()
+    await state.confirmRush()
 
-    expect(mockStore.rushRoom).toHaveBeenCalledWith('room-1', 'token', 'vault-1')
+    expect(mockStore.rushRoom).toHaveBeenCalledWith('room-1', 'vault-1')
+    expect(mockStore.fetchRushQuote).toHaveBeenCalledTimes(1)
+    expect(state.showRushDialog.value).toBe(false)
+    expect(state.quote.value).toBeNull()
     expect(stopSound).toHaveBeenCalledWith('rushMode')
     expect(playSound).toHaveBeenCalledWith('rushGo', 'sfx')
-    expect(currentResult.value).toEqual(result)
-    expect(currentQuote.value?.stacks).toBe(3)
-    expect(currentQuote.value?.fail_chance).toBe(33)
-    expect(mockStore.fetchRushQuote).toHaveBeenCalledTimes(2)
+    expect(showFeedback).toHaveBeenCalledWith(
+      {
+        animation: 'rush-success',
+        title: 'RUSH OK',
+        message: '+12 POWER · +120 CAPS · +10 HAPPINESS · +25 XP',
+        vaultId: 'vault-1',
+      },
+      { priority: true }
+    )
   })
 
-  it('surfaces a quote failure', async () => {
+  it('surfaces a quote failure inside the popup', async () => {
     mockStore.fetchRushQuote.mockRejectedValueOnce(new Error('Quote unavailable'))
-    const { error, quote: current } = useRoomRush(ref(room), ref('vault-1'), ref(true))
-
+    const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
+    state.requestRush()
     await flushPromises()
 
-    expect(current.value).toBeNull()
-    expect(error.value).toBe('Quote unavailable')
+    expect(state.quote.value).toBeNull()
+    expect(state.error.value).toBe('Quote unavailable')
+    expect(state.isLoadingQuote.value).toBe(false)
+    expect(state.showRushDialog.value).toBe(true)
   })
 
-  it('reports a rush transport failure', async () => {
+  it('keeps the popup open and reports a rush failure', async () => {
     mockStore.fetchRushQuote.mockResolvedValueOnce(quote)
     mockStore.rushRoom.mockRejectedValueOnce(new Error('Incident active'))
-    const { confirmRush, error } = useRoomRush(ref(room), ref('vault-1'), ref(true))
+    const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
+    state.requestRush()
     await flushPromises()
 
-    await confirmRush()
+    await state.confirmRush()
 
-    expect(error.value).toBe('Incident active')
+    expect(state.error.value).toBe('Incident active')
+    expect(state.showRushDialog.value).toBe(true)
+    expect(showFeedback).not.toHaveBeenCalled()
     expect(notifyErrorOnce).toHaveBeenCalled()
+  })
+
+  it('ignores an older quote after switching rooms', async () => {
+    let resolveOld!: (value: typeof quote) => void
+    mockStore.fetchRushQuote
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveOld = resolve
+          })
+      )
+      .mockResolvedValueOnce({ ...quote, fail_chance: 45, success_chance: 55 })
+    const selectedRoom = ref<Room | null>(room)
+    const state = useRoomRush(selectedRoom, ref('vault-1'), ref(true))
+
+    state.requestRush()
+    selectedRoom.value = { ...room, id: 'room-2' }
+    await flushPromises()
+    state.requestRush()
+    await flushPromises()
+
+    expect(state.quote.value?.fail_chance).toBe(45)
+
+    resolveOld(quote)
+    await flushPromises()
+
+    expect(state.quote.value?.fail_chance).toBe(45)
+  })
+
+  it('closes the popup when the parent room closes', async () => {
+    mockStore.fetchRushQuote.mockResolvedValueOnce(quote)
+    const open = ref(true)
+    const state = useRoomRush(ref(room), ref('vault-1'), open)
+    state.requestRush()
+    await flushPromises()
+    expect(state.showRushDialog.value).toBe(true)
+
+    open.value = false
+    await flushPromises()
+
+    expect(state.showRushDialog.value).toBe(false)
+  })
+
+  it('ignores a rush response from a closed modal session', async () => {
+    let resolveRush!: (value: RoomRushResult) => void
+    mockStore.fetchRushQuote.mockResolvedValue(quote)
+    mockStore.rushRoom.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRush = resolve
+        })
+    )
+    const open = ref(true)
+    const state = useRoomRush(ref(room), ref('vault-1'), open)
+    state.requestRush()
+    await flushPromises()
+    const pending = state.confirmRush()
+
+    open.value = false
+    await flushPromises()
+    open.value = true
+    await flushPromises()
+    resolveRush(result)
+    await pending
+
+    expect(showFeedback).not.toHaveBeenCalled()
   })
 })

@@ -117,6 +117,27 @@ describe('Incident Store', () => {
     ],
   }
 
+  it('discovers a reserved rush incident without an SSE spawn event, then stops retrying', async () => {
+    vi.mocked(incidentApi.getActiveIncidents)
+      .mockResolvedValueOnce({ vault_id: 'vault-1', incident_count: 0, incidents: [] })
+      .mockResolvedValueOnce({ vault_id: 'vault-1', incident_count: 0, incidents: [] })
+      .mockResolvedValue({ vault_id: 'vault-1', incident_count: 1, incidents: [mockIncident] })
+    vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
+    vi.mocked(incidentApi.getIncidentTeam).mockResolvedValue([])
+    const store = useIncidentStore()
+    store.startPolling('vault-1', 'test-token')
+    await flushPromises()
+    store.watchPendingIncident('vault-1', 'incident-1', 'test-token')
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(store.hasActiveIncidents).toBe(false)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(store.hasActiveIncidents).toBe(true)
+    const calls = vi.mocked(incidentApi.getActiveIncidents).mock.calls.length
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(calls)
+    store.stopPolling()
+  })
+
   describe('State Initialization', () => {
     it('should initialize with empty state', () => {
       const store = useIncidentStore()

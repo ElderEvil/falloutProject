@@ -643,21 +643,6 @@ body {
     }
 }
 
-@utility rush-stamp {
-    animation: rush-stamp 450ms ease-out;
-}
-
-@keyframes rush-stamp {
-    from {
-        opacity: 0;
-        transform: scale(0.85);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
 @keyframes stat-highlight-pulse {
     from {
         box-shadow: 0 0 12px var(--color-theme-glow);
@@ -690,8 +675,7 @@ body {
     .stat-badge-fade { animation: none; opacity: 1; }
     .room-merge-pulse { animation: none; box-shadow: var(--glow-2); }
     .room-rush-success,
-    .room-rush-fail,
-    .rush-stamp { animation: none; }
+    .room-rush-fail { animation: none; }
     .room-rush-success { box-shadow: var(--glow-2); }
     .room-rush-fail { transform: none; }
     .flicker,

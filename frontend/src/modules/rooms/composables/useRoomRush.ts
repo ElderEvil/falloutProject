@@ -1,9 +1,10 @@
 import { computed, getCurrentScope, onScopeDispose, ref, watch, type Ref } from 'vue'
-import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSound } from '@/core/composables/useSound'
+import { useVaultBoyFeedback } from '@/core/composables/useVaultBoyFeedback'
 import { getErrorMessage, notifyErrorOnce } from '@/core/utils/errorHandler'
 import { useRoomStore } from '../stores/room'
-import type { Room, RoomRushQuote, RoomRushResult } from '../models/room'
+import type { Room, RoomRushQuote } from '../models/room'
+import { formatRushResult } from '../utils/roomRush'
 
 const BLOCKED_MESSAGES: Record<NonNullable<RoomRushQuote['blocked_reason']>, string> = {
   not_production: 'This room does not produce resources.',
@@ -15,113 +16,132 @@ const BLOCKED_MESSAGES: Record<NonNullable<RoomRushQuote['blocked_reason']>, str
 
 export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen: Ref<boolean>) {
   const roomStore = useRoomStore()
-  const authStore = useAuthStore()
+  const feedback = useVaultBoyFeedback()
   const { playSound, stopSound } = useSound()
   const quote = ref<RoomRushQuote | null>(null)
-  const result = ref<RoomRushResult | null>(null)
   const error = ref<string | null>(null)
   const isLoadingQuote = ref(false)
   const isRushing = ref(false)
-  const showConfirmation = ref(false)
+  const showRushDialog = ref(false)
+  let quoteRequestSequence = 0
+  let rushSessionGeneration = 0
 
   const blockedMessage = computed(() => {
     const reason = quote.value?.blocked_reason
     return reason ? BLOCKED_MESSAGES[reason] : ''
   })
 
-  async function loadQuote(silent = false): Promise<void> {
-    if (!room.value || !authStore.token) {
+  function resetRush(): void {
+    quoteRequestSequence += 1
+    rushSessionGeneration += 1
+    stopSound('rushMode')
+    showRushDialog.value = false
+    quote.value = null
+    error.value = null
+    isLoadingQuote.value = false
+    isRushing.value = false
+  }
+
+  async function loadQuote(): Promise<void> {
+    const requestSequence = ++quoteRequestSequence
+    if (!room.value) {
       quote.value = null
+      isLoadingQuote.value = false
       return
     }
-    if (!silent) isLoadingQuote.value = true
+    const requestedRoomId = room.value.id
+    isLoadingQuote.value = true
+    quote.value = null
     error.value = null
     try {
-      quote.value = await roomStore.fetchRushQuote(room.value.id, authStore.token)
+      const nextQuote = await roomStore.fetchRushQuote(requestedRoomId)
+      if (requestSequence !== quoteRequestSequence || room.value?.id !== requestedRoomId) return
+      quote.value = nextQuote
     } catch (caught) {
+      if (requestSequence !== quoteRequestSequence || room.value?.id !== requestedRoomId) return
       quote.value = null
       error.value = getErrorMessage(caught)
     } finally {
-      if (!silent) isLoadingQuote.value = false
+      if (requestSequence === quoteRequestSequence && room.value?.id === requestedRoomId) {
+        isLoadingQuote.value = false
+      }
     }
   }
 
   function requestRush(): void {
-    if (!quote.value?.can_rush || isRushing.value) return
+    if (!room.value || isRushing.value) return
+    showRushDialog.value = true
+    error.value = null
     playSound('rushMode', 'music')
-    showConfirmation.value = true
+    void loadQuote()
   }
 
   function cancelRush(): void {
     stopSound('rushMode')
-    showConfirmation.value = false
-  }
-
-  function clearRushResult(): void {
-    result.value = null
+    showRushDialog.value = false
+    quoteRequestSequence += 1
+    if (isRushing.value) {
+      rushSessionGeneration += 1
+      isRushing.value = false
+    }
+    quote.value = null
+    error.value = null
+    isLoadingQuote.value = false
   }
 
   async function confirmRush(): Promise<void> {
-    if (!room.value || !quote.value?.can_rush || !authStore.token || isRushing.value) return
+    if (!room.value || !quote.value?.can_rush || isRushing.value) return
     const roomId = room.value.id
-    const token = authStore.token
     const currentVaultId = vaultId.value
-    showConfirmation.value = false
+    const requestGeneration = rushSessionGeneration
     isRushing.value = true
     error.value = null
     stopSound('rushMode')
     playSound('rushGo', 'sfx')
     try {
-      const outcome = await roomStore.rushRoom(roomId, token, currentVaultId)
-      if (room.value?.id !== roomId) return
-      result.value = outcome
-      if (quote.value) {
-        quote.value = {
-          ...quote.value,
-          stacks: outcome.stacks_after,
-          fail_chance: outcome.next_fail_chance,
-          success_chance: 100 - outcome.next_fail_chance,
-        }
+      const outcome = await roomStore.rushRoom(roomId, currentVaultId)
+      if (requestGeneration !== rushSessionGeneration || room.value?.id !== roomId) return
+      showRushDialog.value = false
+      quote.value = null
+      if (currentVaultId) {
+        feedback.show(
+          {
+            animation: outcome.outcome === 'success' ? 'rush-success' : 'rush-failure',
+            title: outcome.outcome === 'success' ? 'RUSH OK' : 'RUSH FAIL',
+            message: formatRushResult(outcome),
+            vaultId: currentVaultId,
+          },
+          { priority: true }
+        )
       }
-      await loadQuote(true)
     } catch (caught) {
+      if (requestGeneration !== rushSessionGeneration || room.value?.id !== roomId) return
       error.value = getErrorMessage(caught)
       notifyErrorOnce(caught, error.value, 5000)
     } finally {
-      isRushing.value = false
+      if (requestGeneration === rushSessionGeneration) isRushing.value = false
     }
   }
 
-  watch(
-    [() => room.value?.id, isOpen],
-    ([, open]) => {
-      if (!open) {
-        stopSound('rushMode')
-        quote.value = null
-        result.value = null
-        error.value = null
-        return
-      }
-      result.value = null
-      void loadQuote()
-    },
-    { immediate: true }
-  )
+  watch([() => room.value?.id, isOpen], resetRush, { immediate: true })
 
-  if (getCurrentScope()) onScopeDispose(() => stopSound('rushMode'))
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      stopSound('rushMode')
+      quoteRequestSequence += 1
+      rushSessionGeneration += 1
+    })
+  }
 
   return {
     quote,
-    result,
     error,
     isLoadingQuote,
     isRushing,
-    showConfirmation,
+    showRushDialog,
     blockedMessage,
-    loadQuote,
     requestRush,
     cancelRush,
     confirmRush,
-    clearRushResult,
   }
 }

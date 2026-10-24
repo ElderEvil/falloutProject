@@ -104,31 +104,80 @@ describe('useRoomRush', () => {
     expect(stopSound).toHaveBeenCalledWith('rushMode')
   })
 
-  it('submits once and queues the shared Vault-Boy feedback without refetching the quote', async () => {
+  it('delays the success cue and feedback, then plays the resource cue', async () => {
     mockStore.fetchRushQuote.mockResolvedValueOnce(quote)
     mockStore.rushRoom.mockResolvedValueOnce(result)
     const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
     state.requestRush()
     await flushPromises()
+    vi.useFakeTimers()
 
-    await state.confirmRush()
+    try {
+      await state.confirmRush()
 
-    expect(mockStore.rushRoom).toHaveBeenCalledWith('room-1', 'vault-1')
-    expect(mockStore.fetchRushQuote).toHaveBeenCalledTimes(1)
-    expect(state.showRushDialog.value).toBe(false)
-    expect(state.quote.value).toBeNull()
-    expect(stopSound).toHaveBeenCalledWith('rushMode')
-    expect(playSound).toHaveBeenCalledWith('rushGo', 'sfx')
-    expect(showFeedback).toHaveBeenCalledWith(
-      {
-        animation: 'rush-success',
-        title: 'RUSH OK',
-        message: '+12 POWER · +120 CAPS · +10 HAPPINESS · +25 XP',
-        vaultId: 'vault-1',
-        durationMs: 1600,
-      },
-      { priority: true }
-    )
+      expect(mockStore.rushRoom).toHaveBeenCalledWith('room-1', 'vault-1')
+      expect(mockStore.fetchRushQuote).toHaveBeenCalledTimes(1)
+      expect(state.showRushDialog.value).toBe(false)
+      expect(state.quote.value).toBeNull()
+      expect(stopSound).toHaveBeenCalledWith('rushMode')
+      expect(playSound).toHaveBeenCalledWith('rushGo', 'sfx')
+      expect(showFeedback).not.toHaveBeenCalled()
+
+      await vi.advanceTimersByTimeAsync(1200)
+
+      expect(playSound).toHaveBeenCalledWith('rushSuccess', 'sfx')
+      expect(playSound).toHaveBeenCalledWith('resourceCollected', 'sfx')
+      expect(showFeedback).toHaveBeenCalledWith(
+        {
+          animation: 'rush-success',
+          title: 'RUSH OK',
+          message: '+12 POWER · +120 CAPS · +10 HAPPINESS · +25 XP',
+          vaultId: 'vault-1',
+          durationMs: 1600,
+        },
+        { priority: true }
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('plays the failure cue without the resource cue after the delay', async () => {
+    mockStore.fetchRushQuote.mockResolvedValueOnce(quote)
+    mockStore.rushRoom.mockResolvedValueOnce({
+      ...result,
+      outcome: 'failure',
+      payout: { power: 0, food: 0, water: 0, stimpack: 0, radaway: 0 },
+      caps: 0,
+      xp_per_worker: 0,
+      happiness_delta: -10,
+      incident_type: 'fire',
+    })
+    const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
+    state.requestRush()
+    await flushPromises()
+    vi.useFakeTimers()
+
+    try {
+      await state.confirmRush()
+      expect(showFeedback).not.toHaveBeenCalled()
+
+      await vi.advanceTimersByTimeAsync(1200)
+
+      expect(playSound).toHaveBeenCalledWith('rushFail', 'sfx')
+      expect(playSound).not.toHaveBeenCalledWith('resourceCollected', 'sfx')
+      expect(showFeedback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          animation: 'rush-failure',
+          title: 'RUSH FAIL',
+          message: 'FIRE · −10 HAPPINESS',
+          durationMs: 1600,
+        }),
+        { priority: true }
+      )
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('surfaces a quote failure inside the popup', async () => {

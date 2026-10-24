@@ -14,6 +14,9 @@ const BLOCKED_MESSAGES: Record<NonNullable<RoomRushQuote['blocked_reason']>, str
   room_busy: 'Another rush is in progress. Try again.',
 }
 
+const RUSH_FEEDBACK_DELAY_MS = 1200
+const RUSH_FEEDBACK_DURATION_MS = 1600
+
 export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen: Ref<boolean>) {
   const roomStore = useRoomStore()
   const feedback = useVaultBoyFeedback()
@@ -25,6 +28,14 @@ export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen
   const showRushDialog = ref(false)
   let quoteRequestSequence = 0
   let rushSessionGeneration = 0
+  let rushFeedbackTimer: ReturnType<typeof setTimeout> | null = null
+
+  function clearRushFeedbackTimer(): void {
+    if (rushFeedbackTimer !== null) {
+      clearTimeout(rushFeedbackTimer)
+      rushFeedbackTimer = null
+    }
+  }
 
   const blockedMessage = computed(() => {
     const reason = quote.value?.blocked_reason
@@ -32,6 +43,7 @@ export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen
   })
 
   function resetRush(): void {
+    clearRushFeedbackTimer()
     quoteRequestSequence += 1
     rushSessionGeneration += 1
     stopSound('rushMode')
@@ -70,6 +82,7 @@ export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen
 
   function requestRush(): void {
     if (!room.value || isRushing.value) return
+    clearRushFeedbackTimer()
     showRushDialog.value = true
     error.value = null
     playSound('rushMode', 'music')
@@ -77,6 +90,7 @@ export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen
   }
 
   function cancelRush(): void {
+    clearRushFeedbackTimer()
     stopSound('rushMode')
     showRushDialog.value = false
     quoteRequestSequence += 1
@@ -103,18 +117,29 @@ export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen
       if (requestGeneration !== rushSessionGeneration || room.value?.id !== roomId) return
       showRushDialog.value = false
       quote.value = null
-      if (currentVaultId) {
-        feedback.show(
-          {
-            animation: outcome.outcome === 'success' ? 'rush-success' : 'rush-failure',
-            title: outcome.outcome === 'success' ? 'RUSH OK' : 'RUSH FAIL',
-            message: formatRushResult(outcome),
-            vaultId: currentVaultId,
-            durationMs: 1600,
-          },
-          { priority: true }
-        )
-      }
+      const isSuccess = outcome.outcome === 'success'
+      const gainedResource =
+        isSuccess &&
+        (Object.values(outcome.payout).some((amount) => amount > 0) || outcome.caps > 0)
+      clearRushFeedbackTimer()
+      rushFeedbackTimer = setTimeout(() => {
+        rushFeedbackTimer = null
+        if (requestGeneration !== rushSessionGeneration || room.value?.id !== roomId) return
+        playSound(isSuccess ? 'rushSuccess' : 'rushFail', 'sfx')
+        if (gainedResource) playSound('resourceCollected', 'sfx')
+        if (currentVaultId) {
+          feedback.show(
+            {
+              animation: isSuccess ? 'rush-success' : 'rush-failure',
+              title: isSuccess ? 'RUSH OK' : 'RUSH FAIL',
+              message: formatRushResult(outcome),
+              vaultId: currentVaultId,
+              durationMs: RUSH_FEEDBACK_DURATION_MS,
+            },
+            { priority: true }
+          )
+        }
+      }, RUSH_FEEDBACK_DELAY_MS)
     } catch (caught) {
       if (requestGeneration !== rushSessionGeneration || room.value?.id !== roomId) return
       error.value = getErrorMessage(caught)
@@ -128,6 +153,7 @@ export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen
 
   if (getCurrentScope()) {
     onScopeDispose(() => {
+      clearRushFeedbackTimer()
       stopSound('rushMode')
       quoteRequestSequence += 1
       rushSessionGeneration += 1

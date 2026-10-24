@@ -183,7 +183,10 @@ function processNotification(notificationData: Notification) {
   }
   notifications.value.unshift(newNotif)
   unreadCount.value++
-  playSound(getNotificationSound(notificationData.notification_type))
+  const isRushResult =
+    notificationData.notification_type === 'rush_succeeded' ||
+    notificationData.notification_type === 'rush_failed'
+  if (!isRushResult) playSound(getNotificationSound(notificationData.notification_type))
   const animation = getNotificationAnimation(notificationData.notification_type)
   if (
     animation &&

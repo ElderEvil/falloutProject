@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { PersonStanding } from '@lucide/vue'
 import {
   getAbilityConfig,
+  getDwellerPortraitScale,
   isApprentice,
   orderRoomDwellers,
   type DwellerShort,
@@ -79,6 +80,8 @@ const emptyDwellerSilhouetteUrl = getStaticImageUrl(
 const emptyApprenticeSilhouetteUrl = getStaticImageUrl(
   '/static/dweller_images/variants/teen/FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairBrown.webp'
 )
+const dwellerName = (dweller: DwellerShort) =>
+  `${dweller.first_name} ${dweller.last_name ?? ''}`.trim()
 const imageAspect = ref(1.53)
 
 function rememberImageAspect(event: Event) {
@@ -147,9 +150,18 @@ function rememberImageAspect(event: Event) {
               >
                 <template v-if="workerDwellers[slot - 1]">
                   <div class="scene-occupant">
+                    <span
+                      class="scene-dweller-name"
+                      aria-hidden="true"
+                      :title="dwellerName(workerDwellers[slot - 1]!)"
+                      >{{ workerDwellers[slot - 1]!.first_name }}</span
+                    >
                     <button
                       type="button"
                       class="placeholder-dweller scene-dweller"
+                      :style="{
+                        '--dweller-body-scale': getDwellerPortraitScale(workerDwellers[slot - 1]!),
+                      }"
                       :aria-label="`Open ${workerDwellers[slot - 1]?.first_name} ${workerDwellers[slot - 1]?.last_name ?? ''}`"
                       @click="emit('activate', workerDwellers[slot - 1]!.id)"
                     >
@@ -202,9 +214,16 @@ function rememberImageAspect(event: Event) {
               >
                 <template v-if="apprentice">
                   <div class="scene-occupant">
+                    <span
+                      class="scene-dweller-name"
+                      aria-hidden="true"
+                      :title="dwellerName(apprentice)"
+                      >{{ apprentice.first_name }}</span
+                    >
                     <button
                       type="button"
                       class="placeholder-dweller scene-dweller"
+                      :style="{ '--dweller-body-scale': getDwellerPortraitScale(apprentice) }"
                       :aria-label="`Open ${apprentice.first_name} ${apprentice.last_name ?? ''}`"
                       @click="emit('activate', apprentice.id)"
                     >
@@ -439,6 +458,7 @@ function rememberImageAspect(event: Event) {
   left: 0.5rem;
   z-index: 10;
   display: flex;
+  align-items: flex-end;
   justify-content: space-evenly;
 }
 
@@ -450,10 +470,39 @@ function rememberImageAspect(event: Event) {
   justify-content: center;
 }
 
+.dweller-sprite-slot {
+  align-items: flex-end;
+}
+
+.scene-occupant {
+  flex-direction: column;
+  justify-content: flex-end;
+  width: 4.85rem;
+  gap: 0.1rem;
+}
+
+.scene-dweller-name {
+  max-width: 100%;
+  padding: 0.05rem 0.3rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
+  border-radius: 3px;
+  background: color-mix(in srgb, black 78%, transparent);
+  color: var(--color-theme-primary);
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px black;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 /* Keep worker and apprentice portraits the same size. */
 .dweller-sprite-slot-lg .placeholder-dweller {
   width: 4.85rem;
-  height: 7.25rem;
+  height: calc(7.25rem * var(--dweller-body-scale, 1));
 }
 
 .placeholder-dweller {

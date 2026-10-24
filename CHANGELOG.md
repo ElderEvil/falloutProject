@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.260.2 (2026-10-24)
+
+### Bug Fixes
+
+* **dwellers:** place roster pagination below the list ([#1165](https://github.com/ElderEvil/falloutProject/issues/1165)) 1cb9aad
+
 ## 2.260.1 (2026-10-24)
 
 ### Bug Fixes

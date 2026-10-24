@@ -1082,3 +1082,36 @@ def test_first_superuser_marker_is_not_client_writable():
 
     for schema in (UserCreate, UserRead, UserUpdate):
         assert "is_first_superuser" not in schema.model_fields
+
+
+@pytest.mark.parametrize("first_admin_actor", [False, True])
+@pytest.mark.parametrize("admin_target", [False, True])
+async def test_profile_edit_uses_same_administrator_account_permissions(
+    admin_client, async_session, superuser, first_admin_actor, admin_target
+):
+    from app.schemas.user import UserCreate
+    from app.tests.factory.users import create_fake_user
+
+    target = superuser if admin_target else await crud.user.create(async_session, UserCreate(**create_fake_user()))
+    await async_session.refresh(target, attribute_names=["profile"])
+    profile = target.profile
+    original_bio = profile.bio
+    if not first_admin_actor:
+        credentials = create_fake_user()
+        await crud.user.create(async_session, UserCreate(**credentials, is_superuser=True))
+        await admin_client.post(
+            "/admin/login", data={"username": credentials["email"], "password": credentials["password"]}
+        )
+    url = f"/admin/user-profile/edit/{profile.id}"
+    allowed = first_admin_actor or not admin_target
+    assert (await admin_client.get(url)).status_code == (200 if allowed else 403)
+    response = await admin_client.post(url, data={"bio": "Permission-checked edit", "avatar_url": ""})
+    assert response.status_code == (302 if allowed else 403)
+    await async_session.refresh(profile)
+    assert profile.bio == ("Permission-checked edit" if allowed else original_bio)
+
+
+@pytest.mark.parametrize("method", ["GET", "POST"])
+async def test_editing_missing_profile_keeps_not_found_response(admin_client, method):
+    response = await admin_client.request(method, f"/admin/user-profile/edit/{uuid4()}")
+    assert response.status_code == 404

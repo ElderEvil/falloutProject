@@ -3,6 +3,7 @@
 import logging
 from uuid import UUID
 
+from sqlalchemy.ext.asyncio import AsyncSession as SAAsyncSession
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -110,7 +111,7 @@ async def set_incident_controls(
     return count
 
 
-async def _locked_action_users(session: AsyncSession, record_id: UUID, actor_id: str) -> tuple[User, User]:
+async def _locked_action_users(session: SAAsyncSession, record_id: UUID, actor_id: str) -> tuple[User, User]:
     users = {user.id: user for user in await crud.user.get_by_ids_for_update(session, [UUID(actor_id), record_id])}
     actor = users.get(UUID(actor_id))
     if actor is None:
@@ -185,3 +186,8 @@ async def update_user_account(session: AsyncSession, record_id: UUID, user_in: U
         _protect_account(actor, target, "deactivate")
         await _deactivate_user(session, target)
     return await crud.user.update(session, id=target.id, obj_in=user_in)
+
+
+async def authorize_profile_edit(session: SAAsyncSession, owner_id: UUID, *, actor_id: str) -> None:
+    actor, target = await _locked_action_users(session, owner_id, actor_id)
+    _authorize_user_action(actor, target, "edit-profile")

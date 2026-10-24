@@ -4,6 +4,7 @@ from typing import Any, ClassVar
 from markupsafe import Markup
 from sqladmin import ModelView, action, expose
 from sqladmin.filters import AllUniqueStringValuesFilter, BooleanFilter, OperationColumnFilter, StaticValuesFilter
+from sqlalchemy.ext.asyncio import async_object_session
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlmodel import SQLModel, col
 from starlette.requests import Request
@@ -37,7 +38,8 @@ from app.models.user_profile import UserProfile
 from app.models.vault import Vault
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.models.weapon import Weapon
-from app.services.admin_service import FIRST_SUPERUSER_OPERATIONS
+from app.services.admin_service import FIRST_SUPERUSER_OPERATIONS, authorize_profile_edit
+from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
 
 type SortColumns = str | InstrumentedAttribute | tuple[str | InstrumentedAttribute, bool] | list
 
@@ -187,6 +189,25 @@ class UserAdmin(AdminModelView, model=User):
 
 
 class UserProfileAdmin(AdminModelView, model=UserProfile):
+    async def check_can_edit(self, request: Request, model: Any) -> bool:
+        if not await super().check_can_edit(request, model):
+            return False
+        if model is None:
+            return True  # SQLAdmin's edit handler returns 404 for a missing record.
+        try:
+            async with self.session_maker() as session:
+                await authorize_profile_edit(session, model.user_id, actor_id=str(request.session["user_id"]))
+        except (AccessDeniedException, ResourceNotFoundException):
+            return False
+        return True
+
+    async def on_model_change(self, data: dict, model: Any, is_created: bool, request: Request) -> None:
+        session = async_object_session(model)
+        if session is None:
+            raise RuntimeError("Profile editing requires an attached async session")
+        # Recheck in the write transaction and hold user locks through commit.
+        await authorize_profile_edit(session, model.user_id, actor_id=str(request.session["user_id"]))
+
     can_edit = True
     form_columns: ClassVar[Sequence] = ["bio", "avatar_url"]
     category = "Accounts"

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.264.0 (2026-10-24)
+
+### Features
+
+* **rooms:** add room rush UI and feedback ([#1168](https://github.com/ElderEvil/falloutProject/issues/1168)) b2777e5
+
 ## 2.263.0 (2026-10-24)
 
 ### Features

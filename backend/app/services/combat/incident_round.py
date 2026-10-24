@@ -259,12 +259,11 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
             )
     else:
         round_entries.append(("turn", "Responders attack", None))
+        # The team bonus is already inside damage_to_raiders (it scales the total
+        # power), so the per-attacker breakdown stays proportional to raw power.
         shares = incident_math.split_proportional(
             damage_to_raiders,
-            [
-                combat_power(dweller) * (1 + TEAM_RESPONSE_BONUS if dweller.id in active_ids else 1)
-                for dweller in dwellers
-            ],
+            [combat_power(dweller) for dweller in dwellers],
         )
         for dweller, share in zip(dwellers, shares, strict=True):
             if share <= 0:

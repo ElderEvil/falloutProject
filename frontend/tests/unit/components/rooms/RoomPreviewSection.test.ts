@@ -124,11 +124,11 @@ describe('RoomPreviewSection unassign affordance (issue #1083)', () => {
       ],
     })
 
-    expect(wrapper.findAll('.scene-dweller-name').map((node) => node.text())).toEqual([
+    expect(wrapper.findAll('.dweller-name-badge').map((node) => node.text())).toEqual([
       'Ada',
       'Ash',
     ])
-    expect(wrapper.get('.scene-dweller-name').attributes('title')).toBe('Ada Lovelace')
+    expect(wrapper.get('.dweller-name-badge').attributes('title')).toBe('Ada Lovelace')
     wrapper.unmount()
   })
 

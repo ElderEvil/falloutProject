@@ -10,6 +10,7 @@ import {
   type DwellerShort,
 } from '@/modules/dwellers/models/dweller'
 import { getRoomImageUrl, getStaticImageUrl } from '@/core/utils/image'
+import DwellerNameBadge from '@/modules/dwellers/components/DwellerNameBadge.vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { useFallbackImage } from '../composables/useFallbackImage'
 import { RESPONSE_DETAIL_SCENES } from '../models/roomScenes'
@@ -150,12 +151,10 @@ function rememberImageAspect(event: Event) {
               >
                 <template v-if="workerDwellers[slot - 1]">
                   <div class="scene-occupant">
-                    <span
-                      class="scene-dweller-name"
-                      aria-hidden="true"
-                      :title="dwellerName(workerDwellers[slot - 1]!)"
-                      >{{ workerDwellers[slot - 1]!.first_name }}</span
-                    >
+                    <DwellerNameBadge
+                      :name="workerDwellers[slot - 1]!.first_name"
+                      :full-name="dwellerName(workerDwellers[slot - 1]!)"
+                    />
                     <button
                       type="button"
                       class="placeholder-dweller scene-dweller"
@@ -214,12 +213,10 @@ function rememberImageAspect(event: Event) {
               >
                 <template v-if="apprentice">
                   <div class="scene-occupant">
-                    <span
-                      class="scene-dweller-name"
-                      aria-hidden="true"
-                      :title="dwellerName(apprentice)"
-                      >{{ apprentice.first_name }}</span
-                    >
+                    <DwellerNameBadge
+                      :name="apprentice.first_name"
+                      :full-name="dwellerName(apprentice)"
+                    />
                     <button
                       type="button"
                       class="placeholder-dweller scene-dweller"
@@ -481,23 +478,6 @@ function rememberImageAspect(event: Event) {
   gap: 0.1rem;
 }
 
-.scene-dweller-name {
-  max-width: 100%;
-  padding: 0.05rem 0.3rem;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
-  border-radius: 3px;
-  background: color-mix(in srgb, black 78%, transparent);
-  color: var(--color-theme-primary);
-  font-size: 0.625rem;
-  font-weight: 600;
-  line-height: 1.2;
-  text-align: center;
-  text-overflow: ellipsis;
-  text-shadow: 0 1px 3px black;
-  white-space: nowrap;
-  pointer-events: none;
-}
 
 /* Keep worker and apprentice portraits the same size. */
 .dweller-sprite-slot-lg .placeholder-dweller {

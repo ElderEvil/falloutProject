@@ -22,6 +22,7 @@ import { useRoomThemes } from '../composables/useRoomThemes'
 import RoomDetailHeader from './RoomDetailHeader.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.vue'
+import { Button } from '@/core/components/ui/button'
 import RoomPreviewSection from './RoomPreviewSection.vue'
 import BarbershopPanel from './BarbershopPanel.vue'
 import ProductionStats from './ProductionStats.vue'
@@ -253,14 +254,15 @@ onUnmounted(stopAmbience)
             <strong>{{ rushResult.outcome === 'success' ? 'RUSH OK' : 'RUSH FAIL' }}</strong>
             <span>{{ rushResult.message }}</span>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-xs"
             class="rush-result-banner__close"
             aria-label="Dismiss rush result"
             @click="clearRushResult"
           >
             &times;
-          </button>
+          </Button>
         </div>
         <!-- Error display -->
         <div v-if="actionError && !has('incident') && !has('aftermath')" class="error-banner">

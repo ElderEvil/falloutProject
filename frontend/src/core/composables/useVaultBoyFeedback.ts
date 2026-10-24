@@ -14,7 +14,6 @@ export interface VaultBoyFeedbackEvent {
 const queue = ref<(VaultBoyFeedbackEvent & { id: number })[]>([])
 const lastShown = new Map<string, number>()
 let nextId = 0
-export const VAULT_BOY_FEEDBACK_MS = 4200
 
 export function useVaultBoyFeedback() {
   function show(event: VaultBoyFeedbackEvent, { priority = false }: { priority?: boolean } = {}) {

@@ -1,4 +1,5 @@
 import { computed, getCurrentScope, onScopeDispose, ref, watch, type Ref } from 'vue'
+import { FEEDBACK_TIMING_MS } from '@/core/config/feedback'
 import { useSound } from '@/core/composables/useSound'
 import { useVaultBoyFeedback } from '@/core/composables/useVaultBoyFeedback'
 import { getErrorMessage, notifyErrorOnce } from '@/core/utils/errorHandler'
@@ -13,9 +14,6 @@ const BLOCKED_MESSAGES: Record<NonNullable<RoomRushQuote['blocked_reason']>, str
   no_power: 'This room is offline. Restore power first.',
   room_busy: 'Another rush is in progress. Try again.',
 }
-
-const RUSH_FEEDBACK_DELAY_MS = 1200
-const RUSH_FEEDBACK_DURATION_MS = 1600
 
 export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen: Ref<boolean>) {
   const roomStore = useRoomStore()
@@ -134,12 +132,12 @@ export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen
               title: isSuccess ? 'RUSH OK' : 'RUSH FAIL',
               message: formatRushResult(outcome),
               vaultId: currentVaultId,
-              durationMs: RUSH_FEEDBACK_DURATION_MS,
+              durationMs: FEEDBACK_TIMING_MS.rushDuration,
             },
             { priority: true }
           )
         }
-      }, RUSH_FEEDBACK_DELAY_MS)
+      }, FEEDBACK_TIMING_MS.rushDelay)
     } catch (caught) {
       if (requestGeneration !== rushSessionGeneration || room.value?.id !== roomId) return
       error.value = getErrorMessage(caught)

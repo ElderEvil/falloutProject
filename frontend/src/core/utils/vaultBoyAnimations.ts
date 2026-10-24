@@ -169,5 +169,3 @@ export const VAULT_BOY_ANIMATIONS: Record<VaultBoyAnimationId, VaultBoyAnimation
     sequence: [2, 6, 5, 4, 0, 1, 7, 3],
   },
 }
-
-export const VAULT_BOY_FRAME_MS = 180

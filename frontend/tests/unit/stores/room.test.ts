@@ -4,6 +4,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { FEEDBACK_TIMING_MS } from '@/core/config/feedback'
 import { audioManager } from '@/core/audio/audioManager'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
@@ -628,15 +629,24 @@ describe('room rush', () => {
     expect(axios.get).toHaveBeenCalledWith('/api/v1/rooms/room-1/rush')
   })
 
-  it('rushes a room, flashes the outcome, and returns the result', async () => {
-    vi.mocked(axios.post).mockResolvedValueOnce({ data: result })
-    vi.mocked(axios.get).mockResolvedValue({ data: { id: 'vault-1' } })
-    const store = useRoomStore()
+  it('rushes a room, flashes the outcome after the feedback delay, and returns the result', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: result })
+      vi.mocked(axios.get).mockResolvedValue({ data: { id: 'vault-1' } })
+      const store = useRoomStore()
 
-    await expect(store.rushRoom('room-1', 'vault-1')).resolves.toEqual(result)
-    expect(axios.post).toHaveBeenCalledWith('/api/v1/rooms/room-1/rush', {})
-    expect(store.rushedRoomId).toBe('room-1')
-    expect(store.rushOutcome).toBe('success')
+      await expect(store.rushRoom('room-1', 'vault-1')).resolves.toEqual(result)
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/rooms/room-1/rush', {})
+      expect(store.rushedRoomId).toBeNull()
+
+      await vi.advanceTimersByTimeAsync(FEEDBACK_TIMING_MS.rushDelay)
+
+      expect(store.rushedRoomId).toBe('room-1')
+      expect(store.rushOutcome).toBe('success')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('returns the confirmed outcome without waiting for background refreshes', async () => {

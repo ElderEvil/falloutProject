@@ -21,6 +21,7 @@ import {
 } from '../models/grid'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { apiGet, apiPost } from '@/core/utils/api'
+import { FEEDBACK_TIMING_MS } from '@/core/config/feedback'
 import { audioManager } from '@/core/audio/audioManager'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -273,7 +274,7 @@ export const useRoomStore = defineStore('room', () => {
 
   async function rushRoom(roomId: string, vaultId: string): Promise<RoomRushResult> {
     const result = await apiPost<RoomRushResult>(`/api/v1/rooms/${roomId}/rush`, {})
-    flashRushedRoom(roomId, result.outcome)
+    setTimeout(() => flashRushedRoom(roomId, result.outcome), FEEDBACK_TIMING_MS.rushDelay)
     if (authStore.token) {
       void refreshRushDependents(vaultId, authStore.token, result.incident_id).catch((error) => {
         handleStoreError(error, 'Failed to refresh vault after rushing room')

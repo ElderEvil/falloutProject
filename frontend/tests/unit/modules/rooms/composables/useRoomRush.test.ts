@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
+import { FEEDBACK_TIMING_MS } from '@/core/config/feedback'
 import { useRoomRush } from '@/modules/rooms/composables/useRoomRush'
 import type { Room, RoomRushResult } from '@/modules/rooms/models/room'
 
@@ -123,7 +124,7 @@ describe('useRoomRush', () => {
       expect(playSound).toHaveBeenCalledWith('rushGo', 'sfx')
       expect(showFeedback).not.toHaveBeenCalled()
 
-      await vi.advanceTimersByTimeAsync(1200)
+      await vi.advanceTimersByTimeAsync(FEEDBACK_TIMING_MS.rushDelay)
 
       expect(playSound).toHaveBeenCalledWith('rushSuccess', 'sfx')
       expect(playSound).toHaveBeenCalledWith('resourceCollected', 'sfx')
@@ -133,7 +134,7 @@ describe('useRoomRush', () => {
           title: 'RUSH OK',
           message: '+12 POWER · +120 CAPS · +10 HAPPINESS · +25 XP',
           vaultId: 'vault-1',
-          durationMs: 1600,
+          durationMs: FEEDBACK_TIMING_MS.rushDuration,
         },
         { priority: true }
       )
@@ -162,7 +163,7 @@ describe('useRoomRush', () => {
       await state.confirmRush()
       expect(showFeedback).not.toHaveBeenCalled()
 
-      await vi.advanceTimersByTimeAsync(1200)
+      await vi.advanceTimersByTimeAsync(FEEDBACK_TIMING_MS.rushDelay)
 
       expect(playSound).toHaveBeenCalledWith('rushFail', 'sfx')
       expect(playSound).not.toHaveBeenCalledWith('resourceCollected', 'sfx')
@@ -171,7 +172,7 @@ describe('useRoomRush', () => {
           animation: 'rush-failure',
           title: 'RUSH FAIL',
           message: 'FIRE · −10 HAPPINESS',
-          durationMs: 1600,
+          durationMs: FEEDBACK_TIMING_MS.rushDuration,
         }),
         { priority: true }
       )

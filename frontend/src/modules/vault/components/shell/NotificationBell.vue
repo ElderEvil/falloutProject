@@ -15,6 +15,7 @@ import { useSse, type SseEvent } from '@/core/composables/useEventStream'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useSound } from '@/core/composables/useSound'
 import { useVaultBoyFeedback } from '@/core/composables/useVaultBoyFeedback'
+import { FEEDBACK_TIMING_MS } from '@/core/config/feedback'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
 import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
@@ -181,12 +182,26 @@ function processNotification(notificationData: Notification) {
     created_at: notificationData.created_at,
     meta_data: notificationData.meta_data,
   }
-  notifications.value.unshift(newNotif)
-  unreadCount.value++
   const isRushResult =
     notificationData.notification_type === 'rush_succeeded' ||
     notificationData.notification_type === 'rush_failed'
-  if (!isRushResult) playSound(getNotificationSound(notificationData.notification_type))
+  if (isRushResult) {
+    const isSuccess = notificationData.notification_type === 'rush_succeeded'
+    const vaultId = notificationData.vault_id
+    const message = notificationData.message
+    setTimeout(() => {
+      if (!authStore.token) return
+      notifications.value.unshift(newNotif)
+      unreadCount.value++
+      if (vaultId && vaultId !== vaultStore.activeVaultId) return
+      if (isSuccess) toast.success(message)
+      else toast.error(message)
+    }, FEEDBACK_TIMING_MS.rushDelay)
+    return
+  }
+  notifications.value.unshift(newNotif)
+  unreadCount.value++
+  playSound(getNotificationSound(notificationData.notification_type))
   const animation = getNotificationAnimation(notificationData.notification_type)
   if (
     animation &&
@@ -219,12 +234,6 @@ function processNotification(notificationData: Notification) {
     isAdoptionNotification(notificationData)
   ) {
     toast.success(notificationData.message)
-  }
-  if (notificationData.notification_type === 'rush_succeeded') {
-    toast.success(notificationData.message)
-  }
-  if (notificationData.notification_type === 'rush_failed') {
-    toast.error(notificationData.message)
   }
   // An arena morale boost is vault-wide and asynchronous; announce it beyond the bell
   // (progression red line).

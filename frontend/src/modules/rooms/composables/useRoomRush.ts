@@ -110,6 +110,7 @@ export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen
             title: outcome.outcome === 'success' ? 'RUSH OK' : 'RUSH FAIL',
             message: formatRushResult(outcome),
             vaultId: currentVaultId,
+            durationMs: 1600,
           },
           { priority: true }
         )

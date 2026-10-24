@@ -8,6 +8,7 @@ export interface VaultBoyFeedbackEvent {
   vaultId: string
   /** Optional keys limit repeated warnings and celebrations. */
   key?: string
+  durationMs?: number
 }
 
 const queue = ref<(VaultBoyFeedbackEvent & { id: number })[]>([])

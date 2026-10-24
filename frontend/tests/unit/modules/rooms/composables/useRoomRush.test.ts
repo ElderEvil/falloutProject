@@ -125,6 +125,7 @@ describe('useRoomRush', () => {
         title: 'RUSH OK',
         message: '+12 POWER · +120 CAPS · +10 HAPPINESS · +25 XP',
         vaultId: 'vault-1',
+        durationMs: 1600,
       },
       { priority: true }
     )

@@ -107,6 +107,24 @@ describe('VaultBoyFeedback', () => {
     wrapper.unmount()
   })
 
+  it('honors a shorter duration for rush feedback', async () => {
+    vi.useFakeTimers()
+    const wrapper = mountFeedback({
+      ...success,
+      animation: 'rush-success',
+      title: 'RUSH OK',
+      message: 'Rush result',
+      durationMs: 1600,
+    })
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(wrapper.find('.vault-boy-feedback').exists()).toBe(true)
+
+    await vi.advanceTimersByTimeAsync(700)
+    expect(wrapper.find('.vault-boy-feedback').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('stays hidden without a result', () => {
     const wrapper = mountFeedback(null)
 

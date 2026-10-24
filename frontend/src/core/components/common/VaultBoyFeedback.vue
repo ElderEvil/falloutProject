@@ -41,7 +41,7 @@ watch(
   ([id, loaded], _, onCleanup) => {
     if (id === undefined || !loaded) return
     if (reducedMotion.value !== 'reduce') resume()
-    const timeout = setTimeout(dismiss, VAULT_BOY_FEEDBACK_MS)
+    const timeout = setTimeout(dismiss, current.value?.durationMs ?? VAULT_BOY_FEEDBACK_MS)
     onCleanup(() => {
       clearTimeout(timeout)
       pause()

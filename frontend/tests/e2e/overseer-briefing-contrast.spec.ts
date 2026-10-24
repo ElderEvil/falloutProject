@@ -10,9 +10,7 @@ for (const theme of ['fo4', 'fo3', 'fnv']) {
         'RESPONSE REQUIRED',
         'WATCH LIST ACTIVE',
         '1 INCIDENT REQUIRES RESPONSE',
-        'Threats are active inside the vault.',
-        'DWELLER MORALE NEEDS ATTENTION',
-        'Vault happiness is 30%.',
+        'DWELLER MORALE NEEDS ATTENTION (30%)',
       ]) {
         const label = page.getByText(text, { exact: true })
         await expect(label).toBeVisible()

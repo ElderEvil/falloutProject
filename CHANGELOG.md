@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.263.0 (2026-10-24)
+
+### Features
+
+* **rooms:** add server-authoritative room rush ([#1167](https://github.com/ElderEvil/falloutProject/issues/1167)) 7fe63e8
+
 ## 2.262.1 (2026-10-24)
 
 ### Bug Fixes

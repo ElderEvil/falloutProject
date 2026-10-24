@@ -18,11 +18,23 @@ interface Props {
 
 const props = defineProps<Props>()
 const emit = defineEmits<{ cancel: []; confirm: [] }>()
-const { rushHappinessDelta } = useGameBalance()
+const { rushHappinessDelta, rushXpPerWorker } = useGameBalance()
 
 const failureChance = computed(() => Math.round(props.quote?.fail_chance ?? 0))
 const successChance = computed(() => Math.round(props.quote?.success_chance ?? 0))
 const incidentTags = computed(() => rushConsequenceTags(props.quote?.eligible_incidents ?? []))
+const successReward = computed(() => {
+  const quote = props.quote
+  if (!quote) return ''
+  const parts: string[] = []
+  if (Object.values(quote.payout).some((amount) => amount > 0)) {
+    parts.push(formatRushPayout(quote.payout))
+  }
+  if (rushXpPerWorker.value && rushXpPerWorker.value > 0) {
+    parts.push(`+${rushXpPerWorker.value} XP per worker`)
+  }
+  return parts.join(' · ')
+})
 const canActivate = computed(
   () => !!props.quote?.can_rush && !props.loading && !props.rushing && !props.error
 )
@@ -42,22 +54,14 @@ const confirmLabel = computed(() => (props.rushing ? 'Activating...' : 'Activate
       <p v-else-if="error" class="text-sm text-danger" role="alert">{{ error }}</p>
 
       <template v-else-if="quote">
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <span class="block text-xs tracking-wider text-theme-primary/60 uppercase">
-              Failure chance
-            </span>
-            <strong class="text-2xl text-warning">{{ failureChance }}%</strong>
-          </div>
-          <div>
-            <span class="block text-xs tracking-wider text-theme-primary/60 uppercase">
-              Rush stacks
-            </span>
-            <strong class="text-2xl">{{ quote.stacks }} / {{ quote.max_stacks }}</strong>
-          </div>
+        <div>
+          <span class="block text-xs tracking-wider text-theme-primary/60 uppercase">
+            Failure chance
+          </span>
+          <strong class="text-2xl text-warning">{{ failureChance }}%</strong>
         </div>
 
-        <p class="text-sm">On success: {{ formatRushPayout(quote.payout) }}</p>
+        <p v-if="successReward" class="text-sm">On success: {{ successReward }}</p>
 
         <div class="space-y-2">
           <span class="block text-xs tracking-wider text-theme-primary/60 uppercase">
@@ -91,8 +95,6 @@ const confirmLabel = computed(() => (props.rushing ? 'Activating...' : 'Activate
             <dd class="text-right">{{ quote.avg_luck.toFixed(1) }}</dd>
             <dt class="text-theme-primary/60">Workers</dt>
             <dd class="text-right">{{ quote.worker_count }}</dd>
-            <dt class="text-theme-primary/60">Rush stacks</dt>
-            <dd class="text-right">{{ quote.stacks }} / {{ quote.max_stacks }}</dd>
           </dl>
         </details>
       </template>

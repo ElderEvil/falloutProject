@@ -5,7 +5,9 @@ import type { RoomRushQuote } from '@/modules/rooms/models/room'
 
 vi.mock('@/core/composables/useGameBalance', async () => {
   const { ref } = await import('vue')
-  return { useGameBalance: () => ({ rushHappinessDelta: ref(10) }) }
+  return {
+    useGameBalance: () => ({ rushHappinessDelta: ref(10), rushXpPerWorker: ref(25) }),
+  }
 })
 
 vi.mock('@/core/components/common/TerminalModal.vue', () => ({
@@ -57,18 +59,30 @@ function mountDialog(overrides: Record<string, unknown> = {}) {
 }
 
 describe('RoomRushDialog', () => {
-  it('shows the server risk, stacks, payout, and failure consequences', () => {
+  it('shows the server risk, success reward, and failure consequences', () => {
     const wrapper = mountDialog()
 
     expect(wrapper.text()).toContain('Failure chance')
     expect(wrapper.text()).toContain('23%')
-    expect(wrapper.text()).toContain('2 / 6')
-    expect(wrapper.text()).toContain('On success: +12 Power')
+    expect(wrapper.text()).toContain('On success: +12 Power · +25 XP per worker')
     expect(wrapper.text()).toContain('FIRE')
     expect(wrapper.text()).toContain('Failure cost: −10 Happiness')
     expect(wrapper.text()).toContain('Odds breakdown')
     expect(wrapper.text()).not.toContain('Incident chance')
-    expect(wrapper.text()).not.toContain('Rush penalty')
+    expect(wrapper.text()).not.toContain('Rush stacks')
+    expect(wrapper.text()).not.toContain('2 / 6')
+  })
+
+  it('shows the XP reward instead of a misleading empty resource payout', () => {
+    const wrapper = mountDialog({
+      quote: {
+        ...quote,
+        payout: { power: 0, food: 0, water: 0, stimpack: 0, radaway: 0 },
+      },
+    })
+
+    expect(wrapper.text()).toContain('On success: +25 XP per worker')
+    expect(wrapper.text()).not.toContain('no resources')
   })
 
   it('shows no incident when the server provides no spawnable incident', () => {

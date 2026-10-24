@@ -292,25 +292,25 @@ describe('RoomIncidentDetail', () => {
     expect(fetchIncidentTeam).toHaveBeenCalledWith('vault-1', 'incident-1', 'test-token')
   })
 
-  it('renders the designated team in the scene with combat power', async () => {
+  it('renders the designated team by name in the scene', async () => {
     getIncidentTeam.mockReturnValue([teamMember('d1')])
     const wrapper = await mountDetail({
       dwellers: [dweller({ room_id: 'room-1', id: 'd1', first_name: 'Alice', combat_power: 10 })],
     })
 
     expect(wrapper.text()).toContain('Alice')
-    expect(wrapper.text()).toContain('POW 10')
-    expect(wrapper.text()).toContain('HELPER')
+    expect(wrapper.text()).not.toContain('POW 10')
+    expect(wrapper.text()).not.toContain('HELPER')
   })
 
-  it('badges dispatched responders in the on-scene roster', async () => {
+  it('renders a dispatched responder by name in the scene', async () => {
     getIncidentTeam.mockReturnValue([{ ...teamMember('d1'), status: 'dispatched' }])
     const wrapper = await mountDetail({
       dwellers: [dweller({ room_id: 'room-1', id: 'd1', first_name: 'Alice', combat_power: 10 })],
     })
 
     expect(wrapper.text()).toContain('Alice')
-    expect(wrapper.text()).toContain('DISPATCHED')
+    expect(wrapper.text()).not.toContain('DISPATCHED')
   })
 
   it('keeps a named placeholder for team members missing from the dweller list', async () => {
@@ -467,14 +467,14 @@ describe('RoomIncidentDetail', () => {
     expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d1'], 'test-token')
   })
 
-  it('shows the level of on-scene team members', async () => {
+  it('keeps the scene name-only for an on-scene team member', async () => {
     getIncidentTeam.mockReturnValue([teamMember('d1')])
     const wrapper = await mountDetail({
       dwellers: [dweller({ room_id: 'room-1', id: 'd1', first_name: 'Alice', level: 7 })],
     })
 
     expect(wrapper.text()).toContain('Alice')
-    expect(wrapper.text()).toContain('· Lv 7')
+    expect(wrapper.text()).not.toContain('Lv 7')
   })
 
   it('shows the level of available responders', async () => {
@@ -526,7 +526,7 @@ describe('RoomIncidentDetail', () => {
   })
   it('shows occupants alongside helpers even when the helper team is empty', async () => {
     const wrapper = await mountDetail({ dwellers: [dweller({ room_id: 'room-1' })] })
-    expect(wrapper.text()).toContain('RESIDENT')
+    expect(wrapper.text()).not.toContain('RESIDENT')
     expect(wrapper.get('[aria-label="Incident live status"]').text()).toContain('Alice')
     expect(wrapper.findAllComponents(DwellerListRow)).toHaveLength(0)
   })
@@ -636,7 +636,8 @@ describe('RoomIncidentDetail', () => {
       rooms: [{ id: 'origin', name: 'Original Diner' }],
       dwellers: [dweller({ room_id: 'room-1' })],
     })
-    expect(wrapper.text()).toContain('HELPER')
+    expect(wrapper.text()).toContain('Alice')
+    expect(wrapper.text()).not.toContain('HELPER')
     expect(wrapper.text()).not.toContain('Returns to')
   })
 })

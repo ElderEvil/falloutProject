@@ -1,18 +1,12 @@
 <script setup lang="ts">
-import {
-  TooltipProvider,
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from '@/core/components/ui/tooltip'
-
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { Heart, ShieldAlert, UserRound } from '@lucide/vue'
+import { ShieldAlert, UserRound } from '@lucide/vue'
 import { Progress } from '@/core/components/ui/progress'
+import DwellerNameBadge from '@/modules/dwellers/components/DwellerNameBadge.vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import { getCombatPower, getEffectiveMaxHealth } from '@/modules/dwellers/models/dweller'
+import { getEffectiveMaxHealth } from '@/modules/dwellers/models/dweller'
 import {
   IncidentType,
   getIncidentParticipants,
@@ -110,8 +104,7 @@ const threatMotion = computed(() => ({
 </script>
 
 <template>
-  <TooltipProvider :delay-duration="200" :ignore-non-keyboard-focus="true">
-    <section
+  <section
       class="incident-scene relative isolate aspect-[5/2] min-h-80 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
       aria-label="Incident live status"
     >
@@ -158,43 +151,17 @@ const threatMotion = computed(() => ({
                 'opacity-40 grayscale': responder.dweller && responder.dweller.health <= 0,
               }"
             >
-              <Tooltip
-                ><TooltipTrigger as-child
-                  ><span
-                    class="w-full truncate text-center text-xs font-semibold text-theme-primary [text-shadow:0_1px_3px_black]"
-                    tabindex="0"
-                    >{{ responder.name }}</span
-                  ></TooltipTrigger
-                ><TooltipContent
-                  class="border border-theme-primary/40 bg-popover text-theme-primary"
-                  >{{ responder.name }}</TooltipContent
-                ></Tooltip
-              >
-              <Tooltip v-if="responder.dweller"
-                ><TooltipTrigger as-child
-                  ><div class="w-full rounded bg-black/85 p-1" tabindex="0">
-                    <div class="flex items-center gap-1">
-                      <Heart class="size-3 shrink-0 fill-danger text-danger" aria-hidden="true" />
-                      <Progress
-                        size="xs"
-                        :model-value="
-                          (responder.dweller.health / healthCeiling(responder.dweller)) * 100
-                        "
-                        :label="`${responder.name} health`"
-                        :value-text="`${responder.dweller.health}/${healthCeiling(responder.dweller)}`"
-                      />
-                    </div>
-                    <span class="sr-only"
-                      >POW {{ getCombatPower(responder.dweller) }} · Lv
-                      {{ responder.dweller.level }}</span
-                    >
-                  </div></TooltipTrigger
-                ><TooltipContent
-                  class="border border-theme-primary/40 bg-popover text-theme-primary"
-                  >{{
-                    `${responder.dweller.health}/${healthCeiling(responder.dweller)} HP · Lv ${responder.dweller.level} · POW ${getCombatPower(responder.dweller)}`
-                  }}</TooltipContent
-                ></Tooltip
+              <DwellerNameBadge
+                :name="responder.dweller?.first_name ?? responder.name"
+                :full-name="responder.name"
+                :health="responder.dweller?.health"
+                :max-health="responder.dweller ? healthCeiling(responder.dweller) : null"
+              />
+              <span
+                v-if="responder.dweller && responder.dweller.health < healthCeiling(responder.dweller)"
+                class="sr-only"
+                >{{ responder.name }}: {{ responder.dweller.health }} of
+                {{ healthCeiling(responder.dweller) }} HP</span
               >
               <div class="flex h-[7.25rem] w-full items-end justify-center">
                 <DwellerPortrait
@@ -212,21 +179,6 @@ const threatMotion = computed(() => ({
                   role="img"
                 />
               </div>
-              <span
-                v-if="responder.source === 'resident'"
-                class="max-w-full truncate rounded bg-black/80 px-1 text-[9px] font-semibold text-theme-primary"
-                >RESIDENT</span
-              >
-              <span
-                v-else-if="responder.dispatched"
-                class="max-w-full truncate rounded bg-black/80 px-1 text-[9px] font-semibold text-info"
-                >DISPATCHED</span
-              >
-              <span
-                v-else
-                class="max-w-full truncate rounded bg-black/80 px-1 text-[9px] font-semibold text-info"
-                >HELPER</span
-              >
             </div>
             <span
               v-if="!responders.length"
@@ -324,8 +276,7 @@ const threatMotion = computed(() => ({
           size="xs"
         />
       </div>
-    </section>
-  </TooltipProvider>
+  </section>
 </template>
 
 <style scoped>

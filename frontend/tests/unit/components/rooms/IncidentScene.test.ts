@@ -239,7 +239,7 @@ describe('IncidentScene', () => {
 
     expect(wrapper.text()).not.toContain('No responders assigned')
     expect(wrapper.text()).toContain('Alice')
-    expect(wrapper.text()).toContain('RESIDENT')
+    expect(wrapper.text()).not.toContain('RESIDENT')
   })
 
   it('stops the flame animation under prefers-reduced-motion', () => {
@@ -248,27 +248,37 @@ describe('IncidentScene', () => {
     )
   })
 
-  it('shows the level of each combatant alongside their power', () => {
+  it('shows only the responder name when they are unhurt', () => {
     const wrapper = mountScene({
-      dwellers: [dweller({ id: 'd1', first_name: 'Alice', level: 12 })],
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice', level: 12, health: 100 })],
     })
 
-    expect(wrapper.text()).toContain('POW 42')
-    expect(wrapper.text()).toContain('Lv 12')
+    expect(wrapper.get('.dweller-name-badge').text()).toBe('Alice')
+    expect(wrapper.text()).not.toContain('POW')
+    expect(wrapper.text()).not.toContain('Lv 12')
+    expect(wrapper.find('.dweller-health').exists()).toBe(false)
+  })
+
+  it('adds a compact health bar to the name badge when a responder is hurt', () => {
+    const wrapper = mountScene({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice', health: 40, max_health: 100 })],
+    })
+
+    expect(wrapper.get('.dweller-health-fill').attributes('style')).toContain('width: 40%')
+    expect(wrapper.text()).toContain('Alice: 40 of 100 HP')
   })
 })
 
 describe('Incident room preview', () => {
-  it('uses real responder artwork and a labelled health meter', () => {
+  it('uses real responder artwork under the name badge', () => {
     const wrapper = mountScene({
       dwellers: [dweller({ thumbnail_url: '/static/portraits/alice.png' })],
     })
     expect(wrapper.get('img[alt="Alice"]').attributes('src')).toContain(
       '/static/portraits/alice.png'
     )
-    expect(
-      wrapper.get('[role="progressbar"][aria-label="Alice health"]').attributes('aria-valuenow')
-    ).toBe('90')
+    expect(wrapper.get('.dweller-name-badge').text()).toBe('Alice')
+    expect(wrapper.find('[role="progressbar"][aria-label="Alice health"]').exists()).toBe(false)
   })
 
   it('shows creature artwork instead of repeated threat glyphs', () => {
@@ -294,7 +304,7 @@ describe('Incident room preview', () => {
       ],
     })
     expect(wrapper.text()).toContain('Responder 2')
-    expect(wrapper.text()).toContain('DISPATCHED')
+    expect(wrapper.text()).not.toContain('DISPATCHED')
     expect(wrapper.text()).not.toContain('No responders assigned')
   })
 })

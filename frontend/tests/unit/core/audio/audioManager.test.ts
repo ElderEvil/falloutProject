@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { audioManager, parseSoundSettings } from '@/core/audio/audioManager'
-import { SOUND_MANIFEST, MUSIC_MANIFEST, AMBIENCE_MANIFEST, ROOM_AMBIENCE_MANIFEST } from '@/core/audio/soundManifest'
+import {
+  SOUND_MANIFEST,
+  MUSIC_MANIFEST,
+  AMBIENCE_MANIFEST,
+  ROOM_AMBIENCE_MANIFEST,
+} from '@/core/audio/soundManifest'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -163,6 +168,20 @@ describe('audioManager alarm', () => {
       expect(JSON.parse(localStorage.getItem('audioSettings')!).volumes[bus]).toBe(0.1)
     }
   )
+
+  it('stops and rewinds a one-shot cue', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.play('rushGo', 'sfx')
+    const audio = MockAudio.instances.at(-1)!
+    audio.currentTime = 2
+
+    manager.stop('rushGo')
+
+    expect(audio.pause).toHaveBeenCalled()
+    expect(audio.currentTime).toBe(0)
+  })
 
   it('starts an alarm requested before audio unlocks', async () => {
     const manager = await freshManager()

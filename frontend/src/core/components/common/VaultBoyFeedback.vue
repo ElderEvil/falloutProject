@@ -2,8 +2,9 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useIntervalFn, usePreferredReducedMotion } from '@vueuse/core'
 import { Button } from '@/core/components/ui/button'
-import { useVaultBoyFeedback, VAULT_BOY_FEEDBACK_MS } from '@/core/composables/useVaultBoyFeedback'
-import { VAULT_BOY_ANIMATIONS, VAULT_BOY_FRAME_MS } from '@/core/utils/vaultBoyAnimations'
+import { FEEDBACK_TIMING_MS } from '@/core/config/feedback'
+import { useVaultBoyFeedback } from '@/core/composables/useVaultBoyFeedback'
+import { VAULT_BOY_ANIMATIONS } from '@/core/utils/vaultBoyAnimations'
 import VaultBoySprite from './VaultBoySprite.vue'
 
 const props = defineProps<{ vaultId: string }>()
@@ -23,7 +24,7 @@ const { pause, resume } = useIntervalFn(
     if (index.value < sequence.value.length - 1) index.value += 1
     else pause()
   },
-  VAULT_BOY_FRAME_MS,
+  FEEDBACK_TIMING_MS.vaultBoyFrame,
   { immediate: false }
 )
 
@@ -41,7 +42,10 @@ watch(
   ([id, loaded], _, onCleanup) => {
     if (id === undefined || !loaded) return
     if (reducedMotion.value !== 'reduce') resume()
-    const timeout = setTimeout(dismiss, VAULT_BOY_FEEDBACK_MS)
+    const timeout = setTimeout(
+      dismiss,
+      current.value?.durationMs ?? FEEDBACK_TIMING_MS.vaultBoyDuration
+    )
     onCleanup(() => {
       clearTimeout(timeout)
       pause()

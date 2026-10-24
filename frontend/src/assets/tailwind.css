@@ -605,6 +605,44 @@ body {
     }
 }
 
+@utility room-rush-success {
+    animation: room-rush-success 1.4s ease-out;
+}
+
+@keyframes room-rush-success {
+    0% {
+        box-shadow: var(--glow-0);
+    }
+    30% {
+        box-shadow: 0 0 18px var(--color-success), 0 0 34px var(--color-success);
+    }
+    100% {
+        box-shadow: var(--glow-0);
+    }
+}
+
+@utility room-rush-fail {
+    animation: room-rush-fail 1.4s ease-out;
+}
+
+@keyframes room-rush-fail {
+    0%,
+    100% {
+        box-shadow: var(--glow-0);
+        transform: translateX(0);
+    }
+    20% {
+        box-shadow: 0 0 18px var(--color-danger), 0 0 34px var(--color-danger);
+        transform: translateX(-2px);
+    }
+    40% {
+        transform: translateX(2px);
+    }
+    60% {
+        transform: translateX(-1px);
+    }
+}
+
 @keyframes stat-highlight-pulse {
     from {
         box-shadow: 0 0 12px var(--color-theme-glow);
@@ -636,6 +674,10 @@ body {
     .stat-highlight-pulse { animation: none; box-shadow: var(--glow-2); }
     .stat-badge-fade { animation: none; opacity: 1; }
     .room-merge-pulse { animation: none; box-shadow: var(--glow-2); }
+    .room-rush-success,
+    .room-rush-fail { animation: none; }
+    .room-rush-success { box-shadow: var(--glow-2); }
+    .room-rush-fail { transform: none; }
     .flicker,
     .flicker-random,
     .flicker-slow { animation: none; }

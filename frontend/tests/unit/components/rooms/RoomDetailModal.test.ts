@@ -108,6 +108,25 @@ vi.mock('@/core/plugins/axios', () => ({
           },
         })
       }
+      if (url.endsWith('/rush')) {
+        return Promise.resolve({
+          data: {
+            can_rush: true,
+            blocked_reason: null,
+            fail_chance: 10,
+            success_chance: 90,
+            stacks: 0,
+            max_stacks: 6,
+            avg_ability: 5,
+            avg_luck: 5,
+            worker_count: 1,
+            payout: { power: 0, food: 0, water: 0, stimpack: 0, radaway: 0 },
+            caps_chance: 25,
+            eligible_incidents: ['fire'],
+            next_stack_penalty: 10,
+          },
+        })
+      }
       return Promise.resolve({ data: {} })
     }),
     post: vi.fn().mockResolvedValue({ data: {} }),
@@ -1147,7 +1166,9 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      const upgradeButton = wrapper.findAll('.mock-button')[0]
+      const upgradeButton = wrapper
+        .findAll('.mock-button')
+        .find((button) => button.text().includes('Upgrade to Tier'))!
       await upgradeButton.trigger('click')
       await wrapper.vm.$nextTick()
 
@@ -1170,7 +1191,9 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      const upgradeButton = wrapper.findAll('.mock-button')[0]
+      const upgradeButton = wrapper
+        .findAll('.mock-button')
+        .find((button) => button.text().includes('Upgrade to Tier'))!
       await upgradeButton.trigger('click')
       await wrapper.vm.$nextTick()
       await new Promise((resolve) => setTimeout(resolve, 0))
@@ -1432,7 +1455,9 @@ describe('RoomDetailModal', () => {
           props: { room: mockRoom, modelValue: true },
         })
 
-        const upgradeButton = wrapper.findAll('.mock-button')[0]
+        const upgradeButton = wrapper
+          .findAll('.mock-button')
+          .find((button) => button.text().includes('Upgrade to Tier'))!
         await upgradeButton.trigger('click')
         await wrapper.vm.$nextTick()
         await new Promise((resolve) => setTimeout(resolve, 0))

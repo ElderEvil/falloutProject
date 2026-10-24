@@ -6,9 +6,9 @@ import { Input } from '@/core/components/ui/input'
 import VaultBoyFeedback from '@/core/components/common/VaultBoyFeedback.vue'
 import { useVaultBoyFeedback } from '@/core/composables/useVaultBoyFeedback'
 import VaultBoySprite from '@/core/components/common/VaultBoySprite.vue'
+import { FEEDBACK_TIMING_MS } from '@/core/config/feedback'
 import {
   VAULT_BOY_ANIMATIONS,
-  VAULT_BOY_FRAME_MS,
   type VaultBoyAnimationId,
   type VaultBoyAnimation,
 } from '@/core/utils/vaultBoyAnimations'
@@ -25,7 +25,7 @@ interface Preview {
   error: string
 }
 
-const intervalMs = ref(VAULT_BOY_FRAME_MS)
+const intervalMs = ref(FEEDBACK_TIMING_MS.vaultBoyFrame)
 
 function createPreview(animationId: VaultBoyAnimationId): Preview {
   const definition = VAULT_BOY_ANIMATIONS[animationId]
@@ -132,7 +132,7 @@ function resetSequence(preview: Preview) {
         <Button
           v-for="speed in [
             { label: 'Slow', ms: 360 },
-            { label: 'Normal', ms: VAULT_BOY_FRAME_MS },
+            { label: 'Normal', ms: FEEDBACK_TIMING_MS.vaultBoyFrame },
             { label: 'Fast', ms: 90 },
           ]"
           :key="speed.ms"

@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
+import { flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useAuthStore } from '@/modules/auth/stores/auth'
+import { FEEDBACK_TIMING_MS } from '@/core/config/feedback'
 import { audioManager } from '@/core/audio/audioManager'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
@@ -579,5 +582,97 @@ describe('room remodeling', () => {
     await store.remodelRoom('right', 'token', 'room-1')
     expect(store.rooms).toHaveLength(1)
     expect(store.rooms[0]?.size).toBe(6)
+  })
+})
+
+describe('room rush', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    useAuthStore().token = 'token'
+  })
+
+  const quote = {
+    can_rush: true,
+    blocked_reason: null,
+    fail_chance: 23,
+    success_chance: 77,
+    stacks: 2,
+    max_stacks: 6,
+    avg_ability: 8,
+    avg_luck: 7,
+    worker_count: 2,
+    payout: { power: 12, food: 0, water: 0, stimpack: 0, radaway: 0 },
+    caps_chance: 35,
+    eligible_incidents: ['fire'],
+    next_stack_penalty: 10,
+  }
+
+  const result = {
+    outcome: 'success' as const,
+    payout: { power: 12, food: 0, water: 0, stimpack: 0, radaway: 0 },
+    caps: 120,
+    xp_per_worker: 25,
+    happiness_delta: 10,
+    incident_id: null,
+    incident_type: null,
+    stacks_after: 3,
+    next_fail_chance: 33,
+    message: 'The rush succeeded.',
+  }
+
+  it('fetches a rush quote through the shared HTTP boundary', async () => {
+    vi.mocked(axios.get).mockResolvedValueOnce({ data: quote })
+    const store = useRoomStore()
+
+    await expect(store.fetchRushQuote('room-1')).resolves.toEqual(quote)
+    expect(axios.get).toHaveBeenCalledWith('/api/v1/rooms/room-1/rush')
+  })
+
+  it('rushes a room, flashes the outcome after the feedback delay, and returns the result', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: result })
+      vi.mocked(axios.get).mockResolvedValue({ data: { id: 'vault-1' } })
+      const store = useRoomStore()
+
+      await expect(store.rushRoom('room-1', 'vault-1')).resolves.toEqual(result)
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/rooms/room-1/rush', {})
+      expect(store.rushedRoomId).toBeNull()
+
+      await vi.advanceTimersByTimeAsync(FEEDBACK_TIMING_MS.rushDelay)
+
+      expect(store.rushedRoomId).toBe('room-1')
+      expect(store.rushOutcome).toBe('success')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('returns the confirmed outcome without waiting for background refreshes', async () => {
+    vi.mocked(axios.post).mockResolvedValueOnce({ data: result })
+    vi.mocked(axios.get).mockImplementation(() => new Promise(() => {}))
+    const store = useRoomStore()
+    let returned = false
+    void store.rushRoom('room-1', 'vault-1').then(() => {
+      returned = true
+    })
+    await flushPromises()
+    expect(returned).toBe(true)
+  })
+
+  it('surfaces a rush conflict detail', async () => {
+    const error = new AxiosError('Request failed')
+    error.response = {
+      data: { detail: 'Resolve the active incident before rushing.' },
+    } as never
+    vi.mocked(axios.post).mockRejectedValueOnce(error)
+    const store = useRoomStore()
+
+    await expect(store.rushRoom('room-1', 'vault-1')).rejects.toThrow(
+      'Resolve the active incident before rushing.'
+    )
+    expect(store.rushedRoomId).toBeNull()
+    expect(store.rushOutcome).toBeNull()
   })
 })

@@ -3,7 +3,14 @@ import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
 import type { components } from '@/core/types/api.generated'
-import type { Room, RoomBuild, RoomStyleValue, RoomTemplate } from '../models/room'
+import type {
+  Room,
+  RoomBuild,
+  RoomRushQuote,
+  RoomRushResult,
+  RoomStyleValue,
+  RoomTemplate,
+} from '../models/room'
 import {
   FLOOR_UNITS,
   ROOM_SLOT_STARTS,
@@ -13,7 +20,10 @@ import {
   Y_MAX,
 } from '../models/grid'
 import { handleStoreError } from '@/core/utils/errorHandler'
+import { apiGet, apiPost } from '@/core/utils/api'
+import { FEEDBACK_TIMING_MS } from '@/core/config/feedback'
 import { audioManager } from '@/core/audio/audioManager'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
 type GridConfig = components['schemas']['GridConfig']
@@ -22,6 +32,7 @@ type GridConfig = components['schemas']['GridConfig']
 export type FetchRoomsResult = 'loaded' | 'superseded' | 'failed'
 
 export const useRoomStore = defineStore('room', () => {
+  const authStore = useAuthStore()
   // State
   const rooms = ref<Room[]>([])
   const roomsLoadedVaultId = ref<string | null>(null)
@@ -31,9 +42,12 @@ export const useRoomStore = defineStore('room', () => {
   const isPlacingRoom = ref(false)
   // Survivor room id briefly highlighted after an upgrade absorbs a neighbour.
   const mergedRoomId = ref<string | null>(null)
+  const rushedRoomId = ref<string | null>(null)
+  const rushOutcome = ref<'success' | 'failure' | null>(null)
   let fetchRoomsRequestSequence = 0
   let fetchBuildableRoomsRequestSequence = 0
   let mergedHighlightTimeout: ReturnType<typeof setTimeout> | null = null
+  let rushHighlightTimeout: ReturnType<typeof setTimeout> | null = null
 
   // Background vault refresh — non-throwing, while still surfacing failures consistently.
   async function refreshVaultSafely(vaultId: string, token: string, context: string) {
@@ -225,12 +239,68 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
+  async function fetchRushQuote(roomId: string): Promise<RoomRushQuote> {
+    return apiGet<RoomRushQuote>(`/api/v1/rooms/${roomId}/rush`)
+  }
+
+  async function refreshRushDependents(
+    vaultId: string,
+    token: string,
+    incidentId: string | null
+  ): Promise<void> {
+    const [{ useDwellerStore }, { useStorageStore }, { useIncidentStore }] = await Promise.all([
+      import('@/modules/dwellers/stores/dweller'),
+      import('@/modules/storage/stores/storage'),
+      import('@/modules/combat/stores/incident'),
+    ])
+    const { filter: dwellers } = useDwellerStore()
+    const storage = useStorageStore()
+    const incidentStore = useIncidentStore()
+    const refreshes: Promise<unknown>[] = [
+      refreshVaultSafely(vaultId, token, 'Failed to refresh vault after rushing room'),
+    ]
+    if (dwellers.dwellers.length > 0) {
+      refreshes.push(dwellers.fetchDwellersByVault(vaultId, token))
+    }
+    if (storage.vaultId === vaultId) {
+      refreshes.push(storage.refresh(vaultId))
+    }
+    if (incidentId) {
+      incidentStore.watchPendingIncident(vaultId, incidentId, token)
+      refreshes.push(incidentStore.fetchIncidents(vaultId, token))
+    }
+    await Promise.allSettled(refreshes)
+  }
+
+  async function rushRoom(roomId: string, vaultId: string): Promise<RoomRushResult> {
+    const result = await apiPost<RoomRushResult>(`/api/v1/rooms/${roomId}/rush`, {})
+    setTimeout(() => flashRushedRoom(roomId, result.outcome), FEEDBACK_TIMING_MS.rushDelay)
+    if (authStore.token) {
+      void refreshRushDependents(vaultId, authStore.token, result.incident_id).catch((error) => {
+        handleStoreError(error, 'Failed to refresh vault after rushing room')
+      })
+    }
+    return result
+  }
+
   function flashMergedRoom(roomId: string): void {
     mergedRoomId.value = roomId
     if (mergedHighlightTimeout !== null) clearTimeout(mergedHighlightTimeout)
     mergedHighlightTimeout = setTimeout(() => {
       if (mergedRoomId.value === roomId) mergedRoomId.value = null
     }, 1200)
+  }
+
+  function flashRushedRoom(roomId: string, outcome: 'success' | 'failure'): void {
+    rushedRoomId.value = roomId
+    rushOutcome.value = outcome
+    if (rushHighlightTimeout !== null) clearTimeout(rushHighlightTimeout)
+    rushHighlightTimeout = setTimeout(() => {
+      if (rushedRoomId.value === roomId) {
+        rushedRoomId.value = null
+        rushOutcome.value = null
+      }
+    }, 1400)
   }
 
   function selectRoom(room: RoomTemplate): void {
@@ -276,6 +346,8 @@ export const useRoomStore = defineStore('room', () => {
     selectedRoom,
     isPlacingRoom,
     mergedRoomId,
+    rushedRoomId,
+    rushOutcome,
     floorUnits,
     shaftX,
     unitsPerRoom,
@@ -291,6 +363,8 @@ export const useRoomStore = defineStore('room', () => {
     upgradeRoom,
     applyRoomStyle,
     remodelRoom,
+    fetchRushQuote,
+    rushRoom,
     selectRoom,
     deselectRoom,
   }

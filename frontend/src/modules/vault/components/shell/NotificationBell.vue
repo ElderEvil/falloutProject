@@ -15,6 +15,7 @@ import { useSse, type SseEvent } from '@/core/composables/useEventStream'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useSound } from '@/core/composables/useSound'
 import { useVaultBoyFeedback } from '@/core/composables/useVaultBoyFeedback'
+import { FEEDBACK_TIMING_MS } from '@/core/config/feedback'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
 import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
@@ -180,6 +181,23 @@ function processNotification(notificationData: Notification) {
     is_read: false,
     created_at: notificationData.created_at,
     meta_data: notificationData.meta_data,
+  }
+  const isRushResult =
+    notificationData.notification_type === 'rush_succeeded' ||
+    notificationData.notification_type === 'rush_failed'
+  if (isRushResult) {
+    const isSuccess = notificationData.notification_type === 'rush_succeeded'
+    const vaultId = notificationData.vault_id
+    const message = notificationData.message
+    setTimeout(() => {
+      if (!authStore.token) return
+      notifications.value.unshift(newNotif)
+      unreadCount.value++
+      if (vaultId && vaultId !== vaultStore.activeVaultId) return
+      if (isSuccess) toast.success(message)
+      else toast.error(message)
+    }, FEEDBACK_TIMING_MS.rushDelay)
+    return
   }
   notifications.value.unshift(newNotif)
   unreadCount.value++

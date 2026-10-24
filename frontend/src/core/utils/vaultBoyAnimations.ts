@@ -3,7 +3,6 @@ export type VaultBoyAnimationId =
   | 'rush-failure'
   | 'baby'
   | 'food-low'
-  | 'empty-can'
   | 'happiness-low'
   | 'ok'
   | 'power-low'
@@ -83,21 +82,6 @@ export const VAULT_BOY_ANIMATIONS: Record<VaultBoyAnimationId, VaultBoyAnimation
       [1615, 556, 394, 468],
     ],
     sequence: [0, 3, 4, 1, 6, 2, 5],
-  },
-  'empty-can': {
-    title: 'Food running low',
-    sheet: '/assets/vault-boy/VaultBoy_EmptyCanCheck-v1.webp',
-    sheetSize: [1536, 1024],
-    canvas: [512, 512],
-    frames: [
-      [0, 0, 512, 512],
-      [512, 0, 512, 512],
-      [1024, 0, 512, 512],
-      [0, 512, 512, 512],
-      [512, 512, 512, 512],
-      [1024, 512, 512, 512],
-    ],
-    sequence: [0, 1, 2, 3, 4, 5],
   },
   'food-low': {
     title: 'Low food',
@@ -185,5 +169,3 @@ export const VAULT_BOY_ANIMATIONS: Record<VaultBoyAnimationId, VaultBoyAnimation
     sequence: [2, 6, 5, 4, 0, 1, 7, 3],
   },
 }
-
-export const VAULT_BOY_FRAME_MS = 180

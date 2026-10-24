@@ -28,6 +28,8 @@ export const useIncidentStore = defineStore('incident', () => {
   const sseConnected = ref(false)
   let sseInstance: ReturnType<typeof useSse> | null = null
   let incidentPolling: ReturnType<typeof usePolling> | null = null
+  let pendingStartPolling: ReturnType<typeof usePolling> | null = null
+  let pollingVaultId: string | null = null
   const announcedResolutions = new Set<string>()
   const announcedIncidentSounds = new Set<string>()
   const seenEventCounts = new Map<string, number>()
@@ -304,6 +306,24 @@ export const useIncidentStore = defineStore('incident', () => {
     }
   }
 
+  function watchPendingIncident(vaultId: string, incidentId: string, token: string): void {
+    if (pollingVaultId !== vaultId) return
+    pendingStartPolling?.stop()
+    const expiresAt = Date.now() + 30000
+    pendingStartPolling = usePolling(
+      async () => {
+        if (Date.now() >= expiresAt) {
+          pendingStartPolling?.stop()
+          return
+        }
+        await fetchIncidents(vaultId, token, true)
+        if (activeIncidentIds.value.includes(incidentId)) pendingStartPolling?.stop()
+      },
+      { interval: 1000, immediate: false }
+    )
+    pendingStartPolling.resume()
+  }
+
   function startIncidentPolling(vaultId: string, token: string, intervalMs: number): void {
     incidentPolling?.stop()
     incidentPolling = usePolling(
@@ -437,6 +457,7 @@ export const useIncidentStore = defineStore('incident', () => {
     }
 
     isPolling.value = true
+    pollingVaultId = vaultId
 
     void fetchIncidents(vaultId, token)
     if (token) {
@@ -446,6 +467,9 @@ export const useIncidentStore = defineStore('incident', () => {
   }
 
   function stopPolling(): void {
+    pendingStartPolling?.stop()
+    pendingStartPolling = null
+    pollingVaultId = null
     stopSseSubscription()
     incidentPolling?.stop()
     incidentPolling = null
@@ -506,6 +530,7 @@ export const useIncidentStore = defineStore('incident', () => {
 
     // Actions
     fetchIncidents,
+    watchPendingIncident,
     assignResponders,
     fetchIncidentTeam,
     getIncidentTeam,

@@ -15,15 +15,18 @@ import { useRoomStore } from '../stores/room'
 import { useRoomProduction } from '../composables/useRoomProduction'
 import { useRoomUpgrade } from '../composables/useRoomUpgrade'
 import { useRoomDwellers } from '../composables/useRoomDwellers'
+import { useRoomRush } from '../composables/useRoomRush'
 import { useRadioRoom } from '../composables/useRadioRoom'
 import { useRoomStyle } from '../composables/useRoomStyle'
 import { useRoomThemes } from '../composables/useRoomThemes'
 import RoomDetailHeader from './RoomDetailHeader.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.vue'
+import { Button } from '@/core/components/ui/button'
 import RoomPreviewSection from './RoomPreviewSection.vue'
 import BarbershopPanel from './BarbershopPanel.vue'
 import ProductionStats from './ProductionStats.vue'
+import RoomRushDialog from './RoomRushDialog.vue'
 import DwellerList from './DwellerList.vue'
 import RadioControls from './RadioControls.vue'
 import RoomActions from './RoomActions.vue'
@@ -62,6 +65,7 @@ const assignmentMode = ref<'worker' | 'apprentice' | null>(null)
 
 const roomRef = toRef(props, 'room')
 const modelValueRef = toRef(props, 'modelValue')
+const vaultIdRef = toRef(props, 'vaultId')
 
 const incidentStore = useIncidentStore()
 const roomStore = useRoomStore()
@@ -155,6 +159,18 @@ const {
   handleSwitchRadioMode,
   handleRecruitDweller,
 } = useRadioRoom(roomRef, modelValueRef, assignedDwellers)
+
+const {
+  quote: rushQuote,
+  error: rushError,
+  isLoadingQuote,
+  isRushing,
+  showRushDialog,
+  blockedMessage: rushBlockedMessage,
+  requestRush,
+  cancelRush,
+  confirmRush,
+} = useRoomRush(roomRef, vaultIdRef, modelValueRef)
 
 const { playSound, playAmbience, stopAmbience } = useSound()
 
@@ -316,6 +332,18 @@ onUnmounted(stopAmbience)
             :production-info="productionInfo"
           />
 
+          <Button
+            v-if="has('productionStats')"
+            variant="secondary"
+            size="sm"
+            class="self-start"
+            :disabled="isRushing"
+            @click="requestRush"
+          >
+            <Icon icon="mdi:lightning-bolt" />
+            Rush Production
+          </Button>
+
           <RoomTrainingSection
             v-if="has('training')"
             :vault-id="vaultId"
@@ -360,6 +388,17 @@ onUnmounted(stopAmbience)
       </div>
     </div>
   </TerminalModal>
+  <RoomRushDialog
+    :open="showRushDialog"
+    :room-name="room?.name ?? 'room'"
+    :quote="rushQuote"
+    :loading="isLoadingQuote"
+    :rushing="isRushing"
+    :error="rushError"
+    :blocked-message="rushBlockedMessage"
+    @confirm="confirmRush"
+    @cancel="cancelRush"
+  />
   <TerminalConfirmation
     :open="showDestroyConfirmation"
     :title="destroyTitle"

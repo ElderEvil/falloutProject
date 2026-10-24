@@ -34,6 +34,28 @@ describe('useGameBalance', () => {
     expect(apiGet).toHaveBeenCalledWith('/api/v1/game/balance')
   })
 
+  it('exposes the configured rush happiness penalty', async () => {
+    apiGet.mockResolvedValue({
+      resource: { base_production_rate: 0.0012 },
+      rush: { happiness_delta: 10 },
+    })
+    const { useGameBalance } = await importComposable()
+
+    const { rushHappinessDelta } = useGameBalance()
+    await vi.waitFor(() => expect(rushHappinessDelta.value).toBe(10))
+  })
+
+  it('exposes the configured rush XP per worker', async () => {
+    apiGet.mockResolvedValue({
+      resource: { base_production_rate: 0.0012 },
+      rush: { xp_per_worker: 25 },
+    })
+    const { useGameBalance } = await importComposable()
+
+    const { rushXpPerWorker } = useGameBalance()
+    await vi.waitFor(() => expect(rushXpPerWorker.value).toBe(25))
+  })
+
   it('retries after a transient failure and reports only the final error', async () => {
     apiGet
       .mockRejectedValueOnce(new Error('network'))

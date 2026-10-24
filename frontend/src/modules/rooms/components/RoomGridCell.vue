@@ -20,6 +20,8 @@ interface Props {
   isDraggingOver: boolean
   highlighted: boolean
   merged: boolean
+  rushed?: boolean
+  rushOutcome?: 'success' | 'failure' | null
   incident?: Incident | null
   overseerAttentionCount?: number
   onboardingAnchor?: string
@@ -116,6 +118,8 @@ function handleDragLeave(event: DragEvent): void {
       'has-tier': !!room.tier,
       highlighted,
       'room-merge-pulse': merged,
+      'room-rush-success': rushed && rushOutcome === 'success',
+      'room-rush-fail': rushed && rushOutcome === 'failure',
       'power-outage': isRoomAffectedByOutage(),
     }"
     :aria-label="cellTitle"

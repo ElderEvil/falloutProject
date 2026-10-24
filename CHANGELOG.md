@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.260.1 (2026-10-24)
+
+### Bug Fixes
+
+* **rooms:** reduce text clutter in the overseer office ([#1163](https://github.com/ElderEvil/falloutProject/issues/1163)) 5250338
+
 ## 2.260.0 (2026-10-24)
 
 ### Features

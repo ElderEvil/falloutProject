@@ -139,7 +139,9 @@ const nearbyResponders = computed(() =>
 const awaitingFirstRound = computed(
   () =>
     currentTeamIds.value.length > 0 &&
-    !props.incident.events.some((event) => event.kind === 'round' || event.kind === 'containment')
+    !props.incident.events.some((event) =>
+      ['turn', 'round', 'containment'].includes(event.kind)
+    )
 )
 
 const teamFetchSettled = ref(false)

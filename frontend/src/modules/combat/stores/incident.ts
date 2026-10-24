@@ -32,7 +32,7 @@ export const useIncidentStore = defineStore('incident', () => {
   let pollingVaultId: string | null = null
   const announcedResolutions = new Set<string>()
   const announcedIncidentSounds = new Set<string>()
-  const seenEventCounts = new Map<string, number>()
+  const seenEventMarkers = new Map<string, { count: number; lastId: string | undefined }>()
 
   const { success: showSuccess, error: showError, warning: showWarning } = useToast()
 
@@ -240,11 +240,17 @@ export const useIncidentStore = defineStore('incident', () => {
         newIds.map(async (id) => {
           try {
             const incident = await incidentApi.getIncident(vaultId, id, token)
-            const previousCount = seenEventCounts.get(id)
-            if (previousCount !== undefined && incident.events.length > previousCount) {
+            const previous = seenEventMarkers.get(id)
+            const count = incident.events.length
+            const lastId = incident.events.at(-1)?.id
+            if (!previous) {
+              seenEventMarkers.set(id, { count, lastId })
+            } else if (lastId !== previous.lastId && count >= previous.count) {
+              // The journal is a rolling window, so a saturated page still has to
+              // sound when its newest line changes; an older stale page must not.
               audioManager.play('incidentHit', 'sfx')
+              seenEventMarkers.set(id, { count, lastId })
             }
-            seenEventCounts.set(id, Math.max(previousCount ?? 0, incident.events.length))
             incidents.value.set(id, incident)
           } catch (error) {
             handleStoreError(error, 'Failed to refresh incident details')
@@ -483,7 +489,7 @@ export const useIncidentStore = defineStore('incident', () => {
     isPolling.value = false
     // Clearing the active set unwinds the alarm and music through the watcher.
     activeIncidentIds.value = []
-    seenEventCounts.clear()
+    seenEventMarkers.clear()
   }
 
   function clearIncidents(): void {
@@ -492,7 +498,7 @@ export const useIncidentStore = defineStore('incident', () => {
     aftermaths.value.clear()
     incidentTeams.value.clear()
     announcedIncidentSounds.clear()
-    seenEventCounts.clear()
+    seenEventMarkers.clear()
   }
 
   function getIncidentById(id: string): Incident | undefined {

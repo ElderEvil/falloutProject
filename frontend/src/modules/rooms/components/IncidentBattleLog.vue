@@ -11,6 +11,8 @@ const KIND_LABELS: Record<string, string> = {
   spread: 'SPREAD',
   responders_assigned: 'RESPONDERS',
   responders_dispatched: 'DISPATCHED',
+  turn: 'TURN',
+  hit: 'HIT',
   round: 'ROUND',
   containment: 'CONTAINMENT',
   resolved: 'RESOLVED',

@@ -1174,6 +1174,28 @@ describe('Incident Store', () => {
       await store.fetchIncidents('vault-1', 'token')
       expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
     })
+
+    it('still plays the hit sound when the rolling journal window is full', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      const window = (start: number) =>
+        Array.from({ length: 40 }, (_, index) => ({
+          id: `e${start + index}`,
+          kind: 'hit',
+          message: `Hit ${start + index}`,
+          data: null,
+        }))
+
+      vi.mocked(incidentApi.getIncident)
+        .mockResolvedValueOnce({ ...mockIncident, events: window(1) })
+        .mockResolvedValueOnce({ ...mockIncident, events: window(2) })
+
+      await store.fetchIncidents('vault-1', 'token')
+      expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
+
+      await store.fetchIncidents('vault-1', 'token')
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentHit', 'sfx')
+    })
   })
 
   describe('SSE notifications', () => {

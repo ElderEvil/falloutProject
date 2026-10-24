@@ -98,6 +98,31 @@ describe('IncidentScene', () => {
     wrapper.unmount()
   })
 
+  it('sums the latest round of per-attack hits for the floating damage', () => {
+    const wrapper = mountScene({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice' })],
+      incident: incident({
+        events: [
+          { id: 'e1', kind: 'turn', message: 'Responders attack', data: null },
+          {
+            id: 'e2',
+            kind: 'hit',
+            message: 'Raider hits Alice for 3',
+            data: { damage_to_dwellers: 3 },
+          },
+          {
+            id: 'e3',
+            kind: 'hit',
+            message: 'Raider hits Alice for 4',
+            data: { damage_to_dwellers: 4 },
+          },
+        ],
+      }),
+    })
+
+    expect(wrapper.find('.floating-effect').text()).toBe('-7')
+  })
+
   it('renders the remaining threat count for a defeat objective', () => {
     const wrapper = mountScene({
       incident: incident({ progress: { current: 30, target: 100, label: 'Threat' } }),

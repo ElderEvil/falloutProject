@@ -72,16 +72,28 @@ const { url: creatureImage, onError: creatureFailed } = useFallbackImage(() => [
 const creatureName = computed(() =>
   humanizePreserveCase((creatureKey.value ?? 'Raider').replaceAll('-', '_'))
 )
-const latestEffect = computed(
-  () => [...props.incident.events].reverse().find((event) => event.data !== null) ?? null
-)
-const dwellerDamage = computed(() => Number(latestEffect.value?.data?.damage_to_dwellers ?? 0))
-const threatDamage = computed(() => Number(latestEffect.value?.data?.damage_to_threat ?? 0))
-const containmentGain = computed(() =>
-  Math.round(Number(latestEffect.value?.data?.amount ?? 0) * 100)
-)
+// A round is a `turn` line followed by one `hit` line per attack, so the scene
+// sums the whole round instead of reading a single aggregate event.
+const latestTurnIndex = computed(() => {
+  const events = props.incident.events
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    if (events[index].kind === 'turn' || events[index].kind === 'round') return index
+  }
+  return -1
+})
+const roundEvents = computed(() => {
+  if (latestTurnIndex.value >= 0) return props.incident.events.slice(latestTurnIndex.value)
+  const latest = [...props.incident.events].reverse().find((event) => event.data !== null)
+  return latest ? [latest] : []
+})
+const roundKey = computed(() => roundEvents.value[0]?.id ?? null)
+const roundTotal = (key: string) =>
+  roundEvents.value.reduce((total, event) => total + Number(event.data?.[key] ?? 0), 0)
+const dwellerDamage = computed(() => roundTotal('damage_to_dwellers'))
+const threatDamage = computed(() => roundTotal('damage_to_threat'))
+const containmentGain = computed(() => Math.round(roundTotal('amount') * 100))
 
-const combatPulse = useCombatPulse(computed(() => latestEffect.value?.id ?? null))
+const combatPulse = useCombatPulse(computed(() => roundKey.value))
 const responderMotion = computed(() => ({
   'combat-impact': combatPulse.value && dwellerDamage.value > 0,
   'combat-lunge-right': combatPulse.value && dwellerDamage.value <= 0 && threatDamage.value > 0,
@@ -130,7 +142,7 @@ const threatMotion = computed(() => ({
         <div class="relative min-w-0" :class="responderMotion">
           <span
             v-if="dwellerDamage"
-            :key="latestEffect?.id"
+            :key="roundKey"
             class="floating-effect absolute -top-3 left-1/2 z-30 font-bold text-danger"
             aria-hidden="true"
             >-{{ Math.round(dwellerDamage) }}</span
@@ -232,14 +244,14 @@ const threatMotion = computed(() => ({
         >
           <span
             v-if="threatDamage && incident.objective === 'defeat'"
-            :key="latestEffect?.id"
+            :key="roundKey"
             class="floating-effect absolute -top-3 z-30 font-bold text-danger"
             aria-hidden="true"
             >-{{ Math.round(threatDamage) }}</span
           >
           <span
             v-if="containmentGain && incident.objective === 'contain'"
-            :key="latestEffect?.id"
+            :key="roundKey"
             class="floating-effect absolute -top-3 z-30 font-bold text-success"
             aria-hidden="true"
             >+{{ containmentGain }}%</span

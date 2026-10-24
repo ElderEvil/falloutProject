@@ -16,6 +16,7 @@ from app.models.incident import (
     Incident,
     IncidentObjective,
     IncidentStatus,
+    IncidentType,
     effects_for_incident_type,
     get_incident_definition,
     hazard_team_for,
@@ -26,9 +27,32 @@ from app.services.combat.incident_spawning import spread_incident
 from app.services.hazard_team_service import TEAM_HAZARD_RESIST, TEAM_RESPONSE_BONUS
 from app.services.notification_service import notification_service
 from app.services.radiation_service import apply_radiation_gain
+from app.utils.combat import combat_power
 from app.utils.damage_reductions import damage_reductions
 
 logger = logging.getLogger(__name__)
+
+# Journal actor names: one attacker line and one target line per hit, mirroring
+# the Arena's "X hits Y for N" phrasing.
+THREAT_ACTOR: dict[IncidentType, str] = {
+    IncidentType.FIRE: "Fire",
+    IncidentType.RADROACH_INFESTATION: "Radroach",
+    IncidentType.MOLE_RAT_ATTACK: "Mole rat",
+    IncidentType.RADSCORPION_ATTACK: "Radscorpion",
+    IncidentType.FERAL_GHOUL_ATTACK: "Feral ghoul",
+    IncidentType.RAIDER_ATTACK: "Raider",
+    IncidentType.DEATHCLAW_ATTACK: "Deathclaw",
+}
+
+THREAT_GROUP: dict[IncidentType, str] = {
+    IncidentType.FIRE: "the fire",
+    IncidentType.RADROACH_INFESTATION: "the radroaches",
+    IncidentType.MOLE_RAT_ATTACK: "the mole rats",
+    IncidentType.RADSCORPION_ATTACK: "the radscorpions",
+    IncidentType.FERAL_GHOUL_ATTACK: "the feral ghouls",
+    IncidentType.RAIDER_ATTACK: "the raiders",
+    IncidentType.DEATHCLAW_ATTACK: "the deathclaw",
+}
 
 
 async def no_defender_outcome(db_session: AsyncSession, incident: Incident) -> IncidentRoundResult:
@@ -71,6 +95,8 @@ async def apply_damage(
     dwellers: list[Dweller],
     damage_to_dwellers: float,
     active_member_ids: frozenset[UUID4] = frozenset(),
+    *,
+    hits: list[tuple[str, int, bool]] | None = None,
 ) -> tuple[int, int, int]:
     """Distribute incoming damage across responders; deaths stay pending for the round commit.
 
@@ -88,6 +114,7 @@ async def apply_damage(
     split = incident_math.split_damage(incoming_damage, len(dwellers))
     effects = effects_for_incident_type(incident.type)
     for index, dweller in enumerate(dwellers):
+        display_name = dweller.display_name if hits is not None else ""
         dweller_damage = split[index]
         is_active_member = active_member_ids and getattr(dweller, "id", None) in active_member_ids
         team_share = TEAM_HAZARD_RESIST if is_active_member else 0.0
@@ -114,6 +141,9 @@ async def apply_damage(
                 await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.INCIDENT, commit=False)
                 deaths_count += 1
                 logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died during incident")
+
+            if hits is not None and dweller_damage > 0:
+                hits.append((display_name, dweller_damage, new_health <= 0))
 
     return damaged_count, deaths_count, damage_taken
 
@@ -208,9 +238,59 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
         response_progress = incident_math.damage_to_raiders(dweller_power, seconds_passed) / threat_power
         damage_to_raiders = response_progress * threat_power
 
+    # Journal lines are built before apply_damage: a death expires the dweller
+    # instance, so reading its power or name afterwards would trigger lazy IO.
+    round_entries: list[tuple[str, str, dict | None]] = []
+    if definition.objective == IncidentObjective.CONTAIN:
+        round_entries.append(("turn", "Responders contain the hazard", None))
+        if response_progress > 0:
+            if team == HazardTeam.FIRE:
+                containment_label = "Fire containment"
+            elif team == HazardTeam.RADIATION:
+                containment_label = "Radiation containment"
+            else:
+                containment_label = "Containment"
+            round_entries.append(
+                (
+                    "containment",
+                    f"{containment_label} increased by {max(1, int(response_progress * 100))}%.",
+                    {"target": "hazard", "amount": response_progress},
+                )
+            )
+    else:
+        round_entries.append(("turn", "Responders attack", None))
+        shares = incident_math.split_proportional(
+            damage_to_raiders,
+            [
+                combat_power(dweller) * (1 + TEAM_RESPONSE_BONUS if dweller.id in active_ids else 1)
+                for dweller in dwellers
+            ],
+        )
+        for dweller, share in zip(dwellers, shares, strict=True):
+            if share <= 0:
+                continue
+            round_entries.append(
+                (
+                    "hit",
+                    f"{dweller.display_name} hits {THREAT_GROUP[incident.type]} for {share}",
+                    {"target": "combat", "damage_to_threat": share},
+                )
+            )
+
+    hits: list[tuple[str, int, bool]] = []
     damaged_count, deaths_count, total_damage = await apply_damage(
-        db_session, incident, dwellers, damage_to_dwellers, active_member_ids=active_ids
+        db_session, incident, dwellers, damage_to_dwellers, active_member_ids=active_ids, hits=hits
     )
+    for name, damage, down in hits:
+        suffix = " — down" if down else ""
+        round_entries.append(
+            (
+                "hit",
+                f"{THREAT_ACTOR[incident.type]} hits {name} for {damage}{suffix}",
+                {"target": "dweller", "damage_to_dwellers": damage},
+            )
+        )
+    incident_publishing.record_events(db_session, incident, round_entries)
 
     # Track total damage dealt by raiders
     incident.damage_dealt += total_damage
@@ -227,29 +307,6 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
 
     # Check victory condition (defeated enough raiders based on difficulty)
     expected_raider_count = incident.difficulty * 2  # Each difficulty = 2 raiders
-
-    if definition.objective == IncidentObjective.CONTAIN and response_progress > 0:
-        if team == HazardTeam.FIRE:
-            containment_label = "Fire containment"
-        elif team == HazardTeam.RADIATION:
-            containment_label = "Radiation containment"
-        else:
-            containment_label = "Containment"
-        incident_publishing.record_event(
-            db_session,
-            incident,
-            "containment",
-            f"{containment_label} increased by {max(1, int(response_progress * 100))}%.",
-            {"target": "hazard", "amount": response_progress},
-        )
-    else:
-        incident_publishing.record_event(
-            db_session,
-            incident,
-            "round",
-            f"Responders dealt {int(damage_to_raiders)} damage; took {total_damage}.",
-            {"target": "combat", "damage_to_dwellers": total_damage, "damage_to_threat": damage_to_raiders},
-        )
 
     resolved = (
         incident.combat_progress >= 1

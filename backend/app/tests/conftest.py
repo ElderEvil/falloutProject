@@ -10,8 +10,10 @@ from httpx import ASGITransport, AsyncClient
 from passlib.context import CryptContext
 from sqlalchemy import JSON, event
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
+    async_sessionmaker,
     create_async_engine,
 )
 from sqlalchemy.orm import sessionmaker
@@ -535,3 +537,16 @@ async def equipped_dweller_fixture(
     weapon = await crud.weapon.create(db_session=async_session, obj_in=weapon_data)
 
     return dweller, outfit, weapon
+
+
+@pytest_asyncio.fixture
+async def pg_session_maker() -> AsyncGenerator[tuple[Any, Any]]:
+    uri = str(settings.ASYNC_DATABASE_URI)
+    if make_url(uri).get_backend_name() != "postgresql":
+        pytest.skip("requires PostgreSQL")
+    engine = create_async_engine(uri, pool_size=1, max_overflow=0)
+    maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    try:
+        yield engine, maker
+    finally:
+        await engine.dispose()

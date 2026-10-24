@@ -101,7 +101,7 @@ async def test_collect_evaluator_wrong_resource(
 
 
 @pytest.mark.asyncio
-async def test_collect_evaluator_credits_batched_production_resources(
+async def test_collect_evaluator_credits_batched_resources(
     async_session: AsyncSession,
     fresh_event_bus,
     patched_session_maker,
@@ -115,6 +115,8 @@ async def test_collect_evaluator_credits_batched_production_resources(
     targets = {
         "power": {"resource_type": "power"},
         "food": {"resource_type": "food"},
+        "caps": {"resource_type": "caps"},
+        "production_only": {"resource_type": "power", "production_only": True},
         "any": {},
     }
     objectives = {}
@@ -147,14 +149,16 @@ async def test_collect_evaluator_credits_batched_production_resources(
     await fresh_event_bus.emit(
         GameEvent.RESOURCE_COLLECTED,
         vault.id,
-        {"resources": {"power": 10, "food": 5}, "source": "production"},
+        {"resources": {"power": 10, "food": 5, "caps": 7}, "source": "rush"},
     )
 
     for link in links.values():
         await async_session.refresh(link)
     assert links["power"].progress == 10
     assert links["food"].progress == 5
-    assert links["any"].progress == 15
+    assert links["caps"].progress == 7
+    assert links["production_only"].progress == 0
+    assert links["any"].progress == 22
 
 
 @pytest.mark.asyncio

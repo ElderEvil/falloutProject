@@ -63,10 +63,10 @@ async def process_vault_incidents(
         for reserved in active_incidents:
             if reserved.combat_progress or reserved.start_time > datetime.utcnow():
                 continue
-            events = await incident_crud.get_recent_events(db_session, reserved.id, limit=1)
-            if events and events[0].kind == "pending":
+            pending_event = await incident_crud.get_pending_event(db_session, reserved.id)
+            if pending_event is not None:
                 room = await room_crud.get(db_session, reserved.room_id)
-                await incident_spawning.activate_incident(db_session, reserved, vault, room, events[0])
+                await incident_spawning.activate_incident(db_session, reserved, vault, room, pending_event)
                 stats["spawned"] += 1
         if game_state and game_state.is_paused:
             return stats

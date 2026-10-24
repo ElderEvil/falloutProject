@@ -1,6 +1,7 @@
 """Incident service for managing combat events and vault disasters."""
 
 import logging
+from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -294,6 +295,8 @@ class IncidentService:
         incident = locked_incident
         if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
             raise ValidationException("Incident is no longer active")
+        if incident.start_time > datetime.utcnow():
+            raise ValidationException("Incident has not started yet")
 
         unique_ids = list(dict.fromkeys(dweller_ids))
         if not unique_ids:

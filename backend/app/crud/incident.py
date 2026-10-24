@@ -202,6 +202,18 @@ class CRUDIncident:
         return list(result.scalars().all())
 
     @staticmethod
+    async def get_pending_event(db_session: AsyncSession, incident_id: UUID4) -> IncidentEvent | None:
+        """The incident's reserved-activation event, if it has not been published yet."""
+        query = (
+            select(IncidentEvent)
+            .where(IncidentEvent.incident_id == incident_id, IncidentEvent.kind == "pending")
+            .order_by(IncidentEvent.created_at.asc())
+            .limit(1)
+        )
+        result = await db_session.execute(query)
+        return result.scalars().first()
+
+    @staticmethod
     async def remove_all_by_vault(db_session: AsyncSession, vault_id: UUID4) -> int:
         """Delete all incidents for a vault."""
         query = select(Incident).where(Incident.vault_id == vault_id)

@@ -10,7 +10,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core import db_locks
-from app.core.enums import RoomTypeEnum, SPECIALEnum
+from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as crud_dweller
@@ -40,6 +40,13 @@ logger = logging.getLogger(__name__)
 
 _HAPPINESS_FLOOR = 10
 _HAPPINESS_CEILING = 100
+
+# Production ticks exclude dwellers who are away from their room.
+_NON_WORKING_STATUSES = (
+    DwellerStatusEnum.DEAD,
+    DwellerStatusEnum.EXPLORING,
+    DwellerStatusEnum.QUESTING,
+)
 
 _RUSH_INCIDENT_TYPES: dict[str, IncidentType] = {
     "fire": IncidentType.FIRE,
@@ -143,7 +150,7 @@ class RoomRushService:
             avg_ability=avg_ability,
             avg_luck=avg_luck,
             worker_count=len(workers),
-            payout=await self._preview_payout(db_session, room, vault, workers),
+            payout=await self._payout(db_session, room, vault, workers, preview=True),
             caps_chance=_caps_chance(avg_luck) * 100.0,
             eligible_incidents=[]
             if vault.incidents_disabled
@@ -172,7 +179,7 @@ class RoomRushService:
         roll = rng.random()
         failed = roll < fail_chance / 100.0
         stacks_after = min(game_config.rush.max_stacks, stacks_before + 1)
-        await crud_room.update_rush_state(db_session, room, stacks=stacks_after, last_rush_at=now, commit=False)
+        await crud_room.update_rush_state(db_session, room, stacks=stacks_after, last_rush_at=now)
         logger.info(
             "room_rush room=%s vault=%s stacks=%s fail_chance=%.2f roll=%.4f outcome=%s",
             room.id,
@@ -188,6 +195,7 @@ class RoomRushService:
                 result = await self._fail(db_session, room, vault, workers, stacks_after, rng)
             else:
                 result = await self._succeed(db_session, room, vault, workers, avg_luck, stacks_after, rng)
+            await self._notify(db_session, vault, room, result)
 
         try:
             await db_session.commit()
@@ -210,11 +218,7 @@ class RoomRushService:
         stacks_after: int,
         rng: ModuleType | random.Random,
     ) -> RoomRushResult:
-        storage = await crud_storage.get_by_vault(db_session, vault.id)
-        rooms = await crud_room.get_all_by_vault(db_session, vault.id)
-        raw_payout = self.resource_manager.calculate_room_production(room, workers, game_config.rush.payout_seconds)
-        applied = self.resource_manager.apply_room_payout(vault, storage, compute_medical_capacity(rooms), raw_payout)
-        payout = RoomRushResourceGain(**applied)
+        payout = await self._payout(db_session, room, vault, workers, preview=False)
 
         caps = roll_bonus_caps(avg_luck, room.tier, room.segment_count, rng)
         applied_caps = 0
@@ -232,18 +236,6 @@ class RoomRushService:
         xp_per_worker = game_config.rush.xp_per_worker
         await grant_experience(db_session, [worker.id for worker in workers], xp_per_worker)
 
-        await self._notify(
-            db_session,
-            vault,
-            NotificationType.RUSH_SUCCEEDED,
-            title="Room Rush Succeeded",
-            message=f"The rush paid off with {self._payout_summary(payout)}.",
-            room=room,
-            outcome="success",
-            payout=payout,
-            caps=applied_caps,
-            incident=None,
-        )
         next_fail_chance = _fail_chance(*_averages(room, workers), stacks_after)
         return RoomRushResult(
             outcome="success",
@@ -276,18 +268,6 @@ class RoomRushService:
             message = f"The rush backfired and triggered {incident.type.value.replace('_', ' ')}."
             logger.warning("Rush failure spawned %s in room %s", incident.type.value, room.id)
 
-        await self._notify(
-            db_session,
-            vault,
-            NotificationType.RUSH_FAILED,
-            title="Room Rush Failed",
-            message=message,
-            room=room,
-            outcome="failure",
-            payout=payout,
-            caps=0,
-            incident=incident,
-        )
         next_fail_chance = _fail_chance(*_averages(room, workers), stacks_after)
         return RoomRushResult(
             outcome="failure",
@@ -340,23 +320,20 @@ class RoomRushService:
             logger.warning("Rush failure could not spawn an incident for room %s", room.id)
         return incident
 
-    async def _preview_payout(
-        self, db_session: AsyncSession, room: Room, vault: Vault, workers: list[Dweller]
+    async def _payout(
+        self, db_session: AsyncSession, room: Room, vault: Vault, workers: list[Dweller], *, preview: bool
     ) -> RoomRushResourceGain:
         storage = await crud_storage.get_by_vault(db_session, vault.id)
         rooms = await crud_room.get_all_by_vault(db_session, vault.id)
         raw_payout = self.resource_manager.calculate_room_production(room, workers, game_config.rush.payout_seconds)
         applied = self.resource_manager.apply_room_payout(
-            vault.model_copy(),
-            storage.model_copy() if storage is not None else None,
-            compute_medical_capacity(rooms),
-            raw_payout,
+            vault, storage, compute_medical_capacity(rooms), raw_payout, dry_run=preview
         )
         return RoomRushResourceGain(**applied)
 
     async def _living_workers(self, db_session: AsyncSession, room_id: UUID4) -> list[Dweller]:
         assigned = await crud_dweller.get_by_room(db_session, room_id, with_equipment=True)
-        return [worker for worker in assigned if not worker.is_dead]
+        return [worker for worker in assigned if not worker.is_dead and worker.status not in _NON_WORKING_STATUSES]
 
     async def _apply_happiness(
         self, db_session: AsyncSession, vault: Vault, workers: list[Dweller], delta: int
@@ -377,18 +354,19 @@ class RoomRushService:
         self,
         db_session: AsyncSession,
         vault: Vault,
-        notification_type: NotificationType,
-        *,
-        title: str,
-        message: str,
         room: Room,
-        outcome: str,
-        payout: RoomRushResourceGain,
-        caps: int,
-        incident: Incident | None,
+        result: RoomRushResult,
     ) -> None:
         if vault.user_id is None:
             return
+        if result.outcome == "success":
+            notification_type = NotificationType.RUSH_SUCCEEDED
+            title = "Room Rush Succeeded"
+            message = f"The rush paid off with {self._payout_summary(result.payout)}."
+        else:
+            notification_type = NotificationType.RUSH_FAILED
+            title = "Room Rush Failed"
+            message = result.message
         await notification_service.create_and_send(
             db_session,
             vault.user_id,
@@ -399,12 +377,12 @@ class RoomRushService:
             priority=NotificationPriority.NORMAL,
             meta_data={
                 "event": "room_rush",
-                "outcome": outcome,
+                "outcome": result.outcome,
                 "room_id": str(room.id),
-                "incident_id": str(incident.id) if incident is not None else None,
-                "incident_type": incident.type.value if incident is not None else None,
-                "payout": payout.model_dump(),
-                "caps": caps,
+                "incident_id": str(result.incident_id) if result.incident_id is not None else None,
+                "incident_type": result.incident_type,
+                "payout": result.payout.model_dump(),
+                "caps": result.caps,
             },
             commit=False,
         )
@@ -414,17 +392,13 @@ class RoomRushService:
             resources = {
                 resource_type: amount for resource_type, amount in result.payout.model_dump().items() if amount > 0
             }
+            if result.caps > 0:
+                resources["caps"] = result.caps
             if resources:
                 await event_bus.emit(
                     GameEvent.RESOURCE_COLLECTED,
                     vault.id,
                     {"resources": resources, "source": "rush"},
-                )
-            if result.caps > 0:
-                await event_bus.emit(
-                    GameEvent.RESOURCE_COLLECTED,
-                    vault.id,
-                    {"resource_type": "caps", "amount": result.caps},
                 )
 
         event_type = GameEvent.RUSH_SUCCEEDED if result.outcome == "success" else GameEvent.RUSH_FAILED

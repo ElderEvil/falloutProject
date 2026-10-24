@@ -330,6 +330,7 @@ class RoomRushService:
                 incident_type,
                 target_room_id=room.id,
                 difficulty_bonus=difficulty_bonus,
+                start_delay_seconds=game_config.rush.incident_start_delay_seconds,
             )
         except (IncidentsDisabledException, ResourceConflictException) as exc:
             logger.warning("Rush failure could not spawn an incident for room %s: %s", room.id, exc.detail)

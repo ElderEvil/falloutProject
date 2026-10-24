@@ -1351,6 +1351,7 @@ class RushConfig(BaseSettings):
     max_stacks: int = Field(default=6, ge=0, le=6)
     stack_decay_seconds: int = Field(default=600, ge=1)
     payout_seconds: int = Field(default=300, ge=1)
+    incident_start_delay_seconds: float = Field(default=5.0, ge=0, description="Grace for the rush failure animation")
     xp_per_worker: int = Field(default=25, ge=0)
     happiness_delta: int = Field(default=10, ge=0, le=100)
     caps_luck_chance_per_point: float = Field(default=0.05, ge=0.0)

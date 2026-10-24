@@ -1,7 +1,7 @@
 """add room rush state
 
 Revision ID: a1c3e5f7b9d2
-Revises: a9f8e7d6c5b4
+Revises: b4d8f2a6c0e1
 Create Date: 2026-10-24 11:02:00.000000
 """
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "a1c3e5f7b9d2"
-down_revision: str | Sequence[str] | None = "a9f8e7d6c5b4"
+down_revision: str | Sequence[str] | None = "b4d8f2a6c0e1"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

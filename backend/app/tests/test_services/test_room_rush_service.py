@@ -550,3 +550,40 @@ async def test_failure_sends_notification_with_incident_metadata(
     emitted = [call.args[0] for call in emit.await_args_list]
     assert GameEvent.RUSH_FAILED in emitted
     assert GameEvent.RESOURCE_COLLECTED not in emitted
+
+
+@pytest.mark.asyncio
+async def test_failed_rush_waits_before_incident_ui_and_combat(
+    async_session: AsyncSession, rush_setup: dict[str, Any]
+) -> None:
+    from app.services.combat.incident_service import incident_service
+
+    vault, room, worker = rush_setup["vault"], rush_setup["room"], rush_setup["worker"]
+    before = datetime.utcnow()
+    result = await RoomRushService().rush(async_session, room, vault, rng=_Rng(0.0))
+    incident = await incident_crud.get(async_session, result.incident_id)
+
+    assert incident is not None
+    assert incident.start_time >= before + timedelta(seconds=4.2)
+    assert (await incident_service.get_active_incident_list(async_session, vault.id)).incident_count == 0
+    assert (await RoomRushService().quote(async_session, room, vault)).blocked_reason == "active_incident"
+    health = worker.health
+    round_result = await incident_service.process_incident(async_session, incident, 2)
+    assert round_result.skipped
+    assert worker.health == health
+    assert incident.combat_progress == 0
+    notifications = await notification_crud.get_user_notifications(async_session, vault.user_id)
+    assert all(notification.notification_type != NotificationType.COMBAT_STARTED for notification in notifications)
+
+    incident.start_time = datetime.utcnow() - timedelta(seconds=1)
+    async_session.add(incident)
+    await async_session.commit()
+    await incident_service.process_vault_incidents(async_session, vault.id, 2)
+
+    visible = await incident_service.get_active_incident_list(async_session, vault.id)
+    assert visible.incident_count == 1
+    notifications = await notification_crud.get_user_notifications(async_session, vault.user_id)
+    assert sum(notification.notification_type == NotificationType.COMBAT_STARTED for notification in notifications) == 1
+    await incident_service.process_vault_incidents(async_session, vault.id, 2)
+    notifications = await notification_crud.get_user_notifications(async_session, vault.user_id)
+    assert sum(notification.notification_type == NotificationType.COMBAT_STARTED for notification in notifications) == 1

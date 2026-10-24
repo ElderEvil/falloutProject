@@ -1342,10 +1342,10 @@ class TestTickCommitBoundaries:
         assert commit_spy.await_count == 1
 
     @pytest.mark.asyncio
-    async def test_spawn_commits_row_event_and_notification_separately(
+    async def test_spawn_commits_activation_before_notification(
         self, async_session: AsyncSession, room_with_dwellers: dict
     ):
-        """Spawning commits the incident row, the lifecycle event, and the owner notification."""
+        """Spawning commits the incident and lifecycle together, then the owner notification."""
         vault = room_with_dwellers["vault"]
         with (
             patch.object(async_session, "commit", wraps=async_session.commit) as commit_spy,
@@ -1355,7 +1355,7 @@ class TestTickCommitBoundaries:
             incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
 
         assert incident is not None
-        assert commit_spy.await_count == 3
+        assert commit_spy.await_count == 2
 
     @pytest.mark.asyncio
     async def test_victory_commits_round_notification_then_deposit(
@@ -1451,7 +1451,9 @@ async def test_auto_pause_does_not_commit_before_incident_insert(async_session, 
     commits = []
 
     def before_commit(session):
-        commits.append(any(isinstance(row, Incident) for row in session.new))
+        commits.append(
+            session.execute(select(Incident).where(Incident.vault_id == vault.id)).scalar_one_or_none() is not None
+        )
 
     event.listen(async_session.sync_session, "before_commit", before_commit)
     try:

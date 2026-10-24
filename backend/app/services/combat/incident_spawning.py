@@ -2,7 +2,7 @@
 
 import logging
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -17,10 +17,12 @@ from app.crud.user_profile import profile_crud
 from app.crud.vault import vault as vault_crud
 from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentType, hazard_team_for
+from app.models.incident_event import IncidentEvent
 from app.models.room import Room
 from app.models.vault import Vault
 from app.services.combat import incident_publishing
 from app.services.combat.incident_publishing import INCIDENT_NAMES
+from app.utils.reward_delivery import persist_reward_change
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +111,7 @@ async def spawn_incident(
     *,
     target_room_id: UUID4 | None = None,
     difficulty_bonus: int = 0,
+    start_delay_seconds: float = 0,
 ) -> Incident | None:
     """Spawn a new incident in a random occupied room, or in the requested target room.
     Raiders and Deathclaws spawn at vault door (0,0) and spread inward.
@@ -124,6 +127,7 @@ async def spawn_incident(
         incident_type: Type of incident (rolled from the balance weights if None)
         target_room_id: Spawn in this room instead of a random eligible one
         difficulty_bonus: Extra difficulty added to the rolled value (capped at 10)
+        start_delay_seconds: Reserve the incident now and activate it after this grace period
 
     Returns:
         Incident or None if no suitable room found
@@ -184,16 +188,6 @@ async def spawn_incident(
     difficulty = random.randint(*game_config.incident.get_difficulty_range(incident_type))
     difficulty = min(10, difficulty + max(0, difficulty_bonus))
 
-    incident_name = INCIDENT_NAMES.get(incident_type, str(incident_type))
-
-    profile = await profile_crud.get_by_user_id(db_session, vault.user_id)
-    auto_paused = bool(profile and (profile.preferences or {}).get("pause_on_incident") is True)
-    if auto_paused:
-        game_state = await game_state_crud.get_or_create(db_session, vault_id, commit=False)
-        game_state.pause()
-        db_session.add(game_state)
-
-    # The incident insert commits the pause too, before the fast tick can advance it.
     incident = await incident_crud.create(
         db_session,
         vault_id=vault_id,
@@ -201,34 +195,61 @@ async def spawn_incident(
         incident_type=incident_type,
         difficulty=difficulty,
         duration=game_config.incident.spread_duration,
+        commit=False,
     )
-    incident_publishing.record_event(
-        db_session, incident, "spawned", f"{incident_name} detected in {target_room.name}."
-    )
+    if start_delay_seconds > 0:
+        incident.start_time = datetime.utcnow() + timedelta(seconds=start_delay_seconds)
+        incident_publishing.record_event(db_session, incident, "pending", "Rush failure animation in progress.")
+        await persist_reward_change(db_session, incident)
+    else:
+        await activate_incident(db_session, incident, vault, target_room)
+    return incident
+
+
+async def activate_incident(
+    db_session: AsyncSession,
+    incident: Incident,
+    vault: Vault,
+    target_room: Room,
+    pending_event: IncidentEvent | None = None,
+) -> None:
+    """Start an ordinary or reserved incident through the same announcement/dispatch path."""
+    profile = await profile_crud.get_by_user_id(db_session, vault.user_id)
+    auto_paused = bool(profile and (profile.preferences or {}).get("pause_on_incident") is True)
+    if auto_paused:
+        game_state = await game_state_crud.get_or_create(db_session, vault.id, commit=False)
+        game_state.pause()
+        db_session.add(game_state)
+
+    incident_name = INCIDENT_NAMES.get(incident.type, str(incident.type))
+    message = f"{incident_name} detected in {target_room.name}."
+    if pending_event is None:
+        incident_publishing.record_event(db_session, incident, "spawned", message)
+    else:
+        pending_event.kind = "spawned"
+        pending_event.message = message
+        db_session.add(pending_event)
     await profile_crud.increment_statistic(db_session, vault.user_id, "total_incidents", commit=False)
+    # Persist activation and auto-pause together before any combat round can run.
     await db_session.commit()
 
-    logger.info(f"Spawned {incident_type} (difficulty {difficulty}) in room {target_room.name} of vault {vault_id}")
-
-    # Auto-dispatch the vault's standing hazard team to a matching hazard; a
-    # non-hazard incident (or one without a team) costs nothing.
+    logger.info(
+        "Spawned %s (difficulty %s) in room %s of vault %s",
+        incident.type,
+        incident.difficulty,
+        target_room.name,
+        vault.id,
+    )
     if hazard_team_for(incident.type):
         from app.services.hazard_team_service import hazard_team_service
 
-        dispatched = await hazard_team_service.dispatch_to_incident(db_session, incident)
-        if dispatched:
+        if await hazard_team_service.dispatch_to_incident(db_session, incident):
             await db_session.commit()
 
-    # Send notification + SSE (non-critical, don't break incident creation on failure)
-    await incident_publishing.notify_spawn(db_session, incident, target_room.name, incident_name, difficulty)
+    await incident_publishing.notify_spawn(db_session, incident, target_room.name, incident_name, incident.difficulty)
     await incident_publishing.publish_sse(
-        incident,
-        "incident_spawned",
-        room_name=target_room.name if target_room else None,
-        is_paused=auto_paused,
+        incident, "incident_spawned", room_name=target_room.name, is_paused=auto_paused
     )
-
-    return incident
 
 
 async def select_spawn_room(

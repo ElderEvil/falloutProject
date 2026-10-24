@@ -30,7 +30,7 @@ RUSH_NOTIFICATIONS = _load_migration(_find_migration("b2d4f6a8c0e1").name, "add_
 
 def test_room_rush_revision_chain() -> None:
     assert ROOM_STATE.revision == "a1c3e5f7b9d2"
-    assert ROOM_STATE.down_revision == "a9f8e7d6c5b4"
+    assert ROOM_STATE.down_revision == "b4d8f2a6c0e1"
     assert RUSH_NOTIFICATIONS.revision == "b2d4f6a8c0e1"
     assert RUSH_NOTIFICATIONS.down_revision == ROOM_STATE.revision
 

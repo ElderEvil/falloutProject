@@ -87,7 +87,7 @@ class IncidentService:
 
     async def get_active_incident_list(self, db_session: AsyncSession, vault_id: UUID4) -> IncidentListResponse:
         """Build the active-incident list contract for a vault."""
-        incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
+        incidents = await incident_crud.get_active_by_vault(db_session, vault_id, started_only=True)
         room_names = await room_crud.get_names_by_ids(db_session, [incident.room_id for incident in incidents])
 
         return IncidentListResponse(

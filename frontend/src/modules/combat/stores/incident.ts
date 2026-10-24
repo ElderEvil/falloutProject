@@ -250,7 +250,10 @@ export const useIncidentStore = defineStore('incident', () => {
             appliedDetailOrders.set(id, requestOrder)
             const previous = seenEventMarkers.get(id)
             const count = incident.events.length
-            const lastId = incident.events.at(-1)?.id
+            const lastEvent = incident.events.at(-1)
+            const lastId = lastEvent?.id
+            const lastIsCombat =
+              lastEvent !== undefined && ['hit', 'round', 'containment'].includes(lastEvent.kind)
             // The journal only grows until it reaches the 40-line window, so a
             // shorter page is a stale snapshot and must not replace the store.
             if (previous && count < previous.count) return
@@ -258,8 +261,8 @@ export const useIncidentStore = defineStore('incident', () => {
               seenEventMarkers.set(id, { count, lastId })
             } else if (lastId !== previous.lastId) {
               // The journal is a rolling window, so a saturated page still has to
-              // sound when its newest line changes; an older stale page must not.
-              audioManager.play('incidentHit', 'sfx')
+              // sound when a combat line enters; an assignment or resolution must not.
+              if (lastIsCombat) audioManager.play('incidentHit', 'sfx')
               seenEventMarkers.set(id, { count, lastId })
             }
             incidents.value.set(id, incident)

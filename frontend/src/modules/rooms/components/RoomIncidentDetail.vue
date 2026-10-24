@@ -134,15 +134,27 @@ const nearbyResponders = computed(() =>
     .filter((dweller) => Number.isFinite(distanceFromIncident(dweller)))
     .slice(0, helperBatchSize.value)
 )
-// The team is on scene but the backend has not fought a round yet: the log is
-// empty by design, so the overlay says so instead of looking broken.
-const awaitingFirstRound = computed(
+// Rounds run on the vault tick, so the journal starts empty by design; the
+// overlay explains whether the next tick will fight or whether help is needed.
+const roomResidentCount = computed(
   () =>
-    currentTeamIds.value.length > 0 &&
-    !props.incident.events.some((event) =>
-      ['turn', 'round', 'containment'].includes(event.kind)
-    )
+    props.dwellers.filter(
+      (dweller) =>
+        dweller.room_id === props.incident.room_id &&
+        isMature(dweller) &&
+        dweller.health > 0 &&
+        dweller.status !== 'dead'
+    ).length
 )
+const awaitingLabel = computed(() => {
+  const fought = props.incident.events.some((event) =>
+    ['turn', 'round', 'containment'].includes(event.kind)
+  )
+  if (fought) return null
+  return roomResidentCount.value > 0 || currentTeamIds.value.length > 0
+    ? 'First round runs on the next vault tick.'
+    : 'No responders in the room — send help to start the fight.'
+})
 
 const teamFetchSettled = ref(false)
 const teamLoaded = computed(
@@ -214,7 +226,7 @@ const assignResponder = async (dwellerId: string) => {
     />
 
     <IncidentBattleLog :events="incident.events" />
-    <p v-if="awaitingFirstRound" class="text-xs text-terminal-green-dim">Awaiting next round…</p>
+    <p v-if="awaitingLabel" class="text-xs text-terminal-green-dim">{{ awaitingLabel }}</p>
 
     <div v-if="bestResponders.length" class="flex flex-wrap items-center gap-2">
       <Button

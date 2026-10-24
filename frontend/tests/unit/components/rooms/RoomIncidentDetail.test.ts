@@ -485,14 +485,14 @@ describe('RoomIncidentDetail', () => {
     expect(wrapper.text()).toContain('· Lv 9')
   })
 
-  it('hints that the first round is pending while the team waits on scene', async () => {
+  it('hints that the first round runs on the next vault tick', async () => {
     getIncidentTeam.mockReturnValue([teamMember('d1')])
     const wrapper = await mountDetail({
       dwellers: [dweller({ room_id: 'room-1', id: 'd1', first_name: 'Alice' })],
       incident: incident({ events: [] }),
     })
 
-    expect(wrapper.text()).toContain('Awaiting next round…')
+    expect(wrapper.text()).toContain('First round runs on the next vault tick.')
   })
 
   it('hides the pending-round hint once a round has been fought', async () => {
@@ -504,7 +504,7 @@ describe('RoomIncidentDetail', () => {
       }),
     })
 
-    expect(wrapper.text()).not.toContain('Awaiting next round')
+    expect(wrapper.text()).not.toContain('First round runs')
   })
 
   it('treats a containment event as a fought round', async () => {
@@ -516,13 +516,13 @@ describe('RoomIncidentDetail', () => {
       }),
     })
 
-    expect(wrapper.text()).not.toContain('Awaiting next round')
+    expect(wrapper.text()).not.toContain('First round runs')
   })
 
-  it('hides the pending-round hint when no team is on scene', async () => {
+  it('asks for help when the room has no responders yet', async () => {
     const wrapper = await mountDetail({ dwellers: [] })
 
-    expect(wrapper.text()).not.toContain('Awaiting next round')
+    expect(wrapper.text()).toContain('No responders in the room')
   })
   it('shows occupants alongside helpers even when the helper team is empty', async () => {
     const wrapper = await mountDetail({ dwellers: [dweller({ room_id: 'room-1' })] })

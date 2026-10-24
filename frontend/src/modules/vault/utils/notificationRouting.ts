@@ -1,3 +1,4 @@
+import type { VaultBoyAnimationId } from '@/core/utils/vaultBoyAnimations'
 import type { SoundKey } from '@/core/audio/soundManifest'
 import type { components } from '@/core/types/api.generated'
 
@@ -49,6 +50,21 @@ const NOTIFICATION_SOUNDS = {
 /** Resolve a notification type to its bell cue, falling back to the generic alert. */
 export function getNotificationSound(notificationType: string): SoundKey {
   return NOTIFICATION_SOUNDS[notificationType as keyof typeof NOTIFICATION_SOUNDS] ?? 'notification'
+}
+
+const NOTIFICATION_ANIMATIONS: Record<string, VaultBoyAnimationId> = {
+  baby_born: 'baby',
+  level_up: 'ok',
+  training_complete: 'ok',
+  room_unlocked: 'ok',
+  achievement_unlocked: 'ok',
+  objective_completed: 'ok',
+  quest_complete: 'ok',
+  combat_victory: 'ok',
+}
+
+export function getNotificationAnimation(notificationType: string): VaultBoyAnimationId | null {
+  return NOTIFICATION_ANIMATIONS[notificationType] ?? null
 }
 
 function metadataString(notification: NotificationNavigationContext, key: string): string | null {

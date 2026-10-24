@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vite-plus/test'
 import {
   getNotificationRoute,
   getNotificationSound,
+  getNotificationAnimation,
 } from '@/modules/vault/utils/notificationRouting'
 const levelUpNotification = {
   vault_id: 'vault-1',
@@ -98,4 +99,19 @@ it.each([
     '/vault/vault-1/storage'
   )
   expect(getNotificationSound(notification_type)).toBe(sound)
+})
+it.each([
+  ['baby_born', 'baby'],
+  ['training_complete', 'ok'],
+  ['objective_completed', 'ok'],
+  ['achievement_unlocked', 'ok'],
+  ['room_unlocked', 'ok'],
+  ['quest_complete', 'ok'],
+  ['combat_victory', 'ok'],
+  ['level_up', 'ok'],
+  ['resource_low', null],
+  ['rush_failed', null],
+  ['unknown', null],
+])('maps %s to a suitable notification animation', (type, expected) => {
+  expect(getNotificationAnimation(type)).toBe(expected)
 })

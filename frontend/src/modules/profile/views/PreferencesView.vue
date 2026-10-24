@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVisualEffects'
@@ -25,6 +26,7 @@ import {
   CardTitle,
 } from '@/core/components/ui/card'
 import { Button } from '@/core/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { Switch } from '@/core/components/ui/switch'
 import { Label } from '@/core/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/core/components/ui/toggle-group'
@@ -35,6 +37,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/core/components/ui/tooltip'
+
+const route = useRoute()
+const router = useRouter()
+const preferenceTabs = ['appearance', 'sound', 'notifications', 'gameplay'] as const
+const activeTab = computed(
+  () => preferenceTabs.find((tab) => tab === route.query.tab) ?? 'appearance'
+)
+const selectTab = (value: string | number) => {
+  void router.replace({ query: { ...route.query, tab: String(value) } })
+}
 
 const { isCollapsed } = useSidePanel()
 const backNav = useBackNavigation('Preferences', () => '/profile')
@@ -238,7 +250,7 @@ const handleGlowSelect = (value: unknown) => {
             <PageHeader
               title="Preferences"
               icon="mdi:cog"
-              subtitle="Customize terminal visuals, notification flow, and sound."
+              subtitle="Customize how your vault looks, sounds, and keeps you informed."
             >
               <template #back>
                 <PageNavigation
@@ -249,419 +261,445 @@ const handleGlowSelect = (value: unknown) => {
               </template>
             </PageHeader>
 
-            <!-- Appearance -->
-            <Card>
-              <CardHeader>
-                <CardTitle class="flex items-center gap-2 text-xl font-bold text-theme-primary">
-                  <Icon icon="mdi:palette" class="text-xl" />
-                  Appearance
-                </CardTitle>
-                <CardDescription>
-                  Color theme, CRT effects, room artwork, and badge colors.
-                </CardDescription>
-              </CardHeader>
-              <CardContent class="space-y-6">
-                <div>
-                  <h3 class="subsection-label">Color Theme</h3>
-                  <p class="text-theme-primary/60 mb-3 text-xs">
-                    Choose a color palette inspired by different Fallout games.
-                  </p>
+            <Tabs :model-value="activeTab" @update:model-value="selectTab">
+              <div class="overflow-x-auto">
+                <!-- @vue-ignore -->
+                <TabsList aria-label="Preference categories" class="min-w-full w-max">
+                  <TabsTrigger
+                    v-for="tab in preferenceTabs"
+                    :key="tab"
+                    :value="tab"
+                    class="min-h-11 px-2 text-xs sm:px-5 sm:text-sm"
+                  >
+                    {{ tab.charAt(0).toUpperCase() + tab.slice(1) }}
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              <TabsContent value="appearance" class="flex flex-col gap-4">
+                <!-- Appearance -->
+                <Card>
+                  <CardHeader>
+                    <CardTitle class="flex items-center gap-2 text-xl font-bold text-theme-primary">
+                      <Icon icon="mdi:palette" class="text-xl" />
+                      Appearance
+                    </CardTitle>
+                    <CardDescription>
+                      Your theme follows your account. Visual effects and display options are saved
+                      on this device.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent class="space-y-6">
+                    <div>
+                      <h3 class="subsection-label">Color Theme</h3>
+                      <p class="text-theme-primary/60 mb-3 text-xs">
+                        Choose a color palette inspired by different Fallout games.
+                      </p>
 
-                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <button
-                      v-for="theme in availableThemes"
-                      :key="theme.name"
-                      @click="handleThemeChange(theme.name)"
-                      class="theme-card"
-                      :class="{ active: currentTheme.name === theme.name }"
-                      :style="{
-                        borderColor: theme.colors.primary,
-                        boxShadow:
-                          currentTheme.name === theme.name
-                            ? `0 0 15px ${theme.colors.glow}`
-                            : 'none',
-                      }"
-                      :aria-label="`Select ${theme.displayName}`"
-                      :aria-pressed="currentTheme.name === theme.name"
-                    >
-                      <div
-                        class="theme-preview"
-                        :style="{ backgroundColor: theme.colors.primary }"
-                      ></div>
-                      <div class="theme-info">
-                        <h4 class="theme-name" :style="{ color: theme.colors.primary }">
-                          {{ theme.displayName }}
-                        </h4>
-                        <p class="theme-description">{{ theme.description }}</p>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 class="subsection-label">CRT Visual Effects</h3>
-                  <p class="text-theme-primary/60 mb-3 text-xs">
-                    Configure retro terminal effects. Disable these for better accessibility or
-                    performance.
-                  </p>
-
-                  <!-- Flickering Toggle -->
-                  <Label class="setting-row cursor-pointer">
-                    <div class="setting-info">
-                      <div class="flex items-center gap-2">
-                        <Icon icon="mdi:flash" class="text-xl text-theme-primary" />
-                        <h4 class="setting-label">Screen Flickering</h4>
-                      </div>
-                      <p class="setting-description">
-                        Subtle animation that simulates old CRT monitors<span
-                          v-if="prefersReducedMotion"
+                      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <button
+                          v-for="theme in availableThemes"
+                          :key="theme.name"
+                          @click="handleThemeChange(theme.name)"
+                          class="theme-card"
+                          :class="{ active: currentTheme.name === theme.name }"
+                          :style="{
+                            borderColor: theme.colors.primary,
+                            boxShadow:
+                              currentTheme.name === theme.name
+                                ? `0 0 15px ${theme.colors.glow}`
+                                : 'none',
+                          }"
+                          :aria-label="`Select ${theme.displayName}`"
+                          :aria-pressed="currentTheme.name === theme.name"
                         >
-                          — turned off because your system requests reduced motion</span
+                          <div
+                            class="theme-preview"
+                            :style="{ backgroundColor: theme.colors.primary }"
+                          ></div>
+                          <div class="theme-info">
+                            <h4 class="theme-name" :style="{ color: theme.colors.primary }">
+                              {{ theme.displayName }}
+                            </h4>
+                            <p class="theme-description">{{ theme.description }}</p>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 class="subsection-label">CRT Visual Effects</h3>
+                      <p class="text-theme-primary/60 mb-3 text-xs">
+                        Configure retro terminal effects. Disable these for better accessibility or
+                        performance.
+                      </p>
+
+                      <!-- Flickering Toggle -->
+                      <Label class="setting-row cursor-pointer">
+                        <div class="setting-info">
+                          <div class="flex items-center gap-2">
+                            <Icon icon="mdi:flash" class="text-xl text-theme-primary" />
+                            <h4 class="setting-label">Screen Flickering</h4>
+                          </div>
+                          <p class="setting-description">
+                            Subtle animation that simulates old CRT monitors<span
+                              v-if="prefersReducedMotion"
+                            >
+                              — turned off because your system requests reduced motion</span
+                            >
+                          </p>
+                        </div>
+                        <Switch
+                          :checked="flickering"
+                          :disabled="prefersReducedMotion"
+                          :aria-label="
+                            prefersReducedMotion
+                              ? 'Screen flickering disabled by reduced-motion setting'
+                              : flickering
+                                ? 'Disable flickering'
+                                : 'Enable flickering'
+                          "
+                          @update:checked="() => toggleFlickering()"
+                        />
+                      </Label>
+
+                      <!-- Scanlines Toggle -->
+                      <Label class="setting-row cursor-pointer">
+                        <div class="setting-info">
+                          <div class="flex items-center gap-2">
+                            <Icon icon="mdi:view-sequential" class="text-xl text-theme-primary" />
+                            <h4 class="setting-label">Scanlines</h4>
+                          </div>
+                          <p class="setting-description">
+                            Horizontal line overlay for authentic terminal feel
+                          </p>
+                        </div>
+                        <Switch
+                          :checked="scanlines"
+                          :aria-label="scanlines ? 'Disable scanlines' : 'Enable scanlines'"
+                          @update:checked="() => toggleScanlines()"
+                        />
+                      </Label>
+
+                      <!-- Glow Intensity -->
+                      <div class="setting-row">
+                        <div class="setting-info">
+                          <div class="flex items-center gap-2">
+                            <Icon icon="mdi:lightbulb-on" class="text-xl text-theme-primary" />
+                            <h4 class="setting-label">Text Glow Intensity</h4>
+                          </div>
+                          <p class="setting-description">
+                            Controls the brightness of text glow effects
+                          </p>
+                          <!-- Live Demo -->
+                          <div class="glow-demo mt-3">
+                            <span class="demo-label">Preview: </span>
+                            <span :class="injectedGlowClass" class="demo-text text-theme-primary">
+                              VAULT-TEC TERMINAL
+                            </span>
+                          </div>
+                          <!-- Glow Controls (moved inside setting-info) -->
+                          <div class="glow-controls mt-3">
+                            <TooltipProvider :delay-duration="200">
+                              <ToggleGroup
+                                type="single"
+                                :model-value="glowIntensity"
+                                :spacing="8"
+                                class="glow-controls"
+                                @update:model-value="handleGlowSelect"
+                              >
+                                <Tooltip v-for="option in glowIntensityOptions" :key="option.value">
+                                  <TooltipTrigger as-child>
+                                    <!-- @vue-ignore -->
+                                    <ToggleGroupItem
+                                      :value="option.value"
+                                      :aria-label="`Set glow to ${option.label}`"
+                                      class="glow-option"
+                                    >
+                                      {{ option.label }}
+                                    </ToggleGroupItem>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">{{
+                                    option.description
+                                  }}</TooltipContent>
+                                </Tooltip>
+                              </ToggleGroup>
+                            </TooltipProvider>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="flex flex-wrap gap-3 pt-4">
+                        <Button variant="outline" size="sm" @click="enableAllEffects">
+                          <Icon icon="mdi:eye" class="mr-2" />
+                          Enable All Effects
+                        </Button>
+                        <Button variant="outline" size="sm" @click="disableAllEffects">
+                          <Icon icon="mdi:eye-off" class="mr-2" />
+                          Disable All Effects
+                        </Button>
+                        <Button variant="outline" size="sm" @click="resetToDefaults">
+                          <Icon icon="mdi:restore" class="mr-2" />
+                          Reset Visual Effects
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 class="subsection-label">Display</h3>
+                      <p class="text-theme-primary/60 mb-3 text-xs">
+                        Toggle optional artwork and colour accents.
+                      </p>
+
+                      <div class="setting-row">
+                        <Label
+                          for="room-images"
+                          class="setting-info flex-col items-start cursor-pointer"
                         >
-                      </p>
-                    </div>
-                    <Switch
-                      :checked="flickering"
-                      :disabled="prefersReducedMotion"
-                      :aria-label="
-                        prefersReducedMotion
-                          ? 'Screen flickering disabled by reduced-motion setting'
-                          : flickering
-                            ? 'Disable flickering'
-                            : 'Enable flickering'
-                      "
-                      @update:checked="() => toggleFlickering()"
-                    />
-                  </Label>
-
-                  <!-- Scanlines Toggle -->
-                  <Label class="setting-row cursor-pointer">
-                    <div class="setting-info">
-                      <div class="flex items-center gap-2">
-                        <Icon icon="mdi:view-sequential" class="text-xl text-theme-primary" />
-                        <h4 class="setting-label">Scanlines</h4>
-                      </div>
-                      <p class="setting-description">
-                        Horizontal line overlay for authentic terminal feel
-                      </p>
-                    </div>
-                    <Switch
-                      :checked="scanlines"
-                      :aria-label="scanlines ? 'Disable scanlines' : 'Enable scanlines'"
-                      @update:checked="() => toggleScanlines()"
-                    />
-                  </Label>
-
-                  <!-- Glow Intensity -->
-                  <div class="setting-row">
-                    <div class="setting-info">
-                      <div class="flex items-center gap-2">
-                        <Icon icon="mdi:lightbulb-on" class="text-xl text-theme-primary" />
-                        <h4 class="setting-label">Text Glow Intensity</h4>
-                      </div>
-                      <p class="setting-description">
-                        Controls the brightness of text glow effects
-                      </p>
-                      <!-- Live Demo -->
-                      <div class="glow-demo mt-3">
-                        <span class="demo-label">Preview: </span>
-                        <span :class="injectedGlowClass" class="demo-text text-theme-primary">
-                          VAULT-TEC TERMINAL
-                        </span>
-                      </div>
-                      <!-- Glow Controls (moved inside setting-info) -->
-                      <div class="glow-controls mt-3">
-                        <TooltipProvider :delay-duration="200">
-                          <ToggleGroup
-                            type="single"
-                            :model-value="glowIntensity"
-                            :spacing="8"
-                            class="glow-controls"
-                            @update:model-value="handleGlowSelect"
+                          <span class="setting-label">Room Images</span>
+                          <span class="setting-description"
+                            >Show detailed vault artwork; turn off on slower devices.</span
                           >
-                            <Tooltip v-for="option in glowIntensityOptions" :key="option.value">
-                              <TooltipTrigger as-child>
-                                <!-- @vue-ignore -->
-                                <ToggleGroupItem
-                                  :value="option.value"
-                                  :aria-label="`Set glow to ${option.label}`"
-                                  class="glow-option"
-                                >
-                                  {{ option.label }}
-                                </ToggleGroupItem>
-                              </TooltipTrigger>
-                              <TooltipContent side="top">{{ option.description }}</TooltipContent>
-                            </Tooltip>
-                          </ToggleGroup>
-                        </TooltipProvider>
+                        </Label>
+                        <Switch
+                          id="room-images"
+                          :checked="showRoomImages"
+                          @update:checked="() => toggleRoomImages()"
+                        />
+                      </div>
+
+                      <div class="setting-row">
+                        <Label
+                          for="colourful-badges"
+                          class="setting-info flex-col items-start cursor-pointer"
+                        >
+                          <span class="setting-label">Colourful Badges</span>
+                          <span class="setting-description"
+                            >Use category colours instead of one terminal tone.</span
+                          >
+                        </Label>
+                        <Switch
+                          id="colourful-badges"
+                          :checked="!isMonochrome"
+                          @update:checked="() => toggleBadgeStyle()"
+                        />
+                      </div>
+
+                      <div class="setting-row">
+                        <Label
+                          for="map-group-colors"
+                          class="setting-info flex-col items-start cursor-pointer"
+                        >
+                          <span class="setting-label">Colourful Map Markers</span>
+                          <span class="setting-description"
+                            >Tint world-map place icons by site type.</span
+                          >
+                        </Label>
+                        <Switch
+                          id="map-group-colors"
+                          :checked="groupColors"
+                          @update:checked="() => toggleGroupColors()"
+                        />
                       </div>
                     </div>
-                  </div>
-
-                  <div class="flex flex-wrap gap-3 pt-4">
-                    <Button variant="outline" size="sm" @click="enableAllEffects">
-                      <Icon icon="mdi:eye" class="mr-2" />
-                      Enable All Effects
-                    </Button>
-                    <Button variant="outline" size="sm" @click="disableAllEffects">
-                      <Icon icon="mdi:eye-off" class="mr-2" />
-                      Disable All Effects
-                    </Button>
-                    <Button variant="outline" size="sm" @click="resetToDefaults">
-                      <Icon icon="mdi:restore" class="mr-2" />
-                      Reset Visual Effects
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 class="subsection-label">Display</h3>
-                  <p class="text-theme-primary/60 mb-3 text-xs">
-                    Toggle optional artwork and colour accents.
-                  </p>
-
-                  <div class="setting-row">
-                    <Label
-                      for="room-images"
-                      class="setting-info flex-col items-start cursor-pointer"
-                    >
-                      <span class="setting-label">Room Images</span>
-                      <span class="setting-description"
-                        >Show detailed vault artwork; turn off on slower devices.</span
-                      >
-                    </Label>
-                    <Switch
-                      id="room-images"
-                      :checked="showRoomImages"
-                      @update:checked="() => toggleRoomImages()"
-                    />
-                  </div>
-
-                  <div class="setting-row">
-                    <Label
-                      for="colourful-badges"
-                      class="setting-info flex-col items-start cursor-pointer"
-                    >
-                      <span class="setting-label">Colourful Badges</span>
-                      <span class="setting-description"
-                        >Use category colours instead of one terminal tone.</span
-                      >
-                    </Label>
-                    <Switch
-                      id="colourful-badges"
-                      :checked="!isMonochrome"
-                      @update:checked="() => toggleBadgeStyle()"
-                    />
-                  </div>
-
-                  <div class="setting-row">
-                    <Label
-                      for="map-group-colors"
-                      class="setting-info flex-col items-start cursor-pointer"
-                    >
-                      <span class="setting-label">Colourful Map Markers</span>
-                      <span class="setting-description"
-                        >Tint world-map place icons by site type.</span
-                      >
-                    </Label>
-                    <Switch
-                      id="map-group-colors"
-                      :checked="groupColors"
-                      @update:checked="() => toggleGroupColors()"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle class="flex items-center gap-2 text-xl font-bold text-theme-primary">
-                  <Icon icon="mdi:pause-circle-outline" class="text-xl" />
-                  Incident preparation
-                </CardTitle>
-                <CardDescription
-                  >Take a moment to prepare your response before the fighting
-                  starts.</CardDescription
-                >
-              </CardHeader>
-              <CardContent>
-                <Label class="setting-row cursor-pointer">
-                  <div class="setting-info">
-                    <h4 class="setting-label">Pause on incident</h4>
-                    <p class="setting-description">
-                      Pause the vault when an incident starts. Assign responders, then resume with
-                      the vault controls.
-                    </p>
-                  </div>
-                  <Switch
-                    :checked="pauseOnIncident"
-                    :disabled="savingIncidentPause || !profileStore.profile"
-                    aria-label="Pause on incident"
-                    @update:checked="setPauseOnIncident"
-                  />
-                </Label>
-              </CardContent>
-            </Card>
-
-            <!-- Notifications -->
-            <Card>
-              <CardHeader>
-                <CardTitle class="flex items-center gap-2 text-xl font-bold text-theme-primary">
-                  <Icon icon="mdi:bell-cog" class="text-xl" />
-                  Notification Preferences
-                </CardTitle>
-                <CardDescription>
-                  Turn off routine alerts you do not want to receive. Deaths, injuries, critical
-                  vault alerts, exit requests, and combat failures always remain enabled.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Label
-                  v-for="category in notificationCategories"
-                  :key="category.key"
-                  class="setting-row cursor-pointer"
-                >
-                  <div class="setting-info">
-                    <h4 class="setting-label">{{ category.label }}</h4>
-                    <p class="setting-description">{{ category.description }}</p>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <span
-                      v-if="isSavingCategory(category.key)"
-                      aria-hidden="true"
-                      class="inline-flex"
-                    >
-                      <Icon icon="mdi:loading" class="animate-spin text-sm text-theme-primary/50" />
-                    </span>
-                    <Switch
-                      :checked="notificationCategoryEnabled(category.key)"
-                      :aria-label="
-                        notificationCategoryEnabled(category.key)
-                          ? `Disable ${category.label}`
-                          : `Enable ${category.label}`
-                      "
-                      @update:checked="
-                        (next: boolean) => toggleNotificationCategory(category.key, next)
-                      "
-                    />
-                  </div>
-                </Label>
-              </CardContent>
-            </Card>
-
-            <!-- Sound -->
-            <Card>
-              <CardHeader>
-                <CardTitle class="flex items-center gap-2 text-xl font-bold text-theme-primary">
-                  <Icon icon="mdi:volume-high" class="text-xl" />
-                  Sound
-                </CardTitle>
-                <CardDescription>
-                  Sound is off by default. Enable it to add terminal feedback sounds and vault
-                  ambience. Sound settings are stored on this device.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <!-- Master Enable -->
-                <Label class="setting-row cursor-pointer">
-                  <div class="setting-info">
-                    <h4 class="setting-label">Sound Enabled</h4>
-                    <p class="setting-description">Master switch for all game audio</p>
-                  </div>
-                  <Switch
-                    :checked="audioManager.muted === false"
-                    :aria-label="audioManager.muted ? 'Enable sound' : 'Disable sound'"
-                    @update:checked="() => toggleSound()"
-                  />
-                </Label>
-
-                <!-- Incident Alarm (independent of the master switch) -->
-                <Label class="setting-row cursor-pointer">
-                  <div class="setting-info">
-                    <h4 class="setting-label">Incident Alarm</h4>
-                    <p class="setting-description">
-                      Looping siren while an incident is active; music and effects are unaffected
-                    </p>
-                  </div>
-                  <Switch
-                    :checked="audioManager.alarmEnabled"
-                    :disabled="audioManager.muted"
-                    aria-label="Toggle incident alarm"
-                    @update:checked="() => toggleAlarm()"
-                  />
-                </Label>
-
-                <!-- Volume Sliders -->
-                <template v-if="!audioManager.muted">
-                  <div v-for="option in soundBusOptions" :key="option.bus" class="setting-row">
-                    <div class="setting-info">
-                      <h4 class="setting-label">{{ option.label }}</h4>
-                      <p class="setting-description">{{ option.description }}</p>
-                    </div>
-                    <div class="w-40 shrink-0">
-                      <!-- @vue-ignore -->
-                      <Slider
-                        :model-value="[audioManager.volumes[option.bus]]"
-                        :min="0"
-                        :max="1"
-                        :step="0.01"
-                        :aria-label="`${option.label} volume`"
-                        @update:model-value="setBusVolume(option.bus, $event[0] ?? 0)"
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="sound" class="flex flex-col gap-4">
+                <!-- Sound -->
+                <Card>
+                  <CardHeader>
+                    <CardTitle class="flex items-center gap-2 text-xl font-bold text-theme-primary">
+                      <Icon icon="mdi:volume-high" class="text-xl" />
+                      Sound
+                    </CardTitle>
+                    <CardDescription>
+                      Sound is off by default. Enable it to add terminal feedback sounds and vault
+                      ambience. Sound preferences follow your account.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <!-- Master Enable -->
+                    <Label class="setting-row cursor-pointer">
+                      <div class="setting-info">
+                        <h4 class="setting-label">Sound Enabled</h4>
+                        <p class="setting-description">Master switch for all game audio</p>
+                      </div>
+                      <Switch
+                        :checked="audioManager.muted === false"
+                        :aria-label="audioManager.muted ? 'Enable sound' : 'Disable sound'"
+                        @update:checked="() => toggleSound()"
                       />
-                    </div>
-                  </div>
-                </template>
-              </CardContent>
-            </Card>
+                    </Label>
 
-            <!-- Vault guide -->
-            <Card>
-              <CardHeader>
-                <CardTitle class="flex items-center gap-2 text-xl font-bold text-theme-primary">
-                  <Icon icon="mdi:map-marker-path" class="text-xl" />
-                  Vault Guide
-                </CardTitle>
-                <CardDescription>
-                  The guide walks a vault through its first steps. Steps you already claimed stay
-                  claimed, so replay covers the ones still open.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div class="setting-row">
-                  <div class="setting-info">
-                    <h4 class="setting-label">Resume the guide</h4>
-                    <p class="setting-description">
-                      Brings back a guide you skipped, keeping every step you already finished.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    :disabled="!currentVaultId"
-                    @click="resumeGuideForVault"
-                  >
-                    Resume
-                  </Button>
-                </div>
-                <div class="setting-row">
-                  <div class="setting-info">
-                    <h4 class="setting-label">Replay orientation</h4>
-                    <p class="setting-description">
-                      Replays the orientation explanations. Steps you already claimed stay claimed.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    :disabled="!currentVaultId"
-                    @click="replayGuideForVault"
-                  >
-                    Replay
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                    <!-- Incident Alarm (independent of the master switch) -->
+                    <Label class="setting-row cursor-pointer">
+                      <div class="setting-info">
+                        <h4 class="setting-label">Incident Alarm</h4>
+                        <p class="setting-description">
+                          Looping siren while an incident is active; music and effects are
+                          unaffected
+                        </p>
+                      </div>
+                      <Switch
+                        :checked="audioManager.alarmEnabled"
+                        :disabled="audioManager.muted"
+                        aria-label="Toggle incident alarm"
+                        @update:checked="() => toggleAlarm()"
+                      />
+                    </Label>
+
+                    <!-- Volume Sliders -->
+                    <div v-for="option in soundBusOptions" :key="option.bus" class="setting-row">
+                      <div class="setting-info">
+                        <h4 class="setting-label">{{ option.label }}</h4>
+                        <p class="setting-description">{{ option.description }}</p>
+                      </div>
+                      <div class="w-40 shrink-0">
+                        <!-- @vue-ignore -->
+                        <Slider
+                          :model-value="[audioManager.volumes[option.bus]]"
+                          :disabled="audioManager.muted"
+                          :min="0"
+                          :max="1"
+                          :step="0.01"
+                          :aria-label="`${option.label} volume`"
+                          @update:model-value="setBusVolume(option.bus, $event[0] ?? 0)"
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="notifications" class="flex flex-col gap-4">
+                <!-- Notifications -->
+                <Card>
+                  <CardHeader>
+                    <CardTitle class="flex items-center gap-2 text-xl font-bold text-theme-primary">
+                      <Icon icon="mdi:bell-cog" class="text-xl" />
+                      Notification Preferences
+                    </CardTitle>
+                    <CardDescription>
+                      Turn off routine alerts you do not want to receive. Deaths, injuries, critical
+                      vault alerts, exit requests, and combat failures always remain enabled.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Label
+                      v-for="category in notificationCategories"
+                      :key="category.key"
+                      class="setting-row cursor-pointer"
+                    >
+                      <div class="setting-info">
+                        <h4 class="setting-label">{{ category.label }}</h4>
+                        <p class="setting-description">{{ category.description }}</p>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span
+                          v-if="isSavingCategory(category.key)"
+                          aria-hidden="true"
+                          class="inline-flex"
+                        >
+                          <Icon
+                            icon="mdi:loading"
+                            class="animate-spin text-sm text-theme-primary/50"
+                          />
+                        </span>
+                        <Switch
+                          :checked="notificationCategoryEnabled(category.key)"
+                          :aria-label="
+                            notificationCategoryEnabled(category.key)
+                              ? `Disable ${category.label}`
+                              : `Enable ${category.label}`
+                          "
+                          @update:checked="
+                            (next: boolean) => toggleNotificationCategory(category.key, next)
+                          "
+                        />
+                      </div>
+                    </Label>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="gameplay" class="flex flex-col gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle class="flex items-center gap-2 text-xl font-bold text-theme-primary">
+                      <Icon icon="mdi:pause-circle-outline" class="text-xl" />
+                      Incident preparation
+                    </CardTitle>
+                    <CardDescription
+                      >Applies across your vaults. Take a moment to prepare before the fighting
+                      starts.</CardDescription
+                    >
+                  </CardHeader>
+                  <CardContent>
+                    <Label class="setting-row cursor-pointer">
+                      <div class="setting-info">
+                        <h4 class="setting-label">Automatically pause when an incident starts</h4>
+                        <p class="setting-description">
+                          Assign responders, then resume with the vault controls.
+                        </p>
+                      </div>
+                      <Switch
+                        :checked="pauseOnIncident"
+                        :disabled="savingIncidentPause || !profileStore.profile"
+                        aria-label="Automatically pause when an incident starts"
+                        @update:checked="setPauseOnIncident"
+                      />
+                    </Label>
+                  </CardContent>
+                </Card>
+
+                <!-- Vault guide -->
+                <Card>
+                  <CardHeader>
+                    <CardTitle class="flex items-center gap-2 text-xl font-bold text-theme-primary">
+                      <Icon icon="mdi:map-marker-path" class="text-xl" />
+                      Vault Guide
+                    </CardTitle>
+                    <CardDescription>
+                      The guide walks a vault through its first steps. Steps you already claimed
+                      stay claimed, so replay covers the ones still open.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div class="setting-row">
+                      <div class="setting-info">
+                        <h4 class="setting-label">Resume the guide</h4>
+                        <p class="setting-description">
+                          Brings back a guide you skipped, keeping every step you already finished.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        :disabled="!currentVaultId"
+                        @click="resumeGuideForVault"
+                      >
+                        Resume
+                      </Button>
+                    </div>
+                    <div class="setting-row">
+                      <div class="setting-info">
+                        <h4 class="setting-label">Replay orientation</h4>
+                        <p class="setting-description">
+                          Replays the orientation explanations. Steps you already claimed stay
+                          claimed.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        :disabled="!currentVaultId"
+                        @click="replayGuideForVault"
+                      >
+                        Replay
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </div>

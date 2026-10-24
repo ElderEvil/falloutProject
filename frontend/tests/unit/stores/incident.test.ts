@@ -1175,6 +1175,56 @@ describe('Incident Store', () => {
       expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
     })
 
+    it('rejects an older full journal window that resolves after a newer one', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      const window = (start: number) =>
+        Array.from({ length: 40 }, (_, index) => ({
+          id: `e${start + index}`,
+          kind: 'hit',
+          message: `Hit ${start + index}`,
+          data: null,
+        }))
+
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({
+        ...mockIncident,
+        events: window(1),
+      })
+      await store.fetchIncidents('vault-1', 'token')
+
+      let resolveOlder!: (incident: Incident) => void
+      let resolveNewer!: (incident: Incident) => void
+      vi.mocked(incidentApi.getIncident)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveOlder = resolve
+            })
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveNewer = resolve
+            })
+        )
+
+      const olderPoll = store.fetchIncidents('vault-1', 'token')
+      const newerPoll = store.fetchIncidents('vault-1', 'token')
+      await flushPromises()
+
+      resolveNewer({ ...mockIncident, events: window(2) })
+      await flushPromises()
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentHit', 'sfx')
+      sseMock.playSound.mockClear()
+
+      resolveOlder({ ...mockIncident, events: window(1) })
+      await flushPromises()
+      await Promise.all([olderPoll, newerPoll])
+
+      expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
+      expect(store.incidents.get('incident-1')?.events.at(-1)?.id).toBe('e41')
+    })
+
     it('still plays the hit sound when the rolling journal window is full', async () => {
       const store = useIncidentStore()
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)

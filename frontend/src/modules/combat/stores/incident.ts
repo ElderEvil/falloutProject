@@ -33,6 +33,8 @@ export const useIncidentStore = defineStore('incident', () => {
   const announcedResolutions = new Set<string>()
   const announcedIncidentSounds = new Set<string>()
   const seenEventMarkers = new Map<string, { count: number; lastId: string | undefined }>()
+  let detailRequestOrder = 0
+  const appliedDetailOrders = new Map<string, number>()
 
   const { success: showSuccess, error: showError, warning: showWarning } = useToast()
 
@@ -208,6 +210,7 @@ export const useIncidentStore = defineStore('incident', () => {
             void refreshAftermathOverflow(vaultId, id, token)
           }
           incidentTeams.value.delete(id)
+          appliedDetailOrders.delete(id)
         })
 
       // Check for new incidents (spawn notifications)
@@ -239,13 +242,21 @@ export const useIncidentStore = defineStore('incident', () => {
       await Promise.all(
         newIds.map(async (id) => {
           try {
+            const requestOrder = ++detailRequestOrder
             const incident = await incidentApi.getIncident(vaultId, id, token)
+            // Overlapping polls can resolve out of order; the newer request wins so
+            // an older full window cannot replay the hit or lower the marker.
+            if (requestOrder < (appliedDetailOrders.get(id) ?? 0)) return
+            appliedDetailOrders.set(id, requestOrder)
             const previous = seenEventMarkers.get(id)
             const count = incident.events.length
             const lastId = incident.events.at(-1)?.id
+            // The journal only grows until it reaches the 40-line window, so a
+            // shorter page is a stale snapshot and must not replace the store.
+            if (previous && count < previous.count) return
             if (!previous) {
               seenEventMarkers.set(id, { count, lastId })
-            } else if (lastId !== previous.lastId && count >= previous.count) {
+            } else if (lastId !== previous.lastId) {
               // The journal is a rolling window, so a saturated page still has to
               // sound when its newest line changes; an older stale page must not.
               audioManager.play('incidentHit', 'sfx')
@@ -390,6 +401,7 @@ export const useIncidentStore = defineStore('incident', () => {
               activeIncidentIds.value = activeIncidentIds.value.filter((id) => id !== resolvedId)
               incidents.value.delete(resolvedId)
               incidentTeams.value.delete(resolvedId)
+              appliedDetailOrders.delete(resolvedId)
             }
             if (!isFirstNotice) break
             const capsEarned = typeof data.caps_earned === 'number' ? data.caps_earned : 0
@@ -490,6 +502,7 @@ export const useIncidentStore = defineStore('incident', () => {
     // Clearing the active set unwinds the alarm and music through the watcher.
     activeIncidentIds.value = []
     seenEventMarkers.clear()
+    appliedDetailOrders.clear()
   }
 
   function clearIncidents(): void {
@@ -499,6 +512,7 @@ export const useIncidentStore = defineStore('incident', () => {
     incidentTeams.value.clear()
     announcedIncidentSounds.clear()
     seenEventMarkers.clear()
+    appliedDetailOrders.clear()
   }
 
   function getIncidentById(id: string): Incident | undefined {

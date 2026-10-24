@@ -1,6 +1,7 @@
 import ast
 import logging
 import operator
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import UUID4
@@ -87,7 +88,10 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         original_ids = [room.id for room in originals]
         absorbed_ids = [room_id for room_id in original_ids if room_id != survivor_id]
         survivor = next(room for room in originals if room.id == survivor_id)
-        survivor.sqlmodel_update(replacements[0].model_dump(exclude={"id", "created_at", "updated_at"}))
+        # Rush state belongs to the surviving room; a remodel must not reset its stacks.
+        survivor.sqlmodel_update(
+            replacements[0].model_dump(exclude={"id", "created_at", "updated_at", "rush_stacks", "last_rush_at"})
+        )
         replacements[0] = survivor
         db_session.add_all(replacements)
         await db_session.flush()
@@ -303,6 +307,26 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         if vault_id is not None:
             query = query.where(Room.vault_id == vault_id)
         return list((await db_session.execute(query)).scalars().all())
+
+    @staticmethod
+    async def update_rush_state(
+        db_session: AsyncSession,
+        room: Room,
+        *,
+        stacks: int,
+        last_rush_at: datetime | None,
+        commit: bool = False,
+    ) -> Room:
+        """Persist the room's rush stacks and last-attempt timestamp."""
+        room.rush_stacks = stacks
+        room.last_rush_at = last_rush_at
+        db_session.add(room)
+        if commit:
+            await db_session.commit()
+            await db_session.refresh(room)
+        else:
+            await db_session.flush()
+        return room
 
     @staticmethod
     def _evaluate_formula_logged(formula: str, level: int, size: int, *, label: str) -> int:

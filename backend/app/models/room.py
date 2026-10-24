@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import UUID4
@@ -55,6 +56,9 @@ class RoomBase(SQLModel):
 class Room(BaseUUIDModel, RoomBase, TimeStampMixin, table=True):
     # NULL retains the legacy formula; remodeling allocates the exact rounded refund.
     refund_caps: int | None = Field(default=None, ge=0)
+    # 0 means "never rushed"; existing rows need no backfill.
+    rush_stacks: int = Field(default=0, ge=0, le=6)
+    last_rush_at: datetime | None = Field(default=None)
     vault_id: UUID4 = Field(default=None, foreign_key="vault.id", index=True)
     vault: "Vault" = Relationship(back_populates="rooms")
 

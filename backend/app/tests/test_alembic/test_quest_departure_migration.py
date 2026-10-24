@@ -2,7 +2,7 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.core.enums import DwellerStatusEnum, GenderEnum, RarityEnum
 from app.models.dweller import Dweller
 from app.models.quest import Quest
-from app.models.room import Room
 from app.models.team import Team, TeamMember
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.tests.factory.rooms import create_overseers_office
@@ -25,16 +24,33 @@ PARENT = "b6d8f0a2c913"
 def test_recovers_orphaned_questing_dwellers_and_preserves_active_parties(harness):
     harness.upgrade(PARENT)
     vault_id = UUID(legacy._seed_vault(harness, number=929))
+    office = create_overseers_office()
+    room_id = str(uuid4())
+    now = datetime.utcnow()
+    harness.execute(
+        "INSERT INTO room (id, vault_id, name, category, ability, base_cost, tier, size_min, size_max, size, "
+        "speedup_multiplier, created_at, updated_at) "
+        "VALUES (:id, :vault_id, :name, :category, :ability, :base_cost, :tier, :size_min, :size_max, :size, "
+        "1.0, :created_at, :updated_at)",
+        id=room_id,
+        vault_id=str(vault_id),
+        name=office["name"],
+        category=office["category"].name,
+        ability=None,
+        base_cost=office["base_cost"],
+        tier=office["tier"],
+        size_min=office["size_min"],
+        size_max=office["size_max"],
+        size=office["size"],
+        created_at=now,
+        updated_at=now,
+    )
 
     async def seed():
         engine = create_async_engine(harness.url)
         ids = {}
         try:
             async with async_sessionmaker(engine, expire_on_commit=False)() as db:
-                room = Room(**create_overseers_office(), vault_id=vault_id)
-                db.add(room)
-                await db.flush()
-                room_id = str(room.id)
                 for state in (
                     "orphan",
                     "unlinked",
@@ -51,7 +67,7 @@ def test_recovers_orphaned_questing_dwellers_and_preserves_active_parties(harnes
                         gender=GenderEnum.MALE,
                         rarity=RarityEnum.COMMON,
                         status=DwellerStatusEnum.EXPLORING if state == "exploring" else DwellerStatusEnum.QUESTING,
-                        room_id=room.id if state in ("orphan", "outbound") else None,
+                        room_id=UUID(room_id) if state in ("orphan", "outbound") else None,
                     )
                     db.add(dweller)
                     await db.flush()

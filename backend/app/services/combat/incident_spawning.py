@@ -103,9 +103,14 @@ def roll_incident_type(population: int, mode: str) -> IncidentType:
 
 
 async def spawn_incident(
-    db_session: AsyncSession, vault_id: UUID4, incident_type: IncidentType | None = None
+    db_session: AsyncSession,
+    vault_id: UUID4,
+    incident_type: IncidentType | None = None,
+    *,
+    target_room_id: UUID4 | None = None,
+    difficulty_bonus: int = 0,
 ) -> Incident | None:
-    """Spawn a new incident in a random occupied room.
+    """Spawn a new incident in a random occupied room, or in the requested target room.
     Raiders and Deathclaws spawn at vault door (0,0) and spread inward.
 
     Rules enforced:
@@ -117,6 +122,8 @@ async def spawn_incident(
         db_session: Database session
         vault_id: ID of the vault
         incident_type: Type of incident (rolled from the balance weights if None)
+        target_room_id: Spawn in this room instead of a random eligible one
+        difficulty_bonus: Extra difficulty added to the rolled value (capped at 10)
 
     Returns:
         Incident or None if no suitable room found
@@ -160,11 +167,22 @@ async def spawn_incident(
     # Get rooms that already have active incidents
     rooms_with_incidents = await incident_crud.get_rooms_with_active_incidents(db_session, vault_id)
 
-    target_room = await select_spawn_room(db_session, vault_id, incident_type, rooms_with_incidents)
+    if target_room_id is None:
+        target_room = await select_spawn_room(db_session, vault_id, incident_type, rooms_with_incidents)
+    elif target_room_id in rooms_with_incidents:
+        logger.info(f"Cannot spawn {incident_type} in room {target_room_id} - room already has an incident")
+        return None
+    else:
+        target_room = await room_crud.get_or_none(db_session, target_room_id)
+        if target_room is None or target_room.vault_id != vault_id or target_room.name.lower() == "elevator":
+            logger.info(f"Cannot spawn {incident_type} in room {target_room_id} - room is not eligible")
+            return None
+
     if target_room is None:
         return None
 
     difficulty = random.randint(*game_config.incident.get_difficulty_range(incident_type))
+    difficulty = min(10, difficulty + max(0, difficulty_bonus))
 
     incident_name = INCIDENT_NAMES.get(incident_type, str(incident_type))
 

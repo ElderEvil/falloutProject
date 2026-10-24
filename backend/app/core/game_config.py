@@ -1339,6 +1339,37 @@ class StorageConfig(BaseSettings):
     notify_cooldown_hours: float = Field(default=24, gt=0)
 
 
+class RushConfig(BaseSettings):
+    """Room Rush risk, payout, and outcome tuning."""
+
+    model_config = SettingsConfigDict(env_prefix="RUSH_")
+
+    base_fail: float = Field(default=40.0, ge=0.0, le=100.0)
+    stat_weight: float = Field(default=1.5, ge=0.0)
+    min_fail: float = Field(default=10.0, ge=0.0, le=100.0)
+    stack_penalty: float = Field(default=10.0, ge=0.0)
+    max_stacks: int = Field(default=6, ge=0, le=6)
+    stack_decay_seconds: int = Field(default=600, ge=1)
+    payout_seconds: int = Field(default=300, ge=1)
+    xp_per_worker: int = Field(default=25, ge=0)
+    happiness_delta: int = Field(default=10, ge=0, le=100)
+    caps_luck_chance_per_point: float = Field(default=0.05, ge=0.0)
+    caps_luck_chance_cap: float = Field(default=0.50, ge=0.0, le=1.0)
+    caps_tiers: list[tuple[float, int, int]] = Field(
+        default_factory=lambda: [(0.01, 200, 6), (0.05, 100, 4), (0.20, 20, 3), (1.0, 5, 1)]
+    )
+    incident_min_population: dict[str, int] = Field(
+        default_factory=lambda: {
+            "fire": 1,
+            "radroach": 8,
+            "mole_rat": 30,
+            "radscorpion": 50,
+        }
+    )
+    difficulty_per_tier: int = Field(default=1, ge=0)
+    difficulty_per_segment: int = Field(default=1, ge=0)
+
+
 class GameConfig(BaseSettings):
     """Master game configuration."""
 
@@ -1368,6 +1399,7 @@ class GameConfig(BaseSettings):
     features: FeatureConfig = Field(default_factory=FeatureConfig)
     vault_slots: VaultSlotConfig = Field(default_factory=VaultSlotConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
+    rush: RushConfig = Field(default_factory=RushConfig)
 
 
 # Singleton instance

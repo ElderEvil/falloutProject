@@ -218,6 +218,16 @@ test.describe('CRT baselines — entry routes', () => {
       timeout: 10000,
     })
     await expect(page.getByRole('tab', { name: 'Dossier' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'AI Settings' })).toHaveCount(0)
+    const adminLinks = page.getByRole('navigation', { name: 'Administration', exact: true })
+    await expect(
+      adminLinks.getByRole('link', { name: 'AI settings', exact: true })
+    ).toHaveAttribute('href', '/admin/ai-settings')
+    await expect(adminLinks.getByRole('link', { name: 'Admin console' })).toHaveAttribute(
+      'href',
+      /\/admin\/$/
+    )
+    await expect(page.getByRole('button', { name: /View activity and AI usage/ })).toHaveCount(0)
 
     await expectCanonicalChrome(page)
     await expect(page).toHaveScreenshot('profile-dossier.png', {

@@ -55,6 +55,11 @@ export default defineConfig(({ mode }) => ({
       protocol: 'ws',
     },
     proxy: {
+      // SQLAdmin is served by FastAPI; AI settings remains a Vue route.
+      '^/admin(?:$|/(?!ai-settings))': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,

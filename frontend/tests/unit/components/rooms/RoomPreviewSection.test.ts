@@ -113,4 +113,39 @@ describe('RoomPreviewSection unassign affordance (issue #1083)', () => {
     expect(wrapper.get('button[aria-label="Open Ada "]').exists()).toBe(true)
     wrapper.unmount()
   })
+
+  it('labels workers and the apprentice above their portraits', () => {
+    const wrapper = mountPreview({
+      showApprenticeSlot: true,
+      dwellerCapacity: 1,
+      assignedDwellers: [
+        { ...dweller('d1', 'Ada'), last_name: 'Lovelace' },
+        { ...dweller('a1', 'Ash'), apprentice_stat: 'strength' },
+      ],
+    })
+
+    expect(wrapper.findAll('.dweller-name-badge').map((node) => node.text())).toEqual([
+      'Ada',
+      'Ash',
+    ])
+    expect(wrapper.get('.dweller-name-badge').attributes('title')).toBe('Ada Lovelace')
+    wrapper.unmount()
+  })
+
+  it('scales portraits by age and race like the arena', () => {
+    const wrapper = mountPreview({
+      dwellerCapacity: 3,
+      assignedDwellers: [
+        { ...dweller('adult', 'Ann'), age_group: 'adult' },
+        { ...dweller('child', 'Cal'), age_group: 'child' },
+        { ...dweller('mutant', 'Max'), visual_attributes: { race: 'super_mutant' } },
+      ],
+    })
+
+    const styles = wrapper.findAll('.scene-dweller').map((node) => node.attributes('style'))
+    expect(styles[0]).toContain('--dweller-body-scale: 1')
+    expect(styles[1]).toContain('--dweller-body-scale: 0.8')
+    expect(styles[2]).toContain('--dweller-body-scale: 1.18')
+    wrapper.unmount()
+  })
 })

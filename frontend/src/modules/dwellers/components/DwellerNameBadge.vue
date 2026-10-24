@@ -52,15 +52,15 @@ const title = computed(() => {
   display: inline-flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.1rem;
+  gap: 0.1em;
   max-width: 100%;
-  padding: 0.05rem 0.3rem;
+  padding: 0.06em 0.36em;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
-  border-radius: 3px;
+  border-radius: 0.3em;
   background: color-mix(in srgb, black 78%, transparent);
   color: var(--color-theme-primary);
-  font-size: 0.625rem;
+  font-size: var(--dweller-name-size, 0.625rem);
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
@@ -76,7 +76,7 @@ const title = computed(() => {
 
 .dweller-health {
   display: block;
-  height: 0.15rem;
+  height: 0.18em;
   overflow: hidden;
   border-radius: 999px;
   background: color-mix(in srgb, black 65%, transparent);

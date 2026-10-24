@@ -4,11 +4,13 @@ import { Icon } from '@iconify/vue'
 import { PersonStanding } from '@lucide/vue'
 import {
   getAbilityConfig,
+  getDwellerPortraitScale,
   isApprentice,
   orderRoomDwellers,
   type DwellerShort,
 } from '@/modules/dwellers/models/dweller'
 import { getRoomImageUrl, getStaticImageUrl } from '@/core/utils/image'
+import DwellerNameBadge from '@/modules/dwellers/components/DwellerNameBadge.vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { useFallbackImage } from '../composables/useFallbackImage'
 import { RESPONSE_DETAIL_SCENES } from '../models/roomScenes'
@@ -79,6 +81,8 @@ const emptyDwellerSilhouetteUrl = getStaticImageUrl(
 const emptyApprenticeSilhouetteUrl = getStaticImageUrl(
   '/static/dweller_images/variants/teen/FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairBrown.webp'
 )
+const dwellerName = (dweller: DwellerShort) =>
+  `${dweller.first_name} ${dweller.last_name ?? ''}`.trim()
 const imageAspect = ref(1.53)
 
 function rememberImageAspect(event: Event) {
@@ -147,9 +151,16 @@ function rememberImageAspect(event: Event) {
               >
                 <template v-if="workerDwellers[slot - 1]">
                   <div class="scene-occupant">
+                    <DwellerNameBadge
+                      :name="workerDwellers[slot - 1]!.first_name"
+                      :full-name="dwellerName(workerDwellers[slot - 1]!)"
+                    />
                     <button
                       type="button"
                       class="placeholder-dweller scene-dweller"
+                      :style="{
+                        '--dweller-body-scale': getDwellerPortraitScale(workerDwellers[slot - 1]!),
+                      }"
                       :aria-label="`Open ${workerDwellers[slot - 1]?.first_name} ${workerDwellers[slot - 1]?.last_name ?? ''}`"
                       @click="emit('activate', workerDwellers[slot - 1]!.id)"
                     >
@@ -202,9 +213,14 @@ function rememberImageAspect(event: Event) {
               >
                 <template v-if="apprentice">
                   <div class="scene-occupant">
+                    <DwellerNameBadge
+                      :name="apprentice.first_name"
+                      :full-name="dwellerName(apprentice)"
+                    />
                     <button
                       type="button"
                       class="placeholder-dweller scene-dweller"
+                      :style="{ '--dweller-body-scale': getDwellerPortraitScale(apprentice) }"
                       :aria-label="`Open ${apprentice.first_name} ${apprentice.last_name ?? ''}`"
                       @click="emit('activate', apprentice.id)"
                     >
@@ -329,16 +345,19 @@ function rememberImageAspect(event: Event) {
   aspect-ratio: var(--room-image-aspect, 1.53);
   margin: 0 auto;
   overflow: hidden;
+  /* Dweller sprites size against this frame, so a taller wide scene keeps the
+     same occupant-to-room proportion as a standard preview. */
+  container-type: size;
 }
 
 .room-image-frame:not(.has-image) {
   width: 100%;
-  min-height: 180px;
+  height: 180px;
   aspect-ratio: auto;
 }
 
 .room-scene--compact .room-image-frame:not(.has-image) {
-  min-height: 130px;
+  height: 130px;
 }
 
 .room-scene--wide .room-image-frame {
@@ -439,7 +458,10 @@ function rememberImageAspect(event: Event) {
   left: 0.5rem;
   z-index: 10;
   display: flex;
+  align-items: flex-end;
   justify-content: space-evenly;
+  /* 10px at the standard 260px frame; scales up with taller wide scenes. */
+  --dweller-name-size: clamp(0.625rem, 3.85cqh, 1rem);
 }
 
 .dweller-sprite-slot,
@@ -450,10 +472,22 @@ function rememberImageAspect(event: Event) {
   justify-content: center;
 }
 
+.dweller-sprite-slot {
+  align-items: flex-end;
+}
+
+.scene-occupant {
+  flex-direction: column;
+  justify-content: flex-end;
+  width: 29.8cqh;
+  gap: 0.1rem;
+}
+
+
 /* Keep worker and apprentice portraits the same size. */
 .dweller-sprite-slot-lg .placeholder-dweller {
-  width: 4.85rem;
-  height: 7.25rem;
+  width: 29.8cqh;
+  height: calc(44.6cqh * var(--dweller-body-scale, 1));
 }
 
 .placeholder-dweller {

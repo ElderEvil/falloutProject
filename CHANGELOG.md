@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.260.0 (2026-10-24)
+
+### Features
+
+* **notifications:** announce rooms unlocked by population growth ([#1162](https://github.com/ElderEvil/falloutProject/issues/1162)) 67a7150
+
 ## 2.259.1 (2026-10-23)
 
 ### Bug Fixes

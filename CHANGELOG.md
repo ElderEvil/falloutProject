@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.261.0 (2026-10-24)
+
+### Features
+
+* refresh preferences and profile with safer admin account controls ([#1166](https://github.com/ElderEvil/falloutProject/issues/1166)) 3129b2d
+
 ## 2.260.2 (2026-10-24)
 
 ### Bug Fixes

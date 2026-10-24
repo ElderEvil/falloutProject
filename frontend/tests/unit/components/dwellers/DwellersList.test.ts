@@ -59,6 +59,7 @@ describe('DwellersList', () => {
 
       expect(visibleIds()).toEqual(roster.slice(0, 20).map((d) => d.id))
       expect(wrapper.text()).toContain('1–20 of 45')
+      expect(wrapper.get('[aria-label="Dweller pages"]').element.nextElementSibling).toBeNull()
       expect(
         wrapper.get('[aria-label="Previous dweller page"]').attributes('disabled')
       ).toBeDefined()

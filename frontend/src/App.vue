@@ -9,6 +9,9 @@ import { useVisualEffects } from '@/core/composables/useVisualEffects'
 import { useTheme } from '@/core/composables/useTheme'
 import { useBadgeStyle } from '@/core/composables/useBadgeStyle'
 import { useTokenRefresh } from '@/core/composables/useTokenRefresh'
+import VaultBoyFeedback from '@/core/components/common/VaultBoyFeedback.vue'
+import { useVaultBoyFeedback } from '@/core/composables/useVaultBoyFeedback'
+import { useVaultBoyEvents } from '@/modules/vault/composables/useVaultBoyEvents'
 import { useResourceWarnings } from '@/modules/vault/composables/useResourceWarnings'
 import { useVersionDetection } from '@/core/composables/useVersionDetection'
 import { useGaryMode } from '@/core/composables/useGaryMode'
@@ -95,6 +98,11 @@ useSoundProfileSync()
 // Resource warnings system
 useResourceWarnings()
 
+useVaultBoyEvents(dwellerVaultId)
+watch([() => authStore.token, dwellerVaultId], () => useVaultBoyFeedback().clear(), {
+  flush: 'sync',
+})
+
 // Version detection and changelog system
 const { showChangelogModal, versionInfo, markVersionAsSeen, hideChangelog } = useVersionDetection({
   isAuthenticated: () => authStore.isAuthenticated,
@@ -126,6 +134,10 @@ provide('availableThemes', availableThemes)
       <router-view></router-view>
     </DefaultLayout>
     <Toaster />
+    <VaultBoyFeedback
+      v-if="authStore.isAuthenticated && dwellerVaultId"
+      :vault-id="dwellerVaultId"
+    />
 
     <!-- Changelog Modal (lazy: only fetched once a new version is detected) -->
     <ChangelogModal

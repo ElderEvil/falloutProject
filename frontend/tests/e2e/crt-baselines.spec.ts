@@ -175,6 +175,7 @@ test.describe('CRT baselines — entry routes', () => {
   })
 
   test('login', async ({ page }) => {
+    await mockApi(page)
     await page.goto('/login')
     await expect(page.locator('#login-username')).toBeVisible({ timeout: 10000 })
 
@@ -187,6 +188,7 @@ test.describe('CRT baselines — entry routes', () => {
   })
 
   test('register', async ({ page }) => {
+    await mockApi(page)
     await page.goto('/register')
     await expect(page.locator('#register-username')).toBeVisible({ timeout: 10000 })
 

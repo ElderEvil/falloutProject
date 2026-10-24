@@ -14,12 +14,15 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSse, type SseEvent } from '@/core/composables/useEventStream'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useSound } from '@/core/composables/useSound'
+import { useVaultBoyFeedback } from '@/core/composables/useVaultBoyFeedback'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
 import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 import { addPendingReport } from '@/modules/exploration/composables/usePendingReports'
 import {
   getNotificationRoute,
   getNotificationSound,
+  getNotificationAnimation,
 } from '@/modules/vault/utils/notificationRouting'
 import { formatRelativeTime } from '@/core/utils/time'
 import axios from '@/core/plugins/axios'
@@ -46,6 +49,8 @@ const objectivesStore = useObjectivesStore()
 const router = useRouter()
 const { playSound } = useSound()
 const toast = useToast()
+const vaultStore = useVaultStore()
+const feedback = useVaultBoyFeedback()
 const POPUP_ID = 'notifications-popup'
 const showPopup = ref(false)
 useBlockingOverlay(() => showPopup.value)
@@ -179,6 +184,21 @@ function processNotification(notificationData: Notification) {
   notifications.value.unshift(newNotif)
   unreadCount.value++
   playSound(getNotificationSound(notificationData.notification_type))
+  const animation = getNotificationAnimation(notificationData.notification_type)
+  if (
+    animation &&
+    notificationData.vault_id &&
+    notificationData.vault_id === vaultStore.activeVaultId
+  ) {
+    feedback.show({
+      animation,
+      title: notificationData.title,
+      message: notificationData.message,
+      vaultId: notificationData.vault_id,
+      key: animation === 'baby' ? `birth:${notificationData.id}` : 'celebration',
+    })
+  }
+  if (notificationData.notification_type === 'baby_born') toast.success(notificationData.message)
   // A hazard team join surfaces beyond the bell (progression red line).
   if (
     ['storage_item_degraded', 'storage_item_upgraded'].includes(notificationData.notification_type)
@@ -190,7 +210,9 @@ function processNotification(notificationData: Notification) {
   }
 
   if (
-    ['hazard_team_joined', 'training_complete', 'room_unlocked'].includes(notificationData.notification_type) ||
+    ['hazard_team_joined', 'training_complete', 'room_unlocked'].includes(
+      notificationData.notification_type
+    ) ||
     isAdoptionNotification(notificationData)
   ) {
     toast.success(notificationData.message)

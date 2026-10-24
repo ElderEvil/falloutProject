@@ -5,6 +5,8 @@ import { setActivePinia, createPinia } from 'pinia'
 import NotificationBell from '@/modules/vault/components/shell/NotificationBell.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useNotificationInboxStore } from '@/modules/vault/stores/notificationInbox'
+import { useVaultBoyFeedback } from '@/core/composables/useVaultBoyFeedback'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
 import { audioManager } from '@/core/audio/audioManager'
 import {
@@ -118,6 +120,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     window.localStorage.clear()
     setActivePinia(createPinia())
+    useVaultBoyFeedback().clear()
 
     // API mocks fall back to empty/valid responses
     ;(axios.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [] })
@@ -145,6 +148,37 @@ describe('NotificationBell SSE watcher null-safety', () => {
     vi.restoreAllMocks()
     errorSpy.mockRestore()
   })
+
+  it.each(['vault-1', 'other-vault'])(
+    'animates a birth only for the active vault (%s)',
+    async (id) => {
+      useAuthStore().token = 'test-token'
+      useVaultStore().activeVaultId = 'vault-1'
+      const message = 'A baby was born!'
+      const data = JSON.stringify({
+        notification: {
+          ...JSON.parse(notifData).notification,
+          notification_type: 'baby_born',
+          vault_id: id,
+          message,
+        },
+      })
+      fetchMock.mockResolvedValue(
+        createMockResponse([encodeSse(data, 'notification')], { hang: true })
+      )
+      const wrapper = mount(NotificationBell)
+      await vi.advanceTimersByTimeAsync(0)
+      await flushPromises()
+      if (id === 'vault-1')
+        expect(useVaultBoyFeedback().current.value).toMatchObject({
+          animation: 'baby',
+          vaultId: id,
+        })
+      else expect(useVaultBoyFeedback().current.value).toBeNull()
+      expect(useToast().toasts.value.some((toast) => toast.message === message)).toBe(true)
+      wrapper.unmount()
+    }
+  )
 
   it('surfaces a training completion missed while the stream was paused', async () => {
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
@@ -781,6 +815,7 @@ describe('NotificationBell popup accessibility', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     window.localStorage.clear()
     setActivePinia(createPinia())
+    useVaultBoyFeedback().clear()
     ;(axios.patch as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} })
     ;(axios.post as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} })
     fetchMock = vi.fn()

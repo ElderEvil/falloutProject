@@ -51,13 +51,35 @@ const router = createRouter({
     ...(import.meta.env.DEV
       ? [
           {
+            path: '/dev',
+            name: 'dev-tools',
+            component: () => import('@/core/views/DevToolsView.vue'),
+          },
+          {
             path: '/dev/ui-catalog',
             name: 'ui-catalog',
+            meta: {
+              devTitle: 'UI catalog',
+              devDescription: 'Inspect components, theme tokens, and interaction states.',
+            },
             component: () => import('@/core/views/UiCatalogView.vue'),
+          },
+          {
+            path: '/dev/animation-gallery',
+            name: 'animation-gallery',
+            meta: {
+              devTitle: 'Animation gallery',
+              devDescription: 'Play character animations, step through poses, and test overlays.',
+            },
+            component: () => import('@/core/views/AnimationGalleryView.vue'),
           },
           {
             path: '/dev/asset-gallery',
             name: 'asset-gallery',
+            meta: {
+              devTitle: 'Asset gallery',
+              devDescription: 'Browse creature, pet, item, and dweller artwork.',
+            },
             component: () => import('@/core/views/AssetGalleryView.vue'),
           },
         ]

@@ -14,13 +14,16 @@
       {% if operation == 'recall' %}<p>The explorer starts travelling home. Rewards wait until arrival.</p>{% endif %}
       {% if operation == 'pause' %}<p>The vault's simulation pauses until it is resumed.</p>{% endif %}
       {% if operation == 'promote-superuser' %}<p>Grants full access to the admin panel and superuser API actions. Provider-only users must add a password to use the admin login.</p>{% endif %}
-      {% if operation == 'soft-delete' %}<p>Blocks sign-in and pauses the user's vaults. Account and game data are retained.</p>{% endif %}
+      {% if operation == 'demote-superuser' %}<p>Removes administrator access. The user keeps ordinary account access and their vaults. Only the first superuser can change administrator roles.</p>{% endif %}
+      {% if operation == 'deactivate' %}<p>Blocks account access and pauses the user's vaults. Account and game data are retained. Reactivate restores access.</p>{% endif %}
+      {% if operation == 'reactivate' %}<p>Restores account access. Vaults stay paused until the owner resumes them. Deleted accounts cannot be reactivated here.</p>{% endif %}
+      {% if operation == 'soft-delete' %}<p>Marks the account as deleted, blocks sign-in, and pauses the user's vaults. Data is retained. Reactivate does not restore deleted accounts.</p>{% endif %}
       {% if operation == 'verify-email' %}<p>Only confirm after checking that this user owns the address.</p>{% endif %}
       <form method="post" action="{{ url_for('admin:view-' ~ model_view.identity ~ '-support') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="operation" value="{{ operation }}">
         <input type="hidden" name="pks" value="{{ record_id }}">
-        <button class="btn btn-{{ 'danger' if operation == 'soft-delete' else 'primary' }}" type="submit">{{ title }}</button>
+        <button class="btn btn-{{ 'danger' if operation in ['soft-delete', 'deactivate', 'demote-superuser'] else 'primary' }}" type="submit">{{ title }}</button>
         <a class="btn" href="{{ url_for('admin:list', identity=model_view.identity) }}">Cancel</a>
       </form>
       {% endif %}

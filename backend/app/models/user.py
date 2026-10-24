@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import EmailStr
+from sqlalchemy import Index, text
 from sqlmodel import AutoString, Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel, SoftDeleteMixin, TimeStampMixin
@@ -20,6 +21,18 @@ class UserBase(SQLModel):
 
 
 class User(BaseUUIDModel, UserBase, TimeStampMixin, SoftDeleteMixin, table=True):
+    __table_args__ = (
+        Index(
+            "uq_user_first_superuser",
+            "is_first_superuser",
+            unique=True,
+            postgresql_where=text("is_first_superuser"),
+            sqlite_where=text("is_first_superuser"),
+        ),
+    )
+
+    # Set once by the bootstrap migration; absent from request/response schemas.
+    is_first_superuser: bool = Field(default=False)
     hashed_password: str | None = Field(default=None, nullable=True)
     monthly_token_limit: int | None = Field(default=500000, nullable=True)
     email_verified: bool = Field(default=False)

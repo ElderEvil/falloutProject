@@ -1,4 +1,4 @@
-"""Real row locks prevent two administrators from deleting one another concurrently."""
+"""Concurrent secondary administrators cannot remove each other or the first account."""
 
 import asyncio
 import os
@@ -22,7 +22,7 @@ from app.utils.exceptions import AccessDeniedException
 pytestmark = pytest.mark.integration
 
 
-def test_concurrent_admin_deletion_keeps_an_active_superuser() -> None:
+def test_secondary_admins_cannot_delete_one_another_concurrently() -> None:
     database_uri = os.getenv("ADMIN_TEST_DATABASE_URI")
     if not database_uri:
         pytest.skip("Set ADMIN_TEST_DATABASE_URI to a dedicated, migrated PostgreSQL test database")
@@ -63,17 +63,17 @@ async def _concurrent_deletion(database_uri: str) -> None:
             assert all(actor.is_active and actor.is_superuser for actor in actors)
             results = await asyncio.wait_for(
                 asyncio.gather(
-                    perform_support_action(first, "user", "soft-delete", ids[1], actor_id=str(ids[0])),
-                    perform_support_action(second, "user", "soft-delete", ids[0], actor_id=str(ids[1])),
+                    _attempt_deletion(first, ids[1], ids[0]),
+                    _attempt_deletion(second, ids[0], ids[1]),
                     return_exceptions=True,
                 ),
                 timeout=15,
             )
-            assert sum(result is None for result in results) == 1, results
-            assert sum(isinstance(result, AccessDeniedException) for result in results) == 1, results
+            assert all(isinstance(result, AccessDeniedException) for result in results), results
         async with maker() as session:
             users = (await session.execute(select(User).where(col(User.id).in_(ids)))).scalars().all()
-            assert sum(user.is_active and user.is_superuser and not user.is_deleted for user in users) == 1
+            assert len(users) == 2
+            assert all(user.is_active and user.is_superuser and not user.is_deleted for user in users)
     finally:
         async with maker() as session:
             await session.execute(delete(UserProfile).where(col(UserProfile.user_id).in_(ids)))
@@ -82,14 +82,22 @@ async def _concurrent_deletion(database_uri: str) -> None:
         await engine.dispose()
 
 
+async def _attempt_deletion(session: AsyncSession, target_id, actor_id) -> None:
+    try:
+        await perform_support_action(session, "user", "soft-delete", target_id, actor_id=str(actor_id))
+    finally:
+        # Each HTTP request closes its transaction even when authorization fails.
+        await session.rollback()
+
+
 @pytest.mark.parametrize("database", [None, "application", "sqlite"])
 def test_admin_concurrency_requires_a_dedicated_database(monkeypatch: pytest.MonkeyPatch, database: str | None) -> None:
     if database is None:
         monkeypatch.delenv("ADMIN_TEST_DATABASE_URI", raising=False)
         with pytest.raises(pytest.skip.Exception, match="dedicated"):
-            test_concurrent_admin_deletion_keeps_an_active_superuser()
+            test_secondary_admins_cannot_delete_one_another_concurrently()
     else:
         uri = str(settings.ASYNC_DATABASE_URI) if database == "application" else "sqlite+aiosqlite:///:memory:"
         monkeypatch.setenv("ADMIN_TEST_DATABASE_URI", uri)
         with pytest.raises(pytest.fail.Exception, match=r"different database|postgresql"):
-            test_concurrent_admin_deletion_keeps_an_active_superuser()
+            test_secondary_admins_cannot_delete_one_another_concurrently()

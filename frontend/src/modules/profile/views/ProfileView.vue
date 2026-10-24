@@ -22,7 +22,6 @@ import ProfileEditor from '../components/ProfileEditor.vue'
 import AIUsageCard from '../components/AIUsageCard.vue'
 import VaultOperationsCard from '../components/VaultOperationsCard.vue'
 import { useEmailVerificationResend } from '@/modules/auth/composables/useEmailVerificationResend'
-import AISettingsPanel from '@/modules/ai-settings/components/AISettingsPanel.vue'
 import type { ProfileUpdate } from '../models/profile'
 
 const profileStore = useProfileStore()
@@ -49,25 +48,15 @@ const vaultShortcut = computed<VaultShortcut | null>(() => {
   return id ? { id } : null
 })
 
-const tabs = computed(() => {
-  const baseTabs = [
-    { key: 'dossier', label: 'Dossier' },
-    { key: 'analytics', label: 'Vault Analytics' },
-  ]
-  if (authStore.isSuperuser) {
-    baseTabs.push({ key: 'ai-settings', label: 'AI Settings' })
-  }
-  return baseTabs
-})
+const tabs = [
+  { key: 'dossier', label: 'Dossier' },
+  { key: 'analytics', label: 'Vault Analytics' },
+]
+const adminConsoleUrl = new URL(
+  '/admin/',
+  new URL(import.meta.env.VITE_API_BASE_URL || '/', window.location.origin)
+).href
 
-watch(
-  () => authStore.isSuperuser,
-  (isSuperuser) => {
-    if (!isSuperuser && activeTab.value === 'ai-settings') {
-      activeTab.value = 'dossier'
-    }
-  }
-)
 const { isCollapsed } = useSidePanel()
 
 // Poll statistics every 30 seconds. The polling composable
@@ -187,7 +176,7 @@ watch(
             </CardContent>
           </Card>
 
-          <div v-else-if="profileStore.profile" class="space-y-6">
+          <div v-else-if="profileStore.profile" class="space-y-4">
             <ProfileEditor
               v-if="isEditing"
               :initial-data="profileStore.profile"
@@ -203,7 +192,7 @@ watch(
             <template v-else>
               <Tabs
                 :model-value="activeTab"
-                class="mb-6"
+                class="mb-4"
                 @update:model-value="activeTab = String($event)"
               >
                 <TabsList>
@@ -213,9 +202,9 @@ watch(
                 </TabsList>
               </Tabs>
 
-              <section v-show="activeTab === 'dossier'" class="max-w-5xl space-y-6">
-                <Card class="profile-dossier gap-0 border-theme-primary/20 bg-surface">
-                  <CardHeader class="pb-5">
+              <section v-show="activeTab === 'dossier'" class="max-w-5xl space-y-4">
+                <Card class="profile-dossier gap-0 py-4 border-theme-primary/20 bg-surface">
+                  <CardHeader class="pb-4">
                     <CardTitle class="text-xl font-bold text-theme-primary">Account</CardTitle>
                     <CardAction>
                       <Button variant="outline" size="sm" @click="startEditing">
@@ -226,12 +215,12 @@ watch(
                   </CardHeader>
 
                   <CardContent
-                    class="grid gap-8 pt-0 lg:grid-cols-[minmax(0,1.3fr)_minmax(14rem,0.7fr)]"
+                    class="grid gap-6 pt-0 lg:grid-cols-[minmax(0,1.3fr)_minmax(14rem,0.7fr)]"
                   >
                     <div class="min-w-0">
-                      <div class="flex flex-col gap-6 sm:flex-row sm:items-center">
+                      <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
                         <div
-                          class="profile-avatar flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-theme-primary/30 bg-surface-sunken"
+                          class="profile-avatar flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-theme-primary/30 bg-surface-sunken"
                         >
                           <img
                             v-if="profileStore.profile.avatar_url && !avatarLoadFailed"
@@ -243,7 +232,7 @@ watch(
                           <Icon
                             v-else
                             icon="mdi:account-circle"
-                            class="text-6xl text-theme-primary/60"
+                            class="text-5xl text-theme-primary/60"
                           />
                         </div>
                         <div class="min-w-0">
@@ -295,7 +284,7 @@ watch(
                         </div>
                       </div>
 
-                      <section class="mt-8">
+                      <section class="mt-5">
                         <p class="text-sm font-semibold text-theme-primary/75">Bio</p>
                         <p class="mt-2 whitespace-pre-wrap text-sm leading-6 text-theme-primary/85">
                           {{ profileStore.profile.bio || 'No bio added yet.' }}
@@ -305,7 +294,7 @@ watch(
 
                     <aside class="pt-1">
                       <h3 class="text-sm font-semibold text-theme-primary">Account details</h3>
-                      <dl class="mt-5 space-y-4 text-sm">
+                      <dl class="mt-4 space-y-3 text-sm">
                         <div>
                           <dt class="text-theme-primary/60">Joined</dt>
                           <dd class="mt-1 text-theme-primary/85">
@@ -319,17 +308,32 @@ watch(
                           </dd>
                         </div>
                       </dl>
+                      <nav
+                        v-if="authStore.isSuperuser"
+                        aria-label="Administration"
+                        class="mt-5 border-t border-border pt-4"
+                      >
+                        <h3 class="text-sm font-semibold text-theme-primary">Administration</h3>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                          <Button variant="outline" size="sm" as-child>
+                            <RouterLink to="/admin/ai-settings">AI settings</RouterLink>
+                          </Button>
+                          <Button variant="outline" size="sm" as-child>
+                            <a :href="adminConsoleUrl">Admin console</a>
+                          </Button>
+                        </div>
+                      </nav>
                     </aside>
                   </CardContent>
                 </Card>
 
                 <div>
                   <h2 class="mb-3 text-sm font-semibold text-theme-primary/75">Quick access</h2>
-                  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  <div class="grid gap-3 sm:grid-cols-2">
                     <Button
                       variant="outline"
                       as-child
-                      class="h-auto min-h-28 flex-col items-start justify-start gap-2 whitespace-normal p-4 text-left"
+                      class="h-auto min-h-24 flex-col items-start justify-start gap-1 whitespace-normal p-3 text-left"
                     >
                       <RouterLink :to="vaultShortcut ? `/vault/${vaultShortcut.id}` : '/'">
                         <Icon icon="mdi:home-city-outline" class="size-5 text-theme-primary/60" />
@@ -351,27 +355,14 @@ watch(
                     </Button>
                     <Button
                       variant="outline"
-                      class="h-auto min-h-28 flex-col items-start justify-start gap-2 whitespace-normal p-4 text-left"
-                      @click="activeTab = 'analytics'"
-                    >
-                      <Icon icon="mdi:chart-box-outline" class="size-5 text-theme-primary/60" />
-                      <span class="text-sm font-semibold text-theme-primary">Vault analytics</span>
-                      <span class="text-xs font-normal leading-5 text-theme-primary/60">
-                        View activity and AI usage
-                      </span>
-                    </Button>
-                    <Button
-                      variant="outline"
                       as-child
-                      class="h-auto min-h-28 flex-col items-start justify-start gap-2 whitespace-normal p-4 text-left"
+                      class="h-auto min-h-24 flex-col items-start justify-start gap-1 whitespace-normal p-3 text-left"
                     >
                       <RouterLink to="/preferences">
                         <Icon icon="mdi:tune-variant" class="size-5 text-theme-primary/60" />
-                        <span class="text-sm font-semibold text-theme-primary"
-                          >Display preferences</span
-                        >
+                        <span class="text-sm font-semibold text-theme-primary">Preferences</span>
                         <span class="text-xs font-normal leading-5 text-theme-primary/60">
-                          Theme, notifications, and sound
+                          Appearance, sound, notifications, and gameplay
                         </span>
                       </RouterLink>
                     </Button>
@@ -398,13 +389,6 @@ watch(
                   :total-dwellers-created="profileStore.profile.total_dwellers_created"
                   :loading="profileStore.deathStatsLoading"
                 />
-              </section>
-
-              <section
-                v-if="activeTab === 'ai-settings' && authStore.isSuperuser"
-                aria-label="AI provider configuration"
-              >
-                <AISettingsPanel />
               </section>
             </template>
           </div>

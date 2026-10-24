@@ -4,7 +4,7 @@ import logging
 from collections.abc import Sequence
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends
 from pydantic import UUID4
 from pydantic.networks import EmailStr
 from redis.asyncio import Redis
@@ -19,6 +19,7 @@ from app.models.user_profile import UserProfile
 from app.schemas.ai_usage import AIUsageResponse
 from app.schemas.user import DeathStatsResponse, UserCreate, UserRead, UserUpdate, UserWithTokens
 from app.schemas.user_profile import ProfileRead, ProfileUpdate
+from app.services.admin_service import create_user_account, update_user_account
 from app.services.family.death_service import death_service
 from app.services.user_service import user_service
 from app.utils.exceptions import ResourceNotFoundException
@@ -33,7 +34,7 @@ async def create_user(
     *,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user_in: UserCreate,
-    _: CurrentSuperuser,
+    actor: CurrentSuperuser,
 ) -> User:
     """Admin route to create new user.
 
@@ -43,14 +44,7 @@ async def create_user(
     Raises:
         HTTPException: 409 if user with this email already exists.
     """
-    user = await crud.user.get_by_email(db_session=db_session, email=user_in.email)
-    if user:
-        raise HTTPException(
-            status_code=409,
-            detail="The user with this username already exists in the system.",
-        )
-
-    return await crud.user.create(db_session, obj_in=user_in)
+    return await create_user_account(db_session, user_in, actor_id=actor.id)
 
 
 @router.get("/", response_model=list[UserRead])
@@ -152,7 +146,7 @@ async def update_user(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user_id: UUID4,
     user_in: UserUpdate,
-    _: CurrentSuperuser,
+    actor: CurrentSuperuser,
 ) -> User:
     """Update a user.
 
@@ -162,13 +156,7 @@ async def update_user(
     Raises:
         HTTPException: 404 if user not found.
     """
-    user_in_db = await crud.user.get(db_session, id=user_id)
-    if not user_in_db:
-        raise HTTPException(
-            status_code=404,
-            detail="The user with this ID does not exist in the system",
-        )
-    return await crud.user.update(db_session, id=user_in_db.id, obj_in=user_in)
+    return await update_user_account(db_session, user_id, user_in, actor_id=actor.id)
 
 
 # =============================================================================

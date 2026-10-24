@@ -102,6 +102,47 @@ describe('ProfileView', () => {
     })
   }
 
+  it.each([false, true])(
+    'shows existing admin destinations only to administrators (%s)',
+    async (isSuperuser) => {
+      mockBothApis()
+      authStore.user = { ...authStore.user, is_superuser: isSuperuser }
+      const wrapper = mount(ProfileView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      expect(wrapper.findAll('[role="tab"]').map((tab) => tab.text())).toEqual([
+        'Dossier',
+        'Vault Analytics',
+      ])
+      expect(wrapper.find('[aria-label="Administration"]').exists()).toBe(isSuperuser)
+      expect(wrapper.find('a[href="/admin/ai-settings"]').exists()).toBe(isSuperuser)
+      if (isSuperuser) {
+        const consoleLink = wrapper.findAll('a').find((link) => link.text() === 'Admin console')!
+        expect(new URL(consoleLink.attributes('href')).pathname).toBe('/admin/')
+      }
+      expect(wrapper.findComponent({ name: 'AISettingsPanel' }).exists()).toBe(false)
+      wrapper.unmount()
+    }
+  )
+
+  it('keeps analytics on its tab and uses quick access only for other screens', async () => {
+    mockBothApis()
+    const wrapper = mount(ProfileView, { global: { plugins: [router] } })
+    await flushPromises()
+    expect(
+      wrapper
+        .findAll('button')
+        .some((button) => button.text().includes('View activity and AI usage'))
+    ).toBe(false)
+    expect(wrapper.find('a[href="/preferences"]').exists()).toBe(true)
+    await wrapper
+      .findAll('[role="tab"]')
+      .find((tab) => tab.text() === 'Vault Analytics')!
+      .trigger('mousedown')
+    expect(wrapper.get('[aria-label="Vault analytics"]').isVisible()).toBe(true)
+    wrapper.unmount()
+  })
+
   describe('Navigation', () => {
     it('returns to the screen the profile was opened from', async () => {
       mockBothApis()
@@ -397,7 +438,7 @@ describe('ProfileView', () => {
       await flushPromises()
 
       const prefsText = wrapper.text()
-      expect(prefsText).toContain('Display preferences')
+      expect(prefsText).toContain('Preferences')
       expect(prefsText).not.toContain('"theme": "dark"')
     })
 

@@ -218,6 +218,16 @@ test.describe('CRT baselines — entry routes', () => {
       timeout: 10000,
     })
     await expect(page.getByRole('tab', { name: 'Dossier' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'AI Settings' })).toHaveCount(0)
+    const adminLinks = page.getByRole('navigation', { name: 'Administration', exact: true })
+    await expect(
+      adminLinks.getByRole('link', { name: 'AI settings', exact: true })
+    ).toHaveAttribute('href', '/admin/ai-settings')
+    await expect(adminLinks.getByRole('link', { name: 'Admin console' })).toHaveAttribute(
+      'href',
+      /\/admin\/$/
+    )
+    await expect(page.getByRole('button', { name: /View activity and AI usage/ })).toHaveCount(0)
 
     await expectCanonicalChrome(page)
     await expect(page).toHaveScreenshot('profile-dossier.png', {
@@ -289,3 +299,47 @@ test('legacy auth views obey the disabled flicker preference', async ({ page }) 
     await expect(panel).toHaveCSS('animation-name', 'none')
   }
 })
+
+for (const width of [390, 1280]) {
+  test(`Preferences tabs support links and keyboard navigation at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await mockApi(page)
+    await signIn(page)
+    await page.goto('/preferences?tab=sound')
+
+    const tabs = page.getByRole('tablist', { name: 'Preference categories' })
+    for (const name of ['Appearance', 'Sound', 'Notifications', 'Gameplay']) {
+      const tab = tabs.getByRole('tab', { name, exact: true })
+      await expect(tab).toBeVisible()
+      const box = await tab.boundingBox()
+      expect(box!.x).toBeGreaterThanOrEqual(0)
+      expect(box!.x + box!.width).toBeLessThanOrEqual(width)
+    }
+    await expect(page.getByRole('tabpanel')).toContainText('Sound Enabled')
+    await expect(page.getByRole('slider')).toHaveCount(4)
+    for (const slider of await page.getByRole('slider').all()) {
+      await expect(slider).toHaveAttribute('data-disabled', '')
+      await expect(slider).not.toHaveAttribute('tabindex', '0')
+    }
+
+    await tabs.getByRole('tab', { name: 'Sound', exact: true }).focus()
+    await page.keyboard.press('ArrowRight')
+    await expect(page).toHaveURL(/tab=notifications/)
+    await expect(page.getByRole('tabpanel')).toContainText('Notification Preferences')
+    await expect(page.getByRole('tabpanel')).toContainText('always remain enabled')
+
+    await tabs.getByRole('tab', { name: 'Gameplay', exact: true }).click()
+    await expect(page).toHaveURL(/tab=gameplay/)
+    await expect(
+      page.getByRole('switch', { name: 'Automatically pause when an incident starts' })
+    ).toBeVisible()
+    await expect(page.getByRole('tabpanel')).toContainText('Resume the guide')
+    await expect(page.getByRole('tabpanel')).toContainText('Replay orientation')
+    await page.reload()
+    await expect(tabs.getByRole('tab', { name: 'Gameplay', exact: true })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    )
+    await expect(page.getByRole('tabpanel')).not.toContainText('Color Theme')
+  })
+}

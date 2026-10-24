@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
-import { createRouterMock } from '../helpers/mocks'
+import { createRouter, createMemoryHistory, type Router } from 'vue-router'
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import PreferencesView from '@/modules/profile/views/PreferencesView.vue'
@@ -11,8 +11,6 @@ import axios from '@/core/plugins/axios'
 import type { UserProfile } from '@/models/profile'
 
 vi.mock('@/core/plugins/axios')
-
-vi.mock('vue-router', () => createRouterMock())
 
 const mockProfile: UserProfile = {
   id: 'profile-123',
@@ -33,10 +31,17 @@ function switchByLabel(wrapper: VueWrapper, label: string) {
 }
 
 describe('PreferencesView', () => {
-  beforeEach(() => {
+  let router: Router
+
+  beforeEach(async () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     localStorage.clear()
+    router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/:pathMatch(.*)*', component: { template: '<div />' } }],
+    })
+    await router.push('/preferences')
     const { toasts } = useToast()
     toasts.value = []
     vi.mocked(axios.put).mockImplementation(async (_url, data) => {
@@ -53,6 +58,7 @@ describe('PreferencesView', () => {
   function mountView() {
     return mount(PreferencesView, {
       global: {
+        plugins: [router],
         stubs: {
           SidePanel: true,
           Icon: true,
@@ -62,7 +68,65 @@ describe('PreferencesView', () => {
     })
   }
 
-  it('provides one-percent volume adjustments', () => {
+  it.each([
+    ['sound', 'Sound Enabled'],
+    ['notifications', 'Notification Preferences'],
+    ['gameplay', 'Automatically pause when an incident starts'],
+  ])('opens a direct link to %s', async (tab, text) => {
+    await router.push(`/preferences?tab=${tab}`)
+    const wrapper = mountView()
+    expect(wrapper.get('[role="tab"][aria-selected="true"]').text()).toBe(
+      tab.charAt(0).toUpperCase() + tab.slice(1)
+    )
+    expect(wrapper.get('[role="tabpanel"][data-state="active"]').text()).toContain(text)
+    expect(wrapper.get('[role="tabpanel"][data-state="active"]').text()).not.toContain(
+      'Color Theme'
+    )
+    wrapper.unmount()
+  })
+
+  it('keeps other query parameters when switching tabs and follows route changes', async () => {
+    await router.push('/preferences?vault=vault-123')
+    const wrapper = mountView()
+    await wrapper
+      .findAll('[role="tab"]')
+      .find((tab) => tab.text() === 'Sound')!
+      .trigger('mousedown')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({ vault: 'vault-123', tab: 'sound' })
+    expect(wrapper.get('[role="tabpanel"][data-state="active"]').text()).toContain('Sound Enabled')
+    await router.replace('/preferences?tab=gameplay')
+    await flushPromises()
+    expect(wrapper.get('[role="tabpanel"][data-state="active"]').text()).toContain(
+      'Resume the guide'
+    )
+    expect(wrapper.get('[role="tabpanel"][data-state="active"]').text()).toContain(
+      'Replay orientation'
+    )
+    wrapper.unmount()
+  })
+
+  it('falls back to Appearance for an unknown tab', async () => {
+    await router.push('/preferences?tab=unknown')
+    const wrapper = mountView()
+    expect(wrapper.get('[role="tab"][aria-selected="true"]').text()).toBe('Appearance')
+    expect(wrapper.get('[role="tabpanel"][data-state="active"]').text()).toContain('Color Theme')
+    wrapper.unmount()
+  })
+
+  it('shows saved volume levels but disables audio controls while muted', async () => {
+    audioManager.setMuted(true)
+    await router.push('/preferences?tab=sound')
+    const wrapper = mountView()
+    const sliders = wrapper.findAllComponents({ name: 'Slider' })
+    expect(sliders).toHaveLength(4)
+    for (const slider of sliders) expect(slider.props('disabled')).toBe(true)
+    expect(switchByLabel(wrapper, 'Toggle incident alarm').attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('provides one-percent volume adjustments', async () => {
+    await router.push('/preferences?tab=sound')
     audioManager.setMuted(false)
     const wrapper = mountView()
     const sliders = wrapper.findAllComponents({ name: 'Slider' })
@@ -73,6 +137,7 @@ describe('PreferencesView', () => {
   })
 
   it('toggles the incident alarm independently of the master switch', async () => {
+    await router.push('/preferences?tab=sound')
     audioManager.setMuted(false)
     audioManager.setAlarmEnabled(true)
     const wrapper = mountView()
@@ -91,9 +156,10 @@ describe('PreferencesView', () => {
   })
 
   it('saves the optional pause-on-incident preference', async () => {
+    await router.push('/preferences?tab=gameplay')
     useProfileStore().profile = { ...mockProfile, preferences: {} }
     const wrapper = mountView()
-    const toggle = switchByLabel(wrapper, 'Pause on incident')
+    const toggle = switchByLabel(wrapper, 'Automatically pause when an incident starts')
     expect(toggle.attributes('aria-checked')).toBe('false')
     await toggle.trigger('click')
     await flushPromises()
@@ -106,6 +172,7 @@ describe('PreferencesView', () => {
 
     const wrapper = mount(PreferencesView, {
       global: {
+        plugins: [router],
         stubs: {
           SidePanel: {
             props: ['vaultId'],
@@ -127,11 +194,17 @@ describe('PreferencesView', () => {
 
     expect(wrapper.text()).toContain('Preferences')
     expect(wrapper.text()).toContain('Appearance')
-    expect(wrapper.text()).toContain('Notification Preferences')
+    expect(wrapper.get('[role="tabpanel"][data-state="active"]').text()).not.toContain(
+      'Notification Preferences'
+    )
+    expect(wrapper.get('[role="tabpanel"][data-state="active"]').text()).not.toContain(
+      'Incident preparation'
+    )
     expect(wrapper.text()).toContain('Sound')
   })
 
   it('preserves both changes on rapid consecutive toggles', async () => {
+    await router.push('/preferences?tab=notifications')
     const store = useProfileStore()
     store.profile = {
       ...mockProfile,
@@ -153,6 +226,7 @@ describe('PreferencesView', () => {
   })
 
   it('reverts the toggle and toasts on save failure', async () => {
+    await router.push('/preferences?tab=notifications')
     const store = useProfileStore()
     store.profile = {
       ...mockProfile,
@@ -170,6 +244,7 @@ describe('PreferencesView', () => {
   })
 
   it('toggles from a click on the row label text', async () => {
+    await router.push('/preferences?tab=notifications')
     const store = useProfileStore()
     store.profile = {
       ...mockProfile,

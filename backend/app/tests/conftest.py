@@ -153,8 +153,9 @@ async def _superuser(async_session: AsyncSession):
         db_session=async_session,
     )
     if existing_user is not None:
-        if not existing_user.email_verified:
+        if not existing_user.email_verified or not existing_user.is_first_superuser:
             existing_user.email_verified = True
+            existing_user.is_first_superuser = True
             await async_session.commit()
         return existing_user
 
@@ -166,6 +167,7 @@ async def _superuser(async_session: AsyncSession):
     )
     user = await crud.user.create(db_session=async_session, obj_in=user_in)
     user.email_verified = True
+    user.is_first_superuser = True
     await async_session.commit()
     await async_session.refresh(user)
     return user

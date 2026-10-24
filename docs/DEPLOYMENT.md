@@ -10,7 +10,13 @@ The embedded `/admin` interface uses an HTTPS-only production cookie with `SameS
 
 Only active, non-deleted superusers can sign in to `/admin`; access is rechecked on each request. The panel defaults to dark mode and stores the dark/light/system choice in the browser.
 
-Use a row's detail page or select one row for support actions: verify email, promote to superuser, soft-delete a user, pause/resume a vault, cancel training, or recall an explorer. Each action requires POST confirmation. Provider-only accounts need to add a password from their profile before using the admin login.
+Use a row's detail page or select one row for support actions: verify email, promote/demote a superuser, deactivate/reactivate or soft-delete a user, pause/resume a vault, cancel training, or recall an explorer. Each action requires POST confirmation. Provider-only accounts need to add a password from their profile before using the admin login.
+
+Deactivation blocks account access, clears recovery links, and pauses vaults without marking the account as deleted. Reactivation restores access and leaves vaults paused for the owner to resume. Soft-delete remains a separate action; Reactivate cannot restore a deleted account.
+
+Only the first superuser can create or promote administrators, demote them, or perform administrative account actions against other administrators. Other superusers can still manage regular users. The same restrictions apply to the user API. The first account cannot be deactivated, deleted, or demoted.
+
+The first-superuser marker is internal and fixed to the account ID; email changes and later promotions cannot transfer it. Migration `b4d8f2a6c0e1` backfills the configured `FIRST_SUPERUSER_EMAIL` when it matches an existing superuser, otherwise the earliest-created existing superuser, and enforces that at most one account has the marker. Apply the migration before running the updated application.
 
 Soft-deleting a user blocks sign-in, clears recovery links, and pauses their vaults in one transaction. It retains account and game data and cannot target the current admin. Incident controls support up to 50 selected vaults or an explicitly confirmed global change. Operational records are read-only to keep their state transitions inside gameplay services; catalog instances are also read-only because their data comes from catalog factories. Profile bio/avatar editing and existing exports remain available; credentials and AI audit views cannot be exported.
 

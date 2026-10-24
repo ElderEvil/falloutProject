@@ -370,3 +370,80 @@ async def test_update_me_rejects_passwords_outside_policy(
 
     assert response.status_code == 400
     assert "8 and 128" in response.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    "operation", ["create-admin", "promote", "demote", "deactivate-admin", "reactivate-admin", "edit-admin"]
+)
+async def test_secondary_admin_cannot_bypass_first_superuser_policy_via_user_api(
+    async_client, async_session, superuser, operation
+):
+    from app.core.security import create_access_token
+
+    actor = await crud.user.create(async_session, UserCreate(**create_fake_user(), is_superuser=True))
+    regular = await crud.user.create(async_session, UserCreate(**create_fake_user()))
+    headers = {"Authorization": f"Bearer {create_access_token(str(actor.id))}"}
+    if operation == "create-admin":
+        response = await async_client.post(
+            "/users/", headers=headers, json={**create_fake_user(), "is_superuser": True}
+        )
+    else:
+        target = regular if operation == "promote" else superuser
+        payload = {
+            "promote": {"is_superuser": True},
+            "demote": {"is_superuser": False},
+            "deactivate-admin": {"is_active": False},
+            "reactivate-admin": {"is_active": True},
+            "edit-admin": {"username": "ChangedAdministrator"},
+        }[operation]
+        response = await async_client.put(f"/users/{target.id}", headers=headers, json=payload)
+    assert response.status_code == 403
+    await async_session.refresh(superuser)
+    assert superuser.is_superuser
+    assert superuser.is_active
+
+
+async def test_secondary_admin_can_still_update_regular_users(async_client, async_session):
+    from app.core.security import create_access_token
+
+    actor = await crud.user.create(async_session, UserCreate(**create_fake_user(), is_superuser=True))
+    target = await crud.user.create(async_session, UserCreate(**create_fake_user()))
+    response = await async_client.put(
+        f"/users/{target.id}",
+        headers={"Authorization": f"Bearer {create_access_token(str(actor.id))}"},
+        json={"username": "UpdatedRegularUser"},
+    )
+    assert response.status_code == 200
+    await async_session.refresh(target)
+    assert target.username == "UpdatedRegularUser"
+
+
+@pytest.mark.parametrize(
+    "payload", [{"is_superuser": False}, {"is_active": False}, {"is_superuser": None}, {"is_active": None}]
+)
+async def test_user_api_protects_first_superuser_and_rejects_null_flags(
+    async_client, async_session, superuser, superuser_token_headers, payload
+):
+    response = await async_client.put(f"/users/{superuser.id}", headers=superuser_token_headers, json=payload)
+    assert response.status_code == 400
+    await async_session.refresh(superuser)
+    assert superuser.is_active
+    assert superuser.is_superuser
+    assert superuser.is_first_superuser
+
+
+async def test_user_api_deactivation_pauses_vault_and_keeps_data(
+    async_client, async_session, superuser_token_headers, vault
+):
+    from app.crud.game_state import game_state_crud
+
+    response = await async_client.put(
+        f"/users/{vault.user_id}", headers=superuser_token_headers, json={"is_active": False}
+    )
+    assert response.status_code == 200
+    user = await crud.user.get(async_session, vault.user_id)
+    assert user.is_active is False
+    assert user.is_deleted is False
+    state = await game_state_crud.get_by_vault_id(async_session, vault.id)
+    assert state is not None
+    assert state.is_paused

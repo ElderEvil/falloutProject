@@ -106,35 +106,6 @@ const getRoomStat = (
 </script>
 
 <template>
-  <nav
-    v-if="!isLoading && pageCount > 1"
-    aria-label="Dweller pages"
-    class="mb-4 flex items-center justify-end gap-3 text-sm text-theme-primary"
-  >
-    <span role="status" aria-live="polite">
-      {{ pageStart + 1 }}–{{ Math.min(pageStart + pageSize, dwellers.length) }} of
-      {{ dwellers.length }}
-    </span>
-    <Button
-      variant="outline"
-      size="icon"
-      aria-label="Previous dweller page"
-      :disabled="currentPage === 1"
-      @click="currentPage--"
-    >
-      <Icon icon="mdi:chevron-left" class="h-4 w-4" />
-    </Button>
-    <Button
-      variant="outline"
-      size="icon"
-      aria-label="Next dweller page"
-      :disabled="currentPage === pageCount"
-      @click="currentPage++"
-    >
-      <Icon icon="mdi:chevron-right" class="h-4 w-4" />
-    </Button>
-  </nav>
-
   <TerminalEmptyState
     v-if="showEmptyState"
     :icon="emptyState.icon"
@@ -251,6 +222,34 @@ const getRoomStat = (
     @view-details="emit('view-details', $event)"
     @open-room="emit('open-room', $event)"
   />
+  <nav
+    v-if="!isLoading && pageCount > 1"
+    aria-label="Dweller pages"
+    class="mt-4 flex items-center justify-end gap-3 text-sm text-theme-primary"
+  >
+    <span role="status" aria-live="polite">
+      {{ pageStart + 1 }}–{{ Math.min(pageStart + pageSize, dwellers.length) }} of
+      {{ dwellers.length }}
+    </span>
+    <Button
+      variant="outline"
+      size="icon"
+      aria-label="Previous dweller page"
+      :disabled="currentPage === 1"
+      @click="currentPage--"
+    >
+      <Icon icon="mdi:chevron-left" class="h-4 w-4" />
+    </Button>
+    <Button
+      variant="outline"
+      size="icon"
+      aria-label="Next dweller page"
+      :disabled="currentPage === pageCount"
+      @click="currentPage++"
+    >
+      <Icon icon="mdi:chevron-right" class="h-4 w-4" />
+    </Button>
+  </nav>
 </template>
 
 <style scoped>

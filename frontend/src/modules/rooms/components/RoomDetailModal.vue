@@ -26,6 +26,7 @@ import RoomPreviewSection from './RoomPreviewSection.vue'
 import BarbershopPanel from './BarbershopPanel.vue'
 import ProductionStats from './ProductionStats.vue'
 import RoomRushPanel from './RoomRushPanel.vue'
+import RoomRushFeedback from './RoomRushFeedback.vue'
 import DwellerList from './DwellerList.vue'
 import RadioControls from './RadioControls.vue'
 import RoomActions from './RoomActions.vue'
@@ -170,6 +171,7 @@ const {
   requestRush,
   cancelRush,
   confirmRush,
+  clearRushResult,
 } = useRoomRush(roomRef, vaultIdRef, modelValueRef)
 
 const rushConfirmMessage = computed(() => {
@@ -233,6 +235,33 @@ onUnmounted(stopAmbience)
 
     <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
       <div v-if="room" class="modal-content">
+        <div
+          v-if="rushResult"
+          class="rush-result-banner"
+          :class="
+            rushResult.outcome === 'success'
+              ? 'rush-result-banner--success'
+              : 'rush-result-banner--failure'
+          "
+          role="status"
+        >
+          <Icon
+            :icon="rushResult.outcome === 'success' ? 'mdi:check-circle' : 'mdi:alert-circle'"
+            class="h-5 w-5 shrink-0"
+          />
+          <div class="rush-result-banner__copy">
+            <strong>{{ rushResult.outcome === 'success' ? 'RUSH OK' : 'RUSH FAIL' }}</strong>
+            <span>{{ rushResult.message }}</span>
+          </div>
+          <button
+            type="button"
+            class="rush-result-banner__close"
+            aria-label="Dismiss rush result"
+            @click="clearRushResult"
+          >
+            &times;
+          </button>
+        </div>
         <!-- Error display -->
         <div v-if="actionError && !has('incident') && !has('aftermath')" class="error-banner">
           <Icon icon="mdi:alert-circle" class="h-5 w-5" />
@@ -397,6 +426,7 @@ onUnmounted(stopAmbience)
       </div>
     </div>
   </TerminalModal>
+  <RoomRushFeedback :result="rushResult" />
   <TerminalConfirmation
     :open="showDestroyConfirmation"
     :title="destroyTitle"
@@ -449,5 +479,63 @@ onUnmounted(stopAmbience)
   border-radius: 4px;
   color: var(--color-danger);
   font-size: 0.875rem;
+}
+
+.rush-result-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 4px;
+  background: var(--color-surface-sunken);
+}
+
+.rush-result-banner--success {
+  border-color: var(--color-success);
+}
+
+.rush-result-banner--failure {
+  border-color: var(--color-danger);
+}
+
+.rush-result-banner__copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.rush-result-banner__copy strong {
+  letter-spacing: 0.08em;
+}
+
+.rush-result-banner--success strong {
+  color: var(--color-success);
+}
+
+.rush-result-banner--failure strong {
+  color: var(--color-danger);
+}
+
+.rush-result-banner__copy span {
+  color: var(--color-theme-primary);
+  font-size: 0.8125rem;
+}
+
+.rush-result-banner__close {
+  flex: 0 0 auto;
+  padding: 0 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-gray-400);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.rush-result-banner__close:hover {
+  color: var(--color-theme-primary);
 }
 </style>

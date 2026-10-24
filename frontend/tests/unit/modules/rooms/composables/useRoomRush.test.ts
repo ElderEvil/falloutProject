@@ -6,12 +6,13 @@ import { useRoomRush } from '@/modules/rooms/composables/useRoomRush'
 import type { Room, RoomRushResult } from '@/modules/rooms/models/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
-const { mockStore, notifyErrorOnce } = vi.hoisted(() => ({
+const { mockStore, notifyErrorOnce, playSound } = vi.hoisted(() => ({
   mockStore: {
     fetchRushQuote: vi.fn(),
     rushRoom: vi.fn(),
   },
   notifyErrorOnce: vi.fn(),
+  playSound: vi.fn(),
 }))
 
 vi.mock('@/modules/rooms/stores/room', () => ({
@@ -21,6 +22,10 @@ vi.mock('@/modules/rooms/stores/room', () => ({
 vi.mock('@/core/utils/errorHandler', () => ({
   getErrorMessage: (error: unknown) => (error instanceof Error ? error.message : 'Unknown error'),
   notifyErrorOnce,
+}))
+
+vi.mock('@/core/composables/useSound', () => ({
+  useSound: () => ({ playSound }),
 }))
 
 const room = { id: 'room-1', name: 'Power Generator' } as Room
@@ -102,6 +107,7 @@ describe('useRoomRush', () => {
     await confirmRush()
 
     expect(mockStore.rushRoom).toHaveBeenCalledWith('room-1', 'token', 'vault-1')
+    expect(playSound).toHaveBeenCalledWith('rushGo', 'sfx')
     expect(currentResult.value).toEqual(result)
     expect(currentQuote.value?.stacks).toBe(3)
     expect(currentQuote.value?.fail_chance).toBe(33)

@@ -1,5 +1,6 @@
 import { computed, ref, watch, type Ref } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useSound } from '@/core/composables/useSound'
 import { getErrorMessage, notifyErrorOnce } from '@/core/utils/errorHandler'
 import { useRoomStore } from '../stores/room'
 import type { Room, RoomRushQuote, RoomRushResult } from '../models/room'
@@ -15,6 +16,7 @@ const BLOCKED_MESSAGES: Record<NonNullable<RoomRushQuote['blocked_reason']>, str
 export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen: Ref<boolean>) {
   const roomStore = useRoomStore()
   const authStore = useAuthStore()
+  const { playSound } = useSound()
   const quote = ref<RoomRushQuote | null>(null)
   const result = ref<RoomRushResult | null>(null)
   const error = ref<string | null>(null)
@@ -53,6 +55,10 @@ export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen
     showConfirmation.value = false
   }
 
+  function clearRushResult(): void {
+    result.value = null
+  }
+
   async function confirmRush(): Promise<void> {
     if (!room.value || !quote.value?.can_rush || !authStore.token || isRushing.value) return
     const roomId = room.value.id
@@ -61,6 +67,7 @@ export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen
     showConfirmation.value = false
     isRushing.value = true
     error.value = null
+    playSound('rushGo', 'sfx')
     try {
       const outcome = await roomStore.rushRoom(roomId, token, currentVaultId)
       if (room.value?.id !== roomId) return
@@ -109,5 +116,6 @@ export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen
     requestRush,
     cancelRush,
     confirmRush,
+    clearRushResult,
   }
 }

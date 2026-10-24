@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
 import type { RoomRushResourceGain, RoomRushResult } from '../models/room'
+import { rushConsequenceTags } from '../utils/roomRush'
 
 interface Props {
   result: RoomRushResult | null
@@ -25,19 +26,22 @@ const success = computed(() => props.result?.outcome === 'success')
 const spriteUrl = computed(() =>
   success.value ? '/assets/vault-boy/rush-ok.webp' : '/assets/vault-boy/rush-fail.webp'
 )
-const gains = computed(() => {
-  if (!props.result) return []
-  const rows = (Object.entries(props.result.payout) as [PayoutKey, number][])
+const summary = computed(() => {
+  const result = props.result
+  if (!result) return ''
+  if (result.outcome === 'failure') {
+    const [incident] = rushConsequenceTags(result.incident_type ? [result.incident_type] : [])
+    const parts = [incident ?? 'INCIDENT']
+    if (result.happiness_delta !== 0) {
+      parts.push(`−${Math.abs(result.happiness_delta)} HAPPINESS`)
+    }
+    return parts.join(' · ')
+  }
+  const parts = (Object.entries(result.payout) as [PayoutKey, number][])
     .filter(([, amount]) => amount > 0)
     .map(([key, amount]) => `+${amount} ${PAYOUT_LABELS[key]}`)
-  if (props.result.caps > 0) rows.push(`+${props.result.caps} CAPS`)
-  if (props.result.outcome === 'failure' && props.result.happiness_delta !== 0) {
-    rows.push(`${props.result.happiness_delta} HAPPINESS`)
-  }
-  if (props.result.incident_type) {
-    rows.push(props.result.incident_type.replaceAll('_', ' ').toUpperCase())
-  }
-  return rows
+  if (result.caps > 0) parts.push(`+${result.caps} CAPS`)
+  return parts.join(' · ') || 'COLLECTED'
 })
 
 watch(
@@ -84,13 +88,8 @@ onUnmounted(() => {
           :style="{ backgroundImage: `url(${spriteUrl})` }"
           aria-hidden="true"
         />
-        <div class="rush-popup__copy">
-          <strong class="rush-popup__title">{{ success ? 'RUSH OK' : 'RUSH FAIL' }}</strong>
-          <p class="rush-popup__message">{{ result.message }}</p>
-          <div v-if="gains.length" class="rush-popup__gains">
-            <span v-for="gain in gains" :key="gain">{{ gain }}</span>
-          </div>
-        </div>
+        <strong class="rush-popup__title">{{ success ? 'RUSH OK' : 'RUSH FAIL' }}</strong>
+        <p class="rush-popup__message">{{ summary }}</p>
       </div>
     </div>
   </Teleport>
@@ -101,6 +100,9 @@ onUnmounted(() => {
   position: fixed;
   inset: 0;
   z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
 }
 
@@ -112,7 +114,7 @@ onUnmounted(() => {
 
 .rush-flash--success {
   background: radial-gradient(
-    circle at 62% 58%,
+    circle at center,
     color-mix(in srgb, var(--color-success) 38%, transparent),
     transparent 68%
   );
@@ -120,25 +122,25 @@ onUnmounted(() => {
 
 .rush-flash--failure {
   background: radial-gradient(
-    circle at 62% 58%,
+    circle at center,
     color-mix(in srgb, var(--color-danger) 42%, transparent),
     transparent 68%
   );
 }
 
 .rush-popup {
-  position: absolute;
-  right: 1.5rem;
-  bottom: 1.5rem;
+  position: relative;
   display: flex;
-  align-items: flex-end;
-  gap: 0.25rem;
-  max-width: min(34rem, calc(100vw - 2rem));
-  padding: 0.75rem 1rem 0.75rem 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  max-width: min(26rem, calc(100vw - 2rem));
+  padding: 1rem 1.5rem 1.1rem;
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
-  background: color-mix(in srgb, var(--color-surface-sunken) 92%, transparent);
-  box-shadow: 0 0 28px color-mix(in srgb, var(--color-theme-primary) 24%, transparent);
+  background: color-mix(in srgb, var(--color-surface-sunken) 94%, transparent);
+  box-shadow: 0 0 32px color-mix(in srgb, var(--color-theme-primary) 24%, transparent);
+  text-align: center;
   animation: rush-popup-in 280ms ease-out;
 }
 
@@ -151,21 +153,12 @@ onUnmounted(() => {
 }
 
 .rush-popup__sprite {
-  flex: 0 0 auto;
-  width: 16rem;
-  height: 16rem;
-  margin: -4.5rem 0 -1.5rem -2rem;
+  width: 13rem;
+  height: 11rem;
   background-repeat: no-repeat;
-  background-position: 0 0;
-  background-size: 700% 100%;
-  animation: rush-vault-boy 1.05s steps(7, jump-none) forwards;
-}
-
-.rush-popup__copy {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding-bottom: 0.25rem;
+  background-position: center;
+  background-size: contain;
+  animation: rush-sprite-pop 420ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
 }
 
 .rush-popup__title {
@@ -188,21 +181,6 @@ onUnmounted(() => {
   font-size: 0.8125rem;
 }
 
-.rush-popup__gains {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-}
-
-.rush-popup__gains span {
-  padding: 0.1rem 0.35rem;
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 3px;
-  color: var(--color-theme-primary);
-  font-size: 0.6875rem;
-  letter-spacing: 0.04em;
-}
-
 @keyframes rush-flash {
   from {
     opacity: 1;
@@ -223,28 +201,25 @@ onUnmounted(() => {
   }
 }
 
-@keyframes rush-vault-boy {
+@keyframes rush-sprite-pop {
   from {
-    background-position: 0 0;
+    opacity: 0;
+    transform: scale(0.82) translateY(10px);
   }
   to {
-    background-position: 100% 0;
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 
 @media (max-width: 640px) {
   .rush-popup {
-    right: 0.75rem;
-    bottom: 0.75rem;
-    left: 0.75rem;
-    max-width: none;
-    padding-right: 0.75rem;
+    padding: 0.75rem 1rem 0.9rem;
   }
 
   .rush-popup__sprite {
-    width: 11rem;
-    height: 11rem;
-    margin: -3rem 0 -1rem -1.25rem;
+    width: 10rem;
+    height: 8.5rem;
   }
 
   .rush-popup__title {
@@ -257,13 +232,9 @@ onUnmounted(() => {
     display: none;
   }
 
-  .rush-popup {
-    animation: none;
-  }
-
+  .rush-popup,
   .rush-popup__sprite {
     animation: none;
-    background-position: 0 0;
   }
 }
 </style>

@@ -6,6 +6,9 @@ interface GameBalanceResponse {
   resource?: {
     base_production_rate?: number
   }
+  rush?: {
+    happiness_delta?: number
+  }
 }
 
 const BALANCE_LOAD_ATTEMPTS = 3
@@ -13,6 +16,7 @@ const BALANCE_LOAD_ATTEMPTS = 3
 // Live backend value; null until /balance answers. No hardcoded fallback so the
 // room UI can never drift from ResourceConfig again (see useRoomProduction).
 const baseProductionRateSetting = ref<number | null>(null)
+const rushHappinessDeltaSetting = ref<number | null>(null)
 let loadPromise: Promise<void> | null = null
 
 async function fetchGameBalance(): Promise<void> {
@@ -20,8 +24,11 @@ async function fetchGameBalance(): Promise<void> {
     try {
       const settings = await apiGet<GameBalanceResponse>('/api/v1/game/balance')
       const rate = settings?.resource?.base_production_rate
-      if (typeof rate !== 'number') throw new Error('Game balance response has no base production rate')
+      if (typeof rate !== 'number')
+        throw new Error('Game balance response has no base production rate')
+      const happinessDelta = settings?.rush?.happiness_delta
       baseProductionRateSetting.value = rate
+      rushHappinessDeltaSetting.value = typeof happinessDelta === 'number' ? happinessDelta : null
       return
     } catch (error: unknown) {
       if (attempt === BALANCE_LOAD_ATTEMPTS || !isRetryableBalanceError(error)) {
@@ -48,5 +55,8 @@ function loadGameBalance(): void {
 
 export function useGameBalance() {
   loadGameBalance()
-  return { baseProductionRate: computed(() => baseProductionRateSetting.value) }
+  return {
+    baseProductionRate: computed(() => baseProductionRateSetting.value),
+    rushHappinessDelta: computed(() => rushHappinessDeltaSetting.value),
+  }
 }

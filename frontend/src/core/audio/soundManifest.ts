@@ -18,6 +18,7 @@ export const SOUND_MANIFEST = {
   // incident is active (was a gentle synthesized two-note ping).
   alarm: '/audio/ui/incident-alarm.wav',
   success: '/audio/ui/success.wav',
+  rushMode: '/audio/ui/rush-mode.mp3',
   rushGo: '/audio/ui/rush-go.mp3',
   rushSuccess: '/audio/ui/success.wav',
   rushFail: '/audio/ui/rush-fail.wav',

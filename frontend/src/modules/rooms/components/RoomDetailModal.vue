@@ -11,6 +11,7 @@ import {
   type RoomPart,
 } from '../models/roomParts'
 import { roomStyle, supportsRoomStyles } from '../models/room'
+import { formatRushPayout, rushConsequenceTags } from '../utils/roomRush'
 import { useRoomStore } from '../stores/room'
 import { useRoomProduction } from '../composables/useRoomProduction'
 import { useRoomUpgrade } from '../composables/useRoomUpgrade'
@@ -41,6 +42,7 @@ import StorageMaintenancePanel from '@/modules/storage/components/StorageMainten
 import OverseerBriefing from '@/modules/vault/components/shell/OverseerBriefing.vue'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 import { useSound } from '@/core/composables/useSound'
+import { useGameBalance } from '@/core/composables/useGameBalance'
 import { getRoomAmbienceKey } from '@/core/audio/soundManifest'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -69,6 +71,7 @@ const modelValueRef = toRef(props, 'modelValue')
 const vaultIdRef = toRef(props, 'vaultId')
 
 const incidentStore = useIncidentStore()
+const { rushHappinessDelta } = useGameBalance()
 const roomStore = useRoomStore()
 const liveIncident = computed(
   () => incidentStore.activeIncidents.find((inc) => inc.room_id === props.room?.id) ?? null
@@ -178,11 +181,9 @@ const {
 const rushConfirmMessage = computed(() => {
   const quote = rushQuote.value
   if (!quote) return ''
-  const payout = Object.entries(quote.payout)
-    .filter(([, amount]) => amount > 0)
-    .map(([resource, amount]) => `+${amount} ${resource}`)
-    .join(', ')
-  return `Risk ${Math.round(quote.fail_chance)}%, success ${Math.round(quote.success_chance)}%. Recent rushes: ${quote.stacks}/${quote.max_stacks}. Payout: ${payout || 'none'}. Failure can start a fire or infestation.`
+  const penalty = rushHappinessDelta.value
+  const happiness = penalty === null ? '' : ` · −${penalty} happiness`
+  return `On success: ${formatRushPayout(quote.payout)} · ${Math.round(quote.fail_chance)}% incident chance · Possible incidents: ${rushConsequenceTags(quote.eligible_incidents).join(' / ')}${happiness}`
 })
 
 const { playSound, playAmbience, stopAmbience } = useSound()
@@ -253,6 +254,10 @@ onUnmounted(stopAmbience)
           <div class="rush-result-banner__copy">
             <strong>{{ rushResult.outcome === 'success' ? 'RUSH OK' : 'RUSH FAIL' }}</strong>
             <span>{{ rushResult.message }}</span>
+            <span v-if="rushResult.happiness_delta !== 0" class="rush-result-banner__meta">
+              {{ rushResult.happiness_delta > 0 ? '+' : '−'
+              }}{{ Math.abs(rushResult.happiness_delta) }} happiness
+            </span>
           </div>
           <Button
             variant="ghost"
@@ -376,7 +381,6 @@ onUnmounted(stopAmbience)
           <RoomRushPanel
             v-if="has('productionStats')"
             :quote="rushQuote"
-            :result="rushResult"
             :loading="isLoadingQuote"
             :rushing="isRushing"
             :error="rushError"
@@ -457,7 +461,7 @@ onUnmounted(stopAmbience)
     :open="showRushConfirmation"
     :title="`Rush ${room?.name ?? 'room'}?`"
     :message="rushConfirmMessage"
-    :confirm-label="`Activate (${Math.round(rushQuote?.fail_chance ?? 0)}% risk)`"
+    confirm-label="Activate Rush"
     @confirm="confirmRush"
     @cancel="cancelRush"
   />
@@ -524,6 +528,12 @@ onUnmounted(stopAmbience)
 .rush-result-banner__copy span {
   color: var(--color-theme-primary);
   font-size: 0.8125rem;
+}
+
+.rush-result-banner__meta {
+  color: var(--color-warning);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
 }
 
 .rush-result-banner__close {

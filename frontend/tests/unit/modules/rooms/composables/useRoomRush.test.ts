@@ -6,13 +6,14 @@ import { useRoomRush } from '@/modules/rooms/composables/useRoomRush'
 import type { Room, RoomRushResult } from '@/modules/rooms/models/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
-const { mockStore, notifyErrorOnce, playSound } = vi.hoisted(() => ({
+const { mockStore, notifyErrorOnce, playSound, stopSound } = vi.hoisted(() => ({
   mockStore: {
     fetchRushQuote: vi.fn(),
     rushRoom: vi.fn(),
   },
   notifyErrorOnce: vi.fn(),
   playSound: vi.fn(),
+  stopSound: vi.fn(),
 }))
 
 vi.mock('@/modules/rooms/stores/room', () => ({
@@ -25,7 +26,7 @@ vi.mock('@/core/utils/errorHandler', () => ({
 }))
 
 vi.mock('@/core/composables/useSound', () => ({
-  useSound: () => ({ playSound }),
+  useSound: () => ({ playSound, stopSound }),
 }))
 
 const room = { id: 'room-1', name: 'Power Generator' } as Room
@@ -82,14 +83,24 @@ describe('useRoomRush', () => {
     expect(mockStore.fetchRushQuote).not.toHaveBeenCalled()
   })
 
-  it('opens the confirmation only for a rushable quote', async () => {
+  it('opens the confirmation with the rush-mode music and can cancel it', async () => {
     mockStore.fetchRushQuote.mockResolvedValueOnce(quote)
-    const { requestRush, showConfirmation } = useRoomRush(ref(room), ref('vault-1'), ref(true))
+    const { requestRush, cancelRush, showConfirmation } = useRoomRush(
+      ref(room),
+      ref('vault-1'),
+      ref(true)
+    )
     await flushPromises()
 
     requestRush()
 
     expect(showConfirmation.value).toBe(true)
+    expect(playSound).toHaveBeenCalledWith('rushMode', 'music')
+
+    cancelRush()
+
+    expect(showConfirmation.value).toBe(false)
+    expect(stopSound).toHaveBeenCalledWith('rushMode')
   })
 
   it('submits the rush, keeps the result, and refreshes the quote', async () => {
@@ -107,6 +118,7 @@ describe('useRoomRush', () => {
     await confirmRush()
 
     expect(mockStore.rushRoom).toHaveBeenCalledWith('room-1', 'token', 'vault-1')
+    expect(stopSound).toHaveBeenCalledWith('rushMode')
     expect(playSound).toHaveBeenCalledWith('rushGo', 'sfx')
     expect(currentResult.value).toEqual(result)
     expect(currentQuote.value?.stacks).toBe(3)

@@ -32,8 +32,7 @@ describe('RoomRushFeedback', () => {
     const wrapper = mountFeedback(success)
 
     expect(wrapper.text()).toContain('RUSH OK')
-    expect(wrapper.text()).toContain('+12 POWER')
-    expect(wrapper.text()).toContain('+120 CAPS')
+    expect(wrapper.text()).toContain('+12 POWER · +120 CAPS')
     expect(wrapper.find('.rush-popup__sprite').attributes('style')).toContain('rush-ok.webp')
 
     wrapper.unmount()
@@ -53,8 +52,8 @@ describe('RoomRushFeedback', () => {
     })
 
     expect(wrapper.text()).toContain('RUSH FAIL')
-    expect(wrapper.text()).toContain('-10 HAPPINESS')
     expect(wrapper.text()).toContain('FIRE')
+    expect(wrapper.text()).toContain('−10 HAPPINESS')
     expect(wrapper.find('.rush-popup__sprite').attributes('style')).toContain('rush-fail.webp')
 
     wrapper.unmount()

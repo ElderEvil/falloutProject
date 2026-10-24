@@ -1,12 +1,19 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
-import type { RoomRushQuote, RoomRushResourceGain, RoomRushResult } from '../models/room'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
+import { useGameBalance } from '@/core/composables/useGameBalance'
+import type { RoomRushQuote } from '../models/room'
+import { formatRushPayout, rushConsequenceTags } from '../utils/roomRush'
 
 interface Props {
   quote: RoomRushQuote | null
-  result: RoomRushResult | null
   loading: boolean
   rushing: boolean
   error: string | null
@@ -16,42 +23,32 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{ rush: [] }>()
 
-type PayoutKey = keyof RoomRushResourceGain
-
-const PAYOUT_LABELS: Record<PayoutKey, string> = {
-  power: 'Power',
-  food: 'Food',
-  water: 'Water',
-  stimpack: 'Stimpacks',
-  radaway: 'RadAway',
-}
-
-const payoutRows = computed(() =>
-  props.quote
-    ? (Object.entries(props.quote.payout) as [PayoutKey, number][])
-        .filter(([, amount]) => amount > 0)
-        .map(([key, amount]) => ({ label: PAYOUT_LABELS[key], amount }))
-    : []
-)
-
-const resultRows = computed(() =>
-  props.result
-    ? (Object.entries(props.result.payout) as [PayoutKey, number][])
-        .filter(([, amount]) => amount > 0)
-        .map(([key, amount]) => ({ label: PAYOUT_LABELS[key], amount }))
-    : []
-)
+const { rushHappinessDelta } = useGameBalance()
+const showBreakdown = ref(false)
 
 const riskLabel = computed(() => (props.quote ? Math.round(props.quote.fail_chance) : 0))
 const successLabel = computed(() => (props.quote ? Math.round(props.quote.success_chance) : 0))
-const capsChanceLabel = computed(() => (props.quote ? Math.round(props.quote.caps_chance) : 0))
-const incidentLabel = computed(() =>
-  props.result?.incident_type ? props.result.incident_type.replaceAll('_', ' ') : null
-)
-
+const avgAbilityLabel = computed(() => props.quote?.avg_ability.toFixed(1) ?? '0.0')
+const avgLuckLabel = computed(() => props.quote?.avg_luck.toFixed(1) ?? '0.0')
+const consequenceTags = computed(() => rushConsequenceTags(props.quote?.eligible_incidents ?? []))
+const payoutPreview = computed(() => (props.quote ? formatRushPayout(props.quote.payout) : ''))
+const happinessPenalty = computed(() => rushHappinessDelta.value)
+const stackPenalty = computed(() => (props.quote ? props.quote.stacks * 10 : 0))
+const breakdownRows = computed(() => {
+  const quote = props.quote
+  if (!quote) return []
+  const rows = [
+    { label: 'Success', value: `${successLabel.value}%` },
+    { label: 'SPECIAL (gear)', value: avgAbilityLabel.value },
+    { label: 'Luck (gear)', value: avgLuckLabel.value },
+    { label: 'Workers', value: String(quote.worker_count) },
+  ]
+  if (stackPenalty.value > 0) rows.push({ label: 'Rush penalty', value: `+${stackPenalty.value}%` })
+  return rows
+})
 const rushAriaLabel = computed(() => {
   if (!props.quote?.can_rush) return props.blockedMessage || 'Rush unavailable'
-  return `Rush production (${riskLabel.value}% risk)`
+  return `Rush the room (${riskLabel.value}% incident chance)`
 })
 </script>
 
@@ -62,37 +59,65 @@ const rushAriaLabel = computed(() => {
       Rush Production
     </h3>
 
-    <div v-if="loading" class="rush-loading">Calculating risk...</div>
+    <div v-if="loading" class="rush-loading">Checking the odds...</div>
     <div v-else-if="error" class="rush-error">{{ error }}</div>
     <div v-else-if="quote" class="rush-card">
-      <div class="rush-stats">
-        <div class="rush-stat">
-          <span>Risk</span>
-          <strong>{{ riskLabel }}%</strong>
-        </div>
-        <div class="rush-stat">
-          <span>Success</span>
-          <strong>{{ successLabel }}%</strong>
-        </div>
-        <div class="rush-stat">
-          <span>Recent rushes</span>
-          <strong>{{ quote.stacks }}/{{ quote.max_stacks }}</strong>
-        </div>
-        <div class="rush-stat">
-          <span>Caps chance</span>
-          <strong>{{ capsChanceLabel }}%</strong>
+      <div class="rush-risk">
+        <span class="rush-risk__label">Incident chance</span>
+        <div class="rush-risk__main">
+          <TooltipProvider :delay-duration="150">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <span
+                  class="rush-risk__value"
+                  tabindex="0"
+                  :aria-label="`${riskLabel}% incident chance. Focus for contributing factors.`"
+                >
+                  {{ riskLabel }}%
+                </span>
+              </TooltipTrigger>
+              <TooltipContent class="max-w-64">
+                <dl class="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
+                  <div v-for="row in breakdownRows" :key="row.label" class="contents">
+                    <dt class="text-theme-primary/60">{{ row.label }}</dt>
+                    <dd class="text-right">{{ row.value }}</dd>
+                  </div>
+                </dl>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <span v-if="stackPenalty > 0" class="rush-risk__penalty">
+            Rush penalty +{{ stackPenalty }}%
+          </span>
         </div>
       </div>
 
-      <div v-if="payoutRows.length" class="rush-payout">
-        <span class="rush-payout__label">Payout</span>
-        <span v-for="row in payoutRows" :key="row.label" class="rush-payout__item">
-          +{{ row.amount }} {{ row.label }}
+      <Button
+        variant="ghost"
+        size="xs"
+        class="rush-why"
+        :aria-expanded="showBreakdown"
+        @click="showBreakdown = !showBreakdown"
+      >
+        Why these odds?
+      </Button>
+
+      <dl v-if="showBreakdown" id="rush-breakdown" class="rush-breakdown">
+        <div v-for="row in breakdownRows" :key="row.label" class="contents">
+          <dt>{{ row.label }}</dt>
+          <dd>{{ row.value }}</dd>
+        </div>
+      </dl>
+
+      <div class="rush-consequences">
+        <span class="rush-consequences__label">Possible incidents</span>
+        <span v-for="tag in consequenceTags" :key="tag" class="rush-consequence">{{ tag }}</span>
+        <span v-if="happinessPenalty !== null" class="rush-consequence rush-consequence--happiness">
+          −{{ happinessPenalty }} Happiness
         </span>
       </div>
-      <p v-else class="rush-note">
-        Resource payout is zero at current capacity. Caps can still be earned.
-      </p>
+
+      <p class="rush-payout">On success: {{ payoutPreview }}</p>
 
       <p v-if="!quote.can_rush" class="rush-blocked">{{ blockedMessage }}</p>
 
@@ -105,28 +130,8 @@ const rushAriaLabel = computed(() => {
         @click="emit('rush')"
       >
         <Icon icon="mdi:lightning-bolt" />
-        {{ rushing ? 'Rushing...' : 'Rush Production' }}
+        {{ rushing ? 'Rushing...' : 'Rush' }}
       </Button>
-
-      <p class="rush-warning">
-        Failure can start a fire or infestation and hurt assigned dwellers.
-      </p>
-
-      <div
-        v-if="result"
-        class="rush-result"
-        :class="result.outcome === 'success' ? 'rush-result--success' : 'rush-result--failure'"
-      >
-        <div class="rush-result__stamp rush-stamp">
-          {{ result.outcome === 'success' ? 'RUSH OK' : 'RUSH FAIL' }}
-        </div>
-        <p>{{ result.message }}</p>
-        <p v-if="resultRows.length">
-          Produced: {{ resultRows.map((row) => `+${row.amount} ${row.label}`).join(', ') }}
-        </p>
-        <p v-if="result.caps > 0">Caps bonus: +{{ result.caps }}</p>
-        <p v-if="result.outcome === 'failure' && incidentLabel">Incident: {{ incidentLabel }}</p>
-      </div>
     </div>
   </div>
 </template>
@@ -158,122 +163,136 @@ const rushAriaLabel = computed(() => {
 .rush-card {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  padding: 0.65rem;
+  gap: 0.55rem;
+  padding: 0.7rem 0.8rem;
   border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
   background: var(--color-surface-sunken);
 }
 
-.rush-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.4rem;
+.rush-risk {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
-.rush-stat {
-  padding: 0.4rem;
+.rush-risk__label {
+  color: var(--color-gray-400);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.rush-risk__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rush-risk__value {
+  border-bottom: 1px dotted var(--color-warning);
+  color: var(--color-warning);
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: help;
+}
+
+.rush-risk__value:hover,
+.rush-risk__value:focus-visible {
+  text-shadow: 0 0 12px color-mix(in srgb, var(--color-warning) 65%, transparent);
+  outline: none;
+}
+
+.rush-risk__value:focus-visible {
+  outline: 1px solid var(--color-warning);
+  outline-offset: 3px;
+}
+
+.rush-risk__penalty {
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--color-warning);
+  border-radius: 3px;
+  color: var(--color-warning);
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+}
+
+.rush-why {
+  align-self: flex-start;
+  color: var(--color-theme-primary);
+}
+
+.rush-breakdown {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.15rem 0.75rem;
+  margin: 0;
+  padding: 0.45rem 0.55rem;
   border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
-  text-align: center;
+  font-size: 0.75rem;
 }
 
-.rush-stat span {
-  display: block;
+.rush-breakdown dt {
+  color: var(--color-gray-400);
+}
+
+.rush-breakdown dd {
+  margin: 0;
+  color: var(--color-theme-primary);
+  text-align: right;
+}
+
+.rush-consequences {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.rush-consequences__label {
   color: var(--color-gray-400);
   font-size: 0.6875rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
-.rush-stat strong {
-  display: block;
-  margin-top: 0.15rem;
-  color: var(--color-theme-primary);
-  font-size: 1rem;
+.rush-consequence {
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--color-warning);
+  border-radius: 3px;
+  color: var(--color-warning);
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+}
+
+.rush-consequence--happiness {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .rush-payout {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.75rem;
+  margin: 0;
+  color: var(--color-theme-primary);
+  font-size: 0.8125rem;
 }
 
-.rush-payout__label {
-  color: var(--color-gray-400);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.rush-payout__item {
-  padding: 0.1rem 0.35rem;
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 3px;
-  color: var(--color-success);
-}
-
-.rush-loading,
-.rush-note {
+.rush-loading {
   color: var(--color-gray-400);
   font-size: 0.75rem;
 }
 
 .rush-blocked,
 .rush-error {
+  margin: 0;
   color: var(--color-warning);
   font-size: 0.75rem;
 }
 
-.rush-warning {
-  color: var(--color-gray-400);
-  font-size: 0.6875rem;
-}
-
 .rush-button {
   align-self: flex-start;
-}
-
-.rush-result {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.5rem;
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 4px;
-  font-size: 0.75rem;
-}
-
-.rush-result p {
-  margin: 0;
-}
-
-.rush-result--success {
-  border-color: var(--color-success);
-}
-
-.rush-result--failure {
-  border-color: var(--color-danger);
-}
-
-.rush-result__stamp {
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-
-.rush-result--success .rush-result__stamp {
-  color: var(--color-success);
-}
-
-.rush-result--failure .rush-result__stamp {
-  color: var(--color-danger);
-}
-
-@media (max-width: 640px) {
-  .rush-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 </style>

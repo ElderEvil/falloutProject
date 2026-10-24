@@ -1,4 +1,4 @@
-import { computed, ref, watch, type Ref } from 'vue'
+import { computed, getCurrentScope, onScopeDispose, ref, watch, type Ref } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSound } from '@/core/composables/useSound'
 import { getErrorMessage, notifyErrorOnce } from '@/core/utils/errorHandler'
@@ -16,7 +16,7 @@ const BLOCKED_MESSAGES: Record<NonNullable<RoomRushQuote['blocked_reason']>, str
 export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen: Ref<boolean>) {
   const roomStore = useRoomStore()
   const authStore = useAuthStore()
-  const { playSound } = useSound()
+  const { playSound, stopSound } = useSound()
   const quote = ref<RoomRushQuote | null>(null)
   const result = ref<RoomRushResult | null>(null)
   const error = ref<string | null>(null)
@@ -48,10 +48,12 @@ export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen
 
   function requestRush(): void {
     if (!quote.value?.can_rush || isRushing.value) return
+    playSound('rushMode', 'music')
     showConfirmation.value = true
   }
 
   function cancelRush(): void {
+    stopSound('rushMode')
     showConfirmation.value = false
   }
 
@@ -67,6 +69,7 @@ export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen
     showConfirmation.value = false
     isRushing.value = true
     error.value = null
+    stopSound('rushMode')
     playSound('rushGo', 'sfx')
     try {
       const outcome = await roomStore.rushRoom(roomId, token, currentVaultId)
@@ -93,6 +96,7 @@ export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen
     [() => room.value?.id, isOpen],
     ([, open]) => {
       if (!open) {
+        stopSound('rushMode')
         quote.value = null
         result.value = null
         error.value = null
@@ -103,6 +107,8 @@ export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen
     },
     { immediate: true }
   )
+
+  if (getCurrentScope()) onScopeDispose(() => stopSound('rushMode'))
 
   return {
     quote,

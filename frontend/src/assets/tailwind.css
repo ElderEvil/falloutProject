@@ -643,6 +643,39 @@ body {
     }
 }
 
+/* Combat motion shared by the arena ring and the incident scene: the attacker
+   lunges toward the opposing side, the target flashes and lifts. */
+@utility combat-lunge-right {
+    animation: combat-lunge-right 400ms ease-out;
+}
+
+@utility combat-lunge-left {
+    animation: combat-lunge-left 400ms ease-out;
+}
+
+@utility combat-impact {
+    animation: combat-impact 280ms ease-out;
+}
+
+@keyframes combat-lunge-right {
+    50% {
+        transform: translateX(12px);
+    }
+}
+
+@keyframes combat-lunge-left {
+    50% {
+        transform: translateX(-12px);
+    }
+}
+
+@keyframes combat-impact {
+    50% {
+        filter: brightness(1.8);
+        transform: translateY(-3px);
+    }
+}
+
 @keyframes stat-highlight-pulse {
     from {
         box-shadow: 0 0 12px var(--color-theme-glow);
@@ -678,6 +711,9 @@ body {
     .room-rush-fail { animation: none; }
     .room-rush-success { box-shadow: var(--glow-2); }
     .room-rush-fail { transform: none; }
+    .combat-lunge-right,
+    .combat-lunge-left,
+    .combat-impact { animation: none; }
     .flicker,
     .flicker-random,
     .flicker-slow { animation: none; }

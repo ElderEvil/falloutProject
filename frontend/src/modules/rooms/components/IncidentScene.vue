@@ -1,18 +1,12 @@
 <script setup lang="ts">
-import {
-  TooltipProvider,
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from '@/core/components/ui/tooltip'
-
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { Heart, ShieldAlert, UserRound } from '@lucide/vue'
+import { ShieldAlert, UserRound } from '@lucide/vue'
 import { Progress } from '@/core/components/ui/progress'
+import DwellerNameBadge from '@/modules/dwellers/components/DwellerNameBadge.vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import { getCombatPower, getEffectiveMaxHealth } from '@/modules/dwellers/models/dweller'
+import { getEffectiveMaxHealth } from '@/modules/dwellers/models/dweller'
 import {
   IncidentType,
   getIncidentParticipants,
@@ -23,6 +17,7 @@ import {
 import { getCreatureImagePath, getCreatureModelSizeClass } from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
 import { humanizePreserveCase } from '@/core/utils/format'
+import { useCombatPulse } from '../composables/useCombatPulse'
 import { useFallbackImage } from '../composables/useFallbackImage'
 
 const props = defineProps<{
@@ -58,6 +53,7 @@ const progressPercent = computed(() =>
     : 0
 )
 const creatureKeys: Partial<Record<IncidentType, string>> = {
+  [IncidentType.RAIDER_ATTACK]: 'raider',
   [IncidentType.RADROACH_INFESTATION]: 'radroach',
   [IncidentType.MOLE_RAT_ATTACK]: 'mole-rat',
   [IncidentType.DEATHCLAW_ATTACK]: 'deathclaw',
@@ -71,19 +67,44 @@ const { url: creatureImage, onError: creatureFailed } = useFallbackImage(() => [
 const creatureName = computed(() =>
   humanizePreserveCase((creatureKey.value ?? 'Raider').replaceAll('-', '_'))
 )
-const latestEffect = computed(
-  () => [...props.incident.events].reverse().find((event) => event.data !== null) ?? null
-)
-const dwellerDamage = computed(() => Number(latestEffect.value?.data?.damage_to_dwellers ?? 0))
-const threatDamage = computed(() => Number(latestEffect.value?.data?.damage_to_threat ?? 0))
-const containmentGain = computed(() =>
-  Math.round(Number(latestEffect.value?.data?.amount ?? 0) * 100)
-)
+// A round is a `turn` line followed by one `hit` line per attack, so the scene
+// sums the whole round instead of reading a single aggregate event.
+const latestTurnIndex = computed(() => {
+  const events = props.incident.events
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    if (events[index].kind === 'turn' || events[index].kind === 'round') return index
+  }
+  return -1
+})
+const roundEvents = computed(() => {
+  if (latestTurnIndex.value >= 0) return props.incident.events.slice(latestTurnIndex.value)
+  const latest = [...props.incident.events].reverse().find((event) => event.data !== null)
+  return latest ? [latest] : []
+})
+const roundKey = computed(() => roundEvents.value[0]?.id ?? null)
+const roundTotal = (key: string) =>
+  roundEvents.value.reduce((total, event) => total + Number(event.data?.[key] ?? 0), 0)
+const dwellerDamage = computed(() => roundTotal('damage_to_dwellers'))
+const threatDamage = computed(() => roundTotal('damage_to_threat'))
+const containmentGain = computed(() => Math.round(roundTotal('amount') * 100))
+
+const combatPulse = useCombatPulse(computed(() => roundKey.value))
+const responderMotion = computed(() => ({
+  'combat-impact': combatPulse.value && dwellerDamage.value > 0,
+  'combat-lunge-right': combatPulse.value && dwellerDamage.value <= 0 && threatDamage.value > 0,
+}))
+const threatMotion = computed(() => ({
+  'combat-impact': combatPulse.value && (threatDamage.value > 0 || containmentGain.value > 0),
+  'combat-lunge-left':
+    combatPulse.value &&
+    threatDamage.value <= 0 &&
+    containmentGain.value <= 0 &&
+    dwellerDamage.value > 0,
+}))
 </script>
 
 <template>
-  <TooltipProvider :delay-duration="200" :ignore-non-keyboard-focus="true">
-    <section
+  <section
       class="incident-scene relative isolate aspect-[5/2] min-h-80 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
       aria-label="Incident live status"
     >
@@ -112,10 +133,10 @@ const containmentGain = computed(() =>
       <div
         class="absolute inset-x-3 top-12 bottom-16 grid grid-cols-2 items-end gap-5 sm:inset-x-6 sm:gap-10"
       >
-        <div class="relative min-w-0">
+        <div class="relative min-w-0" :class="responderMotion">
           <span
             v-if="dwellerDamage"
-            :key="latestEffect?.id"
+            :key="roundKey"
             class="floating-effect absolute -top-3 left-1/2 z-30 font-bold text-danger"
             aria-hidden="true"
             >-{{ Math.round(dwellerDamage) }}</span
@@ -130,43 +151,17 @@ const containmentGain = computed(() =>
                 'opacity-40 grayscale': responder.dweller && responder.dweller.health <= 0,
               }"
             >
-              <Tooltip
-                ><TooltipTrigger as-child
-                  ><span
-                    class="w-full truncate text-center text-xs font-semibold text-theme-primary [text-shadow:0_1px_3px_black]"
-                    tabindex="0"
-                    >{{ responder.name }}</span
-                  ></TooltipTrigger
-                ><TooltipContent
-                  class="border border-theme-primary/40 bg-popover text-theme-primary"
-                  >{{ responder.name }}</TooltipContent
-                ></Tooltip
-              >
-              <Tooltip v-if="responder.dweller"
-                ><TooltipTrigger as-child
-                  ><div class="w-full rounded bg-black/85 p-1" tabindex="0">
-                    <div class="flex items-center gap-1">
-                      <Heart class="size-3 shrink-0 fill-danger text-danger" aria-hidden="true" />
-                      <Progress
-                        size="xs"
-                        :model-value="
-                          (responder.dweller.health / healthCeiling(responder.dweller)) * 100
-                        "
-                        :label="`${responder.name} health`"
-                        :value-text="`${responder.dweller.health}/${healthCeiling(responder.dweller)}`"
-                      />
-                    </div>
-                    <span class="sr-only"
-                      >POW {{ getCombatPower(responder.dweller) }} · Lv
-                      {{ responder.dweller.level }}</span
-                    >
-                  </div></TooltipTrigger
-                ><TooltipContent
-                  class="border border-theme-primary/40 bg-popover text-theme-primary"
-                  >{{
-                    `${responder.dweller.health}/${healthCeiling(responder.dweller)} HP · Lv ${responder.dweller.level} · POW ${getCombatPower(responder.dweller)}`
-                  }}</TooltipContent
-                ></Tooltip
+              <DwellerNameBadge
+                :name="responder.dweller?.first_name ?? responder.name"
+                :full-name="responder.name"
+                :health="responder.dweller?.health"
+                :max-health="responder.dweller ? healthCeiling(responder.dweller) : null"
+              />
+              <span
+                v-if="responder.dweller && responder.dweller.health < healthCeiling(responder.dweller)"
+                class="sr-only"
+                >{{ responder.name }}: {{ responder.dweller.health }} of
+                {{ healthCeiling(responder.dweller) }} HP</span
               >
               <div class="flex h-[7.25rem] w-full items-end justify-center">
                 <DwellerPortrait
@@ -184,21 +179,6 @@ const containmentGain = computed(() =>
                   role="img"
                 />
               </div>
-              <span
-                v-if="responder.source === 'resident'"
-                class="max-w-full truncate rounded bg-black/80 px-1 text-[9px] font-semibold text-theme-primary"
-                >RESIDENT</span
-              >
-              <span
-                v-else-if="responder.dispatched"
-                class="max-w-full truncate rounded bg-black/80 px-1 text-[9px] font-semibold text-info"
-                >DISPATCHED</span
-              >
-              <span
-                v-else
-                class="max-w-full truncate rounded bg-black/80 px-1 text-[9px] font-semibold text-info"
-                >HELPER</span
-              >
             </div>
             <span
               v-if="!responders.length"
@@ -210,20 +190,21 @@ const containmentGain = computed(() =>
 
         <div
           class="relative flex min-w-0 flex-col items-center justify-end gap-2 self-end"
-          :class="{
-            'opacity-40 grayscale': incident.objective === 'defeat' && remainingEnemies === 0,
-          }"
+          :class="[
+            threatMotion,
+            { 'opacity-40 grayscale': incident.objective === 'defeat' && remainingEnemies === 0 },
+          ]"
         >
           <span
             v-if="threatDamage && incident.objective === 'defeat'"
-            :key="latestEffect?.id"
+            :key="roundKey"
             class="floating-effect absolute -top-3 z-30 font-bold text-danger"
             aria-hidden="true"
             >-{{ Math.round(threatDamage) }}</span
           >
           <span
             v-if="containmentGain && incident.objective === 'contain'"
-            :key="latestEffect?.id"
+            :key="roundKey"
             class="floating-effect absolute -top-3 z-30 font-bold text-success"
             aria-hidden="true"
             >+{{ containmentGain }}%</span
@@ -295,8 +276,7 @@ const containmentGain = computed(() =>
           size="xs"
         />
       </div>
-    </section>
-  </TooltipProvider>
+  </section>
 </template>
 
 <style scoped>

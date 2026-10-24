@@ -32,7 +32,9 @@ export const useIncidentStore = defineStore('incident', () => {
   let pollingVaultId: string | null = null
   const announcedResolutions = new Set<string>()
   const announcedIncidentSounds = new Set<string>()
-  const seenEventCounts = new Map<string, number>()
+  const seenEventMarkers = new Map<string, { count: number; lastId: string | undefined }>()
+  let detailRequestOrder = 0
+  const appliedDetailOrders = new Map<string, number>()
 
   const { success: showSuccess, error: showError, warning: showWarning } = useToast()
 
@@ -95,6 +97,12 @@ export const useIncidentStore = defineStore('incident', () => {
   const findAftermath = (incidentId: string): IncidentAftermath | undefined =>
     [...aftermaths.value.values()].find((entry) => entry.incidentId === incidentId)
 
+  // Victory and defeat share one cue path so a win inferred from the record
+  // (no SSE frame) sounds exactly like one announced by the stream.
+  const playResolutionSound = (outcome: Exclude<IncidentOutcome, 'unknown'>): void => {
+    audioManager.play(outcome === 'victory' ? 'incidentVictory' : 'incidentDefeat', 'sfx')
+  }
+
   const applyOverflow = (incidentId: string, unclaimed: IncidentLootItem[]): void => {
     const entry = findAftermath(incidentId)
     if (entry) entry.unclaimed = unclaimed
@@ -102,7 +110,7 @@ export const useIncidentStore = defineStore('incident', () => {
 
   // The resolution frame carries no held loot, and the cached incident predates the
   // grant, so the aftermath reloads the resolved incident to learn what was held.
-  const outcomeForStatus = (status: IncidentStatus): IncidentOutcome | null => {
+  const outcomeForStatus = (status: IncidentStatus): Exclude<IncidentOutcome, 'unknown'> | null => {
     if (status === IncidentStatus.RESOLVED) return 'victory'
     if (status === IncidentStatus.FAILED) return 'defeat'
     return null
@@ -128,6 +136,7 @@ export const useIncidentStore = defineStore('incident', () => {
       if (entry.outcome === 'unknown' && settled) {
         entry.outcome = settled
         entry.capsEarned = incident.loot?.caps ?? 0
+        playResolutionSound(settled)
       }
     } catch (error) {
       handleStoreError(error, 'Failed to load held incident loot')
@@ -201,6 +210,7 @@ export const useIncidentStore = defineStore('incident', () => {
             void refreshAftermathOverflow(vaultId, id, token)
           }
           incidentTeams.value.delete(id)
+          appliedDetailOrders.delete(id)
         })
 
       // Check for new incidents (spawn notifications)
@@ -232,12 +242,29 @@ export const useIncidentStore = defineStore('incident', () => {
       await Promise.all(
         newIds.map(async (id) => {
           try {
+            const requestOrder = ++detailRequestOrder
             const incident = await incidentApi.getIncident(vaultId, id, token)
-            const previousCount = seenEventCounts.get(id)
-            if (previousCount !== undefined && incident.events.length > previousCount) {
-              audioManager.play('incidentHit', 'sfx')
+            // Overlapping polls can resolve out of order; the newer request wins so
+            // an older full window cannot replay the hit or lower the marker.
+            if (requestOrder < (appliedDetailOrders.get(id) ?? 0)) return
+            appliedDetailOrders.set(id, requestOrder)
+            const previous = seenEventMarkers.get(id)
+            const count = incident.events.length
+            const lastEvent = incident.events.at(-1)
+            const lastId = lastEvent?.id
+            const lastIsCombat =
+              lastEvent !== undefined && ['hit', 'round', 'containment'].includes(lastEvent.kind)
+            // The journal only grows until it reaches the 40-line window, so a
+            // shorter page is a stale snapshot and must not replace the store.
+            if (previous && count < previous.count) return
+            if (!previous) {
+              seenEventMarkers.set(id, { count, lastId })
+            } else if (lastId !== previous.lastId) {
+              // The journal is a rolling window, so a saturated page still has to
+              // sound when a combat line enters; an assignment or resolution must not.
+              if (lastIsCombat) audioManager.play('incidentHit', 'sfx')
+              seenEventMarkers.set(id, { count, lastId })
             }
-            seenEventCounts.set(id, Math.max(previousCount ?? 0, incident.events.length))
             incidents.value.set(id, incident)
           } catch (error) {
             handleStoreError(error, 'Failed to refresh incident details')
@@ -377,6 +404,7 @@ export const useIncidentStore = defineStore('incident', () => {
               activeIncidentIds.value = activeIncidentIds.value.filter((id) => id !== resolvedId)
               incidents.value.delete(resolvedId)
               incidentTeams.value.delete(resolvedId)
+              appliedDetailOrders.delete(resolvedId)
             }
             if (!isFirstNotice) break
             const capsEarned = typeof data.caps_earned === 'number' ? data.caps_earned : 0
@@ -392,7 +420,7 @@ export const useIncidentStore = defineStore('incident', () => {
               void refreshAftermathOverflow(vaultId, resolvedId, token)
             }
             if (data.success === true) {
-              audioManager.play('success')
+              playResolutionSound('victory')
               showSuccess(
                 capsEarned > 0
                   ? `Incident victory — recovered ${capsEarned} caps.`
@@ -401,12 +429,12 @@ export const useIncidentStore = defineStore('incident', () => {
                     : 'Incident resolved — responders earned experience.'
               )
             } else if (resolved) {
-              audioManager.play('incidentDefeat', 'sfx')
+              playResolutionSound('defeat')
               showError(
                 `Incident lost — ${resolved.type.replace(/_/g, ' ')} overran ${resolved.room_name ?? 'the vault'}.`
               )
             } else {
-              audioManager.play('incidentDefeat', 'sfx')
+              playResolutionSound('defeat')
               showError('Incident lost — the threat was not contained.')
             }
             break
@@ -476,7 +504,8 @@ export const useIncidentStore = defineStore('incident', () => {
     isPolling.value = false
     // Clearing the active set unwinds the alarm and music through the watcher.
     activeIncidentIds.value = []
-    seenEventCounts.clear()
+    seenEventMarkers.clear()
+    appliedDetailOrders.clear()
   }
 
   function clearIncidents(): void {
@@ -485,7 +514,8 @@ export const useIncidentStore = defineStore('incident', () => {
     aftermaths.value.clear()
     incidentTeams.value.clear()
     announcedIncidentSounds.clear()
-    seenEventCounts.clear()
+    seenEventMarkers.clear()
+    appliedDetailOrders.clear()
   }
 
   function getIncidentById(id: string): Incident | undefined {

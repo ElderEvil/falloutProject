@@ -97,6 +97,25 @@ def split_damage(incoming: int, count: int) -> list[int]:
     return [base + (1 if index < remainder else 0) for index in range(count)]
 
 
+def split_proportional(total: float, weights: list[float]) -> list[int]:
+    """Split `total` into integer shares proportional to `weights`, summing to int(total).
+
+    Damage to the threat is computed from the responders' combined power, so the
+    per-attacker lines are a display attribution of that same total.
+    """
+    total_int = round(total)
+    weight_sum = sum(weights)
+    if total_int <= 0 or weight_sum <= 0:
+        return [0] * len(weights)
+    raw = [total_int * weight / weight_sum for weight in weights]
+    shares = [int(value) for value in raw]
+    remainder = total_int - sum(shares)
+    order = sorted(range(len(raw)), key=lambda index: raw[index] - shares[index], reverse=True)
+    for index in order[:remainder]:
+        shares[index] += 1
+    return shares
+
+
 def raider_power(difficulty: int) -> float:
     """Calculate raider power based on difficulty."""
     return difficulty * game_config.combat.base_raider_power

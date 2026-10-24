@@ -21,8 +21,8 @@ for (const [width, count] of [
     await page.goto(`/tests/e2e/fixtures/incident-scene.html?responders=${count}`)
     const scene = page.getByRole('region', { name: 'Incident live status' })
     await expect(scene).toContainText(`RESPONDERS · ${count}`)
-    await expect(scene.getByText('RESIDENT', { exact: true }).first()).toBeVisible()
-    await expect(scene.getByRole('progressbar', { name: /health/ })).toHaveCount(count)
+    await expect(scene.locator('.dweller-name-badge')).toHaveCount(count)
+    await expect(scene.locator('.dweller-health')).toHaveCount(count)
     await expect(scene.getByAltText('Deathclaw', { exact: true })).toBeVisible()
     await expect(scene.locator('.floating-effect').first().locator('..')).toHaveCSS(
       'overflow-y',

@@ -1,5 +1,5 @@
 export const FEEDBACK_TIMING = {
-  rushDelaySeconds: 1.5,
+  rushDelaySeconds: 2.7,
   rushDurationSeconds: 1.6,
   vaultBoyDurationSeconds: 4.2,
   vaultBoyFrameSeconds: 0.18,

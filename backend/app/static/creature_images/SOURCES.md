@@ -30,3 +30,11 @@ less furry version. Generation used the built-in imagegen tool, which does not
 expose a model selector, followed by WebP encoding at quality 90 with alpha preserved.
 Prompts for the four additional creatures and the Yao Guai revision are recorded in
 `assembled/concept-prompts.json`.
+
+## Raider
+
+`assembled/raider.webp` is generated artwork, re-rendered from the Fallout Wiki's raider
+lineup screenshot (`FoS_raiders_lineup.jpg`) with `gpt-image-2.5-flare`, then flipped to
+face the responders and encoded as WebP at quality 90 with alpha preserved. It is not an
+extracted game sprite. The prompt and reference URL are recorded in
+`assembled/concept-prompts.json`.

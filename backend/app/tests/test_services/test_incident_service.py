@@ -289,7 +289,7 @@ async def test_incident_read_returns_the_latest_journal_entries(async_session: A
         difficulty=3,
     )
     started = datetime.utcnow()
-    for index in range(25):
+    for index in range(45):
         async_session.add(
             IncidentEvent(
                 incident_id=incident.id,
@@ -302,7 +302,7 @@ async def test_incident_read_returns_the_latest_journal_entries(async_session: A
 
     read = await incident_service.get_incident_read(async_session, incident, room.name)
 
-    assert [event.message for event in read.events] == [f"Round {index}" for index in range(5, 25)]
+    assert [event.message for event in read.events] == [f"Round {index}" for index in range(5, 45)]
 
 
 @pytest.mark.asyncio
@@ -511,7 +511,7 @@ async def test_round_failure_leaves_no_partial_state(async_session: AsyncSession
     with (
         patch("app.services.combat.incident_math.damage_to_dwellers", return_value=20.0),
         patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
-        patch("app.services.combat.incident_publishing.record_event", side_effect=SQLAlchemyError("event boom")),
+        patch("app.services.combat.incident_publishing.record_events", side_effect=SQLAlchemyError("event boom")),
         patch("app.services.notification_service.manager") as mock_ws,
         patch("app.services.notification_service.sse_manager") as mock_sse,
         pytest.raises(SQLAlchemyError, match="event boom"),

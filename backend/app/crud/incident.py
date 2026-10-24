@@ -190,7 +190,7 @@ class CRUDIncident:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_recent_events(db_session: AsyncSession, incident_id: UUID4, limit: int = 20) -> list[IncidentEvent]:
+    async def get_recent_events(db_session: AsyncSession, incident_id: UUID4, limit: int = 40) -> list[IncidentEvent]:
         """Recent events of an incident, newest first."""
         query = (
             select(IncidentEvent)

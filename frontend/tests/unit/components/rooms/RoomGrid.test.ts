@@ -21,6 +21,11 @@ const tooltipLabelStub = {
   template: '<div><slot /><span class="tooltip-label">{{ label }}</span></div>',
 }
 
+const roomDetailModalStub = {
+  name: 'RoomDetailModal',
+  template: '<div data-testid="room-detail-modal" />',
+}
+
 describe('RoomGrid', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -952,17 +957,24 @@ describe('RoomGrid', () => {
       const roomStore = useRoomStore()
       roomStore.rooms = [mockRoom]
 
-      const wrapper = mount(RoomGrid, { props: { incidents: [], openRoomId: 'room-123' } })
+      const wrapper = mount(RoomGrid, {
+        props: { incidents: [], openRoomId: 'room-123' },
+        global: { stubs: { RoomDetailModal: roomDetailModalStub } },
+      })
       await wrapper.vm.$nextTick()
 
       expect(wrapper.emitted('roomOpened')).toHaveLength(1)
+      expect(wrapper.find('[data-testid="room-detail-modal"]').exists()).toBe(true)
     })
 
     it('keeps a restored dweller above rooms that finish loading later', async () => {
       const roomStore = useRoomStore()
       useRoute().query.dweller = 'dweller-1'
       roomStore.rooms = []
-      const wrapper = mount(RoomGrid, { props: { incidents: [], openRoomId: 'room-123' } })
+      const wrapper = mount(RoomGrid, {
+        props: { incidents: [], openRoomId: 'room-123' },
+        global: { stubs: { RoomDetailModal: roomDetailModalStub } },
+      })
       roomStore.rooms = [mockRoom]
       await wrapper.vm.$nextTick()
       expect(wrapper.emitted('roomOpened')).toBeUndefined()
@@ -976,7 +988,10 @@ describe('RoomGrid', () => {
     it('restores a requested room after its data finishes loading', async () => {
       const roomStore = useRoomStore()
       roomStore.rooms = []
-      const wrapper = mount(RoomGrid, { props: { incidents: [], openRoomId: 'room-123' } })
+      const wrapper = mount(RoomGrid, {
+        props: { incidents: [], openRoomId: 'room-123' },
+        global: { stubs: { RoomDetailModal: roomDetailModalStub } },
+      })
       await wrapper.vm.$nextTick()
       expect(wrapper.emitted('roomOpened')).toBeUndefined()
       roomStore.rooms = [mockRoom]
@@ -989,7 +1004,10 @@ describe('RoomGrid', () => {
       const roomStore = useRoomStore()
       roomStore.rooms = [mockRoom]
 
-      const wrapper = mount(RoomGrid, { props: { incidents: [], openRoomId: 'missing' } })
+      const wrapper = mount(RoomGrid, {
+        props: { incidents: [], openRoomId: 'missing' },
+        global: { stubs: { RoomDetailModal: roomDetailModalStub } },
+      })
       await wrapper.vm.$nextTick()
 
       expect(wrapper.emitted('roomOpened')).toBeUndefined()

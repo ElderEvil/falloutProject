@@ -345,16 +345,19 @@ function rememberImageAspect(event: Event) {
   aspect-ratio: var(--room-image-aspect, 1.53);
   margin: 0 auto;
   overflow: hidden;
+  /* Dweller sprites size against this frame, so a taller wide scene keeps the
+     same occupant-to-room proportion as a standard preview. */
+  container-type: size;
 }
 
 .room-image-frame:not(.has-image) {
   width: 100%;
-  min-height: 180px;
+  height: 180px;
   aspect-ratio: auto;
 }
 
 .room-scene--compact .room-image-frame:not(.has-image) {
-  min-height: 130px;
+  height: 130px;
 }
 
 .room-scene--wide .room-image-frame {
@@ -457,6 +460,8 @@ function rememberImageAspect(event: Event) {
   display: flex;
   align-items: flex-end;
   justify-content: space-evenly;
+  /* 10px at the standard 260px frame; scales up with taller wide scenes. */
+  --dweller-name-size: clamp(0.625rem, 3.85cqh, 1rem);
 }
 
 .dweller-sprite-slot,
@@ -474,15 +479,15 @@ function rememberImageAspect(event: Event) {
 .scene-occupant {
   flex-direction: column;
   justify-content: flex-end;
-  width: 4.85rem;
+  width: 29.8cqh;
   gap: 0.1rem;
 }
 
 
 /* Keep worker and apprentice portraits the same size. */
 .dweller-sprite-slot-lg .placeholder-dweller {
-  width: 4.85rem;
-  height: calc(7.25rem * var(--dweller-body-scale, 1));
+  width: 29.8cqh;
+  height: calc(44.6cqh * var(--dweller-body-scale, 1));
 }
 
 .placeholder-dweller {

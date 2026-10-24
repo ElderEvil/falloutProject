@@ -11,8 +11,13 @@
         <PageContentRail>
           <PageHeader
             title="Game Balance Settings"
-            subtitle="Current configuration values. These can be modified via environment variables on the server."
+            subtitle="Read-only game balance. Change your personal options in Preferences."
           >
+            <template #actions>
+              <Button variant="outline" size="sm" as-child>
+                <RouterLink to="/preferences">Preferences</RouterLink>
+              </Button>
+            </template>
             <template #back>
               <PageNavigation
                 :back-label="backNav.backLabel()"
@@ -31,14 +36,19 @@
             <p class="text-danger">{{ error }}</p>
           </div>
 
-          <div v-else>
+          <div v-else class="[&_.setting-item]:mx-4! [&_.setting-item]:py-2!">
             <Tabs
               :model-value="activeTab"
-              class="mb-6"
+              class="mb-4"
               @update:model-value="activeTab = String($event)"
             >
-              <TabsList class="h-auto w-full flex-wrap justify-start gap-x-1 gap-y-2">
-                <TabsTrigger v-for="tab in tabs" :key="tab.key" :value="tab.key">
+              <TabsList class="h-auto w-full flex-wrap justify-start gap-1">
+                <TabsTrigger
+                  v-for="tab in tabs"
+                  :key="tab.key"
+                  :value="tab.key"
+                  class="min-h-11 px-3 py-2 text-sm"
+                >
                   {{ tab.label }}
                 </TabsTrigger>
               </TabsList>
@@ -46,9 +56,9 @@
 
             <!-- Game Loop -->
             <div v-show="activeTab === 'game-loop'" class="settings-section">
-              <Card class="gap-0">
-                <CardHeader>
-                  <CardTitle class="text-xl font-bold text-theme-primary"
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
+                  <CardTitle class="text-lg font-semibold text-theme-primary"
                     >Game Loop Configuration</CardTitle
                   >
                 </CardHeader>
@@ -68,10 +78,13 @@
             </div>
 
             <!-- Incidents -->
-            <div v-show="activeTab === 'incidents'" class="settings-section">
-              <Card class="mb-4 gap-0">
-                <CardHeader>
-                  <CardTitle class="text-xl font-bold text-theme-primary"
+            <div
+              v-show="activeTab === 'incidents'"
+              class="settings-section grid items-start gap-3 lg:grid-cols-2"
+            >
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
+                  <CardTitle class="text-lg font-semibold text-theme-primary"
                     >Incident System</CardTitle
                   >
                 </CardHeader>
@@ -99,8 +112,8 @@
                 </CardContent>
               </Card>
 
-              <Card class="mb-4 gap-0">
-                <CardHeader>
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
                   <CardTitle class="text-lg font-semibold text-theme-primary"
                     >Spawn Weights</CardTitle
                   >
@@ -115,8 +128,8 @@
                 </CardContent>
               </Card>
 
-              <Card class="gap-0">
-                <CardHeader>
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
                   <CardTitle class="text-lg font-semibold text-theme-primary"
                     >Difficulty Ranges</CardTitle
                   >
@@ -133,10 +146,15 @@
             </div>
 
             <!-- Combat -->
-            <div v-show="activeTab === 'combat'" class="settings-section">
-              <Card class="mb-4 gap-0">
-                <CardHeader>
-                  <CardTitle class="text-xl font-bold text-theme-primary">Combat System</CardTitle>
+            <div
+              v-show="activeTab === 'combat'"
+              class="settings-section grid items-start gap-3 lg:grid-cols-2"
+            >
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
+                  <CardTitle class="text-lg font-semibold text-theme-primary"
+                    >Combat System</CardTitle
+                  >
                 </CardHeader>
                 <CardContent class="px-0">
                   <SettingItem
@@ -165,8 +183,8 @@
                 </CardContent>
               </Card>
 
-              <Card class="mb-4 gap-0">
-                <CardHeader>
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
                   <CardTitle class="text-lg font-semibold text-theme-primary">Loot</CardTitle>
                 </CardHeader>
                 <CardContent class="px-0">
@@ -198,8 +216,8 @@
                 </CardContent>
               </Card>
 
-              <Card class="gap-0">
-                <CardHeader>
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
                   <CardTitle class="text-lg font-semibold text-theme-primary">Experience</CardTitle>
                 </CardHeader>
                 <CardContent class="px-0">
@@ -218,10 +236,15 @@
             </div>
 
             <!-- Happiness -->
-            <div v-show="activeTab === 'happiness'" class="settings-section">
-              <Card class="mb-4 gap-0">
-                <CardHeader>
-                  <CardTitle class="text-xl font-bold text-theme-primary">Decay Rates</CardTitle>
+            <div
+              v-show="activeTab === 'happiness'"
+              class="settings-section grid items-start gap-3 lg:grid-cols-2"
+            >
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
+                  <CardTitle class="text-lg font-semibold text-theme-primary"
+                    >Decay Rates</CardTitle
+                  >
                   <CardDescription>Happiness change per 60-second tick</CardDescription>
                 </CardHeader>
                 <CardContent class="px-0">
@@ -253,8 +276,8 @@
                 </CardContent>
               </Card>
 
-              <Card class="mb-4 gap-0">
-                <CardHeader>
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
                   <CardTitle class="text-lg font-semibold text-theme-primary">Gain Rates</CardTitle>
                   <CardDescription>Happiness change per 60-second tick</CardDescription>
                 </CardHeader>
@@ -277,8 +300,8 @@
                 </CardContent>
               </Card>
 
-              <Card class="gap-0">
-                <CardHeader>
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
                   <CardTitle class="text-lg font-semibold text-theme-primary"
                     >Room Bonuses</CardTitle
                   >
@@ -305,10 +328,13 @@
             </div>
 
             <!-- Training -->
-            <div v-show="activeTab === 'training'" class="settings-section">
-              <Card class="mb-4 gap-0">
-                <CardHeader>
-                  <CardTitle class="text-xl font-bold text-theme-primary"
+            <div
+              v-show="activeTab === 'training'"
+              class="settings-section grid items-start gap-3 lg:grid-cols-2"
+            >
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
+                  <CardTitle class="text-lg font-semibold text-theme-primary"
                     >Training System</CardTitle
                   >
                 </CardHeader>
@@ -330,8 +356,8 @@
                 </CardContent>
               </Card>
 
-              <Card class="gap-0">
-                <CardHeader>
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
                   <CardTitle class="text-lg font-semibold text-theme-primary"
                     >Tier Speed Multipliers</CardTitle
                   >
@@ -355,10 +381,13 @@
             </div>
 
             <!-- Resources -->
-            <div v-show="activeTab === 'resources'" class="settings-section">
-              <Card class="mb-4 gap-0">
-                <CardHeader>
-                  <CardTitle class="text-xl font-bold text-theme-primary">Production</CardTitle>
+            <div
+              v-show="activeTab === 'resources'"
+              class="settings-section grid items-start gap-3 lg:grid-cols-2"
+            >
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
+                  <CardTitle class="text-lg font-semibold text-theme-primary">Production</CardTitle>
                 </CardHeader>
                 <CardContent class="px-0">
                   <SettingItem
@@ -385,8 +414,8 @@
                 </CardContent>
               </Card>
 
-              <Card class="mb-4 gap-0">
-                <CardHeader>
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
                   <CardTitle class="text-lg font-semibold text-theme-primary"
                     >Consumption</CardTitle
                   >
@@ -410,8 +439,8 @@
                 </CardContent>
               </Card>
 
-              <Card class="gap-0">
-                <CardHeader>
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
                   <CardTitle class="text-lg font-semibold text-theme-primary"
                     >Warning Thresholds</CardTitle
                   >
@@ -432,10 +461,13 @@
             </div>
 
             <!-- Leveling -->
-            <div v-show="activeTab === 'leveling'" class="settings-section">
-              <Card class="mb-4 gap-0">
-                <CardHeader>
-                  <CardTitle class="text-xl font-bold text-theme-primary"
+            <div
+              v-show="activeTab === 'leveling'"
+              class="settings-section grid items-start gap-3 lg:grid-cols-2"
+            >
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
+                  <CardTitle class="text-lg font-semibold text-theme-primary"
                     >Leveling System</CardTitle
                   >
                 </CardHeader>
@@ -459,8 +491,8 @@
                 </CardContent>
               </Card>
 
-              <Card class="gap-0">
-                <CardHeader>
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
                   <CardTitle class="text-lg font-semibold text-theme-primary"
                     >Experience Sources</CardTitle
                   >
@@ -491,10 +523,13 @@
             </div>
 
             <!-- Relationships -->
-            <div v-show="activeTab === 'relationships'" class="settings-section">
-              <Card class="mb-4 gap-0">
-                <CardHeader>
-                  <CardTitle class="text-xl font-bold text-theme-primary"
+            <div
+              v-show="activeTab === 'relationships'"
+              class="settings-section grid items-start gap-3 lg:grid-cols-2"
+            >
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
+                  <CardTitle class="text-lg font-semibold text-theme-primary"
                     >Relationship System</CardTitle
                   >
                 </CardHeader>
@@ -517,8 +552,8 @@
                 </CardContent>
               </Card>
 
-              <Card class="gap-0">
-                <CardHeader>
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
                   <CardTitle class="text-lg font-semibold text-theme-primary"
                     >Compatibility Weights</CardTitle
                   >
@@ -550,9 +585,9 @@
 
             <!-- Breeding -->
             <div v-show="activeTab === 'breeding'" class="settings-section">
-              <Card class="gap-0">
-                <CardHeader>
-                  <CardTitle class="text-xl font-bold text-theme-primary"
+              <Card class="gap-0 py-3">
+                <CardHeader class="px-4 pb-2">
+                  <CardTitle class="text-lg font-semibold text-theme-primary"
                     >Breeding System</CardTitle
                   >
                 </CardHeader>
@@ -599,6 +634,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { RouterLink } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { notifyErrorOnce } from '@/core/utils/errorHandler'
 import { useBackNavigation } from '@/core/composables/useBackNavigation'
@@ -619,6 +655,7 @@ import {
 } from '@/core/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import SettingItem from '@/core/components/ui/SettingItem.vue'
+import { Button } from '@/core/components/ui/button'
 
 const vaultStore = useVaultStore()
 const backNav = useBackNavigation('Settings', () =>

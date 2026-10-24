@@ -11,7 +11,6 @@ interface BriefingItem {
   id: string
   icon: string
   label: string
-  detail: string
   tone: 'critical' | 'warning'
   action: BriefingAction
 }
@@ -55,7 +54,6 @@ const attentionItems = computed<BriefingItem[]>(() => {
         props.activeIncidentCount === 1
           ? '1 INCIDENT REQUIRES RESPONSE'
           : `${props.activeIncidentCount} INCIDENTS REQUIRE RESPONSE`,
-      detail: 'Threats are active inside the vault.',
       tone: 'critical',
       action: 'incidents',
     })
@@ -65,8 +63,7 @@ const attentionItems = computed<BriefingItem[]>(() => {
     items.push({
       id: `resource-${warning.type}`,
       icon: 'mdi:water-alert',
-      label: 'RESOURCE ALERT',
-      detail: `${warning.message} Restore power first, then staff food and water rooms with matching SPECIAL.`,
+      label: warning.message,
       tone: 'warning',
       action: 'dwellers',
     })
@@ -80,7 +77,6 @@ const attentionItems = computed<BriefingItem[]>(() => {
         props.unassignedCount === 1
           ? '1 DWELLER AWAITS ASSIGNMENT'
           : `${props.unassignedCount} DWELLERS AWAIT ASSIGNMENT`,
-      detail: 'Assign them to a room or review their status.',
       tone: 'warning',
       action: 'dwellers',
     })
@@ -90,8 +86,7 @@ const attentionItems = computed<BriefingItem[]>(() => {
     items.push({
       id: 'capacity',
       icon: 'mdi:account-multiple-check',
-      label: 'POPULATION CAPACITY IS NEAR LIMIT',
-      detail: `${Math.round(props.populationUtilization)}% of living space is occupied.`,
+      label: `POPULATION CAPACITY IS NEAR LIMIT (${Math.round(props.populationUtilization)}%)`,
       tone: 'warning',
       action: null,
     })
@@ -101,8 +96,7 @@ const attentionItems = computed<BriefingItem[]>(() => {
     items.push({
       id: 'happiness',
       icon: 'mdi:emoticon-sad-outline',
-      label: 'DWELLER MORALE NEEDS ATTENTION',
-      detail: `Vault happiness is ${Math.round(props.happiness)}%.`,
+      label: `DWELLER MORALE NEEDS ATTENTION (${Math.round(props.happiness)}%)`,
       tone: 'warning',
       action: null,
     })
@@ -134,10 +128,6 @@ const attentionIconClass = (tone: BriefingItem['tone']) =>
 
 <template>
   <section class="overseer-briefing border-y border-theme-primary/20 py-4">
-    <p class="mb-3 text-xs text-muted-foreground">
-      After 10 minutes away, reserves limit further drain. Returning resumes consumption. Empty
-      stock must be produced; use the room staffing controls and treat injured workers.
-    </p>
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
         <p class="text-xs font-bold tracking-[0.2em] text-theme-accent">
@@ -178,7 +168,6 @@ const attentionIconClass = (tone: BriefingItem['tone']) =>
         <Icon :icon="item.icon" class="h-5 w-5 shrink-0" :class="attentionIconClass(item.tone)" />
         <div class="min-w-0 flex-1">
           <p class="text-xs font-bold tracking-wide">{{ item.label }}</p>
-          <p class="truncate text-xs opacity-80">{{ item.detail }}</p>
         </div>
         <span v-if="item.action === 'incidents'" class="briefing-respond shrink-0">
           <Button
@@ -201,7 +190,7 @@ const attentionIconClass = (tone: BriefingItem['tone']) =>
       </div>
     </div>
     <p v-else class="mt-4 text-center text-xs tracking-wider text-terminal-green/80">
-      No immediate action queued. The vault is holding steady.
+      All clear.
     </p>
   </section>
 </template>

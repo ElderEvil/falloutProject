@@ -97,10 +97,6 @@ const emit = defineEmits<{
         <template v-if="officeSpeedPercent(room.tier) > 0">
           · missions {{ officeSpeedPercent(room.tier) }}% faster
         </template>
-        <template v-if="upgradeInfo?.canUpgrade">
-          · next tier: {{ upgradeInfo.nextTier }} slots, missions
-          {{ officeSpeedPercent(upgradeInfo.nextTier) }}% faster
-        </template>
       </p>
 
       <Button

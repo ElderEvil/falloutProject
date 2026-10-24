@@ -120,9 +120,7 @@ async def test_active_member_response_bonus(
 
 
 @pytest.mark.asyncio
-async def test_attack_shares_match_the_total_power_model(
-    async_session: AsyncSession, room_with_dwellers: dict
-):
+async def test_attack_shares_match_the_total_power_model(async_session: AsyncSession, room_with_dwellers: dict):
     """With an active radiation responder, per-attacker lines still split by raw power.
 
     The team bonus scales the round total once, so attributing it again to the

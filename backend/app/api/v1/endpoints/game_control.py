@@ -82,6 +82,7 @@ async def get_game_balance_settings(_: CurrentActiveUser) -> GameBalanceResponse
         },
         dweller=game_config.dweller.model_dump(),
         exploration=game_config.exploration.model_dump(),
+        rush=game_config.rush.model_dump(),
     )
 
 

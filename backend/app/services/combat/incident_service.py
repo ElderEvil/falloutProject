@@ -1,6 +1,7 @@
 """Incident service for managing combat events and vault disasters."""
 
 import logging
+from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -87,7 +88,7 @@ class IncidentService:
 
     async def get_active_incident_list(self, db_session: AsyncSession, vault_id: UUID4) -> IncidentListResponse:
         """Build the active-incident list contract for a vault."""
-        incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
+        incidents = await incident_crud.get_active_by_vault(db_session, vault_id, started_only=True)
         room_names = await room_crud.get_names_by_ids(db_session, [incident.room_id for incident in incidents])
 
         return IncidentListResponse(
@@ -294,6 +295,8 @@ class IncidentService:
         incident = locked_incident
         if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
             raise ValidationException("Incident is no longer active")
+        if incident.start_time > datetime.utcnow():
+            raise ValidationException("Incident has not started yet")
 
         unique_ids = list(dict.fromkeys(dweller_ids))
         if not unique_ids:

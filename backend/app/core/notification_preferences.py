@@ -49,6 +49,8 @@ NOTIFICATION_CATEGORY_BY_TYPE: dict[NotificationType, NotificationCategory | Non
     NotificationType.RESOURCE_LOW: None,
     NotificationType.RESOURCE_CRITICAL: None,
     NotificationType.POWER_OUTAGE: None,
+    NotificationType.RUSH_SUCCEEDED: None,
+    NotificationType.RUSH_FAILED: None,
     NotificationType.QUEST_COMPLETE: NotificationCategory.ARRIVALS_AND_COMPLETIONS,
     NotificationType.OBJECTIVE_COMPLETED: None,
     NotificationType.OBJECTIVES_REFRESHED: None,

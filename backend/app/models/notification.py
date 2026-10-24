@@ -53,6 +53,10 @@ class NotificationType(StrEnum):
     RESOURCE_CRITICAL = "resource_critical"
     POWER_OUTAGE = "power_outage"
 
+    # Room Rush events
+    RUSH_SUCCEEDED = "rush_succeeded"
+    RUSH_FAILED = "rush_failed"
+
     # System events
     QUEST_COMPLETE = "quest_complete"
     OBJECTIVE_COMPLETED = "objective_completed"

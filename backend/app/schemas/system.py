@@ -20,6 +20,7 @@ class GameBalanceResponse(BaseModel):
     death: dict[str, Any]
     dweller: dict[str, Any]
     exploration: dict[str, Any]
+    rush: dict[str, Any]
 
 
 class InfoResponse(BaseModel):

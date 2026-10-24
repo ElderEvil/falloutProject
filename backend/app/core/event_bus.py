@@ -40,6 +40,8 @@ class GameEvent(StrEnum):
     THEME_CRAFTED = "theme_crafted"
     QUEST_COMPLETED = "quest_completed"
     OBJECTIVE_COMPLETED = "objective_completed"
+    RUSH_SUCCEEDED = "rush_succeeded"
+    RUSH_FAILED = "rush_failed"
 
 
 class EventBus:

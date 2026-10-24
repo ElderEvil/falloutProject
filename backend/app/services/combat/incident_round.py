@@ -1,6 +1,7 @@
 """Incident round engine: defender-less outcomes, damage, victory, and XP."""
 
 import logging
+from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -168,7 +169,10 @@ async def resolve_victory(db_session: AsyncSession, incident: Incident, dwellers
 
 async def process_incident(db_session: AsyncSession, incident: Incident, seconds_passed: int) -> IncidentRoundResult:
     """Process one round of an active incident (apply damage, check victory)."""
-    if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
+    if datetime.utcnow() < incident.start_time or incident.status not in [
+        IncidentStatus.ACTIVE,
+        IncidentStatus.SPREADING,
+    ]:
         return IncidentRoundResult(skipped=True)
 
     # Get dwellers in affected room with equipment preloaded (N+1 optimization)

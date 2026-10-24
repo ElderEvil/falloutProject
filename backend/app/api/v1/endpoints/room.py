@@ -20,8 +20,10 @@ from app.models.room import Room
 from app.schemas.barbershop import BarbershopChangeRequest, BarbershopChangeResponse, BarbershopStatus
 from app.schemas.grid import GridConfig, grid_config
 from app.schemas.room import RoomBuild, RoomCreateWithoutVaultID, RoomMerge, RoomRead, RoomStyleUpdate
+from app.schemas.room_rush import RoomRushQuote, RoomRushResult
 from app.services.barbershop_service import barbershop_service
 from app.services.room_remodel_service import remodel_room
+from app.services.room_rush_service import room_rush_service
 from app.services.room_service import room_service
 
 router = APIRouter(prefix="/rooms", tags=["Room"])
@@ -76,6 +78,28 @@ async def read_room(
     """
     await verify_room_access(room_id, user, db_session)
     return await crud.room.get(db_session, room_id)
+
+
+@router.get("/{room_id}/rush", response_model=RoomRushQuote)
+async def read_room_rush_quote(
+    room_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> RoomRushQuote:
+    """Return the server-computed risk and payout for a room rush."""
+    room, vault = await verify_room_access(room_id, user, db_session)
+    return await room_rush_service.quote(db_session, room, vault)
+
+
+@router.post("/{room_id}/rush", response_model=RoomRushResult)
+async def rush_room(
+    room_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> RoomRushResult:
+    """Execute one server-resolved Room Rush."""
+    room, vault = await verify_room_access(room_id, user, db_session)
+    return await room_rush_service.rush(db_session, room, vault)
 
 
 @router.get("/{room_id}/barbershop", response_model=BarbershopStatus)

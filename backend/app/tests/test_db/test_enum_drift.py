@@ -90,6 +90,8 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
         "RESOURCE_LOW",
         "RESOURCE_CRITICAL",
         "POWER_OUTAGE",
+        "RUSH_SUCCEEDED",
+        "RUSH_FAILED",
         "QUEST_COMPLETE",
         "OBJECTIVE_COMPLETED",
         "OBJECTIVES_REFRESHED",

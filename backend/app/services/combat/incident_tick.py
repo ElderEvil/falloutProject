@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -11,6 +12,7 @@ from app.core import db_locks
 from app.core.game_config import game_config
 from app.crud import game_state_crud
 from app.crud.incident import incident_crud
+from app.crud.room import room as room_crud
 from app.crud.vault import vault as vault_crud
 from app.services.combat import incident_spawning
 from app.services.notification_service import notification_service
@@ -45,7 +47,7 @@ async def process_vault_incidents(
             game_state = await game_state_crud.get_by_vault_id(db_session, vault_id)
 
         vault = await vault_crud.get_or_none(db_session, vault_id, include_deleted=True)
-        if incident_spawning.is_spawning_disabled(vault):
+        if vault is None or incident_spawning.is_spawning_disabled(vault):
             return stats
 
         active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
@@ -58,6 +60,17 @@ async def process_vault_incidents(
         if game_state and not game_state.is_user_online():
             return stats
 
+        for reserved in active_incidents:
+            if reserved.combat_progress or reserved.start_time > datetime.utcnow():
+                continue
+            pending_event = await incident_crud.get_pending_event(db_session, reserved.id)
+            if pending_event is not None:
+                room = await room_crud.get(db_session, reserved.room_id)
+                await incident_spawning.activate_incident(db_session, reserved, vault, room, pending_event)
+                stats["spawned"] += 1
+        if game_state and game_state.is_paused:
+            return stats
+
         # Capacity shortages can outlive a fight; retry independently of active incidents.
         from app.services.hazard_team_service import hazard_team_service
 
@@ -67,7 +80,7 @@ async def process_vault_incidents(
         if await service.should_spawn_incident(db_session, vault_id, seconds_passed, game_state):
             new_incident = await service.spawn_incident(db_session, vault_id)
             if new_incident:
-                stats["spawned"] = 1
+                stats["spawned"] += 1
                 logger.info(f"Spawned new incident {new_incident.type} in vault {vault_id}")
 
         # A newly spawned incident can pause the vault before any existing fight advances.

@@ -23,6 +23,7 @@ class CRUDIncident:
         incident_type: IncidentType,
         difficulty: int,
         duration: int = 60,
+        commit: bool = True,
     ) -> Incident:
         """Create a new incident."""
         incident = Incident(
@@ -34,8 +35,11 @@ class CRUDIncident:
             rooms_affected=[str(room_id)],
         )
         db_session.add(incident)
-        await db_session.commit()
-        await db_session.refresh(incident)
+        if commit:
+            await db_session.commit()
+            await db_session.refresh(incident)
+        else:
+            await db_session.flush()
         return incident
 
     @staticmethod
@@ -62,11 +66,20 @@ class CRUDIncident:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def get_active_by_vault(db_session: AsyncSession, vault_id: UUID4) -> list[Incident]:
+    async def get_active_by_vault(
+        db_session: AsyncSession, vault_id: UUID4, *, started_only: bool = False
+    ) -> list[Incident]:
         """Get all active incidents for a vault."""
         query = select(Incident).where(
             (Incident.vault_id == vault_id) & (Incident.status.in_([IncidentStatus.ACTIVE, IncidentStatus.SPREADING]))
         )
+        if started_only:
+            pending = (
+                select(IncidentEvent.id)
+                .where(IncidentEvent.incident_id == Incident.id, IncidentEvent.kind == "pending")
+                .exists()
+            )
+            query = query.where(~pending)
         result = await db_session.execute(query)
         return list(result.scalars().all())
 
@@ -187,6 +200,18 @@ class CRUDIncident:
         )
         result = await db_session.execute(query)
         return list(result.scalars().all())
+
+    @staticmethod
+    async def get_pending_event(db_session: AsyncSession, incident_id: UUID4) -> IncidentEvent | None:
+        """The incident's reserved-activation event, if it has not been published yet."""
+        query = (
+            select(IncidentEvent)
+            .where(IncidentEvent.incident_id == incident_id, IncidentEvent.kind == "pending")
+            .order_by(IncidentEvent.created_at.asc())
+            .limit(1)
+        )
+        result = await db_session.execute(query)
+        return result.scalars().first()
 
     @staticmethod
     async def remove_all_by_vault(db_session: AsyncSession, vault_id: UUID4) -> int:

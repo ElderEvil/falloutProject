@@ -3,11 +3,41 @@ from typing import Any
 
 from faker import Faker
 
-from app.schemas.common import RoomTypeEnum
+from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import LETTER_TO_STAT
 from app.utils.room_assets import ROOM_NAME_TO_ASSET_KEY, get_room_image_url
 
 fake = Faker()
+
+
+def create_rush_room_payload(
+    *,
+    name: str = "Power Generator",
+    category: RoomTypeEnum = RoomTypeEnum.PRODUCTION,
+    ability: SPECIALEnum | None = SPECIALEnum.STRENGTH,
+    capacity: int | None = None,
+    output: int | None = 100,
+    coordinate_x: int | None = None,
+    coordinate_y: int | None = None,
+) -> dict[str, Any]:
+    """Deterministic production-room payload for rush quote/payout tests."""
+    return {
+        "name": name,
+        "category": category,
+        "ability": ability,
+        "capacity": capacity,
+        "base_cost": 100,
+        "incremental_cost": 50,
+        "t2_upgrade_cost": 500,
+        "t3_upgrade_cost": 1500,
+        "output": output,
+        "size_min": 1,
+        "size_max": 3,
+        "size": 1,
+        "tier": 1,
+        "coordinate_x": coordinate_x,
+        "coordinate_y": coordinate_y,
+    }
 
 
 def create_fake_room() -> dict[str, Any]:

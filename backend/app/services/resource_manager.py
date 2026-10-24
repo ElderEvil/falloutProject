@@ -2,7 +2,7 @@
 
 import logging
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import timedelta
 
 from pydantic import UUID4
@@ -12,7 +12,7 @@ from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud.resource import resource as resource_crud
-from app.models import Dweller, Room, Vault
+from app.models import Dweller, Room, Storage, Vault
 from app.models.game_state import GameState
 from app.options.identity_modifiers import effective_stat, identity_modifiers_for
 from app.schemas.vault import (
@@ -81,11 +81,19 @@ class ResourceManager:
             capacity = compute_medical_capacity(resource_data.rooms)
             if any(medical_production.values()):
                 storage = resource_data.storage
-                for resource_type, produced_amount in medical_production.items():
-                    previous_amount = getattr(storage, resource_type)
-                    stored_amount = min(previous_amount + produced_amount, capacity.get(resource_type, 0))
-                    setattr(storage, resource_type, stored_amount)
-                    setattr(events.production, resource_type, stored_amount - previous_amount)
+                applied = self.apply_room_payout(
+                    resource_data.vault,
+                    storage,
+                    capacity,
+                    medical_production,
+                )
+                for resource_type in ("stimpack", "radaway"):
+                    if medical_production[resource_type] == 0:
+                        previous = getattr(storage, resource_type)
+                        capped = min(previous, capacity.get(resource_type, 0))
+                        setattr(storage, resource_type, capped)
+                        applied[resource_type] = capped - previous
+                    setattr(events.production, resource_type, applied[resource_type])
                 resource_crud.save_storage(db_session, storage)
 
         if events.objective_production is not None:
@@ -177,6 +185,55 @@ class ResourceManager:
             "water": round(water_consumption, 2),
         }
 
+    def calculate_room_production(self, room: Room, dwellers: list[Dweller], seconds_passed: int) -> dict[str, float]:
+        """Return this room's raw production split across resource keys."""
+        totals = dict.fromkeys(("power", "food", "water", "stimpack", "radaway"), 0.0)
+        if room.ability is None:
+            return totals
+
+        production = self._calculate_room_production(room, dwellers, seconds_passed)
+        self._apply_room_production(room.name, room.ability, production, totals)
+        return totals
+
+    def apply_room_payout(
+        self,
+        vault: Vault,
+        storage: Storage | None,
+        medical_capacity: dict[str, int],
+        totals: Mapping[str, float | int],
+        *,
+        dry_run: bool = False,
+    ) -> dict[str, int]:
+        """Add a room payout to vault/storage stocks, clamped to capacity.
+
+        Returns the integer amount that actually landed in each resource. With
+        ``dry_run`` the amounts are computed against the same capacity rules but
+        the mapped stocks are left untouched, so a quote cannot dirty them.
+        """
+        applied = dict.fromkeys(("power", "food", "water", "stimpack", "radaway"), 0)
+        for resource_type in ("power", "food", "water"):
+            requested = max(0, round(totals.get(resource_type, 0.0)))
+            if requested == 0:
+                continue
+            previous = getattr(vault, resource_type)
+            updated = min(previous + requested, getattr(vault, f"{resource_type}_max"))
+            applied[resource_type] = updated - previous
+            if not dry_run:
+                setattr(vault, resource_type, updated)
+
+        if storage is not None:
+            for resource_type in ("stimpack", "radaway"):
+                requested = max(0, round(totals.get(resource_type, 0.0)))
+                if requested == 0:
+                    continue
+                previous = getattr(storage, resource_type)
+                updated = min(previous + requested, medical_capacity.get(resource_type, 0))
+                applied[resource_type] = updated - previous
+                if not dry_run:
+                    setattr(storage, resource_type, updated)
+
+        return applied
+
     def _calculate_production(
         self, rooms_with_dwellers: list[tuple[Room, list[Dweller]]], seconds_passed: int, current_power: float
     ) -> dict[str, float]:
@@ -194,8 +251,9 @@ class ResourceManager:
             if current_power <= 0 and room.ability != SPECIALEnum.STRENGTH:
                 continue
 
-            production = self._calculate_room_production(room, dwellers, seconds_passed)
-            self._apply_room_production(room.name, room.ability, production, production_totals)
+            production = self.calculate_room_production(room, dwellers, seconds_passed)
+            for resource_type, amount in production.items():
+                production_totals[resource_type] += amount
 
         return production_totals
 

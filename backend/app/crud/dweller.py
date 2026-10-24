@@ -244,9 +244,13 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         response = await db_session.execute(query)
         return response.scalars().all()
 
-    async def get_by_room(self, db_session: AsyncSession, room_id: UUID4) -> Sequence[Dweller]:
+    async def get_by_room(
+        self, db_session: AsyncSession, room_id: UUID4, *, with_equipment: bool = False
+    ) -> Sequence[Dweller]:
         """Dwellers assigned to one room, excluding soft-deleted."""
         query = select(self.model).where(self.model.room_id == room_id, ~self.model.is_deleted)
+        if with_equipment:
+            query = query.options(*_WEAPON_OUTFIT_LOADS, selectinload(Dweller.pet))
         return (await db_session.execute(query)).scalars().all()
 
     async def reassign_dwellers_between_rooms(

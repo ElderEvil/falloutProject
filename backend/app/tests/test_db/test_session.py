@@ -1,47 +1,50 @@
-import logging
+import asyncio
 
 import pytest
-from sqlalchemy.exc import InterfaceError
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db import session as session_module
 
 
-class _ClosingSession:
-    def __init__(self, error: Exception | None = None) -> None:
-        self.closed = False
-        self.error = error
-
-    async def close(self) -> None:
-        self.closed = True
-        if self.error is not None:
-            raise self.error
-
-
 @pytest.mark.asyncio
-async def test_get_async_session_closes_normally(monkeypatch: pytest.MonkeyPatch) -> None:
-    fake = _ClosingSession()
-    monkeypatch.setattr(session_module, "async_session_maker", lambda: fake)
-
-    generator = session_module.get_async_session()
-    assert await anext(generator) is fake
-
-    await generator.aclose()
-
-    assert fake.closed is True
-
-
-@pytest.mark.asyncio
-async def test_get_async_session_tolerates_closed_connection(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+@pytest.mark.integration
+async def test_get_async_session_shields_close_from_cancellation(
+    pg_session_maker, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    fake = _ClosingSession(InterfaceError("ROLLBACK", {}, Exception("connection is closed")))
-    monkeypatch.setattr(session_module, "async_session_maker", lambda: fake)
+    engine, _maker = pg_session_maker
+    try:
+        async with engine.connect() as connection:
+            await connection.execute(text("SELECT 1"))
+    except Exception as exc:
+        pytest.skip(f"PostgreSQL unavailable: {exc}")
+
+    close_started = asyncio.Event()
+
+    class SlowClosingSession(AsyncSession):
+        async def close(self) -> None:
+            close_started.set()
+            await asyncio.sleep(0.2)
+            await super().close()
+
+    maker = async_sessionmaker(engine, class_=SlowClosingSession, expire_on_commit=False)
+    monkeypatch.setattr(session_module, "async_session_maker", maker)
 
     generator = session_module.get_async_session()
-    assert await anext(generator) is fake
+    session = await anext(generator)
+    await session.execute(text("SELECT 1"))
+    assert engine.pool.checkedout() == 1
 
-    with caplog.at_level(logging.WARNING, logger=session_module.__name__):
-        await generator.aclose()
+    close_task = asyncio.create_task(generator.aclose())
+    await asyncio.wait_for(close_started.wait(), timeout=5)
+    close_task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await close_task
 
-    assert fake.closed is True
-    assert "connection closed during teardown" in caplog.text
+    for _ in range(200):
+        if engine.pool.checkedout() == 0:
+            break
+        await asyncio.sleep(0.01)
+
+    assert engine.pool.checkedout() == 0

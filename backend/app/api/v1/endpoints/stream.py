@@ -8,6 +8,8 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.sse import EventSourceResponse, ServerSentEvent
+from sqlalchemy.exc import InterfaceError
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentUser, DBSession, get_user_vault_or_403
 from app.core.config import settings
@@ -18,6 +20,37 @@ from app.services.stream_manager import sse_manager
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _is_closed_connection_error(error: BaseException) -> bool:
+    detail = f"{error} {getattr(error, 'orig', '')}".lower()
+    return "connection is closed" in detail
+
+
+def _log_close_failure(task: asyncio.Task[None]) -> None:
+    if task.cancelled():
+        return
+    error = task.exception()
+    if error is None:
+        return
+    if _is_closed_connection_error(error):
+        logger.warning("Stream session connection closed during teardown")
+    else:
+        logger.error("Failed to close stream DB session: %s", error)
+
+
+async def _close_session(db_session: AsyncSession) -> None:
+    task = asyncio.create_task(db_session.close())
+    try:
+        await asyncio.shield(task)
+    except InterfaceError as error:
+        if _is_closed_connection_error(error):
+            logger.warning("Stream session connection already closed")
+            return
+        raise
+    except asyncio.CancelledError:
+        task.add_done_callback(_log_close_failure)
+        raise
 
 
 async def _with_heartbeat(
@@ -67,7 +100,7 @@ async def stream_notifications(
     Yields:
         Server-sent events with notification data or heartbeat comments.
     """
-    await db_session.close()
+    await _close_session(db_session)
     async for data in _with_heartbeat(sse_manager.subscribe(current_user.id, "notifications")):
         if await request.is_disconnected():
             break
@@ -88,7 +121,7 @@ async def stream_game_ticks(
     Yields:
         Server-sent events with game tick data or heartbeat comments.
     """
-    await db_session.close()
+    await _close_session(db_session)
     # Use game tick interval as heartbeat — no point heartbeating faster
     # than the actual data cadence.
     stream = sse_manager.subscribe(vault.id, "game_ticks")
@@ -112,7 +145,7 @@ async def stream_exploration(
     Yields:
         Server-sent events with exploration data or heartbeat comments.
     """
-    await db_session.close()
+    await _close_session(db_session)
     async for data in _with_heartbeat(sse_manager.subscribe(vault.id, "exploration")):
         if await request.is_disconnected():
             break
@@ -133,7 +166,7 @@ async def stream_incidents(
     Yields:
         Server-sent events with incident data or heartbeat comments.
     """
-    await db_session.close()
+    await _close_session(db_session)
     async for data in _with_heartbeat(sse_manager.subscribe(vault.id, "incidents")):
         if await request.is_disconnected():
             break

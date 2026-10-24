@@ -165,12 +165,12 @@ describe('IncidentScene', () => {
 
   it('falls back to grid art on detail-scene failure and hides a failed fallback', async () => {
     const wrapper = mountScene({ roomImageUrl: '/arena.webp', fallbackImageUrl: '/grid.png' })
-    await wrapper.find('img').trigger('error')
-    expect(wrapper.find('img').attributes('src')).toBe('/grid.png')
-    await wrapper.find('img').trigger('error')
-    expect(wrapper.find('img').exists()).toBe(false)
+    await wrapper.find('.scene-backdrop').trigger('error')
+    expect(wrapper.find('.scene-backdrop').attributes('src')).toBe('/grid.png')
+    await wrapper.find('.scene-backdrop').trigger('error')
+    expect(wrapper.find('.scene-backdrop').exists()).toBe(false)
     await wrapper.setProps({ roomImageUrl: '/another.webp' })
-    expect(wrapper.find('img').attributes('src')).toBe('/another.webp')
+    expect(wrapper.find('.scene-backdrop').attributes('src')).toBe('/another.webp')
   })
 
   it('omits the backdrop when no image is available', () => {
@@ -188,6 +188,12 @@ describe('IncidentScene', () => {
     expect(wrapper.find('.flame-outer').exists()).toBe(true)
     expect(wrapper.find('.flame-inner').exists()).toBe(true)
     expect(wrapper.find('.hazard-icon').exists()).toBe(false)
+  })
+
+  it('uses the generated raider sprite for raider attacks', () => {
+    const wrapper = mountScene()
+
+    expect(wrapper.get('img[alt="Raider"]').attributes('src')).toContain('/assembled/raider.webp')
   })
 
   it('uses creature artwork for a non-fire containment incident', () => {

@@ -59,6 +59,7 @@ const progressPercent = computed(() =>
     : 0
 )
 const creatureKeys: Partial<Record<IncidentType, string>> = {
+  [IncidentType.RAIDER_ATTACK]: 'raider',
   [IncidentType.RADROACH_INFESTATION]: 'radroach',
   [IncidentType.MOLE_RAT_ATTACK]: 'mole-rat',
   [IncidentType.DEATHCLAW_ATTACK]: 'deathclaw',

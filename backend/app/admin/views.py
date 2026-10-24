@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from markupsafe import Markup
 from sqladmin import ModelView, action, expose
@@ -37,6 +37,7 @@ from app.models.user_profile import UserProfile
 from app.models.vault import Vault
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.models.weapon import Weapon
+from app.services.admin_service import FIRST_SUPERUSER_OPERATIONS
 
 type SortColumns = str | InstrumentedAttribute | tuple[str | InstrumentedAttribute, bool] | list
 
@@ -124,6 +125,9 @@ class UserAdmin(AdminModelView, model=User):
     support_operations: ClassVar[dict[str, str]] = {
         "verify-email": "Verify email",
         "promote-superuser": "Promote to superuser",
+        "demote-superuser": "Demote from superuser",
+        "deactivate": "Deactivate user",
+        "reactivate": "Reactivate user",
         "soft-delete": "Soft-delete user",
     }
     column_list: ClassVar[str | Sequence] = [
@@ -150,6 +154,13 @@ class UserAdmin(AdminModelView, model=User):
 
     icon = "fa-solid fa-user"
 
+    def has_permission(self, request: Request, action: str, obj: Any = None) -> bool:
+        if action in {f"action:{operation}" for operation in FIRST_SUPERUSER_OPERATIONS} and not getattr(
+            request.state, "is_first_superuser", False
+        ):
+            return False
+        return super().has_permission(request, action, obj)
+
     @action(name="verify-email", label=support_operations["verify-email"])
     async def verify_email(self, request: Request) -> Response:
         return await confirm_action(self, request, "verify-email")
@@ -157,6 +168,18 @@ class UserAdmin(AdminModelView, model=User):
     @action(name="promote-superuser", label=support_operations["promote-superuser"])
     async def promote_superuser(self, request: Request) -> Response:
         return await confirm_action(self, request, "promote-superuser")
+
+    @action(name="demote-superuser", label=support_operations["demote-superuser"])
+    async def demote_superuser(self, request: Request) -> Response:
+        return await confirm_action(self, request, "demote-superuser")
+
+    @action(name="deactivate", label=support_operations["deactivate"])
+    async def deactivate_user(self, request: Request) -> Response:
+        return await confirm_action(self, request, "deactivate")
+
+    @action(name="reactivate", label=support_operations["reactivate"])
+    async def reactivate_user(self, request: Request) -> Response:
+        return await confirm_action(self, request, "reactivate")
 
     @action(name="soft-delete", label=support_operations["soft-delete"])
     async def soft_delete_user(self, request: Request) -> Response:

@@ -31,7 +31,9 @@ async def confirm_action(view: "AdminModelView", request: Request, operation: st
     try:
         record_id = _record_id(request.query_params.get("pks", ""))
         async with view.session_maker() as session:
-            target = await describe_support_target(session, view.identity, record_id)
+            target = await describe_support_target(
+                session, view.identity, record_id, operation=operation, actor_id=str(request.session["user_id"])
+            )
     except (DomainError, ValueError) as error:
         return await _render_error(view, request, operation, error)
     return await view.templates.TemplateResponse(

@@ -699,16 +699,26 @@ async def test_admin_promotes_user_only_after_post_confirmation(
 
 
 @pytest.mark.parametrize("existing_state", [False, True], ids=["missing-state", "existing-state"])
+@pytest.mark.parametrize("first_admin_actor", [False, True])
 async def test_admin_soft_deletes_user_and_pauses_vault_without_deleting_data(
     admin_client: AsyncClient,
     async_client: AsyncClient,
     async_session: AsyncSession,
     vault: Vault,
     existing_state: bool,
+    first_admin_actor: bool,
 ) -> None:
     from app.core.security import create_access_token
     from app.crud.game_state import game_state_crud
+    from app.schemas.user import UserCreate
+    from app.tests.factory.users import create_fake_user
 
+    if not first_admin_actor:
+        credentials = create_fake_user()
+        await crud.user.create(async_session, UserCreate(**credentials, is_superuser=True))
+        await admin_client.post(
+            "/admin/login", data={"username": credentials["email"], "password": credentials["password"]}
+        )
     target = await crud.user.get(async_session, vault.user_id)
     headers = {"Authorization": f"Bearer {create_access_token(str(target.id))}"}
     assert (await async_client.get("/users/me", headers=headers)).status_code == 200
@@ -854,3 +864,221 @@ async def test_profile_metadata_remains_editable_without_exposing_owner_or_count
     assert profile.bio == "Updated support bio"
     assert profile.user_id == superuser.id
     assert profile.total_caps_earned == previous_caps
+
+
+@pytest.mark.parametrize("existing_state", [False, True])
+@pytest.mark.parametrize("first_admin_actor", [False, True])
+async def test_deactivate_and_reactivate_preserve_account_and_pause_vaults(
+    admin_client: AsyncClient,
+    async_session: AsyncSession,
+    async_client: AsyncClient,
+    vault: Vault,
+    existing_state: bool,
+    first_admin_actor: bool,
+) -> None:
+    from app.core.security import create_access_token
+    from app.crud.game_state import game_state_crud
+    from app.schemas.user import UserCreate
+    from app.tests.factory.users import create_fake_user
+
+    if not first_admin_actor:
+        credentials = create_fake_user()
+        await crud.user.create(async_session, UserCreate(**credentials, is_superuser=True))
+        await admin_client.post(
+            "/admin/login", data={"username": credentials["email"], "password": credentials["password"]}
+        )
+    target = await crud.user.get(async_session, vault.user_id)
+    headers = {"Authorization": f"Bearer {create_access_token(str(target.id))}"}
+    if existing_state:
+        await game_state_crud.get_or_create(async_session, vault.id)
+    target.email_verification_token = "old-verification-link"
+    target.password_reset_token = "old-reset-link"
+    async_session.add(target)
+    await async_session.commit()
+
+    page = await admin_client.get(f"/admin/user/action/deactivate?pks={target.id}")
+    assert page.status_code == 200
+    await async_session.refresh(target)
+    assert target.is_active is True
+    blocked = await admin_client.post("/admin/user/support", data={"operation": "deactivate", "pks": str(target.id)})
+    assert blocked.status_code == 403
+    response = await admin_client.post(
+        "/admin/user/support",
+        data={"operation": "deactivate", "pks": str(target.id), "csrf_token": _csrf_token_from(page)},
+    )
+    assert response.status_code == 303
+    await async_session.refresh(target)
+    assert target.is_active is False
+    assert target.is_deleted is False
+    assert target.deleted_at is None
+    assert target.email_verification_token is None
+    assert target.password_reset_token is None
+    assert await crud.user.get_by_email(async_session, target.email) is not None
+    state = await game_state_crud.get_by_vault_id(async_session, vault.id)
+    assert state is not None
+    assert state.is_paused
+    assert (await async_client.get("/users/me", headers=headers)).status_code == 403
+
+    page = await admin_client.get(f"/admin/user/action/reactivate?pks={target.id}")
+    assert page.status_code == 200
+    response = await admin_client.post(
+        "/admin/user/support",
+        data={"operation": "reactivate", "pks": str(target.id), "csrf_token": _csrf_token_from(page)},
+    )
+    assert response.status_code == 303
+    await async_session.refresh(target)
+    assert target.is_active is True
+    assert target.is_deleted is False
+    await async_session.refresh(state)
+    assert state.is_paused is True
+    assert (await async_client.get("/users/me", headers=headers)).status_code == 200
+
+
+async def test_admin_cannot_deactivate_current_account(admin_client, async_session, superuser):
+    page = await admin_client.get(f"/admin/user/action/deactivate?pks={superuser.id}")
+    assert page.status_code == 200
+    response = await admin_client.post(
+        "/admin/user/support",
+        data={"operation": "deactivate", "pks": str(superuser.id), "csrf_token": _csrf_token_from(page)},
+    )
+    assert response.status_code == 400
+    await async_session.refresh(superuser)
+    assert superuser.is_active is True
+    assert (await admin_client.get("/admin/")).status_code == 200
+
+
+async def test_reactivate_does_not_restore_a_soft_deleted_account(admin_client, async_session, vault):
+    target = await crud.user.get(async_session, vault.user_id)
+    page = await admin_client.get(f"/admin/user/action/reactivate?pks={target.id}")
+    assert page.status_code == 200
+    target.soft_delete()
+    target.is_active = False
+    async_session.add(target)
+    await async_session.commit()
+    response = await admin_client.post(
+        "/admin/user/support",
+        data={"operation": "reactivate", "pks": str(target.id), "csrf_token": _csrf_token_from(page)},
+    )
+    assert response.status_code == 404
+    await async_session.refresh(target)
+    assert target.is_active is False
+    assert target.is_deleted is True
+
+
+async def test_first_superuser_demotes_only_after_confirmation_and_revokes_admin_session(
+    admin_client: AsyncClient, async_session: AsyncSession, async_client: AsyncClient
+) -> None:
+    from app.core.security import create_access_token
+    from app.schemas.user import UserCreate
+    from app.tests.factory.users import create_fake_user
+
+    credentials = create_fake_user()
+    target = await crud.user.create(async_session, UserCreate(**credentials, is_superuser=True))
+    headers = {"Authorization": f"Bearer {create_access_token(str(target.id))}"}
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://testserver") as target_client:
+        login = await target_client.post(
+            "/admin/login", data={"username": credentials["email"], "password": credentials["password"]}
+        )
+        assert login.status_code == 302
+        assert (await target_client.get("/admin/")).status_code == 200
+        page = await admin_client.get(f"/admin/user/action/demote-superuser?pks={target.id}")
+        assert page.status_code == 200
+        await async_session.refresh(target)
+        assert target.is_superuser is True
+        assert (
+            await admin_client.post(
+                "/admin/user/support", data={"operation": "demote-superuser", "pks": str(target.id)}
+            )
+        ).status_code == 403
+        response = await admin_client.post(
+            "/admin/user/support",
+            data={"operation": "demote-superuser", "pks": str(target.id), "csrf_token": _csrf_token_from(page)},
+        )
+        assert response.status_code == 303
+        await async_session.refresh(target)
+        assert target.is_superuser is False
+        assert target.is_active is True
+        assert target.is_deleted is False
+        assert (await target_client.get("/admin/")).status_code == 302
+        assert (await async_client.get("/users/me", headers=headers)).status_code == 200
+
+
+@pytest.mark.parametrize(
+    "operation", ["promote-superuser", "demote-superuser", "deactivate", "reactivate", "soft-delete"]
+)
+async def test_other_admin_cannot_change_first_superuser_or_bypass_action_permissions(
+    admin_client, async_session, superuser, operation
+):
+    from app.schemas.user import UserCreate
+    from app.tests.factory.users import create_fake_user
+
+    credentials = create_fake_user()
+    await crud.user.create(async_session, UserCreate(**credentials, is_superuser=True))
+    target = await crud.user.create(async_session, UserCreate(**create_fake_user()))
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://testserver") as other_client:
+        await other_client.post(
+            "/admin/login", data={"username": credentials["email"], "password": credentials["password"]}
+        )
+        listing = await other_client.get("/admin/user/list")
+        assert listing.status_code == 200
+        assert "/action/promote-superuser" not in listing.text
+        assert "/action/demote-superuser" not in listing.text
+        # A regular-user support operation remains available and supplies a valid token.
+        page = await other_client.get(f"/admin/user/action/verify-email?pks={target.id}")
+        assert page.status_code == 200
+        assert (await other_client.get(f"/admin/user/action/{operation}?pks={superuser.id}")).status_code == 403
+        response = await other_client.post(
+            "/admin/user/support",
+            data={"operation": operation, "pks": str(superuser.id), "csrf_token": _csrf_token_from(page)},
+        )
+        assert response.status_code == 403
+        if operation in {"promote-superuser", "demote-superuser"}:
+            response = await other_client.post(
+                "/admin/user/support",
+                data={"operation": operation, "pks": str(target.id), "csrf_token": _csrf_token_from(page)},
+            )
+            assert response.status_code == 403
+    await async_session.refresh(superuser)
+    assert superuser.is_superuser
+    assert superuser.is_active
+    assert not superuser.is_deleted
+
+
+async def test_first_superuser_cannot_demote_itself(admin_client, async_session, superuser):
+    page = await admin_client.get(f"/admin/user/action/demote-superuser?pks={superuser.id}")
+    assert page.status_code == 200
+    response = await admin_client.post(
+        "/admin/user/support",
+        data={"operation": "demote-superuser", "pks": str(superuser.id), "csrf_token": _csrf_token_from(page)},
+    )
+    assert response.status_code == 400
+    await async_session.refresh(superuser)
+    assert superuser.is_superuser is True
+
+
+async def test_first_superuser_keeps_authority_after_changing_email(admin_client, async_session, superuser):
+    from app.schemas.user import UserCreate
+    from app.tests.factory.users import create_fake_user
+
+    superuser.email = create_fake_user()["email"]
+    async_session.add(superuser)
+    await async_session.commit()
+    target = await crud.user.create(async_session, UserCreate(**create_fake_user()))
+    page = await admin_client.get(f"/admin/user/action/promote-superuser?pks={target.id}")
+    assert page.status_code == 200
+    response = await admin_client.post(
+        "/admin/user/support",
+        data={"operation": "promote-superuser", "pks": str(target.id), "csrf_token": _csrf_token_from(page)},
+    )
+    assert response.status_code == 303
+    await async_session.refresh(target)
+    assert target.is_superuser is True
+    assert target.is_first_superuser is False
+    assert superuser.is_first_superuser is True
+
+
+def test_first_superuser_marker_is_not_client_writable():
+    from app.schemas.user import UserCreate, UserRead, UserUpdate
+
+    for schema in (UserCreate, UserRead, UserUpdate):
+        assert "is_first_superuser" not in schema.model_fields

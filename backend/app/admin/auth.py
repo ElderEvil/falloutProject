@@ -7,6 +7,7 @@ from starlette.requests import Request
 
 from app import crud
 from app.db.session import async_engine
+from app.services.admin_service import is_first_superuser
 
 
 class AdminAuth(AuthenticationBackend):
@@ -52,6 +53,7 @@ class AdminAuth(AuthenticationBackend):
         async with maker() as session:
             user = await crud.user.get_or_none(db_session=session, id=parsed_id)
             if user and crud.user.is_active(user) and crud.user.is_superuser(user):
+                request.state.is_first_superuser = is_first_superuser(user)
                 return True
 
         return False

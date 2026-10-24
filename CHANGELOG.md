@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.265.0 (2026-10-24)
+
+### Features
+
+* **incidents:** polish incident combat feedback and raider art ([#1171](https://github.com/ElderEvil/falloutProject/issues/1171)) a87b8e6
+
 ## 2.264.0 (2026-10-24)
 
 ### Features

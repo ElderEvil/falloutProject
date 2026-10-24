@@ -492,6 +492,14 @@ class BreedingService:
         for child in children:
             await BreedingService._increment_birth_statistics(db_session, mother, child, vault_id)
 
+        if vault.user_id:
+            try:
+                await notification_service.notify_room_unlocks(
+                    db_session, vault.user_id, vault_id, previous_population=population
+                )
+            except Exception:
+                logger.exception("Failed to notify room unlocks for vault %s", vault_id)
+
         return children
 
     @staticmethod

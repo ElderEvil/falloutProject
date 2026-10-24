@@ -1283,3 +1283,39 @@ async def test_explicit_family_room_must_be_living_quarters(
         assert male_dweller.room_id is None
         assert female_dweller.room_id is None
         assert await relationship_crud.get_by_dweller(async_session, male_dweller.id) == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("birth_count", "rooms"), [(2, ("Medbay", "Response Station")), (3, ("Medbay", "Response Station", "Science Lab"))]
+)
+async def test_multiple_births_send_one_summary_for_all_crossed_room_thresholds(
+    async_session, vault, female_dweller, male_dweller, monkeypatch, birth_count, rooms
+):
+    from sqlmodel import select
+
+    from app.models.notification import Notification, NotificationType
+    from app.tests.factory.dwellers import create_random_common_dweller
+
+    while await crud.dweller.count_alive_in_vault(async_session, vault.id) < 13:
+        await crud.dweller.create(
+            async_session, obj_in=DwellerCreate(**create_random_common_dweller(), vault_id=vault.id)
+        )
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", float(birth_count == 3))
+    pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    children = await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    notifications = (
+        (await async_session.execute(select(Notification).where(Notification.vault_id == vault.id))).scalars().all()
+    )
+    births = [n for n in notifications if n.notification_type == NotificationType.BABY_BORN]
+    unlocks = [n for n in notifications if n.notification_type == NotificationType.ROOM_UNLOCKED]
+    assert len(children) == birth_count
+    assert len(births) == birth_count
+    assert len(unlocks) == 1
+    for room in rooms:
+        assert room in unlocks[0].message

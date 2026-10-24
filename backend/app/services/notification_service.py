@@ -310,12 +310,19 @@ class NotificationService:
         )
 
     @staticmethod
-    async def notify_room_unlocks(db: AsyncSession, user_id: UUID, vault_id: UUID) -> None:
-        """One summary when the vault's population reaches a room threshold."""
+    async def notify_room_unlocks(
+        db: AsyncSession, user_id: UUID, vault_id: UUID, *, previous_population: int | None = None
+    ) -> None:
+        """Summarize crossed room thresholds, or the current threshold for a single arrival."""
         population = await dweller_crud.count_alive_in_vault(db, vault_id)
         game_data = await get_static_game_data()
         built = {room.name.lower() for room in await room_crud.get_all_by_vault(db, vault_id)}
-        unlocked = [room for room in game_data.get_buildable_rooms(built) if room.population_required == population]
+        lower_bound = population - 1 if previous_population is None else previous_population
+        unlocked = [
+            room
+            for room in game_data.get_buildable_rooms(built)
+            if room.population_required is not None and lower_bound < room.population_required <= population
+        ]
         if not unlocked:
             return
         names = ", ".join(sorted(room.name for room in unlocked))
@@ -340,7 +347,7 @@ class NotificationService:
         meta_data: dict[str, Any] | None = None,
     ):
         """Notify user that a baby was born."""
-        notification = await NotificationService.create_and_send(
+        return await NotificationService.create_and_send(
             db,
             user_id=user_id,
             vault_id=vault_id,
@@ -351,8 +358,6 @@ class NotificationService:
             message=f"{mother_name} gave birth to {baby_name}!",
             meta_data=meta_data,
         )
-        await NotificationService.notify_room_unlocks(db, user_id, vault_id)
-        return notification
 
     @staticmethod
     async def notify_resource_low(

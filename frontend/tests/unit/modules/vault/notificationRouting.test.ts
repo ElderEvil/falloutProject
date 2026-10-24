@@ -11,6 +11,16 @@ const levelUpNotification = {
 }
 
 describe('getNotificationRoute', () => {
+  it('opens the vault for a room unlock rather than a source dweller', () => {
+    expect(
+      getNotificationRoute({
+        vault_id: 'vault-1',
+        notification_type: 'room_unlocked',
+        from_dweller_id: 'dweller-1',
+      })
+    ).toBe('/vault/vault-1')
+  })
+
   it('opens the source dweller for a level-up notification', () => {
     expect(getNotificationRoute(levelUpNotification)).toBe('/vault/vault-1/dwellers/dweller-1')
   })

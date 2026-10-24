@@ -93,8 +93,9 @@ export function getNotificationRoute(notification: NotificationNavigationContext
       }
       return `${vaultPath}/quests`
     }
-    case 'level_up':
     case 'room_unlocked':
+      return vaultPath
+    case 'level_up':
     case 'hazard_team_joined':
     case 'dweller_died':
     case 'dweller_injured':

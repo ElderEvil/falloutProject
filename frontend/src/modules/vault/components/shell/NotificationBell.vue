@@ -217,6 +217,12 @@ function processNotification(notificationData: Notification) {
   ) {
     toast.success(notificationData.message)
   }
+  if (notificationData.notification_type === 'rush_succeeded') {
+    toast.success(notificationData.message)
+  }
+  if (notificationData.notification_type === 'rush_failed') {
+    toast.error(notificationData.message)
+  }
   // An arena morale boost is vault-wide and asynchronous; announce it beyond the bell
   // (progression red line).
   if (notificationData.notification_type === 'arena_morale_boost') {

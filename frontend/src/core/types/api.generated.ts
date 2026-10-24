@@ -3873,6 +3873,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/{room_id}/rush": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Room Rush Quote
+         * @description Return the server-computed risk and payout for a room rush.
+         */
+        get: operations["read_room_rush_quote_api_v1_rooms__room_id__rush_get"];
+        put?: never;
+        /**
+         * Rush Room
+         * @description Execute one server-resolved Room Rush.
+         */
+        post: operations["rush_room_api_v1_rooms__room_id__rush_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rooms/{room_id}/barbershop": {
         parameters: {
             query?: never;
@@ -8147,6 +8171,10 @@ export interface components {
             exploration: {
                 [key: string]: unknown;
             };
+            /** Rush */
+            rush: {
+                [key: string]: unknown;
+            };
         };
         /**
          * GenderEnum
@@ -9081,8 +9109,7 @@ export interface components {
          * @description Types of notifications
          * @enum {string}
          */
-        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "storage_item_degraded" | "storage_item_upgraded" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "objective_completed" | "objectives_refreshed" | "achievement_unlocked"
-        | "room_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
+        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "storage_item_degraded" | "storage_item_upgraded" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "rush_succeeded" | "rush_failed" | "quest_complete" | "objective_completed" | "objectives_refreshed" | "room_unlocked" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
         /** OAuthHandoffRequest */
         OAuthHandoffRequest: {
             /** Code */
@@ -10550,6 +10577,99 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /**
+         * RoomRushQuote
+         * @description Server-computed rush risk and payout preview for one room.
+         *
+         *     Chances are percentages in ``0..100``; the service keeps internal
+         *     probabilities in ``0..1``.
+         */
+        RoomRushQuote: {
+            /** Can Rush */
+            can_rush: boolean;
+            /** Blocked Reason */
+            blocked_reason: ("not_production" | "no_workers" | "active_incident" | "no_power" | "room_busy") | null;
+            /** Fail Chance */
+            fail_chance: number;
+            /** Success Chance */
+            success_chance: number;
+            /** Stacks */
+            stacks: number;
+            /** Max Stacks */
+            max_stacks: number;
+            /** Avg Ability */
+            avg_ability: number;
+            /** Avg Luck */
+            avg_luck: number;
+            /** Worker Count */
+            worker_count: number;
+            payout: components["schemas"]["RoomRushResourceGain"];
+            /** Caps Chance */
+            caps_chance: number;
+            /** Eligible Incidents */
+            eligible_incidents: string[];
+            /** Next Stack Penalty */
+            next_stack_penalty: number;
+        };
+        /**
+         * RoomRushResourceGain
+         * @description Integer resource amounts actually applied (or previewed) by a rush.
+         */
+        RoomRushResourceGain: {
+            /**
+             * Power
+             * @default 0
+             */
+            power: number;
+            /**
+             * Food
+             * @default 0
+             */
+            food: number;
+            /**
+             * Water
+             * @default 0
+             */
+            water: number;
+            /**
+             * Stimpack
+             * @default 0
+             */
+            stimpack: number;
+            /**
+             * Radaway
+             * @default 0
+             */
+            radaway: number;
+        };
+        /**
+         * RoomRushResult
+         * @description Outcome of one rush attempt.
+         */
+        RoomRushResult: {
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "success" | "failure";
+            payout: components["schemas"]["RoomRushResourceGain"];
+            /** Caps */
+            caps: number;
+            /** Xp Per Worker */
+            xp_per_worker: number;
+            /** Happiness Delta */
+            happiness_delta: number;
+            /** Incident Id */
+            incident_id: string | null;
+            /** Incident Type */
+            incident_type: string | null;
+            /** Stacks After */
+            stacks_after: number;
+            /** Next Fail Chance */
+            next_fail_chance: number;
+            /** Message */
+            message: string;
         };
         /** RoomStyleUpdate */
         RoomStyleUpdate: {
@@ -17533,6 +17653,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RoomRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_room_rush_quote_api_v1_rooms__room_id__rush_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomRushQuote"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rush_room_api_v1_rooms__room_id__rush_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomRushResult"];
                 };
             };
             /** @description Validation Error */

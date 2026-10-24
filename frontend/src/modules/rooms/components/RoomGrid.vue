@@ -358,6 +358,8 @@ const closeDetailModal = () => {
           :is-dragging-over="draggingOverRoomId === room.id"
           :highlighted="highlightedRoomId != null && highlightedRoomId === room.id"
           :merged="roomStore.mergedRoomId === room.id"
+          :rushed="roomStore.rushedRoomId === room.id"
+          :rush-outcome="roomStore.rushOutcome"
           @click="handleRoomClick"
           @upgrade="handleUpgradeRoom"
           @destroy="destroyRoom"

@@ -15,6 +15,7 @@ import { useRoomStore } from '../stores/room'
 import { useRoomProduction } from '../composables/useRoomProduction'
 import { useRoomUpgrade } from '../composables/useRoomUpgrade'
 import { useRoomDwellers } from '../composables/useRoomDwellers'
+import { useRoomRush } from '../composables/useRoomRush'
 import { useRadioRoom } from '../composables/useRadioRoom'
 import { useRoomStyle } from '../composables/useRoomStyle'
 import { useRoomThemes } from '../composables/useRoomThemes'
@@ -24,6 +25,7 @@ import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.
 import RoomPreviewSection from './RoomPreviewSection.vue'
 import BarbershopPanel from './BarbershopPanel.vue'
 import ProductionStats from './ProductionStats.vue'
+import RoomRushPanel from './RoomRushPanel.vue'
 import DwellerList from './DwellerList.vue'
 import RadioControls from './RadioControls.vue'
 import RoomActions from './RoomActions.vue'
@@ -62,6 +64,7 @@ const assignmentMode = ref<'worker' | 'apprentice' | null>(null)
 
 const roomRef = toRef(props, 'room')
 const modelValueRef = toRef(props, 'modelValue')
+const vaultIdRef = toRef(props, 'vaultId')
 
 const incidentStore = useIncidentStore()
 const roomStore = useRoomStore()
@@ -155,6 +158,29 @@ const {
   handleSwitchRadioMode,
   handleRecruitDweller,
 } = useRadioRoom(roomRef, modelValueRef, assignedDwellers)
+
+const {
+  quote: rushQuote,
+  result: rushResult,
+  error: rushError,
+  isLoadingQuote,
+  isRushing,
+  showConfirmation: showRushConfirmation,
+  blockedMessage: rushBlockedMessage,
+  requestRush,
+  cancelRush,
+  confirmRush,
+} = useRoomRush(roomRef, vaultIdRef, modelValueRef)
+
+const rushConfirmMessage = computed(() => {
+  const quote = rushQuote.value
+  if (!quote) return ''
+  const payout = Object.entries(quote.payout)
+    .filter(([, amount]) => amount > 0)
+    .map(([resource, amount]) => `+${amount} ${resource}`)
+    .join(', ')
+  return `Risk ${Math.round(quote.fail_chance)}%, success ${Math.round(quote.success_chance)}%. Recent rushes: ${quote.stacks}/${quote.max_stacks}. Payout: ${payout || 'none'}. Failure can start a fire or infestation.`
+})
 
 const { playSound, playAmbience, stopAmbience } = useSound()
 
@@ -316,6 +342,17 @@ onUnmounted(stopAmbience)
             :production-info="productionInfo"
           />
 
+          <RoomRushPanel
+            v-if="has('productionStats')"
+            :quote="rushQuote"
+            :result="rushResult"
+            :loading="isLoadingQuote"
+            :rushing="isRushing"
+            :error="rushError"
+            :blocked-message="rushBlockedMessage"
+            @rush="requestRush"
+          />
+
           <RoomTrainingSection
             v-if="has('training')"
             :vault-id="vaultId"
@@ -383,6 +420,14 @@ onUnmounted(stopAmbience)
     confirm-label="Unassign all"
     @cancel="showUnassignConfirmation = false"
     @confirm="confirmUnassignAll"
+  />
+  <TerminalConfirmation
+    :open="showRushConfirmation"
+    :title="`Rush ${room?.name ?? 'room'}?`"
+    :message="rushConfirmMessage"
+    :confirm-label="`Activate (${Math.round(rushQuote?.fail_chance ?? 0)}% risk)`"
+    @confirm="confirmRush"
+    @cancel="cancelRush"
   />
 </template>
 

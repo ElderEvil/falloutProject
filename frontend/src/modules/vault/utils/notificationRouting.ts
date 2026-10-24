@@ -35,6 +35,8 @@ const NOTIFICATION_SOUNDS = {
   resource_low: 'resourceLow',
   resource_critical: 'resourceCritical',
   power_outage: 'powerOutage',
+  rush_succeeded: 'rushSuccess',
+  rush_failed: 'rushFail',
   quest_complete: 'questComplete',
   objective_completed: 'objectiveReady',
   objectives_refreshed: 'objectivesRefreshed',
@@ -122,6 +124,11 @@ export function getNotificationRoute(notification: NotificationNavigationContext
     case 'radio_new_dweller':
     case 'map_registration_failed':
       return dwellerId ? `${vaultPath}/dwellers/${dwellerId}` : `${vaultPath}/dwellers`
+    case 'rush_succeeded':
+    case 'rush_failed': {
+      const roomId = metadataString(notification, 'room_id')
+      return roomId ? `${vaultPath}?roomId=${encodeURIComponent(roomId)}` : vaultPath
+    }
     case 'combat_started':
     case 'combat_victory':
     case 'combat_defeat':

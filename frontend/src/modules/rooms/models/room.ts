@@ -4,6 +4,9 @@ import type { components } from '@/core/types/api.generated'
 export type Room = components['schemas']['RoomRead']
 export type RoomBuild = components['schemas']['RoomBuild']
 export type RoomTemplate = components['schemas']['RoomCreateWithoutVaultID']
+export type RoomRushQuote = components['schemas']['RoomRushQuote']
+export type RoomRushResult = components['schemas']['RoomRushResult']
+export type RoomRushResourceGain = components['schemas']['RoomRushResourceGain']
 
 export type RoomStyleValue =
   | 'default'

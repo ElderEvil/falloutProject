@@ -115,3 +115,30 @@ it.each([
 ])('maps %s to a suitable notification animation', (type, expected) => {
   expect(getNotificationAnimation(type)).toBe(expected)
 })
+
+describe('rush notifications', () => {
+  it.each(['rush_succeeded', 'rush_failed'])(
+    'routes %s to the rushed room',
+    (notification_type) => {
+      expect(
+        getNotificationRoute({
+          vault_id: 'vault-1',
+          notification_type,
+          meta_data: { room_id: 'room-1' },
+        })
+      ).toBe('/vault/vault-1?roomId=room-1')
+    }
+  )
+
+  it('falls back to the vault when the room id is missing', () => {
+    expect(getNotificationRoute({ vault_id: 'vault-1', notification_type: 'rush_succeeded' })).toBe(
+      '/vault/vault-1'
+    )
+  })
+
+  it('gives each outcome a dedicated cue', () => {
+    expect(getNotificationSound('rush_succeeded')).toBe('rushSuccess')
+    expect(getNotificationSound('rush_failed')).toBe('rushFail')
+  })
+})
+})

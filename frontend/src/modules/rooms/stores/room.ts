@@ -3,7 +3,14 @@ import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
 import type { components } from '@/core/types/api.generated'
-import type { Room, RoomBuild, RoomStyleValue, RoomTemplate } from '../models/room'
+import type {
+  Room,
+  RoomBuild,
+  RoomRushQuote,
+  RoomRushResult,
+  RoomStyleValue,
+  RoomTemplate,
+} from '../models/room'
 import {
   FLOOR_UNITS,
   ROOM_SLOT_STARTS,
@@ -31,9 +38,12 @@ export const useRoomStore = defineStore('room', () => {
   const isPlacingRoom = ref(false)
   // Survivor room id briefly highlighted after an upgrade absorbs a neighbour.
   const mergedRoomId = ref<string | null>(null)
+  const rushedRoomId = ref<string | null>(null)
+  const rushOutcome = ref<'success' | 'failure' | null>(null)
   let fetchRoomsRequestSequence = 0
   let fetchBuildableRoomsRequestSequence = 0
   let mergedHighlightTimeout: ReturnType<typeof setTimeout> | null = null
+  let rushHighlightTimeout: ReturnType<typeof setTimeout> | null = null
 
   // Background vault refresh — non-throwing, while still surfacing failures consistently.
   async function refreshVaultSafely(vaultId: string, token: string, context: string) {
@@ -225,12 +235,50 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
+  async function fetchRushQuote(roomId: string, token: string): Promise<RoomRushQuote> {
+    const response = await axios.get<RoomRushQuote>(`/api/v1/rooms/${roomId}/rush`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    return response.data
+  }
+
+  async function rushRoom(roomId: string, token: string, vaultId: string): Promise<RoomRushResult> {
+    try {
+      const response = await axios.post<RoomRushResult>(
+        `/api/v1/rooms/${roomId}/rush`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      flashRushedRoom(roomId, response.data.outcome)
+      await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after rushing room')
+      return response.data
+    } catch (error) {
+      handleStoreError(error, 'Failed to rush room')
+      if (error instanceof AxiosError && error.response?.data?.detail) {
+        throw new Error(error.response.data.detail, { cause: error })
+      }
+      throw error
+    }
+  }
+
   function flashMergedRoom(roomId: string): void {
     mergedRoomId.value = roomId
     if (mergedHighlightTimeout !== null) clearTimeout(mergedHighlightTimeout)
     mergedHighlightTimeout = setTimeout(() => {
       if (mergedRoomId.value === roomId) mergedRoomId.value = null
     }, 1200)
+  }
+
+  function flashRushedRoom(roomId: string, outcome: 'success' | 'failure'): void {
+    rushedRoomId.value = roomId
+    rushOutcome.value = outcome
+    if (rushHighlightTimeout !== null) clearTimeout(rushHighlightTimeout)
+    rushHighlightTimeout = setTimeout(() => {
+      if (rushedRoomId.value === roomId) {
+        rushedRoomId.value = null
+        rushOutcome.value = null
+      }
+    }, 1400)
   }
 
   function selectRoom(room: RoomTemplate): void {
@@ -276,6 +324,8 @@ export const useRoomStore = defineStore('room', () => {
     selectedRoom,
     isPlacingRoom,
     mergedRoomId,
+    rushedRoomId,
+    rushOutcome,
     floorUnits,
     shaftX,
     unitsPerRoom,
@@ -291,6 +341,8 @@ export const useRoomStore = defineStore('room', () => {
     upgradeRoom,
     applyRoomStyle,
     remodelRoom,
+    fetchRushQuote,
+    rushRoom,
     selectRoom,
     deselectRoom,
   }

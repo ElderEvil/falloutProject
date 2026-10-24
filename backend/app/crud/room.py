@@ -315,18 +315,12 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         *,
         stacks: int,
         last_rush_at: datetime | None,
-        commit: bool = False,
-    ) -> Room:
+    ) -> None:
         """Persist the room's rush stacks and last-attempt timestamp."""
         room.rush_stacks = stacks
         room.last_rush_at = last_rush_at
         db_session.add(room)
-        if commit:
-            await db_session.commit()
-            await db_session.refresh(room)
-        else:
-            await db_session.flush()
-        return room
+        await db_session.flush()
 
     @staticmethod
     def _evaluate_formula_logged(formula: str, level: int, size: int, *, label: str) -> int:

@@ -7,7 +7,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
+from app.core.enums import DwellerStatusEnum, RarityEnum
 from app.core.event_bus import GameEvent
 from app.core.game_config import game_config
 from app.crud.incident import incident_crud
@@ -26,7 +26,10 @@ from app.services.room_rush_service import (
     _eligible_incident_types,
     _fail_chance,
     roll_bonus_caps,
+    room_rush_service,
 )
+from app.tests.factory.dwellers import create_rush_dweller_payload
+from app.tests.factory.rooms import create_rush_room_payload
 from app.utils.exceptions import ResourceConflictException, ValidationException
 from app.utils.item_factory import build_outfit
 
@@ -57,21 +60,7 @@ async def rush_setup(async_session: AsyncSession, user_with_vault: tuple) -> dic
 
     room = await crud.room.create(
         async_session,
-        RoomCreate(
-            vault_id=vault.id,
-            name="Power Generator",
-            category=RoomTypeEnum.PRODUCTION,
-            ability=SPECIALEnum.STRENGTH,
-            base_cost=100,
-            incremental_cost=50,
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=1500,
-            output=100,
-            size_min=1,
-            size_max=3,
-            size=1,
-            tier=1,
-        ),
+        RoomCreate(vault_id=vault.id, **create_rush_room_payload()),
     )
     worker = await _create_worker(async_session, vault, room, strength=5, luck=5)
     return {"vault": vault, "room": room, "worker": worker}
@@ -84,30 +73,19 @@ async def _create_worker(
     *,
     strength: int = 1,
     luck: int = 1,
+    intelligence: int = 1,
     happiness: int = 50,
 ) -> Any:
     worker = await crud.dweller.create(
         async_session,
         DwellerCreate(
             vault_id=vault.id,
-            first_name="Rush",
-            last_name="Worker",
-            gender=GenderEnum.MALE,
-            age_group=AgeGroupEnum.ADULT,
-            rarity=RarityEnum.COMMON,
-            level=1,
-            experience=0,
-            max_health=100,
-            health=100,
-            radiation=0,
-            happiness=happiness,
-            strength=strength,
-            perception=1,
-            endurance=1,
-            charisma=1,
-            intelligence=1,
-            agility=1,
-            luck=luck,
+            **create_rush_dweller_payload(
+                strength=strength,
+                luck=luck,
+                intelligence=intelligence,
+                happiness=happiness,
+            ),
         ),
     )
     worker.room_id = room.id
@@ -116,16 +94,13 @@ async def _create_worker(
     return worker
 
 
-def _service() -> RoomRushService:
-    return RoomRushService()
-
-
 @pytest.mark.asyncio
 async def test_quote_reports_risk_and_capacity_clamped_payout(
     async_session: AsyncSession, rush_setup: dict[str, Any]
 ) -> None:
     vault, room = rush_setup["vault"], rush_setup["room"]
-    quote = await _service().quote(async_session, room, vault)
+    starting_resources = (vault.power, vault.food, vault.water)
+    quote = await room_rush_service.quote(async_session, room, vault)
 
     assert quote.can_rush is True
     assert quote.blocked_reason is None
@@ -136,6 +111,40 @@ async def test_quote_reports_risk_and_capacity_clamped_payout(
     assert quote.success_chance == pytest.approx(100 - quote.fail_chance)
     assert quote.payout.power > 0
     assert quote.payout.power <= vault.power_max - vault.power
+    assert (vault.power, vault.food, vault.water) == starting_resources
+
+
+@pytest.mark.asyncio
+async def test_quote_leaves_vault_and_storage_untouched(
+    async_session: AsyncSession, rush_setup: dict[str, Any]
+) -> None:
+    vault, room = rush_setup["vault"], rush_setup["room"]
+    storage = Storage(vault_id=vault.id, stimpack=3)
+    async_session.add(storage)
+    await async_session.commit()
+
+    quote = await room_rush_service.quote(async_session, room, vault)
+
+    assert quote.payout.power > 0
+    assert (vault.power, vault.food, vault.water) == (50, 0, 0)
+    assert storage.stimpack == 3
+    assert vault not in async_session.dirty
+    assert storage not in async_session.dirty
+
+
+@pytest.mark.asyncio
+async def test_quote_excludes_dwellers_away_from_the_room(
+    async_session: AsyncSession, rush_setup: dict[str, Any]
+) -> None:
+    vault, room, worker = rush_setup["vault"], rush_setup["room"], rush_setup["worker"]
+    worker.status = DwellerStatusEnum.EXPLORING
+    async_session.add(worker)
+    await async_session.commit()
+
+    quote = await room_rush_service.quote(async_session, room, vault)
+
+    assert quote.worker_count == 0
+    assert quote.blocked_reason == "no_workers"
 
 
 @pytest.mark.asyncio
@@ -144,7 +153,7 @@ async def test_quote_blocks_non_production_room(async_session: AsyncSession, rus
     room.category = RoomTypeEnum.MISC
     await async_session.commit()
 
-    quote = await _service().quote(async_session, room, vault)
+    quote = await room_rush_service.quote(async_session, room, vault)
 
     assert quote.can_rush is False
     assert quote.blocked_reason == "not_production"
@@ -158,7 +167,7 @@ async def test_quote_blocks_room_without_living_workers(
     worker.is_dead = True
     await async_session.commit()
 
-    quote = await _service().quote(async_session, room, vault)
+    quote = await room_rush_service.quote(async_session, room, vault)
 
     assert quote.can_rush is False
     assert quote.blocked_reason == "no_workers"
@@ -175,7 +184,7 @@ async def test_quote_blocks_active_incident(async_session: AsyncSession, rush_se
         difficulty=1,
     )
 
-    quote = await _service().quote(async_session, room, vault)
+    quote = await room_rush_service.quote(async_session, room, vault)
 
     assert quote.can_rush is False
     assert quote.blocked_reason == "active_incident"
@@ -190,7 +199,7 @@ async def test_quote_blocks_unpowered_non_strength_room(
     room.ability = SPECIALEnum.AGILITY
     await async_session.commit()
 
-    quote = await _service().quote(async_session, room, vault)
+    quote = await room_rush_service.quote(async_session, room, vault)
 
     assert quote.can_rush is False
     assert quote.blocked_reason == "no_power"
@@ -204,7 +213,7 @@ async def test_rush_success_applies_payout_caps_xp_happiness_and_stack(
     starting_power = vault.power
     starting_caps = vault.bottle_caps
 
-    result = await _service().rush(async_session, room, vault, rng=_Rng(0.9, 0.0, 0.0))
+    result = await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9, 0.0, 0.0))
 
     assert result.outcome == "success"
     assert result.stacks_after == 1
@@ -228,7 +237,7 @@ async def test_rush_failure_spawns_incident_in_rushed_room(
     worker.happiness = 50
     await async_session.commit()
 
-    result = await _service().rush(async_session, room, vault, rng=_Rng(0.1))
+    result = await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.1))
 
     assert result.outcome == "failure"
     assert result.stacks_after == 1
@@ -252,7 +261,7 @@ async def test_rush_failure_with_incidents_disabled_still_penalises(
     vault.incidents_disabled = True
     await async_session.commit()
 
-    result = await _service().rush(async_session, room, vault, rng=_Rng(0.1))
+    result = await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.1))
 
     assert result.outcome == "failure"
     assert result.incident_id is None
@@ -261,16 +270,22 @@ async def test_rush_failure_with_incidents_disabled_still_penalises(
     assert room.rush_stacks == 1
 
 
-def test_effective_stacks_decay_and_cap() -> None:
+@pytest.mark.parametrize(
+    ("stacks", "age", "expected"),
+    [
+        (3, timedelta(seconds=1200), 1),
+        (6, timedelta(seconds=12000), 0),
+        (6, timedelta(0), 6),
+        (2, timedelta(minutes=10), 1),
+        (2, timedelta(minutes=59), 0),
+        (6, None, 6),
+        (6, timedelta(days=30), 0),
+    ],
+)
+def test_effective_stacks_decay_and_cap(stacks: int, age: timedelta | None, expected: int) -> None:
     now = datetime.utcnow()
-    room = Room.model_construct(rush_stacks=3, last_rush_at=now - timedelta(seconds=1200))
-    assert _effective_stacks(room, now) == 1
-
-    room = Room.model_construct(rush_stacks=6, last_rush_at=now - timedelta(seconds=1200 * 10))
-    assert _effective_stacks(room, now) == 0
-
-    room = Room.model_construct(rush_stacks=6, last_rush_at=now)
-    assert _effective_stacks(room, now) == 6
+    room = Room.model_construct(rush_stacks=stacks, last_rush_at=None if age is None else now - age)
+    assert _effective_stacks(room, now) == expected
 
 
 def test_caps_roll_uses_room_tier_and_width() -> None:
@@ -287,14 +302,6 @@ def test_fail_chance_floor_and_stack_penalty() -> None:
     assert _fail_chance(10, 10, 3) == pytest.approx(40.0)
     assert _fail_chance(10, 10, 6) == pytest.approx(70.0)
     assert _fail_chance(50, 50, 6) == pytest.approx(70.0)
-
-
-def test_effective_stacks_decay_ten_minutes_per_stack_and_never_negative() -> None:
-    now = datetime.utcnow()
-    assert _effective_stacks(Room.model_construct(rush_stacks=2, last_rush_at=now - timedelta(minutes=10)), now) == 1
-    assert _effective_stacks(Room.model_construct(rush_stacks=2, last_rush_at=now - timedelta(minutes=59)), now) == 0
-    assert _effective_stacks(Room.model_construct(rush_stacks=6, last_rush_at=None), now) == 6
-    assert _effective_stacks(Room.model_construct(rush_stacks=6, last_rush_at=now - timedelta(days=30)), now) == 0
 
 
 def test_eligible_incident_types_follow_rush_thresholds() -> None:
@@ -318,13 +325,13 @@ async def test_quote_uses_effective_stat_with_outfit_bonus(
     async_session: AsyncSession, rush_setup: dict[str, Any]
 ) -> None:
     vault, room, worker = rush_setup["vault"], rush_setup["room"], rush_setup["worker"]
-    before = await _service().quote(async_session, room, vault)
+    before = await room_rush_service.quote(async_session, room, vault)
 
     worker.outfit = build_outfit({"name": "Lucky Suit", "luck": 3}, RarityEnum.COMMON)
     async_session.add(worker)
     await async_session.commit()
 
-    after = await _service().quote(async_session, room, vault)
+    after = await room_rush_service.quote(async_session, room, vault)
     assert after.avg_luck == pytest.approx(before.avg_luck + 3)
     assert after.fail_chance < before.fail_chance
 
@@ -340,29 +347,20 @@ async def test_success_pays_medical_storage_up_to_capacity(async_session: AsyncS
         async_session,
         RoomCreate(
             vault_id=vault.id,
-            name="Medbay",
-            category=RoomTypeEnum.PRODUCTION,
-            ability=SPECIALEnum.INTELLIGENCE,
-            capacity=5,
-            base_cost=100,
-            incremental_cost=50,
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=1500,
-            output=100,
-            size_min=1,
-            size_max=3,
-            size=1,
-            tier=1,
+            **create_rush_room_payload(name="Medbay", ability=SPECIALEnum.INTELLIGENCE, capacity=5),
         ),
     )
-    worker = await _create_worker(async_session, vault, room, strength=1, luck=1)
-    worker.intelligence = 10
-    async_session.add(worker)
+    worker = await _create_worker(async_session, vault, room, intelligence=10)
     storage = Storage(vault_id=vault.id, stimpack=4)
     async_session.add(storage)
     await async_session.commit()
 
-    result = await _service().rush(async_session, room, vault, rng=_Rng(0.9, 1.0))
+    quote = await room_rush_service.quote(async_session, room, vault)
+    assert quote.payout.stimpack == 1
+    await async_session.refresh(storage)
+    assert storage.stimpack == 4
+
+    result = await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9, 1.0))
 
     assert result.outcome == "success"
     assert result.payout.stimpack == 1
@@ -377,7 +375,7 @@ async def test_success_happiness_clamps_to_ceiling(async_session: AsyncSession, 
     worker.happiness = 95
     await async_session.commit()
 
-    result = await _service().rush(async_session, room, vault, rng=_Rng(0.9, 1.0))
+    result = await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9, 1.0))
 
     assert result.outcome == "success"
     assert worker.happiness == 100
@@ -390,7 +388,7 @@ async def test_failure_happiness_clamps_to_floor(async_session: AsyncSession, ru
     worker.happiness = 5
     await async_session.commit()
 
-    result = await _service().rush(async_session, room, vault, rng=_Rng(0.0))
+    result = await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.0))
 
     assert result.outcome == "failure"
     assert worker.happiness == 10
@@ -410,7 +408,7 @@ async def test_failure_without_spawnable_incident_still_penalises(
         new_callable=AsyncMock,
         return_value=None,
     ):
-        result = await _service().rush(async_session, room, vault, rng=_Rng(0.0))
+        result = await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.0))
 
     assert result.outcome == "failure"
     assert result.incident_id is None
@@ -426,7 +424,7 @@ async def test_rush_rejects_non_production_room(async_session: AsyncSession, rus
     await async_session.commit()
 
     with pytest.raises(ValidationException):
-        await _service().rush(async_session, room, vault, rng=_Rng(0.9))
+        await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9))
 
 
 @pytest.mark.asyncio
@@ -436,7 +434,7 @@ async def test_rush_rejects_room_without_workers(async_session: AsyncSession, ru
     await async_session.commit()
 
     with pytest.raises(ResourceConflictException):
-        await _service().rush(async_session, room, vault, rng=_Rng(0.9))
+        await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9))
 
 
 @pytest.mark.asyncio
@@ -451,7 +449,7 @@ async def test_rush_rejects_active_incident(async_session: AsyncSession, rush_se
     )
 
     with pytest.raises(ResourceConflictException):
-        await _service().rush(async_session, room, vault, rng=_Rng(0.9))
+        await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9))
 
 
 @pytest.mark.asyncio
@@ -464,7 +462,7 @@ async def test_rush_rejects_unpowered_non_strength_room(
     await async_session.commit()
 
     with pytest.raises(ValidationException):
-        await _service().rush(async_session, room, vault, rng=_Rng(0.9))
+        await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9))
 
 
 @pytest.mark.asyncio
@@ -481,7 +479,7 @@ async def test_rush_returns_conflict_when_room_lock_is_held(
         ),
         pytest.raises(ResourceConflictException),
     ):
-        await _service().rush(async_session, room, vault, rng=_Rng(0.9))
+        await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9))
 
 
 @pytest.mark.asyncio
@@ -491,8 +489,8 @@ async def test_two_rushes_serialize_and_never_overflow_resource_caps(
     vault, room = rush_setup["vault"], rush_setup["room"]
     starting_power = vault.power
 
-    first = await _service().rush(async_session, room, vault, rng=_Rng(0.9, 1.0))
-    second = await _service().rush(async_session, room, vault, rng=_Rng(0.9, 1.0))
+    first = await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9, 1.0))
+    second = await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9, 1.0))
 
     assert first.stacks_after == 1
     assert second.stacks_after == 2
@@ -509,9 +507,10 @@ async def test_success_sends_notification_and_emits_post_commit_events(
     vault, room = rush_setup["vault"], rush_setup["room"]
 
     with patch("app.services.room_rush_service.event_bus.emit", new_callable=AsyncMock) as emit:
-        result = await _service().rush(async_session, room, vault, rng=_Rng(0.9, 1.0))
+        result = await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9, 0.0, 0.0))
 
     assert result.outcome == "success"
+    assert result.caps > 0
     notification = next(
         notification
         for notification in await notification_crud.get_user_notifications(async_session, vault.user_id)
@@ -523,9 +522,13 @@ async def test_success_sends_notification_and_emits_post_commit_events(
     assert notification.meta_data["room_id"] == str(room.id)
     assert notification.meta_data["incident_id"] is None
 
-    emitted = [call.args[0] for call in emit.await_args_list]
-    assert GameEvent.RESOURCE_COLLECTED in emitted
-    assert GameEvent.RUSH_SUCCEEDED in emitted
+    resource_events = [call for call in emit.await_args_list if call.args[0] == GameEvent.RESOURCE_COLLECTED]
+    assert len(resource_events) == 1
+    payload = resource_events[0].args[2]
+    assert payload["source"] == "rush"
+    assert payload["resources"]["power"] == result.payout.power
+    assert payload["resources"]["caps"] == result.caps
+    assert GameEvent.RUSH_SUCCEEDED in [call.args[0] for call in emit.await_args_list]
 
 
 @pytest.mark.asyncio
@@ -535,7 +538,7 @@ async def test_failure_sends_notification_with_incident_metadata(
     vault, room = rush_setup["vault"], rush_setup["room"]
 
     with patch("app.services.room_rush_service.event_bus.emit", new_callable=AsyncMock) as emit:
-        result = await _service().rush(async_session, room, vault, rng=_Rng(0.0))
+        result = await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.0))
 
     assert result.outcome == "failure"
     notification = next(

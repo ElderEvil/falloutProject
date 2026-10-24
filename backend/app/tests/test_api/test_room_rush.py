@@ -6,7 +6,6 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
 from app.crud.incident import incident_crud
 from app.models.incident import IncidentType
 from app.models.room import Room
@@ -15,6 +14,8 @@ from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultCreate
+from app.tests.factory.dwellers import create_rush_dweller_payload
+from app.tests.factory.rooms import create_rush_room_payload
 from app.tests.factory.vaults import random_vault_number
 from app.tests.utils.user import authentication_token_from_email
 
@@ -48,19 +49,13 @@ async def _room(
         async_session,
         RoomCreate(
             vault_id=vault.id,
-            name=name,
-            category=category,
-            ability=ability,
-            capacity=capacity,
-            base_cost=100,
-            incremental_cost=50,
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=1500,
-            output=100 if category == RoomTypeEnum.PRODUCTION else None,
-            size_min=1,
-            size_max=3,
-            size=1,
-            tier=1,
+            **create_rush_room_payload(
+                name=name,
+                category=category,
+                ability=ability,
+                capacity=capacity,
+                output=100 if category == RoomTypeEnum.PRODUCTION else None,
+            ),
         ),
     )
 
@@ -70,15 +65,7 @@ async def _staff(async_session: AsyncSession, vault: Vault, room: Room) -> None:
         async_session,
         DwellerCreate(
             vault_id=vault.id,
-            first_name="Rush",
-            last_name="Worker",
-            gender=GenderEnum.MALE,
-            age_group=AgeGroupEnum.ADULT,
-            rarity=RarityEnum.COMMON,
-            max_health=100,
-            health=100,
-            strength=10,
-            luck=10,
+            **create_rush_dweller_payload(strength=10, luck=10),
         ),
     )
     worker.room_id = room.id

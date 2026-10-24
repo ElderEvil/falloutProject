@@ -49,3 +49,16 @@ def test_apply_room_payout_clamps_primary_and_medical_stocks() -> None:
     assert vault.power == 100
     assert vault.food == 5
     assert storage.stimpack == 5
+
+
+def test_apply_room_payout_dry_run_reports_amounts_without_mutating() -> None:
+    manager = ResourceManager()
+    vault = Vault(power=90, power_max=100, food=0, food_max=100, water=0, water_max=100)
+    storage = Storage(stimpack=4, radaway=0)
+    totals = {"power": 20.0, "food": 5.0, "water": 0.0, "stimpack": 3.0, "radaway": 0.0}
+
+    applied = manager.apply_room_payout(vault, storage, {"stimpack": 5, "radaway": 0}, totals, dry_run=True)
+
+    assert applied == {"power": 10, "food": 5, "water": 0, "stimpack": 1, "radaway": 0}
+    assert (vault.power, vault.food, vault.water) == (90, 0, 0)
+    assert storage.stimpack == 4

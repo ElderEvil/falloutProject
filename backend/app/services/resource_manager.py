@@ -201,10 +201,14 @@ class ResourceManager:
         storage: Storage | None,
         medical_capacity: dict[str, int],
         totals: Mapping[str, float | int],
+        *,
+        dry_run: bool = False,
     ) -> dict[str, int]:
         """Add a room payout to vault/storage stocks, clamped to capacity.
 
-        Returns the integer amount that actually landed in each resource.
+        Returns the integer amount that actually landed in each resource. With
+        ``dry_run`` the amounts are computed against the same capacity rules but
+        the mapped stocks are left untouched, so a quote cannot dirty them.
         """
         applied = dict.fromkeys(("power", "food", "water", "stimpack", "radaway"), 0)
         for resource_type in ("power", "food", "water"):
@@ -214,7 +218,8 @@ class ResourceManager:
             previous = getattr(vault, resource_type)
             updated = min(previous + requested, getattr(vault, f"{resource_type}_max"))
             applied[resource_type] = updated - previous
-            setattr(vault, resource_type, updated)
+            if not dry_run:
+                setattr(vault, resource_type, updated)
 
         if storage is not None:
             for resource_type in ("stimpack", "radaway"):
@@ -224,7 +229,8 @@ class ResourceManager:
                 previous = getattr(storage, resource_type)
                 updated = min(previous + requested, medical_capacity.get(resource_type, 0))
                 applied[resource_type] = updated - previous
-                setattr(storage, resource_type, updated)
+                if not dry_run:
+                    setattr(storage, resource_type, updated)
 
         return applied
 

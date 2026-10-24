@@ -25,7 +25,6 @@ from app.services.barbershop_service import barbershop_service
 from app.services.room_remodel_service import remodel_room
 from app.services.room_rush_service import room_rush_service
 from app.services.room_service import room_service
-from app.utils.exceptions import ValidationException
 
 router = APIRouter(prefix="/rooms", tags=["Room"])
 
@@ -88,11 +87,7 @@ async def read_room_rush_quote(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RoomRushQuote:
     """Return the server-computed risk and payout for a room rush."""
-    await verify_room_access(room_id, user, db_session)
-    room = await crud.room.get(db_session, room_id)
-    vault = await crud.vault.get_or_none(db_session, room.vault_id)
-    if vault is None:
-        raise ValidationException("Vault not found.")
+    room, vault = await verify_room_access(room_id, user, db_session)
     return await room_rush_service.quote(db_session, room, vault)
 
 
@@ -103,11 +98,7 @@ async def rush_room(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RoomRushResult:
     """Execute one server-resolved Room Rush."""
-    await verify_room_access(room_id, user, db_session)
-    room = await crud.room.get(db_session, room_id)
-    vault = await crud.vault.get_or_none(db_session, room.vault_id)
-    if vault is None:
-        raise ValidationException("Vault not found.")
+    room, vault = await verify_room_access(room_id, user, db_session)
     return await room_rush_service.rush(db_session, room, vault)
 
 

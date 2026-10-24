@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.db.session import get_async_session
 from app.models.junk import Junk
 from app.models.outfit import Outfit
+from app.models.room import Room
 from app.models.user import User
 from app.models.vault import Vault
 from app.models.weapon import Weapon
@@ -162,8 +163,8 @@ async def verify_room_access(
     room_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> None:
-    """Verify user has access to the vault containing the room.
+) -> tuple[Room, Vault]:
+    """Return the room and its vault after authorization.
 
     Raises:
         HTTPException: 404 if room not found.
@@ -173,7 +174,8 @@ async def verify_room_access(
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
 
-    await get_user_vault_or_403(room.vault_id, user, db_session)
+    vault = await get_user_vault_or_403(room.vault_id, user, db_session)
+    return room, vault
 
 
 async def verify_item_access(

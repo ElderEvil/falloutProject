@@ -1,4 +1,5 @@
 import random
+from typing import Any
 
 from faker import Faker
 
@@ -6,6 +7,28 @@ from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.tests.utils.utils import get_gender_based_name, get_stats_by_rarity
 
 fake = Faker()
+
+
+def create_rush_dweller_payload(
+    *,
+    strength: int = 1,
+    luck: int = 1,
+    intelligence: int = 1,
+    happiness: int = 50,
+) -> dict[str, Any]:
+    """Deterministic worker payload for rush risk/payout tests."""
+    return {
+        "first_name": "Rush",
+        "last_name": "Worker",
+        "gender": GenderEnum.MALE,
+        "rarity": RarityEnum.COMMON,
+        "max_health": 100,
+        "health": 100,
+        "happiness": happiness,
+        "strength": strength,
+        "intelligence": intelligence,
+        "luck": luck,
+    }
 
 
 def create_fake_dweller():

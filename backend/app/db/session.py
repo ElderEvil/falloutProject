@@ -1,10 +1,14 @@
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+from sqlalchemy.exc import InterfaceError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 async_engine = create_async_engine(
     str(settings.ASYNC_DATABASE_URI),
@@ -31,8 +35,14 @@ async_session_maker = async_sessionmaker(
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession]:
-    async with async_session_maker() as session:
+    session = async_session_maker()
+    try:
         yield session
+    finally:
+        try:
+            await session.close()
+        except InterfaceError:
+            logger.warning("Discarding DB session whose connection closed during teardown")
 
 
 @asynccontextmanager

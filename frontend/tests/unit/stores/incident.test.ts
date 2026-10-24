@@ -894,6 +894,7 @@ describe('Incident Store', () => {
       await flushPromises()
 
       expect(store.aftermathForRoom('room-1')).toMatchObject({ outcome: 'victory', capsEarned: 35 })
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentVictory', 'sfx')
     })
 
     it('reconciles a missed failure from the incident record', async () => {
@@ -915,6 +916,7 @@ describe('Incident Store', () => {
       await flushPromises()
 
       expect(store.aftermathForRoom('room-1')).toMatchObject({ outcome: 'defeat', capsEarned: 0 })
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentDefeat', 'sfx')
     })
 
     it('reports the experience a resolved incident paid', async () => {
@@ -1172,6 +1174,104 @@ describe('Incident Store', () => {
       await store.fetchIncidents('vault-1', 'token')
       expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
     })
+
+    it('keeps the hit sound for combat lines but not for an assignment in the full window', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      const window = (start: number, lastKind = 'hit') =>
+        Array.from({ length: 40 }, (_, index) => ({
+          id: `e${start + index}`,
+          kind: index === 39 ? lastKind : 'hit',
+          message: `Line ${start + index}`,
+          data: null,
+        }))
+
+      vi.mocked(incidentApi.getIncident)
+        .mockResolvedValueOnce({ ...mockIncident, events: window(1) })
+        .mockResolvedValueOnce({ ...mockIncident, events: window(2, 'responders_assigned') })
+        .mockResolvedValueOnce({ ...mockIncident, events: window(3) })
+
+      await store.fetchIncidents('vault-1', 'token')
+      expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
+
+      await store.fetchIncidents('vault-1', 'token')
+      expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
+
+      await store.fetchIncidents('vault-1', 'token')
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentHit', 'sfx')
+    })
+
+    it('rejects an older full journal window that resolves after a newer one', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      const window = (start: number) =>
+        Array.from({ length: 40 }, (_, index) => ({
+          id: `e${start + index}`,
+          kind: 'hit',
+          message: `Hit ${start + index}`,
+          data: null,
+        }))
+
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({
+        ...mockIncident,
+        events: window(1),
+      })
+      await store.fetchIncidents('vault-1', 'token')
+
+      let resolveOlder!: (incident: Incident) => void
+      let resolveNewer!: (incident: Incident) => void
+      vi.mocked(incidentApi.getIncident)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveOlder = resolve
+            })
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveNewer = resolve
+            })
+        )
+
+      const olderPoll = store.fetchIncidents('vault-1', 'token')
+      const newerPoll = store.fetchIncidents('vault-1', 'token')
+      await flushPromises()
+
+      resolveNewer({ ...mockIncident, events: window(2) })
+      await flushPromises()
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentHit', 'sfx')
+      sseMock.playSound.mockClear()
+
+      resolveOlder({ ...mockIncident, events: window(1) })
+      await flushPromises()
+      await Promise.all([olderPoll, newerPoll])
+
+      expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
+      expect(store.incidents.get('incident-1')?.events.at(-1)?.id).toBe('e41')
+    })
+
+    it('still plays the hit sound when the rolling journal window is full', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      const window = (start: number) =>
+        Array.from({ length: 40 }, (_, index) => ({
+          id: `e${start + index}`,
+          kind: 'hit',
+          message: `Hit ${start + index}`,
+          data: null,
+        }))
+
+      vi.mocked(incidentApi.getIncident)
+        .mockResolvedValueOnce({ ...mockIncident, events: window(1) })
+        .mockResolvedValueOnce({ ...mockIncident, events: window(2) })
+
+      await store.fetchIncidents('vault-1', 'token')
+      expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentHit', 'sfx')
+
+      await store.fetchIncidents('vault-1', 'token')
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentHit', 'sfx')
+    })
   })
 
   describe('SSE notifications', () => {
@@ -1197,6 +1297,7 @@ describe('Incident Store', () => {
 
       expect(store.activeIncidentIds).toEqual([])
       expect(sseMock.toast.success).toHaveBeenCalledWith('Incident victory — recovered 50 caps.')
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentVictory', 'sfx')
       store.stopPolling()
     })
 
@@ -1247,6 +1348,7 @@ describe('Incident Store', () => {
       expect(sseMock.toast.error).toHaveBeenCalledWith(
         `Incident lost — ${mockIncident.type.replace(/_/g, ' ')} overran ${mockIncident.room_name}.`
       )
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentDefeat', 'sfx')
       store.stopPolling()
     })
 

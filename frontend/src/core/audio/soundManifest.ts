@@ -47,6 +47,9 @@ export const SOUND_MANIFEST = {
   incidentFire: '/audio/ui/incident-fire.wav',
   incidentDefeat: '/audio/ui/incident-defeat.wav',
   incidentHit: '/audio/ui/incident-hit.wav',
+  // The arena's combat fanfare doubles as the incident win cue; both are fights
+  // the dwellers finish, and the ui-bus chime was too quiet under the alarm loop.
+  incidentVictory: '/audio/ui/arena-finish.mp3',
   // Curated from the source library's combat/critical interface cues.
   arenaCountdown: '/audio/ui/arena-countdown.mp3',
   arenaStart: '/audio/ui/arena-start.mp3',

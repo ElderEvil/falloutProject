@@ -13,6 +13,7 @@ export const CREATURE_ASSETS = (
   [
     { name: 'Deathclaw', key: 'deathclaw', modelScale: 1.5, arenaKey: 'deathclaw' },
     { name: 'Feral Ghoul', key: 'feral-ghoul', modelScale: 1, arenaKey: 'feral-ghoul' },
+    { name: 'Raider', key: 'raider', modelScale: 1, arenaKey: 'raider', generated: true },
     { name: 'Mole Rat', key: 'mole-rat', modelScale: 0.7, arenaKey: 'mole-rat-pack' },
     { name: 'Radscorpion', key: 'radscorpion', modelScale: 1.3, arenaKey: 'giant-radscorpion' },
     { name: 'Radroach', key: 'radroach', modelScale: 0.5, arenaKey: 'radroach-swarm' },

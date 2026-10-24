@@ -1,6 +1,7 @@
 """Incident event reporting: lifecycle journal, SSE pushes, and owner notifications."""
 
 import logging
+from datetime import datetime, timedelta
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -29,6 +30,25 @@ def record_event(
 ) -> None:
     """Append a meaningful lifecycle event; callers commit with their state change."""
     db_session.add(IncidentEvent(incident_id=incident.id, kind=kind, message=message, data=data))
+
+
+def record_events(db_session: AsyncSession, incident: Incident, entries: list[tuple[str, str, dict | None]]) -> None:
+    """Append one round's journal lines in insertion order.
+
+    The journal is read back by `created_at`, and a round's rows are inserted in
+    the same microsecond, so each line gets a distinct timestamp.
+    """
+    base = datetime.utcnow()
+    for index, (kind, message, data) in enumerate(entries):
+        db_session.add(
+            IncidentEvent(
+                incident_id=incident.id,
+                kind=kind,
+                message=message,
+                data=data,
+                created_at=base + timedelta(microseconds=index),
+            )
+        )
 
 
 async def publish_sse(

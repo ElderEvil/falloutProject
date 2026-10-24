@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import IncidentScene from '@/modules/rooms/components/IncidentScene.vue'
 import type { Incident } from '@/modules/combat/models/incident'
 
@@ -57,6 +58,71 @@ describe('IncidentScene', () => {
     expect(mountScene().text()).toContain('No responders assigned')
   })
 
+  it('lunges the attacker and flashes the target when a round lands', async () => {
+    const wrapper = mountScene({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice' })],
+    })
+
+    await wrapper.setProps({
+      incident: incident({
+        events: [
+          { id: 'e1', kind: 'round', message: 'Trade fire.', data: { damage_to_threat: 12 } },
+        ],
+      }),
+    })
+    await flushPromises()
+    await nextTick()
+
+    expect(wrapper.find('.combat-lunge-right').exists()).toBe(true)
+    expect(wrapper.find('.combat-impact').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('flashes the defenders and lunges the threat when they take damage', async () => {
+    const wrapper = mountScene({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice' })],
+    })
+
+    await wrapper.setProps({
+      incident: incident({
+        events: [
+          { id: 'e1', kind: 'round', message: 'They hit back.', data: { damage_to_dwellers: 7 } },
+        ],
+      }),
+    })
+    await flushPromises()
+    await nextTick()
+
+    expect(wrapper.find('.combat-lunge-left').exists()).toBe(true)
+    expect(wrapper.find('.combat-impact').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('sums the latest round of per-attack hits for the floating damage', () => {
+    const wrapper = mountScene({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice' })],
+      incident: incident({
+        events: [
+          { id: 'e1', kind: 'turn', message: 'Responders attack', data: null },
+          {
+            id: 'e2',
+            kind: 'hit',
+            message: 'Raider hits Alice for 3',
+            data: { damage_to_dwellers: 3 },
+          },
+          {
+            id: 'e3',
+            kind: 'hit',
+            message: 'Raider hits Alice for 4',
+            data: { damage_to_dwellers: 4 },
+          },
+        ],
+      }),
+    })
+
+    expect(wrapper.find('.floating-effect').text()).toBe('-7')
+  })
+
   it('renders the remaining threat count for a defeat objective', () => {
     const wrapper = mountScene({
       incident: incident({ progress: { current: 30, target: 100, label: 'Threat' } }),
@@ -99,12 +165,12 @@ describe('IncidentScene', () => {
 
   it('falls back to grid art on detail-scene failure and hides a failed fallback', async () => {
     const wrapper = mountScene({ roomImageUrl: '/arena.webp', fallbackImageUrl: '/grid.png' })
-    await wrapper.find('img').trigger('error')
-    expect(wrapper.find('img').attributes('src')).toBe('/grid.png')
-    await wrapper.find('img').trigger('error')
-    expect(wrapper.find('img').exists()).toBe(false)
+    await wrapper.find('.scene-backdrop').trigger('error')
+    expect(wrapper.find('.scene-backdrop').attributes('src')).toBe('/grid.png')
+    await wrapper.find('.scene-backdrop').trigger('error')
+    expect(wrapper.find('.scene-backdrop').exists()).toBe(false)
     await wrapper.setProps({ roomImageUrl: '/another.webp' })
-    expect(wrapper.find('img').attributes('src')).toBe('/another.webp')
+    expect(wrapper.find('.scene-backdrop').attributes('src')).toBe('/another.webp')
   })
 
   it('omits the backdrop when no image is available', () => {
@@ -122,6 +188,12 @@ describe('IncidentScene', () => {
     expect(wrapper.find('.flame-outer').exists()).toBe(true)
     expect(wrapper.find('.flame-inner').exists()).toBe(true)
     expect(wrapper.find('.hazard-icon').exists()).toBe(false)
+  })
+
+  it('uses the generated raider sprite for raider attacks', () => {
+    const wrapper = mountScene()
+
+    expect(wrapper.get('img[alt="Raider"]').attributes('src')).toContain('/assembled/raider.webp')
   })
 
   it('uses creature artwork for a non-fire containment incident', () => {
@@ -167,7 +239,7 @@ describe('IncidentScene', () => {
 
     expect(wrapper.text()).not.toContain('No responders assigned')
     expect(wrapper.text()).toContain('Alice')
-    expect(wrapper.text()).toContain('RESIDENT')
+    expect(wrapper.text()).not.toContain('RESIDENT')
   })
 
   it('stops the flame animation under prefers-reduced-motion', () => {
@@ -176,27 +248,37 @@ describe('IncidentScene', () => {
     )
   })
 
-  it('shows the level of each combatant alongside their power', () => {
+  it('shows only the responder name when they are unhurt', () => {
     const wrapper = mountScene({
-      dwellers: [dweller({ id: 'd1', first_name: 'Alice', level: 12 })],
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice', level: 12, health: 100 })],
     })
 
-    expect(wrapper.text()).toContain('POW 42')
-    expect(wrapper.text()).toContain('Lv 12')
+    expect(wrapper.get('.dweller-name-badge').text()).toBe('Alice')
+    expect(wrapper.text()).not.toContain('POW')
+    expect(wrapper.text()).not.toContain('Lv 12')
+    expect(wrapper.find('.dweller-health').exists()).toBe(false)
+  })
+
+  it('adds a compact health bar to the name badge when a responder is hurt', () => {
+    const wrapper = mountScene({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice', health: 40, max_health: 100 })],
+    })
+
+    expect(wrapper.get('.dweller-health-fill').attributes('style')).toContain('width: 40%')
+    expect(wrapper.text()).toContain('Alice: 40 of 100 HP')
   })
 })
 
 describe('Incident room preview', () => {
-  it('uses real responder artwork and a labelled health meter', () => {
+  it('uses real responder artwork under the name badge', () => {
     const wrapper = mountScene({
       dwellers: [dweller({ thumbnail_url: '/static/portraits/alice.png' })],
     })
     expect(wrapper.get('img[alt="Alice"]').attributes('src')).toContain(
       '/static/portraits/alice.png'
     )
-    expect(
-      wrapper.get('[role="progressbar"][aria-label="Alice health"]').attributes('aria-valuenow')
-    ).toBe('90')
+    expect(wrapper.get('.dweller-name-badge').text()).toBe('Alice')
+    expect(wrapper.find('[role="progressbar"][aria-label="Alice health"]').exists()).toBe(false)
   })
 
   it('shows creature artwork instead of repeated threat glyphs', () => {
@@ -222,7 +304,7 @@ describe('Incident room preview', () => {
       ],
     })
     expect(wrapper.text()).toContain('Responder 2')
-    expect(wrapper.text()).toContain('DISPATCHED')
+    expect(wrapper.text()).not.toContain('DISPATCHED')
     expect(wrapper.text()).not.toContain('No responders assigned')
   })
 })

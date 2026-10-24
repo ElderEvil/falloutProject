@@ -52,7 +52,14 @@ async def test_containment_objective_uses_containment_flow(async_session: AsyncS
     assert result.enemies_defeated == 0
     assert incident.enemies_defeated == 0
     assert incident.combat_progress == pytest.approx(0.5)
-    assert [event.kind for event in events] == ["containment"]
+    assert events[-1].kind == "turn"
+    assert next(event for event in events if event.kind == "containment").data == {
+        "target": "hazard",
+        "amount": 0.5,
+    }
+    hit_kinds = [event.kind for event in events if event.kind not in ("turn", "containment")]
+    assert hit_kinds
+    assert all(kind == "hit" for kind in hit_kinds)
 
 
 @pytest.mark.asyncio
@@ -81,7 +88,14 @@ async def test_combat_objective_uses_combat_flow(async_session: AsyncSession, ro
     assert result.damage_to_raiders == 20.0
     assert incident.enemies_defeated == 1  # 20.0 / (2 * 10) = one fractional kill
     assert incident.combat_progress == pytest.approx(1.0)
-    assert [event.kind for event in events] == ["round"]
+    assert events[-1].kind == "turn"
+    assert events[-1].message == "Responders attack"
+    threat_hits = [event for event in events if event.data and "damage_to_threat" in event.data]
+    dweller_hits = [event for event in events if event.data and "damage_to_dwellers" in event.data]
+    assert all(event.kind == "hit" for event in threat_hits + dweller_hits)
+    assert sum(event.data["damage_to_threat"] for event in threat_hits) == 20
+    assert sum(event.data["damage_to_dwellers"] for event in dweller_hits) == incident.damage_dealt
+    assert any("hits the raiders" in event.message for event in threat_hits)
 
 
 @pytest.mark.asyncio
@@ -110,7 +124,11 @@ async def test_non_fire_containment_definition_uses_containment_flow(
     assert result.enemies_defeated == 0
     assert incident.enemies_defeated == 0
     assert incident.combat_progress == pytest.approx(0.5)
-    assert [event.kind for event in events] == ["containment"]
+    assert events[-1].kind == "turn"
+    assert next(event for event in events if event.kind == "containment").data == {
+        "target": "hazard",
+        "amount": 0.5,
+    }
 
 
 @pytest.mark.asyncio
@@ -171,7 +189,9 @@ async def test_containment_message_is_specific_per_hazard(
         await incident_service.process_incident(async_session, fire_incident, 2)
 
     fire_events = await crud.incident_crud.get_recent_events(async_session, fire_incident.id)
-    assert fire_events[0].message == "Fire containment increased by 50%."
+    assert next(event.message for event in fire_events if event.kind == "containment") == (
+        "Fire containment increased by 50%."
+    )
 
     monkeypatch.setitem(INCIDENT_DEFINITIONS, IncidentType.RADROACH_INFESTATION, _containment_definition())
     monkeypatch.setitem(INCIDENT_DEFINITIONS, IncidentType.RADSCORPION_ATTACK, _containment_definition())
@@ -186,10 +206,14 @@ async def test_containment_message_is_specific_per_hazard(
         await incident_service.process_incident(async_session, scorpion_incident, 2)
 
     roach_events = await crud.incident_crud.get_recent_events(async_session, roach_incident.id)
-    assert roach_events[0].message == "Containment increased by 50%."
+    assert next(event.message for event in roach_events if event.kind == "containment") == (
+        "Containment increased by 50%."
+    )
 
     scorpion_events = await crud.incident_crud.get_recent_events(async_session, scorpion_incident.id)
-    assert scorpion_events[0].message == "Radiation containment increased by 50%."
+    assert next(event.message for event in scorpion_events if event.kind == "containment") == (
+        "Radiation containment increased by 50%."
+    )
 
 
 @pytest.mark.asyncio

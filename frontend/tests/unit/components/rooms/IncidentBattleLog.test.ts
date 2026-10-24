@@ -183,6 +183,31 @@ describe('IncidentBattleLog', () => {
     expect(wrapper.text()).toContain('-12 threat')
   })
 
+  it('renders one row per attack with its own damage delta', () => {
+    const wrapper = mountLog([
+      event({ id: 'e1', kind: 'turn', message: 'Responders attack' }),
+      event({
+        id: 'e2',
+        kind: 'hit',
+        message: 'Alice hits the raiders for 12',
+        data: { damage_to_threat: 12 },
+      }),
+      event({
+        id: 'e3',
+        kind: 'hit',
+        message: 'Raider hits Bob for 7',
+        data: { damage_to_dwellers: 7 },
+      }),
+    ])
+
+    const items = wrapper.findAll('li')
+    expect(items).toHaveLength(3)
+    expect(items[0].text()).toContain('TURN')
+    expect(items[1].text()).toContain('HIT')
+    expect(items[1].text()).toContain('-12 threat')
+    expect(items[2].text()).toContain('-7 dwellers')
+  })
+
   it('lists unavailable responders by first name', () => {
     const wrapper = mountLog([
       event({

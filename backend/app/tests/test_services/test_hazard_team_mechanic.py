@@ -12,6 +12,7 @@ from app.core.game_config import game_config
 from app.models.incident import IncidentObjective, IncidentType, get_incident_definition
 from app.models.team import ACTIVE_STATUS, RESERVE_STATUS
 from app.schemas.dweller import DwellerCreate
+from app.services.combat.incident_math import split_proportional
 from app.services.combat.incident_round import apply_damage
 from app.services.combat.incident_service import incident_service
 from app.services.hazard_team_service import (
@@ -21,6 +22,7 @@ from app.services.hazard_team_service import (
     hazard_team_service,
 )
 from app.tests.test_services._hazard_team_helpers import fight, full_health, make_member, outfit_data, raise_incident
+from app.utils.combat import combat_power
 
 
 @pytest.mark.asyncio
@@ -115,6 +117,32 @@ async def test_active_member_response_bonus(
         await incident_service.process_incident(async_session, incident, 2)
 
     assert mock_power.call_args.args[0] == expected_power
+
+
+@pytest.mark.asyncio
+async def test_attack_shares_match_the_total_power_model(async_session: AsyncSession, room_with_dwellers: dict):
+    """With an active radiation responder, per-attacker lines still split by raw power.
+
+    The team bonus scales the round total once, so attributing it again to the
+    active dweller would make the journal lines disagree with that total.
+    """
+    room = room_with_dwellers["room"]
+    dwellers = room_with_dwellers["dwellers"]
+    await make_member(async_session, room.vault_id, dwellers[0].id, HazardTeam.RADIATION, ACTIVE_STATUS)
+    incident = await raise_incident(async_session, room, IncidentType.RADSCORPION_ATTACK)
+
+    with (
+        patch("app.services.combat.incident_math.damage_to_dwellers", return_value=0.0),
+        patch("app.services.combat.incident_math.damage_to_raiders", return_value=20.0),
+    ):
+        await incident_service.process_incident(async_session, incident, 2)
+
+    events = await crud.incident_crud.get_recent_events(async_session, incident.id)
+    threat_hits = [event for event in events if event.data and "damage_to_threat" in event.data]
+
+    assert [event.data["damage_to_threat"] for event in reversed(threat_hits)] == split_proportional(
+        20, [combat_power(dweller) for dweller in dwellers]
+    )
 
 
 @pytest.mark.asyncio

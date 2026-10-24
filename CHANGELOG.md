@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.262.0 (2026-10-24)
+
+### Features
+
+* **ui:** animate vault events in the bottom-right corner ([#1169](https://github.com/ElderEvil/falloutProject/issues/1169)) 03115c5
+
 ## 2.261.0 (2026-10-24)
 
 ### Features

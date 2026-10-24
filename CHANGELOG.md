@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.265.1 (2026-10-24)
+
+### Bug Fixes
+
+* **rooms:** name and scale room-preview dwellers ([#1172](https://github.com/ElderEvil/falloutProject/issues/1172)) 433fce0
+
 ## 2.265.0 (2026-10-24)
 
 ### Features

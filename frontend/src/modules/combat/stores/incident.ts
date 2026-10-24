@@ -95,6 +95,12 @@ export const useIncidentStore = defineStore('incident', () => {
   const findAftermath = (incidentId: string): IncidentAftermath | undefined =>
     [...aftermaths.value.values()].find((entry) => entry.incidentId === incidentId)
 
+  // Victory and defeat share one cue path so a win inferred from the record
+  // (no SSE frame) sounds exactly like one announced by the stream.
+  const playResolutionSound = (outcome: Exclude<IncidentOutcome, 'unknown'>): void => {
+    audioManager.play(outcome === 'victory' ? 'incidentVictory' : 'incidentDefeat', 'sfx')
+  }
+
   const applyOverflow = (incidentId: string, unclaimed: IncidentLootItem[]): void => {
     const entry = findAftermath(incidentId)
     if (entry) entry.unclaimed = unclaimed
@@ -102,7 +108,7 @@ export const useIncidentStore = defineStore('incident', () => {
 
   // The resolution frame carries no held loot, and the cached incident predates the
   // grant, so the aftermath reloads the resolved incident to learn what was held.
-  const outcomeForStatus = (status: IncidentStatus): IncidentOutcome | null => {
+  const outcomeForStatus = (status: IncidentStatus): Exclude<IncidentOutcome, 'unknown'> | null => {
     if (status === IncidentStatus.RESOLVED) return 'victory'
     if (status === IncidentStatus.FAILED) return 'defeat'
     return null
@@ -128,6 +134,7 @@ export const useIncidentStore = defineStore('incident', () => {
       if (entry.outcome === 'unknown' && settled) {
         entry.outcome = settled
         entry.capsEarned = incident.loot?.caps ?? 0
+        playResolutionSound(settled)
       }
     } catch (error) {
       handleStoreError(error, 'Failed to load held incident loot')
@@ -392,7 +399,7 @@ export const useIncidentStore = defineStore('incident', () => {
               void refreshAftermathOverflow(vaultId, resolvedId, token)
             }
             if (data.success === true) {
-              audioManager.play('success')
+              playResolutionSound('victory')
               showSuccess(
                 capsEarned > 0
                   ? `Incident victory — recovered ${capsEarned} caps.`
@@ -401,12 +408,12 @@ export const useIncidentStore = defineStore('incident', () => {
                     : 'Incident resolved — responders earned experience.'
               )
             } else if (resolved) {
-              audioManager.play('incidentDefeat', 'sfx')
+              playResolutionSound('defeat')
               showError(
                 `Incident lost — ${resolved.type.replace(/_/g, ' ')} overran ${resolved.room_name ?? 'the vault'}.`
               )
             } else {
-              audioManager.play('incidentDefeat', 'sfx')
+              playResolutionSound('defeat')
               showError('Incident lost — the threat was not contained.')
             }
             break

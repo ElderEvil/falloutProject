@@ -23,6 +23,7 @@ import {
 import { getCreatureImagePath, getCreatureModelSizeClass } from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
 import { humanizePreserveCase } from '@/core/utils/format'
+import { useCombatPulse } from '../composables/useCombatPulse'
 import { useFallbackImage } from '../composables/useFallbackImage'
 
 const props = defineProps<{
@@ -79,6 +80,20 @@ const threatDamage = computed(() => Number(latestEffect.value?.data?.damage_to_t
 const containmentGain = computed(() =>
   Math.round(Number(latestEffect.value?.data?.amount ?? 0) * 100)
 )
+
+const combatPulse = useCombatPulse(computed(() => latestEffect.value?.id ?? null))
+const responderMotion = computed(() => ({
+  'combat-impact': combatPulse.value && dwellerDamage.value > 0,
+  'combat-lunge-right': combatPulse.value && dwellerDamage.value <= 0 && threatDamage.value > 0,
+}))
+const threatMotion = computed(() => ({
+  'combat-impact': combatPulse.value && (threatDamage.value > 0 || containmentGain.value > 0),
+  'combat-lunge-left':
+    combatPulse.value &&
+    threatDamage.value <= 0 &&
+    containmentGain.value <= 0 &&
+    dwellerDamage.value > 0,
+}))
 </script>
 
 <template>
@@ -112,7 +127,7 @@ const containmentGain = computed(() =>
       <div
         class="absolute inset-x-3 top-12 bottom-16 grid grid-cols-2 items-end gap-5 sm:inset-x-6 sm:gap-10"
       >
-        <div class="relative min-w-0">
+        <div class="relative min-w-0" :class="responderMotion">
           <span
             v-if="dwellerDamage"
             :key="latestEffect?.id"
@@ -210,9 +225,10 @@ const containmentGain = computed(() =>
 
         <div
           class="relative flex min-w-0 flex-col items-center justify-end gap-2 self-end"
-          :class="{
-            'opacity-40 grayscale': incident.objective === 'defeat' && remainingEnemies === 0,
-          }"
+          :class="[
+            threatMotion,
+            { 'opacity-40 grayscale': incident.objective === 'defeat' && remainingEnemies === 0 },
+          ]"
         >
           <span
             v-if="threatDamage && incident.objective === 'defeat'"

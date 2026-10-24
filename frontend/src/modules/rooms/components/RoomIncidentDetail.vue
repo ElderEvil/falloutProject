@@ -3,11 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
-import {
-  getIncidentIcon,
-  getIncidentParticipants,
-  type Incident,
-} from '@/modules/combat/models/incident'
+import { getIncidentIcon, type Incident } from '@/modules/combat/models/incident'
 import type { Room } from '../models/room'
 import { UNITS_PER_ROOM } from '../models/grid'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
@@ -44,7 +40,6 @@ const isAssigning = computed(() => assigningDwellerId.value !== null || isSendin
 
 const threatLabel = computed(() => threatName(props.incident.type))
 const icon = computed(() => getIncidentIcon(props.incident.type))
-const progress = computed(() => props.incident.progress)
 
 // Six arriving helpers are allowed in addition to the room residents.
 const MAX_TEAM_SIZE = 6
@@ -130,12 +125,6 @@ const proximity = (dweller: DwellerShort) => {
   const floors = Math.abs(source!.coordinate_y! - target!.coordinate_y!)
   return floors === 0 ? 'Same floor' : `${floors} floor${floors === 1 ? '' : 's'} away`
 }
-const returnPosting = (originRoomId: string | null | undefined) =>
-  originRoomId === null
-    ? 'Unassigned'
-    : originRoomId
-      ? (roomsById.value.get(originRoomId)?.name ?? 'Original room')
-      : 'Original posting'
 const helperBatchSize = computed(() => Math.min(3, remainingRosterSlots.value))
 const bestResponders = computed(() =>
   [...availableResponders.value].sort(comparePower).slice(0, helperBatchSize.value)
@@ -145,19 +134,11 @@ const nearbyResponders = computed(() =>
     .filter((dweller) => Number.isFinite(distanceFromIncident(dweller)))
     .slice(0, helperBatchSize.value)
 )
-const teamMembers = computed(() =>
-  getIncidentParticipants(
-    props.incident.room_id,
-    props.dwellers,
-    incidentStore.getIncidentTeam(props.incident.id)
-  )
-)
-
 // The team is on scene but the backend has not fought a round yet: the log is
 // empty by design, so the overlay says so instead of looking broken.
 const awaitingFirstRound = computed(
   () =>
-    teamMembers.value.length > 0 &&
+    currentTeamIds.value.length > 0 &&
     !props.incident.events.some((event) => event.kind === 'round' || event.kind === 'containment')
 )
 
@@ -217,21 +198,11 @@ const assignResponder = async (dwellerId: string) => {
 
 <template>
   <section class="flex flex-col gap-3">
-    <header class="flex items-center gap-3">
-      <Icon :icon="icon" class="h-8 w-8 shrink-0 text-danger" />
-      <div>
-        <h3 class="text-base font-semibold text-terminal-green">{{ threatLabel }}</h3>
-        <p class="text-xs text-terminal-green-dim">
-          {{ incident.family.toUpperCase() }} · {{ incident.objective.toUpperCase() }} ·
-          {{ progress.label.toUpperCase() }} {{ progress.current }} / {{ progress.target }}
-        </p>
-      </div>
+    <header class="flex items-center gap-2">
+      <Icon :icon="icon" class="h-6 w-6 shrink-0 text-danger" />
+      <h3 class="text-base font-semibold text-terminal-green">{{ threatLabel }}</h3>
     </header>
 
-    <p class="text-xs text-muted-foreground">
-      Room residents defend automatically. Helpers return to their original postings after the
-      incident.
-    </p>
     <IncidentScene
       :incident="incident"
       :dwellers="dwellers"
@@ -240,87 +211,38 @@ const assignResponder = async (dwellerId: string) => {
       :team="teamLoaded ? incidentStore.getIncidentTeam(incident.id) : undefined"
     />
 
-    <details class="border-t border-border pt-2">
-      <summary class="cursor-pointer text-xs text-muted-foreground">
-        Battle journal · {{ incident.events.length }} events
-      </summary>
-      <IncidentBattleLog :events="incident.events" />
-    </details>
+    <IncidentBattleLog :events="incident.events" />
     <p v-if="awaitingFirstRound" class="text-xs text-terminal-green-dim">Awaiting next round…</p>
 
-    <div>
-      <h4
-        class="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-terminal-green-dim"
+    <div v-if="bestResponders.length" class="flex flex-wrap items-center gap-2">
+      <Button
+        v-if="nearbyResponders.length"
+        variant="default"
+        size="sm"
+        :disabled="isAssigning || !responderTeamsLoaded"
+        @click="sendNearbyDefenders"
       >
-        <Icon icon="mdi:account-group" class="h-4 w-4" />
-        {{ incident.response.label }}
-      </h4>
+        Send nearby {{ nearbyResponders.length }}
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        :disabled="isAssigning || !responderTeamsLoaded"
+        @click="sendBestDefenders"
+      >
+        <Icon v-if="isSendingBest" icon="mdi:loading" class="mr-1 animate-spin" />
+        Send strongest {{ bestResponders.length }}
+      </Button>
+      <span class="text-xs text-muted-foreground"
+        >{{ remainingRosterSlots }} helper slots available</span
+      >
+    </div>
 
-      <div v-if="teamMembers.length" class="mb-3">
-        <h4
-          class="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-terminal-green-dim"
-        >
-          <Icon icon="mdi:shield-account" class="h-4 w-4" />
-          On scene
-        </h4>
-        <ul class="flex flex-col gap-1.5">
-          <li
-            v-for="entry in teamMembers"
-            :key="entry.id"
-            class="flex flex-wrap items-center gap-2 rounded border border-theme-primary/20 bg-surface-canvas px-3 py-1.5 text-xs"
-          >
-            <Icon icon="mdi:account" class="h-4 w-4 shrink-0 text-terminal-green" />
-            <span class="truncate text-terminal-green">{{ entry.name }}</span>
-            <span v-if="entry.dweller" class="shrink-0 tabular-nums text-terminal-green-dim">
-              · Lv {{ entry.dweller.level }}
-            </span>
-            <span
-              v-if="entry.source === 'resident'"
-              class="shrink-0 rounded border border-theme-primary/30 px-1 text-[10px] font-bold text-theme-primary"
-              >RESIDENT</span
-            >
-            <span
-              v-else-if="entry.dispatched"
-              class="shrink-0 rounded border border-theme-primary/30 px-1 text-[10px] font-bold tracking-wide text-terminal-green-dim"
-            >
-              DISPATCHED
-            </span>
-            <span v-if="entry.source === 'helper'" class="text-xs text-muted-foreground"
-              >Returns to {{ returnPosting(entry.originRoomId) }}</span
-            >
-            <span class="ml-auto flex items-center gap-1 text-terminal-green-dim">
-              <Icon icon="mdi:sword" class="h-3.5 w-3.5" />
-              POW {{ entry.dweller ? getCombatPower(entry.dweller) : '—' }}
-            </span>
-          </li>
-        </ul>
-      </div>
-
-      <div v-if="bestResponders.length" class="mb-3 flex flex-wrap items-center gap-2">
-        <Button
-          v-if="nearbyResponders.length"
-          variant="default"
-          size="sm"
-          :disabled="isAssigning || !responderTeamsLoaded"
-          @click="sendNearbyDefenders"
-        >
-          Send nearby {{ nearbyResponders.length }}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          :disabled="isAssigning || !responderTeamsLoaded"
-          @click="sendBestDefenders"
-        >
-          <Icon v-if="isSendingBest" icon="mdi:loading" class="mr-1 animate-spin" />
-          Send strongest {{ bestResponders.length }}
-        </Button>
-        <span class="text-xs text-muted-foreground"
-          >{{ remainingRosterSlots }} helper slots available · residents defend automatically</span
-        >
-      </div>
-
-      <ul v-if="availableResponders.length" class="flex flex-col gap-2">
+    <details v-if="availableResponders.length" class="border-t border-border pt-2">
+      <summary class="cursor-pointer text-xs text-muted-foreground">
+        Add helper · {{ availableResponders.length }} available
+      </summary>
+      <ul class="mt-2 flex flex-col gap-2">
         <DwellerListRow
           v-for="dweller in availableResponders"
           :key="dweller.id"
@@ -366,17 +288,12 @@ const assignResponder = async (dwellerId: string) => {
           </template>
         </DwellerListRow>
       </ul>
-      <p v-else-if="!responderTeamsLoaded" role="status" class="text-xs text-terminal-green-dim">
-        Waiting for incident teams to load before choosing responders.
-      </p>
-      <p v-else class="text-xs text-terminal-green-dim">
-        All available adults are already defending or away.
-      </p>
-    </div>
-
-    <p class="flex items-center gap-1.5 text-xs text-terminal-green-dim">
-      <Icon icon="mdi:lock" class="h-4 w-4" />
-      Room management is locked while this incident is live.
+    </details>
+    <p v-else-if="!responderTeamsLoaded" role="status" class="text-xs text-terminal-green-dim">
+      Waiting for incident teams to load before choosing responders.
+    </p>
+    <p v-else class="text-xs text-terminal-green-dim">
+      All available adults are already defending or away.
     </p>
   </section>
 </template>

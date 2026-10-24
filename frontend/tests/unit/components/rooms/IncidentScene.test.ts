@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import IncidentScene from '@/modules/rooms/components/IncidentScene.vue'
 import type { Incident } from '@/modules/combat/models/incident'
 
@@ -55,6 +56,46 @@ describe('IncidentScene', () => {
 
   it('states when no responders are assigned', () => {
     expect(mountScene().text()).toContain('No responders assigned')
+  })
+
+  it('lunges the attacker and flashes the target when a round lands', async () => {
+    const wrapper = mountScene({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice' })],
+    })
+
+    await wrapper.setProps({
+      incident: incident({
+        events: [
+          { id: 'e1', kind: 'round', message: 'Trade fire.', data: { damage_to_threat: 12 } },
+        ],
+      }),
+    })
+    await flushPromises()
+    await nextTick()
+
+    expect(wrapper.find('.combat-lunge-right').exists()).toBe(true)
+    expect(wrapper.find('.combat-impact').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('flashes the defenders and lunges the threat when they take damage', async () => {
+    const wrapper = mountScene({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice' })],
+    })
+
+    await wrapper.setProps({
+      incident: incident({
+        events: [
+          { id: 'e1', kind: 'round', message: 'They hit back.', data: { damage_to_dwellers: 7 } },
+        ],
+      }),
+    })
+    await flushPromises()
+    await nextTick()
+
+    expect(wrapper.find('.combat-lunge-left').exists()).toBe(true)
+    expect(wrapper.find('.combat-impact').exists()).toBe(true)
+    wrapper.unmount()
   })
 
   it('renders the remaining threat count for a defeat objective', () => {

@@ -99,12 +99,10 @@ describe('RoomIncidentDetail', () => {
     updated_at: null,
   })
 
-  it('names the threat with its family, objective and progress', async () => {
+  it('names the threat above the scene progress', async () => {
     const text = (await mountDetail()).text()
     expect(text).toContain('RAIDER ATTACK')
-    expect(text).toContain('INTRUSION')
-    expect(text).toContain('DEFEAT')
-    expect(text).toContain('30 / 100')
+    expect(text).toContain('Threat · 30 / 100')
   })
 
   it('composes the scene and the battle log', async () => {
@@ -222,7 +220,6 @@ describe('RoomIncidentDetail', () => {
     })
 
     const text = wrapper.text()
-    expect(text).toContain('Send defenders')
     expect(text).toContain('Send strongest 1')
     expect(text).toContain('Bob')
   })
@@ -249,8 +246,14 @@ describe('RoomIncidentDetail', () => {
     expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d1'], 'test-token')
   })
 
-  it('states that room management is locked while the incident is live', async () => {
-    expect((await mountDetail()).text()).toContain('Room management is locked')
+  it('keeps the manual helper list behind a disclosure beside the visible log', async () => {
+    const wrapper = await mountDetail({ dwellers: [dweller({ id: 'd1', first_name: 'Alice' })] })
+
+    const disclosures = wrapper.findAll('details')
+    expect(disclosures).toHaveLength(1)
+    expect(disclosures[0].find('summary').text()).toContain('Add helper · 1 available')
+    expect(wrapper.find('[aria-label="Battle log"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('Room management is locked')
   })
 
   it('blocks a second assignment while one is in flight', async () => {
@@ -289,15 +292,15 @@ describe('RoomIncidentDetail', () => {
     expect(fetchIncidentTeam).toHaveBeenCalledWith('vault-1', 'incident-1', 'test-token')
   })
 
-  it('renders the designated team roster with combat power', async () => {
+  it('renders the designated team in the scene with combat power', async () => {
     getIncidentTeam.mockReturnValue([teamMember('d1')])
     const wrapper = await mountDetail({
       dwellers: [dweller({ room_id: 'room-1', id: 'd1', first_name: 'Alice', combat_power: 10 })],
     })
 
-    expect(wrapper.text()).toContain('On scene')
     expect(wrapper.text()).toContain('Alice')
     expect(wrapper.text()).toContain('POW 10')
+    expect(wrapper.text()).toContain('HELPER')
   })
 
   it('badges dispatched responders in the on-scene roster', async () => {
@@ -627,12 +630,13 @@ describe('RoomIncidentDetail', () => {
     expect(wrapper.text()).toContain('Unassigned')
   })
 
-  it('shows the saved return destination for a helper', async () => {
+  it('shows a helper once, in the scene', async () => {
     getIncidentTeam.mockReturnValue([{ ...teamMember('d1'), origin_room_id: 'origin' }])
     const wrapper = await mountDetail({
       rooms: [{ id: 'origin', name: 'Original Diner' }],
       dwellers: [dweller({ room_id: 'room-1' })],
     })
-    expect(wrapper.text()).toContain('Returns to Original Diner')
+    expect(wrapper.text()).toContain('HELPER')
+    expect(wrapper.text()).not.toContain('Returns to')
   })
 })

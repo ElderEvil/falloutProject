@@ -136,11 +136,11 @@ const actionFor = (fighter: ArenaFighter) => {
             :aria-current="isAttacking(fighter, team.side) ? 'true' : undefined"
             :class="[
               {
-                'ring-attacking': isAttacking(fighter, team.side),
-                'ring-team-b': team.side === 'B',
+                'combat-lunge-right': isAttacking(fighter, team.side) && team.side === 'A',
+                'combat-lunge-left': isAttacking(fighter, team.side) && team.side === 'B',
                 'bottom-8 z-0 scale-90 sm:bottom-12': index % 2 === 1,
                 'z-10': index % 2 === 0,
-                'ring-hit':
+                'combat-impact':
                   fighter.health > 0 && damageNumbers.some((d) => d.fighterId === fighter.id),
                 'opacity-40 grayscale': fighter.health <= 0,
               },
@@ -270,38 +270,6 @@ const actionFor = (fighter: ArenaFighter) => {
 
   .arena-body--small {
     height: 9rem;
-  }
-}
-
-.ring-attacking {
-  animation: ring-attack 400ms ease-out;
-}
-.ring-attacking.ring-team-b {
-  animation-name: ring-attack-b;
-}
-.ring-hit {
-  animation: ring-impact 280ms ease-out;
-}
-@keyframes ring-attack {
-  50% {
-    transform: translateX(12px);
-  }
-}
-@keyframes ring-attack-b {
-  50% {
-    transform: translateX(-12px);
-  }
-}
-@keyframes ring-impact {
-  50% {
-    filter: brightness(1.8);
-    transform: translateY(-3px);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ring-attacking,
-  .ring-hit {
-    animation: none;
   }
 }
 

@@ -894,6 +894,7 @@ describe('Incident Store', () => {
       await flushPromises()
 
       expect(store.aftermathForRoom('room-1')).toMatchObject({ outcome: 'victory', capsEarned: 35 })
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentVictory', 'sfx')
     })
 
     it('reconciles a missed failure from the incident record', async () => {
@@ -915,6 +916,7 @@ describe('Incident Store', () => {
       await flushPromises()
 
       expect(store.aftermathForRoom('room-1')).toMatchObject({ outcome: 'defeat', capsEarned: 0 })
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentDefeat', 'sfx')
     })
 
     it('reports the experience a resolved incident paid', async () => {
@@ -1197,6 +1199,7 @@ describe('Incident Store', () => {
 
       expect(store.activeIncidentIds).toEqual([])
       expect(sseMock.toast.success).toHaveBeenCalledWith('Incident victory — recovered 50 caps.')
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentVictory', 'sfx')
       store.stopPolling()
     })
 
@@ -1247,6 +1250,7 @@ describe('Incident Store', () => {
       expect(sseMock.toast.error).toHaveBeenCalledWith(
         `Incident lost — ${mockIncident.type.replace(/_/g, ' ')} overran ${mockIncident.room_name}.`
       )
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentDefeat', 'sfx')
       store.stopPolling()
     })
 

@@ -132,11 +132,10 @@ class UnlockedPlace(BaseModel):
 
 
 class ChatGuardrail(BaseModel):
-    """Screen a player chat message before the dweller agent answers.
+    """Screen a player chat message before the dweller agent answers."""
 
-    A Jev output type: each field is one yes/no question, so the docstrings below
-    are the questions Jev judges and ``BoolCriteria`` explains what true/false mean.
-    """
+    # Each field is a Jev yes/no question; attribute docstrings are the questions,
+    # and BoolCriteria explains what true/false mean.
 
     model_config = ConfigDict(use_attribute_docstrings=True)
 

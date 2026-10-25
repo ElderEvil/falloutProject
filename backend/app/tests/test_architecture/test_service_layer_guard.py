@@ -218,51 +218,54 @@ def test_services_do_not_load_rows_directly() -> None:
 PASSTHROUGH_MODULE_NAMES = frozenset({"models", "schemas"})
 
 
-def _pydantic_base_aliases(tree: ast.Module) -> tuple[set[str], set[str]]:
-    """Resolve which names in a module actually refer to pydantic's ``BaseModel``.
-
-    Returns (class aliases, module aliases). ``from pydantic import BaseModel as Model``
-    binds ``Model``; ``import pydantic as p`` binds ``p``. A class defined in the same
-    module shadows its import at runtime, so a local ``BaseModel``/``Model`` is dropped:
-    a class named like pydantic's is not pydantic's.
-    """
-    class_aliases: set[str] = set()
-    module_aliases: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and (node.module or "").split(".")[0] == "pydantic":
-            class_aliases.update(alias.asname or alias.name for alias in node.names if alias.name == "BaseModel")
-        elif isinstance(node, ast.Import):
-            for alias in node.names:
-                if alias.name.split(".")[0] == "pydantic":
-                    module_aliases.add(alias.asname or alias.name.split(".")[0])
-    local_classes = {node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)}
-    return class_aliases - local_classes, module_aliases - local_classes
-
-
 def _pydantic_model_definitions(source: str) -> list[tuple[int, str]]:
-    """Return (line, class name) for every pydantic ``BaseModel`` subclass in a module.
-
-    Resolution is import-aware, so an aliased base is caught and an unrelated class
-    that merely happens to be named ``BaseModel`` is not reported.
-    """
-    tree = ast.parse(source)
-    class_aliases, module_aliases = _pydantic_base_aliases(tree)
+    """Find imported BaseModel subclasses, resolving bindings in source order per scope."""
     found: list[tuple[int, str]] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.ClassDef):
-            continue
-        for base in node.bases:
-            target = base.value if isinstance(base, ast.Subscript) else base
-            direct = isinstance(target, ast.Name) and target.id in class_aliases
-            qualified = (
-                isinstance(target, ast.Attribute)
-                and target.attr == "BaseModel"
-                and isinstance(target.value, ast.Name)
-                and target.value.id in module_aliases
-            )
-            if direct or qualified:
-                found.append((node.lineno, node.name))
-                break
+
+    def scan(node: ast.AST, class_aliases: set[str], module_aliases: set[str]) -> None:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                name = alias.asname or alias.name.split(".")[0]
+                class_aliases.discard(name)
+                module_aliases.discard(name)
+                if isinstance(node, ast.ImportFrom):
+                    if (node.module or "").split(".")[0] == "pydantic" and alias.name == "BaseModel":
+                        class_aliases.add(name)
+                elif alias.name.split(".")[0] == "pydantic":
+                    module_aliases.add(name)
+            return
+        if isinstance(node, ast.ClassDef):
+            for base in node.bases:
+                target = base.value if isinstance(base, ast.Subscript) else base
+                direct = isinstance(target, ast.Name) and target.id in class_aliases
+                qualified = (
+                    isinstance(target, ast.Attribute)
+                    and target.attr == "BaseModel"
+                    and isinstance(target.value, ast.Name)
+                    and target.value.id in module_aliases
+                )
+                if direct or qualified:
+                    found.append((node.lineno, node.name))
+                    break
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            # Bases use the surrounding bindings; the new class name is bound only
+            # after its body. Imports/shadows inside a body must not leak out.
+            local_classes, local_modules = class_aliases.copy(), module_aliases.copy()
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                arguments = node.args.posonlyargs + node.args.args + node.args.kwonlyargs
+                arguments += [arg for arg in (node.args.vararg, node.args.kwarg) if arg is not None]
+                for arg in arguments:
+                    local_classes.discard(arg.arg)
+                    local_modules.discard(arg.arg)
+            for statement in node.body:
+                scan(statement, local_classes, local_modules)
+            class_aliases.discard(node.name)
+            module_aliases.discard(node.name)
+            return
+        for child in ast.iter_child_nodes(node):
+            scan(child, class_aliases, module_aliases)
+
+    scan(ast.parse(source), set(), set())
     return sorted(found)
 
 
@@ -333,6 +336,41 @@ def test_guard_ignores_non_pydantic_base_model() -> None:
         "    pass\n"
     )
     assert _pydantic_model_definitions(source) == []
+
+
+def test_guard_resolves_bases_before_later_shadowing() -> None:
+    source = (
+        "from pydantic import BaseModel as Model\n"
+        "class Before(Model): pass\n"
+        "class Model: pass\n"
+        "class After(Model): pass\n"
+    )
+    assert _pydantic_model_definitions(source) == [(2, "Before")]
+
+
+def test_guard_keeps_nested_shadowing_in_its_scope() -> None:
+    source = (
+        "from pydantic import BaseModel as Model\n"
+        "import pydantic as p\n"
+        "def unrelated():\n"
+        "    class Model: pass\n"
+        "    class p: pass\n"
+        "    class Local(Model): pass\n"
+        "class Direct(Model): pass\n"
+        "class Qualified(p.BaseModel): pass\n"
+    )
+    assert _pydantic_model_definitions(source) == [(7, "Direct"), (8, "Qualified")]
+
+
+def test_guard_keeps_nested_imports_in_their_scope() -> None:
+    source = (
+        "class Model: pass\n"
+        "def factory():\n"
+        "    from pydantic import BaseModel as Model\n"
+        "    class Local(Model): pass\n"
+        "class Outside(Model): pass\n"
+    )
+    assert _pydantic_model_definitions(source) == [(4, "Local")]
 
 
 def test_guard_detects_api_import_forms() -> None:

@@ -11,12 +11,18 @@
 | Topic | Source |
 |---|---|
 | Setup, run, env vars | `README.md` |
+| Service ownership & transaction review | `docs/backend/SERVICE_LAYER.md` |
 | Design tokens & UI theme | `frontend/src/assets/tailwind.css`, `docs/frontend/STYLEGUIDE.md` |
 | Deployment | `docs/DEPLOYMENT.md` |
 | Roadmap & theming | `docs/ROADMAP.md`, `CHANGELOG.md` |
 | Project skills | `.agents/skills/` (load the matching one, e.g. `fastapi`, `pytest`, `vue-best-practices`, `sqlmodel`) |
 
 Stack rules: `uv` (Python), `pnpm` (Node). Python uses double quotes; TypeScript/Vue uses single quotes, no semicolons.
+
+Before an authorized push, inspect the current branch and destination ref, and use an explicit feature-branch
+destination (`git push -u origin HEAD:refs/heads/<branch>`). Install the `scripts/pre-push` guard as described
+in `README.md`; never skip or disable it without explicit user authorization. Creating a branch does not
+switch the checkout to it, and `git push -u origin HEAD` does not create a safely named branch for you.
 
 ## Backend (Python/FastAPI)
 
@@ -46,6 +52,14 @@ See `docs/backend/GAME_MECHANICS.md` (append-only rule lives with the other game
 Business logic lives in **services**, never endpoints. Endpoints are thin: parse params → call a service → map exceptions to HTTP.
 
 Rule of thumb: if an endpoint has >3 lines of non-trivial logic beyond a service call, move it into a service.
+
+### Transaction composition (MANDATORY)
+
+Before changing an operation that writes multiple rows or combines spending with a state change, trace commits,
+rollbacks, locks and event delivery through its service/CRUD callees. Name one transaction owner; called operations
+must stage writes (`commit=False` / `flush`) until that owner commits. A private `*_transaction` name or a green
+architecture guard does not prove atomicity. Follow the review and failure-test requirements in
+`docs/backend/SERVICE_LAYER.md`; preserve legacy standalone defaults outside the scoped operation.
 
 ### Background task session compatibility
 
@@ -84,6 +98,7 @@ Catalog-backed `Weapon`/`Outfit`/`Junk` rows must be built through `backend/app/
 - **Markers:** default tests are unmarked — fast, SQLite/fakeredis-backed; together they are the "full" suite. Tag only exceptions: `@pytest.mark.smoke` on the curated critical-path subset (`uv run pytest -m smoke`), `slow` for >1s tests, `integration` for tests needing real PostgreSQL/Redis. No `fast`/`full` markers.
 - **Structure:** bare test functions by default. `Test*` classes only to group one behavior/unit or to share class-scoped fixtures — never inheritance, `__init__`, or class-level state. Keep each file in one dominant style; don't mass-convert existing tests.
 - **Mock boundaries, not our layers:** stub only true system boundaries (LLM/AI providers, storage/S3, the clock, external HTTP). Exercise our own CRUD and services through the real `async_session` (SQLite) plus the `app/tests/factory/` builders; catalog-backed `Weapon`/`Outfit`/`Junk` rows are built through `app/utils/item_factory.py`, never the model constructors. A test that stubs `session.execute`/`crud.*.get` and then asserts the value it supplied cannot catch a broken query — assert on the result (or the raised exception) instead.
+- **Atomicity evidence:** changed composed writes need a late-failure regression and a relevant rejection case (e.g. insufficient caps/capacity). Roll back and reload affected rows to prove that balances, ownership and state remain consistent; a `commit()` call count alone is insufficient. Assert that rolled-back work emits no success/progression delivery. See `docs/backend/SERVICE_LAYER.md` for the test boundary.
 
 ## Frontend (Vue 3 / TypeScript)
 
@@ -101,6 +116,7 @@ pnpm run test:run             # CI-equivalent (or: pnpm run test -- <file>)
 
 - Naming: components/types `PascalCase`, composables `useXxx`, stores `useXxxStore` (Pinia composition-style).
 - Architecture: Store → Service → API; prefer `@/` aliases.
+- State, transport and event-delivery ownership: follow `frontend/AGENTS.md` before adding HTTP calls, shared server state or SSE/polling side effects.
 - Error handling: use `frontend/src/core/utils/errorHandler.ts` (`getErrorMessage`, `handleStoreError`); log context, don't swallow errors.
 
 ## UI (Terminal CRT Theme)

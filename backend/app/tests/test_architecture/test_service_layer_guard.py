@@ -10,6 +10,10 @@ recorded in ``CRUD_SERVICE_BASELINE`` and must shrink as domain batches migrate;
 applies to raw ``select()``/``exec()`` queries in ``app/services`` (``SERVICES_SELECT_BASELINE``)
 and to non-conforming top-level service module names (``SERVICE_NAME_GRANDFATHER``).
 A baseline entry with no remaining violations also fails, so the lists stay honest.
+
+Contracts live in ``app/schemas``: a module under ``app/services`` may not define a Pydantic
+``BaseModel`` subclass or be named ``models.py``/``schemas.py``, because that puts a schema where
+callers are told to look for behaviour.
 """
 
 import ast
@@ -209,6 +213,75 @@ def test_services_do_not_load_rows_directly() -> None:
         if lines:
             offenders.append(f"{path.relative_to(APP_DIR / 'services').as_posix()}:{lines}")
     assert not offenders, "Services must not call session.get() directly (route through CRUD):\n" + "\n".join(offenders)
+
+
+PASSTHROUGH_MODULE_NAMES = frozenset({"models", "schemas"})
+
+
+def _pydantic_model_definitions(source: str) -> list[tuple[int, str]]:
+    """Return (line, class name) for every Pydantic BaseModel defined in a module."""
+    found: list[tuple[int, str]] = []
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.ClassDef):
+            continue
+        for base in node.bases:
+            target = base.value if isinstance(base, ast.Subscript) else base
+            name = target.id if isinstance(target, ast.Name) else getattr(target, "attr", "")
+            if name == "BaseModel":
+                found.append((node.lineno, node.name))
+                break
+    return sorted(found)
+
+
+def test_services_do_not_define_pydantic_models() -> None:
+    """Schemas belong in app/schemas: a service carries behaviour, not wire/data contracts.
+
+    A Pydantic model inside a service forces every caller (routers, other services,
+    tests) to import the layer that must not own it, and hides a schema change in a
+    file whose docstring promises a client/orchestrator. Dataclasses for internal
+    run records stay allowed: they are not schemas and use ``dataclass``.
+    """
+    offenders = []
+    for path in sorted((APP_DIR / "services").rglob("*.py")):
+        for line, name in _pydantic_model_definitions(path.read_text(encoding="utf-8")):
+            offenders.append(f"{path.relative_to(APP_DIR).as_posix()}:{line} defines {name}")
+    assert not offenders, "Pydantic models leaked into the service layer (move to app/schemas):\n" + "\n".join(
+        offenders
+    )
+
+
+def test_services_have_no_passthrough_contract_modules() -> None:
+    """No ``models.py``/``schemas.py`` under app/services: that module name invites contracts back in.
+
+    Even dataclass-only today, a module named this way becomes the place to add the
+    next schema, so the file itself is the smell. Imported contracts come from
+    ``app.schemas``; service-owned result records live beside their producer.
+    """
+    offenders = [
+        path.relative_to(APP_DIR).as_posix()
+        for path in sorted((APP_DIR / "services").rglob("*.py"))
+        if path.stem in PASSTHROUGH_MODULE_NAMES
+    ]
+    assert not offenders, "Contract modules leaked into the service layer (move to app/schemas):\n" + "\n".join(
+        offenders
+    )
+
+
+def test_guard_detects_pydantic_model_forms() -> None:
+    """Self-test: direct, generic, and dotted BaseModel bases are reported with line numbers."""
+    source = (
+        "from pydantic import BaseModel\n"
+        "class Plain(BaseModel):\n"
+        "    value: int\n"
+        "class Generic[T](BaseModel):\n"
+        "    value: T\n"
+        "import pydantic\n"
+        "class Dotted(pydantic.BaseModel):\n"
+        "    value: int\n"
+        "class NotAModel(dict[str, int]):\n"
+        "    pass\n"
+    )
+    assert _pydantic_model_definitions(source) == [(2, "Plain"), (4, "Generic"), (7, "Dotted")]
 
 
 def test_guard_detects_api_import_forms() -> None:

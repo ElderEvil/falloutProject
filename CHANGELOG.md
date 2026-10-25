@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.265.4 (2026-10-25)
+
+### Code Refactoring
+
+* **chat:** move chat and Jev contracts out of the service layer ([#1175](https://github.com/ElderEvil/falloutProject/issues/1175)) 246a5a4
+
 ## 2.265.3 (2026-10-25)
 
 ### Bug Fixes

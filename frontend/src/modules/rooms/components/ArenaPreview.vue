@@ -2,6 +2,7 @@
 import { computed, nextTick, ref } from 'vue'
 import { Bot, PawPrint, Plus, X, ArrowLeftRight } from '@lucide/vue'
 import { Button } from '@/core/components/ui/button'
+import { Input } from '@/core/components/ui/input'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { getDwellerBodySize } from '@/modules/dwellers/models/dweller'
 import { getCreatureImagePath } from '@/core/utils/creatureAssets'
@@ -43,7 +44,7 @@ const emit = defineEmits<{ skill: [fighterId: string]; stop: []; assignDwellers:
 const state = computed(() => props.match.roomState)
 const { url: scene, onError: imageFailed } = useFallbackImage(() => [props.sceneImageUrl])
 const search = ref('')
-const fighterSearch = ref<HTMLInputElement | null>(null)
+const fighterPicker = ref<HTMLElement | null>(null)
 const opponentPicker = ref<HTMLElement | null>(null)
 let pickerTriggerId: string | null = null
 const slotId = (side: ArenaTeamSide, index: number) =>
@@ -79,7 +80,7 @@ const activateSlot = async (side: ArenaTeamSide, index: number) => {
     if (slot) props.match.togglePicker(slot)
   }
   await nextTick()
-  if (props.match.openPicker) fighterSearch.value?.focus()
+  if (props.match.openPicker) fighterPicker.value?.querySelector('input')?.focus()
   else if (props.match.creaturePickerOpen)
     opponentPicker.value?.querySelector<HTMLButtonElement>('.picker-option')?.focus()
 }
@@ -146,11 +147,12 @@ const modeLabel = computed(
       aria-label="Match mode"
       class="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4"
     >
-      <button
+      <Button
+        variant="ghost"
         v-for="option in match.modeOptions"
         :key="option.value"
         type="button"
-        class="flex flex-col gap-1 rounded-md border p-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary"
+        class="h-auto min-w-0 flex-col items-start gap-1 whitespace-normal rounded-md border p-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary"
         :class="
           match.mode === option.value
             ? 'border-theme-primary bg-theme-primary/10 text-theme-primary'
@@ -164,7 +166,7 @@ const modeLabel = computed(
         ><span class="text-[10px] leading-snug">{{
           match.modeUnlocked(option.value) ? option.description : `Unlocks at Tier ${option.tier}`
         }}</span>
-      </button>
+      </Button>
     </nav>
     <ArenaRing
       v-if="match.isFighting && state"
@@ -224,9 +226,10 @@ const modeLabel = computed(
                 :tone="team.side === 'A' ? 'success' : 'danger'"
                 :action="actionFor(fighter)"
               />
-              <button
+              <Button
+                variant="ghost"
                 type="button"
-                class="relative flex h-32 w-full shrink-0 items-end justify-center rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary sm:h-44"
+                class="relative flex h-32 w-full shrink-0 items-end justify-center rounded p-0 hover:bg-transparent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary sm:h-44"
                 :class="
                   !fighter.is_creature && !fighter.is_robot
                     ? `arena-body--${bodySizeFor(fighter)}`
@@ -266,7 +269,7 @@ const modeLabel = computed(
                   ></DwellerPortrait>
                 </div>
                 <PawPrint v-else class="size-12 text-theme-primary" />
-              </button>
+              </Button>
               <div
                 v-if="match.canChangeFighters"
                 role="group"
@@ -293,10 +296,11 @@ const modeLabel = computed(
                 /></Button>
               </div>
             </template>
-            <button
+            <Button
+              variant="ghost"
               v-else
               type="button"
-              class="arena-empty-slot flex w-full flex-col items-center justify-end gap-1 rounded-md border border-dashed border-theme-primary/20 text-theme-primary/40 transition-colors hover:border-theme-primary hover:bg-theme-primary/5 hover:text-theme-primary focus-visible:text-theme-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary disabled:pointer-events-none disabled:opacity-40"
+              class="arena-empty-slot flex h-auto w-full flex-col whitespace-normal p-0 items-center justify-end gap-1 rounded-md border border-dashed border-theme-primary/20 text-theme-primary/40 transition-colors hover:border-theme-primary hover:bg-theme-primary/5 hover:text-theme-primary focus-visible:text-theme-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary disabled:pointer-events-none disabled:opacity-40"
               :disabled="!match.canChangeFighters"
               :id="slotId(team.side, index)"
               :aria-label="slotLabel(team.side, index)"
@@ -324,7 +328,7 @@ const modeLabel = computed(
                     : 'Add creature'
                   : 'Add dweller'
               }}</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -356,14 +360,14 @@ const modeLabel = computed(
     </section>
     <section
       v-if="match.openPicker"
+      ref="fighterPicker"
       class="mt-3 rounded-lg border border-theme-primary/30 bg-surface-sunken p-3"
       aria-label="Choose fighter"
       @keydown.esc.prevent.stop="closePickers()"
     >
       <div class="mb-2 flex items-center justify-between gap-2">
         <label class="flex flex-1 flex-col gap-1 text-xs text-muted-foreground"
-          >Choose a dweller<input
-            ref="fighterSearch"
+          >Choose a dweller<Input
             v-model="search"
             type="search"
             placeholder="Search dwellers…"
@@ -377,11 +381,12 @@ const modeLabel = computed(
         /></Button>
       </div>
       <div class="grid max-h-64 gap-1 overflow-y-auto sm:grid-cols-2">
-        <button
+        <Button
+          variant="ghost"
           v-for="entry in pickerOptions"
           :key="entry.id"
           type="button"
-          class="picker-option flex items-center gap-2 rounded border border-transparent p-2 text-left transition-colors hover:border-theme-primary/40 hover:bg-theme-primary/10 focus-visible:outline-2 focus-visible:outline-theme-primary"
+          class="picker-option flex h-auto justify-start whitespace-normal items-center gap-2 rounded border border-transparent p-2 text-left transition-colors hover:border-theme-primary/40 hover:bg-theme-primary/10 focus-visible:outline-2 focus-visible:outline-theme-primary"
           @click="selectDweller(entry)"
         >
           <DwellerPortrait
@@ -399,7 +404,7 @@ const modeLabel = computed(
               assignmentLabel(entry)
             }}</span></span
           >
-        </button>
+        </Button>
       </div>
       <p v-if="!pickerOptions.length" class="py-2 text-xs text-muted-foreground">
         No available adult dwellers match this selection.
@@ -423,11 +428,12 @@ const modeLabel = computed(
         /></Button>
       </div>
       <div class="grid max-h-64 gap-1 overflow-y-auto sm:grid-cols-2">
-        <button
+        <Button
+          variant="ghost"
           v-for="creature in match.creaturePickerOptions"
           :key="creature.key"
           type="button"
-          class="picker-option flex items-center gap-2 rounded border border-transparent p-2 text-left hover:border-theme-primary/40 hover:bg-theme-primary/10 focus-visible:outline-2 focus-visible:outline-theme-primary"
+          class="picker-option flex h-auto justify-start whitespace-normal items-center gap-2 rounded border border-transparent p-2 text-left hover:border-theme-primary/40 hover:bg-theme-primary/10 focus-visible:outline-2 focus-visible:outline-theme-primary"
           @click="selectOpponent(creature)"
         >
           <img
@@ -442,7 +448,7 @@ const modeLabel = computed(
               >POW {{ Math.round(creature.power) }} · {{ creature.max_hp }} HP</span
             ></span
           >
-        </button>
+        </Button>
       </div>
       <p v-if="!match.creaturePickerOptions.length" class="py-2 text-xs text-muted-foreground">
         No opponents available.

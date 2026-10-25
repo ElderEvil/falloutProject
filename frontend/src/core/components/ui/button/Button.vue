@@ -12,6 +12,7 @@ interface Props extends PrimitiveProps {
   size?: ButtonVariants['size']
   class?: HTMLAttributes['class']
   disabled?: boolean
+  id?: string
   'aria-label'?: string
   'aria-disabled'?: boolean
   ariaDisabled?: boolean
@@ -45,6 +46,7 @@ const rootAttrs = computed<Record<string, unknown>>(() => ({
   'data-variant': props.variant,
   'data-size': props.size,
   disabled: props.disabled,
+  id: props.id,
   type: props.type,
   'aria-label': props.ariaLabel ?? props['aria-label'],
   'aria-disabled': props.ariaDisabled ?? props['aria-disabled'],

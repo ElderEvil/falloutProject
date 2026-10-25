@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.265.2 (2026-10-25)
+
+### Bug Fixes
+
+* **arena:** type skill_charge as float to match stored fractional charge 91cfc78
+
 ## 2.265.1 (2026-10-24)
 
 ### Bug Fixes

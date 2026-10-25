@@ -82,14 +82,16 @@ for (const width of [390, 1280]) {
     const dialog = page.getByRole('dialog')
     const scene = dialog.getByRole('region', { name: 'Barbershop room preview' })
     await expect(dialog.locator('.room-preview-section')).toHaveCount(1)
-    const worker = scene.getByRole('button', { name: 'Choose worker', exact: true })
-    const client = scene.getByRole('button', { name: 'Choose client', exact: true })
+    const worker = scene.getByRole('button', { name: /^Choose worker/ })
+    const client = scene.getByRole('button', { name: /^Choose client/ })
     await expect(worker).toContainText('Add worker')
     await expect(client).toContainText('Add client')
     const silhouette = worker.locator('.empty-dweller-silhouette')
     await expect(silhouette).toHaveCSS('mask-image', /FOS_Dw_Default_Human_Male/)
     await expect(worker).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
     await expect(worker).toHaveCSS('border-top-width', '0px')
+    const emptyPortrait = (await silhouette.boundingBox())!
+    const emptyBaseline = emptyPortrait.y + emptyPortrait.height - (await scene.boundingBox())!.y
     const idleColor = await silhouette.evaluate((node) => getComputedStyle(node).backgroundColor)
     await worker.hover()
     await expect
@@ -104,6 +106,10 @@ for (const width of [390, 1280]) {
     await expect(client).toBeFocused()
     await expect(worker).toContainText('Add worker')
     expect(moves).toEqual(['lucy'])
+    await page.screenshot({
+      path: testInfo.outputPath(`barbershop-mixed-${width}.png`),
+      fullPage: true,
+    })
 
     await worker.click()
     const workerPicker = dialog.getByRole('region', { name: 'Choose worker' })
@@ -118,6 +124,15 @@ for (const width of [390, 1280]) {
     await expect(scene).toContainText('Lucy')
     expect(moves).toEqual(['lucy', 'cooper'])
     const portrait = (await worker.boundingBox())!
+    const filledPortrait = (await worker
+      .getByRole('img', { name: 'Cooper', exact: true })
+      .boundingBox())!
+    const filledBaseline = filledPortrait.y + filledPortrait.height - (await scene.boundingBox())!.y
+    expect(Math.abs(filledBaseline - emptyBaseline)).toBeLessThanOrEqual(4)
+    const nameBadge = (await scene
+      .locator('[aria-label="Worker slot"] .dweller-name-badge')
+      .boundingBox())!
+    expect(nameBadge.y + nameBadge.height).toBeLessThanOrEqual(portrait.y)
     const controls = (await scene
       .getByRole('group', { name: 'Controls for Worker' })
       .boundingBox())!

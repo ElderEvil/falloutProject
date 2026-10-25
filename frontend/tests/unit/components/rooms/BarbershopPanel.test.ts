@@ -155,8 +155,8 @@ describe('BarbershopPanel', () => {
       props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
     })
     await flushPromises()
-    expect(wrapper.get('button[aria-label="Choose worker"]').text()).toContain('Add worker')
-    expect(wrapper.get('button[aria-label="Choose client"]').text()).toContain('Add client')
+    expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
+    expect(wrapper.get('button[aria-label^="Choose client"]').text()).toContain('Add client')
   })
 
   it('assigns a client directly from its slot without also filling the worker slot', async () => {
@@ -167,7 +167,7 @@ describe('BarbershopPanel', () => {
       props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
     })
     await flushPromises()
-    await wrapper.get('button[aria-label="Choose client"]').trigger('click')
+    await wrapper.get('button[aria-label^="Choose client"]').trigger('click')
     await flushPromises()
     await wrapper.get('[data-testid="barbershop-client-option"]').trigger('click')
     await flushPromises()
@@ -176,8 +176,8 @@ describe('BarbershopPanel', () => {
       'room-1',
       'test-token'
     )
-    expect(wrapper.get('[data-testid="barbershop-customer-chair"]').text()).toContain('Ada Adult')
-    expect(wrapper.get('button[aria-label="Choose worker"]').text()).toContain('Add worker')
+    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada Adult')
+    expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
     expect(wrapper.emitted('changed')).toHaveLength(1)
   })
 
@@ -188,11 +188,11 @@ describe('BarbershopPanel', () => {
       props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
     })
     await flushPromises()
-    await wrapper.get('button[aria-label="Choose worker"]').trigger('click')
+    await wrapper.get('button[aria-label^="Choose worker"]').trigger('click')
     await flushPromises()
     await wrapper.get('[data-testid="barbershop-barber-option"]').trigger('click')
     await flushPromises()
-    expect(wrapper.get('button[aria-label="Choose worker"]').text()).toContain('Add worker')
+    expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
     expect(wrapper.get('[role="alert"]').text()).toContain('Room is full')
     expect(wrapper.find('[data-testid="barbershop-barber-option"]').exists()).toBe(true)
     expect(wrapper.emitted('changed')).toBeUndefined()
@@ -212,14 +212,14 @@ describe('BarbershopPanel', () => {
       props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
     })
     await flushPromises()
-    await wrapper.get('button[aria-label="Choose client"]').trigger('click')
+    await wrapper.get('button[aria-label^="Choose client"]').trigger('click')
     await flushPromises()
     await wrapper.get('[data-testid="barbershop-client-option"]').trigger('click')
     await wrapper.setProps({ room: room({ id: 'room-2' }), assignedDwellers: [] })
     finish({ ...client, room_id: 'room-1' } as Dweller)
     await flushPromises()
-    expect(wrapper.get('button[aria-label="Choose client"]').text()).toContain('Add client')
-    expect(wrapper.get('button[aria-label="Choose worker"]').text()).toContain('Add worker')
+    expect(wrapper.get('button[aria-label^="Choose client"]').text()).toContain('Add client')
+    expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
     expect(wrapper.emitted('changed')).toBeUndefined()
   })
 
@@ -249,15 +249,15 @@ describe('BarbershopPanel', () => {
     await wrapper.get('button[aria-label="Unassign Boris Barber from Barbershop"]').trigger('click')
     await flushPromises()
     expect(store.management.unassignDwellerFromRoom).toHaveBeenCalledWith(BARBER_ID, 'test-token')
-    expect(wrapper.get('button[aria-label="Choose worker"]').text()).toContain('Add worker')
-    expect(wrapper.get('[data-testid="barbershop-customer-chair"]').text()).toContain('Ada Adult')
+    expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
+    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada Adult')
   })
 
   it('shows roster-load errors with a retry instead of an empty-picker message', async () => {
     const wrapper = mountPanel()
     await flushPromises()
     store.filter.fetchAllDwellers.mockRejectedValueOnce(new Error('Roster unavailable'))
-    await wrapper.get('button[aria-label="Choose worker"]').trigger('click')
+    await wrapper.get('button[aria-label^="Choose worker"]').trigger('click')
     await flushPromises()
     expect(wrapper.get('[role="alert"]').text()).toContain('Roster unavailable')
     const retry = wrapper.findAll('button').find((button) => button.text() === 'Retry dwellers')!
@@ -278,12 +278,12 @@ describe('BarbershopPanel', () => {
       props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
     })
     await flushPromises()
-    await wrapper.get('button[aria-label="Choose worker"]').trigger('click')
+    await wrapper.get('button[aria-label^="Choose worker"]').trigger('click')
     await flushPromises()
     await wrapper.get('[data-testid="barbershop-barber-option"]').trigger('click')
     await flushPromises()
     await wrapper.setProps({ assignedDwellers: [{ ...client, room_id: 'room-1' }] })
-    expect(wrapper.get('[data-testid="barbershop-barber-chair"]').text()).toContain('Boris Barber')
+    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Boris Barber')
   })
 
   it('keeps the worker selected when unassignment is rejected', async () => {
@@ -293,7 +293,7 @@ describe('BarbershopPanel', () => {
     await wrapper.get('button[aria-label="Unassign Boris Barber from Barbershop"]').trigger('click')
     await flushPromises()
     expect(wrapper.get('[role="alert"]').text()).toContain('Worker is busy')
-    expect(wrapper.get('[data-testid="barbershop-barber-chair"]').text()).toContain('Boris Barber')
+    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Boris Barber')
     expect(wrapper.emitted('changed')).toBeUndefined()
   })
 
@@ -332,8 +332,8 @@ describe('BarbershopPanel', () => {
     ])
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="barbershop-barber-chair"]').text()).toContain('Boris Barber')
-    expect(wrapper.get('[data-testid="barbershop-customer-chair"]').text()).toContain('Ada Adult')
+    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Boris Barber')
+    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada Adult')
     expect(wrapper.get('[data-testid="barbershop-waiting-row"]').text()).toContain('Eve Elder')
     expect(
       wrapper
@@ -358,15 +358,15 @@ describe('BarbershopPanel', () => {
     ])
     await flushPromises()
 
-    await wrapper.get('[data-testid="barbershop-barber-change"]').trigger('click')
+    await wrapper.get('button[aria-label="Change worker"]').trigger('click')
     await flushPromises()
     await wrapper
       .get(`[data-testid="barbershop-barber-option"][data-dweller-id="${ADULT_ID}"]`)
       .trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="barbershop-barber-chair"]').text()).toContain('Ada Adult')
-    expect(wrapper.get('[data-testid="barbershop-customer-chair"]').text()).toContain('Eve Elder')
+    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Ada Adult')
+    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Eve Elder')
     expect(wrapper.get('[data-testid="barbershop-waiting-row"]').text()).toContain('Boris Barber')
     expect(
       wrapper.find(`[data-testid="barbershop-waiting-row"][data-dweller-id="${ADULT_ID}"]`).exists()
@@ -393,7 +393,7 @@ describe('BarbershopPanel', () => {
     expect(waitingIds).not.toContain(GHOUL_ID)
     expect(waitingIds).not.toContain(DEAD_ID)
 
-    await wrapper.get('[data-testid="barbershop-barber-change"]').trigger('click')
+    await wrapper.get('button[aria-label="Change worker"]').trigger('click')
     await flushPromises()
     const barberIds = wrapper
       .findAll('[data-testid="barbershop-barber-option"]')

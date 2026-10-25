@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onScopeDispose, ref, watch } from 'vue'
-import { ArrowLeftRight, Plus, X } from '@lucide/vue'
+import { X } from '@lucide/vue'
 import { Input } from '@/core/components/ui/input'
 import RoomPreviewSection from './RoomPreviewSection.vue'
 import { getTrainingRoomCapacity } from '../utils/room'
@@ -349,10 +349,6 @@ function patchPortraitSnapshot(
 }
 
 const busy = computed(() => assigning.value || saving.value || generating.value)
-const slots = computed(() => [
-  { role: 'worker' as const, label: 'Worker', dweller: barber.value },
-  { role: 'client' as const, label: 'Client', dweller: selectedDweller.value },
-])
 const slotOptions = computed(() => {
   if (pickerLoading.value || pickerError.value) return []
   const candidates = new Map(roster.value.map((entry) => [entry.id, entry]))
@@ -395,7 +391,10 @@ const closeSlot = async () => {
   const role = activeSlot.value
   activeSlot.value = null
   await nextTick()
-  if (role) document.getElementById(`barbershop-${props.room.id}-${role}`)?.focus()
+  if (role)
+    document
+      .getElementById(`barbershop-${props.room.id}-${role}${role === 'worker' ? '-1' : ''}`)
+      ?.focus()
 }
 async function chooseSlot(entry: DwellerShort): Promise<void> {
   const role = activeSlot.value
@@ -426,8 +425,9 @@ async function chooseSlot(entry: DwellerShort): Promise<void> {
     if (version === contextVersion) assigning.value = false
   }
 }
-async function removeOccupant(entry: DwellerShort): Promise<void> {
-  if (busy.value) return
+async function removeOccupant(dwellerId: string): Promise<void> {
+  const entry = roster.value.find((dweller) => dweller.id === dwellerId)
+  if (!entry || busy.value) return
   const role = entry.id === barberId.value ? 'worker' : 'client'
   const roomId = props.room.id
   const authToken = token.value
@@ -443,7 +443,7 @@ async function removeOccupant(entry: DwellerShort): Promise<void> {
     if (version !== contextVersion) return
     assigning.value = false
     await nextTick()
-    document.getElementById(`barbershop-${roomId}-${role}`)?.focus()
+    document.getElementById(`barbershop-${roomId}-${role}${role === 'worker' ? '-1' : ''}`)?.focus()
   } catch (error) {
     if (version === contextVersion)
       slotError.value = getErrorMessage(error, 'Failed to unassign dweller')
@@ -523,83 +523,16 @@ async function handleRegenerate(): Promise<void> {
       :image-url="room.image_url ?? null"
       :room-image-url="roomImageUrl ?? null"
       :room-units="3"
-      :dweller-capacity="2"
-      :assigned-dwellers="roster"
-    >
-      <template #occupants>
-        <!-- @vue-ignore -->
-        <div
-          v-for="slot in slots"
-          :key="slot.role"
-          :data-testid="
-            slot.role === 'worker' ? 'barbershop-barber-chair' : 'barbershop-customer-chair'
-          "
-          class="flex w-28 min-w-0 flex-col items-center gap-1 text-theme-primary"
-        >
-          <span
-            class="rounded bg-surface-sunken px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-            >{{ slot.label }}</span
-          >
-          <Button
-            variant="ghost"
-            type="button"
-            :id="`barbershop-${room.id}-${slot.role}`"
-            :aria-label="`Choose ${slot.role}`"
-            :disabled="busy"
-            class="group flex h-28 w-full flex-col justify-end gap-0 whitespace-normal border-0 bg-transparent p-0 text-theme-primary/50 hover:bg-transparent hover:text-theme-primary focus-visible:text-theme-primary sm:h-32"
-            @click="openSlot(slot.role)"
-          >
-            <DwellerPortrait
-              v-if="slot.dweller"
-              :thumbnail-url="slot.dweller.thumbnail_url"
-              :alt="getDwellerDisplayName(slot.dweller)"
-              :zoom="false"
-              image-class="h-24 w-full object-contain"
-              fallback-class="size-16 text-theme-primary"
-            />
-            <template v-else
-              ><span class="empty-dweller-silhouette min-h-0 flex-1" aria-hidden="true" /><span
-                class="flex items-center gap-1 pb-2 text-[10px]"
-                ><Plus class="size-3" />Add {{ slot.role }}</span
-              ></template
-            >
-          </Button>
-          <span
-            class="w-full truncate rounded bg-surface-sunken px-1 text-center text-[10px]"
-            :title="slot.dweller ? getDwellerDisplayName(slot.dweller) : undefined"
-            >{{ slot.dweller ? getDwellerDisplayName(slot.dweller) : 'Empty slot' }}</span
-          >
-          <div
-            class="flex h-7 items-center gap-1"
-            v-if="slot.dweller"
-            role="group"
-            :aria-label="`Controls for ${slot.label}`"
-          >
-            <!-- @vue-ignore -->
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              :disabled="busy"
-              :aria-label="`Change ${slot.role}`"
-              :data-testid="
-                slot.role === 'worker' ? 'barbershop-barber-change' : 'barbershop-client-change'
-              "
-              @click="openSlot(slot.role)"
-              ><ArrowLeftRight
-            /></Button>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              :disabled="busy"
-              :aria-label="`Unassign ${getDwellerDisplayName(slot.dweller)} from Barbershop`"
-              @click="removeOccupant(slot.dweller)"
-              ><X
-            /></Button>
-          </div>
-          <span v-else class="h-7" />
-        </div>
-      </template>
-    </RoomPreviewSection>
+      :dweller-capacity="1"
+      :assigned-dwellers="barber ? [barber] : []"
+      :client-slot="selectedDweller"
+      :selection-mode="true"
+      :assign-enabled="!busy"
+      :slot-id-prefix="`barbershop-${room.id}`"
+      @assign-worker="openSlot('worker')"
+      @assign-client="openSlot('client')"
+      @unassign="removeOccupant"
+    />
     <p
       v-if="slotError"
       role="alert"
@@ -1011,12 +944,12 @@ async function handleRegenerate(): Promise<void> {
 </template>
 
 <style scoped>
-.barbershop-scene :deep(.empty-dweller-silhouette) {
-  background-color: currentColor;
+.barbershop-scene :deep(.dweller-sprites-overlay) {
+  bottom: 0.75rem;
 }
 .barbershop-scene :deep(.room-image-frame) {
   width: 100%;
-  min-height: 240px;
+  height: 240px;
   aspect-ratio: auto;
 }
 </style>

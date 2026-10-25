@@ -29,7 +29,6 @@
   "src/modules/rooms/components/RadioControls.vue": 2,
   "src/modules/rooms/components/RoomGridCell.vue": 3,
   "src/modules/rooms/components/RoomMenu.vue": 1,
-  "src/modules/rooms/components/RoomPreviewSection.vue": 6,
   "src/modules/rooms/components/RoomTrainingSection.vue": 1,
   "src/modules/social/components/relationships/ChildChip.vue": 1,
   "src/modules/social/components/relationships/DwellerChildCard.vue": 1,

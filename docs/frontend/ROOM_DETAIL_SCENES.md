@@ -57,9 +57,12 @@ without recovering the discarded #850 actor prototype or choosing a broader art 
 
 ## Barbershop worker/client slots
 
-The Barbershop uses `RoomPreviewSection`'s optional `occupants` slot to show one worker and one client
-instead of a generic worker grid. Both slots remain visible when empty. Change/unassign controls sit
-below portraits; hover/focus feedback and Escape/focus return follow the Arena setup pattern.
+`RoomDwellerSlot` is the shared renderer for workers, apprentices and clients: the same silhouette,
+portrait sizing, name badge and unassign behavior. `RoomPreviewSection` adds an optional dedicated
+`clientSlot` alongside its worker slots, following the existing apprentice-slot pattern. The Barbershop
+shows one worker plus that client slot. Both slots remain visible when empty. Change/unassign controls sit
+below portraits, with the shared dweller-name badge above and a small client role badge below. The slot group sits
+near the bottom of the scene; hover/focus feedback and Escape/focus return follow the Arena setup pattern.
 
 One searchable picker reuses the dweller store's full-vault loader, independently of sidebar filters.
 Assigned adults/elders can change local roles; available unassigned dwellers join through the existing

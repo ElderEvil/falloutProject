@@ -26,7 +26,7 @@ import {
   getNotificationAnimation,
 } from '@/modules/vault/utils/notificationRouting'
 import { formatRelativeTime } from '@/core/utils/time'
-import axios from '@/core/plugins/axios'
+import { notificationService } from '@/modules/vault/services/notificationService'
 import { Button } from '@/core/components/ui/button'
 import { useNotificationInboxStore } from '@/modules/vault/stores/notificationInbox'
 import { useStorageStore } from '@/modules/storage/stores/storage'
@@ -41,7 +41,7 @@ interface Notification {
   priority: string
   is_read: boolean
   created_at: string
-  meta_data?: Record<string, any>
+  meta_data?: Record<string, any> | null
 }
 
 const inboxStore = useNotificationInboxStore()
@@ -63,12 +63,8 @@ const seenNotificationIds = new Set<string>()
 let hasConnected = false
 const { run: runFetchNotifications, isLoading } = useAsyncAction(
   async (token: string, catchUp = false) => {
-    const response = await axios.get('/api/v1/notifications/', {
-      params: { limit: 20 },
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    const loaded = await notificationService.list(null, 'all', 0, 20)
     if (authStore.token !== token) return
-    const loaded = response.data as Notification[]
     if (catchUp)
       loaded
         .filter((notification) => !notification.is_read)
@@ -85,20 +81,14 @@ const { run: runFetchNotifications, isLoading } = useAsyncAction(
 )
 const { run: runFetchUnreadCount } = useAsyncAction(
   async (token: string) => {
-    const response = await axios.get('/api/v1/notifications/unread-count', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    unreadCount.value = response.data.count
+    const count = await notificationService.unreadCount()
+    if (authStore.token === token) unreadCount.value = count
   },
   { context: 'Failed to fetch unread count' }
 )
 const { run: runMarkAsRead } = useAsyncAction(
   async (notificationId: string, token: string) => {
-    await axios.patch(
-      `/api/v1/notifications/${notificationId}/read`,
-      {},
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
+    await notificationService.markRead(notificationId)
     const notification = notifications.value.find((item) => item.id === notificationId)
     if (notification) notification.is_read = true
     await runFetchUnreadCount(token)
@@ -107,11 +97,10 @@ const { run: runMarkAsRead } = useAsyncAction(
 )
 const { run: runMarkAllAsRead } = useAsyncAction(
   async (token: string) => {
-    await axios.post(
-      '/api/v1/notifications/mark-all-read',
-      {},
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
+    const accountId = authStore.user?.id
+    await notificationService.markAllRead(null)
+    const sameAccount = !!accountId && authStore.user?.id === accountId
+    if (!authStore.token || (authStore.token !== token && !sameAccount)) return
     notifications.value.forEach((notification) => (notification.is_read = true))
     unreadCount.value = 0
   },
@@ -142,8 +131,11 @@ const startSse = () => {
 watch(
   () => authStore.token,
   (token) => {
-    if (token) startSse()
-    else {
+    if (token) {
+      startSse()
+      // Rotation can invalidate the initial response before SSE has ever connected.
+      void runFetchUnreadCount(token)
+    } else {
       sse.value?.close()
       sse.value = undefined
       notifications.value = []

@@ -16,6 +16,10 @@ export const notificationService = {
     })
     return data
   },
+  async unreadCount() {
+    const { data } = await axios.get<{ count: number }>('/api/v1/notifications/unread-count')
+    return data.count
+  },
   async markRead(id: string) {
     await axios.patch(`/api/v1/notifications/${id}/read`, {})
   },

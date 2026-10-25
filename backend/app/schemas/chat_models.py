@@ -1,4 +1,9 @@
-"""Internal data records shared by chat collaborators."""
+"""Chat run records shared by the chat service and its collaborators.
+
+Internal run records, not wire schemas: they carry a turn's collected outcome
+between agent execution, streaming, and persistence before a response is built.
+They live here because a module inside ``app/services`` may not own contracts.
+"""
 
 from dataclasses import dataclass, field
 

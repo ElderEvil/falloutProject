@@ -8,7 +8,8 @@ import pytest
 from pydantic import BaseModel, ConfigDict
 from pydantic_ai import BoolCriteria
 
-from app.services.jev_service import JevDecision, is_configured, jev_service
+from app.schemas.jev import JevDecision
+from app.services.jev_service import is_configured, jev_service
 from app.utils.exceptions import FeatureDisabledException
 
 

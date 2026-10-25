@@ -10,6 +10,10 @@ recorded in ``CRUD_SERVICE_BASELINE`` and must shrink as domain batches migrate;
 applies to raw ``select()``/``exec()`` queries in ``app/services`` (``SERVICES_SELECT_BASELINE``)
 and to non-conforming top-level service module names (``SERVICE_NAME_GRANDFATHER``).
 A baseline entry with no remaining violations also fails, so the lists stay honest.
+
+Contracts live in ``app/schemas``: a module under ``app/services`` may not define a Pydantic
+``BaseModel`` subclass or be named ``models.py``/``schemas.py``, because that puts a schema where
+callers are told to look for behaviour.
 """
 
 import ast
@@ -207,6 +211,164 @@ def test_services_do_not_load_rows_directly() -> None:
         if lines:
             offenders.append(f"{path.relative_to(APP_DIR / 'services').as_posix()}:{lines}")
     assert not offenders, "Services must not call session.get() directly (route through CRUD):\n" + "\n".join(offenders)
+
+
+PASSTHROUGH_MODULE_NAMES = frozenset({"models", "schemas"})
+
+
+def _pydantic_model_definitions(source: str) -> list[tuple[int, str]]:
+    """Find imported BaseModel subclasses, resolving bindings in source order per scope."""
+    found: list[tuple[int, str]] = []
+
+    def scan(node: ast.AST, class_aliases: set[str], module_aliases: set[str]) -> None:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                name = alias.asname or alias.name.split(".")[0]
+                class_aliases.discard(name)
+                module_aliases.discard(name)
+                if isinstance(node, ast.ImportFrom):
+                    if (node.module or "").split(".")[0] == "pydantic" and alias.name == "BaseModel":
+                        class_aliases.add(name)
+                elif alias.name.split(".")[0] == "pydantic":
+                    module_aliases.add(name)
+            return
+        if isinstance(node, ast.ClassDef):
+            for base in node.bases:
+                target = base.value if isinstance(base, ast.Subscript) else base
+                direct = isinstance(target, ast.Name) and target.id in class_aliases
+                qualified = (
+                    isinstance(target, ast.Attribute)
+                    and target.attr == "BaseModel"
+                    and isinstance(target.value, ast.Name)
+                    and target.value.id in module_aliases
+                )
+                if direct or qualified:
+                    found.append((node.lineno, node.name))
+                    break
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            # Bases use the surrounding bindings; the new class name is bound only
+            # after its body. Imports/shadows inside a body must not leak out.
+            local_classes, local_modules = class_aliases.copy(), module_aliases.copy()
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                arguments = node.args.posonlyargs + node.args.args + node.args.kwonlyargs
+                arguments += [arg for arg in (node.args.vararg, node.args.kwarg) if arg is not None]
+                for arg in arguments:
+                    local_classes.discard(arg.arg)
+                    local_modules.discard(arg.arg)
+            for statement in node.body:
+                scan(statement, local_classes, local_modules)
+            class_aliases.discard(node.name)
+            module_aliases.discard(node.name)
+            return
+        for child in ast.iter_child_nodes(node):
+            scan(child, class_aliases, module_aliases)
+
+    scan(ast.parse(source), set(), set())
+    return sorted(found)
+
+
+def test_services_do_not_define_pydantic_models() -> None:
+    """Schemas belong in app/schemas: a service carries behaviour, not wire/data contracts.
+
+    A Pydantic model inside a service forces every caller (routers, other services,
+    tests) to import the layer that must not own it, and hides a schema change in a
+    file whose docstring promises a client/orchestrator. Dataclasses for internal
+    run records stay allowed: they are not schemas and use ``dataclass``.
+    """
+    offenders = []
+    for path in sorted((APP_DIR / "services").rglob("*.py")):
+        for line, name in _pydantic_model_definitions(path.read_text(encoding="utf-8")):
+            offenders.append(f"{path.relative_to(APP_DIR).as_posix()}:{line} defines {name}")
+    assert not offenders, "Pydantic models leaked into the service layer (move to app/schemas):\n" + "\n".join(
+        offenders
+    )
+
+
+def test_services_have_no_passthrough_contract_modules() -> None:
+    """No ``models.py``/``schemas.py`` under app/services: that module name invites contracts back in.
+
+    Even dataclass-only today, a module named this way becomes the place to add the
+    next schema, so the file itself is the smell. Imported contracts come from
+    ``app.schemas``; service-owned result records live beside their producer.
+    """
+    offenders = [
+        path.relative_to(APP_DIR).as_posix()
+        for path in sorted((APP_DIR / "services").rglob("*.py"))
+        if path.stem in PASSTHROUGH_MODULE_NAMES
+    ]
+    assert not offenders, "Contract modules leaked into the service layer (move to app/schemas):\n" + "\n".join(
+        offenders
+    )
+
+
+def test_guard_detects_pydantic_model_forms() -> None:
+    """Self-test: direct, generic, aliased, and module-qualified bases are all reported."""
+    source = (
+        "from pydantic import BaseModel\n"
+        "from pydantic import BaseModel as Model\n"
+        "import pydantic as p\n"
+        "class Plain(BaseModel):\n"
+        "    value: int\n"
+        "class Generic[T](Model):\n"
+        "    value: T\n"
+        "class Aliased(Model):\n"
+        "    value: int\n"
+        "class Dotted(p.BaseModel):\n"
+        "    value: int\n"
+        "class NotAModel(dict[str, int]):\n"
+        "    pass\n"
+    )
+    assert _pydantic_model_definitions(source) == [(4, "Plain"), (6, "Generic"), (8, "Aliased"), (10, "Dotted")]
+
+
+def test_guard_ignores_non_pydantic_base_model() -> None:
+    """Self-test: a BaseModel name from another library, or shadowed locally, is not pydantic's."""
+    source = (
+        "from some_lib import BaseModel\n"
+        "class FromElsewhere(BaseModel):\n"
+        "    pass\n"
+        "from pydantic import BaseModel as Model\n"
+        "class Model:\n"
+        "    pass\n"
+        "class Shadowed(Model):\n"
+        "    pass\n"
+    )
+    assert _pydantic_model_definitions(source) == []
+
+
+def test_guard_resolves_bases_before_later_shadowing() -> None:
+    source = (
+        "from pydantic import BaseModel as Model\n"
+        "class Before(Model): pass\n"
+        "class Model: pass\n"
+        "class After(Model): pass\n"
+    )
+    assert _pydantic_model_definitions(source) == [(2, "Before")]
+
+
+def test_guard_keeps_nested_shadowing_in_its_scope() -> None:
+    source = (
+        "from pydantic import BaseModel as Model\n"
+        "import pydantic as p\n"
+        "def unrelated():\n"
+        "    class Model: pass\n"
+        "    class p: pass\n"
+        "    class Local(Model): pass\n"
+        "class Direct(Model): pass\n"
+        "class Qualified(p.BaseModel): pass\n"
+    )
+    assert _pydantic_model_definitions(source) == [(7, "Direct"), (8, "Qualified")]
+
+
+def test_guard_keeps_nested_imports_in_their_scope() -> None:
+    source = (
+        "class Model: pass\n"
+        "def factory():\n"
+        "    from pydantic import BaseModel as Model\n"
+        "    class Local(Model): pass\n"
+        "class Outside(Model): pass\n"
+    )
+    assert _pydantic_model_definitions(source) == [(4, "Local")]
 
 
 def test_guard_detects_api_import_forms() -> None:

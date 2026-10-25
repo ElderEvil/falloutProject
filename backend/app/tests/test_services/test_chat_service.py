@@ -14,10 +14,10 @@ from app.models.dweller import Dweller
 from app.models.user import User
 from app.models.vault import Vault
 from app.schemas.chat import ChatStreamDone, ChatStreamError, ChatStreamToken, NoAction, UnlockedPlace
+from app.schemas.chat_models import AgentChatResult, StreamBundle
 from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerCreate, DwellerReadFull
 from app.services.chat.agent_runner import extract_usage, run_chat_agent
-from app.services.chat.models import AgentChatResult, StreamBundle
 from app.services.chat.notifications import maybe_unlock_places
 from app.services.chat_service import chat_service
 from app.tests.factory.dwellers import create_fake_dweller
@@ -220,8 +220,8 @@ class TestChatServiceErrorHandling:
         from sqlalchemy import func, select
 
         from app.models.llm_interaction import LLMInteraction
-        from app.services.chat.guardrail import ChatGuardrail
-        from app.services.jev_service import JevDecision
+        from app.schemas.chat import ChatGuardrail
+        from app.schemas.jev import JevDecision
 
         decision = JevDecision[ChatGuardrail](
             output=ChatGuardrail(jailbreak=True, toxic=False),
@@ -303,8 +303,8 @@ class TestChatServiceErrorHandling:
         from sqlalchemy import func, select
 
         from app.models.llm_interaction import LLMInteraction
-        from app.services.chat.guardrail import ChatGuardrail
-        from app.services.jev_service import JevDecision
+        from app.schemas.chat import ChatGuardrail
+        from app.schemas.jev import JevDecision
 
         decision = JevDecision[ChatGuardrail](
             output=ChatGuardrail(jailbreak=False, toxic=False),

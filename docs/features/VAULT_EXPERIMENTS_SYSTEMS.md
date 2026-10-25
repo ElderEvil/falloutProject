@@ -103,7 +103,7 @@ revision), never per-dweller-per-formula.
 - **Incidents**: exclusive types are ordinary incident definitions gated by
   `experiment_id` in the spawn query; weights merge per vault at spawn time.
 - **Objectives**: chains reference existing objective/evaluator machinery
-  (`objective_evaluators.py`); experiment chains are data, e.g. "stockpile 500
+  (`progression/objectives/evaluators/`); experiment chains are data, e.g. "stockpile 500
   food", "first Cold Sleep revival", "complete 3 prototype tests".
 - **Choices** (elections, Prototype Lab ethics): reuse the expedition choice/event
   plumbing — prompt schema, options, outcome branches — surfaced as modals, never

@@ -302,6 +302,28 @@ class TestHappinessService:
         assert "error" in result
         assert result["error"] == "Vault not found"
 
+    async def test_update_commits_dwellers_and_vault_together(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        working_dweller: Dweller,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Dweller happiness and the vault aggregate land in one transaction."""
+        commits = 0
+        original_commit = async_session.commit
+
+        async def counting_commit() -> None:
+            nonlocal commits
+            commits += 1
+            await original_commit()
+
+        monkeypatch.setattr(async_session, "commit", counting_commit)
+
+        await happiness_service.update_vault_happiness(async_session, vault.id, seconds_passed=60)
+
+        assert commits == 1
+
     async def test_get_modifiers_invalid_dweller(
         self,
         async_session: AsyncSession,

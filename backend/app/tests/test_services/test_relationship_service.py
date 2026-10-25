@@ -589,3 +589,27 @@ async def test_increase_affinity_does_not_auto_marry_already_committed_dweller(
 
     assert updated.relationship_type == RelationshipTypeEnum.PARTNER
     assert updated.affinity == game_config.relationship.marriage_threshold
+
+
+@pytest.mark.asyncio
+async def test_break_up_commits_partner_links_and_ex_together(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Clearing partner links and marking the pair EX land in one transaction."""
+    partner_rel = await _make_partners(async_session, dweller, dweller_2)
+    commits = 0
+    original_commit = async_session.commit
+
+    async def counting_commit() -> None:
+        nonlocal commits
+        commits += 1
+        await original_commit()
+
+    monkeypatch.setattr(async_session, "commit", counting_commit)
+
+    await RelationshipService.break_up(async_session, partner_rel.id)
+
+    assert commits == 1

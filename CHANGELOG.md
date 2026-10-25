@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.265.5 (2026-10-25)
+
+### Code Refactoring
+
+* **services:** name the shared transaction tail and guard private-helper commits ([#1178](https://github.com/ElderEvil/falloutProject/issues/1178)) 322e626
+
 ## 2.265.4 (2026-10-25)
 
 ### Code Refactoring

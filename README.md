@@ -143,15 +143,42 @@ docker compose logs -f fastapi  # Watch startup (Ctrl+C to exit)
 
 ### Git push protection
 
-Install the repository's push guard once per clone, from the repository root:
+Install the repository's push guard once per clone, from a checkout's root. The installer refuses
+to replace an existing hook, including a symlink. Inspect and compose any existing checks before
+updating it; the command below stops without changing that hook.
 
 ```bash
-install -m 755 scripts/pre-push "$(git rev-parse --git-path hooks)/pre-push"
+(
+  set -eu
+  if hooks_path="$(git config --path --get core.hooksPath)"; then
+    case "$hooks_path" in
+      /*|[A-Za-z]:/*) ;;
+      *) printf '%s\n' 'Relative core.hooksPath: configure an absolute path before installing.' >&2; exit 1 ;;
+    esac
+  fi
+  hook="$(git rev-parse --git-path hooks)/pre-push"
+  if [ -e "$hook" ] || [ -L "$hook" ]; then
+    printf '%s\n' "Existing pre-push hook at $hook: preserve its checks before updating." >&2
+    exit 1
+  fi
+  mkdir -p "$(dirname "$hook")"
+  install -m 755 scripts/pre-push "$hook"
+)
 ```
 
-If a `pre-push` hook already exists, preserve its checks and compose this guard with it before
-replacing it. Linked worktrees share the installed hook. Reinstall after changes to `scripts/pre-push`.
-This is separate from `prek install`, which manages the commit-time checks.
+Linked worktrees share the installed hook only when `core.hooksPath` is unset or points to the same
+absolute directory. A relative value such as `.git/hooks` resolves within each checkout; `.git` is a
+file in a linked worktree, so that path cannot work there. The installer rejects relative paths.
+To preserve a relative directory while making it absolute, run this from the **main checkout's root**
+(Git 2.31 or later), then retry installation:
+
+```bash
+git config --local core.hooksPath "$(git rev-parse --path-format=absolute --git-path hooks)"
+```
+
+Keep existing hooks in that directory, and check for worktree-specific `core.hooksPath` overrides
+before relying on sharing. Review the installed copy when `scripts/pre-push` changes. This is
+separate from `prek install`, which manages the commit-time checks.
 
 The guard checks destination refs and blocks updates, force pushes and deletions targeting `master`,
 including `git push -u origin HEAD` while on `master` and `HEAD:master` from another branch. Feature

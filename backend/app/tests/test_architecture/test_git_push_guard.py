@@ -10,15 +10,13 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 HOOK_SOURCE = REPO_ROOT / "scripts" / "pre-push"
 INSTALL_COMMAND = (
     (REPO_ROOT / "README.md")
-    .read_text()
+    .read_text(encoding="utf-8")
     .split("### Git push protection", 1)[1]
     .split("```bash\n", 1)[1]
     .split("```", 1)[0]
 )
-GIT = shutil.which("git")
-SHELL = shutil.which("sh")
-assert GIT is not None, "Git is required to test the push guard"
-assert SHELL is not None, "A POSIX shell is required to test the push guard"
+GIT = shutil.which("git") or pytest.fail("Git is required to test the push guard")
+SHELL = shutil.which("sh") or pytest.fail("A POSIX shell is required to test the push guard")
 
 
 def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:

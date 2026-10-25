@@ -58,7 +58,7 @@ useBlockingOverlay(() => showPopup.value)
 const bellButtonRef = ref<HTMLButtonElement | null>(null)
 const popupRef = ref<HTMLElement | null>(null)
 const notifications = ref<Notification[]>([])
-const unreadCount = ref(0)
+const unreadCount = computed(() => inboxStore.unreadCount)
 const seenNotificationIds = new Set<string>()
 let hasConnected = false
 const { run: runFetchNotifications, isLoading } = useAsyncAction(
@@ -79,31 +79,6 @@ const { run: runFetchNotifications, isLoading } = useAsyncAction(
   },
   { context: 'Failed to fetch notifications' }
 )
-const { run: runFetchUnreadCount } = useAsyncAction(
-  async (token: string) => {
-    const count = await notificationService.unreadCount()
-    if (authStore.token === token) unreadCount.value = count
-  },
-  { context: 'Failed to fetch unread count' }
-)
-const { run: runMarkAsRead } = useAsyncAction(
-  async (notificationId: string, token: string) => {
-    await notificationService.markRead(notificationId)
-    const notification = notifications.value.find((item) => item.id === notificationId)
-    if (notification) notification.is_read = true
-    await runFetchUnreadCount(token)
-  },
-  { context: 'Failed to mark notification as read' }
-)
-const { run: runMarkAllAsRead } = useAsyncAction(
-  async () => {
-    await notificationService.markAllRead(null)
-    notifications.value.forEach((notification) => (notification.is_read = true))
-    unreadCount.value = 0
-  },
-  { context: 'Failed to mark all notifications as read' }
-)
-
 const hasUnread = computed(() => unreadCount.value > 0)
 
 // SSE connection for live notifications
@@ -135,7 +110,6 @@ watch(
       notifications.value = []
       seenNotificationIds.clear()
       hasConnected = false
-      unreadCount.value = 0
     }
   }
 )
@@ -178,7 +152,7 @@ function processNotification(notificationData: Notification) {
     setTimeout(() => {
       if (!authStore.token) return
       notifications.value.unshift(newNotif)
-      unreadCount.value++
+      inboxStore.noteUnreadArrival()
       if (vaultId && vaultId !== vaultStore.activeVaultId) return
       if (isSuccess) toast.success(message)
       else toast.error(message)
@@ -186,7 +160,7 @@ function processNotification(notificationData: Notification) {
     return
   }
   notifications.value.unshift(newNotif)
-  unreadCount.value++
+  inboxStore.noteUnreadArrival()
   playSound(getNotificationSound(notificationData.notification_type))
   const animation = getNotificationAnimation(notificationData.notification_type)
   if (
@@ -293,14 +267,13 @@ const fetchNotifications = async () => {
 }
 
 const fetchUnreadCount = async () => {
-  if (authStore.token) await runFetchUnreadCount(authStore.token)
+  if (authStore.token) await inboxStore.refreshUnreadCount()
 }
 
 watch(
   () => inboxStore.readRevision,
   () => {
     void fetchNotifications()
-    void fetchUnreadCount()
   }
 )
 
@@ -332,11 +305,11 @@ const togglePopup = async () => {
 }
 
 const markAsRead = async (notificationId: string) => {
-  if (authStore.token) await runMarkAsRead(notificationId, authStore.token)
+  if (authStore.token) await inboxStore.markRead(notificationId)
 }
 
 const markAllAsRead = async () => {
-  if (authStore.token) await runMarkAllAsRead()
+  if (authStore.token) await inboxStore.markAllRead(null)
 }
 
 const enqueuePendingReport = (notification: Notification): void => {

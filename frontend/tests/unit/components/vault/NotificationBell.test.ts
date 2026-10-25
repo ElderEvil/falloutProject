@@ -872,10 +872,16 @@ describe('NotificationBell popup accessibility', () => {
   })
 
   it('refreshes its unread count when a message is marked read in the full inbox', async () => {
-    const wrapper = await mountBell([informationalNotification])
-    mockNotificationList([{ ...informationalNotification, is_read: true }])
-    useNotificationInboxStore().readRevision++
+    const items = [{ ...informationalNotification }]
+    const wrapper = await mountBell(items)
+    vi.mocked(axios.patch).mockImplementation(() => {
+      items[0]!.is_read = true
+      return Promise.resolve({ data: {} })
+    })
+
+    await useNotificationInboxStore().markRead('info-1')
     await flushPromises()
+
     expect(wrapper.findAll('span').some((span) => span.text() === '1')).toBe(false)
     await wrapper.get('button[aria-label="Notifications"]').trigger('click')
     await flushPromises()
@@ -900,10 +906,16 @@ describe('NotificationBell popup accessibility', () => {
 
   it('marks notifications across all vaults read from the bell and clears the badge', async () => {
     useVaultStore().activeVaultId = 'vault-1'
-    const wrapper = await mountAndOpen([
-      { ...actionableNotification },
-      { ...informationalNotification },
-    ])
+    const items = [{ ...actionableNotification }, { ...informationalNotification }]
+    const wrapper = await mountAndOpen(items)
+    vi.mocked(axios.post).mockImplementation((url) => {
+      if (url === '/api/v1/notifications/mark-all-read') {
+        items.forEach((item) => {
+          item.is_read = true
+        })
+      }
+      return Promise.resolve({ data: {} })
+    })
     const markAll = wrapper.findAll('button').find((button) => button.text() === 'Mark all read')!
     await markAll.trigger('click')
     await flushPromises()

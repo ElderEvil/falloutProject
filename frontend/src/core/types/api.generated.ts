@@ -5589,7 +5589,7 @@ export interface components {
          * ArenaMode
          * @enum {string}
          */
-        ArenaMode: "duel" | "brawl" | "hunt";
+        ArenaMode: "duel" | "brawl" | "training" | "hunt";
         /**
          * ArenaRoomState
          * @description Full arena room state: fighters, roster, match flags, and journal.
@@ -5623,6 +5623,8 @@ export interface components {
             team_b: components["schemas"]["ArenaFighter"][];
             /** Roster */
             roster: components["schemas"]["ArenaRosterEntry"][];
+            /** Candidates */
+            candidates?: components["schemas"]["ArenaRosterEntry"][];
             /** Fight Ready */
             fight_ready: boolean;
             /** Match Done */
@@ -5661,6 +5663,11 @@ export interface components {
             age_group?: string | null;
             /** Race */
             race?: string | null;
+            active_skill?: components["schemas"]["ArenaActiveSkill"] | null;
+            /** Room Id */
+            room_id?: string | null;
+            /** Room Name */
+            room_name?: string | null;
         };
         /**
          * ArenaSkillQueued
@@ -17092,7 +17099,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ArenaFightersRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

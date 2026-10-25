@@ -211,7 +211,7 @@ describe('Arena Store', () => {
     const ok = await store.startFight('vault-1', 'room-1', 'token')
 
     expect(ok).toBe(true)
-    expect(arenaApi.startFight).toHaveBeenCalledWith('vault-1', 'room-1', 'token')
+    expect(arenaApi.startFight).toHaveBeenCalledWith('vault-1', 'room-1', 'token', undefined)
   })
 
   it('clearEvents returns the cleared count', async () => {
@@ -261,5 +261,28 @@ describe('Arena Store', () => {
     store.reset()
 
     expect(store.rooms.size).toBe(0)
+  })
+  it.each(['reset', 'vault switch'])('ignores a delayed start after a %s', async (change) => {
+    const store = useArenaStore()
+    await store.fetchState('vault-1', 'token')
+    let finish!: () => void
+    vi.mocked(arenaApi.startFight).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    const pending = store.startFight('vault-1', 'room-1', 'token', {
+      mode: 'duel',
+      fighterAId: 'a',
+      fighterBId: 'b',
+    })
+    if (change === 'reset') store.reset()
+    else await store.fetchState('vault-2', 'new-token')
+    const calls = vi.mocked(arenaApi.fetchState).mock.calls.length
+    finish()
+    expect(await pending).toBe(false)
+    expect(arenaApi.fetchState).toHaveBeenCalledTimes(calls)
+    if (change === 'reset') expect(store.rooms.size).toBe(0)
   })
 })

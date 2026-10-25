@@ -110,27 +110,30 @@ describe('ArenaRoomDetail', () => {
     [0, false],
     [6, false],
     [2, true],
-  ])('guards assignment with %i dwellers and fighting=%s', (count, fighting) => {
-    useArenaStore().rooms.set('arena-1', {
-      fight_started: fighting,
-      match_done: false,
-      team_a: [],
-      team_b: [],
-    } as never)
-    const wrapper = mountDetail({
-      assignedDwellers: Array.from({ length: count }, (_, i) => ({
-        id: `dweller-${i}`,
-      })) as never,
-    })
-    const assign = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Assign Dwellers'))
-    expect(Boolean(assign)).toBe(!fighting && count < 6)
-    expect(wrapper.findAll('button').some((button) => button.text().includes('Stop Fight'))).toBe(
-      fighting
-    )
-    expect(wrapper.text()).not.toMatch(/\d+ \/ \d+ assigned/)
-  })
+  ])(
+    'keeps fighter selection as the only add flow with %i dwellers and fighting=%s',
+    (count, fighting) => {
+      useArenaStore().rooms.set('arena-1', {
+        fight_started: fighting,
+        match_done: false,
+        team_a: [],
+        team_b: [],
+      } as never)
+      const wrapper = mountDetail({
+        assignedDwellers: Array.from({ length: count }, (_, i) => ({
+          id: `dweller-${i}`,
+        })) as never,
+      })
+      const assign = wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('Assign Dwellers'))
+      expect(Boolean(assign)).toBe(false)
+      expect(wrapper.findAll('button').some((button) => button.text().includes('Stop Fight'))).toBe(
+        fighting
+      )
+      expect(wrapper.text()).not.toMatch(/\d+ \/ \d+ assigned/)
+    }
+  )
 
   it('locks management until match state is known and while a match is running', async () => {
     const arenaStore = useArenaStore()
@@ -155,7 +158,7 @@ describe('ArenaRoomDetail', () => {
     expect(buttons().every((button) => button.attributes('disabled') === undefined)).toBe(true)
     expect(
       wrapper.findAll('button').some((button) => button.text().includes('Assign Dwellers'))
-    ).toBe(true)
+    ).toBe(false)
 
     arenaStore.rooms.set('arena-1', {
       fight_started: true,
@@ -171,6 +174,7 @@ describe('ArenaRoomDetail', () => {
       expect(button.attributes('disabled')).toBeDefined()
       await button.trigger('click')
     }
+    expect(wrapper.emitted('changed')).toHaveLength(1)
     expect(wrapper.emitted('upgrade')).toBeUndefined()
     expect(wrapper.emitted('unassignAll')).toBeUndefined()
     expect(wrapper.emitted('destroy')).toBeUndefined()

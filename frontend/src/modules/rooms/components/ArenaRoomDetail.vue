@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { getRoomImageUrl } from '@/core/utils/image'
-import DwellerList from './DwellerList.vue'
 import type { Room } from '../models/room'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import ArenaPreview from './ArenaPreview.vue'
@@ -36,6 +35,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
+  changed: []
   upgrade: []
   destroy: []
   unassignAll: []
@@ -48,10 +48,11 @@ const controller = useArenaRoom(props.vaultId, props.room.id)
 const match = useArenaMatchDraft(props.vaultId, props.room.id, controller)
 const roomState = controller.roomState
 const managementLocked = computed(() => !roomState.value || match.isFighting)
-
-const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMode', {
-  default: null,
-})
+// The parent already owns refreshing room/dweller data after a room mutation.
+watch(
+  () => match.isFighting,
+  () => emit('changed')
+)
 
 const stopConfirmOpen = ref(false)
 const confirmStop = async () => {
@@ -83,7 +84,6 @@ const confirmStop = async () => {
       :combat-phase="controller.combatPhase?.value"
       @skill="controller.queueSkill"
       @stop="stopConfirmOpen = true"
-      @assign-dwellers="assignmentMode = 'worker'"
     />
     <TerminalConfirmation
       :open="stopConfirmOpen"
@@ -93,29 +93,12 @@ const confirmStop = async () => {
       @confirm="confirmStop"
       @cancel="stopConfirmOpen = false"
     />
-    <Button
-      v-if="!managementLocked && assignedDwellers.length < dwellerCapacity"
-      variant="outline"
-      size="sm"
-      class="self-start"
-      @click="assignmentMode = 'worker'"
-    >
-      Assign Dwellers
-    </Button>
     <p v-if="!roomState" class="text-xs text-muted-foreground">
       Room management is unavailable until match state loads.
     </p>
     <p v-else-if="match.isFighting" class="text-xs text-muted-foreground">
       Room management is locked until the match finishes.
     </p>
-    <DwellerList
-      v-if="assignmentMode && !managementLocked && assignedDwellers.length < dwellerCapacity"
-      v-model:assignment-mode="assignmentMode"
-      :ability="null"
-      title="Assign to Arena"
-      empty-text="No unassigned adults available. Unassign an adult from another room first."
-      @assign-dweller="emit('assignDweller', $event)"
-    />
     <ArenaSupportPanel :match="match" />
     <RoomActions
       :disabled="managementLocked"

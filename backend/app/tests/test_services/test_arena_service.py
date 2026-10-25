@@ -254,7 +254,7 @@ async def test_locked_arena_mode_rejects_selection_and_start(async_session, aren
 
 @pytest.mark.parametrize(
     ("tier", "expected"),
-    [(1, [ArenaMode.DUEL]), (2, [ArenaMode.DUEL, ArenaMode.BRAWL]), (3, list(ArenaMode))],
+    [(1, [ArenaMode.DUEL]), (2, [ArenaMode.DUEL, ArenaMode.BRAWL, ArenaMode.TRAINING]), (3, list(ArenaMode))],
 )
 async def test_arena_state_reports_tier_unlocks(async_session, arena_room, vault, fighter_a, tier, expected):
     fighter_a.room_id = arena_room.id
@@ -648,15 +648,15 @@ class TestArenaService:
         selection = {"mode": mode}
         if mode == ArenaMode.BRAWL:
             selection.update(fighter_c_id=fighter_c.id, fighter_d_id=fighter_d.id)
-        elif mode == ArenaMode.HUNT:
-            selection.update(fighter_c_id=fighter_c.id, opponent_keys=["training-eyebot"])
+        elif mode in (ArenaMode.HUNT, ArenaMode.TRAINING):
+            selection.update(fighter_c_id=fighter_c.id, opponent_keys=["training-eyebot", "training-protectron"])
         service = ArenaService()
         for _ in range(2):
             await service.set_fighters(
                 async_session,
                 arena_room.id,
                 fighter_a.id,
-                fighter_b.id if mode != ArenaMode.HUNT else None,
+                fighter_b.id if mode not in (ArenaMode.HUNT, ArenaMode.TRAINING) else None,
                 **selection,
             )
             for fighter in fighters:
@@ -1732,11 +1732,17 @@ async def test_match_finish_releases_only_participants(
         async_session,
         arena_room.id,
         fighter_a.id,
-        fighter_b.id if mode != ArenaMode.HUNT else None,
+        fighter_b.id if mode not in (ArenaMode.HUNT, ArenaMode.TRAINING) else None,
         mode=mode,
         fighter_c_id=fighter_c.id if mode != ArenaMode.DUEL else None,
         fighter_d_id=fighter_d.id if mode == ArenaMode.BRAWL else None,
-        opponent_keys=["deathclaw"] if mode == ArenaMode.HUNT else None,
+        opponent_keys=(
+            ["training-eyebot", "training-protectron"]
+            if mode == ArenaMode.TRAINING
+            else ["deathclaw"]
+            if mode == ArenaMode.HUNT
+            else None
+        ),
     )
     selected = service._fighter_ids(state)
     await service.start_fight(async_session, arena_room.id)
@@ -2399,3 +2405,152 @@ async def test_round_snapshots_race_and_power_armor(async_session, arena_room, f
     assert action["actor_body"] == "ghoul"
     assert action["effect"] == "punch"
     assert action["targets"][0]["body"] == "power-armor"
+
+
+async def prepare_newcomers(session, room, fighters):
+    source = Room(**room.model_dump(exclude={"id", "created_at", "updated_at"}))
+    source.name = "Power Generator"
+    source.category = RoomTypeEnum.PRODUCTION
+    session.add(source)
+    await session.flush()
+    room.size = 9
+    for fighter in fighters:
+        fighter.room_id = source.id
+        fighter.status = DwellerStatusEnum.WORKING
+    await session.commit()
+    return source
+
+
+async def test_start_preset_assigns_newcomers_and_starts_two_bot_team(async_session, arena_room, fighter_a, fighter_b):
+    from app.schemas.arena import ArenaFightersRequest
+
+    source = await prepare_newcomers(async_session, arena_room, (fighter_a, fighter_b))
+    service = ArenaService()
+    view = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
+    assert {entry.room_name for entry in view.candidates} == {source.name}
+    assert all(
+        entry.active_skill and entry.active_skill.icon == "unarmed" and entry.active_skill.charge == 0
+        for entry in view.candidates
+    )
+    selection = ArenaFightersRequest(
+        mode=ArenaMode.TRAINING,
+        fighter_a_id=fighter_a.id,
+        fighter_c_id=fighter_b.id,
+        opponent_keys=["training-eyebot", "training-protectron"],
+    )
+    await service.start_fight(async_session, arena_room.id, arena_room.vault_id, selection=selection)
+    for fighter in (fighter_a, fighter_b):
+        await async_session.refresh(fighter)
+        assert fighter.room_id == arena_room.id
+        assert fighter.status == DwellerStatusEnum.FIGHTING
+    teams = await service.get_teams(async_session, arena_room)
+    assert [len(team) for team in teams] == [2, 2]
+    assert all(participant.is_robot for participant in teams[1])
+
+
+@pytest.mark.parametrize("failure", ["capacity", "late_write"])
+async def test_preset_start_failure_rolls_back_moves_and_match(
+    async_session, arena_room, fighter_a, fighter_b, fighter_c, monkeypatch, failure
+):
+    from unittest.mock import AsyncMock
+
+    from sqlalchemy import event
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from app.core.event_bus import event_bus
+    from app.schemas.arena import ArenaFightersRequest
+    from app.utils.exceptions import ResourceConflictException
+
+    source = await prepare_newcomers(async_session, arena_room, (fighter_a, fighter_b))
+    if failure == "capacity":
+        arena_room.size = 3
+        fighter_c.room_id = arena_room.id
+        await async_session.commit()
+    room_id, source_id = arena_room.id, source.id
+    fighter_ids = [fighter_a.id, fighter_b.id]
+    deliver = AsyncMock()
+    monkeypatch.setattr(event_bus, "emit", deliver)
+    connection = (await async_session.connection()).sync_connection
+    moved = []
+
+    def fail_late(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith("UPDATE dweller"):
+            moved.append(True)
+        if failure == "late_write" and moved and statement.startswith("UPDATE arena_state"):
+            raise SQLAlchemyError("late lineup failure")
+
+    event.listen(connection, "before_cursor_execute", fail_late)
+    try:
+        with pytest.raises(ResourceConflictException if failure == "capacity" else SQLAlchemyError):
+            await ArenaService().start_fight(
+                async_session,
+                room_id,
+                selection=ArenaFightersRequest(
+                    mode=ArenaMode.TRAINING,
+                    fighter_a_id=fighter_a.id,
+                    fighter_c_id=fighter_b.id,
+                    opponent_keys=["training-eyebot", "training-protectron"],
+                ),
+            )
+    finally:
+        event.remove(connection, "before_cursor_execute", fail_late)
+    await async_session.rollback()
+    for fighter_id in fighter_ids:
+        reloaded = await crud.dweller.get(async_session, fighter_id)
+        assert reloaded.room_id == source_id
+        assert reloaded.status == DwellerStatusEnum.WORKING
+    state = await arena_state_crud.get(async_session, room_id)
+    assert state is None or (state.fighter_a_id is None and state.fight_started_at is None)
+    deliver.assert_not_called()
+
+
+@pytest.mark.parametrize("invalid", ["child", "busy", "dead", "duplicate", "wrong_opponent", "cross_vault"])
+async def test_new_preset_rejects_ineligible_lineup_without_moves(
+    async_session, arena_room, fighter_a, fighter_b, invalid
+):
+    from app.schemas.arena import ArenaFightersRequest
+
+    source = await prepare_newcomers(async_session, arena_room, (fighter_a, fighter_b))
+    if invalid == "child":
+        fighter_b.age_group = AgeGroupEnum.CHILD
+    elif invalid == "busy":
+        fighter_b.status = DwellerStatusEnum.QUESTING
+    elif invalid == "dead":
+        fighter_b.is_dead = True
+    elif invalid == "cross_vault":
+        fighter_b.vault_id = None
+    await async_session.commit()
+    ids, source_id, room_id = [fighter_a.id, fighter_b.id], source.id, arena_room.id
+    selection = ArenaFightersRequest(
+        mode=ArenaMode.TRAINING,
+        fighter_a_id=fighter_a.id,
+        fighter_c_id=fighter_a.id if invalid == "duplicate" else fighter_b.id,
+        opponent_keys=["deathclaw", "bloatfly"]
+        if invalid == "wrong_opponent"
+        else ["training-eyebot", "training-protectron"],
+    )
+    with pytest.raises(ValidationException):
+        await ArenaService().start_fight(async_session, room_id, selection=selection)
+    await async_session.rollback()
+    assert [(await crud.dweller.get(async_session, id)).room_id for id in ids] == [source_id, source_id]
+    assert await arena_state_crud.get(async_session, room_id) is None
+
+
+async def test_bot_training_is_incomplete_after_a_fighter_leaves(async_session, arena_room, fighter_a, fighter_b):
+    source = await prepare_newcomers(async_session, arena_room, (fighter_a, fighter_b))
+    for fighter in (fighter_a, fighter_b):
+        await dweller_service.move_to_room(async_session, fighter.id, arena_room.id)
+    service = ArenaService()
+    await service.set_fighters(
+        async_session,
+        arena_room.id,
+        fighter_a.id,
+        None,
+        mode=ArenaMode.TRAINING,
+        fighter_c_id=fighter_b.id,
+        opponent_keys=["training-eyebot", "training-protectron"],
+    )
+    await dweller_service.move_to_room(async_session, fighter_b.id, source.id)
+    assert await service.get_teams(async_session, arena_room) == ([], [])
+    with pytest.raises(ValidationException):
+        await service.start_fight(async_session, arena_room.id)

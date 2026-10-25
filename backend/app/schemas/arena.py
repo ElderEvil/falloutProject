@@ -85,6 +85,9 @@ class ArenaRosterEntry(BaseModel):
     thumbnail_url: str | None = None
     age_group: str | None = None
     race: str | None = None
+    active_skill: ArenaActiveSkill | None = None
+    room_id: str | None = None
+    room_name: str | None = None
 
 
 class ArenaMatchEventOut(BaseModel):
@@ -114,6 +117,7 @@ class ArenaRoomState(BaseModel):
     team_a: list[ArenaFighter]
     team_b: list[ArenaFighter]
     roster: list[ArenaRosterEntry]
+    candidates: list[ArenaRosterEntry] = Field(default_factory=list)
     fight_ready: bool
     match_done: bool
     fight_started: bool

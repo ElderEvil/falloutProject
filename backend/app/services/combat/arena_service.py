@@ -31,6 +31,7 @@ from app.models.arena_state import ArenaState
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.arena import (
+    ArenaFightersRequest,
     ArenaMatchEventOut,
     ArenaRoomState,
     ArenaRosterEntry,
@@ -42,6 +43,7 @@ from app.schemas.combat import CombatAction, CombatImpact
 from app.services.catalog_service import list_arena_creatures
 from app.services.combat.arena_participants import (
     ArenaParticipant,
+    active_skill_out,
     catalog_participants,
     charge_per_second,
     dweller_participants,
@@ -58,8 +60,12 @@ logger = logging.getLogger(__name__)
 
 HAPPINESS_WIN = 10
 HAPPINESS_LOSE = 10
-MODE_UNLOCK_TIERS = {ArenaMode.DUEL: 1, ArenaMode.BRAWL: 2, ArenaMode.HUNT: 3}
-TEAM_LABELS = {ArenaMode.BRAWL: ("Team A", "Team B"), ArenaMode.HUNT: ("Dwellers", "Creatures")}
+MODE_UNLOCK_TIERS = {ArenaMode.DUEL: 1, ArenaMode.BRAWL: 2, ArenaMode.TRAINING: 2, ArenaMode.HUNT: 3}
+TEAM_LABELS = {
+    ArenaMode.TRAINING: ("Dwellers", "Bots"),
+    ArenaMode.BRAWL: ("Team A", "Team B"),
+    ArenaMode.HUNT: ("Dwellers", "Creatures"),
+}
 FIGHTER_SLOT_FIELDS = ("fighter_a_id", "fighter_b_id", "fighter_c_id", "fighter_d_id")
 
 
@@ -118,13 +124,13 @@ class ArenaService:
         mode = state.mode or ArenaMode.DUEL
         if mode == ArenaMode.BRAWL:
             return [state.fighter_a_id, state.fighter_c_id], [state.fighter_b_id, state.fighter_d_id]
-        if mode == ArenaMode.HUNT:
+        if mode in (ArenaMode.HUNT, ArenaMode.TRAINING):
             return [state.fighter_a_id, state.fighter_c_id], []
         return [state.fighter_a_id], [state.fighter_b_id]
 
     @staticmethod
     def _required_team_size(mode: ArenaMode) -> int:
-        return 2 if mode == ArenaMode.BRAWL else 1
+        return 2 if mode in (ArenaMode.BRAWL, ArenaMode.TRAINING) else 1
 
     @staticmethod
     def _hunt_opponents(keys: list[str]) -> list[dict]:
@@ -163,6 +169,7 @@ class ArenaService:
         opponent_keys: list[str] | None = None,
         team_a_bot_key: str | None = None,
         team_b_bot_key: str | None = None,
+        commit: bool = True,
     ) -> ArenaState:
         """Pick the fighters that fight, per mode.
 
@@ -188,12 +195,16 @@ class ArenaService:
                 raise ValidationException(detail="The second slot holds either a dweller or a training bot")
             support_bots["B"] = self._hunt_opponents([team_b_bot_key])[0]
         opponents: list[dict] | None = None
-        if mode == ArenaMode.HUNT:
+        if mode in (ArenaMode.HUNT, ArenaMode.TRAINING):
             if fighter_b_id is not None or fighter_d_id is not None:
                 raise ValidationException(detail="Hunt mode has no dwellers on the creature side")
             if fighter_a_id is None:
                 raise ValidationException(detail="Hunt mode needs at least one dweller")
             opponents = self._hunt_opponents(opponent_keys or [])
+            if mode == ArenaMode.TRAINING and (
+                fighter_c_id is None or len(opponents) != 2 or not all(p["is_robot"] for p in opponents)
+            ):
+                raise ValidationException(detail="Bot training needs two dwellers and two training bots")
         elif mode == ArenaMode.DUEL and (fighter_c_id is not None or fighter_d_id is not None):
             raise ValidationException(detail="Duel mode takes exactly two fighters")
         elif mode == ArenaMode.BRAWL:
@@ -228,7 +239,10 @@ class ArenaService:
 
         await arena_match_event_crud.delete_for_room(db_session, room.id)
 
-        await db_session.commit()
+        if commit:
+            await db_session.commit()
+        else:
+            await db_session.flush()
         return state
 
     async def get_teams(
@@ -254,7 +268,7 @@ class ArenaService:
         team_a = dweller_participants(a_slots, by_id)
         team_b = (
             catalog_participants(state.opponents or [])
-            if mode == ArenaMode.HUNT
+            if mode in (ArenaMode.HUNT, ArenaMode.TRAINING)
             else dweller_participants(b_slots, by_id)
         )
         # Ignore retired Team A bot selections; incomplete legacy Brawls reset
@@ -371,6 +385,7 @@ class ArenaService:
         mode_unlocked = mode in available_modes
         team_a, team_b = await self._teams_from_state(db_session, room, state)
         roster = await self.get_roster(db_session, room)
+        candidates = await crud_dweller.get_arena_candidates(db_session, room.vault_id, room.id)
 
         match_done = state.last_fight_at is not None
         started = state.fight_started_at is not None
@@ -411,8 +426,25 @@ class ArenaService:
                 )
                 for d in roster
             ],
+            candidates=[
+                ArenaRosterEntry(
+                    id=str(d.id),
+                    name=d.display_name,
+                    level=d.level,
+                    health=d.health,
+                    max_health=d.effective_max_health,
+                    image_url=d.image_url,
+                    thumbnail_url=d.thumbnail_url,
+                    age_group=d.age_group.value,
+                    race=(d.visual_attributes or {}).get("race"),
+                    active_skill=active_skill_out(d),
+                    room_id=str(d.room_id) if d.room_id else None,
+                    room_name=d.room.name if d.room else None,
+                )
+                for d in candidates
+            ],
             fight_ready=mode_unlocked
-            and len(roster) >= {ArenaMode.DUEL: 2, ArenaMode.BRAWL: 3, ArenaMode.HUNT: 1}[mode],
+            and len(roster) >= {ArenaMode.DUEL: 2, ArenaMode.BRAWL: 3, ArenaMode.TRAINING: 2, ArenaMode.HUNT: 1}[mode],
             match_done=match_done,
             fight_started=started,
             countdown_remaining=countdown_remaining,
@@ -478,13 +510,84 @@ class ArenaService:
         await db_session.commit()
         return room
 
-    async def start_fight(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
+    async def start_fight(
+        self,
+        db_session: AsyncSession,
+        room_id: UUID4,
+        vault_id: UUID4 | None = None,
+        *,
+        selection: ArenaFightersRequest | None = None,
+    ) -> Room:
         """Arm a match for an arena room: a full team on each side, not done.
 
         The first combat tick lands after the countdown grace period.
         """
         room = await self._get_arena_room(db_session, room_id, vault_id)
         state = await arena_state_crud.get_for_update(db_session, room.id) or ArenaState(room_id=room.id)
+        newcomers: list[Dweller] = []
+        if selection is not None:
+            if state.fight_started_at is not None and state.last_fight_at is None:
+                raise ValidationException(detail="Match already started")
+            self._validate_mode_tier(room, selection.mode)
+            if selection.team_a_bot_key or selection.team_b_bot_key:
+                raise ValidationException(detail="Choose a full opponent team using the preset")
+            if selection.mode == ArenaMode.DUEL and (
+                not selection.fighter_a_id
+                or not selection.fighter_b_id
+                or selection.fighter_c_id
+                or selection.fighter_d_id
+            ):
+                raise ValidationException(detail="Duel needs one dweller on each side")
+            ids = [
+                value
+                for value in (
+                    selection.fighter_a_id,
+                    selection.fighter_b_id,
+                    selection.fighter_c_id,
+                    selection.fighter_d_id,
+                )
+                if value is not None
+            ]
+            expected = 2 if selection.mode in (ArenaMode.DUEL, ArenaMode.HUNT, ArenaMode.TRAINING) else 4
+            if len(ids) != expected or len(set(ids)) != expected:
+                raise ValidationException(detail=f"Choose {expected} distinct dwellers")
+            if selection.mode in (ArenaMode.HUNT, ArenaMode.TRAINING):
+                opponents = self._hunt_opponents(selection.opponent_keys)
+                if (
+                    len(opponents) != 2
+                    or selection.fighter_c_id is None
+                    or selection.fighter_b_id
+                    or selection.fighter_d_id
+                ):
+                    raise ValidationException(detail="Choose two dwellers and two opponents")
+                if any(bool(p["is_robot"]) != (selection.mode == ArenaMode.TRAINING) for p in opponents):
+                    raise ValidationException(detail="Choose opponents matching this preset")
+            fighters = await crud_dweller.get_many_for_update(db_session, ids)
+            if len(fighters) != expected or any(
+                fighter.vault_id != room.vault_id
+                or not fighter.is_mature
+                or fighter.is_dead
+                or fighter.health <= 0
+                or fighter.status
+                not in (
+                    DwellerStatusEnum.IDLE,
+                    DwellerStatusEnum.WORKING,
+                    DwellerStatusEnum.TRAINING,
+                    DwellerStatusEnum.RESTING,
+                )
+                for fighter in fighters
+            ):
+                raise ValidationException(detail="Choose healthy, available adult dwellers from this vault")
+            from app.services.dweller_service import dweller_service
+
+            # Move helpers stage writes; start_fight owns the sole commit.
+            for fighter in fighters:
+                if fighter.room_id != room.id:
+                    await dweller_service.move_to_room(db_session, fighter.id, room.id, commit=False)
+                    newcomers.append(fighter)
+            state = await self.set_fighters(
+                db_session, room.id, vault_id=room.vault_id, commit=False, **selection.model_dump()
+            )
         mode = state.mode or ArenaMode.DUEL
         self._validate_mode_tier(room, mode)
         if state.last_fight_at is not None:
@@ -495,7 +598,7 @@ class ArenaService:
         size = self._required_team_size(mode)
         team_a, team_b = await self._teams_from_state(db_session, room, state)
         if not team_a or not team_b:
-            if mode == ArenaMode.HUNT:
+            if mode in (ArenaMode.HUNT, ArenaMode.TRAINING):
                 raise ValidationException(detail="Hunt needs one or two dwellers and at least one creature")
             word = "two" if size == 1 else "four"
             raise ValidationException(detail=f"Arena needs {word} adult fighters selected")
@@ -508,6 +611,11 @@ class ArenaService:
             db_session, room.id, DwellerStatusEnum.FIGHTING, ids=self._fighter_ids(state)
         )
         await db_session.commit()
+        if newcomers:
+            from app.services.dweller_service import dweller_service
+
+            for fighter in newcomers:
+                await dweller_service.publish_room_assignment(fighter, room)
         return room
 
     async def queue_skill(self, db_session: AsyncSession, room_id: UUID4, fighter_id: UUID4, vault_id: UUID4) -> None:
@@ -832,7 +940,7 @@ class ArenaService:
         if winning_dwellers:
             xp = game_config.combat.xp_per_difficulty * 2
             remainder = 0
-            if state.mode == ArenaMode.HUNT:
+            if state.mode in (ArenaMode.HUNT, ArenaMode.TRAINING):
                 pool = int(
                     sum(participant.power for participant in loser_team)
                     / game_config.combat.base_raider_power

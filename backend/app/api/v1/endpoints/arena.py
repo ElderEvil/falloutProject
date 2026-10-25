@@ -95,10 +95,11 @@ async def start_arena_fight(
     room_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    payload: ArenaFightersRequest | None = None,
 ) -> ArenaFightStarted:
     """Arm an arena match: both fighter slots set, not already done/started."""
     await get_user_vault_or_403(vault_id, user, db_session)
-    room = await arena_service.start_fight(db_session, room_id, vault_id)
+    room = await arena_service.start_fight(db_session, room_id, vault_id, selection=payload)
     # Wake the arena tick chain immediately so combat starts right after the
     # countdown instead of waiting for the periodiq watchdog (up to 2 min).
     from app.api.arena_tasks import arena_tick

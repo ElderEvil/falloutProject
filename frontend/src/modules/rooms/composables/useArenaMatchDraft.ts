@@ -17,7 +17,7 @@ import {
 } from '../models/arena'
 import { notifyErrorOnce } from '@/core/utils/errorHandler'
 
-export type ArenaStage = 'mode' | 'fighters' | 'fight'
+export type ArenaStage = 'fighters' | 'fight'
 
 export interface ArenaModeOption {
   value: ArenaMode
@@ -30,22 +30,22 @@ export const ARENA_MODE_OPTIONS: ArenaModeOption[] = [
   { value: 'duel', label: 'Duel', description: 'Two dwellers, one on each side.', tier: 1 },
   {
     value: 'brawl',
-    label: 'Brawl',
-    description: 'Two dwellers per side; Team B may field a training bot.',
+    label: 'Team fight',
+    description: 'Two dwellers against two dwellers.',
+    tier: 2,
+  },
+  {
+    value: 'training',
+    label: 'Bot training',
+    description: 'Two dwellers against two training bots.',
     tier: 2,
   },
   {
     value: 'hunt',
-    label: 'Hunt',
-    description: 'One or two dwellers against wasteland creatures.',
+    label: 'Creature hunt',
+    description: 'Two dwellers against two creatures.',
     tier: 3,
   },
-]
-
-export const ARENA_STAGES: Array<{ key: ArenaStage; label: string; index: number }> = [
-  { key: 'mode', label: 'Mode', index: 1 },
-  { key: 'fighters', label: 'Fighters', index: 2 },
-  { key: 'fight', label: 'Fight', index: 3 },
 ]
 
 const HUNT_PRESETS = [
@@ -53,8 +53,6 @@ const HUNT_PRESETS = [
   { name: 'Wasteland Pack', keys: ['mole-rat-pack', 'night-stalker'] },
   { name: 'Heavyweights', keys: ['mirelurk', 'yao-guai'] },
 ]
-
-const REQUIRED_ROSTER: Record<ArenaMode, number> = { duel: 2, brawl: 3, hunt: 1 }
 
 type DraftSlots = Record<ArenaSlotKey, string | null>
 
@@ -73,14 +71,13 @@ export function useArenaMatchDraft(
   const vaultStore = useVaultStore()
   const arenaStore = useArenaStore()
 
-  const stage = ref<ArenaStage>('mode')
+  const stage = ref<ArenaStage>('fighters')
   const stageTouched = ref(false)
   const mode = ref<ArenaMode>('duel')
   const draft = ref<DraftSlots>({ ...EMPTY_DRAFT })
   const opponentKeys = ref<string[]>([])
   const botKeys = ref<Record<ArenaTeamSide, string | null>>({ A: null, B: null })
   const botEnabled = ref<Record<ArenaTeamSide, boolean>>({ A: false, B: false })
-  const botPicker = ref<ArenaTeamSide | null>(null)
   const openPicker = ref<ArenaSlotKey | null>(null)
   const creaturePickerOpen = ref(false)
   const creaturePickerIndex = ref<number | null>(null)
@@ -98,26 +95,45 @@ export function useArenaMatchDraft(
     () => !!roomState.value?.fight_started && !(roomState.value?.match_done ?? false)
   )
   const isDone = computed(() => roomState.value?.match_done ?? false)
-  const canChangeFighters = computed(() => !isFighting.value)
-  const canStart = computed(() => (roomState.value?.can_start ?? false) && !draftDirty.value)
+  const canChangeFighters = computed(() => !isFighting.value && !isStarting.value)
+  const canStart = computed(() => {
+    if (!modeUnlocked(mode.value) || isFighting.value) return false
+    if (activeSlots.value.some((slot) => !draft.value[slot] || !slotFighter(slot)?.health))
+      return false
+    return !isCatalogMode.value || opponentKeys.value.filter(Boolean).length === 2
+  })
   const availableModes = computed<ArenaMode[]>(() => roomState.value?.available_modes ?? [])
   const countdown = computed(() => roomState.value?.countdown_remaining ?? 0)
   const nextAttackTeam = computed(() => roomState.value?.next_attack_team ?? 'A')
 
   const roster = computed(() => roomState.value?.roster ?? [])
-  const requiredRosterSize = computed(() => REQUIRED_ROSTER[mode.value])
+  const candidates = computed(() =>
+    [...(roomState.value?.candidates?.length ? roomState.value.candidates : roster.value)].sort(
+      (a, b) =>
+        Number(b.room_id === roomId || roster.value.some((entry) => entry.id === b.id)) -
+        Number(a.room_id === roomId || roster.value.some((entry) => entry.id === a.id))
+    )
+  )
+  const isCatalogMode = computed(() => mode.value === 'hunt' || mode.value === 'training')
 
   const partnerSlot = (side: ArenaTeamSide): ArenaSlotKey => (side === 'A' ? 'c' : 'd')
   const slotsFor = (side: ArenaTeamSide) => arenaSlotsFor(mode.value, side)
   const activeSlots = computed<ArenaSlotKey[]>(() => [...slotsFor('A'), ...slotsFor('B')])
 
-  const needsLabel = computed(() =>
-    mode.value === 'hunt'
-      ? 'NEEDS DWELLERS + CREATURES'
-      : mode.value === 'brawl'
-        ? 'NEEDS 3 DWELLERS + A PARTNER'
-        : 'NEEDS 2 FIGHTERS'
-  )
+  const needsLabel = computed(() => {
+    const missing = activeSlots.value.filter((slot) => !draft.value[slot]).length
+    const opponents = isCatalogMode.value ? 2 - opponentKeys.value.filter(Boolean).length : 0
+    return (
+      [
+        missing ? `Choose ${missing} more dweller${missing === 1 ? '' : 's'}` : '',
+        opponents
+          ? `Choose ${opponents} more ${mode.value === 'training' ? 'bot' : 'creature'}${opponents === 1 ? '' : 's'}`
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' · ') || 'Ready to fight'
+    )
+  })
 
   const winnerName = computed(() => roomState.value?.winner_name ?? null)
   const matchReward = computed(() => {
@@ -133,7 +149,7 @@ export function useArenaMatchDraft(
     if (isFighting.value) return 'FIGHT IN PROGRESS'
     if (isDone.value) return 'DONE'
     if (canStart.value) return 'READY'
-    return roster.value.length ? needsLabel.value : 'ASSIGN DWELLERS'
+    return needsLabel.value
   })
 
   const modeUnlocked = (value: ArenaMode) => availableModes.value.includes(value)
@@ -152,24 +168,16 @@ export function useArenaMatchDraft(
           preset.keys.every((key) => opponentKeys.value.includes(key))
       )?.name ?? ''
   )
-  const opponentPower = computed(() =>
-    Math.round(
-      opponentKeys.value.reduce(
-        (total, key) => total + (creaturesByKey.value.get(key)?.power ?? 0),
-        0
-      )
-    )
-  )
-
   // Team B in hunt: local picks first so a pending draft stays visible, overlaid
   // with the server's live HP once a creature is confirmed.
   const creatureSlots = computed<Array<ArenaCreatureView | null>>(() => {
     const live = new Map(
       (roomState.value?.team_b ?? [])
-        .filter((fighter) => fighter.is_creature)
+        .filter((fighter) => fighter.is_creature || fighter.is_robot)
         .map((fighter) => [creatureKeyOf(fighter.id), fighter])
     )
-    const slots = opponentKeys.value.map((key): ArenaCreatureView | null => {
+    const slots = Array.from({ length: 2 }, (_, index): ArenaCreatureView | null => {
+      const key = opponentKeys.value[index]
       const stateFighter = live.get(key)
       if (stateFighter) {
         return {
@@ -194,14 +202,17 @@ export function useArenaMatchDraft(
         id: null,
       }
     })
-    if (slots.length < 2) slots.push(null)
+    while (slots.length < 2) slots.push(null)
     return slots
   })
 
   const creaturePickerOptions = computed(() =>
-    arenaStore.creatures.filter((creature) => !opponentKeys.value.includes(creature.key))
+    arenaStore.creatures.filter(
+      (creature) =>
+        !!creature.is_robot === (mode.value === 'training') &&
+        !opponentKeys.value.includes(creature.key)
+    )
   )
-  const robotOptions = computed(() => arenaStore.creatures.filter((creature) => creature.is_robot))
 
   const botView = (side: ArenaTeamSide): ArenaCreatureView | null => {
     const key = botKeys.value[side]
@@ -234,8 +245,13 @@ export function useArenaMatchDraft(
     const id = draft.value[slot]
     if (!id) return null
     const serverFighter = serverFightersById.value.get(id)
-    if (serverFighter) return serverFighter
-    const entry = roster.value.find((candidate) => candidate.id === id)
+    if (serverFighter) {
+      const candidate = candidates.value.find((entry) => entry.id === id)
+      return !isFighting.value && candidate
+        ? { ...serverFighter, health: candidate.health, max_health: candidate.max_health }
+        : serverFighter
+    }
+    const entry = candidates.value.find((candidate) => candidate.id === id)
     if (!entry) return null
     return {
       id: entry.id,
@@ -244,10 +260,13 @@ export function useArenaMatchDraft(
       health: entry.health,
       max_health: entry.max_health,
       power: null,
+      active_skill: entry.active_skill ?? null,
       is_creature: false,
       is_robot: false,
       image_url: entry.image_url,
       thumbnail_url: entry.thumbnail_url,
+      age_group: entry.age_group,
+      race: entry.race,
     }
   }
 
@@ -264,11 +283,11 @@ export function useArenaMatchDraft(
         .map((key) => draft.value[key])
         .filter((id): id is string => !!id)
     )
-    return roster.value.filter((entry) => !takenElsewhere.has(entry.id))
+    return candidates.value.filter((entry) => !takenElsewhere.has(entry.id))
   }
 
   const previewTeamFor = (side: ArenaTeamSide): Array<ArenaSlotFighter | null> => {
-    if (side === 'B' && mode.value === 'hunt') {
+    if (side === 'B' && isCatalogMode.value) {
       return creatureSlots.value.map((view) => (view ? creatureViewToFighter(view) : null))
     }
     return slotsFor(side).map((slot) => {
@@ -282,13 +301,12 @@ export function useArenaMatchDraft(
   const teamA = computed(() => previewTeamFor('A'))
   const teamB = computed(() => previewTeamFor('B'))
   const slotKeysA = computed(() => slotsFor('A'))
-  const slotKeysB = computed(() => (mode.value === 'hunt' ? [] : slotsFor('B')))
+  const slotKeysB = computed(() => (isCatalogMode.value ? [] : slotsFor('B')))
 
   const closePickers = () => {
     openPicker.value = null
     creaturePickerOpen.value = false
     creaturePickerIndex.value = null
-    botPicker.value = null
   }
 
   const setStage = (next: ArenaStage) => {
@@ -302,7 +320,6 @@ export function useArenaMatchDraft(
     if (!state || draftDirty.value) return
     const teamA = state.team_a ?? []
     const teamB = state.team_b ?? []
-    const fighters = state.fighters ?? []
     for (const side of TEAM_SIDES) {
       const team = side === 'A' ? teamA : teamB
       const bot =
@@ -312,8 +329,8 @@ export function useArenaMatchDraft(
       botKeys.value[side] = bot ? creatureKeyOf(bot.id) : null
       botEnabled.value[side] = !!bot
     }
-    if (state.mode === 'hunt') {
-      mode.value = 'hunt'
+    if (state.mode === 'hunt' || state.mode === 'training') {
+      mode.value = state.mode
       draft.value = {
         a: teamA[0]?.id ?? state.fighter_a_id,
         c: botKeys.value.A ? null : (teamA[1]?.id ?? null),
@@ -321,7 +338,7 @@ export function useArenaMatchDraft(
         d: null,
       }
       opponentKeys.value = teamB
-        .filter((fighter) => fighter.is_creature)
+        .filter((fighter) => fighter.is_creature || fighter.is_robot)
         .map((fighter) => creatureKeyOf(fighter.id))
     } else if (state.mode === 'brawl') {
       mode.value = 'brawl'
@@ -336,9 +353,7 @@ export function useArenaMatchDraft(
       draft.value = { ...EMPTY_DRAFT, a: state.fighter_a_id, b: state.fighter_b_id }
     }
     if (!stageTouched.value) {
-      const hasSelection = !!(state.fighter_a_id || state.fighter_b_id || fighters.length)
-      stage.value =
-        state.fight_started || state.match_done ? 'fight' : hasSelection ? 'fighters' : 'mode'
+      stage.value = state.fight_started || state.match_done ? 'fight' : 'fighters'
       stageTouched.value = true
     }
   }
@@ -362,13 +377,15 @@ export function useArenaMatchDraft(
 
   const switchMode = (next: ArenaMode) => {
     if (next === mode.value || !canChangeFighters.value || !modeUnlocked(next)) return
+    const previous = mode.value
     mode.value = next
-    botPicker.value = null
+    if (previous === 'hunt' || previous === 'training' || next === 'hunt' || next === 'training')
+      opponentKeys.value = []
     if (next === 'duel') {
       botKeys.value = { A: null, B: null }
       botEnabled.value = { A: false, B: false }
     }
-    if (next === 'hunt') {
+    if (next === 'hunt' || next === 'training') {
       botKeys.value.B = null
       botEnabled.value.B = false
     }
@@ -379,12 +396,11 @@ export function useArenaMatchDraft(
       draft.value.c = null
       draft.value.d = null
     }
-    if (next === 'hunt') {
+    if (next === 'hunt' || next === 'training') {
       draft.value.b = null
       draft.value.d = null
     }
     draftDirty.value = true
-    void commitDraft()
   }
 
   const selectMode = (next: ArenaMode) => {
@@ -393,53 +409,10 @@ export function useArenaMatchDraft(
     setStage('fighters')
   }
 
-  // Brawl needs all four slots before the server accepts the selection; hunt needs
-  // a lead dweller and at least one creature; duel accepts any pair (including
-  // empty), so it persists on every change. Clearing the last slot of a
-  // brawl/hunt draft therefore stays a pending local edit: the backend rejects an
-  // incomplete selection, so the server keeps the previous one while `draftDirty`
-  // holds `canStart` false and blocks the poll from overwriting the edit until it
-  // is valid again.
-  const commitDraft = async (): Promise<boolean> => {
-    if (!authStore.token) return false
-    if (mode.value === 'brawl' && botEnabled.value.B && !botKeys.value.B) return false
-    if (
-      mode.value === 'brawl' &&
-      (!draft.value.a || !draft.value.c || !draft.value.b || !(draft.value.d || botKeys.value.B))
-    )
-      return false
-    if (mode.value === 'hunt' && (!draft.value.a || opponentKeys.value.length === 0)) return false
-    const ok = await arenaStore.setFighters(
-      vaultId,
-      roomId,
-      {
-        mode: mode.value,
-        fighterAId: draft.value.a,
-        fighterBId: mode.value === 'hunt' ? null : draft.value.b,
-        fighterCId: draft.value.c,
-        teamABotKey: null,
-        teamBBotKey: mode.value === 'brawl' ? botKeys.value.B : null,
-        fighterDId: mode.value === 'hunt' ? null : draft.value.d,
-        ...(mode.value === 'hunt' ? { opponentKeys: [...opponentKeys.value] } : {}),
-      },
-      authStore.token
-    )
-    if (!ok) {
-      draftDirty.value = false
-      syncFromState()
-      return false
-    }
-    draftDirty.value = false
-    closePickers()
-    controller.resetDamageTracking()
-    return true
-  }
-
   const togglePicker = (slot: ArenaSlotKey) => {
     if (isFighting.value) return
     creaturePickerOpen.value = false
     creaturePickerIndex.value = null
-    botPicker.value = null
     openPicker.value = openPicker.value === slot ? null : slot
   }
 
@@ -452,34 +425,17 @@ export function useArenaMatchDraft(
       botEnabled.value[side] = false
     }
 
-    // Smart pairing: when exactly one slot is empty and exactly one candidate
-    // remains, fill it — picking all but one almost always means the last
-    // dweller belongs in the last corner.
-    const emptySlots = activeSlots.value.filter(
-      (key) =>
-        !draft.value[key] &&
-        !(key === 'c' && botEnabled.value.A) &&
-        !(key === 'd' && botEnabled.value.B)
-    )
-    const taken = new Set(Object.values(draft.value).filter((id): id is string => !!id))
-    const remaining = roster.value.filter((candidate) => !taken.has(candidate.id))
-    if (emptySlots.length === 1 && remaining.length === 1)
-      draft.value[emptySlots[0]] = remaining[0].id
-
     draftDirty.value = true
-    void commitDraft()
   }
 
   const clearFighter = (slot: ArenaSlotKey) => {
     draft.value[slot] = null
     draftDirty.value = true
-    void commitDraft()
   }
 
   const toggleCreaturePicker = (index?: number) => {
     if (isFighting.value) return
     openPicker.value = null
-    botPicker.value = null
     const target = index ?? opponentKeys.value.length
     if (creaturePickerOpen.value && creaturePickerIndex.value === target) {
       creaturePickerOpen.value = false
@@ -497,7 +453,7 @@ export function useArenaMatchDraft(
       const next = [...opponentKeys.value]
       if (next.some((key, position) => position !== index && key === creature.key)) return
       next[index] = creature.key
-      opponentKeys.value = next.filter((key) => !!key)
+      opponentKeys.value = next
     } else {
       if (opponentKeys.value.length >= 2 || opponentKeys.value.includes(creature.key)) return
       opponentKeys.value = [...opponentKeys.value, creature.key]
@@ -505,7 +461,6 @@ export function useArenaMatchDraft(
     creaturePickerOpen.value = false
     creaturePickerIndex.value = null
     draftDirty.value = true
-    void commitDraft()
   }
 
   const selectHuntPreset = (value: unknown) => {
@@ -516,51 +471,18 @@ export function useArenaMatchDraft(
     creaturePickerOpen.value = false
     creaturePickerIndex.value = null
     draftDirty.value = true
-    void commitDraft()
   }
 
   const clearCreature = (key: string) => {
-    opponentKeys.value = opponentKeys.value.filter((candidate) => candidate !== key)
+    opponentKeys.value = opponentKeys.value.map((candidate) => (candidate === key ? '' : candidate))
     creaturePickerOpen.value = false
     creaturePickerIndex.value = null
     draftDirty.value = true
-    void commitDraft()
-  }
-
-  const toggleBotPicker = (side: ArenaTeamSide) => {
-    if (isFighting.value) return
-    openPicker.value = null
-    creaturePickerOpen.value = false
-    creaturePickerIndex.value = null
-    botPicker.value = botPicker.value === side ? null : side
-  }
-
-  const selectBot = (side: ArenaTeamSide, bot: ArenaCreature) => {
-    if (isFighting.value) return
-    botKeys.value[side] = bot.key
-    botPicker.value = null
-    draftDirty.value = true
-    void commitDraft()
   }
 
   const clearBot = (side: ArenaTeamSide) => {
     botKeys.value[side] = null
-    botPicker.value = null
     draftDirty.value = true
-    void commitDraft()
-  }
-
-  const choosePartnerType = (side: ArenaTeamSide, bot: boolean) => {
-    if (!canChangeFighters.value || botEnabled.value[side] === bot) return
-    botEnabled.value[side] = bot
-    botKeys.value[side] = null
-    draft.value[partnerSlot(side)] = null
-    botPicker.value = bot ? side : null
-    openPicker.value = null
-    creaturePickerOpen.value = false
-    creaturePickerIndex.value = null
-    draftDirty.value = true
-    void commitDraft()
   }
 
   const injuredFighters = computed(() =>
@@ -602,8 +524,19 @@ export function useArenaMatchDraft(
     if (!authStore.token || !canStart.value || isStarting.value) return false
     isStarting.value = true
     try {
-      const ok = await controller.startFight()
-      if (ok) setStage('fight')
+      const ok = await controller.startFight({
+        mode: mode.value,
+        fighterAId: draft.value.a,
+        fighterBId: isCatalogMode.value ? null : draft.value.b,
+        fighterCId: mode.value === 'duel' ? null : draft.value.c,
+        fighterDId: isCatalogMode.value || mode.value === 'duel' ? null : draft.value.d,
+        opponentKeys: isCatalogMode.value ? opponentKeys.value.filter(Boolean) : [],
+      })
+      if (ok) {
+        draftDirty.value = false
+        syncFromState()
+        setStage('fight')
+      }
       return ok
     } finally {
       isStarting.value = false
@@ -624,8 +557,6 @@ export function useArenaMatchDraft(
 
   const rematch = async (): Promise<boolean> => {
     if (!authStore.token || isStarting.value) return false
-    const reset = await commitDraft()
-    if (!reset) return false
     return startFight()
   }
 
@@ -634,16 +565,15 @@ export function useArenaMatchDraft(
     stage,
     mode,
     modeOptions: ARENA_MODE_OPTIONS,
-    stageOptions: ARENA_STAGES,
     draft,
     opponentKeys,
     botKeys,
     botEnabled,
-    botPicker,
     openPicker,
     creaturePickerOpen,
     creaturePickerIndex,
     roster,
+    candidates,
     teamA,
     teamB,
     slotKeysA,
@@ -658,7 +588,6 @@ export function useArenaMatchDraft(
     availableModes,
     countdown,
     nextAttackTeam,
-    requiredRosterSize,
     needsLabel,
     statusLabel,
     winnerName,
@@ -668,10 +597,8 @@ export function useArenaMatchDraft(
     isHealing,
     huntPresets,
     selectedHuntPreset,
-    opponentPower,
     creatureSlots,
     creaturePickerOptions,
-    robotOptions,
     modeUnlocked,
     setStage,
     selectMode,
@@ -685,10 +612,7 @@ export function useArenaMatchDraft(
     selectCreature,
     clearCreature,
     selectHuntPreset,
-    toggleBotPicker,
-    selectBot,
     clearBot,
-    choosePartnerType,
     botView,
     startFight,
     stopFight,

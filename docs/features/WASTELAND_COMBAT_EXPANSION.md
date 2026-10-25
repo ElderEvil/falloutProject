@@ -12,6 +12,52 @@ Recorded 2026-10-18 from the maintainer's three-part idea. First playable skill 
    The maintainer selected **charge earned through combat** for the first trial. Stamina remains an optional
    future alternative, with no stamina stat or economy introduced in this slice.
 
+## Unified Arena setup (2026-10-25)
+
+The current setup is one stage with four presets; the older prototype notes below record earlier behavior.
+
+| Preset | Mode key | Team A | Team B | Arena tier |
+| --- | --- | --- | --- | --- |
+| Duel | `duel` | 1 dweller | 1 dweller | 1 |
+| Team fight | `brawl` | 2 dwellers | 2 dwellers | 2 |
+| Bot training | `training` | 2 dwellers | 2 training bots | 2 |
+| Creature hunt | `hunt` | 2 dwellers | 2 creatures | 3 |
+
+Slots have fixed positions and counts, even with no selections. Team B dweller silhouettes face the center.
+Hover and keyboard focus brighten the silhouette through inherited color. Change/remove controls sit beneath
+portraits. The mode selector hides during countdown/combat and returns afterward. Removing a fighter edits only the lineup; room assignment is managed separately on the bench.
+Pickers appear beneath the stage, support keyboard focus/Escape and return focus to their originating slot.
+
+The dweller picker lists eligible vault adults, Arena members first, with current room labels and weapon-derived
+skill metadata. Both teams show skill icons and uncharged meters for new selections. Choosing a fighter only
+edits a local draft: no room move or match reset occurs until Start fight. Polling preserves that draft; a rejected
+start leaves it editable. The existing mixed-team and one-dweller Hunt records remain readable, while new
+preset starts enforce the complete lineup shown above.
+
+```mermaid
+flowchart TD
+    P[Choose preset] --> S[Fixed slots by count and opponent kind]
+    S --> D[Pick eligible dwellers and opponents locally]
+    D --> R[Review health, skills and current room labels]
+    R --> F[Start fight]
+    F --> V[Lock Arena and fighters; validate ownership, eligibility and capacity]
+    V --> T[Stage room moves, lineup reset and countdown]
+    T --> C[Commit once]
+    C --> E[Deliver assignment progression and wake combat]
+    V -->|Rejected| K[Keep local draft]
+    T -->|Write failure and rollback| K
+```
+
+`ArenaService.start_fight` owns the composed transaction. `DwellerService.move_to_room(commit=False)`,
+`clear_fighter_slots_for_dweller(commit=False)` and `set_fighters(commit=False)` stage/flush without committing.
+Assignment progression is published only after the start commit. Existing standalone move/selection calls
+retain their commit defaults. Capacity uses the existing room-occupancy lock; bulk fighter rows are locked in
+ID order, and Arena configuration/start retains its room/state lock. Tests cover successful moves, capacity
+rejection after a staged move, late state-write rollback with no progression delivery, and eligibility rejection.
+
+Training uses the existing catalog-opponent HP and reward policy. Migration `d4e8f2a6b013` adds PostgreSQL's
+`TRAINING` enum label before a worker/API uses it; the enum drift snapshot is updated alongside it.
+
 ## Initial implementation
 
 ### Expedition sites and salvage
@@ -90,11 +136,11 @@ The proposed next pass is the [weapon/race animation matrix](../frontend/COMBAT_
 audited against the item catalog and linked to [#1140](https://github.com/ElderEvil/falloutProject/issues/1140).
 Power armor is the only outfit-related animation modifier in that design.
 
-Skill icons use twelve local SVG glyphs, selected by the weapon-skill metadata's stable `icon` key.
+Skill icons use twelve locally bundled Lucide icons, selected by the weapon-skill metadata's stable `icon` key.
 The charge meter, setup/live preview, activation marker, tooltip, skill banner and battle journal share the
 same component. New resolved skill actions retain their icon in event JSON; per-target area-skill journal
 rows reuse that action's icon. Historical rows without icon metadata keep the generic skill marker.
-Glyph provenance and the CC0 dedication for the new SVG paths are recorded in the animation matrix.
+The standard icon mapping and provenance are recorded in the animation matrix.
 
 Arena and incident fights share a local playback queue. Authoritative team turns stay unchanged; Arena
 presents a fighter's queued skill, then ordinary attack, then the next fighter. Incidents sequence ordinary

@@ -158,9 +158,11 @@ export function useArenaRoom(vaultId: string, roomId: string) {
     finishPending = false
     playback.reset()
   }
-  const startFight = async (): Promise<boolean> => {
+  const startFight = async (
+    selection?: import('../api/arena').ArenaFighterSelection
+  ): Promise<boolean> => {
     if (!authStore.token) return false
-    const ok = await arenaStore.startFight(vaultId, roomId, authStore.token)
+    const ok = await arenaStore.startFight(vaultId, roomId, authStore.token, selection)
     if (ok && !disposed) {
       resetDamageTracking()
       recordFeedback()

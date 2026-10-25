@@ -16,10 +16,8 @@ for (const width of [390, 1280]) {
       expect(bounds.width).toBeGreaterThanOrEqual(14)
       expect(bounds.height).toBeGreaterThanOrEqual(14)
     }
-    const paths = await meterIcons
-      .locator('path')
-      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('d')))
-    expect(new Set(paths).size).toBe(12)
+    const glyphs = await meterIcons.evaluateAll((nodes) => nodes.map((node) => node.innerHTML))
+    expect(new Set(glyphs).size).toBe(12)
     const activate = page.getByRole('button', { name: 'Use Aimed Shot from Lucy on Cooper' })
     await expect(activate.locator('[data-skill-icon="gun-rifle"]')).toBeVisible()
     await activate.scrollIntoViewIfNeeded()

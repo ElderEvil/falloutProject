@@ -259,7 +259,6 @@ onUnmounted(stopAmbience)
         <ArenaRoomDetail
           v-else-if="has('arena')"
           :key="`${vaultId}:${room.id}`"
-          v-model:assignment-mode="assignmentMode"
           :room="room"
           :vault-id="props.vaultId"
           :assigned-dwellers="assignedDwellers"
@@ -269,6 +268,7 @@ onUnmounted(stopAmbience)
           :is-upgrading="isUpgrading"
           :is-destroying="isDestroying"
           :is-vault-door="isVaultDoor"
+          @changed="emit('roomUpdated')"
           @upgrade="handleUpgrade"
           @destroy="handleDestroy"
           @unassign-all="showUnassignConfirmation = true"

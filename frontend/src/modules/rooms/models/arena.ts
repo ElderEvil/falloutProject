@@ -46,9 +46,9 @@ export const creatureViewToFighter = (view: ArenaCreatureView): ArenaSlotFighter
   race: null,
 })
 
-export const arenaTeamSize = (mode: ArenaMode): number => (mode === 'brawl' ? 2 : 1)
+export const arenaTeamSize = (mode: ArenaMode): number => (mode === 'duel' ? 1 : 2)
 
 export const arenaSlotsFor = (mode: ArenaMode, side: ArenaTeamSide): readonly ArenaSlotKey[] => {
-  if (mode === 'hunt') return side === 'A' ? ARENA_TEAM_SLOTS.A : []
+  if (mode === 'hunt' || mode === 'training') return side === 'A' ? ARENA_TEAM_SLOTS.A : []
   return mode === 'brawl' ? ARENA_TEAM_SLOTS[side] : ARENA_TEAM_SLOTS[side].slice(0, 1)
 }

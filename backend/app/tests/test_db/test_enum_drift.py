@@ -42,7 +42,7 @@ from app.core.config import settings
 # Compare against the live PG enum type name (`typname`) and labels (`enumlabel`).
 PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
     "agegroupenum": {"CHILD", "TEEN", "ADULT", "ELDER"},
-    "arenamode": {"DUEL", "BRAWL", "HUNT"},
+    "arenamode": {"DUEL", "BRAWL", "TRAINING", "HUNT"},
     "availabilityenum": {"VAULT", "DEPARTURE", "POOL", "MARKET", "ARCHIVE"},
     "craftingorderstatus": {"ACTIVE", "COMPLETED", "COLLECTED", "CANCELLED"},
     "deathcauseenum": {"HEALTH", "RADIATION", "INCIDENT", "EXPLORATION", "COMBAT", "EXILE"},

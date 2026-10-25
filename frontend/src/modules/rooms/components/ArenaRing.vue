@@ -108,7 +108,9 @@ const actionFor = (fighter: ArenaFighter) => {
                 ? `NEXT · TEAM ${state.next_attack_team}`
                 : 'READY TO FIGHT'
         }}</span>
-        <span>{{ state.mode === 'hunt' ? 'CREATURES' : 'TEAM B' }}</span>
+        <span>{{
+          state.mode === 'training' ? 'BOTS' : state.mode === 'hunt' ? 'CREATURES' : 'TEAM B'
+        }}</span>
       </div>
       <div
         v-if="state.fight_started && !state.match_done && state.countdown_remaining > 0"

@@ -21,6 +21,17 @@ export interface ArenaFighterSelection {
   teamBBotKey?: string | null
 }
 
+const selectionPayload = (selection: ArenaFighterSelection) => ({
+  mode: selection.mode,
+  fighter_a_id: selection.fighterAId,
+  fighter_b_id: selection.fighterBId,
+  fighter_c_id: selection.fighterCId ?? null,
+  fighter_d_id: selection.fighterDId ?? null,
+  opponent_keys: selection.opponentKeys ?? [],
+  team_a_bot_key: selection.teamABotKey ?? null,
+  team_b_bot_key: selection.teamBBotKey ?? null,
+})
+
 export const arenaApi = {
   async fetchState(vaultId: string, token: string): Promise<ArenaState> {
     const response = await axios.get<ArenaState>(`/api/v1/arena/vault/${vaultId}/state`, {
@@ -44,24 +55,24 @@ export const arenaApi = {
   ): Promise<void> {
     await axios.post(
       `/api/v1/arena/vault/${vaultId}/rooms/${roomId}/fighters`,
-      {
-        mode: selection.mode,
-        fighter_a_id: selection.fighterAId,
-        fighter_b_id: selection.fighterBId,
-        fighter_c_id: selection.fighterCId ?? null,
-        fighter_d_id: selection.fighterDId ?? null,
-        opponent_keys: selection.opponentKeys ?? [],
-        team_a_bot_key: selection.teamABotKey ?? null,
-        team_b_bot_key: selection.teamBBotKey ?? null,
-      },
+      selectionPayload(selection),
       { headers: { Authorization: `Bearer ${token}` } }
     )
   },
 
-  async startFight(vaultId: string, roomId: string, token: string): Promise<void> {
-    await axios.post(`/api/v1/arena/vault/${vaultId}/rooms/${roomId}/start`, null, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+  async startFight(
+    vaultId: string,
+    roomId: string,
+    token: string,
+    selection?: ArenaFighterSelection
+  ): Promise<void> {
+    await axios.post(
+      `/api/v1/arena/vault/${vaultId}/rooms/${roomId}/start`,
+      selection ? selectionPayload(selection) : null,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    )
   },
 
   async stopFight(vaultId: string, roomId: string, token: string): Promise<void> {

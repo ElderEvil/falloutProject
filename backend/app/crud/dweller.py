@@ -541,6 +541,30 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             query = query.where(self.model.id.in_(ids))
         return (await db_session.execute(query)).scalars().all()
 
+    async def get_arena_candidates(
+        self, db_session: AsyncSession, vault_id: UUID4, room_id: UUID4
+    ) -> Sequence[Dweller]:
+        """Healthy vault adults that can join this Arena, with assignment labels loaded."""
+        query = (
+            self._vault_query(vault_id, *self._healthy_adult_conditions())
+            .where(
+                (
+                    self.model.status.in_(
+                        [
+                            DwellerStatusEnum.IDLE,
+                            DwellerStatusEnum.WORKING,
+                            DwellerStatusEnum.TRAINING,
+                            DwellerStatusEnum.RESTING,
+                        ]
+                    )
+                )
+                | (self.model.room_id == room_id)
+            )
+            .options(*_WEAPON_OUTFIT_LOADS, selectinload(self.model.room), selectinload(self.model.pet))
+            .order_by(self.model.created_at)
+        )
+        return list((await db_session.execute(query)).scalars().all())
+
     async def get_arena_roster(self, db_session: AsyncSession, room_id: UUID4) -> Sequence[Dweller]:
         """Adult, alive dwellers assigned to a room, oldest first (arena roster)."""
         query = (

@@ -26,7 +26,7 @@ and [power armor catalog](../../backend/app/data/items/outfits/power_armor.json)
 
 ## Weapon and skill matrix
 
-The icon portion is now implemented with repository-authored SVG glyphs. Their canonical key lives with
+The icon portion uses standard Lucide icons from the existing `@lucide/vue` dependency. Their canonical key lives with
 weapon-skill metadata and is consumed by meters, preview, tooltips and journal.
 Both type and subtype matter: an energy pistol must not inherit the ballistic-pistol icon just because both
 have subtype `pistol`. Existing item icons in `frontend/src/core/models/items.ts` are useful precedents.
@@ -168,11 +168,14 @@ Remaining artwork limits:
 - Item-card images are not automatically usable as held weapons: the current resolver can return a stat
   card or generic pistol fallback. Verify the exact art before attaching it to a character or using a muzzle
   anchor; retain a neutral family effect when suitable art is unavailable.
-- The twelve glyphs in `frontend/src/modules/combat/components/CombatSkillIcon.vue` were authored as SVG path
-  data for this change, without tracing or incorporating a third-party asset pack. That SVG path data is
-  dedicated under [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) and requires no attribution.
-  This dedication covers those new paths only. New external animation assets still need exact-source
-  license checks under #1140; no external animation pack has been selected.
+- Skill glyphs use locally bundled Lucide components in `CombatSkillIcon.vue`, with no custom SVG path
+  data or runtime icon downloads. Lucide's license is retained by the installed dependency. Standard
+  action symbols distinguish skill categories where dedicated firearm silhouettes are unavailable:
+  Quick Draw uses `FastForward`, Aimed Shot uses `Crosshair`, Scattershot uses `Expand`, Overcharge
+  uses `Zap`, Beam Sweep uses `ScanLine`, and Full Auto uses `ChevronsRight`. Unarmed/melee/flamer/
+  explosive skills use `HandFist`, `Hammer`, `Sword`, `MoveUpRight`, `Flame`, and `Bomb`.
+  New external animation assets still need exact-source license checks under #1140; no external
+  animation pack has been selected.
 
 ## Validation when implementing
 

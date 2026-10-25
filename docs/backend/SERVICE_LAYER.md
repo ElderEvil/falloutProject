@@ -33,6 +33,9 @@ can migrate in separate domain batches.
 - A **service public entry point owns the commit** for its operation on HTTP paths. One operation, one
   transaction boundary — services may commit mid-operation only when the operation is explicitly
   multi-stage (e.g. profile after user creation).
+- A public entry point may delegate its shared commit boundary to a private helper named
+  `*_transaction`. Other private helpers stage writes without committing; legacy exceptions are
+  recorded in the shrink-only `COMMIT_OWNERSHIP_BASELINE` architecture guard.
 - **Target state: CRUD never commits** and never rolls back; it only executes queries and flushes.
   Legacy exceptions include `CRUDBase` and `CRUDWastelandLocation.get_or_create` / `link_dweller`
   (default `commit=True`). Bio map registration passes `commit=False` and isolates each attempt with a savepoint.

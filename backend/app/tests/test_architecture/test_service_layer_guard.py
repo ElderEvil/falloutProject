@@ -70,11 +70,20 @@ def _committing_functions(source: str) -> dict[str, int]:
     found: dict[str, int] = {}
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            commits = sum(
-                1
-                for child in ast.walk(node)
-                if isinstance(child, ast.Call) and isinstance(child.func, ast.Attribute) and child.func.attr == "commit"
-            )
+            commits = 0
+            pending = list(node.body)
+            while pending:
+                child = pending.pop()
+                # A nested callable owns its body; don't count its writes in the enclosing function.
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                    continue
+                if (
+                    isinstance(child, ast.Call)
+                    and isinstance(child.func, ast.Attribute)
+                    and child.func.attr == "commit"
+                ):
+                    commits += 1
+                pending.extend(ast.iter_child_nodes(child))
             if commits:
                 found[node.name] = commits
     return found
@@ -298,6 +307,17 @@ def test_guard_detects_commit_ownership_forms() -> None:
         "    await db.flush()\n"
     )
     assert _committing_functions(source) == {"entry": 1, "_helper": 1, "_shared_transaction": 1}
+
+
+def test_commit_ownership_does_not_attribute_nested_transactions_to_outer_helpers() -> None:
+    """A nested transaction owns its commit; its staging caller does not."""
+    source = (
+        "async def _staged(db):\n"
+        "    async def _save_transaction():\n"
+        "        await db.commit()\n"
+        "    await _save_transaction()\n"
+    )
+    assert _committing_functions(source) == {"_save_transaction": 1}
 
 
 def test_service_module_names_follow_convention() -> None:

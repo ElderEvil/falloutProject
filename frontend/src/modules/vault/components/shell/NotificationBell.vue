@@ -26,7 +26,7 @@ import {
   getNotificationAnimation,
 } from '@/modules/vault/utils/notificationRouting'
 import { formatRelativeTime } from '@/core/utils/time'
-import axios from '@/core/plugins/axios'
+import { notificationService } from '@/modules/vault/services/notificationService'
 import { Button } from '@/core/components/ui/button'
 import { useNotificationInboxStore } from '@/modules/vault/stores/notificationInbox'
 import { useStorageStore } from '@/modules/storage/stores/storage'
@@ -41,7 +41,7 @@ interface Notification {
   priority: string
   is_read: boolean
   created_at: string
-  meta_data?: Record<string, any>
+  meta_data?: Record<string, any> | null
 }
 
 const inboxStore = useNotificationInboxStore()
@@ -63,12 +63,8 @@ const seenNotificationIds = new Set<string>()
 let hasConnected = false
 const { run: runFetchNotifications, isLoading } = useAsyncAction(
   async (token: string, catchUp = false) => {
-    const response = await axios.get('/api/v1/notifications/', {
-      params: { limit: 20 },
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    const loaded = await notificationService.list(null, 'all', 0, 20)
     if (authStore.token !== token) return
-    const loaded = response.data as Notification[]
     if (catchUp)
       loaded
         .filter((notification) => !notification.is_read)
@@ -85,20 +81,14 @@ const { run: runFetchNotifications, isLoading } = useAsyncAction(
 )
 const { run: runFetchUnreadCount } = useAsyncAction(
   async (token: string) => {
-    const response = await axios.get('/api/v1/notifications/unread-count', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    unreadCount.value = response.data.count
+    const count = await notificationService.unreadCount()
+    if (authStore.token === token) unreadCount.value = count
   },
   { context: 'Failed to fetch unread count' }
 )
 const { run: runMarkAsRead } = useAsyncAction(
   async (notificationId: string, token: string) => {
-    await axios.patch(
-      `/api/v1/notifications/${notificationId}/read`,
-      {},
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
+    await notificationService.markRead(notificationId)
     const notification = notifications.value.find((item) => item.id === notificationId)
     if (notification) notification.is_read = true
     await runFetchUnreadCount(token)
@@ -106,12 +96,8 @@ const { run: runMarkAsRead } = useAsyncAction(
   { context: 'Failed to mark notification as read' }
 )
 const { run: runMarkAllAsRead } = useAsyncAction(
-  async (token: string) => {
-    await axios.post(
-      '/api/v1/notifications/mark-all-read',
-      {},
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
+  async () => {
+    await notificationService.markAllRead(null)
     notifications.value.forEach((notification) => (notification.is_read = true))
     unreadCount.value = 0
   },
@@ -350,7 +336,7 @@ const markAsRead = async (notificationId: string) => {
 }
 
 const markAllAsRead = async () => {
-  if (authStore.token) await runMarkAllAsRead(authStore.token)
+  if (authStore.token) await runMarkAllAsRead()
 }
 
 const enqueuePendingReport = (notification: Notification): void => {

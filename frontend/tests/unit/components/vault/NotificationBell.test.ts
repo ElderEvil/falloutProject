@@ -883,6 +883,68 @@ describe('NotificationBell popup accessibility', () => {
     wrapper.unmount()
   })
 
+  it('loads the twenty most recent notifications across all vaults', async () => {
+    useVaultStore().activeVaultId = 'vault-1'
+    const wrapper = await mountBell([informationalNotification])
+
+    expect(axios.get).toHaveBeenCalledWith(
+      '/api/v1/notifications/',
+      expect.objectContaining({ params: expect.objectContaining({ limit: 20 }) })
+    )
+    const listCall = vi
+      .mocked(axios.get)
+      .mock.calls.find(([url]) => url === '/api/v1/notifications/')
+    expect(listCall?.[1]?.params?.vault_id).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('marks notifications across all vaults read from the bell and clears the badge', async () => {
+    useVaultStore().activeVaultId = 'vault-1'
+    const wrapper = await mountAndOpen([
+      { ...actionableNotification },
+      { ...informationalNotification },
+    ])
+    const markAll = wrapper.findAll('button').find((button) => button.text() === 'Mark all read')!
+    await markAll.trigger('click')
+    await flushPromises()
+
+    expect(axios.post).toHaveBeenCalledOnce()
+    const [url, body, config] = vi.mocked(axios.post).mock.calls[0]
+    expect(url).toBe('/api/v1/notifications/mark-all-read')
+    expect(body).toEqual({})
+    expect(config?.params?.vault_id).toBeUndefined()
+    expect(wrapper.get('[data-notification-id="act-1"]').text()).not.toContain('New')
+    expect(wrapper.get('[data-notification-id="info-1"]').text()).not.toContain('New')
+    expect(wrapper.get('button[aria-label="Notifications"]').text()).toBe('')
+    wrapper.unmount()
+  })
+
+  it('ignores an unread-count response that arrives after logout', async () => {
+    const auth = useAuthStore()
+    auth.token = 'previous-session'
+    fetchMock.mockResolvedValue(createMockResponse([], { hang: true }))
+    let finish!: (value: { data: { count: number } }) => void
+    vi.mocked(axios.get).mockImplementation((url) =>
+      String(url).includes('unread-count')
+        ? new Promise((resolve) => {
+            finish = resolve
+          })
+        : Promise.resolve({ data: [] })
+    )
+    const wrapper = mount(NotificationBell)
+    await flushPromises()
+    auth.token = null
+    await flushPromises()
+    finish({ data: { count: 9 } })
+    await flushPromises()
+
+    try {
+      expect(wrapper.get('button[aria-label="Notifications"]').text()).toBe('')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('closes on backdrop click and returns focus to the bell', async () => {
     const wrapper = await mountAndOpen([informationalNotification])
 
@@ -918,11 +980,7 @@ describe('NotificationBell popup accessibility', () => {
     await actionableRow.trigger('click')
     await settleClose()
 
-    expect(axios.patch).toHaveBeenCalledWith(
-      '/api/v1/notifications/act-1/read',
-      {},
-      { headers: { Authorization: 'Bearer test-token' } }
-    )
+    expect(axios.patch).toHaveBeenCalledWith('/api/v1/notifications/act-1/read', {})
     expect(mockPush).toHaveBeenCalledWith('/vault/vault-1/dwellers')
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
     expect(document.activeElement).toBe(wrapper.get('button[aria-label="Notifications"]').element)

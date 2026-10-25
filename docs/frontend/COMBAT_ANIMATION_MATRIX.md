@@ -177,6 +177,41 @@ Remaining artwork limits:
   New external animation assets still need exact-source license checks under #1140; no external
   animation pack has been selected.
 
+## Asset shortlist researched 2026-10-25
+
+The maintainer wants complete static **Shelter-style** Eyebot/Protectron images, replacing the current
+incorrectly assembled poses. Robot animation, Fallout 3/4 renders and another parts assembly are outside
+that request. Skill animations remain a separate selection. This is a shortlist, not imported game assets.
+
+### Skill effects
+
+| Source | Publisher-listed license | Proposed use | Preparation / verification |
+| --- | --- | --- | --- |
+| [Cethiel — Weapon Slash](https://opengameart.org/content/weapon-slash-effect) | CC0 | Cleave; edged weapon follow-through | Downloaded and inspected the public archive: 125 PNGs. Frame widths vary (e.g. 124–126px with 150px height), so normalize canvas/anchors before making a sheet. The page advertises five effects and color variants. |
+| [Sinestesia — Hit Animation 2](https://opengameart.org/content/hit-animation-2-frame-by-frame) | CC0 | Haymaker, Crushing Blow, Piercing Strike and gun impacts | Transparent 16-frame PNG atlas. Source frames are 1024px; export at the actual combat effect size. |
+| [Sinestesia — Explosion Animations 2](https://opengameart.org/content/2d-explosion-animations-2-frame-by-frame) | CC0 | Blast Wave; explosive weapon impacts | Four transparent animations; 512px frames in 4096px atlases, with a half-size option. Select one and optimize it rather than shipping the 18.3MB source pack. Junk Jet retains debris presentation. |
+| [Mikodrak — Burning Fire](https://opengameart.org/node/16403) | CC0 | Firestorm target flames; incident fire | Forty transparent PNG frames. It is a looping flame, not a ready directional flamethrower stream. |
+| [SpritePilot — Combat](https://spritepilot.com/free-game-assets/combat), [Effects](https://spritepilot.com/free-game-assets/effects), [Magic](https://spritepilot.com/free-game-assets/magic) | CC0 on each publisher page | Quick Draw, Aimed Shot, Scattershot and Full Auto muzzle flashes; Overcharge/Beam Sweep energy orbs and bolts | Pages provide animated previews and 16/32px strips: muzzle flash 5 frames, laser bolt 6, energy orb 8. Pixel style needs an in-scene comparison. Direct archive access returned 403 during this research, so archive contents/licenses have not been independently inspected. |
+
+CodeManu's [Free VFX Pack](https://codemanu.itch.io/vfx-free-pack) is a secondary lead: its description
+says public domain/no credit, while its metadata says CC BY 4.0. Do not record it as verified CC0 without
+resolving that discrepancy. Kenney's Particle Pack supplies textures, rather than finished animation clips.
+
+Recommended first comparison: slash, hit and explosion at phone/desktop combat scale, preserving the
+existing impact marker. Retiming a cosmetic burst must not add HP applications. Keep sprite effects below
+meters/controls, mirror directional effects, and retain a static impact frame for reduced motion.
+
+### Complete robot image references
+
+| Robot | Source | Verified state |
+| --- | --- | --- |
+| Protectron | [Nukapedia file](https://fallout.fandom.com/wiki/File:FOS_Protectron_hostile.png), [original PNG](https://static.wikia.nocookie.net/fallout/images/7/79/FOS_Protectron_hostile.png) | Downloaded and visually inspected: correctly posed complete Shelter character, but the image includes a room background and health bar. Needs background/HUD removal; it is not a transparent drop-in. |
+| Eyebot | [Screenshot source](https://www.reddit.com/r/falloutshelter/comments/1rpl9gf/screenshot_shelter_have_functional_eyebot_model/), [original PNG](https://i.redd.it/07eftadct4og1.png) | Downloaded and visually inspected: the robot on the right is complete and unobstructed, with correct antenna and lower assembly placement. Needs a cutout from the screenshot. |
+
+A matching ready-transparent Shelter-style pair was **not verified**. These references are Fallout game
+imagery, not CC0 assets. Keep their provenance distinct from the open-license effect packs. The Spriters
+Resource Protectron/Eyebot listings are parts sheets and do not solve the request for complete posed images.
+
 ## Validation when implementing
 
 - Check all 136 weapon rows resolve to the 11 supported pairs; unarmed adds the twelfth skill entry. Test

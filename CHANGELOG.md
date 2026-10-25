@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.265.6 (2026-10-25)
+
+### Bug Fixes
+
+* **rooms:** make build, upgrade, and demolition single transactions d6ecdc2
+
 ## 2.265.5 (2026-10-25)
 
 ### Code Refactoring

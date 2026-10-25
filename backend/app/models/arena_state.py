@@ -28,7 +28,9 @@ class ArenaState(TimeStampMixin, table=True):
     fighter_d_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
     opponents: list[dict] | None = Field(default=None, sa_column=sa.Column(JSONB))
     support_bots: dict[str, dict] | None = Field(default=None, sa_column=sa.Column(JSONB))
-    skill_charge: dict[str, int] | None = Field(default=None, sa_column=sa.Column(JSONB))
+    # Fractional charge accumulates between ticks (seconds * perception-scaled
+    # rate); readers round to int when they surface the charge to clients.
+    skill_charge: dict[str, float] | None = Field(default=None, sa_column=sa.Column(JSONB))
     queued_skill_ids: list[str] | None = Field(default=None, sa_column=sa.Column(JSONB))
     last_fight_at: datetime | None = Field(default=None)
     fight_started_at: datetime | None = Field(default=None)

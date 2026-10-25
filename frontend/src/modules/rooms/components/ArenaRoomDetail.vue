@@ -6,8 +6,11 @@ import type { Room } from '../models/room'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import ArenaPreview from './ArenaPreview.vue'
 import { useArenaRoom } from '../composables/useArenaRoom'
-import ArenaModal from './ArenaModal.vue'
+import { useArenaMatchDraft } from '../composables/useArenaMatchDraft'
+import ArenaSupportPanel from './ArenaSupportPanel.vue'
 import { Button } from '@/core/components/ui/button'
+import { Alert, AlertDescription, AlertTitle } from '@/core/components/ui/alert'
+import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.vue'
 import RoomActions from './RoomActions.vue'
 
@@ -42,32 +45,34 @@ const emit = defineEmits<{
 }>()
 
 const controller = useArenaRoom(props.vaultId, props.room.id)
+const match = useArenaMatchDraft(props.vaultId, props.room.id, controller)
 const roomState = controller.roomState
-const isFighting = computed(() => !!roomState.value?.fight_started && !roomState.value.match_done)
-const managementLocked = computed(() => !roomState.value || isFighting.value)
+const managementLocked = computed(() => !roomState.value || match.isFighting)
 
 const assignmentMode = defineModel<'worker' | 'apprentice' | null>('assignmentMode', {
   default: null,
 })
 
 const stopConfirmOpen = ref(false)
-const isStopping = ref(false)
 const confirmStop = async () => {
   stopConfirmOpen.value = false
-  if (isStopping.value) return
-  isStopping.value = true
-  try {
-    await controller.stopFight()
-  } finally {
-    isStopping.value = false
-  }
+  await match.stopFight()
 }
 </script>
 
 <template>
   <div class="arena-room-detail flex flex-col gap-3">
+    <ComponentLoader v-if="!roomState && controller.isLoading.value" label="Loading Arena…" />
+    <Alert v-else-if="!roomState && controller.loadFailed.value" variant="destructive">
+      <AlertTitle>Arena unavailable</AlertTitle>
+      <AlertDescription>Your match could not be loaded. Try connecting again.</AlertDescription>
+      <Button variant="outline" size="sm" class="mt-2 w-fit" @click="controller.retry()">
+        Retry
+      </Button>
+    </Alert>
     <ArenaPreview
-      :state="roomState"
+      v-else
+      :match="match"
       :scene-image-url="roomImageUrl ?? getRoomImageUrl(room.image_url)"
       :pending-skills="controller.pendingSkills.value"
       :attacking-team="controller.attackingTeam.value"
@@ -75,16 +80,9 @@ const confirmStop = async () => {
       :damage-numbers="controller.damageNumbers.value"
       :skill-burst="controller.skillBurst.value"
       @skill="controller.queueSkill"
+      @stop="stopConfirmOpen = true"
+      @assign-dwellers="assignmentMode = 'worker'"
     />
-    <Button
-      v-if="isFighting"
-      variant="destructive"
-      size="sm"
-      class="self-start"
-      @click="stopConfirmOpen = true"
-    >
-      Stop Fight
-    </Button>
     <TerminalConfirmation
       :open="stopConfirmOpen"
       title="Stop Arena Fight"
@@ -105,7 +103,7 @@ const confirmStop = async () => {
     <p v-if="!roomState" class="text-xs text-muted-foreground">
       Room management is unavailable until match state loads.
     </p>
-    <p v-else-if="isFighting" class="text-xs text-muted-foreground">
+    <p v-else-if="match.isFighting" class="text-xs text-muted-foreground">
       Room management is locked until the match finishes.
     </p>
     <DwellerList
@@ -116,7 +114,7 @@ const confirmStop = async () => {
       empty-text="No unassigned adults available. Unassign an adult from another room first."
       @assign-dweller="emit('assignDweller', $event)"
     />
-    <ArenaModal :vault-id="vaultId" :room-id="room.id" :controller="controller" />
+    <ArenaSupportPanel :match="match" />
     <RoomActions
       :disabled="managementLocked"
       :room="room"

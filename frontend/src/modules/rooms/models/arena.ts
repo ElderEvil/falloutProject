@@ -30,6 +30,22 @@ export interface ArenaCreatureView {
 // Creature participant ids are `<catalog-key>#<index>` (see ArenaService).
 export const creatureKeyOf = (fighterId: string): string => fighterId.split('#')[0]
 
+export const creatureViewToFighter = (view: ArenaCreatureView): ArenaSlotFighter => ({
+  id: view.id ?? view.key,
+  name: view.name,
+  level: 1,
+  health: view.health,
+  max_health: view.max_health,
+  power: view.power,
+  active_skill: null,
+  is_creature: !view.is_robot,
+  is_robot: !!view.is_robot,
+  image_url: null,
+  thumbnail_url: null,
+  age_group: null,
+  race: null,
+})
+
 export const arenaTeamSize = (mode: ArenaMode): number => (mode === 'brawl' ? 2 : 1)
 
 export const arenaSlotsFor = (mode: ArenaMode, side: ArenaTeamSide): readonly ArenaSlotKey[] => {

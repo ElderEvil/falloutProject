@@ -12,14 +12,16 @@
       import '../../../src/assets/main.css'
       import { createApp, h } from 'vue'
       import { createPinia } from 'pinia'
-      import ArenaModal from '../../../src/modules/rooms/components/ArenaModal.vue'
+      import ArenaPreview from '../../../src/modules/rooms/components/ArenaPreview.vue'
       import { useArenaRoom } from '../../../src/modules/rooms/composables/useArenaRoom'
+      import { useArenaMatchDraft } from '../../../src/modules/rooms/composables/useArenaMatchDraft'
       import { useAuthStore } from '../../../src/modules/auth/stores/auth'
       const pinia = createPinia()
       const app = createApp({
         setup() {
           const controller = useArenaRoom('vault-1', 'arena-1')
-          return () => h(ArenaModal, { vaultId: 'vault-1', roomId: 'arena-1', controller })
+          const match = useArenaMatchDraft('vault-1', 'arena-1', controller)
+          return () => h(ArenaPreview, { match })
         },
       })
       app.use(pinia)

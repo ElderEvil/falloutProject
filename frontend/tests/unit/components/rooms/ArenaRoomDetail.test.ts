@@ -1,8 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createPinia, setActivePinia } from 'pinia'
+import { defineComponent } from 'vue'
 import { useArenaStore } from '@/modules/rooms/stores/arena'
 import { mount, flushPromises } from '@vue/test-utils'
 import ArenaRoomDetail from '@/modules/rooms/components/ArenaRoomDetail.vue'
+
+const loadingState = vi.hoisted(() => ({
+  loading: false,
+  failed: false,
+  retry: vi.fn().mockResolvedValue(undefined),
+}))
 
 vi.mock('@/modules/rooms/composables/useArenaRoom', async () => {
   const { computed, ref } = await import('vue')
@@ -10,15 +17,15 @@ vi.mock('@/modules/rooms/composables/useArenaRoom', async () => {
   return {
     useArenaRoom: (_vaultId: string, roomId: string) => ({
       roomState: computed(() => useArenaStore().getRoom(roomId)),
-      isLoading: ref(false),
-      loadFailed: ref(false),
+      isLoading: computed(() => loadingState.loading),
+      loadFailed: computed(() => loadingState.failed),
       pendingSkills: ref(new Set<string>()),
       damageNumbers: ref([]),
       attackingTeam: ref(null),
       attackingFighterId: ref(null),
       skillBurst: ref(null),
       load: () => Promise.resolve(),
-      retry: () => Promise.resolve(),
+      retry: loadingState.retry,
       refresh: () => Promise.resolve(),
       queueSkill: () => Promise.resolve(),
       startFight: () => Promise.resolve(true),
@@ -28,8 +35,77 @@ vi.mock('@/modules/rooms/composables/useArenaRoom', async () => {
   }
 })
 
+const PreviewStub = defineComponent({
+  props: { match: { type: Object, required: true } },
+  template: `
+    <div class="preview-panel">
+      <button v-if="match.isFighting">Stop Fight</button>
+    </div>
+  `,
+})
+
+const SupportStub = defineComponent({
+  template: '<div class="battle-panel">Battle UI</div>',
+})
+
+const room = {
+  id: 'arena-1',
+  name: 'Arena',
+  tier: 1,
+  category: 'ARENA',
+  ability: null,
+  t2_upgrade_cost: 500,
+  t3_upgrade_cost: 1000,
+} as never
+
+const baseProps = {
+  room,
+  vaultId: 'vault-1',
+  assignedDwellers: [{ id: 'dweller-1' }] as never,
+  dwellerCapacity: 6,
+  roomImageUrl: null,
+  upgradeInfo: null,
+  isUpgrading: false,
+  isDestroying: false,
+  isVaultDoor: false,
+}
+
+const mountDetail = (props: Record<string, unknown> = {}) =>
+  mount(ArenaRoomDetail, {
+    props: { ...baseProps, ...props },
+    global: {
+      stubs: {
+        ArenaPreview: PreviewStub,
+        ArenaSupportPanel: SupportStub,
+      },
+    },
+  })
+
 describe('ArenaRoomDetail', () => {
-  beforeEach(() => setActivePinia(createPinia()))
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    loadingState.loading = false
+    loadingState.failed = false
+    loadingState.retry.mockClear()
+  })
+
+  it('shows loading feedback without offering match setup', () => {
+    loadingState.loading = true
+    const wrapper = mountDetail()
+    expect(wrapper.get('[role="status"]').text()).toContain('Loading Arena')
+    expect(wrapper.find('.preview-panel').exists()).toBe(false)
+  })
+
+  it('offers recovery when the initial match request fails', async () => {
+    loadingState.failed = true
+    const wrapper = mountDetail()
+    expect(wrapper.text()).toContain('Arena unavailable')
+    expect(wrapper.find('.preview-panel').exists()).toBe(false)
+    const retry = wrapper.findAll('button').find((button) => button.text() === 'Retry')!
+    await retry.trigger('click')
+    expect(loadingState.retry).toHaveBeenCalledOnce()
+  })
+
   it.each([
     [0, false],
     [6, false],
@@ -41,48 +117,25 @@ describe('ArenaRoomDetail', () => {
       team_a: [],
       team_b: [],
     } as never)
-    const wrapper = mount(ArenaRoomDetail, {
-      props: {
-        room: { id: 'arena-1', name: 'Arena', tier: 1, category: 'ARENA', ability: null } as never,
-        vaultId: 'vault-1',
-        assignedDwellers: Array.from({ length: count }, (_, i) => ({
-          id: `dweller-${i}`,
-        })) as never,
-        dwellerCapacity: 6,
-        roomImageUrl: null,
-        upgradeInfo: null,
-        isUpgrading: false,
-        isDestroying: false,
-        isVaultDoor: false,
-      },
-      global: { stubs: { ArenaModal: true, ArenaPreview: true } },
+    const wrapper = mountDetail({
+      assignedDwellers: Array.from({ length: count }, (_, i) => ({
+        id: `dweller-${i}`,
+      })) as never,
     })
     const assign = wrapper
       .findAll('button')
       .find((button) => button.text().includes('Assign Dwellers'))
     expect(Boolean(assign)).toBe(!fighting && count < 6)
-    expect(
-      wrapper.findAll('button').some((button) => button.text().includes('Stop Fight'))
-    ).toBe(fighting)
+    expect(wrapper.findAll('button').some((button) => button.text().includes('Stop Fight'))).toBe(
+      fighting
+    )
     expect(wrapper.text()).not.toMatch(/\d+ \/ \d+ assigned/)
-    expect(wrapper.find('[aria-label="Arena preview"]').exists()).toBe(false)
   })
 
   it('locks management until match state is known and while a match is running', async () => {
     const arenaStore = useArenaStore()
-    const wrapper = mount(ArenaRoomDetail, {
-      props: {
-        room: { id: 'arena-1', name: 'Arena', tier: 1, category: 'ARENA', ability: null } as never,
-        vaultId: 'vault-1',
-        assignedDwellers: [{ id: 'dweller-1' }] as never,
-        dwellerCapacity: 4,
-        roomImageUrl: null,
-        upgradeInfo: { canUpgrade: true, upgradeCost: 500, nextTier: 2, maxTier: 3 },
-        isUpgrading: false,
-        isDestroying: false,
-        isVaultDoor: false,
-      },
-      global: { stubs: { ArenaModal: true, ArenaPreview: true } },
+    const wrapper = mountDetail({
+      upgradeInfo: { canUpgrade: true, upgradeCost: 500, nextTier: 2, maxTier: 3 },
     })
     const buttons = () => wrapper.findAll('.room-management button')
     expect(buttons()).toHaveLength(3)
@@ -137,32 +190,8 @@ describe('ArenaRoomDetail', () => {
   })
 
   it('uses the shared room-management section below the battle panel', () => {
-    const wrapper = mount(ArenaRoomDetail, {
-      props: {
-        room: {
-          id: 'arena-1',
-          name: 'Arena',
-          tier: 1,
-          category: 'ARENA',
-          ability: null,
-          t2_upgrade_cost: 500,
-          t3_upgrade_cost: 1000,
-        } as never,
-        vaultId: 'vault-1',
-        assignedDwellers: [{ id: 'dweller-1' }] as never,
-        dwellerCapacity: 6,
-        roomImageUrl: null,
-        upgradeInfo: { canUpgrade: true, upgradeCost: 500, nextTier: 2, maxTier: 3 },
-        isUpgrading: false,
-        isDestroying: false,
-        isVaultDoor: false,
-      },
-      global: {
-        stubs: {
-          ArenaModal: { template: '<div class="battle-panel">Battle UI</div>' },
-          ArenaPreview: { template: '<div class="preview-panel" />' },
-        },
-      },
+    const wrapper = mountDetail({
+      upgradeInfo: { canUpgrade: true, upgradeCost: 500, nextTier: 2, maxTier: 3 },
     })
 
     expect(wrapper.get('.arena-room-detail').element.firstElementChild).toBe(

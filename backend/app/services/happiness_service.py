@@ -98,9 +98,6 @@ class HappinessService:
 
             total_happiness_change += actual_change
 
-        # Commit changes
-        await db_session.commit()
-
         # Calculate average happiness
         if dwellers:
             stats["average_happiness"] = sum(d.happiness for d in dwellers) / len(dwellers)
@@ -108,7 +105,9 @@ class HappinessService:
 
             # Update vault happiness (average of all dwellers)
             vault.happiness = int(stats["average_happiness"])
-            await db_session.commit()
+            db_session.add(vault)
+
+        await db_session.commit()
 
         logger.info(
             "Vault %s happiness update: %d dwellers, avg happiness: %.1f, total change: %+.1f",
@@ -303,6 +302,8 @@ class HappinessService:
         dweller = await dweller_crud.get_or_none(db_session, dweller_id, include_deleted=True)
         if not dweller:
             return {"error": "Dweller not found"}
+        if dweller.vault_id is None:
+            return {"error": "Vault not found"}
 
         try:
             vault = await vault_crud.get(db_session, dweller.vault_id)

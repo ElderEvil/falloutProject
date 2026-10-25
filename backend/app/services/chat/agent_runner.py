@@ -21,10 +21,10 @@ from app.agents.dweller_chat_agent import (
 )
 from app.models.base import SPECIALModel
 from app.schemas.chat import NoAction
+from app.schemas.chat_models import AgentChatResult
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.services.ai_service import get_ai_service
-from app.services.chat.models import AgentChatResult
 from app.services.chat_happiness_service import apply_chat_happiness
 from app.utils.exceptions import AIProviderCreditsExhaustedException
 

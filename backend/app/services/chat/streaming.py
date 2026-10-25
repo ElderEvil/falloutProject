@@ -14,10 +14,10 @@ from app.agents.dweller_chat_agent import (
     parse_action_suggestion,
 )
 from app.schemas.chat import ChatStreamToken
+from app.schemas.chat_models import StreamBundle
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.services.chat import agent_runner
-from app.services.chat.models import StreamBundle
 from app.services.chat_happiness_service import apply_chat_happiness
 
 logger = logging.getLogger(__name__)

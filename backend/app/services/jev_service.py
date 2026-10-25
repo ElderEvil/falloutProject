@@ -4,11 +4,8 @@ Jev is not a language model: it answers each field of a Pydantic output type as
 a typed question and returns a probability per field. It is complementary to the
 chat agent (which writes text); callers ask Jev to *decide* something concrete.
 
-Model shape rules (from the Jev docs) that callers must respect:
-- one judgement per field — never hide two questions in one field;
-- the prompt is the material judged, the field docstring is the question;
-- pin ``JEV_MODEL`` once a confidence threshold has been tuned, because
-  ``jev-latest`` moves and shifts the numbers under it.
+The decision contracts and the model shape rules a caller's output type must
+respect live in :mod:`app.schemas.jev`; this module owns the client only.
 
 The service degrades to "disabled" without a key so no caller needs secrets at
 import time; every entry point returns a typed :class:`JevDecision`.
@@ -17,11 +14,10 @@ import time; every entry point returns a typed :class:`JevDecision`.
 import asyncio
 import logging
 import time
-from typing import TYPE_CHECKING, Any, TypeVar
-
-from pydantic import BaseModel
+from typing import TYPE_CHECKING, Any
 
 from app.core.config import settings
+from app.schemas.jev import JevDecision, OutputT
 from app.utils.exceptions import FeatureDisabledException
 
 if TYPE_CHECKING:
@@ -30,43 +26,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-OutputT = TypeVar("OutputT", bound=BaseModel)
-
 #: Jev refuses anything above this; keep the state + questions under it.
 JEV_STATE_TOKEN_LIMIT = 32_000
-
-
-class JevFieldAnswer(BaseModel):
-    """One judged field: the answer and how confident Jev was in it.
-
-    ``confidence`` is the probability of the answer shown, so a ``False`` answer at
-    0.96 means "96% sure it is *not* this" - never display it without the flag.
-    """
-
-    answer: bool
-    confidence: float
-
-
-class JevDecision[OutputT: BaseModel](BaseModel):
-    """A resolved Jev judgement: the typed answer plus per-field confidence.
-
-    ``confidence`` maps each output field to 0-1; pick the acting threshold per
-    use - an automatic action deserves a higher bar than flagging for review.
-    ``model_name`` records the versioned id that answered, even when the
-    ``jev-latest`` alias was requested.
-    """
-
-    output: OutputT
-    confidence: dict[str, float]
-    model_name: str
-    prompt_tokens: int | None = None
-    completion_tokens: int | None = None
-    total_tokens: int | None = None
-    elapsed_s: float = 0.0
-
-    def confidence_for(self, field: str) -> float:
-        """Confidence for one field, 0.0 when Jev reported none."""
-        return self.confidence.get(field, 0.0)
 
 
 def is_configured() -> bool:

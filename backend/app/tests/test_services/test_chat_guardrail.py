@@ -4,8 +4,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.services.chat.guardrail import ChatGuardrail, screen_message
-from app.services.jev_service import JevDecision
+from app.schemas.chat import ChatGuardrail
+from app.schemas.jev import JevDecision
+from app.services.chat.guardrail import screen_message
 
 
 def _decision(*, jailbreak: bool, toxic: bool, conf: dict[str, float]) -> JevDecision[ChatGuardrail]:

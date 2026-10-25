@@ -17,9 +17,11 @@ export const useArenaStore = defineStore('arena', () => {
       activeVaultId = vaultId
     }
     const request = ++stateRequest
+    const epoch = contextEpoch
     try {
       const state = await arenaApi.fetchState(vaultId, token)
-      if (request !== stateRequest) return false
+      // Same-vault polling supersedes state delivery without rejecting a successful mutation.
+      if (request !== stateRequest) return epoch === contextEpoch
       rooms.value = new Map(state.rooms.map((room) => [room.room_id, room]))
       return true
     } catch (error) {

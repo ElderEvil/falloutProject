@@ -81,7 +81,7 @@ describe('Arena Store', () => {
     const old = store.fetchState('old-vault', 'old-token')
     await store.fetchState('new-vault', 'new-token')
     finishOld({ rooms: [{ ...mockRoom, room_id: 'old-room' }] })
-    await old
+    expect(await old).toBe(false)
     expect(store.getRoom('old-room')).toBeNull()
     expect(store.getRoom('room-1')).toEqual(mockRoom)
   })
@@ -98,7 +98,7 @@ describe('Arena Store', () => {
     const request = store.fetchState('vault-1', 'token')
     store.reset()
     finish(mockState)
-    await request
+    expect(await request).toBe(false)
     expect(store.rooms.size).toBe(0)
   })
 
@@ -213,6 +213,46 @@ describe('Arena Store', () => {
     expect(ok).toBe(true)
     expect(arenaApi.startFight).toHaveBeenCalledWith('vault-1', 'room-1', 'token', undefined)
   })
+
+  it.each(['before', 'after'])(
+    'keeps a successful start when its refresh finishes %s a newer poll',
+    async (order) => {
+      const store = useArenaStore()
+      await store.fetchState('vault-1', 'token')
+      let finishRefresh!: (state: ArenaState) => void
+      let finishPoll!: (state: ArenaState) => void
+      vi.mocked(arenaApi.fetchState)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishRefresh = resolve
+            })
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishPoll = resolve
+            })
+        )
+
+      const start = store.startFight('vault-1', 'room-1', 'token')
+      await vi.waitFor(() => expect(arenaApi.fetchState).toHaveBeenCalledTimes(2))
+      const poll = store.fetchState('vault-1', 'token')
+      const freshRoom = { ...mockRoom, fight_started: true, countdown_remaining: 2 }
+      if (order === 'after') {
+        finishPoll({ rooms: [freshRoom] })
+        expect(await poll).toBe(true)
+      }
+      finishRefresh({ rooms: [{ ...freshRoom, countdown_remaining: 3 }] })
+      expect(await start).toBe(true)
+      if (order === 'before') {
+        expect(store.getRoom('room-1')).toEqual(mockRoom)
+        finishPoll({ rooms: [freshRoom] })
+        expect(await poll).toBe(true)
+      }
+      expect(store.getRoom('room-1')).toEqual(freshRoom)
+    }
+  )
 
   it('clearEvents returns the cleared count', async () => {
     vi.mocked(arenaApi.clearEvents).mockResolvedValue(4)

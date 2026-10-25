@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onScopeDispose, ref, watch } from 'vue'
+import { ArrowLeftRight, Plus, X } from '@lucide/vue'
+import { Input } from '@/core/components/ui/input'
+import RoomPreviewSection from './RoomPreviewSection.vue'
+import { getTrainingRoomCapacity } from '../utils/room'
 import { Icon } from '@iconify/vue'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/core/components/ui/card'
 import { useToast } from '@/core/composables/useToast'
-import { handleStoreError } from '@/core/utils/errorHandler'
+import { getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import DwellerAgeBadge from '@/modules/dwellers/components/DwellerAgeBadge.vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
@@ -13,6 +17,7 @@ import {
   formatIdentityLabel,
   getDwellerDisplayName,
   isMature,
+  isAvailableUnassignedDweller,
   type DwellerShort,
 } from '@/modules/dwellers/models/dweller'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -29,7 +34,9 @@ import { changeBarbershopAppearance, fetchBarbershopStatus } from '../services/b
 
 const props = defineProps<{
   room: Room
+  vaultId: string
   assignedDwellers: DwellerShort[]
+  roomImageUrl?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -37,7 +44,7 @@ const emit = defineEmits<{
 }>()
 
 const authStore = useAuthStore()
-const { filter: filterStore, generation } = useDwellerStore()
+const { filter: filterStore, generation, management } = useDwellerStore()
 const toast = useToast()
 
 const token = computed(() => (typeof authStore.token === 'string' ? authStore.token : ''))
@@ -47,7 +54,20 @@ const isLoadingStatus = ref(false)
 const roster = ref<DwellerShort[]>([...props.assignedDwellers])
 const barberId = ref<string | null>(null)
 const clientId = ref<string | null>(null)
-const selectingBarber = ref(false)
+const activeSlot = ref<'worker' | 'client' | null>(null)
+const search = ref('')
+const pickerLoading = ref(false)
+const pickerError = ref<string | null>(null)
+const slotError = ref<string | null>(null)
+const picker = ref<HTMLElement | null>(null)
+const assigning = ref(false)
+let statusRequest = 0
+let contextVersion = 0
+onScopeDispose(() => {
+  contextVersion += 1
+  statusRequest += 1
+})
+let initializedRoles = false
 const skinTone = ref<string>('Pale')
 const hairColor = ref<string>('Brown')
 const saving = ref(false)
@@ -187,6 +207,7 @@ const canSave = computed(
     !!selectedDweller.value &&
     hasAppearanceChange.value &&
     !saving.value &&
+    !assigning.value &&
     !generating.value &&
     capsSufficient.value
 )
@@ -197,34 +218,36 @@ const canRegenerate = computed(
     !!barber.value &&
     !!selectedDweller.value &&
     !saving.value &&
+    !assigning.value &&
     !generating.value
 )
 
 watch(
-  () => props.assignedDwellers,
-  (dwellers) => {
-    roster.value = [...dwellers]
+  [() => props.room.id, () => props.vaultId, () => props.assignedDwellers],
+  ([roomId, vaultId, dwellers], previous) => {
+    // Parent assignments follow sidebar filters; keep known occupants outside that view.
+    const visibleIds = new Set(filterStore.dwellers.map((entry) => entry.id))
+    const hidden =
+      previous?.[0] === roomId && previous?.[1] === vaultId
+        ? roster.value.filter((entry) => !visibleIds.has(entry.id))
+        : []
+    roster.value = [...new Map([...hidden, ...dwellers].map((entry) => [entry.id, entry])).values()]
   },
   { immediate: true, deep: true }
 )
 
 watch(
-  barberCandidates,
+  roster,
   (dwellers) => {
-    const current = barberId.value
-    if (current && dwellers.some((dweller) => dweller.id === current)) return
-    barberId.value = dwellers[0]?.id ?? null
-  },
-  { immediate: true }
-)
-
-watch(
-  [clientCandidates, barberId],
-  ([dwellers, currentBarberId]) => {
-    const available = dwellers.filter((dweller) => dweller.id !== currentBarberId)
-    const current = clientId.value
-    if (current && available.some((dweller) => dweller.id === current)) return
-    clientId.value = available[0]?.id ?? null
+    if (!initializedRoles) {
+      barberId.value = barberCandidates.value[0]?.id ?? null
+      clientId.value =
+        clientCandidates.value.find((entry) => entry.id !== barberId.value)?.id ?? null
+      initializedRoles = true
+    } else {
+      if (!dwellers.some((entry) => entry.id === barberId.value)) barberId.value = null
+      if (!dwellers.some((entry) => entry.id === clientId.value)) clientId.value = null
+    }
   },
   { immediate: true }
 )
@@ -248,7 +271,6 @@ watch(
 function selectBarber(dwellerId: string): void {
   const previousBarberId = barberId.value
   barberId.value = dwellerId
-  selectingBarber.value = false
 
   if (clientId.value !== dwellerId) return
   const available = clientCandidates.value.filter((dweller) => dweller.id !== dwellerId)
@@ -261,15 +283,21 @@ function selectClient(dwellerId: string): void {
 }
 
 async function loadStatus(): Promise<void> {
-  if (!props.room.id || !token.value) return
+  const request = ++statusRequest
+  const roomId = props.room.id
+  const authToken = token.value
+  if (!roomId || !authToken) return
   isLoadingStatus.value = true
   try {
-    status.value = await fetchBarbershopStatus(props.room.id, token.value)
+    const result = await fetchBarbershopStatus(roomId, authToken)
+    if (request !== statusRequest) return
+    status.value = result
   } catch (error) {
+    if (request !== statusRequest) return
     status.value = null
     inlineError.value = handleStoreError(error, 'Failed to load the Barbershop')
   } finally {
-    isLoadingStatus.value = false
+    if (request === statusRequest) isLoadingStatus.value = false
   }
 }
 
@@ -279,9 +307,20 @@ function reload(): void {
 }
 
 watch(
-  [() => props.room.id, token],
+  [() => props.room.id, () => props.vaultId, token],
   () => {
+    contextVersion += 1
     status.value = null
+    isLoadingStatus.value = false
+    saving.value = false
+    generating.value = false
+    activeSlot.value = null
+    pickerLoading.value = false
+    pickerError.value = null
+    slotError.value = null
+    assigning.value = false
+    barberId.value = barberCandidates.value[0]?.id ?? null
+    clientId.value = clientCandidates.value.find((entry) => entry.id !== barberId.value)?.id ?? null
     reload()
   },
   { immediate: true }
@@ -309,11 +348,116 @@ function patchPortraitSnapshot(
   update(filterStore.dwellers)
 }
 
+const busy = computed(() => assigning.value || saving.value || generating.value)
+const slots = computed(() => [
+  { role: 'worker' as const, label: 'Worker', dweller: barber.value },
+  { role: 'client' as const, label: 'Client', dweller: selectedDweller.value },
+])
+const slotOptions = computed(() => {
+  if (pickerLoading.value || pickerError.value) return []
+  const candidates = new Map(roster.value.map((entry) => [entry.id, entry]))
+  if (roster.value.length < getTrainingRoomCapacity(props.room)) {
+    for (const entry of filterStore.allDwellers) {
+      if (isAvailableUnassignedDweller(entry)) candidates.set(entry.id, entry)
+    }
+  }
+  return [...candidates.values()].filter(
+    (entry) =>
+      isMature(entry) &&
+      entry.status !== 'dead' &&
+      (activeSlot.value === 'worker' ||
+        ((entry.visual_attributes?.race ?? 'human') === 'human' && entry.id !== barberId.value)) &&
+      getDwellerDisplayName(entry).toLowerCase().includes(search.value.trim().toLowerCase())
+  )
+})
+const openSlot = async (role: 'worker' | 'client') => {
+  activeSlot.value = role
+  search.value = ''
+  slotError.value = null
+  pickerError.value = null
+  pickerLoading.value = true
+  const version = contextVersion
+  await nextTick()
+  picker.value?.querySelector('input')?.focus()
+  try {
+    await filterStore.fetchAllDwellers(props.vaultId, token.value, true)
+    if (version === contextVersion)
+      roster.value = filterStore.allDwellers.filter((entry) => entry.room_id === props.room.id)
+  } catch (error) {
+    if (version === contextVersion)
+      pickerError.value = getErrorMessage(error, 'Could not load dwellers')
+  } finally {
+    if (version === contextVersion) pickerLoading.value = false
+  }
+}
+const closeSlot = async () => {
+  if (busy.value) return
+  const role = activeSlot.value
+  activeSlot.value = null
+  await nextTick()
+  if (role) document.getElementById(`barbershop-${props.room.id}-${role}`)?.focus()
+}
+async function chooseSlot(entry: DwellerShort): Promise<void> {
+  const role = activeSlot.value
+  if (!role || busy.value) return
+  const roomId = props.room.id
+  const authToken = token.value
+  const version = contextVersion
+  assigning.value = true
+  slotError.value = null
+  try {
+    if (!roster.value.some((dweller) => dweller.id === entry.id)) {
+      const assigned = await management.assignDwellerToRoom(entry.id, roomId, authToken)
+      if (version !== contextVersion) return
+      if (!roster.value.some((dweller) => dweller.id === entry.id))
+        roster.value.push({ ...entry, room_id: roomId, status: assigned.status })
+      emit('changed')
+    }
+    if (role === 'worker') selectBarber(entry.id)
+    else selectClient(entry.id)
+    await loadStatus()
+    if (version !== contextVersion) return
+    assigning.value = false
+    await closeSlot()
+  } catch (error) {
+    if (version === contextVersion)
+      slotError.value = getErrorMessage(error, 'Failed to assign dweller')
+  } finally {
+    if (version === contextVersion) assigning.value = false
+  }
+}
+async function removeOccupant(entry: DwellerShort): Promise<void> {
+  if (busy.value) return
+  const role = entry.id === barberId.value ? 'worker' : 'client'
+  const roomId = props.room.id
+  const authToken = token.value
+  const version = contextVersion
+  assigning.value = true
+  slotError.value = null
+  try {
+    await management.unassignDwellerFromRoom(entry.id, authToken)
+    if (version !== contextVersion) return
+    roster.value = roster.value.filter((dweller) => dweller.id !== entry.id)
+    emit('changed')
+    await loadStatus()
+    if (version !== contextVersion) return
+    assigning.value = false
+    await nextTick()
+    document.getElementById(`barbershop-${roomId}-${role}`)?.focus()
+  } catch (error) {
+    if (version === contextVersion)
+      slotError.value = getErrorMessage(error, 'Failed to unassign dweller')
+  } finally {
+    if (version === contextVersion) assigning.value = false
+  }
+}
+
 async function handleSave(): Promise<void> {
   const dweller = selectedDweller.value
   const current = status.value
   if (!dweller || !current || !canSave.value) return
 
+  const version = contextVersion
   saving.value = true
   inlineError.value = null
   try {
@@ -323,6 +467,7 @@ async function handleSave(): Promise<void> {
       { skin_tone: skinTone.value, hair_color: hairColor.value },
       token.value
     )
+    if (version !== contextVersion) return
     filterStore.detailedDwellers[dweller.id] = response.dweller
     patchPortraitSnapshot(
       dweller.id,
@@ -337,9 +482,10 @@ async function handleSave(): Promise<void> {
       toast.info('Custom portrait kept. Only skin tone and hair color changed.')
     }
   } catch (error) {
-    inlineError.value = handleStoreError(error, 'Failed to change appearance')
+    if (version === contextVersion)
+      inlineError.value = handleStoreError(error, 'Failed to change appearance')
   } finally {
-    saving.value = false
+    if (version === contextVersion) saving.value = false
   }
 }
 
@@ -347,27 +493,194 @@ async function handleRegenerate(): Promise<void> {
   const dweller = selectedDweller.value
   if (!dweller || !canRegenerate.value) return
 
+  const version = contextVersion
   generating.value = true
   inlineError.value = null
   try {
     const generated = await generation.generateDwellerPortrait(dweller.id, token.value)
-    if (!generated) return
+    if (!generated || version !== contextVersion) return
     const refreshed = await filterStore.fetchDwellerDetails(dweller.id, token.value, true)
+    if (version !== contextVersion) return
     const updated = refreshed ?? generated
     filterStore.detailedDwellers[dweller.id] = updated
     patchPortraitSnapshot(dweller.id, updated.thumbnail_url, updated.is_default_portrait)
     portraitVersion.value += 1
     emit('changed')
   } catch (error) {
-    inlineError.value = handleStoreError(error, 'Failed to regenerate the portrait')
+    if (version === contextVersion)
+      inlineError.value = handleStoreError(error, 'Failed to regenerate the portrait')
   } finally {
-    generating.value = false
+    if (version === contextVersion) generating.value = false
   }
 }
 </script>
 
 <template>
   <section class="barbershop-panel flex flex-col gap-4" aria-label="Barbershop appearance studio">
+    <RoomPreviewSection
+      class="barbershop-scene"
+      :room-name="room.name"
+      :image-url="room.image_url ?? null"
+      :room-image-url="roomImageUrl ?? null"
+      :room-units="3"
+      :dweller-capacity="2"
+      :assigned-dwellers="roster"
+    >
+      <template #occupants>
+        <!-- @vue-ignore -->
+        <div
+          v-for="slot in slots"
+          :key="slot.role"
+          :data-testid="
+            slot.role === 'worker' ? 'barbershop-barber-chair' : 'barbershop-customer-chair'
+          "
+          class="flex w-28 min-w-0 flex-col items-center gap-1 text-theme-primary"
+        >
+          <span
+            class="rounded bg-surface-sunken px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+            >{{ slot.label }}</span
+          >
+          <Button
+            variant="ghost"
+            type="button"
+            :id="`barbershop-${room.id}-${slot.role}`"
+            :aria-label="`Choose ${slot.role}`"
+            :disabled="busy"
+            class="group flex h-28 w-full flex-col justify-end gap-0 whitespace-normal border-0 bg-transparent p-0 text-theme-primary/50 hover:bg-transparent hover:text-theme-primary focus-visible:text-theme-primary sm:h-32"
+            @click="openSlot(slot.role)"
+          >
+            <DwellerPortrait
+              v-if="slot.dweller"
+              :thumbnail-url="slot.dweller.thumbnail_url"
+              :alt="getDwellerDisplayName(slot.dweller)"
+              :zoom="false"
+              image-class="h-24 w-full object-contain"
+              fallback-class="size-16 text-theme-primary"
+            />
+            <template v-else
+              ><span class="empty-dweller-silhouette min-h-0 flex-1" aria-hidden="true" /><span
+                class="flex items-center gap-1 pb-2 text-[10px]"
+                ><Plus class="size-3" />Add {{ slot.role }}</span
+              ></template
+            >
+          </Button>
+          <span
+            class="w-full truncate rounded bg-surface-sunken px-1 text-center text-[10px]"
+            :title="slot.dweller ? getDwellerDisplayName(slot.dweller) : undefined"
+            >{{ slot.dweller ? getDwellerDisplayName(slot.dweller) : 'Empty slot' }}</span
+          >
+          <div
+            class="flex h-7 items-center gap-1"
+            v-if="slot.dweller"
+            role="group"
+            :aria-label="`Controls for ${slot.label}`"
+          >
+            <!-- @vue-ignore -->
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              :disabled="busy"
+              :aria-label="`Change ${slot.role}`"
+              :data-testid="
+                slot.role === 'worker' ? 'barbershop-barber-change' : 'barbershop-client-change'
+              "
+              @click="openSlot(slot.role)"
+              ><ArrowLeftRight
+            /></Button>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              :disabled="busy"
+              :aria-label="`Unassign ${getDwellerDisplayName(slot.dweller)} from Barbershop`"
+              @click="removeOccupant(slot.dweller)"
+              ><X
+            /></Button>
+          </div>
+          <span v-else class="h-7" />
+        </div>
+      </template>
+    </RoomPreviewSection>
+    <p
+      v-if="slotError"
+      role="alert"
+      class="rounded border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger"
+    >
+      {{ slotError }}
+    </p>
+    <section
+      v-if="activeSlot"
+      ref="picker"
+      :aria-label="`Choose ${activeSlot}`"
+      class="flex flex-col gap-2 rounded border border-theme-primary/30 bg-surface-sunken p-3"
+      @keydown.esc.prevent.stop="closeSlot()"
+    >
+      <div class="flex items-center gap-2">
+        <label class="min-w-0 flex-1 text-xs text-muted-foreground"
+          >Choose {{ activeSlot
+          }}<Input v-model="search" type="search" placeholder="Search dwellers…"
+        /></label>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-label="Close slot picker"
+          :disabled="busy"
+          @click="closeSlot()"
+          ><X
+        /></Button>
+      </div>
+      <p class="text-xs text-muted-foreground">
+        {{
+          activeSlot === 'client'
+            ? 'Human adults and elders. The worker cannot be the client.'
+            : 'Any adult or elder can work here.'
+        }}
+      </p>
+      <div class="grid max-h-56 gap-1 overflow-y-auto sm:grid-cols-2">
+        <!-- @vue-ignore -->
+        <Button
+          v-for="candidate in slotOptions"
+          :key="candidate.id"
+          variant="ghost"
+          :disabled="busy"
+          :data-testid="
+            activeSlot === 'worker' ? 'barbershop-barber-option' : 'barbershop-client-option'
+          "
+          :data-dweller-id="candidate.id"
+          class="h-auto min-w-0 justify-start gap-2 whitespace-normal p-2 text-left"
+          @click="chooseSlot(candidate)"
+        >
+          <DwellerPortrait
+            :thumbnail-url="candidate.thumbnail_url"
+            :alt="getDwellerDisplayName(candidate)"
+            prefer-thumbnail
+            image-class="size-9 shrink-0 rounded object-cover"
+            fallback-class="size-9 shrink-0"
+          />
+          <span class="flex min-w-0 flex-col"
+            ><span class="truncate text-xs">{{ getDwellerDisplayName(candidate) }}</span
+            ><span class="text-[10px] text-muted-foreground">{{
+              roster.some((entry) => entry.id === candidate.id)
+                ? 'In Barbershop'
+                : 'Available · joins Barbershop'
+            }}</span></span
+          >
+        </Button>
+      </div>
+      <p v-if="pickerLoading" role="status" class="text-xs text-muted-foreground">
+        Loading dwellers…
+      </p>
+      <div
+        v-else-if="pickerError"
+        role="alert"
+        class="flex items-center justify-between gap-2 text-xs text-danger"
+      >
+        {{ pickerError
+        }}<Button variant="outline" size="xs" @click="openSlot(activeSlot)">Retry dwellers</Button>
+      </div>
+      <p v-else-if="!slotOptions.length" class="text-xs text-muted-foreground">
+        No eligible dwellers available. Room assignments still use the Barbershop's capacity.
+      </p>
+    </section>
     <Card class="border border-theme-primary/30 bg-terminal-background">
       <CardHeader class="gap-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -385,8 +698,8 @@ async function handleRegenerate(): Promise<void> {
           </Badge>
         </div>
         <p class="text-xs leading-relaxed text-theme-primary/65">
-          Put one dweller in the barber chair and one human customer in the styling chair. Barbers
-          are never offered as customers, and only real changes are charged.
+          Choose a worker and a human client in the preview. Available dwellers join this room when
+          selected. Only appearance changes are charged.
         </p>
         <dl class="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
           <div class="rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5">
@@ -486,153 +799,31 @@ async function handleRegenerate(): Promise<void> {
           Assign a human customer to the Barbershop to complete the pair.
         </p>
 
+        <div
+          v-if="waitingClients.length"
+          class="flex flex-wrap items-center gap-2"
+          aria-label="Waiting clients"
+        >
+          <span class="text-xs text-muted-foreground">Waiting clients</span>
+          <!-- @vue-ignore -->
+          <Button
+            v-for="candidate in waitingClients"
+            :key="candidate.id"
+            size="sm"
+            variant="outline"
+            :disabled="busy"
+            data-testid="barbershop-waiting-row"
+            :data-dweller-id="candidate.id"
+            @click="selectClient(candidate.id)"
+            >{{ getDwellerDisplayName(candidate) }}</Button
+          >
+        </div>
         <!-- @vue-ignore -->
         <div
           v-if="status && barberCandidates.length && availableClients.length"
-          class="grid gap-4 lg:grid-cols-3"
+          class="grid gap-4 sm:grid-cols-2"
           data-testid="barbershop-workspace"
         >
-          <div class="flex min-w-0 flex-col gap-3">
-            <div class="rounded border border-theme-primary/20 bg-surface-sunken p-3">
-              <div class="mb-2 flex items-center justify-between gap-2">
-                <h4 class="text-xs font-semibold tracking-wider text-theme-primary/70 uppercase">
-                  Barber chair
-                </h4>
-                <!-- @vue-ignore -->
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="xs"
-                  class="border-theme-primary/30 text-theme-primary hover:bg-theme-primary/10"
-                  data-testid="barbershop-barber-change"
-                  @click="selectingBarber = !selectingBarber"
-                >
-                  {{ selectingBarber ? 'Close' : 'Change' }}
-                </Button>
-              </div>
-
-              <!-- @vue-ignore -->
-              <div
-                v-if="barber"
-                class="flex items-center gap-3"
-                data-testid="barbershop-barber-chair"
-              >
-                <DwellerPortrait
-                  :image-url="barber.thumbnail_url"
-                  :thumbnail-url="barber.thumbnail_url"
-                  :alt="`${getDwellerDisplayName(barber)} barber`"
-                  prefer-thumbnail
-                  image-class="h-12 w-12 object-cover"
-                  fallback-class="h-8 w-8 text-theme-primary/60"
-                />
-                <div class="flex min-w-0 flex-col gap-0.5">
-                  <span class="truncate text-sm font-semibold text-theme-primary">
-                    {{ getDwellerDisplayName(barber) }}
-                  </span>
-                  <span class="text-[0.65rem] tracking-wide text-theme-primary/60 uppercase">
-                    Barber · Level {{ barber.level }}
-                  </span>
-                </div>
-              </div>
-
-              <!-- @vue-ignore -->
-              <div v-if="selectingBarber" class="mt-2 flex flex-col gap-1" role="list">
-                <!-- @vue-ignore -->
-                <Button
-                  v-for="candidate in barberCandidates"
-                  :key="candidate.id"
-                  type="button"
-                  variant="ghost"
-                  class="h-auto w-full justify-start gap-2 rounded border border-theme-primary/20 px-2 py-1.5 text-left hover:bg-theme-primary/10"
-                  :class="{ 'border-theme-primary bg-theme-primary/10': barberId === candidate.id }"
-                  :aria-pressed="barberId === candidate.id"
-                  data-testid="barbershop-barber-option"
-                  :data-dweller-id="candidate.id"
-                  @click="selectBarber(candidate.id)"
-                >
-                  <span class="truncate text-xs text-theme-primary">
-                    {{ getDwellerDisplayName(candidate) }}
-                  </span>
-                  <span class="ml-auto text-[0.6rem] text-theme-primary/50 uppercase">
-                    Lv {{ candidate.level }}
-                  </span>
-                </Button>
-              </div>
-            </div>
-
-            <div class="rounded border border-theme-primary/20 bg-surface-sunken p-3">
-              <h4 class="mb-2 text-xs font-semibold tracking-wider text-theme-primary/70 uppercase">
-                Customer chair
-              </h4>
-              <!-- @vue-ignore -->
-              <div
-                v-if="selectedDweller"
-                class="flex items-center gap-3"
-                data-testid="barbershop-customer-chair"
-              >
-                <DwellerPortrait
-                  :image-url="selectedDweller.thumbnail_url"
-                  :thumbnail-url="selectedDweller.thumbnail_url"
-                  :alt="`${getDwellerDisplayName(selectedDweller)} customer`"
-                  prefer-thumbnail
-                  image-class="h-12 w-12 object-cover"
-                  fallback-class="h-8 w-8 text-theme-primary/60"
-                />
-                <div class="flex min-w-0 flex-col gap-0.5">
-                  <span class="truncate text-sm font-semibold text-theme-primary">
-                    {{ getDwellerDisplayName(selectedDweller) }}
-                  </span>
-                  <span class="text-[0.65rem] tracking-wide text-theme-primary/60 uppercase">
-                    Customer · Level {{ selectedDweller.level }}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div class="rounded border border-theme-primary/20 bg-surface-sunken p-3">
-              <h4 class="mb-2 text-xs font-semibold tracking-wider text-theme-primary/70 uppercase">
-                Waiting room
-              </h4>
-              <!-- @vue-ignore -->
-              <p
-                v-if="!waitingClients.length"
-                class="text-xs text-theme-primary/55"
-                data-testid="barbershop-waiting-empty"
-              >
-                No other human customers waiting.
-              </p>
-              <!-- @vue-ignore -->
-              <div v-else class="flex max-h-40 flex-col gap-1 overflow-y-auto pr-1" role="list">
-                <!-- @vue-ignore -->
-                <Button
-                  v-for="candidate in waitingClients"
-                  :key="candidate.id"
-                  type="button"
-                  variant="ghost"
-                  class="h-auto w-full justify-start gap-2 rounded border border-theme-primary/20 px-2 py-1.5 text-left hover:bg-theme-primary/10"
-                  data-testid="barbershop-waiting-row"
-                  :data-dweller-id="candidate.id"
-                  @click="selectClient(candidate.id)"
-                >
-                  <DwellerPortrait
-                    :image-url="candidate.thumbnail_url"
-                    :thumbnail-url="candidate.thumbnail_url"
-                    :alt="`${getDwellerDisplayName(candidate)} portrait`"
-                    prefer-thumbnail
-                    image-class="h-8 w-8 object-cover"
-                    fallback-class="h-5 w-5 text-theme-primary/60"
-                  />
-                  <span class="truncate text-xs text-theme-primary">
-                    {{ getDwellerDisplayName(candidate) }}
-                  </span>
-                  <span class="ml-auto text-[0.6rem] text-theme-primary/50 uppercase">
-                    Lv {{ candidate.level }}
-                  </span>
-                </Button>
-              </div>
-            </div>
-          </div>
-
           <div class="flex min-w-0 flex-col gap-3">
             <div
               class="mx-auto flex h-64 w-full max-w-56 items-center justify-center overflow-hidden rounded border border-theme-primary/25 bg-surface-sunken"
@@ -818,3 +1009,14 @@ async function handleRegenerate(): Promise<void> {
     </Card>
   </section>
 </template>
+
+<style scoped>
+.barbershop-scene :deep(.empty-dweller-silhouette) {
+  background-color: currentColor;
+}
+.barbershop-scene :deep(.room-image-frame) {
+  width: 100%;
+  min-height: 240px;
+  aspect-ratio: auto;
+}
+</style>

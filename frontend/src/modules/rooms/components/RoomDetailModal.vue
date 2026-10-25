@@ -279,6 +279,7 @@ onUnmounted(stopAmbience)
 
         <template v-else>
           <RoomPreviewSection
+            v-if="!has('barbershop')"
             :room-name="room.name"
             :image-url="room.image_url ?? null"
             :room-image-url="roomImageUrl ?? null"
@@ -300,7 +301,9 @@ onUnmounted(stopAmbience)
 
           <BarbershopPanel
             v-if="has('barbershop')"
+            :vault-id="vaultId"
             :room="room"
+            :room-image-url="roomImageUrl"
             :assigned-dwellers="assignedDwellers"
             @changed="emit('roomUpdated')"
           />
@@ -321,7 +324,7 @@ onUnmounted(stopAmbience)
           />
 
           <DwellerList
-            v-if="has('dwellerList')"
+            v-if="has('dwellerList') && !has('barbershop')"
             v-model:assignment-mode="assignmentMode"
             :ability="room.ability"
             @assign-dweller="handleAssignDweller"

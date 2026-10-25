@@ -218,16 +218,49 @@ def test_services_do_not_load_rows_directly() -> None:
 PASSTHROUGH_MODULE_NAMES = frozenset({"models", "schemas"})
 
 
+def _pydantic_base_aliases(tree: ast.Module) -> tuple[set[str], set[str]]:
+    """Resolve which names in a module actually refer to pydantic's ``BaseModel``.
+
+    Returns (class aliases, module aliases). ``from pydantic import BaseModel as Model``
+    binds ``Model``; ``import pydantic as p`` binds ``p``. A class defined in the same
+    module shadows its import at runtime, so a local ``BaseModel``/``Model`` is dropped:
+    a class named like pydantic's is not pydantic's.
+    """
+    class_aliases: set[str] = set()
+    module_aliases: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and (node.module or "").split(".")[0] == "pydantic":
+            class_aliases.update(alias.asname or alias.name for alias in node.names if alias.name == "BaseModel")
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.split(".")[0] == "pydantic":
+                    module_aliases.add(alias.asname or alias.name.split(".")[0])
+    local_classes = {node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)}
+    return class_aliases - local_classes, module_aliases - local_classes
+
+
 def _pydantic_model_definitions(source: str) -> list[tuple[int, str]]:
-    """Return (line, class name) for every Pydantic BaseModel defined in a module."""
+    """Return (line, class name) for every pydantic ``BaseModel`` subclass in a module.
+
+    Resolution is import-aware, so an aliased base is caught and an unrelated class
+    that merely happens to be named ``BaseModel`` is not reported.
+    """
+    tree = ast.parse(source)
+    class_aliases, module_aliases = _pydantic_base_aliases(tree)
     found: list[tuple[int, str]] = []
-    for node in ast.walk(ast.parse(source)):
+    for node in ast.walk(tree):
         if not isinstance(node, ast.ClassDef):
             continue
         for base in node.bases:
             target = base.value if isinstance(base, ast.Subscript) else base
-            name = target.id if isinstance(target, ast.Name) else getattr(target, "attr", "")
-            if name == "BaseModel":
+            direct = isinstance(target, ast.Name) and target.id in class_aliases
+            qualified = (
+                isinstance(target, ast.Attribute)
+                and target.attr == "BaseModel"
+                and isinstance(target.value, ast.Name)
+                and target.value.id in module_aliases
+            )
+            if direct or qualified:
                 found.append((node.lineno, node.name))
                 break
     return sorted(found)
@@ -268,20 +301,38 @@ def test_services_have_no_passthrough_contract_modules() -> None:
 
 
 def test_guard_detects_pydantic_model_forms() -> None:
-    """Self-test: direct, generic, and dotted BaseModel bases are reported with line numbers."""
+    """Self-test: direct, generic, aliased, and module-qualified bases are all reported."""
     source = (
         "from pydantic import BaseModel\n"
+        "from pydantic import BaseModel as Model\n"
+        "import pydantic as p\n"
         "class Plain(BaseModel):\n"
         "    value: int\n"
-        "class Generic[T](BaseModel):\n"
+        "class Generic[T](Model):\n"
         "    value: T\n"
-        "import pydantic\n"
-        "class Dotted(pydantic.BaseModel):\n"
+        "class Aliased(Model):\n"
+        "    value: int\n"
+        "class Dotted(p.BaseModel):\n"
         "    value: int\n"
         "class NotAModel(dict[str, int]):\n"
         "    pass\n"
     )
-    assert _pydantic_model_definitions(source) == [(2, "Plain"), (4, "Generic"), (7, "Dotted")]
+    assert _pydantic_model_definitions(source) == [(4, "Plain"), (6, "Generic"), (8, "Aliased"), (10, "Dotted")]
+
+
+def test_guard_ignores_non_pydantic_base_model() -> None:
+    """Self-test: a BaseModel name from another library, or shadowed locally, is not pydantic's."""
+    source = (
+        "from some_lib import BaseModel\n"
+        "class FromElsewhere(BaseModel):\n"
+        "    pass\n"
+        "from pydantic import BaseModel as Model\n"
+        "class Model:\n"
+        "    pass\n"
+        "class Shadowed(Model):\n"
+        "    pass\n"
+    )
+    assert _pydantic_model_definitions(source) == []
 
 
 def test_guard_detects_api_import_forms() -> None:

@@ -246,6 +246,29 @@ describe('notification inbox', () => {
     expect(store.hasMore).toBe(false)
   })
 
+  it('keeps an SSE arrival when an older unread-count request completes', async () => {
+    const store = useNotificationInboxStore()
+    vi.mocked(axios.get).mockResolvedValueOnce({ data: { count: 2 } })
+    await store.refreshUnreadCount()
+
+    let finish!: (value: { data: { count: number } }) => void
+    vi.mocked(axios.get).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve
+      })
+    )
+    const pending = store.refreshUnreadCount()
+    store.noteUnreadArrival()
+    expect(store.unreadCount).toBe(3)
+    finish({ data: { count: 2 } })
+    await pending
+    expect(store.unreadCount).toBe(3)
+
+    vi.mocked(axios.get).mockResolvedValueOnce({ data: { count: 3 } })
+    await store.refreshUnreadCount()
+    expect(store.unreadCount).toBe(3)
+  })
+
   it('preserves the badge when user identity resolves without opening the inbox', async () => {
     const auth = useAuthStore()
     auth.token = 'signed-in'

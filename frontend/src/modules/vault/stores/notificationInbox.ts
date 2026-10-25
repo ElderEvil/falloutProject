@@ -104,6 +104,7 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
       if (!ownsSession(capturedSession)) return false
       const notification = readStates.value.get(id)
       if (notification && !notification.is_read) {
+        countGeneration++
         notification.is_read = true
         unreadCount.value = Math.max(0, unreadCount.value - 1)
       }
@@ -119,6 +120,7 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
       const capturedSession = currentSession()
       await notificationService.markAllRead(scopeVaultId)
       if (!ownsSession(capturedSession)) return false
+      countGeneration++
       for (const notification of readStates.value.values()) {
         if (scopeVaultId === null || notification.vault_id === scopeVaultId) {
           notification.is_read = true
@@ -134,6 +136,7 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
   const isSaving = computed(() => isSavingOne.value || isSavingAll.value)
 
   const noteUnreadArrival = () => {
+    countGeneration++
     unreadCount.value++
   }
 

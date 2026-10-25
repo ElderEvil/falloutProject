@@ -6,10 +6,12 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
+      - 'scripts/pre-push'
   pull_request:
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
+      - 'scripts/pre-push'
 
 jobs:
   backend-ci:

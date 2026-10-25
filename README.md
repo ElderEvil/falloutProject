@@ -141,6 +141,57 @@ docker compose logs -f fastapi  # Watch startup (Ctrl+C to exit)
 
 ## 🔧 Development
 
+### Git push protection
+
+Install the repository's push guard once per clone, from a checkout's root. The installer refuses
+to replace an existing hook, including a symlink. Inspect and compose any existing checks before
+updating it; the command below stops without changing that hook.
+
+```bash
+(
+  set -eu
+  if hooks_path="$(git config --path --get core.hooksPath)"; then
+    case "$hooks_path" in
+      /*|[A-Za-z]:/*) ;;
+      *) printf '%s\n' 'Relative core.hooksPath: configure an absolute path before installing.' >&2; exit 1 ;;
+    esac
+  fi
+  hook="$(git rev-parse --git-path hooks)/pre-push"
+  if [ -e "$hook" ] || [ -L "$hook" ]; then
+    printf '%s\n' "Existing pre-push hook at $hook: preserve its checks before updating." >&2
+    exit 1
+  fi
+  mkdir -p "$(dirname "$hook")"
+  install -m 755 scripts/pre-push "$hook"
+)
+```
+
+Linked worktrees share the installed hook only when `core.hooksPath` is unset or points to the same
+absolute directory. A relative value such as `.git/hooks` resolves within each checkout; `.git` is a
+file in a linked worktree, so that path cannot work there. The installer rejects relative paths.
+To preserve a relative directory while making it absolute, run this from the **main checkout's root**
+(Git 2.31 or later), then retry installation:
+
+```bash
+git config --local core.hooksPath "$(git rev-parse --path-format=absolute --git-path hooks)"
+```
+
+Keep existing hooks in that directory, and check for worktree-specific `core.hooksPath` overrides
+before relying on sharing. Review the installed copy when `scripts/pre-push` changes. This is
+separate from `prek install`, which manages the commit-time checks.
+
+The guard checks destination refs and blocks updates, force pushes and deletions targeting `master`,
+including `git push -u origin HEAD` while on `master` and `HEAD:master` from another branch. Feature
+branches and release tags are allowed. Publish work with an explicit feature-branch destination:
+
+```bash
+git push -u origin HEAD:refs/heads/chore/my-change
+```
+
+Local hooks can be skipped and are not installed by cloning alone. See
+[release protection](docs/DEPLOYMENT.md#branch-protection-and-release-writes) for the server-side policy
+and its current release-automation limitation.
+
 ### Backend
 
 ```bash

@@ -95,4 +95,21 @@ These commands map to their corresponding tools. For example, `vp dev --port 300
 
 - [ ] Run `pnpm install` after pulling remote changes and before getting started.
 - [ ] Run `pnpm run lint && pnpm run test` to validate changes.
+
 <!--VITE PLUS END-->
+
+## Application ownership
+
+- Components own presentation and local interaction state. HTTP calls belong in the existing module
+  service/API layer; search for that operation before adding another implementation.
+- Give shared server state one store owner. Bell, inbox, modal and page views consume that state rather
+  than keeping independent copies. Keep editable drafts local and reconcile them explicitly with server state.
+- Give SSE/polling lifecycle and event deduplication one owner per subscription. Reuse `useSse` and
+  `usePolling`; route toast/sound/report/store-refresh effects through one delivery path so a second
+  consumer or reconnect cannot repeat them. Preserve progression toast/modal plus bell delivery.
+- Reuse `components['schemas']` from `@/core/types/api.generated` for wire contracts. Keep UI-only models
+  separate; convert differing wire shapes once at the module boundary rather than copying response
+  interfaces into components/stores or bypassing mismatches with `as unknown as`.
+- For changed shared async state, cover delayed responses after vault/account switches and, for event
+  consumers, duplicate delivery/reconnect. Capture the request context and ignore results for an obsolete
+  context; sharing a store alone does not prevent stale writes.

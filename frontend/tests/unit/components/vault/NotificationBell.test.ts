@@ -945,6 +945,93 @@ describe('NotificationBell popup accessibility', () => {
     }
   })
 
+  it('reloads the initial unread count when the same account refreshes its token', async () => {
+    const auth = useAuthStore()
+    auth.token = 'initial-token'
+    auth.user = { id: 'same-account' } as NonNullable<typeof auth.user>
+    fetchMock.mockImplementation(async () => createMockResponse([], { hang: true }))
+    let finish!: (value: { data: { count: number } }) => void
+    let countRequests = 0
+    vi.mocked(axios.get).mockImplementation((url) => {
+      if (!String(url).includes('unread-count')) return Promise.resolve({ data: [] })
+      if (countRequests++ > 0) return Promise.resolve({ data: { count: 5 } })
+      return new Promise((resolve) => {
+        finish = resolve
+      })
+    })
+    const wrapper = mount(NotificationBell)
+    try {
+      auth.token = 'refreshed-token'
+      await vi.advanceTimersByTimeAsync(0)
+      await flushPromises()
+      finish({ data: { count: 9 } })
+      await flushPromises()
+
+      expect(auth.user?.id).toBe('same-account')
+      expect(wrapper.get('button[aria-label="Notifications"]').text()).toBe('5')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it.each([false, true])(
+    'scopes pending mark-all results to the same account (%s)',
+    async (sameAccount) => {
+      const wrapper = await mountAndOpen([{ ...informationalNotification }])
+      const auth = useAuthStore()
+      auth.user = { id: 'initial-account' } as NonNullable<typeof auth.user>
+      let finish!: (value: { data: object }) => void
+      vi.mocked(axios.post).mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve
+        })
+      )
+      try {
+        const markAll = wrapper
+          .findAll('button')
+          .find((button) => button.text() === 'Mark all read')!
+        await markAll.trigger('click')
+        await flushPromises()
+        expect(axios.post).toHaveBeenCalledOnce()
+
+        const nextNotification = {
+          ...informationalNotification,
+          id: 'next-account-notification',
+          title: 'Next account alert',
+        }
+        mockNotificationList([nextNotification])
+        fetchMock.mockImplementation(async () =>
+          createMockResponse(
+            [encodeSse(JSON.stringify({ notification: nextNotification }), 'notification')],
+            { hang: true }
+          )
+        )
+        auth.user = { id: sameAccount ? 'initial-account' : 'next-account' } as NonNullable<
+          typeof auth.user
+        >
+        auth.token = 'next-account-token'
+        await vi.advanceTimersByTimeAsync(0)
+        await flushPromises()
+        expect(wrapper.get('[data-notification-id="next-account-notification"]').text()).toContain(
+          'New'
+        )
+        expect(wrapper.get('button[aria-label="Notifications"]').text()).toBe('1')
+
+        finish({ data: {} })
+        await flushPromises()
+
+        expect(
+          wrapper.get('[data-notification-id="next-account-notification"]').text().includes('New')
+        ).toBe(!sameAccount)
+        expect(wrapper.get('button[aria-label="Notifications"]').text()).toBe(
+          sameAccount ? '' : '1'
+        )
+      } finally {
+        wrapper.unmount()
+      }
+    }
+  )
+
   it('closes on backdrop click and returns focus to the bell', async () => {
     const wrapper = await mountAndOpen([informationalNotification])
 

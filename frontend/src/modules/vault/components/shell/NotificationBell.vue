@@ -96,8 +96,11 @@ const { run: runMarkAsRead } = useAsyncAction(
   { context: 'Failed to mark notification as read' }
 )
 const { run: runMarkAllAsRead } = useAsyncAction(
-  async () => {
+  async (token: string) => {
+    const accountId = authStore.user?.id
     await notificationService.markAllRead(null)
+    const sameAccount = !!accountId && authStore.user?.id === accountId
+    if (!authStore.token || (authStore.token !== token && !sameAccount)) return
     notifications.value.forEach((notification) => (notification.is_read = true))
     unreadCount.value = 0
   },
@@ -128,8 +131,11 @@ const startSse = () => {
 watch(
   () => authStore.token,
   (token) => {
-    if (token) startSse()
-    else {
+    if (token) {
+      startSse()
+      // Rotation can invalidate the initial response before SSE has ever connected.
+      void runFetchUnreadCount(token)
+    } else {
       sse.value?.close()
       sse.value = undefined
       notifications.value = []
@@ -336,7 +342,7 @@ const markAsRead = async (notificationId: string) => {
 }
 
 const markAllAsRead = async () => {
-  if (authStore.token) await runMarkAllAsRead()
+  if (authStore.token) await runMarkAllAsRead(authStore.token)
 }
 
 const enqueuePendingReport = (notification: Notification): void => {

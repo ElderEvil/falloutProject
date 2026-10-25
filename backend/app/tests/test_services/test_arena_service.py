@@ -2552,5 +2552,36 @@ async def test_bot_training_is_incomplete_after_a_fighter_leaves(async_session, 
     )
     await dweller_service.move_to_room(async_session, fighter_b.id, source.id)
     assert await service.get_teams(async_session, arena_room) == ([], [])
-    with pytest.raises(ValidationException):
+    with pytest.raises(ValidationException, match="Bot training needs two dwellers and two training bots"):
         await service.start_fight(async_session, arena_room.id)
+
+
+async def test_arena_candidates_load_once_and_preserve_room_eligibility(
+    async_session, arena_room, fighter_a, fighter_b, fighter_c
+):
+    from sqlalchemy import event
+
+    second = Room(**arena_room.model_dump(exclude={"id", "created_at", "updated_at"}))
+    second.coordinate_y = 2
+    async_session.add(second)
+    await async_session.flush()
+    fighter_a.room_id, fighter_a.status = arena_room.id, DwellerStatusEnum.FIGHTING
+    fighter_b.room_id, fighter_b.status = None, DwellerStatusEnum.IDLE
+    fighter_c.room_id, fighter_c.status = second.id, DwellerStatusEnum.FIGHTING
+    await async_session.commit()
+    queries = []
+    connection = (await async_session.connection()).sync_connection
+
+    def count_candidates(conn, cursor, statement, parameters, context, executemany):
+        if "dweller.status IN" in statement and "ORDER BY dweller.created_at" in statement:
+            queries.append(statement)
+
+    event.listen(connection, "before_cursor_execute", count_candidates)
+    try:
+        view = await ArenaService().get_arena_state(async_session, arena_room.vault_id)
+    finally:
+        event.remove(connection, "before_cursor_execute", count_candidates)
+    candidates = {room.room_id: {entry.id for entry in room.candidates} for room in view.rooms}
+    assert candidates[str(arena_room.id)] == {str(fighter_a.id), str(fighter_b.id)}
+    assert candidates[str(second.id)] == {str(fighter_b.id), str(fighter_c.id)}
+    assert len(queries) == 1

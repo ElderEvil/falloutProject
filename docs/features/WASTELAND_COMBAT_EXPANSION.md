@@ -188,7 +188,10 @@ Initial timing candidates are about 350 ms per ordinary attack and 550 ms per sk
 a skill and an ordinary attack would take about 1.8 seconds against the configured two-second team tick.
 Large batches play up to three times faster; a queue more than six seconds behind, missing journal history,
 or an absence over ten seconds synchronizes directly to the current state. Incident polling uses the existing
-store subscription with a maximum two-second interval. Final incident journals arrive through the existing
+store subscription with a maximum two-second interval while incidents are active. With no active incidents,
+it returns to the caller's configured interval (ten seconds by default) for disconnected-SSE fallback;
+connected SSE suppresses idle polling requests. The same store owns cadence changes and stops its watcher
+on navigation or account changes. Final incident journals arrive through the existing
 aftermath refresh, keeping the visible scene mounted until its last action recovers.
 Accelerated playback uses stationary attacker cues so an unfinished lunge cannot lag behind an impact.
 
@@ -339,3 +342,7 @@ armor reactions while keeping controls and meters fixed. No combat formulas, tur
 change. Historical actions fall back to human motion; reduced motion and catch-up suppress body travel.
 See the [animation matrix](../frontend/COMBAT_ANIMATION_MATRIX.md) for implemented profiles and remaining
 family/artwork refinements.
+
+Arena state polls load eligible dweller candidates once per vault request, including equipment and room
+labels, then reuse that load across Arena rooms. Busy fighters remain visible only in their own Arena;
+available adults remain selectable across rooms. This does not cache eligibility across requests.

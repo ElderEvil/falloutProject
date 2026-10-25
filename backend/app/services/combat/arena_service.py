@@ -13,6 +13,7 @@ This is an experimental feature on branch `experiment/arena`.
 
 import logging
 import random
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 from pydantic import UUID4
@@ -372,20 +373,24 @@ class ArenaService:
     async def get_arena_state(self, db_session: AsyncSession, vault_id: UUID4) -> ArenaStateOut:
         """Build the full arena state for a vault: fighters, roster, flags, journal."""
         rooms = await room_crud.get_arena_rooms(db_session, vault_id=vault_id)
+        candidates = (
+            await crud_dweller.get_arena_candidates(db_session, vault_id, [room.id for room in rooms]) if rooms else {}
+        )
         room_states = []
         for room in rooms:
             state = await self._state(db_session, room)
-            room_states.append(await self._room_state(db_session, room, state))
+            room_states.append(await self._room_state(db_session, room, state, candidates[room.id]))
         return ArenaStateOut(rooms=room_states)
 
-    async def _room_state(self, db_session: AsyncSession, room: Room, state: ArenaState) -> ArenaRoomState:
+    async def _room_state(
+        self, db_session: AsyncSession, room: Room, state: ArenaState, candidates: Sequence[Dweller]
+    ) -> ArenaRoomState:
         """Assemble the API view for one arena room from its persisted state."""
         mode = state.mode or ArenaMode.DUEL
         available_modes = [choice for choice, tier in MODE_UNLOCK_TIERS.items() if room.tier >= tier]
         mode_unlocked = mode in available_modes
         team_a, team_b = await self._teams_from_state(db_session, room, state)
         roster = await self.get_roster(db_session, room)
-        candidates = await crud_dweller.get_arena_candidates(db_session, room.vault_id, room.id)
 
         match_done = state.last_fight_at is not None
         started = state.fight_started_at is not None
@@ -598,7 +603,9 @@ class ArenaService:
         size = self._required_team_size(mode)
         team_a, team_b = await self._teams_from_state(db_session, room, state)
         if not team_a or not team_b:
-            if mode in (ArenaMode.HUNT, ArenaMode.TRAINING):
+            if mode == ArenaMode.TRAINING:
+                raise ValidationException(detail="Bot training needs two dwellers and two training bots")
+            if mode == ArenaMode.HUNT:
                 raise ValidationException(detail="Hunt needs one or two dwellers and at least one creature")
             word = "two" if size == 1 else "four"
             raise ValidationException(detail=f"Arena needs {word} adult fighters selected")

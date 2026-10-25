@@ -28,6 +28,7 @@ export const useIncidentStore = defineStore('incident', () => {
   const sseConnected = ref(false)
   let sseInstance: ReturnType<typeof useSse> | null = null
   let incidentPolling: ReturnType<typeof usePolling> | null = null
+  let stopPollingCadenceWatch: (() => void) | null = null
   let pendingStartPolling: ReturnType<typeof usePolling> | null = null
   let pollingVaultId: string | null = null
   const announcedResolutions = new Set<string>()
@@ -370,18 +371,25 @@ export const useIncidentStore = defineStore('incident', () => {
   }
 
   function startIncidentPolling(vaultId: string, token: string, intervalMs: number): void {
-    incidentPolling?.stop()
-    incidentPolling = usePolling(
-      async () => {
-        // The stream carries spawn, spread and resolution only — never a round — so
-        // an active overlay still needs this refresh to advance its battle log.
-        if (!sseConnected.value || activeIncidentIds.value.length > 0) {
-          await fetchIncidents(vaultId, token, true)
+    stopPollingCadenceWatch?.()
+    const schedule = () => {
+      incidentPolling?.stop()
+      incidentPolling = usePolling(
+        async () => {
+          // SSE carries lifecycle changes, not rounds; active combat needs faster refreshes.
+          if (!sseConnected.value || hasActiveIncidents.value) {
+            await fetchIncidents(vaultId, token, true)
+          }
+        },
+        {
+          interval: hasActiveIncidents.value ? Math.min(intervalMs, 2000) : intervalMs,
+          immediate: false,
         }
-      },
-      { interval: Math.min(intervalMs, 2000), immediate: false }
-    )
-    incidentPolling.resume()
+      )
+      incidentPolling.resume()
+    }
+    stopPollingCadenceWatch = watch(hasActiveIncidents, schedule)
+    schedule()
   }
 
   function startSseSubscription(vaultId: string, token: string): void {
@@ -518,6 +526,8 @@ export const useIncidentStore = defineStore('incident', () => {
     pendingStartPolling?.stop()
     pendingStartPolling = null
     pollingVaultId = null
+    stopPollingCadenceWatch?.()
+    stopPollingCadenceWatch = null
     stopSseSubscription()
     incidentPolling?.stop()
     incidentPolling = null

@@ -530,6 +530,48 @@ describe('Incident Store', () => {
   })
 
   describe('Polling', () => {
+    it('uses the configured idle fallback cadence when SSE is disconnected', async () => {
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue({
+        vault_id: 'vault-1',
+        incident_count: 0,
+        incidents: [],
+      })
+      const store = useIncidentStore()
+      store.startPolling('vault-1', 'token')
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(9999)
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(2)
+      store.stopPolling()
+    })
+
+    it('refreshes active combat every two seconds and restores idle cadence after resolution', async () => {
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
+      vi.mocked(incidentApi.getIncidentTeam).mockResolvedValue([])
+      const store = useIncidentStore()
+      store.startPolling('vault-1', 'token')
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(1999)
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(2)
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue({
+        vault_id: 'vault-1',
+        incident_count: 0,
+        incidents: [],
+      })
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(store.hasActiveIncidents).toBe(false)
+      const calls = vi.mocked(incidentApi.getActiveIncidents).mock.calls.length
+      await vi.advanceTimersByTimeAsync(9999)
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(calls)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(calls + 1)
+      store.stopPolling()
+    })
+
     it('should start polling and fetch incidents', async () => {
       const store = useIncidentStore()
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)

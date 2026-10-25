@@ -360,51 +360,6 @@ class NotificationService:
         )
 
     @staticmethod
-    async def notify_resource_low(
-        db: AsyncSession,
-        user_id: UUID,
-        vault_id: UUID,
-        resource_name: str,
-        current_amount: int,
-        max_amount: int,
-        meta_data: dict[str, Any] | None = None,
-    ):
-        """Notify user that a resource is running low."""
-        return await NotificationService.create_and_send(
-            db,
-            user_id=user_id,
-            vault_id=vault_id,
-            notification_type=NotificationType.RESOURCE_LOW,
-            priority=NotificationPriority.HIGH,
-            title=f"Low {resource_name}!",
-            message=f"{resource_name} is running low: {current_amount}/{max_amount}",
-            meta_data=meta_data,
-        )
-
-    @staticmethod
-    async def notify_combat_victory(
-        db: AsyncSession,
-        user_id: UUID,
-        vault_id: UUID,
-        dweller_id: UUID,
-        dweller_name: str,
-        enemy_name: str,
-        meta_data: dict[str, Any] | None = None,
-    ):
-        """Notify user about combat victory."""
-        return await NotificationService.create_and_send(
-            db,
-            user_id=user_id,
-            vault_id=vault_id,
-            from_dweller_id=dweller_id,
-            notification_type=NotificationType.COMBAT_VICTORY,
-            priority=NotificationPriority.NORMAL,
-            title=f"{dweller_name} - Victory!",
-            message=f"{dweller_name} defeated {enemy_name}!",
-            meta_data=meta_data,
-        )
-
-    @staticmethod
     async def notify_arena_morale_boost(
         db: AsyncSession,
         user_id: UUID,
@@ -554,27 +509,6 @@ class NotificationService:
                 "vault_id": str(vault_id),
             },
             commit=commit,
-        )
-
-    @staticmethod
-    async def notify_quest_completed(
-        db: AsyncSession,
-        user_id: UUID,
-        vault_id: UUID,
-        quest_title: str,
-        rewards: str,
-        meta_data: dict[str, Any] | None = None,
-    ):
-        """Notify user that a quest has been completed."""
-        return await NotificationService.create_and_send(
-            db,
-            user_id=user_id,
-            vault_id=vault_id,
-            notification_type=NotificationType.QUEST_COMPLETE,
-            priority=NotificationPriority.HIGH,
-            title="Quest Completed!",
-            message=f"'{quest_title}' completed! Rewards: {rewards}",
-            meta_data=meta_data,
         )
 
     @staticmethod

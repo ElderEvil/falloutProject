@@ -166,12 +166,13 @@ async def recalculate_vault_attributes(
     room_obj: Room,
     action: RoomActionEnum,
     previous_capacity: int | None = None,
+    commit: bool = True,
 ) -> Vault:
     """Recalculate the vault attributes based on the newly added or removed room."""
     if room_obj.category == RoomTypeEnum.PRODUCTION and room_obj.capacity is not None:
-        await handle_production_room(db_session, vault_obj, room_obj, action, previous_capacity)
+        await handle_production_room(db_session, vault_obj, room_obj, action, previous_capacity, commit=commit)
     elif room_obj.category == RoomTypeEnum.CAPACITY:
-        await handle_capacity_room(db_session, vault_obj, room_obj, action, previous_capacity)
+        await handle_capacity_room(db_session, vault_obj, room_obj, action, previous_capacity, commit=commit)
 
     return vault_obj
 
@@ -182,6 +183,8 @@ async def handle_production_room(
     room_obj: Room,
     action: RoomActionEnum,
     previous_capacity: int | None = None,
+    *,
+    commit: bool = True,
 ) -> None:
     """Handle production room capacity updates."""
     if room_obj.ability not in (
@@ -205,7 +208,8 @@ async def handle_production_room(
     if field:
         new_capacity = calculate_new_capacity(action, current, room_obj.capacity, previous_capacity)
         await vault_crud.update(db_session=db_session, id=vault_obj.id, obj_in={field: new_capacity}, commit=False)
-        await db_session.commit()
+        if commit:
+            await db_session.commit()
 
 
 async def handle_capacity_room(
@@ -214,22 +218,26 @@ async def handle_capacity_room(
     room_obj: Room,
     action: RoomActionEnum,
     previous_capacity: int | None = None,
+    *,
+    commit: bool = True,
 ) -> None:
     """Handle capacity room updates."""
     if room_obj.ability == SPECIALEnum.CHARISMA:
         new_population_max = calculate_new_capacity(
             action, vault_obj.population_max or 0, room_obj.capacity, previous_capacity
         )
-        await vault_crud.update(db_session, vault_obj.id, VaultUpdate(population_max=new_population_max))
+        await vault_crud.update(db_session, vault_obj.id, VaultUpdate(population_max=new_population_max), commit=commit)
     elif room_obj.ability == SPECIALEnum.ENDURANCE and room_obj.capacity is not None:
         storage_obj = await storage_crud.get_by_vault(db_session, vault_obj.id)
 
         if storage_obj is None:
-            storage_obj = await storage_crud.create_for_vault(db_session=db_session, vault_id=vault_obj.id)
+            storage_obj = await storage_crud.create_for_vault(
+                db_session=db_session, vault_id=vault_obj.id, commit=commit
+            )
 
         current_max_space = storage_obj.max_space
         new_storage_space_max = calculate_new_capacity(action, current_max_space, room_obj.capacity, previous_capacity)
-        await storage_crud.set_max_space(db_session, vault_obj.id, new_storage_space_max)
+        await storage_crud.set_max_space(db_session, vault_obj.id, new_storage_space_max, commit=commit)
 
 
 async def is_enough_dwellers(*, db_session: AsyncSession, vault_id: UUID4, population_required: int | None) -> bool:

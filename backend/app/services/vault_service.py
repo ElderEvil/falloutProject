@@ -160,6 +160,7 @@ class VaultService:
         room_obj,
         action,
         previous_capacity: int | None = None,
+        commit: bool = True,
     ) -> Vault:
         """Recalculate the vault attributes based on the newly added or removed room."""
         return await economy.recalculate_vault_attributes(
@@ -168,6 +169,7 @@ class VaultService:
             room_obj=room_obj,
             action=action,
             previous_capacity=previous_capacity,
+            commit=commit,
         )
 
     async def is_enough_dwellers(

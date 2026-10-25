@@ -232,7 +232,9 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         result = await db_session.execute(query)
         return result.scalar() > 0
 
-    async def delete(self, db_session: AsyncSession, id: int | UUID4, soft: bool = True) -> ModelType:
+    async def delete(
+        self, db_session: AsyncSession, id: int | UUID4, soft: bool = True, *, commit: bool = True
+    ) -> ModelType:
         """
         Remove a database object with the given ID.
 
@@ -242,6 +244,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         :param db_session: A database session
         :param id: ID of the object to remove
         :param soft: If True and model supports soft delete, perform soft delete. Otherwise hard delete.
+        :param commit: Whether to commit the transaction (default: True).
         :returns: the removed object, or None if it does not exist
         :raises IDNotFoundException: if there is an error finding object in database
         """
@@ -254,12 +257,18 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         if soft and hasattr(obj, "soft_delete"):
             obj.soft_delete()
             db_session.add(obj)
-            await db_session.commit()
-            await db_session.refresh(obj)
+            if commit:
+                await db_session.commit()
+                await db_session.refresh(obj)
+            else:
+                await db_session.flush()
         else:
             # Hard delete
             await db_session.delete(obj)
-            await db_session.commit()
+            if commit:
+                await db_session.commit()
+            else:
+                await db_session.flush()
 
         return obj
 

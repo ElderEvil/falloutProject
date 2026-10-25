@@ -93,12 +93,14 @@ async def _apply_merged_size(
     capacity: int | None,
     output: int | None,
     image_url: str | None,
+    commit: bool = True,
 ) -> Room:
     """Persist a merge's total footprint onto the existing survivor room."""
     return await crud.room.update(
         db_session=db_session,
         id=room_id,
         obj_in=RoomUpdate(size=size, capacity=capacity, output=output, image_url=image_url),
+        commit=commit,
     )
 
 
@@ -111,6 +113,7 @@ class RoomService:
         *,
         candidate: RoomCreate | Room,
         dry_run: bool = False,
+        commit: bool = True,
     ) -> MergeResult:
         """Merge a candidate footprint with directly adjacent identical rooms.
 
@@ -121,6 +124,9 @@ class RoomService:
 
         Returns the surviving room and the IDs of rooms absorbed into it.
         If no merge is possible ``merged`` is ``False``.
+
+        Pass ``commit=False`` when the caller composes the merge into a larger
+        transaction (a build charges caps in the same one).
         """
         vault_id = candidate.vault_id
         name = candidate.name
@@ -263,6 +269,7 @@ class RoomService:
                         capacity_formula=capacity_formula,
                         output_formula=output_formula,
                     ),
+                    commit=commit,
                 )
                 created = True
             else:
@@ -273,6 +280,7 @@ class RoomService:
                     capacity=new_capacity,
                     output=new_output,
                     image_url=new_image_url,
+                    commit=commit,
                 )
         elif survivor_room is not None:
             survivor_room = await _apply_merged_size(
@@ -282,6 +290,7 @@ class RoomService:
                 capacity=new_capacity,
                 output=new_output,
                 image_url=new_image_url,
+                commit=commit,
             )
         else:
             return MergeResult(room=None, absorbed_ids=[], merged=False)
@@ -307,9 +316,10 @@ class RoomService:
             # that Room's collection.
             await db_session.flush()
             for room in absorbed:
-                await crud.room.delete(db_session=db_session, id=room.id, soft=False)
+                await crud.room.delete(db_session=db_session, id=room.id, soft=False, commit=commit)
 
-        await db_session.commit()
+        if commit:
+            await db_session.commit()
         return MergeResult(
             room=survivor_room,
             absorbed_ids=absorbed_ids,
@@ -454,9 +464,9 @@ class RoomService:
         async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(obj_in.vault_id)) as acquired:
             if not acquired:
                 raise ResourceConflictException(detail=f"Vault {obj_in.vault_id} is already being built in — try again")
-            return await self._build_locked(db_session=db_session, obj_in=obj_in)
+            return await self._build_locked_transaction(db_session=db_session, obj_in=obj_in)
 
-    async def _build_locked(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> tuple[Room, bool]:
+    async def _build_locked_transaction(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> tuple[Room, bool]:
         """Build a room from a full create payload, merging into an adjacent identical room."""
         vault = await crud.vault.get(db_session, id=obj_in.vault_id)
 
@@ -511,31 +521,37 @@ class RoomService:
             obj_in.output_formula = room_template.output_formula
 
         price = await crud.room.get_room_build_price(db_session=db_session, room_in=obj_in)
-        merge_result = await self.merge_adjacent_rooms(db_session=db_session, candidate=obj_in)
-        if merge_result.merged and merge_result.room is not None:
+        merge_preview = await self.merge_adjacent_rooms(db_session=db_session, candidate=obj_in, dry_run=True)
+        if not merge_preview.merged:
+            await crud.room.check_is_unique_room(db_session=db_session, obj_in=obj_in)
+
+        await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price, commit=False)
+
+        if merge_preview.merged:
+            merge_result = await self.merge_adjacent_rooms(db_session=db_session, candidate=obj_in, commit=False)
             survivor = merge_result.room
-            await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price)
+            if merge_result.merged and survivor is not None:
+                if crud.room.requires_recalculation(survivor):
+                    await vault_service.recalculate_vault_attributes(
+                        db_session=db_session,
+                        vault_obj=vault,
+                        room_obj=survivor,
+                        action=RoomActionEnum.BUILD,
+                        previous_capacity=merge_result.previous_capacity,
+                        commit=False,
+                    )
 
-            if crud.room.requires_recalculation(survivor):
-                await vault_service.recalculate_vault_attributes(
-                    db_session=db_session,
-                    vault_obj=vault,
-                    room_obj=survivor,
-                    action=RoomActionEnum.BUILD,
-                    previous_capacity=merge_result.previous_capacity,
+                await db_session.commit()
+                await db_session.refresh(survivor)
+                await event_bus.emit(
+                    GameEvent.ROOM_BUILT,
+                    vault.id,
+                    {"room_type": survivor.name, "tier": survivor.tier, "room_id": str(survivor.id)},
                 )
+                return survivor, merge_result.created
 
-            await event_bus.emit(
-                GameEvent.ROOM_BUILT,
-                vault.id,
-                {"room_type": survivor.name, "tier": survivor.tier, "room_id": str(survivor.id)},
-            )
-            return survivor, merge_result.created
-
-        # Uniqueness blocks only a *new* copy: an adjacent segment already merged into
-        # the existing room above, while a disconnected second copy is rejected here —
-        # before any caps move or a row is created.
-        await crud.room.check_is_unique_room(db_session=db_session, obj_in=obj_in)
+            # Preview and write disagree only if the placement lock was lost; re-check before creating.
+            await crud.room.check_is_unique_room(db_session=db_session, obj_in=obj_in)
 
         if obj_in.capacity_formula:
             room_size = obj_in.size if obj_in.size is not None else obj_in.size_min
@@ -545,18 +561,18 @@ class RoomService:
             room_size = obj_in.size if obj_in.size is not None else obj_in.size_min
             obj_in.output = crud.room.evaluate_output_formula(obj_in.output_formula, obj_in.tier, room_size)
 
-        await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price)
-
         room_size = obj_in.size if obj_in.size is not None else obj_in.size_min
         obj_in.image_url = get_room_image_url(obj_in.name, tier=obj_in.tier, size=room_size, style=obj_in.room_style)
 
-        obj_in_db: Room = await crud.room.create(db_session, obj_in=obj_in)
-        await db_session.refresh(obj_in_db)
+        obj_in_db: Room = await crud.room.create(db_session, obj_in=obj_in, commit=False)
 
         if crud.room.requires_recalculation(obj_in_db):
             await vault_service.recalculate_vault_attributes(
-                db_session=db_session, vault_obj=vault, room_obj=obj_in_db, action=RoomActionEnum.BUILD
+                db_session=db_session, vault_obj=vault, room_obj=obj_in_db, action=RoomActionEnum.BUILD, commit=False
             )
+
+        await db_session.commit()
+        await db_session.refresh(obj_in_db)
 
         await event_bus.emit(
             GameEvent.ROOM_BUILT,
@@ -591,11 +607,11 @@ class RoomService:
                     raise ResourceConflictException(
                         detail=f"Vault {room.vault_id} is already being built in — try again"
                     )
-                return await self._destroy(db_session, room_id)
+                return await self._destroy_transaction(db_session, room_id)
         except ValueError as e:
             raise VaultOperationException(detail=str(e)) from e
 
-    async def _destroy(self, db_session: AsyncSession, room_id: UUID4) -> Room:
+    async def _destroy_transaction(self, db_session: AsyncSession, room_id: UUID4) -> Room:
         room = await crud.room.get(db_session, room_id)
         vault = await crud.vault.get(db_session, id=room.vault_id)
 
@@ -613,16 +629,20 @@ class RoomService:
         for training in await training_crud.get_active_by_room(db_session, room_id):
             await training_service.cancel_training(db_session, training.id, commit=False)
         await training_crud.detach_room_history(db_session, room_id)
-        db_obj = await crud.room.delete(db_session, id=room_id)
+        db_obj = await crud.room.delete(db_session, id=room_id, commit=False)
 
         refund = room_rules.room_refund(db_obj)
 
-        await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=refund, track_earnings=False)
+        await vault_service.deposit_caps(
+            db_session=db_session, vault_obj=vault, amount=refund, track_earnings=False, commit=False
+        )
 
         if crud.room.requires_recalculation(db_obj):
             await vault_service.recalculate_vault_attributes(
-                db_session=db_session, vault_obj=vault, room_obj=db_obj, action=RoomActionEnum.DESTROY
+                db_session=db_session, vault_obj=vault, room_obj=db_obj, action=RoomActionEnum.DESTROY, commit=False
             )
+
+        await db_session.commit()
 
         return db_obj
 
@@ -657,7 +677,7 @@ class RoomService:
             if not acquired:
                 raise ResourceConflictException(detail=f"Vault {room.vault_id} is already being built in — try again")
             await db_session.refresh(room)
-            return await self._upgrade_locked(db_session, room)
+            return await self._upgrade_locked_transaction(db_session, room)
 
     async def apply_room_style(self, db_session: AsyncSession, room_id: UUID4, style: str) -> Room:
         """Apply a cosmetic room-wide style, updating the stored sprite URL."""
@@ -685,7 +705,7 @@ class RoomService:
                 obj_in=RoomUpdate(room_style=style, image_url=image_url),
             )
 
-    async def _upgrade_locked(self, db_session: AsyncSession, room: Room) -> Room:
+    async def _upgrade_locked_transaction(self, db_session: AsyncSession, room: Room) -> Room:
         """Apply the tier change and fuse any adjacent identical room while the lock is held."""
         vault = await crud.vault.get(db_session, id=room.vault_id)
 
@@ -703,7 +723,7 @@ class RoomService:
             msg = f"No upgrade cost defined for room {room.name} at tier {room.tier}"
             raise ValueError(msg)
 
-        await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=upgrade_cost)
+        await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=upgrade_cost, commit=False)
 
         if room.refund_caps is not None:
             room.refund_caps += int(upgrade_cost * game_config.resource.destroy_room_refund_rate)
@@ -736,6 +756,7 @@ class RoomService:
             db_session=db_session,
             obj_in=RoomUpdate(tier=room.tier, capacity=new_capacity, output=new_output, image_url=new_image_url),
             id=room.id,
+            commit=False,
         )
 
         room.capacity = new_capacity
@@ -748,15 +769,17 @@ class RoomService:
                 room_obj=room,
                 action=RoomActionEnum.UPGRADE,
                 previous_capacity=old_capacity,
+                commit=False,
             )
+
+        await db_session.commit()
+        await db_session.refresh(room)
 
         await event_bus.emit(
             GameEvent.ROOM_UPGRADED,
             vault.id,
             {"room_type": room.name, "from_tier": old_tier, "to_tier": room.tier, "room_id": str(room.id)},
         )
-
-        await db_session.refresh(room)
 
         # An upgrade can make this room identical to an adjacent one (same
         # name and tier), so fuse them exactly like a build does — otherwise

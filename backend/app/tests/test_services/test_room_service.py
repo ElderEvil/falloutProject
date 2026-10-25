@@ -8,6 +8,8 @@ from unittest.mock import AsyncMock, patch
 from uuid import UUID
 
 import pytest
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -20,7 +22,12 @@ from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.room_assignment_policy import calculate_room_capacity
 from app.services.room_service import room_service
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, UniqueRoomViolationException
+from app.utils.exceptions import (
+    InsufficientResourcesException,
+    ResourceConflictException,
+    ResourceNotFoundException,
+    UniqueRoomViolationException,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -1151,3 +1158,144 @@ async def test_buildable_rooms_are_sorted_by_population_requirement():
     assert arena.base_cost == 3000
     assert arena.t2_upgrade_cost == 12000
     assert arena.t3_upgrade_cost == 36000
+
+
+@pytest.mark.asyncio
+async def test_unaffordable_build_does_not_expand_adjacent_room(async_session: AsyncSession, vault: Vault):
+    """The affordability check runs before any merge write, so a rejected build changes nothing."""
+    vault.bottle_caps = 0
+    async_session.add(vault)
+    await async_session.commit()
+    await _create_elevator(async_session, vault.id, coordinate_y=1)
+    existing = await _create_existing_room(async_session, vault.id, coordinate_x=0)
+    room_id, vault_id, initial_size = existing.id, vault.id, existing.size
+
+    with pytest.raises(InsufficientResourcesException):
+        await room_service._build(
+            db_session=async_session,
+            obj_in=_make_room_create(vault_id, coordinate_x=3, coordinate_y=1),
+        )
+
+    await async_session.rollback()
+    persisted = await crud.room.get(async_session, room_id)
+    assert persisted.size == initial_size
+
+
+@pytest.mark.asyncio
+async def test_build_insert_failure_leaves_caps_untouched(
+    async_session: AsyncSession, db_connection: AsyncConnection, vault: Vault
+):
+    """A failed room insert must not leave the caps deduction committed."""
+    vault.bottle_caps = 10000
+    async_session.add(vault)
+    await async_session.commit()
+    await _create_elevator(async_session, vault.id, coordinate_y=1)
+    vault_id = vault.id
+    initial_caps = vault.bottle_caps
+
+    def fail_room_insert(_conn, _cursor, statement, _parameters, _context, _executemany):
+        if statement.lstrip().upper().startswith("INSERT INTO ROOM "):
+            raise RuntimeError("injected room insert failure")
+
+    connection = db_connection.sync_connection
+    event.listen(connection, "before_cursor_execute", fail_room_insert)
+    try:
+        with pytest.raises(RuntimeError, match="injected room insert failure"):
+            await room_service._build(
+                db_session=async_session,
+                obj_in=_make_room_create(vault_id, coordinate_x=3, coordinate_y=1),
+            )
+    finally:
+        event.remove(connection, "before_cursor_execute", fail_room_insert)
+
+    await async_session.rollback()
+    persisted = await crud.vault.get(async_session, vault_id)
+    assert persisted.bottle_caps == initial_caps
+
+
+@pytest.mark.asyncio
+async def test_upgrade_failure_preserves_caps(
+    async_session: AsyncSession, db_connection: AsyncConnection, rich_vault: Vault
+):
+    """A failed tier write must not leave the upgrade charge committed."""
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
+    room = await _create_existing_room(async_session, rich_vault.id, coordinate_x=0, tier=1)
+    vault_id, room_id = rich_vault.id, room.id
+    initial_caps = rich_vault.bottle_caps
+
+    def fail_room_update(_conn, _cursor, statement, _parameters, _context, _executemany):
+        if statement.lstrip().upper().startswith("UPDATE ROOM "):
+            raise RuntimeError("injected room update failure")
+
+    connection = db_connection.sync_connection
+    event.listen(connection, "before_cursor_execute", fail_room_update)
+    try:
+        with pytest.raises(RuntimeError, match="injected room update failure"):
+            await room_service._upgrade(async_session, room_id)
+    finally:
+        event.remove(connection, "before_cursor_execute", fail_room_update)
+
+    await async_session.rollback()
+    persisted_vault = await crud.vault.get(async_session, vault_id)
+    persisted_room = await crud.room.get(async_session, room_id)
+    assert persisted_vault.bottle_caps == initial_caps
+    assert persisted_room.tier == 1
+
+
+@pytest.mark.asyncio
+async def test_destroy_failure_preserves_room_and_caps(
+    async_session: AsyncSession, db_connection: AsyncConnection, rich_vault: Vault
+):
+    """A failed refund must not leave the room deletion and refund split apart."""
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
+    room = await _create_existing_room(async_session, rich_vault.id, coordinate_x=0)
+    vault_id, room_id = rich_vault.id, room.id
+    initial_caps = rich_vault.bottle_caps
+
+    def fail_refund(_conn, _cursor, statement, _parameters, _context, _executemany):
+        if statement.lstrip().upper().startswith("UPDATE VAULT "):
+            raise RuntimeError("injected refund failure")
+
+    connection = db_connection.sync_connection
+    event.listen(connection, "before_cursor_execute", fail_refund)
+    try:
+        with pytest.raises(RuntimeError, match="injected refund failure"):
+            await room_service.destroy_room(async_session, room_id)
+    finally:
+        event.remove(connection, "before_cursor_execute", fail_refund)
+
+    await async_session.rollback()
+    persisted_room = await crud.room.get(async_session, room_id)
+    persisted_vault = await crud.vault.get(async_session, vault_id)
+    assert persisted_room.id == room_id
+    assert persisted_vault.bottle_caps == initial_caps
+
+
+@pytest.mark.asyncio
+async def test_build_commits_once_on_create_and_merge_paths(
+    async_session: AsyncSession, rich_vault: Vault, monkeypatch: pytest.MonkeyPatch
+):
+    """Construction owns exactly one transaction, whether it inserts or fuses."""
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
+    commits = 0
+    original_commit = async_session.commit
+
+    async def counting_commit() -> None:
+        nonlocal commits
+        commits += 1
+        await original_commit()
+
+    monkeypatch.setattr(async_session, "commit", counting_commit)
+
+    await room_service._build(
+        db_session=async_session,
+        obj_in=_make_room_create(rich_vault.id, coordinate_x=3, coordinate_y=1),
+    )
+    assert commits == 1
+
+    commits = 0
+    await room_service._build(
+        db_session=async_session,
+        obj_in=_make_room_create(rich_vault.id, coordinate_x=0, coordinate_y=1),
+    )
+    assert commits == 1

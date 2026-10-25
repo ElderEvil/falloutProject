@@ -30,12 +30,13 @@ _LUNCHBOX_ITEM_COUNT = 3
 
 def _lunchbox_common_dweller_data(level: int, rarity: RarityEnum) -> dict[str, Any]:
     """Build the procedural fallback used for common lunchbox dwellers."""
+    from app.utils.dwellers import fake as name_faker
     from app.utils.dwellers import get_gender_based_name
 
     gender = random.choice([GenderEnum.MALE, GenderEnum.FEMALE])
     return {
         "first_name": get_gender_based_name(gender),
-        "last_name": random.choice(["Smith", "Johnson", "Williams", "Brown", "Jones", "Miller"]),
+        "last_name": name_faker.last_name(),
         "rarity": rarity,
         "level": level,
         "gender": gender,

@@ -6,7 +6,6 @@ stand-in that reports the lock as already held.
 
 from contextlib import asynccontextmanager
 from unittest.mock import patch
-from uuid import uuid4
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -34,14 +33,6 @@ async def test_incident_tick_skips_when_the_lock_is_held(async_session: AsyncSes
 async def test_arena_tick_skips_when_the_lock_is_held(async_session: AsyncSession) -> None:
     with patch("app.services.combat.arena_service.db_locks.hold_advisory_lock", new=_lock_held_by_another_worker):
         result = await ArenaService().process_arena_ticks(async_session, 60)
-
-    assert result == {"arena": {"rooms": 0, "rounds": []}}
-
-
-@pytest.mark.asyncio
-async def test_arena_vault_round_skips_when_the_lock_is_held(async_session: AsyncSession) -> None:
-    with patch("app.services.combat.arena_service.db_locks.hold_advisory_lock", new=_lock_held_by_another_worker):
-        result = await ArenaService().process_arena_fights(async_session, uuid4(), 60)
 
     assert result == {"arena": {"rooms": 0, "rounds": []}}
 

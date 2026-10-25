@@ -13,7 +13,6 @@ This is an experimental feature on branch `experiment/arena`.
 
 import logging
 import random
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from pydantic import UUID4
@@ -24,16 +23,14 @@ from app.core.enums import ArenaMode, DwellerStatusEnum
 from app.core.game_config import game_config
 from app.crud import dweller as crud_dweller
 from app.crud import room as room_crud
+from app.crud import vault as vault_crud
 from app.crud.arena_match_event import arena_match_event_crud
 from app.crud.arena_state import arena_state_crud
 from app.models.arena_match_event import ArenaMatchEvent
 from app.models.arena_state import ArenaState
 from app.models.dweller import Dweller
 from app.models.room import Room
-from app.options.identity_modifiers import effective_stat
 from app.schemas.arena import (
-    ArenaActiveSkill,
-    ArenaFighter,
     ArenaMatchEventOut,
     ArenaRoomState,
     ArenaRosterEntry,
@@ -42,12 +39,18 @@ from app.schemas.arena import (
     ArenaState as ArenaStateOut,
 )
 from app.services.catalog_service import list_arena_creatures
+from app.services.combat.arena_participants import (
+    ArenaParticipant,
+    catalog_participants,
+    charge_per_second,
+    dweller_participants,
+    participant_out,
+    persist_creature_hp,
+)
 from app.services.combat.weapon_skill_service import MAX_CHARGE, weapon_skill
 from app.services.game_tick.tick_results import ArenaEventStats, ArenaRoomStats, ArenaStats
-from app.utils.combat import combat_power
-
-BASE_CHARGE_PER_SECOND = 2.0
-PERCEPTION_CHARGE_FACTOR = 0.4
+from app.services.leveling_service import leveling_service
+from app.services.notification_service import NotificationService
 from app.utils.exceptions import ValidationException
 
 logger = logging.getLogger(__name__)
@@ -56,31 +59,7 @@ HAPPINESS_WIN = 10
 HAPPINESS_LOSE = 10
 MODE_UNLOCK_TIERS = {ArenaMode.DUEL: 1, ArenaMode.BRAWL: 2, ArenaMode.HUNT: 3}
 TEAM_LABELS = {ArenaMode.BRAWL: ("Team A", "Team B"), ArenaMode.HUNT: ("Dwellers", "Creatures")}
-
-
-@dataclass
-class ArenaParticipant:
-    key: str
-    name: str
-    short_name: str
-    power: float
-    health: int
-    max_health: int
-    is_creature: bool = False
-    is_robot: bool = False
-    dweller: Dweller | None = None
-
-
-def participant_from_dweller(dweller: Dweller) -> ArenaParticipant:
-    return ArenaParticipant(
-        key=str(dweller.id),
-        name=dweller.display_name,
-        short_name=dweller.first_name,
-        power=combat_power(dweller),
-        health=dweller.health,
-        max_health=dweller.effective_max_health,
-        dweller=dweller,
-    )
+FIGHTER_SLOT_FIELDS = ("fighter_a_id", "fighter_b_id", "fighter_c_id", "fighter_d_id")
 
 
 class ArenaService:
@@ -97,6 +76,16 @@ class ArenaService:
     def _clear_room_state(self, room_key: str) -> None:
         self._round_seq.pop(room_key, None)
         self._damage_carry = {key: carry for key, carry in self._damage_carry.items() if key[0] != room_key}
+
+    @staticmethod
+    def _reset_match(state: ArenaState) -> None:
+        """Clear the match flags and skill queues so the selection stands fresh."""
+        state.last_fight_at = None
+        state.fight_started_at = None
+        state.knocked_out_ids = None
+        state.next_attack_team = "A"
+        state.skill_charge = None
+        state.queued_skill_ids = None
 
     async def _state(self, db_session: AsyncSession, room: Room) -> ArenaState:
         """Persisted arena state for a room, or a transient default when unconfigured.
@@ -232,12 +221,7 @@ class ArenaService:
         state.mode = mode
         state.opponents = opponents
         state.support_bots = support_bots or None
-        state.last_fight_at = None
-        state.fight_started_at = None
-        state.knocked_out_ids = None
-        state.next_attack_team = "A"
-        state.skill_charge = None
-        state.queued_skill_ids = None
+        self._reset_match(state)
         db_session.add(state)
         self._clear_room_state(str(room.id))
 
@@ -245,50 +229,6 @@ class ArenaService:
 
         await db_session.commit()
         return state
-
-    @staticmethod
-    def _dweller_participants(slots: list[UUID4 | None], by_id: dict[str, Dweller]) -> list[ArenaParticipant]:
-        participants = []
-        for slot in slots:
-            if slot is None:
-                continue
-            member = by_id.get(str(slot))
-            if member is None:
-                return []
-            participants.append(participant_from_dweller(member))
-        return participants
-
-    @staticmethod
-    def _catalog_participants(entries: list[dict], side: str = "") -> list[ArenaParticipant]:
-        robots = {entry["key"] for entry in list_arena_creatures() if entry.get("is_robot")}
-        return [
-            ArenaParticipant(
-                key=f"{entry['key']}#{side}{index}",
-                name=entry["name"],
-                short_name=entry["name"],
-                power=float(entry["power"]),
-                health=int(entry["hp"]),
-                max_health=int(entry["max_hp"]),
-                is_creature=True,
-                is_robot=bool(entry.get("is_robot", entry["key"] in robots)),
-            )
-            for index, entry in enumerate(entries)
-        ]
-
-    @staticmethod
-    def _persist_creature_hp(state: ArenaState, team_a: list[ArenaParticipant], team_b: list[ArenaParticipant]) -> None:
-        """Persist both opponent and support HP without mutating JSON in place."""
-        by_id = {member.key: member.health for member in (*team_a, *team_b)}
-        if state.opponents:
-            state.opponents = [
-                {**entry, "hp": by_id.get(f"{entry['key']}#{index}", entry["hp"])}
-                for index, entry in enumerate(state.opponents)
-            ]
-        if state.support_bots:
-            state.support_bots = {
-                side: {**entry, "hp": by_id.get(f"{entry['key']}#{side}0", entry["hp"])}
-                for side, entry in state.support_bots.items()
-            }
 
     async def get_teams(
         self, db_session: AsyncSession, room: Room
@@ -310,11 +250,11 @@ class ArenaService:
         fighters = await crud_dweller.get_arena_fighters(db_session, room.id, ids=slot_ids) if slot_ids else []
         by_id = {str(f.id): f for f in fighters}
 
-        team_a = self._dweller_participants(a_slots, by_id)
+        team_a = dweller_participants(a_slots, by_id)
         team_b = (
-            self._catalog_participants(state.opponents or [])
+            catalog_participants(state.opponents or [])
             if mode == ArenaMode.HUNT
-            else self._dweller_participants(b_slots, by_id)
+            else dweller_participants(b_slots, by_id)
         )
         # Ignore retired Team A bot selections; incomplete legacy Brawls reset
         # through the normal match-cancellation path until a dweller fills slot C.
@@ -323,7 +263,7 @@ class ArenaService:
             if bot:
                 if state.fighter_b_id is None or len(team_b) != 1:
                     return [], []
-                team_b.extend(self._catalog_participants([bot], "B"))
+                team_b.extend(catalog_participants([bot], "B"))
         # Knocked-out dwellers stay on the team (so the selection is not rejected)
         # but fight at 0 HP.
         knocked_out = set(state.knocked_out_ids or [])
@@ -366,35 +306,6 @@ class ArenaService:
                     matched = [team for _, team in teams if any(winner in (p.name, p.short_name) for p in team)]
                 return " & ".join(p.name for p in matched[0]) if len(matched) == 1 else winner
         return None
-
-    @staticmethod
-    def _participant_out(participant: ArenaParticipant, state: ArenaState) -> ArenaFighter:
-        return ArenaFighter(
-            active_skill=(
-                ArenaActiveSkill(
-                    name=weapon_skill(participant.dweller).name,
-                    description=weapon_skill(participant.dweller).description,
-                    charge=int(min(MAX_CHARGE, (state.skill_charge or {}).get(participant.key, 0))),
-                    queued=participant.key in (state.queued_skill_ids or []),
-                )
-                if participant.dweller
-                else None
-            ),
-            id=participant.key,
-            name=participant.name,
-            level=participant.dweller.level if participant.dweller else 0,
-            health=participant.health,
-            max_health=participant.max_health,
-            power=participant.power,
-            is_creature=participant.is_creature,
-            is_robot=participant.is_robot,
-            image_url=participant.dweller.image_url if participant.dweller else None,
-            thumbnail_url=participant.dweller.thumbnail_url if participant.dweller else None,
-            age_group=(
-                participant.dweller.age_group.value if participant.dweller and participant.dweller.age_group else None
-            ),
-            race=((participant.dweller.visual_attributes or {}).get("race") if participant.dweller else None),
-        )
 
     @staticmethod
     def _can_start(
@@ -445,69 +356,68 @@ class ArenaService:
     async def get_arena_state(self, db_session: AsyncSession, vault_id: UUID4) -> ArenaStateOut:
         """Build the full arena state for a vault: fighters, roster, flags, journal."""
         rooms = await room_crud.get_arena_rooms(db_session, vault_id=vault_id)
-
-        countdown = game_config.game_loop.arena_countdown_seconds
         room_states = []
         for room in rooms:
             state = await self._state(db_session, room)
-            mode = state.mode or ArenaMode.DUEL
-            available_modes = [choice for choice, tier in MODE_UNLOCK_TIERS.items() if room.tier >= tier]
-            mode_unlocked = mode in available_modes
-            team_a, team_b = await self._teams_from_state(db_session, room, state)
-            roster = await self.get_roster(db_session, room)
-
-            match_done = state.last_fight_at is not None
-            started = state.fight_started_at is not None
-            countdown_remaining = 0
-            if started and not match_done:
-                elapsed = (datetime.utcnow() - state.fight_started_at).total_seconds()
-                countdown_remaining = max(0, int(countdown - elapsed))
-
-            events = [
-                ArenaMatchEventOut(**self._event_snapshot(e))
-                for e in reversed(await arena_match_event_crud.get_recent_by_room(db_session, room.id))
-            ]
-            winner_name = self._winner_from_events(events, mode, team_a, team_b)
-
-            room_states.append(
-                ArenaRoomState(
-                    room_id=str(room.id),
-                    room_name=room.name,
-                    tier=room.tier,
-                    mode=mode.value,
-                    next_attack_team="A" if state.next_attack_team == "A" else "B",
-                    available_modes=available_modes,
-                    fighter_a_id=str(state.fighter_a_id) if state.fighter_a_id else None,
-                    fighter_b_id=str(state.fighter_b_id) if state.fighter_b_id else None,
-                    fighters=[self._participant_out(team[0], state) for team in (team_a, team_b) if team],
-                    team_a=[self._participant_out(p, state) for p in team_a],
-                    team_b=[self._participant_out(p, state) for p in team_b],
-                    roster=[
-                        ArenaRosterEntry(
-                            id=str(d.id),
-                            name=d.display_name,
-                            level=d.level,
-                            health=d.health,
-                            max_health=d.effective_max_health,
-                            image_url=d.image_url,
-                            thumbnail_url=d.thumbnail_url,
-                            age_group=d.age_group.value if d.age_group else None,
-                            race=(d.visual_attributes or {}).get("race"),
-                        )
-                        for d in roster
-                    ],
-                    fight_ready=mode_unlocked
-                    and len(roster) >= {ArenaMode.DUEL: 2, ArenaMode.BRAWL: 3, ArenaMode.HUNT: 1}[mode],
-                    match_done=match_done,
-                    fight_started=started,
-                    countdown_remaining=countdown_remaining,
-                    can_start=mode_unlocked and self._can_start(team_a, team_b, started=started, match_done=match_done),
-                    winner_name=winner_name,
-                    events=events,
-                )
-            )
-
+            room_states.append(await self._room_state(db_session, room, state))
         return ArenaStateOut(rooms=room_states)
+
+    async def _room_state(self, db_session: AsyncSession, room: Room, state: ArenaState) -> ArenaRoomState:
+        """Assemble the API view for one arena room from its persisted state."""
+        mode = state.mode or ArenaMode.DUEL
+        available_modes = [choice for choice, tier in MODE_UNLOCK_TIERS.items() if room.tier >= tier]
+        mode_unlocked = mode in available_modes
+        team_a, team_b = await self._teams_from_state(db_session, room, state)
+        roster = await self.get_roster(db_session, room)
+
+        match_done = state.last_fight_at is not None
+        started = state.fight_started_at is not None
+        countdown_remaining = 0
+        if started and not match_done:
+            elapsed = (datetime.utcnow() - state.fight_started_at).total_seconds()
+            countdown_remaining = max(0, int(game_config.game_loop.arena_countdown_seconds - elapsed))
+
+        events = [
+            ArenaMatchEventOut(**self._event_snapshot(e))
+            for e in reversed(await arena_match_event_crud.get_recent_by_room(db_session, room.id))
+        ]
+        winner_name = self._winner_from_events(events, mode, team_a, team_b)
+
+        return ArenaRoomState(
+            room_id=str(room.id),
+            room_name=room.name,
+            tier=room.tier,
+            mode=mode.value,
+            next_attack_team="A" if state.next_attack_team == "A" else "B",
+            available_modes=available_modes,
+            fighter_a_id=str(state.fighter_a_id) if state.fighter_a_id else None,
+            fighter_b_id=str(state.fighter_b_id) if state.fighter_b_id else None,
+            fighters=[participant_out(team[0], state) for team in (team_a, team_b) if team],
+            team_a=[participant_out(p, state) for p in team_a],
+            team_b=[participant_out(p, state) for p in team_b],
+            roster=[
+                ArenaRosterEntry(
+                    id=str(d.id),
+                    name=d.display_name,
+                    level=d.level,
+                    health=d.health,
+                    max_health=d.effective_max_health,
+                    image_url=d.image_url,
+                    thumbnail_url=d.thumbnail_url,
+                    age_group=d.age_group.value if d.age_group else None,
+                    race=(d.visual_attributes or {}).get("race"),
+                )
+                for d in roster
+            ],
+            fight_ready=mode_unlocked
+            and len(roster) >= {ArenaMode.DUEL: 2, ArenaMode.BRAWL: 3, ArenaMode.HUNT: 1}[mode],
+            match_done=match_done,
+            fight_started=started,
+            countdown_remaining=countdown_remaining,
+            can_start=mode_unlocked and self._can_start(team_a, team_b, started=started, match_done=match_done),
+            winner_name=winner_name,
+            events=events,
+        )
 
     async def clear_journal(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> int:
         """Delete all journal events for an arena room. Returns how many were removed."""
@@ -518,7 +428,7 @@ class ArenaService:
 
     @staticmethod
     def _fighter_ids(state: ArenaState) -> list[UUID4]:
-        return [fid for fid in (state.fighter_a_id, state.fighter_b_id, state.fighter_c_id, state.fighter_d_id) if fid]
+        return [fid for field in FIGHTER_SLOT_FIELDS if (fid := getattr(state, field))]
 
     async def _release_fighters(self, db_session: AsyncSession, state: ArenaState) -> None:
         await crud_dweller.set_arena_status(
@@ -537,26 +447,13 @@ class ArenaService:
         for state in await arena_state_crud.get_by_fighter(db_session, dweller_id):
             await self._release_fighters(db_session, state)
             state_changed = False
-            if state.fighter_a_id == dweller_id:
-                state.fighter_a_id = None
-                state_changed = True
-            if state.fighter_b_id == dweller_id:
-                state.fighter_b_id = None
-                state_changed = True
-            if state.fighter_c_id == dweller_id:
-                state.fighter_c_id = None
-                state_changed = True
-            if state.fighter_d_id == dweller_id:
-                state.fighter_d_id = None
-                state_changed = True
+            for field in FIGHTER_SLOT_FIELDS:
+                if getattr(state, field) == dweller_id:
+                    setattr(state, field, None)
+                    state_changed = True
             if state_changed:
                 changed = True
-                state.last_fight_at = None
-                state.fight_started_at = None
-                state.knocked_out_ids = None
-                state.next_attack_team = "A"
-                state.skill_charge = None
-                state.queued_skill_ids = None
+                self._reset_match(state)
                 self._clear_room_state(str(state.room_id))
                 await arena_match_event_crud.delete_for_room(db_session, state.room_id)
             db_session.add(state)
@@ -565,12 +462,6 @@ class ArenaService:
             if commit:
                 await db_session.commit()
 
-    @staticmethod
-    def _charge_per_second(participant: ArenaParticipant) -> float:
-        if participant.dweller is None:
-            return BASE_CHARGE_PER_SECOND
-        return BASE_CHARGE_PER_SECOND + effective_stat(participant.dweller, "perception") * PERCEPTION_CHARGE_FACTOR
-
     async def stop_fight(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
         """Cancel an active match without rewards; fighters keep their current health."""
         room = await self._get_arena_room(db_session, room_id, vault_id)
@@ -578,12 +469,7 @@ class ArenaService:
         if state is None or state.fight_started_at is None or state.last_fight_at is not None:
             raise ValidationException(detail="No active match to stop")
         await self._release_fighters(db_session, state)
-        state.fight_started_at = None
-        state.last_fight_at = None
-        state.next_attack_team = "A"
-        state.skill_charge = None
-        state.queued_skill_ids = None
-        state.knocked_out_ids = None
+        self._reset_match(state)
         self._clear_room_state(str(room.id))
         await arena_match_event_crud.delete_for_room(db_session, room.id)
         db_session.add(state)
@@ -709,19 +595,6 @@ class ArenaService:
         """Another worker holds the arena tick lock, so this one fights no rounds."""
         return {"arena": {"rooms": 0, "rounds": []}}
 
-    async def process_arena_fights(
-        self,
-        db_session: AsyncSession,
-        vault_id: UUID4,
-        seconds_passed: int,
-    ) -> dict:
-        """Run one fight round per Arena room in a single vault."""
-        async with db_locks.hold_advisory_lock(db_session, "arena-tick") as acquired:
-            if not acquired:
-                return self._locked_out()
-            rooms = await self._get_arena_rooms(db_session, vault_id)
-            return await self._process_rooms(db_session, rooms, seconds_passed)
-
     async def process_arena_ticks(
         self,
         db_session: AsyncSession,
@@ -760,28 +633,19 @@ class ArenaService:
             team_a, team_b = await self._teams_from_state(db_session, room, state)
             if not team_a or not team_b:
                 await self._release_fighters(db_session, state)
-                state.fight_started_at = None
-                state.knocked_out_ids = None
-                state.next_attack_team = "A"
-                state.skill_charge = None
-                state.queued_skill_ids = None
+                self._reset_match(state)
                 db_session.add(state)
                 self._clear_room_state(str(room.id))
                 continue
 
             round_result = await self._resolve_round(db_session, room, team_a, team_b, seconds_passed, state=state)
-            self._persist_creature_hp(state, team_a, team_b)
+            persist_creature_hp(state, team_a, team_b)
             db_session.add(state)
             rounds.append({"room_id": str(room.id), **round_result})
 
         await db_session.commit()
-        from app.services.notification_service import NotificationService
-
         await NotificationService.deliver_deferred_notifications(db_session)
         return {"arena": {"rooms": len(rooms), "rounds": rounds}}
-
-    async def _get_arena_rooms(self, db_session: AsyncSession, vault_id: UUID4) -> list[Room]:
-        return await room_crud.get_arena_rooms(db_session, vault_id=vault_id)
 
     @staticmethod
     def _team_damage(team: list[ArenaParticipant], seconds_passed: int) -> float:
@@ -884,7 +748,7 @@ class ArenaService:
             state.skill_charge = {
                 p.key: min(
                     MAX_CHARGE,
-                    (state.skill_charge or {}).get(p.key, 0) + max(0, seconds_passed) * self._charge_per_second(p),
+                    (state.skill_charge or {}).get(p.key, 0) + max(0, seconds_passed) * charge_per_second(p),
                 )
                 for p in (*team_a, *team_b)
                 if p.dweller is not None and p.health > 0
@@ -998,8 +862,6 @@ class ArenaService:
 
     async def _award_combat_xp(self, db_session: AsyncSession, dweller: Dweller, xp: int) -> None:
         """Award a participant's XP share and settle any resulting level-ups."""
-        from app.services.leveling_service import leveling_service
-
         dweller.experience = max(0, dweller.experience + xp)
         db_session.add(dweller)
         leveled_up, levels_gained = await leveling_service.check_level_up(db_session, dweller)
@@ -1016,9 +878,6 @@ class ArenaService:
         (fighters included — they are living residents too), and the award lands
         in the caller's transaction. Returns whether the bonus was granted.
         """
-        from app.crud import vault as vault_crud
-        from app.services.notification_service import NotificationService
-
         bonus = game_config.combat.arena_morale_bonus
         if bonus <= 0:
             return False

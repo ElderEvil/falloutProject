@@ -21,7 +21,13 @@ from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, GenderEnum, Rari
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.catalog_service import load_enemies
-from app.services.combat.arena_service import ArenaParticipant, ArenaService, participant_from_dweller
+from app.services.combat.arena_participants import (
+    ArenaParticipant,
+    charge_per_second,
+    participant_from_dweller,
+    persist_creature_hp,
+)
+from app.services.combat.arena_service import ArenaService
 from app.services.dweller_service import dweller_service
 from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
@@ -569,10 +575,10 @@ class TestArenaService:
             await service.start_fight(async_session, arena_room.id)
 
     @pytest.mark.asyncio
-    async def test_process_arena_fights_skips_understaffed_room(self, async_session, arena_room, fighter_a, vault):
+    async def test_process_arena_ticks_skips_understaffed_room(self, async_session, arena_room, fighter_a):
         fighter_a.room_id = arena_room.id
         service = ArenaService()
-        result = await service.process_arena_fights(async_session, vault.id, 60)
+        result = await service.process_arena_ticks(async_session, 60)
         assert result["arena"]["rooms"] == 1
         assert result["arena"]["rounds"] == []
 
@@ -1554,7 +1560,7 @@ class TestArenaBotSupport:
         await service.start_fight(async_session, arena_room.id)
         state.fight_started_at = datetime.utcnow() - timedelta(seconds=20)
         await async_session.commit()
-        await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+        await service.process_arena_ticks(async_session, 2)
         _, team_b = await service.get_teams(async_session, arena_room)
         hp = team_b[1].health
         assert 0 < hp < 60
@@ -1603,7 +1609,7 @@ class TestArenaBotSupport:
         assert all(p.dweller is not None for p in a)
         assert (b[1].name, b[1].power, b[1].health) == ("Training Eyebot", 30, 20)
         b[1].health = 0
-        service._persist_creature_hp(state, a, b)
+        persist_creature_hp(state, a, b)
         await async_session.commit()
         _, b = await ArenaService().get_teams(async_session, arena_room)
         assert b[1].health == 0
@@ -2021,7 +2027,7 @@ async def test_skill_charge_persists_and_queued_attack_resolves_once(async_sessi
     state.fight_started_at = datetime.utcnow() - timedelta(seconds=60)
     await async_session.commit()
     for _ in range(13):
-        await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+        await service.process_arena_ticks(async_session, 2)
     service = ArenaService()
     view = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
     assert view.team_a[0].active_skill.charge == 100
@@ -2031,18 +2037,18 @@ async def test_skill_charge_persists_and_queued_attack_resolves_once(async_sessi
     assert state.skill_charge[str(fighter_a.id)] == 0
     with pytest.raises(ValidationException, match="already queued"):
         await service.queue_skill(async_session, arena_room.id, fighter_a.id, arena_room.vault_id)
-    await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+    await service.process_arena_ticks(async_session, 2)
     assert state.queued_skill_ids == [str(fighter_a.id)]  # B's turn leaves A queued.
     assert fighter_b.health == before
     async with RawAsyncSession(
         bind=async_session.bind, expire_on_commit=False, join_transaction_mode="create_savepoint"
     ) as raw:
-        await ArenaService().process_arena_fights(raw, arena_room.vault_id, 2)
+        await ArenaService().process_arena_ticks(raw, 2)
     await async_session.refresh(fighter_b)
     await async_session.refresh(state)
     assert fighter_b.health < before - int(combat_power(fighter_a) / 5 * 2)
     assert not state.queued_skill_ids
-    await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+    await service.process_arena_ticks(async_session, 2)
     view = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
     skills = [event for event in view.events if event.kind == "skill"]
     assert len(skills) == 1
@@ -2178,7 +2184,7 @@ async def test_both_queued_skills_resolve_once_on_their_own_team_turn(async_sess
     for fighter in (fighter_a, fighter_b):
         await service.queue_skill(async_session, arena_room.id, fighter.id, arena_room.vault_id)
 
-    await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+    await service.process_arena_ticks(async_session, 2)
     assert fighter_a.health == 1000
     assert fighter_b.health < 1000
     assert state.queued_skill_ids == [str(fighter_b.id)]
@@ -2186,11 +2192,11 @@ async def test_both_queued_skills_resolve_once_on_their_own_team_turn(async_sess
 
     # A new worker must preserve B's pending skill and the next attacking side.
     service = ArenaService()
-    await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+    await service.process_arena_ticks(async_session, 2)
     assert fighter_a.health < 1000
     assert fighter_b.health == after_a_turn
     assert not state.queued_skill_ids
-    await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+    await service.process_arena_ticks(async_session, 2)
     view = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
     skills = [event for event in view.events if event.kind == "skill"]
     assert len(skills) == 2
@@ -2214,7 +2220,7 @@ def test_skill_charge_rate_scales_with_perception(perception, expected):
         max_health=100,
         dweller=Dweller(perception=perception),
     )
-    assert ArenaService._charge_per_second(participant) == pytest.approx(expected)
+    assert charge_per_second(participant) == pytest.approx(expected)
 
 
 async def test_stop_fight_cancels_without_reward(async_session, arena_room, fighter_a, fighter_b):
@@ -2273,7 +2279,7 @@ async def test_attack_events_include_actor_id(async_session, arena_room, fighter
     state.fight_started_at = datetime.utcnow() - timedelta(seconds=10)
     await async_session.commit()
 
-    await service.process_arena_fights(async_session, arena_room.vault_id, 2)
+    await service.process_arena_ticks(async_session, 2)
     view = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
     attacks = [event for event in view.events if event.kind in ("hit", "skill")]
     assert attacks

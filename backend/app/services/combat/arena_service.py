@@ -611,7 +611,11 @@ class ArenaService:
             if not acquired:
                 return self._locked_out()
             rooms = await room_crud.get_arena_rooms(db_session)
-            return await self._process_rooms(db_session, rooms, seconds_passed)
+            result = await self._process_rooms(db_session, rooms, seconds_passed)
+            # Drain deferred notifications only after the commit: they describe committed state.
+            await db_session.commit()
+            await NotificationService.deliver_deferred_notifications(db_session)
+            return result
 
     async def _process_rooms(
         self,
@@ -643,8 +647,6 @@ class ArenaService:
             db_session.add(state)
             rounds.append({"room_id": str(room.id), **round_result})
 
-        await db_session.commit()
-        await NotificationService.deliver_deferred_notifications(db_session)
         return {"arena": {"rooms": len(rooms), "rounds": rounds}}
 
     @staticmethod

@@ -14,6 +14,10 @@ A baseline entry with no remaining violations also fails, so the lists stay hone
 Contracts live in ``app/schemas``: a module under ``app/services`` may not define a Pydantic
 ``BaseModel`` subclass or be named ``models.py``/``schemas.py``, because that puts a schema where
 callers are told to look for behaviour.
+
+Commit ownership: a private helper may commit only when its name ends in ``_transaction``,
+marking a boundary that several entry points share. ``COMMIT_OWNERSHIP_BASELINE`` records
+the pre-existing exceptions and is shrink-only.
 """
 
 import ast
@@ -42,6 +46,49 @@ SERVICE_NAME_GRANDFATHER = frozenset(
         "websocket_manager.py",
     }
 )
+TRANSACTION_SUFFIX = "_transaction"
+COMMIT_OWNERSHIP_BASELINE = frozenset(
+    {
+        ("admin_service.py", "_update_user"),
+        ("dweller_assignment_service.py", "_assign_room_apprentices"),
+        ("exploration/expedition_scenario_service.py", "_preclear_site"),
+        ("family/family_scenario_service.py", "_co_locate"),
+        ("progression/objectives/assignment.py", "_refresh_category_objectives"),
+        ("progression/objectives/assignment.py", "_assign_category_objectives"),
+        ("progression/objectives/assignment.py", "_clear_category_objectives"),
+        ("progression/objectives/evaluators/base.py", "_update_progress"),
+        ("progression/objectives/evaluators/base.py", "_mark_ready"),
+        ("progression/objectives/evaluators/concrete.py", "_update_progress"),
+        ("radio_service.py", "_switch_full_vault_to_happiness"),
+        ("recipe_unlock_service.py", "_on_item_scrapped"),
+        ("relationship_service.py", "_apply_marriage_bonus"),
+        ("rewards/settlement.py", "_settle_objective_link"),
+    }
+)
+
+
+def _committing_functions(source: str) -> dict[str, int]:
+    """Return {function name: commit() calls it contains} for every committing function."""
+    found: dict[str, int] = {}
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            commits = 0
+            pending = list(node.body)
+            while pending:
+                child = pending.pop()
+                # A nested callable owns its body; don't count its writes in the enclosing function.
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                    continue
+                if (
+                    isinstance(child, ast.Call)
+                    and isinstance(child.func, ast.Attribute)
+                    and child.func.attr == "commit"
+                ):
+                    commits += 1
+                pending.extend(ast.iter_child_nodes(child))
+            if commits:
+                found[node.name] = commits
+    return found
 
 
 def _http_exception_violations(source: str) -> list[tuple[int, str]]:
@@ -381,6 +428,56 @@ def test_guard_detects_api_import_forms() -> None:
         "from app.core import game_data\n"
     )
     assert _api_imports(source) == {"app.api.deps", "app.api"}
+
+
+def test_committing_helpers_are_named_transactions() -> None:
+    """A private helper commits only when its name marks it as a shared transaction step.
+
+    ``*_transaction`` means: this method deliberately owns a boundary that several
+    entry points share. Everything else stages its writes and lets the public entry
+    point commit, so one operation cannot be split across two transactions. The
+    baseline is shrink-only, and a stale entry fails too.
+    """
+    found = set()
+    for path in sorted((APP_DIR / "services").rglob("*.py")):
+        rel = path.relative_to(APP_DIR / "services").as_posix()
+        for name in _committing_functions(path.read_text(encoding="utf-8")):
+            if name.startswith("_") and not name.endswith(TRANSACTION_SUFFIX):
+                found.add((rel, name))
+    new = found - COMMIT_OWNERSHIP_BASELINE
+    stale = COMMIT_OWNERSHIP_BASELINE - found
+    messages = [
+        f"{rel}::{name} commits from a private helper; commit in the entry point or name it *{TRANSACTION_SUFFIX}"
+        for rel, name in sorted(new)
+    ]
+    messages += [f"baseline entry {rel}::{name} is stale; remove it" for rel, name in sorted(stale)]
+    assert not messages, "Private-helper commit ownership changed:\n" + "\n".join(messages)
+
+
+def test_guard_detects_commit_ownership_forms() -> None:
+    """Self-test: entry-point commits, helper commits, and transaction-named helpers are told apart."""
+    source = (
+        "async def entry(db):\n"
+        "    await db.commit()\n"
+        "async def _helper(db):\n"
+        "    await db.commit()\n"
+        "async def _shared_transaction(db):\n"
+        "    await db.commit()\n"
+        "async def _staged(db):\n"
+        "    await db.flush()\n"
+    )
+    assert _committing_functions(source) == {"entry": 1, "_helper": 1, "_shared_transaction": 1}
+
+
+def test_commit_ownership_does_not_attribute_nested_transactions_to_outer_helpers() -> None:
+    """A nested transaction owns its commit; its staging caller does not."""
+    source = (
+        "async def _staged(db):\n"
+        "    async def _save_transaction():\n"
+        "        await db.commit()\n"
+        "    await _save_transaction()\n"
+    )
+    assert _committing_functions(source) == {"_save_transaction": 1}
 
 
 def test_service_module_names_follow_convention() -> None:

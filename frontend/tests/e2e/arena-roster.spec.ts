@@ -1,20 +1,25 @@
 import { test, expect } from '@playwright/test'
 
 for (const width of [1280, 390]) {
-  test(`assigns dwellers before selecting fighters at ${width}px`, async ({ page }, testInfo) => {
+  test(`selects dwellers locally and locks management during combat at ${width}px`, async ({
+    page,
+  }, testInfo) => {
     await page.setViewportSize({ width, height: 900 })
-    const roster: Array<{
-      id: string
-      name: string
-      level: number
-      health: number
-      max_health: number
-    }> = []
+    const names = ['Lucy MacLean', 'Maximus', 'Cooper Howard']
+    const candidates = names.map((name, i) => ({
+      id: `dweller-${i}`,
+      name,
+      level: i + 3,
+      health: 80 - i * 30,
+      max_health: 100,
+      room_id: i === 2 ? 'arena-1' : null,
+      room_name: i === 2 ? 'Arena' : null,
+    }))
     let fighterA: string | null = null
     let fighterB: string | null = null
     let fighting = false
     let finished = false
-    const names = ['Lucy MacLean', 'Maximus', 'Cooper Howard']
+    const mutations: string[] = []
     await page.route('**/static/**', (route) =>
       route.fulfill({
         contentType: 'image/svg+xml',
@@ -23,32 +28,17 @@ for (const width of [1280, 390]) {
     )
     await page.route('**/api/v1/**', async (route) => {
       const request = route.request()
-      const move = request.url().match(/dwellers\/dweller-(\d)\/move_to\/arena-1/)
-      if (move) {
-        const i = Number(move[1])
-        const dweller = {
-          id: `dweller-${i}`,
-          name: names[i],
-          level: i + 3,
-          health: 80 - i * 30,
-          max_health: 100,
-        }
-        roster.push(dweller)
-        return route.fulfill({ json: { ...dweller, room_id: 'arena-1', status: 'idle' } })
-      }
-      if (request.url().endsWith('/fighters')) {
+      if (request.method() === 'POST') mutations.push(request.url())
+      if (request.url().endsWith('/start')) {
         const body = request.postDataJSON()
         fighterA = body.fighter_a_id
         fighterB = body.fighter_b_id
-        return route.fulfill({ json: {} })
-      }
-      if (request.url().endsWith('/start')) {
         fighting = true
-        return route.fulfill({ json: {} })
+        return route.fulfill({ json: { started: true } })
       }
       if (request.url().endsWith('/state')) {
         const fighter = (id: string | null) =>
-          roster
+          candidates
             .filter((entry) => entry.id === id)
             .map((entry) => ({ ...entry, power: 10, is_creature: false, is_robot: false }))
         return route.fulfill({
@@ -66,7 +56,8 @@ for (const width of [1280, 390]) {
                 fighters: [...fighter(fighterA), ...fighter(fighterB)],
                 team_a: fighter(fighterA),
                 team_b: fighter(fighterB),
-                roster,
+                roster: candidates.filter((entry) => entry.room_id === 'arena-1' || fighting),
+                candidates,
                 fight_ready: !!fighterA && !!fighterB,
                 can_start: !!fighterA && !!fighterB && !fighting,
                 fight_started: fighting,
@@ -85,40 +76,29 @@ for (const width of [1280, 390]) {
     await page.goto('/tests/e2e/fixtures/arena-room.html')
     const dialog = page.getByRole('dialog')
     await expect(dialog.locator('.arena-room-detail [aria-label="Arena preview"]')).toBeVisible()
-    await expect(dialog.getByRole('tablist', { name: 'Match mode' })).toBeVisible()
-    await expect(dialog.getByText('Build your arena roster', { exact: true })).toBeVisible()
-    await expect(
-      dialog.getByRole('button', { name: 'Choose from roster', exact: true })
-    ).toHaveCount(0)
+    const modes = dialog.getByRole('navigation', { name: 'Match mode' })
+    await expect(modes).toBeVisible()
     await page.screenshot({ path: testInfo.outputPath('empty-arena.png'), fullPage: true })
-
-    for (const name of names) {
-      await dialog.getByRole('button', { name: 'Assign Dwellers', exact: true }).click()
-      await expect(dialog.getByText('Assign to Arena', { exact: true })).toBeVisible()
-      await dialog
-        .locator('.dweller-picker')
-        .getByRole('button', { name: new RegExp(name) })
-        .click()
-      await expect.poll(() => roster.length).toBe(names.indexOf(name) + 1)
-    }
     const bench = dialog.locator('details[aria-label="Arena bench"]')
     await bench.locator('summary').click()
-    await expect(bench.getByText('Lucy MacLean', { exact: true })).toBeVisible()
     await expect(bench.getByRole('progressbar', { name: 'Cooper Howard health' })).toHaveAttribute(
       'aria-valuenow',
       '20'
     )
     await bench.screenshot({ path: testInfo.outputPath('arena-bench.png') })
-    await dialog.getByRole('button', { name: 'Choose from roster', exact: true }).first().click()
-    await dialog
-      .locator('.picker')
-      .getByRole('button', { name: /Lucy MacLean/ })
-      .click()
-    await dialog.getByRole('button', { name: 'Choose from roster', exact: true }).click()
-    await dialog
-      .locator('.picker')
-      .getByRole('button', { name: /Maximus/ })
-      .click()
+    for (const [side, name] of [
+      ['A', names[0]],
+      ['B', names[1]],
+    ]) {
+      await dialog
+        .getByRole('button', { name: `Select fighter 1 for Team ${side}`, exact: true })
+        .click()
+      const picker = dialog.getByRole('region', { name: 'Choose fighter' })
+      await expect(picker.getByRole('searchbox')).toBeFocused()
+      await picker.getByRole('searchbox').fill(name)
+      await picker.getByRole('button', { name: new RegExp(name) }).click()
+    }
+    expect(mutations).toHaveLength(0)
     await expect(dialog.getByRole('button', { name: 'START FIGHT', exact: true })).toBeEnabled()
     await expect(bench.getByText('Lucy MacLean', { exact: true })).toHaveCount(0)
     await expect(bench.getByText('Cooper Howard', { exact: true })).toHaveCount(1)
@@ -127,6 +107,10 @@ for (const width of [1280, 390]) {
       true
     )
     await dialog.getByRole('button', { name: 'START FIGHT', exact: true }).click()
+    await expect(dialog.getByRole('region', { name: 'Arena ring' })).toBeVisible()
+    await expect(modes).toBeHidden()
+    expect(mutations).toHaveLength(1)
+    expect(mutations[0]).toMatch(/\/start$/)
     const management = dialog.locator('.room-management')
     for (const button of await management.getByRole('button').all()) {
       await expect(button).toBeDisabled()

@@ -533,6 +533,7 @@ async def test_fatal_round_delivers_death_notification_after_commit(
     """A killing blow notifies the owner only after the round commit lands."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
+    dweller.visual_attributes = {"race": "synth", "state_of_being": "gen_1"}
     dweller.health = 5
     dweller.max_health = 100
     async_session.add(dweller)
@@ -553,6 +554,12 @@ async def test_fatal_round_delivers_death_notification_after_commit(
     assert dweller.is_dead
     assert mock_ws.send_personal_message.call_count >= 1
     assert mock_sse.publish.call_count >= 1
+
+    events = (
+        await async_session.execute(select(IncidentEvent).where(IncidentEvent.incident_id == incident.id))
+    ).scalars()
+    hit = next(event.data["action"] for event in events if event.data and event.data.get("target") == "dweller")
+    assert hit["targets"][0]["body"] == "synth"
 
 
 @pytest.mark.asyncio

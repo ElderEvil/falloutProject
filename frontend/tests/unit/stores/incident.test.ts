@@ -134,7 +134,8 @@ describe('Incident Store', () => {
     expect(store.hasActiveIncidents).toBe(true)
     const calls = vi.mocked(incidentApi.getActiveIncidents).mock.calls.length
     await vi.advanceTimersByTimeAsync(3000)
-    expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(calls)
+    // The one-second discovery retry has stopped; the regular combat poll continues.
+    expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(calls + 1)
     store.stopPolling()
   })
 
@@ -529,6 +530,48 @@ describe('Incident Store', () => {
   })
 
   describe('Polling', () => {
+    it('uses the configured idle fallback cadence when SSE is disconnected', async () => {
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue({
+        vault_id: 'vault-1',
+        incident_count: 0,
+        incidents: [],
+      })
+      const store = useIncidentStore()
+      store.startPolling('vault-1', 'token')
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(9999)
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(2)
+      store.stopPolling()
+    })
+
+    it('refreshes active combat every two seconds and restores idle cadence after resolution', async () => {
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
+      vi.mocked(incidentApi.getIncidentTeam).mockResolvedValue([])
+      const store = useIncidentStore()
+      store.startPolling('vault-1', 'token')
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(1999)
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(2)
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue({
+        vault_id: 'vault-1',
+        incident_count: 0,
+        incidents: [],
+      })
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(store.hasActiveIncidents).toBe(false)
+      const calls = vi.mocked(incidentApi.getActiveIncidents).mock.calls.length
+      await vi.advanceTimersByTimeAsync(9999)
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(calls)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(calls + 1)
+      store.stopPolling()
+    })
+
     it('should start polling and fetch incidents', async () => {
       const store = useIncidentStore()
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
@@ -773,7 +816,7 @@ describe('Incident Store', () => {
       .mockResolvedValueOnce(mockIncident)
       .mockResolvedValue(mockIncident)
     store.startPolling('vault-1', 'token', 10_000)
-    await Promise.resolve()
+    await flushPromises()
 
     sseMock.instance.event.value = { event: 'incident', data }
     await nextTick()
@@ -781,6 +824,61 @@ describe('Incident Store', () => {
   }
 
   describe('Aftermath', () => {
+    it('retains the final structured journal for scene playback', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce({
+        vault_id: 'vault-1',
+        incident_count: 0,
+        incidents: [],
+      })
+      const final = {
+        ...mockIncident,
+        status: IncidentStatus.RESOLVED,
+        events: [
+          {
+            id: 'final',
+            kind: 'hit',
+            message: 'Final hit',
+            data: null,
+            action: { actor_id: 'd1', targets: [{ target_id: 'threat', damage: 1 }] },
+          },
+        ],
+      }
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(final)
+      await store.fetchIncidents('vault-1', 'token')
+      await flushPromises()
+      expect(store.aftermathForRoom('room-1')?.scene).toEqual(final)
+      expect(store.aftermathForRoom('room-1')?.sceneLoading).toBe(false)
+      expect(store.activeIncidents).toEqual([])
+    })
+
+    it('discards an old final-journal response after clearing the account', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce({
+        vault_id: 'vault-1',
+        incident_count: 0,
+        incidents: [],
+      })
+      let finish!: (incident: Incident) => void
+      vi.mocked(incidentApi.getIncident).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve
+          })
+      )
+      await store.fetchIncidents('vault-1', 'token')
+      expect(store.aftermathForRoom('room-1')?.sceneLoading).toBe(true)
+      store.clearIncidents()
+      finish({ ...mockIncident, status: IncidentStatus.RESOLVED })
+      await flushPromises()
+      expect(store.aftermaths.size).toBe(0)
+      expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentVictory', 'sfx')
+    })
+
     it('summarises a victory with the caps it recovered', async () => {
       const store = await resolveViaSse({
         type: 'incident_resolved',

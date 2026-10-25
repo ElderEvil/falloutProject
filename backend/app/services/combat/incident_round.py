@@ -21,9 +21,11 @@ from app.models.incident import (
     get_incident_definition,
     hazard_team_for,
 )
+from app.schemas.combat import CombatAction, CombatImpact
 from app.schemas.incident import IncidentRoundResult
 from app.services.combat import incident_math, incident_publishing
 from app.services.combat.incident_spawning import spread_incident
+from app.services.combat.weapon_skill_service import attack_effect, combat_body
 from app.services.hazard_team_service import TEAM_HAZARD_RESIST, TEAM_RESPONSE_BONUS
 from app.services.notification_service import notification_service
 from app.services.radiation_service import apply_radiation_gain
@@ -96,7 +98,7 @@ async def apply_damage(
     damage_to_dwellers: float,
     active_member_ids: frozenset[UUID4] = frozenset(),
     *,
-    hits: list[tuple[str, int, bool]] | None = None,
+    hits: list[tuple[str, CombatImpact]] | None = None,
 ) -> tuple[int, int, int]:
     """Distribute incoming damage across responders; deaths stay pending for the round commit.
 
@@ -115,6 +117,10 @@ async def apply_damage(
     effects = effects_for_incident_type(incident.type)
     for index, dweller in enumerate(dwellers):
         display_name = dweller.display_name if hits is not None else ""
+        target_id = str(dweller.id) if hits is not None else ""
+        # Death settlement may unequip/expire relationships; retain the body that received the hit.
+        body = combat_body(dweller) if hits is not None else "human"
+        health_before = dweller.health
         dweller_damage = split[index]
         is_active_member = active_member_ids and getattr(dweller, "id", None) in active_member_ids
         team_share = TEAM_HAZARD_RESIST if is_active_member else 0.0
@@ -143,7 +149,18 @@ async def apply_damage(
                 logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died during incident")
 
             if hits is not None and dweller_damage > 0:
-                hits.append((display_name, dweller_damage, new_health <= 0))
+                hits.append(
+                    (
+                        display_name,
+                        CombatImpact(
+                            target_id=target_id,
+                            body=body,
+                            damage=dweller_damage,
+                            health_before=health_before,
+                            health_after=new_health,
+                        ),
+                    )
+                )
 
     return damaged_count, deaths_count, damage_taken
 
@@ -272,21 +289,38 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
                 (
                     "hit",
                     f"{dweller.display_name} hits {THREAT_GROUP[incident.type]} for {share}",
-                    {"target": "combat", "damage_to_threat": share},
+                    {
+                        "target": "combat",
+                        "damage_to_threat": share,
+                        "action": CombatAction(
+                            actor_id=str(dweller.id),
+                            actor_body=combat_body(dweller),
+                            effect=attack_effect(dweller),
+                            targets=[CombatImpact(target_id="threat", damage=share)],
+                        ).model_dump(),
+                    },
                 )
             )
 
-    hits: list[tuple[str, int, bool]] = []
+    hits: list[tuple[str, CombatImpact]] = []
     damaged_count, deaths_count, total_damage = await apply_damage(
         db_session, incident, dwellers, damage_to_dwellers, active_member_ids=active_ids, hits=hits
     )
-    for name, damage, down in hits:
-        suffix = " — down" if down else ""
+    for name, impact in hits:
+        suffix = " — down" if impact.health_after == 0 else ""
         round_entries.append(
             (
                 "hit",
-                f"{THREAT_ACTOR[incident.type]} hits {name} for {damage}{suffix}",
-                {"target": "dweller", "damage_to_dwellers": damage},
+                f"{THREAT_ACTOR[incident.type]} hits {name} for {impact.damage}{suffix}",
+                {
+                    "target": "dweller",
+                    "damage_to_dwellers": impact.damage,
+                    "action": CombatAction(
+                        actor_id="threat",
+                        effect="shot" if incident.type == IncidentType.RAIDER_ATTACK else "strike",
+                        targets=[impact],
+                    ).model_dump(),
+                },
             )
         )
     incident_publishing.record_events(db_session, incident, round_entries)

@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import UUID4, BaseModel, Field
 
 from app.core.enums import ArenaMode
+from app.schemas.combat import CombatAction, CombatSkillIcon
 
 
 class ArenaFightersRequest(BaseModel):
@@ -35,6 +36,7 @@ class ArenaActiveSkill(BaseModel):
     """Weapon-derived manual attack and its match-local charge."""
 
     name: str
+    icon: CombatSkillIcon = "unarmed"
     description: str
     charge: int = Field(ge=0, le=100)
     queued: bool
@@ -83,6 +85,9 @@ class ArenaRosterEntry(BaseModel):
     thumbnail_url: str | None = None
     age_group: str | None = None
     race: str | None = None
+    active_skill: ArenaActiveSkill | None = None
+    room_id: str | None = None
+    room_name: str | None = None
 
 
 class ArenaMatchEventOut(BaseModel):
@@ -93,6 +98,7 @@ class ArenaMatchEventOut(BaseModel):
     kind: str
     message: str
     actor_id: str | None = None
+    action: CombatAction | None = None
     created_at: datetime | None = None
 
 
@@ -111,6 +117,7 @@ class ArenaRoomState(BaseModel):
     team_a: list[ArenaFighter]
     team_b: list[ArenaFighter]
     roster: list[ArenaRosterEntry]
+    candidates: list[ArenaRosterEntry] = Field(default_factory=list)
     fight_ready: bool
     match_done: bool
     fight_started: bool

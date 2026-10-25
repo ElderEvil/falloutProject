@@ -310,7 +310,9 @@ class DwellerService:
         await db_session.commit()
         return updated
 
-    async def move_to_room(self, db_session: AsyncSession, dweller_id: UUID4, room_id: UUID4) -> DwellerReadWithRoomID:
+    async def move_to_room(
+        self, db_session: AsyncSession, dweller_id: UUID4, room_id: UUID4, *, commit: bool = True
+    ) -> DwellerReadWithRoomID:
         """Move dweller to a different room."""
         dweller_obj = await crud.dweller.get(db_session, dweller_id)
 
@@ -352,13 +354,20 @@ class DwellerService:
             db_session, dweller_id, {"room_id": room_id, "status": new_status, **apprenticeship_update}, commit=False
         )
 
-        await db_session.commit()
+        if commit:
+            await db_session.commit()
+            await self.publish_room_assignment(dweller_obj, room_obj)
+        else:
+            await db_session.flush()
+        return DwellerReadWithRoomID.model_validate(dweller_obj)
 
+    async def publish_room_assignment(self, dweller_obj: Dweller, room_obj: Room) -> None:
+        """Deliver progression only after the transaction owning the move commits."""
         # Emit dweller assigned event for objective tracking
         await event_bus.emit(
             GameEvent.DWELLER_ASSIGNED,
             self._require_vault_id(dweller_obj),
-            {"dweller_id": str(dweller_id), "room_type": room_obj.name},
+            {"dweller_id": str(dweller_obj.id), "room_type": room_obj.name},
         )
 
         # Check if this is a "correct" assignment (dweller's highest SPECIAL matches room's ability)
@@ -366,10 +375,8 @@ class DwellerService:
             await event_bus.emit(
                 GameEvent.DWELLER_ASSIGNED_CORRECTLY,
                 self._require_vault_id(dweller_obj),
-                {"dweller_id": str(dweller_id), "room_type": room_obj.name, "is_correct": True},
+                {"dweller_id": str(dweller_obj.id), "room_type": room_obj.name, "is_correct": True},
             )
-
-        return DwellerReadWithRoomID.model_validate(dweller_obj)
 
     async def auto_assign_to_best_room(self, db_session: AsyncSession, dweller_id: UUID4) -> DwellerReadWithRoomID:
         """Auto-assign dweller to the best matching production room based on their highest SPECIAL stat."""

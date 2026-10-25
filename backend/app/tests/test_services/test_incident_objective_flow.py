@@ -1,6 +1,7 @@
 """Objective-driven incident flow: containment vs combat selection in the round engine."""
 
 from unittest.mock import patch
+from uuid import UUID
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -26,6 +27,72 @@ def _containment_definition() -> IncidentDefinition:
         response_label="Send responders",
         risk_kind="spread",
     )
+
+
+async def test_combat_hits_identify_each_actor_and_target_for_playback(async_session, room_with_dwellers):
+    room = room_with_dwellers["room"]
+    incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
+
+    await incident_service.process_incident(async_session, incident, 2)
+    view = await incident_service.get_incident_read(async_session, incident, room.name)
+    attacks = [event for event in view.events if event.kind == "hit"]
+
+    assert attacks
+    assert all(event.action is not None and event.action.skill is None for event in attacks)
+    outgoing = [event.action for event in attacks if event.action.actor_id != "threat"]
+    incoming = [event.action for event in attacks if event.action.actor_id == "threat"]
+    assert outgoing
+    assert incoming
+    assert all(action.targets[0].target_id == "threat" for action in outgoing)
+    for action in incoming:
+        impact = action.targets[0]
+        dweller = await crud.dweller.get(async_session, UUID(impact.target_id))
+        assert impact.health_after == dweller.health
+        assert impact.health_before > impact.health_after
+
+
+async def test_incident_late_failure_rolls_back_actions_and_health(async_session, room_with_dwellers, monkeypatch):
+    from sqlalchemy import event
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from app.services.combat import incident_publishing
+
+    room = room_with_dwellers["room"]
+    incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
+    incident_id = incident.id
+    dweller = room_with_dwellers["dwellers"][0]
+    dweller_id, health_before = dweller.id, dweller.health
+    delivered = []
+
+    async def delivery(*args, **kwargs):
+        delivered.append(True)
+
+    monkeypatch.setattr(incident_publishing, "publish_sse", delivery)
+    monkeypatch.setattr(incident_publishing, "notify_resolution", delivery)
+    connection = (await async_session.connection()).sync_connection
+    writes = set()
+
+    def fail_after_writes(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith("INSERT INTO incident_event"):
+            writes.add("action")
+        if statement.startswith("UPDATE dweller") and "health" in statement:
+            writes.add("health")
+        if writes == {"action", "health"}:
+            raise SQLAlchemyError("late incident failure")
+
+    event.listen(connection, "after_cursor_execute", fail_after_writes)
+    try:
+        with pytest.raises(SQLAlchemyError, match="late incident failure"):
+            await incident_service.process_incident(async_session, incident, 2)
+    finally:
+        event.remove(connection, "after_cursor_execute", fail_after_writes)
+    await async_session.rollback()
+    reloaded = await crud.dweller.get(async_session, dweller_id)
+    restored = await crud.incident_crud.get(async_session, incident_id)
+    assert reloaded.health == health_before
+    assert restored.combat_progress == 0
+    assert not await crud.incident_crud.get_recent_events(async_session, incident_id)
+    assert not delivered
 
 
 @pytest.mark.asyncio

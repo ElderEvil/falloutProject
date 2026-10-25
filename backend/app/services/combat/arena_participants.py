@@ -100,13 +100,20 @@ def charge_per_second(participant: ArenaParticipant) -> float:
     return BASE_CHARGE_PER_SECOND + effective_stat(participant.dweller, "perception") * PERCEPTION_CHARGE_FACTOR
 
 
+def active_skill_out(dweller: Dweller, charge: int = 0, queued: bool = False) -> ArenaActiveSkill:
+    """Use the same weapon-derived metadata in the picker and live meters."""
+    skill = weapon_skill(dweller)
+    return ArenaActiveSkill(
+        name=skill.name, icon=skill.icon, description=skill.description, charge=charge, queued=queued
+    )
+
+
 def participant_out(participant: ArenaParticipant, state: ArenaState) -> ArenaFighter:
     """Map a participant onto the API ``ArenaFighter`` shape for the arena view."""
     return ArenaFighter(
         active_skill=(
-            ArenaActiveSkill(
-                name=weapon_skill(participant.dweller).name,
-                description=weapon_skill(participant.dweller).description,
+            active_skill_out(
+                participant.dweller,
                 charge=int(min(MAX_CHARGE, (state.skill_charge or {}).get(participant.key, 0))),
                 queued=participant.key in (state.queued_skill_ids or []),
             )

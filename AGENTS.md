@@ -13,6 +13,7 @@
 | Setup, run, env vars | `README.md` |
 | Service ownership & transaction review | `docs/backend/SERVICE_LAYER.md` |
 | Design tokens & UI theme | `frontend/src/assets/tailwind.css`, `docs/frontend/STYLEGUIDE.md` |
+| Combat playback & game development findings | [`docs/features/WASTELAND_COMBAT_EXPANSION.md`](docs/features/WASTELAND_COMBAT_EXPANSION.md#reusable-game-development-findings) |
 | Deployment | `docs/DEPLOYMENT.md` |
 | Roadmap & theming | `docs/ROADMAP.md`, `CHANGELOG.md` |
 | Project skills | `.agents/skills/` (load the matching one, e.g. `fastapi`, `pytest`, `vue-best-practices`, `sqlmodel`) |

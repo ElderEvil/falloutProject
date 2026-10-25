@@ -7,10 +7,21 @@ import { handleStoreError } from '@/core/utils/errorHandler'
 export const useArenaStore = defineStore('arena', () => {
   const rooms = ref<Map<string, ArenaRoomState>>(new Map())
   const creatures = ref<ArenaCreature[]>([])
+  let stateRequest = 0
+  let contextEpoch = 0
+  let activeVaultId: string | null = null
 
   async function fetchState(vaultId: string, token: string, silent = false): Promise<boolean> {
+    if (activeVaultId !== vaultId) {
+      contextEpoch += 1
+      activeVaultId = vaultId
+    }
+    const request = ++stateRequest
+    const epoch = contextEpoch
     try {
       const state = await arenaApi.fetchState(vaultId, token)
+      // Same-vault polling supersedes state delivery without rejecting a successful mutation.
+      if (request !== stateRequest) return epoch === contextEpoch
       rooms.value = new Map(state.rooms.map((room) => [room.room_id, room]))
       return true
     } catch (error) {
@@ -44,9 +55,16 @@ export const useArenaStore = defineStore('arena', () => {
     }
   }
 
-  async function startFight(vaultId: string, roomId: string, token: string): Promise<boolean> {
+  async function startFight(
+    vaultId: string,
+    roomId: string,
+    token: string,
+    selection?: ArenaFighterSelection
+  ): Promise<boolean> {
+    const epoch = contextEpoch
     try {
-      await arenaApi.startFight(vaultId, roomId, token)
+      await arenaApi.startFight(vaultId, roomId, token, selection)
+      if (epoch !== contextEpoch) return false
       return await fetchState(vaultId, token, true)
     } catch (error) {
       handleStoreError(error, 'Failed to start fight')
@@ -94,6 +112,9 @@ export const useArenaStore = defineStore('arena', () => {
   }
 
   function reset(): void {
+    stateRequest += 1
+    contextEpoch += 1
+    activeVaultId = null
     rooms.value = new Map()
     creatures.value = []
   }

@@ -12,6 +12,52 @@ Recorded 2026-10-18 from the maintainer's three-part idea. First playable skill 
    The maintainer selected **charge earned through combat** for the first trial. Stamina remains an optional
    future alternative, with no stamina stat or economy introduced in this slice.
 
+## Unified Arena setup (2026-10-25)
+
+The current setup is one stage with four presets; the older prototype notes below record earlier behavior.
+
+| Preset | Mode key | Team A | Team B | Arena tier |
+| --- | --- | --- | --- | --- |
+| Duel | `duel` | 1 dweller | 1 dweller | 1 |
+| Team fight | `brawl` | 2 dwellers | 2 dwellers | 2 |
+| Bot training | `training` | 2 dwellers | 2 training bots | 2 |
+| Creature hunt | `hunt` | 2 dwellers | 2 creatures | 3 |
+
+Slots have fixed positions and counts, even with no selections. Team B dweller silhouettes face the center.
+Hover and keyboard focus brighten the silhouette through inherited color. Change/remove controls sit beneath
+portraits. The mode selector hides during countdown/combat and returns afterward. Removing a fighter edits only the lineup; room assignment is managed separately on the bench.
+Pickers appear beneath the stage, support keyboard focus/Escape and return focus to their originating slot.
+
+The dweller picker lists eligible vault adults, Arena members first, with current room labels and weapon-derived
+skill metadata. Both teams show skill icons and uncharged meters for new selections. Choosing a fighter only
+edits a local draft: no room move or match reset occurs until Start fight. Polling preserves that draft; a rejected
+start leaves it editable. The existing mixed-team and one-dweller Hunt records remain readable, while new
+preset starts enforce the complete lineup shown above.
+
+```mermaid
+flowchart TD
+    P[Choose preset] --> S[Fixed slots by count and opponent kind]
+    S --> D[Pick eligible dwellers and opponents locally]
+    D --> R[Review health, skills and current room labels]
+    R --> F[Start fight]
+    F --> V[Lock Arena and fighters; validate ownership, eligibility and capacity]
+    V --> T[Stage room moves, lineup reset and countdown]
+    T --> C[Commit once]
+    C --> E[Deliver assignment progression and wake combat]
+    V -->|Rejected| K[Keep local draft]
+    T -->|Write failure and rollback| K
+```
+
+`ArenaService.start_fight` owns the composed transaction. `DwellerService.move_to_room(commit=False)`,
+`clear_fighter_slots_for_dweller(commit=False)` and `set_fighters(commit=False)` stage/flush without committing.
+Assignment progression is published only after the start commit. Existing standalone move/selection calls
+retain their commit defaults. Capacity uses the existing room-occupancy lock; bulk fighter rows are locked in
+ID order, and Arena configuration/start retains its room/state lock. Tests cover successful moves, capacity
+rejection after a staged move, late state-write rollback with no progression delivery, and eligibility rejection.
+
+Training uses the existing catalog-opponent HP and reward policy. Migration `d4e8f2a6b013` adds PostgreSQL's
+`TRAINING` enum label before a worker/API uses it; the enum drift snapshot is updated alongside it.
+
 ## Initial implementation
 
 ### Expedition sites and salvage
@@ -83,6 +129,128 @@ stay relevant. No skill effects have been enabled in incidents, quests or expedi
 - Decide whether later effects need player-selected targets, stun/bleed/defence or enemy AI skill usage.
   Add those only after the damage-only trial is useful. Decide how asynchronous expedition combat will expose
   player timing before extending skills beyond Arena.
+
+## Shared combat playback (2026-10-25)
+
+The proposed next pass is the [weapon/race animation matrix](../frontend/COMBAT_ANIMATION_MATRIX.md),
+audited against the item catalog and linked to [#1140](https://github.com/ElderEvil/falloutProject/issues/1140).
+Power armor is the only outfit-related animation modifier in that design.
+
+Skill icons use twelve locally bundled Lucide icons, selected by the weapon-skill metadata's stable `icon` key.
+The charge meter, setup/live preview, activation marker, tooltip, skill banner and battle journal share the
+same component. New resolved skill actions retain their icon in event JSON; per-target area-skill journal
+rows reuse that action's icon. Historical rows without icon metadata keep the generic skill marker.
+The standard icon mapping and provenance are recorded in the animation matrix.
+
+Arena and incident fights share a local playback queue. Authoritative team turns stay unchanged; Arena
+presents a fighter's queued skill, then ordinary attack, then the next fighter. Incidents sequence ordinary
+attacks only, using their existing server-side damage attribution and grouped threat representation.
+
+```mermaid
+flowchart TD
+    subgraph server[Server: authoritative combat]
+        turn[Resolve Arena team turn or incident round]
+        actions[Ordered actions: actor, target outcomes, skill identity]
+        turn --> actions
+    end
+
+    subgraph playback[Shared combat playback]
+        queue[Deduplicate and queue new actions]
+        prepare[Prepare attack or skill]
+        impact[Impact: target reaction, displayed HP, damage number, hit sound]
+        recover[Brief recovery]
+        more{More queued actions?}
+        finished{Match finished?}
+        result[Show match result]
+        wait[Wait for new actions]
+
+        queue --> prepare --> impact --> recover --> more
+        more -->|Yes| prepare
+        more -->|No| finished
+        finished -->|Yes| result
+        finished -->|No| wait
+        wait --> queue
+    end
+
+    actions --> queue
+```
+
+Use one small playback queue per visible fight. Arena supplies its participants and scene; reusable attack,
+projectile, impact and area effects share the same playback timing. An area skill is one action with several
+target outcomes, so affected targets react together. Displayed HP changes at impact; the server snapshot
+remains authoritative, and skill requests are sent immediately with queued confirmation.
+
+On entry, reconnect after missing history, or a long absence, synchronize to the current snapshot. Ignore
+duplicate actions and clear pending playback on match reset or navigation. Reduced motion preserves action
+order and readable outcomes through static feedback. The final result follows the final impact and recovery.
+
+Initial timing candidates are about 350 ms per ordinary attack and 550 ms per skill: two fighters each using
+a skill and an ordinary attack would take about 1.8 seconds against the configured two-second team tick.
+Large batches play up to three times faster; a queue more than six seconds behind, missing journal history,
+or an absence over ten seconds synchronizes directly to the current state. Incident polling uses the existing
+store subscription with a maximum two-second interval while incidents are active. With no active incidents,
+it returns to the caller's configured interval (ten seconds by default) for disconnected-SSE fallback;
+connected SSE suppresses idle polling requests. The same store owns cadence changes and stops its watcher
+on navigation or account changes. Final incident journals arrive through the existing
+aftermath refresh, keeping the visible scene mounted until its last action recovers.
+Accelerated playback uses stationary attacker cues so an unfinished lunge cannot lag behind an impact.
+
+`CombatAction` carries an actor, visual effect, optional skill name and target outcomes (damage plus optional
+HP before/after). The event ID and chronological journal order identify each action. Arena stores one nullable
+JSONB payload on the first journal row for an action; area skills retain their per-target log lines but animate
+once. Incidents reuse their event JSON and expose the same typed action contract. A grouped threat has no
+invented individual HP. Old journal rows have no action data and remain readable without historical replay.
+
+Migration `c7e9a1b3d5f8` adds Arena action data; apply it before updating the backend and Arena worker. The
+shared controller, visual effects and damage labels live in `frontend/src/modules/combat/`; each scene keeps
+its own layout, while stores remain the sole owners of authoritative state and polling.
+
+### Reusable game development findings
+
+These principles combine the research below with issues found while implementing Arena and incident playback.
+Apply them when extending combat presentation to another game mode.
+
+- **Separate simulation time from presentation time.** Server ticks decide outcomes; a small local queue
+  controls when the player sees them. Animation completion must never grant rewards, advance a turn or
+  determine whether a skill request is valid. Keep requests responsive while playback is running.
+- **Make impact the shared synchronization point.** Anticipation leads into one moment where target
+  reaction, displayed HP, damage number and hit sound agree, followed by recovery. Define that timing in
+  the playback controller; independent polling callbacks and animation timers caused the original mismatch.
+- **Record facts when the action resolves.** Stable actor/target IDs, action identity/order and explicit HP
+  outcomes survive delayed playback and target changes. Names are not unique, prose is not a machine
+  contract, and a snapshot HP difference cannot identify which of several attacks caused the damage.
+- **Share the smallest useful presentation layer.** Reuse action types, sequencing, effects and damage labels;
+  let each scene own its layout and each combat service own its rules. Incident threat groups do not imply
+  individual enemies or individual HP. One area action can affect several targets together while retaining
+  separate journal lines; an Arena skill still precedes its owner's ordinary attack.
+- **Spend visual emphasis according to gameplay importance.** Ordinary attacks should be quick and readable;
+  skills deserve stronger anticipation and distinct shapes/effects. Keep the acting participant and affected
+  targets identifiable, limit overlapping decoration, and preserve the outcome without sound or motion.
+- **Budget for the busiest valid turn.** Include skills, ordinary attacks and all participants when comparing
+  playback duration with the update cadence. Timing values need playtesting. Bound accumulated delay and
+  use simpler cues during catch-up so movement cannot finish after its associated impact.
+- **Treat network and scene lifecycle as part of animation design.** Deduplicate events, synchronize on
+  missing history/long absences, and cancel pending effects when the fight or view changes. A delayed
+  response from an old vault/account must not restore its fight. Keep one owner for polling and sound
+  delivery so another consumer cannot replay them.
+- **Reconcile independent snapshots explicitly.** Incident rosters can lag behind the journal; an old HP
+  snapshot must not undo a played hit. A newly opened scene should show current HP, including healing,
+  rather than apply historical damage again. Responders can also return to their rooms before the final
+  journal arrives, so retain the presentation data needed to show their final actions.
+- **Let the last hit finish.** The server may settle rewards before the client finishes playback. Keep the
+  visible scene through the final impact and recovery, then show its result. Preserve the existing immediate
+  progression toast/modal and notification delivery; presentation delay does not delay settlement.
+
+For future changes, verify ordinary attacks, skill followed by normal attack, area hits, lethal hits and
+retargeting; repeated/overlapping polls and rolling event windows; entry after healing, stale roster HP and
+returning responders; reset/navigation/account switches and hidden tabs; final-result ordering; phone and
+desktop layouts; and reduced motion. Use controlled clocks for ordering tests and real browser checks for
+CSS timing, visibility and layout. Backend action records must roll back with the damage they describe.
+
+Research references (the implementation-specific lifecycle findings above come from this project):
+[scoped event queues](https://gameprogrammingpatterns.com/event-queue.html),
+[Wesnoth's shared impact timing](https://wiki.wesnoth.org/AnimationWML#Timing,_Clock,_Multiple_animations),
+and [Riot's visual clarity and effect hierarchy](https://www.leagueoflegends.com/en-us/news/dev/clarity-in-league/).
 
 ## Local trial
 
@@ -165,3 +333,16 @@ in the ring preview. Roster cards have no reserved minimum height; actions sit t
 Names use 14–16px type and stats use 12px. On narrow screens, text occupies a full-width row beneath
 the portrait/controls; wider cards place stats between the portrait and controls. This removes duplicated
 combat UI from the setup area.
+
+### Weapon and body presentation (2026-10-25)
+
+Arena and incident actions now snapshot weapon delivery and attacker/target body profiles in their existing
+JSON payload. Shared `CombatantMotion` applies melee follow-through, ranged recoil and weighted race/power
+armor reactions while keeping controls and meters fixed. No combat formulas, turn order or action timing
+change. Historical actions fall back to human motion; reduced motion and catch-up suppress body travel.
+See the [animation matrix](../frontend/COMBAT_ANIMATION_MATRIX.md) for implemented profiles and remaining
+family/artwork refinements.
+
+Arena state polls load eligible dweller candidates once per vault request, including equipment and room
+labels, then reuse that load across Arena rooms. Busy fighters remain visible only in their own Arena;
+available adults remain selectable across rooms. This does not cache eligibility across requests.

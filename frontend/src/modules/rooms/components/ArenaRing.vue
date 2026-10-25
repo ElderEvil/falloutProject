@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { UserRound, PawPrint, Crosshair } from '@lucide/vue'
+import { UserRound, PawPrint } from '@lucide/vue'
+import CombatSkillIcon from '@/modules/combat/components/CombatSkillIcon.vue'
 import type { ArenaFighter, ArenaRoomState } from '../api/arena'
 import { creatureKeyOf } from '../models/arena'
 import { getCreatureImagePath, getCreatureModelSizeClass } from '@/core/utils/creatureAssets'
@@ -14,8 +15,10 @@ import {
 } from '@/core/components/ui/tooltip'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { getDwellerBodySize } from '@/modules/dwellers/models/dweller'
-import ArenaDamageNumbers from './ArenaDamageNumbers.vue'
+import CombatDamageNumbers from '@/modules/combat/components/CombatDamageNumbers.vue'
 import CombatantMeters from './CombatantMeters.vue'
+import CombatantMotion from '@/modules/combat/components/CombatantMotion.vue'
+import type { PlayingCombatAction } from '@/modules/combat/models/playback'
 import { useFallbackImage } from '../composables/useFallbackImage'
 
 const props = defineProps<{
@@ -26,6 +29,8 @@ const props = defineProps<{
   attackingTeam: 'A' | 'B' | null
   attackingFighterId?: string | null
   damageNumbers: Array<{ id: number; fighterId: string; amount: number }>
+  activeAction?: PlayingCombatAction | null
+  combatPhase?: 'prepare' | 'impact' | null
 }>()
 const emit = defineEmits<{ skill: [fighterId: string] }>()
 const { url: scene, onError: imageFailed } = useFallbackImage(() => [props.sceneImageUrl])
@@ -68,6 +73,7 @@ const actionFor = (fighter: ArenaFighter) => {
   if (!skill) return null
   return {
     name: skill.name,
+    icon: skill.icon,
     charge: skill.charge,
     queued: skill.queued,
     pending: props.pendingSkills.has(fighter.id),
@@ -102,7 +108,9 @@ const actionFor = (fighter: ArenaFighter) => {
                 ? `NEXT · TEAM ${state.next_attack_team}`
                 : 'READY TO FIGHT'
         }}</span>
-        <span>{{ state.mode === 'hunt' ? 'CREATURES' : 'TEAM B' }}</span>
+        <span>{{
+          state.mode === 'training' ? 'BOTS' : state.mode === 'hunt' ? 'CREATURES' : 'TEAM B'
+        }}</span>
       </div>
       <div
         v-if="state.fight_started && !state.match_done && state.countdown_remaining > 0"
@@ -136,12 +144,8 @@ const actionFor = (fighter: ArenaFighter) => {
             :aria-current="isAttacking(fighter, team.side) ? 'true' : undefined"
             :class="[
               {
-                'combat-lunge-right': isAttacking(fighter, team.side) && team.side === 'A',
-                'combat-lunge-left': isAttacking(fighter, team.side) && team.side === 'B',
                 'bottom-8 z-0 scale-90 sm:bottom-12': index % 2 === 1,
                 'z-10': index % 2 === 0,
-                'combat-impact':
-                  fighter.health > 0 && damageNumbers.some((d) => d.fighterId === fighter.id),
                 'opacity-40 grayscale': fighter.health <= 0,
               },
               // Center solo fighters; offset only multi-fighter lanes.
@@ -153,7 +157,7 @@ const actionFor = (fighter: ArenaFighter) => {
               },
             ]"
           >
-            <ArenaDamageNumbers
+            <CombatDamageNumbers
               :numbers="damageNumbers.filter((d) => d.fighterId === fighter.id)"
             />
             <CombatantMeters
@@ -187,51 +191,62 @@ const actionFor = (fighter: ArenaFighter) => {
                       :aria-label="`Use ${ready.skill.name} from ${ready.fighter.name} on ${fighter.name}`"
                       @click="emit('skill', ready.fighter.id)"
                     >
-                      <Crosshair class="size-6" aria-hidden="true" />
+                      <CombatSkillIcon :icon="ready.skill.icon" class="size-6" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent
                     class="border border-theme-primary/40 bg-popover text-theme-primary"
                   >
                     <span class="flex flex-col gap-1"
-                      ><strong>{{ ready.fighter.name }} · {{ ready.skill.name }}</strong
+                      ><strong class="flex items-center gap-1.5"
+                        ><CombatSkillIcon :icon="ready.skill.icon" class="size-4" />{{
+                          ready.fighter.name
+                        }}
+                        · {{ ready.skill.name }}</strong
                       ><span>{{ ready.skill.description }}</span
                       ><span>Activate skill against {{ fighter.name }}</span></span
                     >
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <template v-if="fighter.is_creature || fighter.is_robot">
-                <img
-                  v-if="imageFor(fighter.id)"
-                  :src="imageFor(fighter.id) ?? undefined"
+              <CombatantMotion
+                :fighter-id="fighter.id"
+                :facing="team.side === 'B' ? 'left' : 'right'"
+                :action="activeAction"
+                :phase="combatPhase"
+              >
+                <template v-if="fighter.is_creature || fighter.is_robot">
+                  <img
+                    v-if="imageFor(fighter.id)"
+                    :src="imageFor(fighter.id) ?? undefined"
+                    :alt="fighter.name"
+                    class="size-full object-contain drop-shadow-lg"
+                    :class="{ '-scale-x-100': team.side === 'B' && fighter.is_robot }"
+                  />
+                  <PawPrint v-else class="size-14 text-danger" />
+                </template>
+                <DwellerPortrait
+                  v-else
+                  :image-url="fighter.image_url"
+                  :thumbnail-url="fighter.thumbnail_url"
                   :alt="fighter.name"
-                  class="size-full object-contain drop-shadow-lg"
-                  :class="{ '-scale-x-100': team.side === 'B' && fighter.is_robot }"
+                  :class="{ '-scale-x-100': team.side === 'B' }"
+                  object-position="center top"
+                  :zoom="false"
+                  image-class="size-full object-contain drop-shadow-lg"
+                  fallback-class="hidden"
                 />
-                <PawPrint v-else class="size-14 text-danger" />
-              </template>
-              <DwellerPortrait
-                v-else
-                :image-url="fighter.image_url"
-                :thumbnail-url="fighter.thumbnail_url"
-                :alt="fighter.name"
-                :class="{ '-scale-x-100': team.side === 'B' }"
-                object-position="center top"
-                :zoom="false"
-                image-class="size-full object-contain drop-shadow-lg"
-                fallback-class="hidden"
-              />
-              <UserRound
-                v-if="
-                  !fighter.is_creature &&
-                  !fighter.is_robot &&
-                  !fighter.image_url &&
-                  !fighter.thumbnail_url
-                "
-                class="absolute bottom-0 h-32 w-16 text-theme-primary sm:h-44 sm:w-20"
-                :class="{ '-scale-x-100': team.side === 'B' }"
-              />
+                <UserRound
+                  v-if="
+                    !fighter.is_creature &&
+                    !fighter.is_robot &&
+                    !fighter.image_url &&
+                    !fighter.thumbnail_url
+                  "
+                  class="absolute bottom-0 h-32 w-16 text-theme-primary sm:h-44 sm:w-20"
+                  :class="{ '-scale-x-100': team.side === 'B' }"
+                />
+              </CombatantMotion>
             </div>
             <span
               v-if="fighter.health <= 0"

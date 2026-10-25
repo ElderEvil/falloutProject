@@ -69,12 +69,20 @@ const vaultIdRef = toRef(props, 'vaultId')
 
 const incidentStore = useIncidentStore()
 const roomStore = useRoomStore()
-const liveIncident = computed(
-  () => incidentStore.activeIncidents.find((inc) => inc.room_id === props.room?.id) ?? null
-)
 const liveAftermath = computed(() =>
   props.room ? (incidentStore.aftermathForRoom(props.room.id) ?? null) : null
 )
+const completedPlayback = ref<string | null>(null)
+const liveIncident = computed(() => {
+  const active = incidentStore.activeIncidents.find((inc) => inc.room_id === props.room?.id)
+  if (active) return active
+  const aftermath = liveAftermath.value
+  const scene = aftermath?.scene
+  if (!scene || completedPlayback.value === scene.id) return null
+  // The existing aftermath request brings the final journal. Keep the scene
+  // mounted until it arrives and the final resolved actions have played.
+  return aftermath.sceneLoading || ['resolved', 'failed'].includes(scene.status) ? scene : null
+})
 
 // Which sections this room renders — decided by the part registry, nowhere else.
 const parts = computed<RoomPart[]>(() =>
@@ -231,12 +239,15 @@ onUnmounted(stopAmbience)
 
         <RoomIncidentDetail
           v-if="has('incident') && liveIncident"
+          :key="liveIncident.id"
           :incident="liveIncident"
           :rooms="roomStore.rooms"
           :vault-id="props.vaultId"
           :dwellers="vaultDwellers"
           :fallback-image-url="roomGridImageUrl ?? null"
           :room-image-url="roomImageUrl ?? null"
+          :finishing="liveAftermath?.incidentId === liveIncident.id"
+          @playback-complete="completedPlayback = $event"
         />
 
         <IncidentAftermath
@@ -247,7 +258,7 @@ onUnmounted(stopAmbience)
 
         <ArenaRoomDetail
           v-else-if="has('arena')"
-          v-model:assignment-mode="assignmentMode"
+          :key="`${vaultId}:${room.id}`"
           :room="room"
           :vault-id="props.vaultId"
           :assigned-dwellers="assignedDwellers"
@@ -257,6 +268,7 @@ onUnmounted(stopAmbience)
           :is-upgrading="isUpgrading"
           :is-destroying="isDestroying"
           :is-vault-door="isVaultDoor"
+          @changed="emit('roomUpdated')"
           @upgrade="handleUpgrade"
           @destroy="handleDestroy"
           @unassign-all="showUnassignConfirmation = true"

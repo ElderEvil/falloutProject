@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { ShieldAlert, UserRound } from '@lucide/vue'
 import { Progress } from '@/core/components/ui/progress'
@@ -13,12 +13,17 @@ import {
   getIncidentIcon,
   type Incident,
   type IncidentTeamMember,
+  type IncidentParticipant,
 } from '@/modules/combat/models/incident'
 import { getCreatureImagePath, getCreatureModelSizeClass } from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
 import { humanizePreserveCase } from '@/core/utils/format'
 import { useCombatPulse } from '../composables/useCombatPulse'
 import { useFallbackImage } from '../composables/useFallbackImage'
+import { useCombatPlayback } from '@/modules/combat/composables/useCombatPlayback'
+import CombatantMotion from '@/modules/combat/components/CombatantMotion.vue'
+import CombatDamageNumbers from '@/modules/combat/components/CombatDamageNumbers.vue'
+import { useSound } from '@/core/composables/useSound'
 
 const props = defineProps<{
   incident: Incident
@@ -27,14 +32,83 @@ const props = defineProps<{
   fallbackImageUrl?: string | null
   team?: IncidentTeamMember[]
 }>()
+const emit = defineEmits<{ playbackComplete: [incidentId: string] }>()
+const { playSound } = useSound()
+const playback = useCombatPlayback(
+  () => {
+    return {
+      key: `${props.incident.vault_id}:${props.incident.id}:${props.incident.room_id}`,
+      health: Object.fromEntries(props.dwellers.map((dweller) => [dweller.id, dweller.health])),
+      events: props.incident.events,
+    }
+  },
+  () => playSound('incidentHit')
+)
+const structured = computed(() => props.incident.events.some((event) => event.action))
+const activeAction = playback.active
+const combatPhase = playback.phase
+const damageNumbers = playback.damageNumbers
+const isAttacking = (id: string) => activeAction.value?.action.actor_id === id
+const displayedHealth = (dweller: DwellerShort) =>
+  playback.health.value[dweller.id] ?? dweller.health
+const displayedProgress = shallowRef(props.incident.progress)
+watch(
+  () => [props.incident.progress, playback.isPlaying.value] as const,
+  ([progress, playing]) => {
+    if (!playing) displayedProgress.value = progress
+  }
+)
+watch(
+  () => [props.incident.status, playback.isPlaying.value] as const,
+  ([status, playing]) => {
+    if (!playing && ['resolved', 'failed'].includes(status))
+      emit('playbackComplete', props.incident.id)
+  },
+  { immediate: true }
+)
 
 const { url: sceneImageUrl, onError: imageFailed } = useFallbackImage(() => [
   props.roomImageUrl,
   props.fallbackImageUrl,
 ])
 
-const responders = computed(() =>
+const currentResponders = computed(() =>
   getIncidentParticipants(props.incident.room_id, props.dwellers, props.team)
+)
+const previousResponders = shallowRef<IncidentParticipant[]>([])
+watch(
+  () => props.incident.id,
+  () => {
+    previousResponders.value = []
+  }
+)
+const responders = computed(() => {
+  const current = currentResponders.value
+  if (!playback.isPlaying.value) return current
+  const currentIds = new Set(current.map((responder) => responder.id))
+  const finishing = ['resolved', 'failed'].includes(props.incident.status)
+  return [
+    ...current,
+    ...previousResponders.value.filter(
+      (responder) =>
+        !currentIds.has(responder.id) &&
+        (finishing ||
+          isAttacking(responder.id) ||
+          activeAction.value?.action.targets.some((target) => target.target_id === responder.id))
+    ),
+  ]
+})
+watch(
+  currentResponders,
+  (current) => {
+    const currentIds = new Set(current.map((responder) => responder.id))
+    const retained = previousResponders.value.filter((responder) => !currentIds.has(responder.id))
+    previousResponders.value = [...current, ...retained].map((responder) => ({
+      ...responder,
+      dweller: responder.dweller ? { ...responder.dweller } : undefined,
+    }))
+  },
+  { immediate: true }
 )
 const healthCeiling = (dweller: DwellerShort) =>
   Math.max(
@@ -42,13 +116,13 @@ const healthCeiling = (dweller: DwellerShort) =>
     dweller.effective_max_health ?? getEffectiveMaxHealth(dweller.radiation, dweller.max_health)
   )
 const remainingEnemies = computed(() =>
-  Math.max(0, props.incident.progress.target - props.incident.progress.current)
+  Math.max(0, displayedProgress.value.target - displayedProgress.value.current)
 )
 const progressPercent = computed(() =>
-  props.incident.progress.target > 0
+  displayedProgress.value.target > 0
     ? Math.min(
         100,
-        Math.max(0, (props.incident.progress.current / props.incident.progress.target) * 100)
+        Math.max(0, (displayedProgress.value.current / displayedProgress.value.target) * 100)
       )
     : 0
 )
@@ -90,12 +164,15 @@ const containmentGain = computed(() => Math.round(roundTotal('amount') * 100))
 
 const combatPulse = useCombatPulse(computed(() => roundKey.value))
 const responderMotion = computed(() => ({
-  'combat-impact': combatPulse.value && dwellerDamage.value > 0,
-  'combat-lunge-right': combatPulse.value && dwellerDamage.value <= 0 && threatDamage.value > 0,
+  'combat-impact': !structured.value && combatPulse.value && dwellerDamage.value > 0,
+  'combat-lunge-right':
+    !structured.value && combatPulse.value && dwellerDamage.value <= 0 && threatDamage.value > 0,
 }))
 const threatMotion = computed(() => ({
-  'combat-impact': combatPulse.value && (threatDamage.value > 0 || containmentGain.value > 0),
+  'combat-impact':
+    !structured.value && combatPulse.value && (threatDamage.value > 0 || containmentGain.value > 0),
   'combat-lunge-left':
+    !structured.value &&
     combatPulse.value &&
     threatDamage.value <= 0 &&
     containmentGain.value <= 0 &&
@@ -105,65 +182,78 @@ const threatMotion = computed(() => ({
 
 <template>
   <section
-      class="incident-scene relative isolate aspect-[5/2] min-h-80 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
-      aria-label="Incident live status"
+    class="incident-scene relative isolate aspect-[5/2] min-h-80 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
+    aria-label="Incident live status"
+  >
+    <img
+      v-if="sceneImageUrl"
+      :src="sceneImageUrl"
+      class="scene-backdrop absolute inset-0 size-full object-cover"
+      alt=""
+      aria-hidden="true"
+      @error="imageFailed"
+    />
+    <div
+      class="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-black/30"
+      aria-hidden="true"
+    />
+    <div
+      class="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-3 bg-black/75 px-3 py-2 text-xs font-semibold text-theme-primary"
     >
-      <img
-        v-if="sceneImageUrl"
-        :src="sceneImageUrl"
-        class="scene-backdrop absolute inset-0 size-full object-cover"
-        alt=""
-        aria-hidden="true"
-        @error="imageFailed"
-      />
-      <div
-        class="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-black/30"
-        aria-hidden="true"
-      />
-      <div
-        class="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-3 bg-black/75 px-3 py-2 text-xs font-semibold text-theme-primary"
-      >
-        <span class="shrink-0">RESPONDERS · {{ responders.length }}</span>
-        <span v-if="incident.room_name" class="hidden truncate font-normal sm:block">{{
-          incident.room_name
-        }}</span>
-        <span>{{ incident.objective === 'defeat' ? 'THREAT' : 'ROOM HAZARD' }}</span>
-      </div>
+      <span class="shrink-0">RESPONDERS · {{ responders.length }}</span>
+      <span v-if="incident.room_name" class="hidden truncate font-normal sm:block">{{
+        incident.room_name
+      }}</span>
+      <span>{{ incident.objective === 'defeat' ? 'THREAT' : 'ROOM HAZARD' }}</span>
+    </div>
 
-      <div
-        class="absolute inset-x-3 top-12 bottom-16 grid grid-cols-2 items-end gap-5 sm:inset-x-6 sm:gap-10"
-      >
-        <div class="relative min-w-0" :class="responderMotion">
-          <span
-            v-if="dwellerDamage"
-            :key="roundKey"
-            class="floating-effect absolute -top-3 left-1/2 z-30 font-bold text-danger"
-            aria-hidden="true"
-            >-{{ Math.round(dwellerDamage) }}</span
+    <div
+      class="absolute inset-x-3 top-12 bottom-16 grid grid-cols-2 items-end gap-5 sm:inset-x-6 sm:gap-10"
+    >
+      <div class="relative min-w-0" :class="responderMotion">
+        <span
+          v-if="dwellerDamage && !structured"
+          :key="roundKey"
+          class="floating-effect absolute -top-3 left-1/2 z-30 font-bold text-danger"
+          aria-hidden="true"
+          >-{{ Math.round(dwellerDamage) }}</span
+        >
+        <!-- Keep responders spread across their half of the scene instead of clustering left. -->
+        <div class="flex w-full min-w-0 items-end justify-evenly gap-2 overflow-x-auto pt-6 pb-1">
+          <div
+            v-for="responder in responders"
+            :key="responder.id"
+            class="incident-responder relative flex w-[4.85rem] min-w-[4.85rem] max-w-[4.85rem] shrink-0 flex-col items-center gap-1"
+            :class="{
+              'opacity-40 grayscale': responder.dweller && displayedHealth(responder.dweller) <= 0,
+            }"
+            :aria-current="isAttacking(responder.id) ? 'true' : undefined"
           >
-          <!-- Keep responders spread across their half of the scene instead of clustering left. -->
-          <div class="flex w-full min-w-0 items-end justify-evenly gap-2 overflow-x-auto pt-6 pb-1">
-            <div
-              v-for="responder in responders"
-              :key="responder.id"
-              class="incident-responder relative flex w-[4.85rem] min-w-[4.85rem] max-w-[4.85rem] shrink-0 flex-col items-center gap-1"
-              :class="{
-                'opacity-40 grayscale': responder.dweller && responder.dweller.health <= 0,
-              }"
+            <CombatDamageNumbers
+              :numbers="damageNumbers.filter((number) => number.fighterId === responder.id)"
+            />
+            <DwellerNameBadge
+              :name="responder.dweller?.first_name ?? responder.name"
+              :full-name="responder.name"
+              :health="responder.dweller ? displayedHealth(responder.dweller) : undefined"
+              :max-health="responder.dweller ? healthCeiling(responder.dweller) : null"
+            />
+            <span
+              v-if="
+                responder.dweller &&
+                displayedHealth(responder.dweller) < healthCeiling(responder.dweller)
+              "
+              class="sr-only"
+              >{{ responder.name }}: {{ displayedHealth(responder.dweller) }} of
+              {{ healthCeiling(responder.dweller) }} HP</span
             >
-              <DwellerNameBadge
-                :name="responder.dweller?.first_name ?? responder.name"
-                :full-name="responder.name"
-                :health="responder.dweller?.health"
-                :max-health="responder.dweller ? healthCeiling(responder.dweller) : null"
-              />
-              <span
-                v-if="responder.dweller && responder.dweller.health < healthCeiling(responder.dweller)"
-                class="sr-only"
-                >{{ responder.name }}: {{ responder.dweller.health }} of
-                {{ healthCeiling(responder.dweller) }} HP</span
+            <div class="flex h-[7.25rem] w-full items-end justify-center">
+              <CombatantMotion
+                :fighter-id="responder.id"
+                facing="right"
+                :action="activeAction"
+                :phase="combatPhase"
               >
-              <div class="flex h-[7.25rem] w-full items-end justify-center">
                 <DwellerPortrait
                   v-if="responder.dweller?.thumbnail_url"
                   :thumbnail-url="responder.dweller.thumbnail_url"
@@ -178,104 +268,117 @@ const threatMotion = computed(() => ({
                   :aria-label="responder.name"
                   role="img"
                 />
-              </div>
+              </CombatantMotion>
             </div>
-            <span
-              v-if="!responders.length"
-              class="self-center rounded bg-black/80 p-2 text-center text-xs text-theme-primary"
-              >No responders assigned</span
-            >
           </div>
+          <span
+            v-if="!responders.length"
+            class="self-center rounded bg-black/80 p-2 text-center text-xs text-theme-primary"
+            >No responders assigned</span
+          >
         </div>
+      </div>
 
-        <div
-          class="relative flex min-w-0 flex-col items-center justify-end gap-2 self-end"
-          :class="[
-            threatMotion,
-            { 'opacity-40 grayscale': incident.objective === 'defeat' && remainingEnemies === 0 },
-          ]"
+      <div
+        class="relative flex min-w-0 flex-col items-center justify-end gap-2 self-end"
+        :class="[
+          threatMotion,
+          { 'opacity-40 grayscale': incident.objective === 'defeat' && remainingEnemies === 0 },
+        ]"
+      >
+        <span
+          v-if="threatDamage && incident.objective === 'defeat' && !structured"
+          :key="roundKey"
+          class="floating-effect absolute -top-3 z-30 font-bold text-danger"
+          aria-hidden="true"
+          >-{{ Math.round(threatDamage) }}</span
         >
-          <span
-            v-if="threatDamage && incident.objective === 'defeat'"
-            :key="roundKey"
-            class="floating-effect absolute -top-3 z-30 font-bold text-danger"
-            aria-hidden="true"
-            >-{{ Math.round(threatDamage) }}</span
-          >
-          <span
-            v-if="containmentGain && incident.objective === 'contain'"
-            :key="roundKey"
-            class="floating-effect absolute -top-3 z-30 font-bold text-success"
-            aria-hidden="true"
-            >+{{ containmentGain }}%</span
-          >
-          <svg
-            v-if="incident.type === 'fire'"
-            class="hazard-flame h-32 w-24 drop-shadow-lg sm:h-44 sm:w-32"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path
-              class="flame-outer"
-              d="M12 2.5c2.5 3.5 5.5 5.8 5.5 9.6a5.5 5.5 0 0 1-11 0c0-2 1-3.6 2.3-5.2.6 1 1.2 1.6 2 2 .3-2.3.7-4.2 1.2-6.4Z"
-            />
-            <path
-              class="flame-inner"
-              d="M12 9c1.2 1.6 2.3 2.8 2.3 4.5a2.3 2.3 0 0 1-4.6 0c0-1.7 1.1-2.9 2.3-4.5Z"
-            />
-          </svg>
-          <div
-            v-else-if="creatureImage"
-            class="flex max-w-full origin-bottom scale-110 items-end justify-center sm:scale-125"
-            :class="getCreatureModelSizeClass(creatureKey ?? '')"
-          >
-            <img
-              :src="creatureImage"
-              :alt="creatureName"
-              class="size-full object-contain drop-shadow-lg"
-              @error="creatureFailed"
-            />
-          </div>
-          <UserRound
-            v-else-if="incident.type === 'raider_attack'"
-            class="h-28 w-20 text-danger drop-shadow-lg sm:h-36 sm:w-24"
-            role="img"
-            aria-label="Raider"
-          />
-          <Icon
-            v-else
-            :icon="getIncidentIcon(incident.type)"
-            class="hazard-icon size-24 text-warning"
-            :ariaHidden="true"
-          />
-          <span
-            v-if="incident.objective === 'defeat'"
-            class="rounded bg-black/85 px-2 py-1 text-xs font-semibold text-theme-primary"
-            >{{ remainingEnemies }} remaining</span
-          >
-        </div>
-      </div>
-
-      <div class="absolute inset-x-0 bottom-0 z-20 flex flex-col gap-1 bg-black/85 px-3 py-2">
-        <div class="flex items-center justify-between gap-2 text-xs text-theme-primary">
-          <span
-            >{{ incident.progress.label }} · {{ incident.progress.current }} /
-            {{ incident.progress.target }}</span
-          >
-          <span class="flex shrink-0 items-center gap-1 text-warning"
-            ><ShieldAlert class="size-3.5" aria-hidden="true" />{{
-              incident.risk.rooms_affected
-            }}
-            room{{ incident.risk.rooms_affected === 1 ? '' : 's' }} affected</span
-          >
-        </div>
-        <Progress
-          :model-value="progressPercent"
-          :label="incident.progress.label"
-          :tone="incident.objective === 'contain' ? 'warning' : 'default'"
-          size="xs"
+        <CombatDamageNumbers
+          :numbers="damageNumbers.filter((number) => number.fighterId === 'threat')"
         />
+        <span
+          v-if="containmentGain && incident.objective === 'contain'"
+          :key="roundKey"
+          class="floating-effect absolute -top-3 z-30 font-bold text-success"
+          aria-hidden="true"
+          >+{{ containmentGain }}%</span
+        >
+        <div class="relative flex max-w-full items-end justify-center">
+          <CombatantMotion
+            fighter-id="threat"
+            facing="left"
+            :action="activeAction"
+            :phase="combatPhase"
+          >
+            <svg
+              v-if="incident.type === 'fire'"
+              class="hazard-flame h-32 w-24 drop-shadow-lg sm:h-44 sm:w-32"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                class="flame-outer"
+                d="M12 2.5c2.5 3.5 5.5 5.8 5.5 9.6a5.5 5.5 0 0 1-11 0c0-2 1-3.6 2.3-5.2.6 1 1.2 1.6 2 2 .3-2.3.7-4.2 1.2-6.4Z"
+              />
+              <path
+                class="flame-inner"
+                d="M12 9c1.2 1.6 2.3 2.8 2.3 4.5a2.3 2.3 0 0 1-4.6 0c0-1.7 1.1-2.9 2.3-4.5Z"
+              />
+            </svg>
+            <div
+              v-else-if="creatureImage"
+              class="flex max-w-full origin-bottom scale-110 items-end justify-center sm:scale-125"
+              :class="getCreatureModelSizeClass(creatureKey ?? '')"
+            >
+              <img
+                :src="creatureImage"
+                :alt="creatureName"
+                class="size-full object-contain drop-shadow-lg"
+                @error="creatureFailed"
+              />
+            </div>
+            <UserRound
+              v-else-if="incident.type === 'raider_attack'"
+              class="h-28 w-20 text-danger drop-shadow-lg sm:h-36 sm:w-24"
+              role="img"
+              aria-label="Raider"
+            />
+            <Icon
+              v-else
+              :icon="getIncidentIcon(incident.type)"
+              class="hazard-icon size-24 text-warning"
+              :ariaHidden="true"
+            />
+          </CombatantMotion>
+        </div>
+        <span
+          v-if="incident.objective === 'defeat'"
+          class="rounded bg-black/85 px-2 py-1 text-xs font-semibold text-theme-primary"
+          >{{ remainingEnemies }} remaining</span
+        >
       </div>
+    </div>
+
+    <div class="absolute inset-x-0 bottom-0 z-20 flex flex-col gap-1 bg-black/85 px-3 py-2">
+      <div class="flex items-center justify-between gap-2 text-xs text-theme-primary">
+        <span
+          >{{ incident.progress.label }} · {{ displayedProgress.current }} /
+          {{ displayedProgress.target }}</span
+        >
+        <span class="flex shrink-0 items-center gap-1 text-warning"
+          ><ShieldAlert class="size-3.5" aria-hidden="true" />{{
+            incident.risk.rooms_affected
+          }}
+          room{{ incident.risk.rooms_affected === 1 ? '' : 's' }} affected</span
+        >
+      </div>
+      <Progress
+        :model-value="progressPercent"
+        :label="incident.progress.label"
+        :tone="incident.objective === 'contain' ? 'warning' : 'default'"
+        size="xs"
+      />
+    </div>
   </section>
 </template>
 

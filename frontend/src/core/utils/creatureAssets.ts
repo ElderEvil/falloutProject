@@ -19,7 +19,13 @@ export const CREATURE_ASSETS = (
     { name: 'Radroach', key: 'radroach', modelScale: 0.5, arenaKey: 'radroach-swarm' },
     { name: 'Eyebot', key: 'eyebot', modelScale: 0.7, arenaKey: 'training-eyebot' },
     { name: 'Protectron', key: 'protectron', modelScale: 1, arenaKey: 'training-protectron' },
-    { name: 'Mr. Handy', key: 'mr-handy', modelScale: 1, arenaKey: 'training-mr-handy' },
+    {
+      name: 'Mr. Handy',
+      key: 'mr-handy',
+      modelScale: 1,
+      arenaKey: 'training-mr-handy',
+      originalImage: '/static/creature_images/originals/mr-handy.webp',
+    },
     { name: 'Yao Guai', key: 'yao-guai', modelScale: 1.5, arenaKey: 'yao-guai', generated: true },
     { name: 'Mirelurk', key: 'mirelurk', modelScale: 1.3, arenaKey: 'mirelurk', generated: true },
     { name: 'Bloatfly', key: 'bloatfly', modelScale: 0.5, arenaKey: 'bloatfly', generated: true },
@@ -37,10 +43,11 @@ export const CREATURE_ASSETS = (
     arenaKey: string
     modelScale: keyof typeof MODEL_SIZE_CLASSES
     generated?: boolean
+    originalImage?: string
   }>
 ).map((asset) => ({
   ...asset,
-  image: `/static/creature_images/assembled/${asset.key}.webp`,
+  image: asset.originalImage ?? `/static/creature_images/assembled/${asset.key}.webp`,
   sourceImage: asset.generated ? undefined : `/static/creature_images/${asset.key}.png`,
 }))
 

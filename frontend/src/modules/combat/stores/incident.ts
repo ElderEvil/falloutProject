@@ -28,12 +28,14 @@ export const useIncidentStore = defineStore('incident', () => {
   const sseConnected = ref(false)
   let sseInstance: ReturnType<typeof useSse> | null = null
   let incidentPolling: ReturnType<typeof usePolling> | null = null
+  let stopPollingCadenceWatch: (() => void) | null = null
   let pendingStartPolling: ReturnType<typeof usePolling> | null = null
   let pollingVaultId: string | null = null
   const announcedResolutions = new Set<string>()
   const announcedIncidentSounds = new Set<string>()
   const seenEventMarkers = new Map<string, { count: number; lastId: string | undefined }>()
   let detailRequestOrder = 0
+  let contextGeneration = 0
   const appliedDetailOrders = new Map<string, number>()
 
   const { success: showSuccess, error: showError, warning: showWarning } = useToast()
@@ -91,6 +93,8 @@ export const useIncidentStore = defineStore('incident', () => {
       enemiesDefeated: incident.enemies_defeated,
       damageDealt: incident.damage_dealt,
       rounds: incident.events.length,
+      scene: incident,
+      sceneLoading: true,
     })
   }
 
@@ -125,6 +129,9 @@ export const useIncidentStore = defineStore('incident', () => {
     if (!entry) return
     try {
       const incident = await incidentApi.getIncident(vaultId, incidentId, token)
+      // A closed vault/account can leave this request in flight.
+      if (findAftermath(incidentId) !== entry) return
+      entry.scene = incident
       entry.unclaimed = incident.unclaimed_loot ?? []
       entry.loot = incident.loot
       entry.enemiesDefeated = incident.enemies_defeated
@@ -140,6 +147,8 @@ export const useIncidentStore = defineStore('incident', () => {
       }
     } catch (error) {
       handleStoreError(error, 'Failed to load held incident loot')
+    } finally {
+      entry.sceneLoading = false
     }
   }
 
@@ -186,8 +195,10 @@ export const useIncidentStore = defineStore('incident', () => {
     token: string,
     propagateError = false
   ): Promise<void> {
+    const request = contextGeneration
     try {
       const response: IncidentListResponse = await incidentApi.getActiveIncidents(vaultId, token)
+      if (request !== contextGeneration) return
 
       if (!response || !response.incidents || !Array.isArray(response.incidents)) {
         // An unconfirmed list is not a confirmed empty vault; fail closed.
@@ -195,7 +206,9 @@ export const useIncidentStore = defineStore('incident', () => {
       }
 
       // Update active incidents list
-      const newIds = response.incidents.map((inc) => inc.id)
+      const newIds = response.incidents
+        .map((inc) => inc.id)
+        .filter((id) => !announcedResolutions.has(id))
       const previousIds = [...activeIncidentIds.value]
 
       // A resolution the SSE stream never delivered: the incident is simply gone
@@ -234,6 +247,7 @@ export const useIncidentStore = defineStore('incident', () => {
       // roster) is a successful load and is not refetched on every poll.
       const teamNeedsLoad = newIds.filter((id) => !incidentTeams.value.has(id))
       await Promise.all(teamNeedsLoad.map((id) => fetchIncidentTeam(vaultId, id, token)))
+      if (request !== contextGeneration) return
 
       // Update store
       activeIncidentIds.value = newIds
@@ -244,6 +258,7 @@ export const useIncidentStore = defineStore('incident', () => {
           try {
             const requestOrder = ++detailRequestOrder
             const incident = await incidentApi.getIncident(vaultId, id, token)
+            if (request !== contextGeneration) return
             // Overlapping polls can resolve out of order; the newer request wins so
             // an older full window cannot replay the hit or lower the marker.
             if (requestOrder < (appliedDetailOrders.get(id) ?? 0)) return
@@ -262,7 +277,9 @@ export const useIncidentStore = defineStore('incident', () => {
             } else if (lastId !== previous.lastId) {
               // The journal is a rolling window, so a saturated page still has to
               // sound when a combat line enters; an assignment or resolution must not.
-              if (lastIsCombat) audioManager.play('incidentHit', 'sfx')
+              // Structured attacks sound at impact in the visible scene.
+              if (lastIsCombat && !incident.events.some((event) => event.action))
+                audioManager.play('incidentHit', 'sfx')
               seenEventMarkers.set(id, { count, lastId })
             }
             incidents.value.set(id, incident)
@@ -295,8 +312,10 @@ export const useIncidentStore = defineStore('incident', () => {
     incidentId: string,
     token: string
   ): Promise<void> {
+    const generation = contextGeneration
     try {
       const team = await incidentApi.getIncidentTeam(vaultId, incidentId, token)
+      if (generation !== contextGeneration) return
       incidentTeams.value.set(incidentId, team)
     } catch (error) {
       handleStoreError(error, 'Failed to load incident team')
@@ -352,18 +371,25 @@ export const useIncidentStore = defineStore('incident', () => {
   }
 
   function startIncidentPolling(vaultId: string, token: string, intervalMs: number): void {
-    incidentPolling?.stop()
-    incidentPolling = usePolling(
-      async () => {
-        // The stream carries spawn, spread and resolution only — never a round — so
-        // an active overlay still needs this refresh to advance its battle log.
-        if (!sseConnected.value || activeIncidentIds.value.length > 0) {
-          await fetchIncidents(vaultId, token, true)
+    stopPollingCadenceWatch?.()
+    const schedule = () => {
+      incidentPolling?.stop()
+      incidentPolling = usePolling(
+        async () => {
+          // SSE carries lifecycle changes, not rounds; active combat needs faster refreshes.
+          if (!sseConnected.value || hasActiveIncidents.value) {
+            await fetchIncidents(vaultId, token, true)
+          }
+        },
+        {
+          interval: hasActiveIncidents.value ? Math.min(intervalMs, 2000) : intervalMs,
+          immediate: false,
         }
-      },
-      { interval: intervalMs, immediate: false }
-    )
-    incidentPolling.resume()
+      )
+      incidentPolling.resume()
+    }
+    stopPollingCadenceWatch = watch(hasActiveIncidents, schedule)
+    schedule()
   }
 
   function startSseSubscription(vaultId: string, token: string): void {
@@ -480,6 +506,7 @@ export const useIncidentStore = defineStore('incident', () => {
   }
 
   function startPolling(vaultId: string, token: string, intervalMs: number = 10000): void {
+    contextGeneration += 1
     if (isPolling.value) {
       stopPolling()
     }
@@ -495,9 +522,12 @@ export const useIncidentStore = defineStore('incident', () => {
   }
 
   function stopPolling(): void {
+    contextGeneration += 1
     pendingStartPolling?.stop()
     pendingStartPolling = null
     pollingVaultId = null
+    stopPollingCadenceWatch?.()
+    stopPollingCadenceWatch = null
     stopSseSubscription()
     incidentPolling?.stop()
     incidentPolling = null
@@ -509,6 +539,7 @@ export const useIncidentStore = defineStore('incident', () => {
   }
 
   function clearIncidents(): void {
+    contextGeneration += 1
     incidents.value.clear()
     activeIncidentIds.value = []
     aftermaths.value.clear()

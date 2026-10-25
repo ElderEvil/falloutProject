@@ -70,12 +70,7 @@ export interface Incident {
   response: {
     label: string
   }
-  events: Array<{
-    id: string
-    kind: string
-    message: string
-    data: Record<string, number | string> | null
-  }>
+  events: components['schemas']['IncidentEventRead'][]
 }
 
 export interface IncidentListResponse {
@@ -138,6 +133,8 @@ export interface IncidentAftermath {
   enemiesDefeated: number
   damageDealt: number
   rounds: number
+  scene?: Incident
+  sceneLoading?: boolean
 }
 
 export interface IncidentOverflowResponse {

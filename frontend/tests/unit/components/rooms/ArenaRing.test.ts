@@ -16,6 +16,7 @@ const fighter = (id: string, overrides: Partial<ArenaFighter> = {}): ArenaFighte
   is_robot: false,
   active_skill: {
     name: 'Aimed Shot',
+    icon: 'gun-rifle',
     description: 'Extra attack on your next team turn.',
     charge: 100,
     queued: false,
@@ -117,6 +118,7 @@ describe('Arena ring', () => {
   it('places each ready dweller activation on its paired target and emits the attacker ID', async () => {
     const wrapper = render()
     const marker = wrapper.get('button[aria-label="Use Aimed Shot from Alpha on Bravo"]')
+    expect(marker.get('[data-skill-icon]').attributes('data-skill-icon')).toBe('gun-rifle')
     await marker.trigger('click')
     expect(wrapper.emitted('skill')).toEqual([['Alpha']])
     expect(wrapper.find('button[aria-label="Use Aimed Shot from Charlie on Delta"]').exists()).toBe(

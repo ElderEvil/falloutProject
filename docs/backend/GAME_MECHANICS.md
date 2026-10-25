@@ -326,7 +326,7 @@ balance table for display.
 
 ## Arena morale (The Crowd Goes Wild)
 
-Finishing any arena match (duel, brawl, or hunt) lifts the whole vault: every living dweller — fighters
+Finishing any arena match (duel, brawl, bot training, or hunt) lifts the whole vault: every living dweller — fighters
 included, on top of their existing ±10 participant swing — gains `COMBAT_ARENA_MORALE_BONUS` (1), clamped to
 the 10..100 dweller contract. A per-vault rolling window (`vault.arena_morale_awarded_at`,
 `COMBAT_ARENA_MORALE_COOLDOWN_SECONDS` (3600)) keeps multiple arenas from stacking the bonus: the arena that

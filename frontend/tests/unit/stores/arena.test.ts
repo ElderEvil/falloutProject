@@ -69,6 +69,39 @@ describe('Arena Store', () => {
     expect(store.getRoom('missing')).toBeNull()
   })
 
+  it('ignores a delayed response after switching vaults', async () => {
+    let finishOld!: (state: ArenaState) => void
+    vi.mocked(arenaApi.fetchState).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishOld = resolve
+        })
+    )
+    const store = useArenaStore()
+    const old = store.fetchState('old-vault', 'old-token')
+    await store.fetchState('new-vault', 'new-token')
+    finishOld({ rooms: [{ ...mockRoom, room_id: 'old-room' }] })
+    expect(await old).toBe(false)
+    expect(store.getRoom('old-room')).toBeNull()
+    expect(store.getRoom('room-1')).toEqual(mockRoom)
+  })
+
+  it('does not restore a cleared account from an in-flight request', async () => {
+    let finish!: (state: ArenaState) => void
+    vi.mocked(arenaApi.fetchState).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    const store = useArenaStore()
+    const request = store.fetchState('vault-1', 'token')
+    store.reset()
+    finish(mockState)
+    expect(await request).toBe(false)
+    expect(store.rooms.size).toBe(0)
+  })
+
   it('setFighters persists the duel selection and refreshes state', async () => {
     const store = useArenaStore()
     const ok = await store.setFighters(
@@ -178,8 +211,48 @@ describe('Arena Store', () => {
     const ok = await store.startFight('vault-1', 'room-1', 'token')
 
     expect(ok).toBe(true)
-    expect(arenaApi.startFight).toHaveBeenCalledWith('vault-1', 'room-1', 'token')
+    expect(arenaApi.startFight).toHaveBeenCalledWith('vault-1', 'room-1', 'token', undefined)
   })
+
+  it.each(['before', 'after'])(
+    'keeps a successful start when its refresh finishes %s a newer poll',
+    async (order) => {
+      const store = useArenaStore()
+      await store.fetchState('vault-1', 'token')
+      let finishRefresh!: (state: ArenaState) => void
+      let finishPoll!: (state: ArenaState) => void
+      vi.mocked(arenaApi.fetchState)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishRefresh = resolve
+            })
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishPoll = resolve
+            })
+        )
+
+      const start = store.startFight('vault-1', 'room-1', 'token')
+      await vi.waitFor(() => expect(arenaApi.fetchState).toHaveBeenCalledTimes(2))
+      const poll = store.fetchState('vault-1', 'token')
+      const freshRoom = { ...mockRoom, fight_started: true, countdown_remaining: 2 }
+      if (order === 'after') {
+        finishPoll({ rooms: [freshRoom] })
+        expect(await poll).toBe(true)
+      }
+      finishRefresh({ rooms: [{ ...freshRoom, countdown_remaining: 3 }] })
+      expect(await start).toBe(true)
+      if (order === 'before') {
+        expect(store.getRoom('room-1')).toEqual(mockRoom)
+        finishPoll({ rooms: [freshRoom] })
+        expect(await poll).toBe(true)
+      }
+      expect(store.getRoom('room-1')).toEqual(freshRoom)
+    }
+  )
 
   it('clearEvents returns the cleared count', async () => {
     vi.mocked(arenaApi.clearEvents).mockResolvedValue(4)
@@ -228,5 +301,28 @@ describe('Arena Store', () => {
     store.reset()
 
     expect(store.rooms.size).toBe(0)
+  })
+  it.each(['reset', 'vault switch'])('ignores a delayed start after a %s', async (change) => {
+    const store = useArenaStore()
+    await store.fetchState('vault-1', 'token')
+    let finish!: () => void
+    vi.mocked(arenaApi.startFight).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    const pending = store.startFight('vault-1', 'room-1', 'token', {
+      mode: 'duel',
+      fighterAId: 'a',
+      fighterBId: 'b',
+    })
+    if (change === 'reset') store.reset()
+    else await store.fetchState('vault-2', 'new-token')
+    const calls = vi.mocked(arenaApi.fetchState).mock.calls.length
+    finish()
+    expect(await pending).toBe(false)
+    expect(arenaApi.fetchState).toHaveBeenCalledTimes(calls)
+    if (change === 'reset') expect(store.rooms.size).toBe(0)
   })
 })

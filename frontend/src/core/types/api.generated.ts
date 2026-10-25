@@ -5433,6 +5433,12 @@ export interface components {
         ArenaActiveSkill: {
             /** Name */
             name: string;
+            /**
+             * Icon
+             * @default unarmed
+             * @enum {string}
+             */
+            icon: "unarmed" | "melee-blunt" | "melee-edged" | "melee-pointed" | "gun-pistol" | "gun-rifle" | "gun-shotgun" | "energy-pistol" | "energy-rifle" | "heavy-automatic" | "heavy-flamer" | "heavy-explosive";
             /** Description */
             description: string;
             /** Charge */
@@ -5575,6 +5581,7 @@ export interface components {
             message: string;
             /** Actor Id */
             actor_id?: string | null;
+            action?: components["schemas"]["CombatAction"] | null;
             /** Created At */
             created_at?: string | null;
         };
@@ -5582,7 +5589,7 @@ export interface components {
          * ArenaMode
          * @enum {string}
          */
-        ArenaMode: "duel" | "brawl" | "hunt";
+        ArenaMode: "duel" | "brawl" | "training" | "hunt";
         /**
          * ArenaRoomState
          * @description Full arena room state: fighters, roster, match flags, and journal.
@@ -5616,6 +5623,8 @@ export interface components {
             team_b: components["schemas"]["ArenaFighter"][];
             /** Roster */
             roster: components["schemas"]["ArenaRosterEntry"][];
+            /** Candidates */
+            candidates?: components["schemas"]["ArenaRosterEntry"][];
             /** Fight Ready */
             fight_ready: boolean;
             /** Match Done */
@@ -5654,6 +5663,11 @@ export interface components {
             age_group?: string | null;
             /** Race */
             race?: string | null;
+            active_skill?: components["schemas"]["ArenaActiveSkill"] | null;
+            /** Room Id */
+            room_id?: string | null;
+            /** Room Name */
+            room_name?: string | null;
         };
         /**
          * ArenaSkillQueued
@@ -6107,6 +6121,29 @@ export interface components {
              */
             created_at: string;
         };
+        /** CombatAction */
+        CombatAction: {
+            /** Actor Id */
+            actor_id: string;
+            /**
+             * Actor Body
+             * @default human
+             * @enum {string}
+             */
+            actor_body: "human" | "ghoul" | "feral" | "mutant" | "behemoth" | "synth" | "power-armor";
+            /**
+             * Effect
+             * @default strike
+             * @enum {string}
+             */
+            effect: "strike" | "punch" | "thrust" | "shot" | "beam" | "pulse" | "burst" | "sweep" | "flame" | "blast" | "debris";
+            /** Skill */
+            skill?: string | null;
+            /** Skill Icon */
+            skill_icon?: ("unarmed" | "melee-blunt" | "melee-edged" | "melee-pointed" | "gun-pistol" | "gun-rifle" | "gun-shotgun" | "energy-pistol" | "energy-rifle" | "heavy-automatic" | "heavy-flamer" | "heavy-explosive") | null;
+            /** Targets */
+            targets: components["schemas"]["CombatImpact"][];
+        };
         /**
          * CombatEntry
          * @description One enemy engagement inside a room fight.
@@ -6121,6 +6158,23 @@ export interface components {
              * @default 0
              */
             damage_taken: number;
+        };
+        /** CombatImpact */
+        CombatImpact: {
+            /** Target Id */
+            target_id: string;
+            /**
+             * Body
+             * @default human
+             * @enum {string}
+             */
+            body: "human" | "ghoul" | "feral" | "mutant" | "behemoth" | "synth" | "power-armor";
+            /** Damage */
+            damage: number;
+            /** Health Before */
+            health_before?: number | null;
+            /** Health After */
+            health_after?: number | null;
         };
         /**
          * CompatibilityScore
@@ -8418,6 +8472,7 @@ export interface components {
             data: {
                 [key: string]: unknown;
             } | null;
+            action?: components["schemas"]["CombatAction"] | null;
         };
         /**
          * IncidentFamily
@@ -17044,7 +17099,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ArenaFightersRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

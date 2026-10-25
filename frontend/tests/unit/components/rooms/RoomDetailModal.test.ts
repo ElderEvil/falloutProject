@@ -5,6 +5,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import RoomDetailModal from '@/modules/rooms/components/RoomDetailModal.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useArenaStore } from '@/modules/rooms/stores/arena'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
@@ -45,11 +46,13 @@ config.global.stubs = {
   Alert: { template: '<div class="mock-alert"><slot /></div>' },
 }
 
+const arenaToastError = vi.hoisted(() => vi.fn())
+
 // Mock useToast
 vi.mock('@/core/composables/useToast', () => ({
   useToast: () => ({
     success: vi.fn(),
-    error: vi.fn(),
+    error: arenaToastError,
     warning: vi.fn(),
     info: vi.fn(),
     show: vi.fn(),
@@ -805,78 +808,76 @@ describe('RoomDetailModal', () => {
       expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
     })
 
-    it('assigns an adult to the Arena through a preview slot', async () => {
-      const { filter, management } = useDwellerStore()
-      useAuthStore().token = 'test-token'
-      const assign = vi.spyOn(management, 'assignDwellerToRoom').mockResolvedValue({} as never)
-      filter.dwellers = [
-        {
-          ...mockDwellers[0],
+    it.each([false, true])(
+      'starts a unified Arena lineup and retains it on rejection=%s',
+      async (rejected) => {
+        const { filter, management } = useDwellerStore()
+        useAuthStore().token = 'test-token'
+        const assign = vi.spyOn(management, 'assignDwellerToRoom').mockResolvedValue({} as never)
+        filter.dwellers = [{ ...mockDwellers[1], age_group: 'child', room_id: null }] as never
+        const wrapper = mount(RoomDetailModal, {
+          props: {
+            room: { ...mockRoom, name: 'Arena', category: 'ARENA', ability: null },
+            vaultId: 'vault-123',
+            modelValue: true,
+          },
+        })
+        await flushPromises()
+        const arena = useArenaStore()
+        const candidates = ['Lucy', 'Maximus'].map((name, index) => ({
+          id: `fighter-${index}`,
+          name,
+          level: 5,
+          health: 80,
+          max_health: 100,
+          room_id: 'generator',
+          room_name: 'Power Generator',
           age_group: 'adult',
-          apprentice_stat: null,
-          room_id: null,
-          status: 'idle',
-        },
-        {
-          ...mockDwellers[1],
-          age_group: 'child',
-          apprentice_stat: null,
-          room_id: null,
-          status: 'idle',
-        },
-      ] as never
-      const wrapper = mount(RoomDetailModal, {
-        props: {
-          room: { ...mockRoom, name: 'Arena', category: 'ARENA', ability: null },
-          vaultId: 'vault-123',
-          modelValue: true,
-        },
-      })
-
-      await flushPromises()
-      await wrapper
-        .findAll('button')
-        .find((button) => button.text().includes('Assign Dwellers'))!
-        .trigger('click')
-      expect(wrapper.get('.picker-title').text()).toBe('Assign to Arena')
-      expect(wrapper.findAll('.dweller-picker .dweller-list-row')).toHaveLength(1)
-      await wrapper.get('.dweller-picker .dweller-list-row').trigger('click')
-      await flushPromises()
-
-      expect(assign).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
-      expect(wrapper.find('.dweller-picker').exists()).toBe(false)
-      expect(wrapper.emitted('roomUpdated')).toBeTruthy()
-    })
-
-    it('shows Arena assignment failures so the player can recover', async () => {
-      const { filter, management } = useDwellerStore()
-      useAuthStore().token = 'test-token'
-      vi.spyOn(management, 'assignDwellerToRoom').mockRejectedValue(new Error('Full'))
-      filter.dwellers = [
-        {
-          ...mockDwellers[0],
-          age_group: 'adult',
-          apprentice_stat: null,
-          room_id: null,
-          status: 'idle',
-        },
-      ] as never
-      const wrapper = mount(RoomDetailModal, {
-        props: {
-          room: { ...mockRoom, name: 'Arena', category: 'ARENA', ability: null },
-          vaultId: 'vault-123',
-          modelValue: true,
-        },
-      })
-      await flushPromises()
-      await wrapper
-        .findAll('button')
-        .find((button) => button.text().includes('Assign Dwellers'))!
-        .trigger('click')
-      await wrapper.get('.dweller-picker .dweller-list-row').trigger('click')
-      await flushPromises()
-      expect(wrapper.text()).toContain('Failed to assign dweller to room')
-    })
+        }))
+        arena.rooms.set('room-1', { ...arena.getRoom('room-1')!, candidates })
+        await flushPromises()
+        for (const [index, side] of ['A', 'B'].entries()) {
+          await wrapper
+            .get(`button[aria-label="Select fighter 1 for Team ${side}"]`)
+            .trigger('click')
+          const picker = wrapper.get('[aria-label="Choose fighter"]')
+          expect(picker.text()).toContain('Power Generator → Arena')
+          await picker
+            .findAll('button')
+            .find((button) => button.text().includes(candidates[index].name))!
+            .trigger('click')
+        }
+        expect(assign).not.toHaveBeenCalled()
+        const post = vi.mocked(axios.post)
+        if (rejected) post.mockRejectedValueOnce(new Error('Full'))
+        await wrapper
+          .findAll('button')
+          .find((button) => button.text() === 'START FIGHT')!
+          .trigger('click')
+        await flushPromises()
+        expect(post).toHaveBeenCalledWith(
+          expect.stringContaining('/arena/vault/vault-123/rooms/room-1/start'),
+          expect.objectContaining({
+            fighter_a_id: 'fighter-0',
+            fighter_b_id: 'fighter-1',
+            mode: 'duel',
+          }),
+          expect.any(Object)
+        )
+        expect(assign).not.toHaveBeenCalled()
+        if (rejected) {
+          expect(arenaToastError).toHaveBeenCalled()
+          expect(wrapper.text()).toContain('Lucy')
+          expect(wrapper.text()).toContain('Maximus')
+          expect(
+            wrapper
+              .findAll('button')
+              .find((button) => button.text() === 'START FIGHT')!
+              .attributes('disabled')
+          ).toBeUndefined()
+        }
+      }
+    )
 
     it('assigns a youth through the dedicated apprentice action', async () => {
       const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
@@ -1683,6 +1684,59 @@ describe('RoomDetailModal', () => {
 
       expect(wrapper.text()).toContain('RAIDER ATTACK')
       expect(wrapper.text()).not.toContain('INCIDENT ENDED')
+    })
+
+    it('keeps the incident scene through the final journal fetch and attack playback', async () => {
+      vi.useFakeTimers()
+      seedIncident()
+      const store = useIncidentStore()
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: room as never, modelValue: true, vaultId: 'vault-1' },
+      })
+      try {
+        store.aftermaths.set('room-1', {
+          incidentId: liveIncident.id,
+          roomId: 'room-1',
+          type: 'raider_attack',
+          outcome: 'victory',
+          capsEarned: 0,
+          experienceEarned: 0,
+          roomName: 'Generator',
+          loot: null,
+          unclaimed: [],
+          enemiesDefeated: 8,
+          damageDealt: 0,
+          rounds: 1,
+          scene: liveIncident,
+          sceneLoading: true,
+        } as never)
+        store.activeIncidentIds = []
+        await flushPromises()
+        expect(wrapper.find('.incident-scene').exists()).toBe(true)
+        const aftermath = store.aftermaths.get('room-1')!
+        aftermath.scene = {
+          ...liveIncident,
+          status: 'resolved',
+          events: [
+            {
+              id: 'last-hit',
+              kind: 'hit',
+              message: 'Final hit',
+              data: null,
+              action: { actor_id: 'd1', targets: [{ target_id: 'threat', damage: 1 }] },
+            },
+          ],
+        } as never
+        aftermath.sceneLoading = false
+        await flushPromises()
+        expect(wrapper.find('.incident-scene').exists()).toBe(true)
+        await vi.advanceTimersByTimeAsync(350)
+        expect(wrapper.find('.incident-scene').exists()).toBe(false)
+        expect(wrapper.text()).toContain('Incident contained')
+      } finally {
+        wrapper.unmount()
+        vi.useRealTimers()
+      }
     })
   })
 

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.265.7 (2026-10-25)
+
+### Bug Fixes
+
+* **notifications:** share transport and ignore stale unread counts ([#1180](https://github.com/ElderEvil/falloutProject/issues/1180)) 3bbe9cd
+
 ## 2.265.6 (2026-10-25)
 
 ### Bug Fixes

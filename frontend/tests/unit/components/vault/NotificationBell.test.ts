@@ -783,7 +783,7 @@ describe('NotificationBell popup accessibility', () => {
       if (url.includes('unread-count')) {
         return Promise.resolve({ data: { count: items.filter((item) => !item.is_read).length } })
       }
-      return Promise.resolve({ data: items })
+      return Promise.resolve({ data: items.map((item) => ({ ...item })) })
     })
   }
 
@@ -956,6 +956,153 @@ describe('NotificationBell popup accessibility', () => {
       wrapper.unmount()
     }
   })
+
+  it('reloads the initial unread count when the same account refreshes its token', async () => {
+    const auth = useAuthStore()
+    auth.token = 'initial-token'
+    auth.user = { id: 'same-account' } as NonNullable<typeof auth.user>
+    fetchMock.mockImplementation(async () => createMockResponse([], { hang: true }))
+    let finish!: (value: { data: { count: number } }) => void
+    let countRequests = 0
+    vi.mocked(axios.get).mockImplementation((url) => {
+      if (!String(url).includes('unread-count')) return Promise.resolve({ data: [] })
+      if (countRequests++ > 0) return Promise.resolve({ data: { count: 5 } })
+      return new Promise((resolve) => {
+        finish = resolve
+      })
+    })
+    const wrapper = mount(NotificationBell)
+    try {
+      auth.token = 'refreshed-token'
+      await vi.advanceTimersByTimeAsync(0)
+      await flushPromises()
+      finish({ data: { count: 9 } })
+      await flushPromises()
+
+      expect(auth.user?.id).toBe('same-account')
+      expect(wrapper.get('button[aria-label="Notifications"]').text()).toBe('5')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it.each([false, true])(
+    'scopes pending mark-all results to the same account (%s)',
+    async (sameAccount) => {
+      const wrapper = await mountAndOpen([{ ...informationalNotification }])
+      const auth = useAuthStore()
+      auth.user = { id: 'initial-account' } as NonNullable<typeof auth.user>
+      let finish!: (value: { data: object }) => void
+      vi.mocked(axios.post).mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve
+        })
+      )
+      try {
+        const markAll = wrapper
+          .findAll('button')
+          .find((button) => button.text() === 'Mark all read')!
+        await markAll.trigger('click')
+        await flushPromises()
+        expect(axios.post).toHaveBeenCalledOnce()
+
+        const nextNotification = {
+          ...informationalNotification,
+          id: 'next-account-notification',
+          title: 'Next account alert',
+        }
+        mockNotificationList([nextNotification])
+        fetchMock.mockImplementation(async () =>
+          createMockResponse(
+            [encodeSse(JSON.stringify({ notification: nextNotification }), 'notification')],
+            { hang: true }
+          )
+        )
+        auth.user = { id: sameAccount ? 'initial-account' : 'next-account' } as NonNullable<
+          typeof auth.user
+        >
+        auth.token = 'next-account-token'
+        await vi.advanceTimersByTimeAsync(0)
+        await flushPromises()
+        expect(wrapper.get('[data-notification-id="next-account-notification"]').text()).toContain(
+          'New'
+        )
+        expect(wrapper.get('button[aria-label="Notifications"]').text()).toBe('1')
+
+        if (sameAccount) mockNotificationList([{ ...nextNotification, is_read: true }])
+        finish({ data: {} })
+        await flushPromises()
+
+        expect(
+          wrapper.get('[data-notification-id="next-account-notification"]').text().includes('New')
+        ).toBe(!sameAccount)
+        expect(wrapper.get('button[aria-label="Notifications"]').text()).toBe(
+          sameAccount ? '' : '1'
+        )
+      } finally {
+        wrapper.unmount()
+      }
+    }
+  )
+
+  it.each(['single', 'all'])(
+    'updates retained bell rows after a %s read with separate server objects',
+    async (action) => {
+      const server = Array.from({ length: 20 }, (_, i) => ({
+        ...actionableNotification,
+        id: `older-${i + 1}`,
+        title: `Older ${i + 1}`,
+      }))
+      const newest = { ...actionableNotification, id: 'newest', title: 'Newest' }
+      useAuthStore().token = 'signed-in'
+      vi.mocked(axios.get).mockImplementation(async (url) => ({
+        data: String(url).includes('unread-count')
+          ? { count: server.filter((item) => !item.is_read).length }
+          : server.slice(0, 20).map((item) => ({ ...item })),
+      }))
+      vi.mocked(axios.patch).mockImplementation(async () => {
+        server.find((item) => item.id === 'older-20')!.is_read = true
+        return { data: {} }
+      })
+      vi.mocked(axios.post).mockImplementation(async () => {
+        server.forEach((item) => {
+          item.is_read = true
+        })
+        return { data: {} }
+      })
+      fetchMock.mockResolvedValue(
+        createMockResponse([encodeSse(JSON.stringify({ notification: newest }), 'notification')], {
+          hang: true,
+        })
+      )
+      const wrapper = mount(NotificationBell)
+      try {
+        await vi.advanceTimersByTimeAsync(0)
+        await flushPromises()
+        server.unshift(newest)
+        await wrapper.get('button[aria-label="Notifications"]').trigger('click')
+        await flushPromises()
+        expect(wrapper.findAll('[data-notification-id]')).toHaveLength(21)
+        expect(wrapper.get('[data-notification-id="older-20"]').text()).toContain('New')
+        if (action === 'all') {
+          await wrapper
+            .findAll('button')
+            .find((button) => button.text() === 'Mark all read')!
+            .trigger('click')
+        } else {
+          await wrapper.get('[data-notification-id="older-20"]').trigger('click')
+        }
+        await flushPromises()
+        if (action === 'single') {
+          await wrapper.get('button[aria-label="Notifications"]').trigger('click')
+          await flushPromises()
+        }
+        expect(wrapper.get('[data-notification-id="older-20"]').text()).not.toContain('New')
+      } finally {
+        wrapper.unmount()
+      }
+    }
+  )
 
   it('closes on backdrop click and returns focus to the bell', async () => {
     const wrapper = await mountAndOpen([informationalNotification])

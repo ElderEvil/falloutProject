@@ -13,28 +13,50 @@ const PAGE_SIZE = 50
 /**
  * Single owner of notification read state for the bell, the inbox view, and the badge.
  *
- * A read action applies optimistically, refreshes the server count, and bumps
+ * An accepted read updates cached flags, refreshes the server count, and bumps
  * ``readRevision`` so every mounted surface reloads. Each request captures the signed-in
- * account id first and discards its result if the session changed while it was in
+ * session first and discards its result if the session changed while it was in
  * flight, so a slow response cannot mark another account's notifications read.
  */
 export const useNotificationInboxStore = defineStore('notificationInbox', () => {
   const auth = useAuthStore()
-  const notifications = ref<InboxNotification[]>([])
+  const pageNotifications = ref<InboxNotification[]>([])
+  type ReadState = Pick<InboxNotification, 'id' | 'vault_id' | 'is_read'>
+  const readStates = ref(new Map<string, ReadState>())
+  const rememberNotifications = (items: ReadState[]) => {
+    for (const { id, vault_id, is_read } of items) {
+      readStates.value.set(id, {
+        id,
+        vault_id,
+        is_read: is_read || !!readStates.value.get(id)?.is_read,
+      })
+    }
+  }
+  const isRead = (item: ReadState) => readStates.value.get(item.id)?.is_read ?? item.is_read
+  const notifications = computed(() =>
+    pageNotifications.value.map((item) => ({ ...item, is_read: isRead(item) }))
+  )
   const hasMore = ref(false)
   const unreadCount = ref(0)
   const readRevision = ref(0)
   let hasLoaded = false
+  let hasRequestedCount = false
+  const sessionGeneration = ref(0)
+  let countGeneration = 0
   let generation = 0
   let vaultId: string | null = null
   let status: ReadFilter = 'all'
   let offset = 0
 
-  // Logout clears the token while the user object may linger, so identity alone is not
-  // enough. A token *rotation* keeps both parts, and its in-flight requests must land.
-  const currentSession = (): string =>
-    `${auth.user?.id ?? ''}:${auth.isAuthenticated ? 'signed-in' : 'signed-out'}`
-  const ownsSession = (captured: string): boolean => currentSession() === captured
+  // A logout/login must invalidate requests even if the same identity returns.
+  // Before identity resolves, credentials distinguish otherwise anonymous sessions.
+  watch(
+    () => (auth.isAuthenticated ? (auth.user?.id ?? auth.token) : null),
+    () => sessionGeneration.value++,
+    { flush: 'sync' }
+  )
+  const currentSession = (): number => sessionGeneration.value
+  const ownsSession = (captured: number): boolean => currentSession() === captured
 
   const {
     run: load,
@@ -48,15 +70,16 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
       if (!append) {
         vaultId = selectedVault
         status = selectedStatus
-        notifications.value = []
+        pageNotifications.value = []
         offset = 0
         hasMore.value = false
       }
       const page = await notificationService.list(selectedVault, selectedStatus, offset, PAGE_SIZE)
       if (requestGeneration !== generation || !ownsSession(capturedSession)) return
       offset += page.length
-      const ids = new Set(notifications.value.map((item) => item.id))
-      notifications.value.push(...page.filter((item) => !ids.has(item.id)))
+      const ids = new Set(pageNotifications.value.map((item) => item.id))
+      rememberNotifications(page)
+      pageNotifications.value.push(...page.filter((item) => !ids.has(item.id)))
       hasMore.value = page.length === PAGE_SIZE
     },
     { context: 'Failed to load notifications' }
@@ -65,8 +88,10 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
   const { run: refreshUnreadCount } = useAsyncAction(
     async () => {
       const capturedSession = currentSession()
+      hasRequestedCount = true
+      const requestGeneration = ++countGeneration
       const count = await notificationService.unreadCount()
-      if (!ownsSession(capturedSession)) return
+      if (!ownsSession(capturedSession) || requestGeneration !== countGeneration) return
       unreadCount.value = count
     },
     { context: 'Failed to load the unread count' }
@@ -77,7 +102,7 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
       const capturedSession = currentSession()
       await notificationService.markRead(id)
       if (!ownsSession(capturedSession)) return false
-      const notification = notifications.value.find((item) => item.id === id)
+      const notification = readStates.value.get(id)
       if (notification && !notification.is_read) {
         notification.is_read = true
         unreadCount.value = Math.max(0, unreadCount.value - 1)
@@ -94,7 +119,7 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
       const capturedSession = currentSession()
       await notificationService.markAllRead(scopeVaultId)
       if (!ownsSession(capturedSession)) return false
-      for (const notification of notifications.value) {
+      for (const notification of readStates.value.values()) {
         if (scopeVaultId === null || notification.vault_id === scopeVaultId) {
           notification.is_read = true
         }
@@ -112,15 +137,16 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
     unreadCount.value++
   }
 
-  watch([() => auth.isAuthenticated, () => auth.user?.id], ([isAuthenticated]) => {
+  watch(sessionGeneration, () => {
     generation++
-    notifications.value = []
+    pageNotifications.value = []
+    readStates.value.clear()
     hasMore.value = false
     unreadCount.value = 0
     offset = 0
-    if (isAuthenticated && hasLoaded) {
-      void load(vaultId, status)
-      void refreshUnreadCount()
+    if (auth.isAuthenticated) {
+      if (hasLoaded) void load(vaultId, status)
+      if (hasRequestedCount) void refreshUnreadCount()
     }
   })
 
@@ -137,5 +163,7 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
     markAllRead,
     refreshUnreadCount,
     noteUnreadArrival,
+    rememberNotifications,
+    isRead,
   }
 })

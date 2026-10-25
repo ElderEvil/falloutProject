@@ -67,9 +67,10 @@ const { run: runFetchNotifications, isLoading } = useAsyncAction(
     if (authStore.token !== token) return
     if (catchUp)
       loaded
-        .filter((notification) => !notification.is_read)
+        .filter((notification) => !inboxStore.isRead(notification))
         .reverse()
         .forEach(processNotification)
+    inboxStore.rememberNotifications(loaded)
     loaded.forEach((notification) => seenNotificationIds.add(notification.id))
     const loadedIds = new Set(loaded.map((notification) => notification.id))
     notifications.value = [
@@ -103,8 +104,11 @@ const startSse = () => {
 watch(
   () => authStore.token,
   (token) => {
-    if (token) startSse()
-    else {
+    if (token) {
+      startSse()
+      // Rotation can invalidate the initial response before SSE has ever connected.
+      void inboxStore.refreshUnreadCount()
+    } else {
       sse.value?.close()
       sse.value = undefined
       notifications.value = []
@@ -142,6 +146,7 @@ function processNotification(notificationData: Notification) {
     created_at: notificationData.created_at,
     meta_data: notificationData.meta_data,
   }
+  inboxStore.rememberNotifications([newNotif])
   const isRushResult =
     notificationData.notification_type === 'rush_succeeded' ||
     notificationData.notification_type === 'rush_failed'
@@ -327,7 +332,7 @@ const enqueuePendingReport = (notification: Notification): void => {
 }
 
 const handleNotificationClick = async (notification: Notification) => {
-  if (!notification.is_read) await markAsRead(notification.id)
+  if (!inboxStore.isRead(notification)) await markAsRead(notification.id)
   closePopup()
   enqueuePendingReport(notification)
   const route = getNotificationRoute(notification)
@@ -439,6 +444,7 @@ onBeforeUnmount(() => {
           <button
             v-if="notifications.length > 0"
             @click="markAllAsRead"
+            :disabled="inboxStore.isSaving"
             class="text-xs text-muted-foreground hover:text-white transition-colors"
           >
             Mark all read
@@ -474,7 +480,7 @@ onBeforeUnmount(() => {
               :type="isActionable(notification) ? 'button' : null"
               class="block w-full border-0 p-4 text-left"
               :class="{
-                'bg-surface-warm-dark': !notification.is_read,
+                'bg-surface-warm-dark': !inboxStore.isRead(notification),
                 'cursor-pointer transition-colors hover:bg-surface-warm-hover':
                   isActionable(notification),
               }"
@@ -494,7 +500,9 @@ onBeforeUnmount(() => {
                   <div class="flex items-start justify-between">
                     <p
                       class="text-sm font-semibold"
-                      :class="notification.is_read ? 'text-muted-foreground' : 'text-white'"
+                      :class="
+                        inboxStore.isRead(notification) ? 'text-muted-foreground' : 'text-white'
+                      "
                     >
                       {{ notification.title }}
                     </p>
@@ -505,7 +513,7 @@ onBeforeUnmount(() => {
                   <p class="mt-1 text-xs text-muted-foreground">
                     {{ notification.message }}
                   </p>
-                  <div v-if="!notification.is_read" class="mt-2 flex items-center">
+                  <div v-if="!inboxStore.isRead(notification)" class="mt-2 flex items-center">
                     <div class="h-2 w-2 rounded-full bg-theme-primary"></div>
                     <span class="ml-2 text-xs text-theme-primary">New</span>
                   </div>

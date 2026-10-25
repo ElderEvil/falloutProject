@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Combat skill icons</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import '../../../src/assets/main.css'
+      import { createApp, h } from 'vue'
+      import CombatSkillIcon from '../../../src/modules/combat/components/CombatSkillIcon.vue'
+      import CombatantMeters from '../../../src/modules/rooms/components/CombatantMeters.vue'
+      import ArenaRing from '../../../src/modules/rooms/components/ArenaRing.vue'
+      import ArenaSupportPanel from '../../../src/modules/rooms/components/ArenaSupportPanel.vue'
+
+      const skills = [
+        ['unarmed', 'Haymaker'],
+        ['melee-blunt', 'Crushing Blow'],
+        ['melee-edged', 'Cleave'],
+        ['melee-pointed', 'Piercing Strike'],
+        ['gun-pistol', 'Quick Draw'],
+        ['gun-rifle', 'Aimed Shot'],
+        ['gun-shotgun', 'Scattershot'],
+        ['energy-pistol', 'Overcharge'],
+        ['energy-rifle', 'Beam Sweep'],
+        ['heavy-automatic', 'Full Auto'],
+        ['heavy-flamer', 'Firestorm'],
+        ['heavy-explosive', 'Blast Wave'],
+      ]
+      const fighter = (id, name, index) => ({
+        id,
+        name,
+        level: 5,
+        health: 80,
+        max_health: 100,
+        power: 20,
+        is_creature: false,
+        is_robot: false,
+        active_skill: {
+          icon: skills[index][0],
+          name: skills[index][1],
+          charge: 100,
+          queued: false,
+          description: 'Extra attack on this fighter’s next team turn.',
+        },
+      })
+      const room = {
+        room_id: 'arena',
+        mode: 'brawl',
+        team_a: [fighter('a', 'Lucy', 5), fighter('c', 'Jericho', 7)],
+        team_b: [fighter('b', 'Cooper', 2), fighter('d', 'Maximus', 10)],
+        match_done: false,
+        fight_started: true,
+        next_attack_team: 'A',
+        countdown_remaining: 0,
+        events: skills.map(([icon, name], index) => ({
+          id: String(index),
+          round_seq: index + 1,
+          kind: 'skill',
+          message: `Lucy uses ${name}`,
+          actor_id: 'a',
+          action: { actor_id: 'a', skill: name, skill_icon: icon, targets: [] },
+        })),
+      }
+      const match = {
+        roomState: room,
+        bench: [],
+        isFighting: true,
+        isDone: false,
+        injuredFighters: [],
+        clearJournal() {},
+      }
+      createApp({
+        render: () =>
+          h('main', { class: 'mx-auto flex max-w-4xl flex-col gap-5 p-4 text-theme-primary' }, [
+            h('h1', { class: 'text-lg font-bold' }, 'COMBAT SKILL ICONS'),
+            h(
+              'section',
+              {
+                'aria-label': 'Skill icon catalog',
+                class: 'grid grid-cols-2 gap-3 sm:grid-cols-4',
+              },
+              skills.map(([icon, name]) =>
+                h(
+                  'article',
+                  {
+                    'aria-label': name,
+                    class:
+                      'flex min-w-0 flex-col items-center gap-2 rounded border border-theme-primary/30 bg-black/60 p-3',
+                  },
+                  [
+                    h(CombatSkillIcon, { icon, class: 'size-8' }),
+                    h('h2', { class: 'text-center text-xs font-semibold' }, name),
+                    h(CombatantMeters, {
+                      name: 'Lucy',
+                      health: 80,
+                      maxHealth: 100,
+                      action: {
+                        icon,
+                        name,
+                        charge: 100,
+                        queued: false,
+                        pending: false,
+                        enabled: true,
+                      },
+                    }),
+                  ]
+                )
+              )
+            ),
+            h(ArenaRing, {
+              state: room,
+              skillEnabled: true,
+              pendingSkills: new Set(),
+              attackingTeam: null,
+              damageNumbers: [],
+            }),
+            h(ArenaSupportPanel, { match }),
+          ]),
+      }).mount('#app')
+    </script>
+  </body>
+</html>

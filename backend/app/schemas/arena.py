@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import UUID4, BaseModel, Field
 
 from app.core.enums import ArenaMode
-from app.schemas.combat import CombatAction
+from app.schemas.combat import CombatAction, CombatSkillIcon
 
 
 class ArenaFightersRequest(BaseModel):
@@ -36,6 +36,7 @@ class ArenaActiveSkill(BaseModel):
     """Weapon-derived manual attack and its match-local charge."""
 
     name: str
+    icon: CombatSkillIcon = "unarmed"
     description: str
     charge: int = Field(ge=0, le=100)
     queued: bool

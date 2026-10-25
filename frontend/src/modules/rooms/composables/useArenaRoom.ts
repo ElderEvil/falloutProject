@@ -66,7 +66,9 @@ export function useArenaRoom(vaultId: string, roomId: string) {
   })
   const skillBurst = computed(() => {
     const event = playback.active.value
-    return event?.action.skill ? { id: event.id, message: event.action.skill } : null
+    return event?.action.skill
+      ? { id: event.id, message: event.action.skill, icon: event.action.skill_icon }
+      : null
   })
 
   const seenEvents = new Set<string>()

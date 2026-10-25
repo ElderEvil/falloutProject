@@ -102,15 +102,17 @@ def charge_per_second(participant: ArenaParticipant) -> float:
 
 def participant_out(participant: ArenaParticipant, state: ArenaState) -> ArenaFighter:
     """Map a participant onto the API ``ArenaFighter`` shape for the arena view."""
+    skill = weapon_skill(participant.dweller) if participant.dweller else None
     return ArenaFighter(
         active_skill=(
             ArenaActiveSkill(
-                name=weapon_skill(participant.dweller).name,
-                description=weapon_skill(participant.dweller).description,
+                name=skill.name,
+                icon=skill.icon,
+                description=skill.description,
                 charge=int(min(MAX_CHARGE, (state.skill_charge or {}).get(participant.key, 0))),
                 queued=participant.key in (state.queued_skill_ids or []),
             )
-            if participant.dweller
+            if skill
             else None
         ),
         id=participant.key,

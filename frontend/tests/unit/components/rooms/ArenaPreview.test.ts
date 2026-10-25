@@ -59,6 +59,7 @@ const fighter = (id: string, overrides: Partial<ArenaFighter> = {}): ArenaFighte
   is_robot: false,
   active_skill: {
     name: 'Aimed Shot',
+    icon: 'gun-rifle',
     description: 'Extra attack on your next team turn.',
     charge: 100,
     queued: false,
@@ -232,6 +233,28 @@ describe('ArenaPreview', () => {
     expect(arenaStoreMock.setFighters).not.toHaveBeenCalled()
   })
 
+  it('places recovery next to the rematch action and heals through the match draft', async () => {
+    const wrapper = await mountPreview(
+      state({
+        match_done: true,
+        team_a: [fighter('a', { health: 10 })],
+        team_b: [fighter('b', { health: 10 })],
+      })
+    )
+    const heal = vi.spyOn(currentMatch, 'healInjured').mockResolvedValue(undefined)
+    const controls = wrapper.get('.result-banner').findAll('button')
+    expect(controls.map((button) => button.text())).toEqual([
+      'FIGHT AGAIN',
+      'HEAL INJURED (2)',
+      'CHANGE FIGHTERS',
+    ])
+    await controls[1].trigger('click')
+    expect(heal).toHaveBeenCalledOnce()
+    currentMatch.isHealing = true
+    await flushPromises()
+    expect(controls[1].attributes('disabled')).toBeDefined()
+  })
+
   it.each([true, false])(
     'only shows rewards belonging to the latest result (reward=%s)',
     async (hasReward) => {
@@ -306,6 +329,11 @@ describe('ArenaPreview', () => {
 
   it('passes fighter skill activation through during the fight', async () => {
     const wrapper = await mountPreview(state({ fight_started: true }))
+    expect(
+      wrapper
+        .get('button[aria-label^="Use Aimed Shot for a"] [data-skill-icon]')
+        .attributes('data-skill-icon')
+    ).toBe('gun-rifle')
 
     await wrapper.get('button[aria-label^="Use Aimed Shot for a"]').trigger('click')
 

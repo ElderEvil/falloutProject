@@ -21,7 +21,7 @@ import { humanizePreserveCase } from '@/core/utils/format'
 import { useCombatPulse } from '../composables/useCombatPulse'
 import { useFallbackImage } from '../composables/useFallbackImage'
 import { useCombatPlayback } from '@/modules/combat/composables/useCombatPlayback'
-import CombatEffect from '@/modules/combat/components/CombatEffect.vue'
+import CombatantMotion from '@/modules/combat/components/CombatantMotion.vue'
 import CombatDamageNumbers from '@/modules/combat/components/CombatDamageNumbers.vue'
 import { useSound } from '@/core/composables/useSound'
 
@@ -49,9 +49,6 @@ const activeAction = playback.active
 const combatPhase = playback.phase
 const damageNumbers = playback.damageNumbers
 const isAttacking = (id: string) => activeAction.value?.action.actor_id === id
-const isImpact = (id: string) =>
-  combatPhase.value === 'impact' &&
-  activeAction.value?.action.targets.some((target) => target.target_id === id)
 const displayedHealth = (dweller: DwellerShort) =>
   playback.health.value[dweller.id] ?? dweller.health
 const displayedProgress = shallowRef(props.incident.progress)
@@ -173,12 +170,7 @@ const responderMotion = computed(() => ({
 }))
 const threatMotion = computed(() => ({
   'combat-impact':
-    isImpact('threat') ||
-    (!structured.value &&
-      combatPulse.value &&
-      (threatDamage.value > 0 || containmentGain.value > 0)),
-  'motion-safe:-translate-x-3':
-    isAttacking('threat') && combatPhase.value === 'prepare' && !activeAction.value?.accelerated,
+    !structured.value && combatPulse.value && (threatDamage.value > 0 || containmentGain.value > 0),
   'combat-lunge-left':
     !structured.value &&
     combatPulse.value &&
@@ -234,23 +226,9 @@ const threatMotion = computed(() => ({
             class="incident-responder relative flex w-[4.85rem] min-w-[4.85rem] max-w-[4.85rem] shrink-0 flex-col items-center gap-1"
             :class="{
               'opacity-40 grayscale': responder.dweller && displayedHealth(responder.dweller) <= 0,
-              'motion-safe:translate-x-3':
-                isAttacking(responder.id) &&
-                combatPhase === 'prepare' &&
-                !activeAction?.accelerated,
-              'combat-impact': isImpact(responder.id),
             }"
             :aria-current="isAttacking(responder.id) ? 'true' : undefined"
           >
-            <CombatEffect
-              v-if="
-                activeAction &&
-                ((isAttacking(responder.id) && combatPhase === 'prepare') || isImpact(responder.id))
-              "
-              :key="`${activeAction.id}:${combatPhase}`"
-              :effect="activeAction.action.effect ?? 'strike'"
-              :preparing="combatPhase === 'prepare'"
-            />
             <CombatDamageNumbers
               :numbers="damageNumbers.filter((number) => number.fighterId === responder.id)"
             />
@@ -270,20 +248,27 @@ const threatMotion = computed(() => ({
               {{ healthCeiling(responder.dweller) }} HP</span
             >
             <div class="flex h-[7.25rem] w-full items-end justify-center">
-              <DwellerPortrait
-                v-if="responder.dweller?.thumbnail_url"
-                :thumbnail-url="responder.dweller.thumbnail_url"
-                :alt="responder.name"
-                image-class="incident-dweller-portrait h-full w-full object-contain drop-shadow-lg"
-                fallback-class="size-10 text-theme-primary"
-                :zoom="false"
-              />
-              <UserRound
-                v-else
-                class="h-full w-full max-w-16 text-theme-primary drop-shadow-lg"
-                :aria-label="responder.name"
-                role="img"
-              />
+              <CombatantMotion
+                :fighter-id="responder.id"
+                facing="right"
+                :action="activeAction"
+                :phase="combatPhase"
+              >
+                <DwellerPortrait
+                  v-if="responder.dweller?.thumbnail_url"
+                  :thumbnail-url="responder.dweller.thumbnail_url"
+                  :alt="responder.name"
+                  image-class="incident-dweller-portrait h-full w-full object-contain drop-shadow-lg"
+                  fallback-class="size-10 text-theme-primary"
+                  :zoom="false"
+                />
+                <UserRound
+                  v-else
+                  class="h-full w-full max-w-16 text-theme-primary drop-shadow-lg"
+                  :aria-label="responder.name"
+                  role="img"
+                />
+              </CombatantMotion>
             </div>
           </div>
           <span
@@ -308,15 +293,6 @@ const threatMotion = computed(() => ({
           aria-hidden="true"
           >-{{ Math.round(threatDamage) }}</span
         >
-        <CombatEffect
-          v-if="
-            activeAction &&
-            ((isAttacking('threat') && combatPhase === 'prepare') || isImpact('threat'))
-          "
-          :key="`${activeAction.id}:${combatPhase}`"
-          :effect="activeAction.action.effect ?? 'strike'"
-          :preparing="combatPhase === 'prepare'"
-        />
         <CombatDamageNumbers
           :numbers="damageNumbers.filter((number) => number.fighterId === 'threat')"
         />
@@ -327,45 +303,54 @@ const threatMotion = computed(() => ({
           aria-hidden="true"
           >+{{ containmentGain }}%</span
         >
-        <svg
-          v-if="incident.type === 'fire'"
-          class="hazard-flame h-32 w-24 drop-shadow-lg sm:h-44 sm:w-32"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            class="flame-outer"
-            d="M12 2.5c2.5 3.5 5.5 5.8 5.5 9.6a5.5 5.5 0 0 1-11 0c0-2 1-3.6 2.3-5.2.6 1 1.2 1.6 2 2 .3-2.3.7-4.2 1.2-6.4Z"
-          />
-          <path
-            class="flame-inner"
-            d="M12 9c1.2 1.6 2.3 2.8 2.3 4.5a2.3 2.3 0 0 1-4.6 0c0-1.7 1.1-2.9 2.3-4.5Z"
-          />
-        </svg>
-        <div
-          v-else-if="creatureImage"
-          class="flex max-w-full origin-bottom scale-110 items-end justify-center sm:scale-125"
-          :class="getCreatureModelSizeClass(creatureKey ?? '')"
-        >
-          <img
-            :src="creatureImage"
-            :alt="creatureName"
-            class="size-full object-contain drop-shadow-lg"
-            @error="creatureFailed"
-          />
+        <div class="relative flex max-w-full items-end justify-center">
+          <CombatantMotion
+            fighter-id="threat"
+            facing="left"
+            :action="activeAction"
+            :phase="combatPhase"
+          >
+            <svg
+              v-if="incident.type === 'fire'"
+              class="hazard-flame h-32 w-24 drop-shadow-lg sm:h-44 sm:w-32"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                class="flame-outer"
+                d="M12 2.5c2.5 3.5 5.5 5.8 5.5 9.6a5.5 5.5 0 0 1-11 0c0-2 1-3.6 2.3-5.2.6 1 1.2 1.6 2 2 .3-2.3.7-4.2 1.2-6.4Z"
+              />
+              <path
+                class="flame-inner"
+                d="M12 9c1.2 1.6 2.3 2.8 2.3 4.5a2.3 2.3 0 0 1-4.6 0c0-1.7 1.1-2.9 2.3-4.5Z"
+              />
+            </svg>
+            <div
+              v-else-if="creatureImage"
+              class="flex max-w-full origin-bottom scale-110 items-end justify-center sm:scale-125"
+              :class="getCreatureModelSizeClass(creatureKey ?? '')"
+            >
+              <img
+                :src="creatureImage"
+                :alt="creatureName"
+                class="size-full object-contain drop-shadow-lg"
+                @error="creatureFailed"
+              />
+            </div>
+            <UserRound
+              v-else-if="incident.type === 'raider_attack'"
+              class="h-28 w-20 text-danger drop-shadow-lg sm:h-36 sm:w-24"
+              role="img"
+              aria-label="Raider"
+            />
+            <Icon
+              v-else
+              :icon="getIncidentIcon(incident.type)"
+              class="hazard-icon size-24 text-warning"
+              :ariaHidden="true"
+            />
+          </CombatantMotion>
         </div>
-        <UserRound
-          v-else-if="incident.type === 'raider_attack'"
-          class="h-28 w-20 text-danger drop-shadow-lg sm:h-36 sm:w-24"
-          role="img"
-          aria-label="Raider"
-        />
-        <Icon
-          v-else
-          :icon="getIncidentIcon(incident.type)"
-          class="hazard-icon size-24 text-warning"
-          :ariaHidden="true"
-        />
         <span
           v-if="incident.objective === 'defeat'"
           class="rounded bg-black/85 px-2 py-1 text-xs font-semibold text-theme-primary"

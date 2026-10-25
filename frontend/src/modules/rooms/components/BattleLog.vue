@@ -8,6 +8,7 @@ import {
 
 import { computed, nextTick, ref, watch } from 'vue'
 import { Zap } from '@lucide/vue'
+import CombatSkillIcon from '@/modules/combat/components/CombatSkillIcon.vue'
 import { parseUtcMs } from '@/core/utils/time'
 import { formatDateTime } from '@/core/utils/format'
 import { Button } from '@/core/components/ui/button'
@@ -117,8 +118,13 @@ watch(
               ></Tooltip
             >
             <span class="flex min-w-0 flex-1 items-baseline gap-1.5">
+              <CombatSkillIcon
+                v-if="entry.kind === 'SKILL' && entry.skillIcon"
+                :icon="entry.skillIcon"
+                class="size-3.5 shrink-0 self-center"
+              />
               <Zap
-                v-if="entry.kind === 'SKILL'"
+                v-else-if="entry.kind === 'SKILL'"
                 class="size-3.5 shrink-0 self-center"
                 aria-hidden="true"
               />

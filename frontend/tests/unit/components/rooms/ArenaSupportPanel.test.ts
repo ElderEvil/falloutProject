@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
-import { nextTick, reactive } from 'vue'
+import { reactive } from 'vue'
 import ArenaSupportPanel from '@/modules/rooms/components/ArenaSupportPanel.vue'
 import type { ArenaMatchDraft } from '@/modules/rooms/composables/useArenaMatchDraft'
 import type { ArenaRosterEntry, ArenaRoomState } from '@/modules/rooms/api/arena'
@@ -70,6 +70,45 @@ describe('ArenaSupportPanel', () => {
     expect(items[2].text()).toContain('FINISH')
   })
 
+  it('shows the same skill icon on every target row of an area action', () => {
+    const wrapper = mount(ArenaSupportPanel, {
+      props: {
+        match: {
+          ...match,
+          roomState: {
+            events: [
+              {
+                id: 'skill-1',
+                round_seq: 2,
+                actor_id: 'a',
+                kind: 'skill',
+                message: 'Scattershot hits Bravo',
+                action: {
+                  actor_id: 'a',
+                  skill: 'Scattershot',
+                  skill_icon: 'gun-shotgun',
+                  targets: [],
+                },
+              },
+              {
+                id: 'skill-2',
+                round_seq: 2,
+                actor_id: 'a',
+                kind: 'skill',
+                message: 'Scattershot hits Delta',
+                action: null,
+              },
+            ],
+          },
+        } as unknown as ArenaMatchDraft,
+      },
+    })
+    const rows = wrapper.findAll('[aria-label="Battle log"] li')
+    expect(rows).toHaveLength(2)
+    for (const row of rows)
+      expect(row.get('[data-skill-icon]').attributes('data-skill-icon')).toBe('gun-shotgun')
+  })
+
   it('clears the journal through the match draft', async () => {
     const wrapper = mountPanel()
     await wrapper
@@ -78,32 +117,6 @@ describe('ArenaSupportPanel', () => {
       .trigger('click')
 
     expect(match.clearJournal).toHaveBeenCalledTimes(1)
-  })
-
-  it('offers the heal action only after a completed match', async () => {
-    const wrapper = mountPanel()
-    expect(wrapper.text()).not.toContain('HEAL INJURED')
-
-    match.isDone = true
-    match.injuredFighters = [
-      {
-        id: 'a-1',
-        name: 'Alpha',
-        level: 5,
-        health: 10,
-        max_health: 100,
-        power: 10,
-        is_creature: false,
-        is_robot: false,
-      },
-    ]
-    await nextTick()
-
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('HEAL INJURED'))!
-      .trigger('click')
-    expect(match.healInjured).toHaveBeenCalledTimes(1)
   })
 
   it('keeps room-management actions out of the support panel', () => {

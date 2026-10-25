@@ -50,6 +50,18 @@ const journalEntries = computed<BattleLogEntry[]>(() =>
       kind: battleLogKindLabel(event.kind, JOURNAL_KIND_LABELS),
       message: event.message,
       timestamp: event.created_at,
+      // Area skills keep several journal rows but carry one resolved action.
+      skillIcon:
+        event.kind === 'skill'
+          ? (event.action?.skill_icon ??
+            props.match.roomState?.events.find(
+              (source) =>
+                source.kind === 'skill' &&
+                source.round_seq === event.round_seq &&
+                source.actor_id === event.actor_id &&
+                source.action?.skill_icon
+            )?.action?.skill_icon)
+          : null,
     }))
 )
 
@@ -152,18 +164,5 @@ const hpTone = (entry: ArenaRosterEntry) => {
         next fight. Change the fighters to start a new match.
       </p>
     </details>
-
-    <div v-if="match.isDone && match.injuredFighters.length" class="flex justify-center">
-      <Button
-        variant="secondary"
-        size="sm"
-        :disabled="match.isHealing"
-        @click="match.healInjured()"
-      >
-        <Icon v-if="match.isHealing" icon="mdi:loading" class="animate-spin" />
-        <Icon v-else icon="mdi:medication" />
-        HEAL INJURED ({{ match.injuredFighters.length }})
-      </Button>
-    </div>
   </div>
 </template>

@@ -86,6 +86,16 @@ stay relevant. No skill effects have been enabled in incidents, quests or expedi
 
 ## Shared combat playback (2026-10-25)
 
+The proposed next pass is the [weapon/race animation matrix](../frontend/COMBAT_ANIMATION_MATRIX.md),
+audited against the item catalog and linked to [#1140](https://github.com/ElderEvil/falloutProject/issues/1140).
+Power armor is the only outfit-related animation modifier in that design.
+
+Skill icons use twelve local SVG glyphs, selected by the weapon-skill metadata's stable `icon` key.
+The charge meter, setup/live preview, activation marker, tooltip, skill banner and battle journal share the
+same component. New resolved skill actions retain their icon in event JSON; per-target area-skill journal
+rows reuse that action's icon. Historical rows without icon metadata keep the generic skill marker.
+Glyph provenance and the CC0 dedication for the new SVG paths are recorded in the animation matrix.
+
 Arena and incident fights share a local playback queue. Authoritative team turns stay unchanged; Arena
 presents a fighter's queued skill, then ordinary attack, then the next fighter. Incidents sequence ordinary
 attacks only, using their existing server-side damage attribution and grouped threat representation.
@@ -274,3 +284,12 @@ in the ring preview. Roster cards have no reserved minimum height; actions sit t
 Names use 14–16px type and stats use 12px. On narrow screens, text occupies a full-width row beneath
 the portrait/controls; wider cards place stats between the portrait and controls. This removes duplicated
 combat UI from the setup area.
+
+### Weapon and body presentation (2026-10-25)
+
+Arena and incident actions now snapshot weapon delivery and attacker/target body profiles in their existing
+JSON payload. Shared `CombatantMotion` applies melee follow-through, ranged recoil and weighted race/power
+armor reactions while keeping controls and meters fixed. No combat formulas, turn order or action timing
+change. Historical actions fall back to human motion; reduced motion and catch-up suppress body travel.
+See the [animation matrix](../frontend/COMBAT_ANIMATION_MATRIX.md) for implemented profiles and remaining
+family/artwork refinements.

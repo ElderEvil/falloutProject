@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Heart, Zap } from '@lucide/vue'
+import { Heart } from '@lucide/vue'
+import CombatSkillIcon from '@/modules/combat/components/CombatSkillIcon.vue'
+import type { CombatSkillIcon as SkillIconKey } from '@/modules/combat/models/playback'
 import { Button } from '@/core/components/ui/button'
 import { Progress } from '@/core/components/ui/progress'
 
 interface CombatantAction {
   name: string
+  icon?: SkillIconKey | null
   charge: number
   queued: boolean
   pending: boolean
@@ -81,11 +84,7 @@ const actionPulsing = computed(
       :aria-label="`Use ${action.name} for ${name}, ${action.charge}% charged${action.queued ? ', queued' : ''}`"
       @click="emit('skill')"
     >
-      <Zap
-        class="size-3 shrink-0 text-theme-primary"
-        :class="{ 'fill-theme-primary': action.charge >= 100 }"
-        aria-hidden="true"
-      />
+      <CombatSkillIcon :icon="action.icon" class="size-3.5 shrink-0 text-theme-primary" />
       <Progress
         size="xs"
         tone="warning"

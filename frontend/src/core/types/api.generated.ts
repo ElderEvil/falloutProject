@@ -5433,6 +5433,12 @@ export interface components {
         ArenaActiveSkill: {
             /** Name */
             name: string;
+            /**
+             * Icon
+             * @default unarmed
+             * @enum {string}
+             */
+            icon: "unarmed" | "melee-blunt" | "melee-edged" | "melee-pointed" | "gun-pistol" | "gun-rifle" | "gun-shotgun" | "energy-pistol" | "energy-rifle" | "heavy-automatic" | "heavy-flamer" | "heavy-explosive";
             /** Description */
             description: string;
             /** Charge */
@@ -6113,13 +6119,21 @@ export interface components {
             /** Actor Id */
             actor_id: string;
             /**
+             * Actor Body
+             * @default human
+             * @enum {string}
+             */
+            actor_body: "human" | "ghoul" | "feral" | "mutant" | "behemoth" | "synth" | "power-armor";
+            /**
              * Effect
              * @default strike
              * @enum {string}
              */
-            effect: "strike" | "shot" | "beam" | "sweep" | "flame" | "blast";
+            effect: "strike" | "punch" | "thrust" | "shot" | "beam" | "pulse" | "burst" | "sweep" | "flame" | "blast" | "debris";
             /** Skill */
             skill?: string | null;
+            /** Skill Icon */
+            skill_icon?: ("unarmed" | "melee-blunt" | "melee-edged" | "melee-pointed" | "gun-pistol" | "gun-rifle" | "gun-shotgun" | "energy-pistol" | "energy-rifle" | "heavy-automatic" | "heavy-flamer" | "heavy-explosive") | null;
             /** Targets */
             targets: components["schemas"]["CombatImpact"][];
         };
@@ -6142,6 +6156,12 @@ export interface components {
         CombatImpact: {
             /** Target Id */
             target_id: string;
+            /**
+             * Body
+             * @default human
+             * @enum {string}
+             */
+            body: "human" | "ghoul" | "feral" | "mutant" | "behemoth" | "synth" | "power-armor";
             /** Damage */
             damage: number;
             /** Health Before */

@@ -1,0 +1,188 @@
+# Combat animation matrix
+
+Status: catalog-audited design; skill icons and the first shared motion slice implemented on 2026-10-25.
+Spec reference: [#1140 — weapon-type skill icons and free combat animation assets](https://github.com/ElderEvil/falloutProject/issues/1140).
+Playback foundation: [shared combat playback](../features/WASTELAND_COMBAT_EXPANSION.md#shared-combat-playback-2026-10-25).
+
+The matrix covers the actual weapon catalog and dweller races. It describes reusable choreography, rather
+than a separate animation asset for every item/race combination. Combat rules, damage, targeting and turn
+order remain server-owned. Arena skills are extra attacks before the normal hit; incidents use normal attacks only.
+
+## Audited coverage
+
+- **136 catalog weapons**, across all **11** `(weapon_type, weapon_subtype)` pairs in the skill registry,
+  plus the unarmed fallback.
+- **Four dweller races:** human, ghoul, super mutant and synth. Their existing states are listed below.
+- **Power armor is the only outfit modifier.** All 17 catalog entries with `outfit_type = power_armor` use
+  one common armor treatment. Other outfits and their rarity do not change animation behavior.
+- Weapon variants inherit their family presentation. Use the existing
+  [`family_key()`](../../backend/app/utils/weapon_naming.py) normalization, followed by a small set of explicit
+  family overrides where the generic motion/effect would misrepresent the weapon.
+
+Sources: [weapon catalog](../../backend/app/data/items/weapons.json),
+[skill registry](../../backend/app/services/combat/weapon_skill_service.py),
+[race/state enums](../../backend/app/core/enums.py), [race presentation policy](../../backend/app/options/races.py),
+and [power armor catalog](../../backend/app/data/items/outfits/power_armor.json).
+
+## Weapon and skill matrix
+
+The icon portion is now implemented with repository-authored SVG glyphs. Their canonical key lives with
+weapon-skill metadata and is consumed by meters, preview, tooltips and journal.
+Both type and subtype matter: an energy pistol must not inherit the ballistic-pistol icon just because both
+have subtype `pistol`. Existing item icons in `frontend/src/core/models/items.ts` are useful precedents.
+
+| Type / subtype | Items | Catalog examples | Normal attack presentation | Existing Arena skill | Icon concept |
+| --- | ---: | --- | --- | --- | --- |
+| Unarmed | — | No equipped weapon | Short forward punch; contact flash | Haymaker, single target | Fist |
+| Melee / blunt | 5 | Baseball bat, Pickaxe, Pool cue, Fire hydrant bat, Power fist | Weighted strike; family exceptions below | Crushing Blow, single target | Hammer / impact |
+| Melee / edged | 12 | Butcher knife, Relentless raider sword, Ripper, Grognak's axe | Slash with a visible edge arc | Cleave, area | Sweeping blade |
+| Melee / pointed | 1 | Kitchen knife | Short straight thrust; concentrated contact | Piercing Strike, single target | Point / thrust |
+| Gun / pistol | 26 | Pipe pistol, .32 pistol, 10mm pistol, Scoped .44, T60 pistol | Brief preparation, one muzzle pulse and recoil | Quick Draw, single target | Pistol |
+| Gun / rifle | 35 | Assault rifle, BB gun, Hunting rifle, Sniper rifle, BOS assault rifle | Braced shot with restrained body recoil | Aimed Shot, single target | Rifle / sight |
+| Gun / shotgun | 12 | Combat shotgun, Sawed-off shotgun, Shotgun | Wide muzzle flash and stronger recoil; one normal target | Scattershot, area | Pellet fan |
+| Energy / pistol | 17 | Alien blaster, Laser pistol, Plasma pistol, Assaultron head, Institute pistol | Compact energy discharge; family-specific trail | Overcharge, single target | Charged orb |
+| Energy / rifle | 11 | Laser musket, Alien disintegrator, Laser rifle, Plasma rifle, Pulse rifle | Braced energy discharge; family-specific trail | Beam Sweep, area | Beam / energy sight |
+| Heavy / automatic | 7 | Gatling laser, .50 cal machine gun, Ultracite Gatling laser | Short sustained burst and repeated restrained recoil | Full Auto, single target | Burst / rotating barrel |
+| Heavy / flamer | 5 | Flamer and its variants | Braced stance and short flame stream | Firestorm, area | Flame |
+| Heavy / explosive | 5 | Fat Man, Missile launcher, Junk Jet | Launch motion, projectile, then family-appropriate impact | Blast Wave, area | Launch / burst |
+
+Area visuals affect only the targets supplied by the resolved action. Ordinary shotgun, automatic and
+explosive-family attacks must not visually imply extra targets or damage. Multiple cosmetic pellets/bullets
+still share the action's authoritative impact; they do not generate additional HP changes.
+
+## Race × weapon motion matrix
+
+These are proposed body-motion variations of the weapon presentation above. They change pose, motion
+amplitude and recovery shape within the same action window; they do not change attack order or cadence.
+The synth column describes visible Gen I/II synths; Gen III and unknown synth generations use the human column.
+The ghoul column is the sane baseline; wild/feral adjustments follow in the state table.
+
+| Weapon action | Human | Ghoul | Super mutant | Synth, Gen I/II |
+| --- | --- | --- | --- | --- |
+| Unarmed | Compact jab and reset | Forward-leaning jab | Broad, heavy punch | Direct thrust; precise reset |
+| Blunt | Swing, contact, follow-through | Guarded swing with shorter follow-through | Large shoulder-led strike | Measured swing and controlled stop |
+| Edged | Clear slash arc | Compact close slash | Broad sweeping slash | Clean, controlled slash |
+| Pointed | Forward thrust and withdraw | Close, forward-leaning thrust | Heavy short thrust | Straight, precise thrust |
+| Pistol | Snap preparation and small recoil | Guarded preparation and recoil | Firm grip; less body displacement | Crisp preparation and controlled recoil |
+| Rifle | Shoulder brace and recoil | Forward brace and compact recovery | Planted stance and restrained recoil | Stable brace and precise reset |
+| Shotgun | Strong recoil and reset | Braced recoil and compact reset | Low visible displacement; weighted recovery | Controlled recoil and deliberate reset |
+| Energy pistol | Brief charge pose and release | Guarded charge and release | Firm stance and short release motion | Precise charge and release |
+| Energy rifle | Brace and discharge | Forward brace and discharge | Heavy, planted discharge | Steady discharge and exact reset |
+| Heavy automatic | Sustained brace; repeated small recoil | Forward brace; compact repeated recoil | Planted stance; minimal body displacement | Stable brace; measured repeated recoil |
+| Flamer | Planted lean; hold stream | Guarded lean; hold stream | Broad stance; hold stream | Controlled stance; hold stream |
+| Launcher | Brace, launch recoil, settle | Forward brace, launch recoil, settle | Heavy brace and compact recoil | Deliberate launch and controlled settle |
+
+## Existing race states
+
+| Race | Existing state | Adjustment to the matrix |
+| --- | --- | --- |
+| Human | No state | Human baseline |
+| Ghoul | `sane` | Deliberate weapon use; no automatic feral posture |
+| Ghoul | `wild` | More uneven anticipation/recovery; retain the equipped weapon's delivery |
+| Ghoul | `feral` | Hunched, abrupt motion; unarmed attacks can resemble a rake. An equipped gun still fires |
+| Super mutant | `mild` | Large-body baseline |
+| Super mutant | `average` | More shoulder weight in the same action window |
+| Super mutant | `behemoth` | Largest sense of mass; keep displacement bounded so the actor and meters stay in view |
+| Synth | `gen_1` | Clearly mechanical preparation and stop; subtle mechanical impact sparks |
+| Synth | `gen_2` | Smoother mechanical motion and controlled recovery |
+| Synth | `gen_3` or missing/unknown generation | Human motion and hit reaction; no automatic robot effects |
+
+The Gen III fallback follows `passes_as_human()` in `options/races.py`. Current purposeful-action restrictions
+for feral ghouls/behemoths concern intentional chat actions; they do not establish a combat equipment ban.
+Animation must follow the actual equipped weapon and resolved action. Missing/unknown race uses human motion.
+Use the established body-size helper; do not invent a parallel portrait-scale catalog. Adults and elders keep
+their existing eligibility, with no animation-derived age penalty. Training bots and creatures are separate
+actor types, not additional dweller races.
+
+## Power armor modifier
+
+Read the actual equipped outfit's `outfit_type`, not its name, rarity, portrait clothing or visual prompt.
+Apply this once to any supported race and weapon; do not stack a second mass effect on top of a super mutant.
+
+| Aspect | Without power armor | With `power_armor` |
+| --- | --- | --- |
+| Body motion | Race/state profile | Heavy planted stance; shorter body travel; weighted settling |
+| Recoil | Weapon motion adjusted for body | Smaller displacement; firm recovery; weapon still visibly fires |
+| Melee | Race/state follow-through | Weighted strike and controlled follow-through; preserve swing vs thrust vs punch |
+| Receiving a hit | Race-appropriate flinch | Armor spark/flash and brief torso jolt; never an unreported block or immunity |
+| Timing / mechanics | Existing action window and outcome | Same impact marker, targets, HP outcome and skill behavior |
+
+Every non-power-armor outfit uses the normal race/state profile. Faction, gender, rarity, pets and cosmetic
+clothing do not add animation behavior in this design.
+
+## Item-family exceptions
+
+These are proposed delivery/motion parameters reusing shared effects, not bespoke clips for every subtype.
+Apply them to normalized families so variants inherit them. An override never changes the skill selected by
+the current `(type, subtype)` registry, including its single-target/area behavior.
+
+| Catalog family | Proposed exception | Existing skill stays |
+| --- | --- | --- |
+| Power fist | Armored punch, not a bat swing despite `melee/blunt` | Crushing Blow |
+| Pool cue | Straight jab with shaft contact, not a broad bat swing | Crushing Blow |
+| Pickaxe | Overhead chopping strike with concentrated contact | Crushing Blow |
+| Ripper; Surgical Ripper | Short vibrating cut; shared wider sweep for the area skill | Cleave |
+| Gatling laser; Ultracite Gatling laser | Energy burst trail instead of ballistic muzzle/tracer treatment | Full Auto |
+| Plasma pistol; Plasma rifle | Energy orb/pulse; the area skill can use a fan of pulses rather than a continuous laser | Overcharge / Beam Sweep |
+| Gauss pistol; Gauss rifle | Charged tracer and sharp physical impact | Quick Draw / Aimed Shot |
+| Railway rifle | Visible spike/tracer and concentrated physical impact | Aimed Shot |
+| Tranq gun | Small dart impact; no invented stun, sleep or status effect | Quick Draw |
+| Assaultron head | Charged energy discharge; no human-head or creature attack substitution | Overcharge |
+| Junk Jet | Debris projectile and debris fan for the area skill; no automatic fiery explosion | Blast Wave |
+| Fat Man; Missile launcher | Arcing or direct launch respectively, followed by a burst on the supplied targets | Blast Wave |
+| Alien blaster; Alien disintegrator; Pulse rifle | Short energy pulse variant of the shared energy effect | Overcharge / Beam Sweep |
+
+All remaining families inherit the weapon matrix. Prefixes such as Rusty, Hardened, Enhanced, Focused,
+Armor piercing and Recoil compensated do not create new animation sets. `Auto pipe pistol` can use a short
+cosmetic burst while retaining its pistol skill and one damage application. `Bayoneted pipe rifle` still fires
+in a normal rifle action. `Incendiary Institute pistol` does not imply burn damage or a damage-over-time effect.
+`Ultracite Gatling laser` needs its explicit family entry because `family_key()` does not strip `Ultracite`.
+
+## Scope and implementation gaps
+
+For **#1140's first slice**, centralize icon selection for all 12 skill entries and reuse a small effect set.
+The existing `strike`, `shot`, `beam`, `sweep`, `flame` and `blast` vocabulary is the starting point. A new
+profile reuses those primitives where its delivery can remain honest. Race/state and power-armor
+choreography share the same component; the issue does not require 48 bespoke race/weapon clips.
+
+Implemented first motion slice:
+
+- Resolved actions snapshot `actor_body` and each target's `body`, derived on the server from actual
+  race/state and equipped outfit. Historical events default to human motion. Power armor overrides race
+  weight; no other outfit changes motion. Gen III/unknown synth generations retain human presentation.
+- `CombatantMotion.vue` is shared by Arena and incidents. Only portraits move: meters, skill controls
+  and damage labels stay anchored. Melee winds up then follows through; ranged attacks brace and recoil.
+  Metal targets add sparks at impact. Reduced motion and accelerated catch-up keep bodies stationary.
+- Sane ghouls, wild/feral ghouls, mutants, behemoths and visible synths use bounded variations within the
+  existing prepare/impact windows. Mild/average mutants share a profile; Gen I/II synths share one too.
+- Family exceptions implemented: power fist punch, pool cue thrust, plasma/alien/pulse energy pulse,
+  Gatling laser beam, and Junk Jet debris. Edged weapons slash, pointed weapons thrust, and shotgun/
+  automatic weapons use a cosmetic burst with one authoritative HP impact. Other family refinements
+  in the table above remain proposed.
+
+Remaining artwork limits:
+
+- Current character portraits are still images. Lean, recoil, launch cues, slashes and impact effects work
+  with cutout motion. Visible arm/grip/aim changes need additional poses or separate artwork. The matrix
+  describes choreography without assuming a new rig or animation runtime.
+- Item-card images are not automatically usable as held weapons: the current resolver can return a stat
+  card or generic pistol fallback. Verify the exact art before attaching it to a character or using a muzzle
+  anchor; retain a neutral family effect when suitable art is unavailable.
+- The twelve glyphs in `frontend/src/modules/combat/components/CombatSkillIcon.vue` were authored as SVG path
+  data for this change, without tracing or incorporating a third-party asset pack. That SVG path data is
+  dedicated under [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) and requires no attribution.
+  This dedication covers those new paths only. New external animation assets still need exact-source
+  license checks under #1140; no external animation pack has been selected.
+
+## Validation when implementing
+
+- Check all 136 weapon rows resolve to the 11 supported pairs; unarmed adds the twelfth skill entry. Test
+  canonical family normalization and the exceptions above, especially Power fist, Gatling laser and Junk Jet.
+- Exercise all four races and supported states with power armor on/off. Verify human presentation for Gen III
+  synths and unchanged animation behavior for every non-power-armor outfit.
+- Preserve one synchronized impact for each authoritative action, including cosmetic bursts, multi-target
+  skills and skill followed by normal attack. Do not add unreported misses, knockback, blocks or status effects.
+- Check readable small icons in meters, preview and journal; left/right facing; no meter obstruction or layout
+  shift; 390px/1280px viewports; reduced motion; and catch-up playback with readable attacker/target cues.
+- Keep the playback regression cases for duplicate delivery, stale HP, healing, actor return, reset/navigation,
+  account changes and final-result ordering. Skill visuals remain disabled for incidents.

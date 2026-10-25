@@ -49,6 +49,7 @@
       }
       const impact = (target_id, health_before, health_after) => ({
         target_id,
+        body: target_id === 'b' ? 'power-armor' : 'human',
         health_before,
         health_after,
         damage: health_before - health_after,
@@ -60,7 +61,13 @@
         message: skill ?? 'Attack',
         actor_id,
         data: null,
-        action: { actor_id, skill, effect, targets },
+        action: {
+          actor_id,
+          skill,
+          effect,
+          targets,
+          actor_body: actor_id === 'a' ? 'ghoul' : actor_id === 'c' ? 'mutant' : 'human',
+        },
       })
       const arena = ref(initial)
       arenaApi.fetchState = async () => ({ rooms: [arena.value] })

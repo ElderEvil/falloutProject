@@ -18,7 +18,14 @@ for (const width of [390, 1280]) {
     await page.getByRole('button', { name: 'Play Arena turn' }).click()
     await expect(bob).toHaveAttribute('aria-valuenow', '100')
     await expect(ring.locator('.damage-number')).toHaveCount(0)
+    const attacker = ring.locator('[aria-current="true"] .combat-body')
+    await expect(attacker).toHaveCSS('animation-name', /^combat-brace-/)
+    await expect(attacker).toHaveCSS('--travel', '8px')
+    const bobMeterBounds = await bob.boundingBox()
     await page.clock.runFor(250)
+    await expect(attacker).toHaveCSS('animation-name', /^combat-recoil-/)
+    await expect(ring.locator('.armor-sparks')).toHaveCount(1)
+    expect(await bob.boundingBox()).toEqual(bobMeterBounds)
     await expect(bob).toHaveAttribute('aria-valuenow', '92')
     await expect(delta).toHaveAttribute('aria-valuenow', '92')
     await expect(ring.locator('.damage-number')).toHaveCount(2)
@@ -63,6 +70,10 @@ test('reduced motion keeps impacts readable without moving effects', async ({ pa
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.getByRole('button', { name: 'Play Arena turn' }).click()
   await expect(page.locator('.combat-effect').first()).toHaveCSS('animation-name', 'none')
+  await expect(page.locator('[aria-current="true"] .combat-body').first()).toHaveCSS(
+    'animation-name',
+    'none'
+  )
   await page.clock.runFor(250)
   await expect(page.locator('.damage-number').first()).toHaveCSS('animation-name', 'none')
   await expect(page.getByRole('progressbar', { name: 'Bob HP' })).toHaveAttribute(

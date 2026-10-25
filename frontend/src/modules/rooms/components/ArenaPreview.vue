@@ -19,6 +19,8 @@ import CombatantMeters from './CombatantMeters.vue'
 import { useFallbackImage } from '../composables/useFallbackImage'
 import type { ArenaMatchDraft, ArenaStage } from '../composables/useArenaMatchDraft'
 import type { PlayingCombatAction } from '@/modules/combat/models/playback'
+import CombatSkillIcon from '@/modules/combat/components/CombatSkillIcon.vue'
+import type { CombatSkillIcon as SkillIconKey } from '@/modules/combat/models/playback'
 
 interface Props {
   match: ArenaMatchDraft
@@ -27,7 +29,7 @@ interface Props {
   attackingTeam?: 'A' | 'B' | null
   attackingFighterId?: string | null
   damageNumbers?: Array<{ id: number; fighterId: string; amount: number }>
-  skillBurst?: { id: string; message: string } | null
+  skillBurst?: { id: string; message: string; icon?: SkillIconKey | null } | null
   activeAction?: PlayingCombatAction | null
   combatPhase?: 'prepare' | 'impact' | null
 }
@@ -89,6 +91,7 @@ const actionFor = (fighter: ArenaSlotFighter) => {
   if (!skill) return null
   return {
     name: skill.name,
+    icon: skill.icon,
     charge: skill.charge,
     queued: skill.queued,
     pending: false,
@@ -495,6 +498,16 @@ const selectCreatureOption = (creature: ArenaCreature) => {
                   <Icon v-else icon="mdi:sword-cross" />
                   FIGHT AGAIN
                 </Button>
+                <Button
+                  v-if="match.injuredFighters.length"
+                  variant="secondary"
+                  :disabled="match.isHealing"
+                  @click="match.healInjured()"
+                >
+                  <Icon v-if="match.isHealing" icon="mdi:loading" class="animate-spin" />
+                  <Icon v-else icon="mdi:medication" />
+                  HEAL INJURED ({{ match.injuredFighters.length }})
+                </Button>
                 <Button variant="outline" @click="match.setStage('fighters')"
                   >CHANGE FIGHTERS</Button
                 >
@@ -675,9 +688,9 @@ const selectCreatureOption = (creature: ArenaCreature) => {
       v-if="skillBurst"
       :key="skillBurst.id"
       role="status"
-      class="absolute inset-x-4 top-1/2 z-30 -translate-y-1/2 rounded border border-warning/40 bg-black/85 px-3 py-2 text-center text-xs font-semibold text-warning"
+      class="absolute inset-x-4 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center gap-2 rounded border border-warning/40 bg-black/85 px-3 py-2 text-center text-xs font-semibold text-warning"
     >
-      {{ skillBurst.message }}
+      <CombatSkillIcon :icon="skillBurst.icon" class="size-5" />{{ skillBurst.message }}
     </div>
   </div>
 </template>

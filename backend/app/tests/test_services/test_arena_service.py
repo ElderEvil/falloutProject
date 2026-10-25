@@ -449,8 +449,8 @@ class TestArenaService:
         fighter_a.room_id = arena_room.id
         fighter_b.room_id = arena_room.id
         # Preload weapon relationship (avoids lazy-load outside async greenlet)
-        await async_session.refresh(fighter_a, ["weapon"])
-        await async_session.refresh(fighter_b, ["weapon"])
+        await async_session.refresh(fighter_a, ["weapon", "outfit"])
+        await async_session.refresh(fighter_b, ["weapon", "outfit"])
         service = ArenaService()
         result = await service._resolve_round(
             async_session,
@@ -472,8 +472,8 @@ class TestArenaService:
         # Strong fighter can survive the round, weak one cannot -> single KO
         fighter_a.health = 1200
         fighter_b.health = 1
-        await async_session.refresh(fighter_a, ["weapon"])
-        await async_session.refresh(fighter_b, ["weapon"])
+        await async_session.refresh(fighter_a, ["weapon", "outfit"])
+        await async_session.refresh(fighter_b, ["weapon", "outfit"])
         service = ArenaService()
         result = await service._resolve_round(
             async_session,
@@ -509,8 +509,8 @@ class TestArenaService:
             fighter_b_id=fighter_b.id,
             fight_started_at=datetime.utcnow() - timedelta(seconds=10),
         )
-        await async_session.refresh(fighter_a, ["weapon"])
-        await async_session.refresh(fighter_b, ["weapon"])
+        await async_session.refresh(fighter_a, ["weapon", "outfit"])
+        await async_session.refresh(fighter_b, ["weapon", "outfit"])
         await async_session.commit()
         service = ArenaService()
         result = await service.process_arena_ticks(async_session, 3600)
@@ -535,8 +535,8 @@ class TestArenaService:
             fighter_b_id=fighter_b.id,
             fight_started_at=datetime.utcnow() - timedelta(seconds=1),
         )
-        await async_session.refresh(fighter_a, ["weapon"])
-        await async_session.refresh(fighter_b, ["weapon"])
+        await async_session.refresh(fighter_a, ["weapon", "outfit"])
+        await async_session.refresh(fighter_b, ["weapon", "outfit"])
         await async_session.commit()
         service = ArenaService()
         # Still inside the 3s countdown: no combat yet
@@ -562,8 +562,8 @@ class TestArenaService:
         fighter_a.room_id = arena_room.id
         fighter_b.room_id = arena_room.id
         await configure_arena(async_session, arena_room, fighter_a_id=fighter_a.id, fighter_b_id=fighter_b.id)
-        await async_session.refresh(fighter_a, ["weapon"])
-        await async_session.refresh(fighter_b, ["weapon"])
+        await async_session.refresh(fighter_a, ["weapon", "outfit"])
+        await async_session.refresh(fighter_b, ["weapon", "outfit"])
         await async_session.commit()
         service = ArenaService()
         room = await service.start_fight(async_session, arena_room.id)
@@ -596,8 +596,8 @@ class TestArenaService:
         # Irradiate both fighters so effective_max_health differs from base max_health
         fighter_a.radiation = 20
         fighter_b.radiation = 10
-        await async_session.refresh(fighter_a, ["weapon"])
-        await async_session.refresh(fighter_b, ["weapon"])
+        await async_session.refresh(fighter_a, ["weapon", "outfit"])
+        await async_session.refresh(fighter_b, ["weapon", "outfit"])
         await async_session.commit()
 
         service = ArenaService()
@@ -666,8 +666,8 @@ class TestArenaService:
     @pytest.mark.asyncio
     async def test_set_fighters_rejects_dweller_not_in_room(self, async_session, arena_room, fighter_a, fighter_b):
         fighter_a.room_id = arena_room.id
-        await async_session.refresh(fighter_a, ["weapon"])
-        await async_session.refresh(fighter_b, ["weapon"])
+        await async_session.refresh(fighter_a, ["weapon", "outfit"])
+        await async_session.refresh(fighter_b, ["weapon", "outfit"])
         await async_session.commit()
         service = ArenaService()
         # fighter_b is not assigned to the arena room
@@ -681,8 +681,8 @@ class TestArenaService:
         fighter_a.room_id = arena_room.id
         fighter_b.room_id = arena_room.id
         fighter_b.health = 1
-        await async_session.refresh(fighter_a, ["weapon"])
-        await async_session.refresh(fighter_b, ["weapon"])
+        await async_session.refresh(fighter_a, ["weapon", "outfit"])
+        await async_session.refresh(fighter_b, ["weapon", "outfit"])
         service = ArenaService()
         await service._resolve_round(
             async_session,
@@ -731,8 +731,8 @@ class TestArenaService:
             fighter_b_id=fighter_b.id,
             fight_started_at=datetime.utcnow(),
         )
-        await async_session.refresh(fighter_a, ["weapon"])
-        await async_session.refresh(fighter_b, ["weapon"])
+        await async_session.refresh(fighter_a, ["weapon", "outfit"])
+        await async_session.refresh(fighter_b, ["weapon", "outfit"])
         await async_session.commit()
 
         replacement = await crud.dweller.create(
@@ -788,7 +788,7 @@ class TestArenaService:
     async def test_resolve_round_1v1_alternates_with_full_damage(self, async_session, arena_room, fighter_a, fighter_b):
         for fighter in (fighter_a, fighter_b):
             fighter.room_id = arena_room.id
-            await async_session.refresh(fighter, ["weapon"])
+            await async_session.refresh(fighter, ["weapon", "outfit"])
         a, b = [participant_from_dweller(fighter_a)], [participant_from_dweller(fighter_b)]
         state = await configure_arena(async_session, arena_room, fighter_a_id=fighter_a.id, fighter_b_id=fighter_b.id)
         service = ArenaService()
@@ -1402,8 +1402,8 @@ class TestArenaMoraleBonus:
         bystander = await _morale_bystander(async_session, vault.id, "Bystander", 50)
         fighter_a.health = 1200
         fighter_b.health = 1
-        await async_session.refresh(fighter_a, ["weapon"])
-        await async_session.refresh(fighter_b, ["weapon"])
+        await async_session.refresh(fighter_a, ["weapon", "outfit"])
+        await async_session.refresh(fighter_b, ["weapon", "outfit"])
         service = ArenaService()
         result = await service._resolve_round(
             async_session,
@@ -1432,8 +1432,8 @@ class TestArenaMoraleBonus:
         bystander = await _morale_bystander(async_session, vault.id, "Bystander", 50)
         fighter_a.health = 1200
         fighter_b.health = 1
-        await async_session.refresh(fighter_a, ["weapon"])
-        await async_session.refresh(fighter_b, ["weapon"])
+        await async_session.refresh(fighter_a, ["weapon", "outfit"])
+        await async_session.refresh(fighter_b, ["weapon", "outfit"])
         service = ArenaService()
         result = await service._resolve_round(
             async_session,
@@ -1457,8 +1457,8 @@ class TestArenaMoraleBonus:
         bystander = await _morale_bystander(async_session, vault.id, "Capped", 100)
         fighter_a.health = 1200
         fighter_b.health = 1
-        await async_session.refresh(fighter_a, ["weapon"])
-        await async_session.refresh(fighter_b, ["weapon"])
+        await async_session.refresh(fighter_a, ["weapon", "outfit"])
+        await async_session.refresh(fighter_b, ["weapon", "outfit"])
         service = ArenaService()
         result = await service._resolve_round(
             async_session,
@@ -1491,8 +1491,8 @@ class TestArenaMoraleBonus:
             fighter_b_id=fighter_b.id,
             fight_started_at=datetime.utcnow() - timedelta(seconds=10),
         )
-        await async_session.refresh(fighter_a, ["weapon"])
-        await async_session.refresh(fighter_b, ["weapon"])
+        await async_session.refresh(fighter_a, ["weapon", "outfit"])
+        await async_session.refresh(fighter_b, ["weapon", "outfit"])
         await async_session.commit()
         service = ArenaService()
         with patch.object(NotificationService, "_deliver", new=AsyncMock()) as deliver:
@@ -2011,6 +2011,23 @@ def test_active_skill_uses_weapon_type_and_subtype(weapon_type, subtype, name, a
     )
     skill = weapon_skill(dweller)
     assert (skill.name, skill.area) == (name, area)
+    assert skill.icon == f"{weapon_type}-{subtype}"
+
+
+def test_skill_icons_cover_the_weapon_catalog_and_unarmed():
+    from app.services.catalog_service import load_weapons
+    from app.services.combat.weapon_skill_service import UNARMED_SKILL, weapon_skill
+    from app.utils.item_factory import build_weapon
+
+    assert UNARMED_SKILL.icon == "unarmed"
+    icons = {UNARMED_SKILL.icon}
+    for data in load_weapons():
+        dweller = Dweller()
+        dweller.weapon = build_weapon(data, data["rarity"])
+        skill = weapon_skill(dweller)
+        assert skill.icon == f"{data['weapon_type'].lower()}-{data['weapon_subtype'].lower()}"
+        icons.add(skill.icon)
+    assert len(icons) == 12
 
 
 async def test_skill_charge_persists_and_queued_attack_resolves_once(async_session, arena_room, fighter_a, fighter_b):
@@ -2032,6 +2049,7 @@ async def test_skill_charge_persists_and_queued_attack_resolves_once(async_sessi
     view = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
     assert view.team_a[0].active_skill.charge == 100
     assert view.team_a[0].active_skill.name == "Haymaker"
+    assert view.team_a[0].active_skill.icon == "unarmed"
     before = fighter_b.health
     await service.queue_skill(async_session, arena_room.id, fighter_a.id, arena_room.vault_id)
     assert state.skill_charge[str(fighter_a.id)] == 0
@@ -2140,6 +2158,7 @@ async def test_active_skill_targeting_and_nonlethal_finish(
     skill_actions = [event.action for event in view.events if event.kind == "skill" and event.action]
     assert len(skill_actions) == 1
     assert skill_actions[0].skill == ("Scattershot" if area else "Aimed Shot")
+    assert skill_actions[0].skill_icon == ("gun-shotgun" if area else "gun-rifle")
     assert len(skill_actions[0].targets) == (2 if area else 1)
     assert skill_actions[0].targets[0].health_after == 0
     assert skill_actions[0].targets[0].target_id == str(fighter_b.id)
@@ -2354,3 +2373,29 @@ async def test_arena_tick_failure_rolls_back_actions_damage_and_skill(
     assert not delivered
     view = (await service.get_arena_state(async_session, vault_id)).rooms[0]
     assert not any(event.action for event in view.events)
+
+
+async def test_round_snapshots_race_and_power_armor(async_session, arena_room, fighter_a, fighter_b):
+    from app.services.catalog_service import load_outfits
+    from app.utils.item_factory import build_outfit
+
+    for fighter in (fighter_a, fighter_b):
+        await async_session.refresh(fighter, ["weapon", "outfit"])
+        fighter.health = fighter.max_health = 1000
+    fighter_a.visual_attributes = {"race": "ghoul", "state_of_being": "sane"}
+    fighter_b.visual_attributes = {"race": "super_mutant", "state_of_being": "behemoth"}
+    data = next(data for data in load_outfits() if data["outfit_type"] == "power_armor")
+    fighter_b.outfit = build_outfit(data, data["rarity"])
+    async_session.add(fighter_b.outfit)
+    await async_session.flush()
+    await ArenaService()._resolve_round(
+        async_session, arena_room, [participant_from_dweller(fighter_a)], [participant_from_dweller(fighter_b)], 10
+    )
+    await async_session.flush()
+    events = (
+        await async_session.execute(select(ArenaMatchEvent).where(ArenaMatchEvent.room_id == arena_room.id))
+    ).scalars()
+    action = next(event.action for event in events if event.action)
+    assert action["actor_body"] == "ghoul"
+    assert action["effect"] == "punch"
+    assert action["targets"][0]["body"] == "power-armor"

@@ -25,7 +25,7 @@ from app.schemas.combat import CombatAction, CombatImpact
 from app.schemas.incident import IncidentRoundResult
 from app.services.combat import incident_math, incident_publishing
 from app.services.combat.incident_spawning import spread_incident
-from app.services.combat.weapon_skill_service import attack_effect
+from app.services.combat.weapon_skill_service import attack_effect, combat_body
 from app.services.hazard_team_service import TEAM_HAZARD_RESIST, TEAM_RESPONSE_BONUS
 from app.services.notification_service import notification_service
 from app.services.radiation_service import apply_radiation_gain
@@ -118,6 +118,8 @@ async def apply_damage(
     for index, dweller in enumerate(dwellers):
         display_name = dweller.display_name if hits is not None else ""
         target_id = str(dweller.id) if hits is not None else ""
+        # Death settlement may unequip/expire relationships; retain the body that received the hit.
+        body = combat_body(dweller) if hits is not None else "human"
         health_before = dweller.health
         dweller_damage = split[index]
         is_active_member = active_member_ids and getattr(dweller, "id", None) in active_member_ids
@@ -152,6 +154,7 @@ async def apply_damage(
                         display_name,
                         CombatImpact(
                             target_id=target_id,
+                            body=body,
                             damage=dweller_damage,
                             health_before=health_before,
                             health_after=new_health,
@@ -291,6 +294,7 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
                         "damage_to_threat": share,
                         "action": CombatAction(
                             actor_id=str(dweller.id),
+                            actor_body=combat_body(dweller),
                             effect=attack_effect(dweller),
                             targets=[CombatImpact(target_id="threat", damage=share)],
                         ).model_dump(),

@@ -4,6 +4,7 @@ import CombatantMeters from '@/modules/rooms/components/CombatantMeters.vue'
 
 const action = {
   name: 'Aimed Shot',
+  icon: 'gun-rifle' as const,
   charge: 100,
   queued: false,
   pending: false,
@@ -17,11 +18,16 @@ describe('CombatantMeters', () => {
     })
 
     expect(wrapper.text()).toContain('Alpha')
-    expect(wrapper.get('[role="progressbar"][aria-label="Alpha HP"]').attributes('aria-valuenow')).toBe(
-      '80'
+    expect(wrapper.get('button svg[data-skill-icon="gun-rifle"]').attributes('aria-hidden')).toBe(
+      'true'
     )
     expect(
-      wrapper.get('[role="progressbar"][aria-label="Alpha skill charge"]').attributes('aria-valuenow')
+      wrapper.get('[role="progressbar"][aria-label="Alpha HP"]').attributes('aria-valuenow')
+    ).toBe('80')
+    expect(
+      wrapper
+        .get('[role="progressbar"][aria-label="Alpha skill charge"]')
+        .attributes('aria-valuenow')
     ).toBe('100')
   })
 

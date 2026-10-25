@@ -48,7 +48,7 @@ from app.services.combat.arena_participants import (
     participant_out,
     persist_creature_hp,
 )
-from app.services.combat.weapon_skill_service import MAX_CHARGE, attack_effect, weapon_skill
+from app.services.combat.weapon_skill_service import MAX_CHARGE, attack_effect, combat_body, weapon_skill
 from app.services.game_tick.tick_results import ArenaEventStats, ArenaRoomStats, ArenaStats
 from app.services.leveling_service import leveling_service
 from app.services.notification_service import NotificationService
@@ -582,7 +582,11 @@ class ArenaService:
                     if dealt > 0 or attack_skill:
                         impacts.append(
                             CombatImpact(
-                                target_id=target.key, damage=dealt, health_before=before, health_after=target.health
+                                target_id=target.key,
+                                body=combat_body(target.dweller),
+                                damage=dealt,
+                                health_before=before,
+                                health_after=target.health,
                             )
                         )
                         action = f"uses {attack_skill.name} on" if attack_skill else "hits"
@@ -599,8 +603,10 @@ class ArenaService:
                     # Preserve per-target journal lines, but play an area skill once.
                     journal[0].action = CombatAction(
                         actor_id=attacker.key,
+                        actor_body=combat_body(attacker.dweller),
                         effect=attack_effect(attacker.dweller, attack_skill),
                         skill=attack_skill.name if attack_skill else None,
+                        skill_icon=attack_skill.icon if attack_skill else None,
                         targets=impacts,
                     ).model_dump()
                     db_session.add_all(journal)

@@ -322,7 +322,7 @@ class RelationshipService:
 
         # Update relationship and both dwellers' partner_ids in ONE transaction.
         relationship = await relationship_crud.update(db_session, relationship.id, update_data, commit=False)
-        await RelationshipService._set_partner_ids(db_session, dweller_1_id, dweller_2_id, commit=False)
+        await RelationshipService._set_partner_ids(db_session, dweller_1_id, dweller_2_id)
         await db_session.commit()
 
         logger.info(f"Partners made: {dweller_1_id} ↔ {dweller_2_id}")
@@ -333,38 +333,20 @@ class RelationshipService:
         db_session: AsyncSession,
         dweller_1_id: UUID4,
         dweller_2_id: UUID4,
-        *,
-        commit: bool = True,
     ) -> None:
-        """Set reciprocal partner_ids on both dwellers atomically.
+        """Stage reciprocal partner_ids on both dwellers.
 
-        Args:
-            db_session: Database session
-            dweller_1_id: First dweller ID
-            dweller_2_id: Second dweller ID
-            commit: Whether to commit (default True); pass False to defer the
-                commit so it lands in the same transaction as the relationship
-                update.
+        No commit: the caller owns the transaction, so the relationship row and both
+        dweller links land together (a failure between them cannot split the pair).
         """
-        try:
-            dweller_1 = await dweller_crud.get(db_session, dweller_1_id)
-            dweller_2 = await dweller_crud.get(db_session, dweller_2_id)
+        dweller_1 = await dweller_crud.get(db_session, dweller_1_id)
+        dweller_2 = await dweller_crud.get(db_session, dweller_2_id)
 
-            dweller_1.partner_id = dweller_2_id
-            dweller_2.partner_id = dweller_1_id
+        dweller_1.partner_id = dweller_2_id
+        dweller_2.partner_id = dweller_1_id
 
-            db_session.add(dweller_1)
-            db_session.add(dweller_2)
-            if commit:
-                await db_session.commit()
-                await db_session.refresh(dweller_1)
-                await db_session.refresh(dweller_2)
-        except Exception:
-            # Roll back, then let the driver error surface as a server error:
-            # wrapping it in ValueError made the API report a client error and
-            # leak the database message.
-            await db_session.rollback()
-            raise
+        db_session.add(dweller_1)
+        db_session.add(dweller_2)
 
     @staticmethod
     async def _lock_dwellers(db_session: AsyncSession, id_a: UUID4, id_b: UUID4) -> None:

@@ -275,7 +275,9 @@ class ExplorationService:
         )
         self._stage_special_snapshot(exploration, dweller)
         self._init_spatial_movement(exploration, origin, heading_degrees, world_version, start_time)
-        return await self._persist_departure(db_session, vault_id=vault_id, dwellers=[dweller], exploration=exploration)
+        return await self._persist_departure_transaction(
+            db_session, vault_id=vault_id, dwellers=[dweller], exploration=exploration
+        )
 
     @staticmethod
     def _stage_special_snapshot(exploration: Exploration, dweller: Dweller) -> None:
@@ -318,7 +320,7 @@ class ExplorationService:
             storage.radaway = (storage.radaway or 0) - radaways
             db_session.add(storage)
 
-    async def _persist_departure(
+    async def _persist_departure_transaction(
         self,
         db_session: AsyncSession,
         *,
@@ -529,7 +531,9 @@ class ExplorationService:
         for slot, dweller in enumerate(dwellers, start=1):
             db_session.add(TeamMember(team_id=team.id, dweller_id=dweller.id, slot_number=slot, status="assigned"))
         exploration.team_id = team.id
-        return await self._persist_departure(db_session, vault_id=vault_id, dwellers=dwellers, exploration=exploration)
+        return await self._persist_departure_transaction(
+            db_session, vault_id=vault_id, dwellers=dwellers, exploration=exploration
+        )
 
     @staticmethod
     def _supply_shortfall(available_stimpaks: int, available_radaways: int, stimpaks: int, radaways: int) -> str | None:

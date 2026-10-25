@@ -1684,6 +1684,59 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).toContain('RAIDER ATTACK')
       expect(wrapper.text()).not.toContain('INCIDENT ENDED')
     })
+
+    it('keeps the incident scene through the final journal fetch and attack playback', async () => {
+      vi.useFakeTimers()
+      seedIncident()
+      const store = useIncidentStore()
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: room as never, modelValue: true, vaultId: 'vault-1' },
+      })
+      try {
+        store.aftermaths.set('room-1', {
+          incidentId: liveIncident.id,
+          roomId: 'room-1',
+          type: 'raider_attack',
+          outcome: 'victory',
+          capsEarned: 0,
+          experienceEarned: 0,
+          roomName: 'Generator',
+          loot: null,
+          unclaimed: [],
+          enemiesDefeated: 8,
+          damageDealt: 0,
+          rounds: 1,
+          scene: liveIncident,
+          sceneLoading: true,
+        } as never)
+        store.activeIncidentIds = []
+        await flushPromises()
+        expect(wrapper.find('.incident-scene').exists()).toBe(true)
+        const aftermath = store.aftermaths.get('room-1')!
+        aftermath.scene = {
+          ...liveIncident,
+          status: 'resolved',
+          events: [
+            {
+              id: 'last-hit',
+              kind: 'hit',
+              message: 'Final hit',
+              data: null,
+              action: { actor_id: 'd1', targets: [{ target_id: 'threat', damage: 1 }] },
+            },
+          ],
+        } as never
+        aftermath.sceneLoading = false
+        await flushPromises()
+        expect(wrapper.find('.incident-scene').exists()).toBe(true)
+        await vi.advanceTimersByTimeAsync(350)
+        expect(wrapper.find('.incident-scene').exists()).toBe(false)
+        expect(wrapper.text()).toContain('Incident contained')
+      } finally {
+        wrapper.unmount()
+        vi.useRealTimers()
+      }
+    })
   })
 
   describe('Ambience', () => {

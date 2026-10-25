@@ -141,7 +141,13 @@ class IncidentService:
                 label=definition.progress_label,
             )
         events = [
-            IncidentEventRead(id=str(event.id), kind=event.kind, message=event.message, data=event.data)
+            IncidentEventRead(
+                id=str(event.id),
+                kind=event.kind,
+                message=event.message,
+                data={key: value for key, value in event.data.items() if key != "action"} if event.data else None,
+                action=(event.data or {}).get("action"),
+            )
             for event in reversed(await incident_crud.get_recent_events(db_session, incident.id))
         ]
         return IncidentRead(

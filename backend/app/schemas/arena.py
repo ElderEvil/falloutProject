@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import UUID4, BaseModel, Field
 
 from app.core.enums import ArenaMode
+from app.schemas.combat import CombatAction
 
 
 class ArenaFightersRequest(BaseModel):
@@ -93,6 +94,7 @@ class ArenaMatchEventOut(BaseModel):
     kind: str
     message: str
     actor_id: str | None = None
+    action: CombatAction | None = None
     created_at: datetime | None = None
 
 

@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Combat playback</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import '../../../src/assets/main.css'
+      import { createApp, h, ref } from 'vue'
+      import { createPinia } from 'pinia'
+      import { useAuthStore } from '../../../src/modules/auth/stores/auth'
+      import { arenaApi } from '../../../src/modules/rooms/api/arena'
+      import { useArenaRoom } from '../../../src/modules/rooms/composables/useArenaRoom'
+      import ArenaRing from '../../../src/modules/rooms/components/ArenaRing.vue'
+      import IncidentScene from '../../../src/modules/rooms/components/IncidentScene.vue'
+
+      const fighter = (id, name) => ({
+        id,
+        name,
+        level: 5,
+        health: 100,
+        max_health: 100,
+        power: 20,
+        is_creature: false,
+        is_robot: false,
+        active_skill: null,
+      })
+      const initial = {
+        room_id: 'arena',
+        room_name: 'Arena',
+        mode: 'brawl',
+        tier: 3,
+        available_modes: ['brawl'],
+        team_a: [fighter('a', 'Alice'), fighter('c', 'Charlie')],
+        team_b: [fighter('b', 'Bob'), fighter('d', 'Delta')],
+        roster: [],
+        fighters: [],
+        events: [],
+        fight_started: true,
+        match_done: false,
+        next_attack_team: 'A',
+        countdown_remaining: 0,
+        can_start: false,
+        fight_ready: true,
+      }
+      const impact = (target_id, health_before, health_after) => ({
+        target_id,
+        health_before,
+        health_after,
+        damage: health_before - health_after,
+      })
+      const action = (id, actor_id, targets, skill = null, effect = 'strike') => ({
+        id,
+        round_seq: 1,
+        kind: skill ? 'skill' : 'hit',
+        message: skill ?? 'Attack',
+        actor_id,
+        data: null,
+        action: { actor_id, skill, effect, targets },
+      })
+      const arena = ref(initial)
+      arenaApi.fetchState = async () => ({ rooms: [arena.value] })
+
+      createApp({
+        setup() {
+          useAuthStore().token = 'fixture-token'
+          const controller = useArenaRoom('vault', 'arena')
+          const incident = ref({
+            id: 'incident',
+            vault_id: 'vault',
+            room_id: 'room',
+            type: 'raider_attack',
+            status: 'active',
+            family: 'intrusion',
+            objective: 'defeat',
+            difficulty: 2,
+            progress: { current: 0, target: 4, label: 'Enemies defeated' },
+            risk: { kind: 'casualties', rooms_affected: 1 },
+            events: [],
+          })
+          const dwellers = ref(
+            ['Alice', 'Bob'].map((first_name, index) => ({
+              id: index ? 'd2' : 'd1',
+              first_name,
+              last_name: null,
+              level: 5,
+              health: 100,
+              max_health: 100,
+              radiation: 0,
+              age_group: 'adult',
+              room_id: 'room',
+              status: 'fighting',
+            }))
+          )
+          const playArena = async () => {
+            arena.value = {
+              ...initial,
+              next_attack_team: 'B',
+              team_b: [fighter('b', 'Bob'), fighter('d', 'Delta')].map((member, index) => ({
+                ...member,
+                health: index ? 87 : 88,
+              })),
+              events: [
+                action(
+                  'skill',
+                  'a',
+                  [impact('b', 100, 92), impact('d', 100, 92)],
+                  'Beam Sweep',
+                  'beam'
+                ),
+                action('normal', 'a', [impact('b', 92, 88)], null, 'shot'),
+                action('next', 'c', [impact('d', 92, 87)]),
+              ],
+            }
+            await controller.refresh()
+          }
+          const finishArena = async () => {
+            arena.value = {
+              ...arena.value,
+              match_done: true,
+              fight_started: false,
+              team_b: arena.value.team_b.map((member) => ({ ...member, health: 0 })),
+              events: [
+                ...arena.value.events,
+                action(
+                  'final',
+                  'c',
+                  [impact('b', 88, 0), impact('d', 87, 0)],
+                  'Blast Wave',
+                  'blast'
+                ),
+                { id: 'finish', kind: 'finish', round_seq: 2, message: 'Done' },
+              ],
+            }
+            await controller.refresh()
+          }
+          const playIncident = () => {
+            incident.value = {
+              ...incident.value,
+              events: [
+                action('i1', 'd1', [{ target_id: 'threat', damage: 6 }], null, 'shot'),
+                action('i2', 'd2', [{ target_id: 'threat', damage: 4 }]),
+                action('i3', 'threat', [impact('d1', 100, 90)], null, 'shot'),
+              ],
+            }
+            dwellers.value = dwellers.value.map((member, index) => ({
+              ...member,
+              health: index ? 100 : 90,
+            }))
+          }
+          const button = (label, onClick) =>
+            h(
+              'button',
+              {
+                onClick,
+                class: 'rounded border border-theme-primary px-3 py-2 text-theme-primary',
+              },
+              label
+            )
+          return () =>
+            h('main', { class: 'mx-auto flex max-w-4xl flex-col gap-5 p-4' }, [
+              h('div', { class: 'flex flex-wrap gap-2' }, [
+                button('Play Arena turn', playArena),
+                button('Finish Arena', finishArena),
+                button('Play incident round', playIncident),
+              ]),
+              controller.roomState.value?.match_done
+                ? h('p', { role: 'status' }, 'Arena complete')
+                : controller.roomState.value &&
+                  h(ArenaRing, {
+                    state: controller.roomState.value,
+                    skillEnabled: false,
+                    pendingSkills: new Set(),
+                    attackingTeam: controller.attackingTeam.value,
+                    attackingFighterId: controller.attackingFighterId.value,
+                    damageNumbers: controller.damageNumbers.value,
+                    activeAction: controller.activeAction.value,
+                    combatPhase: controller.combatPhase.value,
+                  }),
+              h(IncidentScene, { incident: incident.value, dwellers: dwellers.value }),
+            ])
+        },
+      })
+        .use(createPinia())
+        .mount('#app')
+    </script>
+  </body>
+</html>

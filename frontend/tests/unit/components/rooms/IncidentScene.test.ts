@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import { mount, flushPromises } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import IncidentScene from '@/modules/rooms/components/IncidentScene.vue'
@@ -40,6 +40,113 @@ const mountScene = (props: Record<string, unknown> = {}) =>
   mount(IncidentScene, {
     props: { incident: incident(), dwellers: [], ...props },
   })
+
+describe('Incident action playback', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('animates responders individually and changes only the hit target HP at impact', async () => {
+    vi.useFakeTimers()
+    const wrapper = mountScene({
+      dwellers: [dweller({ health: 100 }), dweller({ id: 'd2', first_name: 'Bob', health: 100 })],
+    })
+    const attack = (id: string, actor: string, target: string, health: number | null = null) => ({
+      id,
+      kind: 'hit',
+      message: 'Hit',
+      data: null,
+      action: {
+        actor_id: actor,
+        effect: 'strike' as const,
+        skill: null,
+        targets: [
+          {
+            target_id: target,
+            damage: 10,
+            health_before: health === null ? null : 100,
+            health_after: health,
+          },
+        ],
+      },
+    })
+    await wrapper.setProps({
+      incident: incident({
+        events: [
+          attack('1', 'd1', 'threat'),
+          attack('2', 'd2', 'threat'),
+          attack('3', 'threat', 'd1', 90),
+        ],
+      }),
+      dwellers: [dweller({ health: 90 }), dweller({ id: 'd2', first_name: 'Bob', health: 100 })],
+    })
+    const actors = wrapper.findAll('.incident-responder')
+    expect(actors[0].attributes('aria-current')).toBe('true')
+    expect(actors[1].attributes('aria-current')).toBeUndefined()
+    expect(wrapper.text()).not.toContain('Alice: 90')
+    expect(wrapper.findAll('.damage-number')).toHaveLength(0)
+    await vi.advanceTimersByTimeAsync(150)
+    expect(wrapper.findAll('.damage-number')).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(200)
+    expect(actors[1].attributes('aria-current')).toBe('true')
+    await vi.advanceTimersByTimeAsync(499)
+    expect(wrapper.text()).not.toContain('Alice: 90')
+    await vi.advanceTimersByTimeAsync(1)
+    expect(wrapper.text()).toContain('Alice: 90 of 100 HP')
+    expect(actors[1].text()).not.toContain('-10')
+    wrapper.unmount()
+  })
+
+  it('finishes only after the final resolved attack recovers', async () => {
+    vi.useFakeTimers()
+    const wrapper = mountScene({ dwellers: [dweller()] })
+    await wrapper.setProps({
+      incident: incident({
+        status: 'resolved',
+        events: [
+          {
+            id: 'last',
+            kind: 'hit',
+            message: 'Final hit',
+            data: null,
+            action: { actor_id: 'd1', targets: [{ target_id: 'threat', damage: 1 }] },
+          },
+        ],
+      }),
+    })
+    expect(wrapper.emitted('playbackComplete')).toBeUndefined()
+    await vi.advanceTimersByTimeAsync(350)
+    expect(wrapper.emitted('playbackComplete')).toEqual([['incident-1']])
+    wrapper.unmount()
+  })
+
+  it('keeps returning responders available for their final attacks', async () => {
+    vi.useFakeTimers()
+    const wrapper = mountScene({ dwellers: [dweller()] })
+    // Helpers can return to their posting before the final journal refresh arrives.
+    await wrapper.setProps({ dwellers: [] })
+    expect(wrapper.text()).not.toContain('Alice')
+    await wrapper.setProps({
+      incident: incident({
+        status: 'resolved',
+        events: [
+          {
+            id: 'last',
+            kind: 'hit',
+            message: 'Final hit',
+            data: null,
+            action: { actor_id: 'd1', targets: [{ target_id: 'threat', damage: 1 }] },
+          },
+        ],
+      }),
+    })
+    expect(wrapper.text()).toContain('Alice')
+    expect(wrapper.get('.incident-responder').attributes('aria-current')).toBe('true')
+    await vi.advanceTimersByTimeAsync(350)
+    expect(wrapper.emitted('playbackComplete')).toEqual([['incident-1']])
+    wrapper.unmount()
+  })
+})
 
 describe('IncidentScene', () => {
   it('shows only the dwellers stationed in the incident room', () => {

@@ -5575,6 +5575,7 @@ export interface components {
             message: string;
             /** Actor Id */
             actor_id?: string | null;
+            action?: components["schemas"]["CombatAction"] | null;
             /** Created At */
             created_at?: string | null;
         };
@@ -6107,6 +6108,21 @@ export interface components {
              */
             created_at: string;
         };
+        /** CombatAction */
+        CombatAction: {
+            /** Actor Id */
+            actor_id: string;
+            /**
+             * Effect
+             * @default strike
+             * @enum {string}
+             */
+            effect: "strike" | "shot" | "beam" | "sweep" | "flame" | "blast";
+            /** Skill */
+            skill?: string | null;
+            /** Targets */
+            targets: components["schemas"]["CombatImpact"][];
+        };
         /**
          * CombatEntry
          * @description One enemy engagement inside a room fight.
@@ -6121,6 +6137,17 @@ export interface components {
              * @default 0
              */
             damage_taken: number;
+        };
+        /** CombatImpact */
+        CombatImpact: {
+            /** Target Id */
+            target_id: string;
+            /** Damage */
+            damage: number;
+            /** Health Before */
+            health_before?: number | null;
+            /** Health After */
+            health_after?: number | null;
         };
         /**
          * CompatibilityScore
@@ -8418,6 +8445,7 @@ export interface components {
             data: {
                 [key: string]: unknown;
             } | null;
+            action?: components["schemas"]["CombatAction"] | null;
         };
         /**
          * IncidentFamily

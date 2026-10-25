@@ -7,10 +7,13 @@ import { handleStoreError } from '@/core/utils/errorHandler'
 export const useArenaStore = defineStore('arena', () => {
   const rooms = ref<Map<string, ArenaRoomState>>(new Map())
   const creatures = ref<ArenaCreature[]>([])
+  let stateRequest = 0
 
   async function fetchState(vaultId: string, token: string, silent = false): Promise<boolean> {
+    const request = ++stateRequest
     try {
       const state = await arenaApi.fetchState(vaultId, token)
+      if (request !== stateRequest) return false
       rooms.value = new Map(state.rooms.map((room) => [room.room_id, room]))
       return true
     } catch (error) {
@@ -94,6 +97,7 @@ export const useArenaStore = defineStore('arena', () => {
   }
 
   function reset(): void {
+    stateRequest += 1
     rooms.value = new Map()
     creatures.value = []
   }

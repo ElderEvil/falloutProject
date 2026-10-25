@@ -84,6 +84,115 @@ stay relevant. No skill effects have been enabled in incidents, quests or expedi
   Add those only after the damage-only trial is useful. Decide how asynchronous expedition combat will expose
   player timing before extending skills beyond Arena.
 
+## Shared combat playback (2026-10-25)
+
+Arena and incident fights share a local playback queue. Authoritative team turns stay unchanged; Arena
+presents a fighter's queued skill, then ordinary attack, then the next fighter. Incidents sequence ordinary
+attacks only, using their existing server-side damage attribution and grouped threat representation.
+
+```mermaid
+flowchart TD
+    subgraph server[Server: authoritative combat]
+        turn[Resolve Arena team turn or incident round]
+        actions[Ordered actions: actor, target outcomes, skill identity]
+        turn --> actions
+    end
+
+    subgraph playback[Shared combat playback]
+        queue[Deduplicate and queue new actions]
+        prepare[Prepare attack or skill]
+        impact[Impact: target reaction, displayed HP, damage number, hit sound]
+        recover[Brief recovery]
+        more{More queued actions?}
+        finished{Match finished?}
+        result[Show match result]
+        wait[Wait for new actions]
+
+        queue --> prepare --> impact --> recover --> more
+        more -->|Yes| prepare
+        more -->|No| finished
+        finished -->|Yes| result
+        finished -->|No| wait
+        wait --> queue
+    end
+
+    actions --> queue
+```
+
+Use one small playback queue per visible fight. Arena supplies its participants and scene; reusable attack,
+projectile, impact and area effects share the same playback timing. An area skill is one action with several
+target outcomes, so affected targets react together. Displayed HP changes at impact; the server snapshot
+remains authoritative, and skill requests are sent immediately with queued confirmation.
+
+On entry, reconnect after missing history, or a long absence, synchronize to the current snapshot. Ignore
+duplicate actions and clear pending playback on match reset or navigation. Reduced motion preserves action
+order and readable outcomes through static feedback. The final result follows the final impact and recovery.
+
+Initial timing candidates are about 350 ms per ordinary attack and 550 ms per skill: two fighters each using
+a skill and an ordinary attack would take about 1.8 seconds against the configured two-second team tick.
+Large batches play up to three times faster; a queue more than six seconds behind, missing journal history,
+or an absence over ten seconds synchronizes directly to the current state. Incident polling uses the existing
+store subscription with a maximum two-second interval. Final incident journals arrive through the existing
+aftermath refresh, keeping the visible scene mounted until its last action recovers.
+Accelerated playback uses stationary attacker cues so an unfinished lunge cannot lag behind an impact.
+
+`CombatAction` carries an actor, visual effect, optional skill name and target outcomes (damage plus optional
+HP before/after). The event ID and chronological journal order identify each action. Arena stores one nullable
+JSONB payload on the first journal row for an action; area skills retain their per-target log lines but animate
+once. Incidents reuse their event JSON and expose the same typed action contract. A grouped threat has no
+invented individual HP. Old journal rows have no action data and remain readable without historical replay.
+
+Migration `c7e9a1b3d5f8` adds Arena action data; apply it before updating the backend and Arena worker. The
+shared controller, visual effects and damage labels live in `frontend/src/modules/combat/`; each scene keeps
+its own layout, while stores remain the sole owners of authoritative state and polling.
+
+### Reusable game development findings
+
+These principles combine the research below with issues found while implementing Arena and incident playback.
+Apply them when extending combat presentation to another game mode.
+
+- **Separate simulation time from presentation time.** Server ticks decide outcomes; a small local queue
+  controls when the player sees them. Animation completion must never grant rewards, advance a turn or
+  determine whether a skill request is valid. Keep requests responsive while playback is running.
+- **Make impact the shared synchronization point.** Anticipation leads into one moment where target
+  reaction, displayed HP, damage number and hit sound agree, followed by recovery. Define that timing in
+  the playback controller; independent polling callbacks and animation timers caused the original mismatch.
+- **Record facts when the action resolves.** Stable actor/target IDs, action identity/order and explicit HP
+  outcomes survive delayed playback and target changes. Names are not unique, prose is not a machine
+  contract, and a snapshot HP difference cannot identify which of several attacks caused the damage.
+- **Share the smallest useful presentation layer.** Reuse action types, sequencing, effects and damage labels;
+  let each scene own its layout and each combat service own its rules. Incident threat groups do not imply
+  individual enemies or individual HP. One area action can affect several targets together while retaining
+  separate journal lines; an Arena skill still precedes its owner's ordinary attack.
+- **Spend visual emphasis according to gameplay importance.** Ordinary attacks should be quick and readable;
+  skills deserve stronger anticipation and distinct shapes/effects. Keep the acting participant and affected
+  targets identifiable, limit overlapping decoration, and preserve the outcome without sound or motion.
+- **Budget for the busiest valid turn.** Include skills, ordinary attacks and all participants when comparing
+  playback duration with the update cadence. Timing values need playtesting. Bound accumulated delay and
+  use simpler cues during catch-up so movement cannot finish after its associated impact.
+- **Treat network and scene lifecycle as part of animation design.** Deduplicate events, synchronize on
+  missing history/long absences, and cancel pending effects when the fight or view changes. A delayed
+  response from an old vault/account must not restore its fight. Keep one owner for polling and sound
+  delivery so another consumer cannot replay them.
+- **Reconcile independent snapshots explicitly.** Incident rosters can lag behind the journal; an old HP
+  snapshot must not undo a played hit. A newly opened scene should show current HP, including healing,
+  rather than apply historical damage again. Responders can also return to their rooms before the final
+  journal arrives, so retain the presentation data needed to show their final actions.
+- **Let the last hit finish.** The server may settle rewards before the client finishes playback. Keep the
+  visible scene through the final impact and recovery, then show its result. Preserve the existing immediate
+  progression toast/modal and notification delivery; presentation delay does not delay settlement.
+
+For future changes, verify ordinary attacks, skill followed by normal attack, area hits, lethal hits and
+retargeting; repeated/overlapping polls and rolling event windows; entry after healing, stale roster HP and
+returning responders; reset/navigation/account switches and hidden tabs; final-result ordering; phone and
+desktop layouts; and reduced motion. Use controlled clocks for ordering tests and real browser checks for
+CSS timing, visibility and layout. Backend action records must roll back with the damage they describe.
+
+Research references (the implementation-specific lifecycle findings above come from this project):
+[scoped event queues](https://gameprogrammingpatterns.com/event-queue.html),
+[Wesnoth's shared impact timing](https://wiki.wesnoth.org/AnimationWML#Timing,_Clock,_Multiple_animations),
+and [Riot's visual clarity and effect hierarchy](https://www.leagueoflegends.com/en-us/news/dev/clarity-in-league/).
+
 ## Local trial
 
 Apply the new Arena migration through the usual backend startup/migration flow. Assign adults to Arena,

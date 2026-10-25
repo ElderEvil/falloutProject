@@ -26,9 +26,11 @@ interface Props {
   roomImageUrl?: string | null
   fallbackImageUrl?: string | null
   rooms?: Room[]
+  finishing?: boolean
 }
 
 const props = defineProps<Props>()
+const emit = defineEmits<{ playbackComplete: [incidentId: string] }>()
 
 const authStore = useAuthStore()
 const incidentStore = useIncidentStore()
@@ -36,7 +38,9 @@ const assigningDwellerId = ref<string | null>(null)
 const isSendingBest = ref(false)
 // One assignment at a time: both handlers post to the same endpoint, so a second
 // in-flight request would race the first.
-const isAssigning = computed(() => assigningDwellerId.value !== null || isSendingBest.value)
+const isAssigning = computed(
+  () => props.finishing || assigningDwellerId.value !== null || isSendingBest.value
+)
 
 const threatLabel = computed(() => threatName(props.incident.type))
 const icon = computed(() => getIncidentIcon(props.incident.type))
@@ -223,6 +227,7 @@ const assignResponder = async (dwellerId: string) => {
       :room-image-url="roomImageUrl ?? null"
       :fallback-image-url="fallbackImageUrl ?? null"
       :team="teamLoaded ? incidentStore.getIncidentTeam(incident.id) : undefined"
+      @playback-complete="emit('playbackComplete', $event)"
     />
 
     <IncidentBattleLog :events="incident.events" />

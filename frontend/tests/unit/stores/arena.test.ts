@@ -69,6 +69,39 @@ describe('Arena Store', () => {
     expect(store.getRoom('missing')).toBeNull()
   })
 
+  it('ignores a delayed response after switching vaults', async () => {
+    let finishOld!: (state: ArenaState) => void
+    vi.mocked(arenaApi.fetchState).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishOld = resolve
+        })
+    )
+    const store = useArenaStore()
+    const old = store.fetchState('old-vault', 'old-token')
+    await store.fetchState('new-vault', 'new-token')
+    finishOld({ rooms: [{ ...mockRoom, room_id: 'old-room' }] })
+    await old
+    expect(store.getRoom('old-room')).toBeNull()
+    expect(store.getRoom('room-1')).toEqual(mockRoom)
+  })
+
+  it('does not restore a cleared account from an in-flight request', async () => {
+    let finish!: (state: ArenaState) => void
+    vi.mocked(arenaApi.fetchState).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    const store = useArenaStore()
+    const request = store.fetchState('vault-1', 'token')
+    store.reset()
+    finish(mockState)
+    await request
+    expect(store.rooms.size).toBe(0)
+  })
+
   it('setFighters persists the duel selection and refreshes state', async () => {
     const store = useArenaStore()
     const ok = await store.setFighters(

@@ -92,6 +92,7 @@ class ArenaEventStats(TypedDict):
     round_seq: int
     kind: str
     actor_id: str | None
+    action: dict | None
     message: str
 
 

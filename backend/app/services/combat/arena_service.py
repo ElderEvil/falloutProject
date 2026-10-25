@@ -38,6 +38,7 @@ from app.schemas.arena import (
 from app.schemas.arena import (
     ArenaState as ArenaStateOut,
 )
+from app.schemas.combat import CombatAction, CombatImpact
 from app.services.catalog_service import list_arena_creatures
 from app.services.combat.arena_participants import (
     ArenaParticipant,
@@ -47,7 +48,7 @@ from app.services.combat.arena_participants import (
     participant_out,
     persist_creature_hp,
 )
-from app.services.combat.weapon_skill_service import MAX_CHARGE, weapon_skill
+from app.services.combat.weapon_skill_service import MAX_CHARGE, attack_effect, weapon_skill
 from app.services.game_tick.tick_results import ArenaEventStats, ArenaRoomStats, ArenaStats
 from app.services.leveling_service import leveling_service
 from app.services.notification_service import NotificationService
@@ -331,6 +332,7 @@ class ArenaService:
             "round_seq": event.round_seq,
             "kind": event.kind,
             "actor_id": event.actor_id,
+            "action": event.action,
             "message": event.message,
             "created_at": event.created_at.replace(tzinfo=UTC).isoformat() if event.created_at else None,
         }
@@ -569,6 +571,8 @@ class ArenaService:
                 # Re-evaluate for each action: a skill may knock out the original target.
                 targets = living if attack_skill and attack_skill.area else [chosen if chosen.health > 0 else living[0]]
                 damage = self._team_damage([attacker], seconds_passed) * multiplier
+                impacts: list[CombatImpact] = []
+                journal: list[ArenaMatchEvent] = []
                 for target in targets:
                     before = target.health
                     self._apply_team_damage(
@@ -576,8 +580,13 @@ class ArenaService:
                     )
                     dealt = before - target.health
                     if dealt > 0 or attack_skill:
+                        impacts.append(
+                            CombatImpact(
+                                target_id=target.key, damage=dealt, health_before=before, health_after=target.health
+                            )
+                        )
                         action = f"uses {attack_skill.name} on" if attack_skill else "hits"
-                        db_session.add(
+                        journal.append(
                             ArenaMatchEvent(
                                 room_id=room.id,
                                 round_seq=seq,
@@ -586,6 +595,15 @@ class ArenaService:
                                 message=f"{attacker.short_name} {action} {target.short_name} for {dealt}",
                             )
                         )
+                if journal:
+                    # Preserve per-target journal lines, but play an area skill once.
+                    journal[0].action = CombatAction(
+                        actor_id=attacker.key,
+                        effect=attack_effect(attacker.dweller, attack_skill),
+                        skill=attack_skill.name if attack_skill else None,
+                        targets=impacts,
+                    ).model_dump()
+                    db_session.add_all(journal)
             if skill:
                 queued.discard(attacker.key)
         state.queued_skill_ids = sorted(queued) or None

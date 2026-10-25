@@ -79,6 +79,8 @@ const confirmStop = async () => {
       :attacking-fighter-id="controller.attackingFighterId.value"
       :damage-numbers="controller.damageNumbers.value"
       :skill-burst="controller.skillBurst.value"
+      :active-action="controller.activeAction?.value"
+      :combat-phase="controller.combatPhase?.value"
       @skill="controller.queueSkill"
       @stop="stopConfirmOpen = true"
       @assign-dwellers="assignmentMode = 'worker'"

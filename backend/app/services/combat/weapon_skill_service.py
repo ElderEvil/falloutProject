@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from app.models.dweller import Dweller
+from app.schemas.combat import CombatEffect
 
 MAX_CHARGE = 100
 
@@ -44,3 +45,19 @@ def weapon_skill(dweller: Dweller) -> WeaponSkill:
     if weapon is None:
         return UNARMED_SKILL
     return WEAPON_SKILLS.get((weapon.weapon_type, weapon.weapon_subtype), UNARMED_SKILL)
+
+
+def attack_effect(dweller: Dweller | None, skill: WeaponSkill | None = None) -> CombatEffect:
+    """Small visual vocabulary; combat outcomes never depend on this choice."""
+    weapon = dweller.weapon if dweller else None
+    if weapon is None:
+        return "strike"
+    if weapon.weapon_type == "energy":
+        return "beam"
+    if weapon.weapon_subtype == "flamer":
+        return "flame"
+    if weapon.weapon_subtype == "explosive":
+        return "blast"
+    if weapon.weapon_type == "melee":
+        return "sweep" if skill and skill.area else "strike"
+    return "blast" if skill and skill.area else "shot"

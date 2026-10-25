@@ -12,6 +12,10 @@ The original sheets are retained as PNGs in this directory. The assembled previe
 tool and encoded as WebP at quality 90 with alpha preserved. Exact generation and
 correction prompts are recorded in `assembled/generation-prompts.json`.
 
+`originals/mr-handy.webp` is the original Fallout Shelter Mr. Handy full-body sprite
+(transparent), trimmed, padded and encoded as WebP at quality 90. The arena uses it
+directly instead of the AI reconstruction.
+
 Fallout Shelter artwork belongs to its original rights holders; reconstruction does
 not turn these assets into original game artwork or grant an independent license.
 

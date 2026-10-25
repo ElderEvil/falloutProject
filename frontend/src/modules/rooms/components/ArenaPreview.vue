@@ -18,6 +18,7 @@ import ArenaRing from './ArenaRing.vue'
 import CombatantMeters from './CombatantMeters.vue'
 import { useFallbackImage } from '../composables/useFallbackImage'
 import type { ArenaMatchDraft, ArenaStage } from '../composables/useArenaMatchDraft'
+import type { PlayingCombatAction } from '@/modules/combat/models/playback'
 
 interface Props {
   match: ArenaMatchDraft
@@ -27,6 +28,8 @@ interface Props {
   attackingFighterId?: string | null
   damageNumbers?: Array<{ id: number; fighterId: string; amount: number }>
   skillBurst?: { id: string; message: string } | null
+  activeAction?: PlayingCombatAction | null
+  combatPhase?: 'prepare' | 'impact' | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -204,6 +207,8 @@ const selectCreatureOption = (creature: ArenaCreature) => {
       :attacking-team="attackingTeam"
       :attacking-fighter-id="attackingFighterId"
       :damage-numbers="damageNumbers"
+      :active-action="activeAction"
+      :combat-phase="combatPhase"
       @skill="emit('skill', $event)"
     />
 

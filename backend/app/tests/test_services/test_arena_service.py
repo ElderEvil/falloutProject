@@ -2137,6 +2137,14 @@ async def test_active_skill_targeting_and_nonlethal_finish(
     await async_session.commit()
     view = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
     assert len([event for event in view.events if event.kind == "skill"]) == (2 if area else 1)
+    skill_actions = [event.action for event in view.events if event.kind == "skill" and event.action]
+    assert len(skill_actions) == 1
+    assert skill_actions[0].skill == ("Scattershot" if area else "Aimed Shot")
+    assert len(skill_actions[0].targets) == (2 if area else 1)
+    assert skill_actions[0].targets[0].health_after == 0
+    assert skill_actions[0].targets[0].target_id == str(fighter_b.id)
+    ordinary = [event.action for event in view.events if event.kind == "hit" and event.actor_id == str(fighter_a.id)]
+    assert ordinary[0].targets[0].target_id == team_b[1].key
     assert view.match_done
     assert state.skill_charge is None
     assert fighter_b.health == 1
@@ -2284,3 +2292,65 @@ async def test_attack_events_include_actor_id(async_session, arena_room, fighter
     attacks = [event for event in view.events if event.kind in ("hit", "skill")]
     assert attacks
     assert attacks[0].actor_id == str(fighter_a.id)
+    assert attacks[0].action is not None
+    assert attacks[0].action.actor_id == str(fighter_a.id)
+    impact = attacks[0].action.targets[0]
+    assert impact.target_id == str(fighter_b.id)
+    assert impact.health_before == 100
+    assert impact.health_after == view.team_b[0].health
+    assert impact.damage == impact.health_before - impact.health_after
+
+
+async def test_arena_tick_failure_rolls_back_actions_damage_and_skill(
+    async_session, arena_room, fighter_a, fighter_b, monkeypatch
+):
+    from datetime import datetime, timedelta
+
+    from sqlalchemy import event
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from app.services.notification_service import NotificationService
+
+    for dweller in (fighter_a, fighter_b):
+        dweller.room_id = arena_room.id
+        dweller.health = 100
+    await async_session.commit()
+    service = ArenaService()
+    state = await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
+    state.fight_started_at = datetime.utcnow() - timedelta(seconds=60)
+    state.skill_charge = {str(fighter_a.id): 100}
+    await async_session.commit()
+    await service.queue_skill(async_session, arena_room.id, fighter_a.id, arena_room.vault_id)
+    fighter_id, state_id, actor_id, vault_id = fighter_b.id, state.room_id, str(fighter_a.id), arena_room.vault_id
+    delivered = []
+
+    async def record_delivery(*args):
+        delivered.append(True)
+
+    monkeypatch.setattr(NotificationService, "deliver_deferred_notifications", record_delivery)
+    connection = (await async_session.connection()).sync_connection
+    writes = set()
+
+    def fail_after_writes(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith("INSERT INTO arena_match_event"):
+            writes.add("action")
+        if statement.startswith("UPDATE dweller") and "health" in statement:
+            writes.add("health")
+        if writes == {"action", "health"}:
+            raise SQLAlchemyError("late tick failure")
+
+    event.listen(connection, "after_cursor_execute", fail_after_writes)
+    try:
+        with pytest.raises(SQLAlchemyError, match="late tick failure"):
+            await service.process_arena_ticks(async_session, 2)
+    finally:
+        event.remove(connection, "after_cursor_execute", fail_after_writes)
+    await async_session.rollback()
+    reloaded = await crud.dweller.get(async_session, fighter_id)
+    reloaded_state = await arena_state_crud.get(async_session, state_id)
+    assert reloaded.health == 100
+    assert reloaded_state.queued_skill_ids == [actor_id]
+    assert reloaded_state.next_attack_team == "A"
+    assert not delivered
+    view = (await service.get_arena_state(async_session, vault_id)).rooms[0]
+    assert not any(event.action for event in view.events)

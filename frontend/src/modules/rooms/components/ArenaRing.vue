@@ -14,8 +14,10 @@ import {
 } from '@/core/components/ui/tooltip'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { getDwellerBodySize } from '@/modules/dwellers/models/dweller'
-import ArenaDamageNumbers from './ArenaDamageNumbers.vue'
+import CombatDamageNumbers from '@/modules/combat/components/CombatDamageNumbers.vue'
 import CombatantMeters from './CombatantMeters.vue'
+import CombatEffect from '@/modules/combat/components/CombatEffect.vue'
+import type { PlayingCombatAction } from '@/modules/combat/models/playback'
 import { useFallbackImage } from '../composables/useFallbackImage'
 
 const props = defineProps<{
@@ -26,6 +28,8 @@ const props = defineProps<{
   attackingTeam: 'A' | 'B' | null
   attackingFighterId?: string | null
   damageNumbers: Array<{ id: number; fighterId: string; amount: number }>
+  activeAction?: PlayingCombatAction | null
+  combatPhase?: 'prepare' | 'impact' | null
 }>()
 const emit = defineEmits<{ skill: [fighterId: string] }>()
 const { url: scene, onError: imageFailed } = useFallbackImage(() => [props.sceneImageUrl])
@@ -62,6 +66,10 @@ const isAttacking = (fighter: ArenaFighter, side: 'A' | 'B') =>
   (props.attackingFighterId
     ? props.attackingFighterId === fighter.id
     : props.attackingTeam === side)
+
+const isImpact = (fighterId: string) =>
+  props.combatPhase === 'impact' &&
+  props.activeAction?.action.targets.some((target) => target.target_id === fighterId)
 
 const actionFor = (fighter: ArenaFighter) => {
   const skill = fighter.active_skill
@@ -136,12 +144,24 @@ const actionFor = (fighter: ArenaFighter) => {
             :aria-current="isAttacking(fighter, team.side) ? 'true' : undefined"
             :class="[
               {
-                'combat-lunge-right': isAttacking(fighter, team.side) && team.side === 'A',
-                'combat-lunge-left': isAttacking(fighter, team.side) && team.side === 'B',
+                'motion-safe:translate-x-3':
+                  isAttacking(fighter, team.side) &&
+                  team.side === 'A' &&
+                  combatPhase === 'prepare' &&
+                  !activeAction?.accelerated,
+                'motion-safe:-translate-x-3':
+                  isAttacking(fighter, team.side) &&
+                  team.side === 'B' &&
+                  combatPhase === 'prepare' &&
+                  !activeAction?.accelerated,
+                'transition-transform duration-150 motion-reduce:transition-none':
+                  combatPhase === 'prepare',
+                'transition-transform duration-200 motion-reduce:transition-none':
+                  combatPhase !== 'prepare',
+                'duration-250': combatPhase === 'prepare' && activeAction?.action.skill,
                 'bottom-8 z-0 scale-90 sm:bottom-12': index % 2 === 1,
                 'z-10': index % 2 === 0,
-                'combat-impact':
-                  fighter.health > 0 && damageNumbers.some((d) => d.fighterId === fighter.id),
+                'combat-impact': isImpact(fighter.id),
                 'opacity-40 grayscale': fighter.health <= 0,
               },
               // Center solo fighters; offset only multi-fighter lanes.
@@ -153,7 +173,7 @@ const actionFor = (fighter: ArenaFighter) => {
               },
             ]"
           >
-            <ArenaDamageNumbers
+            <CombatDamageNumbers
               :numbers="damageNumbers.filter((d) => d.fighterId === fighter.id)"
             />
             <CombatantMeters
@@ -173,6 +193,17 @@ const actionFor = (fighter: ArenaFighter) => {
                   : ['h-32 w-full sm:h-44', bodySizeClass(fighter)],
               ]"
             >
+              <CombatEffect
+                v-if="
+                  activeAction &&
+                  ((isAttacking(fighter, team.side) && combatPhase === 'prepare') ||
+                    isImpact(fighter.id))
+                "
+                :key="`${activeAction.id}:${combatPhase}`"
+                :effect="activeAction.action.effect ?? 'strike'"
+                :preparing="combatPhase === 'prepare'"
+                :skill="!!activeAction.action.skill"
+              />
               <div class="absolute inset-x-0 top-1/3 z-20 flex flex-wrap justify-center gap-1">
                 <Tooltip
                   v-for="ready in readySkills.filter((entry) => entry.targetId === fighter.id)"

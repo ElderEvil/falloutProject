@@ -51,7 +51,11 @@ describe('ArenaCreatureSlot artwork', () => {
   ])('renders artwork for catalog key %s alongside live HP', (key, filename) => {
     const wrapper = render(creature(key, 'Opponent'))
     const image = wrapper.get('img')
-    expect(image.attributes('src')).toContain(`/static/creature_images/assembled/${filename}.webp`)
+    const expected =
+      key === 'training-mr-handy'
+        ? '/static/creature_images/originals/mr-handy.webp'
+        : `/static/creature_images/assembled/${filename}.webp`
+    expect(image.attributes('src')).toContain(expected)
     expect(image.attributes('alt')).toBe('Opponent')
     expect(wrapper.text()).toContain('20/35')
   })

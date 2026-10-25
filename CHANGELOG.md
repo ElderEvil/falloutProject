@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.265.8 (2026-10-25)
+
+### Bug Fixes
+
+* **notifications:** unify read state and discard stale session results ([#1181](https://github.com/ElderEvil/falloutProject/issues/1181)) b59535f
+
 ## 2.265.7 (2026-10-25)
 
 ### Bug Fixes

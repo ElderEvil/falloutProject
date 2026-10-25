@@ -34,8 +34,6 @@ SERVICE_NAME_GRANDFATHER = frozenset(
         "dweller_ai.py",
         "game_loop.py",
         "health_check.py",
-        "objective_evaluators.py",
-        "objective_notifications.py",
         "resource_manager.py",
         "room_assignment_policy.py",
         "stream_manager.py",

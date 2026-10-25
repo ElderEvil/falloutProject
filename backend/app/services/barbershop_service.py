@@ -46,10 +46,6 @@ class BarbershopService:
         rooms = await crud.room.get_all_by_vault(db_session, vault_id)
         return [room for room in rooms if self._is_barbershop(room)]
 
-    async def _find_room(self, db_session: AsyncSession, vault_id: UUID4) -> Room | None:
-        rooms = await self._barbershop_rooms(db_session, vault_id)
-        return rooms[0] if rooms else None
-
     async def _is_staffed(self, db_session: AsyncSession, room: Room | None) -> bool:
         return room is not None and await crud.dweller.count_in_room(db_session, room.id) > 0
 

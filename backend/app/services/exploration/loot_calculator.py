@@ -38,19 +38,6 @@ class LootCalculator:
         """Return whether the catalog has any item of this type at or above the rarity floor."""
         return bool(self._eligible_items(item_type, min_rarity))
 
-    def calculate_luck_multiplier(self, luck: int) -> float:
-        """Calculate loot quality multiplier based on luck stat.
-
-        Args:
-            luck: Luck stat (1-10)
-
-        Returns:
-            Multiplier (0.5 to 2.0)
-        """
-        cfg = game_config.exploration
-        # Linear interpolation: Luck 1 = 0.5x, Luck 10 = 2.0x
-        return cfg.luck_multiplier_min + (luck - 1) * ((cfg.luck_multiplier_max - cfg.luck_multiplier_min) / 9)
-
     def get_rarity_weights(self, luck: int) -> dict[str, float]:
         """Get rarity weights adjusted by luck stat.
 

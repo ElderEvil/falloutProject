@@ -523,7 +523,8 @@ class RelationshipService:
             msg = "Relationship not found"
             raise ValueError(msg) from None
 
-        # If partners or married, clear partner_id on both dwellers atomically
+        # If partners or married, clear partner_id on both dwellers
+        dweller_1 = dweller_2 = None
         if relationship.relationship_type in PARTNER_LINKED_STAGES:
             try:
                 dweller_1 = await dweller_crud.get(db_session, relationship.dweller_1_id)
@@ -533,12 +534,9 @@ class RelationshipService:
                 dweller_1.partner_id = None
                 dweller_2.partner_id = None
 
-                # Add both to session and commit atomically
+                # Add both to session
                 db_session.add(dweller_1)
                 db_session.add(dweller_2)
-                await db_session.commit()
-                await db_session.refresh(dweller_1)
-                await db_session.refresh(dweller_2)
             except ResourceNotFoundException:
                 # One or both dwellers may have been deleted, continue with breakup
                 pass
@@ -549,13 +547,20 @@ class RelationshipService:
                 await db_session.rollback()
                 raise
 
-        # Mark as ex via CRUD
         update_data = {
             "relationship_type": RelationshipTypeEnum.EX,
             "affinity": max(0, relationship.affinity - 30),  # Penalty for breakup
             "updated_at": datetime.utcnow(),
         }
-        await relationship_crud.update(db_session, relationship.id, update_data)
+        await relationship_crud.update(db_session, relationship.id, update_data, commit=False)
+
+        await db_session.commit()
+
+        if dweller_1 is not None:
+            await db_session.refresh(dweller_1)
+        if dweller_2 is not None:
+            await db_session.refresh(dweller_2)
+        await db_session.refresh(relationship)
 
         logger.info(f"Break up: {relationship.dweller_1_id} and {relationship.dweller_2_id}")
 

@@ -6,6 +6,8 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -589,3 +591,65 @@ async def test_increase_affinity_does_not_auto_marry_already_committed_dweller(
 
     assert updated.relationship_type == RelationshipTypeEnum.PARTNER
     assert updated.affinity == game_config.relationship.marriage_threshold
+
+
+@pytest.mark.asyncio
+async def test_break_up_commits_partner_links_and_ex_together(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Clearing partner links and marking the pair EX land in one transaction."""
+    partner_rel = await _make_partners(async_session, dweller, dweller_2)
+    commits = 0
+    original_commit = async_session.commit
+
+    async def counting_commit() -> None:
+        nonlocal commits
+        commits += 1
+        await original_commit()
+
+    monkeypatch.setattr(async_session, "commit", counting_commit)
+
+    await RelationshipService.break_up(async_session, partner_rel.id)
+
+    assert commits == 1
+    await async_session.refresh(dweller)
+    await async_session.refresh(dweller_2)
+    await async_session.refresh(partner_rel)
+    assert dweller.partner_id is None
+    assert dweller_2.partner_id is None
+    assert partner_rel.relationship_type == RelationshipTypeEnum.EX
+
+
+@pytest.mark.asyncio
+async def test_break_up_failure_preserves_partner_links_and_relationship(
+    async_session: AsyncSession,
+    db_connection: AsyncConnection,
+    dweller: Dweller,
+    dweller_2: Dweller,
+) -> None:
+    """A database failure writing EX cannot leave committed, cleared partner links."""
+    partner_rel = await _make_partners(async_session, dweller, dweller_2)
+    first_id, second_id, affinity = dweller.id, dweller_2.id, partner_rel.affinity
+
+    def reject_relationship_write(_connection, _cursor, statement, _parameters, _context, _executemany):
+        if statement.startswith("UPDATE relationship "):
+            raise RuntimeError("injected relationship write failure")
+
+    event.listen(db_connection.sync_connection, "before_cursor_execute", reject_relationship_write)
+    try:
+        with pytest.raises(RuntimeError, match="injected relationship write failure"):
+            await RelationshipService.break_up(async_session, partner_rel.id)
+    finally:
+        event.remove(db_connection.sync_connection, "before_cursor_execute", reject_relationship_write)
+
+    await async_session.rollback()
+    await async_session.refresh(dweller)
+    await async_session.refresh(dweller_2)
+    await async_session.refresh(partner_rel)
+    assert dweller.partner_id == second_id
+    assert dweller_2.partner_id == first_id
+    assert partner_rel.relationship_type == RelationshipTypeEnum.PARTNER
+    assert partner_rel.affinity == affinity

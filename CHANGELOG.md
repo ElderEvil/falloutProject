@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.265.3 (2026-10-25)
+
+### Bug Fixes
+
+* **services:** commit happiness and partner-link updates in one transaction ([#1176](https://github.com/ElderEvil/falloutProject/issues/1176)) 1fb383b
+
 ## 2.265.2 (2026-10-25)
 
 ### Bug Fixes

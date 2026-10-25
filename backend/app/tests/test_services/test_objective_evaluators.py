@@ -1120,37 +1120,6 @@ async def test_scrap_evaluator_rarity_only_matches_any_item_type(
     assert link.is_completed is False
 
 
-def test_facade_reexports_canonical_evaluator_surface() -> None:
-    """The top-level facade forwards the canonical module's public names by identity.
-
-    The facade is a value re-export only: monkeypatching the facade's
-    ``async_session_maker`` would NOT affect the canonical module, so the surface
-    must stay in lockstep with ``progression.objectives.evaluators``.
-    """
-    from app.services import objective_evaluators as facade
-    from app.services.progression.objectives import evaluators as canonical
-
-    names = (
-        "AssignCorrectEvaluator",
-        "AssignEvaluator",
-        "BuildEvaluator",
-        "CollectEvaluator",
-        "ExpeditionEvaluator",
-        "ExploreEvaluator",
-        "LevelUpEvaluator",
-        "ObjectiveEvaluator",
-        "ObjectiveEvaluatorManager",
-        "ReachEvaluator",
-        "TrainEvaluator",
-        "async_session_maker",
-        "current_session_maker",
-        "evaluator_manager",
-        "set_current_session_maker",
-    )
-    for name in names:
-        assert getattr(facade, name) is getattr(canonical, name)
-
-
 @pytest.mark.asyncio
 async def test_full_storage_reward_rollback_preserves_other_objectives_and_retry(
     async_session, vault, fresh_event_bus, caplog

@@ -3,6 +3,8 @@
 import pytest
 import pytest_asyncio
 from pydantic import UUID4
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -310,6 +312,7 @@ class TestHappinessService:
         monkeypatch: pytest.MonkeyPatch,
     ):
         """Dweller happiness and the vault aggregate land in one transaction."""
+        original_happiness = working_dweller.happiness
         commits = 0
         original_commit = async_session.commit
 
@@ -323,6 +326,36 @@ class TestHappinessService:
         await happiness_service.update_vault_happiness(async_session, vault.id, seconds_passed=60)
 
         assert commits == 1
+        await async_session.refresh(working_dweller)
+        await async_session.refresh(vault)
+        assert working_dweller.happiness != original_happiness
+        assert vault.happiness == int(working_dweller.happiness)
+
+    async def test_update_failure_preserves_dweller_and_vault_happiness(
+        self,
+        async_session: AsyncSession,
+        db_connection: AsyncConnection,
+        vault: Vault,
+        working_dweller: Dweller,
+    ) -> None:
+        """Failure writing the aggregate rolls back the already-flushed dweller change."""
+        previous = working_dweller.happiness, vault.happiness
+
+        def reject_vault_write(_connection, _cursor, statement, _parameters, _context, _executemany):
+            if statement.startswith("UPDATE vault "):
+                raise RuntimeError("injected vault write failure")
+
+        event.listen(db_connection.sync_connection, "before_cursor_execute", reject_vault_write)
+        try:
+            with pytest.raises(RuntimeError, match="injected vault write failure"):
+                await happiness_service.update_vault_happiness(async_session, vault.id, seconds_passed=60)
+        finally:
+            event.remove(db_connection.sync_connection, "before_cursor_execute", reject_vault_write)
+
+        await async_session.rollback()
+        await async_session.refresh(working_dweller)
+        await async_session.refresh(vault)
+        assert (working_dweller.happiness, vault.happiness) == previous
 
     async def test_get_modifiers_invalid_dweller(
         self,

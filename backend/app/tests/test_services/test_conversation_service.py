@@ -5,8 +5,8 @@ from uuid import uuid4
 
 import pytest
 
+from app.schemas.chat_models import AgentChatResult, VoiceMessagePayload
 from app.schemas.common import GenderEnum
-from app.services.chat.models import AgentChatResult, VoiceMessagePayload
 from app.services.conversation_service import conversation_service
 
 # ============================================================================

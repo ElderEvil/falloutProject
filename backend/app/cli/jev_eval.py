@@ -34,7 +34,7 @@ THRESHOLDS = (0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9)
 
 async def _guardrail_scores() -> list[tuple[str, bool, float, str]]:
     """(kind, should_block, max_offending_confidence, model_name) per guardrail example."""
-    from app.services.chat.guardrail import ChatGuardrail
+    from app.schemas.chat import ChatGuardrail
 
     rows: list[tuple[str, bool, float, str]] = []
     for sample in GUARDRAIL_CORPUS:

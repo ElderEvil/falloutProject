@@ -23,6 +23,7 @@ from app.schemas.chat import (
     DwellerChatResponse,
     UnlockedPlace,
 )
+from app.schemas.chat_models import StreamBundle
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact
 from app.services.access_service import get_accessible_dweller, verify_dweller_access
@@ -31,7 +32,6 @@ from app.services.chat.agent_runner import (
     run_chat_agent,
 )
 from app.services.chat.guardrail import screen_message
-from app.services.chat.models import StreamBundle
 from app.services.chat.notifications import send_chat_notification, unlock_places_after_conversation
 from app.services.chat.persistence import persist_chat
 from app.services.chat.streaming import stream_with_fallback

@@ -14,11 +14,11 @@ from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
 from app.models.chat_message import ChatMessageCreate
 from app.schemas.chat import VoiceChatResult
+from app.schemas.chat_models import AgentChatResult, VoiceMessagePayload
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.access_service import get_accessible_dweller
 from app.services.ai_service import get_ai_service
 from app.services.chat.agent_runner import run_chat_agent
-from app.services.chat.models import AgentChatResult, VoiceMessagePayload
 from app.services.chat.notifications import send_chat_notification, unlock_places_after_conversation
 from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import quota_service

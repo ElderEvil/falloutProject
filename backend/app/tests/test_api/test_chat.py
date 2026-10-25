@@ -594,8 +594,8 @@ class TestMessageIdCorrelation:
         encoded_reply: str,
     ) -> None:
         """Both response modes retain message correlation and progression metadata."""
+        from app.schemas.chat_models import AgentChatResult
         from app.schemas.happiness import HappinessImpact, HappinessReasonCode
-        from app.services.chat.models import AgentChatResult
         from app.services.conversation_service import conversation_service
 
         message_id, place_id = uuid4(), uuid4()

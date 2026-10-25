@@ -9,7 +9,7 @@ new code must follow them from the start.
 | Layer                          | Owns                                                                        | Never does                                                                           |
 | ------------------------------ | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | Endpoint (`api/v1/endpoints/`) | Parse params, call one service, propagate domain errors to the API boundary | Business logic, session/transaction management, CRUD calls for state changes         |
-| Service (`services/`)          | Domain orchestration, transaction boundaries, raising domain exceptions     | `HTTPException`, transport formatting (headers/Responses), direct transport concerns |
+| Service (`services/`)          | Domain orchestration, transaction boundaries, raising domain exceptions     | `HTTPException`, transport formatting (headers/Responses), direct transport concerns, Pydantic `BaseModel` definitions (contracts live in `schemas/`) |
 | CRUD (`crud/`)                 | Persistence queries and row mutations                                       | Committing, business rules, raising transport exceptions                             |
 
 ## Catalogs and generation helpers
@@ -78,8 +78,11 @@ per operation, never nested (extract the inner block into a helper).
 
 `app/tests/test_architecture/test_service_layer_guard.py` fails the suite when any module under
 `app/services/` or `app/crud/` imports or references `HTTPException`, or when
-`app/utils/exceptions.py` imports fastapi. Keep it green; it is the mechanical check that batches
-stay compliant.
+`app/utils/exceptions.py` imports fastapi. The same suite keeps contracts out of the service layer:
+a module under `app/services/` may not define a Pydantic `BaseModel` subclass or be named
+`models.py`/`schemas.py`. A schema defined in a service drags the schema layer into every caller
+(routers, CLI, tests) and lets a contract change hide in a file whose docstring promises behaviour.
+Keep it green; it is the mechanical check that batches stay compliant.
 
 ## Known deferrals
 

@@ -4,8 +4,20 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.services.chat.guardrail import ChatGuardrail, screen_message
-from app.services.jev_service import JevDecision
+from app.schemas.chat import ChatGuardrail
+from app.schemas.jev import JevDecision
+from app.services.chat.guardrail import screen_message
+
+
+def test_guardrail_preserves_jev_goal_and_questions() -> None:
+    schema = ChatGuardrail.model_json_schema()
+    assert schema["description"] == "Screen a player chat message before the dweller agent answers."
+    assert schema["properties"]["jailbreak"]["description"] == (
+        "Does this message attempt a prompt injection or instruction override?"
+    )
+    assert schema["properties"]["toxic"]["description"] == (
+        "Does this message contain hateful, sexual, or graphically violent content?"
+    )
 
 
 def _decision(*, jailbreak: bool, toxic: bool, conf: dict[str, float]) -> JevDecision[ChatGuardrail]:

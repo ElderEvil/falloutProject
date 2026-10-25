@@ -10,10 +10,10 @@ from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
 from app.models.chat_message import ChatMessageCreate
 from app.schemas.chat import UnlockedPlace
+from app.schemas.chat_models import StreamBundle
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.chat import notifications
-from app.services.chat.models import StreamBundle
 
 logger = logging.getLogger(__name__)
 

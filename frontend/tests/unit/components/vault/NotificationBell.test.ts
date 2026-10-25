@@ -783,7 +783,7 @@ describe('NotificationBell popup accessibility', () => {
       if (url.includes('unread-count')) {
         return Promise.resolve({ data: { count: items.filter((item) => !item.is_read).length } })
       }
-      return Promise.resolve({ data: items })
+      return Promise.resolve({ data: items.map((item) => ({ ...item })) })
     })
   }
 
@@ -872,10 +872,16 @@ describe('NotificationBell popup accessibility', () => {
   })
 
   it('refreshes its unread count when a message is marked read in the full inbox', async () => {
-    const wrapper = await mountBell([informationalNotification])
-    mockNotificationList([{ ...informationalNotification, is_read: true }])
-    useNotificationInboxStore().readRevision++
+    const items = [{ ...informationalNotification }]
+    const wrapper = await mountBell(items)
+    vi.mocked(axios.patch).mockImplementation(() => {
+      items[0]!.is_read = true
+      return Promise.resolve({ data: {} })
+    })
+
+    await useNotificationInboxStore().markRead('info-1')
     await flushPromises()
+
     expect(wrapper.findAll('span').some((span) => span.text() === '1')).toBe(false)
     await wrapper.get('button[aria-label="Notifications"]').trigger('click')
     await flushPromises()
@@ -900,10 +906,16 @@ describe('NotificationBell popup accessibility', () => {
 
   it('marks notifications across all vaults read from the bell and clears the badge', async () => {
     useVaultStore().activeVaultId = 'vault-1'
-    const wrapper = await mountAndOpen([
-      { ...actionableNotification },
-      { ...informationalNotification },
-    ])
+    const items = [{ ...actionableNotification }, { ...informationalNotification }]
+    const wrapper = await mountAndOpen(items)
+    vi.mocked(axios.post).mockImplementation((url) => {
+      if (url === '/api/v1/notifications/mark-all-read') {
+        items.forEach((item) => {
+          item.is_read = true
+        })
+      }
+      return Promise.resolve({ data: {} })
+    })
     const markAll = wrapper.findAll('button').find((button) => button.text() === 'Mark all read')!
     await markAll.trigger('click')
     await flushPromises()
@@ -1017,6 +1029,7 @@ describe('NotificationBell popup accessibility', () => {
         )
         expect(wrapper.get('button[aria-label="Notifications"]').text()).toBe('1')
 
+        if (sameAccount) mockNotificationList([{ ...nextNotification, is_read: true }])
         finish({ data: {} })
         await flushPromises()
 
@@ -1026,6 +1039,65 @@ describe('NotificationBell popup accessibility', () => {
         expect(wrapper.get('button[aria-label="Notifications"]').text()).toBe(
           sameAccount ? '' : '1'
         )
+      } finally {
+        wrapper.unmount()
+      }
+    }
+  )
+
+  it.each(['single', 'all'])(
+    'updates retained bell rows after a %s read with separate server objects',
+    async (action) => {
+      const server = Array.from({ length: 20 }, (_, i) => ({
+        ...actionableNotification,
+        id: `older-${i + 1}`,
+        title: `Older ${i + 1}`,
+      }))
+      const newest = { ...actionableNotification, id: 'newest', title: 'Newest' }
+      useAuthStore().token = 'signed-in'
+      vi.mocked(axios.get).mockImplementation(async (url) => ({
+        data: String(url).includes('unread-count')
+          ? { count: server.filter((item) => !item.is_read).length }
+          : server.slice(0, 20).map((item) => ({ ...item })),
+      }))
+      vi.mocked(axios.patch).mockImplementation(async () => {
+        server.find((item) => item.id === 'older-20')!.is_read = true
+        return { data: {} }
+      })
+      vi.mocked(axios.post).mockImplementation(async () => {
+        server.forEach((item) => {
+          item.is_read = true
+        })
+        return { data: {} }
+      })
+      fetchMock.mockResolvedValue(
+        createMockResponse([encodeSse(JSON.stringify({ notification: newest }), 'notification')], {
+          hang: true,
+        })
+      )
+      const wrapper = mount(NotificationBell)
+      try {
+        await vi.advanceTimersByTimeAsync(0)
+        await flushPromises()
+        server.unshift(newest)
+        await wrapper.get('button[aria-label="Notifications"]').trigger('click')
+        await flushPromises()
+        expect(wrapper.findAll('[data-notification-id]')).toHaveLength(21)
+        expect(wrapper.get('[data-notification-id="older-20"]').text()).toContain('New')
+        if (action === 'all') {
+          await wrapper
+            .findAll('button')
+            .find((button) => button.text() === 'Mark all read')!
+            .trigger('click')
+        } else {
+          await wrapper.get('[data-notification-id="older-20"]').trigger('click')
+        }
+        await flushPromises()
+        if (action === 'single') {
+          await wrapper.get('button[aria-label="Notifications"]').trigger('click')
+          await flushPromises()
+        }
+        expect(wrapper.get('[data-notification-id="older-20"]').text()).not.toContain('New')
       } finally {
         wrapper.unmount()
       }

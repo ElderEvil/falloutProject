@@ -65,7 +65,7 @@ async def manual_recruit_dweller(
 
         return RecruitmentResponse(
             dweller=DwellerRead.model_validate(dweller),
-            message=f"{dweller.first_name} {dweller.last_name} has joined your vault!",
+            message=f"{dweller.display_name} has joined your vault!",
             caps_spent=game_config.radio.manual_recruitment_cost,
             recycled=recycled,
         )

@@ -63,7 +63,9 @@ async def test_get_radio_stats_with_radio(
 
 @pytest.mark.smoke
 @pytest.mark.asyncio
+@pytest.mark.parametrize("last_name", ["Jones", None])
 async def test_manual_recruit_success(
+    last_name: str | None,
     async_client: AsyncClient,
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
@@ -117,12 +119,14 @@ async def test_manual_recruit_success(
     response = await async_client.post(
         f"/radio/vault/{vault.id}/recruit",
         headers=superuser_token_headers,
-        json={},
+        json={"override": {"first_name": "Cass", "last_name": last_name}},
     )
     assert response.status_code == 200
     data = response.json()
     assert "dweller" in data
-    assert "message" in data
+    assert data["dweller"]["last_name"] == last_name
+    expected_name = f"Cass {last_name or ''}".strip()
+    assert data["message"] == f"{expected_name} has joined your vault!"
     assert data["caps_spent"] == 500
 
 

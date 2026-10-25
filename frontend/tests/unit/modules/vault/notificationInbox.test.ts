@@ -68,7 +68,7 @@ describe('notification inbox', () => {
   it('marks only the selected vault read and reloads the current filter', async () => {
     const store = useNotificationInboxStore()
     await store.load('vault-a', 'unread')
-    await store.markRead()
+    await store.markAllRead('vault-a')
     expect(axios.post).toHaveBeenCalledWith(
       '/api/v1/notifications/mark-all-read',
       {},
@@ -78,9 +78,68 @@ describe('notification inbox', () => {
     )
     expect(store.notifications).toEqual([])
     expect(store.readRevision).toBe(1)
-    expect(axios.get).toHaveBeenLastCalledWith('/api/v1/notifications/', {
+    expect(axios.get).toHaveBeenCalledWith('/api/v1/notifications/', {
       params: { vault_id: 'vault-a', is_read: false, offset: 0, limit: 50 },
     })
+  })
+
+  it('marks every vault read when the bell passes a null scope', async () => {
+    const store = useNotificationInboxStore()
+    await store.load(null, 'all')
+    await store.markAllRead(null)
+    expect(axios.post).toHaveBeenCalledWith(
+      '/api/v1/notifications/mark-all-read',
+      {},
+      {
+        params: { vault_id: undefined },
+      }
+    )
+    expect(store.readRevision).toBe(1)
+  })
+
+  it('discards a read that resolves after the account changed', async () => {
+    const auth = useAuthStore()
+    auth.token = 'signed-in'
+    auth.user = { id: 'user-a' } as NonNullable<typeof auth.user>
+    const store = useNotificationInboxStore()
+    await store.load(null, 'read')
+    let finish!: () => void
+    vi.mocked(axios.patch).mockReturnValue(
+      new Promise<never>((resolve) => {
+        finish = () => resolve(undefined as never)
+      })
+    )
+
+    const pending = store.markRead('notification-a')
+    auth.user = { id: 'user-b' } as NonNullable<typeof auth.user>
+    await flushPromises()
+    finish()
+
+    expect(await pending).toBe(false)
+    expect(store.readRevision).toBe(0)
+  })
+
+  it('discards an unread count that resolves after the account changed', async () => {
+    const auth = useAuthStore()
+    auth.token = 'signed-in'
+    auth.user = { id: 'user-a' } as NonNullable<typeof auth.user>
+    const store = useNotificationInboxStore()
+    let finish!: (value: { data: { count: number } }) => void
+    vi.mocked(axios.get).mockReturnValueOnce(
+      new Promise<never>((resolve) => {
+        finish = (value) => resolve(value as never)
+      })
+    )
+
+    vi.mocked(axios.get).mockResolvedValue({ data: { count: 0 } })
+
+    const pending = store.refreshUnreadCount()
+    auth.user = { id: 'user-b' } as NonNullable<typeof auth.user>
+    await flushPromises()
+    finish({ data: { count: 9 } })
+    await pending
+
+    expect(store.unreadCount).toBe(0)
   })
 
   it('marks individual notifications read and signals the bell', async () => {
@@ -103,6 +162,7 @@ describe('notification inbox', () => {
   it('preserves history, pagination and an in-flight page when the token rotates', async () => {
     const auth = useAuthStore()
     auth.token = 'original-token'
+    auth.user = { id: 'same-account' } as NonNullable<typeof auth.user>
     const store = useNotificationInboxStore()
     let finish!: (value: { data: ReturnType<typeof notification>[] }) => void
     vi.mocked(axios.get)
@@ -146,7 +206,7 @@ describe('notification inbox', () => {
     auth.user = { id: 'user-b' } as NonNullable<typeof auth.user>
     await flushPromises()
     expect(store.notifications.map((item) => item.id)).toEqual(['private-b'])
-    expect(axios.get).toHaveBeenLastCalledWith('/api/v1/notifications/', {
+    expect(axios.get).toHaveBeenCalledWith('/api/v1/notifications/', {
       params: { vault_id: undefined, is_read: true, offset: 0, limit: 50 },
     })
     finish({ data: [notification('late-private-a')] })
@@ -184,5 +244,81 @@ describe('notification inbox', () => {
     await pending
     expect(store.notifications).toEqual([])
     expect(store.hasMore).toBe(false)
+  })
+
+  it('keeps an SSE arrival when an older unread-count request completes', async () => {
+    const store = useNotificationInboxStore()
+    vi.mocked(axios.get).mockResolvedValueOnce({ data: { count: 2 } })
+    await store.refreshUnreadCount()
+
+    let finish!: (value: { data: { count: number } }) => void
+    vi.mocked(axios.get).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve
+      })
+    )
+    const pending = store.refreshUnreadCount()
+    store.noteUnreadArrival()
+    expect(store.unreadCount).toBe(3)
+    finish({ data: { count: 2 } })
+    await pending
+    expect(store.unreadCount).toBe(3)
+
+    vi.mocked(axios.get).mockResolvedValueOnce({ data: { count: 3 } })
+    await store.refreshUnreadCount()
+    expect(store.unreadCount).toBe(3)
+  })
+
+  it('preserves the badge when user identity resolves without opening the inbox', async () => {
+    const auth = useAuthStore()
+    auth.token = 'signed-in'
+    const store = useNotificationInboxStore()
+    vi.mocked(axios.get).mockResolvedValue({ data: { count: 7 } })
+    await store.refreshUnreadCount()
+    expect(store.unreadCount).toBe(7)
+    auth.user = { id: 'current-user' } as NonNullable<typeof auth.user>
+    await flushPromises()
+    expect(store.unreadCount).toBe(7)
+  })
+
+  it.each([false, true])(
+    'drops an old count across logout/login (same tick: %s)',
+    async (sameTick) => {
+      const auth = useAuthStore()
+      auth.token = 'account-a-token'
+      const store = useNotificationInboxStore()
+      let finish!: (value: { data: { count: number } }) => void
+      vi.mocked(axios.get)
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            finish = resolve
+          })
+        )
+        .mockResolvedValue({ data: { count: 0 } })
+      const pending = store.refreshUnreadCount()
+      auth.token = null
+      if (!sameTick) await flushPromises()
+      auth.token = 'account-b-token'
+      await flushPromises()
+      finish({ data: { count: 19 } })
+      await pending
+      expect(store.unreadCount).toBe(0)
+    }
+  )
+
+  it.each([null, 'vault-a'])('applies mark-all read state only within scope %s', async (scope) => {
+    const store = useNotificationInboxStore()
+    const first = notification('first')
+    const second = { ...notification('second'), vault_id: 'vault-b' }
+    store.rememberNotifications([first, second])
+    await store.markAllRead(scope)
+    expect(store.isRead(first)).toBe(true)
+    expect(store.isRead(second)).toBe(scope === null)
+    // A delayed pre-read list cannot revert an accepted read.
+    store.rememberNotifications([first, second])
+    expect(store.isRead(first)).toBe(true)
+    const arrival = notification('new-arrival')
+    store.rememberNotifications([arrival])
+    expect(store.isRead(arrival)).toBe(false)
   })
 })

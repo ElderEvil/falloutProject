@@ -156,7 +156,7 @@ onMounted(() => {
             variant="ghost"
             size="sm"
             :disabled="!hasUnread || inbox.isSaving || inbox.isLoading"
-            @click="inbox.markRead()"
+            @click="inbox.markAllRead(vaultId)"
           >
             <!-- @vue-ignore -->
             <Icon icon="mdi:check-all" data-icon="inline-start" /> Mark {{ scopeLabel }} read

@@ -41,7 +41,37 @@ can migrate in separate domain batches.
   (default `commit=True`). Bio map registration passes `commit=False` and isolates each attempt with a savepoint.
 - **Endpoints never commit** and never touch the session lifecycle.
 - Background actors (Dramatiq ticks) open their own session via `task_session()` from
-  `app.db.session`; that context is the transaction boundary for the tick step it wraps.
+  `app.db.session`; that context owns session/engine lifetime and does not automatically commit.
+  The actor or service must explicitly own the transaction for each tick step.
+
+### Reviewing a composed write
+
+Before changing an operation that writes several rows or spends resources for a state change:
+
+1. Identify its transaction owner and trace the called service/CRUD methods for commits, rollbacks,
+   lock acquisition/release and external delivery. A caller with one explicit `commit()` can still
+   commit several times through its callees. The private-helper naming guard checks structure only.
+2. Validate affordability, capacity, eligibility and ownership before durable mutation; perform checks
+   against current state under the required locks. Stage the charge, resulting rows, reassignments
+   and derived counters together. Keep lock order and scope intact through the owning commit.
+3. Reuse transaction-friendly operations or add a scoped `commit=False` path through all callees.
+   That path flushes without committing or rolling back the caller's transaction. Recoverable nested
+   attempts use a savepoint owned by their caller. Preserve existing standalone defaults and callers;
+   changing a shared CRUD default globally is a separate migration, not a local composition fix.
+4. Persist required notification rows with the operation; deliver success/progression events, SSE and
+   other external effects after commit. Reuse existing deferred-delivery helpers and discard pending
+   effects on rollback. A renamed helper or extracted module must retain the same transaction guarantees.
+
+For a changed composed write, use real service/CRUD calls and the test database. Inject a failure at
+a later database write (e.g. SQLAlchemy's `before_cursor_execute` hook), after an earlier mutation has
+run. Roll back, reload affected rows, and assert the original balance, layout/ownership and related
+state. Also cover a relevant ordinary rejection with no partial mutation and successful persistence.
+Capture external delivery to prove failed work produces no success event; remove fault hooks in
+`finally`. Commit-count assertions may supplement this evidence, but cannot replace it. Keep distinct
+concurrency/lock tests; SQLite rollback tests do not prove PostgreSQL lock behavior.
+
+PRs changing these flows record the transaction owner, affected callees and the failure/rejection
+validation. Explicit multi-stage operations document which stages may remain durable after failure.
 
 ## Typed inputs and outputs
 

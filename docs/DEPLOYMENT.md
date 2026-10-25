@@ -530,6 +530,22 @@ so no `npm ci` or root lockfile is needed. Backend/frontend versions are synchro
 `.releaserc.json` (`@semantic-release/exec` runs `uv --directory backend version`; `@semantic-release/npm`
 updates `frontend/package.json` with `npmPublish: false`).
 
+### Branch protection and release writes
+
+`master` protection applies to administrators; force pushes and branch deletion are disabled.
+Developer pushes to `master` are also rejected by the local `scripts/pre-push` hook (install it using
+the README instructions). The local hook is not installed by the release workflow.
+
+A server-side pull-request requirement is **not enabled**: the existing semantic-release workflow
+uses `GITHUB_TOKEN` and `@semantic-release/git` to write the synchronized version/changelog commit
+directly to `master`. This personal repository cannot configure the attempted GitHub Actions app
+bypass for that requirement. Admin enforcement alone does not reject ordinary direct pushes.
+
+Before enabling a server-side PR requirement, change the release write path to use reviewed PRs,
+or establish supported release-only authentication/bypass. Do not exempt the maintainer's normal
+token or disable protection around a release; that would reopen direct pushes for ordinary work.
+Preserve published release commits, tags and artifacts when correcting an accidental push.
+
 ### Docker Image Builds
 
 Images built on push to `master` (when files change), org from the `DOCKER_USERNAME` secret:

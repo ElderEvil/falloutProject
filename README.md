@@ -141,6 +141,30 @@ docker compose logs -f fastapi  # Watch startup (Ctrl+C to exit)
 
 ## 🔧 Development
 
+### Git push protection
+
+Install the repository's push guard once per clone, from the repository root:
+
+```bash
+install -m 755 scripts/pre-push "$(git rev-parse --git-path hooks)/pre-push"
+```
+
+If a `pre-push` hook already exists, preserve its checks and compose this guard with it before
+replacing it. Linked worktrees share the installed hook. Reinstall after changes to `scripts/pre-push`.
+This is separate from `prek install`, which manages the commit-time checks.
+
+The guard checks destination refs and blocks updates, force pushes and deletions targeting `master`,
+including `git push -u origin HEAD` while on `master` and `HEAD:master` from another branch. Feature
+branches and release tags are allowed. Publish work with an explicit feature-branch destination:
+
+```bash
+git push -u origin HEAD:refs/heads/chore/my-change
+```
+
+Local hooks can be skipped and are not installed by cloning alone. See
+[release protection](docs/DEPLOYMENT.md#branch-protection-and-release-writes) for the server-side policy
+and its current release-automation limitation.
+
 ### Backend
 
 ```bash

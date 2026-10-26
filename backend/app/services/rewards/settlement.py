@@ -15,7 +15,7 @@ from typing import Any
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import ObjectiveCategoryEnum, RarityEnum
+from app.core.enums import ContentProvenanceEnum, ObjectiveCategoryEnum, RarityEnum
 from app.crud.objective import objective_crud
 from app.crud.vault import vault as vault_crud
 from app.models.objective import Objective
@@ -221,12 +221,17 @@ def _parse_objective_reward(reward_str: str) -> tuple[RewardType, dict[str, Any]
 
             profile = get_starter_resident(value)
             if profile is not None:
-                return RewardType.DWELLER, {**profile, "rarity": "common"}
+                return RewardType.DWELLER, {
+                    **profile,
+                    "rarity": "common",
+                    "content_provenance": ContentProvenanceEnum.CURATED,
+                }
             first_name, _, last_name = value.partition(" ")
             return RewardType.DWELLER, {
                 "first_name": first_name,
                 "last_name": last_name or None,
                 "rarity": "common",
+                "content_provenance": ContentProvenanceEnum.CURATED,
             }
 
     msg = f"Cannot parse objective reward string: '{reward_str}'"

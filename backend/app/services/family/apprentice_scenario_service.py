@@ -4,16 +4,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
 
 from app import crud
-from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
+from app.core.enums import AgeGroupEnum, ContentProvenanceEnum, GenderEnum, RarityEnum
 from app.models.base import SPECIALModel
 from app.schemas.dweller import DwellerCreate
 from app.services.dweller_service import dweller_service
 from app.services.training_service import TrainingService
+
+if TYPE_CHECKING:
+    from app.models.dweller import Dweller
+    from app.models.room import Room
 
 
 def _now() -> datetime:
@@ -97,6 +101,7 @@ class ApprenticeScenarioService:
                     birth_date=_now(),
                     vault_id=vault_id,
                 ),
+                content_provenance=ContentProvenanceEnum.GENERATED,
             )
             await dweller_service.move_to_room(db_session, apprentice.id, production_room.id)
             await db_session.refresh(apprentice)

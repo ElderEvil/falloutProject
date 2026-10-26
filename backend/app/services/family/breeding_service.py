@@ -12,6 +12,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import (
     SPECIAL_STATS,
     AgeGroupEnum,
+    ContentProvenanceEnum,
     GenderEnum,
     PregnancyStatusEnum,
     RarityEnum,
@@ -355,7 +356,12 @@ class BreedingService:
         child_in = DwellerCreate.model_validate(child_data | {"vault_id": mother.vault_id})
         from app.services.dweller_service import dweller_service
 
-        child = await dweller_service.create_dweller(db_session=db_session, obj_in=child_in, commit=commit)
+        child = await dweller_service.create_dweller(
+            db_session=db_session,
+            obj_in=child_in,
+            commit=commit,
+            content_provenance=ContentProvenanceEnum.GENERATED,
+        )
 
         # Set parent IDs (not part of DwellerCreate schema)
         child.parent_1_id = mother.id

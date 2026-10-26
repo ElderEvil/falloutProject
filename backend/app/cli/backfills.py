@@ -7,6 +7,8 @@ Usage (from backend/):
     uv run fo-cli backfill-bio-places --all-active --max-dwellers 50 --max-vaults 10
     uv run fo-cli backfill-unlock-discoveries --vault <UUID>
     uv run fo-cli backfill-unlock-discoveries --all-active
+    uv run fo-cli backfill backfill-dweller-names --vault <UUID>
+    uv run fo-cli backfill backfill-dweller-names --all-active --apply
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ from app import crud
 from app.db.session import async_session_maker
 from app.services.bio_place_backfill_service import bio_place_backfill_service
 from app.services.discovery_backfill_service import discovery_backfill_service
+from app.services.dweller_name_backfill_service import dweller_name_backfill_service
 from app.services.quest_state_objective_backfill_service import quest_state_objective_backfill_service
 from app.services.room_service import room_service
 from app.utils.exceptions import ResourceNotFoundException
@@ -62,9 +65,9 @@ def backfill_bio_places(
         typer.Option(help="Process all active (non-deleted) vaults"),
     ] = False,
     max_vaults: Annotated[
-        int,
-        typer.Option(help="Maximum active vaults to process"),
-    ] = 100,
+        int | None,
+        typer.Option(help="Maximum active vaults to process; omit for all"),
+    ] = None,
 ) -> None:
     """Extract origin/visited places from dweller bios and register them on the world map."""
     if vault and not all_active:
@@ -122,9 +125,9 @@ def backfill_unlock_discoveries(
         typer.Option(help="Process all non-deleted vaults"),
     ] = False,
     max_vaults: Annotated[
-        int,
-        typer.Option(help="Maximum active vaults to process"),
-    ] = 100,
+        int | None,
+        typer.Option(help="Maximum active vaults to process; omit for all"),
+    ] = None,
 ) -> None:
     """Link DISCOVERY locations to their finding dweller and mark them unlocked."""
     if vault and not all_active:
@@ -186,16 +189,11 @@ def backfill_vault_layout(
     other room to the right."""
 
     async def _run() -> dict[UUID, dict]:
-        from sqlalchemy import select
-
-        from app.models.vault import Vault
         from app.services.vault_layout_backfill_service import vault_layout_backfill_service
 
         async with async_session_maker() as session:
             if all_active:
-                vault_ids = list(
-                    (await session.execute(select(Vault.id).where(~Vault.is_deleted))).scalars().all() or []
-                )
+                vault_ids = [vault.id for vault in await crud.vault.get_active_ordered(session)]
             elif vault:
                 try:
                     vault_obj = await crud.vault.get(session, UUID(vault))
@@ -260,15 +258,9 @@ def backfill_merge_rooms(
             raise typer.BadParameter(f"Invalid vault UUID: {vault!r}") from exc
 
     async def _run() -> dict[UUID, dict[str, int]]:
-        from sqlalchemy import select
-
-        from app.models.vault import Vault
-
         async with async_session_maker() as session:
             if all_active:
-                vault_ids = list(
-                    (await session.execute(select(Vault.id).where(~Vault.is_deleted))).scalars().all() or []
-                )
+                vault_ids = [vault.id for vault in await crud.vault.get_active_ordered(session)]
             elif vault:
                 try:
                     vault_obj = await crud.vault.get(session, UUID(vault))
@@ -294,6 +286,90 @@ def backfill_merge_rooms(
 
     for vault_id, summary in summaries.items():
         typer.echo(f"  {vault_id}: merged={summary['merged']}")
+    typer.echo("Applied." if apply else "Dry run — pass --apply to persist.")
+
+
+@app.command(name="backfill-dweller-names")
+def backfill_dweller_names(
+    vault: Annotated[
+        str | None,
+        typer.Option(help="Vault UUID to limit scope; ignored when --all-active is set"),
+    ] = None,
+    all_active: Annotated[
+        bool,
+        typer.Option(help="Process all non-deleted vaults"),
+    ] = False,
+    apply: Annotated[
+        bool,
+        typer.Option(help="Persist renames; without it the command is a dry run"),
+    ] = False,
+    max_vaults: Annotated[
+        int | None,
+        typer.Option(help="Maximum active vaults to process; omit for all"),
+    ] = None,
+    sample_limit: Annotated[
+        int,
+        typer.Option(help="Planned renames to print per vault"),
+    ] = 10,
+) -> None:
+    """Rename legacy super-mutant and visible-synth dwellers deterministically."""
+    if vault and not all_active:
+        try:
+            UUID(vault)
+        except ValueError as exc:
+            raise typer.BadParameter(f"Invalid vault UUID: {vault!r}") from exc
+
+    if max_vaults is not None and max_vaults < 1:
+        raise typer.BadParameter("--max-vaults must be at least 1")
+
+    async def _run() -> tuple[dict[UUID, dict], int]:
+        if not vault and not all_active:
+            raise ValueError("Either --vault or --all-active must be provided")
+
+        async with async_session_maker() as session:
+            if all_active:
+                result = await dweller_name_backfill_service.backfill_names_for_active_vaults(
+                    session,
+                    dry_run=not apply,
+                    max_vaults=max_vaults,
+                    sample_limit=sample_limit,
+                )
+                return result.summaries, result.omitted
+
+            try:
+                vault_obj = await crud.vault.get(session, UUID(vault))
+            except ResourceNotFoundException as exc:
+                raise ValueError(f"Vault {vault} not found or deleted") from exc
+
+            return (
+                {
+                    vault_obj.id: await dweller_name_backfill_service.backfill_names_for_vault(
+                        session,
+                        vault_obj.id,
+                        dry_run=not apply,
+                        sample_limit=sample_limit,
+                    )
+                },
+                0,
+            )
+
+    try:
+        summaries, omitted = asyncio.run(_run())
+    except (ValueError, typer.BadParameter) as exc:
+        typer.echo(f"Backfill failed: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    for vault_id, summary in summaries.items():
+        typer.echo(
+            f"  {vault_id}: scanned={summary['scanned']} renamed={summary['renamed']} "
+            f"skipped_curated={summary['skipped_curated']} "
+            f"skipped_already_shaped={summary['skipped_already_shaped']} "
+            f"skipped_other_synth={summary['skipped_other_synth']}"
+        )
+        for sample in summary["samples"]:
+            typer.echo(f"    {sample}")
+    if omitted:
+        typer.echo(f"  {omitted} active vault(s) left unprocessed because --max-vaults={max_vaults}.")
     typer.echo("Applied." if apply else "Dry run — pass --apply to persist.")
 
 

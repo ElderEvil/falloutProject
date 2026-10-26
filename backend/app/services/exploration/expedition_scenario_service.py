@@ -11,7 +11,7 @@ from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
 
 from app import crud
 from app.core.config import settings
-from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
+from app.core.enums import AgeGroupEnum, ContentProvenanceEnum, GenderEnum, RarityEnum
 from app.models.exploration import ExpeditionRunStatus
 from app.schemas.dweller import DwellerCreate
 from app.schemas.vault import VaultNumber
@@ -167,6 +167,7 @@ class ExpeditionScenarioService:
                 agility=value,
                 luck=value,
             ),
+            content_provenance=ContentProvenanceEnum.GENERATED,
         )
 
     @staticmethod

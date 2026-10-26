@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from faker import Faker
 
-from app.core.enums import AgeGroupEnum, GenderEnum, SynthTypeEnum
+from app.core.enums import AgeGroupEnum, ContentProvenanceEnum, GenderEnum, SynthTypeEnum
 from app.core.game_config import game_config
 from app.options.dweller_names import (
     SUPER_MUTANT_EPITHETS,
@@ -324,6 +324,7 @@ def create_random_common_dweller(
         "visual_attributes": identity,
         "bio": bio,
         "_bio_places": (origin, visited),
+        "content_provenance": ContentProvenanceEnum.GENERATED,
         **stats,
     }
 
@@ -372,6 +373,7 @@ def create_dweller_from_template(
         data["health"] = data["max_health"]
         data["experience"] = calculate_xp_required(start_level)
     data["visual_attributes"] = complete_appearance(data, rng)
+    data["content_provenance"] = ContentProvenanceEnum.CURATED
     data["_bio_places"] = (origin, visited) if origin or visited else None
     if not data.get("bio"):
         origin_fallback, visited_fallback = origin or "Vault 111", visited or []

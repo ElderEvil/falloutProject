@@ -12,6 +12,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.enums import (
     AgeGroupEnum,
+    ContentProvenanceEnum,
     DwellerRosterFocus,
     DwellerStatusEnum,
     FactionEnum,
@@ -119,13 +120,28 @@ class DwellerService:
             hair_colors=hair_color_options,
         )
 
-    async def create_dweller(self, db_session: AsyncSession, obj_in: DwellerCreate, *, commit: bool = True) -> Dweller:
+    async def create_dweller(
+        self,
+        db_session: AsyncSession,
+        obj_in: DwellerCreate,
+        *,
+        commit: bool = True,
+        content_provenance: ContentProvenanceEnum = ContentProvenanceEnum.PLAYER_EDITED,
+    ) -> Dweller:
         """Create a dweller and record the overseer's lifetime total.
+
+        ``content_provenance`` defaults to the private/player-authored value; system
+        generators pass ``GENERATED`` and curated templates pass ``CURATED`` so future
+        backfills can exclude content they must not rewrite.
 
         A ``commit=False`` caller owns the commit and must emit the DWELLER_ADDED event itself after committing.
         """
         obj_in = obj_in.model_copy(update={"visual_attributes": complete_appearance(obj_in.model_dump())})
-        dweller = await crud.dweller.create(db_session, obj_in, commit=commit)
+        dweller = await crud.dweller.create(db_session, obj_in, commit=False)
+        dweller.content_provenance = content_provenance
+        if commit:
+            await db_session.commit()
+            await db_session.refresh(dweller)
         vault_id = self._require_vault_id(dweller)
         await user_service.record_vault_statistic(db_session, vault_id, "total_dwellers_created", commit=commit)
         if commit:
@@ -261,16 +277,22 @@ class DwellerService:
         # Ensure we work with a dict for mutation
         data = dweller_data if isinstance(dweller_data, dict) else dweller_data.model_dump(exclude_unset=True)
         room_id = data.get("room_id")
+        name_fields = ("first_name", "last_name")
+        existing: Dweller | None = None
+        if "room_id" in data or any(field in data for field in name_fields):
+            existing = await crud.dweller.get(db_session, dweller_id)
+        name_changed = existing is not None and any(
+            field in data and data[field] != getattr(existing, field) for field in name_fields
+        )
+        room_changed = "room_id" in data and existing is not None and room_id != existing.room_id
 
-        if "room_id" in data:
-            dweller = await crud.dweller.get(db_session, dweller_id)
-            if room_id != dweller.room_id:
-                active_training = await training_crud.training.get_active_by_dweller(db_session, dweller_id)
-                if active_training:
-                    await training_service.cancel_training(db_session, active_training.id, dweller=dweller)
+        if room_changed:
+            active_training = await training_crud.training.get_active_by_dweller(db_session, dweller_id)
+            if active_training:
+                await training_service.cancel_training(db_session, active_training.id, dweller=existing)
 
         # An unchanged posting must preserve the active match's busy status.
-        if "room_id" in data and room_id != dweller.room_id:
+        if room_changed:
             if room_id is None:
                 data["status"] = determine_status_for_room(None)
             else:
@@ -279,12 +301,14 @@ class DwellerService:
                     raise ResourceNotFoundException(model=Room, identifier=room_id)
                 data["status"] = determine_status_for_room(room_obj.category, room_obj.name)
 
-        if "room_id" in data and room_id != dweller.room_id:
+        if room_changed:
             from app.services.combat.arena_service import arena_service
 
             await arena_service.clear_fighter_slots_for_dweller(db_session, dweller_id, commit=False)
 
         updated = await crud.dweller.update(db_session, dweller_id, DwellerUpdate(**data), commit=False)
+        if name_changed:
+            updated.content_provenance = ContentProvenanceEnum.PLAYER_EDITED
 
         if "visual_attributes" in data:
             if is_ageless(race_of(updated)):

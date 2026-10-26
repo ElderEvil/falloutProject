@@ -307,7 +307,7 @@ function reload(): void {
 }
 
 watch(
-  [() => props.room.id, () => props.vaultId, token],
+  [() => props.room.id, () => props.vaultId, () => authStore.user?.id ?? null],
   () => {
     contextVersion += 1
     status.value = null

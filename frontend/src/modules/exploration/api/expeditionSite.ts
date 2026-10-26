@@ -27,10 +27,19 @@ export const expeditionSiteApi = {
     return response.data
   },
 
-  async resolveNode(explorationId: string, choiceId?: string): Promise<SiteRoomView> {
+  async resolveNode(
+    explorationId: string,
+    choiceId?: string,
+    useSkill = false,
+    expectedRound?: number
+  ): Promise<SiteRoomView> {
     const response = await axios.post<SiteRoomView>(
       `/api/v1/explorations/${explorationId}/site/resolve`,
-      choiceId === undefined ? {} : { choice_id: choiceId }
+      {
+        ...(choiceId === undefined ? {} : { choice_id: choiceId }),
+        ...(useSkill ? { use_skill: true } : {}),
+        ...(expectedRound === undefined ? {} : { expected_round: expectedRound }),
+      }
     )
     return response.data
   },

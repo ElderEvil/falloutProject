@@ -29,8 +29,10 @@ starting evidence. Their dated findings and PR statuses need rechecking rather t
 
 ## Existing PR queue
 
-- Review and playtest [site discoverability #1098](https://github.com/ElderEvil/falloutProject/pull/1098)
-  and [room/dweller/chat context #1100](https://github.com/ElderEvil/falloutProject/pull/1100).
+- Plan [site discovery alerts and playable encounters #1193](https://github.com/ElderEvil/falloutProject/issues/1193).
+  This supersedes closed [site discoverability #1098](https://github.com/ElderEvil/falloutProject/pull/1098);
+  its branch and recovery head remain recorded in the issue. Review and playtest
+  [room/dweller/chat context #1100](https://github.com/ElderEvil/falloutProject/pull/1100) separately.
 - Reassess [unfinished spotlight repair #1060](https://github.com/ElderEvil/falloutProject/pull/1060)
   through journey 1; historical green checks did not resolve the reported manual-playtest failures.
 - Keep dependency and pre-commit updates in maintenance; resolve their actual current CI/review findings.

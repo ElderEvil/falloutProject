@@ -36,7 +36,7 @@ export function useArenaRoom(vaultId: string, roomId: string) {
           }
         : null
     },
-    (event) => playSound(event.action.skill ? 'arenaSkill' : 'incidentHit')
+    (event) => playSound(event.action.skill ? 'arenaSkill' : 'incidentHit', 'sfx')
   )
 
   const roomState = computed(() => {

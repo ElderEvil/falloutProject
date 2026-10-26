@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import math
 import random
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
@@ -12,6 +13,8 @@ from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
 from app import crud
 from app.core.config import settings
 from app.core.enums import AgeGroupEnum, ContentProvenanceEnum, GenderEnum, RarityEnum
+from app.core.game_config import game_config
+from app.crud.vault_slot import vault_slot
 from app.models.exploration import ExpeditionRunStatus
 from app.schemas.dweller import DwellerCreate
 from app.schemas.vault import VaultNumber
@@ -28,7 +31,7 @@ if TYPE_CHECKING:
     from app.models.dweller import Dweller
     from app.models.exploration import Exploration
     from app.models.vault import Vault
-    from app.schemas.expedition import AvailableSiteView
+    from app.schemas.expedition import AvailableSiteView, SiteDefinition
 
 
 def _now() -> datetime:
@@ -47,6 +50,7 @@ class ExpeditionScenarioResult:
     precleared_site_id: str | None
     created_vault: bool
     owner_email: str | None = None
+    discovered_site_id: str | None = None
 
 
 @dataclass
@@ -82,6 +86,8 @@ class ExpeditionScenarioService:
         duration_hours: int = 1,
         preclear_site_id: str | None = None,
         special: int = 5,
+        discovered_site_id: str | None = None,
+        dweller_id: UUID4 | None = None,
     ) -> ExpeditionScenarioResult:
         """Provision a vault with one dweller on an active exploration.
 
@@ -95,13 +101,29 @@ class ExpeditionScenarioService:
         """
         duration_hours = max(1, min(24, duration_hours))
         dweller_level = max(1, min(50, dweller_level))
+        existing_dweller = await crud.dweller.get(db_session, dweller_id) if dweller_id is not None else None
+        if existing_dweller is not None:
+            if existing_dweller.vault_id is None or (vault_id is not None and existing_dweller.vault_id != vault_id):
+                raise ValueError("The selected dweller does not belong to the target vault")
+            vault_id = existing_dweller.vault_id
+            dweller_level = existing_dweller.level
         if preclear_site_id is not None and data_loader.get_expedition_site(preclear_site_id) is None:
             raise ValueError(f"Unknown expedition site: {preclear_site_id!r}")
+        discovered_site = data_loader.get_expedition_site(discovered_site_id) if discovered_site_id else None
+        if discovered_site_id is not None:
+            if discovered_site is None:
+                raise ValueError(f"Unknown expedition site: {discovered_site_id!r}")
+            if dweller_level < discovered_site.min_dweller_level:
+                raise ValueError(f"{discovered_site.name} needs dweller level {discovered_site.min_dweller_level}")
+            if discovered_site_id == preclear_site_id:
+                raise ValueError("The discovered site cannot also be pre-cleared")
 
         vault, created_vault, owner_email = await self._resolve_vault(
             db_session, vault_id=vault_id, user_email=user_email
         )
-        dweller = await self._create_scenario_dweller(db_session, vault, special=special)
+        if discovered_site is not None and await vault_slot.get_by_vault(db_session, vault.id) is None:
+            await vault_slot.claim_next(db_session=db_session, vault_id=vault.id)
+        dweller = existing_dweller or await self._create_scenario_dweller(db_session, vault, special=special)
         levels = dweller_level - dweller.level
         if levels > 0:
             await leveling_service.level_up_dweller(db_session, dweller, levels=levels)
@@ -114,6 +136,11 @@ class ExpeditionScenarioService:
             radaways=0,
         )
         precleared = await self._preclear_site(db_session, exploration, vault, preclear_site_id)
+        if discovered_site is not None:
+            self._stage_discovery(exploration, discovered_site)
+            db_session.add(exploration)
+            await db_session.commit()
+            await expedition_service.discover_sites(db_session, exploration.id)
         available_sites = await expedition_service.list_available_sites(db_session, exploration.id)
         return ExpeditionScenarioResult(
             vault=vault,
@@ -123,7 +150,34 @@ class ExpeditionScenarioService:
             precleared_site_id=precleared,
             created_vault=created_vault,
             owner_email=owner_email,
+            discovered_site_id=discovered_site_id,
         )
+
+    @staticmethod
+    def _stage_discovery(exploration: Exploration, site: SiteDefinition) -> None:
+        """Stage a fast-forwarded QA trail at the site and start the return leg.
+
+        Setup is deliberately multi-stage: vault/scout/departure remain durable
+        if fast-forwarding or report delivery fails. This stage changes only the
+        exploration row; setup commits it before discover_sites owns its separate
+        atomic report transaction.
+        """
+        origin_x, origin_y = exploration.origin_x, exploration.origin_y
+        if origin_x is None or origin_y is None:
+            raise ValueError("A discovered-site scenario requires a vault map placement")
+        now = _now()
+        travel_hours = math.dist((origin_x, origin_y), (site.coord_x, site.coord_y)) * (
+            game_config.exploration.dispatch.travel_hours_per_unit
+        )
+        exploration.heading_degrees = math.degrees(math.atan2(site.coord_x - origin_x, origin_y - site.coord_y)) % 360
+        exploration.start_time = now - timedelta(hours=travel_hours)
+        exploration.pos_x, exploration.pos_y = site.coord_x, site.coord_y
+        exploration.position_as_of = now
+        exploration.trail = [
+            {"x": origin_x, "y": origin_y, "t": exploration.start_time.isoformat()},
+            {"x": site.coord_x, "y": site.coord_y, "t": now.isoformat()},
+        ]
+        exploration.start_return()
 
     @staticmethod
     async def _resolve_vault(

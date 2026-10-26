@@ -230,20 +230,32 @@ async def test_recruit_dweller_returns_tuple(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("race", [RaceOption.HUMAN, RaceOption.SUPER_MUTANT])
 async def test_recruit_dweller_fresh_when_pool_empty(
     async_session: AsyncSession,
     vault: Vault,
+    race: RaceOption,
 ):
     """When no recyclable dwellers exist the service creates a fresh random dweller."""
     # rare_chance=0 pins the rarity roll to COMMON (default 0.04 would give RARE at random=0.0)
-    with patch("random.random", return_value=0.0), patch.object(game_config.radio, "rare_chance", new=0.0):
+    with (
+        patch("random.random", return_value=0.0),
+        patch.object(game_config.radio, "rare_chance", new=0.0),
+        patch.object(
+            game_config.dweller, "race_weights", new={option.value: int(option == race) for option in RaceOption}
+        ),
+    ):
         dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
 
     assert recycled is False
     assert dweller.vault_id == vault.id
     assert dweller.rarity == RarityEnum.COMMON
     assert dweller.first_name is not None
-    assert dweller.last_name is not None
+    assert dweller.visual_attributes["race"] == race.value
+    if race == RaceOption.HUMAN:
+        assert dweller.last_name is not None
+    else:
+        assert dweller.last_name is None
 
 
 @pytest.mark.asyncio

@@ -6,6 +6,7 @@ skill-charge velocity, and the API fighter mapping all live here so the
 orchestrating service keeps pure flow.
 """
 
+from collections import Counter
 from dataclasses import dataclass
 
 from pydantic import UUID4
@@ -14,6 +15,7 @@ from app.models.arena_state import ArenaState
 from app.models.dweller import Dweller
 from app.options.identity_modifiers import effective_stat
 from app.schemas.arena import ArenaActiveSkill, ArenaFighter
+from app.schemas.combat import CombatBody, CombatEffect
 from app.services.catalog_service import list_arena_creatures
 from app.services.combat.weapon_skill_service import MAX_CHARGE, weapon_skill
 from app.utils.combat import combat_power
@@ -33,6 +35,8 @@ class ArenaParticipant:
     is_creature: bool = False
     is_robot: bool = False
     dweller: Dweller | None = None
+    body: CombatBody = "human"
+    effect: CombatEffect = "strike"
 
 
 def participant_from_dweller(dweller: Dweller) -> ArenaParticipant:
@@ -63,7 +67,7 @@ def dweller_participants(slots: list[UUID4 | None], by_id: dict[str, Dweller]) -
 def catalog_participants(entries: list[dict], side: str = "") -> list[ArenaParticipant]:
     """Creature opponents or training bots from persisted catalog entries."""
     robots = {entry["key"] for entry in list_arena_creatures() if entry.get("is_robot")}
-    return [
+    participants = [
         ArenaParticipant(
             key=f"{entry['key']}#{side}{index}",
             name=entry["name"],
@@ -76,6 +80,14 @@ def catalog_participants(entries: list[dict], side: str = "") -> list[ArenaParti
         )
         for index, entry in enumerate(entries)
     ]
+    totals = Counter(participant.name for participant in participants)
+    seen: Counter[str] = Counter()
+    for participant in participants:
+        name = participant.name
+        seen[name] += 1
+        if totals[name] > 1:
+            participant.name = participant.short_name = f"{name} {seen[name]}"
+    return participants
 
 
 def persist_creature_hp(state: ArenaState, team_a: list[ArenaParticipant], team_b: list[ArenaParticipant]) -> None:
@@ -110,12 +122,21 @@ def active_skill_out(dweller: Dweller, charge: int = 0, queued: bool = False) ->
 
 def participant_out(participant: ArenaParticipant, state: ArenaState) -> ArenaFighter:
     """Map a participant onto the API ``ArenaFighter`` shape for the arena view."""
+    return fighter_view(
+        participant,
+        int(min(MAX_CHARGE, (state.skill_charge or {}).get(participant.key, 0))),
+        participant.key in (state.queued_skill_ids or []),
+    )
+
+
+def fighter_view(participant: ArenaParticipant, charge: int = 0, queued: bool = False) -> ArenaFighter:
+    """Common fighter presentation for arena rooms and expedition scenes."""
     return ArenaFighter(
         active_skill=(
             active_skill_out(
                 participant.dweller,
-                charge=int(min(MAX_CHARGE, (state.skill_charge or {}).get(participant.key, 0))),
-                queued=participant.key in (state.queued_skill_ids or []),
+                charge=charge,
+                queued=queued,
             )
             if participant.dweller
             else None

@@ -680,7 +680,10 @@ The frontend runtime contains compiled `dist` assets and its static server. Buil
 build stage. Both Dockerfiles copy dependency manifests before source to retain dependency caching.
 
 `frontend/serve.json` keeps HTML revalidated, caches assets for seven days, and caches content-addressed
-room-grid WebP images for one year with `immutable`. The backend's public `/static` mount uses a
+room-grid and content-addressed wasteland scene WebP images for one year with `immutable`.
+Regenerate scenes with `uv run --project backend python scripts/import_wasteland_scenes.py /path/to/backgrounds`
+and commit `frontend/public/assets/wasteland-scenes/` together with
+`frontend/src/modules/exploration/models/wasteland-scenes.json`. The backend's public `/static` mount uses a
 seven-day lifetime with ETag/Last-Modified revalidation; catalog files can be replaced in place.
 Rebuild compact grid images after changing room artwork with
 `uv run --project backend python scripts/optimize_room_grid_images.py` from the repo root. Commit the

@@ -4,7 +4,11 @@ import { UserRound, PawPrint } from '@lucide/vue'
 import CombatSkillIcon from '@/modules/combat/components/CombatSkillIcon.vue'
 import type { ArenaFighter, ArenaRoomState } from '../api/arena'
 import { creatureKeyOf } from '../models/arena'
-import { getCreatureImagePath, getCreatureModelSizeClass } from '@/core/utils/creatureAssets'
+import {
+  getActorModelSizeClass,
+  getCreatureImagePath,
+  getCreatureModelSizeClass,
+} from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
 import { Button } from '@/core/components/ui/button'
 import {
@@ -14,24 +18,45 @@ import {
   TooltipContent,
 } from '@/core/components/ui/tooltip'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
-import { getDwellerBodySize } from '@/modules/dwellers/models/dweller'
+import { getDwellerPortraitScale } from '@/modules/dwellers/models/dweller'
 import CombatDamageNumbers from '@/modules/combat/components/CombatDamageNumbers.vue'
 import CombatantMeters from './CombatantMeters.vue'
 import CombatantMotion from '@/modules/combat/components/CombatantMotion.vue'
 import type { PlayingCombatAction } from '@/modules/combat/models/playback'
 import { useFallbackImage } from '../composables/useFallbackImage'
 
-const props = defineProps<{
-  state: ArenaRoomState
-  sceneImageUrl?: string | null
-  skillEnabled: boolean
-  pendingSkills: Set<string>
-  attackingTeam: 'A' | 'B' | null
-  attackingFighterId?: string | null
-  damageNumbers: Array<{ id: number; fighterId: string; amount: number }>
-  activeAction?: PlayingCombatAction | null
-  combatPhase?: 'prepare' | 'impact' | null
-}>()
+defineOptions({ inheritAttrs: false })
+
+const props = withDefaults(
+  defineProps<{
+    state: Pick<
+      ArenaRoomState,
+      'team_a' | 'team_b' | 'match_done' | 'fight_started' | 'next_attack_team'
+    > &
+      Partial<Pick<ArenaRoomState, 'mode' | 'countdown_remaining'>>
+    sceneImageUrl?: string | null
+    sceneSrcset?: string
+    wideSceneImageUrl?: string
+    wideSceneSrcset?: string
+    encounter?: boolean
+    contained?: boolean
+    heading?: string
+    teamALabel?: string
+    teamBLabel?: string
+    statusLabel?: string
+    skillEnabled: boolean
+    pendingSkills?: Set<string>
+    attackingTeam?: 'A' | 'B' | null
+    attackingFighterId?: string | null
+    damageNumbers: Array<{ id: number; fighterId: string; amount: number }>
+    activeAction?: PlayingCombatAction | null
+    combatPhase?: 'prepare' | 'impact' | null
+  }>(),
+  {
+    pendingSkills: () => new Set<string>(),
+    attackingTeam: null,
+  }
+)
 const emit = defineEmits<{ skill: [fighterId: string] }>()
 const { url: scene, onError: imageFailed } = useFallbackImage(() => [props.sceneImageUrl])
 const teams = computed<Array<{ side: 'A' | 'B'; fighters: ArenaFighter[] }>>(() => [
@@ -55,12 +80,15 @@ const readySkills = computed(() => {
   })
 })
 const imageFor = (id: string) => getStaticImageUrl(getCreatureImagePath(creatureKeyOf(id)))
-const bodySizeFor = (fighter: ArenaFighter) =>
-  getDwellerBodySize({
-    age_group: fighter.age_group,
-    visual_attributes: fighter.race ? { race: fighter.race } : null,
-  })
-const bodySizeClass = (fighter: ArenaFighter) => `arena-body--${bodySizeFor(fighter)}`
+const actorSizeClass = (fighter: ArenaFighter) =>
+  fighter.is_creature || fighter.is_robot
+    ? getCreatureModelSizeClass(creatureKeyOf(fighter.id))
+    : getActorModelSizeClass(
+        getDwellerPortraitScale({
+          age_group: fighter.age_group,
+          visual_attributes: fighter.race ? { race: fighter.race } : null,
+        })
+      )
 
 const isAttacking = (fighter: ArenaFighter, side: 'A' | 'B') =>
   fighter.health > 0 &&
@@ -85,35 +113,53 @@ const actionFor = (fighter: ArenaFighter) => {
 <template>
   <TooltipProvider :delay-duration="200">
     <section
-      class="arena-ring relative isolate w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
-      aria-label="Arena ring"
+      v-bind="$attrs"
+      class="arena-ring isolate min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken [container-type:size]"
+      :class="{
+        'arena-ring--encounter': encounter,
+        'arena-ring--wide': encounter && wideSceneImageUrl,
+        'relative w-full': !contained,
+        absolute: contained,
+      }"
+      :aria-label="heading ?? 'Arena ring'"
     >
-      <img
-        v-if="scene"
-        :src="scene"
-        alt="Arena"
-        class="absolute inset-0 size-full object-cover"
-        @error="imageFailed"
-      />
+      <picture v-if="scene">
+        <source
+          v-if="wideSceneImageUrl"
+          media="(min-width: 1024px)"
+          :srcset="wideSceneSrcset ?? wideSceneImageUrl"
+          sizes="calc(100vw - 24rem)"
+        />
+        <img
+          :src="scene"
+          :srcset="sceneSrcset"
+          :sizes="encounter ? '(max-width: 1024px) calc(100vw - 64px), 600px' : undefined"
+          :alt="heading ?? 'Arena'"
+          class="absolute inset-0 size-full object-cover"
+          @error="imageFailed"
+        />
+      </picture>
       <div
         class="absolute inset-x-0 top-0 flex justify-between bg-black/70 px-3 py-2 text-[10px] font-semibold text-theme-primary"
       >
-        <span>TEAM A</span>
+        <span>{{ teamALabel ?? 'TEAM A' }}</span>
         <span aria-live="polite">{{
-          state.match_done
+          statusLabel ??
+          (state.match_done
             ? 'MATCH COMPLETE'
-            : state.countdown_remaining > 0
+            : (state.countdown_remaining ?? 0) > 0
               ? 'GET READY'
               : state.fight_started
                 ? `NEXT · TEAM ${state.next_attack_team}`
-                : 'READY TO FIGHT'
+                : 'READY TO FIGHT')
         }}</span>
         <span>{{
-          state.mode === 'training' ? 'BOTS' : state.mode === 'hunt' ? 'CREATURES' : 'TEAM B'
+          teamBLabel ??
+          (state.mode === 'training' ? 'BOTS' : state.mode === 'hunt' ? 'CREATURES' : 'TEAM B')
         }}</span>
       </div>
       <div
-        v-if="state.fight_started && !state.match_done && state.countdown_remaining > 0"
+        v-if="state.fight_started && !state.match_done && (state.countdown_remaining ?? 0) > 0"
         class="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 bg-black/30"
         role="status"
         aria-live="polite"
@@ -128,8 +174,17 @@ const actionFor = (fighter: ArenaFighter) => {
           >
         </Transition>
       </div>
+      <!-- Reserve meters and stagger headroom for the largest (1.5x) actor. -->
       <div
-        class="absolute inset-x-3 bottom-5 grid grid-cols-2 gap-8 sm:inset-x-8 sm:bottom-8 sm:gap-16"
+        class="absolute grid grid-cols-2 [--scene-actor-height:min(36cqh,max(0px,calc((100cqh-7rem-var(--scene-stagger))/1.5)))]"
+        :class="[
+          contained
+            ? 'inset-x-[6%] bottom-[6%] gap-[12%]'
+            : 'inset-x-3 bottom-5 gap-8 sm:inset-x-8 sm:bottom-8 sm:gap-16',
+          teams.some((team) => team.fighters.length > 1)
+            ? '[--scene-stagger:min(2rem,8cqh)] sm:[--scene-stagger:min(3rem,8cqh)]'
+            : '[--scene-stagger:0px]',
+        ]"
       >
         <div
           v-for="team in teams"
@@ -140,11 +195,11 @@ const actionFor = (fighter: ArenaFighter) => {
           <div
             v-for="(fighter, index) in team.fighters"
             :key="fighter.id"
-            class="ring-fighter relative flex min-w-0 max-w-28 flex-1 flex-col items-center gap-1"
+            class="ring-fighter relative flex min-w-0 max-w-[max(4rem,var(--scene-actor-height))] flex-1 flex-col items-center gap-1"
             :aria-current="isAttacking(fighter, team.side) ? 'true' : undefined"
             :class="[
               {
-                'bottom-8 z-0 scale-90 sm:bottom-12': index % 2 === 1,
+                'bottom-[var(--scene-stagger)] z-0 scale-90': index % 2 === 1,
                 'z-10': index % 2 === 0,
                 'opacity-40 grayscale': fighter.health <= 0,
               },
@@ -161,7 +216,7 @@ const actionFor = (fighter: ArenaFighter) => {
               :numbers="damageNumbers.filter((d) => d.fighterId === fighter.id)"
             />
             <CombatantMeters
-              class="fighter-meters"
+              class="fighter-meters max-w-32"
               :name="fighter.name"
               :health="fighter.health"
               :max-health="fighter.max_health"
@@ -171,11 +226,7 @@ const actionFor = (fighter: ArenaFighter) => {
             />
             <div
               class="fighter-portrait relative flex shrink-0 items-end justify-center"
-              :class="[
-                fighter.is_creature || fighter.is_robot
-                  ? getCreatureModelSizeClass(creatureKeyOf(fighter.id))
-                  : ['h-32 w-full sm:h-44', bodySizeClass(fighter)],
-              ]"
+              :class="actorSizeClass(fighter)"
             >
               <div class="absolute inset-x-0 top-1/3 z-20 flex flex-wrap justify-center gap-1">
                 <Tooltip
@@ -223,7 +274,7 @@ const actionFor = (fighter: ArenaFighter) => {
                     class="size-full object-contain drop-shadow-lg"
                     :class="{ '-scale-x-100': team.side === 'B' && fighter.is_robot }"
                   />
-                  <PawPrint v-else class="size-14 text-danger" />
+                  <PawPrint v-else class="size-full text-danger" />
                 </template>
                 <DwellerPortrait
                   v-else
@@ -243,7 +294,7 @@ const actionFor = (fighter: ArenaFighter) => {
                     !fighter.image_url &&
                     !fighter.thumbnail_url
                   "
-                  class="absolute bottom-0 h-32 w-16 text-theme-primary sm:h-44 sm:w-20"
+                  class="absolute bottom-0 size-full text-theme-primary"
                   :class="{ '-scale-x-100': team.side === 'B' }"
                 />
               </CombatantMotion>
@@ -270,24 +321,15 @@ const actionFor = (fighter: ArenaFighter) => {
   min-height: 250px;
   aspect-ratio: 2 / 1;
 }
-.arena-body--large {
-  height: 9.5rem;
+.arena-ring--encounter {
+  min-height: 0;
+  aspect-ratio: 50 / 37;
 }
-
-.arena-body--small {
-  height: 6.5rem;
-}
-
-@media (min-width: 640px) {
-  .arena-body--large {
-    height: 13rem;
-  }
-
-  .arena-body--small {
-    height: 9rem;
+@media (min-width: 1024px) {
+  .arena-ring--wide {
+    aspect-ratio: 16 / 9;
   }
 }
-
 .countdown-pop-enter-active,
 .countdown-pop-leave-active {
   transition:

@@ -6,6 +6,9 @@ import { nextTick } from 'vue'
 import { Dialog } from '@/core/components/ui/dialog'
 import { Progress } from '@/core/components/ui/progress'
 import ExpeditionSiteModal from '@/modules/exploration/components/ExpeditionSiteModal.vue'
+import WastelandScene from '@/modules/exploration/components/WastelandScene.vue'
+import SiteCombatScene from '@/modules/exploration/components/SiteCombatScene.vue'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import { useExpeditionSiteStore } from '@/modules/exploration/stores/expeditionSite'
 import type { AvailableSiteView, SiteRoomView } from '@/modules/exploration/api/expeditionSite'
 
@@ -109,11 +112,11 @@ const defeatedRoom: SiteRoomView = {
 const mountModal = (
   explorationId = 'exp-1',
   dwellerName = 'Lucy MacLean',
-  timeRemainingSeconds?: number,
+  _timeRemainingSeconds?: number,
   explorationActive = true
 ) =>
   mount(ExpeditionSiteModal, {
-    props: { show: true, explorationId, dwellerName, timeRemainingSeconds, explorationActive },
+    props: { show: true, explorationId, dwellerName, explorationActive },
     global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
   })
 
@@ -121,6 +124,162 @@ const buttonByText = (wrapper: ReturnType<typeof mountModal>, text: string) =>
   wrapper.findAll('button').find((button) => button.text().includes(text))
 
 describe('ExpeditionSiteModal', () => {
+  it('keeps the fight history in the shared arena log with skill labels', () => {
+    const store = useExpeditionSiteStore()
+    store.room = {
+      ...choiceRoom,
+      room_total: 1,
+      node: { kind: 'combat', prompt: 'Fight' },
+      combat_state: {
+        round: 2,
+        next_attack_team: 'A',
+        fighters: [],
+        events: [
+          { id: '0', message: 'Encounter ready', action: null },
+          { id: '1', message: 'Lucy hits Raider for 4', action: null },
+          { id: '2', message: 'Raider hits Lucy for 2', action: null },
+          {
+            id: '3',
+            message: 'Lucy uses Aimed Shot',
+            action: {
+              actor_id: 'lucy',
+              actor_body: 'human',
+              effect: 'shot',
+              skill: 'Aimed Shot',
+              skill_icon: 'gun-rifle',
+              targets: [],
+            },
+          },
+        ],
+      },
+    }
+    const wrapper = mount(ExpeditionSiteModal, {
+      props: { show: true, explorationId: 'exp-1' },
+      global: { stubs: { Teleport: { template: '<div><slot /></div>' }, SiteCombatScene: true } },
+    })
+    const log = wrapper.get('[aria-label="Battle log"]')
+    expect(log.text()).toContain('Encounter ready')
+    expect(log.text()).toContain('Lucy hits Raider for 4')
+    expect(log.text()).toContain('SKILL')
+    expect(log.text()).toContain('Lucy uses Aimed Shot')
+    wrapper.unmount()
+  })
+
+  it('starts arena turns only on Fight and stops advancing when the modal closes', async () => {
+    vi.useFakeTimers()
+    const store = useExpeditionSiteStore()
+    const combatRoom: SiteRoomView = {
+      ...choiceRoom,
+      room_total: 1,
+      scene_id: 'supermarket_interior',
+      node: { kind: 'combat', prompt: 'Secure the supplies.' },
+      combat_state: { round: 0, next_attack_team: 'A', fighters: [], events: [] },
+    }
+    store.room = combatRoom
+    store.currentExplorationId = 'exp-1'
+    mockResolve.mockResolvedValue({
+      ...combatRoom,
+      combat_state: { ...combatRoom.combat_state, round: 1 },
+    })
+    const wrapper = mount(ExpeditionSiteModal, {
+      props: { show: true, explorationId: 'exp-1' },
+      global: { stubs: { Teleport: { template: '<div><slot /></div>' }, SiteCombatScene: true } },
+    })
+    try {
+      expect(wrapper.getComponent(TerminalModal).props('size')).toBe('3xl')
+      expect(wrapper.findComponent(SiteCombatScene).exists()).toBe(false)
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(mockResolve).not.toHaveBeenCalled()
+      await buttonByText(wrapper, 'Fight')!.trigger('click')
+      expect(wrapper.getComponent(TerminalModal).props('size')).toBe('screen')
+      expect(wrapper.findComponent(SiteCombatScene).exists()).toBe(true)
+      await vi.advanceTimersByTimeAsync(1200)
+      expect(mockResolve).toHaveBeenCalledWith('exp-1', undefined, false, 0)
+      expect(mockResolve).toHaveBeenCalledTimes(1)
+      await wrapper.setProps({ show: false })
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(mockResolve).toHaveBeenCalledTimes(1)
+      await wrapper.setProps({ show: true })
+      expect(wrapper.getComponent(TerminalModal).props('size')).toBe('screen')
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(mockResolve).toHaveBeenCalledTimes(1)
+    } finally {
+      wrapper.unmount()
+      vi.useRealTimers()
+    }
+  })
+
+  it('shows a failed first automatic turn in the expanded scene and stops retrying', async () => {
+    vi.useFakeTimers()
+    const store = useExpeditionSiteStore()
+    store.room = {
+      ...choiceRoom,
+      room_total: 1,
+      node: { kind: 'combat', prompt: 'Fight' },
+      combat_state: { round: 0, fighters: [], events: [] },
+    }
+    store.currentExplorationId = 'exp-1'
+    mockResolve.mockRejectedValue(new Error('Connection lost'))
+    const wrapper = mount(ExpeditionSiteModal, {
+      props: { show: true, explorationId: 'exp-1' },
+      global: { stubs: { Teleport: { template: '<div><slot /></div>' }, SiteCombatScene: true } },
+    })
+    try {
+      await buttonByText(wrapper, 'Fight')!.trigger('click')
+      await vi.advanceTimersByTimeAsync(1200)
+      expect(store.error).toBeTruthy()
+      expect(wrapper.text()).toContain(store.error!)
+      expect(wrapper.getComponent(TerminalModal).props('size')).toBe('screen')
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(mockResolve).toHaveBeenCalledTimes(1)
+      expect(buttonByText(wrapper, 'Fight')!.attributes('disabled')).toBeUndefined()
+    } finally {
+      wrapper.unmount()
+      vi.useRealTimers()
+    }
+  })
+
+  it('ends a nonlethal defeat with a return action and no retry', () => {
+    const store = useExpeditionSiteStore()
+    store.room = { ...defeatedRoom, status: 'defeated', room_total: 1 }
+    const wrapper = mountModal()
+    expect(wrapper.text()).toContain('Escaped injured')
+    expect(wrapper.text()).toContain('no site loot')
+    expect(buttonByText(wrapper, 'Return to journey')).toBeTruthy()
+    expect(buttonByText(wrapper, 'Push on')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('keeps one authored scene through the encounter and result, scoped to this explorer', async () => {
+    const store = useExpeditionSiteStore()
+    const encounter = {
+      ...choiceRoom,
+      site_id: 'super_duper_mart',
+      scene_id: 'supermarket_interior' as const,
+      room_name: 'Supermarket Interior',
+      room_index: 0,
+      room_total: 1,
+      node: { kind: 'combat', prompt: 'Raiders block the aisles.' },
+    }
+    store.room = encounter
+    const wrapper = mountModal()
+    await flushPromises()
+    const scene = wrapper.getComponent(WastelandScene)
+    expect(scene.props('variant')).toBe('battleback')
+    expect(scene.props('scene')).toBe('supermarket_interior')
+    const initialSceneProps = { ...scene.props() }
+    expect(wrapper.text()).not.toContain('Room 1 /')
+    expect(buttonByText(wrapper, 'Fight')).toBeDefined()
+    store.room = { ...encounter, status: 'cleared', outcome: clearedRoom.outcome }
+    await nextTick()
+    expect(wrapper.getComponent(WastelandScene).props()).toEqual(initialSceneProps)
+    expect(buttonByText(wrapper, 'Return to journey')).toBeDefined()
+    store.room = { ...encounter, exploration_id: 'another-expedition' }
+    await nextTick()
+    expect(wrapper.findComponent(WastelandScene).exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   beforeEach(() => {
     setActivePinia(createPinia())
     mockList.mockReset()
@@ -175,7 +334,7 @@ describe('ExpeditionSiteModal', () => {
 
     await flushPromises()
 
-    expect(wrapper.text()).toContain('No sites available — level up or come back later')
+    expect(wrapper.text()).toContain('No sites available on this journey.')
   })
 
   it('shows the load error inline', async () => {
@@ -202,7 +361,7 @@ describe('ExpeditionSiteModal', () => {
     expect(wrapper.text()).toContain('+40 caps')
     expect(wrapper.text()).toContain('Wonderglue (Common)')
     expect(wrapper.text()).toContain('Site cleared — rewards added to the expedition haul.')
-    expect(wrapper.text()).toContain('Finale vault paid out.')
+    expect(wrapper.text()).not.toContain('Finale vault paid out.')
 
     await buttonByText(wrapper, 'Close')!.trigger('click')
 
@@ -339,20 +498,34 @@ describe('ExpeditionSiteModal', () => {
     expect(wrapper.text()).not.toContain('Failed to resolve expedition node')
   })
 
-  it('shows the remaining time in the header and flags expiry under 300s', async () => {
-    const wrapper = mountModal('exp-1', 'Lucy MacLean', 600)
-    const store = useExpeditionSiteStore()
-    store.room = choiceRoom
+  it('shows travel paused inside an encounter', async () => {
+    const wrapper = mountModal()
+    await wrapper.setProps({ pausesTravel: true })
+    useExpeditionSiteStore().room = choiceRoom
     await flushPromises()
+    expect(wrapper.text()).toContain('Travel paused')
+    expect(wrapper.text()).not.toContain('Clock expiry')
+  })
 
-    expect(wrapper.text()).toContain('≈10m')
-    expect(wrapper.find('[title="Exploration time remaining"]').exists()).toBe(true)
-
-    await wrapper.setProps({ timeRemainingSeconds: 120 })
+  it('explains an expired report without fetching offers for a finished journey', async () => {
+    const wrapper = mountModal('exp-1', 'Lucy', undefined, false)
+    await wrapper.setProps({ reportedSiteId: 'red_rocket' })
     await flushPromises()
+    expect(mockList).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('This journey has finished')
+    expect(wrapper.text()).toContain('This site report is no longer available')
+    expect(buttonByText(wrapper, 'Enter')).toBeUndefined()
+  })
 
-    expect(wrapper.text()).toContain('≈2m')
-    expect(wrapper.find('[title="Clock expiry will force a retreat"]').exists()).toBe(true)
+  it('opens a reported site for review without automatically entering', async () => {
+    const wrapper = mountModal()
+    await wrapper.setProps({ reportedSiteId: 'red_rocket' })
+    await flushPromises()
+    expect(wrapper.text()).toContain('including during the return trip')
+    expect(wrapper.find('.ring-2').exists()).toBe(true)
+    expect(mockEnter).not.toHaveBeenCalled()
+    await wrapper.setProps({ reportedSiteId: 'spent-site' })
+    expect(wrapper.text()).toContain('This site report is no longer available')
   })
 
   it('dedupes combat enemies and labels failure threats separately', async () => {
@@ -370,7 +543,9 @@ describe('ExpeditionSiteModal', () => {
     }
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Enemies: Radroach swarm ×2, Raider gang')
+    expect(
+      wrapper.get('[aria-label="Encounter status"] [aria-label="Encounter enemies"]').text()
+    ).toContain('Radroach swarm ×2, Raider gang')
 
     store.room = {
       ...choiceRoom,

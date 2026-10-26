@@ -22,6 +22,7 @@ from app.crud import dweller as dweller_crud
 from app.crud.world_snapshot import world_snapshot as world_snapshot_crud
 from app.models.dweller import Dweller
 from app.models.exploration import CONSUMING_STATUSES, ExpeditionRun, ExpeditionRunStatus, Exploration
+from app.models.notification import NotificationType
 from app.schemas.expedition import (
     AvailableSiteView,
     EnemySpec,
@@ -31,6 +32,7 @@ from app.schemas.expedition import (
     NodeOutcome,
     SiteDefinition,
     SiteNodeView,
+    SiteRoom,
     SiteRoomView,
     rarity_meets_floor,
 )
@@ -45,6 +47,7 @@ from app.services.exploration.event_service import (
 )
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.loot_calculator import loot_calculator
+from app.services.exploration.site_combat_service import combat_view, encounter_threat, initial_combat, resolve_turn
 from app.services.notification_service import notification_service
 from app.services.world_generation_service import WORLD_ID
 from app.utils import world_terrain
@@ -71,6 +74,15 @@ class BranchResult:
     fought_enemies: list[dict] = field(default_factory=list)
     # Per-enemy outcomes in fight order; surfaced to the client as the battle feed.
     combat: list[dict] = field(default_factory=list)
+
+    def to_outcome(self) -> NodeOutcome:
+        return NodeOutcome(
+            text=" ".join(self.texts),
+            damage_taken=self.damage_taken,
+            caps_gained=self.caps_gained,
+            loot_gained=self.loot_gained,
+            combat=self.combat,
+        )
 
 
 @dataclass(frozen=True)
@@ -130,47 +142,6 @@ def roll_check(stat_value: int, difficulty: int) -> bool:
 
 def _check_threshold(stat_value: int, difficulty: int) -> int:
     return 10 + 2 * (difficulty - stat_value)
-
-
-def resolve_enemy_spec(spec: EnemySpec) -> EnemySchema:
-    """Build an enemy from an inline boss spec or the shared enemy table."""
-    if spec.min_damage is not None and spec.max_damage is not None:
-        return EnemySchema(
-            name=spec.name,
-            difficulty=spec.difficulty or 1,
-            min_damage=spec.min_damage,
-            max_damage=spec.max_damage,
-        )
-    table = {enemy["name"].lower(): enemy for enemy in data_loader.load_enemies()}
-    entry = table.get(spec.name.lower())
-    if entry is None:
-        raise ValidationException(f"Unknown expedition enemy: {spec.name!r}")
-    return EnemySchema(**entry)
-
-
-def _require_floor_eligible(site: SiteDefinition, item_type: str, floor: str) -> None:
-    """Reject site content whose reward floor has no catalog item at or above it (authoring error)."""
-    if not loot_calculator.has_eligible(item_type, floor):
-        raise ValidationException(f"Site {site.id}: no {item_type} at or above rarity {floor!r} in the catalog")
-
-
-def validate_site_content(site: SiteDefinition) -> None:
-    """Fail fast on authoring errors (bad stats, bad enemies, unsatisfiable floors) at entry time."""
-    for room in site.rooms:
-        node = room.node
-        for stat in [option.stat for option in node.options] + ([node.stat] if node.stat else []):
-            if stat not in STAT_SNAPSHOT_FIELDS:
-                raise ValidationException(f"Unknown stat {stat!r} in site {site.id}")
-        for spec in node.enemies:
-            resolve_enemy_spec(spec)
-        for branch in (branch for option in node.options for branch in (option.success, option.failure)):
-            for spec in branch.combat_enemies or []:
-                resolve_enemy_spec(spec)
-            if branch.cache_item is not None and branch.cache_floor is not None:
-                _require_floor_eligible(site, branch.cache_item, branch.cache_floor)
-    vault = site.reward_vault
-    if vault.item is not None and vault.item.floor is not None:
-        _require_floor_eligible(site, vault.item.type, vault.item.floor)
 
 
 def _stat_value(exploration: Exploration, stat: str) -> int:
@@ -305,7 +276,7 @@ async def _fight_pack(
     """Fight a pack in order, stopping at defeat or death and retaining it for retries."""
     result.fought_enemies = [spec.model_dump() for spec in enemies]
     for spec in enemies:
-        outcome = await _fight_enemy(db_session, exploration, resolve_enemy_spec(spec), result)
+        outcome = await _fight_enemy(db_session, exploration, data_loader.resolve_enemy_spec(spec), result)
         if not outcome.victory:
             result.defeated = True
             return
@@ -346,12 +317,11 @@ async def _resolve_node(
     db_session: AsyncSession,
     exploration: Exploration,
     site: SiteDefinition,
-    room_index: int,
+    room: SiteRoom,
     choice_id: str | None,
     result: BranchResult,
 ) -> bool:
     """Resolve one room node. Returns True when the finale vault was paid."""
-    room = site.rooms[room_index]
     node = room.node
     luck = _stat_value(exploration, "luck")
 
@@ -415,6 +385,20 @@ async def _pay_reward_vault(
         result.loot_gained.append("Stimpak")
 
 
+def uses_single_scene(site: SiteDefinition, *, spatial: bool) -> bool:
+    """Use encounter content for spatial visits and sites without legacy rooms."""
+    return site.encounter is not None and (spatial or not site.rooms)
+
+
+def _rooms_for_run(site: SiteDefinition, run: ExpeditionRun) -> list[SiteRoom]:
+    """Saved runs keep their original cursor; new spatial visits use one encounter."""
+    if run.flags.get("single_scene"):
+        if site.encounter is None:
+            raise ValidationException(f"Missing encounter content for {site.id}")
+        return [site.encounter]
+    return site.rooms
+
+
 def build_view(
     exploration_id,
     site: SiteDefinition,
@@ -426,11 +410,14 @@ def build_view(
     dweller: Dweller | None = None,
 ) -> SiteRoomView:
     """Project the run row plus site JSON into the player-facing room view."""
-    room_index = min(run.room_cursor, len(site.rooms) - 1)
-    room = site.rooms[room_index]
+    rooms = _rooms_for_run(site, run)
+    room_index = min(run.room_cursor, len(rooms) - 1)
+    room = rooms[room_index]
     if defeated is None:
         pending = run.flags.get("pending_fight")
-        defeated = bool(run.is_open() and pending is not None and pending.get("room_id") == room.id)
+        defeated = run.status == ExpeditionRunStatus.DEFEATED or bool(
+            run.is_open() and pending is not None and pending.get("room_id") == room.id
+        )
     options = [
         NodeOptionView(
             id=option.id,
@@ -441,7 +428,11 @@ def build_view(
         )
         for option in room.node.options
     ]
-    enemies = [spec.name for spec in room.node.enemies]
+    enemies = (
+        [enemy["name"] for enemy in run.flags["combat"]["opponents"]]
+        if run.flags.get("combat")
+        else [spec.name for spec in room.node.enemies]
+    )
     for option in room.node.options:
         enemies.extend(spec.name for spec in (option.failure.combat_enemies or []))
     return SiteRoomView(
@@ -449,7 +440,7 @@ def build_view(
         site_id=site.id,
         site_name=site.name,
         room_index=room_index,
-        room_total=len(site.rooms),
+        room_total=len(rooms),
         room_name=room.name,
         flavor=room.flavor,
         node=SiteNodeView(kind=room.node.kind, prompt=room.node.prompt, options=options, enemy_names=enemies),
@@ -460,6 +451,9 @@ def build_view(
         defeated=defeated,
         dweller_health=dweller.health if dweller is not None else 0,
         dweller_max_health=dweller.effective_max_health if dweller is not None else 0,
+        scene_id=site.scene_id,
+        lore=site.lore if run.flags.get("single_scene") else "",
+        combat_state=combat_view(run.flags["combat"], dweller) if dweller and run.flags.get("combat") else None,
     )
 
 
@@ -477,8 +471,76 @@ async def _reopen_run(db_session: AsyncSession, run: ExpeditionRun) -> Expeditio
     return await _refresh_run(db_session, run)
 
 
+def _arrived_home(exploration: Exploration) -> bool:
+    return (
+        exploration.is_returning()
+        and exploration.paused_at is None
+        and exploration.return_completes_at is not None
+        and exploration.return_completes_at <= datetime.utcnow()
+    )
+
+
 class ExpeditionService:
     """Enter, resolve, retreat, and inspect expedition site runs."""
+
+    async def discover_sites(self, db_session: AsyncSession, exploration_id: UUID4) -> None:
+        """Persist trail discoveries and their inbox reports atomically, once per journey/site.
+
+        Movement commits before this operation. This method owns the discovery
+        transaction; vault -> exploration locks serialize ticks with site entry
+        and return finalization. Transport delivery follows the commit.
+        """
+        exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
+        if (
+            not exploration.is_in_progress()
+            or exploration.team_id is not None
+            or exploration.heading_degrees is None
+            or exploration.paused_at is not None
+            or _arrived_home(exploration)
+        ):
+            return
+        # Missing world data must not turn the legacy catalog fallback into discoveries.
+        context = await journey_offer_context(db_session, exploration)
+        if context is None:
+            return
+        found = {event.get("site_id") for event in exploration.events if event.get("event") == "site_found"}
+        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+        if dweller_obj.is_dead:
+            return
+        sites = [
+            site
+            for site in await self._available_sites(db_session, exploration, dweller_obj, context)
+            if site.id not in found
+        ]
+        if not sites:
+            return
+        vault = await crud.vault.get(db_session, exploration.vault_id)
+        try:
+            for site in sites:
+                metadata = {
+                    "event": "site_found",
+                    "exploration_id": str(exploration.id),
+                    "site_id": site.id,
+                    "site_name": site.name,
+                }
+                message = f"{dweller_obj.first_name} found {site.name}. Enter before the dweller arrives home."
+                record = exploration.add_event(event_type="site", description=message)
+                record.update(metadata)
+                await notification_service.create_and_send(
+                    db_session,
+                    vault.user_id,
+                    NotificationType.EXPLORATION_UPDATE,
+                    "Expedition site found",
+                    message,
+                    vault_id=exploration.vault_id,
+                    from_dweller_id=exploration.dweller_id,
+                    meta_data=metadata,
+                    commit=False,
+                )
+            await db_session.commit()
+            await notification_service.deliver_deferred_notifications(db_session)
+        finally:
+            notification_service.discard_deferred_notifications(db_session)
 
     async def _require_site_near_trail(self, db_session: AsyncSession, exploration: Exploration, site) -> None:
         """Reject a spatial entry whose site was never traveled past (list/enter parity)."""
@@ -503,7 +565,6 @@ class ExpeditionService:
         site = data_loader.get_expedition_site(site_id)
         if site is None:
             raise ValidationException(f"Unknown expedition site: {site_id!r}")
-        validate_site_content(site)
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
         if dweller_obj.is_dead:
             raise ValidationException("A dead dweller cannot enter an expedition site")
@@ -516,6 +577,8 @@ class ExpeditionService:
             if open_run.site_id == site_id:
                 return build_view(exploration_id, site, open_run, exploration, dweller=dweller_obj)
             raise ResourceConflictException("This exploration already has an open expedition run")
+        if _arrived_home(exploration):
+            raise ValidationException("The dweller has arrived home; this journey's site offers have expired")
         if (
             await crud.expedition_run.get_consumed_for_exploration_site(
                 db_session, exploration_id=exploration_id, site_id=site_id
@@ -544,11 +607,13 @@ class ExpeditionService:
                 vault_id=exploration.vault_id,
                 site_id=site_id,
             )
+            if uses_single_scene(site, spatial=exploration.heading_degrees is not None):
+                run.flags = {**run.flags, "single_scene": True, "combat": initial_combat(site)}
 
         from app.services.exploration_service import exploration_service
 
         await exploration_service.pause_for_encounter(db_session, exploration)
-        await _log_site_event(db_session, exploration, f"Entered {site.name}: {site.rooms[0].flavor}")
+        await _log_site_event(db_session, exploration, f"Entered {site.name}: {_rooms_for_run(site, run)[0].flavor}")
         await db_session.commit()
         return build_view(exploration_id, site, run, exploration, dweller=dweller_obj)
 
@@ -562,37 +627,54 @@ class ExpeditionService:
         exploration = await _get_exploration(db_session, exploration_id)
         if not exploration.is_in_progress():
             raise ValidationException("Expedition sites need an active exploration")
+        if exploration.team_id is not None or _arrived_home(exploration):
+            return []
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
         if dweller_obj.is_dead:
             return []
         context = await journey_offer_context(db_session, exploration)
+        sites = await self._available_sites(db_session, exploration, dweller_obj, context)
+        return [
+            AvailableSiteView(
+                id=site.id,
+                name=site.name,
+                flavor=site.flavor,
+                min_dweller_level=site.min_dweller_level,
+                room_total=1
+                if (single := uses_single_scene(site, spatial=exploration.heading_degrees is not None))
+                else len(site.rooms),
+                scene_id=site.scene_id,
+                enemy_names=[spec.name for spec in site.encounter.node.enemies] if single and site.encounter else [],
+                threat=encounter_threat(site, dweller_obj) if single and site.encounter else None,
+            )
+            for site in sites
+        ]
+
+    async def _available_sites(
+        self,
+        db_session: AsyncSession,
+        exploration: Exploration,
+        dweller: Dweller,
+        context: JourneyOfferContext | None,
+    ) -> list[SiteDefinition]:
+        """Share eligibility inputs between the picker and discovery without rebuilding views."""
         consumed = (
             context.consumed_site_ids
             if context is not None
             else await crud.expedition_run.get_consumed_site_ids_for_exploration(
-                db_session, exploration_id=exploration_id
+                db_session, exploration_id=exploration.id
             )
         )
-        available: list[AvailableSiteView] = []
+        available = []
         for site in data_loader.load_expedition_sites():
-            if dweller_obj.level < site.min_dweller_level:
+            if dweller.level < site.min_dweller_level or site.id in consumed:
                 continue
             if context is not None:
                 if not site_is_offered(site, context):
                     continue
             elif await _site_block_reason(db_session, exploration.vault_id, site.id) is not None:
                 continue
-            if site.id in consumed:
-                continue
-            available.append(
-                AvailableSiteView(
-                    id=site.id,
-                    name=site.name,
-                    flavor=site.flavor,
-                    min_dweller_level=site.min_dweller_level,
-                    room_total=len(site.rooms),
-                )
-            )
+            available.append(site)
         return available
 
     async def current_view(self, db_session: AsyncSession, exploration_id: UUID4) -> SiteRoomView | None:
@@ -626,7 +708,15 @@ class ExpeditionService:
         site = data_loader.get_expedition_site(run.site_id)
         if site is None:
             raise ValidationException(f"Unknown expedition site: {run.site_id!r}")
-        room = site.rooms[run.room_cursor]
+        rooms = _rooms_for_run(site, run)
+        room = rooms[run.room_cursor]
+        if run.flags.get("single_scene") and room.node.kind == "combat":
+            try:
+                return await self._resolve_scene_combat_transaction(
+                    db_session, exploration, run, site, dweller_obj, request
+                )
+            finally:
+                notification_service.discard_deferred_notifications(db_session)
 
         # The finale pays the reward vault; re-check eligibility under the claim
         # so a run that outlived a terminal sibling cannot pay into a locked site.
@@ -651,14 +741,8 @@ class ExpeditionService:
             )
             finale_paid = False
         else:
-            finale_paid = await _resolve_node(db_session, exploration, site, run.room_cursor, request.choice_id, result)
-        outcome = NodeOutcome(
-            text=" ".join(result.texts),
-            damage_taken=result.damage_taken,
-            caps_gained=result.caps_gained,
-            loot_gained=result.loot_gained,
-            combat=result.combat,
-        )
+            finale_paid = await _resolve_node(db_session, exploration, site, room, request.choice_id, result)
+        outcome = result.to_outcome()
         await _log_site_event(
             db_session,
             exploration,
@@ -667,6 +751,14 @@ class ExpeditionService:
         )
         await auto_use_supplies(db_session, exploration)
 
+        if not (result.dweller_died or result.defeated):
+            flags = dict(run.flags)
+            flags.pop("pending_fight", None)
+            credited = flags.get("credited_rooms", [])
+            if result.fought_enemies and room.id not in credited:
+                exploration.enemies_encountered += len(result.fought_enemies)
+                flags["credited_rooms"] = [*credited, room.id]
+            run.flags = flags
         if result.dweller_died:
             run.status = ExpeditionRunStatus.DIED
             run.finished_at = datetime.utcnow()
@@ -681,14 +773,7 @@ class ExpeditionService:
             run.flags = flags
         else:
             run.status = ExpeditionRunStatus.IN_ROOM
-            flags = dict(run.flags)
-            flags.pop("pending_fight", None)
-            credited = flags.get("credited_rooms", [])
-            if result.fought_enemies and room.id not in credited:
-                exploration.enemies_encountered += len(result.fought_enemies)
-                flags["credited_rooms"] = [*credited, room.id]
-            run.flags = flags
-            run.room_cursor = min(run.room_cursor + 1, len(site.rooms) - 1)
+            run.room_cursor = min(run.room_cursor + 1, len(rooms) - 1)
         run = await _refresh_run(db_session, run)
         if run.status in CONSUMING_STATUSES:
             from app.services.exploration_service import exploration_service
@@ -705,6 +790,80 @@ class ExpeditionService:
             finale_paid=finale_paid,
             defeated=result.defeated,
             dweller=dweller_obj,
+        )
+
+    async def _resolve_scene_combat_transaction(
+        self,
+        db_session: AsyncSession,
+        exploration: Exploration,
+        run: ExpeditionRun,
+        site: SiteDefinition,
+        dweller: Dweller,
+        request: ExpeditionResolveRequest,
+    ) -> SiteRoomView:
+        """Own one locked combat turn, including the final reward/defeat and travel-clock update."""
+        if request.choice_id is not None:
+            raise ValidationException("Combat encounters do not accept a stat-check choice")
+        if (
+            await crud.expedition_run.get_consumed_for_exploration_site(
+                db_session, exploration_id=exploration.id, site_id=site.id
+            )
+            is not None
+        ):
+            raise ValidationException(f"{site.name} is already spent for this journey")
+        current = run.flags.get("combat") or initial_combat(site)
+        if request.expected_round is not None and request.expected_round != current["round"]:
+            raise ResourceConflictException("Combat has advanced; refresh the encounter before attacking again")
+        state, won, lost, damage = resolve_turn(current, dweller, use_skill=request.use_skill)
+        result = BranchResult(damage_taken=damage)
+        if won:
+            await _pay_reward_vault(exploration, site, full=True, result=result)
+            result.texts.insert(0, "Encounter won.")
+            exploration.enemies_encountered += len(state["opponents"])
+            run.status = ExpeditionRunStatus.CLEARED
+        elif lost:
+            run.status = ExpeditionRunStatus.DEFEATED
+            result.texts.append(
+                "Overpowered. The dweller escaped injured, without the site's supplies, and resumed travel."
+            )
+        else:
+            result.texts.append("Combat continues.")
+        run.flags = {**run.flags, "combat": state}
+        db_session.add(dweller)
+        if won or lost:
+            run.finished_at = datetime.utcnow()
+            from app.services.exploration_service import exploration_service
+
+            exploration_service.resume_from_encounter(exploration)
+        # Flush the health mutation before the run row, all within this owner's transaction.
+        await db_session.flush([dweller, exploration])
+        outcome = result.to_outcome()
+        await _log_site_event(db_session, exploration, f"{site.name}: {outcome.text}", health_loss=damage)
+        run = await _refresh_run(db_session, run)
+        if won:
+            vault = await crud.vault.get(db_session, exploration.vault_id)
+            await notification_service.create_and_send(
+                db_session,
+                vault.user_id,
+                NotificationType.EXPLORATION_UPDATE,
+                "Expedition site cleared",
+                f"{dweller.first_name} secured {site.name}. Rewards added to the expedition haul.",
+                vault_id=exploration.vault_id,
+                from_dweller_id=dweller.id,
+                meta_data={"event": "site_cleared", "exploration_id": str(exploration.id), "site_id": site.id},
+                commit=False,
+            )
+        await db_session.commit()
+        await notification_service.deliver_deferred_notifications(db_session)
+        return build_view(
+            exploration.id,
+            site,
+            run,
+            exploration,
+            outcome=outcome,
+            finale_paid=won,
+            defeated=lost,
+            dweller=dweller,
         )
 
     async def retreat_run(self, db_session: AsyncSession, exploration_id: UUID4) -> SiteRoomView:

@@ -87,7 +87,15 @@ export function getNotificationRoute(notification: NotificationNavigationContext
 
   switch (notification.notification_type) {
     case 'exploration_complete':
+      return `${vaultPath}/exploration`
     case 'exploration_update':
+      if (notification.meta_data?.event === 'site_found') {
+        const explorationId = metadataString(notification, 'exploration_id')
+        const siteId = metadataString(notification, 'site_id')
+        if (explorationId && siteId) {
+          return `${vaultPath}/exploration/${encodeURIComponent(explorationId)}?siteId=${encodeURIComponent(siteId)}`
+        }
+      }
       return `${vaultPath}/exploration`
     case 'training_complete': {
       if (dwellerId) {

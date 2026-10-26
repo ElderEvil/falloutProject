@@ -17,6 +17,7 @@ import type { BattleLogEntry } from '../models/battleLog'
 const props = defineProps<{
   entries: BattleLogEntry[]
   emptyText: string
+  fill?: boolean
 }>()
 
 const groupedEntries = computed<Array<BattleLogEntry & { count: number }>>(() => {
@@ -83,10 +84,11 @@ watch(
 
 <template>
   <TooltipProvider :delay-duration="200">
-    <div class="flex flex-col gap-1.5">
+    <div class="flex flex-col gap-1.5" :class="fill ? 'min-h-0 flex-1' : undefined">
       <div
         ref="scrollEl"
-        class="max-h-56 overflow-y-auto border border-theme-primary/25 bg-surface-sunken/40 p-2"
+        class="overflow-y-auto border border-theme-primary/25 bg-surface-sunken/40 p-2"
+        :class="fill ? 'min-h-0 flex-1' : 'max-h-56'"
         aria-live="polite"
         aria-label="Battle log"
         @scroll="handleScroll"

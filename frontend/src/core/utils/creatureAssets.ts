@@ -1,12 +1,15 @@
 // Artwork keys and the corresponding exploration/arena catalog keys.
 // Model scale is relative to a dweller (1). Keep creature proportions here so
 // scene rendering can change without duplicating per-species sizing rules.
+// The combat scene supplies one shared, scene-relative body height.
 const MODEL_SIZE_CLASSES = {
-  0.5: 'h-10 w-10 sm:h-14 sm:w-14',
-  0.7: 'h-14 w-14 sm:h-20 sm:w-20',
-  1: 'h-20 w-20 sm:h-28 sm:w-28',
-  1.3: 'h-26 w-26 sm:h-36 sm:w-36',
-  1.5: 'h-30 w-30 sm:h-42 sm:w-42',
+  0.5: 'size-[calc(var(--scene-actor-height,7rem)*0.5)]',
+  0.7: 'size-[calc(var(--scene-actor-height,7rem)*0.7)]',
+  0.8: 'size-[calc(var(--scene-actor-height,7rem)*0.8)]',
+  1: 'size-[var(--scene-actor-height,7rem)]',
+  1.18: 'size-[calc(var(--scene-actor-height,7rem)*1.18)]',
+  1.3: 'size-[calc(var(--scene-actor-height,7rem)*1.3)]',
+  1.5: 'size-[calc(var(--scene-actor-height,7rem)*1.5)]',
 } as const
 
 export const CREATURE_ASSETS = (
@@ -14,6 +17,14 @@ export const CREATURE_ASSETS = (
     { name: 'Deathclaw', key: 'deathclaw', modelScale: 1.5, arenaKey: 'deathclaw' },
     { name: 'Feral Ghoul', key: 'feral-ghoul', modelScale: 1, arenaKey: 'feral-ghoul' },
     { name: 'Raider', key: 'raider', modelScale: 1, arenaKey: 'raider', generated: true },
+    {
+      name: 'Super Mutant',
+      key: 'super-mutant',
+      modelScale: 1.3,
+      arenaKey: 'super-mutant',
+      originalImage:
+        '/static/dweller_images/variants/non_human/super_mutant/FOS_Dw_Default_SuperMutant_Male_Average_Alt.webp',
+    },
     { name: 'Mole Rat', key: 'mole-rat', modelScale: 0.7, arenaKey: 'mole-rat-pack' },
     { name: 'Radscorpion', key: 'radscorpion', modelScale: 1.3, arenaKey: 'giant-radscorpion' },
     { name: 'Radroach', key: 'radroach', modelScale: 0.5, arenaKey: 'radroach-swarm' },
@@ -48,7 +59,9 @@ export const CREATURE_ASSETS = (
 ).map((asset) => ({
   ...asset,
   image: asset.originalImage ?? `/static/creature_images/assembled/${asset.key}.webp`,
-  sourceImage: asset.generated ? undefined : `/static/creature_images/${asset.key}.png`,
+  sourceImage: asset.generated
+    ? undefined
+    : (asset.originalImage ?? `/static/creature_images/${asset.key}.png`),
 }))
 
 const getCreatureAsset = (key: string) =>
@@ -57,5 +70,8 @@ const getCreatureAsset = (key: string) =>
 export const getCreatureImagePath = (key: string): string | undefined =>
   getCreatureAsset(key)?.image
 
+export const getActorModelSizeClass = (scale: number): string =>
+  MODEL_SIZE_CLASSES[scale as keyof typeof MODEL_SIZE_CLASSES] ?? MODEL_SIZE_CLASSES[1]
+
 export const getCreatureModelSizeClass = (key: string): string =>
-  MODEL_SIZE_CLASSES[getCreatureAsset(key)?.modelScale ?? 1]
+  getActorModelSizeClass(getCreatureAsset(key)?.modelScale ?? 1)

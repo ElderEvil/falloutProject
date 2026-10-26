@@ -36,6 +36,9 @@ const { isCollapsed } = useSidePanel()
 const { playMusic } = useSound()
 
 const showSiteModal = ref(false)
+const reportedSiteId = computed(() =>
+  typeof route.query.siteId === 'string' ? route.query.siteId : undefined
+)
 
 const vaultId = computed(() => route.params.id as string)
 const explorationId = computed(() => route.params.explorationId as string)
@@ -130,14 +133,6 @@ const {
   canRecall,
 } = useExplorationProgress(() => exploration.value)
 
-// Seconds left on the exploration clock, for the site modal's expiry chip.
-const timeRemainingSeconds = computed(() => {
-  const exp = exploration.value
-  if (!exp || exp.status !== 'active') return undefined
-  const remaining = exp.duration * 3600 * (1 - progressPercentage.value / 100)
-  return Math.max(0, Math.round(remaining))
-})
-
 // Equipment computed
 const weaponName = computed(() => detailedDweller.value?.weapon?.name ?? null)
 const outfitName = computed(() => detailedDweller.value?.outfit?.name ?? null)
@@ -183,6 +178,8 @@ const isInProgressExploration = computed(
 )
 
 const siteOptionsLoaded = ref(false)
+const siteContextId = ref<string | null>(null)
+let explorerLoadVersion = 0
 
 // Enabled until we have a confirmed empty list; a failed load or an open run
 // must never trap the player behind a disabled button.
@@ -202,23 +199,46 @@ const loadSiteOptions = async () => {
   }
 }
 
+// Journey polling/SSE already owns refreshes; update the picker when that snapshot
+// gains a report, including when the player is already looking at this explorer.
+watch(
+  () => exploration.value?.events?.filter((event) => event.event === 'site_found').length ?? 0,
+  (count, previous) => {
+    if (count > previous && siteContextId.value === explorationId.value) void loadSiteOptions()
+  }
+)
+
 const handleSiteUpdated = async () => {
   siteOptionsLoaded.value = false
   await refreshExploration()
   await loadSiteOptions()
 }
 
-// Reconnect-safe: if a site run is already open server-side, surface the modal
-// on mount so the player can pick up where they left off. A null room (no open
-// run) is a normal answer, not an error.
-const reconnectToSite = async () => {
-  if (!explorationId.value || !authStore.token || !isInProgressExploration.value) return
+// Mounts and explorer switches share the same reconnect-before-picker ordering.
+const initializeExplorer = async (id: string) => {
+  const token = authStore.token
+  if (!id || !token) return
+  const version = ++explorerLoadVersion
+  siteContextId.value = null
+  const isCurrent = () =>
+    version === explorerLoadVersion && explorationId.value === id && authStore.token === token
+  await explorationStore.fetchExplorationDetails(id, token)
+  if (!isCurrent()) return
+  if (exploration.value) {
+    await dwellerStore.fetchDwellerDetails(exploration.value.dweller_id, token)
+  }
+  if (!isCurrent()) return
   try {
-    const currentRoom = await siteStore.fetchCurrentRoom(explorationId.value)
-    if (currentRoom?.exploration_id === explorationId.value) showSiteModal.value = true
+    if (isInProgressExploration.value) {
+      const currentRoom = await siteStore.fetchCurrentRoom(id)
+      if (isCurrent() && currentRoom?.exploration_id === id) showSiteModal.value = true
+    }
   } catch {
     // Network failure — the entry CTA still works; don't block the page.
   }
+  if (!isCurrent()) return
+  await loadSiteOptions()
+  if (isCurrent()) siteContextId.value = id
 }
 
 // Auto-refresh every 10 seconds. usePolling cleans up with this view scope.
@@ -229,22 +249,13 @@ onMounted(async () => {
   if (vaultId.value && authStore.token) {
     await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
 
-    // Vault list returns the short schema — always fetch the full record (loot/events).
-    await explorationStore.fetchExplorationDetails(explorationId.value, authStore.token)
-
-    // Fetch full dweller data for the explorer (includes weapon/outfit)
-    if (exploration.value) {
-      await dwellerStore.fetchDwellerDetails(exploration.value.dweller_id, authStore.token)
-    }
-
     explorationStore.startSseSubscription(vaultId.value, authStore.token)
-
-    await reconnectToSite()
-    await loadSiteOptions()
+    await initializeExplorer(explorationId.value)
   }
 })
 
 onUnmounted(() => {
+  explorerLoadVersion++
   playMusic('vaultAmbient')
   explorationStore.stopSseSubscription()
 })
@@ -256,13 +267,12 @@ watch(explorationId, async (id, previousId) => {
   siteStore.reset()
   showSiteModal.value = false
   siteOptionsLoaded.value = false
-  if (!authStore.token) return
-  await explorationStore.fetchExplorationDetails(id, authStore.token)
-  if (exploration.value) {
-    await dwellerStore.fetchDwellerDetails(exploration.value.dweller_id, authStore.token)
-  }
-  await reconnectToSite()
-  await loadSiteOptions()
+  siteContextId.value = null
+  await initializeExplorer(id)
+})
+
+watch([reportedSiteId, siteContextId], ([siteId, contextId]) => {
+  if (siteId && contextId === explorationId.value) showSiteModal.value = true
 })
 
 // Surface rewards when the game loop auto-completes an exploration server-side
@@ -399,9 +409,12 @@ watch(isReady, (ready) => {
           <!-- Expedition Site Modal -->
           <ExpeditionSiteModal
             :show="showSiteModal"
+            :reported-site-id="reportedSiteId"
+            :pauses-travel="exploration?.pos_x != null"
             :exploration-id="explorationId"
             :dweller-name="dwellerName"
-            :time-remaining-seconds="timeRemainingSeconds"
+            :dweller-image-url="dwellerImageUrl"
+            :dweller-thumbnail-url="dwellerThumbnailUrl"
             :exploration-active="isInProgressExploration"
             @close="showSiteModal = false"
             @updated="handleSiteUpdated"

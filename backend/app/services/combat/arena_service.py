@@ -40,7 +40,6 @@ from app.schemas.arena import (
 from app.schemas.arena import (
     ArenaState as ArenaStateOut,
 )
-from app.schemas.combat import CombatAction, CombatImpact
 from app.services.catalog_service import list_arena_creatures
 from app.services.combat.arena_participants import (
     ArenaParticipant,
@@ -51,7 +50,8 @@ from app.services.combat.arena_participants import (
     participant_out,
     persist_creature_hp,
 )
-from app.services.combat.weapon_skill_service import MAX_CHARGE, attack_effect, combat_body, weapon_skill
+from app.services.combat.attack_service import resolve_attacks
+from app.services.combat.weapon_skill_service import MAX_CHARGE
 from app.services.game_tick.tick_results import ArenaEventStats, ArenaRoomStats, ArenaStats
 from app.services.leveling_service import leveling_service
 from app.services.notification_service import NotificationService
@@ -77,13 +77,13 @@ class ArenaService:
         # room_id -> next journal round sequence (in-memory; events are cleared
         # on match reset, so a restart just renumbers, which is cosmetic).
         self._round_seq: dict[str, int] = {}
-        # (room_id, dweller_id) -> fractional damage carried between ticks so a
+        # room_id -> fighter_id -> fractional damage carried between ticks so a
         # 8.7 vs 8.0 power difference shows up instead of truncating both to 8.
-        self._damage_carry: dict[tuple[str, str], float] = {}
+        self._damage_carry: dict[str, dict[str, float]] = {}
 
     def _clear_room_state(self, room_key: str) -> None:
         self._round_seq.pop(room_key, None)
-        self._damage_carry = {key: carry for key, carry in self._damage_carry.items() if key[0] != room_key}
+        self._damage_carry.pop(room_key, None)
 
     @staticmethod
     def _reset_match(state: ArenaState) -> None:
@@ -660,73 +660,22 @@ class ArenaService:
         seconds_passed: int,
         seq: int,
     ) -> None:
-        """Each fighter chooses a distinct standing enemy while numbers allow.
-
-        Team slot order keeps pairs stable until a knockout. If only one enemy
-        remains, surviving attackers share that target. A queued skill is an
-        extra attack before the ordinary hit; area skills hit multiple enemies.
-        """
-        standing_attackers = [p for p in attackers if p.health > 0]
-        standing_defenders = [p for p in defenders if p.health > 0]
-        if not standing_defenders:
-            return
+        """Persist shared combat facts in the arena journal."""
         queued = set(state.queued_skill_ids or [])
-        for index, attacker in enumerate(standing_attackers):
-            chosen = standing_defenders[index % len(standing_defenders)]
-            living = [p for p in standing_defenders if p.health > 0]
-            if not living:
-                break
-            skill = weapon_skill(attacker.dweller) if attacker.key in queued and attacker.dweller else None
-            actions = (skill, None) if skill else (None,)
-            for attack_skill in actions:
-                living = [p for p in standing_defenders if p.health > 0]
-                if not living:
-                    break
-                multiplier = attack_skill.multiplier if attack_skill else 1.0
-                # Re-evaluate for each action: a skill may knock out the original target.
-                targets = living if attack_skill and attack_skill.area else [chosen if chosen.health > 0 else living[0]]
-                damage = self._team_damage([attacker], seconds_passed) * multiplier
-                impacts: list[CombatImpact] = []
-                journal: list[ArenaMatchEvent] = []
-                for target in targets:
-                    before = target.health
-                    self._apply_team_damage(
-                        str(room.id), [target], damage, seconds_passed=seconds_passed, cap_multiplier=multiplier
+        for attack in resolve_attacks(
+            attackers, defenders, seconds_passed, queued, self._damage_carry.setdefault(str(room.id), {})
+        ):
+            for index, message in enumerate(attack.messages):
+                db_session.add(
+                    ArenaMatchEvent(
+                        room_id=room.id,
+                        round_seq=seq,
+                        kind="skill" if attack.action.skill else "hit",
+                        actor_id=attack.action.actor_id,
+                        message=message,
+                        action=attack.action.model_dump() if index == 0 else None,
                     )
-                    dealt = before - target.health
-                    if dealt > 0 or attack_skill:
-                        impacts.append(
-                            CombatImpact(
-                                target_id=target.key,
-                                body=combat_body(target.dweller),
-                                damage=dealt,
-                                health_before=before,
-                                health_after=target.health,
-                            )
-                        )
-                        action = f"uses {attack_skill.name} on" if attack_skill else "hits"
-                        journal.append(
-                            ArenaMatchEvent(
-                                room_id=room.id,
-                                round_seq=seq,
-                                kind="skill" if attack_skill else "hit",
-                                actor_id=attacker.key,
-                                message=f"{attacker.short_name} {action} {target.short_name} for {dealt}",
-                            )
-                        )
-                if journal:
-                    # Preserve per-target journal lines, but play an area skill once.
-                    journal[0].action = CombatAction(
-                        actor_id=attacker.key,
-                        actor_body=combat_body(attacker.dweller),
-                        effect=attack_effect(attacker.dweller, attack_skill),
-                        skill=attack_skill.name if attack_skill else None,
-                        skill_icon=attack_skill.icon if attack_skill else None,
-                        targets=impacts,
-                    ).model_dump()
-                    db_session.add_all(journal)
-            if skill:
-                queued.discard(attacker.key)
+                )
         state.queued_skill_ids = sorted(queued) or None
 
     @staticmethod
@@ -787,45 +736,6 @@ class ArenaService:
             rounds.append({"room_id": str(room.id), **round_result})
 
         return {"arena": {"rooms": len(rooms), "rounds": rounds}}
-
-    @staticmethod
-    def _team_damage(team: list[ArenaParticipant], seconds_passed: int) -> float:
-        """Damage per tick from standing attackers only; knocked-out members deal none."""
-        return sum(member.power for member in team if member.health > 0) / 5 * max(0, seconds_passed)
-
-    def _apply_team_damage(
-        self,
-        room_key: str,
-        defenders: list[ArenaParticipant],
-        damage: float,
-        *,
-        seconds_passed: int | None = None,
-        cap_multiplier: float = 1.0,
-    ) -> list[tuple[ArenaParticipant, int]]:
-        hits: list[tuple[ArenaParticipant, int]] = []
-        pool = damage
-        for defender in sorted((member for member in defenders if member.health > 0), key=lambda member: member.health):
-            carry_key = (room_key, defender.key)
-            # Skills scale both one ordinary attack and its training damage cap,
-            # so a charged strike stays a modest burst even with strong weapons.
-            capped = (
-                min(pool, defender.max_health * 0.05 * max(0, seconds_passed) * cap_multiplier)
-                if seconds_passed is not None
-                else pool
-            )
-            carried = self._damage_carry.get(carry_key, 0.0) + capped
-            total = int(carried)
-            self._damage_carry[carry_key] = carried - total
-            before = defender.health
-            defender.health = max(0, defender.health - total)
-            hits.append((defender, total))
-            spill = total - min(total, before)
-            if defender.health == 0:
-                spill += max(0, pool - capped)
-            if spill <= 0:
-                break
-            pool = float(spill)
-        return hits
 
     @staticmethod
     def _team_defeated(team: list[ArenaParticipant]) -> bool:

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wasteland scene layout fixture</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import { createApp } from 'vue'
+      import { createPinia } from 'pinia'
+      import { createRouter, createMemoryHistory } from 'vue-router'
+      import WastelandScenesPreview from '../../../src/modules/exploration/views/WastelandScenesPreview.vue'
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [
+          { path: '/', component: WastelandScenesPreview },
+          { path: '/dev', component: { template: '<div>Development tools</div>' } },
+        ],
+      })
+      router.push('/')
+      router
+        .isReady()
+        .then(() => createApp(WastelandScenesPreview).use(router).use(createPinia()).mount('#app'))
+    </script>
+  </body>
+</html>

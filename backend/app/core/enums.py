@@ -3,6 +3,14 @@
 from enum import StrEnum
 
 
+class ExpeditionSceneId(StrEnum):
+    DESERT_HIGHWAY = "desert_highway"
+    SUPERMARKET_INTERIOR = "supermarket_interior"
+    SUBWAY_STATION = "subway_station"
+    AMUSEMENT_PARK = "amusement_park"
+    ARCTIC_RESEARCH_STATION = "arctic_research_station"
+
+
 class CaseInsensitiveEnum(StrEnum):
     @classmethod
     def _missing_(cls, value: object):
@@ -111,6 +119,7 @@ class ExpeditionRunStatus(StrEnum):
     IN_ROOM = "in_room"
     RETREATED = "retreated"
     CLEARED = "cleared"
+    DEFEATED = "defeated"
     DIED = "died"
 
 

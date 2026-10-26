@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject, type Ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { Button } from '@/core/components/ui/button'
@@ -17,9 +17,10 @@ import {
   DialogTitle,
 } from '@/core/components/ui/dialog'
 import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
+import { useVisualEffects } from '@/core/composables/useVisualEffects'
 
 /** Width variants observed across the migrated modal shells. */
-type TerminalModalSize = 'sm' | 'md' | 'xl' | '3xl' | '5xl' | '6xl'
+type TerminalModalSize = 'sm' | 'md' | 'xl' | '3xl' | '5xl' | '6xl' | 'screen'
 /** Max-height variants observed across the migrated modal shells (in vh). */
 type TerminalModalMaxHeight = '60' | '65' | '75' | '80' | '90'
 
@@ -74,6 +75,11 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
+const glowClass =
+  inject<Readonly<Ref<string>> | null>('glowClass', null) ?? useVisualEffects().glowClass
+const preferredGlow = (classes: string) =>
+  classes.replace(/\bterminal-glow(?:-subtle|-strong)?\b/g, glowClass.value)
+const iconClasses = computed(() => preferredGlow(props.iconClass))
 
 // Every Reka dialog shell registers here, so overlay owners do not each have to
 // remember to announce themselves to cross-cutting consumers.
@@ -95,13 +101,15 @@ const SIZE_CLASSES: Record<TerminalModalSize, string> = {
   '3xl': 'max-w-3xl sm:max-w-3xl',
   '5xl': 'max-w-5xl sm:max-w-5xl',
   '6xl': 'max-w-6xl sm:max-w-6xl',
+  screen: 'max-w-[calc(100%-2rem)] sm:max-w-[calc(100%-2rem)]',
 }
 
 const HEADER_CLASS =
-  'flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4'
+  'flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pr-14 pb-4'
 const FOOTER_CLASS =
   'flex-shrink-0 justify-end border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5'
-const TITLE_CLASS = 'text-2xl font-bold text-theme-primary terminal-glow'
+const TITLE_CLASS =
+  'min-w-0 flex-1 break-words py-1 text-2xl leading-snug font-bold text-theme-primary terminal-glow'
 
 const contentClasses = computed(() =>
   [
@@ -109,7 +117,8 @@ const contentClasses = computed(() =>
     MAX_HEIGHT_CLASSES[props.maxHeight],
     'w-full',
     SIZE_CLASSES[props.size],
-    'flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen',
+    'flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base',
+    glowClass.value ? 'crt-screen' : '[text-shadow:none]',
     props.contentClass,
   ]
     .filter(Boolean)
@@ -117,7 +126,7 @@ const contentClasses = computed(() =>
 )
 
 const titleClasses = computed(() =>
-  props.titleAsChild ? undefined : (props.titleClass ?? TITLE_CLASS)
+  props.titleAsChild ? undefined : preferredGlow(props.titleClass ?? TITLE_CLASS)
 )
 
 function openFullscreen(): void {
@@ -153,7 +162,7 @@ const handleOpenChange = (open: boolean) => {
       </TooltipProvider>
 
       <DialogHeader :class="headerClass ?? HEADER_CLASS">
-        <Icon v-if="icon" :icon="icon" :class="iconClass" />
+        <Icon v-if="icon" :icon="icon" :class="iconClasses" />
         <DialogTitle :as-child="titleAsChild" :class="titleClasses">
           <slot name="title">{{ title }}</slot>
         </DialogTitle>

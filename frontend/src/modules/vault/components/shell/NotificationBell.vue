@@ -182,6 +182,12 @@ function processNotification(notificationData: Notification) {
     })
   }
   if (notificationData.notification_type === 'baby_born') toast.success(notificationData.message)
+  if (
+    notificationData.notification_type === 'exploration_update' &&
+    notificationData.meta_data?.event === 'site_found'
+  ) {
+    toast.info(notificationData.message, 10_000)
+  }
   // A hazard team join surfaces beyond the bell (progression red line).
   if (
     ['storage_item_degraded', 'storage_item_upgraded'].includes(notificationData.notification_type)

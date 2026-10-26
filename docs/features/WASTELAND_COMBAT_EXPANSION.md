@@ -116,7 +116,7 @@ These are authored encounter markers, not a blanket conversion of ordinary world
 | Heavy / explosive | Blast Wave | 1× per enemy |
 
 These are prototype balance values. Effects use normal Arena attack damage so equipment and existing combat modifiers
-stay relevant. No skill effects have been enabled in incidents, quests or expedition combat.
+stay relevant. Single-scene expedition sites reuse these attacks and skills with their own enemy tuning; incidents and quests retain their existing combat rules.
 
 ## Next passes
 
@@ -127,8 +127,7 @@ stay relevant. No skill effects have been enabled in incidents, quests or expedi
 - Playtest short and long Arena matches, both team sizes, Hunt and skills queued on both teams. Check whether
   current charge timing leaves enough opportunities to use a skill before a knockout; tune charge and damage together.
 - Decide whether later effects need player-selected targets, stun/bleed/defence or enemy AI skill usage.
-  Add those only after the damage-only trial is useful. Decide how asynchronous expedition combat will expose
-  player timing before extending skills beyond Arena.
+  Add those only after the damage-only trial is useful. Playtest the player-started expedition encounter loop and its skill timing.
 
 ## Shared combat playback (2026-10-25)
 

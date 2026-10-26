@@ -8,6 +8,9 @@ import type { Incident } from '@/modules/combat/models/incident'
 // at the source level — it is the only way to keep this a11y rule from silently rotting.
 import sceneSource from '@/modules/rooms/components/IncidentScene.vue?raw'
 
+const { playSound } = vi.hoisted(() => ({ playSound: vi.fn() }))
+vi.mock('@/core/composables/useSound', () => ({ useSound: () => ({ playSound }) }))
+
 const incident = (overrides: Partial<Incident> = {}): Incident =>
   ({
     id: 'incident-1',
@@ -44,6 +47,7 @@ const mountScene = (props: Record<string, unknown> = {}) =>
 describe('Incident action playback', () => {
   afterEach(() => {
     vi.useRealTimers()
+    vi.clearAllMocks()
   })
 
   it('animates responders individually and changes only the hit target HP at impact', async () => {
@@ -85,7 +89,9 @@ describe('Incident action playback', () => {
     expect(actors[1].attributes('aria-current')).toBeUndefined()
     expect(wrapper.text()).not.toContain('Alice: 90')
     expect(wrapper.findAll('.damage-number')).toHaveLength(0)
+    expect(playSound).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(150)
+    expect(playSound).toHaveBeenCalledExactlyOnceWith('incidentHit', 'sfx')
     expect(wrapper.findAll('.damage-number')).toHaveLength(1)
     await vi.advanceTimersByTimeAsync(200)
     expect(actors[1].attributes('aria-current')).toBe('true')

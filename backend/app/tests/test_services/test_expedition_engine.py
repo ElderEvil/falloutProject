@@ -15,13 +15,12 @@ from app.schemas.exploration_event import JunkSchema
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services import catalog_service as data_loader
+from app.services.catalog_service import resolve_enemy_spec, validate_site_content
 from app.services.exploration import expedition as expedition_module
 from app.services.exploration.expedition import (
     expedition_service,
-    resolve_enemy_spec,
     roll_gear,
     success_odds,
-    validate_site_content,
 )
 from app.services.exploration_service import exploration_service
 from app.tests.factory.dwellers import create_fake_adult_dweller
@@ -643,3 +642,18 @@ async def test_loot_only_sites_pay_once_without_combat_or_damage(async_session, 
     assert view.outcome.loot_gained
     with pytest.raises((ResourceConflictException, ValidationException)):
         await expedition_service.enter_run(async_session, exploration.id, site_id)
+
+
+@pytest.mark.parametrize(("site_id", "single"), [("red_rocket", False), ("collapsed_subway", True)])
+async def test_legacy_journey_picker_matches_actual_entry_mode(async_session, site_id, single):
+    _, dweller, exploration = await _make_exploration(async_session)
+    dweller.level = 20
+    async_session.add(dweller)
+    await async_session.commit()
+    available = await expedition_service.list_available_sites(async_session, exploration.id)
+    offered = next(site for site in available if site.id == site_id)
+    entered = await expedition_service.enter_run(async_session, exploration.id, site_id)
+    assert entered.room_total == offered.room_total
+    assert (entered.combat_state is not None) == single
+    assert bool(offered.enemy_names) == single
+    assert (offered.threat is not None) == single

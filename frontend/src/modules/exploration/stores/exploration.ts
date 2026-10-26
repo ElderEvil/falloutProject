@@ -20,6 +20,8 @@ export interface ExplorationEvent {
   description: string
   timestamp: string
   time_elapsed_hours: number
+  event?: string
+  site_id?: string
   location_name?: string
   location_id?: string
   coord_x?: number

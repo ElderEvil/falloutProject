@@ -176,7 +176,7 @@ describe('BarbershopPanel', () => {
       'room-1',
       'test-token'
     )
-    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada Adult')
+    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada')
     expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
     expect(wrapper.emitted('changed')).toHaveLength(1)
   })
@@ -250,7 +250,7 @@ describe('BarbershopPanel', () => {
     await flushPromises()
     expect(store.management.unassignDwellerFromRoom).toHaveBeenCalledWith(BARBER_ID, 'test-token')
     expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
-    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada Adult')
+    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada')
   })
 
   it('shows roster-load errors with a retry instead of an empty-picker message', async () => {
@@ -283,7 +283,7 @@ describe('BarbershopPanel', () => {
     await wrapper.get('[data-testid="barbershop-barber-option"]').trigger('click')
     await flushPromises()
     await wrapper.setProps({ assignedDwellers: [{ ...client, room_id: 'room-1' }] })
-    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Boris Barber')
+    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Boris')
   })
 
   it('keeps the worker selected when unassignment is rejected', async () => {
@@ -293,7 +293,7 @@ describe('BarbershopPanel', () => {
     await wrapper.get('button[aria-label="Unassign Boris Barber from Barbershop"]').trigger('click')
     await flushPromises()
     expect(wrapper.get('[role="alert"]').text()).toContain('Worker is busy')
-    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Boris Barber')
+    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Boris')
     expect(wrapper.emitted('changed')).toBeUndefined()
   })
 
@@ -332,8 +332,8 @@ describe('BarbershopPanel', () => {
     ])
     await flushPromises()
 
-    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Boris Barber')
-    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada Adult')
+    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Boris')
+    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada')
     expect(wrapper.get('[data-testid="barbershop-waiting-row"]').text()).toContain('Eve Elder')
     expect(
       wrapper
@@ -365,8 +365,8 @@ describe('BarbershopPanel', () => {
       .trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Ada Adult')
-    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Eve Elder')
+    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Ada')
+    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Eve')
     expect(wrapper.get('[data-testid="barbershop-waiting-row"]').text()).toContain('Boris Barber')
     expect(
       wrapper.find(`[data-testid="barbershop-waiting-row"][data-dweller-id="${ADULT_ID}"]`).exists()

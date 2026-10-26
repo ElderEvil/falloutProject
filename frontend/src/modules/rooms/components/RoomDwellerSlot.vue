@@ -67,11 +67,7 @@ const activate = () => {
     }"
   >
     <div class="scene-occupant">
-      <DwellerNameBadge
-        v-if="dweller"
-        :name="selectionMode ? name : dweller.first_name"
-        :full-name="name"
-      />
+      <DwellerNameBadge v-if="dweller" :name="dweller.first_name" :full-name="name" />
       <span v-else-if="selectionMode" class="h-4" aria-hidden="true" />
       <!-- @vue-ignore -->
       <Button

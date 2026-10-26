@@ -68,6 +68,34 @@ describe('CombatantMotion', () => {
     await wrapper.setProps({ fighterId: 'bystander' })
     expect(wrapper.find('.combat-effect').exists()).toBe(false)
   })
+  it('highlights only targets that take damage', async () => {
+    const wrapper = mount(CombatantMotion, {
+      props: { fighterId: 'maximus', action, phase: 'impact' },
+    })
+    expect(wrapper.find('.combat-body--damaged').exists()).toBe(true)
+    await wrapper.setProps({
+      action: {
+        ...action,
+        action: { ...action.action, targets: [{ target_id: 'maximus', body: 'human', damage: 0 }] },
+      },
+    })
+    expect(wrapper.find('.combat-body--damaged').exists()).toBe(false)
+  })
+  it('shows the skill impact artwork only on affected fighters during impact', async () => {
+    const skill = { ...action, action: { ...action.action, skill: 'Aimed Shot' } }
+    const wrapper = mount(CombatantMotion, {
+      props: { fighterId: 'maximus', action: skill, phase: 'prepare' },
+    })
+    expect(wrapper.find('.skill-hit').exists()).toBe(false)
+    await wrapper.setProps({ phase: 'impact' })
+    expect(wrapper.find('.skill-hit').exists()).toBe(true)
+    await wrapper.setProps({ fighterId: 'lucy' })
+    expect(wrapper.find('.skill-hit').exists()).toBe(false)
+    await wrapper.setProps({ fighterId: 'maximus', action: { ...skill, accelerated: true } })
+    expect(wrapper.get('.skill-hit').classes()).toContain('skill-hit--stationary')
+    await wrapper.setProps({ action })
+    expect(wrapper.find('.skill-hit').exists()).toBe(false)
+  })
   it('keeps catch-up motion stationary and supports legacy actions', async () => {
     const wrapper = mount(CombatantMotion, {
       props: { fighterId: 'lucy', action: { ...action, accelerated: true }, phase: 'impact' },

@@ -204,6 +204,12 @@ onMounted(async () => {
 
 <template>
   <div class="mx-auto max-w-7xl px-6 py-8">
+    <a
+      href="/dev"
+      class="mb-4 inline-block text-sm text-theme-primary underline underline-offset-4"
+    >
+      Back to development tools
+    </a>
     <h1 class="terminal-glow text-2xl font-bold">Asset gallery <span class="flicker">▮</span></h1>
     <p class="mt-1 text-sm opacity-70">
       {{ weapons.length }} weapons · {{ outfits.length }} outfits · {{ dwellers.length }} dweller

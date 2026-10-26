@@ -83,6 +83,15 @@ const router = createRouter({
             component: () => import('@/modules/exploration/views/WastelandScenesPreview.vue'),
           },
           {
+            path: '/dev/skill-effects',
+            name: 'skill-effects-preview',
+            meta: {
+              devTitle: 'Skill effects',
+              devDescription: 'Play and inspect combat skill impact effects.',
+            },
+            component: () => import('@/modules/combat/views/SkillEffectsPreview.vue'),
+          },
+          {
             path: '/dev/asset-gallery',
             name: 'asset-gallery',
             meta: {

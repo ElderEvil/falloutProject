@@ -16,7 +16,7 @@ from typing import Any
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import RarityEnum
+from app.core.enums import ContentProvenanceEnum, RarityEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.crud.storage import get_available_space
 from app.crud.storage import storage as storage_crud
@@ -78,6 +78,7 @@ def _fallback_legendary_identity() -> dict[str, Any]:
         "first_name": template.first_name,
         "last_name": template.last_name,
         "rarity": template.rarity,
+        "content_provenance": ContentProvenanceEnum.CURATED,
     }
 
 
@@ -233,7 +234,6 @@ async def grant_item(
 
 
 async def grant_dweller(db_session: AsyncSession, vault_id: UUID4, dweller_template: dict[str, Any]) -> dict[str, Any]:
-    from app.core.enums import RarityEnum
     from app.crud.vault import vault as vault_crud
     from app.schemas.dweller import STATS_RANGE_BY_RARITY
     from app.utils.static_data import game_data_store
@@ -298,6 +298,9 @@ async def grant_dweller(db_session: AsyncSession, vault_id: UUID4, dweller_templ
 
     stat_range = STATS_RANGE_BY_RARITY.get(rarity_enum, (1, 3))
     default_stat = random.randint(stat_range[0], stat_range[1])
+    provenance = ContentProvenanceEnum(
+        dweller_template.get("content_provenance") or ContentProvenanceEnum.PLAYER_EDITED
+    )
 
     new_dweller = Dweller(
         first_name=first_name,
@@ -319,6 +322,7 @@ async def grant_dweller(db_session: AsyncSession, vault_id: UUID4, dweller_templ
         bio=dweller_template.get("bio"),
         visual_attributes=dweller_template.get("visual_attributes"),
         vault_id=vault_id,
+        content_provenance=provenance,
     )
     await persist_reward_change(db_session, new_dweller, refresh=True)
     await user_service.record_vault_statistic(

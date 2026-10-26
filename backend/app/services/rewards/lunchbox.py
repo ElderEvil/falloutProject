@@ -15,7 +15,7 @@ from uuid import UUID
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import GenderEnum, RarityEnum
+from app.core.enums import ContentProvenanceEnum, GenderEnum, RarityEnum
 from app.models.item import Item
 from app.models.quest_reward import RewardType
 from app.services.rewards import items
@@ -40,6 +40,7 @@ def _lunchbox_common_dweller_data(level: int, rarity: RarityEnum) -> dict[str, A
         "rarity": rarity,
         "level": level,
         "gender": gender,
+        "content_provenance": ContentProvenanceEnum.GENERATED,
     }
 
 

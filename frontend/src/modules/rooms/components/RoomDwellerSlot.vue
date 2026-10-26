@@ -152,16 +152,19 @@ const activate = () => {
   justify-content: center;
 }
 
+/* The preview band owns this slot's height; the slot only fills it. */
 .dweller-sprite-slot {
   height: 100%;
   align-items: flex-end;
 }
 
+/* The portrait frame ratio is a parent token (`--portrait-frame-aspect`, set by
+   RoomPreviewSection). The slot must never establish its own width or height. */
 .scene-occupant {
   flex-direction: column;
   justify-content: flex-end;
   height: 100%;
-  aspect-ratio: 2 / 3;
+  aspect-ratio: var(--portrait-frame-aspect, 2 / 3);
   gap: 0.1rem;
 }
 

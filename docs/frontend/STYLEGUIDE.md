@@ -317,6 +317,45 @@ Consistent spacing using 4px base unit:
 | XL   | `--border-radius-xl`   | `0.75rem`  | Modals                  |
 | Full | `--border-radius-full` | `9999px`   | Pills, avatars          |
 
+### Sizing & frame contracts
+
+Two rules keep images and composed previews stable:
+
+1. **The parent owns the frame.** A container establishes width, height or `aspect-ratio` before its
+   children render, and shared children fill that frame. A child must not derive its size from
+   viewport or container-query units.
+2. **Every state uses the same frame.** Loading, loaded, failed-image and empty-slot states occupy
+   identical geometry. Loading an image or showing a fallback must not resize the frame.
+
+Reuse the existing size steps instead of adding a parallel scale:
+
+| Family | Existing step | Where |
+| --- | --- | --- |
+| Buttons | `size` = `sm` / `default` / `lg` / `icon` | `core/components/ui/button` |
+| Modals | `size` = `sm` … `6xl` | `TerminalModal` |
+| Progress | `size` = `xs` / `sm` / `md` | `Progress` |
+| Badges | `size` = `sm` / `md` | `DwellerBadge` and siblings |
+| Compact avatars | `size-9`, `size-10`, `size-12`, `size-16` | lists, tables, support panels |
+| Preview portraits | parent band + `--portrait-frame-aspect` | `RoomPreviewSection`, `RoomDwellerSlot` |
+
+Frame ratios in use:
+
+| Surface | Owner | Ratio | Notes |
+| --- | --- | --- | --- |
+| Room preview (default) | `.room-image-frame` | measured image aspect, 1.53 fallback | width capped at `260px × aspect` |
+| Room preview (5–6 units) | `.room-image-frame` | 3:1 | `.room-scene--wide` |
+| Room preview (size-6 Response Station) | `.room-image-frame` | 2:1 | `.room-scene--wide-native`, contained |
+| Preview occupant band | `.dweller-sprites-overlay` | 44.6% of frame height | slots take 100% of the band |
+| Preview portrait | `RoomDwellerSlot` | `--portrait-frame-aspect` (2:3) | inherited from the frame |
+| Portrait image | `DwellerPortrait` | caller frame | `object-fit: contain`; never sizes the frame |
+| Arena ring | `ArenaRing` | 2:1 | `min-height: 250px` |
+| Incident scene | `IncidentScene` | 5:2 | `min-height: 20rem` |
+
+`frontend/tests/e2e/sizing-contract.spec.ts` samples every animation frame and fails if a first
+painted frame disagrees with the settled geometry. It runs in Chromium and Firefox: Firefox resolves
+container-query height units against the viewport until a size container is laid out, which is how
+the original oversized first frame happened (#1187).
+
 ---
 
 ## UI Consistency Baseline

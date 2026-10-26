@@ -518,11 +518,10 @@ async function handleRegenerate(): Promise<void> {
 <template>
   <section class="barbershop-panel flex flex-col gap-4" aria-label="Barbershop appearance studio">
     <RoomPreviewSection
-      class="barbershop-scene"
       :room-name="room.name"
       :image-url="room.image_url ?? null"
       :room-image-url="roomImageUrl ?? null"
-      :room-units="3"
+      :room-units="room.size ?? room.size_min ?? 3"
       :dweller-capacity="1"
       :assigned-dwellers="barber ? [barber] : []"
       :client-slot="selectedDweller"
@@ -614,8 +613,8 @@ async function handleRegenerate(): Promise<void> {
         No eligible dwellers available. Room assignments still use the Barbershop's capacity.
       </p>
     </section>
-    <Card class="border border-theme-primary/30 bg-terminal-background">
-      <CardHeader class="gap-3">
+    <Card size="sm" class="border border-theme-primary/30 bg-terminal-background">
+      <CardHeader class="gap-2">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <CardTitle class="flex items-center gap-2 text-base text-theme-primary">
             <Icon icon="mdi:content-cut" class="h-4 w-4" :ariaHidden="true" />
@@ -630,36 +629,37 @@ async function handleRegenerate(): Promise<void> {
             {{ status ? (status.staffed ? 'Staffed' : 'Unstaffed') : '—' }}
           </Badge>
         </div>
-        <p class="text-xs leading-relaxed text-theme-primary/65">
-          Choose a worker and a human client in the preview. Available dwellers join this room when
-          selected. Only appearance changes are charged.
+        <p class="text-xs leading-snug text-theme-primary/65">
+          Pick a worker and a human client in the preview. Only appearance changes are charged.
         </p>
-        <dl class="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
-          <div class="rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5">
+        <dl class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+          <div class="flex items-baseline gap-1">
             <dt class="text-[0.6rem] tracking-wider text-theme-primary/60 uppercase">Skin</dt>
             <!-- @vue-ignore -->
-            <dd class="text-sm font-bold text-theme-primary" data-testid="barbershop-skin-fee">
+            <dd class="font-bold text-theme-primary" data-testid="barbershop-skin-fee">
               {{ status ? `${status.skin_fee} caps` : '—' }}
             </dd>
           </div>
-          <div class="rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5">
+          <div class="flex items-baseline gap-1">
             <dt class="text-[0.6rem] tracking-wider text-theme-primary/60 uppercase">Hair</dt>
             <!-- @vue-ignore -->
-            <dd class="text-sm font-bold text-theme-primary" data-testid="barbershop-hair-fee">
+            <dd class="font-bold text-theme-primary" data-testid="barbershop-hair-fee">
               {{ status ? `${status.hair_fee} caps` : '—' }}
             </dd>
           </div>
-          <div class="rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5">
-            <dt class="text-[0.6rem] tracking-wider text-theme-primary/60 uppercase">Vault caps</dt>
+          <div class="flex items-baseline gap-1">
+            <dt class="text-[0.6rem] tracking-wider text-theme-primary/60 uppercase">
+              Vault caps
+            </dt>
             <!-- @vue-ignore -->
-            <dd class="text-sm font-bold text-theme-primary" data-testid="barbershop-caps">
+            <dd class="font-bold text-theme-primary" data-testid="barbershop-caps">
               {{ status?.vault_caps ?? '—' }}
             </dd>
           </div>
-          <div class="rounded border border-theme-primary/20 bg-surface-sunken px-2 py-1.5">
+          <div class="flex items-baseline gap-1">
             <dt class="text-[0.6rem] tracking-wider text-theme-primary/60 uppercase">Chair</dt>
             <!-- @vue-ignore -->
-            <dd class="text-sm font-bold text-theme-primary" data-testid="barbershop-chair">
+            <dd class="font-bold text-theme-primary" data-testid="barbershop-chair">
               {{
                 status
                   ? barber && selectedDweller
@@ -674,7 +674,7 @@ async function handleRegenerate(): Promise<void> {
         </dl>
       </CardHeader>
 
-      <CardContent class="flex flex-col gap-4">
+      <CardContent class="flex flex-col gap-3">
         <!-- @vue-ignore -->
         <p
           v-if="!status && isLoadingStatus"
@@ -754,12 +754,12 @@ async function handleRegenerate(): Promise<void> {
         <!-- @vue-ignore -->
         <div
           v-if="status && barberCandidates.length && availableClients.length"
-          class="grid gap-4 sm:grid-cols-2"
+          class="flex flex-col gap-3 sm:flex-row"
           data-testid="barbershop-workspace"
         >
-          <div class="flex min-w-0 flex-col gap-3">
+          <div class="flex min-w-0 items-start gap-3 sm:w-40 sm:shrink-0 sm:flex-col">
             <div
-              class="mx-auto flex h-64 w-full max-w-56 items-center justify-center overflow-hidden rounded border border-theme-primary/25 bg-surface-sunken"
+              class="flex h-28 w-24 shrink-0 items-center justify-center overflow-hidden rounded border border-theme-primary/25 bg-surface-sunken sm:h-40 sm:w-full"
             >
               <!-- @vue-ignore -->
               <div data-testid="barbershop-portrait" class="h-full w-full">
@@ -778,27 +778,22 @@ async function handleRegenerate(): Promise<void> {
               </div>
             </div>
 
-            <div v-if="selectedDweller" class="flex flex-col gap-1 text-xs">
-              <p class="text-theme-primary/60">
-                <span class="uppercase tracking-wider">Barber</span>
-                {{ barber ? getDwellerDisplayName(barber) : '—' }}
+            <div v-if="selectedDweller" class="flex min-w-0 flex-1 flex-col gap-0.5 text-xs">
+              <p class="truncate font-semibold text-theme-primary">
+                <span class="mr-1 font-normal tracking-wider text-theme-primary/55 uppercase"
+                  >Customer</span
+                >{{ getDwellerDisplayName(selectedDweller) }}
               </p>
-              <p class="font-semibold text-theme-primary">
-                <span class="font-normal text-theme-primary/60 uppercase tracking-wider">
-                  Customer
-                </span>
-                {{ getDwellerDisplayName(selectedDweller) }}
-              </p>
-              <p class="text-theme-primary/60">
+              <p class="text-[0.7rem] text-theme-primary/60">
                 {{ formatIdentityLabel(skinTone) }} skin · {{ formatIdentityLabel(hairColor) }} hair
               </p>
-              <p v-if="!isDefaultPortrait" class="text-theme-primary/55">
+              <p v-if="!isDefaultPortrait" class="text-[0.65rem] text-theme-primary/55">
                 Custom portrait preserved when saving.
               </p>
             </div>
           </div>
 
-          <div class="flex min-w-0 flex-col gap-4">
+          <div class="flex min-w-0 flex-1 flex-col gap-3">
             <div class="flex flex-col gap-2" role="group" aria-label="Skin tone">
               <h4 class="text-xs font-semibold tracking-wider text-theme-primary/70 uppercase">
                 Skin tone
@@ -810,7 +805,7 @@ async function handleRegenerate(): Promise<void> {
                   :key="tone"
                   type="button"
                   variant="outline"
-                  size="sm"
+                  size="xs"
                   class="gap-1.5 border-theme-primary/25 bg-surface-sunken text-xs text-theme-primary hover:bg-theme-primary/10"
                   :class="{ 'border-theme-primary bg-theme-primary/15': skinTone === tone }"
                   :aria-pressed="skinTone === tone"
@@ -844,7 +839,7 @@ async function handleRegenerate(): Promise<void> {
                   :key="hair"
                   type="button"
                   variant="outline"
-                  size="sm"
+                  size="xs"
                   class="gap-1.5 border-theme-primary/25 bg-surface-sunken text-xs text-theme-primary hover:bg-theme-primary/10"
                   :class="{ 'border-theme-primary bg-theme-primary/15': hairColor === hair }"
                   :aria-pressed="hairColor === hair"
@@ -863,29 +858,26 @@ async function handleRegenerate(): Promise<void> {
               </div>
             </div>
 
-            <div class="rounded border border-theme-primary/20 bg-surface-sunken p-3">
-              <div class="flex items-center justify-between gap-2">
-                <span class="text-xs tracking-wider text-theme-primary/60 uppercase">
-                  Change total
+            <div
+              class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-theme-primary/15 pt-2 text-xs"
+            >
+              <span class="text-theme-primary/60">
+                <span class="tracking-wider uppercase">Change</span>
+                <span class="ml-1 text-[0.7rem]">
+                  Skin {{ skinChanged ? `+${status?.skin_fee ?? 0}` : '—' }} · Hair
+                  {{ hairChanged ? `+${status?.hair_fee ?? 0}` : '—' }}
                 </span>
-                <!-- @vue-ignore -->
-                <span
-                  class="text-base font-bold text-theme-primary"
-                  data-testid="barbershop-change-fee"
-                >
-                  {{ changeFee }} caps
-                </span>
-              </div>
-              <p class="mt-1 text-[0.65rem] text-theme-primary/55">
-                Skin {{ skinChanged ? `+${status?.skin_fee ?? 0}` : '—' }} · Hair
-                {{ hairChanged ? `+${status?.hair_fee ?? 0}` : '—' }}
-              </p>
-              <p v-if="!hasAppearanceChange" class="mt-1 text-[0.65rem] text-theme-primary/55">
-                Pick a different skin tone or hair color to enable saving.
-              </p>
+              </span>
+              <!-- @vue-ignore -->
+              <span class="text-sm font-bold text-theme-primary" data-testid="barbershop-change-fee">
+                {{ changeFee }} caps
+              </span>
             </div>
+            <p v-if="!hasAppearanceChange" class="text-[0.7rem] text-theme-primary/55">
+              Pick a different skin tone or hair color to enable saving.
+            </p>
 
-            <div class="flex flex-col gap-2">
+            <div class="grid gap-2 md:grid-cols-2">
               <!-- @vue-ignore -->
               <Button
                 type="button"
@@ -925,31 +917,20 @@ async function handleRegenerate(): Promise<void> {
                       : 'Regenerate custom portrait'
                 }}
               </Button>
-
-              <!-- @vue-ignore -->
-              <p
-                v-if="hasAppearanceChange && !capsSufficient"
-                class="text-[0.65rem] text-warning"
-                data-testid="barbershop-insufficient-caps"
-              >
-                This change costs {{ changeFee }} caps, but the vault holds
-                {{ status?.vault_caps ?? 0 }}.
-              </p>
             </div>
+
+            <!-- @vue-ignore -->
+            <p
+              v-if="hasAppearanceChange && !capsSufficient"
+              class="text-[0.7rem] text-warning"
+              data-testid="barbershop-insufficient-caps"
+            >
+              This change costs {{ changeFee }} caps, but the vault holds
+              {{ status?.vault_caps ?? 0 }}.
+            </p>
           </div>
         </div>
       </CardContent>
     </Card>
   </section>
 </template>
-
-<style scoped>
-.barbershop-scene :deep(.dweller-sprites-overlay) {
-  bottom: 0.75rem;
-}
-.barbershop-scene :deep(.room-image-frame) {
-  width: 100%;
-  height: 240px;
-  aspect-ratio: auto;
-}
-</style>

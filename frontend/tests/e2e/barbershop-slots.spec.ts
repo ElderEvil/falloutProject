@@ -86,6 +86,12 @@ for (const width of [390, 1280]) {
     const client = scene.getByRole('button', { name: /^Choose client/ })
     await expect(worker).toContainText('Add worker')
     await expect(client).toContainText('Add client')
+    await expect(
+      scene.getByRole('group', { name: 'Worker slot' }).locator('.slot-role')
+    ).toHaveText('Worker')
+    await expect(
+      scene.getByRole('group', { name: 'Client slot' }).locator('.slot-role')
+    ).toHaveText('Client')
     const silhouette = worker.locator('.empty-dweller-silhouette')
     await expect(silhouette).toHaveCSS('mask-image', /FOS_Dw_Default_Human_Male/)
     await expect(worker).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
@@ -133,10 +139,6 @@ for (const width of [390, 1280]) {
       .locator('[aria-label="Worker slot"] .dweller-name-badge')
       .boundingBox())!
     expect(nameBadge.y + nameBadge.height).toBeLessThanOrEqual(portrait.y)
-    const controls = (await scene
-      .getByRole('group', { name: 'Controls for Worker' })
-      .boundingBox())!
-    expect(controls.y).toBeGreaterThanOrEqual(portrait.y + portrait.height)
     await page.screenshot({ path: testInfo.outputPath(`barbershop-${width}.png`), fullPage: true })
     expect(
       await dialog

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { ArrowLeftRight, PersonStanding, X } from '@lucide/vue'
+import { PersonStanding } from '@lucide/vue'
 import { Button } from '@/core/components/ui/button'
 import {
   getAbilityConfig,
@@ -132,36 +132,10 @@ const activate = () => {
         v-if="selectionMode || kind === 'client'"
         class="slot-role"
         :class="{ 'client-marker': kind === 'client' }"
+        >{{ label }}</span
       >
-        <Icon v-if="kind === 'client'" icon="mdi:content-cut" />{{ label }}
-      </span>
-      <div
-        v-if="selectionMode"
-        class="slot-actions"
-        role="group"
-        :aria-label="`Controls for ${label}`"
-      >
-        <template v-if="dweller">
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            :aria-label="`Change ${kind}`"
-            :disabled="!assignEnabled"
-            @click="emit('assign')"
-            ><ArrowLeftRight
-          /></Button>
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            :aria-label="unassignLabel"
-            :disabled="!assignEnabled"
-            @click="emit('unassign', dweller.id)"
-            ><X
-          /></Button>
-        </template>
-      </div>
       <Button
-        v-else-if="dweller && assignEnabled"
+        v-if="dweller && assignEnabled"
         type="button"
         variant="ghost"
         class="scene-unassign"
@@ -433,31 +407,28 @@ const activate = () => {
   outline: 2px solid var(--color-theme-primary);
   outline-offset: 3px;
 }
+/* Role captions hang under the silhouette so the sprite keeps the same floor
+   baseline as worker/apprentice slots in production rooms. */
 .slot-role {
+  position: absolute;
+  top: 100%;
+  left: 50%;
   display: inline-flex;
-  height: 1.25rem;
+  height: 1rem;
   align-items: center;
-  gap: 0.2rem;
-  padding: 0.1rem 0.3rem;
+  gap: 0.15rem;
+  padding: 0 0.3rem;
   border-radius: 0.3rem;
-  background: var(--color-surface-sunken);
+  background: color-mix(in srgb, black 70%, transparent);
   color: var(--color-theme-primary);
-  font-size: 0.625rem;
+  font-size: 0.6rem;
   line-height: 1;
   text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
 }
 .client-marker {
-  border: 1px solid var(--color-theme-primary);
-}
-.client-marker :deep(svg) {
-  width: 0.75rem;
-  height: 0.75rem;
-}
-.slot-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  height: 1.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 45%, transparent);
 }
 </style>

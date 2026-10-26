@@ -358,7 +358,7 @@ describe('BarbershopPanel', () => {
     ])
     await flushPromises()
 
-    await wrapper.get('button[aria-label="Change worker"]').trigger('click')
+    await wrapper.get('button[aria-label^="Choose worker"]').trigger('click')
     await flushPromises()
     await wrapper
       .get(`[data-testid="barbershop-barber-option"][data-dweller-id="${ADULT_ID}"]`)
@@ -393,7 +393,7 @@ describe('BarbershopPanel', () => {
     expect(waitingIds).not.toContain(GHOUL_ID)
     expect(waitingIds).not.toContain(DEAD_ID)
 
-    await wrapper.get('button[aria-label="Change worker"]').trigger('click')
+    await wrapper.get('button[aria-label^="Choose worker"]').trigger('click')
     await flushPromises()
     const barberIds = wrapper
       .findAll('[data-testid="barbershop-barber-option"]')

@@ -1,9 +1,11 @@
 import logging
+from collections.abc import Iterable
+from typing import cast
 
 from pydantic import UUID4
-from sqlalchemy import update
+from sqlalchemy import CursorResult, delete, update
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -51,6 +53,51 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
             raise
         else:
             return db_obj
+
+    async def lock_by_user_ids(self, db_session: AsyncSession, user_ids: Iterable[UUID4]) -> list[UserProfile]:
+        """Lock the participants' profiles in profile-id order for a merge."""
+        result = await db_session.execute(
+            select(self.model)
+            .where(col(self.model.user_id).in_(list(user_ids)))
+            .order_by(col(self.model.id))
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return list(result.scalars().all())
+
+    async def create_staged(self, db_session: AsyncSession, user_id: UUID4) -> UserProfile:
+        """Add a profile and flush it without committing; the caller owns the transaction."""
+        db_obj = UserProfile(user_id=user_id)
+        db_session.add(db_obj)
+        await db_session.flush()
+        return db_obj
+
+    async def reassign_user(
+        self, db_session: AsyncSession, source_user_id: UUID4, target_user_id: UUID4, *, commit: bool = True
+    ) -> int:
+        """Move the source profile to the target when the target has none."""
+        result = await db_session.execute(
+            update(self.model)
+            .where(col(self.model.user_id) == source_user_id)
+            .values(user_id=target_user_id)
+            .execution_options(synchronize_session=False)
+        )
+        if commit:
+            await db_session.commit()
+        else:
+            await db_session.flush()
+        return cast("CursorResult", result).rowcount or 0
+
+    async def delete_for_user(self, db_session: AsyncSession, user_id: UUID4, *, commit: bool = True) -> int:
+        """Delete a profile whose counters were merged into the surviving profile."""
+        result = await db_session.execute(
+            delete(self.model).where(col(self.model.user_id) == user_id).execution_options(synchronize_session=False)
+        )
+        if commit:
+            await db_session.commit()
+        else:
+            await db_session.flush()
+        return cast("CursorResult", result).rowcount or 0
 
     async def increment_statistic(
         self,

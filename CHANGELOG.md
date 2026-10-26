@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.267.1 (2026-10-26)
+
+### Bug Fixes
+
+* **rooms:** size room-preview sprites without container queries ([#1187](https://github.com/ElderEvil/falloutProject/issues/1187)) f8bc828
+
 ## 2.267.0 (2026-10-26)
 
 ### Features

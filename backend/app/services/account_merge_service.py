@@ -171,6 +171,7 @@ async def _build_preview(
         target_email=_email(target.email),
         moved_counts=moved_counts,
         vault_numbers=source_vault_numbers,
+        # Vault numbers are intentionally non-unique in v1 (#1198); report collisions, do not renumber.
         duplicate_vault_numbers=sorted(set(source_vault_numbers) & set(target_vault_numbers)),
         oauth_conflicts=sorted(source_providers & target_providers),
         tokens_this_month={

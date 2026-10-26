@@ -246,6 +246,30 @@ async def test_dry_run_reports_counts_conflicts_and_changes_nothing(async_sessio
 
 
 @pytest.mark.asyncio
+async def test_apply_allows_duplicate_vault_numbers(async_session: AsyncSession) -> None:
+    source = await _make_user(async_session)
+    target = await _make_user(async_session)
+    actor = await _make_user(async_session, superuser=True)
+    number = random_vault_number()
+    async_session.add_all(
+        [
+            Vault(user_id=source.id, number=number),
+            Vault(user_id=target.id, number=number),
+        ]
+    )
+    await async_session.commit()
+    source_id = source.id
+    target_id = target.id
+
+    preview = await _apply(async_session, source, target, actor)
+
+    assert preview.applied is True
+    assert preview.duplicate_vault_numbers == [number]
+    assert await crud.vault.count_by_user(async_session, source_id) == 0
+    assert sorted(await crud.vault.list_numbers_by_user(async_session, target_id)) == [number, number]
+
+
+@pytest.mark.asyncio
 async def test_rejects_oauth_provider_conflict(async_session: AsyncSession) -> None:
     source = await _make_user(async_session)
     target = await _make_user(async_session)

@@ -16,6 +16,7 @@ def _result(owner_email: str):
         available_sites=[],
         precleared_site_id=None,
         owner_email=owner_email,
+        discovered_site_id=None,
     )
 
 
@@ -32,3 +33,12 @@ def test_setup_output_keeps_superuser_hint_for_configured_owner(capsys):
     _print_setup(_result(settings.FIRST_SUPERUSER_EMAIL))
 
     assert "FIRST_SUPERUSER_PASSWORD" in capsys.readouterr().out
+
+
+def test_setup_output_links_to_discovered_site(capsys):
+    result = _result("overseer@example.test")
+    result.discovered_site_id = "super_duper_mart"
+    _print_setup(result)
+    output = capsys.readouterr().out
+    assert f"/exploration/{result.exploration.id}?siteId=super_duper_mart" in output
+    assert "enter before arrival home" in output

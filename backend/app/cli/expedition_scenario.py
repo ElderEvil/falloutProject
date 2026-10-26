@@ -39,7 +39,12 @@ def _print_setup(result) -> None:
         typer.echo("  (none)")
     if result.precleared_site_id:
         typer.echo(f"Pre-cleared site (hidden by 7-day anti-farm): {result.precleared_site_id}")
-    typer.echo(f"Frontend: http://localhost:5173/vault/{result.vault.id}/exploration/{result.exploration.id}")
+    site_query = f"?siteId={result.discovered_site_id}" if result.discovered_site_id else ""
+    typer.echo(
+        f"Frontend: http://localhost:5173/vault/{result.vault.id}/exploration/{result.exploration.id}{site_query}"
+    )
+    if result.discovered_site_id:
+        typer.echo(f"Site report: {result.discovered_site_id} (bell + toast; enter before arrival home)")
     if result.owner_email == settings.FIRST_SUPERUSER_EMAIL:
         typer.echo(f"Login: {result.owner_email} (superuser — use the FIRST_SUPERUSER_PASSWORD from your .env)")
     elif result.owner_email:
@@ -69,6 +74,10 @@ def setup(
             help="Every SPECIAL stat for the dweller (1-10). 5 keeps checks differentiated; 1 for defeat/death.",
         ),
     ] = 5,
+    discovered_site: Annotated[
+        str | None,
+        typer.Option("--discovered-site", help="Fast-forward to this site and notify the owner on the return leg"),
+    ] = None,
 ) -> None:
     """Create a vault with one dweller on an active exploration and a populated site picker."""
 
@@ -84,6 +93,7 @@ def setup(
                 duration_hours=duration_hours,
                 preclear_site_id=preclear,
                 special=special,
+                discovered_site_id=discovered_site,
             )
             _print_setup(result)
 

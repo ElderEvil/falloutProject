@@ -123,3 +123,51 @@ async def test_setup_special_override_and_clamp(async_session: AsyncSession, vau
 
     clamped = await expedition_scenario_service.setup(async_session, vault_id=vault.id, dweller_level=5, special=99)
     assert clamped.dweller.strength == 10
+
+
+@pytest.mark.asyncio
+async def test_setup_discovered_site_is_playable_on_return_with_real_notification(async_session, vault):
+    from app.crud.notification import notification as notification_crud
+    from app.services.exploration.expedition import expedition_service
+    from app.services.exploration_service import exploration_service
+
+    result = await expedition_scenario_service.setup(
+        async_session, vault_id=vault.id, dweller_level=10, discovered_site_id="super_duper_mart"
+    )
+    exploration = result.exploration
+    assert exploration.status == ExplorationStatus.RETURNING
+    assert exploration.return_time_remaining_seconds() > 0
+    assert exploration.paused_at is None
+    assert "super_duper_mart" in {site.id for site in result.available_sites}
+    assert any(event.get("site_id") == "super_duper_mart" for event in exploration.events)
+    notifications = await notification_crud.get_user_notifications(async_session, vault.user_id)
+    assert any((notification.meta_data or {}).get("site_id") == "super_duper_mart" for notification in notifications)
+    await exploration_service.advance(async_session, exploration.id)
+    room = await expedition_service.enter_run(async_session, exploration.id, "super_duper_mart")
+    assert room.site_id == "super_duper_mart"
+    assert exploration.paused_at is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("site_id", "level", "preclear", "error"),
+    [
+        ("unknown", 10, None, "Unknown expedition site"),
+        ("super_duper_mart", 1, None, "needs dweller level"),
+        ("super_duper_mart", 10, "super_duper_mart", "cannot also be pre-cleared"),
+    ],
+)
+async def test_setup_rejects_invalid_discovery_before_creating_scout(
+    async_session, vault, site_id, level, preclear, error
+):
+    before = await crud.dweller.get_multi_by_vault(async_session, vault.id)
+    with pytest.raises(ValueError, match=error):
+        await expedition_scenario_service.setup(
+            async_session,
+            vault_id=vault.id,
+            dweller_level=level,
+            discovered_site_id=site_id,
+            preclear_site_id=preclear,
+        )
+    after = await crud.dweller.get_multi_by_vault(async_session, vault.id)
+    assert {dweller.id for dweller in after} == {dweller.id for dweller in before}

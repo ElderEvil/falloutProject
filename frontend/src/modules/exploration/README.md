@@ -67,3 +67,18 @@ on the return leg until arrival home; cleared sites are spent for that journey. 
 arrival under the entry lock even before the tick finalizes the return. An already entered spatial
 encounter pauses travel and remains reconnectable while open. Historical reports remain readable
 when offers expire. Party missions waiting at their destinations are a separate follow-up (#1193).
+
+### Playable local discovery scenario
+
+From `backend/`, create a scout already returning from a discovered site:
+
+```bash
+uv run fo-cli expedition-scenario setup --user-email YOUR_LOCAL_EMAIL --dweller-level 10 --duration-hours 24 --special 7 --discovered-site super_duper_mart
+```
+
+This creates a dedicated boosted vault and a level-10 scout, stages the saved trail through the
+supermarket, and sends the real discovery report. The command prints a link that opens its picker.
+Open the notification bell, review the site, enter an encounter, and reload to check reconnecting.
+Travel pauses after entry; resolving or retreating resumes it. The return deadline follows the actual
+site-to-vault travel distance. Setup fast-forwards development data; it does not simulate outbound
+combat. Vault/scout/departure setup and discovery reporting are separate committed stages.

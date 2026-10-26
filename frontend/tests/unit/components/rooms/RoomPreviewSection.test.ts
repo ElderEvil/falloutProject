@@ -24,6 +24,24 @@ const mountPreview = (props: Record<string, unknown> = {}) =>
     props: { ...baseProps, ...props },
   })
 
+describe('RoomPreviewSection image aspect', () => {
+  it('waits for the room image aspect before rendering the sprite overlay', async () => {
+    const wrapper = mountPreview({ imageUrl: '/static/room_images/wide-room.png' })
+
+    expect(wrapper.get('.room-image-frame').classes()).not.toContain('has-image')
+    expect(wrapper.find('.dweller-sprites-overlay').exists()).toBe(false)
+
+    const image = wrapper.get('img.room-image')
+    Object.defineProperty(image.element, 'naturalWidth', { value: 1200 })
+    Object.defineProperty(image.element, 'naturalHeight', { value: 260 })
+    await image.trigger('load')
+
+    expect(wrapper.get('.room-image-frame').classes()).toContain('has-image')
+    expect(wrapper.find('.dweller-sprites-overlay').exists()).toBe(true)
+    wrapper.unmount()
+  })
+})
+
 describe('RoomPreviewSection client slot', () => {
   it('keeps the client separate from workers and apprentice assignment', async () => {
     const wrapper = mountPreview({ dwellerCapacity: 1, clientSlot: null, selectionMode: true })

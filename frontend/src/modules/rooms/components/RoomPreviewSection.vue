@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import {
   isApprentice,
@@ -73,13 +73,42 @@ const emptyDwellerSilhouetteUrl = getStaticImageUrl(
   '/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp'
 )
 const imageAspect = ref(1.53)
+// The frame sizes dweller sprites with cqh. Hold the overlay until the real
+// image aspect is known; rendering at the 1.53 placeholder height first made
+// every sprite snap smaller once the room image loaded. Reopening a room reuses
+// the measured aspect so the preview is stable immediately.
+const imageAspects = new Map<string, number>()
+const imageReady = ref(false)
+const previewReady = computed(() => !sceneImageUrl.value || imageReady.value)
+const sceneImage = ref<HTMLImageElement | null>(null)
+
+function primeImage(url = sceneImageUrl.value) {
+  const cachedAspect = url ? imageAspects.get(url) : undefined
+  imageAspect.value = cachedAspect ?? 1.53
+  imageReady.value = !url || cachedAspect !== undefined
+}
+
+primeImage()
+watch(sceneImageUrl, (url) => primeImage(url))
+
+function applyImageAspect(image: HTMLImageElement) {
+  if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+    const aspect = image.naturalWidth / image.naturalHeight
+    imageAspect.value = aspect
+    if (sceneImageUrl.value) imageAspects.set(sceneImageUrl.value, aspect)
+  }
+  imageReady.value = true
+}
 
 function rememberImageAspect(event: Event) {
-  const image = event.target as HTMLImageElement
-  if (image.naturalWidth > 0 && image.naturalHeight > 0) {
-    imageAspect.value = image.naturalWidth / image.naturalHeight
-  }
+  applyImageAspect(event.target as HTMLImageElement)
 }
+
+onMounted(() => {
+  const image = sceneImage.value
+  // Cached images can finish before the load listener is attached.
+  if (image?.complete && image.naturalWidth > 0) applyImageAspect(image)
+})
 </script>
 
 <template>
@@ -106,18 +135,20 @@ function rememberImageAspect(event: Event) {
       <div class="room-image-container">
         <div
           class="room-image-frame"
-          :class="{ 'has-image': sceneImageUrl }"
+          :class="{ 'has-image': imageReady }"
           :style="{ '--room-image-aspect': imageAspect }"
         >
           <img
             v-if="sceneImageUrl"
+            v-show="imageReady"
+            ref="sceneImage"
             :src="sceneImageUrl"
             :alt="roomName || 'Room'"
             class="room-image"
             @load="rememberImageAspect"
             @error="imageFailed"
           />
-          <div class="room-image-placeholder" :class="{ 'has-image': sceneImageUrl }">
+          <div class="room-image-placeholder" :class="{ 'has-image': imageReady }">
             <template v-if="!sceneImageUrl">
               <Icon icon="mdi:home-variant-outline" class="h-16 w-16 opacity-30" />
               <p class="placeholder-text">Room Sprite</p>
@@ -125,6 +156,7 @@ function rememberImageAspect(event: Event) {
             </template>
 
             <div
+              v-if="previewReady"
               class="dweller-sprites-overlay"
               :style="{
                 '--dweller-silhouette': emptyDwellerSilhouetteUrl

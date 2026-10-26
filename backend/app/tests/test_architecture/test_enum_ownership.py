@@ -26,20 +26,59 @@ def enum_class_names(source: str) -> set[str]:
     }
 
 
-def core_model_imports(source: str) -> set[str]:
-    """Every ``app.models`` import in a core module, with its line number."""
+def _module_name(path: Path) -> str:
+    """Import-style module name for a file under ``app/`` (``app.core.foo``)."""
+    return ".".join(path.relative_to(APP_DIR.parent).with_suffix("").parts)
+
+
+def _is_models_module(module: str) -> bool:
+    """Whether a resolved module name points at ``app.models`` or a submodule."""
+    return module == "app.models" or module.startswith("app.models.")
+
+
+def _relative_base(module_name: str, level: int) -> list[str]:
+    """Package parts a relative import resolves from; empty for an invalid level."""
+    package_parts = module_name.split(".")[:-1]
+    up = level - 1
+    if up > len(package_parts):
+        return []
+    return package_parts[: len(package_parts) - up]
+
+
+def core_model_imports(source: str, module_name: str) -> set[str]:
+    """Every ``app.models`` import in a core module, with its line number.
+
+    Handles absolute imports, relative imports resolved against ``module_name``,
+    and package-level forms such as ``from app import models``.
+    """
     tree = ast.parse(source)
     violations: set[str] = set()
     for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.ImportFrom)
-            and node.module
-            and (node.module == "app.models" or node.module.startswith("app.models."))
-        ):
-            violations.add(f"{node.module} (line {node.lineno})")
+        if isinstance(node, ast.ImportFrom):
+            if node.level:
+                base = _relative_base(module_name, node.level)
+                if not base:
+                    continue
+                if node.module:
+                    resolved = ".".join([*base, *node.module.split(".")])
+                    if _is_models_module(resolved):
+                        violations.add(f"{resolved} (line {node.lineno}, relative)")
+                else:
+                    for alias in node.names:
+                        resolved = ".".join([*base, alias.name])
+                        if _is_models_module(resolved):
+                            violations.add(f"{resolved} (line {node.lineno}, relative)")
+                continue
+            if node.module and _is_models_module(node.module):
+                violations.add(f"{node.module} (line {node.lineno})")
+            elif node.module == "app":
+                for alias in node.names:
+                    resolved = f"app.{alias.name}"
+                    if _is_models_module(resolved):
+                        violations.add(f"{resolved} (line {node.lineno})")
         elif isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name == "app.models" or alias.name.startswith("app.models."):
+                if _is_models_module(alias.name):
                     violations.add(f"{alias.name} (line {node.lineno})")
     return violations
 
@@ -61,7 +100,7 @@ def test_core_modules_do_not_import_models() -> None:
     violations = {
         str(path.relative_to(APP_DIR)): sorted(imports)
         for path in CORE_DIR.rglob("*.py")
-        if (imports := core_model_imports(path.read_text(encoding="utf-8")))
+        if (imports := core_model_imports(path.read_text(encoding="utf-8"), _module_name(path)))
     }
 
     assert not violations, (
@@ -95,4 +134,11 @@ def test_detectors_catch_the_old_shapes() -> None:
     assert enum_class_names("from enum import StrEnum\nclass Bad(StrEnum):\n    A = 'a'\n") == {"Bad"}
     assert enum_class_names("from enum import IntEnum\nclass Bad(IntEnum):\n    A = 1\n") == {"Bad"}
     assert enum_class_names("class Fine(SQLModel):\n    pass\n") == set()
-    assert core_model_imports("from app.models.vault import Vault\n") == {"app.models.vault (line 1)"}
+    assert core_model_imports("from app.models.vault import Vault\n", "app.core.foo") == {"app.models.vault (line 1)"}
+    assert core_model_imports("from ..models.incident import IncidentType\n", "app.core.foo") == {
+        "app.models.incident (line 1, relative)"
+    }
+    assert core_model_imports("from .. import models\n", "app.core.foo") == {"app.models (line 1, relative)"}
+    assert core_model_imports("from app import models\n", "app.core.foo") == {"app.models (line 1)"}
+    assert core_model_imports("from .models import Thing\n", "app.core.foo") == set()
+    assert core_model_imports("from app.core import enums\n", "app.core.foo") == set()

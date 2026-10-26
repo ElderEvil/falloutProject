@@ -2,18 +2,38 @@
 
 import logging
 from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.api.deps import CurrentSuperuser
 from app.core.config import settings
 from app.core.game_config import game_config
+from app.db.session import get_async_session
+from app.schemas.console import ConsoleManifest, ConsoleRequest, ConsoleResult
 from app.schemas.pagination import PageLimit
 from app.schemas.system import ChangelogEntry, FeaturesResponse, InfoResponse
 from app.services.changelog_service import changelog_service
+from app.services.console_service import console_manifest, execute_console
 from app.utils.version import get_app_version, get_python_version
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/system", tags=["System"])
+
+
+@router.get("/console/manifest")
+async def get_console_manifest(_user: CurrentSuperuser) -> ConsoleManifest:
+    """Describe the allowlisted commands for an authenticated superuser."""
+    return console_manifest()
+
+
+@router.post("/console")
+async def run_console(
+    request: ConsoleRequest, user: CurrentSuperuser, session: Annotated[AsyncSession, Depends(get_async_session)]
+) -> ConsoleResult:
+    """Execute one audited, structured admin command."""
+    return await execute_console(session, user.id, request)
 
 
 @router.get("/info", status_code=200)

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.267.0 (2026-10-26)
+
+### Features
+
+* **barbershop:** add worker and client preview slots ([#1185](https://github.com/ElderEvil/falloutProject/issues/1185)) 1a604d9
+
 ## 2.266.0 (2026-10-25)
 
 ### Features

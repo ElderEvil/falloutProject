@@ -9,37 +9,101 @@
     <div id="app"></div>
     <script type="module">
       import '../../../src/assets/tailwind.css'
-      import { createApp, h, ref } from 'vue'
+      import { createApp, h, onMounted, ref } from 'vue'
       import RoomPreviewSection from '../../../src/modules/rooms/components/RoomPreviewSection.vue'
       const params = new URLSearchParams(location.search)
+      // `?room=<url>` exercises the loaded-image frame; `?empty=1` renders only
+      // empty slots; `?reopen=1` remounts the preview to exercise the cached
+      // image-aspect path without a page reload; `?reveal=1` mounts the preview
+      // at zero height and reveals it a moment later, reproducing a modal open.
+      const roomImageUrl = params.get('room')
       const samplePortrait = params.has('portrait')
         ? 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2260%22%3E%3C/svg%3E'
         : params.has('broken')
           ? 'data:image/png;base64,not-an-image'
           : null
-      const assignedDwellers = ref([
-        { id: 'worker', first_name: 'Ada', last_name: 'Worker', thumbnail_url: samplePortrait },
-        {
-          id: 'apprentice',
-          first_name: 'Ash',
-          last_name: 'Apprentice',
-          thumbnail_url: null,
-          apprentice_stat: 'strength',
+      const assignedDwellers = ref(
+        params.has('empty')
+          ? []
+          : [
+              {
+                id: 'worker',
+                first_name: 'Ada',
+                last_name: 'Worker',
+                thumbnail_url: samplePortrait,
+              },
+              {
+                id: 'apprentice',
+                first_name: 'Ash',
+                last_name: 'Apprentice',
+                thumbnail_url: null,
+                apprentice_stat: 'strength',
+              },
+            ]
+      )
+      const mounted = ref(true)
+      const revealed = ref(!params.has('reveal'))
+      // Each mount gets a new id so a first-frame probe can tell a remount's
+      // first painted frame from the previous component instance.
+      let previewMounts = 0
+      const PreviewHost = {
+        setup() {
+          const mountId = ++previewMounts
+          return () =>
+            h('div', { 'data-preview-mount': String(mountId) }, [
+              h(RoomPreviewSection, {
+                roomName: 'Power Generator',
+                imageUrl: null,
+                roomImageUrl,
+                dwellerCapacity: 2,
+                assignedDwellers: assignedDwellers.value,
+                showApprenticeSlot: true,
+                onUnassign: (id) => {
+                  assignedDwellers.value = assignedDwellers.value.filter(
+                    (dweller) => dweller.id !== id
+                  )
+                },
+              }),
+            ])
         },
-      ])
+      }
       createApp({
-        render: () =>
-          h(RoomPreviewSection, {
-            roomName: 'Power Generator',
-            imageUrl: null,
-            roomImageUrl: null,
-            dwellerCapacity: 2,
-            assignedDwellers: assignedDwellers.value,
-            showApprenticeSlot: true,
-            onUnassign: (id) => {
-              assignedDwellers.value = assignedDwellers.value.filter((dweller) => dweller.id !== id)
-            },
-          }),
+        setup() {
+          onMounted(() => {
+            if (!revealed.value) {
+              setTimeout(() => {
+                revealed.value = true
+              }, 80)
+            }
+          })
+          return () =>
+            h('div', [
+              params.has('reopen')
+                ? h(
+                    'button',
+                    {
+                      id: 'reopen-preview',
+                      type: 'button',
+                      onClick: () => {
+                        mounted.value = false
+                        requestAnimationFrame(() => {
+                          mounted.value = true
+                        })
+                      },
+                    },
+                    'Reopen preview'
+                  )
+                : null,
+              h(
+                'div',
+                {
+                  id: 'preview-stage',
+                  style: revealed.value ? undefined : 'height: 0; overflow: hidden',
+                },
+                [mounted.value ? h(PreviewHost) : null]
+              ),
+            ])
+        },
       }).mount('#app')
     </script>
   </body>

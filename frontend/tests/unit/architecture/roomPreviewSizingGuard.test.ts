@@ -16,6 +16,8 @@ const PREVIEW_FILES = [
 
 const CONTAINER_UNIT = /(?<!\w)\d*\.?\d+cq(?:h|w|i|b|min|max)\b/i
 const CONTAINER_DECLARATION = /container-type\s*:\s*(?:size|inline-size)/i
+const PORTRAIT_RATIO_TOKEN = 'var(--portrait-frame-aspect'
+const PORTRAIT_RATIO_DECLARATION = '--portrait-frame-aspect:'
 
 describe('room preview sizing', () => {
   it('detects negative and uppercase container-query units', () => {
@@ -28,5 +30,20 @@ describe('room preview sizing', () => {
     const source = readFileSync(join(process.cwd(), file), 'utf8')
     expect(source).not.toMatch(CONTAINER_UNIT)
     expect(source).not.toMatch(CONTAINER_DECLARATION)
+  })
+
+  it('keeps the portrait ratio parent-owned instead of hardcoded in the slot', () => {
+    const frame = readFileSync(
+      join(process.cwd(), 'src/modules/rooms/components/RoomPreviewSection.vue'),
+      'utf8'
+    )
+    const slot = readFileSync(
+      join(process.cwd(), 'src/modules/rooms/components/RoomDwellerSlot.vue'),
+      'utf8'
+    )
+    expect(frame).toContain(PORTRAIT_RATIO_DECLARATION)
+    expect(slot).toContain(PORTRAIT_RATIO_TOKEN)
+    // A literal ratio in the slot would silently override a taller/portrait frame.
+    expect(slot).not.toMatch(/aspect-ratio:\s*2\s*\/\s*3\s*;/)
   })
 })

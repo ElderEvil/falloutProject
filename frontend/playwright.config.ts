@@ -28,6 +28,17 @@ export default defineConfig({
         viewport: { width: 1280, height: 720 },
       },
     },
+    {
+      // First-frame sizing regressions only reproduced in Firefox (#1187), so
+      // the sizing specs get a focused second browser instead of doubling every
+      // baseline run.
+      name: 'firefox-sizing',
+      testMatch: ['room-preview.spec.ts', 'sizing-contract.spec.ts'],
+      use: {
+        ...devices['Desktop Firefox'],
+        viewport: { width: 1280, height: 720 },
+      },
+    },
   ],
   webServer: [
     ...(skipBackend

@@ -264,11 +264,14 @@ onMounted(() => {
   aspect-ratio: var(--room-image-aspect, 1.53);
   margin: 0 auto;
   overflow: hidden;
-  /* Dweller slots size from this frame's height, so a taller wide scene keeps
+  /* The frame owns preview geometry: width, height and the portrait ratio the
+     slot chain inherits. RoomDwellerSlot must not size itself.
+     Dweller slots size from this frame's height, so a taller wide scene keeps
      the same occupant-to-room proportion as a standard preview. Percentages
      keep it layout-driven: Firefox resolves container-query height units
      against the viewport until the frame is laid out, which flashed oversized
      sprites when the modal opened. */
+  --portrait-frame-aspect: 2 / 3;
 }
 
 .room-image-frame:not(.has-image) {
@@ -379,6 +382,9 @@ onMounted(() => {
   left: 0.5rem;
   z-index: 10;
   display: flex;
+  /* Reserved occupant band: 44.6% of the frame height, above the floor. Slots
+     take 100% of this band, so actor size follows the room image rather than
+     the viewport. */
   height: 44.6%;
   align-items: flex-end;
   justify-content: space-evenly;

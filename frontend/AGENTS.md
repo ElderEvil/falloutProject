@@ -102,6 +102,10 @@ These commands map to their corresponding tools. For example, `vp dev --port 300
 
 - Components own presentation and local interaction state. HTTP calls belong in the existing module
   service/API layer; search for that operation before adding another implementation.
+- Sizing: the parent reserves frame geometry (width, height or `aspect-ratio`) and shared children fill
+  it. Loading, loaded, failed-image and empty-slot states must keep the same frame. Reuse the documented
+  size steps instead of adding a parallel scale; see `docs/frontend/STYLEGUIDE.md` ("Sizing & frame
+  contracts").
 - Give shared server state one store owner. Bell, inbox, modal and page views consume that state rather
   than keeping independent copies. Keep editable drafts local and reconcile them explicitly with server state.
 - Give SSE/polling lifecycle and event deduplication one owner per subscription. Reuse `useSse` and

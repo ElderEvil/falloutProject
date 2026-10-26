@@ -157,6 +157,37 @@ def test_merge_users_apply_persists_and_closes_redis(preview):
     assert "Applied." in result.output
 
 
+def test_merge_users_redis_cleanup_failure_keeps_successful_result(preview):
+    audit_id = uuid4()
+    applied = replace(preview, applied=True, audit_id=audit_id)
+    redis = MagicMock()
+    redis.aclose = AsyncMock(side_effect=RuntimeError("close failed"))
+
+    with (
+        _patched_cli(applied),
+        patch("app.cli.main.Redis.from_url", return_value=redis),
+    ):
+        result = runner.invoke(
+            cli,
+            [
+                "merge-users",
+                "--source",
+                "old@example.com",
+                "--target",
+                "new@example.com",
+                "--apply",
+                "--reason",
+                "duplicate account",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert f"Audit: {audit_id}" in result.output
+    assert "Applied." in result.output
+    assert "merge-users failed" not in result.output
+    redis.aclose.assert_awaited_once()
+
+
 def test_merge_users_apply_requires_reason():
     with _patched_cli() as merge_mock:
         result = runner.invoke(

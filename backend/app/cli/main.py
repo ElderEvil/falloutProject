@@ -214,6 +214,16 @@ def version_prompt(
     typer.echo(f"✅ Activated {prompt_name} v{version}.")
 
 
+async def _close_merge_redis(redis_client: Redis | None) -> None:
+    """Close the merge Redis client without masking an already-committed merge."""
+    if redis_client is None:
+        return
+    try:
+        await redis_client.aclose()
+    except Exception:
+        logger.warning("Failed to close the merge-users Redis client", exc_info=True)
+
+
 def _print_merge_preview(preview: MergePreview) -> None:
     """Render a merge preview or the applied merge summary."""
     source_email = preview.source_email or "—"
@@ -289,8 +299,7 @@ def merge_users_command(
                     redis_client=redis_client,
                 )
         finally:
-            if redis_client is not None:
-                await redis_client.aclose()
+            await _close_merge_redis(redis_client)
 
     try:
         preview = asyncio.run(_run())

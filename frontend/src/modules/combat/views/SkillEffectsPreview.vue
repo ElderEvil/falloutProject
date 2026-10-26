@@ -3,6 +3,14 @@ import { onScopeDispose, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Button } from '@/core/components/ui/button'
 import { Switch } from '@/core/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/core/components/ui/select'
 import { useSound } from '@/core/composables/useSound'
 import ArenaRing from '@/modules/rooms/components/ArenaRing.vue'
 import type { ArenaFighter } from '@/modules/rooms/api/arena'
@@ -99,17 +107,22 @@ onScopeDispose(() => clearTimeout(timer))
         Play a skill to see the impact on the target. Your system's reduced-motion setting is
         respected.
       </p>
-      <label class="flex max-w-sm flex-col gap-2 text-sm">
-        Weapon skill
-        <select
-          v-model="selectedSkill"
-          class="rounded-md border border-theme-primary/40 bg-surface px-3 py-2 text-theme-primary"
+      <div class="flex max-w-sm flex-col gap-2 text-sm">
+        <span>Weapon skill</span>
+        <Select
+          :model-value="selectedSkill"
+          @update:model-value="selectedSkill = typeof $event === 'string' ? $event : selectedSkill"
         >
-          <option v-for="skill in skills" :key="skill.icon" :value="skill.icon">
-            {{ skill.name }}
-          </option>
-        </select>
-      </label>
+          <SelectTrigger aria-label="Weapon skill"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem v-for="skill in skills" :key="skill.icon" :value="skill.icon">
+                {{ skill.name }}
+              </SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
       <label class="flex w-fit items-center gap-2 text-sm">
         <Switch v-model:checked="still" aria-label="Hold impact frame" />
         Hold impact frame

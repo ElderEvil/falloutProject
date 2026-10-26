@@ -25,17 +25,18 @@ test('skill preview plays and can hold the target impact frame', async ({ page }
   await expect(page.locator('.skill-hit--stationary')).toHaveCount(1)
 })
 
-for (const [weapon, effect] of [
-  ['heavy-explosive', 'skill-hit--explosion'],
-  ['energy-rifle', 'skill-hit--energy'],
-  ['heavy-flamer', 'skill-hit--heat'],
-  ['gun-shotgun', 'skill-hit--scatter'],
-  ['melee-blunt', 'skill-hit--hammer'],
-  ['heavy-automatic', 'skill-hit--automatic'],
+for (const [weapon, name, effect] of [
+  ['heavy-explosive', 'Blast Wave', 'skill-hit--explosion'],
+  ['energy-rifle', 'Beam Sweep', 'skill-hit--energy'],
+  ['heavy-flamer', 'Firestorm', 'skill-hit--heat'],
+  ['gun-shotgun', 'Scattershot', 'skill-hit--scatter'],
+  ['melee-blunt', 'Crushing Blow', 'skill-hit--hammer'],
+  ['heavy-automatic', 'Full Auto', 'skill-hit--automatic'],
 ] as const) {
   test(`${weapon} selects its skill effect`, async ({ page }) => {
     await page.goto('/dev/skill-effects')
-    await page.getByLabel('Weapon skill').selectOption(weapon)
+    await page.getByRole('combobox', { name: 'Weapon skill' }).click()
+    await page.getByRole('option', { name, exact: true }).click()
     await page.getByRole('switch', { name: 'Hold impact frame' }).click()
     await page.getByRole('button', { name: 'Play skill' }).click()
     const impact = page.locator(`.${effect}`)

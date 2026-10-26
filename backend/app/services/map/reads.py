@@ -34,6 +34,7 @@ from app.services.exploration.expedition import (
     journey_offer_context,
     site_block_state,
     site_is_offered,
+    uses_single_scene,
 )
 from app.services.map import bio_registration, discovery
 from app.utils.place_groups import effective_place_group, load_place_groups
@@ -44,6 +45,7 @@ if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
 
     from app.models.vault import Vault
+    from app.schemas.expedition import SiteDefinition
 
 
 def _description_for(state: VaultLocationState, location: WorldLocation) -> str | None:
@@ -223,7 +225,13 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
     )
 
 
-def _site_marker(site, block: SiteBlockState, exploration_id=None) -> ExpeditionSiteMarkerRead:
+def _site_marker(
+    site: SiteDefinition,
+    block: SiteBlockState,
+    exploration_id: UUID4 | None = None,
+    *,
+    spatial: bool = False,
+) -> ExpeditionSiteMarkerRead:
     """Project one catalog site plus its journey/anti-farm block state onto the wire."""
     return ExpeditionSiteMarkerRead(
         id=site.id,
@@ -232,7 +240,7 @@ def _site_marker(site, block: SiteBlockState, exploration_id=None) -> Expedition
         coord_x=round(site.coord_x * WORLD_SCALE, 1),
         coord_y=round(site.coord_y * WORLD_SCALE, 1),
         min_dweller_level=site.min_dweller_level,
-        room_total=len(site.rooms),
+        room_total=1 if uses_single_scene(site, spatial=spatial) else len(site.rooms),
         cleared=block.cleared,
         cooldown_remaining_seconds=block.cooldown_remaining_seconds,
         block_reason=block.reason,
@@ -262,7 +270,7 @@ async def _expedition_site_markers(db_session: AsyncSession, vault: Vault) -> li
             for site in load_expedition_sites():
                 if site.id in offered_ids or not site_is_offered(site, context):
                     continue
-                markers.append(_site_marker(site, SiteBlockState(), exploration.id))
+                markers.append(_site_marker(site, SiteBlockState(), exploration.id, spatial=True))
                 offered_ids.add(site.id)
         return markers
     if not explorations:

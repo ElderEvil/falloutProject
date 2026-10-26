@@ -651,7 +651,16 @@ async def test_get_vault_map_expedition_sites_ready(async_session: AsyncSession,
         assert marker.coord_x == round(site.coord_x * WORLD_SCALE, 1)
         assert marker.coord_y == round(site.coord_y * WORLD_SCALE, 1)
         assert marker.min_dweller_level == site.min_dweller_level
-        assert marker.room_total == len(site.rooms)
+    assert {site_id: marker.room_total for site_id, marker in by_id.items()} == {
+        "red_rocket": 3,
+        "super_duper_mart": 4,
+        "abandoned_campsite": 1,
+        "roadside_supply_truck": 1,
+        "forgotten_shack": 1,
+        "collapsed_subway": 1,
+        "rusted_midway": 1,
+        "frozen_research_outpost": 1,
+    }
 
 
 @pytest.mark.asyncio
@@ -771,6 +780,10 @@ async def test_get_vault_map_spatial_journey_exposes_only_offered_sites(
 
     map_data = await map_service.get_vault_map(async_session, vault)
     assert {site.id for site in map_data.expedition_sites} == {"red_rocket", "roadside_supply_truck"}
+    assert {site.id: site.room_total for site in map_data.expedition_sites} == {
+        "red_rocket": 1,
+        "roadside_supply_truck": 1,
+    }
 
     run = await crud.expedition_run.create_run(
         async_session, exploration_id=exploration.id, vault_id=vault.id, site_id="red_rocket"

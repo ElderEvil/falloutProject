@@ -385,8 +385,9 @@ async def _pay_reward_vault(
         result.loot_gained.append("Stimpak")
 
 
-def _uses_single_scene(site: SiteDefinition, exploration: Exploration) -> bool:
-    return site.encounter is not None and (exploration.heading_degrees is not None or not site.rooms)
+def uses_single_scene(site: SiteDefinition, *, spatial: bool) -> bool:
+    """Use encounter content for spatial visits and sites without legacy rooms."""
+    return site.encounter is not None and (spatial or not site.rooms)
 
 
 def _rooms_for_run(site: SiteDefinition, run: ExpeditionRun) -> list[SiteRoom]:
@@ -606,7 +607,7 @@ class ExpeditionService:
                 vault_id=exploration.vault_id,
                 site_id=site_id,
             )
-            if _uses_single_scene(site, exploration):
+            if uses_single_scene(site, spatial=exploration.heading_degrees is not None):
                 run.flags = {**run.flags, "single_scene": True, "combat": initial_combat(site)}
 
         from app.services.exploration_service import exploration_service
@@ -639,7 +640,9 @@ class ExpeditionService:
                 name=site.name,
                 flavor=site.flavor,
                 min_dweller_level=site.min_dweller_level,
-                room_total=1 if (single := _uses_single_scene(site, exploration)) else len(site.rooms),
+                room_total=1
+                if (single := uses_single_scene(site, spatial=exploration.heading_degrees is not None))
+                else len(site.rooms),
                 scene_id=site.scene_id,
                 enemy_names=[spec.name for spec in site.encounter.node.enemies] if single and site.encounter else [],
                 threat=encounter_threat(site, dweller_obj) if single and site.encounter else None,

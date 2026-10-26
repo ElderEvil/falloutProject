@@ -15,7 +15,8 @@ from main import app
 #: Operations intentionally reachable without a bearer token, keyed by "METHOD path" so
 #: a new unsecured method on an already-exempt path still fails the guard.
 PUBLIC_OPERATIONS: dict[str, str] = {
-    "GET /healthcheck": "infrastructure probe",
+    "GET /healthcheck": "infrastructure liveness probe",
+    "GET /readiness": "infrastructure readiness probe",
     "POST /api/v1/auth/login": "unauthenticated login",
     "POST /api/v1/auth/refresh": "refresh token exchange",
     "POST /api/v1/auth/forgot-password": "password reset request",

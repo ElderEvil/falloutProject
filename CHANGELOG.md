@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.271.0 (2026-10-26)
+
+### Features
+
+* add admin terminal with expedition tools and Warcraft cheats ([#1207](https://github.com/ElderEvil/falloutProject/issues/1207)) 82516b8
+
 ## 2.270.2 (2026-10-26)
 
 ### Bug Fixes

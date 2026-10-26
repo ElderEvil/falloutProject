@@ -34,6 +34,9 @@ const DwellerChatModal = defineAsyncComponent(
 const DwellerDetailModal = defineAsyncComponent(
   () => import('@/modules/dwellers/components/modals/DwellerDetailModal.vue')
 )
+const AdminTerminal = defineAsyncComponent(
+  () => import('@/modules/console/components/AdminTerminal.vue')
+)
 
 const route = useRoute()
 const router = useRouter()
@@ -134,6 +137,7 @@ provide('availableThemes', availableThemes)
       <router-view></router-view>
     </DefaultLayout>
     <Toaster />
+    <AdminTerminal v-if="authStore.isAuthenticated && authStore.isSuperuser" />
     <VaultBoyFeedback
       v-if="authStore.isAuthenticated && dwellerVaultId"
       :vault-id="dwellerVaultId"

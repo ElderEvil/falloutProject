@@ -264,7 +264,7 @@ class ExpeditionScenarioService:
                     time_remaining_seconds=exploration.time_remaining_seconds(),
                     available_sites=(
                         await expedition_service.list_available_sites(db_session, exploration.id)
-                        if exploration.is_active()
+                        if exploration.is_in_progress()
                         else []
                     ),
                     open_run_site_id=open_run.site_id if open_run is not None else None,

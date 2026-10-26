@@ -30,6 +30,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Perform Readiness Check
+         * @description Readiness probe: only the dependencies required to serve HTTP traffic.
+         *
+         *     Liveness stays on ``/healthcheck``. Optional integrations (RustFS, local AI,
+         *     SMTP) and the worker broker must not remove an otherwise healthy API pod from
+         *     service, so they are deliberately excluded here.
+         */
+        get: operations["perform_readiness_check_readiness_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/console/manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Console Manifest
+         * @description Describe the allowlisted commands for an authenticated superuser.
+         */
+        get: operations["get_console_manifest_api_v1_system_console_manifest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/console": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run Console
+         * @description Execute one audited, structured admin command.
+         */
+        post: operations["run_console_api_v1_system_console_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/system/info": {
         parameters: {
             query?: never;
@@ -6207,6 +6271,66 @@ export interface components {
             /** Proximity Score */
             proximity_score: number;
         };
+        /** ConsoleCommand */
+        ConsoleCommand: {
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /**
+             * Mutates
+             * @default false
+             */
+            mutates: boolean;
+            /** Args Schema */
+            args_schema: {
+                [key: string]: unknown;
+            };
+        };
+        /** ConsoleLink */
+        ConsoleLink: {
+            /** Label */
+            label: string;
+            /** To */
+            to: string;
+        };
+        /** ConsoleManifest */
+        ConsoleManifest: {
+            /** Commands */
+            commands: components["schemas"]["ConsoleCommand"][];
+            /** Sites */
+            sites: components["schemas"]["ConsoleSite"][];
+        };
+        /** ConsoleRequest */
+        ConsoleRequest: {
+            /** Command */
+            command: string;
+            /** Args */
+            args?: {
+                [key: string]: unknown;
+            };
+        };
+        /** ConsoleResult */
+        ConsoleResult: {
+            /**
+             * Ok
+             * @default true
+             */
+            ok: boolean;
+            /** Lines */
+            lines: string[];
+            /** Links */
+            links?: components["schemas"]["ConsoleLink"][];
+        };
+        /** ConsoleSite */
+        ConsoleSite: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Min Level */
+            min_level: number;
+        };
         /** ContaminationTeamRead */
         ContaminationTeamRead: {
             /**
@@ -12211,6 +12335,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    perform_readiness_check_readiness_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_console_manifest_api_v1_system_console_manifest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsoleManifest"];
+                };
+            };
+        };
+    };
+    run_console_api_v1_system_console_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsoleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsoleResult"];
                 };
             };
             /** @description Validation Error */

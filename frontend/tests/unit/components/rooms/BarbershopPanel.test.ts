@@ -27,7 +27,9 @@ const store = vi.hoisted(() => ({
     dwellers: [] as DwellerShort[],
     detailedDwellers: {} as Record<string, Dweller>,
     fetchDwellerDetails: vi.fn(),
+    fetchAllDwellers: vi.fn(),
   },
+  management: { assignDwellerToRoom: vi.fn(), unassignDwellerFromRoom: vi.fn() },
   generation: {
     generateDwellerPortrait: vi.fn(),
   },
@@ -37,7 +39,11 @@ vi.mock('@/modules/dwellers/stores/dweller', async () => {
   const { reactive } = await import('vue')
   store.filter = reactive(store.filter)
   return {
-    useDwellerStore: () => ({ filter: store.filter, generation: store.generation }),
+    useDwellerStore: () => ({
+      filter: store.filter,
+      generation: store.generation,
+      management: store.management,
+    }),
   }
 })
 
@@ -53,6 +59,7 @@ const room = (overrides: Partial<Room> = {}): Room =>
     id: 'room-1',
     name: 'Barbershop',
     category: 'misc.',
+    size: 6,
     ability: 'charisma',
     tier: 1,
     ...overrides,
@@ -66,6 +73,7 @@ const dweller = (overrides: Partial<DwellerShort> = {}): DwellerShort =>
     thumbnail_url: '/static/dweller_thumbnails/FOS_Dw_Default_Human_Male.webp',
     level: 5,
     status: 'idle',
+    room_id: 'room-1',
     age_group: 'adult',
     gender: 'male',
     rarity: 'common',
@@ -112,6 +120,7 @@ const mountPanel = (clients: DwellerShort[] = [dweller()], barber = barberDwelle
   store.filter.dwellers = [...assigned]
   return mountWithSetup(BarbershopPanel, {
     props: {
+      vaultId: 'vault-1',
       room: room(),
       assignedDwellers: assigned,
     },
@@ -127,12 +136,165 @@ const saveButton = (wrapper: ReturnType<typeof mountWithSetup>) =>
 describe('BarbershopPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    store.management.assignDwellerToRoom.mockReset()
+    store.management.unassignDwellerFromRoom.mockReset()
     store.filter.allDwellers = []
     store.filter.dwellers = []
     store.filter.detailedDwellers = {}
     store.filter.fetchDwellerDetails.mockResolvedValue(null)
+    store.filter.fetchAllDwellers.mockImplementation(async () => {
+      store.filter.allDwellers = [...store.filter.dwellers]
+    })
     store.generation.generateDwellerPortrait.mockResolvedValue(null)
     vi.mocked(fetchBarbershopStatus).mockResolvedValue(status())
+  })
+
+  it('shows worker and client slots even when the room is empty', async () => {
+    vi.mocked(fetchBarbershopStatus).mockResolvedValue(status({ staffed: false }))
+    const wrapper = mountWithSetup(BarbershopPanel, {
+      props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
+    })
+    await flushPromises()
+    expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
+    expect(wrapper.get('button[aria-label^="Choose client"]').text()).toContain('Add client')
+  })
+
+  it('assigns a client directly from its slot without also filling the worker slot', async () => {
+    const client = dweller({ room_id: null })
+    store.filter.dwellers = [client]
+    store.management.assignDwellerToRoom.mockResolvedValue({ ...client, room_id: 'room-1' })
+    const wrapper = mountWithSetup(BarbershopPanel, {
+      props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
+    })
+    await flushPromises()
+    await wrapper.get('button[aria-label^="Choose client"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="barbershop-client-option"]').trigger('click')
+    await flushPromises()
+    expect(store.management.assignDwellerToRoom).toHaveBeenCalledWith(
+      ADULT_ID,
+      'room-1',
+      'test-token'
+    )
+    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada')
+    expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
+    expect(wrapper.emitted('changed')).toHaveLength(1)
+  })
+
+  it('keeps an empty slot and the picker open when assignment fails', async () => {
+    store.filter.dwellers = [dweller({ room_id: null })]
+    store.management.assignDwellerToRoom.mockRejectedValueOnce(new Error('Room is full'))
+    const wrapper = mountWithSetup(BarbershopPanel, {
+      props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
+    })
+    await flushPromises()
+    await wrapper.get('button[aria-label^="Choose worker"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="barbershop-barber-option"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
+    expect(wrapper.get('[role="alert"]').text()).toContain('Room is full')
+    expect(wrapper.find('[data-testid="barbershop-barber-option"]').exists()).toBe(true)
+    expect(wrapper.emitted('changed')).toBeUndefined()
+  })
+
+  it('ignores an assignment completion after switching rooms', async () => {
+    const client = dweller({ room_id: null })
+    store.filter.dwellers = [client]
+    let finish!: (value: Dweller) => void
+    store.management.assignDwellerToRoom.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    const wrapper = mountWithSetup(BarbershopPanel, {
+      props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
+    })
+    await flushPromises()
+    await wrapper.get('button[aria-label^="Choose client"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="barbershop-client-option"]').trigger('click')
+    await wrapper.setProps({ room: room({ id: 'room-2' }), assignedDwellers: [] })
+    finish({ ...client, room_id: 'room-1' } as Dweller)
+    await flushPromises()
+    expect(wrapper.get('button[aria-label^="Choose client"]').text()).toContain('Add client')
+    expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
+    expect(wrapper.emitted('changed')).toBeUndefined()
+  })
+
+  it('ignores old status after switching rooms', async () => {
+    let finish!: (value: BarbershopStatus) => void
+    vi.mocked(fetchBarbershopStatus).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    const wrapper = mountPanel()
+    vi.mocked(fetchBarbershopStatus).mockResolvedValue(
+      status({ room_id: 'room-2', vault_caps: 250 })
+    )
+    await wrapper.setProps({ room: room({ id: 'room-2' }), assignedDwellers: [] })
+    await flushPromises()
+    finish(status({ vault_caps: 9999 }))
+    await flushPromises()
+    expect(wrapper.get('[data-testid="barbershop-caps"]').text()).toBe('250')
+  })
+
+  it('unassigns a worker without putting the client into the worker slot', async () => {
+    store.management.unassignDwellerFromRoom.mockResolvedValue({})
+    const wrapper = mountPanel()
+    await flushPromises()
+    await wrapper.get('button[aria-label="Unassign Boris Barber from Barbershop"]').trigger('click')
+    await flushPromises()
+    expect(store.management.unassignDwellerFromRoom).toHaveBeenCalledWith(BARBER_ID, 'test-token')
+    expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
+    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada')
+  })
+
+  it('shows roster-load errors with a retry instead of an empty-picker message', async () => {
+    const wrapper = mountPanel()
+    await flushPromises()
+    store.filter.fetchAllDwellers.mockRejectedValueOnce(new Error('Roster unavailable'))
+    await wrapper.get('button[aria-label^="Choose worker"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('Roster unavailable')
+    const retry = wrapper.findAll('button').find((button) => button.text() === 'Retry dwellers')!
+    await retry.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="barbershop-barber-option"]')).toHaveLength(2)
+  })
+
+  it('keeps a worker outside the sidebar filter when the visible client is assigned', async () => {
+    const worker = barberDweller()
+    const client = dweller({ room_id: null })
+    store.filter.dwellers = [client]
+    store.filter.fetchAllDwellers.mockImplementation(async () => {
+      store.filter.allDwellers = [worker, client]
+    })
+    const wrapper = mountWithSetup(BarbershopPanel, {
+      props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
+    })
+    await flushPromises()
+    await wrapper.get('button[aria-label^="Choose worker"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="barbershop-barber-option"]').trigger('click')
+    await flushPromises()
+    await wrapper.setProps({ assignedDwellers: [{ ...client, room_id: 'room-1' }] })
+    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Boris')
+  })
+
+  it('keeps the worker selected when unassignment is rejected', async () => {
+    store.management.unassignDwellerFromRoom.mockRejectedValueOnce(new Error('Worker is busy'))
+    const wrapper = mountPanel()
+    await flushPromises()
+    await wrapper.get('button[aria-label="Unassign Boris Barber from Barbershop"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('Worker is busy')
+    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Boris')
+    expect(wrapper.emitted('changed')).toBeUndefined()
   })
 
   it('shows neutral status placeholders until the Barbershop status loads', async () => {
@@ -170,8 +332,8 @@ describe('BarbershopPanel', () => {
     ])
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="barbershop-barber-chair"]').text()).toContain('Boris Barber')
-    expect(wrapper.get('[data-testid="barbershop-customer-chair"]').text()).toContain('Ada Adult')
+    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Boris')
+    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada')
     expect(wrapper.get('[data-testid="barbershop-waiting-row"]').text()).toContain('Eve Elder')
     expect(
       wrapper
@@ -196,14 +358,15 @@ describe('BarbershopPanel', () => {
     ])
     await flushPromises()
 
-    await wrapper.get('[data-testid="barbershop-barber-change"]').trigger('click')
+    await wrapper.get('button[aria-label^="Choose worker"]').trigger('click')
+    await flushPromises()
     await wrapper
       .get(`[data-testid="barbershop-barber-option"][data-dweller-id="${ADULT_ID}"]`)
       .trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="barbershop-barber-chair"]').text()).toContain('Ada Adult')
-    expect(wrapper.get('[data-testid="barbershop-customer-chair"]').text()).toContain('Eve Elder')
+    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Ada')
+    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Eve')
     expect(wrapper.get('[data-testid="barbershop-waiting-row"]').text()).toContain('Boris Barber')
     expect(
       wrapper.find(`[data-testid="barbershop-waiting-row"][data-dweller-id="${ADULT_ID}"]`).exists()
@@ -230,7 +393,8 @@ describe('BarbershopPanel', () => {
     expect(waitingIds).not.toContain(GHOUL_ID)
     expect(waitingIds).not.toContain(DEAD_ID)
 
-    await wrapper.get('[data-testid="barbershop-barber-change"]').trigger('click')
+    await wrapper.get('button[aria-label^="Choose worker"]').trigger('click')
+    await flushPromises()
     const barberIds = wrapper
       .findAll('[data-testid="barbershop-barber-option"]')
       .map((row) => row.attributes('data-dweller-id'))

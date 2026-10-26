@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Barbershop room fixture</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import '../../../src/assets/main.css'
+      import { createApp, h } from 'vue'
+      import { createPinia } from 'pinia'
+      import { createRouter, createMemoryHistory } from 'vue-router'
+      import RoomDetailModal from '../../../src/modules/rooms/components/RoomDetailModal.vue'
+      import { useAuthStore } from '../../../src/modules/auth/stores/auth'
+      import { useDwellerStore } from '../../../src/modules/dwellers/stores/dweller'
+      const pinia = createPinia()
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [{ path: '/', component: { render: () => null } }],
+      })
+      const app = createApp({
+        render: () =>
+          h(RoomDetailModal, {
+            vaultId: 'vault-1',
+            modelValue: true,
+            room: {
+              id: 'barbershop-1',
+              vault_id: 'vault-1',
+              name: 'Barbershop',
+              image_url: '/static/room_images/FOS Barber 1.png',
+              category: 'misc.',
+              tier: 1,
+              size: 6,
+              size_min: 6,
+              size_max: 6,
+              capacity: 4,
+              ability: 'charisma',
+              t2_upgrade_cost: 500,
+              t3_upgrade_cost: 1000,
+            },
+          }),
+      })
+      app.use(pinia)
+      app.use(router)
+      useAuthStore(pinia).token = 'barbershop-test-token'
+      useDwellerStore().filter.dwellers = [
+        { id: 'lucy', first_name: 'Lucy', race: 'human', age_group: 'adult', status: 'idle' },
+        { id: 'cooper', first_name: 'Cooper', race: 'ghoul', age_group: 'adult', status: 'idle' },
+        { id: 'norm', first_name: 'Norm', race: 'human', age_group: 'child', status: 'idle' },
+        {
+          id: 'maximus',
+          first_name: 'Maximus',
+          race: 'human',
+          age_group: 'adult',
+          status: 'exploring',
+        },
+      ]
+        .map(({ race, ...entry }) => ({
+          ...entry,
+          last_name: '',
+          level: 5,
+          health: 100,
+          max_health: 100,
+          room_id: null,
+          apprentice_stat: null,
+          gender: 'female',
+          is_default_portrait: true,
+          thumbnail_url: '/static/dweller_thumbnails/FOS_Dw_Default_Human_Female.webp',
+          visual_attributes: { race, skin_tone: 'Pale', hair_color: 'Brown' },
+        }))
+        .filter((entry) => entry.id === 'lucy') // Simulate an active sidebar filter.
+      app.mount('#app')
+    </script>
+  </body>
+</html>

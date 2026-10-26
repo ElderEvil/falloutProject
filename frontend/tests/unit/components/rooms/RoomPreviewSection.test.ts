@@ -24,6 +24,53 @@ const mountPreview = (props: Record<string, unknown> = {}) =>
     props: { ...baseProps, ...props },
   })
 
+describe('RoomPreviewSection image aspect', () => {
+  it('waits for the room image aspect before rendering the sprite overlay', async () => {
+    const wrapper = mountPreview({ imageUrl: '/static/room_images/wide-room.png' })
+
+    expect(wrapper.find('.dweller-sprites-overlay').exists()).toBe(false)
+
+    const image = wrapper.get('img.room-image')
+    expect(image.attributes('style')).toContain('display: none')
+    Object.defineProperty(image.element, 'naturalWidth', { value: 1200 })
+    Object.defineProperty(image.element, 'naturalHeight', { value: 260 })
+    await image.trigger('load')
+
+    expect(image.attributes('style') ?? '').not.toContain('display: none')
+    expect(wrapper.find('.dweller-sprites-overlay').exists()).toBe(true)
+    wrapper.unmount()
+  })
+})
+
+describe('RoomPreviewSection client slot', () => {
+  it('keeps the client separate from workers and apprentice assignment', async () => {
+    const wrapper = mountPreview({ dwellerCapacity: 1, clientSlot: null, selectionMode: true })
+    expect(wrapper.findAll('.dweller-sprite-slot')).toHaveLength(2)
+    expect(wrapper.find('.client-slot').exists()).toBe(true)
+    expect(wrapper.find('.apprentice-slot').exists()).toBe(false)
+    await wrapper.get('button[aria-label="Choose client"]').trigger('click')
+    expect(wrapper.emitted('assignClient')).toEqual([[]])
+    expect(wrapper.emitted('assignWorker')).toBeUndefined()
+    expect(wrapper.emitted('assignApprentice')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('uses the same name badge and unassign event for an occupied client', async () => {
+    const wrapper = mountPreview({
+      dwellerCapacity: 1,
+      clientSlot: dweller('client', 'Lucy'),
+      selectionMode: true,
+      roomName: 'Barbershop',
+    })
+    expect(wrapper.get('.client-slot .dweller-name-badge').text()).toBe('Lucy')
+    expect(wrapper.get('.client-marker').text()).toBe('Client')
+    await wrapper.get('button[aria-label="Unassign Lucy from Barbershop"]').trigger('click')
+    expect(wrapper.emitted('unassign')).toEqual([['client']])
+    expect(wrapper.emitted('activate')).toBeUndefined()
+    wrapper.unmount()
+  })
+})
+
 describe('RoomPreviewSection unassign affordance (issue #1083)', () => {
   it('emits the worker ID when unassign is activated', async () => {
     const wrapper = mountPreview()

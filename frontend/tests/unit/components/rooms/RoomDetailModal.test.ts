@@ -365,6 +365,7 @@ describe('RoomDetailModal', () => {
         },
       })
       expect(barbershop.find('.mock-barbershop-panel').exists()).toBe(true)
+      expect(barbershop.find('.room-preview-section').exists()).toBe(false)
 
       const other = mount(RoomDetailModal, {
         props: {

@@ -54,3 +54,27 @@ detail even during an incident.
 Unit checks validate WebP signature/dimensions, the native 3:1 ratio, catalog/tier selection, load-error fallback
 and reset, and existing room/Arena/incident behavior. The manifest convention follows #817
 without recovering the discarded #850 actor prototype or choosing a broader art pipeline.
+
+## Barbershop worker/client slots
+
+`RoomDwellerSlot` is the shared renderer for workers, apprentices and clients: the same silhouette,
+portrait sizing, name badge and unassign behavior. `RoomPreviewSection` adds an optional dedicated
+`clientSlot` alongside its worker slots, following the existing apprentice-slot pattern. The Barbershop
+shows one worker plus that client slot. Both slots remain visible when empty and keep the same floor
+baseline as production worker/apprentice slots. A small worker/client caption hangs under each
+silhouette; hovering reveals the same unassign affordance as other rooms, and clicking a filled slot
+reopens its role picker (there is no separate control row). The slot group sits near the bottom of the
+scene; hover/focus feedback and Escape/focus return follow the Arena setup pattern.
+
+One searchable picker reuses the dweller store's full-vault loader, independently of sidebar filters.
+Assigned adults/elders can change local roles; available unassigned dwellers join through the existing
+management store. Any adult/elder race can work, while clients must be human and cannot be the selected
+worker. Additional assigned human clients appear in a compact waiting list. Room capacity and assignment
+restrictions remain server-authoritative. Failed assignments retain the picker and empty slot; roster-load
+errors offer a retry. Context guards discard late status and mutation UI updates after room/account changes.
+
+Worker/client choices are presentation state, initialized from existing assignments when the room opens;
+there is no persisted role, queue, new API, or extra appearance fee. Existing swatches, custom-portrait
+preservation and regeneration stay in the compact appearance studio below the scene, which keeps a client
+preview of pending cosmetic choices. Browser coverage uses the real room dialog at 390px and
+1280px and runs in frontend CI.

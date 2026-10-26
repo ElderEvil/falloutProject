@@ -430,23 +430,6 @@
           ]
         }
       },
-      "rooms": [
-        {
-          "id": "subway_station",
-          "name": "Collapsed Subway",
-          "flavor": "A feral ghoul wanders the platform beside an abandoned emergency locker. Secure the platform to recover its supplies.",
-          "node": {
-            "kind": "combat",
-            "prompt": "A feral ghoul wanders the platform beside an abandoned emergency locker. Secure the platform to recover its supplies.",
-            "enemies": [
-              {
-                "name": "Feral Ghoul",
-                "arena_key": "feral-ghoul"
-              }
-            ]
-          }
-        }
-      ],
       "reward_vault": {
         "caps_min": 25,
         "caps_max": 50,
@@ -482,23 +465,6 @@
           ]
         }
       },
-      "rooms": [
-        {
-          "id": "amusement_park",
-          "name": "Rusted Midway",
-          "flavor": "A raider has turned the prize booth into a supply stash. The rides are silent, but the booth is occupied.",
-          "node": {
-            "kind": "combat",
-            "prompt": "A raider has turned the prize booth into a supply stash. The rides are silent, but the booth is occupied.",
-            "enemies": [
-              {
-                "name": "Raider",
-                "arena_key": "raider"
-              }
-            ]
-          }
-        }
-      ],
       "reward_vault": {
         "caps_min": 25,
         "caps_max": 50,
@@ -534,23 +500,6 @@
           ]
         }
       },
-      "rooms": [
-        {
-          "id": "arctic_research_station",
-          "name": "Frozen Research Outpost",
-          "flavor": "A feral ghoul in a ruined research uniform guards the station\u2019s emergency stores. Clear the room to recover them.",
-          "node": {
-            "kind": "combat",
-            "prompt": "A feral ghoul in a ruined research uniform guards the station\u2019s emergency stores. Clear the room to recover them.",
-            "enemies": [
-              {
-                "name": "Feral Ghoul",
-                "arena_key": "feral-ghoul"
-              }
-            ]
-          }
-        }
-      ],
       "reward_vault": {
         "caps_min": 25,
         "caps_max": 50,

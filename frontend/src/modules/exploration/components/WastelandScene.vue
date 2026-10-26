@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import {
   WASTELAND_SCENES,
+  widestSceneImage,
   type WastelandSceneId,
   type WastelandSceneRole,
 } from '../models/wastelandScenes'
@@ -32,7 +33,7 @@ const props = withDefaults(
 
 const artwork = computed(() => (props.scene ? WASTELAND_SCENES[props.scene] : null))
 const variants = computed(() => artwork.value?.[props.variant].variants ?? [])
-const fullImage = computed(() => variants.value[1]!)
+const fullImage = computed(() => widestSceneImage(variants.value))
 const srcset = computed(() =>
   variants.value.map((image) => `${image.src} ${image.width}w`).join(', ')
 )

@@ -28,6 +28,7 @@ from app.services.combat.arena_participants import (
     persist_creature_hp,
 )
 from app.services.combat.arena_service import ArenaService
+from app.services.combat.attack_service import team_damage
 from app.services.dweller_service import dweller_service
 from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
@@ -89,7 +90,7 @@ def test_team_damage_uses_twenty_percent_power_per_second_and_ignores_knockouts(
         ArenaParticipant(key="down", name="Down", short_name="Down", power=100.0, health=0, max_health=100),
         ArenaParticipant(key="up", name="Up", short_name="Up", power=20.0, health=10, max_health=100),
     ]
-    assert ArenaService._team_damage(team, seconds) == pytest.approx(expected)
+    assert team_damage(team, seconds) == pytest.approx(expected)
 
 
 @pytest.mark.parametrize(
@@ -796,7 +797,7 @@ class TestArenaService:
         await service._resolve_round(async_session, arena_room, a, b, 1, state=state)
         assert fighter_a.health == 100
         assert fighter_b.health == 50 - int(damage_b)
-        assert service._damage_carry[(str(arena_room.id), str(fighter_b.id))] == pytest.approx(damage_b % 1)
+        assert service._damage_carry[str(arena_room.id)][str(fighter_b.id)] == pytest.approx(damage_b % 1)
         assert state.next_attack_team == "B"
         await async_session.commit()
         # A fresh worker resumes B rather than restarting with A.
@@ -821,12 +822,12 @@ class TestArenaService:
         strong = ArenaParticipant(key="strong", name="Strong", short_name="Strong", power=0, health=200, max_health=200)
         await service._resolve_round(async_session, arena_room, heroes, [weak, strong], 1)
         assert (weak.health, strong.health) == (3, 196)
-        assert service._damage_carry[(str(arena_room.id), "weak")] == 0.5
+        assert service._damage_carry[str(arena_room.id)]["weak"] == 0.5
         await service._resolve_round(async_session, arena_room, heroes, [weak, strong], 1)
         assert (weak.health, strong.health) == (3, 196)  # B's turn cannot hurt B.
         await service._resolve_round(async_session, arena_room, heroes, [weak, strong], 1)
         assert (weak.health, strong.health) == (0, 192)
-        assert service._damage_carry[(str(arena_room.id), "weak")] == 0
+        assert service._damage_carry[str(arena_room.id)]["weak"] == 0
         # Once one enemy remains, both attackers may share it.
         await service._resolve_round(async_session, arena_room, heroes, [weak, strong], 1)
         await service._resolve_round(async_session, arena_room, heroes, [weak, strong], 1)
@@ -1613,7 +1614,7 @@ class TestArenaBotSupport:
         await async_session.commit()
         _, b = await ArenaService().get_teams(async_session, arena_room)
         assert b[1].health == 0
-        assert ArenaService._team_damage(b, 2) == pytest.approx(b[0].power * 0.4)
+        assert team_damage(b, 2) == pytest.approx(b[0].power * 0.4)
         await service.set_fighters(
             async_session,
             arena_room.id,
@@ -2585,3 +2586,19 @@ async def test_arena_candidates_load_once_and_preserve_room_eligibility(
     assert candidates[str(arena_room.id)] == {str(fighter_a.id), str(fighter_b.id)}
     assert candidates[str(second.id)] == {str(fighter_b.id), str(fighter_c.id)}
     assert len(queries) == 1
+
+
+def test_damage_carry_isolated_by_room_and_reset_only_clears_its_room():
+    from app.services.combat.attack_service import resolve_attacks
+
+    service = ArenaService()
+    attacker = ArenaParticipant(key="attacker", name="A", short_name="A", power=1, health=100, max_health=100)
+    defender = ArenaParticipant(key="shared-fighter", name="B", short_name="B", power=1, health=100, max_health=100)
+    for room in ("room-a", "room-b"):
+        resolve_attacks([attacker], [defender], 2, set(), service._damage_carry.setdefault(room, {}))
+    assert defender.health == 100
+    service._clear_room_state("room-a")
+    assert "room-a" not in service._damage_carry
+    resolve_attacks([attacker], [defender], 2, set(), service._damage_carry["room-b"])
+    resolve_attacks([attacker], [defender], 2, set(), service._damage_carry["room-b"])
+    assert defender.health == 99

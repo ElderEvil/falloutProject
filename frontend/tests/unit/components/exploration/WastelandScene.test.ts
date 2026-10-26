@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import WastelandScene from '@/modules/exploration/components/WastelandScene.vue'
-import { WASTELAND_SCENES } from '@/modules/exploration/models/wastelandScenes'
+import { WASTELAND_SCENES, widestSceneImage } from '@/modules/exploration/models/wastelandScenes'
 
 const props = {
   scene: 'desert_highway' as const,
@@ -52,6 +52,13 @@ describe('Wasteland scenes', () => {
     expect(wrapper.find('img').exists()).toBe(false)
     expect(wrapper.get('[role="img"]').attributes('aria-label')).toBe(props.heading)
     expect(wrapper.get('[role="group"]').exists()).toBe(true)
+  })
+
+  it('chooses the widest variant independent of manifest order and handles a single image', () => {
+    const variants = WASTELAND_SCENES.desert_highway.landscape.variants
+    expect(widestSceneImage([...variants].reverse())?.width).toBe(1280)
+    expect(widestSceneImage([variants[0]!])?.width).toBe(640)
+    expect(widestSceneImage([])).toBeUndefined()
   })
 
   it('ships every responsive variant as a content-addressed WebP within its asset budget', () => {

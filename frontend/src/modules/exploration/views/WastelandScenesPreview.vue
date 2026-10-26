@@ -44,7 +44,6 @@ function previewCombat(combat = true): void {
     scene_id: selectedScene.value,
     flavor: 'Read-only preview of the encounter battlefield and journal.',
     lore: 'This preview does not advance a real expedition.',
-    threat: 'low',
     node: {
       kind: 'combat',
       prompt: 'Preview',

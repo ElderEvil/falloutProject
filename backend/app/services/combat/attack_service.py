@@ -20,10 +20,9 @@ def team_damage(team: list[ArenaParticipant], seconds_passed: int) -> float:
 
 
 def apply_team_damage(
-    match_key: str,
     defenders: list[ArenaParticipant],
     damage: float,
-    carry: dict[tuple[str, str], float],
+    carry: dict[str, float],
     *,
     seconds_passed: int | None = None,
     cap_multiplier: float = 1.0,
@@ -31,7 +30,7 @@ def apply_team_damage(
     hits: list[tuple[ArenaParticipant, int]] = []
     pool = damage
     for defender in sorted((p for p in defenders if p.health > 0), key=lambda p: p.health):
-        carry_key = (match_key, defender.key)
+        carry_key = defender.key
         capped = (
             min(pool, defender.max_health * 0.05 * max(0, seconds_passed) * cap_multiplier)
             if seconds_passed is not None
@@ -53,12 +52,11 @@ def apply_team_damage(
 
 
 def resolve_attacks(
-    match_key: str,
     attackers: list[ArenaParticipant],
     defenders: list[ArenaParticipant],
     seconds_passed: int,
     queued: set[str],
-    carry: dict[tuple[str, str], float],
+    carry: dict[str, float],
 ) -> list[ResolvedAttack]:
     """Resolve one team's turn; consume queued skills only when that fighter attacks."""
     attacks: list[ResolvedAttack] = []
@@ -81,9 +79,7 @@ def resolve_attacks(
             messages: list[str] = []
             for target in targets:
                 before = target.health
-                apply_team_damage(
-                    match_key, [target], damage, carry, seconds_passed=seconds_passed, cap_multiplier=multiplier
-                )
+                apply_team_damage([target], damage, carry, seconds_passed=seconds_passed, cap_multiplier=multiplier)
                 dealt = before - target.health
                 if dealt > 0 or attack_skill:
                     impacts.append(

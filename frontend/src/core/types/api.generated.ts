@@ -5750,8 +5750,7 @@ export interface components {
             min_dweller_level: number;
             /** Room Total */
             room_total: number;
-            /** Scene Id */
-            scene_id?: ("desert_highway" | "supermarket_interior" | "subway_station" | "amusement_park" | "arctic_research_station") | null;
+            scene_id?: components["schemas"]["ExpeditionSceneId"] | null;
             /** Enemy Names */
             enemy_names?: string[];
             /** Threat */
@@ -7822,6 +7821,11 @@ export interface components {
             /** Expected Round */
             expected_round?: number | null;
         };
+        /**
+         * ExpeditionSceneId
+         * @enum {string}
+         */
+        ExpeditionSceneId: "desert_highway" | "supermarket_interior" | "subway_station" | "amusement_park" | "arctic_research_station";
         /**
          * ExpeditionSiteMarkerRead
          * @description One interactive expedition site on the world map, with per-vault state.
@@ -10842,15 +10846,12 @@ export interface components {
              * @default 0
              */
             dweller_max_health: number;
-            /** Scene Id */
-            scene_id?: ("desert_highway" | "supermarket_interior" | "subway_station" | "amusement_park" | "arctic_research_station") | null;
+            scene_id?: components["schemas"]["ExpeditionSceneId"] | null;
             /**
              * Lore
              * @default
              */
             lore: string;
-            /** Threat */
-            threat?: ("low" | "moderate" | "high") | null;
             combat_state?: components["schemas"]["SiteCombatView"] | null;
         };
         /**

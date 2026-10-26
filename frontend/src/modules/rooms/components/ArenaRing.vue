@@ -27,35 +27,36 @@ import { useFallbackImage } from '../composables/useFallbackImage'
 
 defineOptions({ inheritAttrs: false })
 
-const props = defineProps<{
-  state: Pick<
-    ArenaRoomState,
-    | 'team_a'
-    | 'team_b'
-    | 'match_done'
-    | 'countdown_remaining'
-    | 'fight_started'
-    | 'next_attack_team'
-    | 'mode'
-  >
-  sceneImageUrl?: string | null
-  sceneSrcset?: string
-  wideSceneImageUrl?: string
-  wideSceneSrcset?: string
-  encounter?: boolean
-  contained?: boolean
-  heading?: string
-  teamALabel?: string
-  teamBLabel?: string
-  statusLabel?: string
-  skillEnabled: boolean
-  pendingSkills: Set<string>
-  attackingTeam: 'A' | 'B' | null
-  attackingFighterId?: string | null
-  damageNumbers: Array<{ id: number; fighterId: string; amount: number }>
-  activeAction?: PlayingCombatAction | null
-  combatPhase?: 'prepare' | 'impact' | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    state: Pick<
+      ArenaRoomState,
+      'team_a' | 'team_b' | 'match_done' | 'fight_started' | 'next_attack_team'
+    > &
+      Partial<Pick<ArenaRoomState, 'mode' | 'countdown_remaining'>>
+    sceneImageUrl?: string | null
+    sceneSrcset?: string
+    wideSceneImageUrl?: string
+    wideSceneSrcset?: string
+    encounter?: boolean
+    contained?: boolean
+    heading?: string
+    teamALabel?: string
+    teamBLabel?: string
+    statusLabel?: string
+    skillEnabled: boolean
+    pendingSkills?: Set<string>
+    attackingTeam?: 'A' | 'B' | null
+    attackingFighterId?: string | null
+    damageNumbers: Array<{ id: number; fighterId: string; amount: number }>
+    activeAction?: PlayingCombatAction | null
+    combatPhase?: 'prepare' | 'impact' | null
+  }>(),
+  {
+    pendingSkills: () => new Set<string>(),
+    attackingTeam: null,
+  }
+)
 const emit = defineEmits<{ skill: [fighterId: string] }>()
 const { url: scene, onError: imageFailed } = useFallbackImage(() => [props.sceneImageUrl])
 const teams = computed<Array<{ side: 'A' | 'B'; fighters: ArenaFighter[] }>>(() => [
@@ -146,7 +147,7 @@ const actionFor = (fighter: ArenaFighter) => {
           statusLabel ??
           (state.match_done
             ? 'MATCH COMPLETE'
-            : state.countdown_remaining > 0
+            : (state.countdown_remaining ?? 0) > 0
               ? 'GET READY'
               : state.fight_started
                 ? `NEXT · TEAM ${state.next_attack_team}`
@@ -158,7 +159,7 @@ const actionFor = (fighter: ArenaFighter) => {
         }}</span>
       </div>
       <div
-        v-if="state.fight_started && !state.match_done && state.countdown_remaining > 0"
+        v-if="state.fight_started && !state.match_done && (state.countdown_remaining ?? 0) > 0"
         class="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 bg-black/30"
         role="status"
         aria-live="polite"

@@ -284,3 +284,15 @@ class TestLivePgEnumSync:
                 f"DB has {sorted(live_labels)}, model metadata expects {sorted(expected_labels)}. "
                 "A migration is missing or the DB enum was modified manually."
             )
+
+
+def test_expedition_scene_ids_match_manifest_and_enemy_pools():
+    """Scene ids are API vocabulary, not PostgreSQL enums; keep authored assets in sync."""
+    import json
+    from pathlib import Path
+
+    from app.core.enums import ExpeditionSceneId
+    from app.services.catalog_service import SITE_ENEMY_POOLS
+
+    manifest = Path(__file__).resolve().parents[4] / "frontend/src/modules/exploration/models/wasteland-scenes.json"
+    assert set(ExpeditionSceneId) == set(SITE_ENEMY_POOLS) == set(json.loads(manifest.read_text()))

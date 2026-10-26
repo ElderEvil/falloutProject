@@ -22,7 +22,6 @@ export interface ExplorationEvent {
   time_elapsed_hours: number
   event?: string
   site_id?: string
-  offer_id?: string
   location_name?: string
   location_id?: string
   coord_x?: number

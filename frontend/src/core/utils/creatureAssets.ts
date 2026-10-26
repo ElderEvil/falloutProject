@@ -3,13 +3,13 @@
 // scene rendering can change without duplicating per-species sizing rules.
 // The combat scene supplies one shared, scene-relative body height.
 const MODEL_SIZE_CLASSES = {
-  0.5: 'size-[calc(var(--scene-actor-height)*0.5)]',
-  0.7: 'size-[calc(var(--scene-actor-height)*0.7)]',
-  0.8: 'size-[calc(var(--scene-actor-height)*0.8)]',
-  1: 'size-[var(--scene-actor-height)]',
-  1.18: 'size-[calc(var(--scene-actor-height)*1.18)]',
-  1.3: 'size-[calc(var(--scene-actor-height)*1.3)]',
-  1.5: 'size-[calc(var(--scene-actor-height)*1.5)]',
+  0.5: 'size-[calc(var(--scene-actor-height,7rem)*0.5)]',
+  0.7: 'size-[calc(var(--scene-actor-height,7rem)*0.7)]',
+  0.8: 'size-[calc(var(--scene-actor-height,7rem)*0.8)]',
+  1: 'size-[var(--scene-actor-height,7rem)]',
+  1.18: 'size-[calc(var(--scene-actor-height,7rem)*1.18)]',
+  1.3: 'size-[calc(var(--scene-actor-height,7rem)*1.3)]',
+  1.5: 'size-[calc(var(--scene-actor-height,7rem)*1.5)]',
 } as const
 
 export const CREATURE_ASSETS = (

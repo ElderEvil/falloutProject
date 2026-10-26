@@ -209,6 +209,36 @@ describe('ExpeditionSiteModal', () => {
     }
   })
 
+  it('shows a failed first automatic turn in the expanded scene and stops retrying', async () => {
+    vi.useFakeTimers()
+    const store = useExpeditionSiteStore()
+    store.room = {
+      ...choiceRoom,
+      room_total: 1,
+      node: { kind: 'combat', prompt: 'Fight' },
+      combat_state: { round: 0, fighters: [], events: [] },
+    }
+    store.currentExplorationId = 'exp-1'
+    mockResolve.mockRejectedValue(new Error('Connection lost'))
+    const wrapper = mount(ExpeditionSiteModal, {
+      props: { show: true, explorationId: 'exp-1' },
+      global: { stubs: { Teleport: { template: '<div><slot /></div>' }, SiteCombatScene: true } },
+    })
+    try {
+      await buttonByText(wrapper, 'Fight')!.trigger('click')
+      await vi.advanceTimersByTimeAsync(1200)
+      expect(store.error).toBeTruthy()
+      expect(wrapper.text()).toContain(store.error!)
+      expect(wrapper.getComponent(TerminalModal).props('size')).toBe('screen')
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(mockResolve).toHaveBeenCalledTimes(1)
+      expect(buttonByText(wrapper, 'Fight')!.attributes('disabled')).toBeUndefined()
+    } finally {
+      wrapper.unmount()
+      vi.useRealTimers()
+    }
+  })
+
   it('ends a nonlethal defeat with a return action and no retry', () => {
     const store = useExpeditionSiteStore()
     store.room = { ...defeatedRoom, status: 'defeated', room_total: 1 }

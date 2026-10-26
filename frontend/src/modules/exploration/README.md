@@ -35,7 +35,9 @@ frame and the dweller portrait. The ordinary exploration page shows status and t
 artwork belongs to the encounter. Saved room-based runs retain their original definitions and cursors;
 new spatial runs persist `single_scene` in their existing flags. Legacy non-spatial journeys retain
 the old rooms for original sites; newly authored sites use the new combat flow.
-The original `rooms` content remains solely for that compatibility path.
+The original five sites' `rooms` trees are frozen compatibility data for saved runs. Their duplicated
+text is migration debt; edit `encounter` for new visits and preserve legacy room identifiers/cursors.
+New sites author only `encounter`.
 
 `WastelandScene` reserves a 16:9 landscape or 50:37 battleback frame before images load. The explorer
 occupies 44% of that frame's height, with a 1:2 portrait frame. Original artwork is contained without
@@ -54,8 +56,7 @@ uv run --project backend python scripts/import_wasteland_scenes.py /path/to/back
 
 Commit the generated manifest and `frontend/public/assets/wasteland-scenes/` together. All five
 locations are available under `/dev/wasteland-scenes` in the development menu; the browser fixture
-mounts that same preview component at `/tests/e2e/fixtures/wasteland-scenes.html`. Supermarket and highway artwork are assigned to matching sites; the other supplied locations remain
-available to preview while their site content is planned.
+mounts that same preview component at `/tests/e2e/fixtures/wasteland-scenes.html`. Every supplied location is assigned to at least one site through its `scene_id`.
 Scene layout checks run at 390px and 1280px in Chromium and the focused Firefox scene project.
 
 ## Discovered site reports
@@ -103,7 +104,7 @@ fight retain the expanded view. Closing stops advancing turns. Reconnect restore
 Each request sends its expected round so delayed/duplicate requests cannot repeat an attack.
 
 Site definitions choose artwork explicitly and validate enemies against the scene's pool. Desert scenes
-use radscorpions/night stalkers; interior scenes use locally appropriate hostiles. Site-only power/HP
+use wildlife, raiders, and super mutants; interior scenes use locally appropriate hostiles. Site-only power/HP
 multipliers keep the first release forgiving without changing Arena matches. Defeat is terminal, gives
 no site loot and resumes travel with the dweller alive. Stat checks remain in the legacy engine for later design.
 

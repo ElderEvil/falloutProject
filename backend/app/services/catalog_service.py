@@ -9,23 +9,25 @@ from functools import lru_cache
 from operator import itemgetter
 from pathlib import Path
 
-from app.schemas.expedition import ExpeditionSiteList, SiteDefinition
+from app.core.enums import SPECIAL_STATS, ExpeditionSceneId
+from app.schemas.expedition import EnemySpec, ExpeditionSiteList, SiteDefinition
 from app.schemas.exploration_event import EnemySchema
 from app.services.combat import incident_math
+from app.utils.exceptions import ValidationException
 
 # Data directory paths
 DATA_DIR = Path(__file__).parent.parent / "data"
 EXPLORATION_DIR = DATA_DIR / "exploration"
 ITEMS_DIR = DATA_DIR / "items"
 VAULT_DIR = DATA_DIR / "vault"
-SITE_ENEMY_POOLS: dict[str, frozenset[str]] = {
-    "desert_highway": frozenset(
+SITE_ENEMY_POOLS: dict[ExpeditionSceneId, frozenset[str]] = {
+    ExpeditionSceneId.DESERT_HIGHWAY: frozenset(
         {"giant-radscorpion", "night-stalker", "raider", "super-mutant", "mole-rat-pack", "bloatfly"}
     ),
-    "supermarket_interior": frozenset({"raider", "feral-ghoul", "radroach-swarm"}),
-    "subway_station": frozenset({"feral-ghoul", "radroach-swarm", "mole-rat-pack"}),
-    "amusement_park": frozenset({"raider", "feral-ghoul", "radroach-swarm", "mole-rat-pack"}),
-    "arctic_research_station": frozenset({"raider", "feral-ghoul"}),
+    ExpeditionSceneId.SUPERMARKET_INTERIOR: frozenset({"raider", "feral-ghoul", "radroach-swarm"}),
+    ExpeditionSceneId.SUBWAY_STATION: frozenset({"feral-ghoul", "radroach-swarm", "mole-rat-pack"}),
+    ExpeditionSceneId.AMUSEMENT_PARK: frozenset({"raider", "feral-ghoul", "radroach-swarm", "mole-rat-pack"}),
+    ExpeditionSceneId.ARCTIC_RESEARCH_STATION: frozenset({"raider", "feral-ghoul"}),
 }
 
 
@@ -85,6 +87,7 @@ def list_arena_creatures() -> list[dict]:
     return creatures
 
 
+@lru_cache(maxsize=1)
 def list_site_enemies() -> list[dict]:
     """Shared arena wildlife plus humanoids; no arena training robots in the wasteland."""
     enemies = [entry for entry in list_arena_creatures() if not entry.get("is_robot")]
@@ -96,6 +99,61 @@ def list_site_enemies() -> list[dict]:
         power = incident_math.raider_power(difficulty)
         enemies.append({"key": key, "name": name, "power": power, "max_hp": int(power), "is_robot": False})
     return enemies
+
+
+def resolve_enemy_spec(spec: EnemySpec) -> EnemySchema:
+    """Build an enemy from an inline boss spec or the shared enemy table."""
+    if spec.min_damage is not None and spec.max_damage is not None:
+        return EnemySchema(
+            name=spec.name,
+            difficulty=spec.difficulty or 1,
+            min_damage=spec.min_damage,
+            max_damage=spec.max_damage,
+        )
+    table = {enemy["name"].lower(): enemy for enemy in load_enemies()}
+    entry = table.get(spec.name.lower())
+    if entry is None:
+        raise ValidationException(f"Unknown expedition enemy: {spec.name!r}")
+    return EnemySchema(**entry)
+
+
+def _require_floor_eligible(site: SiteDefinition, item_type: str, floor: str) -> None:
+    """Reject site content whose reward floor has no catalog item at or above it (authoring error)."""
+    from app.services.exploration.loot_calculator import loot_calculator
+
+    if not loot_calculator.has_eligible(item_type, floor):
+        raise ValidationException(f"Site {site.id}: no {item_type} at or above rarity {floor!r} in the catalog")
+
+
+def validate_site_content(site: SiteDefinition) -> None:
+    """Fail fast on authoring errors (bad stats, bad enemies, unsatisfiable floors) when loading the catalog."""
+    if site.encounter is not None:
+        if site.scene_id is None:
+            raise ValidationException(f"Missing encounter scene in site {site.id}")
+        if site.encounter.node.kind != "combat" or not site.encounter.node.enemies:
+            raise ValidationException(f"Site {site.id} needs a combat encounter with enemies")
+        for spec in site.encounter.node.enemies:
+            if spec.arena_key not in SITE_ENEMY_POOLS[site.scene_id]:
+                raise ValidationException(f"Enemy {spec.arena_key!r} does not belong in scene {site.scene_id!r}")
+    for room in [*site.rooms, *([site.encounter] if site.encounter is not None else [])]:
+        node = room.node
+        for stat in [option.stat for option in node.options] + ([node.stat] if node.stat else []):
+            if stat not in SPECIAL_STATS:
+                raise ValidationException(f"Unknown stat {stat!r} in site {site.id}")
+        for spec in node.enemies:
+            if spec.arena_key is not None:
+                if not any(enemy["key"] == spec.arena_key for enemy in list_site_enemies()):
+                    raise ValidationException(f"Unknown scene enemy {spec.arena_key!r}")
+            else:
+                resolve_enemy_spec(spec)
+        for branch in (branch for option in node.options for branch in (option.success, option.failure)):
+            for spec in branch.combat_enemies or []:
+                resolve_enemy_spec(spec)
+            if branch.cache_item is not None and branch.cache_floor is not None:
+                _require_floor_eligible(site, branch.cache_item, branch.cache_floor)
+    vault = site.reward_vault
+    if vault.item is not None and vault.item.floor is not None:
+        _require_floor_eligible(site, vault.item.type, vault.item.floor)
 
 
 @lru_cache(maxsize=1)
@@ -180,7 +238,10 @@ def load_expedition_sites() -> list[SiteDefinition]:
     if not sites_file.exists():
         return []
     with sites_file.open() as f:
-        return ExpeditionSiteList(**json.load(f)).sites
+        sites = ExpeditionSiteList(**json.load(f)).sites
+    for site in sites:
+        validate_site_content(site)
+    return sites
 
 
 def get_expedition_site(site_id: str) -> SiteDefinition | None:

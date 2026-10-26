@@ -316,7 +316,7 @@ async def test_site_discovery_is_durable_and_not_repeated_on_return(async_sessio
     notifications = await notification_crud.get_user_notifications(async_session, vault.user_id)
     reports = [n for n in notifications if (n.meta_data or {}).get("event") == "site_found"]
     assert len(reports) == len(discoveries)
-    assert {n.meta_data["offer_id"] for n in reports} == {event["offer_id"] for event in discoveries}
+    assert {n.meta_data["site_id"] for n in reports} == {event["site_id"] for event in discoveries}
     exploration.status = ExplorationStatus.RETURNING
     exploration.return_started_at = datetime.utcnow()
     exploration.return_completes_at = datetime.utcnow() + timedelta(hours=1)

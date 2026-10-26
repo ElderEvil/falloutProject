@@ -5,7 +5,7 @@ from typing import Literal
 
 from app.models.dweller import Dweller
 from app.schemas.expedition import SiteCombatView, SiteDefinition
-from app.services.catalog_service import SITE_ENEMY_POOLS, list_site_enemies
+from app.services.catalog_service import list_site_enemies
 from app.services.combat.arena_participants import (
     ArenaParticipant,
     charge_per_second,
@@ -25,8 +25,6 @@ def initial_combat(site: SiteDefinition) -> dict:
     if site.encounter is None:
         raise ValidationException(f"Missing encounter in {site.id}")
     for spec in site.encounter.node.enemies:
-        if spec.arena_key not in SITE_ENEMY_POOLS.get(site.scene_id or "", frozenset()):
-            raise ValidationException(f"Enemy {spec.arena_key!r} does not belong in scene {site.scene_id!r}")
         entry = catalog.get(spec.arena_key)
         if entry is None:
             raise ValidationException(f"Unknown scene enemy {spec.arena_key!r} in {site.id}")
@@ -109,9 +107,9 @@ def resolve_turn(state: dict, dweller: Dweller, *, use_skill: bool) -> tuple[dic
     player, enemies = participant_from_dweller(dweller), _opponents(state)
     before = player.health
     queued = {player.key} if use_skill else set()
-    carry = {("site", key): value for key, value in state["carry"].items()}
+    carry = dict(state["carry"])
     attackers, defenders = ([player], enemies) if state["next_attack_team"] == "A" else (enemies, [player])
-    attacks = resolve_attacks("site", attackers, defenders, TURN_SECONDS, queued, carry)
+    attacks = resolve_attacks(attackers, defenders, TURN_SECONDS, queued, carry)
     turn = state["round"] + 1
     events = [
         *state["events"],
@@ -132,7 +130,7 @@ def resolve_turn(state: dict, dweller: Dweller, *, use_skill: bool) -> tuple[dic
         "next_attack_team": "B" if state["next_attack_team"] == "A" else "A",
         "opponents": [{**entry, "hp": enemy.health} for entry, enemy in zip(state["opponents"], enemies, strict=True)],
         "charge": min(MAX_CHARGE, (0 if use_skill else state["charge"]) + TURN_SECONDS * charge_per_second(player)),
-        "carry": {key: value for (_, key), value in carry.items()},
+        "carry": carry,
         "events": events[-60:],
     }
     return state, won, lost, before - dweller.health

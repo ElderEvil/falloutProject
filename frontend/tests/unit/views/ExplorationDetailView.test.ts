@@ -548,7 +548,6 @@ describe('ExplorationDetailView', () => {
         type: 'site',
         event: 'site_found',
         site_id: 'red_rocket',
-        offer_id: 'exp-1:red_rocket',
         description: 'Site found',
         timestamp: '2026-10-26T10:00:00',
         time_elapsed_hours: 1,
@@ -568,6 +567,37 @@ describe('ExplorationDetailView', () => {
       expect((wrapper.vm as any).showSiteModal).toBe(true)
       expect((wrapper.vm as any).reportedSiteId).toBe('red_rocket')
       expect(enter).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
+
+    it('waits for reconnect before opening the reported-site picker', async () => {
+      await router.push('/vault/test-vault/exploration/expl-1?siteId=red_rocket')
+      let finishReconnect!: (room: SiteRoomView | null) => void
+      vi.mocked(siteStore.fetchCurrentRoom).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishReconnect = resolve
+          })
+      )
+      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
+      await flushPromises()
+      expect(wrapper.getComponent(ExpeditionSiteModal).props('show')).toBe(false)
+      finishReconnect(null)
+      await flushPromises()
+      expect(wrapper.getComponent(ExpeditionSiteModal).props('show')).toBe(true)
+      wrapper.unmount()
+    })
+
+    it('keeps notification entry open across explorers with the same reported site', async () => {
+      await router.push('/vault/test-vault/exploration/expl-1?siteId=red_rocket')
+      explorationStore.activeExplorations['expl-2'] = { ...mockExploration, id: 'expl-2' }
+      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
+      await flushPromises()
+      await router.push('/vault/test-vault/exploration/expl-2?siteId=red_rocket')
+      await flushPromises()
+      const modal = wrapper.getComponent(ExpeditionSiteModal)
+      expect(modal.props('show')).toBe(true)
+      expect(modal.props('explorationId')).toBe('expl-2')
       wrapper.unmount()
     })
 

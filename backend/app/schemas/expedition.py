@@ -5,13 +5,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.core.enums import ExpeditionSceneId
 from app.schemas.arena import ArenaFighter
 from app.schemas.combat import CombatAction
 
 RARITY_ORDER = ("common", "rare", "legendary")
-ExpeditionSceneId = Literal[
-    "desert_highway", "supermarket_interior", "subway_station", "amusement_park", "arctic_research_station"
-]
 
 
 def rarity_meets_floor(rarity: str, floor: str | None) -> bool:
@@ -116,7 +114,7 @@ class SiteDefinition(BaseModel):
     coord_x: float = Field(ge=0, le=100)
     coord_y: float = Field(ge=0, le=100)
     min_dweller_level: int = Field(ge=1)
-    rooms: list[SiteRoom] = Field(min_length=1)
+    rooms: list[SiteRoom] = Field(default_factory=list)
     # Original rooms remain readable for already-saved runs. New spatial visits
     # resolve this single encounter and award the site's haul in the same transaction.
     encounter: SiteRoom | None = None
@@ -126,6 +124,12 @@ class SiteDefinition(BaseModel):
     enemy_power_scale: float = Field(default=0.12, gt=0, le=5)
     enemy_health_scale: float = Field(default=0.3, gt=0, le=5)
     reward_vault: RewardVault
+
+    @model_validator(mode="after")
+    def requires_playable_content(self) -> Self:
+        if not self.rooms and self.encounter is None:
+            raise ValueError("site needs rooms or an encounter")
+        return self
 
 
 class ExpeditionSiteList(BaseModel):
@@ -206,7 +210,6 @@ class SiteRoomView(BaseModel):
     dweller_max_health: int = 0
     scene_id: ExpeditionSceneId | None = None
     lore: str = ""
-    threat: Literal["low", "moderate", "high"] | None = None
     combat_state: SiteCombatView | None = None
 
 

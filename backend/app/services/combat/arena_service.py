@@ -50,7 +50,7 @@ from app.services.combat.arena_participants import (
     participant_out,
     persist_creature_hp,
 )
-from app.services.combat.attack_service import apply_team_damage, resolve_attacks, team_damage
+from app.services.combat.attack_service import resolve_attacks
 from app.services.combat.weapon_skill_service import MAX_CHARGE
 from app.services.game_tick.tick_results import ArenaEventStats, ArenaRoomStats, ArenaStats
 from app.services.leveling_service import leveling_service
@@ -77,13 +77,13 @@ class ArenaService:
         # room_id -> next journal round sequence (in-memory; events are cleared
         # on match reset, so a restart just renumbers, which is cosmetic).
         self._round_seq: dict[str, int] = {}
-        # (room_id, dweller_id) -> fractional damage carried between ticks so a
+        # room_id -> fighter_id -> fractional damage carried between ticks so a
         # 8.7 vs 8.0 power difference shows up instead of truncating both to 8.
-        self._damage_carry: dict[tuple[str, str], float] = {}
+        self._damage_carry: dict[str, dict[str, float]] = {}
 
     def _clear_room_state(self, room_key: str) -> None:
         self._round_seq.pop(room_key, None)
-        self._damage_carry = {key: carry for key, carry in self._damage_carry.items() if key[0] != room_key}
+        self._damage_carry.pop(room_key, None)
 
     @staticmethod
     def _reset_match(state: ArenaState) -> None:
@@ -662,7 +662,9 @@ class ArenaService:
     ) -> None:
         """Persist shared combat facts in the arena journal."""
         queued = set(state.queued_skill_ids or [])
-        for attack in resolve_attacks(str(room.id), attackers, defenders, seconds_passed, queued, self._damage_carry):
+        for attack in resolve_attacks(
+            attackers, defenders, seconds_passed, queued, self._damage_carry.setdefault(str(room.id), {})
+        ):
             for index, message in enumerate(attack.messages):
                 db_session.add(
                     ArenaMatchEvent(
@@ -734,28 +736,6 @@ class ArenaService:
             rounds.append({"room_id": str(room.id), **round_result})
 
         return {"arena": {"rooms": len(rooms), "rounds": rounds}}
-
-    @staticmethod
-    def _team_damage(team: list[ArenaParticipant], seconds_passed: int) -> float:
-        return team_damage(team, seconds_passed)
-
-    def _apply_team_damage(
-        self,
-        room_key: str,
-        defenders: list[ArenaParticipant],
-        damage: float,
-        *,
-        seconds_passed: int | None = None,
-        cap_multiplier: float = 1.0,
-    ) -> list[tuple[ArenaParticipant, int]]:
-        return apply_team_damage(
-            room_key,
-            defenders,
-            damage,
-            self._damage_carry,
-            seconds_passed=seconds_passed,
-            cap_multiplier=cap_multiplier,
-        )
 
     @staticmethod
     def _team_defeated(team: list[ArenaParticipant]) -> bool:

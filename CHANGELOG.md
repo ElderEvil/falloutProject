@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.268.0 (2026-10-26)
+
+### Features
+
+* **dwellers:** generate race-aware names for super mutants and synths ([#1182](https://github.com/ElderEvil/falloutProject/issues/1182)) d0ebe8a
+
 ## 2.267.2 (2026-10-26)
 
 ### Bug Fixes

@@ -150,10 +150,15 @@ async function signIn(page: Page) {
 
 // Regression guard for #747: one canonical overlay, full opacity, canonical
 // gradient — a re-added per-view overlay or an `opacity-*` on this element fails here.
-async function expectCanonicalChrome(page: Page) {
+async function expectCanonicalChrome(page: Page, superuser = false) {
   // Iconify renders an empty <svg class="iconify"> until its icon body is fetched,
   // so without this wait a fresh page can be captured icon-less (CI vs local drift).
   await expect(page.locator('svg.iconify path').first()).toBeVisible({ timeout: 20000 })
+  if (superuser) {
+    const launcher = page.getByRole('button', { name: 'Open admin terminal' })
+    await expect(launcher).toBeVisible()
+    await expect(launcher.locator('svg path').first()).toBeVisible()
+  }
 
   const overlay = page.locator('.scanlines')
   await expect(overlay).toHaveCount(1)
@@ -170,7 +175,7 @@ test.describe('CRT baselines — entry routes', () => {
     await page.goto('/')
     await expect(page.getByRole('heading', { name: 'Your Vaults' })).toBeVisible({ timeout: 10000 })
 
-    await expectCanonicalChrome(page)
+    await expectCanonicalChrome(page, true)
     await expect(page).toHaveScreenshot('home.png', { animations: 'disabled', timeout: 20000 })
   })
 
@@ -231,7 +236,7 @@ test.describe('CRT baselines — entry routes', () => {
     )
     await expect(page.getByRole('button', { name: /View activity and AI usage/ })).toHaveCount(0)
 
-    await expectCanonicalChrome(page)
+    await expectCanonicalChrome(page, true)
     await expect(page).toHaveScreenshot('profile-dossier.png', {
       animations: 'disabled',
       timeout: 20000,

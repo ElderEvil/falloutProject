@@ -1,0 +1,67 @@
+name: Frontend Browser Tests
+
+# Browser downloads and visual tests are opt-in so they cannot block normal PR CI.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-browser-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-tests:
+    name: Frontend Browser Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.9.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          check-latest: true
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium and Firefox
+        timeout-minutes: 5
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium firefox
+
+      - name: Run CRT visual baselines
+        timeout-minutes: 10
+        working-directory: frontend
+        env:
+          PW_SKIP_BACKEND: '1'
+        run: pnpm exec playwright test tests/e2e/animation-gallery.spec.ts tests/e2e/crt-baselines.spec.ts tests/e2e/arena-creature-facing.spec.ts tests/e2e/barbershop-slots.spec.ts tests/e2e/arena-roster.spec.ts tests/e2e/arena-setup.spec.ts tests/e2e/combat-playback.spec.ts tests/e2e/skill-icons.spec.ts tests/e2e/arena-ring.spec.ts tests/e2e/incident-scene.spec.ts tests/e2e/overseer-briefing-contrast.spec.ts tests/e2e/onboarding-spotlight.spec.ts tests/e2e/wasteland-scenes.spec.ts
+
+      - name: Upload Playwright failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-crt-baselines
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore

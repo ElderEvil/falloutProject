@@ -315,10 +315,6 @@ const togglePopup = async () => {
   }
 }
 
-const markAsRead = async (notificationId: string) => {
-  if (authStore.token) await inboxStore.markRead(notificationId)
-}
-
 const markAllAsRead = async () => {
   if (authStore.token) await inboxStore.markAllRead(null)
 }
@@ -337,12 +333,13 @@ const enqueuePendingReport = (notification: Notification): void => {
   })
 }
 
-const handleNotificationClick = async (notification: Notification) => {
-  if (!inboxStore.isRead(notification)) await markAsRead(notification.id)
+const handleNotificationClick = (notification: Notification) => {
+  const route = getNotificationRoute(notification)
+  if (!route) return
   closePopup()
   enqueuePendingReport(notification)
-  const route = getNotificationRoute(notification)
-  if (route) await router.push(route)
+  void router.push(route)
+  if (!inboxStore.isRead(notification)) inboxStore.markReadOnOpen(notification)
 }
 
 const getNotificationIcon = (notification: Notification): string => {

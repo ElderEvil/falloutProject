@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.269.1 (2026-10-26)
+
+### Code Refactoring
+
+* **core:** move shared enums out of models ([#1197](https://github.com/ElderEvil/falloutProject/issues/1197)) 55fd3b2
+
 ## 2.269.0 (2026-10-26)
 
 ### Features

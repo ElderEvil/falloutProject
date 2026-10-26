@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import random
 import re
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from faker import Faker
@@ -56,6 +57,14 @@ def _already_uses_race_name(dweller: Dweller, race: RaceOption, state: str | Non
     return False
 
 
+@dataclass(frozen=True)
+class ActiveVaultBackfillResult:
+    """Per-vault summaries plus the number of active vaults a cap left unprocessed."""
+
+    summaries: dict[UUID4, dict[str, Any]]
+    omitted: int
+
+
 def generate_backfill_name(dweller: Dweller, race: RaceOption, state: str | None) -> tuple[str, str | None]:
     """Return the deterministic replacement name for a legacy row.
 
@@ -81,7 +90,11 @@ class DwellerNameBackfillService:
         sample_limit: int = 10,
     ) -> dict[str, Any]:
         """Plan or apply names for one vault and return a summary."""
-        candidates = await dweller_crud.get_name_backfill_candidates(db_session, vault_id)
+        candidates = await dweller_crud.get_name_backfill_candidates(
+            db_session,
+            vault_id,
+            for_update=not dry_run,
+        )
         curated_names = _curated_full_names()
         summary: dict[str, Any] = {
             "scanned": len(candidates),
@@ -124,20 +137,28 @@ class DwellerNameBackfillService:
         db_session: AsyncSession,
         *,
         dry_run: bool = True,
-        max_vaults: int = 100,
+        max_vaults: int | None = None,
         sample_limit: int = 10,
-    ) -> dict[UUID4, dict[str, Any]]:
-        """Plan or apply names across non-deleted vaults, ordered by creation date."""
-        vaults = await vault_crud.get_active_ordered(db_session, max_vaults)
-        return {
+    ) -> ActiveVaultBackfillResult:
+        """Plan or apply names across non-deleted vaults, ordered by creation date.
+
+        ``max_vaults=None`` processes every active vault. An explicit cap is
+        reported through ``omitted`` so the operator can see what was not touched.
+        """
+        if max_vaults is not None and max_vaults < 1:
+            raise ValueError("max_vaults must be at least 1 when provided")
+        vaults = list(await vault_crud.get_active_ordered(db_session, None))
+        selected = vaults if max_vaults is None else vaults[:max_vaults]
+        summaries = {
             vault.id: await self.backfill_names_for_vault(
                 db_session,
                 vault.id,
                 dry_run=dry_run,
                 sample_limit=sample_limit,
             )
-            for vault in vaults
+            for vault in selected
         }
+        return ActiveVaultBackfillResult(summaries=summaries, omitted=len(vaults) - len(selected))
 
 
 dweller_name_backfill_service = DwellerNameBackfillService()

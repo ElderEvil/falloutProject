@@ -91,6 +91,7 @@ async def _grant_as_dweller(
         "level": 1,
         "first_name": first_name or "Legendary",
         "last_name": last_name or None,
+        "content_provenance": ContentProvenanceEnum.CURATED,
     }
     legendary = item_name.strip().lower() == "legendary dweller"
     dweller_ids: list[str] = []

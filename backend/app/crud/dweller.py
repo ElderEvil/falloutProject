@@ -725,20 +725,37 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         ).all()
         return {f"{first_name} {last_name or ''}".strip().casefold() for first_name, last_name in rows}
 
-    async def get_name_backfill_candidates(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
+    async def get_name_backfill_candidates(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        *,
+        for_update: bool = False,
+    ) -> Sequence[Dweller]:
         """Living, in-vault super mutants and synths whose provenance was never classified.
 
         Only NULL provenance rows are candidates: rows created after the provenance
         invariant shipped already carry a value, and a completed backfill marks its
         rows GENERATED, so re-runs are no-ops. The caller still narrows synth
         generation and curated names.
+
+        ``for_update`` locks the selected rows until the caller commits, so an
+        in-flight player rename cannot be overwritten by a stale backfill write.
         """
         identity_attrs = self.model.__table__.c.visual_attributes
         query = (
             select(self.model)
             .where(*self._living_conditions(vault_id))
             .where(~self.model.is_permanently_dead)
-            .where(or_(self.model.availability.is_(None), self.model.availability == AvailabilityEnum.VAULT))
+            .where(
+                or_(
+                    self.model.availability == AvailabilityEnum.VAULT,
+                    and_(
+                        self.model.availability.is_(None),
+                        self.model.status.notin_((DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING)),
+                    ),
+                )
+            )
             .where(self.model.content_provenance.is_(None))
             .where(
                 or_(
@@ -748,6 +765,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             )
             .order_by(self.model.created_at, self.model.id)
         )
+        if for_update:
+            query = query.with_for_update()
         return (await db_session.execute(query)).scalars().all()
 
     async def lock_vault(self, db_session: AsyncSession, vault_id: UUID4) -> None:

@@ -10,6 +10,7 @@ import pytest
 from typer.testing import CliRunner
 
 from app.cli.main import cli
+from app.services.dweller_name_backfill_service import ActiveVaultBackfillResult
 
 runner = CliRunner()
 
@@ -268,12 +269,39 @@ def test_dweller_name_backfill_all_active():
     with patch(
         "app.cli.backfills.dweller_name_backfill_service.backfill_names_for_active_vaults",
         new_callable=AsyncMock,
-        return_value={},
+        return_value=ActiveVaultBackfillResult(summaries={}, omitted=0),
     ) as mocked:
         result = runner.invoke(cli, ["backfill", "backfill-dweller-names", "--all-active"])
 
     assert result.exit_code == 0
     mocked.assert_awaited_once()
+    assert mocked.call_args.kwargs["max_vaults"] is None
+
+
+def test_dweller_name_backfill_reports_vault_cap():
+    with patch(
+        "app.cli.backfills.dweller_name_backfill_service.backfill_names_for_active_vaults",
+        new_callable=AsyncMock,
+        return_value=ActiveVaultBackfillResult(summaries={}, omitted=3),
+    ) as mocked:
+        result = runner.invoke(
+            cli,
+            ["backfill", "backfill-dweller-names", "--all-active", "--max-vaults", "2"],
+        )
+
+    assert result.exit_code == 0
+    assert mocked.call_args.kwargs["max_vaults"] == 2
+    assert "3 active vault(s) left unprocessed because --max-vaults=2" in result.output
+
+
+def test_dweller_name_backfill_rejects_zero_vault_cap():
+    result = runner.invoke(
+        cli,
+        ["backfill", "backfill-dweller-names", "--all-active", "--max-vaults", "0"],
+    )
+
+    assert result.exit_code != 0
+    assert "at least 1" in result.output
 
 
 def test_dweller_name_backfill_requires_scope():

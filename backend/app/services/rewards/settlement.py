@@ -231,6 +231,7 @@ def _parse_objective_reward(reward_str: str) -> tuple[RewardType, dict[str, Any]
                 "first_name": first_name,
                 "last_name": last_name or None,
                 "rarity": "common",
+                "content_provenance": ContentProvenanceEnum.CURATED,
             }
 
     msg = f"Cannot parse objective reward string: '{reward_str}'"

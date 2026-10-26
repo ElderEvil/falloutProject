@@ -9,7 +9,13 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import AvailabilityEnum, ContentProvenanceEnum, GenderEnum, RarityEnum
+from app.core.enums import (
+    AvailabilityEnum,
+    ContentProvenanceEnum,
+    DwellerStatusEnum,
+    GenderEnum,
+    RarityEnum,
+)
 from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.options.dweller_names import SUPER_MUTANT_NAMES, SYNTH_DESIGNATION_PREFIXES
@@ -213,11 +219,51 @@ async def test_inactive_rows_are_not_candidates(async_session: AsyncSession, vau
     await _make_dweller(async_session, vault, first_name="Dead", is_dead=True)
     await _make_dweller(async_session, vault, first_name="Permanent", is_permanently_dead=True)
     await _make_dweller(async_session, vault, first_name="Departed", availability=AvailabilityEnum.DEPARTURE)
+    await _make_dweller(async_session, vault, first_name="Exploring", status=DwellerStatusEnum.EXPLORING)
+    await _make_dweller(async_session, vault, first_name="Questing", status=DwellerStatusEnum.QUESTING)
 
     summary = await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id)
 
     assert summary["scanned"] == 0
     assert summary["renamed"] == 0
+
+
+async def test_legacy_null_availability_excludes_exploring_and_questing(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    await _make_dweller(async_session, vault, first_name="Exploring", status=DwellerStatusEnum.EXPLORING)
+    await _make_dweller(async_session, vault, first_name="Questing", status=DwellerStatusEnum.QUESTING)
+    await _make_dweller(
+        async_session,
+        vault,
+        first_name="VaultBound",
+        availability=AvailabilityEnum.VAULT,
+        status=DwellerStatusEnum.EXPLORING,
+    )
+
+    summary = await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id)
+
+    assert summary["scanned"] == 1
+    assert summary["renamed"] == 1
+
+
+async def test_apply_locks_candidates_and_dry_run_does_not(
+    async_session: AsyncSession, vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await _make_dweller(async_session, vault, first_name="Michael", last_name="Smith")
+    lock_flags: list[bool] = []
+    original = crud.dweller.get_name_backfill_candidates
+
+    async def spy(*args: object, **kwargs: object) -> object:
+        lock_flags.append(bool(kwargs.get("for_update")))
+        return await original(*args, **kwargs)
+
+    monkeypatch.setattr(crud.dweller, "get_name_backfill_candidates", spy)
+
+    await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id, dry_run=True)
+    await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id, dry_run=False)
+
+    assert lock_flags == [False, True]
 
 
 @pytest.mark.parametrize(

@@ -102,6 +102,19 @@ def test_starter_resident_reward_is_curated() -> None:
     assert payload["content_provenance"] == ContentProvenanceEnum.CURATED
 
 
+def test_non_starter_named_reward_is_curated() -> None:
+    reward_type, payload = _parse_objective_reward("dweller:Riley Smith")
+
+    assert payload["content_provenance"] == ContentProvenanceEnum.CURATED
+
+
+async def test_named_item_dweller_is_curated(async_session: AsyncSession, vault: Vault) -> None:
+    result = await items._grant_as_dweller(async_session, vault.id, "Riley Smith", "common", 1)
+
+    dweller = await crud.dweller.get(async_session, UUID(result["dweller_id"]))
+    assert dweller.content_provenance == ContentProvenanceEnum.CURATED
+
+
 async def test_grant_dweller_uses_supplied_provenance(async_session: AsyncSession, vault: Vault) -> None:
     result = await items.grant_dweller(
         async_session,

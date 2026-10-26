@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.270.1 (2026-10-26)
+
+### Bug Fixes
+
+* **deploy:** separate readiness from liveness and check in worker manifest ([#1196](https://github.com/ElderEvil/falloutProject/issues/1196)) bee1f60
+
 ## 2.270.0 (2026-10-26)
 
 ### Features

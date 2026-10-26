@@ -3,6 +3,7 @@
 import re
 from collections.abc import AsyncGenerator
 from typing import Any
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -13,11 +14,14 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.admin import actions as admin_actions
 from app.admin.views import (
+    AccountMergeAdmin,
     DwellerAdmin,
     GameStateAdmin,
     ItemAdmin,
     LLInteractionAdmin,
+    MergeAccountsAdmin,
     PromptAdmin,
     QuestAdmin,
     TeamAdmin,
@@ -29,10 +33,13 @@ from app.core.config import settings
 from app.core.enums import HazardTeam
 from app.models.dweller import Dweller
 from app.models.llm_interaction import LLMInteraction
+from app.models.oauth_account import OAuthAccount
 from app.models.prompt import Prompt
 from app.models.team import ACTIVE_STATUS, Team, TeamMember
 from app.models.user import User
 from app.models.vault import Vault
+from app.schemas.user import UserCreate
+from app.tests.factory.vaults import random_vault_number
 from main import admin, app
 
 _CSRF_TOKEN_RE = re.compile(r'name="csrf_token" value="([^"]+)"')
@@ -556,7 +563,7 @@ async def test_admin_recall_starts_return_without_granting_rewards(
     assert response.status_code == 400
 
 
-@pytest.mark.parametrize("identity", sorted(view.identity for view in admin._views))
+@pytest.mark.parametrize("identity", sorted(view.identity for view in admin._views if view.is_model))
 async def test_all_admin_list_pages_render(admin_client: AsyncClient, identity: str) -> None:
     page = await admin_client.get(f"/admin/{identity}/list")
     assert page.status_code == 200, identity
@@ -1115,3 +1122,162 @@ async def test_profile_edit_uses_same_administrator_account_permissions(
 async def test_editing_missing_profile_keeps_not_found_response(admin_client, method):
     response = await admin_client.request(method, f"/admin/user-profile/edit/{uuid4()}")
     assert response.status_code == 404
+
+
+async def _merge_user(async_session: AsyncSession, label: str) -> User:
+    suffix = uuid4().hex[:10]
+    return await crud.user.create(
+        async_session,
+        UserCreate(username=f"{label}{suffix}", email=f"{label}{suffix}@example.com", password="Secret123!"),
+    )
+
+
+def _merge_form(source: User, target: User, token: str, action: str = "preview") -> dict[str, str]:
+    return {
+        "csrf_token": token,
+        "action": action,
+        "source": str(source.id),
+        "target": str(target.id),
+        "reason": "duplicate account",
+    }
+
+
+def test_merge_accounts_admin_views_are_configured() -> None:
+    assert MergeAccountsAdmin.name == "Merge accounts"
+    assert MergeAccountsAdmin.category == "Accounts"
+    assert MergeAccountsAdmin.page._exposed is True
+    assert set(MergeAccountsAdmin.page._methods) == {"GET", "POST"}
+    assert AccountMergeAdmin.category == "Accounts"
+    assert AccountMergeAdmin.can_create is False
+    assert AccountMergeAdmin.can_edit is False
+    assert AccountMergeAdmin.can_delete is False
+    assert AccountMergeAdmin.can_export is False
+
+
+async def test_merge_accounts_page_renders_form_and_csrf(admin_client: AsyncClient) -> None:
+    response = await admin_client.get("/admin/merge-accounts")
+    assert response.status_code == 200
+    assert "Merge accounts" in response.text
+    assert 'name="csrf_token"' in response.text
+    assert 'name="source"' in response.text
+    assert 'name="action" value="preview"' in response.text
+
+
+async def test_merge_accounts_requires_admin_login() -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://testserver") as anonymous:
+        response = await anonymous.get("/admin/merge-accounts")
+    assert response.status_code in (302, 303)
+    assert "/admin/login" in response.headers["location"]
+
+
+async def test_merge_accounts_preview_requires_csrf(admin_client: AsyncClient) -> None:
+    source = uuid4()
+    target = uuid4()
+    response = await admin_client.post(
+        "/admin/merge-accounts",
+        data={"action": "preview", "source": str(source), "target": str(target), "reason": "duplicate"},
+    )
+    assert response.status_code == 403
+
+    response = await admin_client.post(
+        "/admin/merge-accounts",
+        data={
+            "action": "preview",
+            "source": str(source),
+            "target": str(target),
+            "reason": "duplicate",
+            "csrf_token": "bad",
+        },
+    )
+    assert response.status_code == 403
+
+
+async def test_merge_accounts_preview_does_not_mutate(admin_client: AsyncClient, async_session: AsyncSession) -> None:
+    source = await _merge_user(async_session, "mergesrc")
+    target = await _merge_user(async_session, "mergetgt")
+    async_session.add(Vault(user_id=source.id, number=random_vault_number()))
+    await async_session.commit()
+    page = await admin_client.get("/admin/merge-accounts")
+    response = await admin_client.post(
+        "/admin/merge-accounts", data=_merge_form(source, target, _csrf_token_from(page))
+    )
+
+    assert response.status_code == 200
+    assert "Preview" in response.text
+    assert "vaults" in response.text
+    assert 'name="action" value="apply"' in response.text
+    await async_session.refresh(source)
+    assert source.is_deleted is False
+    assert await crud.account_merge.get_by_source(async_session, source.id) is None
+    assert await crud.vault.count_by_user(async_session, source.id) == 1
+
+
+async def test_merge_accounts_apply_moves_source_and_writes_audit(
+    admin_client: AsyncClient, async_session: AsyncSession, superuser: User, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = await _merge_user(async_session, "mergesrc")
+    target = await _merge_user(async_session, "mergetgt")
+    source_id = source.id
+    target_id = target.id
+    source_username = source.username
+    async_session.add(Vault(user_id=source_id, number=random_vault_number()))
+    await async_session.commit()
+
+    fake_redis = AsyncMock()
+    fake_redis.delete = AsyncMock()
+    fake_redis.aclose = AsyncMock()
+    monkeypatch.setattr(admin_actions.Redis, "from_url", lambda *args, **kwargs: fake_redis)
+
+    page = await admin_client.get("/admin/merge-accounts")
+    response = await admin_client.post(
+        "/admin/merge-accounts", data=_merge_form(source, target, _csrf_token_from(page), action="apply")
+    )
+
+    assert response.status_code == 303
+    location = response.headers["location"]
+    assert "/admin/account-merge/list" in location
+    assert (await admin_client.get(location)).status_code == 200
+
+    await async_session.refresh(source)
+    assert source.is_deleted is True
+    assert source.is_active is False
+    assert await crud.vault.count_by_user(async_session, source_id) == 0
+    assert await crud.vault.count_by_user(async_session, target_id) == 1
+    audit = await crud.account_merge.get_by_source(async_session, source_id)
+    assert audit is not None
+    assert audit.target_user_id == target_id
+    assert audit.actor_user_id == superuser.id
+    assert fake_redis.delete.await_count == 1
+    assert fake_redis.aclose.await_count == 1
+    assert source_username in (await admin_client.get(location)).text
+
+
+async def test_merge_accounts_rejects_oauth_provider_conflict(
+    admin_client: AsyncClient, async_session: AsyncSession
+) -> None:
+    source = await _merge_user(async_session, "mergesrc")
+    target = await _merge_user(async_session, "mergetgt")
+    async_session.add_all(
+        [
+            OAuthAccount(provider="google", provider_user_id=uuid4().hex, user_id=source.id),
+            OAuthAccount(provider="google", provider_user_id=uuid4().hex, user_id=target.id),
+        ]
+    )
+    await async_session.commit()
+    page = await admin_client.get("/admin/merge-accounts")
+
+    response = await admin_client.post(
+        "/admin/merge-accounts", data=_merge_form(source, target, _csrf_token_from(page))
+    )
+
+    assert response.status_code == 200
+    assert "google" in response.text
+    assert 'name="action" value="apply"' not in response.text
+    await async_session.refresh(source)
+    assert source.is_deleted is False
+    assert await crud.account_merge.get_by_source(async_session, source.id) is None
+
+
+async def test_account_merge_audit_list_is_read_only(admin_client: AsyncClient) -> None:
+    response = await admin_client.get("/admin/account-merge/list")
+    assert response.status_code == 200

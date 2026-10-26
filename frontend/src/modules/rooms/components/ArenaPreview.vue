@@ -8,6 +8,7 @@ import { getDwellerBodySize } from '@/modules/dwellers/models/dweller'
 import { getCreatureImagePath } from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
 import CombatSkillIcon from '@/modules/combat/components/CombatSkillIcon.vue'
+import CombatPet from '@/modules/combat/components/CombatPet.vue'
 import type {
   CombatSkillIcon as SkillIconKey,
   PlayingCombatAction,
@@ -269,6 +270,12 @@ const modeLabel = computed(
                   ></DwellerPortrait>
                 </div>
                 <PawPrint v-else class="size-12 text-theme-primary" />
+                <CombatPet
+                  v-if="fighter.pet && !fighter.is_creature && !fighter.is_robot"
+                  :pet="fighter.pet"
+                  :owner-name="fighter.name"
+                  :facing="team.side === 'B' ? 'left' : 'right'"
+                />
               </Button>
               <div
                 v-if="match.canChangeFighters"

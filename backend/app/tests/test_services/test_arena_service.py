@@ -38,6 +38,34 @@ from app.utils.exceptions import ValidationException
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize("image_url", [None, "/static/pet_images/custom-dog.png"])
+async def test_arena_fighter_includes_equipped_pet_appearance(async_session, arena_room, fighter_a, image_url):
+    fighter_a.room_id = arena_room.id
+    async_session.add(fighter_a)
+    await async_session.commit()
+    await crud.pet.create(
+        async_session,
+        {
+            "name": "CX404",
+            "rarity": RarityEnum.COMMON,
+            "value": 100,
+            "dweller_id": fighter_a.id,
+            "image_url": image_url,
+        },
+    )
+    async_session.expire(fighter_a, ["pet"])
+    service = ArenaService()
+    await service.set_fighters(
+        async_session, arena_room.id, fighter_a.id, None, mode=ArenaMode.HUNT, opponent_keys=["radroach-swarm"]
+    )
+    view = (await service.get_arena_state(async_session, arena_room.vault_id)).rooms[0]
+    assert view.team_a[0].pet.name == "CX404"
+    assert view.team_a[0].pet.image_url == (image_url or "/static/pet_images/FOS CX404.png")
+    assert len(view.team_a) == 1
+    assert len(view.team_b) == 1
+    assert view.team_b[0].pet is None
+
+
 async def finish_match(service, session, room, team_a, team_b, *, state=None):
     """Play alternating turns until the reward/settlement boundary under test."""
     for _ in range(100):

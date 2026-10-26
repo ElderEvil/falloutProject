@@ -22,6 +22,7 @@ import { getDwellerPortraitScale } from '@/modules/dwellers/models/dweller'
 import CombatDamageNumbers from '@/modules/combat/components/CombatDamageNumbers.vue'
 import CombatantMeters from './CombatantMeters.vue'
 import CombatantMotion from '@/modules/combat/components/CombatantMotion.vue'
+import CombatPet from '@/modules/combat/components/CombatPet.vue'
 import type { PlayingCombatAction } from '@/modules/combat/models/playback'
 import { useFallbackImage } from '../composables/useFallbackImage'
 
@@ -298,6 +299,12 @@ const actionFor = (fighter: ArenaFighter) => {
                   :class="{ '-scale-x-100': team.side === 'B' }"
                 />
               </CombatantMotion>
+              <CombatPet
+                v-if="fighter.pet && !fighter.is_creature && !fighter.is_robot"
+                :pet="fighter.pet"
+                :owner-name="fighter.name"
+                :facing="team.side === 'B' ? 'left' : 'right'"
+              />
             </div>
             <span
               v-if="fighter.health <= 0"

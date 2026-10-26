@@ -5595,6 +5595,7 @@ export interface components {
             age_group?: string | null;
             /** Race */
             race?: string | null;
+            pet?: components["schemas"]["CombatPet"] | null;
         };
         /**
          * ArenaFightersRequest
@@ -6244,6 +6245,16 @@ export interface components {
             health_before?: number | null;
             /** Health After */
             health_after?: number | null;
+        };
+        /**
+         * CombatPet
+         * @description An equipped companion's appearance; not an independent combat participant.
+         */
+        CombatPet: {
+            /** Name */
+            name: string;
+            /** Image Url */
+            image_url?: string | null;
         };
         /**
          * CompatibilityScore

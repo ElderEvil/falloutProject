@@ -12,6 +12,19 @@ const props = {
 }
 
 describe('Wasteland scenes', () => {
+  it('shows the equipped companion in the encounter briefing and removes it when unequipped', async () => {
+    const wrapper = mount(WastelandScene, {
+      props: {
+        ...props,
+        pet: { name: 'CX404', image_url: '/static/pet_images/FOS CX404.png' },
+      },
+    })
+    expect(wrapper.get('img[alt="CX404, Lucy’s pet"]').exists()).toBe(true)
+    await wrapper.setProps({ pet: null })
+    expect(wrapper.find('.combat-pet').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('offers responsive images with reserved dimensions and an accessible caption', () => {
     const wrapper = mount(WastelandScene, { props })
     const image = wrapper.get('img')

@@ -170,6 +170,21 @@ describe('ArenaPreview', () => {
     expect(wrapper.get('[aria-label="Arena preview"]').text()).toContain('b')
   })
 
+  it('keeps an equipped pet visible from arena setup through the fight', async () => {
+    const alpha = fighter('a', {
+      pet: { name: 'CX404', image_url: '/static/pet_images/FOS CX404.png' },
+    })
+    const beta = fighter('b')
+    const initial = state({ fighters: [alpha, beta], team_a: [alpha], team_b: [beta] })
+    const wrapper = await mountPreview(initial)
+    expect(wrapper.get('.arena-preview img[alt="CX404, a’s pet"]').exists()).toBe(true)
+    stateRef.value = { ...initial, fight_started: true }
+    await flushPromises()
+    expect(wrapper.get('.arena-ring img[alt="CX404, a’s pet"]').exists()).toBe(true)
+    expect(wrapper.findAll('.fighter-meters')).toHaveLength(2)
+    wrapper.unmount()
+  })
+
   it.each(['duel', 'brawl'] as const)('hides Hunt presets in %s', async (mode) => {
     const wrapper = await mountPreview(
       state({

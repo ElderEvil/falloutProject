@@ -23,6 +23,13 @@
         is_creature: creature,
         is_robot: false,
         image_url: !creature && params.has('portrait') ? '/static/test-dweller.png' : null,
+        pet:
+          !creature && params.has('pets')
+            ? {
+                name: id === 'Alpha' ? 'CX404' : 'American Shorthair',
+                image_url: `/static/pet_images/FOS ${id === 'Alpha' ? 'CX404' : 'American Shorthair'}.png`,
+              }
+            : null,
         active_skill: creature
           ? null
           : {

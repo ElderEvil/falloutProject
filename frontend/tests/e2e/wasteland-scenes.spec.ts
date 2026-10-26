@@ -1,6 +1,43 @@
 import { expect, test } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 
+for (const width of [390, 1280]) {
+  test(`equipped pet appears in the expedition combat preview at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.route('**/static/**', (route) =>
+      route.fulfill({
+        path: fileURLToPath(
+          new URL(
+            route.request().url().includes('pet_images')
+              ? '../../../backend/app/static/pet_images/FOS CX404.png'
+              : '../../../backend/app/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Female.webp',
+            import.meta.url
+          )
+        ),
+      })
+    )
+    await page.goto('/tests/e2e/fixtures/wasteland-scenes.html')
+    await page.getByRole('combobox', { name: 'Preview pet' }).click()
+    await page.getByRole('option', { name: 'CX404', exact: true }).click()
+    await page.getByRole('button', { name: 'Preview briefing', exact: true }).click()
+    await expect(
+      page.getByRole('dialog').getByAltText('CX404, Lucy MacLean’s pet', { exact: true })
+    ).toBeVisible()
+    await page.getByRole('button', { name: 'Close preview', exact: true }).click()
+    await page.getByRole('button', { name: 'Preview combat layout', exact: true }).click()
+    const dialog = page.getByRole('dialog')
+    const pet = dialog.getByAltText('CX404, Lucy MacLean’s pet', { exact: true })
+    await expect
+      .poll(() => pet.evaluate((image: HTMLImageElement) => image.naturalWidth))
+      .toBeGreaterThan(0)
+    await expect(dialog.locator('.fighter-meters')).toHaveCount(2)
+    const companion = (await pet.boundingBox())!
+    const portrait = (await dialog.locator('.fighter-portrait').first().boundingBox())!
+    expect(companion.height).toBeLessThan(portrait.height * 0.4)
+    expect(Math.abs(companion.y + companion.height - portrait.y - portrait.height)).toBeLessThan(1)
+  })
+}
+
 for (const viewport of [
   { width: 1280, height: 720 },
   { width: 390, height: 844 },

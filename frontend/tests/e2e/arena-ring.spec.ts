@@ -1,4 +1,46 @@
 import { test, expect } from '@playwright/test'
+import { fileURLToPath } from 'node:url'
+
+for (const width of [390, 1280]) {
+  for (const mode of ['duel', 'hunt']) {
+    test(`pets share their owners' ground without extra fighters in ${mode} at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.route('**/static/**', (route) =>
+        route.fulfill({
+          path: fileURLToPath(
+            new URL(
+              route.request().url().includes('pet_images')
+                ? route.request().url().includes('CX404')
+                  ? '../../../backend/app/static/pet_images/FOS CX404.png'
+                  : '../../../backend/app/static/pet_images/FOS American Shorthair.png'
+                : '../../../backend/app/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Female.webp',
+              import.meta.url
+            )
+          ),
+        })
+      )
+      await page.goto(`/tests/e2e/fixtures/arena-ring.html?mode=${mode}&pets=1&portrait=1`)
+      const ring = page.getByRole('region', { name: 'Arena ring' })
+      const pets = ring.locator('.combat-pet')
+      await expect(pets).toHaveCount(2)
+      const bounds = (await ring.boundingBox())!
+      for (const pet of await pets.all()) {
+        await expect
+          .poll(() => pet.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth))
+          .toBeGreaterThan(0)
+        const box = (await pet.boundingBox())!
+        const owner = (await pet.locator('..').boundingBox())!
+        expect(Math.abs(box.y + box.height - owner.y - owner.height)).toBeLessThan(1)
+        expect(box.height).toBeLessThan(owner.height * 0.4)
+        expect(box.x).toBeGreaterThanOrEqual(bounds.x)
+        expect(box.x + box.width).toBeLessThanOrEqual(bounds.x + bounds.width)
+      }
+      await expect(ring.locator('.ring-fighter')).toHaveCount(mode === 'duel' ? 2 : 4)
+    })
+  }
+}
 
 for (const width of [390, 1280]) {
   test(`ring depth, scale and themed activation at ${width}px`, async ({ page }) => {

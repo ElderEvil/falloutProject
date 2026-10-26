@@ -54,6 +54,41 @@ const render = (room = state(), pendingSkills = new Set<string>(), skillEnabled 
   })
 
 describe('Arena ring', () => {
+  it('shows equipped pets beside their owners without adding combatants or meters', async () => {
+    const wrapper = render(
+      state(
+        [
+          fighter('Alpha', {
+            pet: { name: 'CX404', image_url: '/static/pet_images/FOS CX404.png' },
+          }),
+        ],
+        [fighter('Bravo')]
+      )
+    )
+    expect(wrapper.get('img[alt="CX404, Alpha’s pet"]').exists()).toBe(true)
+    expect(wrapper.findAll('.ring-fighter')).toHaveLength(2)
+    expect(wrapper.findAll('.fighter-meters')).toHaveLength(2)
+    await wrapper.get('img[alt="CX404, Alpha’s pet"]').trigger('error')
+    await flushPromises()
+    expect(wrapper.find('img[alt="CX404, Alpha’s pet"]').exists()).toBe(false)
+    expect(wrapper.get('[role="img"][aria-label="CX404, Alpha’s pet"]').exists()).toBe(true)
+    await wrapper.setProps({
+      state: state(
+        [
+          fighter('Alpha', {
+            pet: {
+              name: 'American Shorthair',
+              image_url: '/static/pet_images/FOS American Shorthair.png',
+            },
+          }),
+        ],
+        [fighter('Bravo')]
+      ),
+    })
+    expect(wrapper.get('img[alt="American Shorthair, Alpha’s pet"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="CX404, Alpha’s pet"]').exists()).toBe(false)
+  })
+
   it('anchors dweller portraits at the top so faces remain visible', () => {
     const room = state(
       [fighter('Alpha', { thumbnail_url: '/static/dwellers/alpha.webp' })],

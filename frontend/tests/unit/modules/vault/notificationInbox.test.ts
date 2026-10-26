@@ -306,6 +306,62 @@ describe('notification inbox', () => {
     }
   )
 
+  it('marks read on open optimistically without reloading, then rolls back on failure', async () => {
+    const store = useNotificationInboxStore()
+    const item = notification('one')
+    store.rememberNotifications([item])
+    vi.mocked(axios.get).mockResolvedValueOnce({ data: { count: 1 } })
+    await store.refreshUnreadCount()
+    const listRequests = vi.mocked(axios.get).mock.calls.length
+
+    let rejectPatch!: (reason: unknown) => void
+    vi.mocked(axios.patch).mockReturnValueOnce(
+      new Promise<never>((_, reject) => {
+        rejectPatch = reject
+      })
+    )
+
+    store.markReadOnOpen(item)
+
+    expect(store.isRead(item)).toBe(true)
+    expect(store.unreadCount).toBe(0)
+    expect(store.readRevision).toBe(0)
+    expect(vi.mocked(axios.get).mock.calls).toHaveLength(listRequests)
+    expect(axios.patch).toHaveBeenCalledWith('/api/v1/notifications/one/read', {})
+
+    rejectPatch(new Error('offline'))
+    await flushPromises()
+
+    expect(store.isRead(item)).toBe(false)
+    expect(store.unreadCount).toBe(1)
+    expect(store.readRevision).toBe(0)
+    expect(vi.mocked(axios.get).mock.calls).toHaveLength(listRequests)
+  })
+
+  it('handles a notification with no cached read state on open', async () => {
+    const store = useNotificationInboxStore()
+    const item = notification('uncached')
+    vi.mocked(axios.get).mockResolvedValueOnce({ data: { count: 2 } })
+    await store.refreshUnreadCount()
+
+    let rejectPatch!: (reason: unknown) => void
+    vi.mocked(axios.patch).mockReturnValueOnce(
+      new Promise<never>((_, reject) => {
+        rejectPatch = reject
+      })
+    )
+
+    expect(() => store.markReadOnOpen(item)).not.toThrow()
+    expect(store.isRead(item)).toBe(true)
+    expect(store.unreadCount).toBe(1)
+
+    rejectPatch(new Error('offline'))
+    await flushPromises()
+
+    expect(store.isRead(item)).toBe(false)
+    expect(store.unreadCount).toBe(2)
+  })
+
   it.each([null, 'vault-a'])('applies mark-all read state only within scope %s', async (scope) => {
     const store = useNotificationInboxStore()
     const first = notification('first')

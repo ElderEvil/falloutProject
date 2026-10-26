@@ -1,6 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import {
   notificationService,
@@ -133,6 +134,37 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
     { context: 'Failed to mark notifications as read' }
   )
 
+  type OpenReadTarget = Pick<InboxNotification, 'id' | 'vault_id'> & { is_read?: boolean }
+
+  /**
+   * Optimistically mark a notification read when the player clicks through it.
+   *
+   * These click-through paths must navigate immediately. Awaiting `markRead`
+   * would sequence PATCH -> unread-count GET -> list GET before `router.push`,
+   * so the player would watch a spinner instead of the destination screen.
+   * Updating the cached flag and badge is enough for the UI; the PATCH settles
+   * behind the route change and deliberately skips `readRevision`, which is
+   * the signal that triggers that reload chain. A failed PATCH rolls the
+   * optimistic state back and reports the error.
+   */
+  const markReadOnOpen = (item: OpenReadTarget) => {
+    const capturedSession = currentSession()
+    const existing = readStates.value.get(item.id)
+    if (existing?.is_read || item.is_read) return
+    if (existing) existing.is_read = true
+    else readStates.value.set(item.id, { id: item.id, vault_id: item.vault_id, is_read: true })
+    const decremented = unreadCount.value > 0
+    countGeneration++
+    unreadCount.value = Math.max(0, unreadCount.value - 1)
+    void notificationService.markRead(item.id).catch((caught: unknown) => {
+      if (!ownsSession(capturedSession)) return
+      if (existing) existing.is_read = false
+      else readStates.value.delete(item.id)
+      if (decremented) unreadCount.value++
+      handleStoreError(caught, 'Failed to mark notifications as read')
+    })
+  }
+
   const isSaving = computed(() => isSavingOne.value || isSavingAll.value)
 
   const noteUnreadArrival = () => {
@@ -163,6 +195,7 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
     readRevision,
     load,
     markRead,
+    markReadOnOpen,
     markAllRead,
     refreshUnreadCount,
     noteUnreadArrival,

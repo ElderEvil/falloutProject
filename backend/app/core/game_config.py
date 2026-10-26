@@ -17,7 +17,7 @@ from typing import Any
 from pydantic import Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.core.enums import RarityEnum, SPECIALEnum, VaultModeEnum, WeaponTypeEnum
+from app.core.enums import IncidentType, RarityEnum, SPECIALEnum, VaultModeEnum, WeaponTypeEnum
 from app.core.grid_config import (
     GRID_BUILD_X_MAX,
     GRID_BUILD_Y_MAX,
@@ -26,7 +26,6 @@ from app.core.grid_config import (
     GRID_Y_MAX,
     GRID_Y_MIN,
 )
-from app.models.incident import IncidentType
 from app.options.factions import faction_restrictions
 from app.options.races import STATE_OF_BEING_OPTIONS, RaceOption
 

@@ -358,3 +358,161 @@ class OAuthProviderEnum(StrEnum):
 
     GOOGLE = "google"
     GITHUB = "github"
+
+
+class CraftingOrderStatus(StrEnum):
+    """Lifecycle of a workshop order."""
+
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    COLLECTED = "collected"
+    CANCELLED = "cancelled"
+
+
+class ExplorationStatus(StrEnum):
+    """Status of a wasteland exploration."""
+
+    ACTIVE = "active"
+    RETURNING = "returning"
+    COMPLETED = "completed"
+    RECALLED = "recalled"
+
+
+class IncidentType(StrEnum):
+    """Types of incidents that can occur in the vault."""
+
+    RAIDER_ATTACK = "raider_attack"
+    RADROACH_INFESTATION = "radroach_infestation"
+    MOLE_RAT_ATTACK = "mole_rat_attack"
+    DEATHCLAW_ATTACK = "deathclaw_attack"
+    FERAL_GHOUL_ATTACK = "feral_ghoul_attack"
+    RADSCORPION_ATTACK = "radscorpion_attack"
+    FIRE = "fire"
+
+
+class IncidentStatus(StrEnum):
+    """Status of an incident."""
+
+    ACTIVE = "active"
+    SPREADING = "spreading"
+    RESOLVED = "resolved"
+    FAILED = "failed"
+
+
+class IncidentFamily(StrEnum):
+    """Operational family used to present an incident truthfully."""
+
+    HAZARD = "hazard"
+    INFESTATION = "infestation"
+    INTRUSION = "intrusion"
+
+
+class IncidentObjective(StrEnum):
+    """The single action outcome the player is working toward."""
+
+    CONTAIN = "contain"
+    DEFEAT = "defeat"
+
+
+class NotificationType(StrEnum):
+    """Types of notifications"""
+
+    # Dweller events
+    EXPLORATION_UPDATE = "exploration_update"  # Found item, low health, etc.
+    EXPLORATION_COMPLETE = "exploration_complete"
+    LEVEL_UP = "level_up"
+    TRAINING_COMPLETE = "training_complete"
+    TRAINING_STARTED = "training_started"
+
+    # Crafting events
+    CRAFTING_COMPLETE = "crafting_complete"
+    RECIPE_UNLOCKED = "recipe_unlocked"
+
+    STORAGE_ITEM_DEGRADED = "storage_item_degraded"
+    STORAGE_ITEM_UPGRADED = "storage_item_upgraded"
+
+    # Social events
+    RELATIONSHIP_FORMED = "relationship_formed"
+    PREGNANCY_DETECTED = "pregnancy_detected"
+    BABY_BORN = "baby_born"
+
+    # Combat events
+    COMBAT_STARTED = "combat_started"
+    COMBAT_VICTORY = "combat_victory"
+    COMBAT_DEFEAT = "combat_defeat"
+    ARENA_MORALE_BOOST = "arena_morale_boost"
+    DWELLER_INJURED = "dweller_injured"
+    DWELLER_DIED = "dweller_died"
+
+    # Exit events
+    DWELLER_EXIT_REQUESTED = "dweller_exit_requested"
+
+    # Hazard team events
+    HAZARD_TEAM_JOINED = "hazard_team_joined"
+
+    # Resource events
+    RESOURCE_LOW = "resource_low"
+    RESOURCE_CRITICAL = "resource_critical"
+    POWER_OUTAGE = "power_outage"
+
+    # Room Rush events
+    RUSH_SUCCEEDED = "rush_succeeded"
+    RUSH_FAILED = "rush_failed"
+
+    # System events
+    QUEST_COMPLETE = "quest_complete"
+    OBJECTIVE_COMPLETED = "objective_completed"
+    OBJECTIVES_REFRESHED = "objectives_refreshed"
+    ROOM_UNLOCKED = "room_unlocked"
+    ACHIEVEMENT_UNLOCKED = "achievement_unlocked"
+    RADIO_NEW_DWELLER = "radio_new_dweller"
+    RADIO_AUTO_SWITCHED_TO_HAPPINESS = "radio_auto_switched_to_happiness"
+    MAP_REGISTRATION_FAILED = "map_registration_failed"
+
+    # Map point events
+    LOCATION_CLEARED = "location_cleared"
+    LOCATION_READY = "location_ready"
+
+
+class NotificationPriority(StrEnum):
+    INFO = "info"  # FYI, dismissible
+    NORMAL = "normal"  # Standard notification
+    HIGH = "high"  # Important, deserves attention
+    URGENT = "urgent"  # Critical, needs immediate action
+
+
+class QuestType(StrEnum):
+    MAIN = "main"
+    SIDE = "side"
+    DAILY = "daily"
+    EVENT = "event"
+    REPEATABLE = "repeatable"
+
+
+class RequirementType(StrEnum):
+    LEVEL = "level"
+    ITEM = "item"
+    ROOM = "room"
+    DWELLER_COUNT = "dweller_count"
+    QUEST_COMPLETED = "quest_completed"
+    ATTACK = "attack"
+    STAT = "stat"
+
+
+class RewardType(StrEnum):
+    CAPS = "caps"
+    ITEM = "item"
+    DWELLER = "dweller"
+    RESOURCE = "resource"
+    EXPERIENCE = "experience"
+    STIMPAK = "stimpak"
+    RADAWAY = "radaway"
+    LUNCHBOX = "lunchbox"
+
+
+class TrainingStatus(StrEnum):
+    """Status of a training session."""
+
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"

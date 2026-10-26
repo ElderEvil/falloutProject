@@ -1,7 +1,6 @@
 """Crafting orders — the workshop queue that replaces instant crafting."""
 
 from datetime import datetime
-from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
@@ -9,21 +8,12 @@ from pydantic import UUID4
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.core.enums import RarityEnum
+from app.core.enums import CraftingOrderStatus, RarityEnum
 from app.models.base import BaseUUIDModel, TimeStampMixin
 
 if TYPE_CHECKING:
     from app.models.room import Room
     from app.models.vault import Vault
-
-
-class CraftingOrderStatus(StrEnum):
-    """Lifecycle of a workshop order."""
-
-    ACTIVE = "active"
-    COMPLETED = "completed"
-    COLLECTED = "collected"
-    CANCELLED = "cancelled"
 
 
 class CraftingOrderBase(SQLModel):

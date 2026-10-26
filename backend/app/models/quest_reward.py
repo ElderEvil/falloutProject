@@ -1,4 +1,3 @@
-from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -7,19 +6,10 @@ from pydantic import UUID4
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.core.enums import RewardType
+
 if TYPE_CHECKING:
     from app.models.quest import Quest
-
-
-class RewardType(StrEnum):
-    CAPS = "caps"
-    ITEM = "item"
-    DWELLER = "dweller"
-    RESOURCE = "resource"
-    EXPERIENCE = "experience"
-    STIMPAK = "stimpak"
-    RADAWAY = "radaway"
-    LUNCHBOX = "lunchbox"
 
 
 class QuestRewardBase(SQLModel):

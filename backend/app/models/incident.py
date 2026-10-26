@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from enum import StrEnum
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
@@ -10,47 +9,11 @@ from pydantic import UUID4
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.core.enums import DamageChannel, HazardTeam
+from app.core.enums import DamageChannel, HazardTeam, IncidentFamily, IncidentObjective, IncidentStatus, IncidentType
 from app.models.base import BaseUUIDModel, TimeStampMixin
 
 if TYPE_CHECKING:
     from app.models.team import Team
-
-
-class IncidentType(StrEnum):
-    """Types of incidents that can occur in the vault."""
-
-    RAIDER_ATTACK = "raider_attack"
-    RADROACH_INFESTATION = "radroach_infestation"
-    MOLE_RAT_ATTACK = "mole_rat_attack"
-    DEATHCLAW_ATTACK = "deathclaw_attack"
-    FERAL_GHOUL_ATTACK = "feral_ghoul_attack"
-    RADSCORPION_ATTACK = "radscorpion_attack"
-    FIRE = "fire"
-
-
-class IncidentStatus(StrEnum):
-    """Status of an incident."""
-
-    ACTIVE = "active"
-    SPREADING = "spreading"
-    RESOLVED = "resolved"
-    FAILED = "failed"
-
-
-class IncidentFamily(StrEnum):
-    """Operational family used to present an incident truthfully."""
-
-    HAZARD = "hazard"
-    INFESTATION = "infestation"
-    INTRUSION = "intrusion"
-
-
-class IncidentObjective(StrEnum):
-    """The single action outcome the player is working toward."""
-
-    CONTAIN = "contain"
-    DEFEAT = "defeat"
 
 
 @dataclass(frozen=True)

@@ -90,7 +90,10 @@ describe('useArenaRoom attack feedback', () => {
     expect(controller.attackingTeam.value).toBeNull()
   })
 
-  it('holds displayed HP until the corresponding attack impacts', async () => {
+  it.each([
+    [null, 'incidentHit', 150],
+    ['Aimed Shot', 'arenaSkill', 250],
+  ] as const)('holds HP and plays %s on the SFX bus at impact', async (skill, sound, windup) => {
     wrapper = mount(
       defineComponent({
         setup() {
@@ -114,7 +117,7 @@ describe('useArenaRoom attack feedback', () => {
           action: {
             actor_id: 'fighter-a',
             effect: 'strike',
-            skill: null,
+            skill,
             targets: [{ target_id: 'fighter-b', damage: 10, health_before: 100, health_after: 90 }],
           },
         },
@@ -124,7 +127,11 @@ describe('useArenaRoom attack feedback', () => {
 
     expect(controller.roomState.value?.team_b[0].health).toBe(100)
     expect(controller.damageNumbers.value).toEqual([])
-    await vi.advanceTimersByTimeAsync(150)
+    expect(mocks.playSound).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(windup - 1)
+    expect(mocks.playSound).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(mocks.playSound).toHaveBeenCalledExactlyOnceWith(sound, 'sfx')
     expect(controller.roomState.value?.team_b[0].health).toBe(90)
     expect(controller.damageNumbers.value).toEqual([
       expect.objectContaining({ fighterId: 'fighter-b', amount: 10 }),

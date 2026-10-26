@@ -6,6 +6,7 @@ skill-charge velocity, and the API fighter mapping all live here so the
 orchestrating service keeps pure flow.
 """
 
+from collections import Counter
 from dataclasses import dataclass
 
 from pydantic import UUID4
@@ -66,7 +67,7 @@ def dweller_participants(slots: list[UUID4 | None], by_id: dict[str, Dweller]) -
 def catalog_participants(entries: list[dict], side: str = "") -> list[ArenaParticipant]:
     """Creature opponents or training bots from persisted catalog entries."""
     robots = {entry["key"] for entry in list_arena_creatures() if entry.get("is_robot")}
-    return [
+    participants = [
         ArenaParticipant(
             key=f"{entry['key']}#{side}{index}",
             name=entry["name"],
@@ -79,6 +80,14 @@ def catalog_participants(entries: list[dict], side: str = "") -> list[ArenaParti
         )
         for index, entry in enumerate(entries)
     ]
+    totals = Counter(participant.name for participant in participants)
+    seen: Counter[str] = Counter()
+    for participant in participants:
+        name = participant.name
+        seen[name] += 1
+        if totals[name] > 1:
+            participant.name = participant.short_name = f"{name} {seen[name]}"
+    return participants
 
 
 def persist_creature_hp(state: ArenaState, team_a: list[ArenaParticipant], team_b: list[ArenaParticipant]) -> None:

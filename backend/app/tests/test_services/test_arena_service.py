@@ -84,6 +84,36 @@ def test_arena_wildlife_preserves_exploration_catalog_and_reserves_brahmin():
         ArenaService._hunt_opponents(["brahmin"])
 
 
+async def test_hunt_duplicate_enemy_labels_and_ids_survive_knockouts(async_session, arena_room, fighter_a):
+    vault_id = arena_room.vault_id
+    fighter_a.room_id = arena_room.id
+    async_session.add(fighter_a)
+    await async_session.commit()
+    service = ArenaService()
+    await service.set_fighters(
+        async_session,
+        arena_room.id,
+        fighter_a.id,
+        None,
+        mode=ArenaMode.HUNT,
+        opponent_keys=["radroach-swarm", "radroach-swarm"],
+    )
+    before = (await service.get_arena_state(async_session, vault_id)).rooms[0].team_b
+    expected = [("radroach-swarm#0", "Radroach swarm 1"), ("radroach-swarm#1", "Radroach swarm 2")]
+    assert [(fighter.id, fighter.name) for fighter in before] == expected
+
+    state = await arena_state_crud.get(async_session, arena_room.id)
+    state.opponents = [{**entry, "hp": 0 if index == 0 else entry["hp"]} for index, entry in enumerate(state.opponents)]
+    async_session.add(state)
+    await async_session.commit()
+    async_session.expire_all()
+
+    after = (await ArenaService().get_arena_state(async_session, vault_id)).rooms[0].team_b
+    assert [(fighter.id, fighter.name) for fighter in after] == expected
+    assert after[0].health == 0
+    assert after[1].health == before[1].health
+
+
 @pytest.mark.parametrize(("seconds", "expected"), [(-1, 0), (0, 0), (1, 4), (2, 8)])
 def test_attacks_use_twenty_percent_power_per_second_and_ignore_knockouts(seconds, expected):
     team = [

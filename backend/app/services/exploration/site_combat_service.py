@@ -1,6 +1,5 @@
 """Arena combat in one authored site scene. The expedition service owns all writes/commits."""
 
-from collections import Counter
 from typing import Literal
 
 from app.models.dweller import Dweller
@@ -51,13 +50,8 @@ def initial_combat(site: SiteDefinition) -> dict:
 
 
 def _opponents(state: dict) -> list[ArenaParticipant]:
-    totals = Counter(entry["name"] for entry in state["opponents"])
-    seen: Counter[str] = Counter()
     opponents = catalog_participants(state["opponents"])
     for enemy, entry in zip(opponents, state["opponents"], strict=True):
-        seen[enemy.name] += 1
-        if totals[enemy.name] > 1:
-            enemy.name = enemy.short_name = f"{enemy.name} {seen[enemy.name]}"
         enemy.body = (
             "feral" if entry["key"] == "feral-ghoul" else "mutant" if entry["key"] == "super-mutant" else "human"
         )

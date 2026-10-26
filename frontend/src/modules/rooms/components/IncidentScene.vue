@@ -42,7 +42,7 @@ const playback = useCombatPlayback(
       events: props.incident.events,
     }
   },
-  () => playSound('incidentHit')
+  () => playSound('incidentHit', 'sfx')
 )
 const structured = computed(() => props.incident.events.some((event) => event.action))
 const activeAction = playback.active

@@ -79,7 +79,7 @@ const { url: sceneImage, onError: imageFailed } = useFallbackImage(() => [fullIm
       </div>
       <div
         v-if="dwellerName"
-        class="absolute bottom-[8%] left-1/2 h-[44%] aspect-[1/2] -translate-x-1/2"
+        class="actor-ground-shadow absolute bottom-[8%] left-1/2 h-[44%] aspect-[1/2] -translate-x-1/2"
         :aria-label="`${dwellerName} on expedition`"
         role="group"
       >

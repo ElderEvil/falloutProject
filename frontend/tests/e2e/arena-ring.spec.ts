@@ -1,6 +1,43 @@
 import { test, expect } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/static/**', (route) =>
+    route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="green"/></svg>',
+    })
+  )
+})
+
+test('fighters and pets have soft ground shadows that stay on the floor during attacks', async ({
+  page,
+}) => {
+  await page.goto('/tests/e2e/fixtures/arena-ring.html?mode=duel&pets=1&pet-attack=1')
+  const actors = page.locator('.combatant-motion')
+  await expect(actors).toHaveCount(4)
+  for (const actor of await actors.all()) {
+    const shadow = await actor.evaluate((element) => {
+      const style = getComputedStyle(element, '::before')
+      return {
+        content: style.content,
+        width: parseFloat(style.width),
+        height: parseFloat(style.height),
+        bottom: style.bottom,
+        filter: style.filter,
+        pointerEvents: style.pointerEvents,
+        transform: style.transform,
+      }
+    })
+    expect(shadow.content).toBe('""')
+    expect(shadow.width).toBeGreaterThan(shadow.height * 3)
+    expect(shadow.height).toBeGreaterThan(0)
+    expect(shadow.bottom).toBe('0px')
+    expect(shadow.filter).toContain('blur')
+    expect(shadow.pointerEvents).toBe('none')
+  }
+})
+
 for (const actor of ['Alpha', 'Bravo']) {
   test(`${actor}'s pet lunges inward without damage effects`, async ({ page }) => {
     await page.goto(

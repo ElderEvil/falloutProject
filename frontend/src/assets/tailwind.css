@@ -643,6 +643,16 @@ body {
     }
 }
 
+/* A stationary contact shadow inside a positioned actor frame. */
+@utility actor-ground-shadow {
+    @apply isolate;
+
+    &::before {
+        content: '';
+        @apply pointer-events-none absolute bottom-0 left-1/2 -z-10 h-[7%] min-h-0.5 w-3/5 -translate-x-1/2 rounded-[50%] bg-radial from-black/60 to-transparent blur-[2px];
+    }
+}
+
 /* Combat motion shared by the arena ring and the incident scene: the attacker
    lunges toward the opposing side, the target flashes and lifts. */
 @utility combat-lunge-right {

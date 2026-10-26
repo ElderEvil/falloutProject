@@ -25,6 +25,7 @@ const { url, onError } = useFallbackImage(() => [getStaticImageUrl(props.pet.ima
     :class="facing === 'left' ? 'right-0' : 'left-0'"
   >
     <CombatantMotion
+      class="actor-ground-shadow"
       :fighter-id="ownerId ?? ''"
       :facing="facing"
       :action="action"

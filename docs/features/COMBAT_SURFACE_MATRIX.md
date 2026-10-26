@@ -141,6 +141,10 @@ owner's prepare/impact playback as a lunge, including when the owner uses a rang
 weapon. It ignores incoming impacts and suppresses weapon effects, damage reactions
 and skill flashes. The pet remains outside the action/target/HP roster.
 
+`actor-ground-shadow` provides a soft contact ellipse for fighters and pets in
+arena setup, encounter briefings and live combat. It scales inside the actor frame
+and stays on the floor while the sprite lunges; it cannot intercept input.
+
 ### Further extraction has limited value
 
 - **Base damage**: `incident_math.damage_to_raiders` and `resolve_attacks` share `power / 5 × seconds`,

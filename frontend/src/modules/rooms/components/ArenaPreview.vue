@@ -230,7 +230,7 @@ const modeLabel = computed(
               <Button
                 variant="ghost"
                 type="button"
-                class="relative flex h-32 w-full shrink-0 items-end justify-center rounded p-0 hover:bg-transparent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary sm:h-44"
+                class="actor-ground-shadow relative flex h-32 w-full shrink-0 items-end justify-center rounded p-0 hover:bg-transparent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary sm:h-44"
                 :class="
                   !fighter.is_creature && !fighter.is_robot
                     ? `arena-body--${bodySizeFor(fighter)}`

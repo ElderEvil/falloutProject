@@ -262,6 +262,7 @@ const actionFor = (fighter: ArenaFighter) => {
                 </Tooltip>
               </div>
               <CombatantMotion
+                class="actor-ground-shadow"
                 :class="{ 'opacity-40 grayscale': fighter.health <= 0 }"
                 :fighter-id="fighter.id"
                 :facing="team.side === 'B' ? 'left' : 'right'"

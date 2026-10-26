@@ -9,6 +9,7 @@ from sqlalchemy import event
 
 from app import crud
 from app.crud.notification import notification as notification_crud
+from app.crud.user_profile import profile_crud
 from app.schemas.console import ConsoleRequest
 from app.services.console_service import _commands, console_manifest, execute_console
 
@@ -155,3 +156,111 @@ async def test_setup_late_failure_preserves_only_committed_departure(async_sessi
     assert not any(event.get("event") == "site_found" for event in journeys[0].events)
     notifications = await notification_crud.get_user_notifications(async_session, actor_id)
     assert not any((row.meta_data or {}).get("event") == "site_found" for row in notifications)
+
+
+@pytest.mark.parametrize(("balance", "amount", "expected"), [(100, {}, 600), (999_900, {"amount": 500}, 999_999)])
+async def test_greedisgood_respects_cap_without_earned_progress(async_session, vault, balance, amount, expected):
+    vault_id, actor_id = vault.id, vault.user_id
+    await crud.vault.update(async_session, vault_id, {"bottle_caps": balance})
+    profile = await profile_crud.get_by_user_id(async_session, actor_id)
+    earned_before = profile.total_caps_earned if profile else None
+    result = await execute_console(
+        async_session,
+        actor_id,
+        ConsoleRequest(
+            command="greedisgood",
+            args={"vault_id": str(vault_id), **amount},
+        ),
+    )
+    assert result.ok
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == expected
+    profile = await profile_crud.get_by_user_id(async_session, actor_id)
+    assert (profile.total_caps_earned if profile else None) == earned_before
+
+
+@pytest.mark.parametrize("amount", [0, -500, 1_000_000])
+async def test_greedisgood_rejects_invalid_amount(async_session, vault, amount):
+    original, vault_id = vault.bottle_caps, vault.id
+    result = await execute_console(
+        async_session,
+        vault.user_id,
+        ConsoleRequest(
+            command="greedisgood",
+            args={"vault_id": str(vault_id), "amount": amount},
+        ),
+    )
+    assert result.ok is False
+    await async_session.rollback()
+    reloaded = await crud.vault.get(async_session, vault_id)
+    assert reloaded.bottle_caps == original
+
+
+async def test_thereisnospoon_refills_only_to_capacity(async_session, vault):
+    vault_id, actor_id = vault.id, vault.user_id
+    await crud.vault.update(
+        async_session,
+        vault_id,
+        {
+            "power": 1,
+            "power_max": 500,
+            "food": 2,
+            "food_max": 300,
+            "water": 3,
+            "water_max": 0,
+        },
+    )
+    original_caps = vault.bottle_caps
+    result = await execute_console(
+        async_session,
+        actor_id,
+        ConsoleRequest(
+            command="thereisnospoon",
+            args={"vault_id": str(vault_id)},
+        ),
+    )
+    assert result.ok
+    await async_session.refresh(vault)
+    assert (vault.power, vault.food, vault.water) == (500, 300, 0)
+    assert vault.bottle_caps == original_caps
+
+
+@pytest.mark.parametrize("command", ["greedisgood", "thereisnospoon"])
+async def test_cheat_commit_failure_rolls_back_changes(async_session, vault, command):
+    original = (vault.bottle_caps, vault.power, vault.food, vault.water)
+    vault_id, actor_id = vault.id, vault.user_id
+
+    def fail_commit(_session):
+        raise RuntimeError("cheat commit failed")
+
+    event.listen(async_session.sync_session, "before_commit", fail_commit)
+    try:
+        with pytest.raises(RuntimeError, match="cheat commit failed"):
+            await execute_console(
+                async_session,
+                actor_id,
+                ConsoleRequest(
+                    command=command,
+                    args={"vault_id": str(vault_id)},
+                ),
+            )
+    finally:
+        event.remove(async_session.sync_session, "before_commit", fail_commit)
+    await async_session.rollback()
+    reloaded = await crud.vault.get(async_session, vault_id)
+    assert (reloaded.bottle_caps, reloaded.power, reloaded.food, reloaded.water) == original
+
+
+async def test_cheat_is_forbidden_for_ordinary_user(async_client, normal_user_token_headers, async_session, vault):
+    original = vault.bottle_caps
+    response = await async_client.post(
+        "/system/console",
+        headers=normal_user_token_headers,
+        json={
+            "command": "greedisgood",
+            "args": {"vault_id": str(vault.id), "amount": 500},
+        },
+    )
+    assert response.status_code == 403
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == original

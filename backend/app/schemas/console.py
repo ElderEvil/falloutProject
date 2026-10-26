@@ -23,6 +23,10 @@ class ExpeditionSetupArgs(VaultArgs):
     duration_hours: int = Field(default=8, ge=1, le=24)
 
 
+class CapsCheatArgs(VaultArgs):
+    amount: int = Field(default=500, ge=1, le=999_999)
+
+
 class ConsoleRequest(ConsoleArgs):
     command: str = Field(min_length=1, max_length=64)
     args: dict[str, Any] = Field(default_factory=dict, max_length=10)

@@ -16,7 +16,9 @@ from pydantic import UUID4, BaseModel, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.models.vault import Vault
 from app.schemas.console import (
+    CapsCheatArgs,
     ConsoleArgs,
     ConsoleCommand,
     ConsoleLink,
@@ -28,9 +30,11 @@ from app.schemas.console import (
     HelpArgs,
     VaultArgs,
 )
+from app.schemas.vault import VaultUpdate
 from app.services import catalog_service
 from app.services.exploration.expedition_scenario_service import expedition_scenario_service
-from app.utils.exceptions import DomainError, ValidationException
+from app.services.vault_service import vault_service
+from app.utils.exceptions import DomainError, ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +105,33 @@ async def _expedition_setup(
     )
 
 
+async def _cheat_vault(session: AsyncSession, vault_id: UUID4) -> Vault:
+    vault = await crud.vault.get_for_update(session, vault_id)
+    if vault is None or vault.is_deleted:
+        raise ResourceNotFoundException(Vault, identifier=vault_id)
+    return vault
+
+
+async def _greedisgood_transaction(session: AsyncSession, vault_id: UUID4, amount: int) -> ConsoleResult:
+    vault = await _cheat_vault(session, vault_id)
+    credited = await vault_service.deposit_caps(
+        db_session=session, vault_obj=vault, amount=amount, commit=False, emit_event=False, track_earnings=False
+    )
+    await session.commit()
+    return ConsoleResult(lines=[f"Greed is good! +{credited} caps. Vault {vault.number} balance: {vault.bottle_caps}."])
+
+
+async def _thereisnospoon_transaction(session: AsyncSession, vault_id: UUID4) -> ConsoleResult:
+    vault = await _cheat_vault(session, vault_id)
+    await crud.vault.update(
+        session, vault_id, VaultUpdate(power=vault.power_max, food=vault.food_max, water=vault.water_max), commit=False
+    )
+    await session.commit()
+    return ConsoleResult(
+        lines=[f"There is no spoon. Vault {vault.number}: power, food and water refilled to capacity."]
+    )
+
+
 @dataclass(frozen=True)
 class _Command:
     description: str
@@ -134,6 +165,18 @@ _commands = {
         "Departure remains saved if a later setup stage fails.",
         ExpeditionSetupArgs,
         _expedition_setup,
+        mutates=True,
+    ),
+    "greedisgood": _Command(
+        "Grant caps (default 500, balance capped at 999999). Cheat grants do not count as earned caps or objective progress.",
+        CapsCheatArgs,
+        _greedisgood_transaction,
+        mutates=True,
+    ),
+    "thereisnospoon": _Command(
+        "Refill power, food and water to current capacity once; does not enable unlimited resources.",
+        VaultArgs,
+        _thereisnospoon_transaction,
         mutates=True,
     ),
 }

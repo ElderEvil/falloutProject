@@ -208,8 +208,8 @@ stored separately per account. Output is limited to 500 rows and resets on accou
 vault switches. Other users do not load the terminal or fetch its command manifest.
 
 The initial slice of [#1041](https://github.com/ElderEvil/falloutProject/issues/1041)
-provides `help`, `vault.list`, `vault.state`, `dweller.list`, `expedition.status`, and
-`expedition.setup`. Commands inherit the currently viewed vault unless `--vault-id`
+provides `help`, `vault.list`, `vault.state`, `dweller.list`, `expedition.status`,
+`expedition.setup`, and two Warcraft-inspired cheats. Commands inherit the currently viewed vault unless `--vault-id`
 is supplied. Command help, argument schemas and expedition site IDs come from the
 superuser-only `/api/v1/system/console/manifest` endpoint.
 
@@ -220,6 +220,8 @@ expedition.status
 dweller.list
 help expedition.setup
 expedition.setup --dweller-id <existing-dweller-uuid> --site-id collapsed_subway
+greedisgood --amount 500
+thereisnospoon
 ```
 
 Setup uses the same scenario service as `fo-cli expedition-scenario setup`: it sends
@@ -232,6 +234,11 @@ fails. Inspect `expedition.status` before retrying a failed setup.
 The backend validates an allowlisted command and named JSON arguments and audit-logs
 the actor, arguments and outcome. It never runs a shell or a Typer subprocess. More
 commands from #1041 remain follow-up work.
+
+`greedisgood` adds caps (500 by default) up to the existing 999,999 balance limit,
+without advancing earned-caps statistics or objectives. `thereisnospoon` refills power,
+food and water to their current capacities once. Both are superuser-only and audited;
+neither changes the vault's limits or enables a persistent unlimited-resource mode.
 
 ## 🎨 UI Component Library
 

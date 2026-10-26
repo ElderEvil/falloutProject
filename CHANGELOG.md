@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.272.0 (2026-10-26)
+
+### Features
+
+* show combat pets with attack animations and ground shadows ([#1209](https://github.com/ElderEvil/falloutProject/issues/1209)) de11133
+
+### Bug Fixes
+
+* **notifications:** navigate before marking notifications read ([#1208](https://github.com/ElderEvil/falloutProject/issues/1208)) bb32602
+
+### Documentation
+
+* document separate frontend browser checks ([#1201](https://github.com/ElderEvil/falloutProject/issues/1201)) c2573c9
+
 ## 2.271.0 (2026-10-26)
 
 ### Features

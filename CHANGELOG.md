@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.273.1 (2026-10-26)
+
+### Bug Fixes
+
+* **rooms:** enforce preview sizing frames and add first-frame probe ([#1200](https://github.com/ElderEvil/falloutProject/issues/1200)) 726e7a4, closes #1187
+
 ## 2.273.0 (2026-10-26)
 
 ### Features

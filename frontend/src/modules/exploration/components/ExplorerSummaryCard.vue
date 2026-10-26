@@ -8,7 +8,11 @@ import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge
 import DwellerRarityBadge from '@/modules/dwellers/components/DwellerRarityBadge.vue'
 import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 import { Progress } from '@/core/components/ui/progress'
-import { getEffectiveMaxHealth, getHealthDisplay, getRadiationPercentage } from '@/modules/dwellers/models/dweller'
+import {
+  getEffectiveMaxHealth,
+  getHealthDisplay,
+  getRadiationPercentage,
+} from '@/modules/dwellers/models/dweller'
 import type { Dweller, DetailedDweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import ExplorationStatusBadges from './ExplorationStatusBadges.vue'
@@ -59,6 +63,11 @@ const healthPercentage = computed(
             fallback-class="h-[45px] w-[45px] text-theme-primary drop-shadow-[0_0_8px_var(--color-theme-glow)]"
           />
         </div>
+        <div
+          class="dweller-level shrink-0 rounded-[3px] bg-theme-primary px-1.5 py-0.5 text-[0.625rem] font-bold text-black shadow-[0_0_10px_var(--color-theme-glow)]"
+        >
+          LVL {{ dwellerLevel }}
+        </div>
       </div>
       <div class="flex flex-1 flex-col justify-center">
         <div class="flex items-start justify-between gap-3">
@@ -77,11 +86,6 @@ const healthPercentage = computed(
         </div>
         <div class="flex flex-col gap-1">
           <div class="health-row flex items-center gap-2">
-            <div
-              class="dweller-level shrink-0 rounded-[3px] bg-theme-primary px-1.5 py-0.5 text-[0.625rem] font-bold text-black shadow-[0_0_10px_var(--color-theme-glow)]"
-            >
-              LVL {{ dwellerLevel }}
-            </div>
             <span class="min-w-[50px] text-xs text-theme-primary/80">Health</span>
             <HealthRadiationBar
               :value="healthPercentage"
@@ -89,9 +93,10 @@ const healthPercentage = computed(
               :height="12"
               aria-label="Health"
             />
-            <span class="min-w-[60px] shrink-0 whitespace-nowrap text-right text-xs font-bold text-theme-primary">{{
-              getHealthDisplay(health, maxHealth, radiation)
-            }}</span>
+            <span
+              class="min-w-[60px] shrink-0 whitespace-nowrap text-right text-xs font-bold text-theme-primary"
+              >{{ getHealthDisplay(health, maxHealth, radiation) }}</span
+            >
           </div>
         </div>
       </div>

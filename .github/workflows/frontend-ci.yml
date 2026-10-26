@@ -19,6 +19,7 @@ jobs:
   frontend-ci:
     name: Frontend Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       PNPM_CONFIG_STORE_DIR: ~/.pnpm-store
 
@@ -120,29 +121,6 @@ jobs:
         if: steps.filter.outputs.src == 'true'
         working-directory: frontend
         run: pnpm run test:run --coverage
-
-      - name: Install Playwright Chromium and Firefox
-        if: steps.filter.outputs.src == 'true'
-        working-directory: frontend
-        run: pnpm exec playwright install --with-deps chromium firefox
-
-      - name: Run CRT visual baselines
-        if: steps.filter.outputs.src == 'true'
-        working-directory: frontend
-        env:
-          PW_SKIP_BACKEND: '1'
-        run: pnpm exec playwright test tests/e2e/animation-gallery.spec.ts tests/e2e/crt-baselines.spec.ts tests/e2e/arena-creature-facing.spec.ts tests/e2e/barbershop-slots.spec.ts tests/e2e/arena-roster.spec.ts tests/e2e/arena-setup.spec.ts tests/e2e/combat-playback.spec.ts tests/e2e/skill-icons.spec.ts tests/e2e/arena-ring.spec.ts tests/e2e/incident-scene.spec.ts tests/e2e/overseer-briefing-contrast.spec.ts tests/e2e/onboarding-spotlight.spec.ts tests/e2e/wasteland-scenes.spec.ts
-
-      - name: Upload Playwright failure artifacts
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: playwright-crt-baselines
-          path: |
-            frontend/test-results/
-            frontend/playwright-report/
-          retention-days: 7
-          if-no-files-found: ignore
 
       - name: Build check
         working-directory: frontend

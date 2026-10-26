@@ -315,6 +315,22 @@ describe('ExpeditionSiteModal', () => {
     expect(wrapper.text()).toContain('75%')
   })
 
+  it('describes a single site as already discovered by the explorer', async () => {
+    const wrapper = mountModal('exp-1', 'Rachel Miller')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Rachel Miller discovered a site.')
+    expect(wrapper.text()).not.toContain('Where should')
+    wrapper.unmount()
+  })
+
+  it('describes multiple discovered sites without asking for a scouting destination', async () => {
+    mockList.mockResolvedValue([...sites, { ...sites[0], id: 'another', name: 'Another site' }])
+    const wrapper = mountModal('exp-1', 'Rachel Miller')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Rachel Miller discovered these sites.')
+    wrapper.unmount()
+  })
+
   it('hides the previous explorer room before the store is reset', async () => {
     const wrapper = mountModal()
     const store = useExpeditionSiteStore()

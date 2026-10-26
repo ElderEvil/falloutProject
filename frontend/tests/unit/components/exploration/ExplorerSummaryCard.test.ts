@@ -86,14 +86,14 @@ describe('ExplorerSummaryCard', () => {
     wrapper.unmount()
   })
 
-  it('places the level badge beside health rather than over the portrait', () => {
+  it('keeps the level badge below the portrait and separate from health', () => {
     const wrapper = mountCard()
     const portraitColumn = wrapper.find('.portrait-column')
     const healthRow = wrapper.find('.health-row')
 
-    expect(healthRow.find('.dweller-level').text()).toBe('LVL 12')
+    expect(portraitColumn.find('.dweller-level').text()).toBe('LVL 12')
     expect(portraitColumn.find('.dweller-portrait-frame').exists()).toBe(true)
-    expect(portraitColumn.find('.dweller-level').exists()).toBe(false)
+    expect(healthRow.find('.dweller-level').exists()).toBe(false)
 
     wrapper.unmount()
   })

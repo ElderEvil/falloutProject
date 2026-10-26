@@ -9,10 +9,22 @@
     <div id="app"></div>
     <script type="module">
       import '../../../src/assets/tailwind.css'
-      import { createApp } from 'vue'
+      import { createApp, h } from 'vue'
       import { createPinia } from 'pinia'
       import { createRouter, createMemoryHistory } from 'vue-router'
       import WastelandScenesPreview from '../../../src/modules/exploration/views/WastelandScenesPreview.vue'
+      import ExpeditionSiteModal from '../../../src/modules/exploration/components/ExpeditionSiteModal.vue'
+      const Preview = new URLSearchParams(location.search).has('picker')
+        ? {
+            render: () =>
+              h(ExpeditionSiteModal, {
+                show: true,
+                explorationId: 'preview-picker',
+                dwellerName: 'Rachel Miller',
+                explorationActive: true,
+              }),
+          }
+        : WastelandScenesPreview
       const router = createRouter({
         history: createMemoryHistory(),
         routes: [
@@ -21,9 +33,7 @@
         ],
       })
       router.push('/')
-      router
-        .isReady()
-        .then(() => createApp(WastelandScenesPreview).use(router).use(createPinia()).mount('#app'))
+      router.isReady().then(() => createApp(Preview).use(router).use(createPinia()).mount('#app'))
     </script>
   </body>
 </html>

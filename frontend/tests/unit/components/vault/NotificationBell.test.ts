@@ -1171,6 +1171,33 @@ describe('NotificationBell popup accessibility', () => {
     wrapper.unmount()
   })
 
+  it('navigates and closes while the read request is still pending', async () => {
+    const wrapper = await mountAndOpen([{ ...actionableNotification }])
+    let resolvePatch!: (value: { data: object }) => void
+    let settled = false
+    vi.mocked(axios.patch).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePatch = (value) => {
+          settled = true
+          resolve(value)
+        }
+      })
+    )
+
+    await wrapper.get('[data-notification-id="act-1"]').trigger('click')
+    await settleClose()
+
+    expect(mockPush).toHaveBeenCalledWith('/vault/vault-1/dwellers')
+    expect(settled).toBe(false)
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(axios.patch).toHaveBeenCalledWith('/api/v1/notifications/act-1/read', {})
+    expect(wrapper.get('button[aria-haspopup="dialog"]').text()).toBe('')
+
+    resolvePatch({ data: {} })
+    await flushPromises()
+    wrapper.unmount()
+  })
+
   it('renders the unread badge in the default theme color so the count stays readable', async () => {
     const wrapper = await mountBell([informationalNotification])
 

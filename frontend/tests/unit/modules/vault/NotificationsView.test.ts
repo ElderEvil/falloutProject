@@ -24,6 +24,7 @@ async function render(query = '') {
     history: createMemoryHistory(),
     routes: [
       { path: '/notifications', component: NotificationsView },
+      { path: '/vault/:vaultId/dwellers', component: { template: '<div />' } },
       { path: '/', component: { template: '<div />' } },
     ],
   })
@@ -67,6 +68,55 @@ describe('notification inbox page', () => {
     expect(axios.get).toHaveBeenLastCalledWith('/api/v1/notifications/', {
       params: { vault_id: undefined, is_read: false, offset: 0, limit: 50 },
     })
+    wrapper.unmount()
+  })
+
+  it('navigates to the destination while the read request is still pending', async () => {
+    vi.mocked(axios.get).mockResolvedValueOnce({
+      data: [
+        {
+          id: 'act-1',
+          title: 'Actionable',
+          message: 'Open the dweller list',
+          vault_id: 'vault-1',
+          notification_type: 'level_up',
+          priority: 'normal',
+          is_read: false,
+          created_at: '2026-10-24T00:00:00Z',
+        },
+      ],
+    })
+    let resolvePatch!: (value: { data: object }) => void
+    let settled = false
+    vi.mocked(axios.patch).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePatch = (value) => {
+          settled = true
+          resolve(value)
+        }
+      })
+    )
+    const { wrapper, router } = await render('?vault=all')
+
+    const viewDetails = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('View details'))!
+    await viewDetails.trigger('click')
+    await flushPromises()
+
+    expect(settled).toBe(false)
+    expect(router.currentRoute.value.path).toBe('/vault/vault-1/dwellers')
+    expect(axios.patch).toHaveBeenCalledWith('/api/v1/notifications/act-1/read', {})
+    expect(
+      useNotificationInboxStore().isRead({
+        id: 'act-1',
+        vault_id: 'vault-1',
+        is_read: false,
+      })
+    ).toBe(true)
+
+    resolvePatch({ data: {} })
+    await flushPromises()
     wrapper.unmount()
   })
 

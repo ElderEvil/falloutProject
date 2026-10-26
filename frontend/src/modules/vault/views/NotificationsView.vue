@@ -64,11 +64,11 @@ function reload() {
   return inbox.load(vaultId.value, status.value)
 }
 
-async function openNotification(notification: InboxNotification) {
+function openNotification(notification: InboxNotification) {
   const destination = getNotificationRoute(notification)
   if (!destination) return
-  if (!notification.is_read && !(await inbox.markRead(notification.id))) return
-  await router.push(destination)
+  void router.push(destination)
+  if (!inbox.isRead(notification)) inbox.markReadOnOpen(notification)
 }
 
 watch([selectedVault, status], reload, { immediate: true })

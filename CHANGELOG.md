@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.267.2 (2026-10-26)
+
+### Bug Fixes
+
+* **ui:** improve vault Lighthouse accessibility and performance ([#1189](https://github.com/ElderEvil/falloutProject/issues/1189)) 830f42b
+
 ## 2.267.1 (2026-10-26)
 
 ### Bug Fixes

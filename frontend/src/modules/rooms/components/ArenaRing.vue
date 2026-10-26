@@ -215,7 +215,7 @@ const actionFor = (fighter: ArenaFighter) => {
               :numbers="damageNumbers.filter((d) => d.fighterId === fighter.id)"
             />
             <CombatantMeters
-              class="fighter-meters"
+              class="fighter-meters max-w-32"
               :name="fighter.name"
               :health="fighter.health"
               :max-health="fighter.max_health"

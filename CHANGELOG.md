@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.270.0 (2026-10-26)
+
+### Features
+
+* add playable single-scene expedition encounters ([#1199](https://github.com/ElderEvil/falloutProject/issues/1199)) 8f92f68
+
 ## 2.269.1 (2026-10-26)
 
 ### Code Refactoring

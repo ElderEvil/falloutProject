@@ -5750,6 +5750,12 @@ export interface components {
             min_dweller_level: number;
             /** Room Total */
             room_total: number;
+            /** Scene Id */
+            scene_id?: ("desert_highway" | "supermarket_interior" | "subway_station" | "amusement_park" | "arctic_research_station") | null;
+            /** Enemy Names */
+            enemy_names?: string[];
+            /** Threat */
+            threat?: ("low" | "moderate" | "high") | null;
         };
         /**
          * BarbershopChangeRequest
@@ -7808,6 +7814,13 @@ export interface components {
         ExpeditionResolveRequest: {
             /** Choice Id */
             choice_id?: string | null;
+            /**
+             * Use Skill
+             * @default false
+             */
+            use_skill: boolean;
+            /** Expected Round */
+            expected_round?: number | null;
         };
         /**
          * ExpeditionSiteMarkerRead
@@ -10744,6 +10757,29 @@ export interface components {
          * @enum {string}
          */
         SPECIALEnum: "strength" | "perception" | "endurance" | "charisma" | "intelligence" | "agility" | "luck";
+        /** SiteCombatEvent */
+        SiteCombatEvent: {
+            /** Id */
+            id: string;
+            /** Message */
+            message: string;
+            action?: components["schemas"]["CombatAction"] | null;
+        };
+        /** SiteCombatView */
+        SiteCombatView: {
+            /** Round */
+            round: number;
+            /**
+             * Next Attack Team
+             * @default A
+             * @enum {string}
+             */
+            next_attack_team: "A" | "B";
+            /** Fighters */
+            fighters: components["schemas"]["ArenaFighter"][];
+            /** Events */
+            events?: components["schemas"]["SiteCombatEvent"][];
+        };
         /**
          * SiteNodeView
          * @description Player-facing node prompt.
@@ -10806,6 +10842,16 @@ export interface components {
              * @default 0
              */
             dweller_max_health: number;
+            /** Scene Id */
+            scene_id?: ("desert_highway" | "supermarket_interior" | "subway_station" | "amusement_park" | "arctic_research_station") | null;
+            /**
+             * Lore
+             * @default
+             */
+            lore: string;
+            /** Threat */
+            threat?: ("low" | "moderate" | "high") | null;
+            combat_state?: components["schemas"]["SiteCombatView"] | null;
         };
         /**
          * SpeedupMultiplier

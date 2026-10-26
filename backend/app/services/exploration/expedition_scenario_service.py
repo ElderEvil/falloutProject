@@ -87,6 +87,7 @@ class ExpeditionScenarioService:
         preclear_site_id: str | None = None,
         special: int = 5,
         discovered_site_id: str | None = None,
+        dweller_id: UUID4 | None = None,
     ) -> ExpeditionScenarioResult:
         """Provision a vault with one dweller on an active exploration.
 
@@ -100,6 +101,12 @@ class ExpeditionScenarioService:
         """
         duration_hours = max(1, min(24, duration_hours))
         dweller_level = max(1, min(50, dweller_level))
+        existing_dweller = await crud.dweller.get(db_session, dweller_id) if dweller_id is not None else None
+        if existing_dweller is not None:
+            if existing_dweller.vault_id is None or (vault_id is not None and existing_dweller.vault_id != vault_id):
+                raise ValueError("The selected dweller does not belong to the target vault")
+            vault_id = existing_dweller.vault_id
+            dweller_level = existing_dweller.level
         if preclear_site_id is not None and data_loader.get_expedition_site(preclear_site_id) is None:
             raise ValueError(f"Unknown expedition site: {preclear_site_id!r}")
         discovered_site = data_loader.get_expedition_site(discovered_site_id) if discovered_site_id else None
@@ -116,7 +123,7 @@ class ExpeditionScenarioService:
         )
         if discovered_site is not None and await vault_slot.get_by_vault(db_session, vault.id) is None:
             await vault_slot.claim_next(db_session=db_session, vault_id=vault.id)
-        dweller = await self._create_scenario_dweller(db_session, vault, special=special)
+        dweller = existing_dweller or await self._create_scenario_dweller(db_session, vault, special=special)
         levels = dweller_level - dweller.level
         if levels > 0:
             await leveling_service.level_up_dweller(db_session, dweller, levels=levels)

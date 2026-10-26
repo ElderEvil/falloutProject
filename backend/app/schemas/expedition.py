@@ -5,7 +5,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.arena import ArenaFighter
+from app.schemas.combat import CombatAction
+
 RARITY_ORDER = ("common", "rare", "legendary")
+ExpeditionSceneId = Literal[
+    "desert_highway", "supermarket_interior", "subway_station", "amusement_park", "arctic_research_station"
+]
 
 
 def rarity_meets_floor(rarity: str, floor: str | None) -> bool:
@@ -20,6 +26,7 @@ class EnemySpec(BaseModel):
     """Enemy reference: table lookup by name, or a full inline boss spec."""
 
     name: str
+    arena_key: str | None = None
     difficulty: int | None = Field(default=None, ge=1, le=5)
     min_damage: int | None = Field(default=None, ge=0)
     max_damage: int | None = Field(default=None, ge=0)
@@ -110,6 +117,14 @@ class SiteDefinition(BaseModel):
     coord_y: float = Field(ge=0, le=100)
     min_dweller_level: int = Field(ge=1)
     rooms: list[SiteRoom] = Field(min_length=1)
+    # Original rooms remain readable for already-saved runs. New spatial visits
+    # resolve this single encounter and award the site's haul in the same transaction.
+    encounter: SiteRoom | None = None
+    scene_id: ExpeditionSceneId | None = None
+    lore: str = ""
+    # Encounter-only tuning: shared arena catalog stats remain unchanged.
+    enemy_power_scale: float = Field(default=0.12, gt=0, le=5)
+    enemy_health_scale: float = Field(default=0.3, gt=0, le=5)
     reward_vault: RewardVault
 
 
@@ -157,6 +172,19 @@ class NodeOutcome(BaseModel):
     combat: list[CombatEntry] = Field(default_factory=list)
 
 
+class SiteCombatEvent(BaseModel):
+    id: str
+    message: str
+    action: CombatAction | None = None
+
+
+class SiteCombatView(BaseModel):
+    round: int
+    next_attack_team: Literal["A", "B"] = "A"
+    fighters: list[ArenaFighter]
+    events: list[SiteCombatEvent] = Field(default_factory=list)
+
+
 class SiteRoomView(BaseModel):
     """Current room state returned by every expedition endpoint."""
 
@@ -176,6 +204,10 @@ class SiteRoomView(BaseModel):
     # Live dweller condition, so the client can show the stake of push-on vs retreat.
     dweller_health: int = 0
     dweller_max_health: int = 0
+    scene_id: ExpeditionSceneId | None = None
+    lore: str = ""
+    threat: Literal["low", "moderate", "high"] | None = None
+    combat_state: SiteCombatView | None = None
 
 
 class AvailableSiteView(BaseModel):
@@ -186,12 +218,17 @@ class AvailableSiteView(BaseModel):
     flavor: str
     min_dweller_level: int
     room_total: int
+    scene_id: ExpeditionSceneId | None = None
+    enemy_names: list[str] = Field(default_factory=list)
+    threat: Literal["low", "moderate", "high"] | None = None
 
 
 class ExpeditionResolveRequest(BaseModel):
     """Resolve the current node; choice_id required for choice/trap-with-options nodes."""
 
     choice_id: str | None = None
+    use_skill: bool = False
+    expected_round: int | None = Field(default=None, ge=0)
 
 
 class ExpeditionEnterRequest(BaseModel):

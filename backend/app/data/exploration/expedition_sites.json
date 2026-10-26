@@ -3,10 +3,25 @@
     {
       "id": "red_rocket",
       "name": "Red Rocket Gas Station",
-      "flavor": "The pumps still tick over. Someone has kept this place running — and mined it.",
+      "flavor": "A raider is siphoning fuel beside the pumps. Sealed supplies lie behind the counter.",
       "coord_x": 30.0,
       "coord_y": 25.0,
       "min_dweller_level": 3,
+      "encounter": {
+        "id": "gas_station",
+        "name": "Red Rocket Gas Station",
+        "flavor": "A raider is siphoning fuel beside the pumps. Sealed supplies lie behind the counter.",
+        "node": {
+          "kind": "combat",
+          "prompt": "A raider is siphoning fuel beside the pumps. Sealed supplies lie behind the counter.",
+          "enemies": [
+            {
+              "name": "Raider",
+              "arena_key": "raider"
+            }
+          ]
+        }
+      },
       "rooms": [
         {
           "id": "forecourt",
@@ -23,8 +38,13 @@
                 "label": "Disarm the wires (Perception)",
                 "stat": "perception",
                 "difficulty": 1,
-                "success": {"cache_tier": "small"},
-                "failure": {"trap_damage_min": 2, "trap_damage_max": 4}
+                "success": {
+                  "cache_tier": "small"
+                },
+                "failure": {
+                  "trap_damage_min": 2,
+                  "trap_damage_max": 4
+                }
               },
               {
                 "id": "detour",
@@ -32,15 +52,24 @@
                 "stat": "luck",
                 "difficulty": 2,
                 "success": {},
-                "failure": {"trap_damage_min": 4, "trap_damage_max": 7}
+                "failure": {
+                  "trap_damage_min": 4,
+                  "trap_damage_max": 7
+                }
               },
               {
                 "id": "tank",
                 "label": "Walk straight through (Endurance)",
                 "stat": "endurance",
                 "difficulty": 1,
-                "success": {"trap_damage_min": 1, "trap_damage_max": 3},
-                "failure": {"trap_damage_min": 4, "trap_damage_max": 7}
+                "success": {
+                  "trap_damage_min": 1,
+                  "trap_damage_max": 3
+                },
+                "failure": {
+                  "trap_damage_min": 4,
+                  "trap_damage_max": 7
+                }
               }
             ]
           }
@@ -52,7 +81,17 @@
           "node": {
             "kind": "combat",
             "prompt": "Something nests in the service pit!",
-            "enemies": [{"name": "Mole Rat pack"}, {"name": "Mole Rat pack"}, {"name": "Raider gang"}]
+            "enemies": [
+              {
+                "name": "Mole Rat pack"
+              },
+              {
+                "name": "Mole Rat pack"
+              },
+              {
+                "name": "Raider gang"
+              }
+            ]
           }
         },
         {
@@ -70,18 +109,41 @@
       "reward_vault": {
         "caps_min": 80,
         "caps_max": 140,
-        "item": {"type": "junk", "floor": null},
+        "item": {
+          "type": "junk",
+          "floor": null
+        },
         "junk_bundles": 1,
         "stimpaks": 1
-      }
+      },
+      "scene_id": "desert_highway",
+      "lore": "The owner\u2019s last sign promises a free coolant check. Someone has crossed out \u201cfree.\u201d",
+      "enemy_power_scale": 0.12,
+      "enemy_health_scale": 0.3
     },
     {
       "id": "super_duper_mart",
       "name": "Super Duper Mart",
-      "flavor": "Raiders squat the aisles of a pre-war supermarket. The prize stock is in back.",
+      "flavor": "A raider guards medical supplies stacked between toppled shelves. Secure the supplies for the vault.",
       "coord_x": 72.0,
       "coord_y": 68.0,
       "min_dweller_level": 5,
+      "encounter": {
+        "id": "supermarket_interior",
+        "name": "Supermarket Interior",
+        "flavor": "A raider guards medical supplies stacked between toppled shelves. Secure the supplies for the vault.",
+        "node": {
+          "kind": "combat",
+          "prompt": "A raider guards medical supplies stacked between toppled shelves. Secure the supplies for the vault.",
+          "enemies": [
+            {
+              "name": "Raider",
+              "arena_key": "raider"
+            }
+          ]
+        }
+      },
+      "scene_id": "supermarket_interior",
       "rooms": [
         {
           "id": "parking_lot",
@@ -90,13 +152,23 @@
           "node": {
             "kind": "combat",
             "prompt": "Ambush between the burned-out cars!",
-            "enemies": [{"name": "Radroach swarm"}, {"name": "Radroach swarm"}, {"name": "Raider gang"}]
+            "enemies": [
+              {
+                "name": "Radroach swarm"
+              },
+              {
+                "name": "Radroach swarm"
+              },
+              {
+                "name": "Raider gang"
+              }
+            ]
           }
         },
         {
           "id": "aisles",
           "name": "Collapsed Aisles",
-          "flavor": "Shelves form a maze. Something glints three aisles down — and something nests above it.",
+          "flavor": "Shelves form a maze. Something glints three aisles down \u2014 and something nests above it.",
           "node": {
             "kind": "choice",
             "prompt": "How do you take the aisles?",
@@ -106,24 +178,48 @@
                 "label": "Sneak through (Agility)",
                 "stat": "agility",
                 "difficulty": 2,
-                "success": {"cache_tier": "rich", "cache_item": "weapon", "cache_floor": "rare"},
-                "failure": {"combat_enemies": [{"name": "Giant Radscorpion"}]}
+                "success": {
+                  "cache_tier": "rich",
+                  "cache_item": "weapon",
+                  "cache_floor": "rare"
+                },
+                "failure": {
+                  "combat_enemies": [
+                    {
+                      "name": "Giant Radscorpion"
+                    }
+                  ]
+                }
               },
               {
                 "id": "sweep",
                 "label": "Loud sweep (Strength)",
                 "stat": "strength",
                 "difficulty": 1,
-                "success": {"cache_tier": "standard", "cache_item": "junk"},
-                "failure": {"trap_damage_min": 4, "trap_damage_max": 9}
+                "success": {
+                  "cache_tier": "standard",
+                  "cache_item": "junk"
+                },
+                "failure": {
+                  "trap_damage_min": 4,
+                  "trap_damage_max": 9
+                }
               },
               {
                 "id": "call_out",
                 "label": "Call out (Charisma)",
                 "stat": "charisma",
                 "difficulty": 3,
-                "success": {"cache_tier": "rich", "cache_item": "outfit", "cache_floor": "rare", "trade_cost_caps": 25},
-                "failure": {"cache_tier": "standard", "cache_item": "junk"}
+                "success": {
+                  "cache_tier": "rich",
+                  "cache_item": "outfit",
+                  "cache_floor": "rare",
+                  "trade_cost_caps": 25
+                },
+                "failure": {
+                  "cache_tier": "standard",
+                  "cache_item": "junk"
+                }
               }
             ]
           }
@@ -136,7 +232,12 @@
             "kind": "combat",
             "prompt": "The boss of the parking lot!",
             "enemies": [
-              {"name": "Raider Boss", "difficulty": 4, "min_damage": 25, "max_damage": 45}
+              {
+                "name": "Raider Boss",
+                "difficulty": 4,
+                "min_damage": 25,
+                "max_damage": 45
+              }
             ]
           }
         },
@@ -153,18 +254,40 @@
       "reward_vault": {
         "caps_min": 150,
         "caps_max": 250,
-        "item": {"type": "weapon", "floor": "rare", "attempts": 3},
+        "item": {
+          "type": "weapon",
+          "floor": "rare",
+          "attempts": 3
+        },
         "junk_bundles": 2,
         "stimpaks": 0
-      }
+      },
+      "lore": "A delivery manifest lists the medicine as overdue even before the bombs fell.",
+      "enemy_power_scale": 0.12,
+      "enemy_health_scale": 0.3
     },
     {
       "id": "abandoned_campsite",
       "name": "Abandoned Campsite",
-      "flavor": "An old bedroll, cold ashes, and a sealed tin. No sign of anyone left to guard it.",
+      "flavor": "A night stalker has taken shelter under the bedrolls beside a sealed supply tin.",
       "coord_x": 18,
       "coord_y": 38,
       "min_dweller_level": 1,
+      "encounter": {
+        "id": "salvage",
+        "name": "Abandoned Campsite",
+        "flavor": "A night stalker has taken shelter under the bedrolls beside a sealed supply tin.",
+        "node": {
+          "kind": "combat",
+          "prompt": "A night stalker has taken shelter under the bedrolls beside a sealed supply tin.",
+          "enemies": [
+            {
+              "name": "Night Stalker",
+              "arena_key": "night-stalker"
+            }
+          ]
+        }
+      },
       "rooms": [
         {
           "id": "salvage",
@@ -183,15 +306,35 @@
           "type": "junk",
           "floor": null
         }
-      }
+      },
+      "scene_id": "desert_highway",
+      "lore": "The camper\u2019s journal ends with a warning: \u201cThe rattling isn\u2019t coming from the engine.\u201d",
+      "enemy_power_scale": 0.08,
+      "enemy_health_scale": 0.2
     },
     {
       "id": "roadside_supply_truck",
       "name": "Roadside Supply Truck",
-      "flavor": "The driver is long gone. A few sealed supply crates survived in the back.",
+      "flavor": "A radscorpion has burrowed beneath a wrecked supply truck. Drive it off to reach the surviving crates.",
       "coord_x": 48,
       "coord_y": 42,
       "min_dweller_level": 1,
+      "encounter": {
+        "id": "salvage",
+        "name": "Roadside Supply Truck",
+        "flavor": "A radscorpion has burrowed beneath a wrecked supply truck. Drive it off to reach the surviving crates.",
+        "node": {
+          "kind": "combat",
+          "prompt": "A radscorpion has burrowed beneath a wrecked supply truck. Drive it off to reach the surviving crates.",
+          "enemies": [
+            {
+              "name": "Giant Radscorpion",
+              "arena_key": "giant-radscorpion"
+            }
+          ]
+        }
+      },
+      "scene_id": "desert_highway",
       "rooms": [
         {
           "id": "salvage",
@@ -210,15 +353,33 @@
           "type": "junk",
           "floor": null
         }
-      }
+      },
+      "lore": "The truck\u2019s faded stencil reads: \u201cGuaranteed delivery, whatever the weather.\u201d",
+      "enemy_power_scale": 0.08,
+      "enemy_health_scale": 0.2
     },
     {
       "id": "forgotten_shack",
       "name": "Forgotten Shack",
-      "flavor": "Dust coats the empty shack. A loose floorboard hides a small salvage stash.",
+      "flavor": "A lone super mutant watches over salvage outside a boarded-up shack. Clear the path to the stash.",
       "coord_x": 81,
       "coord_y": 54,
       "min_dweller_level": 1,
+      "encounter": {
+        "id": "salvage",
+        "name": "Forgotten Shack",
+        "flavor": "A lone super mutant watches over salvage outside a boarded-up shack. Clear the path to the stash.",
+        "node": {
+          "kind": "combat",
+          "prompt": "A lone super mutant watches over salvage outside a boarded-up shack. Clear the path to the stash.",
+          "enemies": [
+            {
+              "name": "Super Mutant",
+              "arena_key": "super-mutant"
+            }
+          ]
+        }
+      },
       "rooms": [
         {
           "id": "salvage",
@@ -233,6 +394,166 @@
       "reward_vault": {
         "caps_min": 15,
         "caps_max": 30,
+        "item": {
+          "type": "junk",
+          "floor": null
+        }
+      },
+      "scene_id": "desert_highway",
+      "lore": "A hand-painted sign on the shack reads \u201cNO HUMANS.\u201d The lettering has been corrected twice.",
+      "enemy_power_scale": 0.08,
+      "enemy_health_scale": 0.2
+    },
+    {
+      "id": "collapsed_subway",
+      "name": "Collapsed Subway",
+      "flavor": "A feral ghoul wanders the platform beside an abandoned emergency locker. Secure the platform to recover its supplies.",
+      "coord_x": 37,
+      "coord_y": 61,
+      "min_dweller_level": 1,
+      "scene_id": "subway_station",
+      "lore": "A station announcement is frozen on \u201cNormal service will resume shortly.\u201d",
+      "enemy_power_scale": 0.08,
+      "enemy_health_scale": 0.2,
+      "encounter": {
+        "id": "subway_station",
+        "name": "Collapsed Subway",
+        "flavor": "A feral ghoul wanders the platform beside an abandoned emergency locker. Secure the platform to recover its supplies.",
+        "node": {
+          "kind": "combat",
+          "prompt": "A feral ghoul wanders the platform beside an abandoned emergency locker. Secure the platform to recover its supplies.",
+          "enemies": [
+            {
+              "name": "Feral Ghoul",
+              "arena_key": "feral-ghoul"
+            }
+          ]
+        }
+      },
+      "rooms": [
+        {
+          "id": "subway_station",
+          "name": "Collapsed Subway",
+          "flavor": "A feral ghoul wanders the platform beside an abandoned emergency locker. Secure the platform to recover its supplies.",
+          "node": {
+            "kind": "combat",
+            "prompt": "A feral ghoul wanders the platform beside an abandoned emergency locker. Secure the platform to recover its supplies.",
+            "enemies": [
+              {
+                "name": "Feral Ghoul",
+                "arena_key": "feral-ghoul"
+              }
+            ]
+          }
+        }
+      ],
+      "reward_vault": {
+        "caps_min": 25,
+        "caps_max": 50,
+        "item": {
+          "type": "junk",
+          "floor": null
+        }
+      }
+    },
+    {
+      "id": "rusted_midway",
+      "name": "Rusted Midway",
+      "flavor": "A raider has turned the prize booth into a supply stash. The rides are silent, but the booth is occupied.",
+      "coord_x": 59,
+      "coord_y": 28,
+      "min_dweller_level": 1,
+      "scene_id": "amusement_park",
+      "lore": "A prize booth advertises a lifetime supply of sweets. The fine print is illegible.",
+      "enemy_power_scale": 0.08,
+      "enemy_health_scale": 0.2,
+      "encounter": {
+        "id": "amusement_park",
+        "name": "Rusted Midway",
+        "flavor": "A raider has turned the prize booth into a supply stash. The rides are silent, but the booth is occupied.",
+        "node": {
+          "kind": "combat",
+          "prompt": "A raider has turned the prize booth into a supply stash. The rides are silent, but the booth is occupied.",
+          "enemies": [
+            {
+              "name": "Raider",
+              "arena_key": "raider"
+            }
+          ]
+        }
+      },
+      "rooms": [
+        {
+          "id": "amusement_park",
+          "name": "Rusted Midway",
+          "flavor": "A raider has turned the prize booth into a supply stash. The rides are silent, but the booth is occupied.",
+          "node": {
+            "kind": "combat",
+            "prompt": "A raider has turned the prize booth into a supply stash. The rides are silent, but the booth is occupied.",
+            "enemies": [
+              {
+                "name": "Raider",
+                "arena_key": "raider"
+              }
+            ]
+          }
+        }
+      ],
+      "reward_vault": {
+        "caps_min": 25,
+        "caps_max": 50,
+        "item": {
+          "type": "junk",
+          "floor": null
+        }
+      }
+    },
+    {
+      "id": "frozen_research_outpost",
+      "name": "Frozen Research Outpost",
+      "flavor": "A feral ghoul in a ruined research uniform guards the station\u2019s emergency stores. Clear the room to recover them.",
+      "coord_x": 84,
+      "coord_y": 16,
+      "min_dweller_level": 1,
+      "scene_id": "arctic_research_station",
+      "lore": "The last research log says the cold would preserve everything. It does not mention the staff.",
+      "enemy_power_scale": 0.08,
+      "enemy_health_scale": 0.2,
+      "encounter": {
+        "id": "arctic_research_station",
+        "name": "Frozen Research Outpost",
+        "flavor": "A feral ghoul in a ruined research uniform guards the station\u2019s emergency stores. Clear the room to recover them.",
+        "node": {
+          "kind": "combat",
+          "prompt": "A feral ghoul in a ruined research uniform guards the station\u2019s emergency stores. Clear the room to recover them.",
+          "enemies": [
+            {
+              "name": "Feral Ghoul",
+              "arena_key": "feral-ghoul"
+            }
+          ]
+        }
+      },
+      "rooms": [
+        {
+          "id": "arctic_research_station",
+          "name": "Frozen Research Outpost",
+          "flavor": "A feral ghoul in a ruined research uniform guards the station\u2019s emergency stores. Clear the room to recover them.",
+          "node": {
+            "kind": "combat",
+            "prompt": "A feral ghoul in a ruined research uniform guards the station\u2019s emergency stores. Clear the room to recover them.",
+            "enemies": [
+              {
+                "name": "Feral Ghoul",
+                "arena_key": "feral-ghoul"
+              }
+            ]
+          }
+        }
+      ],
+      "reward_vault": {
+        "caps_min": 25,
+        "caps_max": 50,
         "item": {
           "type": "junk",
           "floor": null

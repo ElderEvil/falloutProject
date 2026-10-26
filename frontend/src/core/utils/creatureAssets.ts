@@ -14,6 +14,14 @@ export const CREATURE_ASSETS = (
     { name: 'Deathclaw', key: 'deathclaw', modelScale: 1.5, arenaKey: 'deathclaw' },
     { name: 'Feral Ghoul', key: 'feral-ghoul', modelScale: 1, arenaKey: 'feral-ghoul' },
     { name: 'Raider', key: 'raider', modelScale: 1, arenaKey: 'raider', generated: true },
+    {
+      name: 'Super Mutant',
+      key: 'super-mutant',
+      modelScale: 1.3,
+      arenaKey: 'super-mutant',
+      originalImage:
+        '/static/dweller_images/variants/non_human/super_mutant/FOS_Dw_Default_SuperMutant_Male_Average_Alt.webp',
+    },
     { name: 'Mole Rat', key: 'mole-rat', modelScale: 0.7, arenaKey: 'mole-rat-pack' },
     { name: 'Radscorpion', key: 'radscorpion', modelScale: 1.3, arenaKey: 'giant-radscorpion' },
     { name: 'Radroach', key: 'radroach', modelScale: 0.5, arenaKey: 'radroach-swarm' },
@@ -48,7 +56,9 @@ export const CREATURE_ASSETS = (
 ).map((asset) => ({
   ...asset,
   image: asset.originalImage ?? `/static/creature_images/assembled/${asset.key}.webp`,
-  sourceImage: asset.generated ? undefined : `/static/creature_images/${asset.key}.png`,
+  sourceImage: asset.generated
+    ? undefined
+    : (asset.originalImage ?? `/static/creature_images/${asset.key}.png`),
 }))
 
 const getCreatureAsset = (key: string) =>

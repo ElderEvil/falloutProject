@@ -18,6 +18,15 @@ DATA_DIR = Path(__file__).parent.parent / "data"
 EXPLORATION_DIR = DATA_DIR / "exploration"
 ITEMS_DIR = DATA_DIR / "items"
 VAULT_DIR = DATA_DIR / "vault"
+SITE_ENEMY_POOLS: dict[str, frozenset[str]] = {
+    "desert_highway": frozenset(
+        {"giant-radscorpion", "night-stalker", "raider", "super-mutant", "mole-rat-pack", "bloatfly"}
+    ),
+    "supermarket_interior": frozenset({"raider", "feral-ghoul", "radroach-swarm"}),
+    "subway_station": frozenset({"feral-ghoul", "radroach-swarm", "mole-rat-pack"}),
+    "amusement_park": frozenset({"raider", "feral-ghoul", "radroach-swarm", "mole-rat-pack"}),
+    "arctic_research_station": frozenset({"raider", "feral-ghoul"}),
+}
 
 
 @lru_cache(maxsize=1)
@@ -74,6 +83,19 @@ def list_arena_creatures() -> list[dict]:
     ):
         creatures.append({"key": _creature_key(name), "name": name, "power": power, "max_hp": hp, "is_robot": True})
     return creatures
+
+
+def list_site_enemies() -> list[dict]:
+    """Shared arena wildlife plus humanoids; no arena training robots in the wasteland."""
+    enemies = [entry for entry in list_arena_creatures() if not entry.get("is_robot")]
+    for key, name, difficulty in (
+        ("raider", "Raider", 2),
+        ("feral-ghoul", "Feral Ghoul", 2),
+        ("super-mutant", "Super Mutant", 4),
+    ):
+        power = incident_math.raider_power(difficulty)
+        enemies.append({"key": key, "name": name, "power": power, "max_hp": int(power), "is_robot": False})
+    return enemies
 
 
 @lru_cache(maxsize=1)

@@ -111,6 +111,7 @@ class ExpeditionRunStatus(StrEnum):
     IN_ROOM = "in_room"
     RETREATED = "retreated"
     CLEARED = "cleared"
+    DEFEATED = "defeated"
     DIED = "died"
 
 

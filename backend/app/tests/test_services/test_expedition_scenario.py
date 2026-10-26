@@ -32,6 +32,9 @@ async def test_setup_creates_level_five_dweller_on_active_exploration(
         "abandoned_campsite",
         "roadside_supply_truck",
         "forgotten_shack",
+        "collapsed_subway",
+        "rusted_midway",
+        "frozen_research_outpost",
     }
     assert result.precleared_site_id is None
 
@@ -48,6 +51,9 @@ async def test_setup_level_four_gates_super_duper_mart(async_session: AsyncSessi
         "abandoned_campsite",
         "roadside_supply_truck",
         "forgotten_shack",
+        "collapsed_subway",
+        "rusted_midway",
+        "frozen_research_outpost",
     ]
 
 
@@ -94,6 +100,9 @@ async def test_get_status_none_before_setup_and_populated_after(async_session: A
         "abandoned_campsite",
         "roadside_supply_truck",
         "forgotten_shack",
+        "collapsed_subway",
+        "rusted_midway",
+        "frozen_research_outpost",
     }
 
 
@@ -171,3 +180,49 @@ async def test_setup_rejects_invalid_discovery_before_creating_scout(
         )
     after = await crud.dweller.get_multi_by_vault(async_session, vault.id)
     assert {dweller.id for dweller in after} == {dweller.id for dweller in before}
+
+
+@pytest.mark.asyncio
+async def test_setup_reuses_existing_dweller_without_changing_level_or_special(async_session, vault, dweller):
+    before = await crud.dweller.get_multi_by_vault(async_session, vault.id)
+    original = (dweller.level, dweller.strength, dweller.agility)
+    result = await expedition_scenario_service.setup(
+        async_session, vault_id=vault.id, dweller_id=dweller.id, discovered_site_id="abandoned_campsite"
+    )
+    after = await crud.dweller.get_multi_by_vault(async_session, vault.id)
+    assert result.dweller.id == dweller.id
+    assert len(before) == len(after)
+    assert (result.dweller.level, result.dweller.strength, result.dweller.agility) == original
+    assert result.exploration.status == ExplorationStatus.RETURNING
+
+
+@pytest.mark.asyncio
+async def test_existing_scenario_dweller_must_belong_to_target_vault(async_session, vault, dweller):
+    with pytest.raises(ValueError, match="does not belong"):
+        await expedition_scenario_service.setup(async_session, vault_id=uuid4(), dweller_id=dweller.id)
+    assert await crud.exploration.get_by_vault(async_session, vault_id=vault.id, active_only=True) == []
+
+
+@pytest.mark.asyncio
+async def test_existing_scenario_dweller_uses_real_level_for_site_gate(async_session, vault, dweller):
+    dweller.level = 1
+    async_session.add(dweller)
+    await async_session.commit()
+    with pytest.raises(ValueError, match="needs dweller level"):
+        await expedition_scenario_service.setup(
+            async_session,
+            vault_id=vault.id,
+            dweller_id=dweller.id,
+            dweller_level=50,
+            discovered_site_id="super_duper_mart",
+        )
+    assert dweller.level == 1
+    assert await crud.exploration.get_by_vault(async_session, vault_id=vault.id, active_only=True) == []
+
+
+@pytest.mark.asyncio
+async def test_unknown_existing_scenario_dweller_never_creates_a_replacement(async_session, vault):
+    before = {dweller.id for dweller in await crud.dweller.get_multi_by_vault(async_session, vault.id)}
+    with pytest.raises(ResourceNotFoundException):
+        await expedition_scenario_service.setup(async_session, vault_id=vault.id, dweller_id=uuid4())
+    assert {dweller.id for dweller in await crud.dweller.get_multi_by_vault(async_session, vault.id)} == before

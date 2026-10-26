@@ -10,6 +10,7 @@
     <script type="module">
       import '../../../src/assets/tailwind.css'
       import { createApp } from 'vue'
+      import { createPinia } from 'pinia'
       import { createRouter, createMemoryHistory } from 'vue-router'
       import WastelandScenesPreview from '../../../src/modules/exploration/views/WastelandScenesPreview.vue'
       const router = createRouter({
@@ -20,7 +21,9 @@
         ],
       })
       router.push('/')
-      router.isReady().then(() => createApp(WastelandScenesPreview).use(router).mount('#app'))
+      router
+        .isReady()
+        .then(() => createApp(WastelandScenesPreview).use(router).use(createPinia()).mount('#app'))
     </script>
   </body>
 </html>

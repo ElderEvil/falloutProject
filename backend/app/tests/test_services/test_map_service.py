@@ -639,6 +639,9 @@ async def test_get_vault_map_expedition_sites_ready(async_session: AsyncSession,
         "abandoned_campsite",
         "roadside_supply_truck",
         "forgotten_shack",
+        "collapsed_subway",
+        "rusted_midway",
+        "frozen_research_outpost",
     }
     for site in data_loader.load_expedition_sites():
         marker = by_id[site.id]

@@ -7,7 +7,9 @@ import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 import ExpeditionOutcomeLines from './ExpeditionOutcomeLines.vue'
 import WastelandScene from './WastelandScene.vue'
-import { getSiteScene } from '../models/wastelandScenes'
+import SiteCombatScene from './SiteCombatScene.vue'
+import BattleLog from '@/modules/rooms/components/BattleLog.vue'
+import type { BattleLogEntry } from '@/modules/rooms/models/battleLog'
 import { isTerminal, useExpeditionSiteStore } from '../stores/expeditionSite'
 
 interface Props {
@@ -38,6 +40,10 @@ const emit = defineEmits<{
 const store = useExpeditionSiteStore()
 const confirmingRetreat = ref(false)
 const closing = ref(false)
+const fighting = ref(false)
+const combatPlaying = ref(false)
+const queuedSkill = ref(false)
+const combatExpanded = ref(false)
 
 // Gap 4.3: never render a room that belongs to a different exploration.
 const room = computed(() => {
@@ -45,15 +51,61 @@ const room = computed(() => {
   if (!current) return null
   return current.exploration_id === props.explorationId ? current : null
 })
-const siteScene = computed(() =>
-  room.value ? getSiteScene(room.value.site_id, room.value.room_name) : null
-)
 const hasOutcome = computed(() => !!room.value?.outcome)
 const isTerminalRun = computed(() => (room.value ? isTerminal(room.value.status) : false))
 const isDefeated = computed(() => !!room.value?.defeated && !isTerminalRun.value)
 // Gap 1.6: a run left open on a non-active exploration is close-only.
 const isRecovery = computed(() => !props.explorationActive && !!room.value)
 const isCombatRoom = computed(() => room.value?.node.kind === 'combat')
+const hasArenaCombat = computed(() => !!room.value?.combat_state)
+const expandedCombat = computed(
+  () => hasArenaCombat.value && (combatExpanded.value || (room.value?.combat_state?.round ?? 0) > 0)
+)
+
+const startCombat = () => {
+  combatExpanded.value = true
+  fighting.value = true
+}
+
+watch(
+  () => props.explorationId,
+  () => {
+    fighting.value = false
+    combatExpanded.value = false
+    queuedSkill.value = false
+  }
+)
+
+// Player-started combat pauses when the modal closes. Reconnect shows persisted HP/turns.
+watch(
+  () => [
+    props.show,
+    fighting.value,
+    combatPlaying.value,
+    store.isLoading,
+    room.value?.combat_state?.round,
+    room.value?.status,
+  ],
+  (_, __, onCleanup) => {
+    if (
+      !props.show ||
+      !fighting.value ||
+      combatPlaying.value ||
+      store.isLoading ||
+      room.value?.status !== 'in_room'
+    )
+      return
+    const timer = setTimeout(async () => {
+      const useSkill = queuedSkill.value && room.value?.combat_state?.next_attack_team === 'A'
+      if (useSkill) queuedSkill.value = false
+      await store.resolveNode(props.explorationId, undefined, useSkill).catch(() => {
+        fighting.value = false
+      })
+    }, 1100)
+    onCleanup(() => clearTimeout(timer))
+  },
+  { flush: 'post' }
+)
 // Dedupe the room's enemy roster so duplicates read as counts, not a repeated list.
 const enemySummary = computed(() => {
   const names = room.value?.node.enemy_names ?? []
@@ -64,6 +116,15 @@ const enemySummary = computed(() => {
 
 // Per-enemy engagement results, in fight order (present only after a resolve).
 const combatOutcome = computed(() => room.value?.outcome?.combat ?? [])
+const journalEntries = computed<BattleLogEntry[]>(() =>
+  (room.value?.combat_state?.events ?? []).map((event) => ({
+    id: event.id,
+    kind: event.action?.skill ? 'SKILL' : event.action ? 'HIT' : 'TURN',
+    message: event.message,
+    meta: event.id.includes(':') ? `Turn ${event.id.split(':')[0]}` : null,
+    skillIcon: event.action?.skill_icon,
+  }))
+)
 
 // Dweller HP readout in the header. Hidden when the backend reports no max health.
 const showHealthBar = computed(() => (room.value?.dweller_max_health ?? 0) > 0)
@@ -114,6 +175,9 @@ watch(
     if (isVisible && !wasVisible) {
       closing.value = false
       confirmingRetreat.value = false
+      fighting.value = false
+      combatExpanded.value = false
+      queuedSkill.value = false
       // Reconnect: a room already in the store (or fetched by the view) wins
       // over the picker; otherwise load the available sites fresh.
       if (!room.value && props.explorationActive) {
@@ -133,6 +197,7 @@ const handleResolve = (choiceId?: string) => {
 }
 
 const handleRetreat = () => {
+  fighting.value = false
   store.retreat(props.explorationId).catch(() => {})
 }
 
@@ -178,13 +243,20 @@ const terminalBanner = computed(() => {
       return {
         icon: 'mdi:check-decagram',
         text: 'Site cleared — rewards added to the expedition haul.',
-        note: room.value.finale_paid ? 'Finale vault paid out.' : '',
+        note: '',
         classes: 'border-theme-primary/40 bg-theme-primary/10 text-theme-primary',
       }
     case 'retreated':
       return {
         icon: 'mdi:arrow-u-left-top',
         text: 'Retreated with whatever was carried.',
+        note: '',
+        classes: 'border-warning/40 bg-warning/10 text-warning',
+      }
+    case 'defeated':
+      return {
+        icon: 'mdi:shield-alert-outline',
+        text: 'Escaped injured — no site loot collected. Travel has resumed.',
         note: '',
         classes: 'border-warning/40 bg-warning/10 text-warning',
       }
@@ -207,25 +279,28 @@ const terminalBanner = computed(() => {
     :title="room ? room.site_name : 'Expedition Site'"
     icon="mdi:radio-tower"
     icon-class="inline h-6 w-6 shrink-0 text-theme-primary"
-    title-class="truncate text-2xl font-bold text-theme-primary terminal-glow"
-    size="xl"
-    max-height="75"
+    :size="expandedCombat ? 'screen' : '3xl'"
+    :content-class="expandedCombat ? 'h-[calc(100dvh-2rem)] max-h-[calc(100dvh-2rem)]' : undefined"
+    max-height="90"
     header-class="flex flex-shrink-0 flex-row items-center gap-2 border-b border-theme-primary/25 bg-theme-primary/5 pt-6 pr-14 pb-4 pl-6"
     @close="handleDialogClose"
   >
     <div
-      v-if="room && !isTerminalRun && !isRecovery"
+      v-if="room && !expandedCombat && !isTerminalRun && !isRecovery"
       class="flex flex-shrink-0 items-center gap-4 border-b border-theme-primary/25 bg-surface-sunken/40 px-6 py-2"
     >
       <div v-if="showHealthBar" class="flex items-center gap-2">
-        <span class="text-[0.6875rem] font-semibold" :class="healthToneText">
+        <span
+          class="shrink-0 whitespace-nowrap text-[0.6875rem] font-semibold"
+          :class="healthToneText"
+        >
           HP {{ room.dweller_health }}/{{ room.dweller_max_health }}
         </span>
         <Progress
           :model-value="healthPercent"
           size="xs"
           :tone="healthTone"
-          class="w-28"
+          class="w-20 sm:w-28"
           :label="`Dweller health ${room.dweller_health}/${room.dweller_max_health}`"
           :value-text="`${healthPercent}%`"
         />
@@ -246,14 +321,15 @@ const terminalBanner = computed(() => {
       </p>
     </div>
 
-    <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+    <div
+      class="min-h-0 flex-1 px-5 pt-5 pb-5"
+      :class="expandedCombat ? 'overflow-hidden' : 'overflow-y-auto'"
+    >
       <!-- PICKER: no active run -->
       <template v-if="!room">
         <p class="mb-4 text-sm text-theme-primary/70">
-          Site offers stay open until the dweller arrives home, including the return trip.
-          <template v-if="pausesTravel">
-            Travel continues until you enter an encounter, then pauses while you play.
-          </template>
+          Enter before the dweller arrives home, including during the return trip.
+          <template v-if="pausesTravel">Travel pauses while you play.</template>
         </p>
         <p
           v-if="
@@ -298,7 +374,7 @@ const terminalBanner = computed(() => {
           <p class="text-center text-sm">No sites available on this journey.</p>
         </div>
 
-        <div v-else class="flex flex-col gap-3">
+        <div v-else class="grid gap-4 sm:grid-cols-2">
           <div
             v-for="site in store.availableSites"
             :key="site.id"
@@ -306,16 +382,15 @@ const terminalBanner = computed(() => {
             :class="{ 'ring-2 ring-theme-primary': site.id === reportedSiteId }"
           >
             <WastelandScene
-              v-if="getSiteScene(site.id)"
+              v-if="site.scene_id"
               class="mb-3"
-              :scene="getSiteScene(site.id)!"
+              :scene="site.scene_id"
+              variant="battleback"
               :heading="site.name"
               compact
             />
             <div class="mb-2 flex items-start justify-between gap-3">
-              <h4
-                class="text-base font-bold text-theme-primary [text-shadow:0_0_6px_var(--color-theme-glow)]"
-              >
+              <h4 class="text-base font-bold text-theme-primary">
                 {{ site.name }}
               </h4>
               <Button
@@ -328,6 +403,12 @@ const terminalBanner = computed(() => {
               </Button>
             </div>
             <p class="mb-3 text-sm leading-relaxed text-theme-primary/80">{{ site.flavor }}</p>
+            <p v-if="site.enemy_names?.length" class="mb-2 text-xs text-warning">
+              Hostiles: {{ site.enemy_names.join(', ') }}
+            </p>
+            <p v-if="site.threat" class="mb-3 text-xs text-theme-primary/70">
+              Estimated threat: {{ site.threat }}
+            </p>
             <div class="flex flex-wrap gap-2">
               <span
                 class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-theme-primary/10 px-1.5 py-0.5 text-[0.75rem] font-semibold text-theme-primary"
@@ -339,7 +420,7 @@ const terminalBanner = computed(() => {
                 class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-theme-primary/10 px-1.5 py-0.5 text-[0.75rem] font-semibold text-theme-primary"
               >
                 <Icon icon="mdi:door" class="h-3.5 w-3.5" />
-                {{ site.room_total }} rooms
+                {{ site.room_total === 1 ? 'One encounter' : `${site.room_total} rooms` }}
               </span>
             </div>
           </div>
@@ -347,198 +428,234 @@ const terminalBanner = computed(() => {
       </template>
 
       <!-- ACTIVE RUN -->
-      <template v-else>
-        <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span
-            class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-theme-primary/10 px-1.5 py-0.5 text-[0.75rem] font-semibold text-theme-primary"
+      <div
+        v-else
+        class="grid gap-5"
+        :class="
+          expandedCombat
+            ? 'h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_18rem] md:grid-rows-1'
+            : 'items-start md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]'
+        "
+      >
+        <div class="min-w-0" :class="expandedCombat ? 'h-full min-h-0' : 'lg:sticky lg:top-0'">
+          <SiteCombatScene
+            v-if="expandedCombat"
+            :room="room"
+            wide
+            :running="fighting"
+            :loading="store.isLoading || queuedSkill"
+            @playing="combatPlaying = $event"
+            @skill="queuedSkill = true"
+          />
+          <WastelandScene
+            v-else
+            :scene="room.scene_id"
+            variant="battleback"
+            :heading="room.site_name"
+            :description="room.flavor"
+            :dweller-name="dwellerName"
+            :image-url="dwellerImageUrl"
+            :thumbnail-url="dwellerThumbnailUrl"
+          />
+        </div>
+        <div
+          class="min-w-0"
+          :class="
+            expandedCombat
+              ? 'min-h-0 max-h-[35dvh] overflow-y-auto md:h-full md:max-h-none'
+              : undefined
+          "
+        >
+          <section v-if="expandedCombat" aria-label="Battle journal" class="mb-4">
+            <h3 class="mb-2 text-sm font-semibold text-theme-primary">
+              Battle journal · {{ journalEntries.length }} entries
+            </h3>
+            <BattleLog :entries="journalEntries" empty-text="No attacks yet." />
+          </section>
+          <details
+            v-if="expandedCombat"
+            class="mb-4 border-t border-theme-primary/25 pt-2 text-sm text-theme-primary/70"
           >
-            <Icon icon="mdi:map-marker-path" class="h-3.5 w-3.5" />
-            Room {{ room.room_index + 1 }} / {{ room.room_total }}
-          </span>
-          <span class="text-lg font-bold text-theme-primary">{{ room.room_name }}</span>
-        </div>
-
-        <WastelandScene
-          v-if="siteScene"
-          class="mb-4"
-          :scene="siteScene"
-          :variant="isCombatRoom ? 'battleback' : 'landscape'"
-          :heading="room.room_name"
-          :dweller-name="dwellerName"
-          :image-url="dwellerImageUrl"
-          :thumbnail-url="dwellerThumbnailUrl"
-          compact
-        />
-        <p class="mb-4 text-sm leading-relaxed text-theme-primary/80">{{ room.flavor }}</p>
-
-        <!-- RECOVERY: run open on a non-active exploration (Gap 1.6) -->
-        <div
-          v-if="isRecovery"
-          class="mb-4 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm font-semibold text-warning"
-        >
-          <Icon icon="mdi:clock-alert-outline" class="mt-0.5 h-5 w-5 shrink-0" />
-          <span>This expedition has ended — the site run is closed.</span>
-        </div>
-
-        <!-- Outcome readout (the defeat banner carries its own copy) -->
-        <div
-          v-if="hasOutcome && !isDefeated"
-          class="mb-4 rounded-md border border-theme-primary/30 bg-surface-sunken p-4 text-sm leading-relaxed text-theme-primary/90"
-        >
-          <p>{{ room.outcome?.text }}</p>
-          <ExpeditionOutcomeLines :lines="outcomeLines" />
-        </div>
-
-        <ul
-          v-if="combatOutcome.length > 0"
-          class="mb-4 flex flex-col gap-1.5 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm font-semibold"
-          aria-label="Fight results"
-        >
-          <li v-for="(entry, index) in combatOutcome" :key="index" class="flex items-center gap-2">
-            <Icon
-              :icon="entry.victory ? 'mdi:skull-outline' : 'mdi:sword-cross'"
-              class="h-4 w-4 shrink-0"
-              :class="entry.victory ? 'text-theme-primary/50' : 'text-danger'"
-            />
-            <span
-              class="text-sm font-semibold"
-              :class="entry.victory ? 'text-theme-primary/50 line-through' : 'text-danger'"
-            >
-              {{ entry.enemy }}
-            </span>
-            <span
-              class="text-[0.75rem] font-semibold"
-              :class="entry.victory ? 'text-theme-primary/50' : 'text-danger'"
-            >
-              {{ entry.victory ? 'defeated' : 'overpowered' }}
-            </span>
-            <span
-              v-if="entry.damage_taken > 0"
-              class="ml-auto text-[0.75rem] font-bold text-danger"
-            >
-              -{{ entry.damage_taken }}
-            </span>
-          </li>
-        </ul>
-
-        <!-- Terminal banner (terminal runs, incl. recovery) -->
-        <div
-          v-if="terminalBanner"
-          class="mb-4 flex items-start gap-2 rounded-md border p-3 text-sm font-bold"
-          :class="terminalBanner.classes"
-        >
-          <Icon :icon="terminalBanner.icon" class="mt-0.5 h-5 w-5 shrink-0" />
-          <span>
-            {{ terminalBanner.text }}
-            <span v-if="terminalBanner.note" class="block text-xs font-normal opacity-80">
-              {{ terminalBanner.note }}
-            </span>
-          </span>
-        </div>
-
-        <!-- ACTIVE ROOM: live actions only -->
-        <template v-if="!isTerminalRun && !isRecovery">
-          <!-- Room-pane error (Gap 4.2): visible where the failed action happened -->
-          <div
-            v-if="store.error"
-            class="mb-4 rounded-md border border-danger/40 bg-danger/10 p-3 text-sm text-danger"
+            <summary class="cursor-pointer py-1 focus-visible:outline focus-visible:outline-ring">
+              Encounter briefing
+            </summary>
+            <p class="mt-2 leading-relaxed">{{ room.flavor }}</p>
+            <p v-if="room.lore" class="mt-2 italic leading-relaxed">{{ room.lore }}</p>
+          </details>
+          <p
+            v-if="room.lore && !expandedCombat"
+            class="mb-4 rounded-md border border-theme-primary/20 bg-surface-sunken p-4 text-sm italic leading-relaxed text-theme-primary/70"
           >
-            {{ store.error }}
+            {{ room.lore }}
+          </p>
+          <div v-if="room.room_total > 1" class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span
+              class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-theme-primary/10 px-1.5 py-0.5 text-[0.75rem] font-semibold text-theme-primary"
+            >
+              <Icon icon="mdi:map-marker-path" class="h-3.5 w-3.5" />
+              Room {{ room.room_index + 1 }} / {{ room.room_total }}
+            </span>
+            <span class="text-lg font-bold text-theme-primary">{{ room.room_name }}</span>
           </div>
 
-          <!-- Defeat banner (Gap 3) -->
+          <!-- RECOVERY: run open on a non-active exploration (Gap 1.6) -->
           <div
-            v-if="isDefeated"
-            class="mb-4 rounded-md border border-danger/40 bg-danger/10 p-4 text-sm leading-relaxed text-danger"
+            v-if="isRecovery"
+            class="mb-4 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm font-semibold text-warning"
           >
-            <p class="mb-1 flex items-center gap-2 font-bold">
-              <Icon icon="mdi:skull-crossbones" class="h-5 w-5" />
-              Defeated
-            </p>
+            <Icon icon="mdi:clock-alert-outline" class="mt-0.5 h-5 w-5 shrink-0" />
+            <span>This expedition has ended — the site run is closed.</span>
+          </div>
+
+          <!-- Outcome readout (the defeat banner carries its own copy) -->
+          <div
+            v-if="hasOutcome && !isDefeated && !combatPlaying && (!hasArenaCombat || isTerminalRun)"
+            class="mb-4 rounded-md border border-theme-primary/30 bg-surface-sunken p-4 text-sm leading-relaxed text-theme-primary/90"
+          >
             <p>{{ room.outcome?.text }}</p>
-            <ExpeditionOutcomeLines :lines="outcomeLines" subdued />
+            <ExpeditionOutcomeLines :lines="outcomeLines" />
           </div>
 
-          <p class="mb-4 text-base font-semibold text-theme-primary">{{ room.node.prompt }}</p>
-
-          <div
-            v-if="enemySummary && (!isCombatRoom || combatOutcome.length === 0)"
-            class="mb-4 rounded-md border px-3 py-2 text-sm font-semibold"
-            :class="
-              isCombatRoom
-                ? 'border-danger/40 bg-danger/10 text-danger'
-                : 'border-warning/40 bg-warning/10 text-warning'
-            "
+          <ul
+            v-if="combatOutcome.length > 0"
+            class="mb-4 flex flex-col gap-1.5 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm font-semibold"
+            aria-label="Fight results"
           >
-            <div v-if="isCombatRoom" class="flex items-center gap-2">
-              <Icon icon="mdi:sword-cross" class="h-4 w-4" />
-              <span>Enemies: {{ enemySummary }}</span>
-            </div>
-            <div v-else class="flex items-center gap-2">
-              <Icon icon="mdi:alert-outline" class="h-4 w-4" />
-              <span>If it goes wrong: {{ enemySummary }}</span>
-            </div>
-          </div>
-
-          <!-- DEFEAT: push on retries the fight -->
-          <Button
-            v-if="isDefeated"
-            class="w-full"
-            size="lg"
-            :disabled="store.isLoading"
-            @click="handleResolve()"
-          >
-            <Icon icon="mdi:sword-cross" class="h-5 w-5" />
-            Push on
-          </Button>
-
-          <!-- Normal node options -->
-          <template v-else>
-            <div
-              v-if="room.node.options && room.node.options.length > 0"
-              class="flex flex-col gap-2"
-            >
-              <Button
-                v-for="option in room.node.options"
-                :key="option.id"
-                class="justify-between gap-2 border-theme-primary/40 bg-theme-primary/10 text-left text-theme-primary hover:bg-theme-primary/20"
-                variant="outline"
-                size="lg"
-                :disabled="store.isLoading"
-                @click="handleResolve(option.id)"
-              >
-                <span class="flex-1">{{ option.label }}</span>
-                <span
-                  class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-surface-sunken px-1.5 py-0.5 text-[0.75rem] font-semibold"
-                >
-                  <Icon icon="mdi:brain" class="h-3.5 w-3.5" />
-                  {{ option.stat }}
-                </span>
-                <span
-                  class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-surface-sunken px-1.5 py-0.5 text-[0.75rem] font-semibold"
-                >
-                  <Icon icon="mdi:percent" class="h-3.5 w-3.5" />
-                  {{ successOdds(option.success_odds) }}
-                </span>
-              </Button>
-            </div>
-
-            <Button
-              v-else
-              class="w-full"
-              size="lg"
-              :disabled="store.isLoading"
-              @click="handleResolve()"
+            <li
+              v-for="(entry, index) in combatOutcome"
+              :key="index"
+              class="flex items-center gap-2"
             >
               <Icon
-                :icon="room.node.kind === 'finale' ? 'mdi:lock-open-variant' : 'mdi:arrow-right'"
-                class="h-5 w-5"
+                :icon="entry.victory ? 'mdi:skull-outline' : 'mdi:sword-cross'"
+                class="h-4 w-4 shrink-0"
+                :class="entry.victory ? 'text-theme-primary/50' : 'text-danger'"
               />
-              {{ room.node.kind === 'finale' ? 'Open the Vault' : 'Continue' }}
-            </Button>
+              <span
+                class="text-sm font-semibold"
+                :class="entry.victory ? 'text-theme-primary/50 line-through' : 'text-danger'"
+              >
+                {{ entry.enemy }}
+              </span>
+              <span
+                class="text-[0.75rem] font-semibold"
+                :class="entry.victory ? 'text-theme-primary/50' : 'text-danger'"
+              >
+                {{ entry.victory ? 'defeated' : 'overpowered' }}
+              </span>
+              <span
+                v-if="entry.damage_taken > 0"
+                class="ml-auto text-[0.75rem] font-bold text-danger"
+              >
+                -{{ entry.damage_taken }}
+              </span>
+            </li>
+          </ul>
+
+          <!-- Terminal banner (terminal runs, incl. recovery) -->
+          <div
+            v-if="terminalBanner && !combatPlaying"
+            class="mb-4 flex items-start gap-2 rounded-md border p-3 text-sm font-bold"
+            :class="terminalBanner.classes"
+          >
+            <Icon :icon="terminalBanner.icon" class="mt-0.5 h-5 w-5 shrink-0" />
+            <span>
+              {{ terminalBanner.text }}
+              <span v-if="terminalBanner.note" class="block text-xs font-normal opacity-80">
+                {{ terminalBanner.note }}
+              </span>
+            </span>
+          </div>
+
+          <!-- ACTIVE ROOM: live actions only -->
+          <template v-if="!isTerminalRun && !isRecovery">
+            <!-- Room-pane error (Gap 4.2): visible where the failed action happened -->
+            <div
+              v-if="store.error"
+              class="mb-4 rounded-md border border-danger/40 bg-danger/10 p-3 text-sm text-danger"
+            >
+              {{ store.error }}
+            </div>
+
+            <!-- Defeat banner (Gap 3) -->
+            <div
+              v-if="isDefeated"
+              class="mb-4 rounded-md border border-danger/40 bg-danger/10 p-4 text-sm leading-relaxed text-danger"
+            >
+              <p class="mb-1 flex items-center gap-2 font-bold">
+                <Icon icon="mdi:skull-crossbones" class="h-5 w-5" />
+                Defeated
+              </p>
+              <p>{{ room.outcome?.text }}</p>
+              <ExpeditionOutcomeLines :lines="outcomeLines" subdued />
+            </div>
+
+            <p v-if="!hasArenaCombat" class="mb-4 text-base font-semibold text-theme-primary">
+              {{ room.node.prompt }}
+            </p>
+            <p v-else-if="!expandedCombat" class="mb-4 text-sm text-theme-primary/70">
+              {{
+                fighting
+                  ? 'Combat is underway. Activate your weapon skill when its meter fills.'
+                  : 'Start combat when ready. You can retreat during the fight.'
+              }}
+            </p>
+
+            <div
+              v-if="
+                enemySummary && !expandedCombat && (!isCombatRoom || combatOutcome.length === 0)
+              "
+              class="mb-4 rounded-md border px-3 py-2 text-sm font-semibold"
+              :class="
+                isCombatRoom
+                  ? 'border-danger/40 bg-danger/10 text-danger'
+                  : 'border-warning/40 bg-warning/10 text-warning'
+              "
+            >
+              <div v-if="isCombatRoom" class="flex items-center gap-2">
+                <Icon icon="mdi:sword-cross" class="h-4 w-4" />
+                <span>Enemies: {{ enemySummary }}</span>
+              </div>
+              <div v-else class="flex items-center gap-2">
+                <Icon icon="mdi:alert-outline" class="h-4 w-4" />
+                <span>If it goes wrong: {{ enemySummary }}</span>
+              </div>
+            </div>
+
+            <!-- Choices resolve in this same scene. Fight/search actions stay in the footer. -->
+            <template v-if="!isDefeated">
+              <div
+                v-if="room.node.options && room.node.options.length > 0"
+                class="flex flex-col gap-2"
+              >
+                <Button
+                  v-for="option in room.node.options"
+                  :key="option.id"
+                  class="justify-between gap-2 border-theme-primary/40 bg-theme-primary/10 text-left text-theme-primary hover:bg-theme-primary/20"
+                  variant="outline"
+                  size="lg"
+                  :disabled="store.isLoading"
+                  @click="handleResolve(option.id)"
+                >
+                  <span class="flex-1">{{ option.label }}</span>
+                  <span
+                    class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-surface-sunken px-1.5 py-0.5 text-[0.75rem] font-semibold"
+                  >
+                    <Icon icon="mdi:brain" class="h-3.5 w-3.5" />
+                    {{ option.stat }}
+                  </span>
+                  <span
+                    class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-surface-sunken px-1.5 py-0.5 text-[0.75rem] font-semibold"
+                  >
+                    <Icon icon="mdi:percent" class="h-3.5 w-3.5" />
+                    {{ successOdds(option.success_odds) }}
+                  </span>
+                </Button>
+              </div>
+            </template>
           </template>
-        </template>
-      </template>
+        </div>
+      </div>
     </div>
 
     <template #footer>
@@ -555,9 +672,15 @@ const terminalBanner = computed(() => {
       </Button>
 
       <!-- TERMINAL footer -->
-      <Button v-else-if="isTerminalRun" class="w-full" size="lg" @click="handleTerminalClose">
+      <Button
+        v-else-if="isTerminalRun"
+        class="w-full"
+        size="lg"
+        :disabled="combatPlaying"
+        @click="handleTerminalClose"
+      >
         <Icon icon="mdi:check-bold" class="h-5 w-5" />
-        Close
+        {{ room.room_total === 1 ? 'Return to journey' : 'Close' }}
       </Button>
 
       <!-- ROOM footer: retreat with confirm step -->
@@ -576,16 +699,42 @@ const terminalBanner = computed(() => {
             @confirm="handleRetreat"
           />
         </div>
-        <Button
-          v-else-if="room.can_retreat"
-          variant="secondary"
-          size="lg"
-          :disabled="store.isLoading"
-          @click="confirmingRetreat = true"
-        >
-          <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5" />
-          Retreat
-        </Button>
+        <div v-else class="flex w-full items-center gap-3">
+          <Button
+            v-if="isDefeated || !room.node.options?.length"
+            class="flex-1"
+            size="lg"
+            :disabled="store.isLoading || fighting"
+            @click="hasArenaCombat ? startCombat() : handleResolve()"
+          >
+            <Icon
+              :icon="isCombatRoom || isDefeated ? 'mdi:sword-cross' : 'mdi:package-variant'"
+              class="size-5"
+            />
+            {{
+              hasArenaCombat && fighting
+                ? 'Fighting…'
+                : isDefeated
+                  ? 'Push on'
+                  : isCombatRoom
+                    ? 'Fight'
+                    : room.node.kind === 'finale'
+                      ? 'Collect supplies'
+                      : 'Continue'
+            }}
+          </Button>
+          <Button
+            v-if="room.can_retreat"
+            class="ml-auto"
+            variant="secondary"
+            size="lg"
+            :disabled="store.isLoading"
+            @click="confirmingRetreat = true"
+          >
+            <Icon icon="mdi:arrow-u-left-top" class="size-5" />
+            Retreat
+          </Button>
+        </div>
       </template>
     </template>
   </TerminalModal>

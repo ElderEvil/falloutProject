@@ -511,7 +511,7 @@ own turn. Creatures and support bots have no manual skill. Journal timestamps re
 instants; the UI displays local 24-hour time and distinguishes skill use by icon and color.
 Charge and pending attacks are persisted under the Arena room lock, cleared on match reset/interruption/finish,
 and must never be trusted from a client. See `docs/features/WASTELAND_COMBAT_EXPANSION.md` for the prototype
-balance table. Skills remain Arena-only until playtested.
+balance table. The same attack and skill engine also powers single-scene expedition sites; incidents and quests retain their existing rules.
 
 ## Arena training bot partners
 
@@ -617,3 +617,26 @@ per direction per vault per 24 hours. Both storage notification types are intent
 delivered: upgrades are progression and degradation needs player attention, so routine category
 preferences do not mute them. Maintenance is enabled by default; set
 `STORAGE_MAINTENANCE_ENABLED=false` to disable it.
+
+## Single-scene expedition encounters
+
+New spatial site visits stay in one authored scene from entry through combat and outcome.
+Discovery creates a bell notification and visible toast; entry remains available during the outward
+and return journey until arrival home. Entering pauses travel, and closing the modal pauses player-driven
+combat without losing HP, turn, skill charge or fractional damage. Retreat resumes travel and preserves
+the encounter for re-entry. Cleared and defeated encounters are consumed for that journey.
+
+Combat reuses Arena attacks, alternating team turns, weapon skills and playback. Encounter enemy
+power/HP scales live in site content and never change the Arena catalog. The first pass is forgiving:
+a modest unarmed dweller at the entry level should win with at least 60% health. Enemy pools are
+explicit per scene: desert wildlife never appears inside an arctic research station. Each encounter
+has a reason to enter and a short lore detail. The pre-entry threat estimate uses current health and
+equipment, not level alone. New humanoids share the fighter presentation vocabulary with Arena.
+
+Defeat ends the encounter without site rewards, leaves the dweller alive at at least 1 HP, and resumes
+travel. It does not protect against later travel hazards. Successful completion stages the haul, consumed
+run, journey clock, event log and bell notification together, delivering notifications after commit.
+The result modal surfaces rewards. A stale combat round is rejected, and reconnect never resets a fight.
+
+Stat checks, choice/trap definitions and the old room engine remain available for later design and
+saved legacy runs; new scene encounters do not expose those mechanics.

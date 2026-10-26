@@ -14,6 +14,7 @@ from app.models.arena_state import ArenaState
 from app.models.dweller import Dweller
 from app.options.identity_modifiers import effective_stat
 from app.schemas.arena import ArenaActiveSkill, ArenaFighter
+from app.schemas.combat import CombatBody, CombatEffect
 from app.services.catalog_service import list_arena_creatures
 from app.services.combat.weapon_skill_service import MAX_CHARGE, weapon_skill
 from app.utils.combat import combat_power
@@ -33,6 +34,8 @@ class ArenaParticipant:
     is_creature: bool = False
     is_robot: bool = False
     dweller: Dweller | None = None
+    body: CombatBody = "human"
+    effect: CombatEffect = "strike"
 
 
 def participant_from_dweller(dweller: Dweller) -> ArenaParticipant:
@@ -110,12 +113,21 @@ def active_skill_out(dweller: Dweller, charge: int = 0, queued: bool = False) ->
 
 def participant_out(participant: ArenaParticipant, state: ArenaState) -> ArenaFighter:
     """Map a participant onto the API ``ArenaFighter`` shape for the arena view."""
+    return fighter_view(
+        participant,
+        int(min(MAX_CHARGE, (state.skill_charge or {}).get(participant.key, 0))),
+        participant.key in (state.queued_skill_ids or []),
+    )
+
+
+def fighter_view(participant: ArenaParticipant, charge: int = 0, queued: bool = False) -> ArenaFighter:
+    """Common fighter presentation for arena rooms and expedition scenes."""
     return ArenaFighter(
         active_skill=(
             active_skill_out(
                 participant.dweller,
-                charge=int(min(MAX_CHARGE, (state.skill_charge or {}).get(participant.key, 0))),
-                queued=participant.key in (state.queued_skill_ids or []),
+                charge=charge,
+                queued=queued,
             )
             if participant.dweller
             else None

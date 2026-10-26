@@ -21,15 +21,21 @@ Wasteland exploration module. Tracks exploration events via timeline, manages re
 - `components/QuestPartyCard.vue` — quest party summary card
 - `components/WastelandPanel.vue` — wasteland overview panel
 
-## Wasteland journey and expedition artwork
+## Single-scene encounters
 
-Exploration details show the explorer against the desert highway or an illustration matching the last
-reported location name. Returning journeys use the road scene. This presentation reads the existing
-exploration snapshot; it does not add destinations, encounters, polling, or event delivery.
-Super Duper Mart site rooms use the supermarket interior, with the road for its outdoor parking-lot
-encounter. The roadside supply truck uses the road. Unknown sites retain their existing text layout.
-Combat nodes use the supplied battleback framing; other nodes use the landscape. Artwork never
-changes decisions, enemy rosters, or rewards, and a room belonging to another exploration stays hidden.
+Each new spatial site visit is one complete encounter in one location. Super Duper Mart starts
+inside the supermarket and resolves its raider fight there; it has no parking-lot or back-room
+progression. A successful encounter adds the site's haul, marks it spent for that journey, and
+resumes travel in the final combat-turn transaction. Defeat ends the encounter without site loot,
+leaves the dweller alive and resumes travel. Stat checks remain available in the legacy engine for later design.
+
+Site content owns `scene_id`; the client does not infer artwork from names or room labels.
+The picker, encounter, and result use the same battleback. Missing artwork has a reserved neutral
+frame and the dweller portrait. The ordinary exploration page shows status and the journey log;
+artwork belongs to the encounter. Saved room-based runs retain their original definitions and cursors;
+new spatial runs persist `single_scene` in their existing flags. Legacy non-spatial journeys retain
+the old rooms for original sites; newly authored sites use the new combat flow.
+The original `rooms` content remains solely for that compatibility path.
 
 `WastelandScene` reserves a 16:9 landscape or 50:37 battleback frame before images load. The explorer
 occupies 44% of that frame's height, with a 1:2 portrait frame. Original artwork is contained without
@@ -48,8 +54,8 @@ uv run --project backend python scripts/import_wasteland_scenes.py /path/to/back
 
 Commit the generated manifest and `frontend/public/assets/wasteland-scenes/` together. All five
 locations are available under `/dev/wasteland-scenes` in the development menu; the browser fixture
-mounts that same preview component at `/tests/e2e/fixtures/wasteland-scenes.html`. Generic research
-facilities are not depicted as arctic stations, and cinemas are not depicted as amusement parks.
+mounts that same preview component at `/tests/e2e/fixtures/wasteland-scenes.html`. Supermarket and highway artwork are assigned to matching sites; the other supplied locations remain
+available to preview while their site content is planned.
 Scene layout checks run at 390px and 1280px in Chromium and the focused Firefox scene project.
 
 ## Discovered site reports
@@ -82,3 +88,27 @@ Open the notification bell, review the site, enter an encounter, and reload to c
 Travel pauses after entry; resolving or retreating resumes it. The return deadline follows the actual
 site-to-vault travel distance. Setup fast-forwards development data; it does not simulate outbound
 combat. Vault/scout/departure setup and discovery reporting are separate committed stages.
+
+To use a dweller already in a vault, add `--vault-id VAULT_UUID --dweller-id DWELLER_UUID`.
+This preserves that dweller's level and SPECIAL and does not create another scout. The usual dispatch
+rules apply, including adulthood, health, and site level requirements.
+
+### Single-scene combat
+
+Spatial site encounters use `SiteCombatScene` and the shared Arena ring/playback. Fight starts alternating
+server-authoritative turns while the modal is open; weapon skills activate from the existing meter/target
+controls. Entry first shows a compact briefing. Fight expands to a viewport-sized encounter, using the
+location’s landscape artwork on desktop and battleback artwork on mobile. Reconnects to an ongoing
+fight retain the expanded view. Closing stops advancing turns. Reconnect restores HP, skill charge, turn and enemy roster.
+Each request sends its expected round so delayed/duplicate requests cannot repeat an attack.
+
+Site definitions choose artwork explicitly and validate enemies against the scene's pool. Desert scenes
+use radscorpions/night stalkers; interior scenes use locally appropriate hostiles. Site-only power/HP
+multipliers keep the first release forgiving without changing Arena matches. Defeat is terminal, gives
+no site loot and resumes travel with the dweller alive. Stat checks remain in the legacy engine for later design.
+
+The expanded battlefield sizes itself against its actual modal container, preserving the scene ratio
+without covering the footer. Creature/dweller portraits also shrink for short windows. The journal
+reuses Arena's `BattleLog` (turn labels, skill icons, grouped rows and scroll-to-newest); it has its
+own scroll area beside the scene on desktop and below it on phones. `/dev/wasteland-scenes` includes
+a read-only combat layout preview using the real encounter modal and a long journal.

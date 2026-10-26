@@ -290,14 +290,16 @@ OPEN_STATUSES: tuple[ExpeditionRunStatus, ...] = (ExpeditionRunStatus.IN_ROOM,)
 
 # Statuses that end a run and start the per-vault+site cooldown (D2-B).
 TERMINAL_STATUSES: tuple[ExpeditionRunStatus, ...] = (
+    ExpeditionRunStatus.DEFEATED,
     ExpeditionRunStatus.CLEARED,
     ExpeditionRunStatus.RETREATED,
     ExpeditionRunStatus.DIED,
 )
 
-# Statuses that consume a journey encounter: completion or death only. A retreat
+# Statuses that consume a journey encounter: completion, defeat or death. A retreat
 # stays resumable for the rest of the journey, so it is terminal but not consuming.
 CONSUMING_STATUSES: tuple[ExpeditionRunStatus, ...] = (
+    ExpeditionRunStatus.DEFEATED,
     ExpeditionRunStatus.CLEARED,
     ExpeditionRunStatus.DIED,
 )

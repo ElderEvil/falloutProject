@@ -48,7 +48,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
     "deathcauseenum": {"HEALTH", "RADIATION", "INCIDENT", "EXPLORATION", "COMBAT", "EXILE"},
     "dwellerlocationrelationenum": {"ORIGIN", "VISITED"},
     "dwellerstatusenum": {"IDLE", "WORKING", "EXPLORING", "QUESTING", "TRAINING", "RESTING", "FIGHTING", "DEAD"},
-    "expeditionrunstatus": {"IN_ROOM", "RETREATED", "CLEARED", "DIED"},
+    "expeditionrunstatus": {"IN_ROOM", "RETREATED", "CLEARED", "DIED", "DEFEATED"},
     "explorationstatus": {"ACTIVE", "RETURNING", "COMPLETED", "RECALLED"},
     "genderenum": {"MALE", "FEMALE"},
     "hazardteam": {"FIRE", "RADIATION"},

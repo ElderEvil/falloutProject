@@ -20,8 +20,6 @@ import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import ExpeditionSiteModal from '../components/ExpeditionSiteModal.vue'
 import ExplorerNavbar from '../components/ExplorerNavbar.vue'
 import ExplorerSummaryCard from '../components/ExplorerSummaryCard.vue'
-import WastelandScene from '../components/WastelandScene.vue'
-import { getLocationScene } from '../models/wastelandScenes'
 import ExplorerStatsGrid from '../components/ExplorerStatsGrid.vue'
 import ExplorationEventLog from '../components/ExplorationEventLog.vue'
 import ExplorationLootList from '../components/ExplorationLootList.vue'
@@ -97,29 +95,6 @@ const dwellerImageUrl = computed(() => {
   return currentDweller.image_url
 })
 const dwellerThumbnailUrl = computed(() => dweller.value?.thumbnail_url ?? null)
-
-const latestLocation = computed(
-  () =>
-    exploration.value?.events
-      .slice()
-      .reverse()
-      .find((event) => event.location_name)?.location_name
-)
-const journeyScene = computed(() =>
-  exploration.value?.status === 'active'
-    ? (getLocationScene(latestLocation.value) ?? 'desert_highway')
-    : 'desert_highway'
-)
-const journeyHeading = computed(() =>
-  exploration.value?.status === 'returning'
-    ? `${dwellerName.value} is returning home`
-    : `${dwellerName.value}'s wasteland journey`
-)
-const journeyDescription = computed(() =>
-  exploration.value?.status === 'active' && latestLocation.value
-    ? `Last reported location: ${latestLocation.value}`
-    : 'Follow the expedition log for encounters, discoveries, and supplies found along the way.'
-)
 
 const allExplorations = computed(() => {
   return Object.values(explorationStore.activeExplorations)
@@ -374,16 +349,6 @@ watch(isReady, (ready) => {
               :weapon="detailedDweller?.weapon"
               :outfit="detailedDweller?.outfit"
               :pet="detailedDweller?.pet"
-            />
-
-            <WastelandScene
-              class="mb-4"
-              :scene="journeyScene"
-              :heading="journeyHeading"
-              :description="journeyDescription"
-              :dweller-name="dwellerName"
-              :image-url="dwellerImageUrl"
-              :thumbnail-url="dwellerThumbnailUrl"
             />
 
             <!-- Expedition site entry CTA (in-progress journeys: active or returning) -->

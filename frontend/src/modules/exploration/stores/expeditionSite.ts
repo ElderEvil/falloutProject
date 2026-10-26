@@ -4,9 +4,9 @@ import { expeditionSiteApi } from '../api/expeditionSite'
 import type { AvailableSiteView, SiteRoomView } from '../api/expeditionSite'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
-export type SiteRunStatus = 'in_room' | 'retreated' | 'cleared' | 'died'
+export type SiteRunStatus = 'in_room' | 'retreated' | 'cleared' | 'died' | 'defeated'
 
-export const SITE_TERMINAL_STATUSES: SiteRunStatus[] = ['retreated', 'cleared', 'died']
+export const SITE_TERMINAL_STATUSES: SiteRunStatus[] = ['retreated', 'cleared', 'died', 'defeated']
 
 export function isTerminal(status: string): boolean {
   return SITE_TERMINAL_STATUSES.includes(status as SiteRunStatus)
@@ -79,10 +79,22 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
     )
   }
 
-  async function resolveNode(explorationId: string, choiceId?: string): Promise<SiteRoomView> {
+  async function resolveNode(
+    explorationId: string,
+    choiceId?: string,
+    useSkill = false
+  ): Promise<SiteRoomView> {
     return runRequest(
       explorationId,
-      () => expeditionSiteApi.resolveNode(explorationId, choiceId),
+      () =>
+        room.value?.combat_state
+          ? expeditionSiteApi.resolveNode(
+              explorationId,
+              choiceId,
+              useSkill,
+              room.value.combat_state.round
+            )
+          : expeditionSiteApi.resolveNode(explorationId, choiceId),
       'Failed to resolve expedition node',
       (nextRoom) => {
         room.value = nextRoom

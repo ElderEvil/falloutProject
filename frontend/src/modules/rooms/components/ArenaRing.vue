@@ -21,9 +21,29 @@ import CombatantMotion from '@/modules/combat/components/CombatantMotion.vue'
 import type { PlayingCombatAction } from '@/modules/combat/models/playback'
 import { useFallbackImage } from '../composables/useFallbackImage'
 
+defineOptions({ inheritAttrs: false })
+
 const props = defineProps<{
-  state: ArenaRoomState
+  state: Pick<
+    ArenaRoomState,
+    | 'team_a'
+    | 'team_b'
+    | 'match_done'
+    | 'countdown_remaining'
+    | 'fight_started'
+    | 'next_attack_team'
+    | 'mode'
+  >
   sceneImageUrl?: string | null
+  sceneSrcset?: string
+  wideSceneImageUrl?: string
+  wideSceneSrcset?: string
+  encounter?: boolean
+  contained?: boolean
+  heading?: string
+  teamALabel?: string
+  teamBLabel?: string
+  statusLabel?: string
   skillEnabled: boolean
   pendingSkills: Set<string>
   attackingTeam: 'A' | 'B' | null
@@ -85,31 +105,50 @@ const actionFor = (fighter: ArenaFighter) => {
 <template>
   <TooltipProvider :delay-duration="200">
     <section
-      class="arena-ring relative isolate w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
-      aria-label="Arena ring"
+      v-bind="$attrs"
+      class="arena-ring isolate min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
+      :class="{
+        'arena-ring--encounter': encounter,
+        'arena-ring--wide': encounter && wideSceneImageUrl,
+        '[container-type:size]': contained,
+        'relative w-full': !contained,
+        absolute: contained,
+      }"
+      :aria-label="heading ?? 'Arena ring'"
     >
-      <img
-        v-if="scene"
-        :src="scene"
-        alt="Arena"
-        class="absolute inset-0 size-full object-cover"
-        @error="imageFailed"
-      />
+      <picture v-if="scene">
+        <source
+          v-if="wideSceneImageUrl"
+          media="(min-width: 1024px)"
+          :srcset="wideSceneSrcset ?? wideSceneImageUrl"
+          sizes="calc(100vw - 24rem)"
+        />
+        <img
+          :src="scene"
+          :srcset="sceneSrcset"
+          :sizes="encounter ? '(max-width: 1024px) calc(100vw - 64px), 600px' : undefined"
+          :alt="heading ?? 'Arena'"
+          class="absolute inset-0 size-full object-cover"
+          @error="imageFailed"
+        />
+      </picture>
       <div
         class="absolute inset-x-0 top-0 flex justify-between bg-black/70 px-3 py-2 text-[10px] font-semibold text-theme-primary"
       >
-        <span>TEAM A</span>
+        <span>{{ teamALabel ?? 'TEAM A' }}</span>
         <span aria-live="polite">{{
-          state.match_done
+          statusLabel ??
+          (state.match_done
             ? 'MATCH COMPLETE'
             : state.countdown_remaining > 0
               ? 'GET READY'
               : state.fight_started
                 ? `NEXT · TEAM ${state.next_attack_team}`
-                : 'READY TO FIGHT'
+                : 'READY TO FIGHT')
         }}</span>
         <span>{{
-          state.mode === 'training' ? 'BOTS' : state.mode === 'hunt' ? 'CREATURES' : 'TEAM B'
+          teamBLabel ??
+          (state.mode === 'training' ? 'BOTS' : state.mode === 'hunt' ? 'CREATURES' : 'TEAM B')
         }}</span>
       </div>
       <div
@@ -129,7 +168,12 @@ const actionFor = (fighter: ArenaFighter) => {
         </Transition>
       </div>
       <div
-        class="absolute inset-x-3 bottom-5 grid grid-cols-2 gap-8 sm:inset-x-8 sm:bottom-8 sm:gap-16"
+        class="absolute grid grid-cols-2"
+        :class="
+          contained
+            ? 'inset-x-[6%] bottom-[6%] gap-[12%]'
+            : 'inset-x-3 bottom-5 gap-8 sm:inset-x-8 sm:bottom-8 sm:gap-16'
+        "
       >
         <div
           v-for="team in teams"
@@ -172,9 +216,13 @@ const actionFor = (fighter: ArenaFighter) => {
             <div
               class="fighter-portrait relative flex shrink-0 items-end justify-center"
               :class="[
+                contained && 'max-h-[max(0px,calc(100cqh-7rem))]',
                 fighter.is_creature || fighter.is_robot
                   ? getCreatureModelSizeClass(creatureKeyOf(fighter.id))
-                  : ['h-32 w-full sm:h-44', bodySizeClass(fighter)],
+                  : [
+                      encounter ? 'h-28 w-full sm:h-44' : 'h-32 w-full sm:h-44',
+                      bodySizeClass(fighter),
+                    ],
               ]"
             >
               <div class="absolute inset-x-0 top-1/3 z-20 flex flex-wrap justify-center gap-1">
@@ -269,6 +317,15 @@ const actionFor = (fighter: ArenaFighter) => {
 .arena-ring {
   min-height: 250px;
   aspect-ratio: 2 / 1;
+}
+.arena-ring--encounter {
+  min-height: 0;
+  aspect-ratio: 50 / 37;
+}
+@media (min-width: 1024px) {
+  .arena-ring--wide {
+    aspect-ratio: 16 / 9;
+  }
 }
 .arena-body--large {
   height: 9.5rem;

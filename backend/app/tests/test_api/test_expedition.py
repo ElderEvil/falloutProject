@@ -159,6 +159,9 @@ async def test_site_available_lists_all_sites(
         "abandoned_campsite",
         "roadside_supply_truck",
         "forgotten_shack",
+        "collapsed_subway",
+        "rusted_midway",
+        "frozen_research_outpost",
     }
     assert sites["red_rocket"]["min_dweller_level"] == 3
     assert sites["red_rocket"]["room_total"] == 3
@@ -184,7 +187,15 @@ async def test_site_available_level_gate_excludes_sites(
     )
     assert response.status_code == 200
     site_ids = [site["id"] for site in response.json()]
-    assert site_ids == ["red_rocket", "abandoned_campsite", "roadside_supply_truck", "forgotten_shack"]
+    assert site_ids == [
+        "red_rocket",
+        "abandoned_campsite",
+        "roadside_supply_truck",
+        "forgotten_shack",
+        "collapsed_subway",
+        "rusted_midway",
+        "frozen_research_outpost",
+    ]
 
 
 @pytest.mark.asyncio
@@ -215,7 +226,15 @@ async def test_site_available_anti_farm_excludes_recent_clear(
     )
     assert response.status_code == 200
     site_ids = [site["id"] for site in response.json()]
-    assert site_ids == ["super_duper_mart", "abandoned_campsite", "roadside_supply_truck", "forgotten_shack"]
+    assert site_ids == [
+        "super_duper_mart",
+        "abandoned_campsite",
+        "roadside_supply_truck",
+        "forgotten_shack",
+        "collapsed_subway",
+        "rusted_midway",
+        "frozen_research_outpost",
+    ]
 
 
 @pytest.mark.asyncio

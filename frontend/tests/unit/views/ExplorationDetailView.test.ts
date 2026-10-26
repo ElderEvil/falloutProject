@@ -188,25 +188,10 @@ describe('ExplorationDetailView', () => {
   })
 
   describe('Rendering', () => {
-    it('shows a journey scene and switches to the road when returning from a reported location', async () => {
-      const originalEvents = mockExploration.events
-      explorationStore.activeExplorations['expl-1'] = {
-        ...mockExploration,
-        events: [{ ...originalEvents[0], location_name: 'Super Duper Mart' }],
-      }
+    it('reserves artwork for the encounter instead of repeating a journey scene', async () => {
       const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
       await flushPromises()
-      // The mount refresh can replace the record; use the current store snapshot.
-      explorationStore.activeExplorations['expl-1'] = {
-        ...mockExploration,
-        events: [{ ...originalEvents[0], location_name: 'Super Duper Mart' }],
-      }
-      await nextTick()
-      expect(wrapper.getComponent(WastelandScene).props('scene')).toBe('supermarket_interior')
-      explorationStore.activeExplorations['expl-1'].status = 'returning'
-      await nextTick()
-      expect(wrapper.getComponent(WastelandScene).props('scene')).toBe('desert_highway')
-      expect(wrapper.getComponent(WastelandScene).props('heading')).toContain('returning home')
+      expect(wrapper.findComponent(WastelandScene).exists()).toBe(false)
       wrapper.unmount()
     })
 

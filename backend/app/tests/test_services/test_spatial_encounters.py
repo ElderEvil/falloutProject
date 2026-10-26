@@ -34,6 +34,7 @@ async def _spatial_run(async_session: AsyncSession, vault: Vault, dweller: Dwell
     dweller.level = 10
     dweller.health = 100
     dweller.max_health = 100
+    dweller.radiation = 0
     async_session.add(dweller)
     await async_session.commit()
     return await exploration_service.send_dweller(
@@ -63,6 +64,7 @@ async def test_retreat_allows_reentry_and_resumes_progress(
     await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
     run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
     assert run is not None
+    run.flags = {}  # Simulate a room-based run saved before single-scene encounters.
     run.room_cursor = 1
     async_session.add(run)
     await async_session.commit()
@@ -477,3 +479,294 @@ async def test_discovery_accepts_production_raw_sqlalchemy_session(async_session
         await expedition_module.expedition_service.discover_sites(tick_session, exploration.id)
     await async_session.refresh(exploration)
     assert SITE_ID in {event.get("site_id") for event in exploration.events if event.get("event") == "site_found"}
+
+
+@pytest.mark.asyncio
+async def test_new_spatial_site_is_one_interior_encounter(async_session, vault, dweller):
+    import random
+
+    from app.schemas.expedition import ExpeditionResolveRequest
+
+    exploration = await _spatial_run_at_site(async_session, vault, dweller, "super_duper_mart")
+    for stat in ("strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"):
+        setattr(exploration, f"dweller_{stat}", 10)
+    async_session.add(exploration)
+    await async_session.commit()
+    view = await expedition_module.expedition_service.enter_run(async_session, exploration.id, "super_duper_mart")
+    assert view.room_total == 1
+    assert view.room_name == "Supermarket Interior"
+    assert view.scene_id == "supermarket_interior"
+    assert view.node.kind == "combat"
+    assert "parking" not in view.node.prompt.lower()
+    random.seed(570)
+    resolved = view
+    for _ in range(100):
+        resolved = await expedition_module.expedition_service.resolve_node(
+            async_session, exploration.id, ExpeditionResolveRequest()
+        )
+        if resolved.status != "in_room":
+            break
+    assert resolved.status == "cleared"
+    assert resolved.room_index == 0
+    assert resolved.scene_id == view.scene_id
+    assert resolved.finale_paid
+    assert resolved.outcome.caps_gained > 0
+    await async_session.refresh(exploration)
+    assert exploration.paused_at is None
+    assert exploration.enemies_encountered == len(view.node.enemy_names)
+    assert "super_duper_mart" not in {
+        site.id
+        for site in await expedition_module.expedition_service.list_available_sites(async_session, exploration.id)
+    }
+    with pytest.raises(ValidationException, match="No open expedition run"):
+        await expedition_module.expedition_service.resolve_node(
+            async_session, exploration.id, ExpeditionResolveRequest()
+        )
+
+
+@pytest.mark.asyncio
+async def test_preexisting_spatial_run_keeps_its_saved_rooms(async_session, vault, dweller):
+    exploration = await _spatial_run_at_site(async_session, vault, dweller, "super_duper_mart")
+    run = await crud.expedition_run.create_run(
+        async_session, exploration_id=exploration.id, vault_id=vault.id, site_id="super_duper_mart"
+    )
+    run.room_cursor = 2
+    async_session.add(run)
+    await async_session.commit()
+    view = await expedition_module.expedition_service.current_view(async_session, exploration.id)
+    assert view.room_index == 2
+    assert view.room_total == 4
+    assert view.room_name == "Storage Room"
+
+
+@pytest.mark.asyncio
+async def test_single_scene_defeat_is_nonlethal_consumed_and_resumes_travel(async_session, vault, dweller):
+    from app.schemas.expedition import ExpeditionResolveRequest
+
+    exploration = await _spatial_run_at_site(async_session, vault, dweller, "super_duper_mart")
+    dweller.health = 1
+    async_session.add(dweller)
+    async_session.add(exploration)
+    await async_session.commit()
+    initial = await expedition_module.expedition_service.enter_run(async_session, exploration.id, "super_duper_mart")
+    defeated = initial
+    for _ in range(100):
+        defeated = await expedition_module.expedition_service.resolve_node(
+            async_session, exploration.id, ExpeditionResolveRequest()
+        )
+        if defeated.status != "in_room":
+            break
+    assert defeated.defeated
+    assert defeated.status == "defeated"
+    assert defeated.room_index == 0
+    assert not defeated.finale_paid
+    assert defeated.outcome.caps_gained == 0
+    assert exploration.paused_at is None
+    assert dweller.health == 1
+    assert not dweller.is_dead
+    assert defeated.outcome.loot_gained == []
+    reconnect = await expedition_module.expedition_service.current_view(async_session, exploration.id)
+    assert reconnect is None
+    assert "super_duper_mart" not in {
+        site.id
+        for site in await expedition_module.expedition_service.list_available_sites(async_session, exploration.id)
+    }
+    with pytest.raises(ResourceConflictException, match="spent"):
+        await expedition_module.expedition_service.enter_run(async_session, exploration.id, "super_duper_mart")
+
+
+@pytest.mark.asyncio
+async def test_single_scene_resolution_late_failure_rolls_back_fight_and_haul(
+    async_session, vault, dweller, monkeypatch
+):
+    import random
+    from unittest.mock import AsyncMock
+
+    from sqlalchemy import event
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from app.schemas.expedition import ExpeditionResolveRequest
+    from app.services.notification_service import manager, sse_manager
+
+    exploration = await _spatial_run_at_site(async_session, vault, dweller, "super_duper_mart")
+    for stat in ("strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"):
+        setattr(exploration, f"dweller_{stat}", 10)
+    async_session.add(exploration)
+    await async_session.commit()
+    await expedition_module.expedition_service.enter_run(async_session, exploration.id, "super_duper_mart")
+    run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    run.flags = {
+        **run.flags,
+        "combat": {
+            **run.flags["combat"],
+            "next_attack_team": "B",
+            "opponents": [{**enemy, "power": 100} for enemy in run.flags["combat"]["opponents"]],
+        },
+    }
+    async_session.add(run)
+    await async_session.commit()
+    exploration_id, dweller_id, run_id = exploration.id, dweller.id, run.id
+    before = (
+        exploration.total_caps_found,
+        list(exploration.loot_collected),
+        list(exploration.events),
+        exploration.paused_at,
+    )
+    health_before = dweller.health
+    publish, websocket = AsyncMock(), AsyncMock()
+    monkeypatch.setattr(sse_manager, "publish", publish)
+    monkeypatch.setattr(manager, "send_personal_message", websocket)
+    connection = (await async_session.connection()).sync_connection
+    damaged = []
+
+    def fail_run_update(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith("UPDATE dweller"):
+            damaged.append(True)
+        if statement.startswith("UPDATE expeditionrun"):
+            raise SQLAlchemyError("late run write failed")
+
+    event.listen(connection, "before_cursor_execute", fail_run_update)
+    random.seed(570)
+    try:
+        with pytest.raises(SQLAlchemyError, match="late run write"):
+            await expedition_module.expedition_service.resolve_node(
+                async_session, exploration_id, ExpeditionResolveRequest()
+            )
+    finally:
+        event.remove(connection, "before_cursor_execute", fail_run_update)
+        await async_session.rollback()
+    assert damaged
+    saved = await crud.exploration.get(async_session, exploration_id)
+    assert (saved.total_caps_found, saved.loot_collected, saved.events, saved.paused_at) == before
+    assert (await crud.dweller.get(async_session, dweller_id)).health == health_before
+    saved_run = await crud.expedition_run.get(async_session, run_id)
+    assert saved_run.status == ExpeditionRunStatus.IN_ROOM
+    assert saved_run.finished_at is None
+    assert saved.enemies_encountered == 0
+    publish.assert_not_awaited()
+    websocket.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_single_scene_invalid_choice_leaves_run_untouched(async_session, vault, dweller):
+    from app.schemas.expedition import ExpeditionResolveRequest
+
+    exploration = await _spatial_run_at_site(async_session, vault, dweller)
+    await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
+    health_before, caps_before, events_before = dweller.health, exploration.total_caps_found, list(exploration.events)
+    exploration_id, dweller_id = exploration.id, dweller.id
+    with pytest.raises(ValidationException, match="do not accept a stat-check choice"):
+        await expedition_module.expedition_service.resolve_node(
+            async_session, exploration_id, ExpeditionResolveRequest(choice_id="invalid")
+        )
+    await async_session.rollback()
+    saved = await crud.exploration.get(async_session, exploration_id)
+    assert saved.total_caps_found == caps_before
+    assert saved.events == events_before
+    assert saved.paused_at is not None
+    assert (await crud.dweller.get(async_session, dweller_id)).health == health_before
+    assert (await crud.expedition_run.get_open_for_exploration(async_session, exploration_id)).room_cursor == 0
+
+
+@pytest.mark.asyncio
+async def test_scene_combat_reconnect_skill_and_stale_round_rejection(async_session, vault, dweller):
+    from copy import deepcopy
+
+    from app.schemas.expedition import ExpeditionResolveRequest
+
+    exploration = await _spatial_run_at_site(async_session, vault, dweller, "super_duper_mart")
+    entered = await expedition_module.expedition_service.enter_run(async_session, exploration.id, "super_duper_mart")
+    assert entered.combat_state.round == 0
+    assert entered.combat_state.fighters[0].active_skill.charge == 0
+    with pytest.raises(ValidationException, match="not ready"):
+        await expedition_module.expedition_service.resolve_node(
+            async_session, exploration.id, ExpeditionResolveRequest(use_skill=True)
+        )
+    first = await expedition_module.expedition_service.resolve_node(
+        async_session, exploration.id, ExpeditionResolveRequest(expected_round=0)
+    )
+    run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    saved_state = deepcopy(run.flags["combat"])
+    with pytest.raises(ResourceConflictException, match="advanced"):
+        await expedition_module.expedition_service.resolve_node(
+            async_session, exploration.id, ExpeditionResolveRequest(expected_round=0)
+        )
+    reconnected = await expedition_module.expedition_service.current_view(async_session, exploration.id)
+    assert reconnected.combat_state == first.combat_state
+    assert run.flags["combat"] == saved_state
+    # A full meter is persisted server state, never supplied by the client.
+    run.flags = {**run.flags, "combat": {**saved_state, "charge": 100, "next_attack_team": "A"}}
+    async_session.add(run)
+    await async_session.commit()
+    skilled = await expedition_module.expedition_service.resolve_node(
+        async_session, exploration.id, ExpeditionResolveRequest(use_skill=True)
+    )
+    assert any(event.action and event.action.skill for event in skilled.combat_state.events)
+    assert skilled.combat_state.fighters[0].active_skill.charge < 100
+
+
+@pytest.mark.asyncio
+async def test_scene_reward_notification_failure_rolls_back_final_turn(async_session, vault, dweller, monkeypatch):
+    from copy import deepcopy
+    from unittest.mock import AsyncMock
+
+    from sqlalchemy import event
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from app.schemas.expedition import ExpeditionResolveRequest
+    from app.services.notification_service import manager, notification_service, sse_manager
+
+    exploration = await _spatial_run_at_site(async_session, vault, dweller, "super_duper_mart")
+    await expedition_module.expedition_service.enter_run(async_session, exploration.id, "super_duper_mart")
+    run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    run.flags = {
+        **run.flags,
+        "combat": {
+            **run.flags["combat"],
+            "opponents": [{**enemy, "hp": 1} for enemy in run.flags["combat"]["opponents"]],
+            "carry": {run.flags["combat"]["opponents"][0]["key"] + "#0": 0.99},
+        },
+    }
+    async_session.add(run)
+    await async_session.commit()
+    exploration_id, run_id, user_id = exploration.id, run.id, vault.user_id
+    before = deepcopy(
+        (exploration.total_caps_found, exploration.loot_collected, exploration.events, exploration.paused_at, run.flags)
+    )
+    publish, websocket = AsyncMock(), AsyncMock()
+    monkeypatch.setattr(sse_manager, "publish", publish)
+    monkeypatch.setattr(manager, "send_personal_message", websocket)
+    connection = (await async_session.connection()).sync_connection
+    written = []
+
+    def fail_notification(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith("UPDATE exploration"):
+            written.append(True)
+        if statement.startswith("INSERT INTO notification"):
+            raise SQLAlchemyError("final notification failed")
+
+    event.listen(connection, "before_cursor_execute", fail_notification)
+    try:
+        with pytest.raises(SQLAlchemyError, match="final notification"):
+            await expedition_module.expedition_service.resolve_node(
+                async_session, exploration_id, ExpeditionResolveRequest()
+            )
+    finally:
+        event.remove(connection, "before_cursor_execute", fail_notification)
+        await async_session.rollback()
+        notification_service.discard_deferred_notifications(async_session)
+    saved = await crud.exploration.get(async_session, exploration_id)
+    saved_run = await crud.expedition_run.get(async_session, run_id)
+    assert written
+    assert (saved.total_caps_found, saved.loot_collected, saved.events, saved.paused_at, saved_run.flags) == before
+    assert saved_run.status == ExpeditionRunStatus.IN_ROOM
+    assert saved_run.finished_at is None
+    from app.crud.notification import notification as notification_crud
+
+    assert not [
+        n
+        for n in await notification_crud.get_user_notifications(async_session, user_id)
+        if (n.meta_data or {}).get("event") == "site_cleared"
+    ]
+    publish.assert_not_awaited()
+    websocket.assert_not_awaited()

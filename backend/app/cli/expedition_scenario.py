@@ -78,6 +78,10 @@ def setup(
         str | None,
         typer.Option("--discovered-site", help="Fast-forward to this site and notify the owner on the return leg"),
     ] = None,
+    dweller_id: Annotated[
+        UUID | None,
+        typer.Option("--dweller-id", help="Use an existing dweller, preserving their level and SPECIAL"),
+    ] = None,
 ) -> None:
     """Create a vault with one dweller on an active exploration and a populated site picker."""
 
@@ -94,6 +98,7 @@ def setup(
                 preclear_site_id=preclear,
                 special=special,
                 discovered_site_id=discovered_site,
+                dweller_id=dweller_id,
             )
             _print_setup(result)
 

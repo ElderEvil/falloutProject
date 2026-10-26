@@ -10,7 +10,7 @@ import {
 
 const props = withDefaults(
   defineProps<{
-    scene: WastelandSceneId
+    scene?: WastelandSceneId | null
     variant?: WastelandSceneRole
     heading: string
     description?: string
@@ -26,11 +26,12 @@ const props = withDefaults(
     imageUrl: null,
     thumbnailUrl: null,
     compact: false,
+    scene: null,
   }
 )
 
-const artwork = computed(() => WASTELAND_SCENES[props.scene])
-const variants = computed(() => artwork.value[props.variant].variants)
+const artwork = computed(() => (props.scene ? WASTELAND_SCENES[props.scene] : null))
+const variants = computed(() => artwork.value?.[props.variant].variants ?? [])
 const fullImage = computed(() => variants.value[1]!)
 const srcset = computed(() =>
   variants.value.map((image) => `${image.src} ${image.width}w`).join(', ')
@@ -51,7 +52,7 @@ watch(fullImage, () => {
       :class="variant === 'battleback' ? 'aspect-[50/37]' : 'aspect-video'"
     >
       <img
-        v-if="!imageFailed"
+        v-if="fullImage && !imageFailed"
         :src="fullImage.src"
         :srcset="srcset"
         :sizes="
@@ -61,7 +62,7 @@ watch(fullImage, () => {
         "
         :width="fullImage.width"
         :height="fullImage.height"
-        :alt="artwork.label"
+        :alt="artwork?.label ?? heading"
         class="absolute inset-0 h-full w-full object-contain"
         decoding="async"
         @error="imageFailed = true"
@@ -70,7 +71,7 @@ watch(fullImage, () => {
         v-else
         class="absolute inset-0 flex items-center justify-center text-theme-primary/60"
         role="img"
-        :aria-label="artwork.label"
+        :aria-label="artwork?.label ?? heading"
       >
         <Icon icon="mdi:compass-outline" class="h-12 w-12" />
       </div>

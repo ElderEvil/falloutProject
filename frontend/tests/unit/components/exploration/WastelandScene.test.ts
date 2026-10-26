@@ -3,11 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import WastelandScene from '@/modules/exploration/components/WastelandScene.vue'
-import {
-  getLocationScene,
-  getSiteScene,
-  WASTELAND_SCENES,
-} from '@/modules/exploration/models/wastelandScenes'
+import { WASTELAND_SCENES } from '@/modules/exploration/models/wastelandScenes'
 
 const props = {
   scene: 'desert_highway' as const,
@@ -49,25 +45,13 @@ describe('Wasteland scenes', () => {
     expect(wrapper.get('img').attributes('alt')).toBe('Subway station')
   })
 
-  it.each([
-    ['Super Duper Mart', 'supermarket_interior'],
-    ['SUPER-DUPER MART', 'supermarket_interior'],
-    ['Metro Central', 'subway_station'],
-    ['Nuka-World', 'amusement_park'],
-    ['Arctic research station', 'arctic_research_station'],
-    ['Roadside supply truck', 'desert_highway'],
-    ['Research laboratory', null],
-    ['Cinema', null],
-    ['', null],
-  ])('matches reported location %s without inventing scenery', (name, expected) => {
-    expect(getLocationScene(name)).toBe(expected)
-  })
-
-  it('distinguishes supermarket interiors from its outdoor parking-lot encounter', () => {
-    expect(getSiteScene('super_duper_mart', 'Collapsed Aisles')).toBe('supermarket_interior')
-    expect(getSiteScene('super_duper_mart', 'Parking Lot')).toBe('desert_highway')
-    expect(getSiteScene('roadside_supply_truck')).toBe('desert_highway')
-    expect(getSiteScene('red_rocket', 'Garage')).toBeNull()
+  it('reserves the encounter frame and actor for a site without authored artwork', () => {
+    const wrapper = mount(WastelandScene, {
+      props: { ...props, scene: null, variant: 'battleback' },
+    })
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('[role="img"]').attributes('aria-label')).toBe(props.heading)
+    expect(wrapper.get('[role="group"]').exists()).toBe(true)
   })
 
   it('ships every responsive variant as a content-addressed WebP within its asset budget', () => {

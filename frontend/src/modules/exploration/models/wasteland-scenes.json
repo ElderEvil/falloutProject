@@ -1,0 +1,177 @@
+{
+  "desert_highway": {
+    "label": "Desert highway",
+    "landscape": {
+      "source": "Backgrounds/desert_highway.png",
+      "source_sha256": "288480bcc7fc78850efe49d6a9db72ff2d6bb70ad1ddfaeee1bc7e6a746c408a",
+      "variants": [
+        {
+          "src": "/assets/wasteland-scenes/desert-highway-landscape-ecd78396b0d7db45.webp",
+          "width": 640,
+          "height": 360
+        },
+        {
+          "src": "/assets/wasteland-scenes/desert-highway-landscape-64e1fcb48fc58103.webp",
+          "width": 1280,
+          "height": 720
+        }
+      ]
+    },
+    "battleback": {
+      "source": "Battlebacks/desert_highway.png",
+      "source_sha256": "eba44eb8ec920793fd363a51c097a516ae9fcc90647fdd698829d05f7e629fcf",
+      "variants": [
+        {
+          "src": "/assets/wasteland-scenes/desert-highway-battleback-0750866efae91e88.webp",
+          "width": 500,
+          "height": 370
+        },
+        {
+          "src": "/assets/wasteland-scenes/desert-highway-battleback-5c071adbd9b791f9.webp",
+          "width": 1000,
+          "height": 740
+        }
+      ]
+    }
+  },
+  "supermarket_interior": {
+    "label": "Abandoned supermarket",
+    "landscape": {
+      "source": "Backgrounds/supermarket_interior.png",
+      "source_sha256": "9927544f0aaa61dee6e1c2ee22a62f29ec90277914fa9c9a07ca82e4ebe0c42c",
+      "variants": [
+        {
+          "src": "/assets/wasteland-scenes/supermarket-interior-landscape-ca7f7d15dbbf1721.webp",
+          "width": 640,
+          "height": 360
+        },
+        {
+          "src": "/assets/wasteland-scenes/supermarket-interior-landscape-03bf9ca7aa4f00a8.webp",
+          "width": 1280,
+          "height": 720
+        }
+      ]
+    },
+    "battleback": {
+      "source": "Battlebacks/supermarket_interior.png",
+      "source_sha256": "832924c42b292330675ebecd00c9d6c89c58ac208e1a8649c83f91e39f198d28",
+      "variants": [
+        {
+          "src": "/assets/wasteland-scenes/supermarket-interior-battleback-9cc4696af43e1f5a.webp",
+          "width": 500,
+          "height": 370
+        },
+        {
+          "src": "/assets/wasteland-scenes/supermarket-interior-battleback-75b8befdbc76e23a.webp",
+          "width": 1000,
+          "height": 740
+        }
+      ]
+    }
+  },
+  "subway_station": {
+    "label": "Subway station",
+    "landscape": {
+      "source": "Backgrounds/subway_station.png",
+      "source_sha256": "4ad824a7e51972533c3cb45d1ddeed1d2617e6009f5a652a8bcced206e0421de",
+      "variants": [
+        {
+          "src": "/assets/wasteland-scenes/subway-station-landscape-373c4f6609b13c6c.webp",
+          "width": 640,
+          "height": 360
+        },
+        {
+          "src": "/assets/wasteland-scenes/subway-station-landscape-17cfcd48b283ee14.webp",
+          "width": 1280,
+          "height": 720
+        }
+      ]
+    },
+    "battleback": {
+      "source": "Battlebacks/subway_station.png",
+      "source_sha256": "cabfdb6f8d725bfb50094c69f8381d79fec7f0169fa3d955305fd6a86a493895",
+      "variants": [
+        {
+          "src": "/assets/wasteland-scenes/subway-station-battleback-730be585fb41d806.webp",
+          "width": 500,
+          "height": 370
+        },
+        {
+          "src": "/assets/wasteland-scenes/subway-station-battleback-a6f889bd377f917d.webp",
+          "width": 1000,
+          "height": 740
+        }
+      ]
+    }
+  },
+  "amusement_park": {
+    "label": "Ruined amusement park",
+    "landscape": {
+      "source": "Backgrounds/amusement_park.png",
+      "source_sha256": "2487e98a2e47d6bd9df6b031a3a8f3d991ede105f7f8c7de7a60dd7436b34c07",
+      "variants": [
+        {
+          "src": "/assets/wasteland-scenes/amusement-park-landscape-6b3eae47d14b9599.webp",
+          "width": 640,
+          "height": 360
+        },
+        {
+          "src": "/assets/wasteland-scenes/amusement-park-landscape-4de94fd1a05d77e7.webp",
+          "width": 1280,
+          "height": 720
+        }
+      ]
+    },
+    "battleback": {
+      "source": "Battlebacks/amusement_park.png",
+      "source_sha256": "8df299268b0a8f02e65f0da1110b590d79e91af7d3aff3c1ef1c14b7b766bbf7",
+      "variants": [
+        {
+          "src": "/assets/wasteland-scenes/amusement-park-battleback-8b63622c795fd511.webp",
+          "width": 500,
+          "height": 370
+        },
+        {
+          "src": "/assets/wasteland-scenes/amusement-park-battleback-f24bc1957858f082.webp",
+          "width": 1000,
+          "height": 740
+        }
+      ]
+    }
+  },
+  "arctic_research_station": {
+    "label": "Arctic research station",
+    "landscape": {
+      "source": "Backgrounds/arctic_research_station.png",
+      "source_sha256": "07f56c53a2cadd9ae4a9178ed589a6ec706cfd251eca4071f2fca1b7ea2b0db6",
+      "variants": [
+        {
+          "src": "/assets/wasteland-scenes/arctic-research-station-landscape-67da946782fb7c52.webp",
+          "width": 640,
+          "height": 360
+        },
+        {
+          "src": "/assets/wasteland-scenes/arctic-research-station-landscape-5d8a0f08a5461ea2.webp",
+          "width": 1280,
+          "height": 720
+        }
+      ]
+    },
+    "battleback": {
+      "source": "Battlebacks/arctic_research_station.png",
+      "source_sha256": "fa142229afe613e1e54ebb631da5003b60599c7261d6bb7f1d6a489160f145a1",
+      "variants": [
+        {
+          "src": "/assets/wasteland-scenes/arctic-research-station-battleback-bd4551df0fb7083e.webp",
+          "width": 500,
+          "height": 370
+        },
+        {
+          "src": "/assets/wasteland-scenes/arctic-research-station-battleback-d11eab670034a6b2.webp",
+          "width": 1000,
+          "height": 740
+        }
+      ]
+    }
+  }
+}

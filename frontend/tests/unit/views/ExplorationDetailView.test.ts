@@ -3,6 +3,7 @@ import { createIconifyMock, createToastMock } from '../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
+import { nextTick } from 'vue'
 import ExplorationDetailView from '@/modules/exploration/views/ExplorationDetailView.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
@@ -12,6 +13,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useExpeditionSiteStore } from '@/modules/exploration/stores/expeditionSite'
 import ExpeditionSiteModal from '@/modules/exploration/components/ExpeditionSiteModal.vue'
+import WastelandScene from '@/modules/exploration/components/WastelandScene.vue'
 import type { AvailableSiteView, SiteRoomView } from '@/modules/exploration/api/expeditionSite'
 
 // Mock Iconify
@@ -186,6 +188,28 @@ describe('ExplorationDetailView', () => {
   })
 
   describe('Rendering', () => {
+    it('shows a journey scene and switches to the road when returning from a reported location', async () => {
+      const originalEvents = mockExploration.events
+      explorationStore.activeExplorations['expl-1'] = {
+        ...mockExploration,
+        events: [{ ...originalEvents[0], location_name: 'Super Duper Mart' }],
+      }
+      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
+      await flushPromises()
+      // The mount refresh can replace the record; use the current store snapshot.
+      explorationStore.activeExplorations['expl-1'] = {
+        ...mockExploration,
+        events: [{ ...originalEvents[0], location_name: 'Super Duper Mart' }],
+      }
+      await nextTick()
+      expect(wrapper.getComponent(WastelandScene).props('scene')).toBe('supermarket_interior')
+      explorationStore.activeExplorations['expl-1'].status = 'returning'
+      await nextTick()
+      expect(wrapper.getComponent(WastelandScene).props('scene')).toBe('desert_highway')
+      expect(wrapper.getComponent(WastelandScene).props('heading')).toContain('returning home')
+      wrapper.unmount()
+    })
+
     it('plays exploration music on mount and restores the vault loop on unmount', async () => {
       soundMock.playMusic.mockClear()
       const wrapper = mount(ExplorationDetailView, {
@@ -529,6 +553,39 @@ describe('ExplorationDetailView', () => {
   })
 
   describe('Site reconnect on explorer switch', () => {
+    it('refreshes site offers when the journey snapshot gains a discovery', async () => {
+      const siteStore = useExpeditionSiteStore()
+      const fetchSites = vi.spyOn(siteStore, 'fetchAvailableSites').mockResolvedValue([])
+      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
+      await flushPromises()
+      fetchSites.mockClear()
+      explorationStore.activeExplorations['expl-1'].events.push({
+        type: 'site',
+        event: 'site_found',
+        site_id: 'red_rocket',
+        offer_id: 'exp-1:red_rocket',
+        description: 'Site found',
+        timestamp: '2026-10-26T10:00:00',
+        time_elapsed_hours: 1,
+      })
+      await flushPromises()
+      expect(fetchSites).toHaveBeenCalledOnce()
+      expect(fetchSites).toHaveBeenCalledWith('expl-1')
+      wrapper.unmount()
+    })
+
+    it('opens the site picker from a notification link without entering', async () => {
+      await router.push('/vault/test-vault/exploration/expl-1?siteId=red_rocket')
+      const siteStore = useExpeditionSiteStore()
+      const enter = vi.spyOn(siteStore, 'enterSite')
+      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
+      await flushPromises()
+      expect((wrapper.vm as any).showSiteModal).toBe(true)
+      expect((wrapper.vm as any).reportedSiteId).toBe('red_rocket')
+      expect(enter).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
+
     it('re-scopes the site store and reconnects when the exploration changes', async () => {
       const siteStore = useExpeditionSiteStore()
       const resetSpy = vi.spyOn(siteStore, 'reset')

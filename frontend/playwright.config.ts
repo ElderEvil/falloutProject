@@ -20,6 +20,14 @@ export default defineConfig({
         viewport: { width: 1280, height: 720 },
       },
     },
+    {
+      name: 'firefox-scenes',
+      testMatch: 'wasteland-scenes.spec.ts',
+      use: {
+        ...devices['Desktop Firefox'],
+        viewport: { width: 1280, height: 720 },
+      },
+    },
   ],
   webServer: [
     ...(skipBackend

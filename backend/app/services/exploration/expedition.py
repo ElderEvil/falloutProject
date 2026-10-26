@@ -22,6 +22,7 @@ from app.crud import dweller as dweller_crud
 from app.crud.world_snapshot import world_snapshot as world_snapshot_crud
 from app.models.dweller import Dweller
 from app.models.exploration import CONSUMING_STATUSES, ExpeditionRun, ExpeditionRunStatus, Exploration
+from app.models.notification import NotificationType
 from app.schemas.expedition import (
     AvailableSiteView,
     EnemySpec,
@@ -477,8 +478,72 @@ async def _reopen_run(db_session: AsyncSession, run: ExpeditionRun) -> Expeditio
     return await _refresh_run(db_session, run)
 
 
+def _arrived_home(exploration: Exploration) -> bool:
+    return (
+        exploration.is_returning()
+        and exploration.paused_at is None
+        and exploration.return_completes_at is not None
+        and exploration.return_completes_at <= datetime.utcnow()
+    )
+
+
 class ExpeditionService:
     """Enter, resolve, retreat, and inspect expedition site runs."""
+
+    async def discover_sites(self, db_session: AsyncSession, exploration_id: UUID4) -> None:
+        """Persist trail discoveries and their inbox reports atomically, once per journey/site.
+
+        Movement commits before this operation. This method owns the discovery
+        transaction; vault -> exploration locks serialize ticks with site entry
+        and return finalization. Transport delivery follows the commit.
+        """
+        exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
+        if (
+            not exploration.is_in_progress()
+            or exploration.team_id is not None
+            or exploration.heading_degrees is None
+            or exploration.paused_at is not None
+            or _arrived_home(exploration)
+        ):
+            return
+        # Missing world data must not turn the legacy catalog fallback into discoveries.
+        if await journey_offer_context(db_session, exploration) is None:
+            return
+        found = {event.get("site_id") for event in exploration.events if event.get("event") == "site_found"}
+        sites = [site for site in await self.list_available_sites(db_session, exploration_id) if site.id not in found]
+        if not sites:
+            return
+        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+        vault = await crud.vault.get(db_session, exploration.vault_id)
+        try:
+            for site in sites:
+                metadata = {
+                    "event": "site_found",
+                    "exploration_id": str(exploration.id),
+                    "site_id": site.id,
+                    "site_name": site.name,
+                    "offer_id": f"{exploration.id}:{site.id}",
+                }
+                message = f"{dweller_obj.first_name} found {site.name}. Enter before the dweller arrives home."
+                record = exploration.add_event(event_type="site", description=message)
+                record.update(metadata)
+                db_session.add(exploration)
+                await db_session.flush()
+                await notification_service.create_and_send(
+                    db_session,
+                    vault.user_id,
+                    NotificationType.EXPLORATION_UPDATE,
+                    "Expedition site found",
+                    message,
+                    vault_id=exploration.vault_id,
+                    from_dweller_id=exploration.dweller_id,
+                    meta_data=metadata,
+                    commit=False,
+                )
+            await db_session.commit()
+            await notification_service.deliver_deferred_notifications(db_session)
+        finally:
+            notification_service.discard_deferred_notifications(db_session)
 
     async def _require_site_near_trail(self, db_session: AsyncSession, exploration: Exploration, site) -> None:
         """Reject a spatial entry whose site was never traveled past (list/enter parity)."""
@@ -516,6 +581,8 @@ class ExpeditionService:
             if open_run.site_id == site_id:
                 return build_view(exploration_id, site, open_run, exploration, dweller=dweller_obj)
             raise ResourceConflictException("This exploration already has an open expedition run")
+        if _arrived_home(exploration):
+            raise ValidationException("The dweller has arrived home; this journey's site offers have expired")
         if (
             await crud.expedition_run.get_consumed_for_exploration_site(
                 db_session, exploration_id=exploration_id, site_id=site_id
@@ -562,6 +629,8 @@ class ExpeditionService:
         exploration = await _get_exploration(db_session, exploration_id)
         if not exploration.is_in_progress():
             raise ValidationException("Expedition sites need an active exploration")
+        if exploration.team_id is not None or _arrived_home(exploration):
+            return []
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
         if dweller_obj.is_dead:
             return []

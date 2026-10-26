@@ -6,6 +6,7 @@ import { nextTick } from 'vue'
 import { Dialog } from '@/core/components/ui/dialog'
 import { Progress } from '@/core/components/ui/progress'
 import ExpeditionSiteModal from '@/modules/exploration/components/ExpeditionSiteModal.vue'
+import WastelandScene from '@/modules/exploration/components/WastelandScene.vue'
 import { useExpeditionSiteStore } from '@/modules/exploration/stores/expeditionSite'
 import type { AvailableSiteView, SiteRoomView } from '@/modules/exploration/api/expeditionSite'
 
@@ -109,11 +110,11 @@ const defeatedRoom: SiteRoomView = {
 const mountModal = (
   explorationId = 'exp-1',
   dwellerName = 'Lucy MacLean',
-  timeRemainingSeconds?: number,
+  _timeRemainingSeconds?: number,
   explorationActive = true
 ) =>
   mount(ExpeditionSiteModal, {
-    props: { show: true, explorationId, dwellerName, timeRemainingSeconds, explorationActive },
+    props: { show: true, explorationId, dwellerName, explorationActive },
     global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
   })
 
@@ -121,6 +122,26 @@ const buttonByText = (wrapper: ReturnType<typeof mountModal>, text: string) =>
   wrapper.findAll('button').find((button) => button.text().includes(text))
 
 describe('ExpeditionSiteModal', () => {
+  it('uses the matching battleback only for this exploration and changes framing after combat', async () => {
+    const store = useExpeditionSiteStore()
+    store.room = {
+      ...choiceRoom,
+      site_id: 'super_duper_mart',
+      room_name: 'Collapsed Aisles',
+      node: { kind: 'combat', prompt: 'Raiders block the aisles.' },
+    }
+    const wrapper = mountModal()
+    await flushPromises()
+    expect(wrapper.getComponent(WastelandScene).props('variant')).toBe('battleback')
+    store.room = { ...choiceRoom, site_id: 'super_duper_mart', room_name: 'Collapsed Aisles' }
+    await nextTick()
+    expect(wrapper.getComponent(WastelandScene).props('variant')).toBe('landscape')
+    store.room = { ...store.room, exploration_id: 'another-expedition' }
+    await nextTick()
+    expect(wrapper.findComponent(WastelandScene).exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   beforeEach(() => {
     setActivePinia(createPinia())
     mockList.mockReset()
@@ -175,7 +196,7 @@ describe('ExpeditionSiteModal', () => {
 
     await flushPromises()
 
-    expect(wrapper.text()).toContain('No sites available — level up or come back later')
+    expect(wrapper.text()).toContain('No sites available on this journey.')
   })
 
   it('shows the load error inline', async () => {
@@ -339,20 +360,34 @@ describe('ExpeditionSiteModal', () => {
     expect(wrapper.text()).not.toContain('Failed to resolve expedition node')
   })
 
-  it('shows the remaining time in the header and flags expiry under 300s', async () => {
-    const wrapper = mountModal('exp-1', 'Lucy MacLean', 600)
-    const store = useExpeditionSiteStore()
-    store.room = choiceRoom
+  it('shows travel paused inside an encounter', async () => {
+    const wrapper = mountModal()
+    await wrapper.setProps({ pausesTravel: true })
+    useExpeditionSiteStore().room = choiceRoom
     await flushPromises()
+    expect(wrapper.text()).toContain('Travel paused')
+    expect(wrapper.text()).not.toContain('Clock expiry')
+  })
 
-    expect(wrapper.text()).toContain('≈10m')
-    expect(wrapper.find('[title="Exploration time remaining"]').exists()).toBe(true)
-
-    await wrapper.setProps({ timeRemainingSeconds: 120 })
+  it('explains an expired report without fetching offers for a finished journey', async () => {
+    const wrapper = mountModal('exp-1', 'Lucy', undefined, false)
+    await wrapper.setProps({ reportedSiteId: 'red_rocket' })
     await flushPromises()
+    expect(mockList).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('This journey has finished')
+    expect(wrapper.text()).toContain('This site report is no longer available')
+    expect(buttonByText(wrapper, 'Enter')).toBeUndefined()
+  })
 
-    expect(wrapper.text()).toContain('≈2m')
-    expect(wrapper.find('[title="Clock expiry will force a retreat"]').exists()).toBe(true)
+  it('opens a reported site for review without automatically entering', async () => {
+    const wrapper = mountModal()
+    await wrapper.setProps({ reportedSiteId: 'red_rocket' })
+    await flushPromises()
+    expect(wrapper.text()).toContain('including the return trip')
+    expect(wrapper.find('.ring-2').exists()).toBe(true)
+    expect(mockEnter).not.toHaveBeenCalled()
+    await wrapper.setProps({ reportedSiteId: 'spent-site' })
+    expect(wrapper.text()).toContain('This site report is no longer available')
   })
 
   it('dedupes combat enemies and labels failure threats separately', async () => {

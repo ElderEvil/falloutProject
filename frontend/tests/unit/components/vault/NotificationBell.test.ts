@@ -213,6 +213,32 @@ describe('NotificationBell SSE watcher null-safety', () => {
     wrapper.unmount()
   })
 
+  it('toasts a site discovery once when the transport delivers it twice', async () => {
+    useAuthStore().token = 'test-token'
+    const data = JSON.stringify({
+      notification: {
+        ...JSON.parse(notifData).notification,
+        notification_type: 'exploration_update',
+        message: 'Lucy found Red Rocket. Enter before arriving home.',
+        meta_data: { event: 'site_found', exploration_id: 'exp-1', site_id: 'red_rocket' },
+      },
+    })
+    fetchMock.mockResolvedValue(
+      createMockResponse([encodeSse(data, 'notification'), encodeSse(data, 'notification')], {
+        hang: true,
+      })
+    )
+    const wrapper = mount(NotificationBell)
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+    const reports = useToast().toasts.value.filter((toast) =>
+      toast.message.includes('found Red Rocket')
+    )
+    expect(reports).toHaveLength(1)
+    expect(reports[0].count).toBe(1)
+    wrapper.unmount()
+  })
+
   it.each([
     ['objective_completed', 'objectiveReady'],
     ['level_up', 'levelUp'],

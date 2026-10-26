@@ -113,3 +113,7 @@ These commands map to their corresponding tools. For example, `vp dev --port 300
 - For changed shared async state, cover delayed responses after vault/account switches and, for event
   consumers, duplicate delivery/reconnect. Capture the request context and ignore results for an obsolete
   context; sharing a store alone does not prevent stale writes.
+
+- Human-facing visual previews belong in development-only `/dev/...` routes with `devTitle` and
+  `devDescription` metadata so the `/dev` menu lists them. Browser fixtures should mount the same
+  preview component instead of maintaining a separate UI.

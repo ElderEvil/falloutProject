@@ -21,6 +21,7 @@ from app.crud import exploration as crud_exploration
 from app.crud import room as crud_room
 from app.crud.vault import vault as vault_crud
 from app.services.exploration.dispatch_resolution import resolve_dispatch_arrival
+from app.services.exploration.expedition import expedition_service
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration_service import exploration_service
 from app.services.game_tick.guard import guard_phase, recover_session, refresh_after_recovery
@@ -121,6 +122,7 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
             return
         if not exploration.is_in_progress():
             return
+        await expedition_service.discover_sites(db_session, exploration.id)
         if exploration.is_returning():
             return
         # A paused encounter freezes the travel clock: never expire the run while

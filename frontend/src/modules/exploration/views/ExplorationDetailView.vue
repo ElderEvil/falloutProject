@@ -20,6 +20,8 @@ import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import ExpeditionSiteModal from '../components/ExpeditionSiteModal.vue'
 import ExplorerNavbar from '../components/ExplorerNavbar.vue'
 import ExplorerSummaryCard from '../components/ExplorerSummaryCard.vue'
+import WastelandScene from '../components/WastelandScene.vue'
+import { getLocationScene } from '../models/wastelandScenes'
 import ExplorerStatsGrid from '../components/ExplorerStatsGrid.vue'
 import ExplorationEventLog from '../components/ExplorationEventLog.vue'
 import ExplorationLootList from '../components/ExplorationLootList.vue'
@@ -36,6 +38,9 @@ const { isCollapsed } = useSidePanel()
 const { playMusic } = useSound()
 
 const showSiteModal = ref(false)
+const reportedSiteId = computed(() =>
+  typeof route.query.siteId === 'string' ? route.query.siteId : undefined
+)
 
 const vaultId = computed(() => route.params.id as string)
 const explorationId = computed(() => route.params.explorationId as string)
@@ -93,6 +98,29 @@ const dwellerImageUrl = computed(() => {
 })
 const dwellerThumbnailUrl = computed(() => dweller.value?.thumbnail_url ?? null)
 
+const latestLocation = computed(
+  () =>
+    exploration.value?.events
+      .slice()
+      .reverse()
+      .find((event) => event.location_name)?.location_name
+)
+const journeyScene = computed(() =>
+  exploration.value?.status === 'active'
+    ? (getLocationScene(latestLocation.value) ?? 'desert_highway')
+    : 'desert_highway'
+)
+const journeyHeading = computed(() =>
+  exploration.value?.status === 'returning'
+    ? `${dwellerName.value} is returning home`
+    : `${dwellerName.value}'s wasteland journey`
+)
+const journeyDescription = computed(() =>
+  exploration.value?.status === 'active' && latestLocation.value
+    ? `Last reported location: ${latestLocation.value}`
+    : 'Follow the expedition log for encounters, discoveries, and supplies found along the way.'
+)
+
 const allExplorations = computed(() => {
   return Object.values(explorationStore.activeExplorations)
 })
@@ -129,14 +157,6 @@ const {
   isReady,
   canRecall,
 } = useExplorationProgress(() => exploration.value)
-
-// Seconds left on the exploration clock, for the site modal's expiry chip.
-const timeRemainingSeconds = computed(() => {
-  const exp = exploration.value
-  if (!exp || exp.status !== 'active') return undefined
-  const remaining = exp.duration * 3600 * (1 - progressPercentage.value / 100)
-  return Math.max(0, Math.round(remaining))
-})
 
 // Equipment computed
 const weaponName = computed(() => detailedDweller.value?.weapon?.name ?? null)
@@ -202,6 +222,15 @@ const loadSiteOptions = async () => {
   }
 }
 
+// Journey polling/SSE already owns refreshes; update the picker when that snapshot
+// gains a report, including when the player is already looking at this explorer.
+watch(
+  () => exploration.value?.events?.filter((event) => event.event === 'site_found').length ?? 0,
+  (count, previous) => {
+    if (count > previous) void loadSiteOptions()
+  }
+)
+
 const handleSiteUpdated = async () => {
   siteOptionsLoaded.value = false
   await refreshExploration()
@@ -241,6 +270,7 @@ onMounted(async () => {
 
     await reconnectToSite()
     await loadSiteOptions()
+    if (reportedSiteId.value) showSiteModal.value = true
   }
 })
 
@@ -263,6 +293,11 @@ watch(explorationId, async (id, previousId) => {
   }
   await reconnectToSite()
   await loadSiteOptions()
+  if (explorationId.value === id && reportedSiteId.value) showSiteModal.value = true
+})
+
+watch(reportedSiteId, (siteId) => {
+  if (siteId) showSiteModal.value = true
 })
 
 // Surface rewards when the game loop auto-completes an exploration server-side
@@ -341,6 +376,16 @@ watch(isReady, (ready) => {
               :pet="detailedDweller?.pet"
             />
 
+            <WastelandScene
+              class="mb-4"
+              :scene="journeyScene"
+              :heading="journeyHeading"
+              :description="journeyDescription"
+              :dweller-name="dwellerName"
+              :image-url="dwellerImageUrl"
+              :thumbnail-url="dwellerThumbnailUrl"
+            />
+
             <!-- Expedition site entry CTA (in-progress journeys: active or returning) -->
             <Button
               v-if="isInProgressExploration"
@@ -399,9 +444,12 @@ watch(isReady, (ready) => {
           <!-- Expedition Site Modal -->
           <ExpeditionSiteModal
             :show="showSiteModal"
+            :reported-site-id="reportedSiteId"
+            :pauses-travel="exploration?.pos_x != null"
             :exploration-id="explorationId"
             :dweller-name="dwellerName"
-            :time-remaining-seconds="timeRemainingSeconds"
+            :dweller-image-url="dwellerImageUrl"
+            :dweller-thumbnail-url="dwellerThumbnailUrl"
             :exploration-active="isInProgressExploration"
             @close="showSiteModal = false"
             @updated="handleSiteUpdated"

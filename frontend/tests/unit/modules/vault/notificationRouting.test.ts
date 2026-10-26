@@ -12,6 +12,19 @@ const levelUpNotification = {
 }
 
 describe('getNotificationRoute', () => {
+  it('opens the reported journey site and preserves older update fallbacks', () => {
+    expect(
+      getNotificationRoute({
+        vault_id: 'vault-1',
+        notification_type: 'exploration_update',
+        meta_data: { event: 'site_found', exploration_id: 'exp-1', site_id: 'red_rocket' },
+      })
+    ).toBe('/vault/vault-1/exploration/exp-1?siteId=red_rocket')
+    expect(
+      getNotificationRoute({ vault_id: 'vault-1', notification_type: 'exploration_update' })
+    ).toBe('/vault/vault-1/exploration')
+  })
+
   it('opens the vault for a room unlock rather than a source dweller', () => {
     expect(
       getNotificationRoute({

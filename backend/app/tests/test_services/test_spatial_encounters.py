@@ -227,6 +227,7 @@ async def test_return_leg_entry_pauses_the_return(async_session: AsyncSession, v
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     exploration.status = ExplorationStatus.RETURNING
     exploration.return_started_at = datetime.utcnow() - timedelta(hours=1)
+    exploration.return_started_at = datetime.utcnow()
     exploration.return_completes_at = datetime.utcnow() + timedelta(hours=1)
     async_session.add(exploration)
     await async_session.commit()
@@ -298,3 +299,181 @@ async def test_tick_does_not_expire_a_paused_journey(
     await async_session.refresh(exploration)
     assert exploration.status == ExplorationStatus.ACTIVE
     assert exploration.paused_at is not None
+
+
+@pytest.mark.asyncio
+async def test_site_discovery_is_durable_and_not_repeated_on_return(async_session, vault, dweller):
+    exploration = await _spatial_run_at_site(async_session, vault, dweller)
+    await expedition_module.expedition_service.discover_sites(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    discoveries = [event for event in exploration.events if event.get("event") == "site_found"]
+    assert SITE_ID in {event["site_id"] for event in discoveries}
+    assert exploration.paused_at is None
+    from app.crud.notification import notification as notification_crud
+
+    notifications = await notification_crud.get_user_notifications(async_session, vault.user_id)
+    reports = [n for n in notifications if (n.meta_data or {}).get("event") == "site_found"]
+    assert len(reports) == len(discoveries)
+    assert {n.meta_data["offer_id"] for n in reports} == {event["offer_id"] for event in discoveries}
+    exploration.status = ExplorationStatus.RETURNING
+    exploration.return_started_at = datetime.utcnow()
+    exploration.return_completes_at = datetime.utcnow() + timedelta(hours=1)
+    async_session.add(exploration)
+    await async_session.commit()
+
+    await expedition_module.expedition_service.discover_sites(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    assert [event for event in exploration.events if event.get("event") == "site_found"] == discoveries
+    assert SITE_ID in {
+        s.id for s in await expedition_module.expedition_service.list_available_sites(async_session, exploration.id)
+    }
+    view = await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
+    assert view.site_id == SITE_ID
+
+
+@pytest.mark.asyncio
+async def test_expired_return_rejects_new_site_before_tick_finalizes(async_session, vault, dweller):
+    exploration = await _spatial_run_at_site(async_session, vault, dweller)
+    exploration.status = ExplorationStatus.RETURNING
+    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    async_session.add(exploration)
+    await async_session.commit()
+    with pytest.raises(ValidationException, match="arrived home"):
+        await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
+    assert await expedition_module.expedition_service.list_available_sites(async_session, exploration.id) == []
+    assert await crud.expedition_run.get_open_for_exploration(async_session, exploration.id) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failed_insert", [1, 2])
+async def test_discovery_notification_failure_rolls_back_report_and_emits_nothing(
+    async_session, vault, dweller, monkeypatch, failed_insert
+):
+    from unittest.mock import AsyncMock
+
+    from sqlalchemy import event
+    from sqlalchemy.exc import OperationalError
+
+    from app.crud.notification import notification as notification_crud
+    from app.services.notification_service import manager, sse_manager
+
+    exploration = await _spatial_run_at_site(async_session, vault, dweller)
+    exploration_id, user_id = exploration.id, vault.user_id
+    original_events = list(exploration.events)
+    publish = AsyncMock()
+    websocket = AsyncMock()
+    monkeypatch.setattr(sse_manager, "publish", publish)
+    monkeypatch.setattr(manager, "send_personal_message", websocket)
+    connection = (await async_session.connection()).sync_connection
+
+    inserted = 0
+
+    def fail_notification(conn, cursor, statement, parameters, context, executemany):
+        nonlocal inserted
+        if statement.lstrip().upper().startswith("INSERT INTO NOTIFICATION"):
+            inserted += 1
+        if statement.lstrip().upper().startswith("INSERT INTO NOTIFICATION") and inserted == failed_insert:
+            raise OperationalError(statement, parameters, RuntimeError("notification insert failed"))
+
+    event.listen(connection, "before_cursor_execute", fail_notification)
+    try:
+        with pytest.raises(OperationalError):
+            await expedition_module.expedition_service.discover_sites(async_session, exploration_id)
+    finally:
+        event.remove(connection, "before_cursor_execute", fail_notification)
+        await async_session.rollback()
+    reloaded = await crud.exploration.get(async_session, exploration_id)
+    assert reloaded.events == original_events
+    notifications = await notification_crud.get_user_notifications(async_session, user_id)
+    assert not [n for n in notifications if (n.meta_data or {}).get("event") == "site_found"]
+    assert not async_session.info.get("deferred_notification_deliveries")
+    publish.assert_not_awaited()
+    websocket.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("rejection", ["dead", "expired", "legacy", "off_trail"])
+async def test_ineligible_discoveries_leave_no_reports(async_session, vault, dweller, rejection):
+    from app.crud.notification import notification as notification_crud
+
+    exploration = await _spatial_run_at_site(async_session, vault, dweller)
+    if rejection == "dead":
+        dweller.is_dead = True
+    elif rejection == "expired":
+        exploration.status = ExplorationStatus.RETURNING
+        exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    elif rejection == "legacy":
+        exploration.heading_degrees = None
+    else:
+        exploration.trail = [{"x": 100000, "y": 100000, "t": datetime.utcnow().isoformat()}]
+    async_session.add(dweller)
+    async_session.add(exploration)
+    await async_session.commit()
+    original_events = list(exploration.events)
+    await expedition_module.expedition_service.discover_sites(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    assert exploration.events == original_events
+    notifications = await notification_crud.get_user_notifications(async_session, vault.user_id)
+    assert not [n for n in notifications if (n.meta_data or {}).get("event") == "site_found"]
+
+
+@pytest.mark.asyncio
+async def test_tick_discovers_sites_on_return_leg(async_session, vault, dweller):
+    exploration = await _spatial_run_at_site(async_session, vault, dweller)
+    exploration.status = ExplorationStatus.RETURNING
+    exploration.return_started_at = datetime.utcnow()
+    exploration.return_completes_at = datetime.utcnow() + timedelta(hours=1)
+    async_session.add(exploration)
+    await async_session.commit()
+    await process_explorations(async_session, vault.id)
+    await async_session.refresh(exploration)
+    discoveries = [event for event in exploration.events if event.get("event") == "site_found"]
+    assert SITE_ID in {event["site_id"] for event in discoveries}
+    assert exploration.status == ExplorationStatus.RETURNING
+    assert exploration.paused_at is None
+
+
+@pytest.mark.asyncio
+async def test_discovery_respects_site_level_gate(async_session, vault, dweller):
+    exploration = await _spatial_run_at_site(async_session, vault, dweller)
+    dweller.level = 1
+    async_session.add(dweller)
+    await async_session.commit()
+    await expedition_module.expedition_service.discover_sites(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    assert SITE_ID not in {event.get("site_id") for event in exploration.events}
+    with pytest.raises(ValidationException, match="needs dweller level"):
+        await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
+
+
+@pytest.mark.asyncio
+async def test_open_site_reconnect_survives_original_return_deadline(async_session, vault, dweller):
+    exploration = await _spatial_run_at_site(async_session, vault, dweller)
+    exploration.status = ExplorationStatus.RETURNING
+    exploration.return_started_at = datetime.utcnow()
+    exploration.return_completes_at = datetime.utcnow() + timedelta(hours=1)
+    async_session.add(exploration)
+    await async_session.commit()
+    view = await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
+    exploration.return_completes_at = datetime.utcnow() - timedelta(minutes=10)
+    async_session.add(exploration)
+    await async_session.commit()
+    reconnected = await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
+    assert reconnected.site_id == view.site_id
+    assert reconnected.room_index == view.room_index
+    assert exploration.paused_at is not None
+
+
+@pytest.mark.asyncio
+async def test_discovery_accepts_production_raw_sqlalchemy_session(async_session, vault, dweller):
+    from sqlalchemy.ext.asyncio import AsyncSession as RawAsyncSession
+
+    exploration = await _spatial_run_at_site(async_session, vault, dweller)
+    async with RawAsyncSession(
+        bind=await async_session.connection(),
+        expire_on_commit=False,
+        join_transaction_mode="create_savepoint",
+    ) as tick_session:
+        await expedition_module.expedition_service.discover_sites(tick_session, exploration.id)
+    await async_session.refresh(exploration)
+    assert SITE_ID in {event.get("site_id") for event in exploration.events if event.get("event") == "site_found"}

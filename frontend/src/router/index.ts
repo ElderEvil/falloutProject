@@ -74,6 +74,15 @@ const router = createRouter({
             component: () => import('@/core/views/AnimationGalleryView.vue'),
           },
           {
+            path: '/dev/wasteland-scenes',
+            name: 'wasteland-scenes-preview',
+            meta: {
+              devTitle: 'Wasteland scenes',
+              devDescription: 'Compare expedition backgrounds, battlebacks, and explorer framing.',
+            },
+            component: () => import('@/modules/exploration/views/WastelandScenesPreview.vue'),
+          },
+          {
             path: '/dev/asset-gallery',
             name: 'asset-gallery',
             meta: {

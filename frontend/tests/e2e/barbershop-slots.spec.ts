@@ -146,6 +146,7 @@ for (const width of [390, 1280]) {
         .evaluate((node) => node.scrollWidth <= node.clientWidth)
     ).toBe(true)
 
+    await client.hover()
     await scene.getByRole('button', { name: 'Unassign Lucy from Barbershop' }).click()
     await expect(client).toContainText('Add client')
     await expect(client).toBeFocused()

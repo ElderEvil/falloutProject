@@ -391,6 +391,7 @@ docker compose ps fastapi  # Should show 0.0.0.0:8000->8000/tcp
 
 - [docs/ROADMAP.md](./docs/ROADMAP.md) - Changelog and upcoming features
 - [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) - Deployment guide
+- [docs/ACCOUNT_MERGE.md](./docs/ACCOUNT_MERGE.md) - Superuser account merge policy and irreversibility
 - [docs/frontend/README.md](./docs/frontend/README.md) - Frontend architecture
 - [docs/frontend/STYLEGUIDE.md](./docs/frontend/STYLEGUIDE.md) - Design system
 - [docs/frontend/ACCESSIBILITY.md](./docs/frontend/ACCESSIBILITY.md) - Accessibility policy and verification plan

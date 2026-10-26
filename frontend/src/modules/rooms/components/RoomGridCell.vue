@@ -7,7 +7,7 @@ import type { Incident } from '@/modules/combat/models/incident'
 import type { Room } from '../models/room'
 import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import { getRoomImageUrl } from '@/core/utils/image'
-import { getRoomDetailScene } from '../models/roomScenes'
+import { getRoomDetailScene, getRoomGridScene } from '../models/roomScenes'
 import { useFallbackImage } from '../composables/useFallbackImage'
 import { getRoomSegmentCount } from '../utils/room'
 import TooltipLabel from './TooltipLabel.vue'
@@ -29,9 +29,9 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// Curated scene first; if it fails to load, the configured grid sprite; if both
-// fail, hide the image.
+// Compact grid artwork first, then the original scene and configured sprite.
 const { url: roomImageUrl, onError: imageFailed } = useFallbackImage(() => [
+  getRoomGridScene(props.room),
   getRoomDetailScene(props.room),
   getRoomImageUrl(props.room.image_url),
 ])
@@ -122,7 +122,7 @@ function handleDragLeave(event: DragEvent): void {
       'room-rush-fail': rushed && rushOutcome === 'failure',
       'power-outage': isRoomAffectedByOutage(),
     }"
-    :aria-label="cellTitle"
+    :aria-label="isSmallCell ? cellTitle : undefined"
     :data-onboarding="onboardingAnchor"
     draggable="false"
     role="button"
@@ -142,6 +142,8 @@ function handleDragLeave(event: DragEvent): void {
         :alt="room.name"
         class="room-background-image"
         draggable="false"
+        :fetchpriority="room.name.trim().toLowerCase() === 'vault door' ? 'high' : 'auto'"
+        decoding="async"
         @error="imageFailed"
       />
       <!-- 1-unit cells (elevator etc.): icon only, no text -->

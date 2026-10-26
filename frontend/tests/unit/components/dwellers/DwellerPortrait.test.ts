@@ -97,6 +97,17 @@ describe('DwellerPortrait', () => {
     expect(wrapper.find('img').attributes('class')).toContain('default-portrait-zoom')
   })
 
+  it('reserves the curated thumbnail aspect ratio without sizing arbitrary uploads', () => {
+    const wrapper = mount(DwellerPortrait, {
+      props: { thumbnailUrl: '/static/dweller_thumbnails/base/lucy.webp', alt: 'Lucy' },
+    })
+    expect(wrapper.get('img').attributes()).toMatchObject({ width: '150', height: '300' })
+    const upload = mount(DwellerPortrait, {
+      props: { imageUrl: 'https://example.com/upload.png', alt: 'Upload' },
+    })
+    expect(upload.get('img').attributes('width')).toBeUndefined()
+  })
+
   it('can opt out of the curated zoom for scene portraits', () => {
     const wrapper = mount(DwellerPortrait, {
       props: {

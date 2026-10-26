@@ -327,6 +327,7 @@ const closeDetailModal = () => {
     <div class="room-grid-container">
       <!-- Room Detail Modal -->
       <RoomDetailModal
+        v-if="showDetailModal"
         :room="selectedRoomForDetail"
         :overseer-briefing="overseerBriefing"
         :vault-id="vaultId"
@@ -397,7 +398,7 @@ const closeDetailModal = () => {
           }"
           @mouseenter="canInteractWithLevel(cell.y) && handleHover(cell.x, cell.y)"
           @mouseleave="clearHover"
-          :role="roomStore.isPlacingRoom && canInteractWithLevel(cell.y) ? 'button' : undefined"
+          :role="roomStore.isPlacingRoom && canInteractWithLevel(cell.y) ? 'button' : 'img'"
           :tabindex="roomStore.isPlacingRoom && canInteractWithLevel(cell.y) ? 0 : undefined"
           :aria-label="
             isLevelLocked(cell.y) && !isPlacingElevator

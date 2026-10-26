@@ -1,4 +1,5 @@
 import type { Room } from './room'
+import gridImages from './roomGridImages.json'
 
 /** Curated backgrounds shared by room previews and grid cells. */
 export const ARENA_DETAIL_SCENES: Record<number, string> = {
@@ -22,4 +23,10 @@ export function getRoomDetailScene(
   return room.name.trim().toLowerCase() === 'arena' && room.category.toLowerCase() === 'arena'
     ? (ARENA_DETAIL_SCENES[room.tier] ?? null)
     : null
+}
+
+/** Smaller, content-addressed variants for the grid; detail views keep the source artwork. */
+export function getRoomGridScene(room: Room): string | null {
+  const source = getRoomDetailScene(room) ?? room.image_url
+  return source ? ((gridImages as Record<string, string>)[source] ?? null) : null
 }

@@ -184,7 +184,9 @@ const handleDropZoneDrop = async (event: DragEvent) => {
 
     <div class="panel-header">
       <div class="header-row">
-        <p class="panel-subtitle">Drag dwellers here to unassign them from rooms</p>
+        <p class="panel-subtitle text-theme-primary">
+          Drag dwellers here to unassign them from rooms
+        </p>
 
         <!-- Shared filter controls; age and sorting come from the Dwellers view -->
         <DwellerFilterPanel class="w-full" :show-status-filter="false" :show-age-filter="true">
@@ -353,7 +355,6 @@ const handleDropZoneDrop = async (event: DragEvent) => {
 }
 
 .panel-subtitle {
-  color: var(--color-theme-glow);
   font-size: 0.875rem;
   margin-top: 0.25rem;
 }

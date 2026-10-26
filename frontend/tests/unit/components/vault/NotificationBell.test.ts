@@ -235,7 +235,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     await flushPromises()
 
     expect(play).toHaveBeenCalledExactlyOnceWith(sound, 'ui')
-    await wrapper.get('button[aria-label="Notifications"]').trigger('click')
+    await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
     await flushPromises()
     expect(wrapper.findAll('[data-notification-id="n1"]')).toHaveLength(1)
     wrapper.unmount()
@@ -258,7 +258,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     expect(errorSpy).not.toHaveBeenCalled()
 
     // ASSERT: the SSE event was processed — popup shows the notification
-    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Level Up!')
     expect(wrapper.text()).toContain('A dweller reached a new level')
@@ -292,7 +292,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
       const matching = toasts.value.filter((toast) => toast.message === notification.message)
       expect(matching).toHaveLength(toastCount)
       if (toastCount) expect(matching[0].count).toBe(1)
-      await wrapper.get('button[aria-label="Notifications"]').trigger('click')
+      await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
       await flushPromises()
       expect(wrapper.text()).toContain(notification.message)
       wrapper.unmount()
@@ -324,7 +324,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
       await vi.advanceTimersByTimeAsync(0)
       await flushPromises()
       expect(toasts.value.some((toast) => toast.message === message)).toBe(true)
-      await wrapper.get('button[aria-label="Notifications"]').trigger('click')
+      await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
       await flushPromises()
       expect(wrapper.text()).toContain(message)
       wrapper.unmount()
@@ -369,7 +369,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     expect(toasts.value.some((t) => t.message === 'Jane Doe joined the fire team')).toBe(true)
 
     // ASSERT: the event also produced a normal bell entry
-    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Hazard Team Joined')
     expect(wrapper.text()).toContain('Jane Doe joined the fire team')
@@ -411,7 +411,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     expect(toasts.value.some((t) => t.message === 'Arena show lifted vault morale')).toBe(true)
 
     // ASSERT: the event also produced a normal bell entry
-    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Arena morale boost')
     expect(wrapper.text()).toContain('Arena show lifted vault morale')
@@ -502,7 +502,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     expect(toasts.value.some((t) => t.message.includes('party has returned'))).toBe(true)
 
     // ASSERT: the event also produced a bell entry with the treasure-chest icon
-    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Quest Party Returned')
     expect(wrapper.find('[data-icon="mdi:treasure-chest"]').exists()).toBe(true)
@@ -546,7 +546,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
 
     // ASSERT: no toast, but the bell entry still exists
     expect(toasts.value.some((t) => t.message.includes('party has returned'))).toBe(false)
-    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Quest Party Returned')
 
@@ -586,7 +586,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     expect(errorSpy).not.toHaveBeenCalled()
 
     // ASSERT: no notification was added (early return), popup shows empty state
-    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('No notifications yet')
 
@@ -613,7 +613,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     expect(fetchMock).toHaveBeenCalled()
     expect(errorSpy).not.toHaveBeenCalled()
 
-    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Level Up!')
 
@@ -656,7 +656,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     ).toBe(true)
 
     // ASSERT: the event also produced a bell entry with the cleared icon
-    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Megaton cleared')
     expect(wrapper.find('[data-icon="mdi:flag-checkered"]').exists()).toBe(true)
@@ -698,7 +698,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     )
 
     // ASSERT: the event also produced a bell entry with the ready icon
-    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Megaton ready')
     expect(wrapper.find('[data-icon="mdi:map-marker-refresh"]').exists()).toBe(true)
@@ -742,7 +742,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
       ).toBe(true)
 
       // ASSERT: the event also produced a bell entry
-      await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+      await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
       await flushPromises()
       expect(wrapper.text()).toContain('Objective Complete')
 
@@ -799,7 +799,7 @@ describe('NotificationBell popup accessibility', () => {
 
   const mountAndOpen = async (items: Array<Record<string, unknown>>) => {
     const wrapper = await mountBell(items)
-    await wrapper.get('button[aria-label="Notifications"]').trigger('click')
+    await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
     await flushPromises()
     return wrapper
   }
@@ -830,7 +830,7 @@ describe('NotificationBell popup accessibility', () => {
 
   it('constrains the popup to the viewport and wires the bell/popup ARIA', async () => {
     const wrapper = await mountBell([informationalNotification])
-    const bell = wrapper.get('button[aria-label="Notifications"]')
+    const bell = wrapper.get('button[aria-haspopup="dialog"]')
 
     expect(bell.attributes('aria-haspopup')).toBe('dialog')
     expect(bell.attributes('aria-expanded')).toBe('false')
@@ -866,7 +866,7 @@ describe('NotificationBell popup accessibility', () => {
     await settleClose()
 
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
-    expect(document.activeElement).toBe(wrapper.get('button[aria-label="Notifications"]').element)
+    expect(document.activeElement).toBe(wrapper.get('button[aria-haspopup="dialog"]').element)
 
     wrapper.unmount()
   })
@@ -883,7 +883,7 @@ describe('NotificationBell popup accessibility', () => {
     await flushPromises()
 
     expect(wrapper.findAll('span').some((span) => span.text() === '1')).toBe(false)
-    await wrapper.get('button[aria-label="Notifications"]').trigger('click')
+    await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
     await flushPromises()
     expect(wrapper.get('[data-notification-id="info-1"]').text()).not.toContain('New')
     wrapper.unmount()
@@ -927,7 +927,7 @@ describe('NotificationBell popup accessibility', () => {
     expect(config?.params?.vault_id).toBeUndefined()
     expect(wrapper.get('[data-notification-id="act-1"]').text()).not.toContain('New')
     expect(wrapper.get('[data-notification-id="info-1"]').text()).not.toContain('New')
-    expect(wrapper.get('button[aria-label="Notifications"]').text()).toBe('')
+    expect(wrapper.get('button[aria-haspopup="dialog"]').text()).toBe('')
     wrapper.unmount()
   })
 
@@ -951,7 +951,7 @@ describe('NotificationBell popup accessibility', () => {
     await flushPromises()
 
     try {
-      expect(wrapper.get('button[aria-label="Notifications"]').text()).toBe('')
+      expect(wrapper.get('button[aria-haspopup="dialog"]').text()).toBe('')
     } finally {
       wrapper.unmount()
     }
@@ -980,7 +980,7 @@ describe('NotificationBell popup accessibility', () => {
       await flushPromises()
 
       expect(auth.user?.id).toBe('same-account')
-      expect(wrapper.get('button[aria-label="Notifications"]').text()).toBe('5')
+      expect(wrapper.get('button[aria-haspopup="dialog"]').text()).toBe('5')
     } finally {
       wrapper.unmount()
     }
@@ -1027,7 +1027,7 @@ describe('NotificationBell popup accessibility', () => {
         expect(wrapper.get('[data-notification-id="next-account-notification"]').text()).toContain(
           'New'
         )
-        expect(wrapper.get('button[aria-label="Notifications"]').text()).toBe('1')
+        expect(wrapper.get('button[aria-haspopup="dialog"]').text()).toBe('1')
 
         if (sameAccount) mockNotificationList([{ ...nextNotification, is_read: true }])
         finish({ data: {} })
@@ -1036,9 +1036,7 @@ describe('NotificationBell popup accessibility', () => {
         expect(
           wrapper.get('[data-notification-id="next-account-notification"]').text().includes('New')
         ).toBe(!sameAccount)
-        expect(wrapper.get('button[aria-label="Notifications"]').text()).toBe(
-          sameAccount ? '' : '1'
-        )
+        expect(wrapper.get('button[aria-haspopup="dialog"]').text()).toBe(sameAccount ? '' : '1')
       } finally {
         wrapper.unmount()
       }
@@ -1080,7 +1078,7 @@ describe('NotificationBell popup accessibility', () => {
         await vi.advanceTimersByTimeAsync(0)
         await flushPromises()
         server.unshift(newest)
-        await wrapper.get('button[aria-label="Notifications"]').trigger('click')
+        await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
         await flushPromises()
         expect(wrapper.findAll('[data-notification-id]')).toHaveLength(21)
         expect(wrapper.get('[data-notification-id="older-20"]').text()).toContain('New')
@@ -1094,7 +1092,7 @@ describe('NotificationBell popup accessibility', () => {
         }
         await flushPromises()
         if (action === 'single') {
-          await wrapper.get('button[aria-label="Notifications"]').trigger('click')
+          await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
           await flushPromises()
         }
         expect(wrapper.get('[data-notification-id="older-20"]').text()).not.toContain('New')
@@ -1111,7 +1109,7 @@ describe('NotificationBell popup accessibility', () => {
     await settleClose()
 
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
-    expect(document.activeElement).toBe(wrapper.get('button[aria-label="Notifications"]').element)
+    expect(document.activeElement).toBe(wrapper.get('button[aria-haspopup="dialog"]').element)
 
     wrapper.unmount()
   })
@@ -1142,7 +1140,7 @@ describe('NotificationBell popup accessibility', () => {
     expect(axios.patch).toHaveBeenCalledWith('/api/v1/notifications/act-1/read', {})
     expect(mockPush).toHaveBeenCalledWith('/vault/vault-1/dwellers')
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
-    expect(document.activeElement).toBe(wrapper.get('button[aria-label="Notifications"]').element)
+    expect(document.activeElement).toBe(wrapper.get('button[aria-haspopup="dialog"]').element)
 
     wrapper.unmount()
   })
@@ -1150,6 +1148,9 @@ describe('NotificationBell popup accessibility', () => {
   it('renders the unread badge in the default theme color so the count stays readable', async () => {
     const wrapper = await mountBell([informationalNotification])
 
+    expect(wrapper.get('button[aria-haspopup="dialog"]').attributes('aria-label')).toBe(
+      'Notifications 1 unread'
+    )
     const badge = wrapper.findAll('span').find((span) => span.text() === '1')
     expect(badge).toBeDefined()
     // jsdom has no CSS pipeline, so the theme-color requirement is asserted on
@@ -1189,7 +1190,7 @@ describe('NotificationBell popup accessibility', () => {
     await vi.advanceTimersByTimeAsync(0)
     await flushPromises()
     expect(toasts.value.some((toast) => toast.message === message)).toBe(true)
-    await wrapper.find('button[aria-label="Notifications"]').trigger('click')
+    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
     await flushPromises()
     expect(wrapper.find(`[data-icon="${icon}"]`).exists()).toBe(true)
     expect(wrapper.text()).toContain('Storage maintenance')

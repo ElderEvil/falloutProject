@@ -84,6 +84,8 @@ watch(portraitUrl, () => {
     <img
       :src="portraitUrl"
       :alt="alt"
+      :width="isCuratedDefault ? 150 : undefined"
+      :height="isCuratedDefault ? 300 : undefined"
       :class="[
         'portrait-clip-image',
         imageClass,

@@ -112,6 +112,7 @@ describe('SidePanel', () => {
       const links = wrapper.findAll('a.nav-item')
 
       expect(links).toHaveLength(10)
+      for (const link of links) expect(link.attributes('aria-label')).toBeUndefined()
       expect(linkByLabel(links, 'Overview').attributes('href')).toBe('/vault/vault-1')
       expect(linkByLabel(links, 'Dwellers').attributes('href')).toBe('/vault/vault-1/dwellers')
       expect(linkByLabel(links, 'Trading Post').attributes('href')).toBe('/vault/vault-1/trading')

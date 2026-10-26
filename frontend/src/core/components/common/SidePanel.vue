@@ -270,7 +270,7 @@ watch(
                 class="nav-item"
                 :data-onboarding="`nav-${item.id}`"
                 :class="{ active: isActive(item.path) }"
-                :aria-label="`${item.label}${showLabels && item.hotkey ? ' ' + item.hotkey : ''}`"
+                :aria-label="showLabels ? undefined : item.label"
                 :aria-current="isActive(item.path) ? 'page' : undefined"
                 :aria-keyshortcuts="item.hotkey"
               >

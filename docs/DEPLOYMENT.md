@@ -679,6 +679,14 @@ Local source mounts still work; testing tools remain in the host development env
 The frontend runtime contains compiled `dist` assets and its static server. Build tools stay in the
 build stage. Both Dockerfiles copy dependency manifests before source to retain dependency caching.
 
+`frontend/serve.json` keeps HTML revalidated, caches assets for seven days, and caches content-addressed
+room-grid WebP images for one year with `immutable`. The backend's public `/static` mount uses a
+seven-day lifetime with ETag/Last-Modified revalidation; catalog files can be replaced in place.
+Rebuild compact grid images after changing room artwork with
+`uv run --project backend python scripts/optimize_room_grid_images.py` from the repo root. Commit the
+generated `frontend/public/assets/room-grid/` files and `roomGridImages.json` together; full-size sources
+remain available to detail views and as fallbacks.
+
 CI builds the backend image and runs `scripts/check_backend_image.py` before publishing. The check
 runs as the image user, offline and with a read-only root filesystem, and verifies that tests and
 development packages are absent, runtime assets exist, API/worker modules import, and API, migration,

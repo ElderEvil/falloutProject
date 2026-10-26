@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import gridImages from '@/modules/rooms/models/roomGridImages.json'
 import {
   getRoomDetailScene,
+  getRoomGridScene,
   ARENA_DETAIL_SCENES,
   RESPONSE_DETAIL_SCENES,
 } from '@/modules/rooms/models/roomScenes'
@@ -40,6 +43,45 @@ const mountGridCell = (room: Room) =>
   })
 
 describe('room detail scene roles', () => {
+  it('ships every grid variant under a filename matching its content hash', () => {
+    for (const url of Object.values(gridImages)) {
+      const bytes = readFileSync(`public${url}`)
+      const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 16)
+      expect(url).toBe(`/assets/room-grid/${hash}.webp`)
+      expect(bytes.toString('ascii', 8, 12)).toBe('WEBP')
+    }
+  })
+
+  it('ships compact WebP grid artwork for the LCP image and curated scenes', () => {
+    for (const room of [
+      arenaRoom(1),
+      {
+        ...arenaRoom(1),
+        name: 'Vault Door',
+        category: 'misc',
+        image_url: '/static/room_images/Vault Door Adv.png',
+      },
+    ]) {
+      const url = getRoomGridScene(room)
+      expect(url).toMatch(/^\/assets\/room-grid\/.+\.webp$/)
+      const bytes = readFileSync(`public${url}`)
+      expect(bytes.toString('ascii', 8, 12)).toBe('WEBP')
+      expect(bytes.length).toBeLessThan(40000)
+      expect(bytes.readUInt16LE(26) & 0x3fff).toBeLessThanOrEqual(768)
+    }
+  })
+
+  it('keeps unknown room artwork on its existing URL', () => {
+    expect(
+      getRoomGridScene({
+        ...arenaRoom(1),
+        name: 'Custom',
+        category: 'custom',
+        image_url: '/static/custom.png',
+      })
+    ).toBeNull()
+  })
+
   it.each([3, 6, 9])('renders the response room artwork at footprint %i', (size) => {
     const room = {
       ...arenaRoom(1),
@@ -50,7 +92,7 @@ describe('room detail scene roles', () => {
       image_url: `/static/room_images/response-bay-size-${size}.webp`,
     } as Room
     expect(getRoomDetailScene(room)).toBe(RESPONSE_DETAIL_SCENES[size])
-    expect(mountGridCell(room).get('img').attributes('src')).toBe(RESPONSE_DETAIL_SCENES[size])
+    expect(mountGridCell(room).get('img').attributes('src')).toBe(getRoomGridScene(room))
   })
 
   it.each([3, 6, 9])(
@@ -69,13 +111,10 @@ describe('room detail scene roles', () => {
     }
   )
 
-  it.each([1, 2, 3])(
-    'uses the same new Arena artwork in the grid and preview at tier %i',
-    (tier) => {
-      const room = arenaRoom(tier)
-      expect(mountGridCell(room).get('img').attributes('src')).toBe(getRoomDetailScene(room))
-    }
-  )
+  it.each([1, 2, 3])('uses compact Arena artwork in the grid at tier %i', (tier) => {
+    const room = arenaRoom(tier)
+    expect(mountGridCell(room).get('img').attributes('src')).toBe(getRoomGridScene(room))
+  })
 
   it('uses the curated Arena scene for supported tiers and falls back for unknown catalog entries', () => {
     for (const tier of [1, 2, 3])
@@ -131,6 +170,8 @@ describe('room detail scene roles', () => {
 
   it('falls back through the grid sprite and then hides the image in a room grid cell', async () => {
     const wrapper = mountGridCell(arenaRoom(1))
+    expect(wrapper.get('img').attributes('src')).toBe(getRoomGridScene(arenaRoom(1)))
+    await wrapper.get('img').trigger('error')
     expect(wrapper.get('img').attributes('src')).toBe(ARENA_DETAIL_SCENES[1])
     await wrapper.get('img').trigger('error')
     expect(wrapper.get('img').attributes('src')).toBe(

@@ -96,7 +96,25 @@ describe('RoomGrid', () => {
     expect(wrapper.find('.room.empty').attributes('aria-label')).toBe(
       'Empty room cell at row 1, column 1'
     )
-    expect(wrapper.find('.room.empty').attributes('role')).toBeUndefined()
+    expect(wrapper.find('.room.empty').attributes('role')).toBe('img')
+  })
+
+  it('defers the room detail modal until a room is opened', async () => {
+    useRoomStore().rooms = [mockRoom]
+    const wrapper = mount(RoomGrid, {
+      props: { incidents: [] },
+      global: { stubs: { RoomDetailModal: roomDetailModalStub } },
+    })
+    expect(wrapper.find('[data-testid="room-detail-modal"]').exists()).toBe(false)
+    await wrapper.get('.built-room').trigger('click')
+    expect(wrapper.find('[data-testid="room-detail-modal"]').exists()).toBe(true)
+  })
+
+  it('uses the visible room text as its accessible name', () => {
+    useRoomStore().rooms = [mockRoom]
+    const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+    expect(wrapper.get('.built-room').attributes('aria-label')).toBeUndefined()
+    expect(wrapper.get('.built-room').text()).toContain('T1')
   })
 
   describe('Room Highlighting', () => {
@@ -799,7 +817,9 @@ describe('RoomGrid', () => {
       })
 
       const root = wrapper.find('.built-room')
-      expect(root.attributes('aria-label')).toBe('Power Generator (Tier 2)')
+      expect(root.attributes('aria-label')).toBeUndefined()
+      expect(root.text()).toContain('Power Generator')
+      expect(root.text()).toContain('T2')
       expect(root.attributes('title')).toBeUndefined()
       // The overlay tooltip conveys the same name and tier.
       expect(wrapper.find('.tooltip-label').text()).toBe('Power Generator (Tier 2)')

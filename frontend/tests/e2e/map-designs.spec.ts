@@ -78,6 +78,15 @@ for (const width of [1440, 390]) {
         expect(Math.abs((await panel.boundingBox())!.height - map!.height)).toBeLessThan(2)
         await panel.getByRole('tab', { name: 'Legend', exact: true }).click()
         await expect(panel.getByRole('region', { name: 'Map legend' })).toBeVisible()
+        const biomes = panel.getByRole('region', { name: 'Biome legend' })
+        await expect(biomes).toBeVisible()
+        await expect(biomes.getByRole('listitem')).toHaveText([
+          'Wasteland',
+          'Forest',
+          'Ruins',
+          'Hills',
+          'Water',
+        ])
         await panel.getByRole('tab', { name: 'Places', exact: true }).click()
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(

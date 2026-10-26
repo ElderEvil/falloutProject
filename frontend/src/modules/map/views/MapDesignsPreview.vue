@@ -275,22 +275,24 @@ function selectMarker(payload: MarkerClickPayload): void {
           </g>
         </template>
         <template #legend-intro>
-          <details class="biome-key" open>
-            <summary class="cursor-pointer text-xs font-bold uppercase tracking-[.2em]">
+          <section class="biome-key" aria-label="Biome legend">
+            <h2 class="border-b border-current/60 pb-2 text-lg font-bold uppercase tracking-[.2em]">
               Biomes
-            </summary>
-            <div class="mt-3 grid gap-2">
-              <span
+            </h2>
+            <ul class="mt-3 grid gap-2">
+              <li
                 v-for="terrain in ATLAS_TERRAIN_ORDER"
                 :key="terrain"
-                class="flex items-center gap-2 text-[10px] sm:text-xs"
-                ><span
-                  class="biome-swatch h-3 w-6 rounded-sm border border-current/40"
-                  :class="ATLAS_TERRAIN_CLASS[terrain]"
-                />{{ ATLAS_TERRAIN_LABEL[terrain] }}</span
+                class="flex items-center gap-3 text-sm font-semibold tracking-wide"
               >
-            </div>
-          </details>
+                <span
+                  aria-hidden="true"
+                  class="biome-swatch h-7 w-10 shrink-0 rounded border border-current"
+                  :class="ATLAS_TERRAIN_CLASS[terrain]"
+                />{{ ATLAS_TERRAIN_LABEL[terrain] }}
+              </li>
+            </ul>
+          </section>
         </template>
         <template v-if="design !== 'terminal'" #map-chrome="{ zoom, mapPixelWidth }">
           <div
@@ -445,7 +447,7 @@ function selectMarker(payload: MarkerClickPayload): void {
   @apply hidden text-right text-[9px] leading-loose tracking-[.15em] sm:grid;
 }
 .biome-key {
-  @apply border-b border-current/25 px-3 py-3;
+  @apply m-3 rounded-xl border-2 border-current px-3 py-3;
   background: var(--color-atlas-ink);
 }
 .chart-stamp {

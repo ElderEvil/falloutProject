@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Any, ClassVar
 
 from markupsafe import Markup
-from sqladmin import ModelView, action, expose
+from sqladmin import BaseView, ModelView, action, expose
 from sqladmin.filters import AllUniqueStringValuesFilter, BooleanFilter, OperationColumnFilter, StaticValuesFilter
 from sqlalchemy.ext.asyncio import async_object_session
 from sqlalchemy.orm import InstrumentedAttribute
@@ -10,9 +10,17 @@ from sqlmodel import SQLModel, col
 from starlette.requests import Request
 from starlette.responses import Response
 
-from app.admin.actions import confirm_action, render_incident_controls, submit_action, submit_incident_controls
+from app.admin.actions import (
+    confirm_action,
+    render_incident_controls,
+    render_merge_accounts,
+    submit_action,
+    submit_incident_controls,
+)
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum
+from app.db.session import async_session_maker
 from app.models import Item, LLMInteraction, Objective, Storage
+from app.models.account_merge import AccountMerge
 from app.models.chat_message import ChatMessage
 from app.models.crafting_order import CraftingOrder
 from app.models.dweller import Dweller
@@ -105,6 +113,62 @@ class AdminModelView(ModelView):
     @expose("/support", methods=["POST"])
     async def support(self, request: Request) -> Response:
         return await submit_action(self, request)
+
+
+class MergeAccountsAdmin(BaseView):
+    """Dedicated account-merge page; mutations stay in the merge service."""
+
+    name = "Merge accounts"
+    category = "Accounts"
+    icon = "fa-solid fa-code-merge"
+    session_maker = async_session_maker
+
+    @expose("/merge-accounts", methods=["GET", "POST"], identity="merge-accounts")
+    async def page(self, request: Request) -> Response:
+        return await render_merge_accounts(self, request)
+
+
+class AccountMergeAdmin(AdminModelView, model=AccountMerge):
+    category = "Accounts"
+    name = "Account merge"
+    name_plural = "Account merges"
+    icon = "fa-solid fa-clock-rotate-left"
+    can_export = False
+    column_list: ClassVar[str | Sequence] = [
+        AccountMerge.source_username,
+        AccountMerge.source_email,
+        AccountMerge.target_username,
+        AccountMerge.target_email,
+        AccountMerge.actor_user_id,
+        AccountMerge.reason,
+        AccountMerge.created_at,
+    ]
+    column_details_list: ClassVar[str | Sequence] = [
+        AccountMerge.source_user_id,
+        AccountMerge.source_username,
+        AccountMerge.source_email,
+        AccountMerge.target_user_id,
+        AccountMerge.target_username,
+        AccountMerge.target_email,
+        AccountMerge.actor_user_id,
+        AccountMerge.reason,
+        AccountMerge.moved_counts,
+        AccountMerge.created_at,
+    ]
+    column_searchable_list: ClassVar[Sequence] = [
+        AccountMerge.source_username,
+        AccountMerge.source_email,
+        AccountMerge.target_username,
+        AccountMerge.target_email,
+    ]
+    column_sortable_list: ClassVar[Sequence] = [AccountMerge.created_at, AccountMerge.source_username]
+    column_default_sort: ClassVar[SortColumns] = [(AccountMerge.created_at, True)]
+    column_labels: ClassVar[dict] = {
+        AccountMerge.source_user_id: "Source user ID",
+        AccountMerge.target_user_id: "Target user ID",
+        AccountMerge.actor_user_id: "Actor user ID",
+        AccountMerge.moved_counts: "Moved counts",
+    }
 
 
 class UserAdmin(AdminModelView, model=User):

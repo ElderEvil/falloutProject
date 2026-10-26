@@ -1,13 +1,16 @@
 """Shared confirmation and CSRF-protected POST boundary for SQLAdmin actions."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+from redis.asyncio import Redis
 from sqladmin.flash import flash
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 
 from app.admin.csrf import issue_token, validate_token
+from app.core.config import settings
+from app.services.account_merge_service import merge_users
 from app.services.admin_service import (
     INCIDENT_BATCH_SIZE,
     describe_support_target,
@@ -82,6 +85,112 @@ async def _render_error(
         },
         status_code=error.status_code if isinstance(error, DomainError) else 400,
     )
+
+
+async def _render_merge_form(
+    view: Any,
+    request: Request,
+    *,
+    source: str = "",
+    target: str = "",
+    reason: str = "",
+    error: DomainError | ValueError | None = None,
+    status_code: int = 200,
+) -> Response:
+    return await view.templates.TemplateResponse(
+        request,
+        "merge_accounts.html",
+        {
+            "title": "Merge accounts",
+            "csrf_token": issue_token(request),
+            "source": source,
+            "target": target,
+            "reason": reason,
+            "error": (error.detail if isinstance(error, DomainError) else str(error) if error is not None else None),
+        },
+        status_code=status_code,
+    )
+
+
+async def render_merge_accounts(view: Any, request: Request) -> Response:
+    """Render the merge form or execute a CSRF-protected preview/apply."""
+    if request.method == "GET":
+        return await _render_merge_form(view, request)
+
+    form = await request.form()
+    if not validate_token(request, str(form.get("csrf_token", ""))):
+        return Response("Invalid confirmation token. Reload the page and try again.", status_code=403)
+
+    action = str(form.get("action", ""))
+    source = str(form.get("source", "")).strip()
+    target = str(form.get("target", "")).strip()
+    reason = str(form.get("reason", "")).strip()
+    if action not in {"preview", "apply"}:
+        return await _render_merge_form(view, request, source=source, target=target, reason=reason, status_code=400)
+    if not source or not target or not reason or len(reason) > 500:
+        return await _render_merge_form(
+            view,
+            request,
+            source=source,
+            target=target,
+            reason=reason,
+            error=ValueError("Source, target, and a reason of at most 500 characters are required."),
+            status_code=400,
+        )
+
+    actor_id = request.session.get("user_id")
+    if not actor_id:
+        return Response(status_code=403)
+
+    redis_client: Redis | None = None
+    try:
+        if action == "apply":
+            redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
+        async with view.session_maker() as session:
+            preview = await merge_users(
+                session,
+                source,
+                target,
+                actor=str(actor_id),
+                reason=reason,
+                dry_run=action == "preview",
+                redis_client=redis_client,
+            )
+    except (DomainError, ValueError) as error:
+        return await _render_merge_form(
+            view,
+            request,
+            source=source,
+            target=target,
+            reason=reason,
+            error=error,
+            status_code=error.status_code if isinstance(error, DomainError) else 400,
+        )
+    finally:
+        if redis_client is not None:
+            await redis_client.aclose()
+
+    if action == "preview":
+        return await view.templates.TemplateResponse(
+            request,
+            "merge_accounts.html",
+            {
+                "title": "Merge accounts",
+                "csrf_token": issue_token(request),
+                "source": source,
+                "target": target,
+                "reason": reason,
+                "preview": preview,
+            },
+        )
+
+    if preview.already_merged:
+        flash(request, f"Already merged (audit {preview.audit_id}).", category="info")
+    else:
+        flash(request, f"Merge completed (audit {preview.audit_id}).", category="success")
+    if preview.token_invalidation_failed:
+        flash(request, "Merge completed, but the source refresh token could not be invalidated.", category="warning")
+    return RedirectResponse(request.url_for("admin:list", identity="account-merge"), status_code=303)
 
 
 async def render_incident_controls(view: "AdminModelView", request: Request) -> Response:

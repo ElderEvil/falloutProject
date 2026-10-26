@@ -402,7 +402,11 @@ onBeforeUnmount(() => {
             @click="togglePopup"
             class="relative flex items-center justify-center rounded p-2 transition-all duration-200 hover:bg-surface-warm-hover"
             :class="{ 'bg-surface-warm-dark': showPopup }"
-            aria-label="Notifications"
+            :aria-label="
+              hasUnread
+                ? `Notifications ${unreadCount > 99 ? '99+' : unreadCount} unread`
+                : 'Notifications'
+            "
             aria-haspopup="dialog"
             :aria-expanded="showPopup"
             :aria-controls="POPUP_ID"

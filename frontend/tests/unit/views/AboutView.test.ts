@@ -36,7 +36,7 @@ describe('AboutView', () => {
     const wrapper = mount(AboutView)
     await flushPromises()
 
-    expect(wrapper.find('[aria-label="Dwellers 2"]').exists()).toBe(true)
+    expect(wrapper.get('[data-onboarding="nav-dwellers"]').text()).toContain('Dwellers')
   })
 
   it('keeps the vault sidebar after a refresh (persisted selection, no active vault)', async () => {

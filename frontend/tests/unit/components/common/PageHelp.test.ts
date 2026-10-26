@@ -18,6 +18,8 @@ describe('Page help', () => {
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Membership is earned')
     expect(wrapper.text()).toContain('2 open places')
+    await vi.dynamicImportSettled()
+    await flushPromises()
     await vi.waitFor(() =>
       expect(wrapper.find('button[aria-label="About Response Teams"]').exists()).toBe(true)
     )

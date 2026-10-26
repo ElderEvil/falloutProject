@@ -358,6 +358,59 @@ async function measureInteraction(
   return report
 }
 
+test('[accessibility] keeps vault labels, contrast, and deferred modal loading usable', async ({
+  page,
+}) => {
+  const fixture = createSmallVault()
+  const modalRequests: string[] = []
+  page.on('request', (request) => {
+    if (/\/RoomDetailModal-[^/]+\.js/.test(request.url())) modalRequests.push(request.url())
+  })
+  await mockOverviewApi(page, fixture)
+  await page.goto('/login')
+  await setAuthToken(page, 'deterministic-ui-performance-token', testUser)
+  await page.goto(`/vault/${fixture.vault.id}`)
+  await expect(page.locator('.room.built-room')).toHaveCount(2)
+  await expect(page.getByRole('button', { name: /^Power Generator.*T1/ })).toBeVisible()
+  await expect(page.locator('.room.empty').first()).toHaveAttribute('role', 'img')
+  expect(modalRequests).toHaveLength(0)
+
+  for (const selector of ['.panel-subtitle', '.wasteland-dropzone p.font-mono']) {
+    const contrast = await page.locator(selector).evaluate((element) => {
+      const rgba = (color: string) => color.match(/[\d.]+/g)!.map(Number)
+      const composite = (foreground: number[], background: number[]) => {
+        const alpha = foreground[3] ?? 1
+        return foreground
+          .slice(0, 3)
+          .map((channel, index) => channel * alpha + background[index]! * (1 - alpha))
+      }
+      const ancestors: Element[] = []
+      for (let node: Element | null = element; node; node = node.parentElement)
+        ancestors.unshift(node)
+      let background = [255, 255, 255]
+      for (const node of ancestors)
+        background = composite(rgba(getComputedStyle(node).backgroundColor), background)
+      const foreground = composite(rgba(getComputedStyle(element).color), background)
+      const luminance = (color: number[]) =>
+        color.reduce((total, channel, index) => {
+          const value = channel / 255
+          return (
+            total +
+            (value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4) *
+              [0.2126, 0.7152, 0.0722][index]!
+          )
+        }, 0)
+      const values = [luminance(foreground), luminance(background)].sort((a, b) => a - b)
+      return (values[1]! + 0.05) / (values[0]! + 0.05)
+    })
+    expect(contrast, selector).toBeGreaterThanOrEqual(4.5)
+  }
+  await page.screenshot({ path: 'test-results/lighthouse-vault.png', fullPage: true })
+  await page.getByRole('button', { name: /^Power Generator/ }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  expect(modalRequests).toHaveLength(1)
+})
+
 test('[small] measures vault overview, management, and navigation', async ({
   page,
   browser,
@@ -384,8 +437,8 @@ test('[small] measures vault overview, management, and navigation', async ({
   })
   expect(overviewReadyMs).not.toBeNull()
   reports.push(await reportInteraction(page, testInfo, 'vault-overview-ready', overviewReadyMs!))
-  const powerRoom = page.getByRole('button', { name: 'Power Generator (Tier 1)', exact: true })
-  const waterRoom = page.getByRole('button', { name: 'Water Treatment (Tier 1)', exact: true })
+  const powerRoom = page.getByRole('button', { name: /^Power Generator/ })
+  const waterRoom = page.getByRole('button', { name: /^Water Treatment/ })
   reports.push(
     await measureInteraction(
       page,

@@ -8,7 +8,6 @@ from typing import cast
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from sqladmin import Admin
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -53,6 +52,7 @@ from app.api.v1.api import api_router as api_router_v1
 from app.core.config import settings
 from app.core.logfire_config import configure_logfire
 from app.core.logging import setup_logging
+from app.core.static_files import CachedStaticFiles
 from app.db.session import async_engine, get_async_session
 from app.middleware.request_id import RequestIdMiddleware
 from app.services.ai_settings_service import ai_settings_service
@@ -219,7 +219,7 @@ app.add_middleware(
 
 
 # Static files (room images, etc.)
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/static", CachedStaticFiles(directory="app/static"), name="static")
 
 
 @app.get("/healthcheck", status_code=status.HTTP_200_OK)

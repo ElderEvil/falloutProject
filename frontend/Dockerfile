@@ -44,6 +44,7 @@ WORKDIR /app
 RUN npm install -g serve@14.2.4
 
 COPY --from=build-stage /app/dist .
+COPY serve.json ./serve.json
 
 # Expose port
 EXPOSE 3000

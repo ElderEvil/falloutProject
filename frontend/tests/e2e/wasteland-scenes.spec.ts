@@ -1,6 +1,45 @@
 import { expect, test } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 
+for (const viewport of [
+  { width: 1280, height: 720 },
+  { width: 390, height: 844 },
+]) {
+  test(`single discovered site fits the popup at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport)
+    await page.route('**/api/v1/explorations/preview-picker/site', (route) =>
+      route.fulfill({ json: null })
+    )
+    await page.route('**/api/v1/explorations/preview-picker/site/available', (route) =>
+      route.fulfill({
+        json: [
+          {
+            id: 'collapsed_subway',
+            name: 'Collapsed Subway',
+            scene_id: 'subway_station',
+            flavor:
+              'A raider is guarding the broken platform. Sealed supplies lie behind the counter.',
+            min_dweller_level: 1,
+            room_total: 1,
+            enemy_names: ['Raider'],
+            threat: 'Low',
+          },
+        ],
+      })
+    )
+    await page.goto('/tests/e2e/fixtures/wasteland-scenes.html?picker=1')
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toContainText('Rachel Miller discovered a site.')
+    const overflow = await dialog.evaluate((element) =>
+      [...element.querySelectorAll('*')]
+        .filter((child) => /auto|scroll/.test(getComputedStyle(child).overflowY))
+        .map((child) => child.scrollHeight - child.clientHeight)
+    )
+    expect(overflow.every((height) => height <= 1)).toBe(true)
+    await expect(dialog.getByRole('button', { name: 'Enter', exact: true })).toBeInViewport()
+  })
+}
+
 test('raiders match dweller height and both scale when the scene container resizes', async ({
   page,
 }) => {

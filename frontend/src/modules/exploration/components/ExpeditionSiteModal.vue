@@ -350,8 +350,18 @@ const terminalBanner = computed(() => {
         >
           This site report is no longer available. The site may be cleared or the journey finished.
         </p>
-        <p v-if="dwellerName" class="mb-4 text-sm text-theme-primary/70">
-          Where should {{ dwellerName }} scout?
+        <p
+          v-if="
+            dwellerName &&
+            explorationActive &&
+            !store.isLoading &&
+            !store.error &&
+            store.availableSites.length
+          "
+          class="mb-4 text-sm text-theme-primary/70"
+        >
+          {{ dwellerName }} discovered
+          {{ store.availableSites.length === 1 ? 'a site' : 'these sites' }}.
         </p>
 
         <p v-if="!explorationActive" class="py-6 text-center text-sm text-theme-primary/70">
@@ -381,7 +391,11 @@ const terminalBanner = computed(() => {
           <p class="text-center text-sm">No sites available on this journey.</p>
         </div>
 
-        <div v-else class="grid gap-4 sm:grid-cols-2">
+        <div
+          v-else
+          class="grid gap-4"
+          :class="{ 'sm:grid-cols-2': store.availableSites.length > 1 }"
+        >
           <div
             v-for="site in store.availableSites"
             :key="site.id"
@@ -390,7 +404,7 @@ const terminalBanner = computed(() => {
           >
             <WastelandScene
               v-if="site.scene_id"
-              class="mb-3"
+              class="mb-3 [&>div]:aspect-auto [&>div]:h-[min(22dvh,12rem)] [&>figcaption]:hidden [&_img]:object-cover"
               :scene="site.scene_id"
               variant="battleback"
               :heading="site.name"

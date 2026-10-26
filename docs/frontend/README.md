@@ -199,6 +199,31 @@ pnpm run format       # Format with Oxfmt (vp fmt)
 pnpm run typecheck    # TypeScript check (vue-tsc)
 ```
 
+Frontend CI runs lint, type checks, architecture guards, unit tests with coverage, and
+the production build on pull requests and pushes to `master`. Playwright browser tests
+run separately through the **Frontend Browser Tests** workflow in GitHub Actions.
+Choose **Run workflow** and select the branch to check. They do not run automatically
+or block the main frontend job. Browser installation is limited to five minutes and
+the browser job to twenty minutes; failures upload Playwright reports and test results.
+The workflow retains the existing Chromium visual suite and Firefox wasteland scenes.
+It uses mocked backend requests, so no backend or database is required.
+
+To run the same browser suite locally, check out the branch to test and run from
+`frontend/`:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm exec playwright install --with-deps chromium firefox
+PW_SKIP_BACKEND=1 pnpm exec playwright test \
+  tests/e2e/animation-gallery.spec.ts tests/e2e/crt-baselines.spec.ts \
+  tests/e2e/arena-creature-facing.spec.ts tests/e2e/barbershop-slots.spec.ts \
+  tests/e2e/arena-roster.spec.ts tests/e2e/arena-setup.spec.ts \
+  tests/e2e/combat-playback.spec.ts tests/e2e/skill-icons.spec.ts \
+  tests/e2e/arena-ring.spec.ts tests/e2e/incident-scene.spec.ts \
+  tests/e2e/overseer-briefing-contrast.spec.ts tests/e2e/onboarding-spotlight.spec.ts \
+  tests/e2e/wasteland-scenes.spec.ts
+```
+
 ## Admin command console
 
 Superusers can press the backtick key (physical `Backquote`) or click **Console** to

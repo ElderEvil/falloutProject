@@ -232,3 +232,30 @@ for (const width of [390, 1280]) {
     await page.screenshot({ path: `test-results/site-briefing-${width}.png` })
   })
 }
+
+for (const [width, height] of [
+  [844, 390],
+  [390, 844],
+  [1280, 720],
+]) {
+  test(`paired enemies fit below the scene header at ${width}x${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height })
+    await page.goto('/tests/e2e/fixtures/wasteland-scenes.html')
+    await page.getByRole('checkbox', { name: 'Pair of enemies' }).check()
+    await page.getByRole('button', { name: 'Preview combat layout', exact: true }).click()
+    const scene = page
+      .getByRole('dialog')
+      .getByRole('region', { name: 'Desert highway', exact: true })
+    await expect(scene.getByAltText('Radscorpion 2', { exact: true })).toBeVisible()
+    const header = (await scene.getByText('HOSTILES', { exact: true }).locator('..').boundingBox())!
+    const frame = (await scene.boundingBox())!
+    const fighters = scene.locator('.ring-fighter')
+    await expect(fighters).toHaveCount(3)
+    for (const fighter of await fighters.all()) {
+      const bounds = (await fighter.boundingBox())!
+      expect((await fighter.locator('.fighter-meters').boundingBox())!.width).toBeGreaterThan(32)
+      expect(bounds.y).toBeGreaterThanOrEqual(header.y + header.height)
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(frame.y + frame.height)
+    }
+  })
+}

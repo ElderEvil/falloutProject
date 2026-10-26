@@ -55,3 +55,27 @@ test('room art falls back and fire respects reduced motion', async ({ page }) =>
     '35'
   )
 })
+
+for (const width of [390, 900]) {
+  test(`incident creature size is independent of intrinsic artwork at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.route('**/static/creature_images/**', (route) =>
+      route.fulfill({
+        contentType: 'image/svg+xml',
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><rect width="1024" height="1024" fill="green"/></svg>',
+      })
+    )
+    await page.goto('/tests/e2e/fixtures/incident-scene.html?responders=6')
+    const scene = page.getByRole('region', { name: 'Incident live status' })
+    const creature = scene.getByAltText('Deathclaw', { exact: true })
+    await expect.poll(() => creature.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(1024)
+    const bounds = (await creature.boundingBox())!
+    const frame = (await scene.boundingBox())!
+    expect(bounds.height).toBeLessThan(frame.height * 0.7)
+    expect(bounds.height).toBeGreaterThan(100)
+    expect(bounds.y).toBeGreaterThan(frame.y + 32)
+    expect(bounds.y + bounds.height).toBeLessThan(frame.y + frame.height - 30)
+  })
+}

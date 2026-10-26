@@ -173,14 +173,17 @@ const actionFor = (fighter: ArenaFighter) => {
           >
         </Transition>
       </div>
-      <!-- Reserve meter/headroom space for the largest (1.5x) actor while keeping every actor in proportion. -->
+      <!-- Reserve meters and stagger headroom for the largest (1.5x) actor. -->
       <div
-        class="absolute grid grid-cols-2 [--scene-actor-height:min(36cqh,max(0px,calc((100cqh-7rem)/1.5)))]"
-        :class="
+        class="absolute grid grid-cols-2 [--scene-actor-height:min(36cqh,max(0px,calc((100cqh-7rem-var(--scene-stagger))/1.5)))]"
+        :class="[
           contained
             ? 'inset-x-[6%] bottom-[6%] gap-[12%]'
-            : 'inset-x-3 bottom-5 gap-8 sm:inset-x-8 sm:bottom-8 sm:gap-16'
-        "
+            : 'inset-x-3 bottom-5 gap-8 sm:inset-x-8 sm:bottom-8 sm:gap-16',
+          teams.some((team) => team.fighters.length > 1)
+            ? '[--scene-stagger:min(2rem,8cqh)] sm:[--scene-stagger:min(3rem,8cqh)]'
+            : '[--scene-stagger:0px]',
+        ]"
       >
         <div
           v-for="team in teams"
@@ -191,11 +194,11 @@ const actionFor = (fighter: ArenaFighter) => {
           <div
             v-for="(fighter, index) in team.fighters"
             :key="fighter.id"
-            class="ring-fighter relative flex min-w-0 max-w-[var(--scene-actor-height)] flex-1 flex-col items-center gap-1"
+            class="ring-fighter relative flex min-w-0 max-w-[max(4rem,var(--scene-actor-height))] flex-1 flex-col items-center gap-1"
             :aria-current="isAttacking(fighter, team.side) ? 'true' : undefined"
             :class="[
               {
-                'bottom-8 z-0 scale-90 sm:bottom-12': index % 2 === 1,
+                'bottom-[var(--scene-stagger)] z-0 scale-90': index % 2 === 1,
                 'z-10': index % 2 === 0,
                 'opacity-40 grayscale': fighter.health <= 0,
               },

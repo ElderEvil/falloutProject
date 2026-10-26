@@ -628,18 +628,9 @@ const terminalBanner = computed(() => {
 
             <div
               v-if="enemySummary && !expandedCombat && !isCombatRoom"
-              class="mb-4 rounded-md border px-3 py-2 text-sm font-semibold"
-              :class="
-                isCombatRoom
-                  ? 'border-danger/40 bg-danger/10 text-danger'
-                  : 'border-warning/40 bg-warning/10 text-warning'
-              "
+              class="mb-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm font-semibold text-warning"
             >
-              <div v-if="isCombatRoom" class="flex items-center gap-2">
-                <Icon icon="mdi:sword-cross" class="h-4 w-4" />
-                <span>Enemies: {{ enemySummary }}</span>
-              </div>
-              <div v-else class="flex items-center gap-2">
+              <div class="flex items-center gap-2">
                 <Icon icon="mdi:alert-outline" class="h-4 w-4" />
                 <span>If it goes wrong: {{ enemySummary }}</span>
               </div>

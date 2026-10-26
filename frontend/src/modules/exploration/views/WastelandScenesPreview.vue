@@ -17,6 +17,7 @@ import { WASTELAND_SCENES, type WastelandSceneId } from '../models/wastelandScen
 
 const selectedScene = ref<WastelandSceneId>('desert_highway')
 const previewIsCombat = ref(false)
+const pairedEnemies = ref(false)
 const combatOpen = ref(false)
 const artwork = computed(() => WASTELAND_SCENES[selectedScene.value])
 const portrait = '/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Female.webp'
@@ -43,7 +44,12 @@ function previewCombat(combat = true): void {
     flavor: 'Read-only preview of the encounter battlefield and journal.',
     lore: 'This preview does not advance a real expedition.',
     threat: 'low',
-    node: { kind: 'combat', prompt: 'Preview', enemy_names: [enemy.name], options: [] },
+    node: {
+      kind: 'combat',
+      prompt: 'Preview',
+      enemy_names: Array.from({ length: pairedEnemies.value ? 2 : 1 }, () => enemy.name),
+      options: [],
+    },
     can_retreat: false,
     status: 'in_room',
     outcome: null,
@@ -73,15 +79,17 @@ function previewCombat(combat = true): void {
             queued: false,
           },
         },
-        {
+        ...Array.from({ length: pairedEnemies.value ? 2 : 1 }, (_, index) => ({
           ...enemy,
+          id: enemy.id.replace('#0', `#${index}`),
+          name: pairedEnemies.value ? `${enemy.name} ${index + 1}` : enemy.name,
           level: 0,
           health: 12,
           max_health: 30,
           power: 10,
           is_creature: true,
           is_robot: false,
-        },
+        })),
       ],
       events: !combat
         ? []
@@ -136,6 +144,10 @@ function selectScene(value: unknown): void {
           </SelectContent>
         </Select>
       </div>
+      <label class="flex w-fit items-center gap-2 text-sm">
+        <input v-model="pairedEnemies" type="checkbox" class="size-4 accent-theme-primary" />
+        Pair of enemies
+      </label>
       <Button class="w-fit" @click="previewCombat(false)">Preview briefing</Button>
       <Button class="w-fit" @click="previewCombat(true)">Preview combat layout</Button>
     </header>

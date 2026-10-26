@@ -182,7 +182,7 @@ const threatMotion = computed(() => ({
 
 <template>
   <section
-    class="incident-scene relative isolate aspect-[5/2] min-h-80 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
+    class="incident-scene relative isolate [--scene-actor-height:5rem] sm:[--scene-actor-height:7rem] aspect-[5/2] min-h-80 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
     aria-label="Incident live status"
   >
     <img

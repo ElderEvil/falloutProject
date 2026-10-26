@@ -8,6 +8,7 @@ from app.schemas.expedition import SiteCombatView, SiteDefinition
 from app.services.catalog_service import list_site_enemies
 from app.services.combat.arena_participants import (
     ArenaParticipant,
+    catalog_participants,
     charge_per_second,
     fighter_view,
     participant_from_dweller,
@@ -52,29 +53,15 @@ def initial_combat(site: SiteDefinition) -> dict:
 def _opponents(state: dict) -> list[ArenaParticipant]:
     totals = Counter(entry["name"] for entry in state["opponents"])
     seen: Counter[str] = Counter()
-    opponents = []
-    for index, entry in enumerate(state["opponents"]):
-        seen[entry["name"]] += 1
-        name = entry["name"]
-        if totals[name] > 1:
-            name = f"{name} {seen[name]}"
-        opponents.append(
-            ArenaParticipant(
-                key=f"{entry['key']}#{index}",
-                name=name,
-                short_name=name,
-                power=entry["power"],
-                health=entry["hp"],
-                max_health=entry["max_hp"],
-                is_creature=True,
-                body="feral"
-                if entry["key"] == "feral-ghoul"
-                else "mutant"
-                if entry["key"] == "super-mutant"
-                else "human",
-                effect="shot" if entry["key"] in {"raider", "super-mutant"} else "strike",
-            )
+    opponents = catalog_participants(state["opponents"])
+    for enemy, entry in zip(opponents, state["opponents"], strict=True):
+        seen[enemy.name] += 1
+        if totals[enemy.name] > 1:
+            enemy.name = enemy.short_name = f"{enemy.name} {seen[enemy.name]}"
+        enemy.body = (
+            "feral" if entry["key"] == "feral-ghoul" else "mutant" if entry["key"] == "super-mutant" else "human"
         )
+        enemy.effect = "shot" if entry["key"] in {"raider", "super-mutant"} else "strike"
     return opponents
 
 

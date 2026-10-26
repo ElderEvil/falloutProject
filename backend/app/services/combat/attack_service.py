@@ -9,46 +9,23 @@ from app.services.combat.weapon_skill_service import attack_effect, combat_body,
 
 @dataclass
 class ResolvedAttack:
-    actor_id: str
-    kind: str
     messages: list[str]
     action: CombatAction
 
 
-def team_damage(team: list[ArenaParticipant], seconds_passed: int) -> float:
-    return sum(member.power for member in team if member.health > 0) / 5 * max(0, seconds_passed)
-
-
-def apply_team_damage(
-    defenders: list[ArenaParticipant],
+def _apply_damage(
+    target: ArenaParticipant,
     damage: float,
     carry: dict[str, float],
     *,
-    seconds_passed: int | None = None,
-    cap_multiplier: float = 1.0,
-) -> list[tuple[ArenaParticipant, int]]:
-    hits: list[tuple[ArenaParticipant, int]] = []
-    pool = damage
-    for defender in sorted((p for p in defenders if p.health > 0), key=lambda p: p.health):
-        carry_key = defender.key
-        capped = (
-            min(pool, defender.max_health * 0.05 * max(0, seconds_passed) * cap_multiplier)
-            if seconds_passed is not None
-            else pool
-        )
-        carried = carry.get(carry_key, 0.0) + capped
-        total = int(carried)
-        carry[carry_key] = carried - total
-        before = defender.health
-        defender.health = max(0, defender.health - total)
-        hits.append((defender, total))
-        spill = total - min(total, before)
-        if defender.health == 0:
-            spill += max(0, pool - capped)
-        if spill <= 0:
-            break
-        pool = float(spill)
-    return hits
+    seconds_passed: int,
+    cap_multiplier: float,
+) -> None:
+    capped = min(damage, target.max_health * 0.05 * max(0, seconds_passed) * cap_multiplier)
+    carried = carry.get(target.key, 0.0) + capped
+    total = int(carried)
+    carry[target.key] = carried - total
+    target.health = max(0, target.health - total)
 
 
 def resolve_attacks(
@@ -74,12 +51,12 @@ def resolve_attacks(
                 break
             multiplier = attack_skill.multiplier if attack_skill else 1.0
             targets = living if attack_skill and attack_skill.area else [chosen if chosen.health > 0 else living[0]]
-            damage = team_damage([attacker], seconds_passed) * multiplier
+            damage = attacker.power / 5 * max(0, seconds_passed) * multiplier
             impacts: list[CombatImpact] = []
             messages: list[str] = []
             for target in targets:
                 before = target.health
-                apply_team_damage([target], damage, carry, seconds_passed=seconds_passed, cap_multiplier=multiplier)
+                _apply_damage(target, damage, carry, seconds_passed=seconds_passed, cap_multiplier=multiplier)
                 dealt = before - target.health
                 if dealt > 0 or attack_skill:
                     impacts.append(
@@ -96,8 +73,6 @@ def resolve_attacks(
             if messages:
                 attacks.append(
                     ResolvedAttack(
-                        actor_id=attacker.key,
-                        kind="skill" if attack_skill else "hit",
                         messages=messages,
                         action=CombatAction(
                             actor_id=attacker.key,

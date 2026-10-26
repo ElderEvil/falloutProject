@@ -75,6 +75,15 @@ class BranchResult:
     # Per-enemy outcomes in fight order; surfaced to the client as the battle feed.
     combat: list[dict] = field(default_factory=list)
 
+    def to_outcome(self) -> NodeOutcome:
+        return NodeOutcome(
+            text=" ".join(self.texts),
+            damage_taken=self.damage_taken,
+            caps_gained=self.caps_gained,
+            loot_gained=self.loot_gained,
+            combat=self.combat,
+        )
+
 
 @dataclass(frozen=True)
 class SiteBlockState:
@@ -730,13 +739,7 @@ class ExpeditionService:
             finale_paid = False
         else:
             finale_paid = await _resolve_node(db_session, exploration, site, room, request.choice_id, result)
-        outcome = NodeOutcome(
-            text=" ".join(result.texts),
-            damage_taken=result.damage_taken,
-            caps_gained=result.caps_gained,
-            loot_gained=result.loot_gained,
-            combat=result.combat,
-        )
+        outcome = result.to_outcome()
         await _log_site_event(
             db_session,
             exploration,
@@ -831,7 +834,8 @@ class ExpeditionService:
             exploration_service.resume_from_encounter(exploration)
         # Flush the health mutation before the run row, all within this owner's transaction.
         await db_session.flush([dweller, exploration])
-        await _log_site_event(db_session, exploration, f"{site.name}: {' '.join(result.texts)}", health_loss=damage)
+        outcome = result.to_outcome()
+        await _log_site_event(db_session, exploration, f"{site.name}: {outcome.text}", health_loss=damage)
         run = await _refresh_run(db_session, run)
         if won:
             vault = await crud.vault.get(db_session, exploration.vault_id)
@@ -853,12 +857,7 @@ class ExpeditionService:
             site,
             run,
             exploration,
-            outcome=NodeOutcome(
-                text=" ".join(result.texts),
-                damage_taken=damage,
-                caps_gained=result.caps_gained,
-                loot_gained=result.loot_gained,
-            ),
+            outcome=outcome,
             finale_paid=won,
             defeated=lost,
             dweller=dweller,

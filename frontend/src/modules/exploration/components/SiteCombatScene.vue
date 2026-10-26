@@ -10,7 +10,6 @@ const props = defineProps<{
   room: SiteRoomView
   running: boolean
   loading: boolean
-  wide?: boolean
 }>()
 const emit = defineEmits<{ playing: [value: boolean]; skill: [] }>()
 const combat = computed(() => props.room.combat_state!)
@@ -30,7 +29,7 @@ const artwork = computed(() =>
   props.room.scene_id ? WASTELAND_SCENES[props.room.scene_id].battleback : null
 )
 const landscape = computed(() =>
-  props.wide && props.room.scene_id ? WASTELAND_SCENES[props.room.scene_id].landscape : null
+  props.room.scene_id ? WASTELAND_SCENES[props.room.scene_id].landscape : null
 )
 const fighters = computed(() =>
   combat.value.fighters.map((fighter) => ({
@@ -48,17 +47,10 @@ const ring = computed(() => ({
 </script>
 
 <template>
-  <div :class="wide ? 'flex h-full min-h-0 flex-col' : undefined">
-    <div
-      :class="wide ? 'relative min-h-0 flex-1 [container-type:size]' : undefined"
-      aria-label="Battlefield space"
-    >
+  <div class="flex h-full min-h-0 flex-col">
+    <div class="relative min-h-0 flex-1 [container-type:size]" aria-label="Battlefield space">
       <ArenaRing
-        :class="
-          wide
-            ? 'absolute top-1/2 left-1/2 w-[min(100cqw,calc(100cqh*50/37))] -translate-x-1/2 -translate-y-1/2 lg:w-[min(100cqw,calc(100cqh*16/9))]'
-            : undefined
-        "
+        class="absolute top-1/2 left-1/2 w-[min(100cqw,calc(100cqh*50/37))] -translate-x-1/2 -translate-y-1/2 lg:w-[min(100cqw,calc(100cqh*16/9))]"
         :state="ring"
         :scene-image-url="widestSceneImage(artwork?.variants ?? [])?.src"
         :scene-srcset="artwork?.variants.map((image) => `${image.src} ${image.width}w`).join(', ')"
@@ -67,7 +59,7 @@ const ring = computed(() => ({
           landscape?.variants.map((image) => `${image.src} ${image.width}w`).join(', ')
         "
         encounter
-        :contained="wide"
+        contained
         :heading="room.site_name"
         team-a-label="DWELLER"
         team-b-label="HOSTILES"
@@ -96,6 +88,5 @@ const ring = computed(() => ({
         @skill="emit('skill')"
       />
     </div>
-    <p v-if="!wide" class="mt-3 text-sm leading-relaxed text-theme-primary/80">{{ room.flavor }}</p>
   </div>
 </template>

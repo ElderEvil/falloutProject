@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import { useFallbackImage } from '@/modules/rooms/composables/useFallbackImage'
 import {
   WASTELAND_SCENES,
   widestSceneImage,
@@ -37,10 +38,7 @@ const fullImage = computed(() => widestSceneImage(variants.value))
 const srcset = computed(() =>
   variants.value.map((image) => `${image.src} ${image.width}w`).join(', ')
 )
-const imageFailed = ref(false)
-watch(fullImage, () => {
-  imageFailed.value = false
-})
+const { url: sceneImage, onError: imageFailed } = useFallbackImage(() => [fullImage.value?.src])
 </script>
 
 <template>
@@ -53,8 +51,8 @@ watch(fullImage, () => {
       :class="variant === 'battleback' ? 'aspect-[50/37]' : 'aspect-video'"
     >
       <img
-        v-if="fullImage && !imageFailed"
-        :src="fullImage.src"
+        v-if="fullImage && sceneImage"
+        :src="sceneImage"
         :srcset="srcset"
         :sizes="
           compact
@@ -66,7 +64,7 @@ watch(fullImage, () => {
         :alt="artwork?.label ?? heading"
         class="absolute inset-0 h-full w-full object-contain"
         decoding="async"
-        @error="imageFailed = true"
+        @error="imageFailed"
       />
       <div
         v-else

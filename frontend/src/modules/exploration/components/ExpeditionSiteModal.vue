@@ -243,28 +243,24 @@ const terminalBanner = computed(() => {
       return {
         icon: 'mdi:check-decagram',
         text: 'Site cleared — rewards added to the expedition haul.',
-        note: '',
         classes: 'border-theme-primary/40 bg-theme-primary/10 text-theme-primary',
       }
     case 'retreated':
       return {
         icon: 'mdi:arrow-u-left-top',
         text: 'Retreated with whatever was carried.',
-        note: '',
         classes: 'border-warning/40 bg-warning/10 text-warning',
       }
     case 'defeated':
       return {
         icon: 'mdi:shield-alert-outline',
         text: 'Escaped injured — no site loot collected. Travel has resumed.',
-        note: '',
         classes: 'border-warning/40 bg-warning/10 text-warning',
       }
     case 'died':
       return {
         icon: 'mdi:skull',
         text: 'The dweller died in the site.',
-        note: '',
         classes: 'border-danger/40 bg-danger/10 text-danger',
       }
     default:
@@ -452,7 +448,6 @@ const terminalBanner = computed(() => {
           <SiteCombatScene
             v-if="expandedCombat"
             :room="room"
-            wide
             :running="fighting"
             :loading="store.isLoading || queuedSkill"
             @playing="combatPlaying = $event"
@@ -584,12 +579,7 @@ const terminalBanner = computed(() => {
             :class="terminalBanner.classes"
           >
             <Icon :icon="terminalBanner.icon" class="mt-0.5 h-5 w-5 shrink-0" />
-            <span>
-              {{ terminalBanner.text }}
-              <span v-if="terminalBanner.note" class="block text-xs font-normal opacity-80">
-                {{ terminalBanner.note }}
-              </span>
-            </span>
+            <span>{{ terminalBanner.text }}</span>
           </div>
 
           <!-- ACTIVE ROOM: live actions only -->

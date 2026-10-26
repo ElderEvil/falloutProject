@@ -570,6 +570,34 @@ describe('ExplorationDetailView', () => {
       wrapper.unmount()
     })
 
+    it('waits for reconnect when switching explorers with different reported sites', async () => {
+      await router.push('/vault/test-vault/exploration/expl-1?siteId=red_rocket')
+      explorationStore.activeExplorations['expl-2'] = { ...mockExploration, id: 'expl-2' }
+      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
+      await flushPromises()
+      let finishReconnect!: (room: SiteRoomView | null) => void
+      vi.mocked(siteStore.fetchCurrentRoom).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishReconnect = resolve
+          })
+      )
+      vi.mocked(siteStore.fetchAvailableSites).mockClear()
+      await router.push('/vault/test-vault/exploration/expl-2?siteId=super_duper_mart')
+      await flushPromises()
+      try {
+        expect(wrapper.getComponent(ExpeditionSiteModal).props('show')).toBe(false)
+        expect(siteStore.fetchAvailableSites).not.toHaveBeenCalled()
+        finishReconnect(null)
+        await flushPromises()
+        expect(wrapper.getComponent(ExpeditionSiteModal).props('show')).toBe(true)
+        expect(siteStore.fetchAvailableSites).toHaveBeenCalledWith('expl-2')
+      } finally {
+        finishReconnect(null)
+        wrapper.unmount()
+      }
+    })
+
     it('waits for reconnect before opening the reported-site picker', async () => {
       await router.push('/vault/test-vault/exploration/expl-1?siteId=red_rocket')
       let finishReconnect!: (room: SiteRoomView | null) => void
@@ -581,10 +609,34 @@ describe('ExplorationDetailView', () => {
       )
       const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
       await flushPromises()
+      explorationStore.activeExplorations['expl-1'].events.push({
+        type: 'site',
+        event: 'site_found',
+        site_id: 'red_rocket',
+        description: 'Site found',
+        timestamp: '2026-10-26T10:00:00',
+        time_elapsed_hours: 1,
+      })
+      await flushPromises()
       expect(wrapper.getComponent(ExpeditionSiteModal).props('show')).toBe(false)
+      expect(siteStore.fetchAvailableSites).not.toHaveBeenCalled()
       finishReconnect(null)
       await flushPromises()
       expect(wrapper.getComponent(ExpeditionSiteModal).props('show')).toBe(true)
+      wrapper.unmount()
+    })
+
+    it('opens a notification for the current explorer after initialization', async () => {
+      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
+      await flushPromises()
+      expect(wrapper.getComponent(ExpeditionSiteModal).props('show')).toBe(false)
+      vi.mocked(siteStore.fetchCurrentRoom).mockClear()
+
+      await router.push('/vault/test-vault/exploration/expl-1?siteId=red_rocket')
+      await flushPromises()
+
+      expect(wrapper.getComponent(ExpeditionSiteModal).props('show')).toBe(true)
+      expect(siteStore.fetchCurrentRoom).not.toHaveBeenCalled()
       wrapper.unmount()
     })
 

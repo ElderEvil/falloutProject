@@ -28,7 +28,7 @@ from app.services.combat.arena_participants import (
     persist_creature_hp,
 )
 from app.services.combat.arena_service import ArenaService
-from app.services.combat.attack_service import team_damage
+from app.services.combat.attack_service import resolve_attacks
 from app.services.dweller_service import dweller_service
 from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
@@ -84,13 +84,16 @@ def test_arena_wildlife_preserves_exploration_catalog_and_reserves_brahmin():
         ArenaService._hunt_opponents(["brahmin"])
 
 
-@pytest.mark.parametrize(("seconds", "expected"), [(0, 0.0), (1, 4.0), (2, 8.0)])
-def test_team_damage_uses_twenty_percent_power_per_second_and_ignores_knockouts(seconds, expected):
+@pytest.mark.parametrize(("seconds", "expected"), [(-1, 0), (0, 0), (1, 4), (2, 8)])
+def test_attacks_use_twenty_percent_power_per_second_and_ignore_knockouts(seconds, expected):
     team = [
         ArenaParticipant(key="down", name="Down", short_name="Down", power=100.0, health=0, max_health=100),
         ArenaParticipant(key="up", name="Up", short_name="Up", power=20.0, health=10, max_health=100),
     ]
-    assert team_damage(team, seconds) == pytest.approx(expected)
+    target = ArenaParticipant(key="target", name="Target", short_name="Target", power=0, health=100, max_health=100)
+    attacks = resolve_attacks(team, [target], seconds, set(), {})
+    assert target.health == 100 - expected
+    assert [attack.action.actor_id for attack in attacks] == (["up"] if expected else [])
 
 
 @pytest.mark.parametrize(
@@ -1614,7 +1617,13 @@ class TestArenaBotSupport:
         await async_session.commit()
         _, b = await ArenaService().get_teams(async_session, arena_room)
         assert b[1].health == 0
-        assert team_damage(b, 2) == pytest.approx(b[0].power * 0.4)
+        target = ArenaParticipant(
+            key="target", name="Target", short_name="Target", power=0, health=10000, max_health=10000
+        )
+        attacks = resolve_attacks(b, [target], 2, set(), {})
+        assert len(attacks) == 1
+        assert attacks[0].action.actor_id == b[0].key
+        assert attacks[0].action.targets[0].damage == int(b[0].power * 0.4)
         await service.set_fighters(
             async_session,
             arena_room.id,
@@ -2589,7 +2598,6 @@ async def test_arena_candidates_load_once_and_preserve_room_eligibility(
 
 
 def test_damage_carry_isolated_by_room_and_reset_only_clears_its_room():
-    from app.services.combat.attack_service import resolve_attacks
 
     service = ArenaService()
     attacker = ArenaParticipant(key="attacker", name="A", short_name="A", power=1, health=100, max_health=100)

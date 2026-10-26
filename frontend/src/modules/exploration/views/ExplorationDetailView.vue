@@ -178,6 +178,8 @@ const isInProgressExploration = computed(
 )
 
 const siteOptionsLoaded = ref(false)
+const siteContextId = ref<string | null>(null)
+let explorerLoadVersion = 0
 
 // Enabled until we have a confirmed empty list; a failed load or an open run
 // must never trap the player behind a disabled button.
@@ -202,7 +204,7 @@ const loadSiteOptions = async () => {
 watch(
   () => exploration.value?.events?.filter((event) => event.event === 'site_found').length ?? 0,
   (count, previous) => {
-    if (count > previous) void loadSiteOptions()
+    if (count > previous && siteContextId.value === explorationId.value) void loadSiteOptions()
   }
 )
 
@@ -212,17 +214,31 @@ const handleSiteUpdated = async () => {
   await loadSiteOptions()
 }
 
-// Reconnect-safe: if a site run is already open server-side, surface the modal
-// on mount so the player can pick up where they left off. A null room (no open
-// run) is a normal answer, not an error.
-const reconnectToSite = async () => {
-  if (!explorationId.value || !authStore.token || !isInProgressExploration.value) return
+// Mounts and explorer switches share the same reconnect-before-picker ordering.
+const initializeExplorer = async (id: string) => {
+  const token = authStore.token
+  if (!id || !token) return
+  const version = ++explorerLoadVersion
+  siteContextId.value = null
+  const isCurrent = () =>
+    version === explorerLoadVersion && explorationId.value === id && authStore.token === token
+  await explorationStore.fetchExplorationDetails(id, token)
+  if (!isCurrent()) return
+  if (exploration.value) {
+    await dwellerStore.fetchDwellerDetails(exploration.value.dweller_id, token)
+  }
+  if (!isCurrent()) return
   try {
-    const currentRoom = await siteStore.fetchCurrentRoom(explorationId.value)
-    if (currentRoom?.exploration_id === explorationId.value) showSiteModal.value = true
+    if (isInProgressExploration.value) {
+      const currentRoom = await siteStore.fetchCurrentRoom(id)
+      if (isCurrent() && currentRoom?.exploration_id === id) showSiteModal.value = true
+    }
   } catch {
     // Network failure — the entry CTA still works; don't block the page.
   }
+  if (!isCurrent()) return
+  await loadSiteOptions()
+  if (isCurrent()) siteContextId.value = id
 }
 
 // Auto-refresh every 10 seconds. usePolling cleans up with this view scope.
@@ -233,23 +249,13 @@ onMounted(async () => {
   if (vaultId.value && authStore.token) {
     await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
 
-    // Vault list returns the short schema — always fetch the full record (loot/events).
-    await explorationStore.fetchExplorationDetails(explorationId.value, authStore.token)
-
-    // Fetch full dweller data for the explorer (includes weapon/outfit)
-    if (exploration.value) {
-      await dwellerStore.fetchDwellerDetails(exploration.value.dweller_id, authStore.token)
-    }
-
     explorationStore.startSseSubscription(vaultId.value, authStore.token)
-
-    await reconnectToSite()
-    await loadSiteOptions()
-    if (reportedSiteId.value) showSiteModal.value = true
+    await initializeExplorer(explorationId.value)
   }
 })
 
 onUnmounted(() => {
+  explorerLoadVersion++
   playMusic('vaultAmbient')
   explorationStore.stopSseSubscription()
 })
@@ -261,18 +267,12 @@ watch(explorationId, async (id, previousId) => {
   siteStore.reset()
   showSiteModal.value = false
   siteOptionsLoaded.value = false
-  if (!authStore.token) return
-  await explorationStore.fetchExplorationDetails(id, authStore.token)
-  if (exploration.value) {
-    await dwellerStore.fetchDwellerDetails(exploration.value.dweller_id, authStore.token)
-  }
-  await reconnectToSite()
-  await loadSiteOptions()
-  if (explorationId.value === id && reportedSiteId.value) showSiteModal.value = true
+  siteContextId.value = null
+  await initializeExplorer(id)
 })
 
-watch(reportedSiteId, (siteId) => {
-  if (siteId) showSiteModal.value = true
+watch([reportedSiteId, siteContextId], ([siteId, contextId]) => {
+  if (siteId && contextId === explorationId.value) showSiteModal.value = true
 })
 
 // Surface rewards when the game loop auto-completes an exploration server-side

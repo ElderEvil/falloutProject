@@ -670,8 +670,8 @@ class ArenaService:
                     ArenaMatchEvent(
                         room_id=room.id,
                         round_seq=seq,
-                        kind=attack.kind,
-                        actor_id=attack.actor_id,
+                        kind="skill" if attack.action.skill else "hit",
+                        actor_id=attack.action.actor_id,
                         message=message,
                         action=attack.action.model_dump() if index == 0 else None,
                     )

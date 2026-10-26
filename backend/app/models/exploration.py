@@ -2,7 +2,6 @@
 
 import math
 from datetime import datetime, timedelta
-from enum import StrEnum
 
 import sqlalchemy as sa
 from pydantic import UUID4
@@ -10,7 +9,7 @@ from sqlalchemy import orm
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
-from app.core.enums import ExpeditionRunStatus
+from app.core.enums import ExpeditionRunStatus, ExplorationStatus
 from app.models.base import BaseUUIDModel, TimeStampMixin
 
 # The trip home takes half the time the dweller spent exploring.
@@ -20,15 +19,6 @@ RETURN_LEG_FRACTION = 0.5
 def get_utc_now() -> datetime:
     """Get current UTC time."""
     return datetime.utcnow()
-
-
-class ExplorationStatus(StrEnum):
-    """Status of a wasteland exploration."""
-
-    ACTIVE = "active"
-    RETURNING = "returning"
-    COMPLETED = "completed"
-    RECALLED = "recalled"
 
 
 # Statuses that still occupy the dweller; the run is not finished until it leaves this set.

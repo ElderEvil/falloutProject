@@ -1,10 +1,10 @@
-from enum import StrEnum
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.core.enums import QuestType
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.models.vault_quest import (
     VaultQuestCompletionLink,
@@ -15,14 +15,6 @@ if TYPE_CHECKING:
     from app.models.quest_reward import QuestReward
     from app.models.team import Team
     from app.models.vault import Vault
-
-
-class QuestType(StrEnum):
-    MAIN = "main"
-    SIDE = "side"
-    DAILY = "daily"
-    EVENT = "event"
-    REPEATABLE = "repeatable"
 
 
 class QuestBase(SQLModel):

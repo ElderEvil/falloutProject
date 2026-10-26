@@ -1,82 +1,15 @@
 from datetime import datetime
-from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.core.enums import NotificationPriority, NotificationType
 from app.models.base import BaseUUIDModel
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
-
-
-class NotificationType(StrEnum):
-    """Types of notifications"""
-
-    # Dweller events
-    EXPLORATION_UPDATE = "exploration_update"  # Found item, low health, etc.
-    EXPLORATION_COMPLETE = "exploration_complete"
-    LEVEL_UP = "level_up"
-    TRAINING_COMPLETE = "training_complete"
-    TRAINING_STARTED = "training_started"
-
-    # Crafting events
-    CRAFTING_COMPLETE = "crafting_complete"
-    RECIPE_UNLOCKED = "recipe_unlocked"
-
-    STORAGE_ITEM_DEGRADED = "storage_item_degraded"
-    STORAGE_ITEM_UPGRADED = "storage_item_upgraded"
-
-    # Social events
-    RELATIONSHIP_FORMED = "relationship_formed"
-    PREGNANCY_DETECTED = "pregnancy_detected"
-    BABY_BORN = "baby_born"
-
-    # Combat events
-    COMBAT_STARTED = "combat_started"
-    COMBAT_VICTORY = "combat_victory"
-    COMBAT_DEFEAT = "combat_defeat"
-    ARENA_MORALE_BOOST = "arena_morale_boost"
-    DWELLER_INJURED = "dweller_injured"
-    DWELLER_DIED = "dweller_died"
-
-    # Exit events
-    DWELLER_EXIT_REQUESTED = "dweller_exit_requested"
-
-    # Hazard team events
-    HAZARD_TEAM_JOINED = "hazard_team_joined"
-
-    # Resource events
-    RESOURCE_LOW = "resource_low"
-    RESOURCE_CRITICAL = "resource_critical"
-    POWER_OUTAGE = "power_outage"
-
-    # Room Rush events
-    RUSH_SUCCEEDED = "rush_succeeded"
-    RUSH_FAILED = "rush_failed"
-
-    # System events
-    QUEST_COMPLETE = "quest_complete"
-    OBJECTIVE_COMPLETED = "objective_completed"
-    OBJECTIVES_REFRESHED = "objectives_refreshed"
-    ROOM_UNLOCKED = "room_unlocked"
-    ACHIEVEMENT_UNLOCKED = "achievement_unlocked"
-    RADIO_NEW_DWELLER = "radio_new_dweller"
-    RADIO_AUTO_SWITCHED_TO_HAPPINESS = "radio_auto_switched_to_happiness"
-    MAP_REGISTRATION_FAILED = "map_registration_failed"
-
-    # Map point events
-    LOCATION_CLEARED = "location_cleared"
-    LOCATION_READY = "location_ready"
-
-
-class NotificationPriority(StrEnum):
-    INFO = "info"  # FYI, dismissible
-    NORMAL = "normal"  # Standard notification
-    HIGH = "high"  # Important, deserves attention
-    URGENT = "urgent"  # Critical, needs immediate action
 
 
 class NotificationBase(SQLModel):

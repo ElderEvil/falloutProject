@@ -1,27 +1,18 @@
 """Training model for dweller SPECIAL stat training."""
 
 from datetime import datetime
-from enum import StrEnum
 from typing import TYPE_CHECKING, Optional
 
 from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.core.enums import SPECIALEnum
+from app.core.enums import SPECIALEnum, TrainingStatus
 from app.models.base import BaseUUIDModel, TimeStampMixin
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
     from app.models.room import Room
     from app.models.vault import Vault
-
-
-class TrainingStatus(StrEnum):
-    """Status of a training session."""
-
-    ACTIVE = "active"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
 
 
 class TrainingBase(SQLModel):

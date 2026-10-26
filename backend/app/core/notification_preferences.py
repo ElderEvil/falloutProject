@@ -3,7 +3,7 @@
 from enum import StrEnum
 from typing import Any
 
-from app.models.notification import NotificationType
+from app.core.enums import NotificationType
 
 NOTIFICATION_PREFERENCES_KEY = "notifications"
 NOTIFICATION_PREFERENCES_VERSION = 1

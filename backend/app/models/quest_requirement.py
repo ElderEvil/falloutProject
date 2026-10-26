@@ -1,4 +1,3 @@
-from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -7,18 +6,10 @@ from pydantic import UUID4
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.core.enums import RequirementType
+
 if TYPE_CHECKING:
     from app.models.quest import Quest
-
-
-class RequirementType(StrEnum):
-    LEVEL = "level"
-    ITEM = "item"
-    ROOM = "room"
-    DWELLER_COUNT = "dweller_count"
-    QUEST_COMPLETED = "quest_completed"
-    ATTACK = "attack"
-    STAT = "stat"
 
 
 class QuestRequirementBase(SQLModel):

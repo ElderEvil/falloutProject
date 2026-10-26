@@ -153,20 +153,27 @@ const activate = () => {
 }
 
 .dweller-sprite-slot {
+  height: 100%;
   align-items: flex-end;
 }
 
 .scene-occupant {
   flex-direction: column;
   justify-content: flex-end;
-  width: 29.8cqh;
+  height: 100%;
+  aspect-ratio: 2 / 3;
   gap: 0.1rem;
+}
+
+/* The badge sits above the sprite and must not steal its height. */
+.scene-occupant > * {
+  flex-shrink: 0;
 }
 
 /* Keep worker and apprentice portraits the same size. */
 .dweller-sprite-slot-lg .placeholder-dweller {
-  width: 29.8cqh;
-  height: calc(44.6cqh * var(--dweller-body-scale, 1));
+  width: 100%;
+  height: calc(100% * var(--dweller-body-scale, 1));
 }
 
 .placeholder-dweller {

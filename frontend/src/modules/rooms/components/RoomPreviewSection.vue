@@ -73,10 +73,10 @@ const emptyDwellerSilhouetteUrl = getStaticImageUrl(
   '/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp'
 )
 const imageAspect = ref(1.53)
-// The frame sizes dweller sprites with cqh. Hold the overlay until the real
-// image aspect is known; rendering at the 1.53 placeholder height first made
-// every sprite snap smaller once the room image loaded. Reopening a room reuses
-// the measured aspect so the preview is stable immediately.
+// Hold the sprite overlay until the real image aspect is known; rendering at
+// the 1.53 placeholder height first made every sprite snap smaller once the
+// room image loaded. Reopening a room reuses the measured aspect so the
+// preview is stable immediately.
 const imageAspects = new Map<string, number>()
 const imageReady = ref(false)
 const previewReady = computed(() => !sceneImageUrl.value || imageReady.value)
@@ -264,9 +264,11 @@ onMounted(() => {
   aspect-ratio: var(--room-image-aspect, 1.53);
   margin: 0 auto;
   overflow: hidden;
-  /* Dweller sprites size against this frame, so a taller wide scene keeps the
-     same occupant-to-room proportion as a standard preview. */
-  container-type: size;
+  /* Dweller slots size from this frame's height, so a taller wide scene keeps
+     the same occupant-to-room proportion as a standard preview. Percentages
+     keep it layout-driven: Firefox resolves container-query height units
+     against the viewport until the frame is laid out, which flashed oversized
+     sprites when the modal opened. */
 }
 
 .room-image-frame:not(.has-image) {
@@ -377,9 +379,8 @@ onMounted(() => {
   left: 0.5rem;
   z-index: 10;
   display: flex;
+  height: 44.6%;
   align-items: flex-end;
   justify-content: space-evenly;
-  /* 10px at the standard 260px frame; scales up with taller wide scenes. */
-  --dweller-name-size: clamp(0.625rem, 3.85cqh, 1rem);
 }
 </style>

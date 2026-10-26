@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.269.0 (2026-10-26)
+
+### Features
+
+* **dwellers:** backfill legacy non-human names safely ([#1190](https://github.com/ElderEvil/falloutProject/issues/1190)) 344a691
+
 ## 2.268.0 (2026-10-26)
 
 ### Features

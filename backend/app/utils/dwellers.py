@@ -6,8 +6,13 @@ from typing import TYPE_CHECKING, Any
 
 from faker import Faker
 
-from app.core.enums import AgeGroupEnum, GenderEnum
+from app.core.enums import AgeGroupEnum, GenderEnum, SynthTypeEnum
 from app.core.game_config import game_config
+from app.options.dweller_names import (
+    SUPER_MUTANT_EPITHETS,
+    SUPER_MUTANT_NAMES,
+    SYNTH_DESIGNATION_PREFIXES,
+)
 from app.options.factions import FactionOption, faction_restrictions
 from app.options.presets import archetypes
 from app.options.races import STATE_OF_BEING_OPTIONS, RaceOption, is_ageless, race_of
@@ -76,6 +81,48 @@ def get_gender_based_name(gender: GenderEnum, faker: Faker | None = None) -> str
     """Generate a gender-based first name for production use."""
     source = faker if faker is not None else fake
     return source.first_name_male() if gender == GenderEnum.MALE else source.first_name_female()
+
+
+def get_super_mutant_name(state_of_being: str | None, rng: random.Random | ModuleType) -> str:
+    """Pick a mutation-appropriate super mutant name, sometimes with an epithet."""
+    state = state_of_being or "average"
+    pool = SUPER_MUTANT_NAMES.get(state, SUPER_MUTANT_NAMES["average"])
+    name = rng.choice(pool)
+    if state == "mild":
+        return name
+    epithet_chance = 0.35 if state == "behemoth" else 0.25
+    if rng.random() < epithet_chance:
+        return f"{name} {rng.choice(SUPER_MUTANT_EPITHETS)}"
+    return name
+
+
+def get_synth_designation(rng: random.Random | ModuleType) -> str:
+    """Return an Institute-style designation such as ``M7-62``."""
+    return f"{rng.choice(SYNTH_DESIGNATION_PREFIXES)}{rng.randint(0, 9)}-{rng.randint(1, 99):02d}"
+
+
+def get_race_based_name(
+    race: RaceOption,
+    state_of_being: str | None,
+    gender: GenderEnum,
+    faker: Faker,
+    rng: random.Random | ModuleType,
+) -> tuple[str, str | None]:
+    """Return ``(first_name, last_name)`` from the race's canonical name source.
+
+    Humans, ghouls and gen-3 synths pass as people and keep Faker names.
+    Super mutants and visible synths use curated or procedural names so they
+    do not read as modern real-world citizens.
+    """
+    if race == RaceOption.SUPER_MUTANT:
+        return get_super_mutant_name(state_of_being, rng), None
+    if race == RaceOption.SYNTH and state_of_being == SynthTypeEnum.GEN_1.value:
+        return get_synth_designation(rng), None
+    if race == RaceOption.SYNTH and state_of_being == SynthTypeEnum.GEN_2.value:
+        if rng.random() < 0.25:
+            return get_gender_based_name(gender, faker), faker.last_name()
+        return get_synth_designation(rng), None
+    return get_gender_based_name(gender, faker), faker.last_name()
 
 
 def get_stats_by_rarity(rarity: RarityEnum, rng: random.Random | ModuleType | None = None) -> dict[str, int]:
@@ -258,9 +305,10 @@ def create_random_common_dweller(
     level = _rarity_start_level(rarity, rng)
     starting_health = _max_health_for_level(level)
     starting_xp = calculate_xp_required(level)
+    first_name, last_name = get_race_based_name(race, identity.get("state_of_being"), gender, faker, rng)
     return {
-        "first_name": get_gender_based_name(gender, faker),
-        "last_name": faker.last_name(),
+        "first_name": first_name,
+        "last_name": last_name,
         "age_group": age_group,
         "birth_date": birth_date,
         "gender": gender,

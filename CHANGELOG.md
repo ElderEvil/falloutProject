@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.270.2 (2026-10-26)
+
+### Bug Fixes
+
+* fit expedition site picker and restore portrait level badge ([#1206](https://github.com/ElderEvil/falloutProject/issues/1206)) b18f5bd
+
 ## 2.270.1 (2026-10-26)
 
 ### Bug Fixes

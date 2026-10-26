@@ -459,7 +459,11 @@ def build_view(
         )
         for option in room.node.options
     ]
-    enemies = [spec.name for spec in room.node.enemies]
+    enemies = (
+        [enemy["name"] for enemy in run.flags["combat"]["opponents"]]
+        if run.flags.get("combat")
+        else [spec.name for spec in room.node.enemies]
+    )
     for option in room.node.options:
         enemies.extend(spec.name for spec in (option.failure.combat_enemies or []))
     return SiteRoomView(

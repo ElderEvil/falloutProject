@@ -1,5 +1,6 @@
 """Arena combat in one authored site scene. The expedition service owns all writes/commits."""
 
+from collections import Counter
 from typing import Literal
 
 from app.models.dweller import Dweller
@@ -51,20 +52,32 @@ def initial_combat(site: SiteDefinition) -> dict:
 
 
 def _opponents(state: dict) -> list[ArenaParticipant]:
-    return [
-        ArenaParticipant(
-            key=f"{entry['key']}#{index}",
-            name=entry["name"],
-            short_name=entry["name"],
-            power=entry["power"],
-            health=entry["hp"],
-            max_health=entry["max_hp"],
-            is_creature=True,
-            body="feral" if entry["key"] == "feral-ghoul" else "mutant" if entry["key"] == "super-mutant" else "human",
-            effect="shot" if entry["key"] in {"raider", "super-mutant"} else "strike",
+    totals = Counter(entry["name"] for entry in state["opponents"])
+    seen: Counter[str] = Counter()
+    opponents = []
+    for index, entry in enumerate(state["opponents"]):
+        seen[entry["name"]] += 1
+        name = entry["name"]
+        if totals[name] > 1:
+            name = f"{name} {seen[name]}"
+        opponents.append(
+            ArenaParticipant(
+                key=f"{entry['key']}#{index}",
+                name=name,
+                short_name=name,
+                power=entry["power"],
+                health=entry["hp"],
+                max_health=entry["max_hp"],
+                is_creature=True,
+                body="feral"
+                if entry["key"] == "feral-ghoul"
+                else "mutant"
+                if entry["key"] == "super-mutant"
+                else "human",
+                effect="shot" if entry["key"] in {"raider", "super-mutant"} else "strike",
+            )
         )
-        for index, entry in enumerate(state["opponents"])
-    ]
+    return opponents
 
 
 def combat_view(state: dict, dweller: Dweller) -> SiteCombatView:

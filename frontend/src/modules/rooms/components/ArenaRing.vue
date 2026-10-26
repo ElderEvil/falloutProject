@@ -4,7 +4,11 @@ import { UserRound, PawPrint } from '@lucide/vue'
 import CombatSkillIcon from '@/modules/combat/components/CombatSkillIcon.vue'
 import type { ArenaFighter, ArenaRoomState } from '../api/arena'
 import { creatureKeyOf } from '../models/arena'
-import { getCreatureImagePath, getCreatureModelSizeClass } from '@/core/utils/creatureAssets'
+import {
+  getActorModelSizeClass,
+  getCreatureImagePath,
+  getCreatureModelSizeClass,
+} from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
 import { Button } from '@/core/components/ui/button'
 import {
@@ -14,7 +18,7 @@ import {
   TooltipContent,
 } from '@/core/components/ui/tooltip'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
-import { getDwellerBodySize } from '@/modules/dwellers/models/dweller'
+import { getDwellerPortraitScale } from '@/modules/dwellers/models/dweller'
 import CombatDamageNumbers from '@/modules/combat/components/CombatDamageNumbers.vue'
 import CombatantMeters from './CombatantMeters.vue'
 import CombatantMotion from '@/modules/combat/components/CombatantMotion.vue'
@@ -75,12 +79,15 @@ const readySkills = computed(() => {
   })
 })
 const imageFor = (id: string) => getStaticImageUrl(getCreatureImagePath(creatureKeyOf(id)))
-const bodySizeFor = (fighter: ArenaFighter) =>
-  getDwellerBodySize({
-    age_group: fighter.age_group,
-    visual_attributes: fighter.race ? { race: fighter.race } : null,
-  })
-const bodySizeClass = (fighter: ArenaFighter) => `arena-body--${bodySizeFor(fighter)}`
+const actorSizeClass = (fighter: ArenaFighter) =>
+  fighter.is_creature || fighter.is_robot
+    ? getCreatureModelSizeClass(creatureKeyOf(fighter.id))
+    : getActorModelSizeClass(
+        getDwellerPortraitScale({
+          age_group: fighter.age_group,
+          visual_attributes: fighter.race ? { race: fighter.race } : null,
+        })
+      )
 
 const isAttacking = (fighter: ArenaFighter, side: 'A' | 'B') =>
   fighter.health > 0 &&
@@ -106,11 +113,10 @@ const actionFor = (fighter: ArenaFighter) => {
   <TooltipProvider :delay-duration="200">
     <section
       v-bind="$attrs"
-      class="arena-ring isolate min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
+      class="arena-ring isolate min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken [container-type:size]"
       :class="{
         'arena-ring--encounter': encounter,
         'arena-ring--wide': encounter && wideSceneImageUrl,
-        '[container-type:size]': contained,
         'relative w-full': !contained,
         absolute: contained,
       }"
@@ -167,8 +173,9 @@ const actionFor = (fighter: ArenaFighter) => {
           >
         </Transition>
       </div>
+      <!-- Reserve meter/headroom space for the largest (1.5x) actor while keeping every actor in proportion. -->
       <div
-        class="absolute grid grid-cols-2"
+        class="absolute grid grid-cols-2 [--scene-actor-height:min(36cqh,max(0px,calc((100cqh-7rem)/1.5)))]"
         :class="
           contained
             ? 'inset-x-[6%] bottom-[6%] gap-[12%]'
@@ -184,7 +191,7 @@ const actionFor = (fighter: ArenaFighter) => {
           <div
             v-for="(fighter, index) in team.fighters"
             :key="fighter.id"
-            class="ring-fighter relative flex min-w-0 max-w-28 flex-1 flex-col items-center gap-1"
+            class="ring-fighter relative flex min-w-0 max-w-[var(--scene-actor-height)] flex-1 flex-col items-center gap-1"
             :aria-current="isAttacking(fighter, team.side) ? 'true' : undefined"
             :class="[
               {
@@ -215,15 +222,7 @@ const actionFor = (fighter: ArenaFighter) => {
             />
             <div
               class="fighter-portrait relative flex shrink-0 items-end justify-center"
-              :class="[
-                contained && 'max-h-[max(0px,calc(100cqh-7rem))]',
-                fighter.is_creature || fighter.is_robot
-                  ? getCreatureModelSizeClass(creatureKeyOf(fighter.id))
-                  : [
-                      encounter ? 'h-28 w-full sm:h-44' : 'h-32 w-full sm:h-44',
-                      bodySizeClass(fighter),
-                    ],
-              ]"
+              :class="actorSizeClass(fighter)"
             >
               <div class="absolute inset-x-0 top-1/3 z-20 flex flex-wrap justify-center gap-1">
                 <Tooltip
@@ -271,7 +270,7 @@ const actionFor = (fighter: ArenaFighter) => {
                     class="size-full object-contain drop-shadow-lg"
                     :class="{ '-scale-x-100': team.side === 'B' && fighter.is_robot }"
                   />
-                  <PawPrint v-else class="size-14 text-danger" />
+                  <PawPrint v-else class="size-full text-danger" />
                 </template>
                 <DwellerPortrait
                   v-else
@@ -291,7 +290,7 @@ const actionFor = (fighter: ArenaFighter) => {
                     !fighter.image_url &&
                     !fighter.thumbnail_url
                   "
-                  class="absolute bottom-0 h-32 w-16 text-theme-primary sm:h-44 sm:w-20"
+                  class="absolute bottom-0 size-full text-theme-primary"
                   :class="{ '-scale-x-100': team.side === 'B' }"
                 />
               </CombatantMotion>
@@ -327,24 +326,6 @@ const actionFor = (fighter: ArenaFighter) => {
     aspect-ratio: 16 / 9;
   }
 }
-.arena-body--large {
-  height: 9.5rem;
-}
-
-.arena-body--small {
-  height: 6.5rem;
-}
-
-@media (min-width: 640px) {
-  .arena-body--large {
-    height: 13rem;
-  }
-
-  .arena-body--small {
-    height: 9rem;
-  }
-}
-
 .countdown-pop-enter-active,
 .countdown-pop-leave-active {
   transition:

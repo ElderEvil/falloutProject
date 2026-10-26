@@ -1,6 +1,59 @@
 import { expect, test } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 
+test('raiders match dweller height and both scale when the scene container resizes', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.route('**/static/**', (route) =>
+    route.fulfill({
+      path: fileURLToPath(
+        new URL(
+          route.request().url().includes('raider')
+            ? '../../../backend/app/static/creature_images/assembled/raider.webp'
+            : '../../../backend/app/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Female.webp',
+          import.meta.url
+        )
+      ),
+    })
+  )
+  await page.goto('/tests/e2e/fixtures/wasteland-scenes.html')
+  await page.getByRole('combobox', { name: 'Preview location' }).click()
+  await page.getByRole('option', { name: 'Abandoned supermarket', exact: true }).click()
+  await page.getByRole('button', { name: 'Preview combat layout', exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  const scene = dialog.getByRole('region', { name: 'Abandoned supermarket', exact: true })
+  const dweller = scene.getByAltText('Lucy MacLean', { exact: true })
+  const raider = scene.getByAltText('Raider', { exact: true })
+  for (const actor of [dweller, raider]) {
+    await expect
+      .poll(() => actor.evaluate((el: HTMLImageElement) => el.naturalWidth))
+      .toBeGreaterThan(0)
+  }
+  await page.waitForTimeout(150)
+  const before = {
+    scene: (await scene.boundingBox())!,
+    dweller: (await dweller.boundingBox())!,
+    raider: (await raider.boundingBox())!,
+  }
+  expect(before.raider.height / before.dweller.height).toBeGreaterThan(0.85)
+  expect(before.raider.height / before.dweller.height).toBeLessThan(1.15)
+  // Keep the viewport fixed: scaling must follow the picture, not a viewport breakpoint.
+  await dialog.getByLabel('Battlefield space').evaluate((el) => {
+    el.parentElement!.style.height = '320px'
+  })
+  await page.waitForTimeout(100)
+  const after = {
+    scene: (await scene.boundingBox())!,
+    dweller: (await dweller.boundingBox())!,
+    raider: (await raider.boundingBox())!,
+  }
+  const ratio = after.scene.height / before.scene.height
+  expect(ratio).toBeLessThan(0.8)
+  expect(after.dweller.height / before.dweller.height).toBeCloseTo(ratio, 1)
+  expect(after.raider.height / before.raider.height).toBeCloseTo(ratio, 1)
+})
+
 for (const [width, height] of [
   [1280, 720],
   [1280, 600],
@@ -19,8 +72,7 @@ for (const [width, height] of [
     const bounds = (await scene.boundingBox())!
     const space = (await dialog.getByLabel('Battlefield space').boundingBox())!
     const footer = (await dialog
-      .getByRole('button', { name: 'Close', exact: true })
-      .first()
+      .getByRole('button', { name: 'Close preview', exact: true })
       .boundingBox())!
     expect(bounds.width).toBeGreaterThan(80)
     expect(bounds.height).toBeGreaterThan(60)
@@ -39,6 +91,11 @@ for (const [width, height] of [
     await expect(log).toContainText('Turn 1')
     await expect(log).toContainText('Turn 30')
     expect(await log.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true)
+    if (width >= 1280 && height >= 720) {
+      const journal = (await log.boundingBox())!
+      expect(journal.width).toBeGreaterThan(300)
+      expect(journal.height).toBeGreaterThan(300)
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
     await page.screenshot({ path: `test-results/site-combat-fit-${width}-${height}.png` })
   })
@@ -78,7 +135,7 @@ for (const glow of ['off', 'subtle', 'normal', 'strong']) {
       )
     })
     await expect(title).toHaveCSS('text-shadow', 'none')
-    await page.getByRole('button', { name: 'Close briefing', exact: true }).click()
+    await page.getByRole('button', { name: 'Close', exact: true }).click()
     await expect(dialog).toHaveCount(0)
   })
 }
@@ -151,3 +208,27 @@ test('the development menu links to the scene preview', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Wasteland scenes', exact: true })).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'Preview location' })).toBeVisible()
 })
+
+for (const width of [390, 1280]) {
+  test(`encounter briefing groups health, enemies and journey status at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 })
+    await page.goto('/tests/e2e/fixtures/wasteland-scenes.html')
+    await page.getByRole('button', { name: 'Preview briefing', exact: true }).click()
+    const dialog = page.getByRole('dialog')
+    const status = dialog.getByLabel('Encounter status', { exact: true })
+    await expect(status).toContainText('HP 81/100')
+    await expect(status).toContainText('Radscorpion')
+    await expect(status).toContainText('Travel paused')
+    await expect(dialog.getByLabel('Encounter briefing', { exact: true })).toBeVisible()
+    const health = (await status.getByText('HP 81/100', { exact: true }).boundingBox())!
+    const enemies = (await status.getByLabel('Encounter enemies').boundingBox())!
+    expect(enemies.x).toBeGreaterThan(health.x + health.width)
+    await expect(
+      dialog.getByRole('button', { name: 'Close preview', exact: true })
+    ).toBeInViewport()
+    expect(await dialog.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(false)
+    await page.screenshot({ path: `test-results/site-briefing-${width}.png` })
+  })
+}

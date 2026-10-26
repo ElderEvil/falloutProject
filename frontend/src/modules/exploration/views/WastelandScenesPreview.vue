@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Button } from '@/core/components/ui/button'
-import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import {
   Select,
   SelectContent,
@@ -17,16 +16,22 @@ import { useExpeditionSiteStore } from '../stores/expeditionSite'
 import { WASTELAND_SCENES, type WastelandSceneId } from '../models/wastelandScenes'
 
 const selectedScene = ref<WastelandSceneId>('desert_highway')
-const briefingOpen = ref(false)
+const previewIsCombat = ref(false)
 const combatOpen = ref(false)
 const artwork = computed(() => WASTELAND_SCENES[selectedScene.value])
 const portrait = '/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Female.webp'
 
-function previewCombat(): void {
+function previewCombat(combat = true): void {
+  previewIsCombat.value = combat
   const store = useExpeditionSiteStore()
   store.reset()
   store.currentExplorationId = 'preview'
   const desert = selectedScene.value === 'desert_highway'
+  const enemy = desert
+    ? { id: 'giant-radscorpion#0', name: 'Radscorpion' }
+    : selectedScene.value === 'supermarket_interior'
+      ? { id: 'raider#0', name: 'Raider' }
+      : { id: 'feral-ghoul#0', name: 'Feral Ghoul' }
   store.room = {
     exploration_id: 'preview',
     site_id: 'preview',
@@ -38,7 +43,7 @@ function previewCombat(): void {
     flavor: 'Read-only preview of the encounter battlefield and journal.',
     lore: 'This preview does not advance a real expedition.',
     threat: 'low',
-    node: { kind: 'combat', prompt: 'Preview', enemy_names: [], options: [] },
+    node: { kind: 'combat', prompt: 'Preview', enemy_names: [enemy.name], options: [] },
     can_retreat: false,
     status: 'in_room',
     outcome: null,
@@ -47,7 +52,7 @@ function previewCombat(): void {
     dweller_health: 81,
     dweller_max_health: 100,
     combat_state: {
-      round: 16,
+      round: combat ? 16 : 0,
       next_attack_team: 'A',
       fighters: [
         {
@@ -69,8 +74,7 @@ function previewCombat(): void {
           },
         },
         {
-          id: desert ? 'giant-radscorpion#0' : 'feral-ghoul#0',
-          name: desert ? 'Radscorpion' : 'Feral Ghoul',
+          ...enemy,
           level: 0,
           health: 12,
           max_health: 30,
@@ -79,18 +83,20 @@ function previewCombat(): void {
           is_robot: false,
         },
       ],
-      events: Array.from({ length: 30 }, (_, index) => ({
-        id: `${index + 1}:0`,
-        message: `Lucy ${index % 5 === 0 ? 'uses Aimed Shot' : 'attacks'} · Turn ${index + 1}`,
-        action: {
-          actor_id: 'lucy',
-          actor_body: 'human',
-          effect: 'shot',
-          skill: index % 5 === 0 ? 'Aimed Shot' : null,
-          skill_icon: 'gun-rifle',
-          targets: [],
-        },
-      })),
+      events: !combat
+        ? []
+        : Array.from({ length: 30 }, (_, index) => ({
+            id: `${index + 1}:0`,
+            message: `Lucy ${index % 5 === 0 ? 'uses Aimed Shot' : 'attacks'} · Turn ${index + 1}`,
+            action: {
+              actor_id: 'lucy',
+              actor_body: 'human',
+              effect: 'shot',
+              skill: index % 5 === 0 ? 'Aimed Shot' : null,
+              skill_icon: 'gun-rifle',
+              targets: [],
+            },
+          })),
     },
   }
   combatOpen.value = true
@@ -130,8 +136,8 @@ function selectScene(value: unknown): void {
           </SelectContent>
         </Select>
       </div>
-      <Button class="w-fit" @click="briefingOpen = true">Preview briefing</Button>
-      <Button class="w-fit" @click="previewCombat">Preview combat layout</Button>
+      <Button class="w-fit" @click="previewCombat(false)">Preview briefing</Button>
+      <Button class="w-fit" @click="previewCombat(true)">Preview combat layout</Button>
     </header>
 
     <section class="flex flex-col gap-3" aria-labelledby="encounter-heading">
@@ -145,30 +151,18 @@ function selectScene(value: unknown): void {
         :thumbnail-url="portrait"
       />
     </section>
-    <TerminalModal
-      :open="briefingOpen"
-      :title="artwork.label"
-      icon="mdi:radio-tower"
-      size="3xl"
-      @close="briefingOpen = false"
-    >
-      <div class="min-h-0 overflow-y-auto p-5">
-        <WastelandScene
-          :scene="selectedScene"
-          variant="battleback"
-          :heading="artwork.label"
-          compact
-        />
-      </div>
-      <template #footer>
-        <Button @click="briefingOpen = false">Close briefing</Button>
-      </template>
-    </TerminalModal>
     <ExpeditionSiteModal
       :show="combatOpen"
       exploration-id="preview"
-      :exploration-active="false"
+      :exploration-active="!previewIsCombat"
+      dweller-name="Lucy MacLean"
+      :dweller-thumbnail-url="portrait"
+      pauses-travel
       @close="combatOpen = false"
-    />
+    >
+      <template #footer>
+        <Button class="w-full" size="lg" @click="combatOpen = false">Close preview</Button>
+      </template>
+    </ExpeditionSiteModal>
   </main>
 </template>

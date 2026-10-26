@@ -540,6 +540,23 @@ async def test_preexisting_spatial_run_keeps_its_saved_rooms(async_session, vaul
 
 
 @pytest.mark.asyncio
+async def test_scene_briefing_uses_persisted_enemy_roster(async_session, vault, dweller):
+    exploration = await _spatial_run_at_site(async_session, vault, dweller, "super_duper_mart")
+    await expedition_module.expedition_service.enter_run(async_session, exploration.id, "super_duper_mart")
+    run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    combat = run.flags["combat"]
+    enemy = combat["opponents"][0]
+    run.flags = {**run.flags, "combat": {**combat, "opponents": [dict(enemy), dict(enemy)]}}
+    async_session.add(run)
+    await async_session.commit()
+
+    view = await expedition_module.expedition_service.current_view(async_session, exploration.id)
+    assert view.node.enemy_names == [enemy["name"], enemy["name"]]
+    assert len(view.combat_state.fighters) == 3
+    assert view.combat_state.round == 0
+
+
+@pytest.mark.asyncio
 async def test_single_scene_defeat_is_nonlethal_consumed_and_resumes_travel(async_session, vault, dweller):
     from app.schemas.expedition import ExpeditionResolveRequest
 
@@ -770,3 +787,40 @@ async def test_scene_reward_notification_failure_rolls_back_final_turn(async_ses
     ]
     publish.assert_not_awaited()
     websocket.assert_not_awaited()
+
+
+@pytest.mark.parametrize("first_health", [40, 0])
+async def test_duplicate_scene_enemies_have_stable_numbered_labels(
+    async_session: AsyncSession, dweller: Dweller, first_health: int
+) -> None:
+    from app.services.exploration.site_combat_service import combat_view, resolve_turn
+
+    dweller = await crud.dweller.get(async_session, dweller.id)
+    dweller.health = dweller.max_health = 100
+    dweller.radiation = 0
+    opponent = {"key": "raider", "name": "Raider", "hp": 40, "max_hp": 40, "power": 100}
+    state = {
+        "round": 0,
+        "next_attack_team": "B",
+        "opponents": [
+            {**opponent, "hp": first_health},
+            {**opponent, "key": "feral-ghoul", "name": "Feral Ghoul"},
+            dict(opponent),
+        ],
+        "charge": 0,
+        "carry": {},
+        "events": [],
+    }
+    fighters = combat_view(state, dweller).fighters[1:]
+    assert [fighter.name for fighter in fighters] == ["Raider 1", "Feral Ghoul", "Raider 2"]
+    assert [fighter.id for fighter in fighters] == ["raider#0", "feral-ghoul#1", "raider#2"]
+
+    resolved, *_ = resolve_turn(state, dweller, use_skill=False)
+    assert any("Raider 2 hits" in event["message"] for event in resolved["events"])
+    assert any("Raider 1 hits" in event["message"] for event in resolved["events"]) == (first_health > 0)
+    assert [fighter.name for fighter in combat_view(resolved, dweller).fighters[1:]] == [
+        "Raider 1",
+        "Feral Ghoul",
+        "Raider 2",
+    ]
+    assert [enemy["name"] for enemy in resolved["opponents"]] == ["Raider", "Feral Ghoul", "Raider"]

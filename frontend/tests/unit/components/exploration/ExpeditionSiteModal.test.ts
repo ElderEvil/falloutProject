@@ -513,7 +513,9 @@ describe('ExpeditionSiteModal', () => {
     }
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Enemies: Radroach swarm ×2, Raider gang')
+    expect(
+      wrapper.get('[aria-label="Encounter status"] [aria-label="Encounter enemies"]').text()
+    ).toContain('Radroach swarm ×2, Raider gang')
 
     store.room = {
       ...choiceRoom,

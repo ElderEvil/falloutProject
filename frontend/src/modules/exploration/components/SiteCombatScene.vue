@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
+import { useSound } from '@/core/composables/useSound'
 import ArenaRing from '@/modules/rooms/components/ArenaRing.vue'
 import { useCombatPlayback } from '@/modules/combat/composables/useCombatPlayback'
 import { WASTELAND_SCENES } from '../models/wastelandScenes'
@@ -13,11 +14,17 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ playing: [value: boolean]; skill: [] }>()
 const combat = computed(() => props.room.combat_state!)
-const playback = useCombatPlayback(() => ({
-  key: `${props.room.exploration_id}:${props.room.site_id}`,
-  health: Object.fromEntries(combat.value.fighters.map((fighter) => [fighter.id, fighter.health])),
-  events: combat.value.events ?? [],
-}))
+const { playSound } = useSound()
+const playback = useCombatPlayback(
+  () => ({
+    key: `${props.room.exploration_id}:${props.room.site_id}`,
+    health: Object.fromEntries(
+      combat.value.fighters.map((fighter) => [fighter.id, fighter.health])
+    ),
+    events: combat.value.events ?? [],
+  }),
+  (event) => playSound(event.action.skill ? 'arenaSkill' : 'incidentHit', 'sfx')
+)
 watch(playback.isPlaying, (value) => emit('playing', value), { immediate: true })
 const artwork = computed(() =>
   props.room.scene_id ? WASTELAND_SCENES[props.room.scene_id].battleback : null

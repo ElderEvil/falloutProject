@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Button } from '@/core/components/ui/button'
+import { Switch } from '@/core/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -145,7 +146,7 @@ function selectScene(value: unknown): void {
         </Select>
       </div>
       <label class="flex w-fit items-center gap-2 text-sm">
-        <input v-model="pairedEnemies" type="checkbox" class="size-4 accent-theme-primary" />
+        <Switch v-model:checked="pairedEnemies" aria-label="Pair of enemies" />
         Pair of enemies
       </label>
       <Button class="w-fit" @click="previewCombat(false)">Preview briefing</Button>

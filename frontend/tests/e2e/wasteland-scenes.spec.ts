@@ -241,7 +241,7 @@ for (const [width, height] of [
   test(`paired enemies fit below the scene header at ${width}x${height}`, async ({ page }) => {
     await page.setViewportSize({ width, height })
     await page.goto('/tests/e2e/fixtures/wasteland-scenes.html')
-    await page.getByRole('checkbox', { name: 'Pair of enemies' }).check()
+    await page.getByRole('switch', { name: 'Pair of enemies' }).check()
     await page.getByRole('button', { name: 'Preview combat layout', exact: true }).click()
     const scene = page
       .getByRole('dialog')

@@ -17,7 +17,7 @@
         id,
         name: id,
         level: 5,
-        health: 80,
+        health: params.get('knocked-out') === id ? 0 : 80,
         max_health: 100,
         power: 10,
         is_creature: creature,
@@ -81,6 +81,20 @@
             skillEnabled: state.countdown_remaining === 0,
             pendingSkills: new Set(),
             attackingTeam: null,
+            activeAction: params.has('pet-attack')
+              ? {
+                  id: 'pet-attack',
+                  message: 'Visual attack',
+                  action: {
+                    actor_id: params.get('actor') || 'Alpha',
+                    effect: 'shot',
+                    targets: [
+                      { target_id: params.get('actor') === 'Bravo' ? 'Alpha' : 'Bravo', damage: 7 },
+                    ],
+                  },
+                }
+              : null,
+            combatPhase: params.has('pet-attack') ? 'impact' : null,
             damageNumbers: params.has('damage') ? [{ id: 1, amount: 15, fighterId: 'Alpha' }] : [],
             onSkill: (id) => {
               const fighter = state.team_a.find((f) => f.id === id)

@@ -8,17 +8,26 @@ const props = defineProps<{
   facing?: 'left' | 'right'
   action?: PlayingCombatAction | null
   phase?: 'prepare' | 'impact' | null
+  companion?: boolean
 }>()
 
 const attacking = computed(() => props.action?.action.actor_id === props.fighterId)
 const target = computed(() =>
-  props.action?.action.targets.find((impact) => impact.target_id === props.fighterId)
+  props.companion
+    ? undefined
+    : props.action?.action.targets.find((impact) => impact.target_id === props.fighterId)
 )
 const hit = computed(() => props.phase === 'impact' && !!target.value)
 const body = computed(() =>
-  attacking.value ? (props.action?.action.actor_body ?? 'human') : (target.value?.body ?? 'human')
+  props.companion
+    ? 'human'
+    : attacking.value
+      ? (props.action?.action.actor_body ?? 'human')
+      : (target.value?.body ?? 'human')
 )
-const effect = computed(() => props.action?.action.effect ?? 'strike')
+const effect = computed(() =>
+  props.companion ? 'strike' : (props.action?.action.effect ?? 'strike')
+)
 const melee = computed(() => ['strike', 'punch', 'thrust', 'sweep'].includes(effect.value))
 const metal = computed(() => ['synth', 'power-armor'].includes(body.value))
 const active = computed(() => !!props.action && (attacking.value || hit.value))
@@ -38,7 +47,7 @@ const active = computed(() => !!props.action && (attacking.value || hit.value))
           'combat-body--attack': attacking && phase === 'impact' && melee,
           'combat-body--recoil': attacking && phase === 'impact' && !melee,
           'combat-body--hit': hit,
-          'combat-body--skill': !!action?.action.skill,
+          'combat-body--skill': !companion && !!action?.action.skill,
           'combat-body--stationary': !!action?.accelerated,
         },
       ]"
@@ -46,7 +55,7 @@ const active = computed(() => !!props.action && (attacking.value || hit.value))
       <slot />
     </div>
     <CombatEffect
-      v-if="active"
+      v-if="active && !companion"
       :key="`${action?.id}:${phase}`"
       :effect="effect"
       :preparing="phase === 'prepare'"

@@ -132,9 +132,14 @@ Equipped pets now travel through the shared `fighter_view` response and render a
 their owner's feet in `ArenaRing`. Appearance uses the equipped pet's image URL,
 with the existing catalog asset lookup as a fallback. A missing/broken image shows
 a paw symbol. Companions share their owner's facing and ground plane; they add no
-fighter, HP/charge meters, target, attack or damage calculation. Existing pet bonuses
+fighter, HP/charge meters, target, or mechanical attack/damage calculation. Existing pet bonuses
 remain with `pet_modifiers_for` and the combat kernel. Incident companion visuals
 remain a separate follow-up because incidents use their own scene actor projection.
+
+Pet attacks are presentation only: `CombatantMotion`'s companion mode follows the
+owner's prepare/impact playback as a lunge, including when the owner uses a ranged
+weapon. It ignores incoming impacts and suppresses weapon effects, damage reactions
+and skill flashes. The pet remains outside the action/target/HP roster.
 
 ### Further extraction has limited value
 

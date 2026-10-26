@@ -1,6 +1,43 @@
 import { test, expect } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 
+for (const actor of ['Alpha', 'Bravo']) {
+  test(`${actor}'s pet lunges inward without damage effects`, async ({ page }) => {
+    await page.goto(
+      `/tests/e2e/fixtures/arena-ring.html?mode=duel&pets=1&pet-attack=1&actor=${actor}`
+    )
+    const fighter = page
+      .locator('.ring-fighter')
+      .filter({ has: page.locator(`.fighter-meters span[title="${actor}"]`) })
+    const body = fighter.locator('.combat-pet .combat-body')
+    await expect(body).toHaveClass(/combat-body--attack/)
+    const movement = await body.evaluate((element) => {
+      for (const animation of element.getAnimations()) {
+        animation.pause()
+        animation.currentTime = 50
+      }
+      return new DOMMatrixReadOnly(getComputedStyle(element).transform).m41
+    })
+    expect(actor === 'Alpha' ? movement : -movement).toBeGreaterThan(0)
+    await expect(page.locator('.combat-pet .combat-body--hit')).toHaveCount(0)
+    await expect(page.locator('.combat-pet .combat-effect')).toHaveCount(0)
+  })
+}
+
+test('a pet stays unharmed when its owner is knocked out', async ({ page }) => {
+  await page.goto('/tests/e2e/fixtures/arena-ring.html?mode=duel&pets=1&knocked-out=Alpha')
+  const pet = page.locator('.ring-fighter').first().locator('.combat-pet')
+  await expect(pet).toBeVisible()
+  const opacity = await pet.evaluate((element) => {
+    let value = 1
+    for (let node: Element | null = element; node; node = node.parentElement)
+      value *= Number(getComputedStyle(node).opacity)
+    return value
+  })
+  expect(opacity).toBe(1)
+  await expect(pet.locator('.combat-body--hit')).toHaveCount(0)
+})
+
 for (const width of [390, 1280]) {
   for (const mode of ['duel', 'hunt']) {
     test(`pets share their owners' ground without extra fighters in ${mode} at ${width}px`, async ({

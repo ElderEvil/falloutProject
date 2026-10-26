@@ -16,6 +16,20 @@ const action: PlayingCombatAction = {
 }
 
 describe('CombatantMotion', () => {
+  it('makes companions lunge with their owner without weapon effects or damage reactions', async () => {
+    const wrapper = mount(CombatantMotion, {
+      props: { fighterId: 'lucy', companion: true, action, phase: 'prepare' },
+    })
+    expect(wrapper.find('.combat-body--windup').exists()).toBe(true)
+    expect(wrapper.findComponent(CombatEffect).exists()).toBe(false)
+    await wrapper.setProps({ phase: 'impact' })
+    expect(wrapper.find('.combat-body--attack').exists()).toBe(true)
+    expect(wrapper.find('.combat-body--recoil').exists()).toBe(false)
+    await wrapper.setProps({ fighterId: 'maximus' })
+    expect(wrapper.find('.combat-body--hit').exists()).toBe(false)
+    expect(wrapper.find('.combat-body--attack').exists()).toBe(false)
+    expect(wrapper.findComponent(CombatEffect).exists()).toBe(false)
+  })
   it('braces for a shot and recoils at impact instead of lunging', async () => {
     const wrapper = mount(CombatantMotion, {
       props: { fighterId: 'lucy', action, phase: 'prepare' },

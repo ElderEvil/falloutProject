@@ -202,7 +202,6 @@ const actionFor = (fighter: ArenaFighter) => {
               {
                 'bottom-[var(--scene-stagger)] z-0 scale-90': index % 2 === 1,
                 'z-10': index % 2 === 0,
-                'opacity-40 grayscale': fighter.health <= 0,
               },
               // Center solo fighters; offset only multi-fighter lanes.
               team.fighters.length > 1 && {
@@ -218,6 +217,7 @@ const actionFor = (fighter: ArenaFighter) => {
             />
             <CombatantMeters
               class="fighter-meters max-w-32"
+              :class="{ 'opacity-40 grayscale': fighter.health <= 0 }"
               :name="fighter.name"
               :health="fighter.health"
               :max-health="fighter.max_health"
@@ -262,6 +262,7 @@ const actionFor = (fighter: ArenaFighter) => {
                 </Tooltip>
               </div>
               <CombatantMotion
+                :class="{ 'opacity-40 grayscale': fighter.health <= 0 }"
                 :fighter-id="fighter.id"
                 :facing="team.side === 'B' ? 'left' : 'right'"
                 :action="activeAction"
@@ -303,6 +304,9 @@ const actionFor = (fighter: ArenaFighter) => {
                 v-if="fighter.pet && !fighter.is_creature && !fighter.is_robot"
                 :pet="fighter.pet"
                 :owner-name="fighter.name"
+                :owner-id="fighter.id"
+                :action="activeAction"
+                :phase="combatPhase"
                 :facing="team.side === 'B' ? 'left' : 'right'"
               />
             </div>

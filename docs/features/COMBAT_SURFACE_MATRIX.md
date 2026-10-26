@@ -79,6 +79,7 @@ random exploration events; it is not part of the single-scene encounter and is e
 | Unit | Arena | Incident | Wasteland site |
 | --- | --- | --- | --- |
 | `ArenaRing.vue` | yes (via `ArenaPreview`) | no | yes (`SiteCombatScene`) |
+| `CombatPet.vue` / `ArenaFighter.pet` | yes (equipped companion appearance) | no | yes (via `fighter_view` and `ArenaRing`) |
 | `ArenaPreview.vue` / `ArenaSupportPanel.vue` | yes | no | no |
 | `CombatantMeters.vue` | yes (`ArenaRing`, `ArenaPreview`) | no (own HP rows + `Progress`) | yes (via `ArenaRing`) |
 | `CombatantMotion.vue` | yes | yes | yes (via `ArenaRing`) |
@@ -126,6 +127,23 @@ is the right layer: the action vocabulary (`CombatAction`/`CombatImpact`), `comb
 2. **Duplicate-enemy numbering**: site numbering now lives in the existing `catalog_participants`
    constructor so Arena also distinguishes identical opponents. Preserve actor IDs and count the
    full roster, including knocked-out enemies, so labels do not change after a knockout.
+
+Equipped pets now travel through the shared `fighter_view` response and render at
+their owner's feet in `ArenaRing`. Appearance uses the equipped pet's image URL,
+with the existing catalog asset lookup as a fallback. A missing/broken image shows
+a paw symbol. Companions share their owner's facing and ground plane; they add no
+fighter, HP/charge meters, target, or mechanical attack/damage calculation. Existing pet bonuses
+remain with `pet_modifiers_for` and the combat kernel. Incident companion visuals
+remain a separate follow-up because incidents use their own scene actor projection.
+
+Pet attacks are presentation only: `CombatantMotion`'s companion mode follows the
+owner's prepare/impact playback as a lunge, including when the owner uses a ranged
+weapon. It ignores incoming impacts and suppresses weapon effects, damage reactions
+and skill flashes. The pet remains outside the action/target/HP roster.
+
+`actor-ground-shadow` provides a soft contact ellipse for fighters and pets in
+arena setup, encounter briefings and live combat. It scales inside the actor frame
+and stays on the floor while the sprite lunges; it cannot intercept input.
 
 ### Further extraction has limited value
 

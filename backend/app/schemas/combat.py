@@ -24,6 +24,13 @@ CombatSkillIcon = Literal[
 ]
 
 
+class CombatPet(BaseModel):
+    """An equipped companion's appearance; not an independent combat participant."""
+
+    name: str
+    image_url: str | None = None
+
+
 class CombatImpact(BaseModel):
     target_id: str
     body: CombatBody = "human"

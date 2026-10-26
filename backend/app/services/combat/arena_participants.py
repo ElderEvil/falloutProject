@@ -15,10 +15,12 @@ from app.models.arena_state import ArenaState
 from app.models.dweller import Dweller
 from app.options.identity_modifiers import effective_stat
 from app.schemas.arena import ArenaActiveSkill, ArenaFighter
-from app.schemas.combat import CombatBody, CombatEffect
+from app.schemas.combat import CombatBody, CombatEffect, CombatPet
 from app.services.catalog_service import list_arena_creatures
 from app.services.combat.weapon_skill_service import MAX_CHARGE, weapon_skill
 from app.utils.combat import combat_power
+from app.utils.equipped import equipped_pet
+from app.utils.pet_assets import get_pet_image_url
 
 BASE_CHARGE_PER_SECOND = 2.0
 PERCEPTION_CHARGE_FACTOR = 0.4
@@ -131,6 +133,7 @@ def participant_out(participant: ArenaParticipant, state: ArenaState) -> ArenaFi
 
 def fighter_view(participant: ArenaParticipant, charge: int = 0, queued: bool = False) -> ArenaFighter:
     """Common fighter presentation for arena rooms and expedition scenes."""
+    pet = equipped_pet(participant.dweller) if participant.dweller else None
     return ArenaFighter(
         active_skill=(
             active_skill_out(
@@ -155,4 +158,5 @@ def fighter_view(participant: ArenaParticipant, charge: int = 0, queued: bool = 
             participant.dweller.age_group.value if participant.dweller and participant.dweller.age_group else None
         ),
         race=((participant.dweller.visual_attributes or {}).get("race") if participant.dweller else None),
+        pet=CombatPet(name=pet.name, image_url=pet.image_url or get_pet_image_url(pet.name)) if pet else None,
     )

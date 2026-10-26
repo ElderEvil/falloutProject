@@ -19,6 +19,14 @@ import { WASTELAND_SCENES, type WastelandSceneId } from '../models/wastelandScen
 const selectedScene = ref<WastelandSceneId>('desert_highway')
 const previewIsCombat = ref(false)
 const pairedEnemies = ref(false)
+const selectedPet = ref('none')
+const companion = computed(() =>
+  selectedPet.value === 'dog'
+    ? { name: 'CX404', image_url: '/static/pet_images/FOS CX404.png' }
+    : selectedPet.value === 'cat'
+      ? { name: 'American Shorthair', image_url: '/static/pet_images/FOS American Shorthair.png' }
+      : null
+)
 const combatOpen = ref(false)
 const artwork = computed(() => WASTELAND_SCENES[selectedScene.value])
 const portrait = '/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Female.webp'
@@ -64,6 +72,7 @@ function previewCombat(combat = true): void {
         {
           id: 'lucy',
           name: 'Lucy MacLean',
+          pet: companion.value,
           level: 10,
           health: 81,
           max_health: 100,
@@ -148,6 +157,22 @@ function selectScene(value: unknown): void {
         <Switch v-model:checked="pairedEnemies" aria-label="Pair of enemies" />
         Pair of enemies
       </label>
+      <div class="flex max-w-sm flex-col gap-2">
+        <span class="text-sm">Companion</span>
+        <Select
+          :model-value="selectedPet"
+          @update:model-value="selectedPet = $event === 'dog' || $event === 'cat' ? $event : 'none'"
+        >
+          <SelectTrigger aria-label="Preview pet"><SelectValue /></SelectTrigger>
+          <SelectContent
+            ><SelectGroup>
+              <SelectItem value="none">No pet</SelectItem>
+              <SelectItem value="dog">CX404</SelectItem>
+              <SelectItem value="cat">American Shorthair</SelectItem>
+            </SelectGroup></SelectContent
+          >
+        </Select>
+      </div>
       <Button class="w-fit" @click="previewCombat(false)">Preview briefing</Button>
       <Button class="w-fit" @click="previewCombat(true)">Preview combat layout</Button>
     </header>
@@ -161,6 +186,7 @@ function selectScene(value: unknown): void {
         :description="artwork.label"
         dweller-name="Lucy MacLean"
         :thumbnail-url="portrait"
+        :pet="companion"
       />
     </section>
     <ExpeditionSiteModal

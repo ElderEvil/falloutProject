@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import UUID4, BaseModel, Field
 
 from app.core.enums import ArenaMode
-from app.schemas.combat import CombatAction, CombatSkillIcon
+from app.schemas.combat import CombatAction, CombatPet, CombatSkillIcon
 
 
 class ArenaFightersRequest(BaseModel):
@@ -71,6 +71,7 @@ class ArenaFighter(BaseModel):
     thumbnail_url: str | None = None
     age_group: str | None = None
     race: str | None = None
+    pet: CombatPet | None = None
 
 
 class ArenaRosterEntry(BaseModel):

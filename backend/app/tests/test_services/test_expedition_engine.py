@@ -28,6 +28,27 @@ from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.exceptions import ResourceConflictException, ValidationException
 
+
+async def test_site_combat_includes_pet_without_adding_a_fighter(async_session):
+    _, dweller, exploration = await _make_exploration(async_session)
+    await crud.pet.create(
+        async_session,
+        {
+            "name": "CX404",
+            "rarity": "common",
+            "value": 100,
+            "dweller_id": dweller.id,
+        },
+    )
+    async_session.expire(dweller, ["pet"])
+    entered = await expedition_service.enter_run(async_session, exploration.id, "collapsed_subway")
+    fighters = entered.combat_state.fighters
+    assert fighters[0].pet.name == "CX404"
+    assert fighters[0].pet.image_url == "/static/pet_images/FOS CX404.png"
+    assert len(fighters) == len(entered.node.enemy_names) + 1
+    assert all(fighter.pet is None for fighter in fighters[1:])
+
+
 # Weak stats: combat success chance 0.36, so seeded defeats/victories are easy to arrange.
 WEAK_STATS = {
     "strength": 1,
@@ -252,13 +273,13 @@ def test_site_node_rejects_removed_cache_field():
 
 
 def test_validate_site_content_rejects_unsatisfiable_floor(monkeypatch):
+    site = data_loader.get_expedition_site("super_duper_mart")
+    assert site is not None
     monkeypatch.setattr(
         data_loader,
         "load_weapons",
         lambda: [{"name": "Rusty Pipe", "rarity": "Common", "value": 10}],
     )
-    site = data_loader.get_expedition_site("super_duper_mart")
-    assert site is not None
     with pytest.raises(ValidationException, match="no weapon at or above rarity"):
         validate_site_content(site)
 

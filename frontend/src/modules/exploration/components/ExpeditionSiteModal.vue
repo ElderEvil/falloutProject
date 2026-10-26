@@ -476,6 +476,7 @@ const terminalBanner = computed(() => {
             :dweller-name="dwellerName"
             :image-url="dwellerImageUrl"
             :thumbnail-url="dwellerThumbnailUrl"
+            :pet="room.combat_state?.fighters[0]?.pet"
           />
         </div>
         <div

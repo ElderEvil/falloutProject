@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import CombatPet from '@/modules/combat/components/CombatPet.vue'
+import type { components } from '@/core/types/api.generated'
 import { useFallbackImage } from '@/modules/rooms/composables/useFallbackImage'
 import {
   WASTELAND_SCENES,
@@ -20,6 +22,7 @@ const props = withDefaults(
     imageUrl?: string | null
     thumbnailUrl?: string | null
     compact?: boolean
+    pet?: components['schemas']['CombatPet'] | null
   }>(),
   {
     variant: 'landscape',
@@ -76,7 +79,7 @@ const { url: sceneImage, onError: imageFailed } = useFallbackImage(() => [fullIm
       </div>
       <div
         v-if="dwellerName"
-        class="absolute bottom-[8%] left-1/2 h-[44%] aspect-[1/2] -translate-x-1/2"
+        class="actor-ground-shadow absolute bottom-[8%] left-1/2 h-[44%] aspect-[1/2] -translate-x-1/2"
         :aria-label="`${dwellerName} on expedition`"
         role="group"
       >
@@ -91,6 +94,7 @@ const { url: sceneImage, onError: imageFailed } = useFallbackImage(() => [fullIm
           fallback-class="h-full w-full text-theme-primary"
           fallback-icon="mdi:account"
         />
+        <CombatPet v-if="pet" :pet="pet" :owner-name="dwellerName" facing="right" />
       </div>
     </div>
     <figcaption

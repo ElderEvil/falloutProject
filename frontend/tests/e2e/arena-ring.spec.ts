@@ -1,4 +1,120 @@
 import { test, expect } from '@playwright/test'
+import { fileURLToPath } from 'node:url'
+
+test.beforeEach(async ({ page }) => {
+  await page.route('**/static/**', (route) =>
+    route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="green"/></svg>',
+    })
+  )
+})
+
+test('fighters and pets have soft ground shadows that stay on the floor during attacks', async ({
+  page,
+}) => {
+  await page.goto('/tests/e2e/fixtures/arena-ring.html?mode=duel&pets=1&pet-attack=1')
+  const actors = page.locator('.combatant-motion')
+  await expect(actors).toHaveCount(4)
+  for (const actor of await actors.all()) {
+    const shadow = await actor.evaluate((element) => {
+      const style = getComputedStyle(element, '::before')
+      return {
+        content: style.content,
+        width: parseFloat(style.width),
+        height: parseFloat(style.height),
+        bottom: style.bottom,
+        filter: style.filter,
+        pointerEvents: style.pointerEvents,
+        transform: style.transform,
+      }
+    })
+    expect(shadow.content).toBe('""')
+    expect(shadow.width).toBeGreaterThan(shadow.height * 3)
+    expect(shadow.height).toBeGreaterThan(0)
+    expect(shadow.bottom).toBe('0px')
+    expect(shadow.filter).toContain('blur')
+    expect(shadow.pointerEvents).toBe('none')
+  }
+})
+
+for (const actor of ['Alpha', 'Bravo']) {
+  test(`${actor}'s pet lunges inward without damage effects`, async ({ page }) => {
+    await page.goto(
+      `/tests/e2e/fixtures/arena-ring.html?mode=duel&pets=1&pet-attack=1&actor=${actor}`
+    )
+    const fighter = page
+      .locator('.ring-fighter')
+      .filter({ has: page.locator(`.fighter-meters span[title="${actor}"]`) })
+    const body = fighter.locator('.combat-pet .combat-body')
+    await expect(body).toHaveClass(/combat-body--attack/)
+    const movement = await body.evaluate((element) => {
+      for (const animation of element.getAnimations()) {
+        animation.pause()
+        animation.currentTime = 50
+      }
+      return new DOMMatrixReadOnly(getComputedStyle(element).transform).m41
+    })
+    expect(actor === 'Alpha' ? movement : -movement).toBeGreaterThan(0)
+    await expect(page.locator('.combat-pet .combat-body--hit')).toHaveCount(0)
+    await expect(page.locator('.combat-pet .combat-effect')).toHaveCount(0)
+  })
+}
+
+test('a pet stays unharmed when its owner is knocked out', async ({ page }) => {
+  await page.goto('/tests/e2e/fixtures/arena-ring.html?mode=duel&pets=1&knocked-out=Alpha')
+  const pet = page.locator('.ring-fighter').first().locator('.combat-pet')
+  await expect(pet).toBeVisible()
+  const opacity = await pet.evaluate((element) => {
+    let value = 1
+    for (let node: Element | null = element; node; node = node.parentElement)
+      value *= Number(getComputedStyle(node).opacity)
+    return value
+  })
+  expect(opacity).toBe(1)
+  await expect(pet.locator('.combat-body--hit')).toHaveCount(0)
+})
+
+for (const width of [390, 1280]) {
+  for (const mode of ['duel', 'hunt']) {
+    test(`pets share their owners' ground without extra fighters in ${mode} at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.route('**/static/**', (route) =>
+        route.fulfill({
+          path: fileURLToPath(
+            new URL(
+              route.request().url().includes('pet_images')
+                ? route.request().url().includes('CX404')
+                  ? '../../../backend/app/static/pet_images/FOS CX404.png'
+                  : '../../../backend/app/static/pet_images/FOS American Shorthair.png'
+                : '../../../backend/app/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Female.webp',
+              import.meta.url
+            )
+          ),
+        })
+      )
+      await page.goto(`/tests/e2e/fixtures/arena-ring.html?mode=${mode}&pets=1&portrait=1`)
+      const ring = page.getByRole('region', { name: 'Arena ring' })
+      const pets = ring.locator('.combat-pet')
+      await expect(pets).toHaveCount(2)
+      const bounds = (await ring.boundingBox())!
+      for (const pet of await pets.all()) {
+        await expect
+          .poll(() => pet.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth))
+          .toBeGreaterThan(0)
+        const box = (await pet.boundingBox())!
+        const owner = (await pet.locator('..').boundingBox())!
+        expect(Math.abs(box.y + box.height - owner.y - owner.height)).toBeLessThan(1)
+        expect(box.height).toBeLessThan(owner.height * 0.4)
+        expect(box.x).toBeGreaterThanOrEqual(bounds.x)
+        expect(box.x + box.width).toBeLessThanOrEqual(bounds.x + bounds.width)
+      }
+      await expect(ring.locator('.ring-fighter')).toHaveCount(mode === 'duel' ? 2 : 4)
+    })
+  }
+}
 
 for (const width of [390, 1280]) {
   test(`ring depth, scale and themed activation at ${width}px`, async ({ page }) => {

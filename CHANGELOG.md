@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.273.0 (2026-10-26)
+
+### Features
+
+* **accounts:** add account merge service and dry-run CLI ([#1210](https://github.com/ElderEvil/falloutProject/issues/1210)) 7474c06
+
 ## 2.272.0 (2026-10-26)
 
 ### Features

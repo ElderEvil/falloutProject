@@ -1,8 +1,10 @@
 from app.models.outfit import Outfit
 
 from . import storage
+from .account_merge import account_merge
 from .ai_settings import ai_settings
 from .arena_state import arena_state_crud
+from .chat_message import chat_message
 from .crafting_order import crafting_order
 from .dweller import dweller
 from .expedition_run import expedition_run
@@ -13,6 +15,7 @@ from .incident_participant import incident_participant_crud
 from .item_base import CRUDItem
 from .junk import junk
 from .llm_interaction import llm_interaction
+from .notification import notification
 from .oauth_account import oauth_account
 from .objective import objective_crud
 from .pet import pet

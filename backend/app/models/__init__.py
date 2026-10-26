@@ -1,3 +1,4 @@
+from .account_merge import AccountMerge
 from .ai_settings import AISettings
 from .arena_match_event import ArenaMatchEvent
 from .arena_state import ArenaState

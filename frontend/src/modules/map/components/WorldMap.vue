@@ -13,6 +13,7 @@ import type {
   PlayerVaultMarkerRead,
   WastelandLocationWithDwellers,
   VaultMarkerRead,
+  WorldSnapshotRead,
 } from '../models/map'
 import { EXPEDITION_SITE_ICON, locationMarkerIcon } from '../models/markerTypeMeta'
 import { groupColor } from '../models/groupColors'
@@ -47,6 +48,10 @@ interface Props {
   siteTypeFilter?: string | null
   readyLocationIds?: string[] | null
   selectedMarkerId: string | null
+  snapshot?: WorldSnapshotRead | null
+  terrainPalette?: 'atlas'
+  placeGroups?: PlaceGroup[]
+  overview?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -88,7 +93,10 @@ const knownLocations = computed(() =>
 
 // Fog/mask grid resolution follows the backend snapshot when loaded, so fog
 // cells align with rendered terrain cells; defaults preserve current behavior.
-const gridTiles = computed(() => mapStore.worldSnapshot?.width ?? ATLAS_TILES)
+const snapshot = computed(() =>
+  props.snapshot === undefined ? mapStore.worldSnapshot : props.snapshot
+)
+const gridTiles = computed(() => snapshot.value?.width ?? ATLAS_TILES)
 const homeVault = computed(() => props.locations.find((loc) => loc.type === 'home_vault'))
 
 const exploredMask = computed(() =>
@@ -288,20 +296,25 @@ const mapStore = useMapStore()
 const isWideLayout = useMediaQuery('(min-width: 1280px)')
 const svgRef = ref<SVGSVGElement | null>(null)
 const containerRef = ref<HTMLDivElement | null>(null)
+const mapPixelWidth = ref(0)
 
 function onOwnVaultClick(vault: PlayerVaultMarkerRead): void {
   if (hasDragMoved.value) return
   emit('vault-info', vault.vault_id)
 }
 
+const placeGroups = computed(() => props.placeGroups ?? mapStore.placeGroups)
+const placeGroupByKey = computed(
+  () => new Map(placeGroups.value.map((group) => [group.key, group]))
+)
 const groupIconByKey = computed(
-  () => new Map([...mapStore.placeGroupByKey].map(([key, group]) => [key, group.icon]))
+  () => new Map([...placeGroupByKey.value].map(([key, group]) => [key, group.icon]))
 )
 
 // Catalog risk/base difficulty ride the same place-group rows as the icons;
 // MapMarker turns them into the danger ring/glow ramp.
 function locationGroup(loc: WastelandLocationWithDwellers): PlaceGroup | undefined {
-  return loc.group_key ? mapStore.placeGroupByKey.get(loc.group_key) : undefined
+  return loc.group_key ? placeGroupByKey.value.get(loc.group_key) : undefined
 }
 
 // The map fills a full-bleed rectangular pane, so the composable needs the
@@ -310,11 +323,15 @@ let resizeObserver: ResizeObserver | null = null
 
 function syncViewportAspect(): void {
   const rect = svgRef.value?.getBoundingClientRect()
-  if (rect) syncViewport(rect)
+  if (rect) {
+    mapPixelWidth.value = rect.width
+    syncViewport(rect)
+  }
 }
 
 function focusHomeVault(): void {
   syncViewportAspect()
+  if (props.overview) return
   const home = homeVault.value
   if (home) focusOnMarker(home.coord_x, home.coord_y)
 }
@@ -528,7 +545,9 @@ function handleTouchEnd(event: TouchEvent) {
         @mousedown="handleMouseDown"
       >
         <!-- Terrain layer (bottom — behind markers): biomes, rivers, roads -->
-        <AtlasTerrain />
+        <AtlasTerrain :snapshot="snapshot" :palette="terrainPalette" />
+
+        <slot name="terrain-overlay" />
 
         <!-- Fog of war: derived explored mask over the terrain -->
         <FogLayer v-if="!fogDisabled" :explored="exploredMask" :tiles="gridTiles" />
@@ -689,6 +708,8 @@ function handleTouchEnd(event: TouchEvent) {
         <slot name="tools" />
       </div>
 
+      <slot name="map-chrome" :zoom="zoom" :map-pixel-width="mapPixelWidth" />
+
       <!-- Zoom controls overlay -->
       <div class="zoom-controls" role="group" aria-label="Map zoom controls">
         <Button variant="ghost" size="xs" aria-label="Zoom in" class="zoom-btn" @click="zoomIn()">
@@ -757,7 +778,7 @@ function handleTouchEnd(event: TouchEvent) {
       :locations="knownLocations"
       :vault-markers="[]"
       :expedition-sites="expeditionSites"
-      :place-groups="mapStore.placeGroups"
+      :place-groups="placeGroups"
       :site-type-filter="siteTypeFilter"
       :active-filter-count="Number(siteTypeFilter !== null) + Number(readyLocationIds !== null)"
       :selected-marker-id="selectedMarkerId"
@@ -765,9 +786,10 @@ function handleTouchEnd(event: TouchEvent) {
     >
       <template #toggle-label="{ count }">Places and sites · {{ count }}</template>
       <template v-if="$slots.filters" #filters><slot name="filters" /></template>
-      <template #legend
-        ><MapLegend :place-groups="mapStore.placeGroups" :group-colors="groupColors"
-      /></template>
+      <template #legend>
+        <slot name="legend-intro" />
+        <MapLegend :place-groups="placeGroups" :group-colors="groupColors" />
+      </template>
     </MarkerListPanel>
   </div>
 </template>

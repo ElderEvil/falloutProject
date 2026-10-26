@@ -44,7 +44,10 @@ describe('AtlasTerrain', () => {
   it('renders the terrain image for a snapshot', async () => {
     const store = useMapStore()
     store.worldSnapshot = snapshot([
-      'water', 'forest', 'hills', 'ruins',
+      'water',
+      'forest',
+      'hills',
+      'ruins',
       ...new Array(12).fill('wasteland'),
     ])
     stubCanvas()
@@ -65,5 +68,27 @@ describe('AtlasTerrain', () => {
 
     expect(wrapper.find('image').exists()).toBe(false)
     expect(wrapper.findAll('path')).toHaveLength(0)
+  })
+
+  it('renders an explicit preview snapshot without replacing the live store', async () => {
+    const store = useMapStore()
+    store.worldSnapshot = null
+    stubCanvas()
+    const wrapper = mount(AtlasTerrain, {
+      props: { snapshot: snapshot(new Array(16).fill('forest')) },
+    })
+    await flushPromises()
+    expect(wrapper.find('image').exists()).toBe(true)
+    expect(store.worldSnapshot).toBeNull()
+  })
+
+  it('honors an explicitly empty snapshot instead of showing live account terrain', async () => {
+    const store = useMapStore()
+    store.worldSnapshot = snapshot(new Array(16).fill('water'))
+    stubCanvas()
+    const wrapper = mount(AtlasTerrain, { props: { snapshot: null } })
+    await flushPromises()
+    expect(wrapper.find('image').exists()).toBe(false)
+    expect(store.worldSnapshot).not.toBeNull()
   })
 })

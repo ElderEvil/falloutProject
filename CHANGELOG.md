@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.266.0 (2026-10-25)
+
+### Features
+
+* **arena:** unify match setup and synchronize combat presentation ([#1183](https://github.com/ElderEvil/falloutProject/issues/1183)) 028f8f4
+
 ## 2.265.8 (2026-10-25)
 
 ### Bug Fixes

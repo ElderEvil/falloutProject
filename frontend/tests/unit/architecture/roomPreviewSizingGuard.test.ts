@@ -14,10 +14,16 @@ const PREVIEW_FILES = [
   'src/modules/rooms/components/RoomDwellerSlot.vue',
 ]
 
-const CONTAINER_UNIT = /(?<![\w-])\d*\.?\d+cq(?:h|w|i|b|min|max)\b/
-const CONTAINER_DECLARATION = /container-type\s*:\s*(?:size|inline-size)/
+const CONTAINER_UNIT = /(?<!\w)\d*\.?\d+cq(?:h|w|i|b|min|max)\b/i
+const CONTAINER_DECLARATION = /container-type\s*:\s*(?:size|inline-size)/i
 
 describe('room preview sizing', () => {
+  it('detects negative and uppercase container-query units', () => {
+    expect('-1cqh').toMatch(CONTAINER_UNIT)
+    expect('1CQH').toMatch(CONTAINER_UNIT)
+    expect('var(--spacing)').not.toMatch(CONTAINER_UNIT)
+  })
+
   it.each(PREVIEW_FILES)('%s does not size with container-query units', (file) => {
     const source = readFileSync(join(process.cwd(), file), 'utf8')
     expect(source).not.toMatch(CONTAINER_UNIT)

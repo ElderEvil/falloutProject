@@ -38,6 +38,7 @@ def test_worker_manifest_matches_the_release_deployment_contract() -> None:
 
     assert manifest["metadata"]["name"] == "dramatiq-worker"
     assert manifest["spec"]["replicas"] == 1
+    assert manifest["spec"]["strategy"] == {"type": "Recreate"}
     assert container["name"] == "dramatiq-worker"
     assert "fo-shelter-be" in container["image"]
     assert container["envFrom"] == [{"secretRef": {"name": "backend-env"}}]

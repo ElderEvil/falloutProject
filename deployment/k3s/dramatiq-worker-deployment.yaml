@@ -6,6 +6,8 @@ spec:
   # One replica owns Periodiq, so keep this at 1 until scheduler ownership is
   # separated. Multiple schedulers can enqueue the same periodic tick twice.
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: dramatiq-worker

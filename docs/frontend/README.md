@@ -199,6 +199,15 @@ pnpm run format       # Format with Oxfmt (vp fmt)
 pnpm run typecheck    # TypeScript check (vue-tsc)
 ```
 
+Frontend CI runs lint, type checks, architecture guards, unit tests with coverage, and
+the production build on pull requests and pushes to `master`. Playwright browser tests
+run separately through the **Frontend Browser Tests** workflow in GitHub Actions:
+choose **Run workflow** and select the branch to check. They do not run automatically
+or block the main frontend job. Browser installation is limited to five minutes and
+the browser job to twenty minutes; failures upload Playwright reports and test results.
+The workflow retains the existing Chromium visual suite and Firefox wasteland scenes.
+It uses mocked backend requests, so no backend or database is required.
+
 ## Admin command console
 
 Superusers can press the backtick key (physical `Backquote`) or click **Console** to
@@ -239,6 +248,7 @@ commands from #1041 remain follow-up work.
 without advancing earned-caps statistics or objectives. `thereisnospoon` refills power,
 food and water to their current capacities once. Both are superuser-only and audited;
 neither changes the vault's limits or enables a persistent unlimited-resource mode.
+
 
 ## 🎨 UI Component Library
 

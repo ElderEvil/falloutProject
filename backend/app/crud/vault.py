@@ -1,8 +1,9 @@
 from collections.abc import Sequence
 from logging import getLogger
+from typing import cast
 
 from pydantic import UUID4
-from sqlalchemy import Row, and_, func
+from sqlalchemy import CursorResult, Row, and_, func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import col, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -37,6 +38,38 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             query = query.where(~self.model.is_deleted)
         response = await db_session.execute(query)
         return response.scalars().all()
+
+    async def count_by_user(self, db_session: AsyncSession, user_id: UUID4, *, include_deleted: bool = True) -> int:
+        """Count a user's vaults; merges must include soft-deleted vaults."""
+        query = select(func.count()).select_from(self.model).where(self.model.user_id == user_id)
+        if not include_deleted:
+            query = query.where(~col(self.model.is_deleted))
+        return int((await db_session.execute(query)).scalar_one())
+
+    async def list_numbers_by_user(
+        self, db_session: AsyncSession, user_id: UUID4, *, include_deleted: bool = True
+    ) -> list[int]:
+        """Vault numbers for the merge dry-run preview, cheapest first."""
+        query = select(self.model.number).where(self.model.user_id == user_id).order_by(self.model.number)
+        if not include_deleted:
+            query = query.where(~col(self.model.is_deleted))
+        return list((await db_session.execute(query)).scalars().all())
+
+    async def reassign_user(
+        self, db_session: AsyncSession, source_user_id: UUID4, target_user_id: UUID4, *, commit: bool = True
+    ) -> int:
+        """Move every source vault, including soft-deleted vaults, to the target."""
+        result = await db_session.execute(
+            update(self.model)
+            .where(self.model.user_id == source_user_id)
+            .values(user_id=target_user_id)
+            .execution_options(synchronize_session=False)
+        )
+        if commit:
+            await db_session.commit()
+        else:
+            await db_session.flush()
+        return cast("CursorResult", result).rowcount or 0
 
     async def get_non_deleted_ids(self, db_session: AsyncSession) -> list[UUID4]:
         return list((await db_session.execute(select(self.model.id).where(self.model.deleted_at.is_(None)))).scalars())

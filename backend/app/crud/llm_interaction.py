@@ -1,8 +1,10 @@
 from datetime import datetime
+from typing import cast
 from uuid import UUID
 
+from sqlalchemy import CursorResult, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col, func, select
+from sqlmodel import col, select, update
 
 from app.crud.base import CRUDBase
 from app.models.llm_interaction import LLMInteraction
@@ -31,6 +33,29 @@ class CRUDLLMInteraction(CRUDBase[LLMInteraction, LLMInteractionCreate, None]):
         db_session.add(interaction)
         await db_session.flush()
         return interaction
+
+    async def count_by_user(self, db_session: AsyncSession, user_id: UUID) -> int:
+        """Count AI interactions owned by a user."""
+        result = await db_session.execute(
+            select(func.count()).select_from(LLMInteraction).where(col(LLMInteraction.user_id) == user_id)
+        )
+        return int(result.scalar_one())
+
+    async def reassign_user(
+        self, db_session: AsyncSession, source_user_id: UUID, target_user_id: UUID, *, commit: bool = True
+    ) -> int:
+        """Move every AI interaction from the source account to the target."""
+        result = await db_session.execute(
+            update(LLMInteraction)
+            .where(col(LLMInteraction.user_id) == source_user_id)
+            .values(user_id=target_user_id)
+            .execution_options(synchronize_session=False)
+        )
+        if commit:
+            await db_session.commit()
+        else:
+            await db_session.flush()
+        return cast("CursorResult", result).rowcount or 0
 
     async def total_tokens_since(self, db_session: AsyncSession, user_id: UUID, since: datetime) -> int:
         result = await db_session.execute(

@@ -59,6 +59,29 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         result = await db.execute(query)  # ty: ignore[deprecated] -- Compatible with tick/test SQLAlchemy sessions.
         return list(result.scalars().all())
 
+    async def count_by_user(self, db_session: AsyncSession, user_id: UUID) -> int:
+        """Count every notification owned by a user, including dismissed ones."""
+        result = await db_session.execute(
+            select(func.count()).select_from(Notification).where(col(Notification.user_id) == user_id)
+        )
+        return int(result.scalar_one())
+
+    async def reassign_user(
+        self, db_session: AsyncSession, source_user_id: UUID, target_user_id: UUID, *, commit: bool = True
+    ) -> int:
+        """Move every notification from the source account to the target."""
+        result = await db_session.execute(
+            update(Notification)
+            .where(col(Notification.user_id) == source_user_id)
+            .values(user_id=target_user_id)
+            .execution_options(synchronize_session=False)
+        )
+        if commit:
+            await db_session.commit()
+        else:
+            await db_session.flush()
+        return cast("CursorResult", result).rowcount or 0
+
     async def get_unread_count(self, db: AsyncSession, user_id: UUID) -> int:
         """Count visible unread notifications without loading the rows."""
         query = (

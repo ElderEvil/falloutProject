@@ -1,4 +1,6 @@
+from collections.abc import Iterable
 from typing import Any
+from uuid import UUID
 
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
@@ -64,6 +66,35 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             query = query.where(~col(self.model.is_deleted))
         response = await db_session.execute(query)
         return response.scalar_one_or_none()
+
+    async def resolve_identity(
+        self, db_session: AsyncSession, identity: str, *, include_deleted: bool = False
+    ) -> User | None:
+        """Resolve a CLI/API identity: UUID first, then exact email, then username."""
+        try:
+            user_id = UUID(identity)
+        except ValueError:
+            user_id = None
+        if user_id is not None:
+            return await self.get_or_none(db_session, user_id, include_deleted=include_deleted)
+        if "@" in identity:
+            return await self.get_by_email(db_session, identity, include_deleted=include_deleted)
+        return await self.get_by_username(db_session, identity, include_deleted=include_deleted)
+
+    async def lock_users_for_merge(self, db_session: SAAsyncSession, user_ids: Iterable[UUID4]) -> dict[UUID4, User]:
+        """Lock merge participants one at a time in ascending UUID order.
+
+        Sequential ``FOR UPDATE`` locks keep concurrent merges sharing accounts
+        from deadlocking (A→B and B→A acquire the same order). ``get_for_update``
+        does not filter ``is_deleted``, so a previously tombstoned source row is
+        still locked and revalidated by the caller.
+        """
+        locked: dict[UUID4, User] = {}
+        for user_id in sorted(set(user_ids)):
+            user = await self.get_for_update(db_session, user_id)
+            if user is not None:
+                locked[user_id] = user
+        return locked
 
     async def create(self, db_session: AsyncSession, obj_in: UserCreate) -> User:
         db_obj = build_user_model(

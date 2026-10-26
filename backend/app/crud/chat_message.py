@@ -1,6 +1,8 @@
+from typing import cast
 from uuid import UUID
 
-from sqlmodel import col, func, or_, select
+from sqlalchemy import CursorResult, case
+from sqlmodel import col, func, or_, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -95,6 +97,36 @@ class CRUDChatMessage(CRUDBase[ChatMessage, ChatMessageCreate, ChatMessageRead])
         )
         result = await db.execute(stmt)
         return result.scalar_one()
+
+    async def count_by_user(self, db_session: AsyncSession, user_id: UUID) -> int:
+        """Count messages the user sent or received (the OR cannot duplicate a row)."""
+        stmt = (
+            select(func.count())
+            .select_from(ChatMessage)
+            .where(or_(col(ChatMessage.from_user_id) == user_id, col(ChatMessage.to_user_id) == user_id))
+        )
+        return int((await db_session.execute(stmt)).scalar_one())
+
+    async def reassign_user(
+        self, db_session: AsyncSession, source_user_id: UUID, target_user_id: UUID, *, commit: bool = True
+    ) -> int:
+        """Move the source account to the target in both message directions."""
+        from_source = col(ChatMessage.from_user_id) == source_user_id
+        to_source = col(ChatMessage.to_user_id) == source_user_id
+        result = await db_session.execute(
+            update(ChatMessage)
+            .where(or_(from_source, to_source))
+            .values(
+                from_user_id=case((from_source, target_user_id), else_=col(ChatMessage.from_user_id)),
+                to_user_id=case((to_source, target_user_id), else_=col(ChatMessage.to_user_id)),
+            )
+            .execution_options(synchronize_session=False)
+        )
+        if commit:
+            await db_session.commit()
+        else:
+            await db_session.flush()
+        return cast("CursorResult", result).rowcount or 0
 
 
 chat_message = CRUDChatMessage(ChatMessage)

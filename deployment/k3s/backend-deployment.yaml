@@ -16,7 +16,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: backend
-          image: elerevil/fastapi:latest
+          image: elerevil/fo-shelter-be:latest
           ports:
             - containerPort: 8000
           envFrom:
@@ -44,7 +44,7 @@ spec:
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /healthcheck
+              path: /readiness
               port: 8000
             initialDelaySeconds: 10
             periodSeconds: 5

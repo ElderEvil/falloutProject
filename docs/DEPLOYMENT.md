@@ -613,8 +613,20 @@ curl https://your-api-domain.com/healthcheck
 **Detailed:**
 ```bash
 curl https://your-api-domain.com/healthcheck?detailed=true
-# {"status":"ok","services":{"db":"ok","redis":"ok",...}}
+# {"status":"ok","services":{"postgresql":{"status":"healthy",...},"redis":{"status":"healthy",...},...}}
 ```
+
+**Readiness (Kubernetes):**
+```bash
+curl -fsS https://your-api-domain.com/readiness
+# {"status":"ready","services":{"postgresql":{...},"redis":{...}}}
+```
+
+Readiness checks only PostgreSQL and Redis and returns HTTP 503 when either is unavailable. Optional
+integrations (RustFS, local AI, SMTP) and the worker broker are excluded so they cannot remove an
+otherwise healthy API pod from service. Liveness stays on `/healthcheck`. See
+[`deployment/k3s/README.md`](../deployment/k3s/README.md) for probe wiring, the checked-in worker
+manifest and the deploy order.
 
 ## Backup & Restore
 

@@ -56,7 +56,7 @@ from app.core.static_files import CachedStaticFiles
 from app.db.session import async_engine, get_async_session
 from app.middleware.request_id import RequestIdMiddleware
 from app.services.ai_settings_service import ai_settings_service
-from app.services.health_check import HealthCheckService
+from app.services.health_check import HealthCheckService, ServiceStatus
 from app.services.place_seed_service import seed_places_from_json
 from app.services.progression.objectives.evaluators import evaluator_manager
 from app.services.progression.objectives.notifications import register_objective_event_handlers
@@ -250,6 +250,37 @@ async def perform_healthcheck(*, detailed: bool = False):
             for service_name, result in results.items()
         },
     }
+
+
+@app.get("/readiness", status_code=status.HTTP_200_OK)
+async def perform_readiness_check() -> JSONResponse:
+    """Readiness probe: only the dependencies required to serve HTTP traffic.
+
+    Liveness stays on ``/healthcheck``. Optional integrations (RustFS, local AI,
+    SMTP) and the worker broker must not remove an otherwise healthy API pod from
+    service, so they are deliberately excluded here.
+    """
+    health_check_service = HealthCheckService()
+    results = await health_check_service.check_all_services(
+        async_engine,
+        include_dramatiq=False,
+        include_rustfs=False,
+    )
+    ready = all(result.status == ServiceStatus.HEALTHY for result in results.values())
+    return JSONResponse(
+        status_code=status.HTTP_200_OK if ready else status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "status": "ready" if ready else "not_ready",
+            "services": {
+                service_name: {
+                    "status": result.status.value,
+                    "message": result.message,
+                    "details": result.details,
+                }
+                for service_name, result in results.items()
+            },
+        },
+    )
 
 
 app.include_router(api_router_v1, prefix=settings.API_V1_STR)

@@ -895,7 +895,7 @@ class ExplorationService:
         """
         now = now or datetime.utcnow()
         await self._settle_movement(db_session, exploration, now)
-        if exploration.heading_degrees is not None and exploration.paused_at is None:
+        if exploration.paused_at is None:
             exploration.paused_at = now
         if exploration.position_as_of is not None:
             exploration.position_as_of = max(exploration.position_as_of, now)
@@ -909,7 +909,7 @@ class ExplorationService:
         if paused_at is None:
             return exploration
         paused = now - paused_at
-        if exploration.heading_degrees is not None and paused > timedelta(0):
+        if paused > timedelta(0):
             if exploration.is_active():
                 exploration.start_time += paused
             elif exploration.is_returning():

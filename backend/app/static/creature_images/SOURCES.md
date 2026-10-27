@@ -37,8 +37,5 @@ Prompts for the four additional creatures and the Yao Guai revision are recorded
 
 ## Raider
 
-`assembled/raider.webp` is generated artwork, re-rendered from the Fallout Wiki's raider
-lineup screenshot (`FoS_raiders_lineup.jpg`) with `gpt-image-2.5-flare`, then flipped to
-face the responders and encoded as WebP at quality 90 with alpha preserved. It is not an
-extracted game sprite. The prompt and reference URL are recorded in
-`assembled/concept-prompts.json`.
+Raider artwork has its own directory: see [`../raider_images/SOURCES.md`](../raider_images/SOURCES.md).
+The six persona variants, their default and action poses, prompts and reference are recorded there.

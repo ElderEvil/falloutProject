@@ -1,5 +1,6 @@
 """Tests for the expedition-scenario dev/QA provisioning service."""
 
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -8,7 +9,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.models.exploration import ExplorationStatus
 from app.models.vault import Vault
+from app.services.exploration.expedition import expedition_service
 from app.services.exploration.expedition_scenario_service import expedition_scenario_service
+from app.services.exploration_service import exploration_service
 from app.utils.exceptions import ResourceNotFoundException
 
 
@@ -35,8 +38,63 @@ async def test_setup_creates_level_five_dweller_on_active_exploration(
         "collapsed_subway",
         "rusted_midway",
         "frozen_research_outpost",
+        "raider_tollbooth",
     }
     assert result.precleared_site_id is None
+
+
+@pytest.mark.asyncio
+async def test_setup_all_sites_offers_every_site_for_one_scout(async_session: AsyncSession, vault: Vault) -> None:
+    result = await expedition_scenario_service.setup(
+        async_session, vault_id=vault.id, dweller_level=10, duration_hours=8, all_sites=True
+    )
+
+    assert result.exploration.status == ExplorationStatus.ACTIVE
+    assert result.exploration.heading_degrees is None
+    assert result.exploration.trail == []
+    assert result.exploration.time_remaining_seconds() > 0
+    assert {site.id for site in result.available_sites} == {
+        "red_rocket",
+        "super_duper_mart",
+        "abandoned_campsite",
+        "roadside_supply_truck",
+        "forgotten_shack",
+        "collapsed_subway",
+        "rusted_midway",
+        "frozen_research_outpost",
+        "raider_tollbooth",
+    }
+
+
+@pytest.mark.asyncio
+async def test_all_sites_scout_pauses_legacy_journey_clock_on_site_entry(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    result = await expedition_scenario_service.setup(
+        async_session, vault_id=vault.id, dweller_level=10, duration_hours=8, all_sites=True
+    )
+    exploration = result.exploration
+    original_start = datetime.utcnow() - timedelta(hours=5)
+    exploration.start_time = original_start
+    async_session.add(exploration)
+    await async_session.commit()
+
+    await expedition_service.enter_run(async_session, exploration.id, "raider_tollbooth")
+    await async_session.refresh(exploration)
+    assert exploration.paused_at is not None
+    paused_at = exploration.paused_at
+    remaining = exploration.time_remaining_seconds()
+
+    await exploration_service.advance(async_session, exploration.id, now=paused_at + timedelta(hours=2))
+    await async_session.refresh(exploration)
+    assert exploration.paused_at == paused_at
+    assert exploration.time_remaining_seconds() == remaining
+
+    exploration_service.resume_from_encounter(exploration, now=paused_at + timedelta(hours=2))
+    await async_session.commit()
+    await async_session.refresh(exploration)
+    assert exploration.paused_at is None
+    assert exploration.start_time == original_start + timedelta(hours=2)
 
 
 @pytest.mark.asyncio
@@ -54,6 +112,7 @@ async def test_setup_level_four_gates_super_duper_mart(async_session: AsyncSessi
         "collapsed_subway",
         "rusted_midway",
         "frozen_research_outpost",
+        "raider_tollbooth",
     ]
 
 
@@ -103,6 +162,7 @@ async def test_get_status_none_before_setup_and_populated_after(async_session: A
         "collapsed_subway",
         "rusted_midway",
         "frozen_research_outpost",
+        "raider_tollbooth",
     }
 
 

@@ -678,3 +678,139 @@ async def test_legacy_journey_picker_matches_actual_entry_mode(async_session, si
     assert (entered.combat_state is not None) == single
     assert bool(offered.enemy_names) == single
     assert (offered.threat is not None) == single
+
+
+async def _open_trivia_question(async_session: AsyncSession, exploration_id):
+    """The question pinned on the open trivia run, plus the run row."""
+    run = await crud.expedition_run.get_open_for_exploration(async_session, exploration_id)
+    site = data_loader.get_expedition_site(run.site_id)
+    question_id = next(iter(run.flags["trivia_questions"].values()))
+    question = next(question for question in site.encounter.node.trivia_questions if question.id == question_id)
+    return question, run
+
+
+async def _open_trivia_raider(run):
+    """The raider persona pinned alongside the question on the same run."""
+    site = data_loader.get_expedition_site(run.site_id)
+    raider_id = next(iter(run.flags["trivia_raiders"].values()))
+    return next(raider for raider in site.encounter.node.raiders if raider.id == raider_id)
+
+
+@pytest.mark.asyncio
+async def test_trivia_entry_persists_one_question_without_the_answer_key(async_session: AsyncSession):
+    _, _, exploration = await _make_exploration(async_session, level=5)
+    entry = await expedition_service.enter_run(async_session, exploration.id, "raider_tollbooth")
+    assert entry.node.kind == "trivia"
+    assert entry.node.question
+    assert entry.combat_state is None
+    assert entry.node.options
+    assert all(
+        option.stat is None and option.difficulty is None and option.success_odds is None
+        for option in entry.node.options
+    )
+
+    question, run = await _open_trivia_question(async_session, exploration.id)
+    raider = await _open_trivia_raider(run)
+    assert question.correct_option_id in {option.id for option in entry.node.options}
+    assert question.correct_option_id not in {option.label for option in entry.node.options}
+    assert raider.intro in entry.node.prompt
+    assert entry.node.enemy_names == [raider.name]
+    assert entry.node.raider_image_url == raider.image_url
+    assert entry.node.raider_alt_image_url == raider.alt_image_url
+
+    again = await expedition_service.enter_run(async_session, exploration.id, "raider_tollbooth")
+    run_again = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    assert again.node.question == entry.node.question
+    assert again.node.prompt == entry.node.prompt
+    assert run_again.flags["trivia_questions"] == run.flags["trivia_questions"]
+    assert run_again.flags["trivia_raiders"] == run.flags["trivia_raiders"]
+
+
+@pytest.mark.asyncio
+async def test_trivia_correct_answer_pays_once(async_session: AsyncSession):
+    _, _, exploration = await _make_exploration(async_session, level=5)
+    await expedition_service.enter_run(async_session, exploration.id, "raider_tollbooth")
+    question, run = await _open_trivia_question(async_session, exploration.id)
+    raider = await _open_trivia_raider(run)
+    before_caps = (await crud.exploration.get(async_session, exploration.id)).total_caps_found
+
+    view = await expedition_service.resolve_node(
+        async_session, exploration.id, ExpeditionResolveRequest(choice_id=question.correct_option_id)
+    )
+    assert view.status == "cleared"
+    assert view.finale_paid is True
+    assert view.outcome is not None
+    assert raider.name in view.outcome.text
+    assert view.outcome.caps_gained >= 40
+    assert view.node.options == []
+
+    after_caps = (await crud.exploration.get(async_session, exploration.id)).total_caps_found
+    assert after_caps > before_caps
+    with pytest.raises((ResourceConflictException, ValidationException)):
+        await expedition_service.resolve_node(
+            async_session, exploration.id, ExpeditionResolveRequest(choice_id=question.correct_option_id)
+        )
+    assert (await crud.exploration.get(async_session, exploration.id)).total_caps_found == after_caps
+
+
+@pytest.mark.asyncio
+async def test_trivia_invalid_answer_leaves_the_encounter_untouched(async_session: AsyncSession):
+    _, _, exploration = await _make_exploration(async_session, level=5)
+    await expedition_service.enter_run(async_session, exploration.id, "raider_tollbooth")
+    _, run = await _open_trivia_question(async_session, exploration.id)
+
+    with pytest.raises(ValidationException, match="Unknown answer"):
+        await expedition_service.resolve_node(
+            async_session, exploration.id, ExpeditionResolveRequest(choice_id="not-an-option")
+        )
+
+    run_after = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    assert run_after.status == ExpeditionRunStatus.IN_ROOM
+    assert "combat" not in run_after.flags
+    assert run_after.flags["trivia_questions"] == run.flags["trivia_questions"]
+
+
+@pytest.mark.asyncio
+async def test_trivia_wrong_answer_starts_combat_then_pays_on_a_win(async_session: AsyncSession):
+    stats = dict.fromkeys(("strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"), 10)
+    _, _, exploration = await _make_exploration(async_session, level=10, stats=stats)
+    await expedition_service.enter_run(async_session, exploration.id, "raider_tollbooth")
+    question, run = await _open_trivia_question(async_session, exploration.id)
+    raider = await _open_trivia_raider(run)
+    wrong_id = next(option.id for option in question.options if option.id != question.correct_option_id)
+
+    view = await expedition_service.resolve_node(
+        async_session, exploration.id, ExpeditionResolveRequest(choice_id=wrong_id)
+    )
+    assert view.status == "in_room"
+    assert view.combat_state is not None
+    assert view.combat_state.fighters[1].name == raider.name
+    assert view.combat_state.fighters[1].image_url == raider.alt_image_url
+    assert view.node.options == []
+    assert view.outcome is not None
+    assert raider.name in view.outcome.text
+    assert "Wrong answer" in view.outcome.text
+    run_after = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    assert run_after.flags["combat"]
+    assert run_after.flags["trivia_questions"] == run.flags["trivia_questions"]
+    assert run_after.flags["trivia_raiders"] == run.flags["trivia_raiders"]
+
+    current = await expedition_service.current_view(async_session, exploration.id)
+    assert current is not None
+    assert current.combat_state is not None
+    assert current.node.options == []
+    assert current.combat_state.round == view.combat_state.round
+
+    with pytest.raises(ValidationException, match="do not accept"):
+        await expedition_service.resolve_node(
+            async_session, exploration.id, ExpeditionResolveRequest(choice_id=wrong_id)
+        )
+
+    for _ in range(60):
+        if view.status != "in_room":
+            break
+        view = await expedition_service.resolve_node(async_session, exploration.id, ExpeditionResolveRequest())
+    assert view.status == "cleared"
+    assert view.finale_paid is True
+    assert view.outcome is not None
+    assert view.outcome.caps_gained >= 40

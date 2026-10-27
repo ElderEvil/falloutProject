@@ -642,6 +642,7 @@ async def test_get_vault_map_expedition_sites_ready(async_session: AsyncSession,
         "collapsed_subway",
         "rusted_midway",
         "frozen_research_outpost",
+        "raider_tollbooth",
     }
     for site in data_loader.load_expedition_sites():
         marker = by_id[site.id]
@@ -660,6 +661,7 @@ async def test_get_vault_map_expedition_sites_ready(async_session: AsyncSession,
         "collapsed_subway": 1,
         "rusted_midway": 1,
         "frozen_research_outpost": 1,
+        "raider_tollbooth": 1,
     }
 
 

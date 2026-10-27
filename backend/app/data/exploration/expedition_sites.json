@@ -508,6 +508,219 @@
           "floor": null
         }
       }
+    },
+    {
+      "id": "raider_tollbooth",
+      "name": "Raider Tollbooth",
+      "flavor": "A raider leans on a wrecked car with her rifle across her knees. She wants a toll \u2014 or an answer.",
+      "coord_x": 44.0,
+      "coord_y": 72.0,
+      "min_dweller_level": 3,
+      "scene_id": "desert_highway",
+      "lore": "The tollbooth sign still reads 'PAY HERE.' Someone scratched 'OR KNOW THINGS' underneath.",
+      "enemy_power_scale": 0.1,
+      "enemy_health_scale": 0.25,
+      "encounter": {
+        "id": "raider_tollbooth",
+        "name": "Raider Tollbooth",
+        "flavor": "A raider leans on a wrecked car with her rifle across her knees. She wants a toll \u2014 or an answer.",
+        "node": {
+          "kind": "trivia",
+          "prompt": "'You want through?' the raider says. 'Prove you know the wasteland. Get it wrong and we settle it the old way.'",
+          "enemies": [
+            {
+              "name": "Raider",
+              "arena_key": "raider"
+            }
+          ],
+          "trivia_questions": [
+            {
+              "id": "vault_builder",
+              "prompt": "Which pre-war company built the Vaults?",
+              "options": [
+                {
+                  "id": "vault-tec",
+                  "label": "Vault-Tec"
+                },
+                {
+                  "id": "robco",
+                  "label": "RobCo Industries"
+                },
+                {
+                  "id": "poseidon",
+                  "label": "Poseidon Energy"
+                }
+              ],
+              "correct_option_id": "vault-tec"
+            },
+            {
+              "id": "nuka_cola",
+              "prompt": "Which pre-war soft drink is still traded across the wastes?",
+              "options": [
+                {
+                  "id": "nuka-cola",
+                  "label": "Nuka-Cola"
+                },
+                {
+                  "id": "sunset-sarsaparilla",
+                  "label": "Sunset Sarsaparilla"
+                },
+                {
+                  "id": "vim",
+                  "label": "Vim"
+                }
+              ],
+              "correct_option_id": "nuka-cola"
+            },
+            {
+              "id": "caps_currency",
+              "prompt": "What do wastelanders use as currency?",
+              "options": [
+                {
+                  "id": "caps",
+                  "label": "Bottle caps"
+                },
+                {
+                  "id": "dollars",
+                  "label": "Pre-war dollars"
+                },
+                {
+                  "id": "gold",
+                  "label": "Gold coins"
+                }
+              ],
+              "correct_option_id": "caps"
+            },
+            {
+              "id": "brotherhood_codex",
+              "prompt": "What is the Brotherhood of Steel's guiding text called?",
+              "options": [
+                {
+                  "id": "codex",
+                  "label": "The Codex"
+                },
+                {
+                  "id": "creed",
+                  "label": "The Creed"
+                },
+                {
+                  "id": "protocol",
+                  "label": "The Protocol"
+                }
+              ],
+              "correct_option_id": "codex"
+            },
+            {
+              "id": "ghoul_origin",
+              "prompt": "What is a ghoul?",
+              "options": [
+                {
+                  "id": "radiation-human",
+                  "label": "A human twisted by radiation"
+                },
+                {
+                  "id": "mutated-animal",
+                  "label": "A mutated animal"
+                },
+                {
+                  "id": "prewar-robot",
+                  "label": "A pre-war robot"
+                }
+              ],
+              "correct_option_id": "radiation-human"
+            },
+            {
+              "id": "ncr_name",
+              "prompt": "What does NCR stand for?",
+              "options": [
+                {
+                  "id": "new-california",
+                  "label": "New California Republic"
+                },
+                {
+                  "id": "new-colorado",
+                  "label": "New Colorado Republic"
+                },
+                {
+                  "id": "northern-capital",
+                  "label": "Northern Capital Region"
+                }
+              ],
+              "correct_option_id": "new-california"
+            }
+          ],
+          "raiders": [
+            {
+              "id": "sable",
+              "name": "Sable",
+              "gender": "female",
+              "intro": "A scarred raider named Sable watches the road with a sawed-off across her lap.",
+              "correct_line": "pays up with a sour grin",
+              "wrong_line": "snarls and swings the stock at your head",
+              "image_url": "/static/raider_images/variants/sable.webp?v=5",
+              "alt_image_url": "/static/raider_images/variants/sable_alt.webp?v=5"
+            },
+            {
+              "id": "rook",
+              "name": "Rook",
+              "gender": "female",
+              "intro": "A wiry raider named Rook circles you, a knife loose in her hand.",
+              "correct_line": "tosses the caps over with a wink",
+              "wrong_line": "flicks the knife up and comes at you",
+              "image_url": "/static/raider_images/variants/rook.webp?v=5",
+              "alt_image_url": "/static/raider_images/variants/rook_alt.webp?v=5"
+            },
+            {
+              "id": "jinx",
+              "name": "Jinx",
+              "gender": "female",
+              "intro": "Jinx grins from the hood of a burned-out car, rifle propped on her knee.",
+              "correct_line": "laughs and slides the loot across the asphalt",
+              "wrong_line": "snaps the rifle up to her shoulder",
+              "image_url": "/static/raider_images/variants/jinx.webp?v=5",
+              "alt_image_url": "/static/raider_images/variants/jinx_alt.webp?v=5"
+            },
+            {
+              "id": "gristle",
+              "name": "Gristle",
+              "gender": "male",
+              "intro": "A broad-shouldered raider called Gristle blocks the lane, chewing on a stimpak needle.",
+              "correct_line": "gives up the stash with a grunt",
+              "wrong_line": "roars and charges",
+              "image_url": "/static/raider_images/variants/gristle.webp?v=5",
+              "alt_image_url": "/static/raider_images/variants/gristle_alt.webp?v=5"
+            },
+            {
+              "id": "brick",
+              "name": "Brick",
+              "gender": "male",
+              "intro": "Brick, a raider with a face like a collapsed wall, leans on a rebar club.",
+              "correct_line": "shrugs and kicks the stash over",
+              "wrong_line": "hauls the club back over his shoulder",
+              "image_url": "/static/raider_images/variants/brick.webp?v=5",
+              "alt_image_url": "/static/raider_images/variants/brick_alt.webp?v=5"
+            },
+            {
+              "id": "cutter",
+              "name": "Cutter",
+              "gender": "male",
+              "intro": "Cutter sharpens a machete on the tollbooth rail, watching you the whole time.",
+              "correct_line": "nods once and steps aside",
+              "wrong_line": "comes over the rail with the blade leading",
+              "image_url": "/static/raider_images/variants/cutter.webp?v=5",
+              "alt_image_url": "/static/raider_images/variants/cutter_alt.webp?v=5"
+            }
+          ]
+        }
+      },
+      "reward_vault": {
+        "caps_min": 40,
+        "caps_max": 80,
+        "item": {
+          "type": "junk",
+          "floor": null
+        }
+      }
     }
   ]
 }

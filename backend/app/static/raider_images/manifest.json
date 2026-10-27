@@ -1,0 +1,298 @@
+{
+  "description": "Six Fallout Shelter-style raider personas, each with a default and an action pose, used by the wasteland encounter, arena/incident scenes and the dev asset gallery.",
+  "method": "OpenAI Images API /v1/images/edits with gpt-image-2.5-flare, quality high, transparent background, PNG output; post-processed with Pillow to a 902px-tall WebP with alpha at quality 90.",
+  "reference": "https://images.fallout.wiki/a/a4/FoS_raiders_lineup.jpg",
+  "rights": "Fallout Shelter artwork belongs to its original rights holders. These are style-matched re-renders, not original game artwork and carry no independent license.",
+  "assets": [
+    {
+      "file": "variants/jinx.webp",
+      "kind": "variant",
+      "persona": "jinx",
+      "pose": "default",
+      "name": "Jinx",
+      "gender": "female",
+      "source_reference": "https://images.fallout.wiki/a/a4/FoS_raiders_lineup.jpg",
+      "source_crop": "pink-mohawk female raider",
+      "generation": {
+        "model": "gpt-image-2.5-flare",
+        "size": "1024x1536",
+        "quality": "high",
+        "background": "transparent",
+        "output_format": "png"
+      },
+      "postprocess": "horizontally mirrored right-to-left; Lanczos fit to 902px height; WebP quality 90 with alpha preserved",
+      "canvas": [
+        606,
+        902
+      ],
+      "prompt": "Use the supplied image as the exact style and character reference. Keep the same character identity, magenta pink mohawk, shaved sides, face, clothing, colors and Fallout Shelter flat cartoon style. Replace the weapon with a proper Fallout pipe rifle: a wooden stock, a metal receiver with a visible bolt and trigger guard, a box magazine, a long barrel and a front sight. Hold the rifle low across her body with both hands in the same standing ready stance, head and eyes turned to the viewer's right like the other raiders. One character only, complete silhouette from hair to boots, centered with generous empty margins, no ground shadow, no background, no other characters, no text, no watermark.",
+      "heading": "left"
+    },
+    {
+      "file": "variants/jinx_alt.webp",
+      "kind": "variant",
+      "persona": "jinx",
+      "pose": "alt",
+      "name": "Jinx",
+      "gender": "female",
+      "source_reference": "variants/jinx.webp (the default pose)",
+      "source_crop": "pink-mohawk female raider",
+      "generation": {
+        "model": "gpt-image-2.5-flare",
+        "size": "1024x1536",
+        "quality": "high",
+        "background": "transparent",
+        "output_format": "png"
+      },
+      "postprocess": "horizontally mirrored right-to-left; Lanczos fit to 902px height; WebP quality 90 with alpha preserved",
+      "canvas": [
+        607,
+        902
+      ],
+      "prompt": "Use the supplied image as the exact style and character reference. Keep the same character identity, face, hair, clothing, colors, proportions and Fallout Shelter flat cartoon style: thick clean dark outlines, flat cel shading, oversized head and short compact body. Change only the pose: she now shoulders the pipe rifle and aims it forward, braced and confident. Keep the head and eyes turned to the viewer's right like the other raiders. One character only, complete silhouette from hair to boots, centered with generous empty margins, no ground shadow, no background, no other characters, no text, no watermark.",
+      "heading": "left"
+    },
+    {
+      "file": "variants/rook.webp",
+      "kind": "variant",
+      "persona": "rook",
+      "pose": "default",
+      "name": "Rook",
+      "gender": "female",
+      "source_reference": "https://images.fallout.wiki/a/a4/FoS_raiders_lineup.jpg",
+      "source_crop": "dark-bob female raider",
+      "generation": {
+        "model": "gpt-image-2.5-flare",
+        "size": "1024x1536",
+        "quality": "high",
+        "background": "transparent",
+        "output_format": "png"
+      },
+      "postprocess": "horizontally mirrored right-to-left; Lanczos fit to 902px height; WebP quality 90 with alpha preserved",
+      "canvas": [
+        559,
+        902
+      ],
+      "prompt": "Use the supplied image as the exact style and character reference. Re-render the dark-bob female raider as a single full-body game sprite in the same Fallout Shelter flat cartoon style: thick clean dark outlines, flat cel shading, oversized head and short compact body with big-head cartoon proportions, muted rust, olive and leather-brown palette. She stands in the standard raider ready stance: three-quarter view with BOTH her body and her head turned toward the viewer's LEFT, her eyes and face clearly looking to the left, feet planted shoulder-width, shoulders square. Keep her identity: short dark bob haircut, confident smirk, round metal shoulder pads, leather chest straps over a wrapped torso, bandaged forearms, patched dark shorts, heavy boots. She holds a long knife in a ready guard at waist height, blade angled forward. One character only, complete silhouette from hair to boots, centered with generous empty margins, no ground shadow, no background, no other characters, no text, no watermark.",
+      "heading": "left"
+    },
+    {
+      "file": "variants/rook_alt.webp",
+      "kind": "variant",
+      "persona": "rook",
+      "pose": "alt",
+      "name": "Rook",
+      "gender": "female",
+      "source_reference": "variants/rook.webp (the default pose)",
+      "source_crop": "dark-bob female raider",
+      "generation": {
+        "model": "gpt-image-2.5-flare",
+        "size": "1024x1536",
+        "quality": "high",
+        "background": "transparent",
+        "output_format": "png"
+      },
+      "postprocess": "horizontally mirrored right-to-left; Lanczos fit to 902px height; WebP quality 90 with alpha preserved",
+      "canvas": [
+        606,
+        902
+      ],
+      "prompt": "Use the supplied image as the exact style and character reference. Keep the same character identity, face, short dark bob haircut, clothing, colors, proportions and Fallout Shelter flat cartoon style: thick clean dark outlines, flat cel shading, oversized head and short compact body. Change only the pose: she now lunges forward with the knife raised in a forward guard, ready to slash. Keep both her body and her head turned toward the viewer's left. One character only, complete silhouette from hair to boots, centered with generous empty margins, no ground shadow, no background, no other characters, no text, no watermark.",
+      "heading": "left"
+    },
+    {
+      "file": "variants/sable.webp",
+      "kind": "variant",
+      "persona": "sable",
+      "pose": "default",
+      "name": "Sable",
+      "gender": "female",
+      "source_reference": "https://images.fallout.wiki/a/a4/FoS_raiders_lineup.jpg",
+      "source_crop": "pink-mohawk female raider (hair and weapon changed)",
+      "generation": {
+        "model": "gpt-image-2.5-flare",
+        "size": "1024x1536",
+        "quality": "high",
+        "background": "transparent",
+        "output_format": "png"
+      },
+      "postprocess": "horizontally mirrored right-to-left; Lanczos fit to 902px height; WebP quality 90 with alpha preserved",
+      "canvas": [
+        578,
+        902
+      ],
+      "prompt": "Use the supplied image as the exact style and character reference. Re-render the female raider as a single full-body game sprite in the same Fallout Shelter flat cartoon style: thick clean dark outlines, flat cel shading, oversized head and short compact body with big-head cartoon proportions, muted rust, olive and leather-brown palette. Change her hair to long auburn red hair tied back, keep the confident smirk, round metal shoulder pads, leather chest straps over a wrapped torso, bandaged forearms, patched dark shorts, heavy boots. Change the weapon to a sawed-off shotgun held across her hip. Standing three-quarter view facing left in a ready stance. One character only, complete silhouette from hair to boots, centered with generous empty margins, no ground shadow, no background, no other characters, no text, no watermark.",
+      "heading": "left"
+    },
+    {
+      "file": "variants/sable_alt.webp",
+      "kind": "variant",
+      "persona": "sable",
+      "pose": "alt",
+      "name": "Sable",
+      "gender": "female",
+      "source_reference": "variants/sable.webp (the default pose)",
+      "source_crop": "pink-mohawk female raider (hair and weapon changed)",
+      "generation": {
+        "model": "gpt-image-2.5-flare",
+        "size": "1024x1536",
+        "quality": "high",
+        "background": "transparent",
+        "output_format": "png"
+      },
+      "postprocess": "horizontally mirrored right-to-left; Lanczos fit to 902px height; WebP quality 90 with alpha preserved",
+      "canvas": [
+        616,
+        902
+      ],
+      "prompt": "Use the supplied image as the exact style and character reference. Keep the same character identity, face, hair, clothing, colors, proportions and Fallout Shelter flat cartoon style: thick clean dark outlines, flat cel shading, oversized head and short compact body. Change only the pose: she now aims the sawed-off shotgun forward with both hands, leaning slightly into the shot, aggressive and ready. Keep the head and eyes turned to the viewer's right like the other raiders. One character only, complete silhouette from hair to boots, centered with generous empty margins, no ground shadow, no background, no other characters, no text, no watermark.",
+      "heading": "left"
+    },
+    {
+      "file": "variants/gristle.webp",
+      "kind": "variant",
+      "persona": "gristle",
+      "pose": "default",
+      "name": "Gristle",
+      "gender": "male",
+      "source_reference": "https://images.fallout.wiki/a/a4/FoS_raiders_lineup.jpg",
+      "source_crop": "male raider",
+      "generation": {
+        "model": "gpt-image-2.5-flare",
+        "size": "1024x1536",
+        "quality": "high",
+        "background": "transparent",
+        "output_format": "png"
+      },
+      "postprocess": "horizontally mirrored right-to-left; Lanczos fit to 902px height; WebP quality 90 with alpha preserved",
+      "canvas": [
+        611,
+        902
+      ],
+      "prompt": "Use the supplied image as the exact style and character reference. Re-render the male raider as a single full-body game sprite in the same Fallout Shelter flat cartoon style: thick clean dark outlines, flat cel shading, oversized head and short compact body with big-head cartoon proportions, muted rust, olive and leather-brown palette. Change his hair to a shaved head with dark stubble, heavy jaw and broad shoulders, keep the round metal shoulder pad, leather chest straps over a bare muscular torso, bandaged forearms, patched dark trousers, heavy boots. Change the weapon to a rusty rebar club resting on one shoulder. Standing three-quarter view facing left in a ready stance. One character only, complete silhouette from hair to boots, centered with generous empty margins, no ground shadow, no background, no other characters, no text, no watermark.",
+      "heading": "left"
+    },
+    {
+      "file": "variants/gristle_alt.webp",
+      "kind": "variant",
+      "persona": "gristle",
+      "pose": "alt",
+      "name": "Gristle",
+      "gender": "male",
+      "source_reference": "variants/gristle.webp (the default pose)",
+      "source_crop": "male raider",
+      "generation": {
+        "model": "gpt-image-2.5-flare",
+        "size": "1024x1536",
+        "quality": "high",
+        "background": "transparent",
+        "output_format": "png"
+      },
+      "postprocess": "horizontally mirrored right-to-left; Lanczos fit to 902px height; WebP quality 90 with alpha preserved",
+      "canvas": [
+        598,
+        902
+      ],
+      "prompt": "Use the supplied image as the exact style and character reference. Keep the same character identity, face, hair, clothing, colors, proportions and Fallout Shelter flat cartoon style: thick clean dark outlines, flat cel shading, oversized head and short compact body. Change only the pose: he now raises the rebar club overhead in a two-handed swing, roaring. Keep the head and eyes turned to the viewer's right like the other raiders. One character only, complete silhouette from hair to boots, centered with generous empty margins, no ground shadow, no background, no other characters, no text, no watermark.",
+      "heading": "left"
+    },
+    {
+      "file": "variants/brick.webp",
+      "kind": "variant",
+      "persona": "brick",
+      "pose": "default",
+      "name": "Brick",
+      "gender": "male",
+      "source_reference": "https://images.fallout.wiki/a/a4/FoS_raiders_lineup.jpg",
+      "source_crop": "male raider",
+      "generation": {
+        "model": "gpt-image-2.5-flare",
+        "size": "1024x1536",
+        "quality": "high",
+        "background": "transparent",
+        "output_format": "png"
+      },
+      "postprocess": "horizontally mirrored right-to-left; Lanczos fit to 902px height; WebP quality 90 with alpha preserved",
+      "canvas": [
+        607,
+        902
+      ],
+      "prompt": "Use the supplied image as the exact style and character reference. Re-render the male raider as a single full-body game sprite in the same Fallout Shelter flat cartoon style: thick clean dark outlines, flat cel shading, oversized head and short compact body with big-head cartoon proportions, muted rust, olive and leather-brown palette. Change his hair to short brown hair with a blocky face and a broad build, one oversized metal shoulder pad, leather chest straps, bandaged forearms, patched dark trousers, heavy boots. Keep a heavy pipe rifle held low. Standing three-quarter view facing left in a ready stance. One character only, complete silhouette from hair to boots, centered with generous empty margins, no ground shadow, no background, no other characters, no text, no watermark.",
+      "heading": "left"
+    },
+    {
+      "file": "variants/brick_alt.webp",
+      "kind": "variant",
+      "persona": "brick",
+      "pose": "alt",
+      "name": "Brick",
+      "gender": "male",
+      "source_reference": "variants/brick.webp (the default pose)",
+      "source_crop": "male raider",
+      "generation": {
+        "model": "gpt-image-2.5-flare",
+        "size": "1024x1536",
+        "quality": "high",
+        "background": "transparent",
+        "output_format": "png"
+      },
+      "postprocess": "horizontally mirrored right-to-left; Lanczos fit to 902px height; WebP quality 90 with alpha preserved",
+      "canvas": [
+        618,
+        902
+      ],
+      "prompt": "Use the supplied image as the exact style and character reference. Keep the same character identity, face, hair, clothing, colors, proportions and Fallout Shelter flat cartoon style: thick clean dark outlines, flat cel shading, oversized head and short compact body. Change only the pose: he now shoulders the heavy pipe rifle and aims it forward, steady and braced. Keep the head and eyes turned to the viewer's right like the other raiders. One character only, complete silhouette from hair to boots, centered with generous empty margins, no ground shadow, no background, no other characters, no text, no watermark.",
+      "heading": "left"
+    },
+    {
+      "file": "variants/cutter.webp",
+      "kind": "variant",
+      "persona": "cutter",
+      "pose": "default",
+      "name": "Cutter",
+      "gender": "male",
+      "source_reference": "https://images.fallout.wiki/a/a4/FoS_raiders_lineup.jpg",
+      "source_crop": "male raider",
+      "generation": {
+        "model": "gpt-image-2.5-flare",
+        "size": "1024x1536",
+        "quality": "high",
+        "background": "transparent",
+        "output_format": "png"
+      },
+      "postprocess": "horizontally mirrored right-to-left; Lanczos fit to 902px height; WebP quality 90 with alpha preserved",
+      "canvas": [
+        571,
+        902
+      ],
+      "prompt": "Use the supplied image as the exact style and character reference. Re-render the male raider as a single full-body game sprite in the same Fallout Shelter flat cartoon style: thick clean dark outlines, flat cel shading, oversized head and short compact body with big-head cartoon proportions, muted rust, olive and leather-brown palette. Change his hair to dark hair with a cruel grin and a lean build, one round metal shoulder pad, leather chest straps over a wrapped torso, bandaged forearms, patched dark trousers, heavy boots. Change the weapon to a rusty machete held point-down. Standing three-quarter view facing left in a ready stance. One character only, complete silhouette from hair to boots, centered with generous empty margins, no ground shadow, no background, no other characters, no text, no watermark.",
+      "heading": "left"
+    },
+    {
+      "file": "variants/cutter_alt.webp",
+      "kind": "variant",
+      "persona": "cutter",
+      "pose": "alt",
+      "name": "Cutter",
+      "gender": "male",
+      "source_reference": "variants/cutter.webp (the default pose)",
+      "source_crop": "male raider",
+      "generation": {
+        "model": "gpt-image-2.5-flare",
+        "size": "1024x1536",
+        "quality": "high",
+        "background": "transparent",
+        "output_format": "png"
+      },
+      "postprocess": "horizontally mirrored right-to-left; Lanczos fit to 902px height; WebP quality 90 with alpha preserved",
+      "canvas": [
+        596,
+        902
+      ],
+      "prompt": "Use the supplied image as the exact style and character reference. Keep the same character identity, face, hair, clothing, colors, proportions and Fallout Shelter flat cartoon style: thick clean dark outlines, flat cel shading, oversized head and short compact body. Change only the pose: he now raises the machete high and lunges forward in a slash. Keep the head and eyes turned to the viewer's right like the other raiders. One character only, complete silhouette from hair to boots, centered with generous empty margins, no ground shadow, no background, no other characters, no text, no watermark.",
+      "heading": "left"
+    }
+  ],
+  "poses": "Every persona has a default idle pose and an alternate action pose that matches its weapon. The UI chooses a pose for variety (group scenes can alternate by index); pose selection is presentation-only and is not persisted.",
+  "heading": "All persona variants face the viewer's left."
+}

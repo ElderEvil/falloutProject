@@ -162,6 +162,7 @@ async def test_site_available_lists_all_sites(
         "collapsed_subway",
         "rusted_midway",
         "frozen_research_outpost",
+        "raider_tollbooth",
     }
     assert sites["red_rocket"]["min_dweller_level"] == 3
     assert sites["red_rocket"]["room_total"] == 3
@@ -195,6 +196,7 @@ async def test_site_available_level_gate_excludes_sites(
         "collapsed_subway",
         "rusted_midway",
         "frozen_research_outpost",
+        "raider_tollbooth",
     ]
 
 
@@ -234,6 +236,7 @@ async def test_site_available_anti_farm_excludes_recent_clear(
         "collapsed_subway",
         "rusted_midway",
         "frozen_research_outpost",
+        "raider_tollbooth",
     ]
 
 

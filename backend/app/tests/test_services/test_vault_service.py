@@ -1180,6 +1180,29 @@ class TestInitiateVault:
         assert [room.name for room in standard.misc if "radio" in room.name.lower()] == []
         assert [room.name for room in boosted.misc if "radio" in room.name.lower()] == ["Radio studio"]
 
+    async def test_standard_seed_fills_the_retired_radio_slot_with_living_rooms(self) -> None:
+        game_data = await get_static_game_data()
+        prepared = seeding.prepare_initial_rooms(game_data.rooms, uuid4(), is_boosted=False)
+        living = sorted(
+            (room for room in prepared.capacity if room.name == "Living room" and room.coordinate_y == 3),
+            key=lambda room: room.coordinate_x,
+        )
+
+        assert [(room.coordinate_x, room.size) for room in living] == [(7, 3), (10, 3)]
+        assert living[0].coordinate_x + living[0].size == living[1].coordinate_x
+
+    async def test_scenario_start_extends_the_living_row_for_merging(self) -> None:
+        game_data = await get_static_game_data()
+        prepared = seeding.prepare_initial_rooms(game_data.rooms, uuid4(), is_boosted=False, scenario_start=True)
+        living = sorted(
+            (room for room in prepared.capacity if room.name == "Living room" and room.coordinate_y == 3),
+            key=lambda room: room.coordinate_x,
+        )
+
+        assert [(room.coordinate_x, room.size) for room in living] == [(7, 3), (10, 3), (13, 3)]
+        for left, right in pairwise(living):
+            assert left.coordinate_x + left.size == right.coordinate_x
+
     async def test_boosted_housing_has_no_internal_gap_after_seeding(self, boosted_seed: SimpleNamespace) -> None:
         """Keep the three households and their capacity without a blank room between them."""
         rooms = await crud.room.get_all_by_vault(boosted_seed.session, boosted_seed.vault.id)

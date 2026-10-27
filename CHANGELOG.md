@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.275.0 (2026-10-27)
+
+### Features
+
+* **expedition:** add balanced scenarios and multi-room room cards f2d7afe
+* **expedition:** add raider trivia encounters and site pauses 05f5997
+* **expedition:** add raider trivia UI and readable stat checks fa4c8e9
+
+### Bug Fixes
+
+* **exploration:** address scenario review findings ad74c0d
+
 ## 2.274.0 (2026-10-27)
 
 ### Features

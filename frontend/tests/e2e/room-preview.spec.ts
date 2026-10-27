@@ -92,6 +92,26 @@ test('room preview portraits keep their aspect ratio and size over the room back
   expect(fallbackBounds.slotRatio).toBeCloseTo(proportions.source, 2)
 })
 
+test('room preview renders the equipped pet beside its dweller', async ({ page }) => {
+  await page.goto('/tests/e2e/fixtures/room-preview.html?pet=1')
+  const pet = page.locator('.combat-pet').first()
+  await expect(pet).toBeVisible()
+  await expect(pet.locator('img')).toHaveAttribute('alt', /Dogmeat/)
+
+  const petBounds = await pet.evaluate((element) => {
+    const bounds = element.getBoundingClientRect()
+    return { width: bounds.width, height: bounds.height, bottom: bounds.bottom }
+  })
+  const worker = page.getByRole('button', { name: 'Open Ada Worker', exact: true })
+  const workerBounds = await worker.evaluate((element) => {
+    const bounds = element.getBoundingClientRect()
+    return { height: bounds.height, bottom: bounds.bottom }
+  })
+  expect(petBounds.height).toBeLessThan(workerBounds.height)
+  expect(petBounds.width / petBounds.height).toBeCloseTo(1.5, 1)
+  expect(Math.abs(petBounds.bottom - workerBounds.bottom)).toBeLessThanOrEqual(2)
+})
+
 test('room preview shows a silhouette when a thumbnail fails to load', async ({ page }) => {
   await page.goto('/tests/e2e/fixtures/room-preview.html?broken=1')
   const worker = page.getByRole('button', { name: 'Open Ada Worker', exact: true })

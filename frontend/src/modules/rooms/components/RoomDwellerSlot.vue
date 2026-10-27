@@ -12,6 +12,7 @@ import {
 import { getStaticImageUrl } from '@/core/utils/image'
 import DwellerNameBadge from '@/modules/dwellers/components/DwellerNameBadge.vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import CombatPet from '@/modules/combat/components/CombatPet.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -124,6 +125,13 @@ const activate = () => {
       <div v-else class="placeholder-dweller empty scene-empty-slot" aria-hidden="true">
         <span class="empty-dweller-silhouette" />
       </div>
+      <CombatPet
+        v-if="dweller?.pet"
+        :pet="dweller.pet"
+        :owner-name="name"
+        :owner-id="dweller.id"
+        facing="right"
+      />
       <span
         v-if="selectionMode || kind === 'client'"
         class="slot-role"
@@ -231,6 +239,14 @@ const activate = () => {
 .scene-dweller:focus-visible {
   box-shadow: 0 0 8px var(--color-theme-glow);
   outline: none;
+}
+
+.scene-occupant :deep(.combat-pet) {
+  right: auto;
+  left: 0;
+  width: auto;
+  height: 50%;
+  aspect-ratio: 3 / 2;
 }
 
 .scene-unassign {

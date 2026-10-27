@@ -42,6 +42,23 @@ describe('RoomPreviewSection image aspect', () => {
   })
 })
 
+describe('RoomPreviewSection pets', () => {
+  it('renders the equipped pet beside its dweller', () => {
+    const wrapper = mountPreview({
+      assignedDwellers: [
+        {
+          ...dweller('d1', 'Ada'),
+          pet: { id: 'pet-1', name: 'Dogmeat', image_url: '/static/pets/dogmeat.webp' },
+        },
+      ],
+    })
+
+    const pet = wrapper.get('.combat-pet')
+    expect(pet.get('img').attributes('alt')).toContain('Dogmeat')
+    wrapper.unmount()
+  })
+})
+
 describe('RoomPreviewSection client slot', () => {
   it('keeps the client separate from workers and apprentice assignment', async () => {
     const wrapper = mountPreview({ dwellerCapacity: 1, clientSlot: null, selectionMode: true })

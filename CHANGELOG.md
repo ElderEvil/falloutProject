@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.278.1 (2026-10-27)
+
+### Bug Fixes
+
+* **rooms:** fit four incident responders without roster scroll c976592
+* **rooms:** fit four responders inside the padded incident modal 856c408
+* **rooms:** follow hazard-team auto-deploy into incidents 7f558e6
+* **rooms:** intensify incident hit motion and show pets 290ad81
+* **rooms:** keep incident detail inside the room modal ee0f385
+* **rooms:** let the incident scene own its resolution cue 910d72d
+* **rooms:** refresh dwellers after incident responder assignment c02d3d7
+* **rooms:** stack the incident log and defer victory audio 122d983
+* **rooms:** standardize incident fighter scale and fire rendering 029f7c3
+
+### Documentation
+
+* **expedition:** document trivia encounters and paused journey clock 74f7cec
+
 ## 2.278.0 (2026-10-27)
 
 ### Features

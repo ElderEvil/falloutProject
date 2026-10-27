@@ -22,7 +22,9 @@ const KIND_LABELS: Record<string, string> = {
 
 const skippedNames = (data: Incident['events'][number]['data']): string[] => {
   const skipped = data?.skipped
-  return Array.isArray(skipped) ? skipped.filter((name): name is string => typeof name === 'string') : []
+  return Array.isArray(skipped)
+    ? skipped.filter((name): name is string => typeof name === 'string')
+    : []
 }
 
 const entries = computed<BattleLogEntry[]>(() =>
@@ -52,8 +54,12 @@ const entries = computed<BattleLogEntry[]>(() =>
 </script>
 
 <template>
-  <section class="flex flex-col gap-1.5">
-    <p class="text-xs text-terminal-green-dim">BATTLE LOG</p>
-    <BattleLog :entries="entries" empty-text="No rounds fought yet." max-height-class="max-h-16 sm:max-h-56" />
-  </section>
+  <details aria-label="Battle journal" class="border-t border-border pt-2">
+    <summary
+      class="cursor-pointer py-1 text-xs text-muted-foreground focus-visible:outline focus-visible:outline-ring"
+    >
+      Battle log · {{ entries.length }} entries
+    </summary>
+    <BattleLog class="pt-2" :entries="entries" empty-text="No rounds fought yet." />
+  </details>
 </template>

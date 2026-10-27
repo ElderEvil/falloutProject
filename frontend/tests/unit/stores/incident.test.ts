@@ -900,6 +900,32 @@ describe('Incident Store', () => {
       store.stopPolling()
     })
 
+    it('defers the victory cue and music until the open scene finishes playback', async () => {
+      const store = useIncidentStore()
+      store.registerScene('incident-1')
+      sseMock.playSound.mockClear()
+      sseMock.stopAlarm.mockClear()
+      sseMock.restoreMusic.mockClear()
+
+      await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: true,
+      })
+
+      expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentVictory', 'sfx')
+      expect(sseMock.stopAlarm).not.toHaveBeenCalled()
+      expect(sseMock.restoreMusic).not.toHaveBeenCalled()
+
+      store.flushResolutionCue('incident-1')
+      expect(sseMock.playSound).toHaveBeenCalledWith('incidentVictory', 'sfx')
+      expect(sseMock.stopAlarm).toHaveBeenCalled()
+
+      store.unregisterScene('incident-1')
+      expect(sseMock.restoreMusic).toHaveBeenCalled()
+      store.stopPolling()
+    })
+
     it('summarises a defeat so the room shows what was lost', async () => {
       const store = await resolveViaSse({
         type: 'incident_resolved',

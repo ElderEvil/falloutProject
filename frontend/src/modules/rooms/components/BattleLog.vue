@@ -18,7 +18,6 @@ const props = defineProps<{
   entries: BattleLogEntry[]
   emptyText: string
   fill?: boolean
-  maxHeightClass?: string
 }>()
 
 const groupedEntries = computed<Array<BattleLogEntry & { count: number }>>(() => {
@@ -89,7 +88,7 @@ watch(
       <div
         ref="scrollEl"
         class="overflow-y-auto border border-theme-primary/25 bg-surface-sunken/40 p-2"
-        :class="fill ? 'min-h-0 flex-1' : (maxHeightClass ?? 'max-h-56')"
+        :class="fill ? 'min-h-0 flex-1' : 'max-h-56'"
         aria-live="polite"
         aria-label="Battle log"
         @scroll="handleScroll"

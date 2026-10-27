@@ -83,6 +83,20 @@ const liveIncident = computed(() => {
   // mounted until it arrives and the final resolved actions have played.
   return aftermath.sceneLoading || ['resolved', 'failed'].includes(scene.status) ? scene : null
 })
+const sceneIncidentId = computed(() => liveIncident.value?.id ?? null)
+watch(
+  [() => props.modelValue, sceneIncidentId],
+  ([open, incidentId], [, previousId]) => {
+    if (previousId && (!open || previousId !== incidentId))
+      incidentStore.unregisterScene(previousId)
+    if (open && incidentId) incidentStore.registerScene(incidentId)
+  },
+  { immediate: true }
+)
+const handlePlaybackComplete = (incidentId: string) => {
+  completedPlayback.value = incidentId
+  incidentStore.flushResolutionCue(incidentId)
+}
 
 // Which sections this room renders — decided by the part registry, nowhere else.
 const parts = computed<RoomPart[]>(() =>
@@ -208,6 +222,9 @@ watch(
 )
 
 onUnmounted(stopAmbience)
+onUnmounted(() => {
+  if (sceneIncidentId.value) incidentStore.unregisterScene(sceneIncidentId.value)
+})
 </script>
 
 <template>
@@ -247,7 +264,7 @@ onUnmounted(stopAmbience)
           :fallback-image-url="roomGridImageUrl ?? null"
           :room-image-url="roomImageUrl ?? null"
           :finishing="liveAftermath?.incidentId === liveIncident.id"
-          @playback-complete="completedPlayback = $event"
+          @playback-complete="handlePlaybackComplete"
         />
 
         <IncidentAftermath

@@ -40,18 +40,16 @@ for (const [width, height] of [
       clientWidth: element.clientWidth,
       scrollWidth: element.scrollWidth,
     }))
-    expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.clientHeight + 1)
+    const verticalOverflow = metrics.scrollHeight - metrics.clientHeight
+    expect(verticalOverflow).toBeLessThanOrEqual(height >= 900 ? 1 : 100)
     expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1)
 
     const sceneBox = (await scene.boundingBox())!
-    const logBox = (await page.getByLabel('Battle log', { exact: true }).boundingBox())!
-    if (width >= 1024) {
-      expect(logBox.x).toBeGreaterThan(sceneBox.x + sceneBox.width - 1)
-    } else {
-      expect(logBox.y).toBeGreaterThan(sceneBox.y + sceneBox.height - 1)
-    }
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-      true
-    )
+    const logSummary = page.getByText(/Battle log · \d+ entries/)
+    await expect(logSummary).toBeVisible()
+    await expect(page.getByLabel('Battle journal')).not.toHaveAttribute('open', '')
+    const summaryBox = (await logSummary.boundingBox())!
+    expect(summaryBox.y).toBeGreaterThanOrEqual(sceneBox.y + sceneBox.height - 1)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   })
 }

@@ -15,7 +15,11 @@ import {
   type IncidentTeamMember,
   type IncidentParticipant,
 } from '@/modules/combat/models/incident'
-import { creatureSeed, getCreatureImagePath, getCreatureModelSizeClass } from '@/core/utils/creatureAssets'
+import {
+  creatureSeed,
+  getCreatureImagePath,
+  getCreatureModelSizeClass,
+} from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
 import { humanizePreserveCase } from '@/core/utils/format'
 import { useCombatPulse } from '../composables/useCombatPulse'
@@ -136,9 +140,7 @@ const creatureKeys: Partial<Record<IncidentType, string>> = {
 }
 const creatureKey = computed(() => creatureKeys[props.incident.type])
 const { url: creatureImage, onError: creatureFailed } = useFallbackImage(() => [
-  getStaticImageUrl(
-    getCreatureImagePath(creatureKey.value ?? '', creatureSeed(props.incident.id))
-  ),
+  getStaticImageUrl(getCreatureImagePath(creatureKey.value ?? '', creatureSeed(props.incident.id))),
 ])
 const creatureName = computed(() =>
   humanizePreserveCase((creatureKey.value ?? 'Raider').replaceAll('-', '_'))
@@ -182,7 +184,9 @@ const threatMotion = computed(() => ({
 }))
 // Fire is environmental: it gets the flicker, never a fighter's lunge/shadow.
 const isFire = computed(() => props.incident.type === 'fire')
-const isHumanoidThreat = computed(() => ['raider_attack', 'feral_ghoul_attack'].includes(props.incident.type))
+const isHumanoidThreat = computed(() =>
+  ['raider_attack', 'feral_ghoul_attack'].includes(props.incident.type)
+)
 const fireFlames = ['h-1/2 opacity-80', 'h-[90%]', 'h-[65%] opacity-90'] as const
 // Up to four responders share the scene lane; larger rosters keep the scroll.
 const responderCellClass = computed(() => {
@@ -208,7 +212,7 @@ const sceneLaneClass = computed(() =>
 
 <template>
   <section
-    class="incident-scene relative isolate aspect-[5/2] min-h-80 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
+    class="incident-scene relative isolate aspect-[5/2] min-h-80 max-h-[22.5rem] w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
     aria-label="Incident live status"
   >
     <img
@@ -246,7 +250,9 @@ const sceneLaneClass = computed(() =>
           >-{{ Math.round(dwellerDamage) }}</span
         >
         <!-- Keep responders spread across their half of the scene instead of clustering left. -->
-        <div class="flex w-full min-w-0 items-end justify-evenly gap-1 overflow-x-auto pt-6 pb-1 sm:gap-2">
+        <div
+          class="flex w-full min-w-0 items-end justify-evenly gap-1 overflow-x-auto pt-6 pb-1 sm:gap-2"
+        >
           <div
             v-for="responder in responders"
             :key="responder.id"

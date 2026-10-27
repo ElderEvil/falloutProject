@@ -796,12 +796,12 @@
     {
       "id": "vault_69",
       "name": "Vault 69",
-      "flavor": "A sealed dormitory where the numbers ran the other way. Ninety-nine women, one man, and a council that never let the door open.",
+      "flavor": "A sealed dormitory holding ninety-nine women and one man, with a council that never let the door open.",
       "coord_x": 52.0,
       "coord_y": 50.0,
       "min_dweller_level": 1,
       "scene_id": "subway_station",
-      "lore": "The inverse of Vault 68. The same experiment, mirrored, with the same silence.",
+      "lore": "A sealed dormitory experiment built around ninety-nine women and one man, with a council that never let the door open.",
       "scenario_only": true,
       "encounter": {
         "id": "vault_69_atrium",

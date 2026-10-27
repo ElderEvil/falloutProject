@@ -76,7 +76,7 @@ VAULT_SCENARIOS = (
 )
 
 
-class ScenarioVaultService:
+class VaultScenarioService:
     def list(self) -> list[VaultScenario]:
         return list(VAULT_SCENARIOS)
 
@@ -135,4 +135,4 @@ class ScenarioVaultService:
         db_session.add(result.vault)
 
 
-scenario_vault_service = ScenarioVaultService()
+vault_scenario_service = VaultScenarioService()

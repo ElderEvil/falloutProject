@@ -47,6 +47,7 @@ const active = computed(() => !!props.action && (attacking.value || hit.value))
           'combat-body--attack': attacking && phase === 'impact' && melee,
           'combat-body--recoil': attacking && phase === 'impact' && !melee,
           'combat-body--hit': hit,
+          'combat-body--damaged': hit && (target?.damage ?? 0) > 0,
           'combat-body--skill': !companion && !!action?.action.skill,
           'combat-body--stationary': !!action?.accelerated,
         },
@@ -54,9 +55,24 @@ const active = computed(() => !!props.action && (attacking.value || hit.value))
     >
       <slot />
     </div>
+    <div
+      v-if="hit && action?.action.skill && !companion"
+      class="skill-hit pointer-events-none absolute inset-0 z-20"
+      :class="{
+        'skill-hit--stationary': action.accelerated,
+        'skill-hit--explosion': action.action.skill_icon === 'heavy-explosive',
+        'skill-hit--energy': action.action.skill_icon?.startsWith('energy-'),
+        'skill-hit--heat': action.action.skill_icon === 'heavy-flamer',
+        'skill-hit--scatter': action.action.skill_icon === 'gun-shotgun',
+        'skill-hit--hammer': action.action.skill_icon === 'melee-blunt',
+        'skill-hit--automatic': action.action.skill_icon === 'heavy-automatic',
+      }"
+      aria-hidden="true"
+    />
     <CombatEffect
       v-if="active && !companion"
       :key="`${action?.id}:${phase}`"
+      :class="attacking ? (facing === 'left' ? 'effect-forward-left' : 'effect-forward-right') : ''"
       :effect="effect"
       :preparing="phase === 'prepare'"
       :skill="!!action?.action.skill"
@@ -67,6 +83,79 @@ const active = computed(() => !!props.action && (attacking.value || hit.value))
 </template>
 
 <style scoped>
+.effect-forward-right {
+  translate: 50% 0;
+}
+.effect-forward-left {
+  translate: -50% 0;
+}
+.skill-hit {
+  background: url('/assets/combat/skill-hit.webp') 0 0 / 1600% 100% no-repeat;
+  animation: skill-hit 300ms steps(15, end) both;
+}
+.skill-hit--explosion {
+  background-image: url('/assets/combat/skill-explosion.webp');
+}
+.skill-hit--energy {
+  filter: hue-rotate(150deg);
+}
+.skill-hit--heat {
+  background: radial-gradient(
+    ellipse,
+    transparent 25%,
+    var(--color-warning) 30%,
+    transparent 35%,
+    transparent 46%,
+    var(--color-danger) 50%,
+    transparent 56%
+  );
+  animation: skill-wave 300ms ease-out both;
+}
+.skill-hit--scatter {
+  background: repeating-conic-gradient(var(--color-warning) 0deg 4deg, transparent 4deg 30deg);
+  mask-image: radial-gradient(ellipse, transparent 12%, black 25%, transparent 70%);
+  animation: skill-wave 300ms ease-out both;
+}
+@keyframes skill-wave {
+  from {
+    transform: scale(0.45);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+}
+.skill-hit--hammer::after {
+  content: '';
+  position: absolute;
+  inset: 38% 4%;
+  border: 3px solid var(--color-warning);
+  border-radius: 50%;
+  animation: skill-wave 300ms ease-out both;
+}
+.skill-hit--automatic {
+  background: repeating-linear-gradient(
+    165deg,
+    transparent 0 14%,
+    var(--color-warning) 15% 17%,
+    transparent 18% 28%
+  );
+  mask-image: radial-gradient(ellipse, black, transparent 70%);
+  animation: skill-wave 300ms ease-out both;
+}
+.skill-hit--stationary::after {
+  animation: none;
+}
+.skill-hit--stationary {
+  animation: none;
+  background-position: 26.6667% 0;
+}
+@keyframes skill-hit {
+  to {
+    background-position: 100% 0;
+  }
+}
 .combat-body {
   --travel: 10px;
   --recoil: 4px;
@@ -123,6 +212,9 @@ const active = computed(() => !!props.action && (attacking.value || hit.value))
 .combat-body--recoil {
   animation-name: combat-recoil;
 }
+.combat-body--damaged {
+  filter: drop-shadow(0 0 3px var(--color-danger)) drop-shadow(0 0 5px var(--color-danger));
+}
 .combat-body--hit {
   animation-name: combat-hit;
 }
@@ -170,16 +262,21 @@ const active = computed(() => !!props.action && (attacking.value || hit.value))
   from {
     transform: translateX(calc(var(--direction) * var(--recoil) * -1))
       rotate(calc(var(--direction) * var(--lean) * -1));
-    filter: brightness(1.7);
   }
   to {
     transform: none;
-    filter: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .combat-body {
     animation: none;
+  }
+  .skill-hit--hammer::after {
+    animation: none;
+  }
+  .skill-hit {
+    animation: none;
+    background-position: 26.6667% 0;
   }
 }
 </style>

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import CombatEffect from '@/modules/combat/components/CombatEffect.vue'
 import CombatantMotion from '@/modules/combat/components/CombatantMotion.vue'
-import type { PlayingCombatAction } from '@/modules/combat/models/playback'
+import type { CombatSkillIcon, PlayingCombatAction } from '@/modules/combat/models/playback'
 
 const action: PlayingCombatAction = {
   id: 'hit-1',
@@ -67,6 +67,50 @@ describe('CombatantMotion', () => {
     expect(wrapper.find('.armor-sparks').exists()).toBe(true)
     await wrapper.setProps({ fighterId: 'bystander' })
     expect(wrapper.find('.combat-effect').exists()).toBe(false)
+  })
+  it('highlights only targets that take damage', async () => {
+    const wrapper = mount(CombatantMotion, {
+      props: { fighterId: 'maximus', action, phase: 'impact' },
+    })
+    expect(wrapper.find('.combat-body--damaged').exists()).toBe(true)
+    await wrapper.setProps({
+      action: {
+        ...action,
+        action: { ...action.action, targets: [{ target_id: 'maximus', body: 'human', damage: 0 }] },
+      },
+    })
+    expect(wrapper.find('.combat-body--damaged').exists()).toBe(false)
+  })
+  it('shows the skill impact artwork only on affected fighters during impact', async () => {
+    const skill = { ...action, action: { ...action.action, skill: 'Aimed Shot' } }
+    const wrapper = mount(CombatantMotion, {
+      props: { fighterId: 'maximus', action: skill, phase: 'prepare' },
+    })
+    expect(wrapper.find('.skill-hit').exists()).toBe(false)
+    await wrapper.setProps({ phase: 'impact' })
+    expect(wrapper.find('.skill-hit').exists()).toBe(true)
+    await wrapper.setProps({ fighterId: 'lucy' })
+    expect(wrapper.find('.skill-hit').exists()).toBe(false)
+    await wrapper.setProps({ fighterId: 'maximus' })
+    await wrapper.setProps({ action })
+    expect(wrapper.find('.skill-hit').exists()).toBe(false)
+  })
+  it.each([
+    ['heavy-explosive', 'skill-hit--explosion'],
+    ['energy-rifle', 'skill-hit--energy'],
+    ['heavy-flamer', 'skill-hit--heat'],
+    ['gun-shotgun', 'skill-hit--scatter'],
+    ['melee-blunt', 'skill-hit--hammer'],
+    ['heavy-automatic', 'skill-hit--automatic'],
+  ] as Array<[CombatSkillIcon, string]>)('applies the %s skill impact variant', (skillIcon, variant) => {
+    const skill = {
+      ...action,
+      action: { ...action.action, skill: 'Test skill', skill_icon: skillIcon },
+    }
+    const wrapper = mount(CombatantMotion, {
+      props: { fighterId: 'maximus', action: skill, phase: 'impact' },
+    })
+    expect(wrapper.find(`.${variant}`).exists()).toBe(true)
   })
   it('keeps catch-up motion stationary and supports legacy actions', async () => {
     const wrapper = mount(CombatantMotion, {

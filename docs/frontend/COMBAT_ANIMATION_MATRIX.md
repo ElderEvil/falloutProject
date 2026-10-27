@@ -174,8 +174,8 @@ Remaining artwork limits:
   Quick Draw uses `FastForward`, Aimed Shot uses `Crosshair`, Scattershot uses `Expand`, Overcharge
   uses `Zap`, Beam Sweep uses `ScanLine`, and Full Auto uses `ChevronsRight`. Unarmed/melee/flamer/
   explosive skills use `HandFist`, `Hammer`, `Sword`, `MoveUpRight`, `Flame`, and `Bomb`.
-  New external animation assets still need exact-source license checks under #1140; no external
-  animation pack has been selected.
+  External animation assets require exact-source license checks under #1140; the selected skill hit
+  asset is documented below.
 
 ## Asset shortlist researched 2026-10-25
 
@@ -184,6 +184,8 @@ incorrectly assembled poses. Robot animation, Fallout 3/4 renders and another pa
 that request. Skill animations remain a separate selection. This is a shortlist, not imported game assets.
 
 ### Skill effects
+
+The shared Arena and expedition playback uses two CC0 effects: Sinestesia's [Hit Animation 2](https://opengameart.org/content/hit-animation-2-frame-by-frame) for most skills (with an energy color variant), and Sinestesia's [Explosion Animations 2](https://opengameart.org/content/2d-explosion-animations-2-frame-by-frame) for Blast Wave. The source PNG frames were resized and converted to 16-frame, 128px-per-frame WebP strips in `frontend/public/assets/combat/`. Firestorm uses a CSS heat wave and Scattershot a radial pellet burst. Crushing Blow adds a shock ring and Full Auto uses tracer streaks. Skills share the existing arena skill sound. Effects display on each resolved target and use a still frame for reduced motion and accelerated playback; the original weapon-specific SVG feedback remains in place.
 
 | Source | Publisher-listed license | Proposed use | Preparation / verification |
 | --- | --- | --- | --- |

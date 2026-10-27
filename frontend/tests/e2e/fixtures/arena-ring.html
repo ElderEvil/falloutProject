@@ -88,6 +88,7 @@
                   action: {
                     actor_id: params.get('actor') || 'Alpha',
                     effect: 'shot',
+                    skill: params.has('skill-hit') ? 'Aimed Shot' : null,
                     targets: [
                       { target_id: params.get('actor') === 'Bravo' ? 'Alpha' : 'Bravo', damage: 7 },
                     ],

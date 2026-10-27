@@ -10,6 +10,58 @@ test.beforeEach(async ({ page }) => {
   )
 })
 
+for (const width of [390, 1280]) {
+  test(`skill impact artwork remains visible with reduced motion at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    const image = page.waitForResponse((response) =>
+      response.url().includes('/assets/combat/skill-hit.webp')
+    )
+    await page.goto('/tests/e2e/fixtures/arena-ring.html?mode=duel&pet-attack=1&skill-hit=1')
+    expect((await image).ok()).toBe(true)
+    const impact = page.locator('.skill-hit')
+    await expect(impact).toHaveCount(1)
+    await expect(impact).toBeVisible()
+    await expect(impact).toHaveCSS('animation-name', 'none')
+    await expect(impact).toHaveCSS('background-position', '26.6667% 0px')
+  })
+}
+
+for (const actor of ['Alpha', 'Bravo']) {
+  test(`${actor}'s attack effect is anchored toward the opposing fighter`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto(`/tests/e2e/fixtures/arena-ring.html?mode=duel&pet-attack=1&actor=${actor}`)
+    const fighters = page.locator('.ring-fighter')
+    const attacker = fighters.filter({
+      has: page.locator(`.fighter-meters span[title="${actor}"]`),
+    })
+    const motion = attacker.locator('.combatant-motion').first()
+    const effect = motion.locator('.combat-effect')
+    const [bodyBox, effectBox] = await Promise.all([motion.boundingBox(), effect.boundingBox()])
+    expect(bodyBox).not.toBeNull()
+    expect(effectBox).not.toBeNull()
+    const displacement = effectBox!.x + effectBox!.width / 2 - bodyBox!.x - bodyBox!.width / 2
+    expect(actor === 'Alpha' ? displacement : -displacement).toBeGreaterThan(bodyBox!.width * 0.4)
+  })
+}
+
+test('damaged fighters show a red cue without highlighting the attacker or pets', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/tests/e2e/fixtures/arena-ring.html?mode=duel&pets=1&pet-attack=1')
+  const fighters = page.locator('.ring-fighter')
+  const attacker = fighters.filter({ has: page.locator('.fighter-meters span[title="Alpha"]') })
+  const target = fighters.filter({ has: page.locator('.fighter-meters span[title="Bravo"]') })
+  const targetBody = target.locator('.fighter-portrait > .combatant-motion > .combat-body')
+  const attackerBody = attacker.locator('.fighter-portrait > .combatant-motion > .combat-body')
+  await expect(targetBody).toHaveCSS('filter', /drop-shadow.*rgb\(255, 0, 0\)/)
+  await expect(attackerBody).toHaveCSS('filter', 'none')
+  await expect(target.locator('.combat-pet .combat-body')).toHaveCSS('filter', 'none')
+})
+
 test('fighters and pets have soft ground shadows that stay on the floor during attacks', async ({
   page,
 }) => {

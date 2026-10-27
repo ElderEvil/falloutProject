@@ -290,23 +290,37 @@ describe('IncidentScene', () => {
     expect(mountScene().find('.scene-backdrop').exists()).toBe(false)
   })
 
-  it('burns a two-layer flame for a fire hazard', () => {
+  it('burns an environmental flame cluster for a fire hazard', () => {
     const wrapper = mountScene({
       incident: incident({ type: 'fire', family: 'hazard', objective: 'contain' }),
     })
 
-    const flame = wrapper.find('.hazard-flame')
-    expect(flame.exists()).toBe(true)
-    expect(flame.attributes('aria-hidden')).toBe('true')
+    const fire = wrapper.find('.hazard-fire')
+    expect(fire.exists()).toBe(true)
+    expect(fire.attributes('aria-hidden')).toBe('true')
+    expect(wrapper.findAll('.hazard-flame')).toHaveLength(3)
     expect(wrapper.find('.flame-outer').exists()).toBe(true)
     expect(wrapper.find('.flame-inner').exists()).toBe(true)
     expect(wrapper.find('.hazard-icon').exists()).toBe(false)
+    expect(fire.find('.combatant-motion').exists()).toBe(false)
   })
 
   it('uses the generated raider sprite for raider attacks', () => {
     const wrapper = mountScene()
 
-    expect(wrapper.get('img[alt="Raider"]').attributes('src')).toContain('/raider_images/variants/')
+    const raider = wrapper.get('img[alt="Raider"]')
+    expect(raider.attributes('src')).toContain('/raider_images/variants/')
+    // Humanoids keep the dweller frame; only creatures get the extra threat scale.
+    expect(raider.element.parentElement?.className).not.toContain('scale-125')
+  })
+
+  it('gives creatures the extra threat scale', () => {
+    const wrapper = mountScene({
+      incident: incident({ type: 'deathclaw_attack', family: 'intrusion', objective: 'defeat' }),
+    })
+
+    const creature = wrapper.get('img[alt="Deathclaw"]')
+    expect(creature.element.parentElement?.className).toContain('sm:scale-125')
   })
 
   it('uses creature artwork for a non-fire containment incident', () => {

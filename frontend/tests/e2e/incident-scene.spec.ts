@@ -49,7 +49,7 @@ test('room art falls back and fire respects reduced motion', async ({ page }) =>
   const scene = page.getByRole('region', { name: 'Incident live status' })
   await expect(scene).toContainText('ROOM HAZARD')
   await expect(scene.locator('.scene-backdrop')).toHaveAttribute('src', /FOS Diner/)
-  await expect(scene.locator('.flame-outer')).toHaveCSS('animation-name', 'none')
+  await expect(scene.locator('.flame-outer').first()).toHaveCSS('animation-name', 'none')
   await expect(scene.getByRole('progressbar', { name: 'Contained' })).toHaveAttribute(
     'aria-valuenow',
     '35'
@@ -78,4 +78,52 @@ for (const width of [390, 900]) {
     expect(bounds.y).toBeGreaterThan(frame.y + 32)
     expect(bounds.y + bounds.height).toBeLessThan(frame.y + frame.height - 30)
   })
+}
+
+for (const width of [390, 900]) {
+  test(`fire renders as a floor hazard cluster at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/tests/e2e/fixtures/incident-scene.html?type=fire&responders=4')
+    const scene = page.getByRole('region', { name: 'Incident live status' })
+    const fire = scene.locator('.hazard-fire')
+    await expect(fire).toHaveCount(1)
+    await expect(scene.locator('.hazard-flame')).toHaveCount(3)
+    await expect(fire.locator('.combatant-motion')).toHaveCount(0)
+
+    const dweller = scene.locator('.incident-responder img').first()
+    const middleFlame = scene.locator('.hazard-flame').nth(1)
+    await expect
+      .poll(() => dweller.evaluate((image: HTMLImageElement) => image.naturalWidth))
+      .toBeGreaterThan(0)
+    const dwellerBox = (await dweller.boundingBox())!
+    const flameBox = (await middleFlame.boundingBox())!
+    expect(flameBox.height).toBeGreaterThan(dwellerBox.height * 0.5)
+    expect(flameBox.height).toBeLessThan(dwellerBox.height * 1.2)
+    expect(flameBox.y + flameBox.height).toBeGreaterThan(dwellerBox.y + dwellerBox.height * 0.8)
+  })
+}
+
+for (const width of [390, 900]) {
+  for (const [type, label] of [
+    ['raider_attack', 'Raider'],
+    ['feral_ghoul_attack', 'Feral Ghoul'],
+  ] as const) {
+    test(`${label} keeps dweller height at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto(`/tests/e2e/fixtures/incident-scene.html?type=${type}&responders=4`)
+      const scene = page.getByRole('region', { name: 'Incident live status' })
+      const threat = scene.getByAltText(label, { exact: true })
+      const dweller = scene.locator('.incident-responder img').first()
+      for (const image of [threat, dweller]) {
+        await expect
+          .poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth))
+          .toBeGreaterThan(0)
+      }
+      const threatBox = (await threat.boundingBox())!
+      const dwellerBox = (await dweller.boundingBox())!
+      const ratio = threatBox.height / dwellerBox.height
+      expect(ratio).toBeGreaterThan(0.85)
+      expect(ratio).toBeLessThan(1.15)
+    })
+  }
 }

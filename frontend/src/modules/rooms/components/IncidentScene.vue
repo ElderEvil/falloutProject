@@ -180,11 +180,15 @@ const threatMotion = computed(() => ({
     containmentGain.value <= 0 &&
     dwellerDamage.value > 0,
 }))
+// Fire is environmental: it gets the flicker, never a fighter's lunge/shadow.
+const isFire = computed(() => props.incident.type === 'fire')
+const isHumanoidThreat = computed(() => ['raider_attack', 'feral_ghoul_attack'].includes(props.incident.type))
+const fireFlames = ['h-1/2 opacity-80', 'h-[90%]', 'h-[65%] opacity-90'] as const
 </script>
 
 <template>
   <section
-    class="incident-scene relative isolate [--scene-actor-height:5rem] sm:[--scene-actor-height:7rem] aspect-[5/2] min-h-80 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
+    class="incident-scene relative isolate [--scene-actor-height:7rem] aspect-[5/2] min-h-80 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
     aria-label="Incident live status"
   >
     <img
@@ -249,7 +253,7 @@ const threatMotion = computed(() => ({
               >{{ responder.name }}: {{ displayedHealth(responder.dweller) }} of
               {{ healthCeiling(responder.dweller) }} HP</span
             >
-            <div class="flex h-[7.25rem] w-full items-end justify-center">
+            <div class="flex h-[var(--scene-actor-height)] w-full items-end justify-center">
               <CombatantMotion
                 :fighter-id="responder.id"
                 facing="right"
@@ -284,7 +288,7 @@ const threatMotion = computed(() => ({
       <div
         class="relative flex min-w-0 flex-col items-center justify-end gap-2 self-end"
         :class="[
-          threatMotion,
+          !isFire && threatMotion,
           { 'opacity-40 grayscale': incident.objective === 'defeat' && remainingEnemies === 0 },
         ]"
       >
@@ -305,18 +309,18 @@ const threatMotion = computed(() => ({
           aria-hidden="true"
           >+{{ containmentGain }}%</span
         >
-        <div class="relative flex max-w-full items-end justify-center">
-          <CombatantMotion
-            fighter-id="threat"
-            facing="left"
-            :action="activeAction"
-            :phase="combatPhase"
+        <div class="relative flex w-full max-w-full items-end justify-center">
+          <div
+            v-if="isFire"
+            class="hazard-fire flex h-[var(--scene-actor-height)] w-full items-end justify-center"
+            aria-hidden="true"
           >
             <svg
-              v-if="incident.type === 'fire'"
-              class="hazard-flame h-32 w-24 drop-shadow-lg sm:h-44 sm:w-32"
+              v-for="(flame, index) in fireFlames"
+              :key="index"
+              class="hazard-flame -mx-2 w-auto drop-shadow-lg"
+              :class="flame"
               viewBox="0 0 24 24"
-              aria-hidden="true"
             >
               <path
                 class="flame-outer"
@@ -327,10 +331,21 @@ const threatMotion = computed(() => ({
                 d="M12 9c1.2 1.6 2.3 2.8 2.3 4.5a2.3 2.3 0 0 1-4.6 0c0-1.7 1.1-2.9 2.3-4.5Z"
               />
             </svg>
+          </div>
+          <CombatantMotion
+            v-else
+            fighter-id="threat"
+            facing="left"
+            :action="activeAction"
+            :phase="combatPhase"
+          >
             <div
-              v-else-if="creatureImage"
-              class="flex max-w-full origin-bottom scale-110 items-end justify-center sm:scale-125"
-              :class="getCreatureModelSizeClass(creatureKey ?? '')"
+              v-if="creatureImage"
+              class="flex max-w-full origin-bottom items-end justify-center"
+              :class="[
+                isHumanoidThreat ? undefined : 'sm:scale-125',
+                getCreatureModelSizeClass(creatureKey ?? ''),
+              ]"
             >
               <img
                 :src="creatureImage"
@@ -341,14 +356,14 @@ const threatMotion = computed(() => ({
             </div>
             <UserRound
               v-else-if="incident.type === 'raider_attack'"
-              class="h-28 w-20 text-danger drop-shadow-lg sm:h-36 sm:w-24"
+              class="size-full text-danger drop-shadow-lg"
               role="img"
               aria-label="Raider"
             />
             <Icon
               v-else
               :icon="getIncidentIcon(incident.type)"
-              class="hazard-icon size-24 text-warning"
+              class="hazard-icon size-full p-3 text-warning"
               :ariaHidden="true"
             />
           </CombatantMotion>

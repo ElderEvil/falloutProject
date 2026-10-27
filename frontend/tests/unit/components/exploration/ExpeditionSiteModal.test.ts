@@ -6,6 +6,7 @@ import { nextTick } from 'vue'
 import { Dialog } from '@/core/components/ui/dialog'
 import { Progress } from '@/core/components/ui/progress'
 import ExpeditionSiteModal from '@/modules/exploration/components/ExpeditionSiteModal.vue'
+import ExpeditionRoomStepper from '@/modules/exploration/components/ExpeditionRoomStepper.vue'
 import WastelandScene from '@/modules/exploration/components/WastelandScene.vue'
 import SiteCombatScene from '@/modules/exploration/components/SiteCombatScene.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
@@ -582,6 +583,56 @@ describe('ExpeditionSiteModal', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('Travel paused')
     expect(wrapper.text()).not.toContain('Travel continues')
+    wrapper.unmount()
+  })
+
+  it('uses the full-width room card and stepper for multi-room stat checks', async () => {
+    const wrapper = mountModal()
+    const store = useExpeditionSiteStore()
+    store.room = {
+      ...choiceRoom,
+      room_index: 1,
+      room_total: 3,
+      room_name: 'Collapsed Aisles',
+      room_names: ['Parking Lot', 'Collapsed Aisles', 'Storage Room'],
+      node: {
+        kind: 'choice',
+        prompt: 'How do you take the aisles?',
+        options: [
+          {
+            id: 'sneak',
+            label: 'Sneak through (Agility)',
+            stat: 'agility',
+            difficulty: 2,
+            success_odds: 0.75,
+          },
+          {
+            id: 'sweep',
+            label: 'Loud sweep (Strength)',
+            stat: 'strength',
+            difficulty: 1,
+            success_odds: 0.85,
+          },
+          {
+            id: 'call',
+            label: 'Call out (Charisma)',
+            stat: 'charisma',
+            difficulty: 3,
+            success_odds: 0.65,
+          },
+        ],
+      },
+    }
+    await flushPromises()
+
+    expect(wrapper.findComponent(ExpeditionRoomStepper).exists()).toBe(true)
+    expect(wrapper.text()).toContain('Parking Lot')
+    expect(wrapper.text()).toContain('Collapsed Aisles')
+    expect(wrapper.text()).toContain('Storage Room')
+    expect(wrapper.text()).toContain('AGI')
+    expect(wrapper.text()).toContain('STR')
+    expect(wrapper.text()).toContain('CHA')
+    expect(wrapper.getComponent(TerminalModal).props('size')).toBe('5xl')
     wrapper.unmount()
   })
 

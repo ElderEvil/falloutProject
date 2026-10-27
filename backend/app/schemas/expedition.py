@@ -260,6 +260,7 @@ class SiteRoomView(BaseModel):
     room_index: int
     room_total: int
     room_name: str
+    room_names: list[str] = Field(default_factory=list)
     flavor: str
     node: SiteNodeView
     can_retreat: bool

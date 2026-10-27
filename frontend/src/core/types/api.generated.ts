@@ -10961,6 +10961,8 @@ export interface components {
             room_total: number;
             /** Room Name */
             room_name: string;
+            /** Room Names */
+            room_names?: string[];
             /** Flavor */
             flavor: string;
             node: components["schemas"]["SiteNodeView"];

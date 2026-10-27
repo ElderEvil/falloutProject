@@ -20,7 +20,7 @@ from app.schemas.dweller import DwellerCreate
 from app.schemas.vault import VaultNumber
 from app.services import catalog_service as data_loader
 from app.services.dweller_service import dweller_service
-from app.services.exploration.expedition import expedition_service
+from app.services.exploration.expedition import ALL_SITES_SCENARIO_EVENT, expedition_service
 from app.services.exploration_service import exploration_service
 from app.services.leveling_service import leveling_service
 from app.services.vault_service import vault_service
@@ -184,6 +184,15 @@ class ExpeditionScenarioService:
         exploration.return_completes_at = None
         exploration.end_time = None
         exploration.paused_at = None
+        exploration.events = [
+            *exploration.events,
+            {
+                "type": "scenario",
+                "event": ALL_SITES_SCENARIO_EVENT,
+                "description": "QA scenario: all sites unlocked for this journey.",
+                "timestamp": now.isoformat(),
+            },
+        ]
         db_session.add(exploration)
         await db_session.commit()
 

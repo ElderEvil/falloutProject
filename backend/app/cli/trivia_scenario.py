@@ -1,8 +1,9 @@
 """CLI command group: trivia-scenario — one-command raider trivia demo.
 
-Creates Vault 666 (or a chosen vault) with a strong Scout on an active legacy
-journey. Every level-eligible expedition site is offered, so the same Scout can
-play the raider trivia encounter and every other site one by one.
+Creates a vault with a Scout on an active legacy journey. Every level-eligible
+expedition site is offered, so the same Scout can play the raider trivia and
+every other site one by one. Profiles choose the Scout's power: demo (10/7),
+balanced (5/4), or hard (3/3).
 """
 
 from __future__ import annotations
@@ -20,20 +21,41 @@ from app.utils.exceptions import ResourceNotFoundException
 
 app = typer.Typer(
     name="trivia-scenario",
-    help="Dev/QA: build a Vault 666 Scout who can play the raider trivia and every site one by one.",
+    help=(
+        "Dev/QA: build a Vault 666 Scout who can play the raider trivia and every site one by one. "
+        "Profiles: demo (10/7), balanced (5/4), hard (3/3)."
+    ),
     no_args_is_help=True,
 )
 
 logger = logging.getLogger(__name__)
 
+PROFILES: dict[str, tuple[int, int]] = {
+    "demo": (10, 7),
+    "balanced": (5, 4),
+    "hard": (3, 3),
+}
 
-def _print_setup(result) -> None:
+
+def resolve_profile(profile: str, dweller_level: int | None, special: int | None) -> tuple[int, int]:
+    key = profile.strip().lower()
+    if key not in PROFILES:
+        raise ValueError(f"Unknown profile {profile!r}; choose demo, balanced, or hard")
+    base_level, base_special = PROFILES[key]
+    return (
+        dweller_level if dweller_level is not None else base_level,
+        special if special is not None else base_special,
+    )
+
+
+def _print_setup(result, profile: str, special: int) -> None:
     exploration = result.exploration
     remaining_hours = exploration.time_remaining_seconds() / 3600
     typer.echo("Vault:")
     typer.echo(f"  id: {result.vault.id}")
     typer.echo(f"  number: {result.vault.number}")
     typer.echo(f"  created: {'yes (boosted)' if result.created_vault else 'no (existing)'}")
+    typer.echo(f"Profile: {profile} (level {result.dweller.level}, SPECIAL {special})")
     typer.echo("Dweller:")
     typer.echo(f"  {result.dweller.display_name} (level {result.dweller.level}, id {result.dweller.id})")
     typer.echo("Exploration:")
@@ -65,14 +87,27 @@ def setup(
         int,
         typer.Option("--vault-number", min=1, max=999, help="Number for a newly created vault"),
     ] = 666,
-    dweller_level: Annotated[int, typer.Option("--dweller-level", min=1, max=50)] = 10,
-    special: Annotated[int, typer.Option("--special", min=1, max=10, help="Every SPECIAL stat")] = 7,
+    profile: Annotated[
+        str,
+        typer.Option("--profile", help="demo (10/7), balanced (5/4), or hard (3/3)"),
+    ] = "balanced",
+    dweller_level: Annotated[int | None, typer.Option("--dweller-level", min=1, max=50)] = None,
+    special: Annotated[int | None, typer.Option("--special", min=1, max=10, help="Every SPECIAL stat")] = None,
     duration_hours: Annotated[
         int,
         typer.Option("--duration-hours", min=1, max=24, help="Journey length in hours"),
     ] = 8,
 ) -> None:
-    """Create a ready-to-play trivia scenario with every site available."""
+    """Create a ready-to-play trivia scenario with every site available.
+
+    Profiles: demo (level 10, SPECIAL 7), balanced (level 5, SPECIAL 4), hard
+    (level 3, SPECIAL 3). Explicit --dweller-level/--special override the profile.
+    """
+    try:
+        level, special_value = resolve_profile(profile, dweller_level, special)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from None
+    profile_name = profile.strip().lower()
 
     async def _run() -> None:
         from app.db.session import async_session_maker
@@ -83,12 +118,12 @@ def setup(
                 vault_id=vault_id,
                 user_email=user_email,
                 vault_number=None if vault_id is not None else vault_number,
-                dweller_level=dweller_level,
+                dweller_level=level,
                 duration_hours=duration_hours,
-                special=special,
+                special=special_value,
                 all_sites=True,
             )
-            _print_setup(result)
+            _print_setup(result, profile_name, special_value)
 
     try:
         asyncio.run(_run())

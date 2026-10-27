@@ -58,6 +58,7 @@ from app.utils.exceptions import ResourceConflictException, ResourceNotFoundExce
 logger = logging.getLogger(__name__)
 
 ANTI_FARM_DAYS = 7
+ALL_SITES_SCENARIO_EVENT = "scenario_all_sites"
 CACHE_CAPS = {"small": (5, 15), "standard": (10, 30), "rich": (20, 50)}
 STAT_SNAPSHOT_FIELDS = {stat: f"dweller_{stat}" for stat in SPECIAL_STATS}
 
@@ -483,6 +484,7 @@ def build_view(
         room_index=room_index,
         room_total=len(rooms),
         room_name=room.name,
+        room_names=[room.name for room in rooms],
         flavor=room.flavor,
         node=SiteNodeView(
             kind=room.node.kind,
@@ -527,6 +529,10 @@ def _arrived_home(exploration: Exploration) -> bool:
         and exploration.return_completes_at is not None
         and exploration.return_completes_at <= datetime.utcnow()
     )
+
+
+def _is_all_sites_scenario(exploration: Exploration) -> bool:
+    return any(event.get("event") == ALL_SITES_SCENARIO_EVENT for event in exploration.events or [])
 
 
 class ExpeditionService:
@@ -641,7 +647,7 @@ class ExpeditionService:
             blocked = await _site_block_reason(db_session, exploration.vault_id, site_id)
             if blocked == "open":
                 raise ResourceConflictException(f"{site_id} already has an open expedition run")
-            if blocked == "cooldown":
+            if blocked == "cooldown" and not _is_all_sites_scenario(exploration):
                 raise ResourceConflictException(f"{site.name} is quiet after a recent expedition")
 
         latest = await crud.expedition_run.get_latest_for_exploration_site(
@@ -732,8 +738,10 @@ class ExpeditionService:
             if context is not None:
                 if not site_is_offered(site, context):
                     continue
-            elif await _site_block_reason(db_session, exploration.vault_id, site.id) is not None:
-                continue
+            else:
+                blocked = await _site_block_reason(db_session, exploration.vault_id, site.id)
+                if blocked is not None and not (_is_all_sites_scenario(exploration) and blocked == "cooldown"):
+                    continue
             available.append(site)
         return available
 
@@ -799,7 +807,9 @@ class ExpeditionService:
                 )
                 if consumed is not None:
                     raise ValidationException(f"{site.name} is already spent for this journey")
-            elif await _site_block_reason(db_session, exploration.vault_id, run.site_id, include_open=False):
+            elif not _is_all_sites_scenario(exploration) and await _site_block_reason(
+                db_session, exploration.vault_id, run.site_id, include_open=False
+            ):
                 raise ValidationException(f"{site.name} is quiet after a recent expedition")
 
         result = BranchResult()

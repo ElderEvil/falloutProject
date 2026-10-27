@@ -7,8 +7,9 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.models.exploration import ExplorationStatus
+from app.models.exploration import ExpeditionRunStatus, ExplorationStatus
 from app.models.vault import Vault
+from app.schemas.expedition import ExpeditionResolveRequest
 from app.services.exploration.expedition import expedition_service
 from app.services.exploration.expedition_scenario_service import expedition_scenario_service
 from app.services.exploration_service import exploration_service
@@ -95,6 +96,73 @@ async def test_all_sites_scout_pauses_legacy_journey_clock_on_site_entry(
     await async_session.refresh(exploration)
     assert exploration.paused_at is None
     assert exploration.start_time == original_start + timedelta(hours=2)
+
+
+@pytest.mark.asyncio
+async def test_all_sites_scenario_bypasses_prior_vault_cooldowns_but_not_open_runs(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    first = await expedition_scenario_service.setup(
+        async_session, vault_id=vault.id, dweller_level=10, duration_hours=8, all_sites=True
+    )
+    cleared = await crud.expedition_run.create_run(
+        async_session,
+        exploration_id=first.exploration.id,
+        vault_id=first.exploration.vault_id,
+        site_id="super_duper_mart",
+    )
+    cleared.status = ExpeditionRunStatus.CLEARED
+    cleared.finished_at = datetime.utcnow()
+    async_session.add(cleared)
+    await crud.expedition_run.create_run(
+        async_session,
+        exploration_id=first.exploration.id,
+        vault_id=first.exploration.vault_id,
+        site_id="red_rocket",
+    )
+    await async_session.commit()
+
+    second = await expedition_scenario_service.setup(
+        async_session, vault_id=vault.id, dweller_level=10, duration_hours=8, all_sites=True
+    )
+    offered = {site.id for site in second.available_sites}
+    assert "super_duper_mart" in offered
+    assert "red_rocket" not in offered
+    room = await expedition_service.enter_run(async_session, second.exploration.id, "super_duper_mart")
+    assert room.site_id == "super_duper_mart"
+
+
+@pytest.mark.asyncio
+async def test_all_sites_scenario_can_pay_the_finale_despite_vault_cooldown(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    first = await expedition_scenario_service.setup(
+        async_session, vault_id=vault.id, dweller_level=10, duration_hours=8, all_sites=True
+    )
+    cleared = await crud.expedition_run.create_run(
+        async_session,
+        exploration_id=first.exploration.id,
+        vault_id=first.exploration.vault_id,
+        site_id="super_duper_mart",
+    )
+    cleared.status = ExpeditionRunStatus.CLEARED
+    cleared.finished_at = datetime.utcnow()
+    async_session.add(cleared)
+    await async_session.commit()
+
+    second = await expedition_scenario_service.setup(
+        async_session, vault_id=vault.id, dweller_level=5, duration_hours=8, all_sites=True
+    )
+    await expedition_service.enter_run(async_session, second.exploration.id, "super_duper_mart")
+    run = await crud.expedition_run.get_open_for_exploration(async_session, second.exploration.id)
+    assert run is not None
+    run.room_cursor = 3
+    async_session.add(run)
+    await async_session.commit()
+
+    view = await expedition_service.resolve_node(async_session, second.exploration.id, ExpeditionResolveRequest())
+    assert view.status == "cleared"
+    assert view.finale_paid is True
 
 
 @pytest.mark.asyncio

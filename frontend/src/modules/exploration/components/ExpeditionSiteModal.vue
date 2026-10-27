@@ -6,6 +6,7 @@ import { Progress } from '@/core/components/ui/progress'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 import ExpeditionOutcomeLines from './ExpeditionOutcomeLines.vue'
+import ExpeditionRoomStepper from './ExpeditionRoomStepper.vue'
 import WastelandScene from './WastelandScene.vue'
 import SiteCombatScene from './SiteCombatScene.vue'
 import BattleLog from '@/modules/rooms/components/BattleLog.vue'
@@ -88,6 +89,27 @@ const travelPaused = computed(() => props.pausesTravel || !!room.value)
 const hasStatCheckOptions = computed(
   () => room.value?.node.options?.some((option) => !!option.stat) ?? false
 )
+const multiRoom = computed(() => (room.value?.room_total ?? 0) > 1)
+const roomNames = computed(() => {
+  const current = room.value
+  if (!current) return []
+  return current.room_names?.length
+    ? current.room_names
+    : Array.from({ length: current.room_total }, (_, index) => `Room ${index + 1}`)
+})
+const optionGridClass = computed(() => {
+  if (!hasStatCheckOptions.value) return 'flex flex-col gap-2'
+  return (room.value?.node.options?.length ?? 0) >= 3
+    ? 'grid gap-2 sm:grid-cols-2 xl:grid-cols-3'
+    : 'grid gap-2 sm:grid-cols-2'
+})
+const optionButtonClass = (option: { stat?: string | null }) => [
+  'border-theme-primary/40 bg-theme-primary/10 text-left text-theme-primary hover:bg-theme-primary/20',
+  option.stat
+    ? 'h-full flex-col items-start justify-between gap-3 py-3'
+    : 'h-auto min-h-11 flex-wrap justify-between gap-3',
+  'whitespace-normal',
+]
 const isTerminalRun = computed(() => (room.value ? isTerminal(room.value.status) : false))
 const isDefeated = computed(() => !!room.value?.defeated && !isTerminalRun.value)
 // Gap 1.6: a run left open on a non-active exploration is close-only.
@@ -556,10 +578,16 @@ const terminalBanner = computed(() => {
         :class="
           expandedCombat
             ? 'h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem] md:grid-rows-1'
-            : 'items-start md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]'
+            : multiRoom
+              ? 'gap-4'
+              : 'items-start md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]'
         "
       >
-        <div class="min-w-0" :class="expandedCombat ? 'h-full min-h-0' : 'lg:sticky lg:top-0'">
+        <div
+          v-if="!multiRoom || expandedCombat"
+          class="min-w-0"
+          :class="expandedCombat ? 'h-full min-h-0' : 'lg:sticky lg:top-0'"
+        >
           <SiteCombatScene
             v-if="expandedCombat"
             :room="room"
@@ -588,6 +616,21 @@ const terminalBanner = computed(() => {
               : undefined
           "
         >
+          <ExpeditionRoomStepper
+            v-if="multiRoom"
+            :rooms="roomNames"
+            :current="room.room_index"
+            :status="room.status"
+            class="mb-3"
+          />
+          <WastelandScene
+            v-if="multiRoom && !expandedCombat"
+            :scene="room.scene_id"
+            variant="battleback"
+            :heading="room.site_name"
+            compact
+            class="mb-4 [&>div]:aspect-auto [&>div]:h-[min(24dvh,10rem)] [&>figcaption]:hidden [&_img]:object-cover"
+          />
           <p
             v-if="room.node.kind === 'trivia' && room.outcome && room.combat_state?.round === 0"
             class="mb-3 text-sm font-semibold text-warning"
@@ -642,13 +685,7 @@ const terminalBanner = computed(() => {
           >
             {{ room.lore }}
           </p>
-          <div v-if="room.room_total > 1" class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span
-              class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-theme-primary/10 px-1.5 py-0.5 text-[0.75rem] font-semibold text-theme-primary"
-            >
-              <Icon icon="mdi:map-marker-path" class="h-3.5 w-3.5" />
-              Room {{ room.room_index + 1 }} / {{ room.room_total }}
-            </span>
+          <div v-if="room.room_total > 1" class="mb-3">
             <span class="text-lg font-bold text-theme-primary">{{ room.room_name }}</span>
           </div>
 
@@ -801,12 +838,12 @@ const terminalBanner = computed(() => {
               </div>
               <div
                 v-if="room.node.options && room.node.options.length > 0"
-                class="flex flex-col gap-2"
+                :class="optionGridClass"
               >
                 <Button
                   v-for="option in room.node.options"
                   :key="option.id"
-                  class="h-auto min-h-11 flex-wrap justify-between gap-3 whitespace-normal border-theme-primary/40 bg-theme-primary/10 py-3 text-left text-theme-primary hover:bg-theme-primary/20"
+                  :class="optionButtonClass(option)"
                   variant="outline"
                   size="lg"
                   :disabled="store.isLoading"
@@ -814,10 +851,21 @@ const terminalBanner = computed(() => {
                   :aria-label="statCheckAriaLabel(option)"
                   @click="handleResolve(option.id)"
                 >
-                  <span class="min-w-0 flex-1 break-words text-left leading-relaxed">{{
-                    optionLabel(option)
-                  }}</span>
-                  <span class="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                  <span
+                    :class="
+                      option.stat
+                        ? 'w-full min-w-0 break-words text-left leading-relaxed'
+                        : 'min-w-0 flex-1 break-words text-left leading-relaxed'
+                    "
+                    >{{ optionLabel(option) }}</span
+                  >
+                  <span
+                    :class="
+                      option.stat
+                        ? 'flex w-full flex-wrap items-center gap-1.5'
+                        : 'flex shrink-0 flex-wrap items-center justify-end gap-1.5'
+                    "
+                  >
                     <span
                       v-if="option.stat"
                       class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-surface-sunken px-1.5 py-0.5 text-[0.75rem] font-semibold"

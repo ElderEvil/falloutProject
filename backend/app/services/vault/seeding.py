@@ -103,6 +103,7 @@ def prepare_initial_rooms(
     rooms: list[RoomCreateWithoutVaultID],
     vault_id: UUID4,
     is_boosted: bool,
+    scenario_start: bool = False,
 ) -> PreparedRooms:
     rooms_by_name = {r.name.lower(): r for r in rooms}
 
@@ -127,6 +128,8 @@ def prepare_initial_rooms(
     else:
         capacity_specs = [("living room", 7, 1, 3), ("storage room", 7, 2, 3)]
     capacity = mk_sized(capacity_specs)
+    if scenario_start and not is_boosted:
+        capacity.extend(mk_sized([("living room", 10, 3, 3), ("living room", 13, 3, 3)]))
     if is_boosted:
         # Keep the size-9 living room between the two base rooms: the housing row
         # stays contiguous without merging away a seeded household's room.

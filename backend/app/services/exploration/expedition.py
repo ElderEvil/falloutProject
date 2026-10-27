@@ -535,6 +535,13 @@ def _is_all_sites_scenario(exploration: Exploration) -> bool:
     return any(event.get("event") == ALL_SITES_SCENARIO_EVENT for event in exploration.events or [])
 
 
+def _scenario_single_scene_only(exploration: Exploration) -> bool:
+    for event in exploration.events or []:
+        if event.get("event") == ALL_SITES_SCENARIO_EVENT:
+            return bool(event.get("single_scene_only", False))
+    return False
+
+
 class ExpeditionService:
     """Enter, resolve, retreat, and inspect expedition site runs."""
 
@@ -620,6 +627,8 @@ class ExpeditionService:
         site = data_loader.get_expedition_site(site_id)
         if site is None:
             raise ValidationException(f"Unknown expedition site: {site_id!r}")
+        if _is_all_sites_scenario(exploration) and _scenario_single_scene_only(exploration) and len(site.rooms) > 1:
+            raise ValidationException(f"{site.name} uses a multi-room encounter, disabled for this scenario")
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
         if dweller_obj.is_dead:
             raise ValidationException("A dead dweller cannot enter an expedition site")
@@ -734,6 +743,8 @@ class ExpeditionService:
         available = []
         for site in data_loader.load_expedition_sites():
             if dweller.level < site.min_dweller_level or site.id in consumed:
+                continue
+            if _is_all_sites_scenario(exploration) and _scenario_single_scene_only(exploration) and len(site.rooms) > 1:
                 continue
             if context is not None:
                 if not site_is_offered(site, context):

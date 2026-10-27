@@ -204,6 +204,47 @@ describe('Vault Store', () => {
       )
     })
 
+    it('posts the selected scenario key', async () => {
+      const store = useVaultStore()
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'vault-1' } })
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] }).mockResolvedValueOnce({ data: [] })
+
+      expect(await store.createVault(1, false, 'test-token', 'standard', 'vault_1_test')).toBe(
+        'vault-1'
+      )
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/v1/vaults/initiate',
+        {
+          number: 1,
+          boosted: false,
+          vault_mode: 'standard',
+          scenario: 'vault_1_test',
+        },
+        { headers: { Authorization: 'Bearer test-token' } }
+      )
+    })
+
+    it('fetches opt-in scenario options', async () => {
+      const store = useVaultStore()
+      const scenario = {
+        number: 1,
+        key: 'vault_1_test',
+        title: 'Vault 1 — Scout Test',
+        description: 'Test scenario',
+        dweller_level: 5,
+        special: 4,
+        all_sites: true,
+        single_scene_only: true,
+      }
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [scenario] })
+
+      expect(await store.fetchScenarioOptions('test-token')).toBe(true)
+      expect(store.scenarioOptions).toEqual([scenario])
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/vaults/scenarios', {
+        headers: { Authorization: 'Bearer test-token' },
+      })
+    })
+
     it('reports success when the vault is created even if the refresh fails', async () => {
       const store = useVaultStore()
       vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'vault-1' } })

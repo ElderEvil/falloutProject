@@ -9,9 +9,13 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/core/com
 import { ToggleGroup, ToggleGroupItem } from '@/core/components/ui/toggle-group'
 import VaultNumberField from './VaultNumberField.vue'
 import { parseVaultNumber, type VaultNumberData } from '../schemas/vault'
+import type { VaultScenarioOption } from '../stores/vault'
 import { useVisualEffects } from '@/core/composables/useVisualEffects'
 
-const props = defineProps<{ creating: boolean }>()
+const props = withDefaults(
+  defineProps<{ creating: boolean; scenarios?: VaultScenarioOption[] }>(),
+  { scenarios: () => [] }
+)
 const emit = defineEmits<{ create: [options: VaultNumberData] }>()
 const { glowClass } = useVisualEffects()
 const steps = ['Vault number', 'Setup', 'Review']
@@ -19,6 +23,14 @@ const step = ref(0)
 const number = ref('')
 const vaultMode = ref<VaultNumberData['vaultMode']>('standard')
 const boosted = ref(false)
+const scenarioEnabled = ref(false)
+const matchingScenario = computed(() => {
+  const parsed = Number.parseInt(number.value, 10)
+  return props.scenarios.find((scenario) => scenario.number === parsed) ?? null
+})
+watch(matchingScenario, () => {
+  scenarioEnabled.value = false
+})
 const numberField = ref<InstanceType<typeof VaultNumberField> | null>(null)
 const heading = ref<HTMLElement | null>(null)
 const isSurvival = computed(() => vaultMode.value === 'survival')
@@ -37,11 +49,17 @@ const modes = [
   },
 ] as const
 
-const summary = computed(() => [
-  ['Vault number', parseVaultNumber(number.value).toString().padStart(3, '0')],
-  ['Vault mode', isSurvival.value ? 'Survival' : 'Standard'],
-  ['Starting point', boosted.value ? 'Boosted Start' : 'Build from scratch'],
-])
+const summary = computed(() => {
+  const rows = [
+    ['Vault number', parseVaultNumber(number.value).toString().padStart(3, '0')],
+    ['Vault mode', isSurvival.value ? 'Survival' : 'Standard'],
+    ['Starting point', boosted.value ? 'Boosted Start' : 'Build from scratch'],
+  ]
+  if (scenarioEnabled.value && matchingScenario.value) {
+    rows.push(['Scenario', matchingScenario.value.title])
+  }
+  return rows
+})
 
 function selectMode(value: unknown) {
   if (value !== 'standard' && value !== 'survival') return
@@ -64,11 +82,15 @@ function advance() {
     step.value++
     return
   }
-  emit('create', {
+  const payload: VaultNumberData = {
     number: parseVaultNumber(number.value),
     boosted: boosted.value,
     vaultMode: vaultMode.value,
-  })
+  }
+  if (scenarioEnabled.value && matchingScenario.value) {
+    payload.scenario = matchingScenario.value.key
+  }
+  emit('create', payload)
 }
 </script>
 
@@ -221,6 +243,30 @@ function advance() {
                 training rooms with sessions underway—plus extra objectives and caps for upgrades.
               </p>
             </details>
+          </fieldset>
+
+          <fieldset v-if="matchingScenario" class="border-t border-theme-primary/20 pt-4">
+            <legend class="sr-only">Scenario start</legend>
+            <Label for="scenario-start" class="flex items-start gap-3 text-sm">
+              <Switch
+                id="scenario-start"
+                v-model:checked="scenarioEnabled"
+                :disabled="creating"
+                class="mt-1"
+              />
+              <span class="flex flex-col gap-1">
+                <span class="font-semibold"
+                  >{{ matchingScenario.title }}
+                  <span class="font-normal text-theme-primary/50">/ optional</span></span
+                >
+                <span class="text-xs leading-5 text-theme-primary/65">{{
+                  matchingScenario.description
+                }}</span>
+                <span class="text-xs leading-5 text-theme-primary/65"
+                  >Multi-room encounters are disabled for scenario starts.</span
+                >
+              </span>
+            </Label>
           </fieldset>
         </template>
 

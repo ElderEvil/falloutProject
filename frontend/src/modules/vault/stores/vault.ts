@@ -13,6 +13,7 @@ import type { components } from '@/core/types/api.generated'
 type VaultReadWithNumbers = components['schemas']['VaultReadWithNumbers']
 
 export type VaultWithNumbers = VaultReadWithNumbers
+export type VaultScenarioOption = components['schemas']['VaultScenarioRead']
 /** Difficulty mode chosen at vault creation; immutable afterwards. */
 export type VaultMode = components['schemas']['VaultModeEnum']
 export const MAX_USER_VAULTS = 3
@@ -56,6 +57,7 @@ export const useVaultStore = defineStore('vault', () => {
   const toast = useToast()
   // State
   const vaults = ref<VaultWithNumbers[]>([])
+  const scenarioOptions = ref<VaultScenarioOption[]>([])
   const selectedVaultId = useLocalStorage<string | null>('selectedVaultId', null)
   const loadedVaults = ref<Record<string, VaultWithNumbers>>({})
   const resourceRates = ref<Record<string, ResourceRates>>({})
@@ -122,11 +124,25 @@ export const useVaultStore = defineStore('vault', () => {
     }
   }
 
+  async function fetchScenarioOptions(token: string): Promise<boolean> {
+    try {
+      const response = await axios.get<VaultScenarioOption[]>('/api/v1/vaults/scenarios', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      scenarioOptions.value = Array.isArray(response.data) ? response.data : []
+      return true
+    } catch (error) {
+      handleStoreError(error, 'Failed to fetch scenario options')
+      return false
+    }
+  }
+
   async function createVault(
     number: number,
     boosted: boolean,
     token: string,
-    vaultMode: VaultMode = 'standard'
+    vaultMode: VaultMode = 'standard',
+    scenario?: string | null
   ) {
     if (!(await fetchVaults(token))) return null
     if (vaults.value.length >= MAX_USER_VAULTS) {
@@ -137,7 +153,7 @@ export const useVaultStore = defineStore('vault', () => {
     try {
       const response = await axios.post<{ id: string }>(
         '/api/v1/vaults/initiate',
-        { number, boosted, vault_mode: vaultMode },
+        { number, boosted, vault_mode: vaultMode, ...(scenario ? { scenario } : {}) },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -463,6 +479,7 @@ export const useVaultStore = defineStore('vault', () => {
   return {
     // State
     vaults,
+    scenarioOptions,
     selectedVaultId,
     loadedVaults,
     resourceRates,
@@ -476,6 +493,7 @@ export const useVaultStore = defineStore('vault', () => {
     loadedVaultIds,
     // Actions
     fetchVaults,
+    fetchScenarioOptions,
     createVault,
     deleteVault,
     ensureVaultLoaded,

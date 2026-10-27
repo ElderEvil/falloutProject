@@ -221,98 +221,109 @@ const assignResponder = async (dwellerId: string) => {
       <h3 class="text-base font-semibold text-terminal-green">{{ threatLabel }}</h3>
     </header>
 
-    <IncidentScene
-      :incident="incident"
-      :dwellers="dwellers"
-      :room-image-url="roomImageUrl ?? null"
-      :fallback-image-url="fallbackImageUrl ?? null"
-      :team="teamLoaded ? incidentStore.getIncidentTeam(incident.id) : undefined"
-      @playback-complete="emit('playbackComplete', $event)"
-    />
+    <div class="grid min-w-0 gap-2 sm:gap-3 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+      <IncidentScene
+        :incident="incident"
+        :dwellers="dwellers"
+        :room-image-url="roomImageUrl ?? null"
+        :fallback-image-url="fallbackImageUrl ?? null"
+        :team="teamLoaded ? incidentStore.getIncidentTeam(incident.id) : undefined"
+        @playback-complete="emit('playbackComplete', $event)"
+      />
 
-    <IncidentBattleLog :events="incident.events" />
-    <p v-if="awaitingLabel" class="text-xs text-terminal-green-dim">{{ awaitingLabel }}</p>
+      <div class="flex min-w-0 flex-col gap-2 sm:gap-3">
+        <IncidentBattleLog :events="incident.events" />
+        <p v-if="awaitingLabel" class="text-xs text-terminal-green-dim">{{ awaitingLabel }}</p>
 
-    <div v-if="bestResponders.length" class="flex flex-wrap items-center gap-2">
-      <Button
-        v-if="nearbyResponders.length"
-        variant="default"
-        size="sm"
-        :disabled="isAssigning || !responderTeamsLoaded"
-        @click="sendNearbyDefenders"
-      >
-        Send nearby {{ nearbyResponders.length }}
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        :disabled="isAssigning || !responderTeamsLoaded"
-        @click="sendBestDefenders"
-      >
-        <Icon v-if="isSendingBest" icon="mdi:loading" class="mr-1 animate-spin" />
-        Send strongest {{ bestResponders.length }}
-      </Button>
-      <span class="text-xs text-muted-foreground"
-        >{{ remainingRosterSlots }} helper slots available</span
-      >
-    </div>
+        <div v-if="bestResponders.length" class="flex flex-wrap items-center gap-2">
+          <Button
+            v-if="nearbyResponders.length"
+            variant="default"
+            size="sm"
+            :disabled="isAssigning || !responderTeamsLoaded"
+            @click="sendNearbyDefenders"
+          >
+            Send nearby {{ nearbyResponders.length }}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="isAssigning || !responderTeamsLoaded"
+            @click="sendBestDefenders"
+          >
+            <Icon v-if="isSendingBest" icon="mdi:loading" class="mr-1 animate-spin" />
+            Send strongest {{ bestResponders.length }}
+          </Button>
+          <span class="hidden text-xs text-muted-foreground sm:inline"
+            >{{ remainingRosterSlots }} helper slots available</span
+          >
+        </div>
 
-    <details v-if="availableResponders.length" class="border-t border-border pt-2">
-      <summary class="cursor-pointer text-xs text-muted-foreground">
-        Add helper · {{ availableResponders.length }} available
-      </summary>
-      <ul class="mt-2 flex flex-col gap-2">
-        <DwellerListRow
-          v-for="dweller in availableResponders"
-          :key="dweller.id"
-          :dweller="dweller"
-          :clickable="false"
-          class="flex-wrap gap-2 [&_.dweller-identity]:w-auto [&_.dweller-identity]:flex-1"
+        <details v-if="availableResponders.length" class="border-t border-border pt-2">
+          <summary class="cursor-pointer text-xs text-muted-foreground">
+            Add helper · {{ availableResponders.length }} available
+          </summary>
+          <ul class="mt-2 flex flex-col gap-2">
+            <DwellerListRow
+              v-for="dweller in availableResponders"
+              :key="dweller.id"
+              :dweller="dweller"
+              :clickable="false"
+              class="flex-wrap gap-2 [&_.dweller-identity]:w-auto [&_.dweller-identity]:flex-1"
+            >
+              <template #middle>
+                <div
+                  class="order-last flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
+                >
+                  <span
+                    class="flex items-center gap-1"
+                    :class="getStatusConfig(dweller.status).color"
+                  >
+                    <Icon :icon="getStatusConfig(dweller.status).icon" class="size-3.5" />
+                    {{ getStatusConfig(dweller.status).label }}
+                  </span>
+                  <span>{{ posting(dweller) }}</span>
+                  <span v-if="proximity(dweller)">{{ proximity(dweller) }}</span>
+                  <span class="flex items-center gap-1">
+                    <Icon icon="mdi:heart" class="h-3.5 w-3.5 text-danger" />
+                    {{ dweller.health }}/{{ dweller.max_health }}
+                  </span>
+                  <span class="flex items-center gap-1">
+                    <Icon icon="mdi:sword" class="h-3.5 w-3.5" />
+                    POW {{ getCombatPower(dweller) }}
+                  </span>
+                  <span class="tabular-nums">· Lv {{ dweller.level }}</span>
+                </div>
+              </template>
+              <template #actions>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  :disabled="isAssigning || !responderTeamsLoaded || !remainingRosterSlots"
+                  @click="assignResponder(dweller.id)"
+                >
+                  <Icon
+                    v-if="assigningDwellerId === dweller.id"
+                    icon="mdi:loading"
+                    class="mr-1 animate-spin"
+                  />
+                  Send
+                </Button>
+              </template>
+            </DwellerListRow>
+          </ul>
+        </details>
+        <p
+          v-else-if="!responderTeamsLoaded"
+          role="status"
+          class="text-xs text-terminal-green-dim"
         >
-          <template #middle>
-            <div
-              class="order-last flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
-            >
-              <span class="flex items-center gap-1" :class="getStatusConfig(dweller.status).color">
-                <Icon :icon="getStatusConfig(dweller.status).icon" class="size-3.5" />
-                {{ getStatusConfig(dweller.status).label }}
-              </span>
-              <span>{{ posting(dweller) }}</span>
-              <span v-if="proximity(dweller)">{{ proximity(dweller) }}</span>
-              <span class="flex items-center gap-1">
-                <Icon icon="mdi:heart" class="h-3.5 w-3.5 text-danger" />
-                {{ dweller.health }}/{{ dweller.max_health }}
-              </span>
-              <span class="flex items-center gap-1">
-                <Icon icon="mdi:sword" class="h-3.5 w-3.5" />
-                POW {{ getCombatPower(dweller) }}
-              </span>
-              <span class="tabular-nums">· Lv {{ dweller.level }}</span>
-            </div>
-          </template>
-          <template #actions>
-            <Button
-              variant="secondary"
-              size="sm"
-              :disabled="isAssigning || !responderTeamsLoaded || !remainingRosterSlots"
-              @click="assignResponder(dweller.id)"
-            >
-              <Icon
-                v-if="assigningDwellerId === dweller.id"
-                icon="mdi:loading"
-                class="mr-1 animate-spin"
-              />
-              Send
-            </Button>
-          </template>
-        </DwellerListRow>
-      </ul>
-    </details>
-    <p v-else-if="!responderTeamsLoaded" role="status" class="text-xs text-terminal-green-dim">
-      Waiting for incident teams to load before choosing responders.
-    </p>
-    <p v-else class="text-xs text-terminal-green-dim">
-      All available adults are already defending or away.
-    </p>
+          Waiting for incident teams to load before choosing responders.
+        </p>
+        <p v-else class="text-xs text-terminal-green-dim">
+          All available adults are already defending or away.
+        </p>
+      </div>
+    </div>
   </section>
 </template>

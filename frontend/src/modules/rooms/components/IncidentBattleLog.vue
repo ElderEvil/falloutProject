@@ -54,6 +54,6 @@ const entries = computed<BattleLogEntry[]>(() =>
 <template>
   <section class="flex flex-col gap-1.5">
     <p class="text-xs text-terminal-green-dim">BATTLE LOG</p>
-    <BattleLog :entries="entries" empty-text="No rounds fought yet." />
+    <BattleLog :entries="entries" empty-text="No rounds fought yet." max-height-class="max-h-16 sm:max-h-56" />
   </section>
 </template>

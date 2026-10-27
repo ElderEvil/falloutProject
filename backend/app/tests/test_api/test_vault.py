@@ -529,11 +529,10 @@ async def test_vault_scenarios_list_vault_1(
         {
             "number": 69,
             "key": "vault_69_test",
-            "title": "Vault 69 — The Inverse",
+            "title": "Vault 69 — 99 Women, 1 Man",
             "description": (
-                "The inverse of Vault 68: 99 women and 1 man. Adds a level 3 / SPECIAL 3 Scout "
-                "and the Vault 69 social encounter. Extra living capacity; starter objectives skipped. "
-                "Starts at the site picker."
+                "99 women and 1 man. Adds a level 3 / SPECIAL 3 Scout and the Vault 69 social encounter. "
+                "Extra living capacity; starter objectives skipped. Starts at the site picker."
             ),
             "dweller_level": 3,
             "special": 3,

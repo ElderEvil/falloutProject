@@ -31,7 +31,7 @@ VAULT_SCENARIOS = (
         title="Vault 1 — Scout Test",
         description=(
             "Adds a level 5 / SPECIAL 4 Scout and a single-scene all-sites expedition. "
-            "Full room layout; starter objectives skipped. Starts at the site picker."
+            "Extra living capacity; starter objectives skipped. Starts at the site picker."
         ),
         dweller_level=5,
         special=4,
@@ -42,7 +42,7 @@ VAULT_SCENARIOS = (
         title="Vault 68 — The Ratio",
         description=(
             "99 men, one woman. Adds a level 10 / SPECIAL 7 Scout and a single-scene "
-            "all-sites expedition. Full room layout; starter objectives skipped. Starts at the site picker."
+            "all-sites expedition. Extra living capacity; starter objectives skipped. Starts at the site picker."
         ),
         dweller_level=10,
         special=7,
@@ -53,7 +53,7 @@ VAULT_SCENARIOS = (
         title="Vault 69 — The Inverse",
         description=(
             "99 women, one man. Adds a level 3 / SPECIAL 3 Scout and a single-scene "
-            "all-sites expedition. Full room layout; starter objectives skipped. Starts at the site picker."
+            "all-sites expedition. Extra living capacity; starter objectives skipped. Starts at the site picker."
         ),
         dweller_level=3,
         special=3,

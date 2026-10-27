@@ -122,6 +122,7 @@ def setup(
                 duration_hours=duration_hours,
                 special=special_value,
                 all_sites=True,
+                single_scene_only=False,
             )
             _print_setup(result, profile_name, special_value)
 

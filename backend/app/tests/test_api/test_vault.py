@@ -506,7 +506,7 @@ async def test_vault_scenarios_list_vault_1(
             "title": "Vault 1 — Scout Test",
             "description": (
                 "Adds a level 5 / SPECIAL 4 Scout and a single-scene all-sites expedition. "
-                "Full room layout; starter objectives skipped. Starts at the site picker."
+                "Extra living capacity; starter objectives skipped. Starts at the site picker."
             ),
             "dweller_level": 5,
             "special": 4,
@@ -519,7 +519,7 @@ async def test_vault_scenarios_list_vault_1(
             "title": "Vault 68 — The Ratio",
             "description": (
                 "99 men, one woman. Adds a level 10 / SPECIAL 7 Scout and a single-scene "
-                "all-sites expedition. Full room layout; starter objectives skipped. Starts at the site picker."
+                "all-sites expedition. Extra living capacity; starter objectives skipped. Starts at the site picker."
             ),
             "dweller_level": 10,
             "special": 7,
@@ -532,7 +532,7 @@ async def test_vault_scenarios_list_vault_1(
             "title": "Vault 69 — The Inverse",
             "description": (
                 "99 women, one man. Adds a level 3 / SPECIAL 3 Scout and a single-scene "
-                "all-sites expedition. Full room layout; starter objectives skipped. Starts at the site picker."
+                "all-sites expedition. Extra living capacity; starter objectives skipped. Starts at the site picker."
             ),
             "dweller_level": 3,
             "special": 3,
@@ -562,8 +562,10 @@ async def test_vault_initiate_scenario_seeds_single_scene_scout(
     assert (scout.strength, scout.perception, scout.endurance, scout.charisma) == (4, 4, 4, 4)
     assert (scout.intelligence, scout.agility, scout.luck) == (4, 4, 4)
 
-    room_names = {name.lower() for name in await crud.room.get_names_by_vault(async_session, vault_id)}
-    assert {"weight room", "radio studio", "arena"} <= room_names
+    stored_vault = await crud.vault.get(async_session, vault_id)
+    assert stored_vault is not None
+    assert stored_vault.population_max is not None
+    assert stored_vault.population_max > len(dwellers)
     objectives = await objective_crud.get_multi_for_vault(async_session, vault_id)
     assert not any(objective.category is ObjectiveCategoryEnum.STARTER for objective in objectives)
 

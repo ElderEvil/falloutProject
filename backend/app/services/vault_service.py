@@ -53,8 +53,8 @@ class VaultService:
           plus a 3-dweller legendary roster; the fused size-6 generator's
           enlarged crew reuses the same slots, so the headcount is unchanged).
 
-        Scenario starts use the boosted room layout and skip starter objectives,
-        while keeping the requested normal population and resource start.
+        Scenario starts add living capacity and skip starter objectives while
+        keeping the requested normal population and resource start.
         """
         # Create vault and storage
         vault_db_obj = await vault_crud.create_with_user_id(db_session=db_session, obj_in=obj_in, user_id=user_id)
@@ -64,7 +64,7 @@ class VaultService:
         # Prepare room data
         game_data_store = await get_static_game_data()
         rooms = game_data_store.rooms
-        prepared = seeding.prepare_initial_rooms(rooms, vault_db_obj.id, is_boosted or scenario_start)
+        prepared = seeding.prepare_initial_rooms(rooms, vault_db_obj.id, is_boosted, scenario_start=scenario_start)
 
         # Create rooms and get created production/training/misc rooms
         vault_db_obj, created = await seeding.create_initial_rooms(db_session, vault_db_obj, prepared)

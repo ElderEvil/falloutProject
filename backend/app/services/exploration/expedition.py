@@ -538,7 +538,7 @@ def _is_all_sites_scenario(exploration: Exploration) -> bool:
 def _scenario_single_scene_only(exploration: Exploration) -> bool:
     for event in exploration.events or []:
         if event.get("event") == ALL_SITES_SCENARIO_EVENT:
-            return bool(event.get("single_scene_only", True))
+            return bool(event.get("single_scene_only", False))
     return False
 
 

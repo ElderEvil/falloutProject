@@ -33,6 +33,7 @@ class VaultService:
         obj_in: VaultNumber,
         user_id: UUID4,
         is_boosted: bool = False,
+        scenario_start: bool = False,
     ) -> Vault:
         """Create a new vault for a user and initialize it with essential rooms and dwellers.
 
@@ -51,6 +52,9 @@ class VaultService:
           so timed crafting is testable, with 36 dwellers seeded (33 non-legendary
           plus a 3-dweller legendary roster; the fused size-6 generator's
           enlarged crew reuses the same slots, so the headcount is unchanged).
+
+        Scenario starts use the boosted room layout and skip starter objectives,
+        while keeping the requested normal population and resource start.
         """
         # Create vault and storage
         vault_db_obj = await vault_crud.create_with_user_id(db_session=db_session, obj_in=obj_in, user_id=user_id)
@@ -60,7 +64,7 @@ class VaultService:
         # Prepare room data
         game_data_store = await get_static_game_data()
         rooms = game_data_store.rooms
-        prepared = seeding.prepare_initial_rooms(rooms, vault_db_obj.id, is_boosted)
+        prepared = seeding.prepare_initial_rooms(rooms, vault_db_obj.id, is_boosted or scenario_start)
 
         # Create rooms and get created production/training/misc rooms
         vault_db_obj, created = await seeding.create_initial_rooms(db_session, vault_db_obj, prepared)
@@ -118,7 +122,9 @@ class VaultService:
         # Assign initial objectives to the vault (boosted vaults get more objectives)
         from app.crud.objective import objective_crud
 
-        assigned = await objective_crud.assign_initial(db_session, vault_db_obj.id, is_boosted=is_boosted)
+        assigned = await objective_crud.assign_initial(
+            db_session, vault_db_obj.id, is_boosted=is_boosted or scenario_start
+        )
         if assigned == 0:
             self.logger.warning("No objectives found for vault %s", vault_db_obj.id)
 

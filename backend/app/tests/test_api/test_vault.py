@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
+from app.core.enums import ObjectiveCategoryEnum
+from app.crud.objective import objective_crud
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.exploration.expedition import expedition_service
 from app.services.vault_service import vault_service
@@ -503,7 +505,8 @@ async def test_vault_scenarios_list_vault_1(
             "key": "vault_1_test",
             "title": "Vault 1 — Scout Test",
             "description": (
-                "Adds a level 5 / SPECIAL 4 Scout and a single-scene all-sites expedition. Starts at the site picker."
+                "Adds a level 5 / SPECIAL 4 Scout and a single-scene all-sites expedition. "
+                "Full room layout; starter objectives skipped. Starts at the site picker."
             ),
             "dweller_level": 5,
             "special": 4,
@@ -516,7 +519,7 @@ async def test_vault_scenarios_list_vault_1(
             "title": "Vault 68 — The Ratio",
             "description": (
                 "99 men, one woman. Adds a level 10 / SPECIAL 7 Scout and a single-scene "
-                "all-sites expedition. Starts at the site picker."
+                "all-sites expedition. Full room layout; starter objectives skipped. Starts at the site picker."
             ),
             "dweller_level": 10,
             "special": 7,
@@ -529,7 +532,7 @@ async def test_vault_scenarios_list_vault_1(
             "title": "Vault 69 — The Inverse",
             "description": (
                 "99 women, one man. Adds a level 3 / SPECIAL 3 Scout and a single-scene "
-                "all-sites expedition. Starts at the site picker."
+                "all-sites expedition. Full room layout; starter objectives skipped. Starts at the site picker."
             ),
             "dweller_level": 3,
             "special": 3,
@@ -558,6 +561,11 @@ async def test_vault_initiate_scenario_seeds_single_scene_scout(
     assert scout.level == 5
     assert (scout.strength, scout.perception, scout.endurance, scout.charisma) == (4, 4, 4, 4)
     assert (scout.intelligence, scout.agility, scout.luck) == (4, 4, 4)
+
+    room_names = {name.lower() for name in await crud.room.get_names_by_vault(async_session, vault_id)}
+    assert {"weight room", "radio studio", "arena"} <= room_names
+    objectives = await objective_crud.get_multi_for_vault(async_session, vault_id)
+    assert not any(objective.category is ObjectiveCategoryEnum.STARTER for objective in objectives)
 
     explorations = await crud.exploration.get_by_vault(async_session, vault_id=vault_id, active_only=True)
     assert len(explorations) == 1

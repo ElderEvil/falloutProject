@@ -161,7 +161,11 @@ async def start_vault(
 
     is_boosted = vault_data.boosted
     vault = await vault_service.initiate_vault(
-        db_session=db_session, obj_in=vault_data, user_id=user.id, is_boosted=is_boosted
+        db_session=db_session,
+        obj_in=vault_data,
+        user_id=user.id,
+        is_boosted=is_boosted,
+        scenario_start=scenario is not None,
     )
     if scenario is not None:
         try:

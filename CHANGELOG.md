@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.274.0 (2026-10-27)
+
+### Features
+
+* **admin:** add account merge preview and apply page ([#1211](https://github.com/ElderEvil/falloutProject/issues/1211)) 30e3053
+
 ## 2.273.1 (2026-10-26)
 
 ### Bug Fixes

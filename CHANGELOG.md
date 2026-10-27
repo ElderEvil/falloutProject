@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.277.0 (2026-10-27)
+
+### Features
+
+* add combat skill impact effects dfa6986
+
+### Bug Fixes
+
+* avoid class assertion in combat test b273e84
+* use shared select in skill preview d3238f7
+
 ## 2.276.0 (2026-10-27)
 
 ### Features

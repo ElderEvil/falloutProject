@@ -913,6 +913,7 @@ class ExplorationService:
             if exploration.is_active():
                 exploration.start_time += paused
             elif exploration.is_returning():
+                exploration.start_time += paused
                 if exploration.return_started_at is not None:
                     exploration.return_started_at += paused
                 if exploration.return_completes_at is not None:
@@ -999,12 +1000,16 @@ class ExplorationService:
         :type exploration_id: UUID4
         :return: Updated exploration
         :rtype: Exploration
-        :raises ValueError: If exploration is not active
+        :raises ValueError: If exploration is not active or paused for an encounter
         """
         exploration = await crud_exploration.get(db_session, exploration_id)
 
         if not exploration.is_active():
             msg = "Exploration is not active"
+            raise ValueError(msg)
+
+        if exploration.paused_at is not None:
+            msg = "Exploration is paused for an encounter"
             raise ValueError(msg)
 
         return await event_service.process_event(db_session, exploration)

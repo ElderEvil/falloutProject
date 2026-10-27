@@ -68,6 +68,15 @@ async def test_setup_all_sites_offers_every_site_for_one_scout(async_session: As
 
 
 @pytest.mark.asyncio
+async def test_all_sites_one_hour_journey_keeps_active_time(async_session: AsyncSession, vault: Vault) -> None:
+    result = await expedition_scenario_service.setup(
+        async_session, vault_id=vault.id, dweller_level=5, duration_hours=1, all_sites=True
+    )
+
+    assert 0 < result.exploration.time_remaining_seconds() <= 30 * 60
+
+
+@pytest.mark.asyncio
 async def test_all_sites_scout_pauses_legacy_journey_clock_on_site_entry(
     async_session: AsyncSession, vault: Vault
 ) -> None:

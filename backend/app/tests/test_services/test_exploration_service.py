@@ -207,6 +207,21 @@ async def test_generate_event_not_active(
 
 
 @pytest.mark.asyncio
+async def test_process_event_for_paused_exploration(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    exploration.paused_at = datetime.utcnow()
+    async_session.add(exploration)
+    await async_session.commit()
+
+    with pytest.raises(ValueError, match="paused"):
+        await exploration_service.process_event_for_exploration(async_session, exploration.id)
+
+
+@pytest.mark.asyncio
 async def test_generate_event_with_loot(
     async_session: AsyncSession,
     vault: Vault,

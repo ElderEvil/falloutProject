@@ -8226,6 +8226,8 @@ export interface components {
              * Format: date-time
              */
             start_time: string;
+            /** Paused At */
+            paused_at?: string | null;
             /** End Time */
             end_time: string | null;
             /** Return Started At */

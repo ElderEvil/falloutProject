@@ -178,7 +178,7 @@ class ExpeditionScenarioService:
         exploration.pos_y = None
         exploration.position_as_of = None
         exploration.trail = []
-        exploration.start_time = now - timedelta(hours=1)
+        exploration.start_time = now - timedelta(hours=min(1, exploration.duration / 2))
         exploration.status = ExplorationStatus.ACTIVE
         exploration.return_started_at = None
         exploration.return_completes_at = None

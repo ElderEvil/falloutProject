@@ -91,6 +91,7 @@ class ExplorationReadShort(SQLModel):
     target_location_id: UUID4 | None = None
     status: ExplorationStatus
     start_time: datetime
+    paused_at: datetime | None = None
     end_time: datetime | None
     return_started_at: datetime | None
     return_completes_at: datetime | None

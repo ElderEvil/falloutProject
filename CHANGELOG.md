@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.278.0 (2026-10-27)
+
+### Features
+
+* **expedition:** add Vault 68/69 stat-check sites ed81877
+* **scenarios:** add Vault 68/69 stat-check populations 1f3428d
+
+### Bug Fixes
+
+* **expedition:** state Vault 69 population directly 528c94d
+* **vault:** state Vault 69 population directly 2a301d0
+
+### Code Refactoring
+
+* **vault:** move scenario population into vault service 78b61dd
+
 ## 2.277.1 (2026-10-27)
 
 ### Bug Fixes

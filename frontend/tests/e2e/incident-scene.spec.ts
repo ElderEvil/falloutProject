@@ -127,3 +127,20 @@ for (const width of [390, 900]) {
     })
   }
 }
+
+for (const width of [390, 900]) {
+  test(`four responders fit the roster lane at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/tests/e2e/fixtures/incident-scene.html?type=raider_attack&responders=4')
+    const scene = page.getByRole('region', { name: 'Incident live status' })
+    const responders = scene.locator('.incident-responder')
+    await expect(responders).toHaveCount(4)
+    const row = responders.first().locator('..')
+    const metrics = await row.evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }))
+    expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1)
+    await expect(responders.last()).toBeInViewport()
+  })
+}

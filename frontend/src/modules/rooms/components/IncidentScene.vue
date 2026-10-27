@@ -184,11 +184,31 @@ const threatMotion = computed(() => ({
 const isFire = computed(() => props.incident.type === 'fire')
 const isHumanoidThreat = computed(() => ['raider_attack', 'feral_ghoul_attack'].includes(props.incident.type))
 const fireFlames = ['h-1/2 opacity-80', 'h-[90%]', 'h-[65%] opacity-90'] as const
+// Up to four responders share the scene lane; larger rosters keep the scroll.
+const responderCellClass = computed(() => {
+  const count = responders.value.length
+  if (count <= 2) return 'w-[4.85rem] min-w-[4.85rem] max-w-[4.85rem]'
+  if (count === 3)
+    return 'w-[3.3rem] min-w-[3.3rem] max-w-[3.3rem] md:w-[4.85rem] md:min-w-[4.85rem] md:max-w-[4.85rem]'
+  return 'w-[2.9rem] min-w-[2.9rem] max-w-[2.9rem] md:w-[4.85rem] md:min-w-[4.85rem] md:max-w-[4.85rem]'
+})
+// Compact actors while the lane is narrow; full height once four full cells fit.
+const actorFrameClass = computed(() =>
+  responders.value.length > 3
+    ? '[--scene-actor-height:5rem] [--dweller-name-size:0.55rem] md:[--scene-actor-height:7rem] md:[--dweller-name-size:0.625rem]'
+    : '[--scene-actor-height:7rem]'
+)
+// Give a full responder row a slightly wider lane than a single threat needs.
+const sceneLaneClass = computed(() =>
+  responders.value.length > 3
+    ? 'grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:grid-cols-2'
+    : 'grid-cols-2'
+)
 </script>
 
 <template>
   <section
-    class="incident-scene relative isolate [--scene-actor-height:7rem] aspect-[5/2] min-h-80 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
+    class="incident-scene relative isolate aspect-[5/2] min-h-80 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
     aria-label="Incident live status"
   >
     <img
@@ -214,7 +234,8 @@ const fireFlames = ['h-1/2 opacity-80', 'h-[90%]', 'h-[65%] opacity-90'] as cons
     </div>
 
     <div
-      class="absolute inset-x-3 top-12 bottom-16 grid grid-cols-2 items-end gap-5 sm:inset-x-6 sm:gap-10"
+      class="absolute inset-x-3 top-12 bottom-16 grid items-end gap-5 sm:inset-x-6 sm:gap-10"
+      :class="[sceneLaneClass, actorFrameClass]"
     >
       <div class="relative min-w-0" :class="responderMotion">
         <span
@@ -225,14 +246,18 @@ const fireFlames = ['h-1/2 opacity-80', 'h-[90%]', 'h-[65%] opacity-90'] as cons
           >-{{ Math.round(dwellerDamage) }}</span
         >
         <!-- Keep responders spread across their half of the scene instead of clustering left. -->
-        <div class="flex w-full min-w-0 items-end justify-evenly gap-2 overflow-x-auto pt-6 pb-1">
+        <div class="flex w-full min-w-0 items-end justify-evenly gap-1 overflow-x-auto pt-6 pb-1 sm:gap-2">
           <div
             v-for="responder in responders"
             :key="responder.id"
-            class="incident-responder relative flex w-[4.85rem] min-w-[4.85rem] max-w-[4.85rem] shrink-0 flex-col items-center gap-1"
-            :class="{
-              'opacity-40 grayscale': responder.dweller && displayedHealth(responder.dweller) <= 0,
-            }"
+            class="incident-responder relative flex shrink-0 flex-col items-center gap-1"
+            :class="[
+              responderCellClass,
+              {
+                'opacity-40 grayscale':
+                  responder.dweller && displayedHealth(responder.dweller) <= 0,
+              },
+            ]"
             :aria-current="isAttacking(responder.id) ? 'true' : undefined"
           >
             <CombatDamageNumbers

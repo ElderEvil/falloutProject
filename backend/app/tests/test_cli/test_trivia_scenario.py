@@ -1,5 +1,7 @@
 """Tests for the trivia scenario CLI profiles and help contract."""
 
+import re
+
 import pytest
 from typer.testing import CliRunner
 
@@ -7,6 +9,7 @@ from app.cli.main import cli
 from app.cli.trivia_scenario import PROFILES, resolve_profile
 
 runner = CliRunner()
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def test_profiles_cover_demo_balanced_and_hard():
@@ -29,5 +32,6 @@ def test_unknown_profile_is_rejected():
 def test_setup_help_lists_profiles():
     result = runner.invoke(cli, ["trivia-scenario", "setup", "--help"])
     assert result.exit_code == 0
-    assert "--profile" in result.output
-    assert "balanced" in result.output
+    output = ANSI_ESCAPE.sub("", result.output)
+    assert "--profile" in output
+    assert "balanced" in output

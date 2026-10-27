@@ -19,13 +19,18 @@ def test_sites_load_and_validate():
         "rusted_midway",
         "frozen_research_outpost",
         "raider_tollbooth",
+        "vault_68",
+        "vault_69",
     }
     for site in sites:
         assert isinstance(site, SiteDefinition)
         assert site.rooms or site.encounter
         assert site.encounter is not None
-        assert site.encounter.node.kind in {"combat", "trivia"}
+        assert site.encounter.node.kind in {"combat", "choice", "trivia"}
         assert site.lore
+        if site.scenario_only:
+            assert not site.rooms
+            assert site.encounter.node.kind == "choice"
         if len(site.rooms) > 1:
             assert site.rooms[-1].node.kind == "finale"
 
@@ -142,7 +147,11 @@ def test_invalid_site_definition_rejected():
     assert "rooms or an encounter" in str(exc_info.value)
 
 
-@pytest.mark.parametrize("site", data_loader.load_expedition_sites(), ids=lambda site: site.id)
+@pytest.mark.parametrize(
+    "site",
+    [site for site in data_loader.load_expedition_sites() if not site.scenario_only],
+    ids=lambda site: site.id,
+)
 def test_scene_rosters_and_intro_balance(site):
     from app.models.dweller import Dweller
     from app.services.exploration.site_combat_service import initial_combat, resolve_turn

@@ -91,6 +91,8 @@ class ExpeditionScenarioService:
         vault_number: int | None = None,
         all_sites: bool = False,
         single_scene_only: bool = True,
+        scenario_site_id: str | None = None,
+        choice_only: bool = False,
     ) -> ExpeditionScenarioResult:
         """Provision a vault with one dweller on an active exploration.
 
@@ -104,7 +106,8 @@ class ExpeditionScenarioService:
 
         ``all_sites`` leaves a legacy (non-spatial) active journey where every
         level-eligible site is offered, so one Scout can play all sites one by
-        one. ``single_scene_only`` hides multi-room sites from that journey.
+        one. ``single_scene_only`` hides multi-room sites from that journey;
+        ``choice_only`` limits it to stat-check choice encounters.
         ``vault_number`` selects the number for a newly created vault.
         """
         duration_hours = max(1, min(24, duration_hours))
@@ -118,6 +121,12 @@ class ExpeditionScenarioService:
         if preclear_site_id is not None and data_loader.get_expedition_site(preclear_site_id) is None:
             raise ValueError(f"Unknown expedition site: {preclear_site_id!r}")
         discovered_site = data_loader.get_expedition_site(discovered_site_id) if discovered_site_id else None
+        scenario_site = data_loader.get_expedition_site(scenario_site_id) if scenario_site_id else None
+        if scenario_site_id is not None:
+            if scenario_site is None:
+                raise ValueError(f"Unknown expedition site: {scenario_site_id!r}")
+            if dweller_level < scenario_site.min_dweller_level:
+                raise ValueError(f"{scenario_site.name} needs dweller level {scenario_site.min_dweller_level}")
         if discovered_site_id is not None:
             if discovered_site is None:
                 raise ValueError(f"Unknown expedition site: {discovered_site_id!r}")
@@ -145,7 +154,13 @@ class ExpeditionScenarioService:
         )
         precleared = await self._preclear_site(db_session, exploration, vault, preclear_site_id)
         if all_sites:
-            await self._make_all_sites_active_transaction(db_session, exploration, single_scene_only=single_scene_only)
+            await self._make_all_sites_active_transaction(
+                db_session,
+                exploration,
+                single_scene_only=single_scene_only,
+                scenario_site_id=scenario_site_id,
+                choice_only=choice_only,
+            )
         elif discovered_site is not None:
             self._stage_discovery(exploration, discovered_site)
             db_session.add(exploration)
@@ -165,13 +180,18 @@ class ExpeditionScenarioService:
 
     @staticmethod
     async def _make_all_sites_active_transaction(
-        db_session: AsyncSession, exploration: Exploration, *, single_scene_only: bool
+        db_session: AsyncSession,
+        exploration: Exploration,
+        *,
+        single_scene_only: bool,
+        scenario_site_id: str | None,
+        choice_only: bool,
     ) -> None:
-        """Turn the scenario into a legacy active journey so every site is offered.
+        """Turn the scenario into a legacy active journey so eligible sites are offered.
 
         Spatial journeys only offer sites near the traveled trail. Clearing the
         spatial fields makes ``list_available_sites`` use the legacy catalog, so
-        one Scout can enter every level-eligible site one by one.
+        one Scout can enter every eligible site one by one.
         """
         now = _now()
         exploration.heading_degrees = None
@@ -193,8 +213,10 @@ class ExpeditionScenarioService:
             {
                 "type": "scenario",
                 "event": ALL_SITES_SCENARIO_EVENT,
-                "description": "QA scenario: all sites unlocked for this journey.",
+                "description": "QA scenario: eligible sites unlocked for this journey.",
                 "single_scene_only": single_scene_only,
+                "scenario_site_id": scenario_site_id,
+                "choice_only": choice_only,
                 "timestamp": now.isoformat(),
             },
         ]

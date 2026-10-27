@@ -721,6 +721,148 @@
           "floor": null
         }
       }
+    },
+    {
+      "id": "vault_68",
+      "name": "Vault 68",
+      "flavor": "A sealed ration hall where the numbers never balanced. Ninety-nine men, one woman, and a ledger that decided everything.",
+      "coord_x": 50.0,
+      "coord_y": 50.0,
+      "min_dweller_level": 1,
+      "scene_id": "subway_station",
+      "lore": "Vault-Tec called it a population study. The residents called it the ratio.",
+      "scenario_only": true,
+      "encounter": {
+        "id": "vault_68_atrium",
+        "name": "Vault 68 Atrium",
+        "flavor": "The atrium is split by a ration queue that has not moved in two hundred years.",
+        "node": {
+          "kind": "choice",
+          "prompt": "The Overseer's council blocks the exit. How do you get the vault to open?",
+          "options": [
+            {
+              "id": "ration_truce",
+              "label": "Broker a ration truce (Charisma)",
+              "stat": "charisma",
+              "difficulty": 5,
+              "success": {
+                "cache_tier": "standard",
+                "cache_item": "junk"
+              },
+              "failure": {
+                "trap_damage_min": 6,
+                "trap_damage_max": 12
+              }
+            },
+            {
+              "id": "ration_ledger",
+              "label": "Read the ration ledger (Intelligence)",
+              "stat": "intelligence",
+              "difficulty": 4,
+              "success": {
+                "cache_tier": "standard",
+                "cache_item": "weapon",
+                "cache_floor": "rare"
+              },
+              "failure": {
+                "trap_damage_min": 5,
+                "trap_damage_max": 10
+              }
+            },
+            {
+              "id": "service_shaft",
+              "label": "Slip through the service shaft (Agility)",
+              "stat": "agility",
+              "difficulty": 4,
+              "success": {
+                "cache_tier": "small"
+              },
+              "failure": {
+                "trap_damage_min": 4,
+                "trap_damage_max": 9
+              }
+            }
+          ]
+        }
+      },
+      "reward_vault": {
+        "caps_min": 0,
+        "caps_max": 0,
+        "item": null,
+        "junk_bundles": 0,
+        "stimpaks": 0
+      }
+    },
+    {
+      "id": "vault_69",
+      "name": "Vault 69",
+      "flavor": "A sealed dormitory holding ninety-nine women and one man, with a council that never let the door open.",
+      "coord_x": 52.0,
+      "coord_y": 50.0,
+      "min_dweller_level": 1,
+      "scene_id": "subway_station",
+      "lore": "A sealed dormitory experiment built around ninety-nine women and one man, with a council that never let the door open.",
+      "scenario_only": true,
+      "encounter": {
+        "id": "vault_69_atrium",
+        "name": "Vault 69 Atrium",
+        "flavor": "The dormitory ring is quiet except for the click of a locked council door.",
+        "node": {
+          "kind": "choice",
+          "prompt": "The council will not release the door. What is your way through?",
+          "options": [
+            {
+              "id": "registry",
+              "label": "Spot the forged registry (Perception)",
+              "stat": "perception",
+              "difficulty": 4,
+              "success": {
+                "cache_tier": "standard",
+                "cache_item": "junk"
+              },
+              "failure": {
+                "trap_damage_min": 6,
+                "trap_damage_max": 12
+              }
+            },
+            {
+              "id": "council",
+              "label": "Talk the council down (Charisma)",
+              "stat": "charisma",
+              "difficulty": 5,
+              "success": {
+                "cache_tier": "rich",
+                "cache_item": "weapon",
+                "cache_floor": "rare"
+              },
+              "failure": {
+                "trap_damage_min": 7,
+                "trap_damage_max": 14
+              }
+            },
+            {
+              "id": "service_corridor",
+              "label": "Take the service corridor (Agility)",
+              "stat": "agility",
+              "difficulty": 3,
+              "success": {
+                "cache_tier": "small"
+              },
+              "failure": {
+                "trap_damage_min": 4,
+                "trap_damage_max": 9
+              }
+            }
+          ]
+        }
+      },
+      "reward_vault": {
+        "caps_min": 0,
+        "caps_max": 0,
+        "item": null,
+        "junk_bundles": 0,
+        "stimpaks": 0
+      }
     }
   ]
 }

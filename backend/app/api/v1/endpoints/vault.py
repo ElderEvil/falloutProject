@@ -23,7 +23,7 @@ from app.schemas.vault import (
     VaultUpdate,
 )
 from app.services.dweller_assignment_service import dweller_assignment_service
-from app.services.exploration.scenario_vault_service import scenario_vault_service
+from app.services.vault.scenario_service import vault_scenario_service
 from app.services.vault_service import vault_service
 from app.utils.exceptions import ValidationException
 
@@ -91,7 +91,7 @@ async def list_scenario_options(
             all_sites=scenario.all_sites,
             single_scene_only=scenario.single_scene_only,
         )
-        for scenario in scenario_vault_service.list()
+        for scenario in vault_scenario_service.list()
     ]
 
 
@@ -153,7 +153,7 @@ async def start_vault(
     Returns:
         The newly initiated vault.
     """
-    scenario = scenario_vault_service.get(vault_data.scenario) if vault_data.scenario else None
+    scenario = vault_scenario_service.get(vault_data.scenario) if vault_data.scenario else None
     if vault_data.scenario and scenario is None:
         raise ValidationException(f"Unknown vault scenario: {vault_data.scenario}")
     if scenario is not None and scenario.number != vault_data.number:
@@ -169,7 +169,7 @@ async def start_vault(
     )
     if scenario is not None:
         try:
-            await scenario_vault_service.seed(db_session, vault, scenario)
+            await vault_scenario_service.seed(db_session, vault, scenario)
         except ValueError as exc:
             raise ValidationException(str(exc)) from exc
     return vault

@@ -19,10 +19,13 @@ from app.schemas.vault import (
     VaultNumber,
     VaultReadWithNumbers,
     VaultReadWithUser,
+    VaultScenarioRead,
     VaultUpdate,
 )
 from app.services.dweller_assignment_service import dweller_assignment_service
+from app.services.exploration.scenario_vault_service import scenario_vault_service
 from app.services.vault_service import vault_service
+from app.utils.exceptions import ValidationException
 
 router = APIRouter(prefix="/vaults", tags=["Vault"])
 
@@ -69,6 +72,27 @@ async def read_my_vaults(
         List of the user's vaults with room and dweller counts.
     """
     return await vault_service.get_vaults_with_room_and_dweller_count(db_session=db_session, user_id=user.id)
+
+
+@router.get("/scenarios", response_model=list[VaultScenarioRead])
+async def list_scenario_options(
+    *,
+    _: CurrentActiveUser,
+) -> list[VaultScenarioRead]:
+    """List opt-in scenario starts available for new vaults."""
+    return [
+        VaultScenarioRead(
+            number=scenario.number,
+            key=scenario.key,
+            title=scenario.title,
+            description=scenario.description,
+            dweller_level=scenario.dweller_level,
+            special=scenario.special,
+            all_sites=scenario.all_sites,
+            single_scene_only=scenario.single_scene_only,
+        )
+        for scenario in scenario_vault_service.list()
+    ]
 
 
 @router.get("/{vault_id}", response_model=VaultReadWithNumbers)
@@ -129,10 +153,22 @@ async def start_vault(
     Returns:
         The newly initiated vault.
     """
+    scenario = scenario_vault_service.get(vault_data.scenario) if vault_data.scenario else None
+    if vault_data.scenario and scenario is None:
+        raise ValidationException(f"Unknown vault scenario: {vault_data.scenario}")
+    if scenario is not None and scenario.number != vault_data.number:
+        raise ValidationException(f"Vault {scenario.number} is required for this scenario")
+
     is_boosted = vault_data.boosted
-    return await vault_service.initiate_vault(
+    vault = await vault_service.initiate_vault(
         db_session=db_session, obj_in=vault_data, user_id=user.id, is_boosted=is_boosted
     )
+    if scenario is not None:
+        try:
+            await scenario_vault_service.seed(db_session, vault, scenario)
+        except ValueError as exc:
+            raise ValidationException(str(exc)) from exc
+    return vault
 
 
 @router.post("/update_resources", status_code=200)

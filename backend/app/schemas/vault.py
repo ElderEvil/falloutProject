@@ -21,12 +21,24 @@ class VaultNumber(SQLModel):
     number: int = Field(gt=0, lt=1_000)
     boosted: bool = False
     vault_mode: VaultModeEnum = VaultModeEnum.STANDARD
+    scenario: str | None = None
 
     @model_validator(mode="after")
     def _reject_boosted_survival(self) -> Self:
         if self.boosted and self.vault_mode is VaultModeEnum.SURVIVAL:
             raise ValueError("Boosted Start is not supported in survival mode")
         return self
+
+
+class VaultScenarioRead(SQLModel):
+    number: int
+    key: str
+    title: str
+    description: str
+    dweller_level: int
+    special: int
+    all_sites: bool
+    single_scene_only: bool
 
 
 class ResourceLevelWarning(SQLModel):

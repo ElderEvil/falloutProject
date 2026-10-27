@@ -4927,6 +4927,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vaults/scenarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Scenario Options
+         * @description List opt-in scenario starts available for new vaults.
+         */
+        get: operations["list_scenario_options_api_v1_vaults_scenarios_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/vaults/{vault_id}": {
         parameters: {
             query?: never;
@@ -11764,6 +11784,8 @@ export interface components {
             boosted: boolean;
             /** @default standard */
             vault_mode: components["schemas"]["VaultModeEnum"];
+            /** Scenario */
+            scenario?: string | null;
         };
         /** VaultObjectiveProgressLink */
         VaultObjectiveProgressLink: {
@@ -12121,6 +12143,25 @@ export interface components {
              * @enum {string}
              */
             conception_potential: "possible" | "race" | "age" | "gender";
+        };
+        /** VaultScenarioRead */
+        VaultScenarioRead: {
+            /** Number */
+            number: number;
+            /** Key */
+            key: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Dweller Level */
+            dweller_level: number;
+            /** Special */
+            special: number;
+            /** All Sites */
+            all_sites: boolean;
+            /** Single Scene Only */
+            single_scene_only: boolean;
         };
         /** VaultUpdate */
         VaultUpdate: {
@@ -19394,6 +19435,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VaultReadWithNumbers"][];
+                };
+            };
+        };
+    };
+    list_scenario_options_api_v1_vaults_scenarios_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VaultScenarioRead"][];
                 };
             };
         };

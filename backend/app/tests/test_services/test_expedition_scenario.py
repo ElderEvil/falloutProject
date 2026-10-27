@@ -45,7 +45,9 @@ async def test_setup_creates_level_five_dweller_on_active_exploration(
 
 
 @pytest.mark.asyncio
-async def test_setup_all_sites_offers_every_site_for_one_scout(async_session: AsyncSession, vault: Vault) -> None:
+async def test_setup_all_sites_offers_single_scene_sites_for_one_scout(
+    async_session: AsyncSession, vault: Vault
+) -> None:
     result = await expedition_scenario_service.setup(
         async_session, vault_id=vault.id, dweller_level=10, duration_hours=8, all_sites=True
     )
@@ -54,6 +56,30 @@ async def test_setup_all_sites_offers_every_site_for_one_scout(async_session: As
     assert result.exploration.heading_degrees is None
     assert result.exploration.trail == []
     assert result.exploration.time_remaining_seconds() > 0
+    assert {site.id for site in result.available_sites} == {
+        "abandoned_campsite",
+        "roadside_supply_truck",
+        "forgotten_shack",
+        "collapsed_subway",
+        "rusted_midway",
+        "frozen_research_outpost",
+        "raider_tollbooth",
+    }
+
+
+@pytest.mark.asyncio
+async def test_setup_all_sites_can_include_multi_room_when_explicitly_enabled(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    result = await expedition_scenario_service.setup(
+        async_session,
+        vault_id=vault.id,
+        dweller_level=10,
+        duration_hours=8,
+        all_sites=True,
+        single_scene_only=False,
+    )
+
     assert {site.id for site in result.available_sites} == {
         "red_rocket",
         "super_duper_mart",
@@ -112,7 +138,12 @@ async def test_all_sites_scenario_bypasses_prior_vault_cooldowns_but_not_open_ru
     async_session: AsyncSession, vault: Vault
 ) -> None:
     first = await expedition_scenario_service.setup(
-        async_session, vault_id=vault.id, dweller_level=10, duration_hours=8, all_sites=True
+        async_session,
+        vault_id=vault.id,
+        dweller_level=10,
+        duration_hours=8,
+        all_sites=True,
+        single_scene_only=False,
     )
     cleared = await crud.expedition_run.create_run(
         async_session,
@@ -132,7 +163,12 @@ async def test_all_sites_scenario_bypasses_prior_vault_cooldowns_but_not_open_ru
     await async_session.commit()
 
     second = await expedition_scenario_service.setup(
-        async_session, vault_id=vault.id, dweller_level=10, duration_hours=8, all_sites=True
+        async_session,
+        vault_id=vault.id,
+        dweller_level=10,
+        duration_hours=8,
+        all_sites=True,
+        single_scene_only=False,
     )
     offered = {site.id for site in second.available_sites}
     assert "super_duper_mart" in offered
@@ -146,7 +182,12 @@ async def test_all_sites_scenario_can_pay_the_finale_despite_vault_cooldown(
     async_session: AsyncSession, vault: Vault
 ) -> None:
     first = await expedition_scenario_service.setup(
-        async_session, vault_id=vault.id, dweller_level=10, duration_hours=8, all_sites=True
+        async_session,
+        vault_id=vault.id,
+        dweller_level=10,
+        duration_hours=8,
+        all_sites=True,
+        single_scene_only=False,
     )
     cleared = await crud.expedition_run.create_run(
         async_session,
@@ -160,7 +201,12 @@ async def test_all_sites_scenario_can_pay_the_finale_despite_vault_cooldown(
     await async_session.commit()
 
     second = await expedition_scenario_service.setup(
-        async_session, vault_id=vault.id, dweller_level=5, duration_hours=8, all_sites=True
+        async_session,
+        vault_id=vault.id,
+        dweller_level=5,
+        duration_hours=8,
+        all_sites=True,
+        single_scene_only=False,
     )
     await expedition_service.enter_run(async_session, second.exploration.id, "super_duper_mart")
     run = await crud.expedition_run.get_open_for_exploration(async_session, second.exploration.id)

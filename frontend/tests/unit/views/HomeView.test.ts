@@ -44,7 +44,10 @@ describe('HomeView', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
     vi.clearAllMocks()
-    vi.mocked(axios.get).mockImplementation(async () => ({ data: [...vaultStore.vaults] }))
+    vi.mocked(axios.get).mockImplementation(async (url: string) => {
+      if (url === '/api/v1/vaults/scenarios') return { data: [] }
+      return { data: [...vaultStore.vaults] }
+    })
   })
 
   const findCreateButton = (wrapper: any) => {
@@ -164,6 +167,55 @@ describe('HomeView', () => {
 
       expect(vaultStore.createVault).toHaveBeenCalled()
       expect(router.currentRoute.value.path).toBe('/vault/vault-99')
+    })
+
+    it('creates the Vault 1 scenario only when opted in', async () => {
+      vaultStore.vaults = []
+      vi.mocked(axios.get).mockImplementation(async (url: string) => {
+        if (url === '/api/v1/vaults/scenarios') {
+          return {
+            data: [
+              {
+                number: 1,
+                key: 'vault_1_test',
+                title: 'Vault 1 — Scout Test',
+                description: 'Adds a level 5 / SPECIAL 4 Scout and a single-scene expedition.',
+                dweller_level: 5,
+                special: 4,
+                all_sites: true,
+                single_scene_only: true,
+              },
+            ],
+          }
+        }
+        return { data: [] }
+      })
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'vault-1' } })
+
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await settleView()
+
+      await wrapper.get('input[type="number"]').setValue('1')
+      await continueStep(wrapper)
+      expect(wrapper.text()).toContain('Vault 1 — Scout Test')
+      await wrapper.get('#scenario-start').trigger('click')
+      expect(wrapper.get('#scenario-start').attributes('aria-checked')).toBe('true')
+
+      await continueStep(wrapper)
+      await wrapper.get('form').trigger('submit')
+      await settleView()
+
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/v1/vaults/initiate',
+        {
+          number: 1,
+          boosted: false,
+          vault_mode: 'standard',
+          scenario: 'vault_1_test',
+        },
+        expect.anything()
+      )
+      expect(router.currentRoute.value.path).toBe('/vault/vault-1')
     })
 
     it('should show vault list when vaults exist', async () => {

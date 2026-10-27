@@ -60,7 +60,7 @@ const refreshVaults = async () => {
 const resourcePercentage = (current: number, maximum: number) =>
   maximum > 0 ? (current / maximum) * 100 : 0
 
-const createVault = async ({ number, boosted, vaultMode }: VaultNumberData) => {
+const createVault = async ({ number, boosted, vaultMode, scenario }: VaultNumberData) => {
   if (!canCreateVault.value || creatingVault.value) return
 
   creatingVault.value = true
@@ -70,7 +70,8 @@ const createVault = async ({ number, boosted, vaultMode }: VaultNumberData) => {
       number,
       boostedStart,
       authStore.token as string,
-      vaultMode
+      vaultMode,
+      scenario
     )
     if (!createdId) return
 
@@ -116,7 +117,9 @@ const loadVault = async (id: string) => {
 }
 
 onMounted(async () => {
-  if (authStore.isAuthenticated) await refreshVaults()
+  if (!authStore.isAuthenticated) return
+  await refreshVaults()
+  if (authStore.token) await vaultStore.fetchScenarioOptions(authStore.token)
 })
 </script>
 
@@ -157,6 +160,7 @@ onMounted(async () => {
           v-if="isCreationVisible"
           :key="creationKey"
           :creating="creatingVault"
+          :scenarios="vaultStore.scenarioOptions"
           class="order-3 mt-6"
           @create="createVault"
         />

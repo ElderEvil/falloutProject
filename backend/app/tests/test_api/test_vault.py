@@ -1,3 +1,5 @@
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -5,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.core.config import settings
 from app.schemas.vault import VaultCreateWithUserID
+from app.services.exploration.expedition import expedition_service
 from app.services.vault_service import vault_service
 from app.tests.factory.vaults import create_fake_vault
 
@@ -484,6 +487,100 @@ async def test_vault_initiate_rejects_boosted_survival(
     )
     assert response.status_code == 422
     assert "survival" in response.json()["detail"][0]["msg"].lower()
+
+
+@pytest.mark.asyncio
+async def test_vault_scenarios_list_vault_1(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+):
+    response = await async_client.get("/vaults/scenarios", headers=superuser_token_headers)
+    assert response.status_code == 200
+    scenarios = response.json()
+    assert scenarios == [
+        {
+            "number": 1,
+            "key": "vault_1_test",
+            "title": "Vault 1 — Scout Test",
+            "description": (
+                "Adds a level 5 / SPECIAL 4 Scout and a single-scene all-sites expedition. Starts at the site picker."
+            ),
+            "dweller_level": 5,
+            "special": 4,
+            "all_sites": True,
+            "single_scene_only": True,
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_vault_initiate_scenario_seeds_single_scene_scout(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    response = await async_client.post(
+        "/vaults/initiate",
+        headers=superuser_token_headers,
+        json={"number": 1, "scenario": "vault_1_test"},
+    )
+    assert response.status_code == 201
+    vault_id = UUID(response.json()["id"])
+
+    dwellers = await crud.dweller.get_multi_by_vault(async_session, vault_id)
+    scout = next(dweller for dweller in dwellers if dweller.display_name == "Scout Scenario")
+    assert scout.level == 5
+    assert (scout.strength, scout.perception, scout.endurance, scout.charisma) == (4, 4, 4, 4)
+    assert (scout.intelligence, scout.agility, scout.luck) == (4, 4, 4)
+
+    explorations = await crud.exploration.get_by_vault(async_session, vault_id=vault_id, active_only=True)
+    assert len(explorations) == 1
+    exploration = explorations[0]
+    assert any(
+        event.get("event") == "scenario_all_sites" and event.get("single_scene_only") is True
+        for event in exploration.events
+    )
+    sites = {site.id for site in await expedition_service.list_available_sites(async_session, exploration.id)}
+    assert "raider_tollbooth" in sites
+    assert "red_rocket" not in sites
+    assert "super_duper_mart" not in sites
+
+
+@pytest.mark.asyncio
+async def test_vault_initiate_without_scenario_creates_no_exploration(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    response = await async_client.post(
+        "/vaults/initiate",
+        headers=superuser_token_headers,
+        json={"number": 2},
+    )
+    assert response.status_code == 201
+
+    vault_id = UUID(response.json()["id"])
+    assert await crud.exploration.get_by_vault(async_session, vault_id=vault_id, active_only=True) == []
+
+
+@pytest.mark.asyncio
+async def test_vault_initiate_rejects_unknown_or_mismatched_scenario(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+):
+    unknown = await async_client.post(
+        "/vaults/initiate",
+        headers=superuser_token_headers,
+        json={"number": 2, "scenario": "missing"},
+    )
+    assert unknown.status_code == 400
+
+    mismatched = await async_client.post(
+        "/vaults/initiate",
+        headers=superuser_token_headers,
+        json={"number": 2, "scenario": "vault_1_test"},
+    )
+    assert mismatched.status_code == 400
 
 
 @pytest.mark.asyncio

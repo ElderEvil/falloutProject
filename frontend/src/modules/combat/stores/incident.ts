@@ -33,14 +33,10 @@ export const useIncidentStore = defineStore('incident', () => {
   let pollingVaultId: string | null = null
   const announcedResolutions = new Set<string>()
   const announcedIncidentSounds = new Set<string>()
-  const visibleSceneIds = new Set<string>()
-  const pendingResolutionCues = new Map<string, Exclude<IncidentOutcome, 'unknown'>>()
-  let resolutionQuietPending = false
   const seenEventMarkers = new Map<string, { count: number; lastId: string | undefined }>()
   let detailRequestOrder = 0
   let contextGeneration = 0
   const appliedDetailOrders = new Map<string, number>()
-  const handledDispatchEvents = new Map<string, string>()
 
   const { success: showSuccess, error: showError, warning: showWarning } = useToast()
 
@@ -55,12 +51,8 @@ export const useIncidentStore = defineStore('incident', () => {
 
   watch(hasActiveIncidents, (active) => {
     if (active) {
-      resolutionQuietPending = false
       audioManager.startAlarmLoop()
       audioManager.duckMusic()
-    } else if (visibleSceneIds.size) {
-      // Hold the shutdown until the open incident scene finishes its playback.
-      resolutionQuietPending = true
     } else {
       audioManager.stopAlarmLoop()
       audioManager.restoreMusic()
@@ -109,45 +101,12 @@ export const useIncidentStore = defineStore('incident', () => {
   const findAftermath = (incidentId: string): IncidentAftermath | undefined =>
     [...aftermaths.value.values()].find((entry) => entry.incidentId === incidentId)
 
-  const settleIncidentAudio = (): void => {
-    if (!resolutionQuietPending || visibleSceneIds.size || hasActiveIncidents.value) return
-    resolutionQuietPending = false
-    audioManager.stopAlarmLoop()
-    audioManager.restoreMusic()
-  }
-
-  // A visible scene owns the cue timing: play when its playback reaches the end.
-  const queueResolutionSound = (
+  const playResolutionCue = (
     incidentId: string | undefined,
     outcome: Exclude<IncidentOutcome, 'unknown'>
   ): void => {
-    if (incidentId && visibleSceneIds.has(incidentId)) {
-      pendingResolutionCues.set(incidentId, outcome)
-      return
-    }
+    if (incidentId && document.querySelector(`[data-incident-scene-id="${incidentId}"]`)) return
     audioManager.play(outcome === 'victory' ? 'incidentVictory' : 'incidentDefeat', 'sfx')
-  }
-
-  const registerIncidentScene = (incidentId: string): void => {
-    visibleSceneIds.add(incidentId)
-  }
-
-  const unregisterIncidentScene = (incidentId: string): void => {
-    const wasVisible = visibleSceneIds.delete(incidentId)
-    pendingResolutionCues.delete(incidentId)
-    if (wasVisible) settleIncidentAudio()
-  }
-
-  const flushResolutionCue = (incidentId: string): void => {
-    const outcome = pendingResolutionCues.get(incidentId)
-    if (!outcome) {
-      settleIncidentAudio()
-      return
-    }
-    pendingResolutionCues.delete(incidentId)
-    if (!hasActiveIncidents.value) audioManager.stopAlarmLoop()
-    audioManager.play(outcome === 'victory' ? 'incidentVictory' : 'incidentDefeat', 'sfx')
-    settleIncidentAudio()
   }
 
   const applyOverflow = (incidentId: string, unclaimed: IncidentLootItem[]): void => {
@@ -186,7 +145,7 @@ export const useIncidentStore = defineStore('incident', () => {
       if (entry.outcome === 'unknown' && settled) {
         entry.outcome = settled
         entry.capsEarned = incident.loot?.caps ?? 0
-        queueResolutionSound(incidentId, settled)
+        playResolutionCue(incidentId, settled)
       }
     } catch (error) {
       handleStoreError(error, 'Failed to load held incident loot')
@@ -267,7 +226,6 @@ export const useIncidentStore = defineStore('incident', () => {
           }
           incidentTeams.value.delete(id)
           appliedDetailOrders.delete(id)
-          handledDispatchEvents.delete(id)
         })
 
       // Check for new incidents (spawn notifications)
@@ -327,17 +285,6 @@ export const useIncidentStore = defineStore('incident', () => {
               seenEventMarkers.set(id, { count, lastId })
             }
             incidents.value.set(id, incident)
-            // Hazard teams auto-deploy into the incident room; follow the moved
-            // dwellers once per dispatch instead of relying on the spawn order.
-            const dispatched = incident.events
-              .slice()
-              .reverse()
-              .find((event) => event.kind === 'responders_dispatched')
-            if (dispatched && handledDispatchEvents.get(id) !== dispatched.id) {
-              handledDispatchEvents.set(id, dispatched.id)
-              void fetchIncidentTeam(vaultId, id, token)
-              void useDwellerFilterStore().fetchDwellersByVault(vaultId, token)
-            }
           } catch (error) {
             handleStoreError(error, 'Failed to refresh incident details')
           }
@@ -474,6 +421,7 @@ export const useIncidentStore = defineStore('incident', () => {
                 })
             }
             sseConnected.value = true
+            void useDwellerFilterStore().fetchDwellersByVault(vaultId, token)
             void fetchIncidents(vaultId, token)
             break
 
@@ -502,7 +450,7 @@ export const useIncidentStore = defineStore('incident', () => {
               void refreshAftermathOverflow(vaultId, resolvedId, token)
             }
             if (data.success === true) {
-              queueResolutionSound(resolvedId, 'victory')
+              playResolutionCue(resolvedId, 'victory')
               showSuccess(
                 capsEarned > 0
                   ? `Incident victory — recovered ${capsEarned} caps.`
@@ -511,12 +459,12 @@ export const useIncidentStore = defineStore('incident', () => {
                     : 'Incident resolved — responders earned experience.'
               )
             } else if (resolved) {
-              queueResolutionSound(resolvedId, 'defeat')
+              playResolutionCue(resolvedId, 'defeat')
               showError(
                 `Incident lost — ${resolved.type.replace(/_/g, ' ')} overran ${resolved.room_name ?? 'the vault'}.`
               )
             } else {
-              queueResolutionSound(resolvedId, 'defeat')
+              playResolutionCue(resolvedId, 'defeat')
               showError('Incident lost — the threat was not contained.')
             }
             break
@@ -590,14 +538,10 @@ export const useIncidentStore = defineStore('incident', () => {
     isPolling.value = false
     // Clearing the active set unwinds the alarm and music through the watcher.
     activeIncidentIds.value = []
-    visibleSceneIds.clear()
-    pendingResolutionCues.clear()
-    resolutionQuietPending = false
     audioManager.stopAlarmLoop()
     audioManager.restoreMusic()
     seenEventMarkers.clear()
     appliedDetailOrders.clear()
-    handledDispatchEvents.clear()
   }
 
   function clearIncidents(): void {
@@ -609,10 +553,6 @@ export const useIncidentStore = defineStore('incident', () => {
     announcedIncidentSounds.clear()
     seenEventMarkers.clear()
     appliedDetailOrders.clear()
-    handledDispatchEvents.clear()
-    visibleSceneIds.clear()
-    pendingResolutionCues.clear()
-    resolutionQuietPending = false
   }
 
   function getIncidentById(id: string): Incident | undefined {
@@ -666,9 +606,6 @@ export const useIncidentStore = defineStore('incident', () => {
     stopPolling,
     clearIncidents,
     getIncidentById,
-    registerScene: registerIncidentScene,
-    unregisterScene: unregisterIncidentScene,
-    flushResolutionCue,
     aftermathForRoom,
     clearAftermath,
     takeOverflow,

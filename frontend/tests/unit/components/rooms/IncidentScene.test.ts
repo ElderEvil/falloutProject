@@ -349,6 +349,16 @@ describe('IncidentScene', () => {
     expect(pet.find('.actor-ground-shadow').exists()).toBe(true)
   })
 
+  it('plays the resolution cue when an active scene finishes', async () => {
+    const wrapper = mountScene({
+      incident: incident({ status: 'active' }),
+      dwellers: [dweller()],
+    })
+    await wrapper.setProps({ incident: incident({ status: 'resolved' }) })
+    expect(playSound).toHaveBeenCalledWith('incidentVictory', 'sfx')
+    wrapper.unmount()
+  })
+
   it('does not show helpers who moved out of the incident room', () => {
     const wrapper = mountScene({
       dwellers: [dweller({ id: 'd1', first_name: 'Alice', room_id: 'room-9' })],

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { ShieldAlert, UserRound } from '@lucide/vue'
 import { Progress } from '@/core/components/ui/progress'
@@ -63,11 +63,16 @@ watch(
     if (!playing) displayedProgress.value = progress
   }
 )
+const cuePending = ref(!['resolved', 'failed'].includes(props.incident.status))
 watch(
   () => [props.incident.status, playback.isPlaying.value] as const,
   ([status, playing]) => {
-    if (!playing && ['resolved', 'failed'].includes(status))
-      emit('playbackComplete', props.incident.id)
+    if (playing || !['resolved', 'failed'].includes(status)) return
+    if (cuePending.value) {
+      cuePending.value = false
+      playSound(status === 'resolved' ? 'incidentVictory' : 'incidentDefeat', 'sfx')
+    }
+    emit('playbackComplete', props.incident.id)
   },
   { immediate: true }
 )
@@ -188,32 +193,21 @@ const isFire = computed(() => props.incident.type === 'fire')
 const isHumanoidThreat = computed(() =>
   ['raider_attack', 'feral_ghoul_attack'].includes(props.incident.type)
 )
-const fireFlames = ['h-1/2 opacity-80', 'h-[90%]', 'h-[65%] opacity-90'] as const
+const fireFlames = ['hazard-flame--side', 'hazard-flame--main', 'hazard-flame--tail'] as const
 // Up to four responders share the scene lane; larger rosters keep the scroll.
-const responderCellClass = computed(() => {
+const isCompact = computed(() => responders.value.length > 3)
+const responderSizeClass = computed(() => {
   const count = responders.value.length
-  if (count <= 2) return 'w-[4.85rem] min-w-[4.85rem] max-w-[4.85rem]'
-  if (count === 3)
-    return 'w-[3.3rem] min-w-[3.3rem] max-w-[3.3rem] md:w-[4.85rem] md:min-w-[4.85rem] md:max-w-[4.85rem]'
-  return 'w-[2.9rem] min-w-[2.9rem] max-w-[2.9rem] md:w-[4.85rem] md:min-w-[4.85rem] md:max-w-[4.85rem]'
+  if (count === 3) return 'responder-cell--3'
+  return count > 3 ? 'responder-cell--4' : ''
 })
-// Compact actors while the lane is narrow; full height once four full cells fit.
-const actorFrameClass = computed(() =>
-  responders.value.length > 3
-    ? '[--scene-actor-height:5rem] [--dweller-name-size:0.55rem] md:[--scene-actor-height:7rem] md:[--dweller-name-size:0.625rem]'
-    : '[--scene-actor-height:7rem]'
-)
-// Give a full responder row a slightly wider lane than a single threat needs.
-const sceneLaneClass = computed(() =>
-  responders.value.length > 3
-    ? 'grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:grid-cols-2'
-    : 'grid-cols-2'
-)
 </script>
 
 <template>
   <section
-    class="incident-scene relative isolate aspect-[5/2] min-h-80 max-h-[22.5rem] w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
+    class="incident-scene relative isolate aspect-[5/2] min-h-80 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
+    :class="{ 'is-compact': isCompact }"
+    v-bind="{ 'data-incident-scene-id': incident.id }"
     aria-label="Incident live status"
   >
     <img
@@ -239,8 +233,8 @@ const sceneLaneClass = computed(() =>
     </div>
 
     <div
-      class="absolute inset-x-3 top-12 bottom-16 grid items-end gap-5 sm:inset-x-6 sm:gap-10"
-      :class="[sceneLaneClass, actorFrameClass]"
+      class="scene-lanes absolute inset-x-3 top-12 bottom-16 grid items-end gap-5 sm:inset-x-6 sm:gap-10"
+      :class="{ 'lane-wide': isCompact }"
     >
       <div class="relative min-w-0" :class="responderMotion">
         <span
@@ -259,7 +253,7 @@ const sceneLaneClass = computed(() =>
             :key="responder.id"
             class="incident-responder relative flex shrink-0 flex-col items-center gap-1"
             :class="[
-              responderCellClass,
+              responderSizeClass,
               {
                 'opacity-40 grayscale':
                   responder.dweller && displayedHealth(responder.dweller) <= 0,
@@ -443,6 +437,64 @@ const sceneLaneClass = computed(() =>
 </template>
 
 <style scoped>
+.incident-scene {
+  --scene-actor-height: 7rem;
+  max-height: 22.5rem;
+}
+.incident-scene.is-compact {
+  --scene-actor-height: 5rem;
+  --dweller-name-size: 0.55rem;
+}
+.scene-lanes {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.scene-lanes.lane-wide {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+}
+.responder-frame {
+  height: var(--scene-actor-height);
+}
+.incident-responder {
+  width: 4.85rem;
+  min-width: 4.85rem;
+  max-width: 4.85rem;
+}
+.incident-responder.responder-cell--3 {
+  width: 3.3rem;
+  min-width: 3.3rem;
+  max-width: 3.3rem;
+}
+.incident-responder.responder-cell--4 {
+  width: 2.9rem;
+  min-width: 2.9rem;
+  max-width: 2.9rem;
+}
+.hazard-flame--side {
+  height: 50%;
+  opacity: 0.8;
+}
+.hazard-flame--main {
+  height: 90%;
+}
+.hazard-flame--tail {
+  height: 65%;
+  opacity: 0.9;
+}
+@media (min-width: 768px) {
+  .incident-scene.is-compact {
+    --scene-actor-height: 7rem;
+    --dweller-name-size: 0.625rem;
+  }
+  .scene-lanes.lane-wide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .incident-responder.responder-cell--3,
+  .incident-responder.responder-cell--4 {
+    width: 4.85rem;
+    min-width: 4.85rem;
+    max-width: 4.85rem;
+  }
+}
 /* Incident sprites are smaller than Arena's, so the shared 4deg/4px motion
    reads as a twitch. Amplify the lean and recoil here without retuning Arena. */
 .incident-scene :deep(.combat-body.combat-body) {

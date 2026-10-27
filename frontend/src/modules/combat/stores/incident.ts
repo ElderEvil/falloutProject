@@ -370,16 +370,17 @@ export const useIncidentStore = defineStore('incident', () => {
     dwellerIds: string[],
     token: string
   ): Promise<void> {
+    const filterStore = useDwellerFilterStore()
     try {
       const result = await incidentApi.assignResponders(vaultId, incidentId, dwellerIds, token)
       await fetchIncidents(vaultId, token)
       await fetchIncidentTeam(vaultId, incidentId, token)
+      await filterStore.fetchDwellersByVault(vaultId, token)
       const assignedIds = new Set(result.assigned_dweller_ids)
       const skippedIds = dwellerIds.filter((id) => !assignedIds.has(id))
       if (skippedIds.length) {
-        const dwellers = useDwellerFilterStore().dwellers
         const names = skippedIds.map((id) => {
-          const dweller = dwellers.find((dweller) => dweller.id === id)
+          const dweller = filterStore.dwellers.find((entry) => entry.id === id)
           return dweller ? getDwellerDisplayName(dweller) : 'Unknown responder'
         })
         showWarning(

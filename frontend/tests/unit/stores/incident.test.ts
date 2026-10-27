@@ -273,6 +273,10 @@ describe('Incident Store', () => {
   })
 
   describe('assignResponders', () => {
+    beforeEach(() => {
+      vi.spyOn(useDwellerFilterStore(), 'fetchDwellersByVault').mockResolvedValue()
+    })
+
     it('should refresh the incident after assigning a responder', async () => {
       const store = useIncidentStore()
       vi.mocked(incidentApi.assignResponders).mockResolvedValueOnce({
@@ -294,6 +298,10 @@ describe('Incident Store', () => {
       )
       expect(incidentApi.getActiveIncidents).toHaveBeenCalledWith('vault-1', 'token')
       expect(incidentApi.getIncident).toHaveBeenCalledWith('vault-1', 'incident-1', 'token')
+      expect(useDwellerFilterStore().fetchDwellersByVault).toHaveBeenCalledWith(
+        'vault-1',
+        'token'
+      )
     })
 
     it('warns when only part of the selected response team is accepted', async () => {

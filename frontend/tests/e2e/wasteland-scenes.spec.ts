@@ -309,6 +309,66 @@ for (const width of [390, 1280]) {
   })
 }
 
+for (const width of [390, 1280]) {
+  test(`trivia encounter stays readable and playable at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.route('**/static/**', (route) =>
+      route.fulfill({
+        path: fileURLToPath(
+          new URL(
+            route.request().url().includes('raider_images')
+              ? '../../../backend/app/static/raider_images/variants/sable.webp'
+              : '../../../backend/app/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Female.webp',
+            import.meta.url
+          )
+        ),
+      })
+    )
+    await page.goto('/tests/e2e/fixtures/wasteland-scenes.html?trivia=1')
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toContainText('Which pre-war company built the Vaults?')
+    for (const label of ['Vault-Tec', 'RobCo Industries', 'Poseidon Energy']) {
+      await expect(dialog.getByRole('button', { name: label, exact: true })).toBeVisible()
+    }
+    const raider = dialog.getByAltText('Raider posing the question', { exact: true })
+    await expect(raider).toBeVisible()
+    await expect
+      .poll(() => raider.evaluate((image: HTMLImageElement) => image.naturalWidth))
+      .toBeGreaterThan(0)
+    // On phones the dialog body is the intentional scroll region, so bring the last
+    // answer into view first; the three stacked answers then share the viewport.
+    await dialog
+      .getByRole('button', { name: 'Poseidon Energy', exact: true })
+      .scrollIntoViewIfNeeded()
+    for (const label of ['Vault-Tec', 'RobCo Industries', 'Poseidon Energy']) {
+      await expect(dialog.getByRole('button', { name: label, exact: true })).toBeInViewport()
+    }
+    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+    const overflow = await dialog.evaluate((element) => {
+      const answers = [...element.querySelectorAll('button')].filter((button) =>
+        ['Vault-Tec', 'RobCo Industries', 'Poseidon Energy'].includes(
+          button.textContent?.trim() ?? ''
+        )
+      )
+      const scrollRegion = (() => {
+        let node = answers[0]?.parentElement ?? null
+        while (node && node !== element) {
+          if (/auto|scroll/.test(getComputedStyle(node).overflowY)) return node
+          node = node.parentElement
+        }
+        return null
+      })()
+      return [...element.querySelectorAll('*')]
+        .filter((child) => child !== scrollRegion)
+        .filter((child) => /auto|scroll/.test(getComputedStyle(child).overflowY))
+        .map((child) => child.scrollHeight - child.clientHeight)
+    })
+    expect(overflow.every((height) => height <= 1)).toBe(true)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: `test-results/site-trivia-${width}.png` })
+  })
+}
+
 for (const [width, height] of [
   [844, 390],
   [390, 844],

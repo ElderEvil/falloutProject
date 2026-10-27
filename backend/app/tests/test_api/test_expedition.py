@@ -5,14 +5,39 @@ from datetime import datetime
 from uuid import uuid4
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.models.dweller import Dweller
-from app.models.exploration import ExpeditionRunStatus
+from app.models.exploration import ExpeditionRunStatus, Exploration
 from app.models.vault import Vault
+from app.schemas.expedition import TriviaQuestion
+from app.services import catalog_service as data_loader
 from app.services.exploration_service import exploration_service
+
+
+async def _enter_raider_tollbooth(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> tuple[Exploration, TriviaQuestion, Response]:
+    """Enter the trivia site and return the run's pinned question, not the served answer key."""
+    await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    entered = await async_client.post(
+        f"/explorations/{exploration.id}/site/enter",
+        json={"site_id": "raider_tollbooth"},
+        headers=superuser_token_headers,
+    )
+    assert entered.status_code == 200
+    run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    question_id = next(iter(run.flags["trivia_questions"].values()))
+    site = data_loader.get_expedition_site("raider_tollbooth")
+    question = next(q for q in site.encounter.node.trivia_questions if q.id == question_id)
+    return exploration, question, entered
 
 
 @pytest.mark.asyncio
@@ -252,3 +277,141 @@ async def test_site_available_missing_exploration_404(
         headers=superuser_token_headers,
     )
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_site_trivia_enter_hides_answer_key(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Entering the raider tollbooth serves the question and options without the answer key."""
+    _, _, entered = await _enter_raider_tollbooth(async_client, superuser_token_headers, async_session, vault, dweller)
+    body = entered.json()
+    assert body["node"]["kind"] == "trivia"
+    assert body["node"]["question"]
+    assert body["node"]["options"]
+    assert body["combat_state"] is None
+    assert "correct_option_id" not in entered.text
+    assert all(
+        option["stat"] is None and option["difficulty"] is None and option["success_odds"] is None
+        for option in body["node"]["options"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_site_trivia_correct_answer_pays_once(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """A correct answer clears the site and pays once; resubmitting it fails without paying again."""
+    exploration, question, _ = await _enter_raider_tollbooth(
+        async_client, superuser_token_headers, async_session, vault, dweller
+    )
+    before = (await crud.exploration.get(async_session, exploration.id)).total_caps_found
+
+    resolved = await async_client.post(
+        f"/explorations/{exploration.id}/site/resolve",
+        json={"choice_id": question.correct_option_id},
+        headers=superuser_token_headers,
+    )
+    assert resolved.status_code == 200
+    body = resolved.json()
+    assert body["status"] == "cleared"
+    assert body["finale_paid"] is True
+    assert body["outcome"]["caps_gained"] >= 40
+    assert body["node"]["options"] == []
+
+    after = (await crud.exploration.get(async_session, exploration.id)).total_caps_found
+    assert after > before
+
+    duplicate = await async_client.post(
+        f"/explorations/{exploration.id}/site/resolve",
+        json={"choice_id": question.correct_option_id},
+        headers=superuser_token_headers,
+    )
+    assert duplicate.status_code == 400
+    assert (await crud.exploration.get(async_session, exploration.id)).total_caps_found == after
+
+
+@pytest.mark.asyncio
+async def test_site_trivia_invalid_answer_rejected(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """An unknown answer id is rejected and leaves the pinned encounter untouched."""
+    exploration, _, _ = await _enter_raider_tollbooth(
+        async_client, superuser_token_headers, async_session, vault, dweller
+    )
+    before_run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    before_questions = dict(before_run.flags["trivia_questions"])
+
+    response = await async_client.post(
+        f"/explorations/{exploration.id}/site/resolve",
+        json={"choice_id": "not-an-option"},
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 400
+
+    run_after = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    assert run_after is not None
+    assert run_after.status == ExpeditionRunStatus.IN_ROOM
+    assert "combat" not in run_after.flags
+    assert run_after.flags["trivia_questions"] == before_questions
+
+
+@pytest.mark.asyncio
+async def test_site_trivia_wrong_answer_starts_combat(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """A wrong answer arms a playable fight; the fight rejects another answer id."""
+    random.seed(11)
+    exploration, question, _ = await _enter_raider_tollbooth(
+        async_client, superuser_token_headers, async_session, vault, dweller
+    )
+    wrong_id = next(option.id for option in question.options if option.id != question.correct_option_id)
+
+    resolved = await async_client.post(
+        f"/explorations/{exploration.id}/site/resolve",
+        json={"choice_id": wrong_id},
+        headers=superuser_token_headers,
+    )
+    assert resolved.status_code == 200
+    body = resolved.json()
+    assert body["status"] == "in_room"
+    assert body["combat_state"] is not None
+    assert body["node"]["options"] == []
+    assert "Wrong answer" in body["outcome"]["text"]
+
+    run_after = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    assert run_after is not None
+    assert run_after.flags["combat"]
+
+    strike = await async_client.post(
+        f"/explorations/{exploration.id}/site/resolve",
+        json={},
+        headers=superuser_token_headers,
+    )
+    assert strike.status_code == 200
+    strike_body = strike.json()
+    assert strike_body["status"] == "in_room"
+    assert strike_body["combat_state"] is not None
+
+    rejected = await async_client.post(
+        f"/explorations/{exploration.id}/site/resolve",
+        json={"choice_id": wrong_id},
+        headers=superuser_token_headers,
+    )
+    assert rejected.status_code == 400

@@ -338,6 +338,17 @@ describe('IncidentScene', () => {
     )
   })
 
+  it('shows an equipped pet with the shared ground shadow', () => {
+    const wrapper = mountScene({
+      dwellers: [dweller({ pet: { name: 'Dogmeat', image_url: '/pet.png' } })],
+    })
+
+    const pet = wrapper.find('.combat-pet')
+    expect(pet.exists()).toBe(true)
+    expect(pet.find('img').attributes('src')).toContain('/pet.png')
+    expect(pet.find('.actor-ground-shadow').exists()).toBe(true)
+  })
+
   it('does not show helpers who moved out of the incident room', () => {
     const wrapper = mountScene({
       dwellers: [dweller({ id: 'd1', first_name: 'Alice', room_id: 'room-9' })],

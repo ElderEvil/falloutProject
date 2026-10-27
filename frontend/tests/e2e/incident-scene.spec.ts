@@ -144,3 +144,21 @@ for (const width of [390, 900]) {
     await expect(responders.last()).toBeInViewport()
   })
 }
+
+for (const width of [390, 900]) {
+  test(`responders keep pets and stronger motion at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/tests/e2e/fixtures/incident-scene.html?type=raider_attack&responders=4')
+    const scene = page.getByRole('region', { name: 'Incident live status' })
+    const pet = scene.getByAltText('Dogmeat, Preston’s pet', { exact: true })
+    await expect(pet).toBeVisible()
+    await expect(scene.locator('.combat-pet .actor-ground-shadow')).toHaveCount(1)
+    const motion = scene.locator('.incident-responder .combat-body').first()
+    expect(
+      await motion.evaluate((el) => getComputedStyle(el).getPropertyValue('--lean').trim())
+    ).toBe('7deg')
+    expect(
+      await motion.evaluate((el) => getComputedStyle(el).getPropertyValue('--recoil').trim())
+    ).toBe('8px')
+  })
+}

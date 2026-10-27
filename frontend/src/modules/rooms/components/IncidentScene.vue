@@ -26,6 +26,7 @@ import { useCombatPulse } from '../composables/useCombatPulse'
 import { useFallbackImage } from '../composables/useFallbackImage'
 import { useCombatPlayback } from '@/modules/combat/composables/useCombatPlayback'
 import CombatantMotion from '@/modules/combat/components/CombatantMotion.vue'
+import CombatPet from '@/modules/combat/components/CombatPet.vue'
 import CombatDamageNumbers from '@/modules/combat/components/CombatDamageNumbers.vue'
 import { useSound } from '@/core/composables/useSound'
 
@@ -284,7 +285,9 @@ const sceneLaneClass = computed(() =>
               >{{ responder.name }}: {{ displayedHealth(responder.dweller) }} of
               {{ healthCeiling(responder.dweller) }} HP</span
             >
-            <div class="flex h-[var(--scene-actor-height)] w-full items-end justify-center">
+            <div
+              class="relative flex h-[var(--scene-actor-height)] w-full items-end justify-center"
+            >
               <CombatantMotion
                 :fighter-id="responder.id"
                 facing="right"
@@ -306,6 +309,15 @@ const sceneLaneClass = computed(() =>
                   role="img"
                 />
               </CombatantMotion>
+              <CombatPet
+                v-if="responder.dweller?.pet"
+                :pet="responder.dweller.pet"
+                :owner-name="responder.name"
+                :owner-id="responder.id"
+                :action="activeAction"
+                :phase="combatPhase"
+                facing="right"
+              />
             </div>
           </div>
           <span
@@ -431,6 +443,18 @@ const sceneLaneClass = computed(() =>
 </template>
 
 <style scoped>
+/* Incident sprites are smaller than Arena's, so the shared 4deg/4px motion
+   reads as a twitch. Amplify the lean and recoil here without retuning Arena. */
+.incident-scene :deep(.combat-body.combat-body) {
+  --lean: 7deg;
+  --travel: 16px;
+  --recoil: 8px;
+}
+.incident-scene :deep(.combat-body.combat-body--attack),
+.incident-scene :deep(.combat-body.combat-body--hit),
+.incident-scene :deep(.combat-body.combat-body--recoil) {
+  animation-duration: 240ms;
+}
 .floating-effect {
   animation: float-effect 0.9s ease-out both;
 }

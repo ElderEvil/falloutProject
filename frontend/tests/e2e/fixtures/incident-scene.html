@@ -29,6 +29,8 @@
         room_id: 'diner',
         combat_power: 25 + index,
         status: 'fighting',
+        pet:
+          index === 0 ? { name: 'Dogmeat', image_url: '/static/pet_images/FOS CX404.png' } : null,
         thumbnail_url: `/static/legendary_dweller_images/${['FOS_Dw_Preston_Garvey.png', 'FOS_Dw_Jericho.png', 'FOS_Dw_Madison_Li.png', 'FOS_Dw_Owyn_Lyons.png', 'FOS_Dw_Three_Dog.png', 'FOS_Dw_Lucas_Simms.png'][index % names.length]}`,
       }))
       const incident = {

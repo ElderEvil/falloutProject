@@ -194,6 +194,28 @@ describe('Incident Store', () => {
       expect(store.incidents.get('incident-1')).toEqual(mockIncident)
     })
 
+    it('refreshes dwellers when a hazard team auto-deploys responders', async () => {
+      const store = useIncidentStore()
+      const refresh = vi.spyOn(useDwellerFilterStore(), 'fetchDwellersByVault').mockResolvedValue()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({
+        ...mockIncident,
+        events: [
+          {
+            id: 'dispatch-1',
+            kind: 'responders_dispatched',
+            message: '2 hazard-team responder(s) dispatched.',
+            data: null,
+          },
+        ],
+      })
+      vi.mocked(incidentApi.getIncidentTeam).mockResolvedValueOnce([])
+
+      await store.fetchIncidents('vault-1', 'token')
+
+      expect(refresh).toHaveBeenCalledWith('vault-1', 'token')
+    })
+
     it('should handle empty incident list', async () => {
       const store = useIncidentStore()
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce({
@@ -298,10 +320,7 @@ describe('Incident Store', () => {
       )
       expect(incidentApi.getActiveIncidents).toHaveBeenCalledWith('vault-1', 'token')
       expect(incidentApi.getIncident).toHaveBeenCalledWith('vault-1', 'incident-1', 'token')
-      expect(useDwellerFilterStore().fetchDwellersByVault).toHaveBeenCalledWith(
-        'vault-1',
-        'token'
-      )
+      expect(useDwellerFilterStore().fetchDwellersByVault).toHaveBeenCalledWith('vault-1', 'token')
     })
 
     it('warns when only part of the selected response team is accepted', async () => {

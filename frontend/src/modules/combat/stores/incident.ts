@@ -40,6 +40,7 @@ export const useIncidentStore = defineStore('incident', () => {
   let detailRequestOrder = 0
   let contextGeneration = 0
   const appliedDetailOrders = new Map<string, number>()
+  const handledDispatchEvents = new Map<string, string>()
 
   const { success: showSuccess, error: showError, warning: showWarning } = useToast()
 
@@ -266,6 +267,7 @@ export const useIncidentStore = defineStore('incident', () => {
           }
           incidentTeams.value.delete(id)
           appliedDetailOrders.delete(id)
+          handledDispatchEvents.delete(id)
         })
 
       // Check for new incidents (spawn notifications)
@@ -325,6 +327,17 @@ export const useIncidentStore = defineStore('incident', () => {
               seenEventMarkers.set(id, { count, lastId })
             }
             incidents.value.set(id, incident)
+            // Hazard teams auto-deploy into the incident room; follow the moved
+            // dwellers once per dispatch instead of relying on the spawn order.
+            const dispatched = incident.events
+              .slice()
+              .reverse()
+              .find((event) => event.kind === 'responders_dispatched')
+            if (dispatched && handledDispatchEvents.get(id) !== dispatched.id) {
+              handledDispatchEvents.set(id, dispatched.id)
+              void fetchIncidentTeam(vaultId, id, token)
+              void useDwellerFilterStore().fetchDwellersByVault(vaultId, token)
+            }
           } catch (error) {
             handleStoreError(error, 'Failed to refresh incident details')
           }
@@ -584,6 +597,7 @@ export const useIncidentStore = defineStore('incident', () => {
     audioManager.restoreMusic()
     seenEventMarkers.clear()
     appliedDetailOrders.clear()
+    handledDispatchEvents.clear()
   }
 
   function clearIncidents(): void {
@@ -595,6 +609,7 @@ export const useIncidentStore = defineStore('incident', () => {
     announcedIncidentSounds.clear()
     seenEventMarkers.clear()
     appliedDetailOrders.clear()
+    handledDispatchEvents.clear()
     visibleSceneIds.clear()
     pendingResolutionCues.clear()
     resolutionQuietPending = false

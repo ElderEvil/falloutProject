@@ -1,0 +1,134 @@
+{% extends "sqladmin/layout.html" %}
+{% block content %}
+<div class="col-12 col-lg-8">
+  <div class="card">
+    <div class="card-header"><h3 class="card-title">Merge accounts</h3></div>
+    <div class="card-body">
+      {% if error %}
+      <div class="alert alert-danger" role="alert">{{ error }}</div>
+      {% endif %}
+
+      {% if preview %}
+      <h4>Preview</h4>
+      <dl class="row">
+        <dt class="col-sm-3">Source</dt>
+        <dd class="col-sm-9">
+          {{ preview.source_username }} &lt;{{ preview.source_email or '—' }}&gt;
+          <span class="text-muted text-break">{{ preview.source_id }}</span>
+        </dd>
+        <dt class="col-sm-3">Target</dt>
+        <dd class="col-sm-9">
+          {{ preview.target_username }} &lt;{{ preview.target_email or '—' }}&gt;
+          <span class="text-muted text-break">{{ preview.target_id }}</span>
+        </dd>
+        <dt class="col-sm-3">Result</dt>
+        <dd class="col-sm-9">{{ preview.result_username }} &lt;{{ preview.result_email or '—' }}&gt;</dd>
+      </dl>
+
+      <h5>Moved data</h5>
+      <ul>
+        {% for key, value in preview.moved_counts|dictsort %}
+        <li><strong>{{ key }}</strong>: {{ value }}</li>
+        {% endfor %}
+      </ul>
+      <p><strong>Vault numbers:</strong> {{ preview.vault_numbers|join(', ') or 'none' }}</p>
+      {% if preview.duplicate_vault_numbers %}
+      <div class="alert alert-warning" role="alert">
+        Duplicate vault numbers with the survivor: {{ preview.duplicate_vault_numbers|join(', ') }}.
+        Vault numbers are not unique; review the duplicate labels after the merge.
+      </div>
+      {% endif %}
+      {% if preview.oauth_conflicts %}
+      <div class="alert alert-danger" role="alert">
+        Both accounts are linked to {{ preview.oauth_conflicts|join(', ') }}. Unlink one provider before merging.
+      </div>
+      {% endif %}
+      <p>
+        <strong>Tokens this month:</strong>
+        source={{ preview.tokens_this_month.get('source', 0) }},
+        target={{ preview.tokens_this_month.get('target', 0) }}
+      </p>
+
+      <div class="alert alert-warning" role="alert">
+        This action is irreversible from the panel. It tombstones the source account, moves its vaults and
+        owned data to the survivor, and cannot be undone without a database restore. The source session is
+        invalidated; the survivor stays signed in.
+      </div>
+
+      {% if preview.already_merged %}
+      <div class="alert alert-info" role="alert">Already merged (audit {{ preview.audit_id }}).</div>
+      {% elif preview.oauth_conflicts %}
+      <p class="text-muted">Resolve the provider conflict, then preview again.</p>
+      {% else %}
+      <form method="post" action="{{ url_for('admin:view-merge-accounts') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="action" value="apply">
+        <input type="hidden" name="preview_token" value="{{ preview_token }}">
+        <button class="btn btn-danger" type="submit">Apply merge</button>
+      </form>
+      {% endif %}
+      <a class="btn mt-3" href="{{ url_for('admin:view-merge-accounts') }}">Start over</a>
+      {% else %}
+      <form method="get" action="{{ url_for('admin:view-merge-accounts') }}" class="mb-4">
+        <input type="hidden" name="source" value="{{ source }}">
+        <input type="hidden" name="target" value="{{ target }}">
+        <label class="form-label" for="merge-search">Find an account</label>
+        <div class="input-group">
+          <input class="form-control" id="merge-search" name="q" value="{{ q }}"
+                 placeholder="Search username or email">
+          <button class="btn" type="submit">Search</button>
+        </div>
+      </form>
+      {% if q %}
+        {% if search_results %}
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr><th>Username</th><th>Email</th><th>Status</th><th>Use</th></tr>
+          </thead>
+          <tbody>
+            {% for user in search_results %}
+            <tr>
+              <td>{{ user.username }}</td>
+              <td>{{ user.email or '—' }}</td>
+              <td>{{ 'active' if user.is_active and not user.is_deleted else 'inactive' }}</td>
+              <td class="d-flex gap-1">
+                <a class="btn btn-sm" href="{{ url_for('admin:view-merge-accounts') }}?source={{ user.id }}&target={{ target|urlencode }}&q={{ q|urlencode }}">Use as source</a>
+                <a class="btn btn-sm" href="{{ url_for('admin:view-merge-accounts') }}?source={{ source|urlencode }}&target={{ user.id }}&q={{ q|urlencode }}">Use as target</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">No matching accounts.</p>
+        {% endif %}
+      {% endif %}
+      <p class="text-muted">
+        Move all vaults, dwellers, notifications, AI usage, chat history, and provider links from a source
+        account into a surviving account. Only active superusers can merge accounts; superuser accounts
+        cannot be merged.
+      </p>
+      <form method="post" action="{{ url_for('admin:view-merge-accounts') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="mb-3">
+          <label class="form-label" for="merge-source">Source account</label>
+          <input class="form-control" id="merge-source" name="source" value="{{ source }}"
+                 placeholder="UUID, email, or username" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="merge-target">Surviving account</label>
+          <input class="form-control" id="merge-target" name="target" value="{{ target }}"
+                 placeholder="UUID, email, or username" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="merge-reason">Reason</label>
+          <textarea class="form-control" id="merge-reason" name="reason" rows="3" maxlength="500"
+                    required>{{ reason }}</textarea>
+        </div>
+        <button class="btn btn-primary" type="submit" name="action" value="preview">Preview merge</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

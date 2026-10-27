@@ -17,6 +17,7 @@ from starlette.responses import JSONResponse
 
 from app.admin.auth import AdminAuth
 from app.admin.views import (
+    AccountMergeAdmin,
     ChatMessageAdmin,
     CraftingOrderAdmin,
     DwellerAdmin,
@@ -26,6 +27,7 @@ from app.admin.views import (
     ItemAdmin,
     JunkAdmin,
     LLInteractionAdmin,
+    MergeAccountsAdmin,
     NotificationAdmin,
     OAuthAccountAdmin,
     ObjectiveAdmin,
@@ -286,6 +288,8 @@ async def perform_readiness_check() -> JSONResponse:
 app.include_router(api_router_v1, prefix=settings.API_V1_STR)
 admin.add_view(UserAdmin)
 admin.add_view(UserProfileAdmin)
+admin.add_view(MergeAccountsAdmin)
+admin.add_view(AccountMergeAdmin)
 admin.add_view(VaultAdmin)
 admin.add_view(StorageAdmin)
 admin.add_view(RoomAdmin)

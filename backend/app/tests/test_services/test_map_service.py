@@ -645,6 +645,8 @@ async def test_get_vault_map_expedition_sites_ready(async_session: AsyncSession,
         "raider_tollbooth",
     }
     for site in data_loader.load_expedition_sites():
+        if site.scenario_only:
+            continue
         marker = by_id[site.id]
         assert marker.block_reason is None
         assert marker.cleared is False

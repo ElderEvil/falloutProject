@@ -268,7 +268,7 @@ async def _expedition_site_markers(db_session: AsyncSession, vault: Vault) -> li
             if context is None:
                 continue
             for site in load_expedition_sites():
-                if site.id in offered_ids or not site_is_offered(site, context):
+                if site.scenario_only or site.id in offered_ids or not site_is_offered(site, context):
                     continue
                 markers.append(_site_marker(site, SiteBlockState(), exploration.id, spatial=True))
                 offered_ids.add(site.id)
@@ -276,5 +276,7 @@ async def _expedition_site_markers(db_session: AsyncSession, vault: Vault) -> li
     if not explorations:
         return []
     return [
-        _site_marker(site, await site_block_state(db_session, vault.id, site.id)) for site in load_expedition_sites()
+        _site_marker(site, await site_block_state(db_session, vault.id, site.id))
+        for site in load_expedition_sites()
+        if not site.scenario_only
     ]

@@ -1280,6 +1280,28 @@ async def test_merge_accounts_apply_requires_a_preview(admin_client: AsyncClient
     assert await crud.account_merge.get_by_source(async_session, source.id) is None
 
 
+async def test_merge_accounts_rejects_non_ascii_preview_token(
+    admin_client: AsyncClient, async_session: AsyncSession
+) -> None:
+    source = await _merge_user(async_session, "mergesrc")
+    target = await _merge_user(async_session, "mergetgt")
+    page = await admin_client.get("/admin/merge-accounts")
+    csrf = _csrf_token_from(page)
+    preview_response = await admin_client.post("/admin/merge-accounts", data=_merge_form(source, target, csrf))
+    assert preview_response.status_code == 200
+
+    response = await admin_client.post(
+        "/admin/merge-accounts",
+        data={"csrf_token": csrf, "action": "apply", "preview_token": "tøken-nöt-ascii"},
+    )
+
+    assert response.status_code == 400
+    assert "Preview expired or missing" in response.text
+    await async_session.refresh(source)
+    assert source.is_deleted is False
+    assert await crud.account_merge.get_by_source(async_session, source.id) is None
+
+
 async def test_merge_accounts_confirmation_uses_previewed_ids(
     admin_client: AsyncClient,
     async_session: AsyncSession,

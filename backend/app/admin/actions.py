@@ -139,7 +139,7 @@ def _read_merge_preview(request: Request, submitted: str, actor_id: str) -> dict
     state = request.session.get(ACCOUNT_MERGE_PREVIEW_SESSION_KEY)
     if not isinstance(state, dict):
         return None
-    if not secrets.compare_digest(str(state.get("token", "")), submitted):
+    if not secrets.compare_digest(str(state.get("token", "")).encode(), submitted.encode()):
         return None
     if str(state.get("actor_id", "")) != str(actor_id):
         return None

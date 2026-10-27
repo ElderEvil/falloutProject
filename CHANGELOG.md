@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.277.1 (2026-10-27)
+
+### Bug Fixes
+
+* **vault:** fill the retired radio slot with living space 2c391c6
+
 ## 2.277.0 (2026-10-27)
 
 ### Features

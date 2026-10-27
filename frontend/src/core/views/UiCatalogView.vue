@@ -78,9 +78,6 @@ const setSlider = (value: number[] | undefined) => {
 
 <template>
   <div class="mx-auto max-w-6xl px-6 py-8">
-    <a href="/dev" class="mb-4 inline-block text-sm text-theme-primary underline underline-offset-4">
-      Back to development tools
-    </a>
     <h1 class="text-3xl font-bold terminal-glow text-theme-primary">UI Catalog</h1>
     <p class="mt-2 text-sm text-theme-primary/60">
       Dev-only regression catalog for the shadcn-vue primitives in

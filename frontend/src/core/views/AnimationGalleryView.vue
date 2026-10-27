@@ -120,12 +120,6 @@ function resetSequence(preview: Preview) {
 
 <template>
   <div class="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6">
-    <a
-      href="/dev"
-      class="mb-4 inline-block text-sm text-theme-primary underline underline-offset-4"
-    >
-      Back to development tools
-    </a>
     <header class="space-y-3">
       <h1 class="text-3xl font-bold text-theme-primary">Animation Gallery</h1>
       <p class="max-w-3xl text-sm leading-relaxed text-theme-primary/60">

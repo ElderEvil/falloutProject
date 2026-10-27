@@ -509,7 +509,33 @@ async def test_vault_scenarios_list_vault_1(
             "special": 4,
             "all_sites": True,
             "single_scene_only": True,
-        }
+        },
+        {
+            "number": 68,
+            "key": "vault_68_test",
+            "title": "Vault 68 — The Ratio",
+            "description": (
+                "99 men, one woman. Adds a level 10 / SPECIAL 7 Scout and a single-scene "
+                "all-sites expedition. Starts at the site picker."
+            ),
+            "dweller_level": 10,
+            "special": 7,
+            "all_sites": True,
+            "single_scene_only": True,
+        },
+        {
+            "number": 69,
+            "key": "vault_69_test",
+            "title": "Vault 69 — The Inverse",
+            "description": (
+                "99 women, one man. Adds a level 3 / SPECIAL 3 Scout and a single-scene "
+                "all-sites expedition. Starts at the site picker."
+            ),
+            "dweller_level": 3,
+            "special": 3,
+            "all_sites": True,
+            "single_scene_only": True,
+        },
     ]
 
 
@@ -541,6 +567,50 @@ async def test_vault_initiate_scenario_seeds_single_scene_scout(
         for event in exploration.events
     )
     sites = {site.id for site in await expedition_service.list_available_sites(async_session, exploration.id)}
+    assert "raider_tollbooth" in sites
+    assert "red_rocket" not in sites
+    assert "super_duper_mart" not in sites
+
+
+@pytest.mark.parametrize(
+    ("number", "key", "level", "special"),
+    [
+        (68, "vault_68_test", 10, 7),
+        (69, "vault_69_test", 3, 3),
+    ],
+)
+@pytest.mark.asyncio
+async def test_vault_initiate_lore_scenario_profiles(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    number: int,
+    key: str,
+    level: int,
+    special: int,
+):
+    response = await async_client.post(
+        "/vaults/initiate",
+        headers=superuser_token_headers,
+        json={"number": number, "scenario": key},
+    )
+    assert response.status_code == 201
+    vault_id = UUID(response.json()["id"])
+
+    dwellers = await crud.dweller.get_multi_by_vault(async_session, vault_id)
+    scout = next(dweller for dweller in dwellers if dweller.display_name == "Scout Scenario")
+    assert scout.level == level
+    assert (scout.strength, scout.perception, scout.endurance, scout.charisma) == (
+        special,
+        special,
+        special,
+        special,
+    )
+    assert (scout.intelligence, scout.agility, scout.luck) == (special, special, special)
+
+    explorations = await crud.exploration.get_by_vault(async_session, vault_id=vault_id, active_only=True)
+    assert len(explorations) == 1
+    sites = {site.id for site in await expedition_service.list_available_sites(async_session, explorations[0].id)}
     assert "raider_tollbooth" in sites
     assert "red_rocket" not in sites
     assert "super_duper_mart" not in sites

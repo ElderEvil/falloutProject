@@ -35,6 +35,28 @@ VAULT_SCENARIOS = (
         dweller_level=5,
         special=4,
     ),
+    VaultScenario(
+        number=68,
+        key="vault_68_test",
+        title="Vault 68 — The Ratio",
+        description=(
+            "99 men, one woman. Adds a level 10 / SPECIAL 7 Scout and a single-scene "
+            "all-sites expedition. Starts at the site picker."
+        ),
+        dweller_level=10,
+        special=7,
+    ),
+    VaultScenario(
+        number=69,
+        key="vault_69_test",
+        title="Vault 69 — The Inverse",
+        description=(
+            "99 women, one man. Adds a level 3 / SPECIAL 3 Scout and a single-scene "
+            "all-sites expedition. Starts at the site picker."
+        ),
+        dweller_level=3,
+        special=3,
+    ),
 )
 
 

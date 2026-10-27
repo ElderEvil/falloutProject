@@ -443,7 +443,7 @@ const responderSizeClass = computed(() => {
 }
 .incident-scene.is-compact {
   --scene-actor-height: 5rem;
-  --dweller-name-size: 0.55rem;
+  --dweller-name-size: 0.5rem;
 }
 .scene-lanes {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -465,9 +465,9 @@ const responderSizeClass = computed(() => {
   max-width: 3.3rem;
 }
 .incident-responder.responder-cell--4 {
-  width: 2.9rem;
-  min-width: 2.9rem;
-  max-width: 2.9rem;
+  width: 2.4rem;
+  min-width: 2.4rem;
+  max-width: 2.4rem;
 }
 .hazard-flame--side {
   height: 50%;

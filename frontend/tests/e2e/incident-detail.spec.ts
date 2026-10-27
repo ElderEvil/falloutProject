@@ -44,6 +44,13 @@ for (const [width, height] of [
     expect(verticalOverflow).toBeLessThanOrEqual(height >= 900 ? 1 : 100)
     expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1)
 
+    const row = scene.locator('.incident-responder').first().locator('..')
+    const rowMetrics = await row.evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }))
+    expect(rowMetrics.scrollWidth).toBeLessThanOrEqual(rowMetrics.clientWidth + 1)
+
     const sceneBox = (await scene.boundingBox())!
     const logSummary = page.getByText(/Battle log · \d+ entries/)
     await expect(logSummary).toBeVisible()

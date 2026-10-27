@@ -128,6 +128,19 @@ for (const width of [390, 900]) {
   }
 }
 
+test('remaining threat count sits above the threat actor', async ({ page }) => {
+  await page.goto('/tests/e2e/fixtures/incident-scene.html?type=raider_attack&responders=2')
+  const scene = page.getByRole('region', { name: 'Incident live status' })
+  const count = scene.locator('.threat-remaining')
+  const threat = scene.getByAltText('Raider', { exact: true })
+  await expect(count).toHaveText('6 remaining')
+  await expect(threat).toBeVisible()
+
+  const countBox = (await count.boundingBox())!
+  const threatBox = (await threat.boundingBox())!
+  expect(countBox.y + countBox.height).toBeLessThanOrEqual(threatBox.y + 1)
+})
+
 for (const width of [390, 900]) {
   test(`four responders fit the roster lane at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })

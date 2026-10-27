@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.276.0 (2026-10-27)
+
+### Features
+
+* **vault:** add opt-in Vault 1 scenario starts 41a6ffe
+* **vault:** add Vault 68 and 69 scenario starts 277cd48
+* **vault:** give scenario starts full rooms and skip starter objectives bb9824b
+
+### Bug Fixes
+
+* **vault:** address scenario start review findings 9456da3
+
 ## 2.275.0 (2026-10-27)
 
 ### Features

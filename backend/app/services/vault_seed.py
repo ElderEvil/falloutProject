@@ -146,6 +146,8 @@ BOOSTED_LEGENDARY_DWELLER_COUNT = 3
 BOOSTED_SEED_PETS: tuple[tuple[str, RarityEnum], ...] = (
     ("Dogmeat (Fallout 4)", RarityEnum.LEGENDARY),
     ("CX404", RarityEnum.LEGENDARY),
+    ("Baby Deathclaw", RarityEnum.LEGENDARY),
+    ("Yao Guai Cub", RarityEnum.RARE),
     ("Vault-Tec Parrot", RarityEnum.RARE),
 )
 # A boosted start equips these on its legendary roster; the remaining seed pet

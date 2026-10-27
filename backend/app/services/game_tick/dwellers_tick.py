@@ -168,8 +168,8 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
     if exploration.is_dispatch_run():
         return
 
-    # D1-A: while a site run is open, random events pause; the wall clock keeps
-    # running, so the expiry branch above still fires the auto-retreat.
+    # While a site run is open, random events pause and `paused_at` freezes the
+    # journey clock, so the expiry branch above cannot fire mid-run.
     if await crud_expedition_run.get_open_for_exploration(db_session, exploration.id) is not None:
         return
 

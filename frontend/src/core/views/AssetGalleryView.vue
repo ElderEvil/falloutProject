@@ -79,6 +79,12 @@ const raiders: StaticAsset[] = raiderPersonas.flatMap(([id, name, gender]) => [
 
 // Starter plus full FOS breed roster (generated from the wiki pet tables).
 const pets: StaticAsset[] = [
+  {
+    name: 'Baby Deathclaw',
+    kind: 'exotic',
+    image: '/static/pet_images/FOS Baby Deathclaw.png',
+  },
+  { name: 'Yao Guai Cub', kind: 'exotic', image: '/static/pet_images/FOS Yao Guai Cub.png' },
   { name: 'CX404', kind: 'dog', image: '/static/pet_images/FOS CX404.png' },
   { name: 'Rollerbrain', kind: 'robot', image: '/static/pet_images/FOS Rollerbrain.png' },
   { name: 'Abyssinian', kind: 'cat', image: '/static/pet_images/FOS Abyssinian.png' },
@@ -336,7 +342,11 @@ onMounted(async () => {
       <TabsContent v-for="section in staticSections" :key="section.tab" :value="section.tab">
         <div
           class="grid grid-cols-2 gap-3"
-          :class="section.tab === 'pets' ? 'sm:grid-cols-4 lg:grid-cols-6' : 'sm:grid-cols-3 lg:grid-cols-4'"
+          :class="
+            section.tab === 'pets'
+              ? 'sm:grid-cols-4 lg:grid-cols-6'
+              : 'sm:grid-cols-3 lg:grid-cols-4'
+          "
         >
           <Card v-for="p in section.entries" :key="p.name" class="overflow-hidden">
             <CardContent class="flex flex-col items-center gap-1 p-3">

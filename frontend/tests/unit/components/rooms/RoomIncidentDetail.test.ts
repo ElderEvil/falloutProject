@@ -246,13 +246,16 @@ describe('RoomIncidentDetail', () => {
     expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d1'], 'test-token')
   })
 
-  it('keeps the manual helper list behind a disclosure beside the visible log', async () => {
+  it('keeps the battle log and manual helper list behind disclosures', async () => {
     const wrapper = await mountDetail({ dwellers: [dweller({ id: 'd1', first_name: 'Alice' })] })
 
     const disclosures = wrapper.findAll('details')
-    expect(disclosures).toHaveLength(1)
-    expect(disclosures[0].find('summary').text()).toContain('Add helper · 1 available')
-    expect(wrapper.find('[aria-label="Battle log"]').exists()).toBe(true)
+    expect(disclosures).toHaveLength(2)
+    const log = wrapper.get('details[aria-label="Battle journal"]')
+    expect(log.find('summary').text()).toContain('Battle log ·')
+    expect(log.find('[aria-label="Battle log"]').exists()).toBe(true)
+    const helper = disclosures.find((entry) => entry.find('summary').text().includes('Add helper'))
+    expect(helper?.find('summary').text()).toContain('Add helper · 1 available')
     expect(wrapper.text()).not.toContain('Room management is locked')
   })
 

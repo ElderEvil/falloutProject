@@ -101,9 +101,11 @@ export const useIncidentStore = defineStore('incident', () => {
   const findAftermath = (incidentId: string): IncidentAftermath | undefined =>
     [...aftermaths.value.values()].find((entry) => entry.incidentId === incidentId)
 
-  // Victory and defeat share one cue path so a win inferred from the record
-  // (no SSE frame) sounds exactly like one announced by the stream.
-  const playResolutionSound = (outcome: Exclude<IncidentOutcome, 'unknown'>): void => {
+  const playResolutionCue = (
+    incidentId: string | undefined,
+    outcome: Exclude<IncidentOutcome, 'unknown'>
+  ): void => {
+    if (incidentId && document.querySelector(`[data-incident-scene-id="${incidentId}"]`)) return
     audioManager.play(outcome === 'victory' ? 'incidentVictory' : 'incidentDefeat', 'sfx')
   }
 
@@ -143,7 +145,7 @@ export const useIncidentStore = defineStore('incident', () => {
       if (entry.outcome === 'unknown' && settled) {
         entry.outcome = settled
         entry.capsEarned = incident.loot?.caps ?? 0
-        playResolutionSound(settled)
+        playResolutionCue(incidentId, settled)
       }
     } catch (error) {
       handleStoreError(error, 'Failed to load held incident loot')
@@ -328,16 +330,17 @@ export const useIncidentStore = defineStore('incident', () => {
     dwellerIds: string[],
     token: string
   ): Promise<void> {
+    const filterStore = useDwellerFilterStore()
     try {
       const result = await incidentApi.assignResponders(vaultId, incidentId, dwellerIds, token)
       await fetchIncidents(vaultId, token)
       await fetchIncidentTeam(vaultId, incidentId, token)
+      await filterStore.fetchDwellersByVault(vaultId, token)
       const assignedIds = new Set(result.assigned_dweller_ids)
       const skippedIds = dwellerIds.filter((id) => !assignedIds.has(id))
       if (skippedIds.length) {
-        const dwellers = useDwellerFilterStore().dwellers
         const names = skippedIds.map((id) => {
-          const dweller = dwellers.find((dweller) => dweller.id === id)
+          const dweller = filterStore.dwellers.find((entry) => entry.id === id)
           return dweller ? getDwellerDisplayName(dweller) : 'Unknown responder'
         })
         showWarning(
@@ -418,6 +421,7 @@ export const useIncidentStore = defineStore('incident', () => {
                 })
             }
             sseConnected.value = true
+            void useDwellerFilterStore().fetchDwellersByVault(vaultId, token)
             void fetchIncidents(vaultId, token)
             break
 
@@ -446,7 +450,7 @@ export const useIncidentStore = defineStore('incident', () => {
               void refreshAftermathOverflow(vaultId, resolvedId, token)
             }
             if (data.success === true) {
-              playResolutionSound('victory')
+              playResolutionCue(resolvedId, 'victory')
               showSuccess(
                 capsEarned > 0
                   ? `Incident victory — recovered ${capsEarned} caps.`
@@ -455,12 +459,12 @@ export const useIncidentStore = defineStore('incident', () => {
                     : 'Incident resolved — responders earned experience.'
               )
             } else if (resolved) {
-              playResolutionSound('defeat')
+              playResolutionCue(resolvedId, 'defeat')
               showError(
                 `Incident lost — ${resolved.type.replace(/_/g, ' ')} overran ${resolved.room_name ?? 'the vault'}.`
               )
             } else {
-              playResolutionSound('defeat')
+              playResolutionCue(resolvedId, 'defeat')
               showError('Incident lost — the threat was not contained.')
             }
             break
@@ -534,6 +538,8 @@ export const useIncidentStore = defineStore('incident', () => {
     isPolling.value = false
     // Clearing the active set unwinds the alarm and music through the watcher.
     activeIncidentIds.value = []
+    audioManager.stopAlarmLoop()
+    audioManager.restoreMusic()
     seenEventMarkers.clear()
     appliedDetailOrders.clear()
   }

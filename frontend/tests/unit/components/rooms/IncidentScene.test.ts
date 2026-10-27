@@ -290,23 +290,37 @@ describe('IncidentScene', () => {
     expect(mountScene().find('.scene-backdrop').exists()).toBe(false)
   })
 
-  it('burns a two-layer flame for a fire hazard', () => {
+  it('burns an environmental flame cluster for a fire hazard', () => {
     const wrapper = mountScene({
       incident: incident({ type: 'fire', family: 'hazard', objective: 'contain' }),
     })
 
-    const flame = wrapper.find('.hazard-flame')
-    expect(flame.exists()).toBe(true)
-    expect(flame.attributes('aria-hidden')).toBe('true')
+    const fire = wrapper.find('.hazard-fire')
+    expect(fire.exists()).toBe(true)
+    expect(fire.attributes('aria-hidden')).toBe('true')
+    expect(wrapper.findAll('.hazard-flame')).toHaveLength(3)
     expect(wrapper.find('.flame-outer').exists()).toBe(true)
     expect(wrapper.find('.flame-inner').exists()).toBe(true)
     expect(wrapper.find('.hazard-icon').exists()).toBe(false)
+    expect(fire.find('.combatant-motion').exists()).toBe(false)
   })
 
   it('uses the generated raider sprite for raider attacks', () => {
     const wrapper = mountScene()
 
-    expect(wrapper.get('img[alt="Raider"]').attributes('src')).toContain('/raider_images/variants/')
+    const raider = wrapper.get('img[alt="Raider"]')
+    expect(raider.attributes('src')).toContain('/raider_images/variants/')
+    // Humanoids keep the dweller frame; only creatures get the extra threat scale.
+    expect(raider.element.parentElement?.className).not.toContain('scale-125')
+  })
+
+  it('gives creatures the extra threat scale', () => {
+    const wrapper = mountScene({
+      incident: incident({ type: 'deathclaw_attack', family: 'intrusion', objective: 'defeat' }),
+    })
+
+    const creature = wrapper.get('img[alt="Deathclaw"]')
+    expect(creature.element.parentElement?.className).toContain('sm:scale-125')
   })
 
   it('uses creature artwork for a non-fire containment incident', () => {
@@ -322,6 +336,27 @@ describe('IncidentScene', () => {
     expect(wrapper.get('img[alt="Radroach"]').attributes('src')).toContain(
       '/assembled/radroach.webp'
     )
+  })
+
+  it('shows an equipped pet with the shared ground shadow', () => {
+    const wrapper = mountScene({
+      dwellers: [dweller({ pet: { name: 'Dogmeat', image_url: '/pet.png' } })],
+    })
+
+    const pet = wrapper.find('.combat-pet')
+    expect(pet.exists()).toBe(true)
+    expect(pet.find('img').attributes('src')).toContain('/pet.png')
+    expect(pet.find('.actor-ground-shadow').exists()).toBe(true)
+  })
+
+  it('plays the resolution cue when an active scene finishes', async () => {
+    const wrapper = mountScene({
+      incident: incident({ status: 'active' }),
+      dwellers: [dweller()],
+    })
+    await wrapper.setProps({ incident: incident({ status: 'resolved' }) })
+    expect(playSound).toHaveBeenCalledWith('incidentVictory', 'sfx')
+    wrapper.unmount()
   })
 
   it('does not show helpers who moved out of the incident room', () => {

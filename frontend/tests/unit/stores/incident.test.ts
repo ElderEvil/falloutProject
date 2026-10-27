@@ -194,6 +194,23 @@ describe('Incident Store', () => {
       expect(store.incidents.get('incident-1')).toEqual(mockIncident)
     })
 
+    it('refreshes dwellers when the stream announces a spawn', async () => {
+      const store = useIncidentStore()
+      const refresh = vi.spyOn(useDwellerFilterStore(), 'fetchDwellersByVault').mockResolvedValue()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
+      vi.mocked(incidentApi.getIncidentTeam).mockResolvedValue([])
+      store.startPolling('vault-1', 'token', 10_000)
+      await vi.advanceTimersByTimeAsync(0)
+      refresh.mockClear()
+
+      sseMock.instance.event.value = { event: 'incident', data: { type: 'incident_spawned' } }
+      await nextTick()
+
+      expect(refresh).toHaveBeenCalledWith('vault-1', 'token')
+      store.stopPolling()
+    })
+
     it('should handle empty incident list', async () => {
       const store = useIncidentStore()
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce({
@@ -273,6 +290,10 @@ describe('Incident Store', () => {
   })
 
   describe('assignResponders', () => {
+    beforeEach(() => {
+      vi.spyOn(useDwellerFilterStore(), 'fetchDwellersByVault').mockResolvedValue()
+    })
+
     it('should refresh the incident after assigning a responder', async () => {
       const store = useIncidentStore()
       vi.mocked(incidentApi.assignResponders).mockResolvedValueOnce({
@@ -294,6 +315,7 @@ describe('Incident Store', () => {
       )
       expect(incidentApi.getActiveIncidents).toHaveBeenCalledWith('vault-1', 'token')
       expect(incidentApi.getIncident).toHaveBeenCalledWith('vault-1', 'incident-1', 'token')
+      expect(useDwellerFilterStore().fetchDwellersByVault).toHaveBeenCalledWith('vault-1', 'token')
     })
 
     it('warns when only part of the selected response team is accepted', async () => {
@@ -898,6 +920,24 @@ describe('Incident Store', () => {
         rounds: 0,
       })
       store.stopPolling()
+    })
+
+    it('skips the global cue when the open scene owns the resolution', async () => {
+      const marker = document.createElement('div')
+      marker.dataset.incidentSceneId = 'incident-1'
+      document.body.appendChild(marker)
+      sseMock.playSound.mockClear()
+
+      try {
+        await resolveViaSse({
+          type: 'incident_resolved',
+          incident_id: 'incident-1',
+          success: true,
+        })
+        expect(sseMock.playSound).not.toHaveBeenCalledWith('incidentVictory', 'sfx')
+      } finally {
+        marker.remove()
+      }
     })
 
     it('summarises a defeat so the room shows what was lost', async () => {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { ShieldAlert, UserRound } from '@lucide/vue'
 import { Progress } from '@/core/components/ui/progress'
@@ -15,13 +15,18 @@ import {
   type IncidentTeamMember,
   type IncidentParticipant,
 } from '@/modules/combat/models/incident'
-import { creatureSeed, getCreatureImagePath, getCreatureModelSizeClass } from '@/core/utils/creatureAssets'
+import {
+  creatureSeed,
+  getCreatureImagePath,
+  getCreatureModelSizeClass,
+} from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
 import { humanizePreserveCase } from '@/core/utils/format'
 import { useCombatPulse } from '../composables/useCombatPulse'
 import { useFallbackImage } from '../composables/useFallbackImage'
 import { useCombatPlayback } from '@/modules/combat/composables/useCombatPlayback'
 import CombatantMotion from '@/modules/combat/components/CombatantMotion.vue'
+import CombatPet from '@/modules/combat/components/CombatPet.vue'
 import CombatDamageNumbers from '@/modules/combat/components/CombatDamageNumbers.vue'
 import { useSound } from '@/core/composables/useSound'
 
@@ -58,11 +63,16 @@ watch(
     if (!playing) displayedProgress.value = progress
   }
 )
+const cuePending = ref(!['resolved', 'failed'].includes(props.incident.status))
 watch(
   () => [props.incident.status, playback.isPlaying.value] as const,
   ([status, playing]) => {
-    if (!playing && ['resolved', 'failed'].includes(status))
-      emit('playbackComplete', props.incident.id)
+    if (playing || !['resolved', 'failed'].includes(status)) return
+    if (cuePending.value) {
+      cuePending.value = false
+      playSound(status === 'resolved' ? 'incidentVictory' : 'incidentDefeat', 'sfx')
+    }
+    emit('playbackComplete', props.incident.id)
   },
   { immediate: true }
 )
@@ -136,9 +146,7 @@ const creatureKeys: Partial<Record<IncidentType, string>> = {
 }
 const creatureKey = computed(() => creatureKeys[props.incident.type])
 const { url: creatureImage, onError: creatureFailed } = useFallbackImage(() => [
-  getStaticImageUrl(
-    getCreatureImagePath(creatureKey.value ?? '', creatureSeed(props.incident.id))
-  ),
+  getStaticImageUrl(getCreatureImagePath(creatureKey.value ?? '', creatureSeed(props.incident.id))),
 ])
 const creatureName = computed(() =>
   humanizePreserveCase((creatureKey.value ?? 'Raider').replaceAll('-', '_'))
@@ -180,11 +188,26 @@ const threatMotion = computed(() => ({
     containmentGain.value <= 0 &&
     dwellerDamage.value > 0,
 }))
+// Fire is environmental: it gets the flicker, never a fighter's lunge/shadow.
+const isFire = computed(() => props.incident.type === 'fire')
+const isHumanoidThreat = computed(() =>
+  ['raider_attack', 'feral_ghoul_attack'].includes(props.incident.type)
+)
+const fireFlames = ['hazard-flame--side', 'hazard-flame--main', 'hazard-flame--tail'] as const
+// Up to four responders share the scene lane; larger rosters keep the scroll.
+const isCompact = computed(() => responders.value.length > 3)
+const responderSizeClass = computed(() => {
+  const count = responders.value.length
+  if (count === 3) return 'responder-cell--3'
+  return count > 3 ? 'responder-cell--4' : ''
+})
 </script>
 
 <template>
   <section
-    class="incident-scene relative isolate [--scene-actor-height:5rem] sm:[--scene-actor-height:7rem] aspect-[5/2] min-h-80 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
+    class="incident-scene relative isolate aspect-[5/2] min-h-80 w-full min-w-0 overflow-hidden rounded-lg border border-theme-primary/30 bg-surface-sunken"
+    :class="{ 'is-compact': isCompact }"
+    v-bind="{ 'data-incident-scene-id': incident.id }"
     aria-label="Incident live status"
   >
     <img
@@ -210,7 +233,8 @@ const threatMotion = computed(() => ({
     </div>
 
     <div
-      class="absolute inset-x-3 top-12 bottom-16 grid grid-cols-2 items-end gap-5 sm:inset-x-6 sm:gap-10"
+      class="scene-lanes absolute inset-x-3 top-12 bottom-16 grid items-end gap-5 sm:inset-x-6 sm:gap-10"
+      :class="{ 'lane-wide': isCompact }"
     >
       <div class="relative min-w-0" :class="responderMotion">
         <span
@@ -221,14 +245,20 @@ const threatMotion = computed(() => ({
           >-{{ Math.round(dwellerDamage) }}</span
         >
         <!-- Keep responders spread across their half of the scene instead of clustering left. -->
-        <div class="flex w-full min-w-0 items-end justify-evenly gap-2 overflow-x-auto pt-6 pb-1">
+        <div
+          class="flex w-full min-w-0 items-end justify-evenly gap-1 overflow-x-auto pt-6 pb-1 sm:gap-2"
+        >
           <div
             v-for="responder in responders"
             :key="responder.id"
-            class="incident-responder relative flex w-[4.85rem] min-w-[4.85rem] max-w-[4.85rem] shrink-0 flex-col items-center gap-1"
-            :class="{
-              'opacity-40 grayscale': responder.dweller && displayedHealth(responder.dweller) <= 0,
-            }"
+            class="incident-responder relative flex shrink-0 flex-col items-center gap-1"
+            :class="[
+              responderSizeClass,
+              {
+                'opacity-40 grayscale':
+                  responder.dweller && displayedHealth(responder.dweller) <= 0,
+              },
+            ]"
             :aria-current="isAttacking(responder.id) ? 'true' : undefined"
           >
             <CombatDamageNumbers
@@ -249,7 +279,9 @@ const threatMotion = computed(() => ({
               >{{ responder.name }}: {{ displayedHealth(responder.dweller) }} of
               {{ healthCeiling(responder.dweller) }} HP</span
             >
-            <div class="flex h-[7.25rem] w-full items-end justify-center">
+            <div
+              class="relative flex h-[var(--scene-actor-height)] w-full items-end justify-center"
+            >
               <CombatantMotion
                 :fighter-id="responder.id"
                 facing="right"
@@ -271,6 +303,15 @@ const threatMotion = computed(() => ({
                   role="img"
                 />
               </CombatantMotion>
+              <CombatPet
+                v-if="responder.dweller?.pet"
+                :pet="responder.dweller.pet"
+                :owner-name="responder.name"
+                :owner-id="responder.id"
+                :action="activeAction"
+                :phase="combatPhase"
+                facing="right"
+              />
             </div>
           </div>
           <span
@@ -284,7 +325,7 @@ const threatMotion = computed(() => ({
       <div
         class="relative flex min-w-0 flex-col items-center justify-end gap-2 self-end"
         :class="[
-          threatMotion,
+          !isFire && threatMotion,
           { 'opacity-40 grayscale': incident.objective === 'defeat' && remainingEnemies === 0 },
         ]"
       >
@@ -305,18 +346,18 @@ const threatMotion = computed(() => ({
           aria-hidden="true"
           >+{{ containmentGain }}%</span
         >
-        <div class="relative flex max-w-full items-end justify-center">
-          <CombatantMotion
-            fighter-id="threat"
-            facing="left"
-            :action="activeAction"
-            :phase="combatPhase"
+        <div class="relative flex w-full max-w-full items-end justify-center">
+          <div
+            v-if="isFire"
+            class="hazard-fire flex h-[var(--scene-actor-height)] w-full items-end justify-center"
+            aria-hidden="true"
           >
             <svg
-              v-if="incident.type === 'fire'"
-              class="hazard-flame h-32 w-24 drop-shadow-lg sm:h-44 sm:w-32"
+              v-for="(flame, index) in fireFlames"
+              :key="index"
+              class="hazard-flame -mx-2 w-auto drop-shadow-lg"
+              :class="flame"
               viewBox="0 0 24 24"
-              aria-hidden="true"
             >
               <path
                 class="flame-outer"
@@ -327,10 +368,21 @@ const threatMotion = computed(() => ({
                 d="M12 9c1.2 1.6 2.3 2.8 2.3 4.5a2.3 2.3 0 0 1-4.6 0c0-1.7 1.1-2.9 2.3-4.5Z"
               />
             </svg>
+          </div>
+          <CombatantMotion
+            v-else
+            fighter-id="threat"
+            facing="left"
+            :action="activeAction"
+            :phase="combatPhase"
+          >
             <div
-              v-else-if="creatureImage"
-              class="flex max-w-full origin-bottom scale-110 items-end justify-center sm:scale-125"
-              :class="getCreatureModelSizeClass(creatureKey ?? '')"
+              v-if="creatureImage"
+              class="flex max-w-full origin-bottom items-end justify-center"
+              :class="[
+                isHumanoidThreat ? undefined : 'sm:scale-125',
+                getCreatureModelSizeClass(creatureKey ?? ''),
+              ]"
             >
               <img
                 :src="creatureImage"
@@ -341,14 +393,14 @@ const threatMotion = computed(() => ({
             </div>
             <UserRound
               v-else-if="incident.type === 'raider_attack'"
-              class="h-28 w-20 text-danger drop-shadow-lg sm:h-36 sm:w-24"
+              class="size-full text-danger drop-shadow-lg"
               role="img"
               aria-label="Raider"
             />
             <Icon
               v-else
               :icon="getIncidentIcon(incident.type)"
-              class="hazard-icon size-24 text-warning"
+              class="hazard-icon size-full p-3 text-warning"
               :ariaHidden="true"
             />
           </CombatantMotion>
@@ -385,6 +437,76 @@ const threatMotion = computed(() => ({
 </template>
 
 <style scoped>
+.incident-scene {
+  --scene-actor-height: 7rem;
+  max-height: 22.5rem;
+}
+.incident-scene.is-compact {
+  --scene-actor-height: 5rem;
+  --dweller-name-size: 0.5rem;
+}
+.scene-lanes {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.scene-lanes.lane-wide {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+}
+.responder-frame {
+  height: var(--scene-actor-height);
+}
+.incident-responder {
+  width: 4.85rem;
+  min-width: 4.85rem;
+  max-width: 4.85rem;
+}
+.incident-responder.responder-cell--3 {
+  width: 3.3rem;
+  min-width: 3.3rem;
+  max-width: 3.3rem;
+}
+.incident-responder.responder-cell--4 {
+  width: 2.4rem;
+  min-width: 2.4rem;
+  max-width: 2.4rem;
+}
+.hazard-flame--side {
+  height: 50%;
+  opacity: 0.8;
+}
+.hazard-flame--main {
+  height: 90%;
+}
+.hazard-flame--tail {
+  height: 65%;
+  opacity: 0.9;
+}
+@media (min-width: 768px) {
+  .incident-scene.is-compact {
+    --scene-actor-height: 7rem;
+    --dweller-name-size: 0.625rem;
+  }
+  .scene-lanes.lane-wide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .incident-responder.responder-cell--3,
+  .incident-responder.responder-cell--4 {
+    width: 4.85rem;
+    min-width: 4.85rem;
+    max-width: 4.85rem;
+  }
+}
+/* Incident sprites are smaller than Arena's, so the shared 4deg/4px motion
+   reads as a twitch. Amplify the lean and recoil here without retuning Arena. */
+.incident-scene :deep(.combat-body.combat-body) {
+  --lean: 7deg;
+  --travel: 16px;
+  --recoil: 8px;
+}
+.incident-scene :deep(.combat-body.combat-body--attack),
+.incident-scene :deep(.combat-body.combat-body--hit),
+.incident-scene :deep(.combat-body.combat-body--recoil) {
+  animation-duration: 240ms;
+}
 .floating-effect {
   animation: float-effect 0.9s ease-out both;
 }

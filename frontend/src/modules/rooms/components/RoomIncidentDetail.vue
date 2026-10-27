@@ -215,7 +215,7 @@ const assignResponder = async (dwellerId: string) => {
 </script>
 
 <template>
-  <section class="flex flex-col gap-3">
+  <section class="flex flex-col gap-2 sm:gap-3">
     <header class="flex items-center gap-2">
       <Icon :icon="icon" class="h-6 w-6 shrink-0 text-danger" />
       <h3 class="text-base font-semibold text-terminal-green">{{ threatLabel }}</h3>
@@ -252,7 +252,7 @@ const assignResponder = async (dwellerId: string) => {
         <Icon v-if="isSendingBest" icon="mdi:loading" class="mr-1 animate-spin" />
         Send strongest {{ bestResponders.length }}
       </Button>
-      <span class="text-xs text-muted-foreground"
+      <span class="hidden text-xs text-muted-foreground sm:inline"
         >{{ remainingRosterSlots }} helper slots available</span
       >
     </div>

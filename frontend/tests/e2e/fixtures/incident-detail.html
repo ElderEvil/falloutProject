@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Incident detail modal fixture</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import '../../../src/assets/main.css'
+      import { createApp, h } from 'vue'
+      import { createPinia } from 'pinia'
+      import { createRouter, createMemoryHistory } from 'vue-router'
+      import TerminalModal from '../../../src/core/components/common/TerminalModal.vue'
+      import RoomIncidentDetail from '../../../src/modules/rooms/components/RoomIncidentDetail.vue'
+      import { useIncidentStore } from '../../../src/modules/combat/stores/incident'
+      import { useAuthStore } from '../../../src/modules/auth/stores/auth'
+
+      const params = new URLSearchParams(location.search)
+      const fire = params.get('type') === 'fire'
+      const count = Number(params.get('responders') ?? 4)
+      const helperCount = Number(params.get('helpers') ?? 0)
+      const names = ['Preston', 'Jericho', 'Madison', 'Owyn', 'Three Dog', 'Lucas']
+      const portraits = [
+        'FOS_Dw_Preston_Garvey.png',
+        'FOS_Dw_Jericho.png',
+        'FOS_Dw_Madison_Li.png',
+        'FOS_Dw_Owyn_Lyons.png',
+        'FOS_Dw_Three_Dog.png',
+        'FOS_Dw_Lucas_Simms.png',
+      ]
+      const makeDweller = (index, roomId, status) => ({
+        age_group: 'adult',
+        id: `dweller-${index}`,
+        first_name: names[index % names.length],
+        last_name: null,
+        level: index + 4,
+        health: 80 - (index % 6) * 5,
+        max_health: 100,
+        radiation: 0,
+        room_id: roomId,
+        combat_power: 25 + index,
+        status,
+        thumbnail_url: `/static/legendary_dweller_images/${portraits[index % names.length]}`,
+      })
+      const dwellers = [
+        ...Array.from({ length: count }, (_, index) => makeDweller(index, 'vault-door', 'fighting')),
+        ...Array.from({ length: helperCount }, (_, index) =>
+          makeDweller(count + index, 'living-quarters', 'idle')
+        ),
+      ]
+      const incident = {
+        id: 'incident',
+        room_id: 'vault-door',
+        room_name: 'Vault Door',
+        type: fire ? 'fire' : (params.get('type') ?? 'raider_attack'),
+        family: fire ? 'hazard' : 'intrusion',
+        objective: fire ? 'contain' : 'defeat',
+        difficulty: 4,
+        progress: {
+          current: fire ? 35 : 2,
+          target: fire ? 100 : 8,
+          label: fire ? 'Contained' : 'Enemies defeated',
+        },
+        risk: { kind: fire ? 'spread' : 'casualties', rooms_affected: 2 },
+        events: Array.from({ length: 18 }, (_, index) => ({
+          id: `event-${index}`,
+          kind: fire ? 'containment' : 'round',
+          message: fire
+            ? `Responders contain the blaze (${index + 1})`
+            : `Raiders press the vault door (${index + 1})`,
+          data: fire
+            ? { amount: 0.02 }
+            : { damage_to_dwellers: index % 3 === 0 ? 5 : 0, damage_to_threat: 4 },
+        })),
+      }
+      const pinia = createPinia()
+      useAuthStore(pinia).token = 'preview'
+      const incidentStore = useIncidentStore(pinia)
+      incidentStore.incidents.set(incident.id, incident)
+      incidentStore.activeIncidentIds = [incident.id]
+
+      const Shell = {
+        render: () =>
+          h(
+            TerminalModal,
+            {
+              open: true,
+              size: '5xl',
+              maxHeight: '80',
+              title: 'Vault Door',
+              showClose: false,
+            },
+            {
+              default: () =>
+                h(
+                  'div',
+                  { id: 'modal-body', class: 'flex-1 overflow-y-auto px-5 pt-5 pb-5' },
+                  [
+                    h(RoomIncidentDetail, {
+                      incident,
+                      vaultId: 'vault-1',
+                      dwellers,
+                      roomImageUrl: '/static/room_images/FOS Diner 3-3.png',
+                      fallbackImageUrl: '/static/room_images/FOS Diner 3-3.png',
+                    }),
+                  ]
+                ),
+            }
+          ),
+      }
+
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [{ path: '/', component: { template: '<div />' } }],
+      })
+      router.push('/')
+      router.isReady().then(() => createApp(Shell).use(pinia).use(router).mount('#app'))
+    </script>
+  </body>
+</html>

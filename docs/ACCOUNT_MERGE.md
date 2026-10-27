@@ -2,9 +2,11 @@
 
 Phase 0/1 of #1198 provides a superuser-only way to consolidate two accounts without losing vaults or progress.
 
+Admin previews are bound to the resolved source/target UUIDs in a short-lived server-issued confirmation token. Applying requires that preview token, CSRF, and the same admin session; changing an email or username after preview cannot redirect the merge to a different account. The confirmation token expires after 10 minutes and is cleared on a failed apply, so a new preview is required.
+
 ## Surfaces
 
-- **Admin panel:** Accounts → **Merge accounts** (`/admin/merge-accounts`). Preview first, then confirm; every POST is CSRF-protected.
+- **Admin panel:** Accounts → **Merge accounts** (`/admin/merge-accounts`). Search for an account, preview, then confirm; every POST is CSRF-protected. A successful apply opens the new audit row directly.
 - **CLI:** `fo-cli merge-users --source <uuid|email|username> --target <uuid|email|username> [--actor ...] [--reason ...] [--dry-run|--apply]`.
 - **Audit:** Accounts → **Account merge** lists the immutable `account_merge` rows.
 
@@ -19,7 +21,7 @@ Phase 0/1 of #1198 provides a superuser-only way to consolidate two accounts wit
 - Vault numbers are not unique. The preview reports duplicates; they remain valid but can be confusing.
 - If both accounts link the same OAuth provider, the merge is rejected. Unlink one provider first.
 - The source is tombstoned: it is soft-deleted, deactivated, credentials/recovery tokens are cleared, and its email/username are replaced with reserved tombstones.
-- Only the **source** refresh token is invalidated. The surviving player stays signed in.
+- Only the **source** refresh token is invalidated. The surviving player stays signed in. This intentionally supersedes the older Phase 1 note that suggested invalidating both tokens.
 - The admin page performs no mutation on preview; apply requires a fresh CSRF-protected POST and a reason.
 
 ## Irreversibility

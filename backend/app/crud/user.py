@@ -3,6 +3,7 @@ from typing import Any
 from uuid import UUID
 
 from pydantic import UUID4
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession as SAAsyncSession
 from sqlmodel import col, select
@@ -80,6 +81,26 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         if "@" in identity:
             return await self.get_by_email(db_session, identity, include_deleted=include_deleted)
         return await self.get_by_username(db_session, identity, include_deleted=include_deleted)
+
+    async def search_identities(self, db_session: AsyncSession, query: str, limit: int = 20) -> list[User]:
+        """Find non-deleted accounts by a substring of username or email."""
+        term = query.strip()
+        if not term:
+            return []
+        pattern = f"%{term}%"
+        result = await db_session.execute(
+            select(self.model)
+            .where(
+                or_(
+                    col(self.model.username).ilike(pattern),
+                    col(self.model.email).ilike(pattern),
+                ),
+                ~col(self.model.is_deleted),
+            )
+            .order_by(col(self.model.username))
+            .limit(limit)
+        )
+        return list(result.scalars().all())
 
     async def lock_users_for_merge(self, db_session: SAAsyncSession, user_ids: Iterable[UUID4]) -> dict[UUID4, User]:
         """Lock merge participants one at a time in ascending UUID order.

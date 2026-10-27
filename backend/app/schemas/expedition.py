@@ -179,6 +179,7 @@ class SiteDefinition(BaseModel):
     encounter: SiteRoom | None = None
     scene_id: ExpeditionSceneId | None = None
     lore: str = ""
+    scenario_only: bool = False
     # Encounter-only tuning: shared arena catalog stats remain unchanged.
     enemy_power_scale: float = Field(default=0.12, gt=0, le=5)
     enemy_health_scale: float = Field(default=0.3, gt=0, le=5)

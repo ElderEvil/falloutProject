@@ -131,7 +131,10 @@ def validate_site_content(site: SiteDefinition) -> None:
         if site.scene_id is None:
             raise ValidationException(f"Missing encounter scene in site {site.id}")
         node = site.encounter.node
-        if node.kind not in {"combat", "trivia"} or not node.enemies:
+        if site.scenario_only and node.kind == "choice":
+            if not node.options:
+                raise ValidationException(f"Scenario site {site.id} needs choice options")
+        elif node.kind not in {"combat", "trivia"} or not node.enemies:
             raise ValidationException(f"Site {site.id} needs a combat or trivia encounter with enemies")
         if node.kind == "trivia" and (not node.trivia_questions or not node.raiders):
             raise ValidationException(f"Site {site.id} needs trivia questions and raiders")

@@ -542,6 +542,21 @@ def _scenario_single_scene_only(exploration: Exploration) -> bool:
     return False
 
 
+def _scenario_site_id(exploration: Exploration) -> str | None:
+    for event in exploration.events or []:
+        if event.get("event") == ALL_SITES_SCENARIO_EVENT:
+            site_id = event.get("scenario_site_id")
+            return str(site_id) if site_id else None
+    return None
+
+
+def _scenario_choice_only(exploration: Exploration) -> bool:
+    for event in exploration.events or []:
+        if event.get("event") == ALL_SITES_SCENARIO_EVENT:
+            return bool(event.get("choice_only", False))
+    return False
+
+
 class ExpeditionService:
     """Enter, resolve, retreat, and inspect expedition site runs."""
 
@@ -627,6 +642,14 @@ class ExpeditionService:
         site = data_loader.get_expedition_site(site_id)
         if site is None:
             raise ValidationException(f"Unknown expedition site: {site_id!r}")
+        scenario_site_id = _scenario_site_id(exploration)
+        choice_only = _scenario_choice_only(exploration)
+        if scenario_site_id is not None and site_id != scenario_site_id:
+            raise ValidationException(f"This scenario is limited to {scenario_site_id}")
+        if choice_only and (site.encounter is None or site.encounter.node.kind != "choice"):
+            raise ValidationException("This scenario only offers stat-check encounters")
+        if site.scenario_only and scenario_site_id != site_id and not choice_only:
+            raise ValidationException(f"{site.name} is only available through its scenario")
         if _is_all_sites_scenario(exploration) and _scenario_single_scene_only(exploration) and len(site.rooms) > 1:
             raise ValidationException(f"{site.name} uses a multi-room encounter, disabled for this scenario")
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
@@ -720,7 +743,9 @@ class ExpeditionService:
                 else len(site.rooms),
                 scene_id=site.scene_id,
                 enemy_names=[spec.name for spec in site.encounter.node.enemies] if single and site.encounter else [],
-                threat=encounter_threat(site, dweller_obj) if single and site.encounter else None,
+                threat=encounter_threat(site, dweller_obj)
+                if single and site.encounter and site.encounter.node.kind == "combat"
+                else None,
             )
             for site in sites
         ]
@@ -741,7 +766,15 @@ class ExpeditionService:
             )
         )
         available = []
+        scenario_site_id = _scenario_site_id(exploration)
+        choice_only = _scenario_choice_only(exploration)
         for site in data_loader.load_expedition_sites():
+            if site.scenario_only and scenario_site_id != site.id and not choice_only:
+                continue
+            if scenario_site_id is not None and site.id != scenario_site_id:
+                continue
+            if choice_only and (site.encounter is None or site.encounter.node.kind != "choice"):
+                continue
             if dweller.level < site.min_dweller_level or site.id in consumed:
                 continue
             if _is_all_sites_scenario(exploration) and _scenario_single_scene_only(exploration) and len(site.rooms) > 1:
@@ -851,6 +884,9 @@ class ExpeditionService:
                 exploration.enemies_encountered += len(result.fought_enemies)
                 flags["credited_rooms"] = [*credited, room.id]
             run.flags = flags
+        scene_cleared = (
+            bool(run.flags.get("single_scene")) and not finale_paid and not result.defeated and not result.dweller_died
+        )
         if result.dweller_died:
             run.status = ExpeditionRunStatus.DIED
             run.finished_at = datetime.utcnow()
@@ -863,6 +899,9 @@ class ExpeditionService:
             flags = dict(run.flags)
             flags["pending_fight"] = {"room_id": room.id, "enemies": result.fought_enemies}
             run.flags = flags
+        elif scene_cleared:
+            run.status = ExpeditionRunStatus.CLEARED
+            run.finished_at = datetime.utcnow()
         else:
             run.status = ExpeditionRunStatus.IN_ROOM
             run.room_cursor = min(run.room_cursor + 1, len(rooms) - 1)

@@ -306,7 +306,7 @@ describe('IncidentScene', () => {
   it('uses the generated raider sprite for raider attacks', () => {
     const wrapper = mountScene()
 
-    expect(wrapper.get('img[alt="Raider"]').attributes('src')).toContain('/assembled/raider.webp')
+    expect(wrapper.get('img[alt="Raider"]').attributes('src')).toContain('/raider_images/variants/')
   })
 
   it('uses creature artwork for a non-fire containment incident', () => {

@@ -8195,6 +8195,8 @@ export interface components {
             }[];
             /** Position As Of */
             position_as_of?: string | null;
+            /** Paused At */
+            paused_at?: string | null;
         };
         /**
          * ExplorationReadShort
@@ -8224,6 +8226,8 @@ export interface components {
              * Format: date-time
              */
             start_time: string;
+            /** Paused At */
+            paused_at?: string | null;
             /** End Time */
             end_time: string | null;
             /** Return Started At */
@@ -9225,7 +9229,7 @@ export interface components {
         };
         /**
          * NodeOptionView
-         * @description Player-facing option with precomputed success odds.
+         * @description Player-facing option; stat and odds are null for trivia answer choices.
          */
         NodeOptionView: {
             /** Id */
@@ -9233,11 +9237,11 @@ export interface components {
             /** Label */
             label: string;
             /** Stat */
-            stat: string;
+            stat?: string | null;
             /** Difficulty */
-            difficulty: number;
+            difficulty?: number | null;
             /** Success Odds */
-            success_odds: number;
+            success_odds?: number | null;
         };
         /**
          * NodeOutcome
@@ -10928,6 +10932,12 @@ export interface components {
             kind: string;
             /** Prompt */
             prompt: string;
+            /** Question */
+            question?: string | null;
+            /** Raider Image Url */
+            raider_image_url?: string | null;
+            /** Raider Alt Image Url */
+            raider_alt_image_url?: string | null;
             /** Options */
             options?: components["schemas"]["NodeOptionView"][];
             /** Enemy Names */
@@ -10953,6 +10963,8 @@ export interface components {
             room_total: number;
             /** Room Name */
             room_name: string;
+            /** Room Names */
+            room_names?: string[];
             /** Flavor */
             flavor: string;
             node: components["schemas"]["SiteNodeView"];

@@ -86,7 +86,7 @@ test('raiders match dweller height and both scale when the scene container resiz
       path: fileURLToPath(
         new URL(
           route.request().url().includes('raider')
-            ? '../../../backend/app/static/creature_images/assembled/raider.webp'
+            ? '../../../backend/app/static/raider_images/variants/sable.webp'
             : '../../../backend/app/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Female.webp',
           import.meta.url
         )

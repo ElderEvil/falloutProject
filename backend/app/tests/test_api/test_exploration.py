@@ -286,6 +286,28 @@ async def test_list_explorations_includes_target_location_id(
 
 
 @pytest.mark.asyncio
+async def test_list_explorations_includes_paused_at(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    exploration.paused_at = datetime.utcnow()
+    async_session.add(exploration)
+    await async_session.commit()
+
+    response = await async_client.get(
+        f"/explorations/vault/{vault.id}?active_only=true",
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 200
+    row = next(item for item in response.json() if item["id"] == str(exploration.id))
+    assert row["paused_at"] is not None
+
+
+@pytest.mark.asyncio
 async def test_get_exploration_details(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],

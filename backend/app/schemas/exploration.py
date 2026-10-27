@@ -78,6 +78,9 @@ class ExplorationRead(ExplorationBase):
     trail: list[dict] = Field(default_factory=list)
     position_as_of: datetime | None = None
 
+    # Encounter pause timestamp; NULL while the journey clock is running.
+    paused_at: datetime | None = None
+
 
 class ExplorationReadShort(SQLModel):
     """Schema for reading exploration data (short version for lists)."""
@@ -88,6 +91,7 @@ class ExplorationReadShort(SQLModel):
     target_location_id: UUID4 | None = None
     status: ExplorationStatus
     start_time: datetime
+    paused_at: datetime | None = None
     end_time: datetime | None
     return_started_at: datetime | None
     return_completes_at: datetime | None

@@ -215,12 +215,14 @@ async def test_return_clock_shifts_on_encounter_exit(
     exploration.return_completes_at = completes_at
     async_session.add(exploration)
     await async_session.commit()
+    started_at = exploration.start_time
 
     exploration_service.resume_from_encounter(exploration, now=exploration.position_as_of + timedelta(hours=1))
     await async_session.commit()
 
     await async_session.refresh(exploration)
     assert exploration.return_completes_at == completes_at + timedelta(hours=1)
+    assert exploration.start_time == started_at + timedelta(hours=1)
 
 
 @pytest.mark.asyncio

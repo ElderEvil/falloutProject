@@ -34,6 +34,8 @@ from app.schemas.expedition import (
     SiteNodeView,
     SiteRoom,
     SiteRoomView,
+    TriviaQuestion,
+    TriviaRaider,
     rarity_meets_floor,
 )
 from app.schemas.exploration_event import CombatOutcomeSchema, EnemySchema, LootItemSchema
@@ -56,6 +58,7 @@ from app.utils.exceptions import ResourceConflictException, ResourceNotFoundExce
 logger = logging.getLogger(__name__)
 
 ANTI_FARM_DAYS = 7
+ALL_SITES_SCENARIO_EVENT = "scenario_all_sites"
 CACHE_CAPS = {"small": (5, 15), "standard": (10, 30), "rich": (20, 50)}
 STAT_SNAPSHOT_FIELDS = {stat: f"dweller_{stat}" for stat in SPECIAL_STATS}
 
@@ -399,6 +402,28 @@ def _rooms_for_run(site: SiteDefinition, run: ExpeditionRun) -> list[SiteRoom]:
     return site.rooms
 
 
+def _pick_trivia_questions(rooms: list[SiteRoom]) -> dict[str, str]:
+    """Pin one question id per trivia room at entry so a reconnect cannot reroll it."""
+    return {room.id: random.choice(room.node.trivia_questions).id for room in rooms if room.node.kind == "trivia"}
+
+
+def _pick_trivia_raiders(rooms: list[SiteRoom]) -> dict[str, str]:
+    """Pin one raider persona per trivia room at entry, alongside its question."""
+    return {room.id: random.choice(room.node.raiders).id for room in rooms if room.node.kind == "trivia"}
+
+
+def _trivia_question(room: SiteRoom, run: ExpeditionRun) -> TriviaQuestion | None:
+    """The question persisted for this room at entry, if any."""
+    question_id = run.flags.get("trivia_questions", {}).get(room.id)
+    return next((question for question in room.node.trivia_questions if question.id == question_id), None)
+
+
+def _trivia_raider(room: SiteRoom, run: ExpeditionRun) -> TriviaRaider | None:
+    """The raider persona persisted for this room at entry, if any."""
+    raider_id = run.flags.get("trivia_raiders", {}).get(room.id)
+    return next((raider for raider in room.node.raiders if raider.id == raider_id), None)
+
+
 def build_view(
     exploration_id,
     site: SiteDefinition,
@@ -418,21 +443,38 @@ def build_view(
         defeated = run.status == ExpeditionRunStatus.DEFEATED or bool(
             run.is_open() and pending is not None and pending.get("room_id") == room.id
         )
-    options = [
-        NodeOptionView(
-            id=option.id,
-            label=option.label,
-            stat=option.stat,
-            difficulty=option.difficulty,
-            success_odds=success_odds(_stat_value(exploration, option.stat), option.difficulty),
-        )
-        for option in room.node.options
-    ]
+    question_text: str | None = None
+    prompt = room.node.prompt
+    raider = _trivia_raider(room, run) if room.node.kind == "trivia" else None
+    raider_image_url = raider.image_url if raider is not None else None
+    raider_alt_image_url = raider.alt_image_url if raider is not None else None
+    if room.node.kind == "trivia":
+        if raider is not None:
+            prompt = f"{raider.intro} {prompt}"
+        question = _trivia_question(room, run)
+        if question is not None and run.is_open() and not run.flags.get("combat"):
+            question_text = question.prompt
+            options = [NodeOptionView(id=option.id, label=option.label) for option in question.options]
+        else:
+            options = []
+    else:
+        options = [
+            NodeOptionView(
+                id=option.id,
+                label=option.label,
+                stat=option.stat,
+                difficulty=option.difficulty,
+                success_odds=success_odds(_stat_value(exploration, option.stat), option.difficulty),
+            )
+            for option in room.node.options
+        ]
     enemies = (
         [enemy["name"] for enemy in run.flags["combat"]["opponents"]]
         if run.flags.get("combat")
         else [spec.name for spec in room.node.enemies]
     )
+    if raider is not None and not run.flags.get("combat") and enemies:
+        enemies = [raider.name, *enemies[1:]]
     for option in room.node.options:
         enemies.extend(spec.name for spec in (option.failure.combat_enemies or []))
     return SiteRoomView(
@@ -442,8 +484,17 @@ def build_view(
         room_index=room_index,
         room_total=len(rooms),
         room_name=room.name,
+        room_names=[room.name for room in rooms],
         flavor=room.flavor,
-        node=SiteNodeView(kind=room.node.kind, prompt=room.node.prompt, options=options, enemy_names=enemies),
+        node=SiteNodeView(
+            kind=room.node.kind,
+            prompt=prompt,
+            question=question_text,
+            raider_image_url=raider_image_url,
+            raider_alt_image_url=raider_alt_image_url,
+            options=options,
+            enemy_names=enemies,
+        ),
         can_retreat=run.is_open(),
         status=run.status.value,
         outcome=outcome,
@@ -478,6 +529,10 @@ def _arrived_home(exploration: Exploration) -> bool:
         and exploration.return_completes_at is not None
         and exploration.return_completes_at <= datetime.utcnow()
     )
+
+
+def _is_all_sites_scenario(exploration: Exploration) -> bool:
+    return any(event.get("event") == ALL_SITES_SCENARIO_EVENT for event in exploration.events or [])
 
 
 class ExpeditionService:
@@ -592,7 +647,7 @@ class ExpeditionService:
             blocked = await _site_block_reason(db_session, exploration.vault_id, site_id)
             if blocked == "open":
                 raise ResourceConflictException(f"{site_id} already has an open expedition run")
-            if blocked == "cooldown":
+            if blocked == "cooldown" and not _is_all_sites_scenario(exploration):
                 raise ResourceConflictException(f"{site.name} is quiet after a recent expedition")
 
         latest = await crud.expedition_run.get_latest_for_exploration_site(
@@ -607,8 +662,19 @@ class ExpeditionService:
                 vault_id=exploration.vault_id,
                 site_id=site_id,
             )
-            if uses_single_scene(site, spatial=exploration.heading_degrees is not None):
-                run.flags = {**run.flags, "single_scene": True, "combat": initial_combat(site)}
+            spatial = exploration.heading_degrees is not None
+            single_scene = uses_single_scene(site, spatial=spatial)
+            rooms = [site.encounter] if single_scene and site.encounter is not None else site.rooms
+            flags = {
+                **run.flags,
+                "trivia_questions": _pick_trivia_questions(rooms),
+                "trivia_raiders": _pick_trivia_raiders(rooms),
+            }
+            if single_scene:
+                flags["single_scene"] = True
+                if site.encounter is not None and site.encounter.node.kind == "combat":
+                    flags["combat"] = initial_combat(site)
+            run.flags = flags
 
         from app.services.exploration_service import exploration_service
 
@@ -672,8 +738,10 @@ class ExpeditionService:
             if context is not None:
                 if not site_is_offered(site, context):
                     continue
-            elif await _site_block_reason(db_session, exploration.vault_id, site.id) is not None:
-                continue
+            else:
+                blocked = await _site_block_reason(db_session, exploration.vault_id, site.id)
+                if blocked is not None and not (_is_all_sites_scenario(exploration) and blocked == "cooldown"):
+                    continue
             available.append(site)
         return available
 
@@ -717,6 +785,17 @@ class ExpeditionService:
                 )
             finally:
                 notification_service.discard_deferred_notifications(db_session)
+        if room.node.kind == "trivia":
+            try:
+                if run.flags.get("combat"):
+                    return await self._resolve_scene_combat_transaction(
+                        db_session, exploration, run, site, dweller_obj, request
+                    )
+                return await self._resolve_trivia_transaction(
+                    db_session, exploration, run, site, room, request, dweller_obj
+                )
+            finally:
+                notification_service.discard_deferred_notifications(db_session)
 
         # The finale pays the reward vault; re-check eligibility under the claim
         # so a run that outlived a terminal sibling cannot pay into a locked site.
@@ -728,7 +807,9 @@ class ExpeditionService:
                 )
                 if consumed is not None:
                     raise ValidationException(f"{site.name} is already spent for this journey")
-            elif await _site_block_reason(db_session, exploration.vault_id, run.site_id, include_open=False):
+            elif not _is_all_sites_scenario(exploration) and await _site_block_reason(
+                db_session, exploration.vault_id, run.site_id, include_open=False
+            ):
                 raise ValidationException(f"{site.name} is quiet after a recent expedition")
 
         result = BranchResult()
@@ -790,6 +871,89 @@ class ExpeditionService:
             finale_paid=finale_paid,
             defeated=result.defeated,
             dweller=dweller_obj,
+        )
+
+    async def _resolve_trivia_transaction(
+        self,
+        db_session: AsyncSession,
+        exploration: Exploration,
+        run: ExpeditionRun,
+        site: SiteDefinition,
+        room: SiteRoom,
+        request: ExpeditionResolveRequest,
+        dweller: Dweller,
+    ) -> SiteRoomView:
+        """Judge one trivia answer: a correct answer pays once, a wrong one starts the fight.
+
+        The question was pinned in ``run.flags`` at entry, so a repeat or reconnect
+        judges the same question and the same answer key. A cleared run has no open
+        row, so a duplicate submission cannot pay the vault twice.
+        """
+        question = _trivia_question(room, run)
+        if question is None:
+            raise ValidationException("This trivia encounter has no persisted question")
+        if request.choice_id is None:
+            raise ValidationException("This room needs an answer: pass choice_id")
+        if request.choice_id not in {option.id for option in question.options}:
+            raise ValidationException(f"Unknown answer {request.choice_id!r} for this question")
+
+        result = BranchResult()
+        raider = _trivia_raider(room, run)
+        correct = request.choice_id == question.correct_option_id
+        if correct:
+            await _pay_reward_vault(exploration, site, full=True, result=result)
+            result.texts.insert(
+                0,
+                f"Correct answer — {raider.name} {raider.correct_line}."
+                if raider is not None
+                else "Correct answer — the raider hands over the toll stash.",
+            )
+            run.status = ExpeditionRunStatus.CLEARED
+            run.finished_at = datetime.utcnow()
+            from app.services.exploration_service import exploration_service
+
+            exploration_service.resume_from_encounter(exploration)
+        else:
+            result.texts.append(
+                f"Wrong answer — {raider.name} {raider.wrong_line}."
+                if raider is not None
+                else "Wrong answer — the raider attacks!"
+            )
+            combat = initial_combat(site)
+            if raider is not None and combat["opponents"]:
+                combat["opponents"][0]["name"] = raider.name
+                combat["opponents"][0]["image_url"] = raider.alt_image_url or raider.image_url
+            run.flags = {**run.flags, "combat": combat}
+
+        outcome = result.to_outcome()
+        await _log_site_event(db_session, exploration, f"{site.name}: {outcome.text}")
+        await auto_use_supplies(db_session, exploration)
+        run = await _refresh_run(db_session, run)
+        if correct:
+            vault = await crud.vault.get(db_session, exploration.vault_id)
+            raider_name = raider.name if raider is not None else "the raider"
+            await notification_service.create_and_send(
+                db_session,
+                vault.user_id,
+                NotificationType.EXPLORATION_UPDATE,
+                "Expedition site cleared",
+                f"{dweller.first_name} answered {raider_name} and secured {site.name}. Rewards added to the expedition haul.",
+                vault_id=exploration.vault_id,
+                from_dweller_id=dweller.id,
+                meta_data={"event": "site_cleared", "exploration_id": str(exploration.id), "site_id": site.id},
+                commit=False,
+            )
+        await db_session.commit()
+        await notification_service.deliver_deferred_notifications(db_session)
+        return build_view(
+            exploration.id,
+            site,
+            run,
+            exploration,
+            outcome=outcome,
+            finale_paid=correct,
+            defeated=False,
+            dweller=dweller,
         )
 
     async def _resolve_scene_combat_transaction(

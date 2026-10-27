@@ -18,12 +18,13 @@ def test_sites_load_and_validate():
         "collapsed_subway",
         "rusted_midway",
         "frozen_research_outpost",
+        "raider_tollbooth",
     }
     for site in sites:
         assert isinstance(site, SiteDefinition)
         assert site.rooms or site.encounter
         assert site.encounter is not None
-        assert site.encounter.node.kind == "combat"
+        assert site.encounter.node.kind in {"combat", "trivia"}
         assert site.lore
         if len(site.rooms) > 1:
             assert site.rooms[-1].node.kind == "finale"
@@ -52,6 +53,78 @@ def test_super_duper_mart_shape():
 
 def test_unknown_site_returns_none():
     assert data_loader.get_expedition_site("no_such_site") is None
+
+
+def test_raider_tollbooth_shape():
+    site = data_loader.get_expedition_site("raider_tollbooth")
+    assert site is not None
+    assert site.encounter is not None
+    node = site.encounter.node
+    assert node.kind == "trivia"
+    assert [enemy.arena_key for enemy in node.enemies] == ["raider"]
+    assert len(node.trivia_questions) >= 5
+    for question in node.trivia_questions:
+        assert question.correct_option_id in {option.id for option in question.options}
+    assert {raider.gender for raider in node.raiders} == {"female", "male"}
+    assert len({raider.name for raider in node.raiders}) == len(node.raiders)
+    assert all(raider.intro and raider.correct_line and raider.wrong_line for raider in node.raiders)
+    assert all(raider.image_url and raider.alt_image_url for raider in node.raiders)
+    assert site.reward_vault.caps_min == 40
+
+
+def test_raider_variant_assets_are_shipped_and_transparent():
+    from pathlib import Path
+
+    from PIL import Image
+
+    static = Path(__file__).resolve().parents[2] / "static"
+    site = data_loader.get_expedition_site("raider_tollbooth")
+    assert site is not None
+    assert site.encounter is not None
+    for raider in site.encounter.node.raiders:
+        for url in (raider.image_url, raider.alt_image_url):
+            assert url is not None
+            assert url.startswith("/static/raider_images/")
+            assert "?v=" in url
+            path = static / url.split("?", 1)[0].removeprefix("/static/")
+            assert path.exists(), url
+            with Image.open(path) as image:
+                assert image.mode == "RGBA"
+                assert image.height == 902
+    assert not (static / "raider_images/base").exists()
+    assert not (static / "creature_images/assembled/raider.webp").exists()
+
+
+def test_trivia_question_rejects_unknown_answer():
+    from app.schemas.expedition import TriviaOption, TriviaQuestion
+
+    with pytest.raises(ValidationError, match="answer is not one of its options"):
+        TriviaQuestion(
+            id="q",
+            prompt="?",
+            options=[TriviaOption(id="a", label="A"), TriviaOption(id="b", label="B")],
+            correct_option_id="c",
+        )
+
+
+def test_trivia_encounter_needs_questions():
+    from app.services.catalog_service import validate_site_content
+    from app.utils.exceptions import ValidationException
+
+    site = data_loader.get_expedition_site("raider_tollbooth").model_copy(deep=True)
+    site.encounter.node.trivia_questions = []
+    with pytest.raises(ValidationException, match="needs trivia questions and raiders"):
+        validate_site_content(site)
+
+
+def test_trivia_encounter_needs_raiders():
+    from app.services.catalog_service import validate_site_content
+    from app.utils.exceptions import ValidationException
+
+    site = data_loader.get_expedition_site("raider_tollbooth").model_copy(deep=True)
+    site.encounter.node.raiders = []
+    with pytest.raises(ValidationException, match="needs trivia questions and raiders"):
+        validate_site_content(site)
 
 
 def test_invalid_site_definition_rejected():

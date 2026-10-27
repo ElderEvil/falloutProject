@@ -53,20 +53,79 @@ class NodeOption(BaseModel):
     failure: NodeBranch = Field(default_factory=NodeBranch)
 
 
+class TriviaOption(BaseModel):
+    """One answer choice on a lore-trivia node."""
+
+    id: str
+    label: str
+
+
+class TriviaQuestion(BaseModel):
+    """A hand-authored lore question with its server-side answer key."""
+
+    id: str
+    prompt: str
+    options: list[TriviaOption] = Field(min_length=2, max_length=4)
+    correct_option_id: str
+
+    @model_validator(mode="after")
+    def correct_option_exists(self) -> Self:
+        option_ids = [option.id for option in self.options]
+        if len(set(option_ids)) != len(option_ids):
+            raise ValueError(f"trivia question {self.id!r} has duplicate option ids")
+        if self.correct_option_id not in option_ids:
+            raise ValueError(f"trivia question {self.id!r} answer is not one of its options")
+        return self
+
+
+class TriviaRaider(BaseModel):
+    """One raider persona who poses the trivia question."""
+
+    id: str
+    name: str
+    gender: Literal["female", "male"]
+    intro: str
+    correct_line: str
+    wrong_line: str
+    image_url: str | None = None
+    alt_image_url: str | None = None
+
+
 class SiteNode(BaseModel):
-    """One room node: combat, choice, trap, or finale."""
+    """One room node: combat, choice, trap, trivia, or finale."""
 
     model_config = ConfigDict(extra="forbid")
 
-    kind: Literal["combat", "choice", "trap", "finale"]
+    kind: Literal["combat", "choice", "trap", "finale", "trivia"]
     prompt: str
     enemies: list[EnemySpec] = Field(default_factory=list)
     options: list[NodeOption] = Field(default_factory=list)
+    trivia_questions: list[TriviaQuestion] = Field(default_factory=list)
+    raiders: list[TriviaRaider] = Field(default_factory=list)
     stat: str | None = None
     difficulty: int | None = Field(default=None, ge=1, le=5)
     damage_min: int | None = None
     damage_max: int | None = None
     radiation: int = 0
+
+    @model_validator(mode="after")
+    def trivia_has_content(self) -> Self:
+        if self.kind != "trivia":
+            return self
+        if not self.trivia_questions:
+            raise ValueError("trivia node needs at least one question")
+        question_ids = [question.id for question in self.trivia_questions]
+        if len(set(question_ids)) != len(question_ids):
+            raise ValueError("trivia node has duplicate question ids")
+        if not self.raiders:
+            raise ValueError("trivia node needs at least one raider")
+        raider_ids = [raider.id for raider in self.raiders]
+        raider_names = [raider.name for raider in self.raiders]
+        if len(set(raider_ids)) != len(raider_ids) or len(set(raider_names)) != len(raider_names):
+            raise ValueError("trivia node has duplicate raider ids or names")
+        if not self.enemies:
+            raise ValueError("trivia node needs enemies for wrong answers")
+        return self
 
 
 class SiteRoom(BaseModel):
@@ -139,13 +198,13 @@ class ExpeditionSiteList(BaseModel):
 
 
 class NodeOptionView(BaseModel):
-    """Player-facing option with precomputed success odds."""
+    """Player-facing option; stat and odds are null for trivia answer choices."""
 
     id: str
     label: str
-    stat: str
-    difficulty: int
-    success_odds: float
+    stat: str | None = None
+    difficulty: int | None = None
+    success_odds: float | None = None
 
 
 class SiteNodeView(BaseModel):
@@ -153,6 +212,9 @@ class SiteNodeView(BaseModel):
 
     kind: str
     prompt: str
+    question: str | None = None
+    raider_image_url: str | None = None
+    raider_alt_image_url: str | None = None
     options: list[NodeOptionView] = Field(default_factory=list)
     enemy_names: list[str] = Field(default_factory=list)
 
@@ -198,6 +260,7 @@ class SiteRoomView(BaseModel):
     room_index: int
     room_total: int
     room_name: str
+    room_names: list[str] = Field(default_factory=list)
     flavor: str
     node: SiteNodeView
     can_retreat: bool

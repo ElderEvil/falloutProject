@@ -121,8 +121,8 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         return self.status == ExplorationStatus.COMPLETED
 
     def elapsed_time_seconds(self) -> int:
-        """Calculate elapsed time in seconds."""
-        now = datetime.utcnow()
+        """Calculate elapsed time in seconds, frozen while an encounter pauses the journey."""
+        now = self.paused_at or datetime.utcnow()
         return int((now - self.start_time).total_seconds())
 
     def exploring_seconds(self) -> int:
@@ -190,7 +190,8 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         """Seconds until the dweller arrives home; 0 unless returning."""
         if not self.is_returning() or self.return_completes_at is None:
             return 0
-        return max(0, int((self.return_completes_at - datetime.utcnow()).total_seconds()))
+        now = self.paused_at or datetime.utcnow()
+        return max(0, int((self.return_completes_at - now).total_seconds()))
 
     def finalize_return(self) -> None:
         """Finish the run once the dweller is home, preserving the outcome."""

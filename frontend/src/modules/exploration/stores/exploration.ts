@@ -57,6 +57,7 @@ export interface Exploration {
   status: 'active' | 'returning' | 'completed' | 'recalled'
   duration: number
   start_time: string
+  paused_at?: string | null
   end_time: string | null
   return_started_at?: string | null
   return_completes_at?: string | null

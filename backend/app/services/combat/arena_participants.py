@@ -39,6 +39,7 @@ class ArenaParticipant:
     dweller: Dweller | None = None
     body: CombatBody = "human"
     effect: CombatEffect = "strike"
+    image_url: str | None = None
 
 
 def participant_from_dweller(dweller: Dweller) -> ArenaParticipant:
@@ -79,6 +80,7 @@ def catalog_participants(entries: list[dict], side: str = "") -> list[ArenaParti
             max_health=int(entry["max_hp"]),
             is_creature=True,
             is_robot=bool(entry.get("is_robot", entry["key"] in robots)),
+            image_url=entry.get("image_url"),
         )
         for index, entry in enumerate(entries)
     ]
@@ -152,7 +154,7 @@ def fighter_view(participant: ArenaParticipant, charge: int = 0, queued: bool = 
         power=participant.power,
         is_creature=participant.is_creature,
         is_robot=participant.is_robot,
-        image_url=participant.dweller.image_url if participant.dweller else None,
+        image_url=participant.dweller.image_url if participant.dweller else participant.image_url,
         thumbnail_url=participant.dweller.thumbnail_url if participant.dweller else None,
         age_group=(
             participant.dweller.age_group.value if participant.dweller and participant.dweller.age_group else None

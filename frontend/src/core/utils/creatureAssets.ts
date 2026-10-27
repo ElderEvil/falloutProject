@@ -12,11 +12,32 @@ const MODEL_SIZE_CLASSES = {
   1.5: 'size-[calc(var(--scene-actor-height,7rem)*1.5)]',
 } as const
 
+export const RAIDER_VARIANTS = ['sable', 'rook', 'jinx', 'gristle', 'brick', 'cutter'] as const
+const RAIDER_ASSET_VERSION = '5'
+
+export const raiderVariantPath = (seed = 0): string =>
+  `/static/raider_images/variants/${RAIDER_VARIANTS[Math.abs(seed) % RAIDER_VARIANTS.length]}.webp?v=${RAIDER_ASSET_VERSION}`
+
+export const creatureSeed = (value: string): number => {
+  let hash = 0
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) | 0
+  }
+  return hash
+}
+
 export const CREATURE_ASSETS = (
   [
     { name: 'Deathclaw', key: 'deathclaw', modelScale: 1.5, arenaKey: 'deathclaw' },
     { name: 'Feral Ghoul', key: 'feral-ghoul', modelScale: 1, arenaKey: 'feral-ghoul' },
-    { name: 'Raider', key: 'raider', modelScale: 1, arenaKey: 'raider', generated: true },
+    {
+      name: 'Raider',
+      key: 'raider',
+      modelScale: 1,
+      arenaKey: 'raider',
+      generated: true,
+      image: raiderVariantPath(0),
+    },
     {
       name: 'Super Mutant',
       key: 'super-mutant',
@@ -55,10 +76,11 @@ export const CREATURE_ASSETS = (
     modelScale: keyof typeof MODEL_SIZE_CLASSES
     generated?: boolean
     originalImage?: string
+    image?: string
   }>
 ).map((asset) => ({
   ...asset,
-  image: asset.originalImage ?? `/static/creature_images/assembled/${asset.key}.webp`,
+  image: asset.image ?? asset.originalImage ?? `/static/creature_images/assembled/${asset.key}.webp`,
   sourceImage: asset.generated
     ? undefined
     : (asset.originalImage ?? `/static/creature_images/${asset.key}.png`),
@@ -67,8 +89,8 @@ export const CREATURE_ASSETS = (
 const getCreatureAsset = (key: string) =>
   CREATURE_ASSETS.find((asset) => asset.arenaKey === key || asset.key === key)
 
-export const getCreatureImagePath = (key: string): string | undefined =>
-  getCreatureAsset(key)?.image
+export const getCreatureImagePath = (key: string, seed = 0): string | undefined =>
+  key === 'raider' || key === 'raider-gang' ? raiderVariantPath(seed) : getCreatureAsset(key)?.image
 
 export const getActorModelSizeClass = (scale: number): string =>
   MODEL_SIZE_CLASSES[scale as keyof typeof MODEL_SIZE_CLASSES] ?? MODEL_SIZE_CLASSES[1]

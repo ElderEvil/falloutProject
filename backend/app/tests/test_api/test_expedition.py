@@ -36,6 +36,7 @@ async def test_site_enter_and_current(
     body = enter.json()
     assert body["site_id"] == "red_rocket"
     assert body["room_index"] == 0
+    assert body["room_names"] == ["Forecourt", "Garage", "Bunker Cache"]
     assert body["node"]["kind"] == "trap"
     assert body["can_retreat"] is True
 
@@ -162,6 +163,7 @@ async def test_site_available_lists_all_sites(
         "collapsed_subway",
         "rusted_midway",
         "frozen_research_outpost",
+        "raider_tollbooth",
     }
     assert sites["red_rocket"]["min_dweller_level"] == 3
     assert sites["red_rocket"]["room_total"] == 3
@@ -195,6 +197,7 @@ async def test_site_available_level_gate_excludes_sites(
         "collapsed_subway",
         "rusted_midway",
         "frozen_research_outpost",
+        "raider_tollbooth",
     ]
 
 
@@ -234,6 +237,7 @@ async def test_site_available_anti_farm_excludes_recent_clear(
         "collapsed_subway",
         "rusted_midway",
         "frozen_research_outpost",
+        "raider_tollbooth",
     ]
 
 

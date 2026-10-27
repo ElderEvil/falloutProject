@@ -410,7 +410,7 @@ watch(isReady, (ready) => {
           <ExpeditionSiteModal
             :show="showSiteModal"
             :reported-site-id="reportedSiteId"
-            :pauses-travel="exploration?.pos_x != null"
+            :pauses-travel="isInProgressExploration"
             :exploration-id="explorationId"
             :dweller-name="dwellerName"
             :dweller-image-url="dwellerImageUrl"

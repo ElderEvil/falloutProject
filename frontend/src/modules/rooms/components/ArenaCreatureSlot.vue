@@ -5,7 +5,7 @@ import { X } from '@lucide/vue'
 import { Button } from '@/core/components/ui/button'
 import type { ArenaCreature } from '../api/arena'
 import type { ArenaCreatureView } from '../models/arena'
-import { getCreatureImagePath } from '@/core/utils/creatureAssets'
+import { creatureSeed, getCreatureImagePath } from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
 import ArenaCombatantCard from './ArenaCombatantCard.vue'
 
@@ -31,7 +31,7 @@ const emit = defineEmits<{
 const powerLabel = computed(() => (props.creature ? Math.round(props.creature.power) : null))
 const failedUrls = ref(new Set<string>())
 const imageFor = (key: string) => {
-  const url = getStaticImageUrl(getCreatureImagePath(key))
+  const url = getStaticImageUrl(getCreatureImagePath(key, creatureSeed(key)))
   return url && !failedUrls.value.has(url) ? url : null
 }
 const creatureImage = computed(() => (props.creature ? imageFor(props.creature.key) : null))

@@ -10,6 +10,7 @@ Usage:
     uv run fo-cli family-scenario --help
     uv run fo-cli apprentice-scenario --help
     uv run fo-cli expedition-scenario --help
+    uv run fo-cli trivia-scenario --help
     uv run fo-cli backfill --help
     uv run fo-cli ops --help
     uv run fo-cli simulate-exploration --help
@@ -42,6 +43,7 @@ from app.cli.simulate_happiness import simulate as simulate_happiness
 from app.cli.simulate_incidents import simulate as simulate_incidents
 from app.cli.simulate_resources import run as simulate_resources
 from app.cli.transfer import app as transfer
+from app.cli.trivia_scenario import app as trivia_scenario
 from app.cli.wiki_images import app as wiki_images
 from app.core.config import settings
 from app.db.session import async_session_maker
@@ -69,6 +71,11 @@ cli.add_typer(debug, name="debug", help="Dev/QA: emit game events, inspect objec
 cli.add_typer(map_scenario, name="map-scenario", help="Dev/QA: populate a vault's map with a place per site-type group")
 cli.add_typer(ops, name="ops", help="One-off operations and infrastructure tasks")
 cli.add_typer(transfer, name="transfer", help="Move dwellers between vaults safely")
+cli.add_typer(
+    trivia_scenario,
+    name="trivia-scenario",
+    help="Dev/QA: build a Vault 666 Scout who can play the raider trivia and every site one by one",
+)
 cli.add_typer(wiki_images, name="wiki-images", help="Download Fallout Shelter wiki image assets")
 cli.command(name="simulate-exploration", help="Run the multi-system balance simulator")(simulate_exploration)
 cli.command(name="simulate-happiness", help="Run the happiness balance simulator")(simulate_happiness)

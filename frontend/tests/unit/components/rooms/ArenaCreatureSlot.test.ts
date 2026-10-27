@@ -62,13 +62,13 @@ describe('ArenaCreatureSlot artwork', () => {
 
   it('keeps creatures without artwork selectable with the paw fallback', async () => {
     const wrapper = render(null)
-    const raider = { key: 'raider-gang', name: 'Raider gang', power: 60, max_hp: 60 }
-    await wrapper.setProps({ pickerOpen: true, options: [raider] })
+    const unknown = { key: 'mystery-beast', name: 'Mystery beast', power: 60, max_hp: 60 }
+    await wrapper.setProps({ pickerOpen: true, options: [unknown] })
     expect(wrapper.find('img').exists()).toBe(false)
     expect(wrapper.get('[data-icon="mdi:paw"]').exists()).toBe(true)
     await wrapper.get('.picker-option').trigger('click')
-    expect(wrapper.emitted('select')).toEqual([[raider]])
-    await wrapper.setProps({ creature: creature('raider-gang'), pickerOpen: false })
+    expect(wrapper.emitted('select')).toEqual([[unknown]])
+    await wrapper.setProps({ creature: creature('mystery-beast'), pickerOpen: false })
     expect(wrapper.find('img').exists()).toBe(false)
     expect(wrapper.text()).toContain('20/35')
   })

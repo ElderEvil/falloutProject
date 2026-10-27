@@ -15,7 +15,7 @@ import {
   type IncidentTeamMember,
   type IncidentParticipant,
 } from '@/modules/combat/models/incident'
-import { getCreatureImagePath, getCreatureModelSizeClass } from '@/core/utils/creatureAssets'
+import { creatureSeed, getCreatureImagePath, getCreatureModelSizeClass } from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
 import { humanizePreserveCase } from '@/core/utils/format'
 import { useCombatPulse } from '../composables/useCombatPulse'
@@ -136,7 +136,9 @@ const creatureKeys: Partial<Record<IncidentType, string>> = {
 }
 const creatureKey = computed(() => creatureKeys[props.incident.type])
 const { url: creatureImage, onError: creatureFailed } = useFallbackImage(() => [
-  getStaticImageUrl(getCreatureImagePath(creatureKey.value ?? '')),
+  getStaticImageUrl(
+    getCreatureImagePath(creatureKey.value ?? '', creatureSeed(props.incident.id))
+  ),
 ])
 const creatureName = computed(() =>
   humanizePreserveCase((creatureKey.value ?? 'Raider').replaceAll('-', '_'))

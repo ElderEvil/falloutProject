@@ -15,12 +15,12 @@ from app.core.config import settings
 from app.core.enums import AgeGroupEnum, ContentProvenanceEnum, GenderEnum, RarityEnum
 from app.core.game_config import game_config
 from app.crud.vault_slot import vault_slot
-from app.models.exploration import ExpeditionRunStatus
+from app.models.exploration import ExpeditionRunStatus, ExplorationStatus
 from app.schemas.dweller import DwellerCreate
 from app.schemas.vault import VaultNumber
 from app.services import catalog_service as data_loader
 from app.services.dweller_service import dweller_service
-from app.services.exploration.expedition import expedition_service
+from app.services.exploration.expedition import ALL_SITES_SCENARIO_EVENT, expedition_service
 from app.services.exploration_service import exploration_service
 from app.services.leveling_service import leveling_service
 from app.services.vault_service import vault_service
@@ -88,6 +88,8 @@ class ExpeditionScenarioService:
         special: int = 5,
         discovered_site_id: str | None = None,
         dweller_id: UUID4 | None = None,
+        vault_number: int | None = None,
+        all_sites: bool = False,
     ) -> ExpeditionScenarioResult:
         """Provision a vault with one dweller on an active exploration.
 
@@ -98,6 +100,10 @@ class ExpeditionScenarioService:
         picker, demonstrating the lock. ``special`` sets every SPECIAL stat
         (1-10); 5 keeps site checks differentiated (95/85/75) while still
         winning most fights, 1 tests defeat/death, 7+ trivialises checks.
+
+        ``all_sites`` leaves a legacy (non-spatial) active journey where every
+        level-eligible site is offered, so one Scout can play all sites one by
+        one. ``vault_number`` selects the number for a newly created vault.
         """
         duration_hours = max(1, min(24, duration_hours))
         dweller_level = max(1, min(50, dweller_level))
@@ -119,7 +125,7 @@ class ExpeditionScenarioService:
                 raise ValueError("The discovered site cannot also be pre-cleared")
 
         vault, created_vault, owner_email = await self._resolve_vault(
-            db_session, vault_id=vault_id, user_email=user_email
+            db_session, vault_id=vault_id, user_email=user_email, vault_number=vault_number
         )
         if discovered_site is not None and await vault_slot.get_by_vault(db_session, vault.id) is None:
             await vault_slot.claim_next(db_session=db_session, vault_id=vault.id)
@@ -136,7 +142,9 @@ class ExpeditionScenarioService:
             radaways=0,
         )
         precleared = await self._preclear_site(db_session, exploration, vault, preclear_site_id)
-        if discovered_site is not None:
+        if all_sites:
+            await self._make_all_sites_active_transaction(db_session, exploration)
+        elif discovered_site is not None:
             self._stage_discovery(exploration, discovered_site)
             db_session.add(exploration)
             await db_session.commit()
@@ -152,6 +160,41 @@ class ExpeditionScenarioService:
             owner_email=owner_email,
             discovered_site_id=discovered_site_id,
         )
+
+    @staticmethod
+    async def _make_all_sites_active_transaction(db_session: AsyncSession, exploration: Exploration) -> None:
+        """Turn the scenario into a legacy active journey so every site is offered.
+
+        Spatial journeys only offer sites near the traveled trail. Clearing the
+        spatial fields makes ``list_available_sites`` use the legacy catalog, so
+        one Scout can enter every level-eligible site one by one.
+        """
+        now = _now()
+        exploration.heading_degrees = None
+        exploration.world_version = None
+        exploration.origin_x = None
+        exploration.origin_y = None
+        exploration.pos_x = None
+        exploration.pos_y = None
+        exploration.position_as_of = None
+        exploration.trail = []
+        exploration.start_time = now - timedelta(hours=min(1, exploration.duration / 2))
+        exploration.status = ExplorationStatus.ACTIVE
+        exploration.return_started_at = None
+        exploration.return_completes_at = None
+        exploration.end_time = None
+        exploration.paused_at = None
+        exploration.events = [
+            *exploration.events,
+            {
+                "type": "scenario",
+                "event": ALL_SITES_SCENARIO_EVENT,
+                "description": "QA scenario: all sites unlocked for this journey.",
+                "timestamp": now.isoformat(),
+            },
+        ]
+        db_session.add(exploration)
+        await db_session.commit()
 
     @staticmethod
     def _stage_discovery(exploration: Exploration, site: SiteDefinition) -> None:
@@ -181,7 +224,11 @@ class ExpeditionScenarioService:
 
     @staticmethod
     async def _resolve_vault(
-        db_session: AsyncSession, *, vault_id: UUID4 | None, user_email: str | None
+        db_session: AsyncSession,
+        *,
+        vault_id: UUID4 | None,
+        user_email: str | None,
+        vault_number: int | None = None,
     ) -> tuple[Vault, bool, str | None]:
         """Return the target vault, whether this call created it, and its owner's email."""
         if vault_id is not None:
@@ -193,7 +240,7 @@ class ExpeditionScenarioService:
             raise ValueError("No superuser found — run 'uv run fo-cli createsuperuser --no-input' first")
         vault = await vault_service.initiate_vault(
             db_session,
-            obj_in=VaultNumber(number=random.randint(1, 999), boosted=True),
+            obj_in=VaultNumber(number=vault_number or random.randint(1, 999), boosted=True),
             user_id=owner.id,
             is_boosted=True,
         )

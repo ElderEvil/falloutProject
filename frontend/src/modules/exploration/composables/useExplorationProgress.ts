@@ -17,21 +17,27 @@ export function linearProgress(
   return Math.max(0, Math.min(100, ((nowMs - startedAtMs) / total) * 100))
 }
 
+function effectiveNow(exploration: Exploration, nowMs: number): number {
+  return exploration.paused_at ? parseStartTimeMs(exploration.paused_at) : nowMs
+}
+
 export function getProgressPercentage(exploration: Exploration, nowMs = Date.now()): number {
+  const currentMs = effectiveNow(exploration, nowMs)
   if (exploration.status === 'returning') {
     const { return_started_at: startedAt, return_completes_at: completesAt } = exploration
     if (!startedAt || !completesAt) return 100
-    return linearProgress(parseStartTimeMs(startedAt), parseStartTimeMs(completesAt), nowMs)
+    return linearProgress(parseStartTimeMs(startedAt), parseStartTimeMs(completesAt), currentMs)
   }
   if (exploration.status !== 'active') return 100
   const start = parseStartTimeMs(exploration.start_time)
-  return linearProgress(start, start + exploration.duration * 3600 * 1000, nowMs)
+  return linearProgress(start, start + exploration.duration * 3600 * 1000, currentMs)
 }
 
 export function getTimeRemaining(exploration: Exploration, nowMs = Date.now()): string {
+  const currentMs = effectiveNow(exploration, nowMs)
   if (exploration.status === 'returning') {
     if (!exploration.return_completes_at) return 'Returning home'
-    const remaining = (parseStartTimeMs(exploration.return_completes_at) - nowMs) / 1000
+    const remaining = (parseStartTimeMs(exploration.return_completes_at) - currentMs) / 1000
     if (remaining <= 0) return 'Arriving home'
     return `Returning — ${formatRemaining(remaining)}`
   }

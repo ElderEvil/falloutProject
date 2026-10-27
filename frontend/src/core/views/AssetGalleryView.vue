@@ -41,13 +41,41 @@ interface StaticAsset {
 }
 
 const creatures: StaticAsset[] = [
-  ...CREATURE_ASSETS.map((asset) => ({ ...asset, kind: 'creature' })),
+  ...CREATURE_ASSETS.filter((asset) => asset.key !== 'raider').map((asset) => ({
+    ...asset,
+    kind: 'creature',
+  })),
   {
     name: 'Brahmin',
     kind: 'creature',
     image: '/static/creature_images/assembled/brahmin.webp',
   },
 ]
+
+const RAIDER_ASSET_VERSION = '5'
+const raiderImage = (path: string) => `${path}?v=${RAIDER_ASSET_VERSION}`
+
+const raiderPersonas = [
+  ['sable', 'Sable', 'female'],
+  ['rook', 'Rook', 'female'],
+  ['jinx', 'Jinx', 'female'],
+  ['gristle', 'Gristle', 'male'],
+  ['brick', 'Brick', 'male'],
+  ['cutter', 'Cutter', 'male'],
+] as const
+
+const raiders: StaticAsset[] = raiderPersonas.flatMap(([id, name, gender]) => [
+  {
+    name,
+    kind: `raider · ${gender} · default`,
+    image: raiderImage(`/static/raider_images/variants/${id}.webp`),
+  },
+  {
+    name: `${name} — action`,
+    kind: `raider · ${gender} · action`,
+    image: raiderImage(`/static/raider_images/variants/${id}_alt.webp`),
+  },
+])
 
 // Starter plus full FOS breed roster (generated from the wiki pet tables).
 const pets: StaticAsset[] = [
@@ -168,8 +196,10 @@ const filteredPets = computed(() =>
   search.value ? pets.filter((p) => matches(`${p.name} ${p.kind}`)) : pets
 )
 const filteredCreatures = computed(() => creatures.filter((c) => matches(c.name)))
+const filteredRaiders = computed(() => raiders.filter((r) => matches(`${r.name} ${r.kind}`)))
 const staticSections = computed(() => [
   { tab: 'creatures', entries: filteredCreatures.value },
+  { tab: 'raiders', entries: filteredRaiders.value },
   { tab: 'pets', entries: filteredPets.value },
 ])
 const missingCount = computed(
@@ -208,7 +238,7 @@ onMounted(async () => {
     <p class="mt-1 text-sm opacity-70">
       {{ weapons.length }} weapons · {{ outfits.length }} outfits · {{ dwellers.length }} dweller
       templates · {{ junks.length }} junk · {{ creatures.length }} creatures ·
-      {{ missingCount }} missing images
+      {{ raiders.length }} raider sprites · {{ missingCount }} missing images
     </p>
     <Input v-model="search" placeholder="Filter by name…" class="mt-4 max-w-sm" />
     <p v-if="!token" class="mt-3 text-sm opacity-70">
@@ -219,6 +249,7 @@ onMounted(async () => {
     <Tabs :model-value="activeTab" @update:model-value="setActiveTab" class="mt-4">
       <TabsList class="h-auto max-w-full flex-wrap justify-start">
         <TabsTrigger value="creatures">Creatures ({{ filteredCreatures.length }})</TabsTrigger>
+        <TabsTrigger value="raiders">Raiders ({{ filteredRaiders.length }})</TabsTrigger>
         <TabsTrigger value="weapons">Weapons ({{ filteredWeapons.length }})</TabsTrigger>
         <TabsTrigger value="outfits">Outfits ({{ filteredOutfits.length }})</TabsTrigger>
         <TabsTrigger value="dwellers">Dwellers ({{ filteredDwellers.length }})</TabsTrigger>
@@ -305,7 +336,7 @@ onMounted(async () => {
       <TabsContent v-for="section in staticSections" :key="section.tab" :value="section.tab">
         <div
           class="grid grid-cols-2 gap-3"
-          :class="section.tab === 'creatures' ? 'lg:grid-cols-3' : 'sm:grid-cols-4 lg:grid-cols-6'"
+          :class="section.tab === 'pets' ? 'sm:grid-cols-4 lg:grid-cols-6' : 'sm:grid-cols-3 lg:grid-cols-4'"
         >
           <Card v-for="p in section.entries" :key="p.name" class="overflow-hidden">
             <CardContent class="flex flex-col items-center gap-1 p-3">
@@ -314,7 +345,7 @@ onMounted(async () => {
                 :src="imgOf(p.image)!"
                 :alt="p.name"
                 class="w-full object-contain"
-                :class="section.tab === 'creatures' ? 'h-48' : 'h-24'"
+                :class="section.tab === 'pets' ? 'h-24' : 'h-48'"
                 loading="lazy"
                 @error="markBroken(imgOf(p.image))"
               />

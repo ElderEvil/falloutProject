@@ -84,10 +84,11 @@ const router = createRouter({
           },
           {
             path: '/dev/asset-gallery',
+            alias: '/dev/assets',
             name: 'asset-gallery',
             meta: {
               devTitle: 'Asset gallery',
-              devDescription: 'Browse creature, pet, item, and dweller artwork.',
+              devDescription: 'Browse creature, raider, pet, item, and dweller artwork.',
             },
             component: () => import('@/core/views/AssetGalleryView.vue'),
           },

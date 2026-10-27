@@ -5,6 +5,7 @@ import CombatSkillIcon from '@/modules/combat/components/CombatSkillIcon.vue'
 import type { ArenaFighter, ArenaRoomState } from '../api/arena'
 import { creatureKeyOf } from '../models/arena'
 import {
+  creatureSeed,
   getActorModelSizeClass,
   getCreatureImagePath,
   getCreatureModelSizeClass,
@@ -80,7 +81,12 @@ const readySkills = computed(() => {
       })
   })
 })
-const imageFor = (id: string) => getStaticImageUrl(getCreatureImagePath(creatureKeyOf(id)))
+const imageFor = (fighter: ArenaFighter) =>
+  fighter.image_url
+    ? getStaticImageUrl(fighter.image_url)
+    : getStaticImageUrl(
+        getCreatureImagePath(creatureKeyOf(fighter.id), creatureSeed(fighter.id))
+      )
 const actorSizeClass = (fighter: ArenaFighter) =>
   fighter.is_creature || fighter.is_robot
     ? getCreatureModelSizeClass(creatureKeyOf(fighter.id))
@@ -271,8 +277,8 @@ const actionFor = (fighter: ArenaFighter) => {
               >
                 <template v-if="fighter.is_creature || fighter.is_robot">
                   <img
-                    v-if="imageFor(fighter.id)"
-                    :src="imageFor(fighter.id) ?? undefined"
+                    v-if="imageFor(fighter)"
+                    :src="imageFor(fighter) ?? undefined"
                     :alt="fighter.name"
                     class="size-full object-contain drop-shadow-lg"
                     :class="{ '-scale-x-100': team.side === 'B' && fighter.is_robot }"

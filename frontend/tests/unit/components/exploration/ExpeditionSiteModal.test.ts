@@ -64,6 +64,25 @@ const choiceRoom: SiteRoomView = {
   dweller_max_health: 60,
 }
 
+const triviaRoom: SiteRoomView = {
+  ...choiceRoom,
+  room_total: 1,
+  room_name: 'Raider Tollbooth',
+  flavor: 'A raider leans on a wrecked car.',
+  node: {
+    kind: 'trivia',
+    prompt: 'The raider taps her rifle.',
+    question: 'Which pre-war company built the Vaults?',
+    raider_image_url: '/static/raider_images/variants/jinx.webp',
+    raider_alt_image_url: '/static/raider_images/variants/jinx_alt.webp',
+    options: [
+      { id: 'vault-tec', label: 'Vault-Tec' },
+      { id: 'robco', label: 'RobCo Industries' },
+    ],
+    enemy_names: ['Raider'],
+  },
+}
+
 const clearedRoom: SiteRoomView = {
   ...choiceRoom,
   room_index: 2,
@@ -311,7 +330,8 @@ describe('ExpeditionSiteModal', () => {
     expect(mockEnter).toHaveBeenCalledWith('exp-1', 'red_rocket')
     expect(wrapper.text()).toContain('A raider waves you over.')
     expect(wrapper.text()).toContain('Talk it out')
-    expect(wrapper.text()).toContain('charisma')
+    expect(wrapper.text()).toContain('Stat check')
+    expect(wrapper.text()).toContain('CHA')
     expect(wrapper.text()).toContain('75%')
   })
 
@@ -523,6 +543,48 @@ describe('ExpeditionSiteModal', () => {
     expect(wrapper.text()).not.toContain('Clock expiry')
   })
 
+  it('renders stat-check options with a compact SPECIAL chip and inspectable detail', async () => {
+    const wrapper = mountModal()
+    const store = useExpeditionSiteStore()
+    store.room = {
+      ...choiceRoom,
+      node: {
+        ...choiceRoom.node,
+        options: [
+          {
+            id: 'disarm',
+            label: 'Disarm the wires (Perception)',
+            stat: 'perception',
+            difficulty: 1,
+            success_odds: 0.95,
+          },
+        ],
+      },
+    }
+    await flushPromises()
+
+    expect(wrapper.getComponent(TerminalModal).props('size')).toBe('5xl')
+    expect(wrapper.text()).toContain('Stat check')
+    expect(wrapper.text()).toContain('Disarm the wires')
+    expect(wrapper.text()).not.toContain('(Perception)')
+    expect(wrapper.text()).toContain('PER')
+    expect(wrapper.text()).toContain('95%')
+
+    const option = buttonByText(wrapper, 'Disarm the wires')!
+    expect(option.attributes('title')).toBe('Perception check · Difficulty 1 · 95% success')
+    expect(option.attributes('aria-label')).toContain('Perception check')
+    wrapper.unmount()
+  })
+
+  it('shows travel paused whenever an encounter room is open', async () => {
+    const wrapper = mountModal()
+    useExpeditionSiteStore().room = choiceRoom
+    await flushPromises()
+    expect(wrapper.text()).toContain('Travel paused')
+    expect(wrapper.text()).not.toContain('Travel continues')
+    wrapper.unmount()
+  })
+
   it('explains an expired report without fetching offers for a finished journey', async () => {
     const wrapper = mountModal('exp-1', 'Lucy', undefined, false)
     await wrapper.setProps({ reportedSiteId: 'red_rocket' })
@@ -542,6 +604,81 @@ describe('ExpeditionSiteModal', () => {
     expect(mockEnter).not.toHaveBeenCalled()
     await wrapper.setProps({ reportedSiteId: 'spent-site' })
     expect(wrapper.text()).toContain('This site report is no longer available')
+  })
+
+  it('renders a trivia question with plain answer buttons', async () => {
+    const wrapper = mountModal()
+    const store = useExpeditionSiteStore()
+    store.room = triviaRoom
+    await flushPromises()
+
+    expect(wrapper.getComponent(TerminalModal).props('size')).toBe('5xl')
+    expect(wrapper.text()).toContain('Which pre-war company built the Vaults?')
+    expect(wrapper.text()).toContain('If it goes wrong: Raider')
+    const portrait = wrapper.get('img[alt="Raider posing the question"]')
+    expect(portrait.attributes('src')).toContain('/static/raider_images/variants/jinx')
+    const answers = wrapper
+      .findAll('button')
+      .filter((button) => ['Vault-Tec', 'RobCo Industries'].some((label) => button.text().includes(label)))
+    expect(answers).toHaveLength(2)
+    for (const answer of answers) expect(answer.text()).not.toContain('%')
+    wrapper.unmount()
+  })
+
+  it('treats a started trivia fight as combat and shows the wrong-answer outcome', async () => {
+    const wrapper = mountModal()
+    const store = useExpeditionSiteStore()
+    store.room = {
+      ...triviaRoom,
+      node: { ...triviaRoom.node, options: [] },
+      outcome: {
+        text: 'Wrong answer — the raider attacks!',
+        damage_taken: 0,
+        caps_gained: 0,
+        loot_gained: [],
+      },
+      combat_state: { round: 0, next_attack_team: 'A', fighters: [], events: [] },
+    }
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Wrong answer — the raider attacks!')
+    expect(buttonByText(wrapper, 'Fight')).toBeTruthy()
+    wrapper.unmount()
+  })
+
+  it('starts the trivia fight immediately when a wrong answer opens it', async () => {
+    vi.useFakeTimers()
+    const store = useExpeditionSiteStore()
+    const combatRoom: SiteRoomView = {
+      ...triviaRoom,
+      node: { ...triviaRoom.node, options: [] },
+      outcome: {
+        text: 'Wrong answer — the raider attacks!',
+        damage_taken: 0,
+        caps_gained: 0,
+        loot_gained: [],
+      },
+      combat_state: { round: 0, next_attack_team: 'A', fighters: [], events: [] },
+    }
+    store.room = combatRoom
+    store.currentExplorationId = 'exp-1'
+    mockResolve.mockResolvedValue({
+      ...combatRoom,
+      combat_state: { ...combatRoom.combat_state, round: 1 },
+    })
+    const wrapper = mount(ExpeditionSiteModal, {
+      props: { show: true, explorationId: 'exp-1' },
+      global: { stubs: { Teleport: { template: '<div><slot /></div>' }, SiteCombatScene: true } },
+    })
+    try {
+      await nextTick()
+      expect(wrapper.findComponent(SiteCombatScene).exists()).toBe(true)
+      await vi.advanceTimersByTimeAsync(1200)
+      expect(mockResolve).toHaveBeenCalledWith('exp-1', undefined, false, 0)
+    } finally {
+      wrapper.unmount()
+      vi.useRealTimers()
+    }
   })
 
   it('dedupes combat enemies and labels failure threats separately', async () => {

@@ -10,7 +10,39 @@ import WastelandScene from './WastelandScene.vue'
 import SiteCombatScene from './SiteCombatScene.vue'
 import BattleLog from '@/modules/rooms/components/BattleLog.vue'
 import type { BattleLogEntry } from '@/modules/rooms/models/battleLog'
+import { getStaticImageUrl } from '@/core/utils/image'
+import { pickRaiderPose, raiderVarietySeed } from '../models/raiderPoses'
 import { isTerminal, useExpeditionSiteStore } from '../stores/expeditionSite'
+
+const STAT_META: Record<string, { short: string; name: string; icon: string }> = {
+  strength: { short: 'STR', name: 'Strength', icon: 'mdi:arm-flex' },
+  perception: { short: 'PER', name: 'Perception', icon: 'mdi:eye-outline' },
+  endurance: { short: 'END', name: 'Endurance', icon: 'mdi:heart-pulse' },
+  charisma: { short: 'CHA', name: 'Charisma', icon: 'mdi:account-voice' },
+  intelligence: { short: 'INT', name: 'Intelligence', icon: 'mdi:brain' },
+  agility: { short: 'AGI', name: 'Agility', icon: 'mdi:run-fast' },
+  luck: { short: 'LCK', name: 'Luck', icon: 'mdi:clover' },
+}
+
+const statMeta = (stat: string) =>
+  STAT_META[stat.toLowerCase()] ?? {
+    short: stat.toUpperCase(),
+    name: stat,
+    icon: 'mdi:dice-multiple',
+  }
+
+const optionLabel = (option: { label: string; stat?: string | null }): string => {
+  if (!option.stat) return option.label
+  const meta = statMeta(option.stat)
+  return option.label
+    .replace(/\s*\(([^)]*)\)\s*$/, (match, inner: string) => {
+      const normalized = inner.trim().toLowerCase()
+      return normalized === option.stat!.toLowerCase() || normalized === meta.name.toLowerCase()
+        ? ''
+        : match
+    })
+    .trim()
+}
 
 interface Props {
   show: boolean
@@ -52,15 +84,34 @@ const room = computed(() => {
   return current.exploration_id === props.explorationId ? current : null
 })
 const hasOutcome = computed(() => !!room.value?.outcome)
+const travelPaused = computed(() => props.pausesTravel || !!room.value)
+const hasStatCheckOptions = computed(
+  () => room.value?.node.options?.some((option) => !!option.stat) ?? false
+)
 const isTerminalRun = computed(() => (room.value ? isTerminal(room.value.status) : false))
 const isDefeated = computed(() => !!room.value?.defeated && !isTerminalRun.value)
 // Gap 1.6: a run left open on a non-active exploration is close-only.
 const isRecovery = computed(() => !props.explorationActive && !!room.value)
-const isCombatRoom = computed(() => room.value?.node.kind === 'combat')
 const hasArenaCombat = computed(() => !!room.value?.combat_state)
+const isCombatRoom = computed(() => room.value?.node.kind === 'combat' || hasArenaCombat.value)
+const raiderImageUrl = computed(() => {
+  const current = room.value
+  if (!current) return null
+  const url = pickRaiderPose(
+    { image_url: current.node.raider_image_url, alt_image_url: current.node.raider_alt_image_url },
+    raiderVarietySeed(current.exploration_id, current.site_id)
+  )
+  return getStaticImageUrl(url)
+})
 const expandedCombat = computed(
   () => hasArenaCombat.value && (combatExpanded.value || (room.value?.combat_state?.round ?? 0) > 0)
 )
+const modalSize = computed<'screen' | '5xl' | '3xl'>(() => {
+  if (expandedCombat.value) return 'screen'
+  return room.value?.node.kind === 'trivia' || (room.value?.node.options?.length ?? 0) > 0
+    ? '5xl'
+    : '3xl'
+})
 
 const startCombat = () => {
   combatExpanded.value = true
@@ -188,6 +239,32 @@ watch(
   { immediate: true }
 )
 
+// A wrong trivia answer returns the fight already armed; start it immediately.
+watch(
+  () => [
+    props.show,
+    room.value?.node.kind,
+    room.value?.combat_state?.round,
+    room.value?.status,
+    store.isLoading,
+  ],
+  () => {
+    const current = room.value
+    if (
+      props.show &&
+      current?.node.kind === 'trivia' &&
+      current.combat_state &&
+      current.status === 'in_room' &&
+      current.combat_state.round === 0 &&
+      !fighting.value &&
+      !store.isLoading
+    ) {
+      startCombat()
+    }
+  },
+  { immediate: true }
+)
+
 const handleEnter = (siteId: string) => {
   store.enterSite(props.explorationId, siteId).catch(() => {})
 }
@@ -223,7 +300,31 @@ const handleDialogClose = () => {
   }
 }
 
-const successOdds = (odds: number): string => `${Math.round(odds * 100)}%`
+const successOdds = (odds: number | null | undefined): string =>
+  odds == null ? '' : `${Math.round(odds * 100)}%`
+
+const statCheckDetail = (option: {
+  stat?: string | null
+  difficulty?: number | null
+  success_odds?: number | null
+}): string | undefined => {
+  if (!option.stat) return undefined
+  const meta = statMeta(option.stat)
+  const details = [`${meta.name} check`]
+  if (option.difficulty != null) details.push(`Difficulty ${option.difficulty}`)
+  if (option.success_odds != null) details.push(`${successOdds(option.success_odds)} success`)
+  return details.join(' · ')
+}
+
+const statCheckAriaLabel = (option: {
+  label: string
+  stat?: string | null
+  difficulty?: number | null
+  success_odds?: number | null
+}): string | undefined => {
+  const detail = statCheckDetail(option)
+  return detail ? `${optionLabel(option)} — ${detail}` : undefined
+}
 
 const outcomeLines = computed(() => {
   const outcome = room.value?.outcome
@@ -275,7 +376,7 @@ const terminalBanner = computed(() => {
     :title="room ? room.site_name : 'Expedition Site'"
     icon="mdi:radio-tower"
     icon-class="inline h-6 w-6 shrink-0 text-theme-primary"
-    :size="expandedCombat ? 'screen' : '3xl'"
+    :size="modalSize"
     :content-class="expandedCombat ? 'h-[calc(100dvh-2rem)] max-h-[calc(100dvh-2rem)]' : undefined"
     max-height="90"
     header-class="flex flex-shrink-0 flex-row items-center gap-2 border-b border-theme-primary/25 bg-theme-primary/5 pt-6 pr-14 pb-4 pl-6"
@@ -321,10 +422,10 @@ const terminalBanner = computed(() => {
       </div>
       <p class="col-span-2 flex items-center gap-1 text-xs text-theme-primary/70 sm:col-span-1">
         <Icon
-          :icon="pausesTravel ? 'mdi:pause-circle-outline' : 'mdi:walk'"
+          :icon="travelPaused ? 'mdi:pause-circle-outline' : 'mdi:walk'"
           class="mr-1 inline size-4"
         />
-        {{ pausesTravel ? 'Travel paused' : 'Travel continues' }}
+        {{ travelPaused ? 'Travel paused' : 'Travel continues' }}
       </p>
     </div>
 
@@ -455,7 +556,7 @@ const terminalBanner = computed(() => {
         :class="
           expandedCombat
             ? 'h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem] md:grid-rows-1'
-            : 'items-start md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]'
+            : 'items-start md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]'
         "
       >
         <div class="min-w-0" :class="expandedCombat ? 'h-full min-h-0' : 'lg:sticky lg:top-0'">
@@ -487,6 +588,12 @@ const terminalBanner = computed(() => {
               : undefined
           "
         >
+          <p
+            v-if="room.node.kind === 'trivia' && room.outcome && room.combat_state?.round === 0"
+            class="mb-3 text-sm font-semibold text-warning"
+          >
+            {{ room.outcome.text }}
+          </p>
           <section
             v-if="expandedCombat"
             aria-label="Battle journal"
@@ -506,6 +613,12 @@ const terminalBanner = computed(() => {
             </summary>
             <p class="mt-2 leading-relaxed">{{ room.flavor }}</p>
             <p v-if="room.lore" class="mt-2 italic leading-relaxed">{{ room.lore }}</p>
+            <p
+              v-if="room.node.kind === 'trivia' && room.outcome"
+              class="mt-2 font-semibold text-warning"
+            >
+              {{ room.outcome.text }}
+            </p>
           </details>
           <section
             v-if="hasArenaCombat && !expandedCombat"
@@ -516,6 +629,12 @@ const terminalBanner = computed(() => {
               Field report
             </h3>
             <p class="text-sm leading-relaxed text-theme-primary/90">{{ room.flavor }}</p>
+            <p
+              v-if="room.node.kind === 'trivia' && room.outcome && room.combat_state?.round === 0"
+              class="mt-2 text-sm font-semibold text-warning"
+            >
+              {{ room.outcome.text }}
+            </p>
           </section>
           <p
             v-if="room.lore && !expandedCombat"
@@ -620,16 +739,43 @@ const terminalBanner = computed(() => {
               <ExpeditionOutcomeLines :lines="outcomeLines" subdued />
             </div>
 
-            <p v-if="!hasArenaCombat" class="mb-4 text-base font-semibold text-theme-primary">
-              {{ room.node.prompt }}
-            </p>
-            <p v-else-if="!expandedCombat" class="mb-4 text-sm text-theme-primary/70">
-              {{
-                fighting
-                  ? 'Combat is underway. Activate your weapon skill when its meter fills.'
-                  : 'Start combat when ready. You can retreat during the fight.'
-              }}
-            </p>
+            <div
+              v-if="room.node.kind === 'trivia' && !hasArenaCombat"
+              class="mb-4 grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start sm:gap-5"
+            >
+              <img
+                v-if="raiderImageUrl"
+                :src="raiderImageUrl"
+                alt="Raider posing the question"
+                class="mx-auto h-48 w-auto object-contain sm:mx-0 sm:h-64"
+              />
+              <div class="min-w-0">
+                <p class="mb-2 text-base font-semibold text-theme-primary">{{ room.node.prompt }}</p>
+                <p
+                  class="border-l-2 border-theme-primary/30 pl-3 text-base leading-relaxed text-theme-primary/90"
+                >
+                  {{ room.node.question }}
+                </p>
+              </div>
+            </div>
+            <template v-else>
+              <p v-if="!hasArenaCombat" class="mb-4 text-base font-semibold text-theme-primary">
+                {{ room.node.prompt }}
+              </p>
+              <p
+                v-if="room.node.question && !hasArenaCombat"
+                class="mb-4 border-l-2 border-theme-primary/30 pl-3 text-base leading-relaxed text-theme-primary/90"
+              >
+                {{ room.node.question }}
+              </p>
+              <p v-else-if="!expandedCombat" class="mb-4 text-sm text-theme-primary/70">
+                {{
+                  fighting
+                    ? 'Combat is underway. Activate your weapon skill when its meter fills.'
+                    : 'Start combat when ready. You can retreat during the fight.'
+                }}
+              </p>
+            </template>
 
             <div
               v-if="enemySummary && !expandedCombat && !isCombatRoom"
@@ -644,30 +790,48 @@ const terminalBanner = computed(() => {
             <!-- Choices resolve in this same scene. Fight/search actions stay in the footer. -->
             <template v-if="!isDefeated">
               <div
+                v-if="hasStatCheckOptions"
+                class="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.6875rem] font-semibold uppercase tracking-widest text-theme-primary/60"
+              >
+                <Icon icon="mdi:dice-multiple-outline" class="h-4 w-4 shrink-0" />
+                <span>Stat check</span>
+                <span class="normal-case tracking-normal text-theme-primary/50"
+                  >Success chance is based on SPECIAL.</span
+                >
+              </div>
+              <div
                 v-if="room.node.options && room.node.options.length > 0"
                 class="flex flex-col gap-2"
               >
                 <Button
                   v-for="option in room.node.options"
                   :key="option.id"
-                  class="justify-between gap-2 border-theme-primary/40 bg-theme-primary/10 text-left text-theme-primary hover:bg-theme-primary/20"
+                  class="h-auto min-h-11 flex-wrap justify-between gap-3 whitespace-normal border-theme-primary/40 bg-theme-primary/10 py-3 text-left text-theme-primary hover:bg-theme-primary/20"
                   variant="outline"
                   size="lg"
                   :disabled="store.isLoading"
+                  :title="statCheckDetail(option)"
+                  :aria-label="statCheckAriaLabel(option)"
                   @click="handleResolve(option.id)"
                 >
-                  <span class="flex-1">{{ option.label }}</span>
-                  <span
-                    class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-surface-sunken px-1.5 py-0.5 text-[0.75rem] font-semibold"
-                  >
-                    <Icon icon="mdi:brain" class="h-3.5 w-3.5" />
-                    {{ option.stat }}
-                  </span>
-                  <span
-                    class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-surface-sunken px-1.5 py-0.5 text-[0.75rem] font-semibold"
-                  >
-                    <Icon icon="mdi:percent" class="h-3.5 w-3.5" />
-                    {{ successOdds(option.success_odds) }}
+                  <span class="min-w-0 flex-1 break-words text-left leading-relaxed">{{
+                    optionLabel(option)
+                  }}</span>
+                  <span class="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                    <span
+                      v-if="option.stat"
+                      class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-surface-sunken px-1.5 py-0.5 text-[0.75rem] font-semibold"
+                    >
+                      <Icon :icon="statMeta(option.stat).icon" class="h-3.5 w-3.5" />
+                      {{ statMeta(option.stat).short }}
+                    </span>
+                    <span
+                      v-if="option.success_odds != null"
+                      class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-surface-sunken px-1.5 py-0.5 text-[0.75rem] font-semibold"
+                    >
+                      <Icon icon="mdi:percent" class="h-3.5 w-3.5" />
+                      {{ successOdds(option.success_odds) }}
+                    </span>
                   </span>
                 </Button>
               </div>

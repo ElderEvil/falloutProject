@@ -55,6 +55,11 @@ describe('getProgressPercentage', () => {
     } as Exploration
     expect(getProgressPercentage(returning, Date.parse('2026-08-21T13:30:00Z'))).toBe(50)
   })
+
+  it('freezes progress at the encounter pause timestamp', () => {
+    const paused = { ...exploration, paused_at: '2026-08-21T13:00:00Z' } as Exploration
+    expect(getProgressPercentage(paused, Date.parse('2026-08-21T20:00:00Z'))).toBe(25)
+  })
 })
 
 describe('getTimeRemaining', () => {
@@ -66,6 +71,13 @@ describe('getTimeRemaining', () => {
     } as Exploration
     expect(getTimeRemaining(returning, Date.parse('2026-08-21T13:00:00Z'))).toBe(
       'Returning — 30m remaining'
+    )
+  })
+
+  it('freezes remaining time while an encounter is paused', () => {
+    const paused = { ...exploration, paused_at: '2026-08-21T13:00:00Z' } as Exploration
+    expect(getTimeRemaining(paused, Date.parse('2026-08-21T20:00:00Z'))).toBe(
+      getTimeRemaining(exploration, Date.parse('2026-08-21T13:00:00Z'))
     )
   })
 })

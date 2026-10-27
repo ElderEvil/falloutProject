@@ -55,6 +55,8 @@ NEUTRAL_EFFECT = PetEffect()
 #: effect field is covered at least once; extend by adding a line per pet.
 PET_EFFECT_BY_NAME: dict[str, PetEffect] = {
     "dogmeat (fallout 4)": PetEffect(strength=2, max_health=20, damage_pct=0.25),
+    "baby deathclaw": PetEffect(damage_pct=0.35, incident_response_pct=0.25),
+    "yao guai cub": PetEffect(damage_pct=0.25, max_health=25),
     "cx404": PetEffect(luck=2, caps_pct=0.25, xp_pct=0.25),
     "vault-tec parrot": PetEffect(intelligence=2, training_speed_pct=0.25),
     "mr. pebbles": PetEffect(charisma=2, happiness=0.25),
@@ -91,6 +93,7 @@ PET_DESCRIPTION_BY_NAME: dict[str, str] = {
     "apolda": "A sleek, alert Doberman that never misses a stranger at the gate.",
     "ashes": "A calm, round-faced cat that naps through every alarm.",
     "australian shepherd": "A tireless herder that rounds up dwellers and loose gear alike.",
+    "baby deathclaw": "A pint-size deathclaw with a fierce streak and a taste for incident alarms.",
     "bandit (dog)": "A shaggy opportunist that steals snacks and hearts in equal measure.",
     "bangor": "A giant fluffy cat that rules the room it walks into.",
     "barry": "A gentle giant bred to dig survivors out of the rubble.",
@@ -186,6 +189,7 @@ PET_DESCRIPTION_BY_NAME: dict[str, str] = {
     "vault-tec parrot": "Repeats every training drill it hears, word for word.",
     "vinnie": "A loyal parrot that recites Vault-Tec jingles on command.",
     "wanderer": "A restless parrot with a shanty for every long haul.",
+    "yao guai cub": "A mangy bear cub that is all patchy fur, sharp claws and stubborn grit.",
     "zula": "A restless Abyssinian that races through the corridors.",
 }
 

@@ -126,10 +126,18 @@ def prepare_initial_rooms(
             ("storage room", 13, 2, 3),
         ]
     else:
-        capacity_specs = [("living room", 7, 1, 3), ("storage room", 7, 2, 3)]
+        # The retired Radio Studio slot becomes living space. The adjacent second
+        # segment keeps the capacity row contiguous and lets the pair merge.
+        capacity_specs = [
+            ("living room", 7, 1, 3),
+            ("storage room", 7, 2, 3),
+            ("living room", 7, 3, 3),
+            ("living room", 10, 3, 3),
+        ]
     capacity = mk_sized(capacity_specs)
     if scenario_start and not is_boosted:
-        capacity.extend(mk_sized([("living room", 10, 3, 3), ("living room", 13, 3, 3)]))
+        # Scenario starts add one more segment to the same living-room row.
+        capacity.extend(mk_sized([("living room", 13, 3, 3)]))
     if is_boosted:
         # Keep the size-9 living room between the two base rooms: the housing row
         # stays contiguous without merging away a seeded household's room.

@@ -10,7 +10,8 @@ Status: **backend + frontend slices experimentally implemented in PR #790** (sit
 and available-sites endpoints, all test-backed; `ExpeditionSiteModal` + expedition
 site store + journal `site` icon branch). **Deferred**: automatic site-entry from
 discovery events and SSE `site_prompt` (entering is explicit from the exploration
-detail view for now).
+detail view for now). Raider trivia nodes and the full journey-clock pause landed
+in PR #1214.
 This is the original design sketch. The implemented lifecycle, cooldown, and
 room-reset rules are specified in [EXPEDITION_SITES_GAPS.md](EXPEDITION_SITES_GAPS.md).
 Mockup room descriptions and future integration ideas below remain proposals;
@@ -40,9 +41,10 @@ no changes to the random-event economy.
 
 While exploring, a dweller can discover an **expedition site** (a named building with
 2–4 rooms) instead of a generic discovery. Entering pauses random event
-generation while the exploration clock keeps running. Each room presents one
-**node**: combat, choice, trap, or finale. Choices can run stat checks and
-branches can award caches.
+generation and freezes the journey clock for as long as the run stays open;
+resolving the run restores the clock and shifts the return deadlines by the
+paused duration. Each room presents one **node**: combat, choice, trap, trivia,
+or finale. Choices can run stat checks and branches can award caches.
 Resolving nodes advances a room cursor; the finale room pays
 a **reward vault** (caps + XP + one rolled item at elevated rarity). The player can
 retreat at any room boundary (keeping room loot, forfeiting the finale) or die trying
@@ -56,7 +58,7 @@ Site (static definition, JSON-seeded like enemies/loot)
 ├── rooms: ordered list (linear for v0; branching is a later phase)
 │   └── Room
 │       ├── id, name, description seed
-│       └── node: Combat | Choice | Trap | Finale
+│       └── node: Combat | Choice | Trap | Trivia | Finale
 └── reward_vault: budget + loot table overrides for the finale
 ```
 
@@ -72,6 +74,22 @@ Site (static definition, JSON-seeded like enemies/loot)
   fallback branch (usually a combat or a trap), never a dead end.
 - **Trap**: fixed
   damage range + optional radiation (reuses `apply_radiation_gain` semantics).
+- **Trivia**: one of the site's raider personas poses a fixed multiple-choice
+  lore question with 2-4 answer options. The answer key (`correct_option_id`)
+  stays server-side; the player view exposes the prompt and option labels only.
+  Entry pins one random question id and one random raider id per trivia room
+  into `expedition_run.flags`, so reconnecting or re-entering shows the same
+  prompt and cannot reroll either. Resolution reuses
+  `POST /explorations/{id}/site/resolve` with the chosen option id as
+  `choice_id`; there is no trivia-specific endpoint. A correct answer pays the
+  site reward vault once into the exploration haul and marks the run cleared. A
+  wrong answer appends the raider's wrong line and starts the normal site combat
+  against that raider, leaving the run in the room; winning pays the same vault,
+  and a defeat follows the existing nonlethal DEFEATED behavior.
+  The shipped `raider_tollbooth` site (level 3+, scene `desert_highway`, coords
+  44/72) is the reference: one trivia room, 6 questions, 6 raider personas
+  (Sable, Rook, Jinx, Gristle, Brick, Cutter), and a reward vault of 40-80 caps
+  plus one junk item.
 - **Cache rewards** live in choice branches; they are not standalone nodes.
 - **Finale**: locked until all prior rooms resolve; pays the reward vault (§8) and
   marks the site cleared.
@@ -147,9 +165,11 @@ bunker. Smaller and earlier than the Mart — the tutorial site.
 
 1. Discovery event fires as today (map link, journal entry), but flagged
    `site_id`. The event description ends with an **Enter / Ignore** prompt.
-2. Enter pauses random event generation for that exploration. The exploration
-   clock keeps running; expiry force-retreats the site run. Ignore continues
-   exactly as today.
+2. Enter pauses random event generation for that exploration and freezes the
+   journey clock (`Exploration.paused_at`). While the run is open the tick
+   generates no events and clock expiry cannot fire; recall still force-retreats
+   the run. Resuming (clear, retreat, or death) clears the pause and shifts the
+   journey deadlines by the paused duration. Ignore continues exactly as today.
 3. Each room renders a modal: room art/flavor, node prompt, legal actions
    (fight is automatic on confirm; choices show stat + odds; retreat always
    visible at room boundaries, never mid-combat-roll).
@@ -157,8 +177,9 @@ bunker. Smaller and earlier than the Mart — the tutorial site.
    the journal, SSE feed, and triage labels keep working unchanged.
 5. Progression red line: site entry, finale, and death-each surface a modal or
    toast **in addition to** the notification bell entry, never bell-only.
-6. Retreat keeps room loot, forfeits the finale, unpauses the event stream.
-   Death follows the existing dweller-death flow (revival, trading post, bio).
+6. Retreat resumes the event stream and journey clock, keeps room loot, and
+   forfeits the finale. Death follows the existing dweller-death flow (revival,
+   trading post, bio).
 
 ## 7. Failure philosophy (no dead ends, no zero payouts)
 
@@ -271,12 +292,12 @@ checks, not a full-project estimate.
 | Surface | First playable behavior | Effort |
 | --- | --- | --- |
 | Exploration detail | One contextual **Enter site / Continue site** action and current-run status. Fetch for this explorer only; no badges across the entire exploration list. | Small, about half a day |
-| Site modal header | Site name, room number/total, remaining exploration time, and current health after refreshing it on actions. Warn when the running clock may force retreat. Keep existing stat/odds chips; defer exact damage forecasts until the API can provide reliable values. | Small for progress/time; medium for refreshed health |
+| Site modal header | Site name, room number/total, remaining exploration time, and current health after refreshing it on actions. Show that the journey clock is paused until the run resolves. Keep existing stat/odds chips; defer exact damage forecasts until the API can provide reliable values. | Small for progress/time; medium for refreshed health |
 | Room outcome | After an action, show health/caps/loot changes before the next room's choices. Offer **Next room** on success, **Push on / Retreat** after a surviving combat defeat, and visible errors with a recovery path. A local acknowledgement step needs no extra resolve request. | Medium, about a day |
 | Return rewards | Say **Added to exploration haul; collected on return** at site clear. Show the eventual payout in the existing return rewards modal, without implying the vault received it immediately. | Small, a few hours |
 | Site picker | Show unavailable sites with a short reason: level, another explorer inside, or cooldown remaining. Add this when the backend exposes availability reasons; until then use a clear general empty state. Keep disabled sites in this picker only. | Medium, alongside the cooldown API change |
-| Reconnect and expiry | Closing an open room means **Continue later**. Reopening fetches the server room for the current exploration; switching explorers never reuses another room. Show an expiry-driven retreat in the modal or toast and event log. | Medium, alongside lifecycle work |
-| Notifications | Use the existing bell plus a modal or toast for entry, clear, and death. Show retreat and forced expiry in the modal or toast and event log; avoid a bell alert for every room. | Medium, alongside backend terminal events |
+| Reconnect and expiry | Closing an open room means **Continue later**. Reopening fetches the server room for the current exploration; switching explorers never reuses another room. Show a forced retreat (recall, or expiry after the clock resumes) in the modal or toast and event log. | Medium, alongside lifecycle work |
+| Notifications | Use the existing bell plus a modal or toast for entry, clear, and death. Show manual and forced retreats in the modal or toast and event log; avoid a bell alert for every room. | Medium, alongside backend terminal events |
 
 This keeps major progression visible under the repo's notification rule.
 Defer automatic discovery prompts, map markers, exploration-list badges, and
@@ -339,12 +360,32 @@ design rather than showing it.
 
 Caveats:
 
-- The game tick **pauses random events** while a site run is open, but the
-  wall clock keeps running; when it expires the open run is force-retreated and
-  the dweller heads home. The default 1 hour keeps that full cycle — site,
-  expiry, forced retreat, return leg, rewards — observable in one sitting;
-  raise `--duration-hours` for longer play.
-- Shipped sites exercise `combat`, `choice`, `trap`-with-options and `finale`
-  nodes. Cache rewards and stat checks are authored through choice branches.
+- The game tick **pauses random events and freezes the journey clock** while a
+  site run is open, so an open room cannot expire mid-visit. Resolving the run
+  restores the clock and shifts the return deadlines by the paused duration.
+  The default 1 hour keeps site, return leg, and rewards observable in one
+  sitting; raise `--duration-hours` for longer play.
+- Shipped sites exercise `combat`, `choice`, `trap`-with-options, `trivia`, and
+  `finale` nodes. Cache rewards and stat checks are authored through choice
+  branches.
 - `--preclear <site>` inserts a completed run so the 7-day per-vault anti-farm
   lock hides the site from the picker — the demonstration of the lock.
+
+For the raider trivia demo, `trivia-scenario` ships a narrower builder:
+
+```bash
+uv run fo-cli trivia-scenario setup
+```
+
+`setup` builds a ready-to-play Vault 666 Scout (default `balanced` profile, level
+5, SPECIAL 4) with every level-eligible site available, including
+`raider_tollbooth`, and prints the exploration id plus a frontend deep link:
+
+```text
+http://localhost:5173/vault/<vault-id>/exploration/<exploration-id>?siteId=raider_tollbooth
+```
+
+`--profile` selects `demo` (10/7), `balanced` (5/4), or `hard` (3/3);
+`--dweller-level` and `--special` override the profile. `--vault-id`,
+`--user-email`, `--vault-number`, and `--duration-hours` (default 8, clamped
+1-24) set the surrounding state.

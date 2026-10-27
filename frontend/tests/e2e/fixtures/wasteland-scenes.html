@@ -14,17 +14,84 @@
       import { createRouter, createMemoryHistory } from 'vue-router'
       import WastelandScenesPreview from '../../../src/modules/exploration/views/WastelandScenesPreview.vue'
       import ExpeditionSiteModal from '../../../src/modules/exploration/components/ExpeditionSiteModal.vue'
-      const Preview = new URLSearchParams(location.search).has('picker')
-        ? {
-            render: () =>
-              h(ExpeditionSiteModal, {
-                show: true,
-                explorationId: 'preview-picker',
-                dwellerName: 'Rachel Miller',
-                explorationActive: true,
-              }),
-          }
-        : WastelandScenesPreview
+      import { useExpeditionSiteStore } from '../../../src/modules/exploration/stores/expeditionSite'
+      const params = new URLSearchParams(location.search)
+      const pinia = createPinia()
+      let Preview = WastelandScenesPreview
+      if (params.has('trivia')) {
+        const store = useExpeditionSiteStore(pinia)
+        store.currentExplorationId = 'preview-trivia'
+        store.room = {
+          exploration_id: 'preview-trivia',
+          site_id: 'raider_tollbooth',
+          site_name: 'Raider Tollbooth',
+          room_index: 0,
+          room_total: 1,
+          room_name: 'Raider Tollbooth',
+          scene_id: 'desert_highway',
+          flavor:
+            'A raider leans on a wrecked car with her rifle across her knees. She wants a toll — or an answer.',
+          lore: "The tollbooth sign still reads 'PAY HERE.' Someone scratched 'OR KNOW THINGS' underneath.",
+          node: {
+            kind: 'trivia',
+            prompt:
+              "'You want through?' the raider says. 'Prove you know the wasteland. Get it wrong and we settle it the old way.'",
+            question: 'Which pre-war company built the Vaults?',
+            raider_image_url: '/static/raider_images/variants/sable.webp',
+            raider_alt_image_url: '/static/raider_images/variants/sable_alt.webp',
+            options: [
+              {
+                id: 'vault-tec',
+                label: 'Vault-Tec',
+                stat: null,
+                difficulty: null,
+                success_odds: null,
+              },
+              {
+                id: 'robco',
+                label: 'RobCo Industries',
+                stat: null,
+                difficulty: null,
+                success_odds: null,
+              },
+              {
+                id: 'poseidon',
+                label: 'Poseidon Energy',
+                stat: null,
+                difficulty: null,
+                success_odds: null,
+              },
+            ],
+            enemy_names: ['Sable'],
+          },
+          can_retreat: true,
+          status: 'in_room',
+          outcome: null,
+          finale_paid: false,
+          defeated: false,
+          dweller_health: 81,
+          dweller_max_health: 100,
+        }
+        Preview = {
+          render: () =>
+            h(ExpeditionSiteModal, {
+              show: true,
+              explorationId: 'preview-trivia',
+              dwellerName: 'Rachel Miller',
+              explorationActive: true,
+            }),
+        }
+      } else if (params.has('picker')) {
+        Preview = {
+          render: () =>
+            h(ExpeditionSiteModal, {
+              show: true,
+              explorationId: 'preview-picker',
+              dwellerName: 'Rachel Miller',
+              explorationActive: true,
+            }),
+        }
+      }
       const router = createRouter({
         history: createMemoryHistory(),
         routes: [
@@ -33,7 +100,7 @@
         ],
       })
       router.push('/')
-      router.isReady().then(() => createApp(Preview).use(router).use(createPinia()).mount('#app'))
+      router.isReady().then(() => createApp(Preview).use(router).use(pinia).mount('#app'))
     </script>
   </body>
 </html>

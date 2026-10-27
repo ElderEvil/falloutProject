@@ -1,6 +1,7 @@
 # Expedition Sites — Resolved Rules and Implementation Spec
 
-Status: **decisions resolved; implemented in PR #790.**
+Status: **decisions resolved; implemented in PR #790. Raider trivia and the
+full journey-clock pause landed in PR #1214; D1-A below is superseded.**
 
 Context: the expedition-sites work began in three stacked PRs — backend
 (#786), frontend (#787), scenario CLI (#788) — and is consolidated in #790.
@@ -15,7 +16,7 @@ cooldown, and room-reset rules.
 
 | #   | Decision | Chosen |
 | --- | -------- | ------ |
-| D1  | Clock during open runs | **A** — pause random events only; clock keeps running |
+| D1  | Clock during open runs | **A** — pause random events only; clock keeps running (superseded by a full journey-clock freeze, PR #1214) |
 | D2  | Retreat-farming rule | **B** — any terminal run locks the site 7 days |
 | D3  | XP on combat re-attempts | **A** — credited once, on room clear |
 | D4  | Same-site concurrency per vault | **B** — one open run per vault/site (exclusive) |
@@ -59,10 +60,13 @@ the gap sections below keep the problem analysis and note what changed.
    room and offer push-on / retreat. Stop the enemy pack at the first defeat.
    XP is credited once on room clear, tracked run-locally in
    `expedition_run.flags` — no vault-wide room ledger.
-4. **Clock = events paused, time running (D1-A).** While a run is open the
-   tick skips *event generation* but the wall clock keeps ticking. On clock
-   expiry with an open run: auto-retreat it, then start the return leg. A
-   recall with an open run force-retreats first.
+4. **Clock = full journey freeze (supersedes D1-A, PR #1214).** Entry sets
+   `Exploration.paused_at`; while it is set the tick skips *event generation*
+   and the journey clock is frozen, so expiry cannot fire mid-run. Resuming
+   clears `paused_at`, and `resume_from_encounter` shifts `start_time` and the
+   return deadlines by the paused duration. Recall with an open run
+   force-retreats first; the service-level expiry retreat remains as a backstop
+   and runs only after the clock resumes.
 5. **Locking.** `resolve_node`, `retreat_run`, entry, and the return
    transitions lock the exploration row and re-check `ACTIVE` under that
    lock. Define one acquisition order for exploration, vault/site claim,
@@ -74,7 +78,9 @@ the gap sections below keep the problem analysis and note what changed.
 - separate finale-only **claim** lock (the shared vault/site claim protects
   cooldown, entry, and terminal payout)
 - per-enemy **durable progress** (D3-A is run-local)
-- full **clock freeze** with `paused_seconds` (D1-A needs no time math)
+- a `paused_seconds` **column**: the implemented full clock freeze uses
+  `Exploration.paused_at` plus `resume_from_encounter` deadline shifting, so no
+  accumulated-seconds column exists
 
 ---
 
@@ -97,8 +103,10 @@ dangled.
 1. Lock the exploration row; re-check `ACTIVE` **under the lock**. Include
    the shared vault/site claim and run in a consistent lock order wherever
    those resources are needed.
-2. Skip event generation while a run is open (wall clock keeps running).
-3. Clock expiry with an open run: auto-retreat it, then start the return leg.
+2. Skip event generation while a run is open and freeze the journey clock via
+   `Exploration.paused_at` (PR #1214), so expiry cannot fire mid-run.
+3. After the clock resumes, expiry with an open run auto-retreats it, then
+   starts the return leg.
 4. Recall with an open run: force-retreat first.
 5. Show remaining exploration time before entry; warn that expiry forces a
    retreat.

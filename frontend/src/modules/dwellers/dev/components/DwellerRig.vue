@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
 import suitSheet from '../assets/vault-suit-parts.webp'
-import headSheet from '../assets/dweller-head.webp'
+import headSheet from '../assets/chet-head.webp'
+import chetReference from '../assets/chet-reference.webp'
 import handSheet from '../assets/hand-poses.webp'
-import { resolveRig, type BoneId, type JointAngles, type RigClip } from '../models/dwellerRig'
+import {
+  RIG_REFERENCE,
+  resolveRig,
+  type BoneId,
+  type JointAngles,
+  type RigClip,
+} from '../models/dwellerRig'
 
 const props = withDefaults(
   defineProps<{
@@ -13,8 +20,9 @@ const props = withDefaults(
     display?: 'art' | 'bones' | 'overlay'
     selected?: BoneId
     mirrored?: boolean
+    referenceOpacity?: number
   }>(),
-  { display: 'overlay', mirrored: false }
+  { display: 'overlay', mirrored: false, referenceOpacity: 0 }
 )
 const emit = defineEmits<{ select: [bone: BoneId] }>()
 const id = useId()
@@ -28,7 +36,7 @@ const connections = computed(() =>
 const layers = computed(() => [...joints.value].sort((a, b) => a.layer - b.layer))
 const sheets = {
   suit: { url: suitSheet, width: 520, height: 260 },
-  head: { url: headSheet, width: 165, height: 196 },
+  head: { url: headSheet, width: 94, height: 96 },
   hands: { url: handSheet, width: 180, height: 120 },
 }
 </script>
@@ -74,6 +82,20 @@ const sheets = {
           </svg>
         </g>
       </g>
+      <svg
+        v-if="referenceOpacity > 0"
+        :x="RIG_REFERENCE.x"
+        :y="RIG_REFERENCE.y"
+        :width="RIG_REFERENCE.width * RIG_REFERENCE.scale"
+        :height="RIG_REFERENCE.height * RIG_REFERENCE.scale"
+        :viewBox="`0 0 ${RIG_REFERENCE.width} ${RIG_REFERENCE.height}`"
+        class="pointer-events-none"
+        :opacity="referenceOpacity"
+        v-bind="{ 'data-reference': 'chet' }"
+        aria-label="Original Chet reference overlay"
+      >
+        <image :href="chetReference" width="136" height="287" />
+      </svg>
       <g
         v-if="display !== 'art'"
         class="text-theme-primary"

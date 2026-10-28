@@ -30,16 +30,70 @@ describe('2D dweller skeleton', () => {
     expect(back.layer).toBeLessThan(torso.layer)
   })
 
+  it('puts the dweller left leg behind the right leg', () => {
+    const joints = resolveRig('bind', 0)
+    const back = joints.find((joint) => joint.id === 'backThigh')!
+    const front = joints.find((joint) => joint.id === 'frontThigh')!
+    expect(back.x).toBeGreaterThan(front.x)
+    expect(back.layer).toBeLessThan(front.layer)
+  })
+
+  it('flexes each elbow during walking instead of swinging a rigid arm', () => {
+    const poses = [0, 0.25, 0.5, 0.75, 1].map((phase) => sampleRigClip('walk', phase).angles)
+    for (const elbow of ['frontForearm', 'backForearm'] as const) {
+      const angles = poses.map((pose) => pose[elbow]!)
+      expect(Math.max(...angles) - Math.min(...angles)).toBeGreaterThan(25)
+      expect(Math.min(...angles.map(Math.abs))).toBeGreaterThanOrEqual(15)
+    }
+    expect(poses[1]!.frontForearm).toBeLessThan(poses[1]!.backForearm!)
+    expect(poses[3]!.backForearm).toBeLessThan(poses[3]!.frontForearm!)
+  })
+
+  it('fits the original hip connector beneath the torso without an oversized round pelvis', () => {
+    const hips = RIG_BONES.find((bone) => bone.id === 'pelvis')!.sprite.frame
+    const torso = RIG_BONES.find((bone) => bone.id === 'spine')!.sprite.frame
+    expect(hips[3] / hips[2]).toBeLessThan(0.55)
+    expect(hips[2] / torso[2]).toBeGreaterThan(0.75)
+    expect(hips[2]).toBeLessThan(torso[2] * 1.15)
+  })
+
+  it('maps the bind joints to the original Chet stance', () => {
+    const joints = resolveRig('bind', 0)
+    // Original 136 × 287 Chet sprite, uniformly scaled 1.25 and aligned at the neck.
+    const anchors = {
+      frontUpperArm: [41, 106],
+      backUpperArm: [101, 105],
+      frontForearm: [21, 143],
+      backForearm: [113, 150],
+      frontHand: [20, 185],
+      backHand: [119, 177],
+      frontThigh: [53, 177],
+      backThigh: [84, 178],
+      frontShin: [81, 224],
+      backShin: [43, 218],
+      frontFoot: [79, 268],
+      backFoot: [30, 254],
+    }
+    for (const [id, point] of Object.entries(anchors)) {
+      const joint = joints.find((joint) => joint.id === id)!
+      expect(
+        Math.hypot(joint.x - (107.5 + point[0]! * 1.25), joint.y - (90.25 + point[1]! * 1.25)),
+        id
+      ).toBeLessThan(0.001)
+    }
+  })
+
   it('rotates the elbow and wrist with their shoulder, leaving the opposite arm intact', () => {
     const before = resolveRig('bind', 0)
     const after = resolveRig('bind', 0, { frontUpperArm: 90 })
     const shoulder = after.find((joint) => joint.id === 'frontUpperArm')!
     const elbow = after.find((joint) => joint.id === 'frontForearm')!
     const wrist = after.find((joint) => joint.id === 'frontHand')!
-    expect(elbow.x).toBeCloseTo(shoulder.x - 49)
-    expect(elbow.y).toBeCloseTo(shoulder.y)
-    expect(wrist.x).toBeCloseTo(elbow.x - 43)
-    expect(wrist.y).toBeCloseTo(elbow.y)
+    for (const child of [elbow, wrist]) {
+      const original = before.find((joint) => joint.id === child.id)!
+      expect(child.x).toBeCloseTo(shoulder.x - (original.y - shoulder.y))
+      expect(child.y).toBeCloseTo(shoulder.y + (original.x - shoulder.x))
+    }
     expect(after.find((joint) => joint.id === 'backHand')).toEqual(
       before.find((joint) => joint.id === 'backHand')
     )

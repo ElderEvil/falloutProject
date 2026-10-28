@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/core/components/ui/select'
 import DwellerRig from '../components/DwellerRig.vue'
+import chetReference from '../assets/chet-reference.webp'
 import {
   RIG_BONES,
   RIG_CLIPS,
@@ -26,6 +27,8 @@ const playing = ref(false)
 const speed = ref(1)
 const display = ref<'art' | 'bones' | 'overlay'>('overlay')
 const mirrored = ref(false)
+const showReference = ref(false)
+const referenceOpacity = ref(40)
 const selected = ref<BoneId>('frontUpperArm')
 const adjustments = ref<JointAngles>({})
 const reducedMotion = usePreferredReducedMotion()
@@ -95,7 +98,7 @@ function reset() {
       </div>
     </header>
 
-    <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div class="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <section
         aria-label="Rig stage"
         class="relative overflow-hidden rounded-xl border border-theme-glow bg-surface-sunken"
@@ -137,6 +140,7 @@ function reset() {
             :display="display"
             :selected="selected"
             :mirrored="mirrored"
+            :reference-opacity="showReference ? referenceOpacity / 100 : 0"
             @select="selected = $event"
           />
         </div>
@@ -172,6 +176,31 @@ function reset() {
             <span>Cycle duration</span><span>{{ definition.duration.toFixed(1) }}s</span>
           </div>
         </section>
+        <section class="space-y-4 rounded-xl border border-theme-glow bg-surface p-5">
+          <Button
+            variant="outline"
+            class="w-full"
+            :aria-pressed="showReference"
+            @click="showReference = !showReference"
+            >Chet overlay {{ showReference ? 'on' : 'off' }}</Button
+          >
+          <div class="flex justify-between text-xs text-theme-primary/65">
+            <span>Reference opacity</span><span>{{ referenceOpacity }}%</span>
+          </div>
+          <Slider
+            aria-label="Reference opacity"
+            :model-value="[referenceOpacity]"
+            :min="0"
+            :max="100"
+            :step="1"
+            :disabled="!showReference"
+            @update:model-value="referenceOpacity = $event?.[0] ?? 40"
+          />
+          <p class="text-xs leading-relaxed text-theme-primary/60">
+            Aligned at the neck at the same scale. Bind pose follows Chet’s stance; Vault 33
+            clothing differs from the classic suit.
+          </p>
+        </section>
         <section class="space-y-5 rounded-xl border border-theme-glow bg-surface p-5">
           <div class="flex items-center justify-between">
             <h2 class="text-sm font-semibold uppercase tracking-widest">Joint inspector</h2>
@@ -205,9 +234,27 @@ function reset() {
           <Button variant="outline" size="sm" class="w-full" @click="reset">Reset pose</Button>
         </section>
         <p class="px-1 text-xs leading-relaxed text-theme-primary/50">
-          Prototype only. A male vault-suit rig with cropped source artwork; not yet connected to
+          Prototype only. An original Chet head with classic vault-suit parts; not yet connected to
           dweller appearance or game state.
         </p>
+        <details
+          class="rounded-xl border border-theme-glow bg-surface p-4 text-xs text-theme-primary/65"
+        >
+          <summary class="cursor-pointer text-theme-primary">Original art reference: Chet</summary>
+          <div class="mt-3 flex items-center gap-4">
+            <img
+              :src="chetReference"
+              width="136"
+              height="287"
+              class="h-40 w-auto"
+              alt="Original Fallout Shelter Chet wearing his Vault 33 suit"
+            />
+            <p class="leading-relaxed">
+              Chet wears the Vault 33 suit. This study uses his original head and the classic suit’s
+              original separated parts; no common/rare generated portrait is used.
+            </p>
+          </div>
+        </details>
       </aside>
     </div>
 

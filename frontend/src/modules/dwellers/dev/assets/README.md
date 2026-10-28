@@ -6,12 +6,23 @@ These are lossless WebP crops, with no redrawing, from the supplied asset batch 
 | ----------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------ |
 | `vault-suit-parts.webp` | `/home/elder/Downloads/fallout-asset-batch/Item/Mobile - Fallout Shelter - Items - Male Outfits.png` | `520x260+560+0`               | `6512282686049253ee024121f0d6f8e329064a3e65cfa0c732f392f0e8b8a875` |
 | `hand-poses.webp`       | Same batch, `Item/Mobile - Fallout Shelter - Items - Outfit Accessories.png`                         | `180x120+0+1580`              | `a21934bedb21372637a6dc049024161db2ce8dc585c2118a13900af7394c75ac` |
-| `dweller-head.webp`     | `backend/app/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp`                              | `165x196+65+28`               | `04b040da85b18101981d53d2d9b4f629172e2451c90d75d71a47b520c90208dc` |
+| `chet-head.webp`        | `backend/app/static/legendary_dweller_images/FOS_Dw_Chet.png`                                        | `94x96+19+0`, jaw mask below  | `0a5abe0416a97308522520a25c6bd95837340d78354204de91ad0697f5eb84dc` |
+| `chet-reference.webp`   | Same original Chet sprite                                                                            | Whole `136x287` sprite        | `0a5abe0416a97308522520a25c6bd95837340d78354204de91ad0697f5eb84dc` |
 
-The provided outfit sheet already separates torsos, hips, upper/lower limbs, and shoes. The head is a cutout of the existing static portrait; it does not deform or turn in 3D. Source sheets are not animation frames. Motion comes from the parented joint transforms.
+The provided outfit sheet already separates torsos, hips, upper/lower limbs, and shoes. The head is a cutout of the original legendary Chet sprite; it does not deform or turn in 3D. Source sheets are not animation frames. Motion comes from the parented joint transforms.
 
 This is a development-only study at `/dev/dweller-rig`. Its view imports these assets through the DEV-gated route, so production builds do not include the rig or its textures. It uses no Blender assets, models, renders, or runtime.
 
-The prototype covers one adult male head/outfit, bind/idle/walk/punch clips, joint-angle trims, mirrored rendering, and a skeleton overlay. It does not replace live portraits, wire into combat playback, implement foot IK, or solve race/outfit/age combinations. Those decisions follow visual review of the rig.
+The prototype uses the original Chet head with classic vault-suit parts (the reference sprite wears the Vault 33 suit). Common/rare base and variant portraits are AI-generated and are not used in this study. It covers bind/idle/walk/punch clips, joint-angle trims, mirrored rendering, and a skeleton overlay. It does not replace live portraits, wire into combat playback, implement foot IK, or solve race/outfit/age combinations. Those decisions follow visual review of the rig.
 
-In the unmirrored view, the foreground arm is the dweller's right arm on the viewer's left; the background arm is on the viewer's right. The original hand atlas wrist attachment is `(145, 35)`. Sprite-local rotation/mirroring aligns that source point with each wrist bone; source orientation is independent of bone rotation.
+In the unmirrored view, the foreground arm is the dweller's right arm on the viewer's left; the background arm is on the viewer's right. Open hands use atlas wrist `(25, 77)` with opposite mirrored orientations. The punch clip uses the original fist at wrist `(138, 32)`. Sprite-local rotation/mirroring aligns that source point with each wrist bone; source orientation is independent of bone rotation.
+
+The Chet head extraction also clears pixels below the source jaw using a black polygon on the extracted alpha mask: `0,77 31,77 67,93 94,93 94,96 0,96`. This removes the original shirt collar without redrawing the face. Head point `(55, 87)` attaches to the suit's yellow neckline at atlas point `(200, 29)`; the suit's existing half-circle remains visible beneath the chin.
+
+In the unmirrored view, the foreground right leg is on the viewer's left and the background left leg on the viewer's right. The walk clip varies elbow flexion in opposition, rather than keeping both forearms rigid.
+
+Chet’s whole sprite is a translucent, independently adjustable reference layer, never a replacement for the separated suit/body pieces. The bind skeleton uses joint landmarks measured on the 136 × 287 reference, mapped with a uniform 1.25 scale at `(107.5, 90.25)`. Atlas sprite frames are positioned and scaled to follow that silhouette; the torso and waist overlap, while the original thigh/shin/foot parts remain separate. The source artwork is unchanged. The Vault 33 suit, Pip-Boy and boots in the reference still have different contours from the classic suit pieces.
+
+The foot atlas attachment points are `(414, 220)` for the back shoe and `(487, 220)` for the front shoe. Frames keep these points on the ankle pivots when resized or mirrored. The raised back foot follows the reference’s heel-up stance.
+
+Bind refinement changes only sprite placement, scale and rotation. Open hands are 25% larger with inward wrist rotations; arm widths are reduced 10%. The torso is narrowed and tilted 3° around its calibrated neck attachment to bring the original yellow trim closer to Chet’s. Remaining joint gaps are visible for a later pass; body part pixels have not been repainted, redrawn or filled.

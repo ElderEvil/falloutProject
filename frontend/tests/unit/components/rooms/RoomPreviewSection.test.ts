@@ -1,5 +1,5 @@
-import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vite-plus/test'
+import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import RoomPreviewSection from '@/modules/rooms/components/RoomPreviewSection.vue'
 
 const dweller = (id: string, name: string) => ({
@@ -38,6 +38,40 @@ describe('RoomPreviewSection image aspect', () => {
 
     expect(image.attributes('style') ?? '').not.toContain('display: none')
     expect(wrapper.find('.dweller-sprites-overlay').exists()).toBe(true)
+    wrapper.unmount()
+  })
+})
+
+describe('RoomPreviewSection pets', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('renders the equipped pet beside its dweller after measuring the preview', async () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private callback: ResizeObserverCallback) {}
+        observe(target: Element) {
+          this.callback(
+            [{ target, contentRect: new DOMRect(0, 0, 400, 80) } as ResizeObserverEntry],
+            this as unknown as ResizeObserver
+          )
+        }
+        unobserve() {}
+        disconnect() {}
+      }
+    )
+    const wrapper = mountPreview({
+      assignedDwellers: [
+        {
+          ...dweller('d1', 'Ada'),
+          pet: { id: 'pet-1', name: 'Dogmeat', image_url: '/static/pets/dogmeat.webp' },
+        },
+      ],
+    })
+
+    await flushPromises()
+    const pet = wrapper.get('.combat-pet')
+    expect(pet.get('img').attributes('alt')).toContain('Dogmeat')
     wrapper.unmount()
   })
 })

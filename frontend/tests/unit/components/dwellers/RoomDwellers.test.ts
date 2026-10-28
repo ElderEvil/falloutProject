@@ -59,6 +59,34 @@ it('shows dweller details in an app tooltip on keyboard focus without a browser 
   expect(avatar.attributes('draggable')).toBe('true')
 })
 
+it('marks an equipped pet on the avatar and in the tooltip', async () => {
+  roster.dwellers.splice(0, roster.dwellers.length, {
+    ...alice,
+    pet: { id: 'pet-1', name: 'Dogmeat', image_url: '/static/pets/dogmeat.webp' },
+  })
+
+  const wrapper = mountDwellers()
+  const avatar = wrapper.get('.dweller-avatar')
+  expect(avatar.attributes('role')).toBe('group')
+  expect(avatar.attributes('aria-label')).toBe('Alice Smith (Lv3), pet Dogmeat')
+  expect(avatar.get('.dweller-pet img').attributes('src')).toContain('dogmeat.webp')
+
+  await avatar.trigger('focus')
+  await vi.waitFor(() =>
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('Pet Dogmeat')
+  )
+})
+
+it('falls back to a paw when the equipped pet has no image', () => {
+  roster.dwellers.splice(0, roster.dwellers.length, {
+    ...alice,
+    pet: { id: 'pet-2', name: 'Dogmeat', image_url: null },
+  })
+
+  const wrapper = mountDwellers()
+  expect(wrapper.get('.dweller-pet-fallback').exists()).toBe(true)
+})
+
 it('orders workers before apprentices and marks the apprentice avatar', () => {
   roster.dwellers.splice(
     0,

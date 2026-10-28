@@ -346,6 +346,11 @@ const responderSizeClass = computed(() => {
           aria-hidden="true"
           >+{{ containmentGain }}%</span
         >
+        <span
+          v-if="incident.objective === 'defeat'"
+          class="threat-remaining rounded bg-black/85 px-2 py-1 text-xs font-semibold text-theme-primary"
+          >{{ remainingEnemies }} remaining</span
+        >
         <div class="relative flex w-full max-w-full items-end justify-center">
           <div
             v-if="isFire"
@@ -405,11 +410,6 @@ const responderSizeClass = computed(() => {
             />
           </CombatantMotion>
         </div>
-        <span
-          v-if="incident.objective === 'defeat'"
-          class="rounded bg-black/85 px-2 py-1 text-xs font-semibold text-theme-primary"
-          >{{ remainingEnemies }} remaining</span
-        >
       </div>
     </div>
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
 import { Icon } from '@iconify/vue'
+import { PawPrint } from '@lucide/vue'
 import { useDwellerStore } from '../stores/dweller'
 import type { DwellerShort } from '../models/dweller'
 import {
@@ -10,6 +11,7 @@ import {
   orderRoomDwellers,
 } from '../models/dweller'
 import DwellerPortrait from './DwellerPortrait.vue'
+import { getStaticImageUrl } from '@/core/utils/image'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/core/components/ui/tooltip'
 
 interface Props {
@@ -28,6 +30,10 @@ const emit = defineEmits<{
 const roomDwellers = computed(() =>
   orderRoomDwellers(dwellerStore.dwellers.filter((dweller) => dweller.room_id === props.roomId))
 )
+
+const failedPetImages = reactive(new Set<string>())
+const petImageUrl = (pet: NonNullable<DwellerShort['pet']>): string | null =>
+  getStaticImageUrl(pet.image_url)
 
 const apprenticeLabel = (dweller: DwellerShort): string =>
   getAbilityConfig(dweller.apprentice_stat)?.label ?? dweller.apprentice_stat ?? ''
@@ -59,6 +65,7 @@ const handleDragEnd = () => {
       <TooltipTrigger as-child>
         <div
           class="dweller-avatar"
+          role="group"
           :class="{ 'dweller-avatar--apprentice': isApprentice(dweller) }"
           draggable="true"
           tabindex="0"
@@ -66,7 +73,7 @@ const handleDragEnd = () => {
           @dragend="handleDragEnd"
           :aria-label="`${getDwellerDisplayName(dweller)} (Lv${dweller.level})${
             isApprentice(dweller) ? `, apprentice in ${apprenticeLabel(dweller)}` : ''
-          }`"
+          }${dweller.pet ? `, pet ${dweller.pet.name}` : ''}`"
         >
           <DwellerPortrait
             :thumbnail-url="dweller.thumbnail_url"
@@ -78,6 +85,20 @@ const handleDragEnd = () => {
           <span v-if="isApprentice(dweller)" class="apprentice-badge" aria-hidden="true">
             <Icon icon="mdi:school-outline" />
           </span>
+          <span
+            v-if="dweller.pet"
+            class="dweller-pet pointer-events-none absolute top-0 left-0 z-2 flex size-3.5 items-center justify-center overflow-hidden rounded-full border border-theme-glow bg-surface-sunken text-theme-primary"
+            aria-hidden="true"
+          >
+            <img
+              v-if="petImageUrl(dweller.pet) && !failedPetImages.has(dweller.pet.id)"
+              :src="petImageUrl(dweller.pet) ?? undefined"
+              class="size-full object-cover"
+              alt=""
+              @error="failedPetImages.add(dweller.pet.id)"
+            />
+            <PawPrint v-else class="dweller-pet-fallback size-3" />
+          </span>
         </div>
       </TooltipTrigger>
       <TooltipContent>
@@ -85,6 +106,7 @@ const handleDragEnd = () => {
         <template v-if="isApprentice(dweller)">
           · Apprentice {{ apprenticeLabel(dweller) }}
         </template>
+        <template v-if="dweller.pet"> · Pet {{ dweller.pet.name }} </template>
       </TooltipContent>
     </Tooltip>
   </div>

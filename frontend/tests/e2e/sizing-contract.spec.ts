@@ -66,7 +66,7 @@ async function installProbe(page: Page): Promise<void> {
         // The overlay is intentionally absent until the image aspect is known;
         // once a slot exists, every painted frame must agree with the settled
         // geometry.
-        if (f.width > 0 && f.height > 0 && s.width > 0 && s.height > 0) {
+        if (f.width > 0 && f.height > 0) {
           samples.push({
             mount: Number(host.dataset.previewMount ?? 0),
             frameW: f.width,
@@ -124,7 +124,11 @@ async function samplesForMount(page: Page, mount: number): Promise<FrameSample[]
  * Assert the painted frames never disagree with the settled geometry.
  * `expectedFrameRatio` pins the settled aspect when the test knows it.
  */
-function expectStableFrame(samples: FrameSample[], expectedFrameRatio?: number): void {
+function expectStableFrame(
+  samples: FrameSample[],
+  expectedFrameRatio?: number,
+  slotAspect = 2 / 3
+): void {
   expect(samples.length).toBeGreaterThan(2)
 
   // The occupant band is 44.6% of the frame; a first frame that paints three
@@ -135,7 +139,7 @@ function expectStableFrame(samples: FrameSample[], expectedFrameRatio?: number):
   expect(Math.max(...occupantRatios) - Math.min(...occupantRatios)).toBeLessThanOrEqual(0.02)
 
   for (const sample of samples) {
-    expect(sample.slotW / sample.slotH).toBeCloseTo(2 / 3, 1)
+    expect(sample.slotW / sample.slotH).toBeCloseTo(slotAspect, 1)
     expect(sample.occupantW / sample.occupantH).toBeCloseTo(2 / 3, 1)
     expect(sample.occupantH).toBeLessThanOrEqual(sample.slotH + 1)
   }
@@ -233,4 +237,18 @@ test.describe('narrow viewport', () => {
 
     expectStableFrame(await samplesForMount(page, 1))
   })
+})
+
+test('full pet rooms keep stable actor sizes from the first painted frame', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await installProbe(page)
+  await serveRoomImage(page, 150)
+  await page.goto(
+    `${PREVIEW}?room=${encodeURIComponent(ROOM_IMAGE)}&pet=1&full=1&portrait=1&reveal=1&reopen=1`
+  )
+  await expect(page.locator('.combat-pet')).toHaveCount(6)
+  expectStableFrame(await samplesForMount(page, 1), 3, 17 / 12)
+  await resetSamples(page)
+  await page.getByRole('button', { name: 'Reopen preview' }).click()
+  expectStableFrame(await samplesForMount(page, 2), 3, 17 / 12)
 })

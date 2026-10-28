@@ -12,6 +12,7 @@ import {
 import { getStaticImageUrl } from '@/core/utils/image'
 import DwellerNameBadge from '@/modules/dwellers/components/DwellerNameBadge.vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import CombatPet from '@/modules/combat/components/CombatPet.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -61,12 +62,15 @@ const activate = () => {
     :aria-label="`${label} slot`"
     :class="{
       'slot-filled': dweller,
+      'aspect-[17/12]! justify-end!': dweller?.pet,
       'apprentice-slot': kind === 'apprentice',
       'client-slot': kind === 'client',
       'selection-slot': selectionMode,
     }"
   >
-    <div class="scene-occupant">
+    <div
+      class="scene-occupant min-w-0 [&>.combat-pet]:right-full [&>.combat-pet]:left-auto [&>.combat-pet]:z-2 [&>.combat-pet]:aspect-[3/2] [&>.combat-pet]:h-1/2 [&>.combat-pet]:w-auto"
+    >
       <DwellerNameBadge v-if="dweller" :name="dweller.first_name" :full-name="name" />
       <span v-else-if="selectionMode" class="h-4" aria-hidden="true" />
       <!-- @vue-ignore -->
@@ -124,6 +128,13 @@ const activate = () => {
       <div v-else class="placeholder-dweller empty scene-empty-slot" aria-hidden="true">
         <span class="empty-dweller-silhouette" />
       </div>
+      <CombatPet
+        v-if="dweller?.pet"
+        :pet="dweller.pet"
+        :owner-name="name"
+        :owner-id="dweller.id"
+        facing="right"
+      />
       <span
         v-if="selectionMode || kind === 'client'"
         class="slot-role"
@@ -154,7 +165,8 @@ const activate = () => {
 
 /* The preview band owns this slot's height; the slot only fills it. */
 .dweller-sprite-slot {
-  height: 100%;
+  height: min(100%, var(--occupant-max-height, 100%));
+  aspect-ratio: var(--portrait-frame-aspect, 2 / 3);
   align-items: flex-end;
 }
 

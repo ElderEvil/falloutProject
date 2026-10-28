@@ -9,14 +9,15 @@ This file is that accounting. It covers `frontend/src/modules/**/*.vue` only —
 `core/views/UiCatalogView.vue` is a fixture and is out of scope.
 
 **Enforced by** `frontend/scripts/check-raw-controls.mjs` with `frontend/scripts/raw-control-baseline.json`
-(run as a dedicated Frontend CI step). The baseline is the machine count: **287 primitive-backed raw
-controls across 97 files** (`<button>`, `<input>`, `<select>`) — larger than the narrative inventory
-below because that inventory grouped only the *bespoke button* and reasoned exceptions, not every
-`<input>`/`<select>`. The guard flags only controls with a vendored primitive; it must shrink, never grow.
+(run as a dedicated Frontend CI step). The baseline is the machine count: **65 primitive-backed raw
+controls across 38 files** (`<button>`, `<input>`, `<select>`, measured 2026-10-28) — larger than the
+narrative inventory below because that inventory grouped only the *bespoke button* and reasoned
+exceptions, not every `<input>`/`<select>`. The guard flags only controls with a vendored primitive; it
+must shrink, never grow.
 
-**Snapshot (narrative):** ~94 bespoke/grouped controls across 48 files, down from ~150 before the
-migration. No `<dialog>` remains; `<select>` / `<textarea>` / `<table>` are down to 0 / 2 / 1 in the
-reasoned groups below.
+**Snapshot (narrative):** the detailed inventory below is the migration-era accounting (~94 inputs at
+the time). It is not re-derived on every change; use the guard output above as the current count, and
+re-derive a row from `raw-control-baseline.json` before citing it. No `<dialog>` remains.
 
 ## Why they remain
 

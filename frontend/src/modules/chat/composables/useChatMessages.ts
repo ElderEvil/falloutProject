@@ -1,11 +1,11 @@
 import { ref, computed, watch, nextTick, toValue, type MaybeRefOrGetter, type Ref } from 'vue'
 import { onKeyStroke } from '@vueuse/core'
-import apiClient from '@/core/plugins/axios'
 import type { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { getStaticImageUrl } from '@/core/utils/image'
 import { useSound } from '@/core/composables/useSound'
 import type { ChatMessageDisplay, ChatDebug, MapDiscovery } from '@/modules/chat/models/chat'
+import { chatApi, type ChatActionSuggestion } from '../api/chat'
 
 export interface UseChatMessagesOptions {
   dwellerId: string
@@ -58,11 +58,6 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     },
     { flush: 'sync' }
   )
-
-  const getToken = () =>
-    typeof options.token === 'string' || options.token === null
-      ? options.token
-      : options.token?.value
 
   const userAvatar = computed(() => toValue(options.userImageUrl) ?? null)
   const dwellerAvatarUrl = computed(() => getStaticImageUrl(options.dwellerAvatar))
@@ -131,13 +126,9 @@ export function useChatMessages(options: UseChatMessagesOptions) {
 
   const loadChatHistory = async () => {
     try {
-      const response = await apiClient.get(`/api/v1/chat/history/${options.dwellerId}`, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      })
+      const response = await chatApi.getHistory(options.dwellerId)
 
-      const history = response.data.map((msg: any) => ({
+      const history = response.map((msg): ChatMessageDisplay => ({
         type: msg.from_user_id ? 'user' : 'dweller',
         content: msg.message_text,
         messageId: msg.id || undefined,
@@ -162,15 +153,21 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     }
   }
 
+  /** Wire actions the chat UI renders; request_exit has no display model yet. */
+  const toDisplayAction = (
+    action: ChatActionSuggestion | null | undefined
+  ): ChatMessageDisplay['actionSuggestion'] =>
+    action && action.action_type !== 'request_exit' ? action : null
+
   /** Appends a dweller reply from either the text or voice chat response shape. */
   const appendDwellerResponse = (data: {
     response?: string
     dweller_response?: string
     dweller_message_id: string
-    dweller_audio_url?: string
+    dweller_audio_url?: string | null
     happiness_impact?: ChatMessageDisplay['happinessImpact'] | null
     unlocked_places?: unknown
-    action_suggestion?: ChatMessageDisplay['actionSuggestion']
+    action_suggestion?: ChatActionSuggestion | null
   }) =>
     messages.value.push({
       type: 'dweller',
@@ -180,7 +177,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
       audioUrl: data.dweller_audio_url || undefined,
       happinessImpact: data.happiness_impact || null,
       unlockedPlaces: normalizeUnlockedPlaces(data.unlocked_places),
-      actionSuggestion: data.action_suggestion || null,
+      actionSuggestion: toDisplayAction(data.action_suggestion),
     })
 
   const sendMessage = async () => {
@@ -207,20 +204,11 @@ export function useChatMessages(options: UseChatMessagesOptions) {
       }
 
       try {
-        const response = await apiClient.post(
-          `/api/v1/chat/${options.dwellerId}`,
-          {
-            message: messageToSend,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${getToken()}`,
-            },
-            params: { debug: toValue(options.debugEnabled) ? true : undefined },
-          }
-        )
-        lastChatDebug.value = response.data.debug ?? null
-        appendDwellerResponse(response.data)
+        const response = await chatApi.sendMessage(options.dwellerId, messageToSend, {
+          debug: toValue(options.debugEnabled) === true,
+        })
+        lastChatDebug.value = response.debug ?? null
+        appendDwellerResponse(response)
       } catch (error) {
         const reason = handleStoreError(error, 'Error sending message')
         markUserMessageFailed(reason)

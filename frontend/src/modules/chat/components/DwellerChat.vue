@@ -3,7 +3,7 @@ import { notifyErrorOnce } from '@/core/utils/errorHandler'
 
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import apiClient from '@/core/plugins/axios'
+import { chatApi } from '@/modules/chat/api/chat'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useEmailVerificationResend } from '@/modules/auth/composables/useEmailVerificationResend'
 import { useProfileStore } from '@/modules/profile/stores/profile'
@@ -330,9 +330,6 @@ const sendAudioMessage = async () => {
     isSendingAudio.value = true
     const audioBlob = await stopRecording()
 
-    const formData = new FormData()
-    formData.append('audio_file', audioBlob, 'recording.webm')
-
     const placeholderIndex = messages.value.length
     messages.value.push({
       type: 'user',
@@ -340,26 +337,19 @@ const sendAudioMessage = async () => {
       timestamp: new Date(),
     })
 
-    const response = await apiClient.post(
-      `/api/v1/chat/${props.dwellerId}/voice?return_audio=false`,
-      formData,
-      {
-        headers: {
-          Authorization: `Bearer ${authStore.token}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    )
+    const response = await chatApi.sendVoiceMessage(props.dwellerId, audioBlob, {
+      returnAudio: false,
+    })
 
     const placeholderMessage = messages.value[placeholderIndex]
     if (placeholderMessage) {
-      placeholderMessage.content = response.data.transcription
+      placeholderMessage.content = response.transcription
     }
 
-    appendDwellerResponse(response.data)
+    appendDwellerResponse(response)
 
-    if (response.data.dweller_audio_url) {
-      playAudio(response.data.dweller_audio_url)
+    if (response.dweller_audio_url) {
+      playAudio(response.dweller_audio_url)
     }
 
     refreshAfterChat()

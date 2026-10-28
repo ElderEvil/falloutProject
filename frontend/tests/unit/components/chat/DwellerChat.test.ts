@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, type Mock } from 'vite-plus/test'
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest'
 import { createAxiosMock, createIconifyMock, createToastMock } from '../../helpers/mocks'
 import { ref } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
@@ -282,9 +282,7 @@ describe('DwellerChat', () => {
 
     it('resends the verification email from the reminder', async () => {
       signIn(false)
-      const resendSpy = vi
-        .spyOn(useAuthStore(), 'resendVerificationEmail')
-        .mockResolvedValue(true)
+      const resendSpy = vi.spyOn(useAuthStore(), 'resendVerificationEmail').mockResolvedValue(true)
       const wrapper = mountComponent()
       await flushPromises()
 
@@ -324,7 +322,9 @@ describe('DwellerChat', () => {
       const happinessIndicator = wrapper.find('.happiness-indicator')
       expect(happinessIndicator.exists()).toBe(true)
       expect(happinessIndicator.text()).toContain('+5')
-      expect(happinessIndicator.find('.icon-stub').attributes('data-icon')).toBe('mdi:emoticon-happy')
+      expect(happinessIndicator.find('.icon-stub').attributes('data-icon')).toBe(
+        'mdi:emoticon-happy'
+      )
     })
 
     it('should render negative happiness impact with red color', async () => {
@@ -382,7 +382,9 @@ describe('DwellerChat', () => {
       const happinessIndicator = wrapper.find('.happiness-indicator')
       expect(happinessIndicator.exists()).toBe(true)
       expect(happinessIndicator.text()).toContain('0')
-      expect(happinessIndicator.find('.icon-stub').attributes('data-icon')).toBe('mdi:emoticon-neutral')
+      expect(happinessIndicator.find('.icon-stub').attributes('data-icon')).toBe(
+        'mdi:emoticon-neutral'
+      )
     })
 
     it('should not render happiness indicator when response has no happiness_impact', async () => {
@@ -528,7 +530,9 @@ describe('DwellerChat', () => {
           'dweller-123': { id: 'dweller-123', stimpack: 1, radaway: 0 } as any,
         },
       })
-      const useStimpackSpy = vi.spyOn(dwellerStore.medical, 'useStimpack').mockResolvedValue({} as any)
+      const useStimpackSpy = vi
+        .spyOn(dwellerStore.medical, 'useStimpack')
+        .mockResolvedValue({} as any)
 
       const wrapper = mountComponent()
       await flushPromises()
@@ -727,13 +731,12 @@ describe('DwellerChat', () => {
       await wrapper.find('.chat-send-btn').trigger('click')
       await flushPromises()
 
-      // Verify API was called
       expect(apiClient.post).toHaveBeenCalledWith(
         '/api/v1/chat/dweller-123',
         { message: 'Hello!' },
-        expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' },
-        })
+        {
+          params: { debug: undefined },
+        }
       )
 
       // Verify messages are displayed
@@ -2540,7 +2543,10 @@ describe('DwellerChat', () => {
 
       expect(wrapper.find('.typing-indicator').exists()).toBe(false)
       expect(wrapper.text()).toContain('AI quota exceeded')
-      expect(wrapper.find('.message-error').attributes()).toMatchObject({ role: 'alert', 'aria-live': 'polite' })
+      expect(wrapper.find('.message-error').attributes()).toMatchObject({
+        role: 'alert',
+        'aria-live': 'polite',
+      })
     })
 
     it('retries a failed message', async () => {

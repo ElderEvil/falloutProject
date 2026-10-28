@@ -1,4 +1,5 @@
 import { notifyErrorOnce } from '@/core/utils/errorHandler'
+import { getErrorMessage } from '@/core/types/utils'
 import { computed, ref, watch, type Ref } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Room } from '../models/room'
@@ -8,7 +9,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useToast } from '@/core/composables/useToast'
-import axios from '@/core/plugins/axios'
+import { getRadioStats, recruitDweller, setRadioMode } from '@/modules/radio/api/radio'
 
 interface RadioStats {
   hasRadio: boolean
@@ -62,21 +63,19 @@ export function useRadioRoom(
     }
 
     try {
-      const response = await axios.get(`/api/v1/radio/vault/${vaultIdValue}/stats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (response.data?.manual_cost_caps != null) {
-        manualRecruitCost.value = response.data.manual_cost_caps
+      const data = await getRadioStats(vaultIdValue)
+      if (data.manual_cost_caps != null) {
+        manualRecruitCost.value = data.manual_cost_caps
       }
       radioStats.value = {
-        hasRadio: response.data?.has_radio ?? false,
-        recruitmentRate: response.data?.recruitment_rate ?? 0,
-        ratePerHour: response.data?.rate_per_hour ?? 0,
-        estimatedHoursPerRecruit: response.data?.estimated_hours_per_recruit ?? 0,
-        speedupMultiplier: response.data?.speedup_multipliers?.[0]?.speedup ?? 1,
-        manualCostCaps: response.data?.manual_cost_caps ?? 0,
-        radioMode: response.data?.radio_mode ?? 'recruitment',
-        radioHappinessBonus: response.data?.radio_happiness_bonus ?? 0,
+        hasRadio: data.has_radio ?? false,
+        recruitmentRate: data.recruitment_rate ?? 0,
+        ratePerHour: data.rate_per_hour ?? 0,
+        estimatedHoursPerRecruit: data.estimated_hours_per_recruit ?? 0,
+        speedupMultiplier: data.speedup_multipliers?.[0]?.speedup ?? 1,
+        manualCostCaps: data.manual_cost_caps ?? 0,
+        radioMode: data.radio_mode ?? 'recruitment',
+        radioHappinessBonus: data.radio_happiness_bonus ?? 0,
       }
     } catch (error) {
       notifyErrorOnce(error, 'Failed to load radio stats')
@@ -106,13 +105,7 @@ export function useRadioRoom(
     localRadioMode.value = mode
 
     try {
-      await axios.put(
-        `/api/v1/radio/vault/${vaultIdValue}/mode?mode=${mode}`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
+      await setRadioMode(vaultIdValue, mode)
     } catch (error) {
       localRadioMode.value =
         (vaultStore.activeVault?.radio_mode as 'recruitment' | 'happiness') || 'recruitment'
@@ -147,13 +140,9 @@ export function useRadioRoom(
 
     isRecruiting.value = true
     try {
-      const response = await axios.post(
-        `/api/v1/radio/vault/${vaultIdValue}/recruit`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
+      const response = await recruitDweller(vaultIdValue)
 
-      toast.success(response.data.message || 'Dweller recruited successfully!')
+      toast.success(response.message || 'Dweller recruited successfully!')
 
       // Refresh calls (non-throwing) — inside try so isRecruiting stays true until done
       try {
@@ -166,9 +155,8 @@ export function useRadioRoom(
       } catch {
         toast.warning('Dweller recruited, but the dweller list could not refresh')
       }
-    } catch (error: any) {
-      const message = error.response?.data?.detail || 'Failed to recruit dweller'
-      notifyErrorOnce(error, message)
+    } catch (error: unknown) {
+      notifyErrorOnce(error, getErrorMessage(error, 'Failed to recruit dweller'))
     } finally {
       isRecruiting.value = false
     }

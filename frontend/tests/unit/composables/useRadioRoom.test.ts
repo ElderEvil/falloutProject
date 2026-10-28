@@ -76,10 +76,7 @@ describe('useRadioRoom', () => {
     const { api, scope } = setup()
     await flushPromises()
 
-    expect(get).toHaveBeenCalledWith(
-      '/api/v1/radio/vault/vault-1/stats',
-      expect.objectContaining({ headers: { Authorization: 'Bearer test-token' } })
-    )
+    expect(get).toHaveBeenCalledWith('/api/v1/radio/vault/vault-1/stats')
     expect(api.manualRecruitCost.value).toBe(250)
     expect(api.radioStats.value?.speedupMultiplier).toBe(2)
 
@@ -114,11 +111,9 @@ describe('useRadioRoom', () => {
     await api.handleSwitchRadioMode('happiness')
     await flushPromises()
 
-    expect(put).toHaveBeenCalledWith(
-      '/api/v1/radio/vault/vault-1/mode?mode=happiness',
-      {},
-      expect.objectContaining({ headers: { Authorization: 'Bearer test-token' } })
-    )
+    expect(put).toHaveBeenCalledWith('/api/v1/radio/vault/vault-1/mode', undefined, {
+      params: { mode: 'happiness' },
+    })
     expect(api.localRadioMode.value).toBe('happiness')
     expect(toast.success).toHaveBeenCalledWith('Radio mode set to happiness')
     scope.stop()
@@ -145,11 +140,7 @@ describe('useRadioRoom', () => {
     await api.handleRecruitDweller()
     await flushPromises()
 
-    expect(post).toHaveBeenCalledWith(
-      '/api/v1/radio/vault/vault-1/recruit',
-      {},
-      expect.objectContaining({ headers: { Authorization: 'Bearer test-token' } })
-    )
+    expect(post).toHaveBeenCalledWith('/api/v1/radio/vault/vault-1/recruit', {})
     expect(toast.success).toHaveBeenCalledWith('Recruited!')
     expect(api.isRecruiting.value).toBe(false)
     scope.stop()

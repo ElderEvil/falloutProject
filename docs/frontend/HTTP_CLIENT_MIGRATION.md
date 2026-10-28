@@ -1,6 +1,6 @@
 # HTTP Client Consolidation Plan (Axios Boundary)
 
-Status: in progress — Batch 1 in review, not yet merged
+Status: in progress — Batch 1 merged; chat/radio transport migrated 2026-10-28; remaining stores pending
 
 **Axios remains the supported transport.** This document defines the staged
 consolidation of frontend HTTP onto the shared API boundary in
@@ -13,13 +13,13 @@ without user gain.
 
 ## Approved sequence
 
-1. **Now (Batch 1):** create `src/core/utils/api.ts` as a **typed boundary** over
+1. **Completed (Batch 1):** create `src/core/utils/api.ts` as a **typed boundary** over
    `@/core/plugins/axios`. Named helpers (`apiGet`/`apiPost`/`apiPut`), an `api.*` sugar object
    (`api.patch`/`api.delete` inline their single-use wrappers), and `apiRequest` (full `AxiosResponse`
    escape hatch — see below). Errors normalize to `ApiError { status, detail, fields,
    headers, cause }`; `getErrorMessage` reads both `ApiError` and raw `AxiosError`.
-2. **Batches 2–4:** migrate remaining services, stores, and the exploration/chat call sites in
-   module-sized slices.
+2. **In progress:** migrate remaining services and stores in module-sized slices. Chat and
+   radio call sites moved to their module APIs in the 2026-10-28 slice above.
 3. **Later (separate slice):** remove the axios interceptor's notifications so toasts are
    caller-owned end to end.
 4. **Toasts stay caller-owned as the target state.** The boundary throws and never
@@ -34,6 +34,14 @@ without user gain.
 
 Batch 1 migrates: core public reads (AssetGalleryView), auth service/views, profile services +
 store + SettingsView, and ai-settings service.
+
+## Migration log
+
+| Date | Slice | Result |
+| --- | --- | --- |
+| 2026-10-28 | Batch 1 boundary (`src/core/utils/api.ts`) | In tree and used by 20 `api/` and `services/` modules. |
+| 2026-10-28 | Chat + radio transport | `modules/chat/api/chat.ts` owns history, text and voice calls; `modules/radio/api/radio.ts` owns stats, mode and recruit. `DwellerChat.vue`, `useChatMessages.ts` and `useRadioRoom.ts` no longer import the axios plugin or build Bearer headers. |
+| Pending | Batches 2–4 | 11 Pinia stores still import `@/core/plugins/axios`: dwellers (5), exploration, progression/quest, rooms/room, social (2), vault. No views, components or composables remain. |
 
 ## Action notifications
 
@@ -75,15 +83,15 @@ store + SettingsView, and ai-settings service.
 
 ## Consolidation phases
 
-1. Boundary foundation (Batch 1, in review)
+1. Boundary foundation (Batch 1, merged)
    - `src/core/utils/api.ts`: named helpers, `api.*` sugar, `apiRequest` escape hatch,
      `ApiError` normalization.
    - Migrate core public reads, auth, profile, ai-settings (11 source files).
    - Add boundary unit tests + `createApiClientMock`.
 
-2. Call-site migration (incremental, Batches 2–4)
-   - Scan and identify all direct imports of `@/core/plugins/axios` (29 files).
-   - Migrate stores/services/composables in small batches to `src/core/utils/api.ts`.
+2. Call-site migration (incremental)
+   - Scan and identify remaining direct imports of `@/core/plugins/axios`.
+   - Migrate remaining stores/services/composables in small batches to `src/core/utils/api.ts`.
    - Keep each batch test-backed and releasable.
 
 3. Toast ownership slice (separate, behavior-changing)

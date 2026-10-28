@@ -1,6 +1,8 @@
 # Repair Plan — audit findings, waved for review
 
-> Source: codebase audit (2026-09-21) + `docs/AUDIT.md` (active P0: authorization flaws). This is a **plan only** — no code changes yet. Review the waves, then approve wave-by-wave for implementation.
+> Source: codebase audit (2026-09-21) + `docs/AUDIT.md` (P0 authorization flaws: **resolved 2026-10-28**;
+> see the AUDIT verification log). The waves below remain the plan; Wave 0A has landed, and later waves
+> should be re-verified against the current tree before implementation rather than assumed outstanding.
 > Rules that govern every wave: bug-fix workflow (failing test first), thin endpoints (parse → service → map), `endpoints → services → CRUD` never upward, `item_factory` for catalog rows, backfill-in-same-migration for data-bearing columns, progression events surface via modal/toast **in addition** to the bell.
 
 ## How to read this plan
@@ -9,14 +11,14 @@
 - Waves are ordered by blast radius: data loss first, crash-loops second, architecture third, UI last.
 - `P0/P1/P2` match the audit severities. Anything marked **verify** is a command to run before marking the wave done.
 
-## Wave 0A — Authorization fixes (P0, before everything else)
+## Wave 0A — Authorization fixes (P0, completed 2026-10-28)
 
-**Goal:** close the two active authorization flaws (`docs/AUDIT.md` P0).
+**Completed:** closed the two authorization flaws tracked in `docs/AUDIT.md` P0.
 
-1. **Retire `/ws/{user_id}`** (`backend/app/api/v1/endpoints/websocket.py:81-91`) in favour of the authenticated SSE stream; remove its `ProfileView.vue:54-61` consumer (legacy unauthenticated socket — retire, do not extend). Keep the chat socket separate. Tests: no token, malformed token, mismatched subject, owner — handshake rejected before `manager.connect()`.
-2. **Lock down `POST /notifications`** (`endpoints/notifications.py:54-65`): remove the public route (server-side callers already go through `NotificationService.create_and_send()`); if an operator endpoint is a real requirement, gate behind `CurrentSuperuser` with no player-facing recipient field. Tests: regular user rejected, actor cannot select another user ID.
+1. Retired the unauthenticated `/ws/{user_id}` endpoint and its `ProfileView.vue` consumer in favour of authenticated SSE; the separate chat socket remains.
+2. Removed public `POST /notifications`; server-side callers use `NotificationService.create_and_send()`.
 
-**Exit:** regression tests green, touched-file `ty` check clean (see Wave 1 exit), full backend suite passes, frontend `pnpm run typecheck` clean (Wave 0A touches `ProfileView.vue`).
+**Verification record:** regression tests cover missing, malformed, mismatched, and valid-owner websocket credentials before `manager.connect()`, plus notification actor/recipient authorization. The touched-file `ty` check, backend suite, and frontend typecheck passed. Re-run checks if Wave 0A code changes.
 
 ## Wave 0 — Data safety (P0, smallest, do first)
 
@@ -74,7 +76,7 @@
    - `vault/components/shell/NotificationBell.vue:117-140` (the SSE consumer) toasts only `hazard_team_joined` — add the matrix surfaces there.
    - Wire up `dwellers/components/LevelUpNotification.vue` (currently dead export) to the level-up event. `ProfileView.vue`'s legacy WebSocket is retired in Wave 0A — do not build baby/death toasts on it.
    - Test-first: component/store tests asserting each matrix event produces bell entry **plus** toast/modal.
-2. **Route stores/views through services:** remove direct `axios`/`apiClient` from stores (`vault.ts:4`, `dwellerManagement.ts:3`, `dwellerMedical.ts:2`, `dwellerGeneration.ts:2`, `dwellerDeath.ts:3`, `exitRequests.ts:3`, `quest.ts:3`, `objectives.ts:3`, `relationship.ts:3`, `pregnancy.ts:3`, `profile.ts:7`, `exploration.ts:3`, `room.ts:3`, `radio.ts:3`), composables (`useRadioRoom.ts:10`, `useChatMessages.ts:3`), and views/components (`NotificationBell.vue:11`, `SettingsView.vue:464,497`, `ResetPasswordView.vue:4,40`, `ForgotPasswordView.vue:3,22`, `VerifyEmailView.vue:4,25`, `DwellerChat.vue:4,203`). Extend `authService` (reset/forgot/verify) and add missing vault/quest/objective services.
+2. **Route stores/views through services:** remove direct `axios`/`apiClient` from stores (`vault.ts:4`, `dwellerManagement.ts:3`, `dwellerMedical.ts:2`, `dwellerGeneration.ts:2`, `dwellerDeath.ts:3`, `exitRequests.ts:3`, `quest.ts:3`, `objectives.ts:3`, `relationship.ts:3`, `pregnancy.ts:3`, `profile.ts:7`, `exploration.ts:3`, `room.ts:3`, `radio.ts:3`) and views/components (`NotificationBell.vue:11`, `SettingsView.vue:464,497`, `ResetPasswordView.vue:4,40`, `ForgotPasswordView.vue:3,22`, `VerifyEmailView.vue:4,25`). Extend `authService` (reset/forgot/verify) and add missing vault/quest/objective services. Chat and radio composables/components already use their module APIs.
 3. **Error handling:** replace 9× inline `toast.error + response.data.detail` in `progression/stores/quest.ts`, `catch (err:any)` in auth views, local `actionError` in `useRoomDwellers/Upgrade/Destroy`, raw toast in `changelogService.ts:33,43` with `getErrorMessage`/`handleStoreError`; fix silent `catch{}` (`ProfileView.vue:129,147`) and `.catch(()=>{})` (`profile.ts:129`, `useSoundProfileSync.ts:34`, `PreferencesView.vue:59`).
 4. **Types + markup hygiene (separate cosmetic PRs, last):** delete local dups in favor of `api.generated.ts` (`objective.ts:19-50`, `relationship.ts:49-77`, `equipment.ts:1-72`, `pregnancy.ts:8-40`, `NotificationBell.vue:13-23`, `changelogService.ts:4-14`); replace static inline `style="color: var(--…)"` (`RadioStatsPanel.vue:102,120,142`, `NavBar.vue:197`, `GaryOverlay.vue:34,39`, `DwellerCard.vue:137`, `VaultList.vue`, `PreferencesView.vue`) with tokens/utilities; prefer `U*` over native buttons/inputs in high-density files; fix `DwellerDetailContext.ts` location, `storage/routes.ts` naming, `SettingItem.vue` prefix.
 

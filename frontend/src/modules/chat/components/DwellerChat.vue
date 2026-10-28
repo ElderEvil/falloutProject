@@ -3,14 +3,14 @@ import { notifyErrorOnce } from '@/core/utils/errorHandler'
 
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import apiClient from '@/core/plugins/axios'
+import { chatApi } from '@/modules/chat/api/chat'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useEmailVerificationResend } from '@/modules/auth/composables/useEmailVerificationResend'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { getErrorMessage } from '@/core/types/utils'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
-import type { ActionSuggestion } from '../models/chat'
+import type { ActionSuggestion, ChatMessageDisplay } from '../models/chat'
 import { useAudioRecorder } from '../composables/useAudioRecorder'
 import { useChatMessages } from '../composables/useChatMessages'
 import { useChatAudio } from '../composables/useChatAudio'
@@ -326,44 +326,34 @@ watch(
 )
 
 const sendAudioMessage = async () => {
+  let placeholderMessage: ChatMessageDisplay | undefined
   try {
     isSendingAudio.value = true
     const audioBlob = await stopRecording()
 
-    const formData = new FormData()
-    formData.append('audio_file', audioBlob, 'recording.webm')
-
-    const placeholderIndex = messages.value.length
-    messages.value.push({
+    placeholderMessage = {
       type: 'user',
       content: '[Transcribing audio...]',
       timestamp: new Date(),
+    }
+    messages.value.push(placeholderMessage)
+
+    const response = await chatApi.sendVoiceMessage(props.dwellerId, audioBlob, {
+      returnAudio: false,
     })
 
-    const response = await apiClient.post(
-      `/api/v1/chat/${props.dwellerId}/voice?return_audio=false`,
-      formData,
-      {
-        headers: {
-          Authorization: `Bearer ${authStore.token}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    )
+    placeholderMessage.content = response.transcription
 
-    const placeholderMessage = messages.value[placeholderIndex]
-    if (placeholderMessage) {
-      placeholderMessage.content = response.data.transcription
-    }
+    appendDwellerResponse(response)
 
-    appendDwellerResponse(response.data)
-
-    if (response.data.dweller_audio_url) {
-      playAudio(response.data.dweller_audio_url)
+    if (response.dweller_audio_url) {
+      playAudio(response.dweller_audio_url)
     }
 
     refreshAfterChat()
   } catch (error: unknown) {
+    const placeholderIndex = placeholderMessage ? messages.value.indexOf(placeholderMessage) : -1
+    if (placeholderIndex !== -1) messages.value.splice(placeholderIndex, 1)
     const message = getErrorMessage(error, 'Unable to send audio message')
     notifyErrorOnce(error, `Failed to send audio: ${message}`)
   } finally {

@@ -80,7 +80,8 @@ export const CREATURE_ASSETS = (
   }>
 ).map((asset) => ({
   ...asset,
-  image: asset.image ?? asset.originalImage ?? `/static/creature_images/assembled/${asset.key}.webp`,
+  image:
+    asset.image ?? asset.originalImage ?? `/static/creature_images/assembled/${asset.key}.webp`,
   sourceImage: asset.generated
     ? undefined
     : (asset.originalImage ?? `/static/creature_images/${asset.key}.png`),
@@ -97,3 +98,12 @@ export const getActorModelSizeClass = (scale: number): string =>
 
 export const getCreatureModelSizeClass = (key: string): string =>
   getActorModelSizeClass(getCreatureAsset(key)?.modelScale ?? 1)
+
+/** Lift airborne artwork and its controls while leaving slots and floor shadows in place. */
+export const getCreatureHoverClass = (key: string): string | undefined => {
+  const creature = getCreatureAsset(key)?.key
+  if (creature === 'bloatfly') return '-translate-y-[calc(var(--scene-actor-height,7rem)*0.1)]'
+  if (creature === 'eyebot' || creature === 'mr-handy')
+    return '-translate-y-[calc(var(--scene-actor-height,7rem)*0.2)]'
+  return undefined
+}

@@ -8,6 +8,7 @@ import {
   creatureSeed,
   getActorModelSizeClass,
   getCreatureImagePath,
+  getCreatureHoverClass,
   getCreatureModelSizeClass,
 } from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
@@ -84,9 +85,7 @@ const readySkills = computed(() => {
 const imageFor = (fighter: ArenaFighter) =>
   fighter.image_url
     ? getStaticImageUrl(fighter.image_url)
-    : getStaticImageUrl(
-        getCreatureImagePath(creatureKeyOf(fighter.id), creatureSeed(fighter.id))
-      )
+    : getStaticImageUrl(getCreatureImagePath(creatureKeyOf(fighter.id), creatureSeed(fighter.id)))
 const actorSizeClass = (fighter: ArenaFighter) =>
   fighter.is_creature || fighter.is_robot
     ? getCreatureModelSizeClass(creatureKeyOf(fighter.id))
@@ -223,7 +222,10 @@ const actionFor = (fighter: ArenaFighter) => {
             />
             <CombatantMeters
               class="fighter-meters max-w-32"
-              :class="{ 'opacity-40 grayscale': fighter.health <= 0 }"
+              :class="[
+                getCreatureHoverClass(creatureKeyOf(fighter.id)),
+                { 'opacity-40 grayscale': fighter.health <= 0 },
+              ]"
               :name="fighter.name"
               :health="fighter.health"
               :max-health="fighter.max_health"
@@ -235,7 +237,10 @@ const actionFor = (fighter: ArenaFighter) => {
               class="fighter-portrait relative flex shrink-0 items-end justify-center"
               :class="actorSizeClass(fighter)"
             >
-              <div class="absolute inset-x-0 top-1/3 z-20 flex flex-wrap justify-center gap-1">
+              <div
+                class="absolute inset-x-0 top-1/3 z-20 flex flex-wrap justify-center gap-1"
+                :class="getCreatureHoverClass(creatureKeyOf(fighter.id))"
+              >
                 <Tooltip
                   v-for="ready in readySkills.filter((entry) => entry.targetId === fighter.id)"
                   :key="ready.fighter.id"
@@ -281,7 +286,10 @@ const actionFor = (fighter: ArenaFighter) => {
                     :src="imageFor(fighter) ?? undefined"
                     :alt="fighter.name"
                     class="size-full object-contain drop-shadow-lg"
-                    :class="{ '-scale-x-100': team.side === 'B' && fighter.is_robot }"
+                    :class="[
+                      getCreatureHoverClass(creatureKeyOf(fighter.id)),
+                      { '-scale-x-100': team.side === 'B' && fighter.is_robot },
+                    ]"
                   />
                   <PawPrint v-else class="size-full text-danger" />
                 </template>

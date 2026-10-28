@@ -105,14 +105,16 @@ test('room preview renders the equipped pet beside its dweller', async ({ page }
       height: bounds.height,
       bottom: bounds.bottom,
       right: bounds.right,
+      left: bounds.left,
     }
   })
   const worker = page.getByRole('button', { name: 'Open Ada Worker', exact: true })
   const workerBounds = await worker.evaluate((element) => {
     const bounds = element.getBoundingClientRect()
-    return { height: bounds.height, bottom: bounds.bottom, left: bounds.left }
+    return { height: bounds.height, bottom: bounds.bottom, left: bounds.left, right: bounds.right }
   })
-  expect(petBounds.right).toBeLessThanOrEqual(workerBounds.left + 0.1)
+  expect(petBounds.left).toBeGreaterThanOrEqual(workerBounds.left - 0.1)
+  expect(petBounds.right).toBeLessThanOrEqual(workerBounds.right + 0.1)
   expect(petBounds.height).toBeLessThan(workerBounds.height)
   expect(petBounds.width / petBounds.height).toBeCloseTo(1.5, 1)
   expect(Math.abs(petBounds.bottom - workerBounds.bottom)).toBeLessThanOrEqual(2)
@@ -237,3 +239,55 @@ for (const width of [390, 1280]) {
     }
   })
 }
+
+for (const occupancy of ['', '&full=1&onepet=1', '&full=1']) {
+  test(`equipping pets preserves dweller slot geometry ${occupancy || 'small room'}`, async ({
+    page,
+  }) => {
+    const measure = () =>
+      page.locator('.dweller-sprite-slot').evaluateAll((slots) =>
+        slots.map((slot) => {
+          const bounds = slot.getBoundingClientRect()
+          return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+        })
+      )
+    await page.goto(`/tests/e2e/fixtures/room-preview.html?portrait=1${occupancy}`)
+    const before = await measure()
+    await page.goto(`/tests/e2e/fixtures/room-preview.html?portrait=1&pet=1${occupancy}`)
+    await expect(page.locator('.combat-pet').first()).toBeVisible()
+    const after = await measure()
+    expect(after).toHaveLength(before.length)
+    after.forEach((slot, i) => {
+      for (const key of ['x', 'y', 'width', 'height'] as const)
+        expect(slot[key]).toBeCloseTo(before[i]![key], 1)
+    })
+    for (const pet of await page.locator('.combat-pet').all()) {
+      const geometry = await pet.evaluate((el) => {
+        const p = el.getBoundingClientRect()
+        const owner = el.closest('.dweller-sprite-slot')!.getBoundingClientRect()
+        return { left: p.left, right: p.right, ownerLeft: owner.left, ownerRight: owner.right }
+      })
+      expect(geometry.left).toBeGreaterThanOrEqual(geometry.ownerLeft - 0.1)
+      expect(geometry.right).toBeLessThanOrEqual(geometry.ownerRight + 0.1)
+    }
+  })
+}
+
+test('flying pets hover beside the owner instead of standing on the floor', async ({ page }) => {
+  await page.goto('/tests/e2e/fixtures/room-preview.html?pet=1&flying=1')
+  const pet = page.locator('.combat-pet')
+  await expect(pet.getByRole('img', { name: /Polly/ })).toBeVisible()
+  const geometry = await pet.evaluate((el) => {
+    const p = el.getBoundingClientRect()
+    const owner = el.closest('.scene-occupant')!.getBoundingClientRect()
+    return { bottom: p.bottom, ownerBottom: owner.bottom, ownerHeight: owner.height }
+  })
+  expect(geometry.ownerBottom - geometry.bottom).toBeGreaterThan(geometry.ownerHeight * 0.3)
+  await expect(pet.locator('.actor-ground-shadow')).toHaveCount(0)
+  await pet.locator('img').evaluate((img) => {
+    img.src = 'data:image/png;base64,not-an-image'
+  })
+  await expect(pet.locator('svg[role="img"]')).toHaveAttribute('aria-label', /Polly/)
+  const fallbackBottom = await pet.evaluate((el) => el.getBoundingClientRect().bottom)
+  expect(fallbackBottom).toBeCloseTo(geometry.bottom, 1)
+})

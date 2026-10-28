@@ -272,3 +272,36 @@ test('team B portrait faces inward while its skill control stays upright', async
     await defender.getByAltText('Bravo', { exact: true }).evaluate(horizontalScale)
   ).toBeLessThan(0)
 })
+
+for (const [creature, lift] of [
+  ['bloatfly', 0.2],
+  ['training-eyebot', 0.2 / 0.7],
+  ['training-mr-handy', 0.2],
+  ['deathclaw', 0],
+] as const) {
+  test(`${creature} floats at its intended height while its shadow stays on the floor`, async ({
+    page,
+  }) => {
+    await page.goto(`/tests/e2e/fixtures/arena-ring.html?enemy=${creature}`)
+    const motion = page
+      .locator('.ring-fighter')
+      .filter({ has: page.getByTitle(`${creature}#0`, { exact: true }) })
+      .locator('.fighter-portrait > .combatant-motion')
+    const geometry = await motion.evaluate((element) => {
+      const frame = element.getBoundingClientRect()
+      const image = element.querySelector('img')!.getBoundingClientRect()
+      return {
+        lift: (frame.bottom - image.bottom) / frame.height,
+        shadowBottom: getComputedStyle(element, '::before').bottom,
+        imageTop: image.top,
+        metersBottom: element
+          .closest('.ring-fighter')!
+          .querySelector('.fighter-meters')!
+          .getBoundingClientRect().bottom,
+      }
+    })
+    expect(geometry.lift).toBeCloseTo(lift, 2)
+    expect(geometry.shadowBottom).toBe('0px')
+    expect(geometry.metersBottom).toBeLessThanOrEqual(geometry.imageTop + 0.1)
+  })
+}

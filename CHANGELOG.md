@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.279.2 (2026-10-28)
+
+### Bug Fixes
+
+* **combat:** float bloatflies and subtly lift hovering bots 4310e98
+* **combat:** raise hovering bots clearly above the arena floor 51ad4d7
+* **rooms:** keep pets within owner slots and raise flying companions 1c8ada4
+
 ## 2.279.1 (2026-10-28)
 
 ### Bug Fixes

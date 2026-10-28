@@ -67,7 +67,8 @@ it('marks an equipped pet on the avatar and in the tooltip', async () => {
 
   const wrapper = mountDwellers()
   const avatar = wrapper.get('.dweller-avatar')
-  expect(avatar.attributes('aria-label')).toContain('pet Dogmeat')
+  expect(avatar.attributes('role')).toBe('group')
+  expect(avatar.attributes('aria-label')).toBe('Alice Smith (Lv3), pet Dogmeat')
   expect(avatar.get('.dweller-pet img').attributes('src')).toContain('dogmeat.webp')
 
   await avatar.trigger('focus')

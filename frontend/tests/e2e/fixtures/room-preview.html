@@ -10,6 +10,10 @@
     <script type="module">
       import '../../../src/assets/tailwind.css'
       import { createApp, h, onMounted, ref } from 'vue'
+      import { createPinia } from 'pinia'
+      import RoomDwellers from '../../../src/modules/dwellers/components/RoomDwellers.vue'
+      import { useDwellerFilterStore } from '../../../src/modules/dwellers/stores/dwellerFilter'
+      import { TooltipProvider } from '../../../src/core/components/ui/tooltip'
       import RoomPreviewSection from '../../../src/modules/rooms/components/RoomPreviewSection.vue'
       const params = new URLSearchParams(location.search)
       // `?room=<url>` exercises the loaded-image frame; `?empty=1` renders only
@@ -47,6 +51,13 @@
               },
             ]
       )
+      if (params.has('full')) {
+        assignedDwellers.value = Array.from({ length: 6 }, (_, i) => ({
+          ...assignedDwellers.value[0],
+          id: `worker-${i}`,
+          first_name: `Worker${i}`,
+        }))
+      }
       const mounted = ref(true)
       const revealed = ref(!params.has('reveal'))
       // Each mount gets a new id so a first-frame probe can tell a remount's
@@ -61,7 +72,8 @@
                 roomName: 'Power Generator',
                 imageUrl: null,
                 roomImageUrl,
-                dwellerCapacity: 2,
+                roomUnits: params.has('full') ? 6 : 3,
+                dwellerCapacity: params.has('full') ? 6 : 2,
                 assignedDwellers: assignedDwellers.value,
                 showApprenticeSlot: true,
                 onUnassign: (id) => {
@@ -73,6 +85,19 @@
             ])
         },
       }
+      const pinia = createPinia()
+      useDwellerFilterStore(pinia).dwellers = [
+        {
+          id: 'grid-worker',
+          room_id: 'grid-room',
+          first_name: 'Ada',
+          last_name: 'Worker',
+          level: 50,
+          apprentice_stat: 'strength',
+          thumbnail_url: null,
+          pet: { id: 'pet-grid', name: 'Dogmeat', image_url: samplePet },
+        },
+      ]
       createApp({
         setup() {
           onMounted(() => {
@@ -84,6 +109,11 @@
           })
           return () =>
             h('div', [
+              params.has('grid')
+                ? h('div', { class: 'w-11' }, [
+                    h(TooltipProvider, {}, () => h(RoomDwellers, { roomId: 'grid-room' })),
+                  ])
+                : null,
               params.has('reopen')
                 ? h(
                     'button',
@@ -110,7 +140,9 @@
               ),
             ])
         },
-      }).mount('#app')
+      })
+        .use(pinia)
+        .mount('#app')
     </script>
   </body>
 </html>

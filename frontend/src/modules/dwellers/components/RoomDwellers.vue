@@ -65,6 +65,7 @@ const handleDragEnd = () => {
       <TooltipTrigger as-child>
         <div
           class="dweller-avatar"
+          role="group"
           :class="{ 'dweller-avatar--apprentice': isApprentice(dweller) }"
           draggable="true"
           tabindex="0"
@@ -84,14 +85,19 @@ const handleDragEnd = () => {
           <span v-if="isApprentice(dweller)" class="apprentice-badge" aria-hidden="true">
             <Icon icon="mdi:school-outline" />
           </span>
-          <span v-if="dweller.pet" class="dweller-pet" aria-hidden="true">
+          <span
+            v-if="dweller.pet"
+            class="dweller-pet pointer-events-none absolute top-0 left-0 z-2 flex size-3.5 items-center justify-center overflow-hidden rounded-full border border-theme-glow bg-surface-sunken text-theme-primary"
+            aria-hidden="true"
+          >
             <img
               v-if="petImageUrl(dweller.pet) && !failedPetImages.has(dweller.pet.id)"
               :src="petImageUrl(dweller.pet) ?? undefined"
+              class="size-full object-cover"
               alt=""
               @error="failedPetImages.add(dweller.pet.id)"
             />
-            <PawPrint v-else class="dweller-pet-fallback" />
+            <PawPrint v-else class="dweller-pet-fallback size-3" />
           </span>
         </div>
       </TooltipTrigger>
@@ -157,35 +163,6 @@ const handleDragEnd = () => {
 .apprentice-badge :deep(svg) {
   width: 0.6rem;
   height: 0.6rem;
-}
-
-.dweller-pet {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.1rem;
-  height: 1.1rem;
-  overflow: hidden;
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 50%;
-  background: var(--color-surface-sunken);
-  color: var(--color-theme-primary);
-  pointer-events: none;
-}
-
-.dweller-pet img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.dweller-pet-fallback {
-  width: 0.8rem;
-  height: 0.8rem;
 }
 
 .dweller-avatar:hover {

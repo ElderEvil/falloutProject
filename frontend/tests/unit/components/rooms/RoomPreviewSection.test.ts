@@ -1,5 +1,5 @@
-import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vite-plus/test'
+import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import RoomPreviewSection from '@/modules/rooms/components/RoomPreviewSection.vue'
 
 const dweller = (id: string, name: string) => ({
@@ -43,7 +43,23 @@ describe('RoomPreviewSection image aspect', () => {
 })
 
 describe('RoomPreviewSection pets', () => {
-  it('renders the equipped pet beside its dweller', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('renders the equipped pet beside its dweller after measuring the preview', async () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private callback: ResizeObserverCallback) {}
+        observe(target: Element) {
+          this.callback(
+            [{ target, contentRect: new DOMRect(0, 0, 400, 80) } as ResizeObserverEntry],
+            this as unknown as ResizeObserver
+          )
+        }
+        unobserve() {}
+        disconnect() {}
+      }
+    )
     const wrapper = mountPreview({
       assignedDwellers: [
         {
@@ -53,6 +69,7 @@ describe('RoomPreviewSection pets', () => {
       ],
     })
 
+    await flushPromises()
     const pet = wrapper.get('.combat-pet')
     expect(pet.get('img').attributes('alt')).toContain('Dogmeat')
     wrapper.unmount()

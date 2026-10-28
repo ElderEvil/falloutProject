@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { useElementSize } from '@vueuse/core'
 import { Icon } from '@iconify/vue'
 import {
   isApprentice,
@@ -69,6 +70,22 @@ const workerDwellers = computed(() =>
   orderedDwellers.value.filter((dweller) => !isApprentice(dweller))
 )
 const apprentice = computed(() => orderedDwellers.value.find(isApprentice))
+const overlay = useTemplateRef<HTMLElement>('overlay')
+const { width: overlayWidth } = useElementSize(overlay)
+// Reserve each pet's half-height, 3:2 frame beside its owner's 2:3 portrait.
+const occupantMaxHeight = computed(() => {
+  const occupants = [
+    ...workerDwellers.value.slice(0, props.dwellerCapacity),
+    ...(props.showApprenticeSlot ? [apprentice.value] : []),
+    ...(props.clientSlot !== undefined ? [props.clientSlot] : []),
+  ]
+  const pets = occupants.filter((dweller) => dweller?.pet).length
+  const slots =
+    props.dwellerCapacity +
+    Number(props.showApprenticeSlot) +
+    Number(props.clientSlot !== undefined)
+  return pets ? `${overlayWidth.value / (slots * (2 / 3) + pets * (3 / 4))}px` : undefined
+})
 const emptyDwellerSilhouetteUrl = getStaticImageUrl(
   '/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp'
 )
@@ -157,46 +174,50 @@ onMounted(() => {
 
             <div
               v-if="previewReady"
+              ref="overlay"
               class="dweller-sprites-overlay"
               :style="{
+                '--occupant-max-height': occupantMaxHeight,
                 '--dweller-silhouette': emptyDwellerSilhouetteUrl
                   ? `url('${emptyDwellerSilhouetteUrl}')`
                   : 'none',
               }"
             >
-              <RoomDwellerSlot
-                v-for="slot in dwellerCapacity"
-                :key="`worker-${slot}`"
-                :dweller="workerDwellers[slot - 1] ?? null"
-                :assign-enabled="assignEnabled"
-                :selection-mode="selectionMode"
-                :room-name="roomName"
-                :slot-id="slotIdPrefix ? `${slotIdPrefix}-worker-${slot}` : undefined"
-                @activate="emit('activate', $event)"
-                @unassign="emit('unassign', $event)"
-                @assign="emit('assignWorker')"
-              />
-              <RoomDwellerSlot
-                v-if="showApprenticeSlot"
-                kind="apprentice"
-                :dweller="apprentice ?? null"
-                :assign-enabled="assignEnabled"
-                @activate="emit('activate', $event)"
-                @unassign="emit('unassign', $event)"
-                @assign="emit('assignApprentice')"
-              />
-              <RoomDwellerSlot
-                v-if="clientSlot !== undefined"
-                kind="client"
-                :dweller="clientSlot"
-                :assign-enabled="assignEnabled"
-                :selection-mode="selectionMode"
-                :room-name="roomName"
-                :slot-id="slotIdPrefix ? `${slotIdPrefix}-client` : undefined"
-                @activate="emit('activate', $event)"
-                @unassign="emit('unassign', $event)"
-                @assign="emit('assignClient')"
-              />
+              <template v-if="!occupantMaxHeight || overlayWidth > 0">
+                <RoomDwellerSlot
+                  v-for="slot in dwellerCapacity"
+                  :key="`worker-${slot}`"
+                  :dweller="workerDwellers[slot - 1] ?? null"
+                  :assign-enabled="assignEnabled"
+                  :selection-mode="selectionMode"
+                  :room-name="roomName"
+                  :slot-id="slotIdPrefix ? `${slotIdPrefix}-worker-${slot}` : undefined"
+                  @activate="emit('activate', $event)"
+                  @unassign="emit('unassign', $event)"
+                  @assign="emit('assignWorker')"
+                />
+                <RoomDwellerSlot
+                  v-if="showApprenticeSlot"
+                  kind="apprentice"
+                  :dweller="apprentice ?? null"
+                  :assign-enabled="assignEnabled"
+                  @activate="emit('activate', $event)"
+                  @unassign="emit('unassign', $event)"
+                  @assign="emit('assignApprentice')"
+                />
+                <RoomDwellerSlot
+                  v-if="clientSlot !== undefined"
+                  kind="client"
+                  :dweller="clientSlot"
+                  :assign-enabled="assignEnabled"
+                  :selection-mode="selectionMode"
+                  :room-name="roomName"
+                  :slot-id="slotIdPrefix ? `${slotIdPrefix}-client` : undefined"
+                  @activate="emit('activate', $event)"
+                  @unassign="emit('unassign', $event)"
+                  @assign="emit('assignClient')"
+                />
+              </template>
             </div>
           </div>
         </div>

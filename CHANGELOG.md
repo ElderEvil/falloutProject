@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.279.4 (2026-10-28)
+
+### Bug Fixes
+
+* **chat:** add a chat transport boundary 07282a3
+* **chat:** clear failed voice upload placeholder b614854
+* **chat:** preserve multipart voice uploads through the API boundary 4555dec
+* **chat:** route chat call sites through the chat API 4617204
+* **radio:** complete the radio API boundary 7f5775a
+* **radio:** consume the radio API in the room composable cee4dee
+
+### Documentation
+
+* record resolved audit findings and the transport boundary 603f568
+
 ## 2.279.3 (2026-10-28)
 
 ### Bug Fixes

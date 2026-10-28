@@ -157,27 +157,65 @@ test('seats the original Chet head into the suit neckline through the motion cli
   ).toBeVisible()
 })
 
-test('keeps the resized shoes attached at the native ankle points', async ({ page }) => {
+test('keeps the ankle pivots inside the resized shoe artwork', async ({ page }) => {
   await page.goto(path)
   await expect(page.locator('[data-part="frontFoot"] image')).toHaveCount(1)
-  const gaps = await page
+  const alphas = await page
     .locator('[data-part="frontFoot"] image, [data-part="backFoot"] image')
-    .evaluateAll((images) =>
-      images.map((image) => {
-        const id = image.closest('[data-part]')!.getAttribute('data-part')!
-        const ankle = new DOMPoint(id === 'frontFoot' ? 487 : 414, 220).matrixTransform(
-          (image as SVGGraphicsElement).getScreenCTM()!
-        )
-        const circle = document
-          .querySelector(`[data-joint="${id}"] circle`)!
-          .getBoundingClientRect()
-        return Math.hypot(
-          ankle.x - circle.x - circle.width / 2,
-          ankle.y - circle.y - circle.height / 2
-        )
-      })
+    .evaluateAll(async (images) =>
+      Promise.all(
+        images.map(async (image) => {
+          const id = image.closest('[data-part]')!.getAttribute('data-part')!
+          const circle = document
+            .querySelector(`[data-joint="${id}"] circle`)!
+            .getBoundingClientRect()
+          const ankle = new DOMPoint(
+            circle.x + circle.width / 2,
+            circle.y + circle.height / 2
+          ).matrixTransform((image as SVGGraphicsElement).getScreenCTM()!.inverse())
+          const source = new Image()
+          source.src = image.getAttribute('href')!
+          await source.decode()
+          const canvas = document.createElement('canvas')
+          canvas.width = source.width
+          canvas.height = source.height
+          const context = canvas.getContext('2d')!
+          context.drawImage(source, 0, 0)
+          return context.getImageData(Math.round(ankle.x), Math.round(ankle.y), 1, 1).data[3]!
+        })
+      )
     )
-  for (const gap of gaps) expect(gap).toBeLessThan(1)
+  for (const alpha of alphas) expect(alpha).toBeGreaterThan(200)
+})
+
+test('matches both shoes to Chet’s heel and toe positions, including mirroring', async ({
+  page,
+}) => {
+  await page.goto(path)
+  await page.getByRole('button', { name: 'Chet overlay off', exact: true }).click()
+  for (const mirrored of [false, true]) {
+    if (mirrored) await page.getByRole('button', { name: 'Mirror off', exact: true }).click()
+    const gaps = await page.evaluate(() => {
+      const reference = document.querySelector(
+        '[data-reference="chet"] image'
+      ) as SVGGraphicsElement
+      const referenceMatrix = reference.getScreenCTM()!
+      // Native atlas outline points, compared with the original 136 × 287 portrait.
+      const anchors = [
+        { id: 'frontFoot', source: [493, 237], target: [70, 283] },
+        { id: 'frontFoot', source: [448, 239], target: [110, 274] },
+        { id: 'backFoot', source: [426, 237], target: [19, 260] },
+        { id: 'backFoot', source: [381, 239], target: [42, 281] },
+      ]
+      return anchors.map(({ id, source, target }) => {
+        const image = document.querySelector(`[data-part="${id}"] image`) as SVGGraphicsElement
+        const actual = new DOMPoint(source[0], source[1]).matrixTransform(image.getScreenCTM()!)
+        const expected = new DOMPoint(target[0], target[1]).matrixTransform(referenceMatrix)
+        return Math.hypot(actual.x - expected.x, actual.y - expected.y)
+      })
+    })
+    for (const gap of gaps) expect(gap).toBeLessThan(1)
+  }
 })
 
 test('aligns left-facing outfit cutouts with the right-facing portrait, including mirroring', async ({

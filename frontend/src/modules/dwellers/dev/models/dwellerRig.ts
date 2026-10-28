@@ -42,6 +42,7 @@ export interface RigJoint extends Bone {
   tip: Point
 }
 
+// Limb frames use uniform scaling; shoe heel/toe anchors are documented beside the assets.
 const bodyParts: readonly Omit<Bone, 'offset' | 'end' | 'bindAngle'>[] = [
   {
     id: 'pelvis',
@@ -75,14 +76,23 @@ const bodyParts: readonly Omit<Bone, 'offset' | 'end' | 'bindAngle'>[] = [
     label: 'Back shoulder · left arm',
     parent: 'spine',
     layer: 1,
-    sprite: { sheet: 'suit', crop: [330, 13, 36, 90], frame: [-17.1, 3, 23.4, 71] },
+    sprite: {
+      sheet: 'suit',
+      crop: [330, 13, 36, 90],
+      frame: [-23.8327, -13.5817, 36.8654, 92.1634],
+      rotation: 6.5,
+    },
   },
   {
     id: 'backForearm',
     label: 'Back elbow · left arm',
     parent: 'backUpperArm',
     layer: 1,
-    sprite: { sheet: 'suit', crop: [334, 110, 36, 72], frame: [-12.15, 5, 26.1, 59] },
+    sprite: {
+      sheet: 'suit',
+      crop: [334, 110, 36, 72],
+      frame: [-12, -12.327, 25.2, 50.4],
+    },
   },
   {
     id: 'backHand',
@@ -101,7 +111,12 @@ const bodyParts: readonly Omit<Bone, 'offset' | 'end' | 'bindAngle'>[] = [
     label: 'Front shoulder · right arm',
     parent: 'spine',
     layer: 7,
-    sprite: { sheet: 'suit', crop: [283, 28, 31, 73], frame: [-13.5, -19, 25.2, 74.226] },
+    sprite: {
+      sheet: 'suit',
+      crop: [283, 28, 31, 73],
+      frame: [-17.9464, -26.0284, 34.0927, 80.2828],
+      rotation: -8,
+    },
   },
   {
     id: 'frontForearm',
@@ -111,7 +126,7 @@ const bodyParts: readonly Omit<Bone, 'offset' | 'end' | 'bindAngle'>[] = [
     sprite: {
       sheet: 'suit',
       crop: [279, 110, 31, 70],
-      frame: [-16.856, -11, 36.411, 72],
+      frame: [-15, -13.487, 31, 70],
     },
   },
   {
@@ -122,7 +137,7 @@ const bodyParts: readonly Omit<Bone, 'offset' | 'end' | 'bindAngle'>[] = [
     sprite: {
       sheet: 'hands',
       crop: [19, 62, 57, 44],
-      frame: [-39.525, -11.625, 44.175, 34.1],
+      frame: [-51, -15, 57, 44],
       flipX: true,
       rotation: -90,
     },
@@ -132,14 +147,24 @@ const bodyParts: readonly Omit<Bone, 'offset' | 'end' | 'bindAngle'>[] = [
     label: 'Back hip · left leg',
     parent: 'pelvis',
     layer: 0,
-    sprite: { sheet: 'suit', crop: [19, 19, 49, 101], frame: [-16, -13, 40, 90.449] },
+    sprite: {
+      sheet: 'suit',
+      crop: [19, 19, 49, 101],
+      frame: [-17.5747, -4.2458, 43.1494, 88.9407],
+      rotation: -2,
+    },
   },
   {
     id: 'backShin',
     label: 'Back knee · left leg',
     parent: 'backThigh',
     layer: 0,
-    sprite: { sheet: 'suit', crop: [22, 132, 41, 78], frame: [-18, -8, 42, 64.683] },
+    sprite: {
+      sheet: 'suit',
+      crop: [22, 132, 41, 78],
+      frame: [-12.0637, -1.4747, 37.1273, 70.6325],
+      rotation: 7.5,
+    },
   },
   {
     id: 'backFoot',
@@ -149,8 +174,9 @@ const bodyParts: readonly Omit<Bone, 'offset' | 'end' | 'bindAngle'>[] = [
     sprite: {
       sheet: 'suit',
       crop: [378, 213, 53, 33],
-      frame: [(-44 * 17) / 53, (-23 * 7) / 33, 44, 23],
+      frame: [-10.0711, -6.1738, 45.8069, 28.5213],
       flipX: true,
+      rotation: -15.1474,
     },
   },
   {
@@ -158,14 +184,24 @@ const bodyParts: readonly Omit<Bone, 'offset' | 'end' | 'bindAngle'>[] = [
     label: 'Front hip · right leg',
     parent: 'pelvis',
     layer: 2,
-    sprite: { sheet: 'suit', crop: [80, 18, 48, 98], frame: [-32, -16, 51, 102.667] },
+    sprite: {
+      sheet: 'suit',
+      crop: [80, 18, 48, 98],
+      frame: [-30.3, -32.2, 57.6, 117.6],
+      rotation: 4,
+    },
   },
   {
     id: 'frontShin',
     label: 'Front knee · right leg',
     parent: 'frontThigh',
     layer: 2,
-    sprite: { sheet: 'suit', crop: [85, 135, 42, 79], frame: [-20, -8, 40, 67] },
+    sprite: {
+      sheet: 'suit',
+      crop: [85, 135, 42, 79],
+      frame: [-20, -2, 34.557, 65],
+      rotation: 2.5,
+    },
   },
   {
     id: 'frontFoot',
@@ -175,8 +211,9 @@ const bodyParts: readonly Omit<Bone, 'offset' | 'end' | 'bindAngle'>[] = [
     sprite: {
       sheet: 'suit',
       crop: [447, 213, 62, 34],
-      frame: [(-44 * 22) / 62, (-23 * 7) / 34, 44, 23],
+      frame: [-33.9834, -12.1689, 70.5415, 38.684],
       flipX: true,
+      rotation: -15.2252,
     },
   },
 ]

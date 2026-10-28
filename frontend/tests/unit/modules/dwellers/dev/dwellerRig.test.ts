@@ -57,6 +57,13 @@ describe('2D dweller skeleton', () => {
     expect(hips[2]).toBeLessThan(torso[2] * 1.15)
   })
 
+  it('preserves the source aspect ratio of every limb, hand and shoe', () => {
+    for (const bone of RIG_BONES.filter((bone) => /Arm|Hand|Thigh|Shin|Foot/.test(bone.id))) {
+      const { crop, frame } = bone.sprite
+      expect(frame[2] / crop[2], bone.id).toBeCloseTo(frame[3] / crop[3], 4)
+    }
+  })
+
   it('maps the bind joints to the original Chet stance', () => {
     const joints = resolveRig('bind', 0)
     // Original 136 × 287 Chet sprite, uniformly scaled 1.25 and aligned at the neck.

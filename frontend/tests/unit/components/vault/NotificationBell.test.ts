@@ -930,6 +930,44 @@ describe('NotificationBell popup accessibility', () => {
     wrapper.unmount()
   })
 
+  it('renders rows owned by the inbox store without fetching a second list', async () => {
+    useAuthStore().token = 'test-token'
+    fetchMock.mockResolvedValue(createMockResponse([], { hang: true }))
+    vi.mocked(axios.get).mockImplementation((url) =>
+      String(url).includes('unread-count')
+        ? Promise.resolve({ data: { count: 1 } })
+        : Promise.resolve({ data: [] })
+    )
+    useNotificationInboxStore().receiveNotification({
+      id: 'store-owned',
+      vault_id: 'vault-1',
+      from_dweller_id: null,
+      notification_type: 'level_up',
+      title: 'Store owned',
+      message: 'The inbox store owns this row',
+      priority: 'normal',
+      is_read: false,
+      is_dismissed: false,
+      user_id: 'user-1',
+      read_at: null,
+      created_at: '2026-08-11T10:00:00',
+      meta_data: {},
+    })
+    const wrapper = mount(NotificationBell)
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+    const listRequests = () =>
+      vi.mocked(axios.get).mock.calls.filter(([url]) => url === '/api/v1/notifications/')
+    const listRequestsBeforeOpen = listRequests().length
+
+    await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
+    await flushPromises()
+
+    expect(listRequests()).toHaveLength(listRequestsBeforeOpen)
+    expect(wrapper.get('[data-notification-id="store-owned"]').text()).toContain('Store owned')
+    wrapper.unmount()
+  })
+
   it('marks notifications across all vaults read from the bell and clears the badge', async () => {
     useVaultStore().activeVaultId = 'vault-1'
     const items = [{ ...actionableNotification }, { ...informationalNotification }]

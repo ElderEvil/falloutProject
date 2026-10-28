@@ -12,7 +12,6 @@ import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSse, type SseEvent } from '@/core/composables/useEventStream'
-import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useSound } from '@/core/composables/useSound'
 import { useVaultBoyFeedback } from '@/core/composables/useVaultBoyFeedback'
 import { FEEDBACK_TIMING_MS } from '@/core/config/feedback'
@@ -20,29 +19,17 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
 import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 import { addPendingReport } from '@/modules/exploration/composables/usePendingReports'
+import type { RewardsSummary } from '@/modules/exploration/stores/exploration'
 import {
   getNotificationRoute,
   getNotificationSound,
   getNotificationAnimation,
 } from '@/modules/vault/utils/notificationRouting'
 import { formatRelativeTime } from '@/core/utils/time'
-import { notificationService } from '@/modules/vault/services/notificationService'
 import { Button } from '@/core/components/ui/button'
 import { useNotificationInboxStore } from '@/modules/vault/stores/notificationInbox'
+import type { InboxNotification } from '@/modules/vault/services/notificationService'
 import { useStorageStore } from '@/modules/storage/stores/storage'
-
-interface Notification {
-  id: string
-  vault_id?: string | null
-  from_dweller_id?: string | null
-  notification_type: string
-  title: string
-  message: string
-  priority: string
-  is_read: boolean
-  created_at: string
-  meta_data?: Record<string, any> | null
-}
 
 const inboxStore = useNotificationInboxStore()
 const authStore = useAuthStore()
@@ -57,29 +44,9 @@ const showPopup = ref(false)
 useBlockingOverlay(() => showPopup.value)
 const bellButtonRef = ref<HTMLButtonElement | null>(null)
 const popupRef = ref<HTMLElement | null>(null)
-const notifications = ref<Notification[]>([])
 const unreadCount = computed(() => inboxStore.unreadCount)
 const seenNotificationIds = new Set<string>()
 let hasConnected = false
-const { run: runFetchNotifications, isLoading } = useAsyncAction(
-  async (token: string, catchUp = false) => {
-    const loaded = await notificationService.list(null, 'all', 0, 20)
-    if (authStore.token !== token) return
-    if (catchUp)
-      loaded
-        .filter((notification) => !inboxStore.isRead(notification))
-        .reverse()
-        .forEach(processNotification)
-    inboxStore.rememberNotifications(loaded)
-    loaded.forEach((notification) => seenNotificationIds.add(notification.id))
-    const loadedIds = new Set(loaded.map((notification) => notification.id))
-    notifications.value = [
-      ...notifications.value.filter((notification) => !loadedIds.has(notification.id)),
-      ...loaded,
-    ]
-  },
-  { context: 'Failed to fetch notifications' }
-)
 const hasUnread = computed(() => unreadCount.value > 0)
 
 // SSE connection for live notifications
@@ -111,7 +78,6 @@ watch(
     } else {
       sse.value?.close()
       sse.value = undefined
-      notifications.value = []
       seenNotificationIds.clear()
       hasConnected = false
     }
@@ -123,7 +89,7 @@ const currentSseEvent = computed<SseEvent | null>(() => {
   return instance?.event.value ?? null
 })
 
-function isAdoptionNotification(notification: Notification): boolean {
+function isAdoptionNotification(notification: InboxNotification): boolean {
   return (
     notification.notification_type === 'relationship_formed' &&
     notification.meta_data?.event === 'child_adopted'
@@ -131,20 +97,14 @@ function isAdoptionNotification(notification: Notification): boolean {
 }
 
 // The same delivery path surfaces live events and unread events missed while paused.
-function processNotification(notificationData: Notification) {
+function processNotification(notificationData: InboxNotification) {
   if (seenNotificationIds.has(notificationData.id)) return
   seenNotificationIds.add(notificationData.id)
-  const newNotif: Notification = {
-    id: notificationData.id,
+  const newNotif: InboxNotification = {
+    ...notificationData,
     vault_id: notificationData.vault_id ?? null,
     from_dweller_id: notificationData.from_dweller_id ?? null,
-    notification_type: notificationData.notification_type,
-    title: notificationData.title,
-    message: notificationData.message,
-    priority: notificationData.priority,
     is_read: false,
-    created_at: notificationData.created_at,
-    meta_data: notificationData.meta_data,
   }
   inboxStore.rememberNotifications([newNotif])
   const isRushResult =
@@ -156,7 +116,7 @@ function processNotification(notificationData: Notification) {
     const message = notificationData.message
     setTimeout(() => {
       if (!authStore.token) return
-      notifications.value.unshift(newNotif)
+      inboxStore.receiveNotification(newNotif)
       inboxStore.noteUnreadArrival()
       if (vaultId && vaultId !== vaultStore.activeVaultId) return
       if (isSuccess) toast.success(message)
@@ -164,7 +124,7 @@ function processNotification(notificationData: Notification) {
     }, FEEDBACK_TIMING_MS.rushDelay)
     return
   }
-  notifications.value.unshift(newNotif)
+  inboxStore.receiveNotification(newNotif)
   inboxStore.noteUnreadArrival()
   playSound(getNotificationSound(notificationData.notification_type))
   const animation = getNotificationAnimation(notificationData.notification_type)
@@ -227,13 +187,19 @@ function processNotification(notificationData: Notification) {
   // A cleared point's loot haul is asynchronous; announce it (progression red line).
   if (notificationData.notification_type === 'location_cleared') {
     const locationName = notificationData.meta_data?.location_name
-    toast.success(locationName ? `${locationName} cleared — loot hauled` : notificationData.message)
+    toast.success(
+      typeof locationName === 'string'
+        ? `${locationName} cleared — loot hauled`
+        : notificationData.message
+    )
   }
   // A point is re-lootable; announce it (progression red line).
   if (notificationData.notification_type === 'location_ready') {
     const locationName = notificationData.meta_data?.location_name
     toast.info(
-      locationName ? `${locationName} is ready to be cleared again` : notificationData.message
+      typeof locationName === 'string'
+        ? `${locationName} is ready to be cleared again`
+        : notificationData.message
     )
   }
   // A recipe unlock is asynchronous (scrapping happens elsewhere); announce it (progression red line).
@@ -255,9 +221,22 @@ function processNotification(notificationData: Notification) {
 
 watch(currentSseEvent, (evt) => {
   if (!evt || evt.event !== 'notification') return
-  const notification = (evt.data as { notification?: Notification })?.notification
+  const notification = (evt.data as { notification?: InboxNotification })?.notification
   if (notification) processNotification(notification)
 })
+
+const fetchNotifications = async (catchUp = false) => {
+  const token = authStore.token
+  if (!token) return
+  const loaded = await inboxStore.loadRecent()
+  if (authStore.token !== token) return
+  if (catchUp)
+    loaded
+      .filter((notification) => !inboxStore.isRead(notification))
+      .reverse()
+      .forEach(processNotification)
+  loaded.forEach((notification) => seenNotificationIds.add(notification.id))
+}
 
 // Reconnecting cannot replay Redis pub/sub history. Only reload after the
 // connection actually opens, including a new stream after token rotation.
@@ -266,29 +245,18 @@ watch(
   async (status) => {
     if (status !== 'open' || !authStore.token) return
     if (hasConnected) {
-      await runFetchNotifications(authStore.token, true)
+      await fetchNotifications(true)
       await fetchUnreadCount()
     }
     hasConnected = true
   }
 )
 
-const fetchNotifications = async () => {
-  if (authStore.token) await runFetchNotifications(authStore.token)
-}
-
 const fetchUnreadCount = async () => {
   if (authStore.token) await inboxStore.refreshUnreadCount()
 }
 
-watch(
-  () => inboxStore.readRevision,
-  () => {
-    void fetchNotifications()
-  }
-)
-
-const isActionable = (notification: Notification): boolean =>
+const isActionable = (notification: InboxNotification): boolean =>
   getNotificationRoute(notification) !== null
 
 const closePopup = () => {
@@ -310,7 +278,7 @@ const togglePopup = async () => {
   showPopup.value = true
   // Move focus into the popup so keyboard users can traverse the list.
   nextTick(() => popupRef.value?.focus())
-  if (notifications.value.length === 0) {
+  if (inboxStore.recentNotifications.length === 0) {
     await fetchNotifications()
   }
 }
@@ -319,21 +287,31 @@ const markAllAsRead = async () => {
   if (authStore.token) await inboxStore.markAllRead(null)
 }
 
-const enqueuePendingReport = (notification: Notification): void => {
+const enqueuePendingReport = (notification: InboxNotification): void => {
   if (notification.notification_type !== 'exploration_complete') return
-  const rewards = notification.meta_data?.rewards
-  const explorationId = notification.meta_data?.exploration_id
-  if (!rewards || !notification.vault_id || typeof explorationId !== 'string') return
+  const meta = notification.meta_data
+  const rewards = meta?.rewards
+  const explorationId = meta?.exploration_id
+  const dwellerId = meta?.dweller_id
+  const dwellerName = meta?.dweller_name
+  if (
+    !rewards ||
+    !notification.vault_id ||
+    typeof explorationId !== 'string' ||
+    typeof dwellerId !== 'string' ||
+    typeof dwellerName !== 'string'
+  )
+    return
   addPendingReport({
     explorationId,
     vaultId: notification.vault_id,
-    dwellerId: notification.meta_data!.dweller_id,
-    dwellerName: notification.meta_data!.dweller_name,
-    rewards,
+    dwellerId,
+    dwellerName,
+    rewards: rewards as RewardsSummary,
   })
 }
 
-const handleNotificationClick = (notification: Notification) => {
+const handleNotificationClick = (notification: InboxNotification) => {
   const route = getNotificationRoute(notification)
   if (!route) return
   closePopup()
@@ -342,7 +320,7 @@ const handleNotificationClick = (notification: Notification) => {
   if (!inboxStore.isRead(notification)) inboxStore.markReadOnOpen(notification)
 }
 
-const getNotificationIcon = (notification: Notification): string => {
+const getNotificationIcon = (notification: InboxNotification): string => {
   if (isAdoptionNotification(notification)) return 'mdi:account-heart'
   const iconMap: Record<string, string> = {
     baby_born: 'mdi:baby-face',
@@ -449,7 +427,7 @@ onBeforeUnmount(() => {
           <h3 class="font-semibold text-theme-primary">Notifications</h3>
           <!-- Raw popup buttons: bespoke popup styling; migrate with the component (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
           <button
-            v-if="notifications.length > 0"
+            v-if="inboxStore.recentNotifications.length > 0"
             @click="markAllAsRead"
             :disabled="inboxStore.isSaving"
             class="text-xs text-muted-foreground hover:text-white transition-colors"
@@ -466,12 +444,15 @@ onBeforeUnmount(() => {
 
         <!-- Notification List -->
         <div class="max-h-96 overflow-y-auto">
-          <div v-if="isLoading" class="p-8 text-center text-muted-foreground">
+          <div v-if="inboxStore.isRecentLoading" class="p-8 text-center text-muted-foreground">
             <Icon icon="mdi:loading" class="h-6 w-6 animate-spin inline-block" />
             <p class="mt-2 text-sm">Loading...</p>
           </div>
 
-          <div v-else-if="notifications.length === 0" class="p-8 text-center text-muted-foreground">
+          <div
+            v-else-if="inboxStore.recentNotifications.length === 0"
+            class="p-8 text-center text-muted-foreground"
+          >
             <Icon icon="mdi:bell-off" class="h-12 w-12 mx-auto mb-2 opacity-50" />
             <p class="text-sm">No notifications yet</p>
           </div>
@@ -481,7 +462,7 @@ onBeforeUnmount(() => {
                  informational rows render as plain content, never dead buttons. -->
             <component
               :is="isActionable(notification) ? 'button' : 'div'"
-              v-for="notification in notifications"
+              v-for="notification in inboxStore.recentNotifications"
               :key="notification.id"
               :data-notification-id="notification.id"
               :type="isActionable(notification) ? 'button' : null"

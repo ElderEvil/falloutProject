@@ -111,6 +111,24 @@ test('keeps original atlas body parts and hangs the open hands from their wrists
   }
 })
 
+test('positions both open wrists against Chet’s hand outlines', async ({ page }) => {
+  await page.goto(path)
+  await page.getByRole('button', { name: 'Chet overlay off', exact: true }).click()
+  const gaps = await page.evaluate(() => {
+    const reference = document.querySelector('[data-reference="chet"] image') as SVGGraphicsElement
+    return [
+      { id: 'frontHand', target: [20, 182] },
+      { id: 'backHand', target: [122, 178] },
+    ].map(({ id, target }) => {
+      const hand = document.querySelector(`[data-part="${id}"] image`) as SVGGraphicsElement
+      const toReference = reference.getScreenCTM()!.inverse().multiply(hand.getScreenCTM()!)
+      const wrist = new DOMPoint(25, 77).matrixTransform(toReference)
+      return Math.hypot(wrist.x - target[0]!, wrist.y - target[1]!)
+    })
+  })
+  for (const gap of gaps) expect(gap).toBeLessThan(1)
+})
+
 test('compares the rig with a separately adjustable original-art overlay', async ({ page }) => {
   await page.goto(path)
   await page.getByRole('button', { name: 'Chet overlay off', exact: true }).click()

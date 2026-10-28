@@ -91,7 +91,7 @@ const bodyParts: readonly Omit<Bone, 'offset' | 'end' | 'bindAngle'>[] = [
     sprite: {
       sheet: 'suit',
       crop: [334, 110, 36, 72],
-      frame: [-12, -12.327, 25.2, 50.4],
+      frame: [-12, -10.1364, 25.2, 50.4],
     },
   },
   {
@@ -102,7 +102,7 @@ const bodyParts: readonly Omit<Bone, 'offset' | 'end' | 'bindAngle'>[] = [
     sprite: {
       sheet: 'hands',
       crop: [19, 62, 57, 44],
-      frame: [-4.65, -11.625, 44.175, 34.1],
+      frame: [-4.8, -12, 45.6, 35.2],
       rotation: 90,
     },
   },
@@ -114,7 +114,7 @@ const bodyParts: readonly Omit<Bone, 'offset' | 'end' | 'bindAngle'>[] = [
     sprite: {
       sheet: 'suit',
       crop: [283, 28, 31, 73],
-      frame: [-17.9464, -26.0284, 34.0927, 80.2828],
+      frame: [-20.8178, -30.193, 39.5475, 93.128],
       rotation: -8,
     },
   },
@@ -126,7 +126,7 @@ const bodyParts: readonly Omit<Bone, 'offset' | 'end' | 'bindAngle'>[] = [
     sprite: {
       sheet: 'suit',
       crop: [279, 110, 31, 70],
-      frame: [-15, -13.487, 31, 70],
+      frame: [-15, -17.234, 31, 70],
     },
   },
   {
@@ -137,7 +137,7 @@ const bodyParts: readonly Omit<Bone, 'offset' | 'end' | 'bindAngle'>[] = [
     sprite: {
       sheet: 'hands',
       crop: [19, 62, 57, 44],
-      frame: [-51, -15, 57, 44],
+      frame: [-49.47, -14.55, 55.29, 42.68],
       flipX: true,
       rotation: -90,
     },
@@ -226,11 +226,11 @@ const landmarks: Record<BoneId, { point: Point; tip: Point }> = {
   spine: { point: [74, 160], tip: [74, 87] },
   head: { point: [74, 87], tip: [74, 10] },
   backUpperArm: { point: [101, 105], tip: [113, 150] },
-  backForearm: { point: [113, 150], tip: [119, 177] },
-  backHand: { point: [119, 177], tip: [124, 202] },
+  backForearm: { point: [113, 150], tip: [122, 178] },
+  backHand: { point: [122, 178], tip: [127, 203] },
   frontUpperArm: { point: [41, 106], tip: [21, 143] },
-  frontForearm: { point: [21, 143], tip: [20, 185] },
-  frontHand: { point: [20, 185], tip: [23, 205] },
+  frontForearm: { point: [21, 143], tip: [20, 182] },
+  frontHand: { point: [20, 182], tip: [23, 202] },
   backThigh: { point: [84, 178], tip: [43, 218] },
   backShin: { point: [43, 218], tip: [30, 254] },
   backFoot: { point: [30, 254], tip: [40, 279] },
@@ -240,8 +240,8 @@ const landmarks: Record<BoneId, { point: Point; tip: Point }> = {
 }
 function bindHeading(id: BoneId): number {
   if (id === 'backFoot') return 55
-  if (id === 'frontHand') return -17
-  if (id === 'backHand') return -18
+  if (id === 'frontHand') return -19
+  if (id === 'backHand') return -23
   if (
     !id.endsWith('UpperArm') &&
     !id.endsWith('Forearm') &&

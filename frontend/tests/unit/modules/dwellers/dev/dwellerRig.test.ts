@@ -38,23 +38,85 @@ describe('2D dweller skeleton', () => {
     expect(back.layer).toBeLessThan(front.layer)
   })
 
-  it('flexes each elbow during walking instead of swinging a rigid arm', () => {
+  it('flexes each elbow during walking without ever locking or hyperextending it', () => {
     const poses = [0, 0.25, 0.5, 0.75, 1].map((phase) => sampleRigClip('walk', phase).angles)
     for (const elbow of ['frontForearm', 'backForearm'] as const) {
       const angles = poses.map((pose) => pose[elbow]!)
-      expect(Math.max(...angles) - Math.min(...angles)).toBeGreaterThan(25)
-      expect(Math.min(...angles.map(Math.abs))).toBeGreaterThanOrEqual(15)
+      expect(Math.max(...angles) - Math.min(...angles)).toBeGreaterThan(20)
+      for (const angle of angles) expect(angle).toBeLessThan(0)
     }
-    expect(poses[1]!.frontForearm).toBeLessThan(poses[1]!.backForearm!)
-    expect(poses[3]!.backForearm).toBeLessThan(poses[3]!.frontForearm!)
+    expect(poses[0]!.frontForearm).toBeLessThan(poses[0]!.backForearm!)
+    expect(poses[2]!.backForearm).toBeLessThan(poses[2]!.frontForearm!)
   })
 
-  it('fits the original hip connector beneath the torso without an oversized round pelvis', () => {
-    const hips = RIG_BONES.find((bone) => bone.id === 'pelvis')!.sprite.frame
-    const torso = RIG_BONES.find((bone) => bone.id === 'spine')!.sprite.frame
-    expect(hips[3] / hips[2]).toBeLessThan(0.55)
-    expect(hips[2] / torso[2]).toBeGreaterThan(0.75)
-    expect(hips[2]).toBeLessThan(torso[2] * 1.15)
+  it('walks through Chet’s stride at the start of the cycle and mirrors it halfway', () => {
+    const bind = sampleRigClip('bind', 0).angles
+    const start = sampleRigClip('walk', 0).angles
+    const half = sampleRigClip('walk', 0.5).angles
+    for (const bone of ['backThigh', 'frontThigh', 'backShin', 'frontShin'] as const)
+      expect(start[bone], bone).toBeCloseTo(bind[bone]!, 0)
+    expect(half.backThigh).toBeCloseTo(start.frontThigh!, 5)
+    expect(half.frontThigh).toBeCloseTo(start.backThigh!, 5)
+  })
+
+  it('hides the far shoulder inside the torso and keeps its hand clear of the hip', () => {
+    const bind = resolveRig('bind', 0)
+    const idle = resolveRig('idle', 0)
+    const torso = bind.find((joint) => joint.id === 'spine')!
+    const torsoRightEdge = torso.x + torso.sprite.frame[0] + torso.sprite.frame[2]
+    const shoulder = bind.find((joint) => joint.id === 'backUpperArm')!
+    expect(shoulder.x).toBeLessThan(torsoRightEdge - 10)
+    expect(shoulder.layer).toBeLessThan(torso.layer)
+    const idleHand = idle.find((joint) => joint.id === 'backHand')!
+    expect(idleHand.x).toBeGreaterThan(torsoRightEdge)
+  })
+
+  it('keeps shoes flat on the floor except for a small push-off heel lift', () => {
+    const footAngle = (phase: number, id: 'frontFoot' | 'backFoot') =>
+      resolveRig('walk', phase).find((joint) => joint.id === id)!.angle
+    expect(footAngle(0, 'frontFoot')).toBeCloseTo(0, 5)
+    expect(footAngle(0, 'backFoot')).toBeCloseTo(14, 5)
+    expect(footAngle(0.5, 'backFoot')).toBeCloseTo(0, 5)
+    expect(footAngle(0.5, 'frontFoot')).toBeCloseTo(14, 5)
+    for (const phase of [0.25, 0.37, 0.75, 0.87])
+      for (const id of ['frontFoot', 'backFoot'] as const)
+        expect(Math.abs(footAngle(phase, id)), `${id}@${phase}`).toBeLessThan(6)
+  })
+
+  it('rests idle in the upright line-up stance rather than mid-stride', () => {
+    const joints = resolveRig('idle', 0)
+    const spine = joints.find((joint) => joint.id === 'spine')!
+    expect(Math.abs(spine.angle)).toBeLessThan(2)
+    for (const id of ['frontThigh', 'backThigh', 'frontShin', 'backShin'] as const)
+      expect(Math.abs(joints.find((joint) => joint.id === id)!.angle), id).toBeLessThan(12)
+    const [frontFoot, backFoot] = ['frontFoot', 'backFoot'].map((id) =>
+      joints.find((joint) => joint.id === id)!
+    )
+    expect(Math.abs(frontFoot!.angle)).toBeLessThan(1)
+    expect(Math.abs(backFoot!.angle)).toBeLessThan(1)
+    // Chet's far leg is drawn foreshortened, so its sole rests slightly higher as a depth cue.
+    expect(frontFoot!.y - backFoot!.y).toBeGreaterThan(0)
+    expect(frontFoot!.y - backFoot!.y).toBeLessThan(16)
+  })
+
+  it('fits the round hip connector behind the crossing thigh and beneath the torso', () => {
+    const hips = RIG_BONES.find((bone) => bone.id === 'pelvis')!
+    const torso = RIG_BONES.find((bone) => bone.id === 'spine')!
+    const thigh = RIG_BONES.find((bone) => bone.id === 'frontThigh')!
+    const { crop, frame } = hips.sprite
+    expect(frame[2] / crop[2]).toBeCloseTo(frame[3] / crop[3], 4)
+    expect(frame[2] / torso.sprite.frame[2]).toBeGreaterThan(0.9)
+    expect(frame[2]).toBeLessThanOrEqual(torso.sprite.frame[2] * 1.05)
+    expect(hips.layer).toBeLessThan(thigh.layer)
+    expect(hips.layer).toBeLessThan(torso.layer)
+  })
+
+  it('overlaps each thigh over its shin to conceal the round knee cap', () => {
+    for (const side of ['front', 'back']) {
+      const thigh = RIG_BONES.find((bone) => bone.id === `${side}Thigh`)!
+      const shin = RIG_BONES.find((bone) => bone.id === `${side}Shin`)!
+      expect(thigh.layer).toBeGreaterThan(shin.layer)
+    }
   })
 
   it('preserves the source aspect ratio of every limb, hand and shoe', () => {
@@ -66,16 +128,17 @@ describe('2D dweller skeleton', () => {
 
   it('maps the bind joints to the original Chet stance', () => {
     const joints = resolveRig('bind', 0)
-    // Original 136 × 287 Chet sprite, uniformly scaled 1.25 and aligned at the neck.
+    // Original 136 × 287 Chet sprite, uniformly scaled 1.25 and aligned at the neck. Both hip
+    // pivots sit near the pelvis centre so a swinging thigh stays attached to the waist.
     const anchors = {
       frontUpperArm: [41, 106],
-      backUpperArm: [101, 105],
+      backUpperArm: [93, 103],
       frontForearm: [21, 143],
       backForearm: [113, 150],
-      frontHand: [20, 182],
-      backHand: [122, 178],
-      frontThigh: [53, 177],
-      backThigh: [84, 178],
+      frontHand: [20, 186],
+      backHand: [120, 179],
+      frontThigh: [60, 175],
+      backThigh: [66, 175],
       frontShin: [81, 224],
       backShin: [43, 218],
       frontFoot: [79, 268],

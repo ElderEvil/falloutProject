@@ -5,7 +5,7 @@ import { Button } from '@/core/components/ui/button'
 import { Input } from '@/core/components/ui/input'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { getDwellerBodySize } from '@/modules/dwellers/models/dweller'
-import { getCreatureImagePath } from '@/core/utils/creatureAssets'
+import { getCreatureImagePath, getCreatureHoverClass } from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
 import CombatSkillIcon from '@/modules/combat/components/CombatSkillIcon.vue'
 import CombatPet from '@/modules/combat/components/CombatPet.vue'
@@ -246,7 +246,10 @@ const modeLabel = computed(
                   :src="imageFor(fighter) ?? undefined"
                   :alt="fighter.name"
                   class="size-full object-contain drop-shadow-lg"
-                  :class="{ '-scale-x-100': team.side === 'B' && fighter.is_robot }"
+                  :class="[
+                    getCreatureHoverClass(creatureKeyOf(fighter.id)),
+                    { '-scale-x-100': team.side === 'B' && fighter.is_robot },
+                  ]"
                 />
                 <div
                   v-else-if="!fighter.is_creature && !fighter.is_robot"

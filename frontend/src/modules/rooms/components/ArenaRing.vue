@@ -8,6 +8,7 @@ import {
   creatureSeed,
   getActorModelSizeClass,
   getCreatureImagePath,
+  getCreatureHoverClass,
   getCreatureModelSizeClass,
 } from '@/core/utils/creatureAssets'
 import { getStaticImageUrl } from '@/core/utils/image'
@@ -84,9 +85,7 @@ const readySkills = computed(() => {
 const imageFor = (fighter: ArenaFighter) =>
   fighter.image_url
     ? getStaticImageUrl(fighter.image_url)
-    : getStaticImageUrl(
-        getCreatureImagePath(creatureKeyOf(fighter.id), creatureSeed(fighter.id))
-      )
+    : getStaticImageUrl(getCreatureImagePath(creatureKeyOf(fighter.id), creatureSeed(fighter.id)))
 const actorSizeClass = (fighter: ArenaFighter) =>
   fighter.is_creature || fighter.is_robot
     ? getCreatureModelSizeClass(creatureKeyOf(fighter.id))
@@ -281,7 +280,10 @@ const actionFor = (fighter: ArenaFighter) => {
                     :src="imageFor(fighter) ?? undefined"
                     :alt="fighter.name"
                     class="size-full object-contain drop-shadow-lg"
-                    :class="{ '-scale-x-100': team.side === 'B' && fighter.is_robot }"
+                    :class="[
+                      getCreatureHoverClass(creatureKeyOf(fighter.id)),
+                      { '-scale-x-100': team.side === 'B' && fighter.is_robot },
+                    ]"
                   />
                   <PawPrint v-else class="size-full text-danger" />
                 </template>

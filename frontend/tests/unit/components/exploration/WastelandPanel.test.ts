@@ -5,7 +5,11 @@ import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { nextTick } from 'vue'
 import WastelandPanel from '@/modules/exploration/components/WastelandPanel.vue'
-import { useExplorationStore } from '@/modules/exploration/stores/exploration'
+import { usePolling } from '@/core/composables/usePolling'
+import {
+  ACTIVE_EXPLORATIONS_REFRESH_MS,
+  useExplorationStore,
+} from '@/modules/exploration/stores/exploration'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -55,8 +59,10 @@ describe('WastelandPanel', () => {
       radaway: 10,
     } as never
 
+    vi.mocked(usePolling).mockClear()
+
     // Mock store methods
-    vi.spyOn(explorationStore, 'fetchExplorationsByVault').mockResolvedValue([])
+    vi.spyOn(explorationStore, 'refreshActiveExplorations').mockResolvedValue([])
     vi.spyOn(explorationStore, 'sendDwellerToWasteland').mockResolvedValue({} as never)
     vi.spyOn(explorationStore, 'recallDweller').mockResolvedValue({})
     vi.spyOn(explorationStore, 'completeExploration').mockResolvedValue({})
@@ -95,6 +101,30 @@ describe('WastelandPanel', () => {
 
       expect(wrapper.text()).toContain('The Wasteland')
       expect(wrapper.text()).toContain('Drag dwellers here to send them exploring')
+    })
+
+    it('refreshes the active list through the store at the shared cadence', async () => {
+      const wrapper = mount(WastelandPanel, {
+        global: {
+          plugins: [router],
+          stubs: {
+            ActiveExplorationList: { template: '<div />' },
+            ExplorationRewardsModal: { template: '<div />' },
+          },
+        },
+      })
+
+      await flushPromises()
+
+      expect(explorationStore.refreshActiveExplorations).toHaveBeenCalledWith(
+        'test-vault-id',
+        'mock-token'
+      )
+      expect(usePolling).toHaveBeenLastCalledWith(expect.any(Function), {
+        interval: ACTIVE_EXPLORATIONS_REFRESH_MS,
+        immediate: false,
+      })
+      wrapper.unmount()
     })
 
     it('shows the empty-explorer state when no explorations', async () => {

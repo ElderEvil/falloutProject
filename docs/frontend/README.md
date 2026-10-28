@@ -267,39 +267,39 @@ neither changes the vault's limits or enables a persistent unlimited-resource mo
 
 ## 🎨 UI Component Library
 
-We've built 11 custom terminal-themed UI components in `src/core/components/ui/`:
-
-| Component     | Description                                   |
-| ------------- | --------------------------------------------- |
-| **UButton**   | Button with 4 variants, 5 sizes, icon support |
-| **UInput**    | Input field with label, validation, icons     |
-| **UCard**     | Card container with header/footer slots       |
-| **UModal**    | Modal dialog with keyboard navigation         |
-| **UBadge**    | Badge/tag with semantic colors                |
-| **UAlert**    | Alert/notification with dismissible option    |
-| **UTooltip**  | Tooltip with 4 positioning options            |
-| **USkeleton** | Content placeholder for loading states        |
-| **UTabs** | Accessible tab navigation                     |
-| **USelect** | Styled select input                           |
-| **UProgressBar** | Progress indicator                         |
+Vendored shadcn-vue primitives live in `src/core/components/ui/` (Reka UI + Tailwind v4, restyled onto
+the CRT theme). Each primitive has its own folder and is imported per file — there is no barrel and no
+global registration. The authoritative export list is
+[`frontend/src/core/components/ui/README.md`](../../frontend/src/core/components/ui/README.md): alert,
+badge, button, card, dialog, input, label, progress, select, skeleton, slider, switch, tabs, toast,
+toggle, toggle-group, tooltip.
 
 **Usage Example:**
 
 ```vue
 <script setup lang="ts">
-import { UButton, UInput, UCard } from '@/core/components/ui'
-import { PlusIcon } from '@heroicons/vue/24/solid'
+import { ref } from 'vue'
+import { Button } from '@/core/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/core/components/ui/card'
+import { Input } from '@/core/components/ui/input'
+import { Label } from '@/core/components/ui/label'
+
+const vaultNumber = ref('')
 </script>
 
 <template>
-  <UCard title="Create Vault" glow crt>
-    <UInput v-model="vaultNumber" label="Vault Number" type="number" />
-    <UButton variant="primary" :icon="PlusIcon" @click="createVault"> Create Vault </UButton>
-  </UCard>
+  <Card>
+    <CardHeader>
+      <CardTitle>Create Vault</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <Label for="vault-number">Vault number</Label>
+      <Input id="vault-number" v-model="vaultNumber" type="number" />
+      <Button>Create Vault</Button>
+    </CardContent>
+  </Card>
 </template>
 ```
-
-See [`src/core/components/ui/`](./src/core/components/ui/) for component implementations.
 
 ## 📐 Design System
 

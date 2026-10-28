@@ -8,9 +8,9 @@ change. Name the properties instead. `UButton` and the dweller display controls 
 
 ## Current state
 
-57 declarations remain: **52 across 38 `.vue` files**, plus **5 in plain CSS** (`tailwind.css` ×4,
-`RoomGrid.css` ×1). Mapped by module: progression 7 files, dwellers 7, rooms 4, exploration 4,
-core 4, auth 4, vault 2, social 2, radio 1, profile 1, map 1.
+32 declarations remain: **30 across 25 `.vue` files**, plus **2 in plain CSS** (`tailwind.css` ×1,
+`RoomGrid.css` ×1) — measured 2026-10-28. Mapped by module: dwellers 7 files, rooms 4, progression 4,
+exploration 4, core components 2, auth 2, profile 1, map 1.
 
 `DwellerDisplayControls` is already clean and deduplicated — it shares one `.display-controls button`
 rule and lists `background-color`, `border-color`, `box-shadow`, `opacity`, `font-weight`.

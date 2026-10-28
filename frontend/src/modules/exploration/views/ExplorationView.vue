@@ -30,7 +30,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/core/components/ui/tooltip'
-import { useExplorationStore } from '../stores/exploration'
+import { ACTIVE_EXPLORATIONS_REFRESH_MS, useExplorationStore } from '../stores/exploration'
 import type { PendingOverflow } from '../stores/exploration'
 import { usePendingReports, removePendingReport } from '../composables/usePendingReports'
 import { useExplorationFinish } from '../composables/useExplorationFinish'
@@ -127,8 +127,9 @@ const loadData = async () => {
   if (!vaultId.value || !authStore.token) return
 
   try {
-    await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
-    await explorationStore.fetchPartiesForActiveExplorations(vaultId.value)
+    await explorationStore.refreshActiveExplorations(vaultId.value, authStore.token, {
+      includeParties: true,
+    })
     await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
     await questStore.fetchVaultQuests(vaultId.value)
     await questStore.fetchPartiesForActiveQuests(vaultId.value)
@@ -192,13 +193,15 @@ watch(
 const pollExplorations = async () => {
   if (!vaultId.value || !authStore.token) return
 
-  await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token, true, true)
-  await explorationStore.fetchPartiesForActiveExplorations(vaultId.value)
+  await explorationStore.refreshActiveExplorations(vaultId.value, authStore.token, {
+    includeParties: true,
+    silent: true,
+  })
   await questStore.fetchVaultQuests(vaultId.value, { silent: true })
   await questStore.fetchPartiesForActiveQuests(vaultId.value)
 }
 
-usePolling(pollExplorations, { interval: 15_000, immediate: false })
+usePolling(pollExplorations, { interval: ACTIVE_EXPLORATIONS_REFRESH_MS, immediate: false })
 
 const activeExplorationsArray = computed(() => Object.values(explorationStore.activeExplorations))
 

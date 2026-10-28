@@ -123,6 +123,9 @@ export interface PendingOverflow {
   unclaimed_loot: LootItem[]
 }
 
+/** Cadence for the shared active-exploration list refresh used by its list surfaces. */
+export const ACTIVE_EXPLORATIONS_REFRESH_MS = 15_000
+
 export const useExplorationStore = defineStore('exploration', () => {
   const toast = useToast()
   const { filter: dwellerFilter } = useDwellerStore()
@@ -440,6 +443,22 @@ export const useExplorationStore = defineStore('exploration', () => {
     explorationPartyMap.value = nextPartyMap
   }
 
+  /**
+   * Refresh the active exploration list. Initial loads keep the shared loading/error
+   * state; polling callers pass `silent` so a background refresh never flaps it.
+   */
+  async function refreshActiveExplorations(
+    vaultId: string,
+    token: string,
+    options: { includeParties?: boolean; silent?: boolean } = {}
+  ): Promise<Exploration[]> {
+    const active = await fetchExplorationsByVault(vaultId, token, true, options.silent ?? false)
+    if (options.includeParties) {
+      await fetchPartiesForActiveExplorations(vaultId)
+    }
+    return active
+  }
+
   async function fetchExplorationDetails(
     explorationId: string,
     token: string
@@ -590,6 +609,7 @@ export const useExplorationStore = defineStore('exploration', () => {
     dispatchToLocation,
     fetchExplorationsByVault,
     fetchPartiesForActiveExplorations,
+    refreshActiveExplorations,
     fetchExplorationDetails,
     fetchExplorationProgress,
     recallDweller,

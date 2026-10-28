@@ -5,7 +5,10 @@ import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import { useExplorationStore } from '@/modules/exploration/stores/exploration'
+import {
+  ACTIVE_EXPLORATIONS_REFRESH_MS,
+  useExplorationStore,
+} from '@/modules/exploration/stores/exploration'
 import { isReadyToComplete } from '@/modules/exploration/composables/useExplorationProgress'
 import { useExplorationFinish } from '@/modules/exploration/composables/useExplorationFinish'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -67,7 +70,7 @@ onMounted(async () => {
     // Ensure vault is loaded for medical supplies (idempotent shared action)
     await vaultStore.ensureVaultLoaded(vaultId.value, authStore.token)
     try {
-      await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+      await explorationStore.refreshActiveExplorations(vaultId.value, authStore.token)
 
       // Fetch full dweller data for explorers (includes weapon/outfit)
       for (const exploration of activeExplorationsArray.value) {
@@ -104,12 +107,15 @@ watch(
   }
 )
 
-// Poll for exploration updates every 30 seconds. usePolling owns cleanup when
-// this component's scope is disposed and prevents overlapping refreshes.
+// Poll for exploration updates. The store owns the refresh implementation and
+// cadence; usePolling owns cleanup when this component's scope is disposed and
+// prevents overlapping refreshes.
 const pollExplorations = async () => {
   if (!vaultId.value || !authStore.token || !explorationStore.activeExplorations) return
 
-  await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token, true, true)
+  await explorationStore.refreshActiveExplorations(vaultId.value, authStore.token, {
+    silent: true,
+  })
 
   // Check for completed explorations and fetch detailed data for new explorers
   for (const exploration of activeExplorationsArray.value) {
@@ -123,7 +129,7 @@ const pollExplorations = async () => {
   }
 }
 
-usePolling(pollExplorations, { interval: 30_000, immediate: false })
+usePolling(pollExplorations, { interval: ACTIVE_EXPLORATIONS_REFRESH_MS, immediate: false })
 
 const activeExplorationsArray = computed(() => {
   return Object.values(explorationStore.activeExplorations)

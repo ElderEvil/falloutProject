@@ -1,7 +1,8 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
-import { handleStoreError } from '@/core/utils/errorHandler'
+import { handleStoreError, notifyErrorOnce } from '@/core/utils/errorHandler'
+import { getErrorMessage } from '@/core/types/utils'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import {
   notificationService,
@@ -10,6 +11,7 @@ import {
 } from '@/modules/vault/services/notificationService'
 
 const PAGE_SIZE = 50
+const RECENT_PAGE_SIZE = 20
 
 /**
  * Single owner of notification read state for the bell, the inbox view, and the badge.
@@ -37,6 +39,13 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
   const notifications = computed(() =>
     pageNotifications.value.map((item) => ({ ...item, is_read: isRead(item) }))
   )
+  // The bell popup is a separate, capped-at-load window that may grow past
+  // RECENT_PAGE_SIZE as live notifications arrive; the page list stays paged.
+  const recentRows = ref<InboxNotification[]>([])
+  const recentNotifications = computed(() =>
+    recentRows.value.map((item) => ({ ...item, is_read: isRead(item) }))
+  )
+  const hasLoadedRecent = ref(false)
   const hasMore = ref(false)
   const unreadCount = ref(0)
   const readRevision = ref(0)
@@ -45,14 +54,16 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
   const sessionGeneration = ref(0)
   let countGeneration = 0
   let generation = 0
+  let recentGeneration = 0
   let vaultId: string | null = null
   let status: ReadFilter = 'all'
   let offset = 0
 
   // A logout/login must invalidate requests even if the same identity returns.
   // Before identity resolves, credentials distinguish otherwise anonymous sessions.
+  const sessionKey = computed(() => (auth.isAuthenticated ? (auth.user?.id ?? auth.token) : null))
   watch(
-    () => (auth.isAuthenticated ? (auth.user?.id ?? auth.token) : null),
+    () => sessionKey.value,
     () => sessionGeneration.value++,
     { flush: 'sync' }
   )
@@ -85,6 +96,42 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
     },
     { context: 'Failed to load notifications' }
   )
+
+  // `useAsyncAction` counts every pending call, so a superseded account's slow request
+  // would keep the bell on "Loading..." after the current account's rows arrived.
+  // Loading follows the active request generation instead.
+  const isRecentLoading = ref(false)
+
+  /**
+   * Load the bell popup page and return it so the caller can run reconnect
+   * catch-up effects for events that arrived while the stream was paused.
+   */
+  const loadRecent = async (): Promise<InboxNotification[]> => {
+    hasLoadedRecent.value = true
+    const requestGeneration = ++recentGeneration
+    const capturedSession = currentSession()
+    isRecentLoading.value = true
+    try {
+      const page = await notificationService.list(null, 'all', 0, RECENT_PAGE_SIZE)
+      if (requestGeneration !== recentGeneration || !ownsSession(capturedSession)) return []
+      rememberNotifications(page)
+      const loadedIds = new Set(page.map((item) => item.id))
+      recentRows.value = [...recentRows.value.filter((item) => !loadedIds.has(item.id)), ...page]
+      return page
+    } catch (caught: unknown) {
+      handleStoreError(caught, 'Failed to fetch notifications', false)
+      notifyErrorOnce(caught, getErrorMessage(caught))
+      return []
+    } finally {
+      if (requestGeneration === recentGeneration) isRecentLoading.value = false
+    }
+  }
+
+  const receiveNotification = (notification: InboxNotification) => {
+    rememberNotifications([notification])
+    if (recentRows.value.some((item) => item.id === notification.id)) return
+    recentRows.value = [notification, ...recentRows.value]
+  }
 
   const { run: refreshUnreadCount } = useAsyncAction(
     async () => {
@@ -174,19 +221,28 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
 
   watch(sessionGeneration, () => {
     generation++
+    recentGeneration++
     pageNotifications.value = []
+    recentRows.value = []
     readStates.value.clear()
     hasMore.value = false
     unreadCount.value = 0
     offset = 0
     if (auth.isAuthenticated) {
       if (hasLoaded) void load(vaultId, status)
+      if (hasLoadedRecent.value) void loadRecent()
       if (hasRequestedCount) void refreshUnreadCount()
     }
   })
 
   return {
     notifications,
+    recentNotifications,
+    sessionKey,
+    hasLoadedRecent,
+    isRecentLoading,
+    loadRecent,
+    receiveNotification,
     hasMore,
     unreadCount,
     isLoading,

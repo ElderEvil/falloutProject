@@ -16,14 +16,14 @@ and mobile states. It is a feature-quality requirement, not a visual-polish foll
 ## Implementation rules
 
 - Start with native semantics: use `<button>` for actions, `<a>`/`RouterLink` for navigation, and actual form
-  controls for input. Do not make a `div`, `span`, `li`, or generic `UCard` interactive with `@click`.
+  controls for input. Do not make a `div`, `span`, `li`, or generic card container interactive with `@click`.
 - Do not use `tabindex="0"`, a role, and keyboard-event handlers to recreate a native control unless no semantic
   element can represent the interaction. Document the reason when that exceptional pattern is necessary.
 - Every control needs a visible label or an accessible name. Icon-only controls always need an accessible name.
   Labels, hints, and errors must remain programmatically associated with their controls.
 - Keep a visible, high-contrast focus indicator and a logical tab order. Modals, menus, and popovers must support
   Escape where appropriate, retain focus while open, and return focus to the invoking control when closed. Prefer
-  the shared `UModal` primitive over a one-off dialog.
+  the shared `Dialog` primitive over a one-off dialog.
 - Information required to play must not rely only on color, iconography, hover, sound, flicker, or motion. Tooltips
   elaborate on visible information; they do not supply the only way to learn it.
 - Test contrast against the *computed* foreground and background for every supported theme and surface. Normal text
@@ -79,7 +79,7 @@ recommends combining it with manual and inclusive-user assessment.
 
 ## Shared-primitives-first rollout
 
-1. Audit and fix shared controls before individual pages: `UButton`, `UInput`, `USelect`, `UModal`, toast/alert,
+1. Audit and fix shared controls before individual pages: `Button`, `Input`, `Select`, `Dialog`, toast/alert,
    tooltip/popover, tabs, navigation, and cards.
 2. Establish a baseline by route and state. Prioritize keyboard blockers, missing names/labels, modal behavior,
    contrast, essential information available only by hover/color, and motion.
@@ -96,9 +96,9 @@ primitives. It must not be treated as a conformance certificate or duplicate the
 
 ## Current known follow-ups
 
-- Replace clickable static elements and clickable `UCard` usage with semantic controls.
+- Replace clickable static elements and clickable card containers with semantic controls.
 - Apply reduced-motion handling consistently to CRT effects, not only selected animation utilities.
 - Replace native `title` hints as components are touched; they are not a reliable accessible tooltip mechanism.
 - Recheck all dynamic theme colors, alpha-muted text, borders, and focus rings using their actual composited
   backgrounds.
-- Audit custom dialogs and overlays; migrate them to `UModal` or match its focus, Escape, and return-focus behavior.
+- Audit custom dialogs and overlays; migrate them to `Dialog` or match its focus, Escape, and return-focus behavior.

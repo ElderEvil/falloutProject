@@ -1,6 +1,8 @@
 # Repair Plan — audit findings, waved for review
 
-> Source: codebase audit (2026-09-21) + `docs/AUDIT.md` (active P0: authorization flaws). This is a **plan only** — no code changes yet. Review the waves, then approve wave-by-wave for implementation.
+> Source: codebase audit (2026-09-21) + `docs/AUDIT.md` (P0 authorization flaws: **resolved 2026-10-28**;
+> see the AUDIT verification log). The waves below remain the plan; Wave 0A has landed, and later waves
+> should be re-verified against the current tree before implementation rather than assumed outstanding.
 > Rules that govern every wave: bug-fix workflow (failing test first), thin endpoints (parse → service → map), `endpoints → services → CRUD` never upward, `item_factory` for catalog rows, backfill-in-same-migration for data-bearing columns, progression events surface via modal/toast **in addition** to the bell.
 
 ## How to read this plan

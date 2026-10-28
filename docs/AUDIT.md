@@ -72,16 +72,16 @@ where a direct read is intentionally retained.
 
 ### P1 — Frontend Store → Service → API boundary is still bypassed
 
-- 23 non-service frontend modules import `@/core/plugins/axios` directly.
-- This includes 15 stores: rooms, vault, exploration, radio, profile,
-  progression (`quest`, `objectives`), social (`relationship`, `pregnancy`),
-  and six dweller stores.
+- 11 non-service frontend modules import `@/core/plugins/axios` directly, all Pinia
+  stores — no views, components or composables remain: five dweller stores
+  (`dwellerDeath`, `dwellerGeneration`, `dwellerManagement`, `dwellerMedical`,
+  `exitRequests`), `exploration`, `progression/quest`, `rooms/room`, two social
+  stores (`pregnancy`, `relationship`), and `vault`.
 - `modules/rooms/stores/room.ts:3-145` illustrates the result: HTTP paths,
   bearer-header construction, Axios-specific error extraction, refresh
   orchestration, and Pinia state coexist in one store.
-- Notification UI repeats the same pattern in
-  `vault/components/shell/NotificationBell.vue:10-72` even though it is a
-  cross-cutting domain with no module service.
+- Notification UI no longer repeats the pattern: `NotificationBell.vue` holds no
+  notification list and reads the `notificationInbox` store instead.
 
 **Recommendation:** introduce module API adapters/services (`roomService`,
 `notificationService`, then progression services). Let the Axios interceptor
@@ -227,13 +227,23 @@ changing progression behavior.
 **Recommendation:** add one sorted-read helper. Decide explicitly whether an
 invalid `since` version should remain silently ignored or return validation.
 
+## Verification log — 2026-10-28
+
+- Both P0 findings are resolved in the current tree: only the token-validated
+  `/ws/chat/{user_id}/{dweller_id}` route remains, and `POST /notifications` no
+  longer exists.
+- Frontend non-service Axios consumers: 11 (all Pinia stores), down from 23.
+  Chat and radio transport now live in `modules/chat/api/chat.ts` and
+  `modules/radio/api/radio.ts`; `NotificationBell.vue` no longer keeps a local
+  notification list.
+
 ## Historical finding verification
 
 | 2026-09-01 item | Current status | Evidence / disposition |
 | --- | --- | --- |
 | Unauthenticated debug mutation endpoints | Resolved | `endpoints/debug.py` no longer exists. |
 | Dweller CRUD/game logic in router | Mostly resolved | Dweller actions moved into services and service-layer baselines are empty. Router→CRUD bypasses persist elsewhere; retained as P1. |
-| Frontend direct Axios imports | Open, improved in places | Still 23 non-service consumers; retained as P1. |
+| Frontend direct Axios imports | Open, narrowed | 11 non-service consumers remain, all Pinia stores; views/composables now use module API layers. Retained as P1. |
 | `game_loop` and `chat_service` god services | Resolved as originally scoped | Reduced from 891/659 lines to 323/214, with chat helpers and tick responsibilities split. |
 | Mock-heavy tests | Improved, still open | Down from 1,796 to 1,404 occurrences; retained as P2. |
 | Broad list of untested modules | Superseded | The old filename-derived list is no longer reliable: many named services now have direct tests. A future decision needs fresh coverage-context data. |
@@ -267,14 +277,14 @@ feature-specific balance findings remain in `docs/features/BALANCE_FINDINGS.md`.
 ### UI consolidation audit (2026-09-04)
 
 - **Resolved:** the old duplicate reward modal shell is gone; exploration
-  duration and dweller equipment use `UModal`. Quests and Objectives use
-  `UTabs`, and several simple progress indicators use `UProgressBar`.
+  duration and dweller equipment use `Dialog`. Quests and Objectives use
+  `Tabs`, and several simple progress indicators use `Progress`.
 - **Backlog, not defects:** standardizing async states, auth layout, controls,
   badges, navigation items, and remaining button variants should happen only
   alongside feature work. These are documented design-system opportunities,
   not a mandate to replace every domain-specific UI.
 - **Retained elsewhere:** oversized components and duplicated styling remain
-  covered by the P2 UI consistency finding above. Keep `UModal` as the modal
+  covered by the P2 UI consistency finding above. Keep `Dialog` as the modal
   foundation and require accessible labels/focus states on future icon actions.
 
 ### Test coverage analysis (historical)

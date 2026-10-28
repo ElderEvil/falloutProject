@@ -135,21 +135,54 @@ test('compares the rig with a separately adjustable original-art overlay', async
   await expect(reference).toHaveCount(0)
 })
 
-test('seats the original Chet head into the suit neckline through the motion clips', async ({
+test('aligns the torso yellow trim with Chet’s collar, stripe and belt', async ({ page }) => {
+  await page.goto(path)
+  await page.getByRole('button', { name: 'Chet overlay off', exact: true }).click()
+  const gaps = await page.evaluate(() => {
+    const torso = document.querySelector('[data-part="spine"] image') as SVGGraphicsElement
+    const reference = document.querySelector('[data-reference="chet"] image') as SVGGraphicsElement
+    const toReference = reference.getScreenCTM()!.inverse().multiply(torso.getScreenCTM()!)
+    const anchors = [
+      { source: [217, 25], target: [47, 91] }, // Left end of the yellow collar
+      { source: [180, 56], target: [87, 118] }, // Upper center stripe
+      { source: [176, 101], target: [92, 162] }, // Stripe meets the waist trim
+      { source: [234, 104], target: [38, 166] }, // Left waist trim
+      { source: [166, 104], target: [103, 164] }, // Right waist trim
+    ]
+    return anchors.map(({ source, target }) => {
+      const actual = new DOMPoint(source[0], source[1]).matrixTransform(toReference)
+      return Math.hypot(actual.x - target[0]!, actual.y - target[1]!)
+    })
+  })
+  for (const gap of gaps) expect(gap).toBeLessThan(5)
+})
+
+test('keeps the head and calibrated torso attachment stable through the motion clips', async ({
   page,
 }) => {
   await page.goto(path)
   await expect(page.locator('[data-part="head"] image')).toHaveCount(1)
+  let bindGap: number | undefined
   for (const clip of ['Bind pose', 'Idle', 'Walk', 'Punch']) {
     await page.getByRole('button', { name: clip, exact: true }).click()
     const gap = await page.evaluate(() => {
       const head = document.querySelector('[data-part="head"] image') as SVGGraphicsElement
       const torso = document.querySelector('[data-part="spine"] image') as SVGGraphicsElement
       const neck = new DOMPoint(55, 87).matrixTransform(head.getScreenCTM()!)
-      const collar = new DOMPoint(200, 29).matrixTransform(torso.getScreenCTM()!)
-      return Math.hypot(neck.x - collar.x, neck.y - collar.y)
+      // Torso placement follows the yellow trim; the small neckline seam is left unfilled.
+      const collar = new DOMPoint(190, 31).matrixTransform(torso.getScreenCTM()!)
+      const toRig = (
+        document.querySelector('svg[aria-label="Articulated 2D dweller rig"]') as SVGGraphicsElement
+      )
+        .getScreenCTM()!
+        .inverse()
+      const localNeck = neck.matrixTransform(toRig)
+      const localCollar = collar.matrixTransform(toRig)
+      return Math.hypot(localNeck.x - localCollar.x, localNeck.y - localCollar.y)
     })
-    expect(gap).toBeLessThan(2)
+    expect(gap).toBeLessThan(12)
+    bindGap ??= gap
+    expect(gap).toBeCloseTo(bindGap, 3)
   }
   await page.getByText('Original art reference: Chet', { exact: true }).click()
   await expect(

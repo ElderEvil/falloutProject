@@ -59,8 +59,8 @@ const bodyParts: readonly Omit<Bone, 'offset' | 'end' | 'bindAngle'>[] = [
     sprite: {
       sheet: 'suit',
       crop: [157, 18, 86, 104],
-      frame: [-47.276, -104.505, 85, 126.5],
-      rotation: 3,
+      frame: [-57.276, -98, 103, 124],
+      rotation: -1.5,
       flipX: true,
     },
   },

@@ -100,3 +100,23 @@ async def test_pinned_v1_row_reloads_masks(async_session: AsyncSession) -> None:
     assert reloaded.roads == created.roads
     assert reloaded.rivers == created.rivers
     assert reloaded.rivers
+
+
+async def test_generated_snapshot_carries_empty_v3_payload(async_session: AsyncSession) -> None:
+    """A v2 generator run leaves the additive v3 payload empty and reloadable."""
+    recipe = WorldRecipe(seed="v3-empty", config=WorldConfig())
+    created = await world_snapshot_service.get_or_generate(async_session, recipe)
+    reloaded = await snapshot_crud.get_version(
+        async_session, world_id=recipe.world_id, generator_version=recipe.generator_version
+    )
+
+    assert reloaded is not None
+    for snapshot in (created, reloaded):
+        assert snapshot.regions == []
+        assert snapshot.region_map == []
+        assert snapshot.bridges == []
+        assert snapshot.places == []
+        assert snapshot.validation == {}
+        assert snapshot.blueprint == {}
+        assert snapshot.blueprint_hash == ""
+        assert snapshot.blueprint_version == 0

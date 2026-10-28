@@ -199,6 +199,10 @@ models → schemas → CRUD → service → thin-router shape.
 
 ## Road & river masks (display-only) — active slice
 
+> **v3 direction (2026-10-28):** regions, bridges, authored places and mechanical roads are planned
+> in [`features/WORLD_MAP_V3.md`](features/WORLD_MAP_V3.md). The masks below stay display-only until
+> v3 Step 6; the v3 flag (`FEATURE_MAP_V3`) ships off.
+
 Presents the road network and meandering rivers on the atlas map **without touching travel**.
 Decisions locked with the maintainer (Oct 2026):
 

@@ -8339,6 +8339,8 @@ export interface components {
             race_mechanics: boolean;
             /** Faction Mechanics */
             faction_mechanics: boolean;
+            /** Map V3 */
+            map_v3: boolean;
         };
         /**
          * GameBalanceResponse

@@ -19,7 +19,11 @@ describe('Feature flags store', () => {
   })
 
   it('shares one request between concurrent callers', async () => {
-    vi.mocked(getFeatureFlags).mockResolvedValue({ race_mechanics: true, faction_mechanics: true })
+    vi.mocked(getFeatureFlags).mockResolvedValue({
+      race_mechanics: true,
+      faction_mechanics: true,
+      map_v3: true,
+    })
     const store = useFeatureFlagsStore()
 
     // The filter panel and the roster mount together; both must see the resolved flags.
@@ -27,6 +31,7 @@ describe('Feature flags store', () => {
 
     expect(getFeatureFlags).toHaveBeenCalledTimes(1)
     expect(store.factionMechanics).toBe(true)
+    expect(store.mapV3).toBe(true)
   })
 
   it('retries a failed fetch instead of caching the failure', async () => {
@@ -36,7 +41,11 @@ describe('Feature flags store', () => {
     await store.fetchFlags()
     expect(store.loaded).toBe(false)
 
-    vi.mocked(getFeatureFlags).mockResolvedValue({ race_mechanics: true, faction_mechanics: true })
+    vi.mocked(getFeatureFlags).mockResolvedValue({
+      race_mechanics: true,
+      faction_mechanics: true,
+      map_v3: false,
+    })
     await store.fetchFlags()
     expect(store.factionMechanics).toBe(true)
   })

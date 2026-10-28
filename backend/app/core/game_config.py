@@ -1278,6 +1278,14 @@ class FeatureConfig(BaseSettings):
             "'Wasteland Site' archetype so it can be dispatched. Off keeps such places narrative-only."
         ),
     )
+    map_v3: bool = Field(
+        default=False,
+        description=(
+            "World Map v3: region-layered terrain, authored places, bridges and mechanical roads. "
+            "Ships dark so production keeps serving the pinned v2 world until the new generator is "
+            "validated; the dev map lab previews v3 regardless."
+        ),
+    )
 
 
 class ExitConfig(BaseSettings):

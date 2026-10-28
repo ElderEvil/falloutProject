@@ -6,7 +6,7 @@ columns (the repo's existing JSON-column pattern) alongside the recipe fingerpri
 a snapshot checksum, so deployment needs no filesystem artifacts.
 """
 
-from sqlalchemy import Column, UniqueConstraint
+from sqlalchemy import Column, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
@@ -40,6 +40,34 @@ class WorldSnapshotBase(SQLModel):
         default_factory=list,
         sa_column=Column(JSONB, nullable=False, server_default="[]"),
     )
+    # v3 payload. Every field is empty on v2 rows: empty is the legal "no region, authored place
+    # or bridge layer yet" state, so pre-v3 readers and pinned runs keep working without a backfill.
+    regions: list[dict] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=False, server_default="[]"),
+    )
+    region_map: list[int] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=False, server_default="[]"),
+    )
+    bridges: list[int] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=False, server_default="[]"),
+    )
+    places: list[dict] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=False, server_default="[]"),
+    )
+    validation: dict = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default="{}"),
+    )
+    blueprint: dict = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default="{}"),
+    )
+    blueprint_hash: str = Field(default="", sa_column=Column(String(64), nullable=False, server_default=""))
+    blueprint_version: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
     # Fixed public anchors baked into the recipe.
     anchors: list[dict] = Field(default_factory=list, sa_column=Column(JSONB, nullable=False))
 

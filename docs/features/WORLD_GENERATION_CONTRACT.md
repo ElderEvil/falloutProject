@@ -4,6 +4,11 @@
 > truth the backend generator, snapshot persistence, API, and the production renderer all
 > consume. Supersedes the frontend export-table direction. No implementation is authorized
 > by this document alone; it locks the recipe and interfaces first.
+>
+> **v3 direction (2026-10-28):** [`WORLD_MAP_V3.md`](WORLD_MAP_V3.md) extends this contract with
+> regions, bridges, authored places and mechanical roads. Where this document still describes
+> rivers as deferred, roads as non-authoritative decoration, or the generated land-safe slots as
+> the only placement source, the v3 document wins; those lines are reconciled as v3 progresses.
 
 Supersedes, where they conflict: the frontend-owned generation in
 [`PROTOTYPE_TO_PRODUCTION_PORT.md`](PROTOTYPE_TO_PRODUCTION_PORT.md) and the land-safe-slot
@@ -72,13 +77,13 @@ TS generator stays as a reference and is retired only once production renders th
   Python `hash()` (process-dependent).
 - Seeded PRNG (e.g. `random.Random(seed)`) with **separate named streams** (terrain,
   slots, …) and stable iteration order, so adding a stream never shifts another.
-- Terrain derives from **seed + config + version only**. Public anchors version the recipe
-  (`fingerprint()`) but do not shape geometry — consistent with the map-side decision that
-  slots are placement markers on a fixed world, never terrain shapers.
+- Terrain derives from **seed + config + geography epoch** (`SEED_EPOCH`). Public anchors version
+  the recipe (`fingerprint()`) but do not shape geometry — consistent with the map-side decision
+  that slots are placement markers on a fixed world, never terrain shapers.
 - Small pipeline: value-noise/fBm → quantile terrain classification (water/forest/hills/ruins)
   → slots placed inside the largest traversable component; **no** rendering, icons, prototype
-  timers, claims UI, or climate/hydrology. Rivers are **deferred** (no carving pass yet) and
-  are intentionally absent from `WorldConfig` rather than carried as dead config.
+  timers, claims UI, or climate simulation. Rivers and roads are generated as masks (v2) and are
+  display-only there; v3 turns them into region-aware, bridge-aware, mechanical data.
 - Reproducibility is defined by the Python implementation, not TS parity. A divergence is
   absorbed by a new `generator_version`.
 - Generation is a pure function of the recipe; the same inputs recompute identically.
@@ -86,6 +91,12 @@ TS generator stays as a reference and is retired only once production renders th
 ## 3. Land-safe slots
 
 Generated **after** terrain, then vaults are assigned.
+
+> **v3 note:** v2 ships two slot models — the generated land-safe slots in the snapshot (unused by
+> the client) and the fixed shared 10×10 vault grid used for real vault placement. v3 makes the
+> fixed grid canonical and requires terrain to guarantee land at every slot tile plus a dry margin;
+> see [`WORLD_MAP_V3.md`](WORLD_MAP_V3.md) decision A. The guarantees below then apply to the
+> canonical grid.
 
 Required guarantees (each validated, tests added but reported as not run):
 
@@ -111,11 +122,10 @@ migration (see §6). No deletion happens during implementation without separate 
 
 ## 5. Explicitly deferred
 
-- Terrain/road-aware production travel.
-- Full road-generator port (roads may be omitted or kept as clearly non-authoritative decoration;
-  never mix roads from an unrelated TS world with the new terrain).
+- Terrain/road-aware production travel — v3 Step 6 makes the shared cost field mechanical.
+- Bridge-aware road generation and authored corridors — v3 Steps 4–5.
 - Height/moisture/temperature expansion.
-- Rendering styles and layer controls.
+- Rendering styles and layer controls — the v3 dev map lab owns these (Step 3).
 - Historical trail rewrites; changes to active expedition durations.
 
 ## 6. Development-data transition

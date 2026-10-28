@@ -35,10 +35,11 @@ REVISION = "a1f2b3c4d5e6"
 PARENT = "c19031dc6b22"
 
 MASKS_MIGRATION_PATH = (
-    Path(__file__).parents[2]
-    / "alembic/versions/2026_10_28_0001-e2f3a4b5c6d7_add_world_snapshot_roads_and_rivers.py"
+    Path(__file__).parents[2] / "alembic/versions/2026_10_28_0001-e2f3a4b5c6d7_add_world_snapshot_roads_and_rivers.py"
 )
-MASKS_MIGRATION_SPEC = importlib.util.spec_from_file_location("add_world_snapshot_roads_and_rivers", MASKS_MIGRATION_PATH)
+MASKS_MIGRATION_SPEC = importlib.util.spec_from_file_location(
+    "add_world_snapshot_roads_and_rivers", MASKS_MIGRATION_PATH
+)
 assert MASKS_MIGRATION_SPEC
 assert MASKS_MIGRATION_SPEC.loader
 MASKS_MIGRATION = importlib.util.module_from_spec(MASKS_MIGRATION_SPEC)
@@ -46,6 +47,29 @@ MASKS_MIGRATION_SPEC.loader.exec_module(MASKS_MIGRATION)
 
 MASKS_REVISION = "e2f3a4b5c6d7"
 MASKS_PARENT = "a9f3c2d1e8b7"
+
+V3_MIGRATION_PATH = (
+    Path(__file__).parents[2] / "alembic/versions/2026_10_28_0002-b7c9e1f3a5d2_add_world_map_v3_fields.py"
+)
+V3_MIGRATION_SPEC = importlib.util.spec_from_file_location("add_world_map_v3_fields", V3_MIGRATION_PATH)
+assert V3_MIGRATION_SPEC
+assert V3_MIGRATION_SPEC.loader
+V3_MIGRATION = importlib.util.module_from_spec(V3_MIGRATION_SPEC)
+V3_MIGRATION_SPEC.loader.exec_module(V3_MIGRATION)
+
+V3_REVISION = "b7c9e1f3a5d2"
+V3_PARENT = "e2f3a4b5c6d7"
+
+_V3_PAYLOAD_COLUMNS = (
+    "regions",
+    "region_map",
+    "bridges",
+    "places",
+    "validation",
+    "blueprint",
+    "blueprint_hash",
+    "blueprint_version",
+)
 
 _INSERT_LEGACY_ROW = (
     "INSERT INTO worldsnapshot "
@@ -171,3 +195,43 @@ class TestWorldSnapshotMasksMigrationRoundTrip:
         }
         assert "roads" not in columns
         assert "rivers" not in columns
+
+
+@pytest.mark.integration
+class TestWorldMapV3MigrationFragment:
+    """The v3 payload migration declares the right chain without touching a database."""
+
+    def test_revision_chain(self) -> None:
+        assert V3_MIGRATION.revision == V3_REVISION
+        assert V3_MIGRATION.down_revision == V3_PARENT
+
+
+@pytest.mark.integration
+class TestWorldMapV3MigrationRoundTrip:
+    """Existing rows get the empty v3 payload; downgrade drops every added column."""
+
+    def test_existing_rows_get_empty_v3_payload_and_downgrade_drops_columns(self, harness: MigrationHarness) -> None:
+        harness.upgrade(V3_PARENT)
+        harness.execute(_INSERT_LEGACY_ROW, version=1)
+
+        harness.upgrade(V3_REVISION)
+
+        payload = harness.fetch(
+            "SELECT regions::text, region_map::text, bridges::text, places::text, "
+            "validation::text, blueprint::text, blueprint_hash, blueprint_version "
+            "FROM worldsnapshot WHERE generator_version = 1"
+        )
+        assert payload == [("[]", "[]", "[]", "[]", "{}", "{}", "", 0)]
+
+        harness.execute(_INSERT_LEGACY_ROW, version=2)
+        assert harness.scalar("SELECT blueprint_version FROM worldsnapshot WHERE generator_version = 2") == 0
+
+        harness.downgrade(V3_PARENT)
+        columns = {
+            row[0]
+            for row in harness.fetch(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'worldsnapshot'"
+            )
+        }
+        for column in _V3_PAYLOAD_COLUMNS:
+            assert column not in columns

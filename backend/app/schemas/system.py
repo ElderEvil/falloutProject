@@ -45,6 +45,7 @@ class FeaturesResponse(BaseModel):
 
     race_mechanics: bool
     faction_mechanics: bool
+    map_v3: bool
 
 
 class ChangeEntry(BaseModel):

@@ -9,7 +9,7 @@ import type { VaultQuest } from '@/modules/progression/models/quest'
 vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
 
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({
-  getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
+  getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true, map_v3: false }),
   getIdentityOptions: vi.fn().mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
 }))
 

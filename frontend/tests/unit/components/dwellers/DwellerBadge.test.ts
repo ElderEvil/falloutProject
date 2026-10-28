@@ -7,7 +7,7 @@ import DwellerBadge from '@/modules/dwellers/components/DwellerBadge.vue'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
 
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({
-  getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
+  getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true, map_v3: false }),
   getIdentityOptions: vi.fn().mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
 }))
 

@@ -17,7 +17,7 @@ vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
 
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({
   getDwellersByVault: vi.fn().mockResolvedValue([]),
-  getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
+  getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true, map_v3: false }),
   getIdentityOptions: vi.fn().mockResolvedValue({
     races: ['human', 'ghoul', 'super_mutant', 'synth'],
     factions_by_race: {

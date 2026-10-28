@@ -19,7 +19,7 @@ PET_NAME_TO_IMAGE_FILE: dict[str, str] = {
     "apolda": "FOS Doberman.png",
     "ashes": "FOS British Shorthair.png",
     "australian shepherd": "FOS Australian Shepherd.png",
-    "baby deathclaw": "FOS Baby Deathclaw.png",
+    "baby deathclaw": "FOS Baby Deathclaw.webp",
     "bandit (dog)": "FOS Australian Shepherd.png",
     "bangor": "FOS Maine Coon.png",
     "barry": "FOS St. Bernard.png",
@@ -114,7 +114,7 @@ PET_NAME_TO_IMAGE_FILE: dict[str, str] = {
     "vault-tec parrot": "FOS Vault-Tec parrot.png",
     "vinnie": "FOS Vault-Tec parrot.png",
     "wanderer": "FOS Pirate parrot.png",
-    "yao guai cub": "FOS Yao Guai Cub.png",
+    "yao guai cub": "FOS Yao Guai Cub.webp",
     "zula": "FOS Abyssinian.png",
 }
 

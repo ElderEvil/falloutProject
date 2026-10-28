@@ -82,9 +82,9 @@ const pets: StaticAsset[] = [
   {
     name: 'Baby Deathclaw',
     kind: 'exotic',
-    image: '/static/pet_images/FOS Baby Deathclaw.png',
+    image: '/static/pet_images/FOS Baby Deathclaw.webp',
   },
-  { name: 'Yao Guai Cub', kind: 'exotic', image: '/static/pet_images/FOS Yao Guai Cub.png' },
+  { name: 'Yao Guai Cub', kind: 'exotic', image: '/static/pet_images/FOS Yao Guai Cub.webp' },
   { name: 'CX404', kind: 'dog', image: '/static/pet_images/FOS CX404.png' },
   { name: 'Rollerbrain', kind: 'robot', image: '/static/pet_images/FOS Rollerbrain.png' },
   { name: 'Abyssinian', kind: 'cat', image: '/static/pet_images/FOS Abyssinian.png' },

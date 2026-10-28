@@ -29,6 +29,10 @@ async def test_refresh_token(async_client: AsyncClient) -> None:
     assert refresh_token, "Refresh token is missing"
     assert token_type == "bearer", f"Unexpected token type: {token_type}"
 
+    before = await async_client.get("users/me", headers={"Authorization": f"Bearer {access_token}"})
+    assert before.status_code == 200
+    assert before.json()["email"] == settings.FIRST_SUPERUSER_EMAIL
+
     # Step 2: Use the refresh token to obtain a new access token
     refresh_response = await async_client.post("/auth/refresh", json={"refresh_token": refresh_token})
     assert refresh_response.status_code == 200, "Refresh token request failed"
@@ -39,6 +43,15 @@ async def test_refresh_token(async_client: AsyncClient) -> None:
 
     assert new_access_token, "New access token is missing"
     assert new_token_type == "bearer", f"Unexpected new token type: {new_token_type}"
+
+    after = await async_client.get("users/me", headers={"Authorization": f"Bearer {new_access_token}"})
+    assert after.status_code == 200
+    assert after.json()["id"] == before.json()["id"]
+
+    logout = await async_client.post("auth/logout", headers={"Authorization": f"Bearer {new_access_token}"})
+    assert logout.status_code == 200
+    rejected = await async_client.post("auth/refresh", json={"refresh_token": refreshed_tokens["refresh_token"]})
+    assert rejected.status_code == 400
 
 
 @pytest.mark.asyncio

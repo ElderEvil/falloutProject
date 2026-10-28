@@ -3,7 +3,10 @@ import { createIconifyMock, createRouterMock, createToastMock } from '../helpers
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ExplorationView from '@/modules/exploration/views/ExplorationView.vue'
-import { useExplorationStore } from '@/modules/exploration/stores/exploration'
+import {
+  ACTIVE_EXPLORATIONS_REFRESH_MS,
+  useExplorationStore,
+} from '@/modules/exploration/stores/exploration'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { ExplorationPartyMember } from '@/modules/exploration/api/exploration'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -23,10 +26,12 @@ vi.mock('@/core/composables/useToast', () => ({
 
 const pollState = vi.hoisted(() => ({
   callback: null as null | (() => Promise<void> | void),
+  interval: null as number | null,
 }))
 vi.mock('@/core/composables/usePolling', () => ({
-  usePolling: (callback: () => Promise<void> | void) => {
+  usePolling: (callback: () => Promise<void> | void, options?: { interval?: number }) => {
     pollState.callback = callback
+    pollState.interval = options?.interval ?? null
     return {
       run: vi.fn(),
       pause: vi.fn(),
@@ -151,8 +156,7 @@ describe('ExplorationView', () => {
     vi.clearAllMocks()
 
     // Keep onMounted off the network.
-    vi.spyOn(explorationStore, 'fetchExplorationsByVault').mockResolvedValue([])
-    vi.spyOn(explorationStore, 'fetchPartiesForActiveExplorations').mockResolvedValue()
+    vi.spyOn(explorationStore, 'refreshActiveExplorations').mockResolvedValue([])
     vi.spyOn(explorationStore, 'fetchPendingOverflow').mockResolvedValue([])
     vi.spyOn(explorationStore, 'startSseSubscription').mockImplementation(() => {})
     vi.spyOn(explorationStore, 'stopSseSubscription').mockImplementation(() => {})
@@ -171,7 +175,7 @@ describe('ExplorationView', () => {
     wrapper?.unmount()
   })
 
-  it('keeps the initial fetch error-aware while polling silently', async () => {
+  it('loads the list and parties through the store on mount', async () => {
     wrapper = mount(ExplorationView, {
       global: {
         stubs: {
@@ -183,16 +187,11 @@ describe('ExplorationView', () => {
     })
     await flushPromises()
 
-    const fetchSpy = vi.mocked(explorationStore.fetchExplorationsByVault)
-    expect(fetchSpy).toHaveBeenCalledWith('vault-123', 'mock-token')
-
-    fetchSpy.mockClear()
-    await pollState.callback?.()
-
-    expect(fetchSpy).toHaveBeenCalledWith('vault-123', 'mock-token', true, true)
+    const refreshSpy = vi.mocked(explorationStore.refreshActiveExplorations)
+    expect(refreshSpy).toHaveBeenCalledWith('vault-123', 'mock-token', { includeParties: true })
   })
 
-  it('refreshes the list with a silent poll', async () => {
+  it('refreshes the list with a silent poll and keeps the quest refreshes', async () => {
     wrapper = mount(ExplorationView, {
       global: {
         stubs: {
@@ -204,11 +203,28 @@ describe('ExplorationView', () => {
     })
     await flushPromises()
 
-    const fetchSpy = vi.mocked(explorationStore.fetchExplorationsByVault)
-    fetchSpy.mockClear()
+    const refreshSpy = vi.mocked(explorationStore.refreshActiveExplorations)
+    refreshSpy.mockClear()
     await pollState.callback?.()
 
-    expect(fetchSpy).toHaveBeenCalledWith('vault-123', 'mock-token', true, true)
+    expect(refreshSpy).toHaveBeenCalledWith('vault-123', 'mock-token', { includeParties: true })
+    expect(questStore.fetchVaultQuests).toHaveBeenCalledWith('vault-123', { silent: true })
+    expect(questStore.fetchPartiesForActiveQuests).toHaveBeenCalledWith('vault-123')
+  })
+
+  it('polls at the shared active-exploration cadence', async () => {
+    wrapper = mount(ExplorationView, {
+      global: {
+        stubs: {
+          SidePanel: true,
+          QuestPartyCard: true,
+          ExplorationRewardsModal: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(pollState.interval).toBe(ACTIVE_EXPLORATIONS_REFRESH_MS)
   })
 
   it('explains return settlement through optional page help', async () => {

@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test'
 import { setActivePinia, createPinia } from 'pinia'
 import { ref, nextTick } from 'vue'
-import { useExplorationStore } from '@/modules/exploration/stores/exploration'
+import {
+  ACTIVE_EXPLORATIONS_REFRESH_MS,
+  useExplorationStore,
+} from '@/modules/exploration/stores/exploration'
 import { explorationApi } from '@/modules/exploration/api/exploration'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import axios from '@/core/plugins/axios'
@@ -929,6 +932,85 @@ describe('Exploration Store', () => {
       await nextTick()
 
       expect(mockDwellerFilter.fetchDwellerDetails).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('refreshActiveExplorations Action', () => {
+    it('exposes the shared refresh cadence', () => {
+      expect(ACTIVE_EXPLORATIONS_REFRESH_MS).toBe(15_000)
+    })
+
+    it('fetches the active list once and updates the active map', async () => {
+      const store = useExplorationStore()
+      const explorations = [
+        mockExploration,
+        { ...mockExploration, id: 'exploration-2', dweller_id: 'dweller-2', status: 'returning' },
+        { ...mockExploration, id: 'exploration-3', dweller_id: 'dweller-3', status: 'completed' },
+      ]
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: explorations })
+
+      const result = await store.refreshActiveExplorations('vault-1', 'test-token')
+
+      expect(axios.get).toHaveBeenCalledTimes(1)
+      expect(axios.get).toHaveBeenCalledWith(
+        '/api/v1/explorations/vault/vault-1?active_only=true',
+        {
+          headers: { Authorization: 'Bearer test-token' },
+        }
+      )
+      expect(result).toEqual(explorations)
+      expect(store.activeExplorations['exploration-1']).toEqual(mockExploration)
+      expect(store.activeExplorations['exploration-2']).toBeDefined()
+      expect(store.activeExplorations['exploration-3']).toBeUndefined()
+      expect(explorationApi.getExplorationParty).not.toHaveBeenCalled()
+    })
+
+    it('fetches parties only when includeParties is requested', async () => {
+      const store = useExplorationStore()
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [mockExploration] })
+      vi.mocked(explorationApi.getExplorationParty).mockResolvedValueOnce([])
+
+      await store.refreshActiveExplorations('vault-1', 'test-token', { includeParties: true })
+
+      expect(explorationApi.getExplorationParty).toHaveBeenCalledWith('vault-1', 'exploration-1')
+      expect(store.explorationPartyMap).toEqual({ 'exploration-1': [] })
+    })
+
+    it('refreshes parties from the newly fetched active map', async () => {
+      const store = useExplorationStore()
+      store.activeExplorations = {
+        'stale-exploration': { ...mockExploration, id: 'stale-exploration' },
+      }
+      const explorations = [
+        { ...mockExploration, id: 'exploration-1' },
+        { ...mockExploration, id: 'exploration-2', dweller_id: 'dweller-2' },
+      ]
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: explorations })
+      vi.mocked(explorationApi.getExplorationParty).mockResolvedValue([])
+
+      await store.refreshActiveExplorations('vault-1', 'test-token', { includeParties: true })
+
+      expect(explorationApi.getExplorationParty).toHaveBeenCalledTimes(2)
+      expect(explorationApi.getExplorationParty).toHaveBeenCalledWith('vault-1', 'exploration-1')
+      expect(explorationApi.getExplorationParty).toHaveBeenCalledWith('vault-1', 'exploration-2')
+      expect(explorationApi.getExplorationParty).not.toHaveBeenCalledWith(
+        'vault-1',
+        'stale-exploration'
+      )
+    })
+
+    it('stays silent, rethrows list failures and skips parties', async () => {
+      const store = useExplorationStore()
+      store.error = 'previous error'
+      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
+
+      await expect(store.refreshActiveExplorations('vault-1', 'test-token')).rejects.toThrow(
+        'Fetch failed'
+      )
+
+      expect(store.error).toBe('previous error')
+      expect(store.isLoading).toBe(false)
+      expect(explorationApi.getExplorationParty).not.toHaveBeenCalled()
     })
   })
 

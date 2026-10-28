@@ -6,6 +6,8 @@ Comprehensive tests for authentication system including:
 - Token validation
 """
 
+import asyncio
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
@@ -556,3 +558,75 @@ async def test_passwordless_account_can_recover_through_password_reset(
         assert "hashed_password" not in after.json()
     finally:
         app.dependency_overrides.pop(get_redis_client, None)
+
+
+@pytest.mark.parametrize("path", ["users/me", "stream/notifications"])
+@pytest.mark.parametrize("purpose", ["refresh", "email_verification", "password_reset", None])
+async def test_non_access_tokens_cannot_authenticate_http(
+    async_client: AsyncClient, verified_user, _shared_fake_redis, purpose: str | None, path: str
+):
+    user, _ = verified_user
+    if purpose == "refresh":
+        token = await security.create_refresh_token(user.id, _shared_fake_redis)
+        await security.invalidate_refresh_token(str(user.id), _shared_fake_redis)
+    elif purpose == "email_verification":
+        token = security.create_email_verification_token(user.id)
+    elif purpose == "password_reset":
+        token = security.create_password_reset_token(user.id)
+    else:
+        token = jwt.encode(
+            {"sub": str(user.id), "exp": datetime.now(UTC) + timedelta(minutes=5)},
+            settings.SECRET_KEY,
+            algorithm=settings.ALGORITHM,
+        )
+    response = await async_client.get(path, headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"
+
+
+@pytest.mark.parametrize("purpose", ["access", "email_verification", "password_reset", None])
+async def test_refresh_rejects_wrong_purpose_even_if_stored(
+    async_client: AsyncClient, verified_user, _shared_fake_redis, purpose: str | None
+):
+    user, _ = verified_user
+    payload = {"sub": str(user.id), "exp": datetime.now(UTC) + timedelta(minutes=5)}
+    if purpose is not None:
+        payload["type"] = purpose
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    key = f"refresh_token:{user.id}"
+    await _shared_fake_redis.setex(key, 300, token)
+
+    response = await async_client.post("auth/refresh", json={"refresh_token": token})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid refresh token"
+    assert await _shared_fake_redis.get(key) == token
+
+
+async def test_access_token_opens_only_its_users_notification_stream(async_client: AsyncClient, verified_user):
+    from app.services.stream_manager import sse_manager
+
+    user, _ = verified_user
+    user_id = user.id
+    token = security.create_access_token(user_id)
+    request = asyncio.create_task(
+        async_client.get("stream/notifications", headers={"Authorization": f"Bearer {token}"})
+    )
+    try:
+        async with asyncio.timeout(3):
+            while not sse_manager._subscribers.get("notifications", {}).get(user_id):
+                if request.done():
+                    response = await request
+                    pytest.fail(f"Stream ended before subscribing: {response.status_code}")
+                await asyncio.sleep(0)
+            await sse_manager.publish(user_id, "notifications", {"event_id": "auth-probe", "data": {"msg": "hello"}})
+            await sse_manager.close()
+            response = await request
+        assert response.status_code == 200
+        assert "event: notification" in response.text
+        assert "hello" in response.text
+    finally:
+        request.cancel()
+        with suppress(asyncio.CancelledError):
+            await request
+        await sse_manager.close()

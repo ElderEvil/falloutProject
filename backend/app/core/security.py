@@ -1,10 +1,11 @@
 import base64
 import hashlib
 import logging
+import math
 import secrets
 from datetime import datetime, timedelta
-from typing import Any
-from uuid import uuid4
+from typing import Any, Literal
+from uuid import UUID, uuid4
 
 import jwt
 from passlib.context import CryptContext
@@ -30,8 +31,39 @@ def create_access_token(
         expire = datetime.utcnow() + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
         )
-    to_encode = {"exp": expire, "sub": str(subject)}
+    to_encode = {"exp": expire, "sub": str(subject), "type": "access"}
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def decode_token_subject(
+    token: str,
+    expected_type: Literal["access", "refresh", "email_verification", "password_reset"],
+) -> str:
+    """Verify signed, expiring credentials for exactly one purpose.
+
+    Legacy untyped sessions are intentionally rejected. Email/reset links retain
+    their existing purpose values and signing key.
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+            options={"require": ["exp", "sub", "type"]},
+        )
+
+        expiry = payload["exp"]
+        if type(expiry) not in (int, float) or (isinstance(expiry, float) and not math.isfinite(expiry)):
+            raise JWTError("Invalid token expiry")
+        subject = payload["sub"]
+        if payload["type"] != expected_type or not isinstance(subject, str) or not subject:
+            raise JWTError("Invalid token purpose or subject")
+        if expected_type != "password_reset":
+            UUID(subject)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise JWTError("Malformed token claims") from exc
+    else:
+        return subject
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -65,7 +97,7 @@ async def create_refresh_token(
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
 
-    to_encode = {"exp": expire, "sub": str(subject)}
+    to_encode = {"exp": expire, "sub": str(subject), "type": "refresh"}
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
     expires_in_seconds = int(
@@ -77,10 +109,9 @@ async def create_refresh_token(
     return encoded_jwt
 
 
-async def verify_refresh_token(token: str, redis_client: Redis) -> Any:
+async def verify_refresh_token(token: str, redis_client: Redis) -> str | None:
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        subject = payload.get("sub")
+        subject = decode_token_subject(token, "refresh")
 
         stored_refresh_token = await redis_client.get(f"refresh_token:{subject}")
         if stored_refresh_token != token:
@@ -105,15 +136,12 @@ def create_email_verification_token(subject: str | Any) -> str:
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def verify_email_token(token: str) -> Any:
+def verify_email_token(token: str) -> str | None:
     """
     Verify email verification token and return user ID.
     """
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        if payload.get("type") != "email_verification":
-            return None
-        return payload.get("sub")
+        return decode_token_subject(token, "email_verification")
     except JWTError:
         return None
 
@@ -127,14 +155,11 @@ def create_password_reset_token(subject: str | Any) -> str:
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def verify_password_reset_token(token: str) -> Any:
+def verify_password_reset_token(token: str) -> str | None:
     """
     Verify password reset token and return user ID/email.
     """
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        if payload.get("type") != "password_reset":
-            return None
-        return payload.get("sub")
+        return decode_token_subject(token, "password_reset")
     except JWTError:
         return None

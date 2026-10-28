@@ -754,3 +754,22 @@ missing pair disables that provider without blocking startup.
    ```
 
 4. `GET /api/v1/auth/oauth/providers` reports which pairs are live.
+
+
+## JWT purpose validation rollout
+
+Access and refresh JWTs require distinct `type` claims (`access` and `refresh`).
+Every JWT consumer requires `exp`, `sub`, and its exact purpose, using the configured
+signing key and algorithm. HTTP/SSE and WebSocket authentication accept access tokens
+only; refresh still requires the current token stored in Redis.
+
+Deploying this change rejects previously issued, untyped access and refresh tokens.
+Existing players must sign in once again. The frontend clears rejected credentials
+and returns to login; no compatibility fallback should accept untyped tokens.
+Keep the signing key unchanged: existing typed email-verification and password-reset
+links remain valid subject to their expiry and stored-token/one-use checks. No schema
+migration, Redis flush, or key rotation is required. During a rolling deployment,
+older API replicas still accept untyped credentials until they have been replaced.
+
+This follows [RFC 8725 §3.12](https://www.rfc-editor.org/rfc/rfc8725.html#section-3.12),
+which requires mutually exclusive validation rules for different JWT uses.

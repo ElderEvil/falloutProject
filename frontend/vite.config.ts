@@ -1,5 +1,5 @@
 import { fileURLToPath, URL } from 'node:url'
-import { readFileSync } from 'node:fs'
+import { readFile, readFileSync } from 'node:fs'
 
 import { defineConfig } from 'vite-plus'
 import vue from '@vitejs/plugin-vue'
@@ -33,6 +33,49 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     vue(),
     tailwindcss(),
+    {
+      name: 'local-map-plate',
+      apply: 'serve',
+      configureServer(server) {
+        // Serve fixed local trial assets, without exposing the ignored directory or
+        // copying it into public/ (which would ship it in production builds).
+        const assets = new Map([
+          [
+            '/__dev/map-plate.png',
+            {
+              file: new URL('../.omo/generated/world-map/flare-terrain-v1.png', import.meta.url),
+              type: 'image/png',
+            },
+          ],
+          [
+            '/__dev/map-chrome.svg',
+            {
+              file: new URL('../.omo/generated/world-map/reference-chrome.svg', import.meta.url),
+              type: 'image/svg+xml',
+            },
+          ],
+        ])
+        server.middlewares.use((request, response, next) => {
+          const asset = assets.get(request.url?.split('?')[0] ?? '')
+          if (!asset) return next()
+          if (request.method !== 'GET' && request.method !== 'HEAD') {
+            response.statusCode = 405
+            response.end()
+            return
+          }
+          readFile(asset.file, (error, bytes) => {
+            if (error) {
+              response.statusCode = 404
+              response.end()
+              return
+            }
+            response.setHeader('Content-Type', asset.type)
+            response.setHeader('Cache-Control', 'no-store')
+            response.end(request.method === 'HEAD' ? undefined : bytes)
+          })
+        })
+      },
+    },
     mode === 'analyze' &&
       visualizer({
         filename: 'dist/stats.html',

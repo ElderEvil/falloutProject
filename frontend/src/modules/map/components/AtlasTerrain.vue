@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useMapStore } from '../stores/map'
-import {
-  ATLAS_TERRAIN_ORDER,
-  ATLAS_TERRAIN_VAR,
-  MAP_UNITS,
-} from '../utils/atlasProjection'
+import { ATLAS_TERRAIN_ORDER, ATLAS_TERRAIN_VAR, MAP_UNITS } from '../utils/atlasProjection'
 import { maskToRects, type MaskRect } from '../utils/maskGeometry'
 import type { TerrainType } from '../models/terrain'
+import type { WorldSnapshotRead } from '../models/map'
 
 const props = withDefaults(
   defineProps<{
+    /** Explicit snapshot for previews; falls back to the map store when omitted. */
+    snapshot?: WorldSnapshotRead | null
+    palette?: 'atlas'
     /** Display-only road mask: flat, sorted tile indices over the snapshot grid. */
     roads?: readonly number[]
     /** Display-only river mask: flat, sorted tile indices over the snapshot grid. */
@@ -20,6 +20,9 @@ const props = withDefaults(
 )
 
 const store = useMapStore()
+const snapshot = computed(() =>
+  props.snapshot === undefined ? store.worldSnapshot : props.snapshot
+)
 const imageUrl = ref('')
 
 // Backend-owned terrain: renders the persisted snapshot verbatim. No local
@@ -60,7 +63,9 @@ function resolveTerrainColors(): Record<TerrainType, string> {
   const styles = getComputedStyle(document.documentElement)
   const colors = {} as Record<TerrainType, string>
   for (const terrain of ATLAS_TERRAIN_ORDER) {
-    colors[terrain] = tokenColor(styles, ATLAS_TERRAIN_VAR[terrain]) || '#000000'
+    const token =
+      props.palette === 'atlas' ? `--color-atlas-${terrain}` : ATLAS_TERRAIN_VAR[terrain]
+    colors[terrain] = tokenColor(styles, token) || '#000000'
   }
   return colors
 }
@@ -89,12 +94,12 @@ function paintMaskRects(
 }
 
 function renderTerrain(): void {
-  const snapshot = store.worldSnapshot
-  if (snapshot === null) {
+  const world = snapshot.value
+  if (world === null) {
     imageUrl.value = ''
     return
   }
-  const { width, height } = snapshot
+  const { width, height } = world
   const cells = document.createElement('canvas')
   cells.width = width
   cells.height = height
@@ -104,8 +109,8 @@ function renderTerrain(): void {
     return
   }
   const colors = resolveTerrainColors()
-  for (let i = 0; i < snapshot.terrain.length; i++) {
-    cellCtx.fillStyle = colors[snapshot.terrain[i] as TerrainType] ?? '#000000'
+  for (let i = 0; i < world.terrain.length; i++) {
+    cellCtx.fillStyle = colors[world.terrain[i] as TerrainType] ?? '#000000'
     cellCtx.fillRect(i % width, Math.floor(i / width), 1, 1)
   }
 
@@ -153,7 +158,7 @@ function renderTerrain(): void {
 }
 
 watch(
-  [() => store.worldSnapshot, () => props.roads, () => props.rivers],
+  [snapshot, () => props.palette, () => props.roads, () => props.rivers],
   renderTerrain,
   { immediate: true },
 )

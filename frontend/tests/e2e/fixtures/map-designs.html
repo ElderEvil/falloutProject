@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Regional map design preview</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import { createApp } from 'vue'
+      import { createPinia } from 'pinia'
+      import { createRouter, createMemoryHistory } from 'vue-router'
+      import MapDesignsPreview from '../../../src/modules/map/views/MapDesignsPreview.vue'
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [
+          { path: '/', component: MapDesignsPreview },
+          { path: '/dev', component: { template: '<div>Development tools</div>' } },
+        ],
+      })
+      router.push('/')
+      router.isReady().then(() => createApp(MapDesignsPreview).use(router).use(createPinia()).mount('#app'))
+    </script>
+  </body>
+</html>

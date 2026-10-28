@@ -83,6 +83,15 @@ const router = createRouter({
             component: () => import('@/modules/exploration/views/WastelandScenesPreview.vue'),
           },
           {
+            path: '/dev/map-designs',
+            name: 'map-designs-preview',
+            meta: {
+              devTitle: 'Map designs',
+              devDescription: 'Compare the regional atlas, field chart, and survey terminal.',
+            },
+            component: () => import('@/modules/map/views/MapDesignsPreview.vue'),
+          },
+          {
             path: '/dev/asset-gallery',
             alias: '/dev/assets',
             name: 'asset-gallery',

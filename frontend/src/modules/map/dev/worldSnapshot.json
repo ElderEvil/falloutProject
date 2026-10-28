@@ -1,0 +1,592 @@
+{
+  "world_id": "wasteland-atlas",
+  "generator_version": 1,
+  "recipe_fingerprint": "c297b28dd51ed1e0679921d69ea82d9e",
+  "snapshot_checksum": "bb7fc58a79da88423878a35a06520e19",
+  "width": 80,
+  "height": 80,
+  "rows": [
+    "wwwwwwwwwwwwwwwwfffaaaaaaaaffffffafffffffwwwwffffaafffwffaaaafffwwwwwwwfwwwwwffa",
+    "wwwwwwwwwwwwwwwwfffaaaaafaaffffffffffffffwwwfffffffffffffaaaafffwwwwwwffwwwwwffa",
+    "wwwwwwwwwwwwwwwwffffaaafffaffffffffffffffffffffffffffffffaaaaaffffwwwfffffffffff",
+    "wwwwwwwwwwwwwwwwwfffffffffffffffffffffafffffffffffffffffffaaaaaaffffffffffffffff",
+    "wwwwwwwwwwwwwwwwwwwffffffffffwwwwwffffaaaafffffffwwfffffffffaaaaafffffffffffffff",
+    "wwwwwwwwwwwwwwwwwwwwwfffffffwwwwwwwwfffaaaafffffwwwffffffffffaaaaffffffffffffffw",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwfffwwwwwwwwfffaaaaffffwwwwwfffwfffffaaaafffffffffffffww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwffaaaaaffwwwwffwwwwwwwwffaaafffffffffffwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwrrrraaaaffwwwwfffwwwwwwwwffaaaffffffwwwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwrrrrrrrrrrfaaafffwwwfffwwwwwwwwffaaaffffffwwwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwrrrrrrrrrrrffaafffwwwfffwwwwwwwwfffaffffffffwwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwrrrrrrrrrrrrrfffffffwwwwwwwwwwwwwffffffaaffffffwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwrrrrrrrrrrrrrfffffffwwwwwwwwwwwwwwwwfffaaaffffffwwwff",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwrrrrrrrrrrrrrrrwffffffwwwwwwwwwwwwwwwwfffaaaafffffwwfff",
+    "wwwwwwwwwwwwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrffffffwwwwwwwwwwwwwwwwfffaaaaaffffwwwww",
+    "wwwwwwwwwwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrffffffwwwwwwwwwwwwwwfffffaaaaaaaffwwwww",
+    "wwwwwwwwwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrrffffffwwwwwwwwwwwwwwfffffaaaaaaaffwwwww",
+    "wwwwwwwwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrrrfffffwwwwwwwwwwwwwwwwffffffaaaaafwwwwww",
+    "wwwwwwwwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrrrwffwwwwwwwwwwwwwwwwwwwwffffffffffwwwwww",
+    "wwwwwwwwwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwwwwfffwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwffwwrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwfffwwwrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwffffwwwrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwffffwwwrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwffwwwwwrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwffwwwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwfffwwwwwwwwrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrhrrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwffffwwwwwwwrrrrrrrrrrrrrrrrrrrrrrhhhhrrhhhrrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwfffffwwwrrrrrrrrrrrrrrrrrrrrrrhhhhhhhhhhhrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwffffffwwrrrrrrrrrrrrrrrrrrrrrrhhhhhhhhhhhrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwffffffwwrrrrrrrrrrrrrrrrrrrrrhhhhhhhhhhhhrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwffffffwwwrrrrrrrrrrrrrrrrrrrhhhhhhhhhhhhhrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwffffffwwwwrrrrrrrrrrrrrrrrrhhhhhhhhhhhhhhhrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwffwwwwwwwwwrrrrrrrrrrrrrrrrhhhhhhhhhhhhhhhrrwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwwrrrrrrrrrrrrrrrrhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwwrrrrrrrrrrrrrrrrhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwrrrrrrrrrrrrrrrrrhhhhhwwwhhhhhhhhhhhhwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwrrrrrrrrrrrrrrrwwwhhhwwwwwhhhhhhhhhhhhwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwwrrrrrrrrrrwwwwwwwhhhwwwwhhhhhhhhhhhhhwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwffffwwwwwwrrrrrrwwwwwwwwwhhhhwwhhhhhhhhhhhhhhwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwwffffffwwwwwwwrrrrwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwffffafffwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwfffaafffffffwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwffffffffffffffwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwwwwwwww",
+    "wwwwwffffffffffffffwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwwwww",
+    "wwwwwfwwwffffffffffwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwffffffffwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwfffffffwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwfffffffwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwffffffwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwffffwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwhwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwhhhhhh",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwhhhhhh",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhrwwwwwwwwwwwwwhhhhh",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhrrrwwwwwwwwwwwwwwhww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhrrrrrrwwwwwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhrrrrrrrrrrwwwwwwwhhww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhrrrrrrrrrwwwwwwhhhhw",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhrrrrrrrrrwwwwhhhhhh",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhrrrrrrrrrwwwhhhhhhh",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhrrrrrrrrrwwwhhhhhhh",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhrrrrrrrrrwwwwhhhhhw",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhrrrrrrrwwwwwhhhhww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhwwwwwwwwwhhhhhhhhhhhhhhhhhrrrrrrrwwwwwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhwwwwwwwhhhhhhhhhhhhhhhhhhrrrrrrrrwwwwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhwwwhhhhhhhhhhhhhhhhrrrrrrrrrrrrwwwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhwwhhhhhhhhhhhhhhwrrrrrrrrrrrrrrwwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhwwhhhhhhhhhhhhhhwwrrrrrrrrrrrrrrwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhwhhhhhhhhhhhhhwwwwrrrrrrrrrrrrrwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhwwwwwwwwrrrrrrrrrrrrwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwwrrrrrrrrrrrrwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwhhhwrrrrrrrrrrwwwwwwww",
+    "wwwwwwwwwwwwwwwwwwwwwwwwhhhhhhhhhhhhhhhhhhhhhwwwwwwwwwwwwwhhhhhhhhhhrrrrwwwwwwww"
+  ],
+  "slots": [
+    {
+      "slot_index": 0,
+      "coord_x": 58.125,
+      "coord_y": 29.375
+    },
+    {
+      "slot_index": 1,
+      "coord_x": 84.375,
+      "coord_y": 86.875
+    },
+    {
+      "slot_index": 2,
+      "coord_x": 61.875,
+      "coord_y": 86.875
+    },
+    {
+      "slot_index": 3,
+      "coord_x": 63.125,
+      "coord_y": 76.875
+    },
+    {
+      "slot_index": 4,
+      "coord_x": 36.875,
+      "coord_y": 11.875
+    },
+    {
+      "slot_index": 5,
+      "coord_x": 15.625,
+      "coord_y": 71.875
+    },
+    {
+      "slot_index": 6,
+      "coord_x": 68.125,
+      "coord_y": 51.875
+    },
+    {
+      "slot_index": 7,
+      "coord_x": 46.875,
+      "coord_y": 1.875
+    },
+    {
+      "slot_index": 8,
+      "coord_x": 21.875,
+      "coord_y": 4.375
+    },
+    {
+      "slot_index": 9,
+      "coord_x": 93.125,
+      "coord_y": 75.625
+    },
+    {
+      "slot_index": 10,
+      "coord_x": 15.625,
+      "coord_y": 44.375
+    },
+    {
+      "slot_index": 11,
+      "coord_x": 69.375,
+      "coord_y": 25.625
+    },
+    {
+      "slot_index": 12,
+      "coord_x": 93.125,
+      "coord_y": 18.125
+    },
+    {
+      "slot_index": 13,
+      "coord_x": 73.125,
+      "coord_y": 66.875
+    },
+    {
+      "slot_index": 14,
+      "coord_x": 19.375,
+      "coord_y": 59.375
+    },
+    {
+      "slot_index": 15,
+      "coord_x": 35.625,
+      "coord_y": 43.125
+    },
+    {
+      "slot_index": 16,
+      "coord_x": 80.625,
+      "coord_y": 28.125
+    },
+    {
+      "slot_index": 17,
+      "coord_x": 74.375,
+      "coord_y": 16.875
+    },
+    {
+      "slot_index": 18,
+      "coord_x": 19.375,
+      "coord_y": 50.625
+    },
+    {
+      "slot_index": 19,
+      "coord_x": 91.875,
+      "coord_y": 39.375
+    },
+    {
+      "slot_index": 20,
+      "coord_x": 34.375,
+      "coord_y": 25.625
+    },
+    {
+      "slot_index": 21,
+      "coord_x": 25.625,
+      "coord_y": 65.625
+    },
+    {
+      "slot_index": 22,
+      "coord_x": 8.125,
+      "coord_y": 56.875
+    },
+    {
+      "slot_index": 23,
+      "coord_x": 61.875,
+      "coord_y": 56.875
+    },
+    {
+      "slot_index": 24,
+      "coord_x": 99.375,
+      "coord_y": 36.875
+    },
+    {
+      "slot_index": 25,
+      "coord_x": 63.125,
+      "coord_y": 66.875
+    },
+    {
+      "slot_index": 26,
+      "coord_x": 68.125,
+      "coord_y": 98.125
+    },
+    {
+      "slot_index": 27,
+      "coord_x": 6.875,
+      "coord_y": 89.375
+    },
+    {
+      "slot_index": 28,
+      "coord_x": 5.625,
+      "coord_y": 76.875
+    },
+    {
+      "slot_index": 29,
+      "coord_x": 63.125,
+      "coord_y": 41.875
+    },
+    {
+      "slot_index": 30,
+      "coord_x": 48.125,
+      "coord_y": 24.375
+    },
+    {
+      "slot_index": 31,
+      "coord_x": 48.125,
+      "coord_y": 44.375
+    },
+    {
+      "slot_index": 32,
+      "coord_x": 69.375,
+      "coord_y": 6.875
+    },
+    {
+      "slot_index": 33,
+      "coord_x": 81.875,
+      "coord_y": 5.625
+    },
+    {
+      "slot_index": 34,
+      "coord_x": 86.875,
+      "coord_y": 43.125
+    },
+    {
+      "slot_index": 35,
+      "coord_x": 0.625,
+      "coord_y": 60.625
+    },
+    {
+      "slot_index": 36,
+      "coord_x": 23.125,
+      "coord_y": 23.125
+    },
+    {
+      "slot_index": 37,
+      "coord_x": 9.375,
+      "coord_y": 0.625
+    },
+    {
+      "slot_index": 38,
+      "coord_x": 29.375,
+      "coord_y": 11.875
+    },
+    {
+      "slot_index": 39,
+      "coord_x": 78.125,
+      "coord_y": 13.125
+    },
+    {
+      "slot_index": 40,
+      "coord_x": 29.375,
+      "coord_y": 31.875
+    },
+    {
+      "slot_index": 41,
+      "coord_x": 6.875,
+      "coord_y": 30.625
+    },
+    {
+      "slot_index": 42,
+      "coord_x": 64.375,
+      "coord_y": 21.875
+    },
+    {
+      "slot_index": 43,
+      "coord_x": 60.625,
+      "coord_y": 49.375
+    },
+    {
+      "slot_index": 44,
+      "coord_x": 39.375,
+      "coord_y": 54.375
+    },
+    {
+      "slot_index": 45,
+      "coord_x": 81.875,
+      "coord_y": 79.375
+    },
+    {
+      "slot_index": 46,
+      "coord_x": 75.625,
+      "coord_y": 53.125
+    },
+    {
+      "slot_index": 47,
+      "coord_x": 1.875,
+      "coord_y": 25.625
+    },
+    {
+      "slot_index": 48,
+      "coord_x": 41.875,
+      "coord_y": 60.625
+    },
+    {
+      "slot_index": 49,
+      "coord_x": 70.625,
+      "coord_y": 81.875
+    },
+    {
+      "slot_index": 50,
+      "coord_x": 96.875,
+      "coord_y": 93.125
+    },
+    {
+      "slot_index": 51,
+      "coord_x": 25.625,
+      "coord_y": 28.125
+    },
+    {
+      "slot_index": 52,
+      "coord_x": 14.375,
+      "coord_y": 79.375
+    },
+    {
+      "slot_index": 53,
+      "coord_x": 83.125,
+      "coord_y": 33.125
+    },
+    {
+      "slot_index": 54,
+      "coord_x": 8.125,
+      "coord_y": 46.875
+    },
+    {
+      "slot_index": 55,
+      "coord_x": 56.875,
+      "coord_y": 64.375
+    },
+    {
+      "slot_index": 56,
+      "coord_x": 6.875,
+      "coord_y": 83.125
+    },
+    {
+      "slot_index": 57,
+      "coord_x": 73.125,
+      "coord_y": 43.125
+    },
+    {
+      "slot_index": 58,
+      "coord_x": 79.375,
+      "coord_y": 38.125
+    },
+    {
+      "slot_index": 59,
+      "coord_x": 23.125,
+      "coord_y": 74.375
+    },
+    {
+      "slot_index": 60,
+      "coord_x": 94.375,
+      "coord_y": 45.625
+    },
+    {
+      "slot_index": 61,
+      "coord_x": 41.875,
+      "coord_y": 49.375
+    },
+    {
+      "slot_index": 62,
+      "coord_x": 45.625,
+      "coord_y": 70.625
+    },
+    {
+      "slot_index": 63,
+      "coord_x": 68.125,
+      "coord_y": 58.125
+    },
+    {
+      "slot_index": 64,
+      "coord_x": 30.625,
+      "coord_y": 5.625
+    },
+    {
+      "slot_index": 65,
+      "coord_x": 53.125,
+      "coord_y": 53.125
+    },
+    {
+      "slot_index": 66,
+      "coord_x": 81.875,
+      "coord_y": 53.125
+    },
+    {
+      "slot_index": 67,
+      "coord_x": 43.125,
+      "coord_y": 14.375
+    },
+    {
+      "slot_index": 68,
+      "coord_x": 13.125,
+      "coord_y": 29.375
+    },
+    {
+      "slot_index": 69,
+      "coord_x": 66.875,
+      "coord_y": 34.375
+    },
+    {
+      "slot_index": 70,
+      "coord_x": 8.125,
+      "coord_y": 10.625
+    },
+    {
+      "slot_index": 71,
+      "coord_x": 50.625,
+      "coord_y": 58.125
+    },
+    {
+      "slot_index": 72,
+      "coord_x": 51.875,
+      "coord_y": 65.625
+    },
+    {
+      "slot_index": 73,
+      "coord_x": 33.125,
+      "coord_y": 65.625
+    },
+    {
+      "slot_index": 74,
+      "coord_x": 0.625,
+      "coord_y": 5.625
+    },
+    {
+      "slot_index": 75,
+      "coord_x": 4.375,
+      "coord_y": 96.875
+    },
+    {
+      "slot_index": 76,
+      "coord_x": 14.375,
+      "coord_y": 0.625
+    },
+    {
+      "slot_index": 77,
+      "coord_x": 58.125,
+      "coord_y": 5.625
+    },
+    {
+      "slot_index": 78,
+      "coord_x": 49.375,
+      "coord_y": 49.375
+    },
+    {
+      "slot_index": 79,
+      "coord_x": 59.375,
+      "coord_y": 73.125
+    },
+    {
+      "slot_index": 80,
+      "coord_x": 66.875,
+      "coord_y": 15.625
+    },
+    {
+      "slot_index": 81,
+      "coord_x": 45.625,
+      "coord_y": 30.625
+    },
+    {
+      "slot_index": 82,
+      "coord_x": 44.375,
+      "coord_y": 39.375
+    },
+    {
+      "slot_index": 83,
+      "coord_x": 51.875,
+      "coord_y": 18.125
+    },
+    {
+      "slot_index": 84,
+      "coord_x": 48.125,
+      "coord_y": 11.875
+    },
+    {
+      "slot_index": 85,
+      "coord_x": 36.875,
+      "coord_y": 1.875
+    },
+    {
+      "slot_index": 86,
+      "coord_x": 9.375,
+      "coord_y": 68.125
+    },
+    {
+      "slot_index": 87,
+      "coord_x": 55.625,
+      "coord_y": 11.875
+    },
+    {
+      "slot_index": 88,
+      "coord_x": 44.375,
+      "coord_y": 90.625
+    },
+    {
+      "slot_index": 89,
+      "coord_x": 75.625,
+      "coord_y": 21.875
+    },
+    {
+      "slot_index": 90,
+      "coord_x": 16.875,
+      "coord_y": 38.125
+    },
+    {
+      "slot_index": 91,
+      "coord_x": 86.875,
+      "coord_y": 14.375
+    },
+    {
+      "slot_index": 92,
+      "coord_x": 6.875,
+      "coord_y": 20.625
+    },
+    {
+      "slot_index": 93,
+      "coord_x": 0.625,
+      "coord_y": 83.125
+    },
+    {
+      "slot_index": 94,
+      "coord_x": 50.625,
+      "coord_y": 94.375
+    },
+    {
+      "slot_index": 95,
+      "coord_x": 38.125,
+      "coord_y": 95.625
+    },
+    {
+      "slot_index": 96,
+      "coord_x": 51.875,
+      "coord_y": 88.125
+    },
+    {
+      "slot_index": 97,
+      "coord_x": 0.625,
+      "coord_y": 16.875
+    },
+    {
+      "slot_index": 98,
+      "coord_x": 18.125,
+      "coord_y": 98.125
+    },
+    {
+      "slot_index": 99,
+      "coord_x": 3.125,
+      "coord_y": 38.125
+    }
+  ]
+}

@@ -74,6 +74,15 @@ const router = createRouter({
             component: () => import('@/core/views/AnimationGalleryView.vue'),
           },
           {
+            path: '/dev/dweller-rig',
+            name: 'dweller-rig-preview',
+            meta: {
+              devTitle: 'Dweller rig',
+              devDescription: 'Inspect a 2D skeleton, adjust pivots, and scrub articulated motion.',
+            },
+            component: () => import('@/modules/dwellers/dev/views/DwellerRigPreview.vue'),
+          },
+          {
             path: '/dev/wasteland-scenes',
             name: 'wasteland-scenes-preview',
             meta: {

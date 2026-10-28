@@ -50,6 +50,7 @@ interface Props {
   selectedMarkerId: string | null
   snapshot?: WorldSnapshotRead | null
   terrainPalette?: 'atlas'
+  underlayUrl?: string
   placeGroups?: PlaceGroup[]
   overview?: boolean
 }
@@ -556,6 +557,7 @@ function handleTouchEnd(event: TouchEvent) {
           :palette="terrainPalette"
           :roads="snapshotRoads"
           :rivers="snapshotRivers"
+          :underlay-url="underlayUrl"
         />
 
         <slot name="terrain-overlay" />

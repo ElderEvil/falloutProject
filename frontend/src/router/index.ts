@@ -87,7 +87,7 @@ const router = createRouter({
             name: 'map-designs-preview',
             meta: {
               devTitle: 'Map designs',
-              devDescription: 'Compare the regional atlas, field chart, and survey terminal.',
+              devDescription: 'Preview the regional atlas map with fixture data and working controls.',
             },
             component: () => import('@/modules/map/views/MapDesignsPreview.vue'),
           },

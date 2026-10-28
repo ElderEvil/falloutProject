@@ -15,15 +15,48 @@ const props = withDefaults(
     roads?: readonly number[]
     /** Display-only river mask: flat, sorted tile indices over the snapshot grid. */
     rivers?: readonly number[]
+    /** Optional illustrated terrain drawn under the masks (preview only). */
+    underlayUrl?: string
   }>(),
   { roads: () => [], rivers: () => [] },
 )
+
+type UnderlayState = 'none' | 'pending' | 'loaded' | 'failed'
 
 const store = useMapStore()
 const snapshot = computed(() =>
   props.snapshot === undefined ? store.worldSnapshot : props.snapshot
 )
 const imageUrl = ref('')
+const underlayState = ref<UnderlayState>('none')
+let underlayImage: HTMLImageElement | null = null
+let underlayRequest = 0
+
+function loadUnderlay(url: string | undefined): void {
+  const request = ++underlayRequest
+  underlayImage = null
+  if (!url) {
+    if (underlayState.value !== 'none') {
+      underlayState.value = 'none'
+      renderTerrain()
+    }
+    return
+  }
+  underlayState.value = 'pending'
+  const image = new Image()
+  image.onload = () => {
+    if (request !== underlayRequest) return
+    underlayImage = image
+    underlayState.value = 'loaded'
+    renderTerrain()
+  }
+  image.onerror = () => {
+    if (request !== underlayRequest) return
+    underlayState.value = 'failed'
+    renderTerrain()
+  }
+  image.src = url
+}
 
 // Backend-owned terrain: renders the persisted snapshot verbatim. No local
 // generation, no fallback geography — a missing snapshot renders nothing rather
@@ -126,6 +159,10 @@ function renderTerrain(): void {
   ctx.imageSmoothingQuality = 'high'
   ctx.drawImage(cells, 0, 0, canvas.width, canvas.height)
 
+  if (underlayImage !== null) {
+    ctx.drawImage(underlayImage, 0, 0, canvas.width, canvas.height)
+  }
+
   const styles = getComputedStyle(document.documentElement)
   const scale = canvas.width / MAP_UNITS
   const bleed = (MAP_UNITS / width) * MASK_BLEED
@@ -162,13 +199,16 @@ watch(
   renderTerrain,
   { immediate: true },
 )
+watch(() => props.underlayUrl, loadUnderlay, { immediate: true })
 onBeforeUnmount(() => {
+  underlayRequest += 1
+  underlayImage = null
   imageUrl.value = ''
 })
 </script>
 
 <template>
-  <g class="atlas-terrain" aria-hidden="true">
+  <g class="atlas-terrain" aria-hidden="true" v-bind="{ 'data-underlay': underlayState }">
     <image
       v-if="imageUrl"
       :href="imageUrl"

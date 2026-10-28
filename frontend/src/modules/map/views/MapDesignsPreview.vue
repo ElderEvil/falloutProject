@@ -3,7 +3,6 @@ import { computed, ref, useId } from 'vue'
 import { useElementSize } from '@vueuse/core'
 import { RouterLink } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { Button } from '@/core/components/ui/button'
 import { Switch } from '@/core/components/ui/switch'
 import WorldMap from '../components/WorldMap.vue'
 import {
@@ -23,49 +22,13 @@ import {
   terrainRelief,
 } from '../dev/mapPreview'
 
-const designs = [
-  {
-    id: 'atlas',
-    number: '01',
-    name: 'Regional atlas',
-    subtitle: 'A map worth unfolding',
-    icon: 'mdi:map-outline',
-    description:
-      'Amber instrument frame and illustrated terrain marks, with places and legend on the right. Closest to the reference.',
-  },
-  {
-    id: 'field',
-    number: '02',
-    name: 'Field chart',
-    subtitle: 'Made for the journey',
-    icon: 'mdi:compass-outline',
-    description:
-      'A wide survey chart with a compact header and a separate registry. More room for the terrain.',
-  },
-  {
-    id: 'terminal',
-    number: '03',
-    name: 'Survey terminal',
-    subtitle: 'The familiar signal',
-    icon: 'mdi:monitor',
-    description: 'The current CRT palette and quiet terrain, with the same working map controls.',
-  },
-] as const
-const design = ref<(typeof designs)[number]['id']>('atlas')
-const selectedDesign = computed(() => designs.find((item) => item.id === design.value)!)
 const fog = ref(false)
 const dense = ref(false)
 const illustrated = ref(true)
-const plateLoaded = ref(false)
-const plateFailed = ref(false)
 const plateUrl = '/__dev/map-plate.png'
-const chromeUrl = '/__dev/map-chrome.svg'
-const chromeFailed = ref(false)
 const scaleElement = ref<SVGSVGElement | null>(null)
 const { width: scalePixels } = useElementSize(scaleElement)
-const showIllustration = computed(
-  () => illustrated.value && plateLoaded.value && !plateFailed.value
-)
+const underlayUrl = computed(() => (illustrated.value ? plateUrl : undefined))
 const selectedMarkerId = ref<string | null>(null)
 const selectedPlace = ref({
   name: 'Your next discovery awaits',
@@ -117,36 +80,12 @@ function selectMarker(payload: MarkerClickPayload): void {
           </h1>
         </div>
         <p class="max-w-sm text-xs leading-relaxed text-atlas-paper/60">
-          Experimental draft. Compare three designs using preview data and working map controls.
+          Experimental regional atlas using preview data and working map controls.
         </p>
       </div>
     </header>
 
-    <nav aria-label="Map design" class="grid gap-2 sm:grid-cols-3">
-      <Button
-        v-for="item in designs"
-        :key="item.id"
-        variant="ghost"
-        :aria-pressed="design === item.id"
-        class="design-choice h-auto justify-start gap-4 whitespace-normal rounded-none border p-4 text-left"
-        :class="
-          design === item.id
-            ? 'border-atlas-amber bg-atlas-amber/10 text-atlas-amber'
-            : 'border-atlas-paper/15 text-atlas-paper/60'
-        "
-        @click="design = item.id"
-      >
-        <span class="text-xs opacity-50">{{ item.number }}</span>
-        <span class="flex-1"
-          ><span class="block text-sm font-bold uppercase tracking-wider">{{ item.name }}</span
-          ><span class="mt-1 block text-xs font-normal opacity-70">{{ item.subtitle }}</span></span
-        >
-        <Icon :icon="item.icon" class="size-6 shrink-0" />
-      </Button>
-    </nav>
-
-    <div class="flex flex-wrap items-center justify-between gap-4 text-xs text-atlas-paper/75">
-      <p class="max-w-2xl leading-relaxed">{{ selectedDesign.description }}</p>
+    <div class="flex flex-wrap items-center justify-end gap-4 text-xs text-atlas-paper/75">
       <div class="flex flex-wrap gap-5">
         <label class="flex items-center gap-2"
           ><Switch v-model:checked="illustrated" aria-label="Illustrated terrain" /> Illustrated
@@ -161,52 +100,30 @@ function selectMarker(payload: MarkerClickPayload): void {
       </div>
     </div>
 
-    <p v-if="illustrated && plateFailed" class="text-xs text-atlas-paper/70" role="status">
-      Local illustration unavailable. Showing procedural terrain.
-    </p>
-
-    <section
-      class="design-sheet"
-      :class="`design-sheet--${design}`"
-      :aria-label="`${selectedDesign.name} preview`"
-    >
-      <header v-if="design !== 'terminal'" class="chart-masthead">
+    <section class="design-sheet design-sheet--atlas" aria-label="Regional atlas preview">
+      <header class="chart-masthead">
         <div class="flex min-w-0 items-center gap-3 sm:gap-5">
           <svg
-            v-if="!chromeFailed"
-            viewBox="16 12 320 72"
-            class="h-14 w-60 sm:h-16 sm:w-72"
-            role="img"
-            aria-label="Vault-Tec regional map"
+            class="chart-emblem size-11 shrink-0 sm:size-14"
+            viewBox="0 0 84 52"
+            fill="currentColor"
+            aria-hidden="true"
           >
-            <image :href="chromeUrl" width="1024" height="1024" @error="chromeFailed = true" />
+            <path
+              d="M4 13h20l-5 6H1l-1-2Zm-3 12h17v6H0Zm3 18h20l-5-6H1l-1 2ZM80 13H60l5 6h18l1-2Zm3 12H66v6h18Zm-3 18H60l5-6h18l1 2Z"
+            />
+            <circle cx="42" cy="27" r="23" fill="none" stroke="currentColor" stroke-width="5" />
+            <circle cx="42" cy="27" r="11" />
           </svg>
-          <template v-else>
-            <svg
-              class="chart-emblem size-11 shrink-0 sm:size-14"
-              viewBox="0 0 84 52"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                d="M4 13h20l-5 6H1l-1-2Zm-3 12h17v6H0Zm3 18h20l-5-6H1l-1 2ZM80 13H60l5 6h18l1-2Zm3 12H66v6h18Zm-3 18H60l5-6h18l1 2Z"
-              />
-              <circle cx="42" cy="27" r="23" fill="none" stroke="currentColor" stroke-width="5" />
-              <circle cx="42" cy="27" r="11" />
-            </svg>
-            <div class="min-w-0">
-              <p class="chart-eyebrow">Vault-Tec</p>
-              <h2 class="chart-title">
-                {{ design === 'atlas' ? 'Regional map' : 'Wasteland field chart' }}
-              </h2>
-            </div>
-          </template>
+          <div class="min-w-0">
+            <p class="chart-eyebrow">Vault-Tec</p>
+            <h2 class="chart-title">Regional map</h2>
+          </div>
         </div>
         <div class="chart-edition"><span>REGIONAL SURVEY</span><span>FIELD EDITION / 01</span></div>
       </header>
 
       <WorldMap
-        :key="design"
         v-model:selected-marker-id="selectedMarkerId"
         class="study-map"
         :locations="locations"
@@ -214,7 +131,8 @@ function selectMarker(payload: MarkerClickPayload): void {
         :discovery-routes="previewRoutes"
         :expedition-sites="previewSites"
         :snapshot="previewSnapshot"
-        :terrain-palette="design === 'terminal' ? undefined : 'atlas'"
+        terrain-palette="atlas"
+        :underlay-url="underlayUrl"
         :place-groups="previewGroups"
         :fog-disabled="!fog"
         overview
@@ -241,12 +159,7 @@ function selectMarker(payload: MarkerClickPayload): void {
                 stitchTiles="stitch" /><feColorMatrix type="saturate" values="0"
             /></filter>
           </defs>
-          <g
-            v-if="design !== 'terminal' && !showIllustration"
-            class="terrain-relief"
-            aria-hidden="true"
-            pointer-events="none"
-          >
+          <g v-if="!illustrated" class="terrain-relief" aria-hidden="true" pointer-events="none">
             <path :d="terrainRelief.forest" class="relief-forest" />
             <path :d="terrainRelief.hills" class="relief-hills" />
             <path :d="terrainRelief.ruins" class="relief-ruins" />
@@ -254,21 +167,6 @@ function selectMarker(payload: MarkerClickPayload): void {
             <path :d="terrainRelief.wasteland" class="relief-wasteland" />
             <rect width="160" height="160" :filter="`url(#${textureId})`" class="chart-grain" />
           </g>
-          <image
-            v-if="illustrated && !plateFailed"
-            class="illustrated-plate"
-            :href="plateUrl"
-            x="0"
-            y="0"
-            width="160"
-            height="160"
-            preserveAspectRatio="none"
-            :opacity="plateLoaded ? 1 : 0"
-            pointer-events="none"
-            aria-hidden="true"
-            @load="plateLoaded = true"
-            @error="plateFailed = true"
-          />
           <g class="map-grid" aria-hidden="true" pointer-events="none">
             <rect width="160" height="160" :fill="`url(#${gridId}-minor)`" />
             <rect width="160" height="160" :fill="`url(#${gridId})`" />
@@ -294,21 +192,11 @@ function selectMarker(payload: MarkerClickPayload): void {
             </ul>
           </section>
         </template>
-        <template v-if="design !== 'terminal'" #map-chrome="{ zoom, mapPixelWidth }">
+        <template #map-chrome="{ zoom, mapPixelWidth }">
           <div
             class="chart-compass pointer-events-none absolute bottom-4 left-4 z-10 flex items-end gap-3 sm:gap-4"
           >
             <svg
-              v-if="!chromeFailed"
-              viewBox="17 810 152 149"
-              class="reference-compass size-16 sm:size-24"
-              role="img"
-              aria-label="Compass, north is up"
-            >
-              <image :href="chromeUrl" width="1024" height="1024" @error="chromeFailed = true" />
-            </svg>
-            <svg
-              v-else
               viewBox="0 0 72 72"
               class="size-16 sm:size-24"
               role="img"
@@ -336,19 +224,11 @@ function selectMarker(payload: MarkerClickPayload): void {
               </div>
               <svg
                 ref="scaleElement"
-                :viewBox="chromeFailed ? '0 0 205 18' : '158 958 205 18'"
-                class="reference-scale h-4 w-28 sm:w-44"
+                viewBox="0 0 205 18"
+                class="h-4 w-28 sm:w-44"
                 aria-hidden="true"
               >
-                <image
-                  v-if="!chromeFailed"
-                  :href="chromeUrl"
-                  width="1024"
-                  height="1024"
-                  @error="chromeFailed = true"
-                />
                 <path
-                  v-else
                   d="M1 1V12H204V1M42 12V6M83 12V6M124 12V6M165 12V6"
                   fill="none"
                   stroke="currentColor"
@@ -414,9 +294,6 @@ function selectMarker(payload: MarkerClickPayload): void {
 .map-designs :is(h1, h2, h3) {
   text-shadow: none;
 }
-.design-choice:hover {
-  background: color-mix(in srgb, var(--color-atlas-amber) 8%, transparent);
-}
 .design-sheet {
   --color-theme-primary: var(--color-atlas-amber);
   --color-theme-accent: var(--color-atlas-amber);
@@ -470,46 +347,8 @@ function selectMarker(payload: MarkerClickPayload): void {
 .design-sheet--atlas :deep(.map-index .marker-list-panel) {
   @apply overflow-hidden rounded-xl;
 }
-.design-sheet--atlas :deep(.world-map-container.crt-screen::before),
-.design-sheet--field :deep(.world-map-container.crt-screen::before) {
+.design-sheet--atlas :deep(.world-map-container.crt-screen::before) {
   display: none;
-}
-.design-sheet--field {
-  @apply rounded-none;
-  color: var(--color-atlas-paper);
-}
-.design-sheet--field .chart-masthead {
-  @apply py-3;
-}
-.design-sheet--field .chart-title {
-  @apply text-base sm:text-lg;
-}
-.design-sheet--field .chart-emblem {
-  @apply size-9;
-}
-.design-sheet--field :deep(.world-map-layout) {
-  @apply gap-0;
-}
-.design-sheet--field :deep(.world-map-container) {
-  --map-pane-size: clamp(400px, 65vh, 720px);
-  border: 0;
-}
-.design-sheet--field :deep(.map-index) {
-  @apply border-l border-current/25;
-}
-.design-sheet--field .chart-compass {
-  @apply bottom-3 left-3;
-}
-.design-sheet--terminal {
-  --color-theme-primary: var(--theme-primary, var(--color-happiness-high));
-  --color-theme-accent: var(--theme-accent, var(--color-atlas-amber));
-  --primary: var(--color-theme-primary);
-  --foreground: var(--color-theme-primary);
-  @apply border-theme-primary/40;
-  color: var(--color-theme-primary);
-}
-.design-sheet--terminal :deep(.world-map-container) {
-  --map-pane-size: clamp(400px, 65vh, 720px);
 }
 .study-map :deep(.world-map-container) {
   height: auto;
@@ -573,19 +412,19 @@ function selectMarker(payload: MarkerClickPayload): void {
   stroke-width: 0.5;
   opacity: 0.3;
 }
-.design-sheet:not(.design-sheet--terminal) .biome-swatch.bg-terrain-wasteland {
+.design-sheet .biome-swatch.bg-terrain-wasteland {
   background: var(--color-atlas-wasteland);
 }
-.design-sheet:not(.design-sheet--terminal) .biome-swatch.bg-terrain-forest {
+.design-sheet .biome-swatch.bg-terrain-forest {
   background: var(--color-atlas-forest);
 }
-.design-sheet:not(.design-sheet--terminal) .biome-swatch.bg-terrain-ruins {
+.design-sheet .biome-swatch.bg-terrain-ruins {
   background: var(--color-atlas-ruins);
 }
-.design-sheet:not(.design-sheet--terminal) .biome-swatch.bg-terrain-hills {
+.design-sheet .biome-swatch.bg-terrain-hills {
   background: var(--color-atlas-hills);
 }
-.design-sheet:not(.design-sheet--terminal) .biome-swatch.bg-terrain-water {
+.design-sheet .biome-swatch.bg-terrain-water {
   background: var(--color-atlas-water);
 }
 @media (max-width: 639px) {

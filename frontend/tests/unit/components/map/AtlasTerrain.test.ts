@@ -8,6 +8,7 @@ describe('AtlasTerrain', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
   // Minimal canvas stub: blending/dither are cosmetic, so tests assert only that
@@ -128,5 +129,48 @@ describe('AtlasTerrain', () => {
     await flushPromises()
     expect(wrapper.find('image').exists()).toBe(false)
     expect(store.worldSnapshot).not.toBeNull()
+  })
+
+  it('draws an underlay image beneath the masks', async () => {
+    const store = useMapStore()
+    store.worldSnapshot = snapshot(new Array(16).fill('wasteland'))
+    const ctx = stubCanvas()
+    stubMaskTokens()
+    class LoadedImage {
+      onload: (() => void) | null = null
+      onerror: (() => void) | null = null
+      set src(_value: string) {
+        this.onload?.()
+      }
+    }
+    vi.stubGlobal('Image', LoadedImage)
+
+    const wrapper = mount(AtlasTerrain, {
+      props: { roads: [0], rivers: [15], underlayUrl: '/plate.png' },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.atlas-terrain').attributes('data-underlay')).toBe('loaded')
+    expect(ctx.drawImage.mock.calls.some(([source]) => source instanceof LoadedImage)).toBe(true)
+  })
+
+  it('keeps procedural terrain when the underlay fails to load', async () => {
+    const store = useMapStore()
+    store.worldSnapshot = snapshot(new Array(16).fill('wasteland'))
+    stubCanvas()
+    class FailedImage {
+      onload: (() => void) | null = null
+      onerror: (() => void) | null = null
+      set src(_value: string) {
+        this.onerror?.()
+      }
+    }
+    vi.stubGlobal('Image', FailedImage)
+
+    const wrapper = mount(AtlasTerrain, { props: { underlayUrl: '/missing.png' } })
+    await flushPromises()
+
+    expect(wrapper.find('.atlas-terrain').attributes('data-underlay')).toBe('failed')
+    expect(wrapper.find('image').exists()).toBe(true)
   })
 })

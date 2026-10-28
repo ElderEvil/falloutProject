@@ -47,13 +47,6 @@ export default defineConfig(({ mode }) => ({
               type: 'image/png',
             },
           ],
-          [
-            '/__dev/map-chrome.svg',
-            {
-              file: new URL('../.omo/generated/world-map/reference-chrome.svg', import.meta.url),
-              type: 'image/svg+xml',
-            },
-          ],
         ])
         server.middlewares.use((request, response, next) => {
           const asset = assets.get(request.url?.split('?')[0] ?? '')

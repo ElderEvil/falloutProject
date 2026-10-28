@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.279.3 (2026-10-28)
+
+### Bug Fixes
+
+* **frontend:** give exploration and notifications a single state owner ([#1226](https://github.com/ElderEvil/falloutProject/issues/1226)) 9cf2fe3
+
 ## 2.279.2 (2026-10-28)
 
 ### Bug Fixes

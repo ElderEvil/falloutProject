@@ -15,7 +15,7 @@ narrative inventory below because that inventory grouped only the *bespoke butto
 exceptions, not every `<input>`/`<select>`. The guard flags only controls with a vendored primitive; it
 must shrink, never grow.
 
-**Snapshot (narrative):** the detailed inventory below is the migration-era accounting (~94 inputs at
+**Snapshot (narrative):** the detailed inventory below is the migration-era accounting (~94 controls at
 the time). It is not re-derived on every change; use the guard output above as the current count, and
 re-derive a row from `raw-control-baseline.json` before citing it. No `<dialog>` remains.
 

@@ -999,14 +999,35 @@ describe('Exploration Store', () => {
       )
     })
 
-    it('stays silent, rethrows list failures and skips parties', async () => {
+    it('surfaces loading and error state for an initial load', async () => {
       const store = useExplorationStore()
-      store.error = 'previous error'
+      vi.mocked(axios.get).mockImplementationOnce(() => new Promise(() => undefined))
+
+      void store.refreshActiveExplorations('vault-1', 'test-token')
+
+      expect(store.isLoading).toBe(true)
+    })
+
+    it('records the failure for an initial load and clears loading', async () => {
+      const store = useExplorationStore()
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
 
       await expect(store.refreshActiveExplorations('vault-1', 'test-token')).rejects.toThrow(
         'Fetch failed'
       )
+
+      expect(store.error).toBe('Failed to fetch explorations')
+      expect(store.isLoading).toBe(false)
+    })
+
+    it('stays silent for polling and skips parties on failure', async () => {
+      const store = useExplorationStore()
+      store.error = 'previous error'
+      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
+
+      await expect(
+        store.refreshActiveExplorations('vault-1', 'test-token', { silent: true })
+      ).rejects.toThrow('Fetch failed')
 
       expect(store.error).toBe('previous error')
       expect(store.isLoading).toBe(false)

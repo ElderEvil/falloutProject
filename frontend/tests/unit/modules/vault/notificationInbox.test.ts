@@ -521,4 +521,32 @@ describe('notification bell popup state', () => {
     expect(await pending).toEqual([])
     expect(store.recentNotifications).toEqual([])
   })
+
+  it('stops loading once the current account resolves, not when a superseded load settles', async () => {
+    const auth = useAuthStore()
+    auth.token = 'first-session'
+    auth.user = { id: 'user-a' } as NonNullable<typeof auth.user>
+    const store = useNotificationInboxStore()
+    let finishSuperseded!: (value: { data: ReturnType<typeof notification>[] }) => void
+    vi.mocked(axios.get)
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finishSuperseded = resolve
+        })
+      )
+      .mockResolvedValueOnce({ data: [notification('second')] })
+
+    const superseded = store.loadRecent()
+    expect(store.isRecentLoading).toBe(true)
+    auth.user = { id: 'user-b' } as NonNullable<typeof auth.user>
+    await flushPromises()
+
+    expect(store.recentNotifications.map((item) => item.id)).toEqual(['second'])
+    expect(store.isRecentLoading).toBe(false)
+
+    finishSuperseded({ data: [notification('first')] })
+    await superseded
+
+    expect(store.recentNotifications.map((item) => item.id)).toEqual(['second'])
+  })
 })

@@ -1,7 +1,8 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
-import { handleStoreError } from '@/core/utils/errorHandler'
+import { handleStoreError, notifyErrorOnce } from '@/core/utils/errorHandler'
+import { getErrorMessage } from '@/core/types/utils'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import {
   notificationService,
@@ -60,8 +61,9 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
 
   // A logout/login must invalidate requests even if the same identity returns.
   // Before identity resolves, credentials distinguish otherwise anonymous sessions.
+  const sessionKey = computed(() => (auth.isAuthenticated ? (auth.user?.id ?? auth.token) : null))
   watch(
-    () => (auth.isAuthenticated ? (auth.user?.id ?? auth.token) : null),
+    () => sessionKey.value,
     () => sessionGeneration.value++,
     { flush: 'sync' }
   )
@@ -95,26 +97,35 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
     { context: 'Failed to load notifications' }
   )
 
-  const { run: runLoadRecent, isLoading: isRecentLoading } = useAsyncAction(
-    async () => {
-      hasLoadedRecent.value = true
-      const requestGeneration = ++recentGeneration
-      const capturedSession = currentSession()
+  // `useAsyncAction` counts every pending call, so a superseded account's slow request
+  // would keep the bell on "Loading..." after the current account's rows arrived.
+  // Loading follows the active request generation instead.
+  const isRecentLoading = ref(false)
+
+  /**
+   * Load the bell popup page and return it so the caller can run reconnect
+   * catch-up effects for events that arrived while the stream was paused.
+   */
+  const loadRecent = async (): Promise<InboxNotification[]> => {
+    hasLoadedRecent.value = true
+    const requestGeneration = ++recentGeneration
+    const capturedSession = currentSession()
+    isRecentLoading.value = true
+    try {
       const page = await notificationService.list(null, 'all', 0, RECENT_PAGE_SIZE)
       if (requestGeneration !== recentGeneration || !ownsSession(capturedSession)) return []
       rememberNotifications(page)
       const loadedIds = new Set(page.map((item) => item.id))
       recentRows.value = [...recentRows.value.filter((item) => !loadedIds.has(item.id)), ...page]
       return page
-    },
-    { context: 'Failed to fetch notifications' }
-  )
-
-  /**
-   * Load the bell popup page and return it so the caller can run reconnect
-   * catch-up effects for events that arrived while the stream was paused.
-   */
-  const loadRecent = async (): Promise<InboxNotification[]> => (await runLoadRecent()) ?? []
+    } catch (caught: unknown) {
+      handleStoreError(caught, 'Failed to fetch notifications', false)
+      notifyErrorOnce(caught, getErrorMessage(caught))
+      return []
+    } finally {
+      if (requestGeneration === recentGeneration) isRecentLoading.value = false
+    }
+  }
 
   const receiveNotification = (notification: InboxNotification) => {
     rememberNotifications([notification])
@@ -227,6 +238,7 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
   return {
     notifications,
     recentNotifications,
+    sessionKey,
     hasLoadedRecent,
     isRecentLoading,
     loadRecent,

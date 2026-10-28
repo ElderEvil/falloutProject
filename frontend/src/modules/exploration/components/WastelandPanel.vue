@@ -113,7 +113,9 @@ watch(
 const pollExplorations = async () => {
   if (!vaultId.value || !authStore.token || !explorationStore.activeExplorations) return
 
-  await explorationStore.refreshActiveExplorations(vaultId.value, authStore.token)
+  await explorationStore.refreshActiveExplorations(vaultId.value, authStore.token, {
+    silent: true,
+  })
 
   // Check for completed explorations and fetch detailed data for new explorers
   for (const exploration of activeExplorationsArray.value) {

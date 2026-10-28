@@ -207,7 +207,10 @@ describe('ExplorationView', () => {
     refreshSpy.mockClear()
     await pollState.callback?.()
 
-    expect(refreshSpy).toHaveBeenCalledWith('vault-123', 'mock-token', { includeParties: true })
+    expect(refreshSpy).toHaveBeenCalledWith('vault-123', 'mock-token', {
+      includeParties: true,
+      silent: true,
+    })
     expect(questStore.fetchVaultQuests).toHaveBeenCalledWith('vault-123', { silent: true })
     expect(questStore.fetchPartiesForActiveQuests).toHaveBeenCalledWith('vault-123')
   })

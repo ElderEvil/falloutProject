@@ -195,6 +195,7 @@ const pollExplorations = async () => {
 
   await explorationStore.refreshActiveExplorations(vaultId.value, authStore.token, {
     includeParties: true,
+    silent: true,
   })
   await questStore.fetchVaultQuests(vaultId.value, { silent: true })
   await questStore.fetchPartiesForActiveQuests(vaultId.value)

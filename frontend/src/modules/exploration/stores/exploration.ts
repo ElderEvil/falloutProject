@@ -443,12 +443,16 @@ export const useExplorationStore = defineStore('exploration', () => {
     explorationPartyMap.value = nextPartyMap
   }
 
+  /**
+   * Refresh the active exploration list. Initial loads keep the shared loading/error
+   * state; polling callers pass `silent` so a background refresh never flaps it.
+   */
   async function refreshActiveExplorations(
     vaultId: string,
     token: string,
-    options: { includeParties?: boolean } = {}
+    options: { includeParties?: boolean; silent?: boolean } = {}
   ): Promise<Exploration[]> {
-    const active = await fetchExplorationsByVault(vaultId, token, true, true)
+    const active = await fetchExplorationsByVault(vaultId, token, true, options.silent ?? false)
     if (options.includeParties) {
       await fetchPartiesForActiveExplorations(vaultId)
     }

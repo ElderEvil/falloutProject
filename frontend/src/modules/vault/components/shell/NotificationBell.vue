@@ -49,6 +49,17 @@ const seenNotificationIds = new Set<string>()
 let hasConnected = false
 const hasUnread = computed(() => unreadCount.value > 0)
 
+// Delayed rush results must not land in a later session's bell or outlive the
+// component, so the timers are tracked and cleared on unmount.
+const rushTimers = new Set<ReturnType<typeof setTimeout>>()
+const scheduleRushNotification = (callback: () => void): void => {
+  const timer = setTimeout(() => {
+    rushTimers.delete(timer)
+    callback()
+  }, FEEDBACK_TIMING_MS.rushDelay)
+  rushTimers.add(timer)
+}
+
 // SSE connection for live notifications
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
 // Keep the composable return value shallow so its nested event Ref is not unwrapped.
@@ -114,14 +125,15 @@ function processNotification(notificationData: InboxNotification) {
     const isSuccess = notificationData.notification_type === 'rush_succeeded'
     const vaultId = notificationData.vault_id
     const message = notificationData.message
-    setTimeout(() => {
-      if (!authStore.token) return
+    const session = inboxStore.sessionKey
+    scheduleRushNotification(() => {
+      if (inboxStore.sessionKey !== session) return
       inboxStore.receiveNotification(newNotif)
       inboxStore.noteUnreadArrival()
       if (vaultId && vaultId !== vaultStore.activeVaultId) return
       if (isSuccess) toast.success(message)
       else toast.error(message)
-    }, FEEDBACK_TIMING_MS.rushDelay)
+    })
     return
   }
   inboxStore.receiveNotification(newNotif)
@@ -368,6 +380,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
+  rushTimers.forEach((timer) => clearTimeout(timer))
+  rushTimers.clear()
   sse.value?.close()
 })
 </script>

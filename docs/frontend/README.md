@@ -270,8 +270,9 @@ neither changes the vault's limits or enables a persistent unlimited-resource mo
 Vendored shadcn-vue primitives live in `src/core/components/ui/` (Reka UI + Tailwind v4, restyled onto
 the CRT theme). Each primitive has its own folder and is imported per file — there is no barrel and no
 global registration. The authoritative export list is
-[`src/core/components/ui/README.md`](../../src/core/components/ui/README.md): alert, badge, button,
-card, dialog, input, label, progress, select, skeleton, slider, switch, tabs, toast, toggle, tooltip.
+[`frontend/src/core/components/ui/README.md`](../../frontend/src/core/components/ui/README.md): alert,
+badge, button, card, dialog, input, label, progress, select, skeleton, slider, switch, tabs, toast,
+toggle, toggle-group, tooltip.
 
 **Usage Example:**
 
@@ -281,6 +282,7 @@ import { ref } from 'vue'
 import { Button } from '@/core/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/core/components/ui/card'
 import { Input } from '@/core/components/ui/input'
+import { Label } from '@/core/components/ui/label'
 
 const vaultNumber = ref('')
 </script>
@@ -291,7 +293,8 @@ const vaultNumber = ref('')
       <CardTitle>Create Vault</CardTitle>
     </CardHeader>
     <CardContent>
-      <Input v-model="vaultNumber" type="number" />
+      <Label for="vault-number">Vault number</Label>
+      <Input id="vault-number" v-model="vaultNumber" type="number" />
       <Button>Create Vault</Button>
     </CardContent>
   </Card>

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, type Mock } from 'vite-plus/test'
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest'
 import { createAxiosMock, createIconifyMock, createToastMock } from '../../helpers/mocks'
 import { ref } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vite-plus/test'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import axios from '@/core/plugins/axios'
 import { chatApi } from '@/modules/chat/api/chat'
 

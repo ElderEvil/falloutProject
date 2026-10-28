@@ -13,13 +13,13 @@ without user gain.
 
 ## Approved sequence
 
-1. **Now (Batch 1):** create `src/core/utils/api.ts` as a **typed boundary** over
+1. **Completed (Batch 1):** create `src/core/utils/api.ts` as a **typed boundary** over
    `@/core/plugins/axios`. Named helpers (`apiGet`/`apiPost`/`apiPut`), an `api.*` sugar object
    (`api.patch`/`api.delete` inline their single-use wrappers), and `apiRequest` (full `AxiosResponse`
    escape hatch — see below). Errors normalize to `ApiError { status, detail, fields,
    headers, cause }`; `getErrorMessage` reads both `ApiError` and raw `AxiosError`.
-2. **Batches 2–4:** migrate remaining services, stores, and the exploration/chat call sites in
-   module-sized slices.
+2. **In progress:** migrate remaining services and stores in module-sized slices. Chat and
+   radio call sites moved to their module APIs in the 2026-10-28 slice above.
 3. **Later (separate slice):** remove the axios interceptor's notifications so toasts are
    caller-owned end to end.
 4. **Toasts stay caller-owned as the target state.** The boundary throws and never
@@ -83,15 +83,15 @@ store + SettingsView, and ai-settings service.
 
 ## Consolidation phases
 
-1. Boundary foundation (Batch 1, in review)
+1. Boundary foundation (Batch 1, merged)
    - `src/core/utils/api.ts`: named helpers, `api.*` sugar, `apiRequest` escape hatch,
      `ApiError` normalization.
    - Migrate core public reads, auth, profile, ai-settings (11 source files).
    - Add boundary unit tests + `createApiClientMock`.
 
-2. Call-site migration (incremental, Batches 2–4)
-   - Scan and identify all direct imports of `@/core/plugins/axios` (29 files).
-   - Migrate stores/services/composables in small batches to `src/core/utils/api.ts`.
+2. Call-site migration (incremental)
+   - Scan and identify remaining direct imports of `@/core/plugins/axios`.
+   - Migrate remaining stores/services/composables in small batches to `src/core/utils/api.ts`.
    - Keep each batch test-backed and releasable.
 
 3. Toast ownership slice (separate, behavior-changing)

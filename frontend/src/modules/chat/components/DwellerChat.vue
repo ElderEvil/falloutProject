@@ -10,7 +10,7 @@ import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { getErrorMessage } from '@/core/types/utils'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
-import type { ActionSuggestion } from '../models/chat'
+import type { ActionSuggestion, ChatMessageDisplay } from '../models/chat'
 import { useAudioRecorder } from '../composables/useAudioRecorder'
 import { useChatMessages } from '../composables/useChatMessages'
 import { useChatAudio } from '../composables/useChatAudio'
@@ -326,25 +326,23 @@ watch(
 )
 
 const sendAudioMessage = async () => {
+  let placeholderMessage: ChatMessageDisplay | undefined
   try {
     isSendingAudio.value = true
     const audioBlob = await stopRecording()
 
-    const placeholderIndex = messages.value.length
-    messages.value.push({
+    placeholderMessage = {
       type: 'user',
       content: '[Transcribing audio...]',
       timestamp: new Date(),
-    })
+    }
+    messages.value.push(placeholderMessage)
 
     const response = await chatApi.sendVoiceMessage(props.dwellerId, audioBlob, {
       returnAudio: false,
     })
 
-    const placeholderMessage = messages.value[placeholderIndex]
-    if (placeholderMessage) {
-      placeholderMessage.content = response.transcription
-    }
+    placeholderMessage.content = response.transcription
 
     appendDwellerResponse(response)
 
@@ -354,6 +352,8 @@ const sendAudioMessage = async () => {
 
     refreshAfterChat()
   } catch (error: unknown) {
+    const placeholderIndex = placeholderMessage ? messages.value.indexOf(placeholderMessage) : -1
+    if (placeholderIndex !== -1) messages.value.splice(placeholderIndex, 1)
     const message = getErrorMessage(error, 'Unable to send audio message')
     notifyErrorOnce(error, `Failed to send audio: ${message}`)
   } finally {

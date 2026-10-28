@@ -14,6 +14,8 @@ def test_known_pets_resolve() -> None:
     assert get_pet_image_url("CX404") == "/static/pet_images/FOS CX404.png"
     assert get_pet_image_url("  German Shepherd ") == "/static/pet_images/FOS German Shepherd.png"
     assert get_pet_image_url("vault-tec parrot") == "/static/pet_images/FOS Vault-Tec parrot.png"
+    assert get_pet_image_url("Baby Deathclaw") == "/static/pet_images/FOS Baby Deathclaw.webp"
+    assert get_pet_image_url("Yao Guai Cub") == "/static/pet_images/FOS Yao Guai Cub.webp"
 
 
 def test_unknown_or_missing_pet_has_no_url() -> None:

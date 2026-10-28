@@ -11,6 +11,8 @@ import pytest
 
 from app.models.pet import Pet
 from app.options.pet_modifiers import (
+    MAX_DAMAGE_PCT_BONUS,
+    MAX_PCT_BONUS,
     NEUTRAL_EFFECT,
     PET_DESCRIPTION_BY_NAME,
     PET_EFFECT_BY_NAME,
@@ -75,6 +77,26 @@ def test_pet_modifiers_for_resolves_equipped_pet_by_name() -> None:
 def test_twins_chance_pets_resolve_to_their_canonical_bonus(name: str, expected: float) -> None:
     """The canonical Twins-chance pets carry their Fallout Shelter bonus; others stay neutral."""
     assert pet_effect_for_name(name).twin_chance_pct == pytest.approx(expected)
+
+
+@pytest.mark.parametrize(
+    ("name", "damage_pct", "incident_response_pct", "max_health"),
+    [
+        ("Baby Deathclaw", 0.35, 0.25, 0),
+        ("Yao Guai Cub", 0.25, 0.0, 25),
+    ],
+)
+def test_exotic_pet_effects_are_catalogued_and_within_caps(
+    name: str, damage_pct: float, incident_response_pct: float, max_health: int
+) -> None:
+    effect = pet_effect_for_name(name)
+    assert effect.damage_pct == pytest.approx(damage_pct)
+    assert effect.incident_response_pct == pytest.approx(incident_response_pct)
+    assert effect.max_health == max_health
+    assert effect.damage_pct <= MAX_DAMAGE_PCT_BONUS
+    assert effect.incident_response_pct <= MAX_PCT_BONUS
+    assert pet_description_for_name(name)
+    assert get_pet_image_url(name)
 
 
 def test_catalog_covers_every_effect_field_at_least_once() -> None:

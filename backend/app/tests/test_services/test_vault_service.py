@@ -531,8 +531,9 @@ class TestCreateInitialItems:
 
         assert pets[BOOSTED_EQUIPPED_PETS[0]].dweller_id == first.id
         assert pets[BOOSTED_EQUIPPED_PETS[1]].dweller_id == second.id
-        assert pets["Vault-Tec Parrot"].storage_id == storage.id
-        assert pets["Vault-Tec Parrot"].dweller_id is None
+        for name in ("Baby Deathclaw", "Yao Guai Cub", "Vault-Tec Parrot"):
+            assert pets[name].storage_id == storage.id
+            assert pets[name].dweller_id is None
 
     async def test_boosted_vault_seeds_crafting_junk_from_catalog(self, async_session, vault) -> None:
         """Boosted-vault junk rows carry their catalog type/value/prose, assigned to storage."""

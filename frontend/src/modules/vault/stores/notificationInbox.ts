@@ -10,6 +10,7 @@ import {
 } from '@/modules/vault/services/notificationService'
 
 const PAGE_SIZE = 50
+const RECENT_PAGE_SIZE = 20
 
 /**
  * Single owner of notification read state for the bell, the inbox view, and the badge.
@@ -37,6 +38,13 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
   const notifications = computed(() =>
     pageNotifications.value.map((item) => ({ ...item, is_read: isRead(item) }))
   )
+  // The bell popup is a separate, capped-at-load window that may grow past
+  // RECENT_PAGE_SIZE as live notifications arrive; the page list stays paged.
+  const recentRows = ref<InboxNotification[]>([])
+  const recentNotifications = computed(() =>
+    recentRows.value.map((item) => ({ ...item, is_read: isRead(item) }))
+  )
+  const hasLoadedRecent = ref(false)
   const hasMore = ref(false)
   const unreadCount = ref(0)
   const readRevision = ref(0)
@@ -45,6 +53,7 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
   const sessionGeneration = ref(0)
   let countGeneration = 0
   let generation = 0
+  let recentGeneration = 0
   let vaultId: string | null = null
   let status: ReadFilter = 'all'
   let offset = 0
@@ -85,6 +94,33 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
     },
     { context: 'Failed to load notifications' }
   )
+
+  const { run: runLoadRecent, isLoading: isRecentLoading } = useAsyncAction(
+    async () => {
+      hasLoadedRecent.value = true
+      const requestGeneration = ++recentGeneration
+      const capturedSession = currentSession()
+      const page = await notificationService.list(null, 'all', 0, RECENT_PAGE_SIZE)
+      if (requestGeneration !== recentGeneration || !ownsSession(capturedSession)) return []
+      rememberNotifications(page)
+      const loadedIds = new Set(page.map((item) => item.id))
+      recentRows.value = [...recentRows.value.filter((item) => !loadedIds.has(item.id)), ...page]
+      return page
+    },
+    { context: 'Failed to fetch notifications' }
+  )
+
+  /**
+   * Load the bell popup page and return it so the caller can run reconnect
+   * catch-up effects for events that arrived while the stream was paused.
+   */
+  const loadRecent = async (): Promise<InboxNotification[]> => (await runLoadRecent()) ?? []
+
+  const receiveNotification = (notification: InboxNotification) => {
+    rememberNotifications([notification])
+    if (recentRows.value.some((item) => item.id === notification.id)) return
+    recentRows.value = [notification, ...recentRows.value]
+  }
 
   const { run: refreshUnreadCount } = useAsyncAction(
     async () => {
@@ -174,19 +210,27 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
 
   watch(sessionGeneration, () => {
     generation++
+    recentGeneration++
     pageNotifications.value = []
+    recentRows.value = []
     readStates.value.clear()
     hasMore.value = false
     unreadCount.value = 0
     offset = 0
     if (auth.isAuthenticated) {
       if (hasLoaded) void load(vaultId, status)
+      if (hasLoadedRecent.value) void loadRecent()
       if (hasRequestedCount) void refreshUnreadCount()
     }
   })
 
   return {
     notifications,
+    recentNotifications,
+    hasLoadedRecent,
+    isRecentLoading,
+    loadRecent,
+    receiveNotification,
     hasMore,
     unreadCount,
     isLoading,

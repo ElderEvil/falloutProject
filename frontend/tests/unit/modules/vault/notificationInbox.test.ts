@@ -378,3 +378,147 @@ describe('notification inbox', () => {
     expect(store.isRead(arrival)).toBe(false)
   })
 })
+
+describe('notification bell popup state', () => {
+  it('loads and returns the twenty most recent notifications across all vaults', async () => {
+    const store = useNotificationInboxStore()
+    vi.mocked(axios.get).mockResolvedValueOnce({
+      data: [notification('newest'), notification('older')],
+    })
+
+    const page = await store.loadRecent()
+
+    expect(axios.get).toHaveBeenCalledWith('/api/v1/notifications/', {
+      params: { vault_id: undefined, is_read: undefined, offset: 0, limit: 20 },
+    })
+    expect(page.map((item) => item.id)).toEqual(['newest', 'older'])
+    expect(store.recentNotifications.map((item) => item.id)).toEqual(['newest', 'older'])
+    expect(store.hasLoadedRecent).toBe(true)
+    expect(store.isRecentLoading).toBe(false)
+  })
+
+  it('merges a reload deduped by id without moving live arrivals off the page', async () => {
+    const store = useNotificationInboxStore()
+    store.receiveNotification(notification('live'))
+    vi.mocked(axios.get).mockResolvedValueOnce({
+      data: [notification('page-1'), notification('live', true)],
+    })
+
+    await store.loadRecent()
+
+    expect(store.recentNotifications.map((item) => item.id)).toEqual(['page-1', 'live'])
+  })
+
+  it('prepends live arrivals only once and never caps the bell list', async () => {
+    const store = useNotificationInboxStore()
+    for (let index = 0; index < 25; index++) {
+      store.receiveNotification(notification(`live-${index}`))
+    }
+    store.receiveNotification(notification('live-0'))
+
+    expect(store.recentNotifications).toHaveLength(25)
+    expect(store.recentNotifications[0]?.id).toBe('live-24')
+    expect(store.recentNotifications.filter((item) => item.id === 'live-0')).toHaveLength(1)
+  })
+
+  it('applies the shared read overlay to bell rows', async () => {
+    const store = useNotificationInboxStore()
+    const item = notification('one')
+    vi.mocked(axios.get).mockResolvedValueOnce({ data: [item] })
+    await store.loadRecent()
+    expect(store.recentNotifications[0]?.is_read).toBe(false)
+
+    store.markReadOnOpen(item)
+
+    expect(store.recentNotifications[0]?.is_read).toBe(true)
+  })
+
+  it('clears and reloads the bell list after an account switch', async () => {
+    const auth = useAuthStore()
+    auth.token = 'first-session'
+    auth.user = { id: 'user-a' } as NonNullable<typeof auth.user>
+    const store = useNotificationInboxStore()
+    vi.mocked(axios.get).mockResolvedValueOnce({ data: [notification('first')] })
+    await store.loadRecent()
+
+    vi.mocked(axios.get).mockResolvedValueOnce({ data: [notification('second')] })
+    auth.user = { id: 'user-b' } as NonNullable<typeof auth.user>
+    await flushPromises()
+
+    expect(store.recentNotifications.map((item) => item.id)).toEqual(['second'])
+  })
+
+  it('clears the bell list on logout', async () => {
+    const auth = useAuthStore()
+    auth.token = 'signed-in'
+    const store = useNotificationInboxStore()
+    vi.mocked(axios.get).mockResolvedValueOnce({ data: [notification('private')] })
+    await store.loadRecent()
+
+    auth.token = null
+    await flushPromises()
+
+    expect(store.recentNotifications).toEqual([])
+  })
+
+  it('keeps an in-flight bell load alive when the page reloads', async () => {
+    const store = useNotificationInboxStore()
+    let finishRecent!: (value: { data: ReturnType<typeof notification>[] }) => void
+    vi.mocked(axios.get)
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finishRecent = resolve
+        })
+      )
+      .mockResolvedValueOnce({ data: [notification('page')] })
+
+    const recentPending = store.loadRecent()
+    await store.load('vault-a', 'all')
+    finishRecent({ data: [notification('recent')] })
+    await recentPending
+
+    expect(store.recentNotifications.map((item) => item.id)).toEqual(['recent'])
+    expect(store.notifications.map((item) => item.id)).toEqual(['page'])
+  })
+
+  it('keeps an in-flight page load alive when the bell reloads', async () => {
+    const store = useNotificationInboxStore()
+    let finishPage!: (value: { data: ReturnType<typeof notification>[] }) => void
+    vi.mocked(axios.get)
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finishPage = resolve
+        })
+      )
+      .mockResolvedValueOnce({ data: [notification('recent')] })
+
+    const pagePending = store.load('vault-a', 'all')
+    await store.loadRecent()
+    finishPage({ data: [notification('page')] })
+    await pagePending
+
+    expect(store.notifications.map((item) => item.id)).toEqual(['page'])
+    expect(store.recentNotifications.map((item) => item.id)).toEqual(['recent'])
+  })
+
+  it('discards a bell load that resolves after the account changed', async () => {
+    const auth = useAuthStore()
+    auth.token = 'signed-in'
+    auth.user = { id: 'user-a' } as NonNullable<typeof auth.user>
+    const store = useNotificationInboxStore()
+    let finish!: (value: { data: ReturnType<typeof notification>[] }) => void
+    vi.mocked(axios.get).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve
+      })
+    )
+
+    const pending = store.loadRecent()
+    auth.user = { id: 'user-b' } as NonNullable<typeof auth.user>
+    await flushPromises()
+    finish({ data: [notification('private-a')] })
+
+    expect(await pending).toEqual([])
+    expect(store.recentNotifications).toEqual([])
+  })
+})

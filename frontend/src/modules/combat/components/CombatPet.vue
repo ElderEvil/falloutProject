@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { PawPrint } from '@lucide/vue'
+import { isFlyingPet } from '@/modules/pets/models/pet'
 import { getStaticImageUrl } from '@/core/utils/image'
 import { useFallbackImage } from '@/modules/rooms/composables/useFallbackImage'
 import type { components } from '@/core/types/api.generated'
@@ -15,17 +16,18 @@ const props = defineProps<{
   action?: PlayingCombatAction | null
   phase?: 'prepare' | 'impact' | null
 }>()
+const flying = computed(() => isFlyingPet(props.pet))
 const label = computed(() => `${props.pet.name}, ${props.ownerName}’s pet`)
 const { url, onError } = useFallbackImage(() => [getStaticImageUrl(props.pet.image_url)])
 </script>
 
 <template>
   <div
-    class="combat-pet pointer-events-none absolute bottom-0 z-10 aspect-[3/2] h-[35%]"
-    :class="facing === 'left' ? 'right-0' : 'left-0'"
+    class="combat-pet pointer-events-none absolute z-10 aspect-[3/2] h-[35%]"
+    :class="[facing === 'left' ? 'right-0' : 'left-0', flying ? 'bottom-[40%]' : 'bottom-0']"
   >
     <CombatantMotion
-      class="actor-ground-shadow"
+      :class="{ 'actor-ground-shadow': !flying }"
       :fighter-id="ownerId ?? ''"
       :facing="facing"
       :action="action"

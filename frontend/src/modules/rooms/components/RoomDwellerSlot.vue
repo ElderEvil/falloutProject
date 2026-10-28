@@ -57,20 +57,17 @@ const activate = () => {
 
 <template>
   <div
-    class="dweller-sprite-slot dweller-sprite-slot-lg"
+    class="dweller-sprite-slot dweller-sprite-slot-lg shrink-0"
     role="group"
     :aria-label="`${label} slot`"
     :class="{
       'slot-filled': dweller,
-      'aspect-[17/12]! justify-end!': dweller?.pet,
       'apprentice-slot': kind === 'apprentice',
       'client-slot': kind === 'client',
       'selection-slot': selectionMode,
     }"
   >
-    <div
-      class="scene-occupant min-w-0 [&>.combat-pet]:right-full [&>.combat-pet]:left-auto [&>.combat-pet]:z-2 [&>.combat-pet]:aspect-[3/2] [&>.combat-pet]:h-1/2 [&>.combat-pet]:w-auto"
-    >
+    <div class="scene-occupant min-w-0 [&>.combat-pet]:z-2">
       <DwellerNameBadge v-if="dweller" :name="dweller.first_name" :full-name="name" />
       <span v-else-if="selectionMode" class="h-4" aria-hidden="true" />
       <!-- @vue-ignore -->
@@ -165,7 +162,7 @@ const activate = () => {
 
 /* The preview band owns this slot's height; the slot only fills it. */
 .dweller-sprite-slot {
-  height: min(100%, var(--occupant-max-height, 100%));
+  height: 100%;
   aspect-ratio: var(--portrait-frame-aspect, 2 / 3);
   align-items: flex-end;
 }

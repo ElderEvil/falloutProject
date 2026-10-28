@@ -39,7 +39,13 @@
                 last_name: 'Worker',
                 thumbnail_url: samplePortrait,
                 ...(samplePet
-                  ? { pet: { id: 'pet-1', name: 'Dogmeat', image_url: samplePet } }
+                  ? {
+                      pet: {
+                        id: 'pet-1',
+                        name: params.has('flying') ? 'Polly' : 'Dogmeat',
+                        image_url: samplePet,
+                      },
+                    }
                   : {}),
               },
               {
@@ -56,6 +62,7 @@
           ...assignedDwellers.value[0],
           id: `worker-${i}`,
           first_name: `Worker${i}`,
+          ...(params.has('onepet') && i > 0 ? { pet: undefined } : {}),
         }))
       }
       const mounted = ref(true)

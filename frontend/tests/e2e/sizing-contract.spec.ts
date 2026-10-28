@@ -124,11 +124,7 @@ async function samplesForMount(page: Page, mount: number): Promise<FrameSample[]
  * Assert the painted frames never disagree with the settled geometry.
  * `expectedFrameRatio` pins the settled aspect when the test knows it.
  */
-function expectStableFrame(
-  samples: FrameSample[],
-  expectedFrameRatio?: number,
-  slotAspect = 2 / 3
-): void {
+function expectStableFrame(samples: FrameSample[], expectedFrameRatio?: number): void {
   expect(samples.length).toBeGreaterThan(2)
 
   // The occupant band is 44.6% of the frame; a first frame that paints three
@@ -139,7 +135,7 @@ function expectStableFrame(
   expect(Math.max(...occupantRatios) - Math.min(...occupantRatios)).toBeLessThanOrEqual(0.02)
 
   for (const sample of samples) {
-    expect(sample.slotW / sample.slotH).toBeCloseTo(slotAspect, 1)
+    expect(sample.slotW / sample.slotH).toBeCloseTo(2 / 3, 1)
     expect(sample.occupantW / sample.occupantH).toBeCloseTo(2 / 3, 1)
     expect(sample.occupantH).toBeLessThanOrEqual(sample.slotH + 1)
   }
@@ -247,8 +243,8 @@ test('full pet rooms keep stable actor sizes from the first painted frame', asyn
     `${PREVIEW}?room=${encodeURIComponent(ROOM_IMAGE)}&pet=1&full=1&portrait=1&reveal=1&reopen=1`
   )
   await expect(page.locator('.combat-pet')).toHaveCount(6)
-  expectStableFrame(await samplesForMount(page, 1), 3, 17 / 12)
+  expectStableFrame(await samplesForMount(page, 1), 3)
   await resetSamples(page)
   await page.getByRole('button', { name: 'Reopen preview' }).click()
-  expectStableFrame(await samplesForMount(page, 2), 3, 17 / 12)
+  expectStableFrame(await samplesForMount(page, 2), 3)
 })

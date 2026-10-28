@@ -126,7 +126,7 @@ function selectScene(value: unknown): void {
 </script>
 
 <template>
-  <main class="mx-auto flex max-w-4xl flex-col gap-6 p-4 font-mono text-theme-primary sm:py-8">
+  <div class="mx-auto flex max-w-4xl flex-col gap-6 p-4 font-mono text-theme-primary sm:py-8">
     <header class="flex flex-col gap-3 border-b border-theme-primary/30 pb-4">
       <RouterLink to="/dev" class="w-fit text-sm text-theme-primary underline underline-offset-4">
         Back to development tools
@@ -202,5 +202,5 @@ function selectScene(value: unknown): void {
         <Button class="w-full" size="lg" @click="combatOpen = false">Close preview</Button>
       </template>
     </ExpeditionSiteModal>
-  </main>
+  </div>
 </template>

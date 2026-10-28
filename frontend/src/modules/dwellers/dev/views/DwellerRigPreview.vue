@@ -80,7 +80,7 @@ function reset() {
 </script>
 
 <template>
-  <main class="mx-auto max-w-7xl space-y-6 px-5 py-8 text-theme-primary sm:px-8">
+  <div class="mx-auto max-w-7xl space-y-6 px-5 py-8 text-theme-primary sm:px-8">
     <header class="flex flex-wrap items-end justify-between gap-4 border-b border-theme-glow pb-5">
       <div class="space-y-2">
         <RouterLink to="/dev" class="text-xs text-theme-primary/60 hover:text-theme-primary"
@@ -301,5 +301,5 @@ function reset() {
         Reduced motion detected. Playback starts only when you press Play.
       </p>
     </section>
-  </main>
+  </div>
 </template>

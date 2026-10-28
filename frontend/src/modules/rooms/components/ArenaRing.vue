@@ -222,7 +222,10 @@ const actionFor = (fighter: ArenaFighter) => {
             />
             <CombatantMeters
               class="fighter-meters max-w-32"
-              :class="{ 'opacity-40 grayscale': fighter.health <= 0 }"
+              :class="[
+                getCreatureHoverClass(creatureKeyOf(fighter.id)),
+                { 'opacity-40 grayscale': fighter.health <= 0 },
+              ]"
               :name="fighter.name"
               :health="fighter.health"
               :max-health="fighter.max_health"
@@ -234,7 +237,10 @@ const actionFor = (fighter: ArenaFighter) => {
               class="fighter-portrait relative flex shrink-0 items-end justify-center"
               :class="actorSizeClass(fighter)"
             >
-              <div class="absolute inset-x-0 top-1/3 z-20 flex flex-wrap justify-center gap-1">
+              <div
+                class="absolute inset-x-0 top-1/3 z-20 flex flex-wrap justify-center gap-1"
+                :class="getCreatureHoverClass(creatureKeyOf(fighter.id))"
+              >
                 <Tooltip
                   v-for="ready in readySkills.filter((entry) => entry.targetId === fighter.id)"
                   :key="ready.fighter.id"

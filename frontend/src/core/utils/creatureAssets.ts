@@ -99,10 +99,11 @@ export const getActorModelSizeClass = (scale: number): string =>
 export const getCreatureModelSizeClass = (key: string): string =>
   getActorModelSizeClass(getCreatureAsset(key)?.modelScale ?? 1)
 
-/** Lift artwork without moving its slot, meters, or floor shadow. */
+/** Lift airborne artwork and its controls while leaving slots and floor shadows in place. */
 export const getCreatureHoverClass = (key: string): string | undefined => {
   const creature = getCreatureAsset(key)?.key
-  if (creature === 'bloatfly') return '-translate-y-[20%]'
-  if (creature === 'eyebot' || creature === 'mr-handy') return '-translate-y-[6%]'
+  if (creature === 'bloatfly') return '-translate-y-[calc(var(--scene-actor-height,7rem)*0.1)]'
+  if (creature === 'eyebot' || creature === 'mr-handy')
+    return '-translate-y-[calc(var(--scene-actor-height,7rem)*0.2)]'
   return undefined
 }

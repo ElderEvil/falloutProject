@@ -275,8 +275,8 @@ test('team B portrait faces inward while its skill control stays upright', async
 
 for (const [creature, lift] of [
   ['bloatfly', 0.2],
-  ['training-eyebot', 0.06],
-  ['training-mr-handy', 0.06],
+  ['training-eyebot', 0.2 / 0.7],
+  ['training-mr-handy', 0.2],
   ['deathclaw', 0],
 ] as const) {
   test(`${creature} floats at its intended height while its shadow stays on the floor`, async ({
@@ -293,9 +293,15 @@ for (const [creature, lift] of [
       return {
         lift: (frame.bottom - image.bottom) / frame.height,
         shadowBottom: getComputedStyle(element, '::before').bottom,
+        imageTop: image.top,
+        metersBottom: element
+          .closest('.ring-fighter')!
+          .querySelector('.fighter-meters')!
+          .getBoundingClientRect().bottom,
       }
     })
     expect(geometry.lift).toBeCloseTo(lift, 2)
     expect(geometry.shadowBottom).toBe('0px')
+    expect(geometry.metersBottom).toBeLessThanOrEqual(geometry.imageTop + 0.1)
   })
 }

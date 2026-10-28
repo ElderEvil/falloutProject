@@ -221,6 +221,7 @@ const modeLabel = computed(
           >
             <template v-if="fighter">
               <CombatantMeters
+                :class="getCreatureHoverClass(creatureKeyOf(fighter.id))"
                 :name="fighter.name"
                 :health="fighter.health"
                 :max-health="fighter.max_health"

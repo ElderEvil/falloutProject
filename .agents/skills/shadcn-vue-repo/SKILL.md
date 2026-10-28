@@ -1,6 +1,6 @@
 ---
 name: shadcn-vue-repo
-description: Repo overlay for shadcn-vue — the Fallout CRT token bridge, alias layout, Vite+/pnpm constraints, cn()/tailwind-merge config, and the migration rules for replacing the U* primitives. Complements the upstream `shadcn-vue` skill (generic CLI/registry/component knowledge). Use when adding a shadcn-vue component, migrating a U* primitive, wiring cn()/tailwind-merge, or touching the shadcn variable layer in tailwind.css.
+description: Repo overlay for shadcn-vue — the Fallout CRT token bridge, alias layout, Vite+/pnpm constraints, cn()/tailwind-merge config, and the rules of the completed U*→shadcn-vue migration. Complements the upstream `shadcn-vue` skill (generic CLI/registry/component knowledge). Use when adding a shadcn-vue component, adjusting a vendored primitive, wiring cn()/tailwind-merge, or touching the shadcn variable layer in tailwind.css.
 ---
 
 # shadcn-vue — repo overlay

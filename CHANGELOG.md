@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.279.0 (2026-10-28)
+
+### Features
+
+* **dev:** show exotic pets in asset gallery 9b49d11
+* **pets:** add baby deathclaw and yao guai cub 5cb5b71
+* **rooms:** show equipped pets in room renders aa5e90c
+* **vault:** seed exotic pets in boosted storage 78ba5a7
+
+### Bug Fixes
+
+* **pets:** face baby deathclaw and yao guai cub right 7ccc998
+* **pets:** match exotic sprite extensions to WebP encoding 22ddaee
+* **rooms:** keep pet companions visible and accessible 8567399
+* **rooms:** place the incident threat count above the threat 47c69d2
+
 ## 2.278.1 (2026-10-27)
 
 ### Bug Fixes

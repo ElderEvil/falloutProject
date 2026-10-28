@@ -74,6 +74,16 @@ const router = createRouter({
             component: () => import('@/core/views/AnimationGalleryView.vue'),
           },
           {
+            path: '/dev/dweller-motion-lab',
+            name: 'dweller-motion-lab',
+            meta: {
+              devTitle: 'Dweller motion lab',
+              devDescription:
+                'Compare Rigby2D views, equipment, body profiles, and crowd playback.',
+            },
+            component: () => import('@/modules/dwellers/dev/views/RigbyStudyPreview.vue'),
+          },
+          {
             path: '/dev/dweller-rig',
             name: 'dweller-rig-preview',
             meta: {

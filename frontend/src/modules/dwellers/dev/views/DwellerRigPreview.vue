@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useDocumentVisibility, usePreferredReducedMotion, useRafFn } from '@vueuse/core'
 import { Button } from '@/core/components/ui/button'
+import { Input } from '@/core/components/ui/input'
 import { Slider } from '@/core/components/ui/slider'
 import {
   Select,
@@ -42,9 +43,9 @@ const part = computed(() => sprites.value[selected.value] ?? joint.value.sprite)
 const placementJson = computed(() => JSON.stringify(sprites.value, null, 2))
 const frameFields = ['X offset', 'Y offset', 'Width', 'Height'] as const
 
-function setPartNumber(event: Event, field: number | 'rotation') {
-  const input = event.target as HTMLInputElement
-  const value = input.valueAsNumber
+function setPartNumber(raw: string, field: number | 'rotation') {
+  if (raw === '') return
+  const value = Number(raw)
   if (!Number.isFinite(value) || (typeof field === 'number' && field >= 2 && value <= 0)) return
   const sprite = { ...part.value, frame: [...part.value.frame] as [number, number, number, number] }
   if (field === 'rotation') sprite.rotation = value
@@ -335,25 +336,22 @@ function reset() {
             <div class="grid grid-cols-2 gap-3">
               <label v-for="(label, index) in frameFields" :key="label" class="space-y-1 text-xs">
                 <span>{{ label }}</span>
-                <input
+                <Input
                   type="number"
-                  :aria-label="label"
-                  :value="part.frame[index]"
-                  :min="index >= 2 ? 0.1 : undefined"
-                  step="0.5"
+                  v-bind="{ 'aria-label': label, min: index >= 2 ? 0.1 : undefined, step: 0.5 }"
+                  :model-value="String(part.frame[index])"
                   class="w-full rounded border border-theme-glow bg-surface-sunken p-2 text-theme-primary"
-                  @input="setPartNumber($event, index)"
+                  @update:model-value="setPartNumber($event, index)"
                 />
               </label>
               <label class="col-span-2 space-y-1 text-xs">
                 <span>Part rotation (degrees)</span>
-                <input
+                <Input
                   type="number"
-                  aria-label="Part rotation"
-                  :value="part.rotation ?? 0"
-                  step="1"
+                  v-bind="{ 'aria-label': 'Part rotation', step: 1 }"
+                  :model-value="String(part.rotation ?? 0)"
                   class="w-full rounded border border-theme-glow bg-surface-sunken p-2 text-theme-primary"
-                  @input="setPartNumber($event, 'rotation')"
+                  @update:model-value="setPartNumber($event, 'rotation')"
                 />
               </label>
             </div>

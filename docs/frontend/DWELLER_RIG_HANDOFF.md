@@ -247,3 +247,10 @@ and playback are disabled during editing; moving a piece does not move its joint
 Selection handles render above the reference overlay. Draft/export lifetime is unchanged.
 Validation: all 17 browser checks pass, including direct selection, drag, resize, flip and mirrored
 movement; frontend lint and typecheck pass.
+
+## Rigby2D lab alongside this rig
+
+The other worktree's Rigby2D study is now also copied into this checkout. Open
+`/dev/dweller-motion-lab` on the same frontend server, or choose it from `/dev`. It remains a
+separate DEV-gated preview with its own renderer, assets, controls and tests. The SVG rig and its
+manual placement editor remain at `/dev/dweller-rig`. See `DWELLER_MOTION_LAB.md` for details.

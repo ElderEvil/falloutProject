@@ -52,15 +52,15 @@ function ditherOffset(x: number, y: number): number {
   return ((h & 0xff) / 255 - 0.5) * 2 * DITHER_RANGE
 }
 
-function tokenColor(styles: CSSStyleDeclaration, name: string, fallback: string): string {
-  return styles.getPropertyValue(name).trim() || fallback
+function tokenColor(styles: CSSStyleDeclaration, name: string): string {
+  return styles.getPropertyValue(name).trim()
 }
 
 function resolveTerrainColors(): Record<TerrainType, string> {
   const styles = getComputedStyle(document.documentElement)
   const colors = {} as Record<TerrainType, string>
   for (const terrain of ATLAS_TERRAIN_ORDER) {
-    colors[terrain] = tokenColor(styles, ATLAS_TERRAIN_VAR[terrain], '#000000')
+    colors[terrain] = tokenColor(styles, ATLAS_TERRAIN_VAR[terrain]) || '#000000'
   }
   return colors
 }
@@ -125,13 +125,16 @@ function renderTerrain(): void {
   const scale = canvas.width / MAP_UNITS
   const bleed = (MAP_UNITS / width) * MASK_BLEED
   const riverRects = maskToRects(props.rivers, width)
-  if (riverRects.length > 0) {
-    paintMaskRects(ctx, riverRects, scale, tokenColor(styles, RIVER_FILL_VAR, '#253440'), bleed)
+  const riverFill = tokenColor(styles, RIVER_FILL_VAR)
+  if (riverRects.length > 0 && riverFill) {
+    paintMaskRects(ctx, riverRects, scale, riverFill, bleed)
   }
   const roadRects = maskToRects(props.roads, width)
   if (roadRects.length > 0) {
-    paintMaskRects(ctx, roadRects, scale, tokenColor(styles, ROAD_CASING_VAR, '#241f12'), bleed)
-    paintMaskRects(ctx, roadRects, scale, tokenColor(styles, ROAD_FILL_VAR, '#e6c886'), 0)
+    const casing = tokenColor(styles, ROAD_CASING_VAR)
+    const fill = tokenColor(styles, ROAD_FILL_VAR)
+    if (casing) paintMaskRects(ctx, roadRects, scale, casing, bleed)
+    if (fill) paintMaskRects(ctx, roadRects, scale, fill, 0)
   }
 
   const image = ctx.getImageData(0, 0, canvas.width, canvas.height)

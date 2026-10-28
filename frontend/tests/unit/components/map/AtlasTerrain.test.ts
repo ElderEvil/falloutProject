@@ -29,6 +29,19 @@ describe('AtlasTerrain', () => {
     return ctx
   }
 
+  // The component reads mask colors from design tokens; jsdom has no stylesheet,
+  // so supply the token values the canvas would resolve in the browser.
+  function stubMaskTokens() {
+    const tokens: Record<string, string> = {
+      '--color-terrain-road': '#e6c886',
+      '--color-terrain-road-casing': '#241f12',
+      '--color-terrain-water': '#253440',
+    }
+    vi.spyOn(window, 'getComputedStyle').mockImplementation(
+      () => ({ getPropertyValue: (name: string) => tokens[name] ?? '' }) as CSSStyleDeclaration,
+    )
+  }
+
   function snapshot(terrain: string[]) {
     return {
       world_id: 'wasteland-atlas',
@@ -60,6 +73,7 @@ describe('AtlasTerrain', () => {
     const store = useMapStore()
     store.worldSnapshot = snapshot(new Array(16).fill('wasteland'))
     const ctx = stubCanvas()
+    stubMaskTokens()
 
     mount(AtlasTerrain, { props: { roads: [0], rivers: [15] } })
     await flushPromises()

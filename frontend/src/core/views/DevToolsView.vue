@@ -6,7 +6,12 @@ const router = useRouter()
 const menus = computed(() =>
   router
     .getRoutes()
-    .filter((route) => route.path.startsWith('/dev/') && typeof route.meta.devTitle === 'string')
+    .filter(
+      (route) =>
+        route.path.startsWith('/dev/') &&
+        !route.aliasOf &&
+        typeof route.meta.devTitle === 'string'
+    )
     .map((route) => ({
       path: route.path,
       title: String(route.meta.devTitle),

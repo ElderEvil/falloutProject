@@ -102,10 +102,14 @@ test('plays each additional Vault Boy gesture once and holds its final pose', as
 test('dev index lists all menus without gallery cross-links', async ({ page }) => {
   await page.goto('/dev/')
   const menus = page.getByRole('navigation', { name: 'Development menus' })
-  await expect(menus.getByRole('link')).toHaveCount(4)
+  await expect(menus.getByRole('link')).toHaveCount(5)
   await expect(menus.getByRole('link', { name: /Wasteland scenes/ })).toHaveAttribute(
     'href',
     '/dev/wasteland-scenes'
+  )
+  await expect(menus.getByRole('link', { name: /Map designs/ })).toHaveAttribute(
+    'href',
+    '/dev/map-designs'
   )
   await expect(menus.getByRole('link', { name: /UI catalog/ })).toHaveAttribute(
     'href',

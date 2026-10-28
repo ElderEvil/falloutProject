@@ -6,14 +6,17 @@ the query string before the connection is accepted/registered, so a failed
 auth causes the WebSocket handshake to be rejected (close before accept).
 """
 
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
+import jwt
 import pytest
 from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
+from app.core.config import settings
 from app.core.security import create_access_token
 from app.schemas.chat import ChatStreamError, ChatStreamToken
 from main import app
@@ -65,6 +68,20 @@ class TestChatWebSocketAuth:
         with (
             pytest.raises(WebSocketDisconnect) as exc,
             ws_client.websocket_connect(f"/api/v1/ws/chat/{path_user_id}/{uuid4()}?token={token}"),
+        ):
+            pass
+        assert exc.value.code == 4008
+
+    @pytest.mark.parametrize("purpose", ["refresh", "email_verification", "password_reset", None])
+    def test_non_access_tokens_rejected_before_connect(self, ws_client: TestClient, purpose: str | None) -> None:
+        user_id = uuid4()
+        payload = {"sub": str(user_id), "exp": datetime.now(UTC) + timedelta(minutes=5)}
+        if purpose is not None:
+            payload["type"] = purpose
+        token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+        with (
+            pytest.raises(WebSocketDisconnect) as exc,
+            ws_client.websocket_connect(f"/api/v1/ws/chat/{user_id}/{uuid4()}?token={token}"),
         ):
             pass
         assert exc.value.code == 4008

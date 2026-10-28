@@ -6,6 +6,8 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.api.deps import get_current_user
+from app.core import security
 from app.core.config import settings
 from app.schemas.user import UserCreate
 from app.services.oauth_service import OAuthService
@@ -150,7 +152,8 @@ async def test_handoff_is_single_use_and_browser_bound(redis_client, async_sessi
 
     code = await service.create_handoff(user.id, "browser-a", redis_client)
     token = await service.redeem_handoff(code, "browser-a", async_session, redis_client)
-    assert token.access_token
+    assert (await get_current_user(async_session, token.access_token)).id == user.id
+    assert await security.verify_refresh_token(token.refresh_token, redis_client) == str(user.id)
     with pytest.raises(OAuthFlowError):
         await service.redeem_handoff(code, "browser-a", async_session, redis_client)
 

@@ -3,16 +3,16 @@
 from typing import Annotated
 from uuid import UUID
 
-import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt import InvalidTokenError as JWTError
-from pydantic import UUID4, ValidationError
+from pydantic import UUID4
 from redis.asyncio import Redis
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.config import settings
+from app.core.security import decode_token_subject
 from app.db.session import get_async_session
 from app.models.junk import Junk
 from app.models.outfit import Outfit
@@ -21,7 +21,6 @@ from app.models.user import User
 from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.schemas.pagination import NotificationPagination, OffsetPagination, Pagination, PetPagination
-from app.schemas.token import TokenPayload
 from app.services import access_service
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
 
@@ -66,14 +65,8 @@ async def get_current_user(
         HTTPException: 404 if user not found.
     """
     try:
-        payload = jwt.decode(
-            token,
-            settings.SECRET_KEY,
-            algorithms=[settings.ALGORITHM],
-        )
-        token_data = TokenPayload(**payload)
-        user_id = UUID(token_data.sub)
-    except (JWTError, ValidationError, ValueError, TypeError) as e:
+        user_id = UUID(decode_token_subject(token, "access"))
+    except JWTError as e:
         # A signed token with a missing or non-UUID subject is a credential
         # failure (401), not a server error.
         raise HTTPException(

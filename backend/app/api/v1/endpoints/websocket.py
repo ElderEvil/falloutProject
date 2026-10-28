@@ -4,7 +4,6 @@ import json
 import logging
 from typing import TYPE_CHECKING, cast
 
-import jwt
 from fastapi import APIRouter, WebSocket
 from jwt import InvalidTokenError as JWTError
 from pydantic import UUID4
@@ -14,7 +13,7 @@ if TYPE_CHECKING:
 
     from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.config import settings
+from app.core.security import decode_token_subject
 from app.crud.user import user as user_crud
 from app.db.session import async_session_maker
 from app.services.chat_service import chat_service
@@ -26,8 +25,7 @@ logger = logging.getLogger(__name__)
 
 def _decode_ws_token(token: str) -> str | None:
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        return payload.get("sub")
+        return decode_token_subject(token, "access")
     except JWTError:
         return None
 

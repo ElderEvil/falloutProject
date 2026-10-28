@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.279.1 (2026-10-28)
+
+### Bug Fixes
+
+* **auth:** enforce JWT token purposes across authentication flows 10ad6df
+
 ## 2.279.0 (2026-10-28)
 
 ### Features

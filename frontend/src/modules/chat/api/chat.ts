@@ -43,9 +43,10 @@ export const chatApi = {
   ): Promise<DwellerVoiceChatResponse> {
     const formData = new FormData()
     formData.append('audio_file', audioFile, 'recording.webm')
-    // No explicit Content-Type: axios adds the multipart boundary itself.
+    // Override the shared JSON default; the browser adapter supplies the multipart boundary.
     return apiPost<DwellerVoiceChatResponse>(`/api/v1/chat/${dwellerId}/voice`, formData, {
       params: { return_audio: options.returnAudio ?? false },
+      headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
 }

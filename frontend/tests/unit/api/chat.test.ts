@@ -43,7 +43,7 @@ describe('chatApi', () => {
     )
   })
 
-  it('uploads voice audio as multipart without hand-setting the content type', async () => {
+  it('overrides the JSON default for multipart voice audio', async () => {
     const response = { transcription: 'hello', dweller_message_id: 'msg-3' }
     ;(axios.post as ReturnType<typeof vi.fn>).mockResolvedValue({ data: response })
     const audio = new Blob(['audio'], { type: 'audio/webm' })
@@ -54,7 +54,9 @@ describe('chatApi', () => {
     expect(url).toBe('/api/v1/chat/dweller-1/voice')
     expect(body).toBeInstanceOf(FormData)
     expect((body as FormData).get('audio_file')).toBeInstanceOf(File)
-    expect(config).toEqual({ params: { return_audio: false } })
-    expect(config).not.toHaveProperty('headers')
+    expect(config).toEqual({
+      params: { return_audio: false },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
   })
 })

@@ -12,6 +12,7 @@ import axios, { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig 
 import apiClient from '@/core/plugins/axios'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { apiGet } from '@/core/utils/api'
+import { chatApi } from '@/modules/chat/api/chat'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import * as toastModule from '@/core/composables/useToast'
 import {
@@ -611,3 +612,34 @@ describe('chat exploration notifications across UI and store', () => {
     expect(mockToast.error).not.toHaveBeenCalled()
   })
 })
+
+it.each([false, true])(
+  'preserves voice multipart through the real chat transport (returnAudio=%s)',
+  async (returnAudio) => {
+    const requests = captureRequests()
+    const audio = new Blob(['voice bytes'], { type: 'audio/webm' })
+
+    await chatApi.sendVoiceMessage('dweller-voice', audio, { returnAudio })
+
+    const request = requests[0]!
+    expect(request.url).toBe('/api/v1/chat/dweller-voice/voice')
+    expect(request.params).toEqual({ return_audio: returnAudio })
+    expect(request.headers.get('Content-Type')).toBe('multipart/form-data')
+    expect(request.data).toBeInstanceOf(FormData)
+    const file = (request.data as FormData).get('audio_file') as File
+    expect(file).toBeInstanceOf(File)
+    expect(file.name).toBe('recording.webm')
+    expect(file.type).toBe('audio/webm')
+    const content = await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = () => reject(reader.error)
+      reader.readAsText(file)
+    })
+    expect(content).toBe('voice bytes')
+
+    await chatApi.sendMessage('dweller-voice', 'hello')
+    expect(requests[1]!.headers.get('Content-Type')).toBe('application/json')
+    expect(requests[1]!.data).toBe(JSON.stringify({ message: 'hello' }))
+  }
+)

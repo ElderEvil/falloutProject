@@ -195,24 +195,18 @@ export function useChatActions(options: UseChatActionsOptions) {
 
     isPerformingAction.value = true
     try {
-      const progress = await explorationStore.fetchExplorationProgress(
-        action.exploration_id,
-        authStore.token
-      )
+      const progress = await explorationStore.fetchExplorationProgress(action.exploration_id)
 
       if (
         progress &&
         typeof progress.progress_percentage === 'number' &&
         progress.progress_percentage >= 100
       ) {
-        const result = await explorationStore.completeExploration(
-          action.exploration_id,
-          authStore.token
-        )
+        const result = await explorationStore.completeExploration(action.exploration_id)
         if (!result?.rewards_summary)
           toast.success(`${options.dwellerName}'s exploration completed!`)
       } else {
-        await explorationStore.recallDweller(action.exploration_id, authStore.token)
+        await explorationStore.recallDweller(action.exploration_id)
       }
 
       await dwellerStore.fetchDwellerDetails(options.dwellerId, authStore.token, true)

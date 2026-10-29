@@ -70,7 +70,7 @@ onMounted(async () => {
     // Ensure vault is loaded for medical supplies (idempotent shared action)
     await vaultStore.ensureVaultLoaded(vaultId.value, authStore.token)
     try {
-      await explorationStore.refreshActiveExplorations(vaultId.value, authStore.token)
+      await explorationStore.refreshActiveExplorations(vaultId.value)
 
       // Fetch full dweller data for explorers (includes weapon/outfit)
       for (const exploration of activeExplorationsArray.value) {
@@ -113,7 +113,7 @@ watch(
 const pollExplorations = async () => {
   if (!vaultId.value || !authStore.token || !explorationStore.activeExplorations) return
 
-  await explorationStore.refreshActiveExplorations(vaultId.value, authStore.token, {
+  await explorationStore.refreshActiveExplorations(vaultId.value, {
     silent: true,
   })
 

@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
-import axios from '@/core/plugins/axios'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { useSse } from '@/core/composables/useEventStream'
@@ -10,6 +9,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { explorationUpdatesDisabled } from '@/modules/profile/stores/profile'
 import {
   explorationApi,
+  type ExplorationCompleteResponse,
   type ExplorationPartyMember,
   type ExplorationSendRequest,
 } from '../api/exploration'
@@ -125,6 +125,15 @@ export interface PendingOverflow {
 
 /** Cadence for the shared active-exploration list refresh used by its list surfaces. */
 export const ACTIVE_EXPLORATIONS_REFRESH_MS = 15_000
+
+/** Read a 404 from either an `ApiError` (the boundary) or a raw axios error. */
+function isNotFoundError(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false
+  const status =
+    (err as { status?: number | null }).status ??
+    (err as { response?: { status?: number } }).response?.status
+  return status === 404
+}
 
 export const useExplorationStore = defineStore('exploration', () => {
   const toast = useToast()
@@ -320,7 +329,6 @@ export const useExplorationStore = defineStore('exploration', () => {
     vaultId: string,
     dwellerId: string,
     duration: number,
-    token: string,
     stimpaks: number = 0,
     radaways: number = 0,
     headingDegrees?: number
@@ -335,11 +343,11 @@ export const useExplorationStore = defineStore('exploration', () => {
         radaways,
       }
       if (headingDegrees !== undefined) body.heading_degrees = headingDegrees
-      const response = await axios.post(`/api/v1/explorations/send?vault_id=${vaultId}`, body, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const exploration = (await explorationApi.sendDwellerToWasteland(
+        vaultId,
+        body
+      )) as unknown as Exploration
 
-      const exploration = response.data
       explorations.value.push(exploration)
       activeExplorations.value[exploration.id] = exploration
 
@@ -362,11 +370,10 @@ export const useExplorationStore = defineStore('exploration', () => {
     isLoading.value = true
     error.value = null
     try {
-      const token = authStore.token
-      if (!token) throw new Error('Not authenticated')
+      if (!authStore.token) throw new Error('Not authenticated')
       // The generated schema types events/loot as loose records; the wire payload
       // is the same exploration shape the store already consumes everywhere.
-      const exploration = (await explorationApi.dispatchToLocation(token, vaultId, {
+      const exploration = (await explorationApi.dispatchToLocation(vaultId, {
         dwellerIds,
         locationId,
         stimpaks: supplies.stimpaks,
@@ -384,7 +391,6 @@ export const useExplorationStore = defineStore('exploration', () => {
   }
   async function fetchExplorationsByVault(
     vaultId: string,
-    token: string,
     activeOnly = true,
     silent = false
   ): Promise<Exploration[]> {
@@ -393,24 +399,24 @@ export const useExplorationStore = defineStore('exploration', () => {
       error.value = null
     }
     try {
-      const response = await axios.get(
-        `/api/v1/explorations/vault/${vaultId}?active_only=${activeOnly}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
+      const fetched = (await explorationApi.getExplorationsByVault(
+        vaultId,
+        activeOnly
+      )) as unknown as Exploration[]
 
-      explorations.value = response.data
+      explorations.value = fetched
       // Update active explorations map
       activeExplorations.value = {}
-      response.data
-        .filter((e: Exploration) => e.status === 'active' || e.status === 'returning')
-        .forEach((e: Exploration) => {
+      fetched
+        .filter((e) => e.status === 'active' || e.status === 'returning')
+        .forEach((e) => {
           activeExplorations.value[e.id] = e
         })
 
+      // Deliberate: a silent refresh that succeeds clears a stale error so the
+      // next poll can recover the UI. Do not guard this with `!silent`.
       error.value = null
-      return response.data
+      return fetched
     } catch (err) {
       if (!silent) {
         handleStoreError(err, 'Failed to fetch explorations')
@@ -449,71 +455,56 @@ export const useExplorationStore = defineStore('exploration', () => {
    */
   async function refreshActiveExplorations(
     vaultId: string,
-    token: string,
     options: { includeParties?: boolean; silent?: boolean } = {}
   ): Promise<Exploration[]> {
-    const active = await fetchExplorationsByVault(vaultId, token, true, options.silent ?? false)
+    const active = await fetchExplorationsByVault(vaultId, true, options.silent ?? false)
     if (options.includeParties) {
       await fetchPartiesForActiveExplorations(vaultId)
     }
     return active
   }
 
-  async function fetchExplorationDetails(
-    explorationId: string,
-    token: string
-  ): Promise<Exploration> {
+  async function fetchExplorationDetails(explorationId: string): Promise<Exploration> {
     try {
-      const response = await axios.get(`/api/v1/explorations/${explorationId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const exploration = (await explorationApi.getExploration(
+        explorationId
+      )) as unknown as Exploration
 
       // Update in explorations list, including direct links to completed runs
       // that are absent from the active-only collection.
-      upsertExploration(response.data)
+      upsertExploration(exploration)
 
-      return response.data
+      return exploration
     } catch (err) {
       handleStoreError(err, 'Failed to fetch exploration details')
       throw err
     }
   }
 
-  async function fetchExplorationProgress(
-    explorationId: string,
-    token: string
-  ): Promise<ExplorationProgress> {
+  async function fetchExplorationProgress(explorationId: string): Promise<ExplorationProgress> {
     try {
-      const response = await axios.get(`/api/v1/explorations/${explorationId}/progress`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-
-      return response.data as ExplorationProgress
+      return (await explorationApi.getExplorationProgress(
+        explorationId
+      )) as unknown as ExplorationProgress
     } catch (err) {
       handleStoreError(err, 'Failed to fetch exploration progress')
       throw err
     }
   }
 
-  async function recallDweller(explorationId: string, token: string): Promise<any> {
+  async function recallDweller(explorationId: string): Promise<ExplorationCompleteResponse> {
     isLoading.value = true
     error.value = null
     try {
-      const response = await axios.post(
-        `/api/v1/explorations/${explorationId}/recall`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
+      const response = await explorationApi.recallDweller(explorationId)
 
-      const { exploration, rewards_summary } = response.data
-      if (rewards_summary) lastRewards.value = rewards_summary
+      if (response.rewards_summary)
+        lastRewards.value = response.rewards_summary as unknown as RewardsSummary
 
-      upsertExploration(exploration)
+      upsertExploration(response.exploration as unknown as Exploration)
 
       toast.success('Dweller recalled — heading home')
-      return response.data
+      return response
     } catch (err) {
       handleStoreError(err, 'Failed to recall dweller')
       error.value = 'Failed to recall dweller'
@@ -523,25 +514,19 @@ export const useExplorationStore = defineStore('exploration', () => {
     }
   }
 
-  async function completeExploration(explorationId: string, token: string): Promise<any> {
+  async function completeExploration(explorationId: string): Promise<ExplorationCompleteResponse> {
     isLoading.value = true
     error.value = null
     try {
-      const response = await axios.post(
-        `/api/v1/explorations/${explorationId}/complete`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
+      const response = await explorationApi.completeExploration(explorationId)
 
-      const { exploration, rewards_summary } = response.data
-      if (rewards_summary) lastRewards.value = rewards_summary
+      if (response.rewards_summary)
+        lastRewards.value = response.rewards_summary as unknown as RewardsSummary
 
-      upsertExploration(exploration)
+      upsertExploration(response.exploration as unknown as Exploration)
 
-      if (rewards_summary) toast.success('Exploration completed successfully!')
-      return response.data
+      if (response.rewards_summary) toast.success('Exploration completed successfully!')
+      return response
     } catch (err) {
       handleStoreError(err, 'Failed to complete exploration')
       error.value = 'Failed to complete exploration'
@@ -558,34 +543,26 @@ export const useExplorationStore = defineStore('exploration', () => {
   async function resolveOverflowItem(
     explorationId: string,
     action: 'take' | 'sell',
-    index: number,
-    token: string
+    index: number
   ): Promise<OverflowResolution> {
     try {
-      const response = await axios.post(
-        `/api/v1/explorations/${explorationId}/overflow/${action}`,
-        { index },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          _skipErrorNotification: true,
-        }
-      )
-      return response.data as OverflowResolution
+      return (await explorationApi.resolveOverflowItem(
+        explorationId,
+        action,
+        index
+      )) as unknown as OverflowResolution
     } catch (err) {
       // Legacy reports are explained by the reward modal instead of a second error toast.
-      if ((err as { response?: { status?: number } } | null)?.response?.status !== 404) {
+      if (!isNotFoundError(err)) {
         handleStoreError(err, action === 'take' ? 'Could not take item' : 'Could not sell item')
       }
       throw err
     }
   }
 
-  async function fetchPendingOverflow(vaultId: string, token: string): Promise<PendingOverflow[]> {
+  async function fetchPendingOverflow(vaultId: string): Promise<PendingOverflow[]> {
     try {
-      const response = await axios.get(`/api/v1/explorations/vault/${vaultId}/pending-overflow`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      return response.data as PendingOverflow[]
+      return (await explorationApi.getPendingOverflow(vaultId)) as unknown as PendingOverflow[]
     } catch (err) {
       handleStoreError(err, 'Could not load pending exploration loot')
       throw err

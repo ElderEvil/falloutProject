@@ -57,12 +57,7 @@ export function useSendToWasteland(vaultId: () => string | null) {
     const token = ++suggestionToken
     isSuggestingHeading.value = true
     try {
-      const heading = await explorationApi.suggestHeading(
-        authStore.token,
-        vId,
-        crypto.randomUUID(),
-        duration
-      )
+      const heading = await explorationApi.suggestHeading(vId, crypto.randomUUID(), duration)
       if (token === suggestionToken) suggestedHeading.value = heading
     } catch {
       if (token === suggestionToken) suggestedHeading.value = null
@@ -135,7 +130,6 @@ export function useSendToWasteland(vaultId: () => string | null) {
         vId,
         dwellerId,
         payload.duration,
-        authStore.token,
         payload.stimpaks,
         payload.radaways,
         heading ?? undefined

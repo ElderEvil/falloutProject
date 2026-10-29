@@ -68,8 +68,7 @@ const resolveOverflow = async (action: 'take' | 'sell', index: number, notify = 
     const result = await explorationStore.resolveOverflowItem(
       resolvedExplorationId.value,
       action,
-      index,
-      authStore.token
+      index
     )
     unclaimed.value = result.unclaimed_loot
     emit('resolved')
@@ -79,7 +78,10 @@ const resolveOverflow = async (action: 'take' | 'sell', index: number, notify = 
       )
     return result
   } catch (error) {
-    if ((error as { response?: { status?: number } }).response?.status === 404) {
+    const status =
+      (error as { status?: number | null }).status ??
+      (error as { response?: { status?: number } }).response?.status
+    if (status === 404) {
       legacyOverflow.value = true
       toast.info('These items were left behind before overflow resolution was available')
       return undefined

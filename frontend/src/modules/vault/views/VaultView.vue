@@ -161,7 +161,7 @@ const loadVaultData = async (id: string) => {
 
     // Fetch explorations for this vault
     try {
-      await explorationStore.fetchExplorationsByVault(id, authStore.token)
+      await explorationStore.fetchExplorationsByVault(id)
     } catch (error) {
       toast.warning('Vault loaded, but explorations could not be loaded')
       // Don't fail the whole page load if explorations fail

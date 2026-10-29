@@ -167,7 +167,7 @@ const closeRewardsModal = async () => {
 
 const refreshExploration = async () => {
   if (explorationId.value && authStore.token) {
-    await explorationStore.fetchExplorationDetails(explorationId.value, authStore.token)
+    await explorationStore.fetchExplorationDetails(explorationId.value)
   }
 }
 
@@ -222,7 +222,7 @@ const initializeExplorer = async (id: string) => {
   siteContextId.value = null
   const isCurrent = () =>
     version === explorerLoadVersion && explorationId.value === id && authStore.token === token
-  await explorationStore.fetchExplorationDetails(id, token)
+  await explorationStore.fetchExplorationDetails(id)
   if (!isCurrent()) return
   if (exploration.value) {
     await dwellerStore.fetchDwellerDetails(exploration.value.dweller_id, token)
@@ -247,7 +247,7 @@ usePolling(refreshExploration, { interval: 10_000, immediate: false })
 onMounted(async () => {
   playMusic('exploration')
   if (vaultId.value && authStore.token) {
-    await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+    await explorationStore.fetchExplorationsByVault(vaultId.value)
 
     explorationStore.startSseSubscription(vaultId.value, authStore.token)
     await initializeExplorer(explorationId.value)

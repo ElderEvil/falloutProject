@@ -104,7 +104,7 @@ describe('ExplorationRewardsModal', () => {
     expect(wrapper.get('.collect-btn').text()).toContain('Resolve Later')
 
     await takeButtons[0]!.trigger('click')
-    expect(mockResolve).toHaveBeenCalledWith('exp-1', 'take', 0, 'test-token')
+    expect(mockResolve).toHaveBeenCalledWith('exp-1', 'take', 0)
     expect(wrapper.text()).not.toContain('Dropped A')
     expect(wrapper.text()).toContain('Dropped B')
     expect(wrapper.get('.collect-btn').text()).toContain('Resolve Later')
@@ -121,7 +121,7 @@ describe('ExplorationRewardsModal', () => {
       .filter((button) => button.text() === 'Sell')
 
     await sellButtons[0]!.trigger('click')
-    expect(mockResolve).toHaveBeenCalledWith('exp-1', 'sell', 0, 'test-token')
+    expect(mockResolve).toHaveBeenCalledWith('exp-1', 'sell', 0)
     expect(wrapper.text()).not.toContain('Dropped A')
   })
 
@@ -137,11 +137,23 @@ describe('ExplorationRewardsModal', () => {
       .find((button) => button.text() === 'Sell')!
       .trigger('click')
 
-    expect(mockResolve).toHaveBeenCalledWith('authoritative-exp', 'sell', 0, 'test-token')
+    expect(mockResolve).toHaveBeenCalledWith('authoritative-exp', 'sell', 0)
   })
 
   it('allows a legacy overflow report to close after the missing record is reported', async () => {
     mockResolve.mockRejectedValueOnce({ response: { status: 404 } })
+    const wrapper = mountModal()
+
+    await wrapper.findAll('.overflow-actions button')[0]!.trigger('click')
+
+    expect(wrapper.text()).toContain('This report predates overflow resolution')
+    expect(wrapper.get('.collect-btn').attributes('disabled')).toBeUndefined()
+    await wrapper.get('.collect-btn').trigger('click')
+    expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+
+  it('treats a top-level ApiError status as a legacy overflow report', async () => {
+    mockResolve.mockRejectedValueOnce({ status: 404 })
     const wrapper = mountModal()
 
     await wrapper.findAll('.overflow-actions button')[0]!.trigger('click')
@@ -174,8 +186,8 @@ describe('ExplorationRewardsModal', () => {
     await wrapper.get('.sell-all-btn').trigger('click')
     await flushPromises()
 
-    expect(mockResolve).toHaveBeenNthCalledWith(1, 'exp-1', 'sell', 0, 'test-token')
-    expect(mockResolve).toHaveBeenNthCalledWith(2, 'exp-1', 'sell', 0, 'test-token')
+    expect(mockResolve).toHaveBeenNthCalledWith(1, 'exp-1', 'sell', 0)
+    expect(mockResolve).toHaveBeenNthCalledWith(2, 'exp-1', 'sell', 0)
     expect(mockToast.success).toHaveBeenCalledTimes(1)
     expect(mockToast.success).toHaveBeenCalledWith('Sold 2 items for +50 caps')
     expect(wrapper.find('.sell-all-btn').exists()).toBe(false)

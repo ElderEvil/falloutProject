@@ -116,10 +116,7 @@ describe('WastelandPanel', () => {
 
       await flushPromises()
 
-      expect(explorationStore.refreshActiveExplorations).toHaveBeenCalledWith(
-        'test-vault-id',
-        'mock-token'
-      )
+      expect(explorationStore.refreshActiveExplorations).toHaveBeenCalledWith('test-vault-id')
       expect(usePolling).toHaveBeenLastCalledWith(expect.any(Function), {
         interval: ACTIVE_EXPLORATIONS_REFRESH_MS,
         immediate: false,

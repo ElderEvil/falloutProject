@@ -49,7 +49,7 @@ async function refresh(): Promise<void> {
   error.value = null
   try {
     const [, , items] = await Promise.all([
-      explorations.fetchExplorationsByVault(vaultId, token),
+      explorations.fetchExplorationsByVault(vaultId),
       dwellers.filter.fetchAllDwellers(vaultId, token, true),
       storageService.getStorageItems(vaultId),
     ])

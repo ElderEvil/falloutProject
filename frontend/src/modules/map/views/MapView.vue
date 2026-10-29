@@ -455,7 +455,7 @@ watch(
   () => {
     if (vaultId.value && authStore.token) {
       explorationStore
-        .fetchExplorationsByVault(vaultId.value, authStore.token)
+        .fetchExplorationsByVault(vaultId.value)
         .then(() => explorationStore.fetchPartiesForActiveExplorations(vaultId.value))
         .catch(() => {})
     }

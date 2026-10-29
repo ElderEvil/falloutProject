@@ -1,6 +1,6 @@
 # HTTP Client Consolidation Plan (Axios Boundary)
 
-Status: in progress — Batch 1 merged; chat/radio transport migrated 2026-10-28; remaining stores pending
+Status: in progress — Batch 1 merged; chat/radio and exploration transport migrated; remaining stores pending
 
 **Axios remains the supported transport.** This document defines the staged
 consolidation of frontend HTTP onto the shared API boundary in
@@ -41,7 +41,8 @@ store + SettingsView, and ai-settings service.
 | --- | --- | --- |
 | 2026-10-28 | Batch 1 boundary (`src/core/utils/api.ts`) | In tree and used by 20 `api/` and `services/` modules. |
 | 2026-10-28 | Chat + radio transport | `modules/chat/api/chat.ts` owns history, text and voice calls; `modules/radio/api/radio.ts` owns stats, mode and recruit. `DwellerChat.vue`, `useChatMessages.ts` and `useRadioRoom.ts` no longer import the axios plugin or build Bearer headers. |
-| Pending | Batches 2–4 | 11 Pinia stores still import `@/core/plugins/axios`: dwellers (5), exploration, progression/quest, rooms/room, social (2), vault. No views, components or composables remain. |
+| 2026-10-29 | Exploration transport | `modules/exploration/api/exploration.ts` owns dispatch, heading suggestion, send, list, detail, progress, recall, complete, overflow resolution and pending overflow. The exploration store no longer imports the axios plugin or threads a token; only its SSE subscription still passes a token. |
+| Pending | Batches 2–4 | 10 Pinia stores still import `@/core/plugins/axios`: dwellers (5), progression/quest, rooms/room, social (2), vault. No views, components or composables remain. `modules/exploration/api/expeditionSite.ts` still imports the plugin and belongs to a later slice. |
 
 ## Action notifications
 

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.279.7 (2026-10-29)
+
+### Bug Fixes
+
+* **incidents:** lengthen fire containment and make mid-tier threats tankier 046c74c, closes #1221
+* **incidents:** validate threat-health multipliers and correct pacing docs 451be54
+
 ## 2.279.6 (2026-10-29)
 
 ### Bug Fixes

@@ -144,10 +144,10 @@ watch(
     if (!lesson || !vaultId.value || !token) return
     if (lesson.id === 'orientation.housing') {
       if (roomStore.availableRooms.length === 0) {
-        void roomStore.fetchBuildableRooms(token, vaultId.value)
+        void roomStore.fetchBuildableRooms(vaultId.value)
       }
       if (roomStore.roomsLoadedVaultId !== vaultId.value) {
-        void roomStore.fetchRooms(vaultId.value, token)
+        void roomStore.fetchRooms(vaultId.value)
       }
     }
     if (

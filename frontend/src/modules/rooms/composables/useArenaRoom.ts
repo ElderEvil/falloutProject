@@ -129,7 +129,7 @@ export function useArenaRoom(vaultId: string, roomId: string) {
     if (!authStore.token) return
     const sequence = ++loadSequence
     const token = authStore.token
-    const loaded = await arenaStore.fetchState(vaultId, token, silent)
+    const loaded = await arenaStore.fetchState(vaultId, silent)
     if (disposed || sequence !== loadSequence || token !== authStore.token) return
     loadFailed.value = !loaded
     recordFeedback()
@@ -147,7 +147,7 @@ export function useArenaRoom(vaultId: string, roomId: string) {
       return
     pendingSkills.value.add(fighterId)
     try {
-      await arenaStore.queueSkill(vaultId, roomId, fighterId, authStore.token)
+      await arenaStore.queueSkill(vaultId, roomId, fighterId)
       if (!disposed) recordFeedback()
     } finally {
       pendingSkills.value.delete(fighterId)
@@ -162,7 +162,7 @@ export function useArenaRoom(vaultId: string, roomId: string) {
     selection?: import('../api/arena').ArenaFighterSelection
   ): Promise<boolean> => {
     if (!authStore.token) return false
-    const ok = await arenaStore.startFight(vaultId, roomId, authStore.token, selection)
+    const ok = await arenaStore.startFight(vaultId, roomId, selection)
     if (ok && !disposed) {
       resetDamageTracking()
       recordFeedback()
@@ -171,7 +171,7 @@ export function useArenaRoom(vaultId: string, roomId: string) {
   }
   const stopFight = async (): Promise<boolean> => {
     if (!authStore.token) return false
-    const ok = await arenaStore.stopFight(vaultId, roomId, authStore.token)
+    const ok = await arenaStore.stopFight(vaultId, roomId)
     if (ok && !disposed) {
       resetDamageTracking()
       recordFeedback()

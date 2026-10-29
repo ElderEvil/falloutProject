@@ -30,7 +30,7 @@ import {
   normalizeSkinTone,
   type BarbershopStatus,
 } from '../models/barbershop'
-import { changeBarbershopAppearance, fetchBarbershopStatus } from '../services/barbershopService'
+import { barbershopApi } from '../api/barbershop'
 
 const props = defineProps<{
   room: Room
@@ -289,7 +289,7 @@ async function loadStatus(): Promise<void> {
   if (!roomId || !authToken) return
   isLoadingStatus.value = true
   try {
-    const result = await fetchBarbershopStatus(roomId, authToken)
+    const result = await barbershopApi.getStatus(roomId)
     if (request !== statusRequest) return
     status.value = result
   } catch (error) {
@@ -461,12 +461,10 @@ async function handleSave(): Promise<void> {
   saving.value = true
   inlineError.value = null
   try {
-    const response = await changeBarbershopAppearance(
-      props.room.id,
-      dweller.id,
-      { skin_tone: skinTone.value, hair_color: hairColor.value },
-      token.value
-    )
+    const response = await barbershopApi.changeAppearance(props.room.id, dweller.id, {
+      skin_tone: skinTone.value,
+      hair_color: hairColor.value,
+    })
     if (version !== contextVersion) return
     filterStore.detailedDwellers[dweller.id] = response.dweller
     patchPortraitSnapshot(
@@ -648,9 +646,7 @@ async function handleRegenerate(): Promise<void> {
             </dd>
           </div>
           <div class="flex items-baseline gap-1">
-            <dt class="text-[0.6rem] tracking-wider text-theme-primary/60 uppercase">
-              Vault caps
-            </dt>
+            <dt class="text-[0.6rem] tracking-wider text-theme-primary/60 uppercase">Vault caps</dt>
             <!-- @vue-ignore -->
             <dd class="font-bold text-theme-primary" data-testid="barbershop-caps">
               {{ status?.vault_caps ?? '—' }}
@@ -869,7 +865,10 @@ async function handleRegenerate(): Promise<void> {
                 </span>
               </span>
               <!-- @vue-ignore -->
-              <span class="text-sm font-bold text-theme-primary" data-testid="barbershop-change-fee">
+              <span
+                class="text-sm font-bold text-theme-primary"
+                data-testid="barbershop-change-fee"
+              >
                 {{ changeFee }} caps
               </span>
             </div>

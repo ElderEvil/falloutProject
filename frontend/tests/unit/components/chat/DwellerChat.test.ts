@@ -1509,7 +1509,7 @@ describe('DwellerChat', () => {
       await confirmBtn.trigger('click')
       await flushPromises()
 
-      expect(mockFetchRooms).toHaveBeenCalledWith('vault-123', 'test-token')
+      expect(mockFetchRooms).toHaveBeenCalledWith('vault-123')
       expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'training-room-789', 'test-token')
       expect(trainingService.startTraining).toHaveBeenCalledWith(
         'dweller-123',

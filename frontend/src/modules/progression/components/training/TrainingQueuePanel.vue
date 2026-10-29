@@ -96,7 +96,7 @@ const fetchTrainings = async () => {
   await Promise.all([
     trainingStore.fetchVaultTrainings(vaultStore.activeVault.id, authStore.token),
     dwellerStore.fetchDwellersByVault(vaultStore.activeVault.id, authStore.token),
-    roomStore.fetchRooms(vaultStore.activeVault.id, authStore.token),
+    roomStore.fetchRooms(vaultStore.activeVault.id),
   ])
 }
 

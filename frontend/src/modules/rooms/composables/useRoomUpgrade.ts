@@ -97,7 +97,7 @@ export function useRoomUpgrade(
     actionError.value = null
 
     try {
-      await roomStore.upgradeRoom(room.value.id, token, vaultId)
+      await roomStore.upgradeRoom(room.value.id, vaultId)
 
       toast.success(`${roomName} upgraded to Tier ${nextTier}! (Cost: ${upgradeCost} caps)`, 5000)
 
@@ -146,7 +146,7 @@ export function useRoomUpgrade(
     isRemodeling.value = true
     actionError.value = null
     try {
-      await roomStore.remodelRoom(roomId, token, otherRoomId)
+      await roomStore.remodelRoom(roomId, otherRoomId)
       toast.success(otherRoomId ? 'Rooms merged.' : 'Room split into base segments.')
       emitRoomUpdated()
       emitClose()

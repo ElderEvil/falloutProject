@@ -42,7 +42,7 @@ watch(
   () => props.modelValue,
   async (isOpen) => {
     if (isOpen && authStore.token && props.dweller.vault) {
-      await roomStore.fetchRooms(props.dweller.vault.id, authStore.token)
+      await roomStore.fetchRooms(props.dweller.vault.id)
     }
   }
 )

@@ -38,15 +38,15 @@ const mockState: ArenaState = { rooms: [mockRoom] }
 describe('Arena Store', () => {
   it('queues an active skill and refreshes charge and journal state', async () => {
     const store = useArenaStore()
-    expect(await store.queueSkill('vault-1', 'room-1', 'fighter-1', 'token')).toBe(true)
-    expect(arenaApi.queueSkill).toHaveBeenCalledWith('vault-1', 'room-1', 'fighter-1', 'token')
+    expect(await store.queueSkill('vault-1', 'room-1', 'fighter-1')).toBe(true)
+    expect(arenaApi.queueSkill).toHaveBeenCalledWith('vault-1', 'room-1', 'fighter-1')
     expect(store.getRoom('room-1')).toEqual(mockRoom)
   })
 
   it('surfaces a rejected active skill', async () => {
     vi.mocked(arenaApi.queueSkill).mockRejectedValueOnce(new Error('Skill is not charged'))
     const store = useArenaStore()
-    expect(await store.queueSkill('vault-1', 'room-1', 'fighter-1', 'token')).toBe(false)
+    expect(await store.queueSkill('vault-1', 'room-1', 'fighter-1')).toBe(false)
     expect(arenaApi.fetchState).not.toHaveBeenCalled()
   })
 
@@ -58,7 +58,7 @@ describe('Arena Store', () => {
 
   it('loads arena state into the room map', async () => {
     const store = useArenaStore()
-    await store.fetchState('vault-1', 'token')
+    await store.fetchState('vault-1')
 
     expect(store.getRoom('room-1')).toEqual(mockRoom)
     expect(store.rooms.size).toBe(1)
@@ -78,8 +78,8 @@ describe('Arena Store', () => {
         })
     )
     const store = useArenaStore()
-    const old = store.fetchState('old-vault', 'old-token')
-    await store.fetchState('new-vault', 'new-token')
+    const old = store.fetchState('old-vault')
+    await store.fetchState('new-vault')
     finishOld({ rooms: [{ ...mockRoom, room_id: 'old-room' }] })
     expect(await old).toBe(false)
     expect(store.getRoom('old-room')).toBeNull()
@@ -95,7 +95,7 @@ describe('Arena Store', () => {
         })
     )
     const store = useArenaStore()
-    const request = store.fetchState('vault-1', 'token')
+    const request = store.fetchState('vault-1')
     store.reset()
     finish(mockState)
     expect(await request).toBe(false)
@@ -104,71 +104,61 @@ describe('Arena Store', () => {
 
   it('setFighters persists the duel selection and refreshes state', async () => {
     const store = useArenaStore()
-    const ok = await store.setFighters(
-      'vault-1',
-      'room-1',
-      { mode: 'duel', fighterAId: 'a-1', fighterBId: 'b-1' },
-      'token'
-    )
+    const ok = await store.setFighters('vault-1', 'room-1', {
+      mode: 'duel',
+      fighterAId: 'a-1',
+      fighterBId: 'b-1',
+    })
 
     expect(ok).toBe(true)
-    expect(arenaApi.setFighters).toHaveBeenCalledWith(
-      'vault-1',
-      'room-1',
-      { mode: 'duel', fighterAId: 'a-1', fighterBId: 'b-1' },
-      'token'
-    )
-    expect(arenaApi.fetchState).toHaveBeenCalledWith('vault-1', 'token')
+    expect(arenaApi.setFighters).toHaveBeenCalledWith('vault-1', 'room-1', {
+      mode: 'duel',
+      fighterAId: 'a-1',
+      fighterBId: 'b-1',
+    })
+    expect(arenaApi.fetchState).toHaveBeenCalledWith('vault-1')
   })
 
   it('setFighters forwards a brawl selection with mode and both second slots', async () => {
     const store = useArenaStore()
 
-    await store.setFighters(
-      'vault-1',
-      'room-1',
-      { mode: 'brawl', fighterAId: 'a-1', fighterBId: 'b-1', fighterCId: 'c-1', fighterDId: 'd-1' },
-      'token'
-    )
+    await store.setFighters('vault-1', 'room-1', {
+      mode: 'brawl',
+      fighterAId: 'a-1',
+      fighterBId: 'b-1',
+      fighterCId: 'c-1',
+      fighterDId: 'd-1',
+    })
 
-    expect(arenaApi.setFighters).toHaveBeenCalledWith(
-      'vault-1',
-      'room-1',
-      { mode: 'brawl', fighterAId: 'a-1', fighterBId: 'b-1', fighterCId: 'c-1', fighterDId: 'd-1' },
-      'token'
-    )
+    expect(arenaApi.setFighters).toHaveBeenCalledWith('vault-1', 'room-1', {
+      mode: 'brawl',
+      fighterAId: 'a-1',
+      fighterBId: 'b-1',
+      fighterCId: 'c-1',
+      fighterDId: 'd-1',
+    })
   })
 
   it('setFighters forwards a hunt selection with dwellers and opponent keys', async () => {
     const store = useArenaStore()
 
-    await store.setFighters(
-      'vault-1',
-      'room-1',
-      {
-        mode: 'hunt',
-        fighterAId: 'a-1',
-        fighterBId: null,
-        fighterCId: 'c-1',
-        fighterDId: null,
-        opponentKeys: ['radroach-swarm', 'deathclaw'],
-      },
-      'token'
-    )
+    await store.setFighters('vault-1', 'room-1', {
+      mode: 'hunt',
+      fighterAId: 'a-1',
+      fighterBId: null,
+      fighterCId: 'c-1',
+      fighterDId: null,
+      opponentKeys: ['radroach-swarm', 'deathclaw'],
+    })
 
-    expect(arenaApi.setFighters).toHaveBeenCalledWith(
-      'vault-1',
-      'room-1',
-      {
-        mode: 'hunt',
-        fighterAId: 'a-1',
-        fighterBId: null,
-        fighterCId: 'c-1',
-        fighterDId: null,
-        opponentKeys: ['radroach-swarm', 'deathclaw'],
-      },
-      'token'
-    )
+    expect(arenaApi.setFighters).toHaveBeenCalledWith('vault-1', 'room-1', {
+      mode: 'hunt',
+      fighterAId: 'a-1',
+      fighterBId: null,
+      fighterCId: 'c-1',
+      fighterDId: null,
+      opponentKeys: ['radroach-swarm', 'deathclaw'],
+    })
   })
 
   it('fetchCreatures loads the hunt catalogue', async () => {
@@ -176,18 +166,18 @@ describe('Arena Store', () => {
     vi.mocked(arenaApi.fetchCreatures).mockResolvedValue(catalogue)
     const store = useArenaStore()
 
-    const ok = await store.fetchCreatures('vault-1', 'token')
+    const ok = await store.fetchCreatures('vault-1')
 
     expect(ok).toBe(true)
     expect(store.creatures).toEqual(catalogue)
-    expect(arenaApi.fetchCreatures).toHaveBeenCalledWith('vault-1', 'token')
+    expect(arenaApi.fetchCreatures).toHaveBeenCalledWith('vault-1')
   })
 
   it('fetchCreatures returns false and surfaces the error on failure', async () => {
     vi.mocked(arenaApi.fetchCreatures).mockRejectedValue(new Error('boom'))
     const store = useArenaStore()
 
-    const ok = await store.fetchCreatures('vault-1', 'token')
+    const ok = await store.fetchCreatures('vault-1')
 
     expect(ok).toBe(false)
   })
@@ -196,29 +186,28 @@ describe('Arena Store', () => {
     vi.mocked(arenaApi.setFighters).mockRejectedValue(new Error('boom'))
     const store = useArenaStore()
 
-    const ok = await store.setFighters(
-      'vault-1',
-      'room-1',
-      { mode: 'duel', fighterAId: 'a-1', fighterBId: 'b-1' },
-      'token'
-    )
+    const ok = await store.setFighters('vault-1', 'room-1', {
+      mode: 'duel',
+      fighterAId: 'a-1',
+      fighterBId: 'b-1',
+    })
 
     expect(ok).toBe(false)
   })
 
   it('startFight calls the API and refreshes state', async () => {
     const store = useArenaStore()
-    const ok = await store.startFight('vault-1', 'room-1', 'token')
+    const ok = await store.startFight('vault-1', 'room-1')
 
     expect(ok).toBe(true)
-    expect(arenaApi.startFight).toHaveBeenCalledWith('vault-1', 'room-1', 'token', undefined)
+    expect(arenaApi.startFight).toHaveBeenCalledWith('vault-1', 'room-1', undefined)
   })
 
   it.each(['before', 'after'])(
     'keeps a successful start when its refresh finishes %s a newer poll',
     async (order) => {
       const store = useArenaStore()
-      await store.fetchState('vault-1', 'token')
+      await store.fetchState('vault-1')
       let finishRefresh!: (state: ArenaState) => void
       let finishPoll!: (state: ArenaState) => void
       vi.mocked(arenaApi.fetchState)
@@ -235,9 +224,9 @@ describe('Arena Store', () => {
             })
         )
 
-      const start = store.startFight('vault-1', 'room-1', 'token')
+      const start = store.startFight('vault-1', 'room-1')
       await vi.waitFor(() => expect(arenaApi.fetchState).toHaveBeenCalledTimes(2))
-      const poll = store.fetchState('vault-1', 'token')
+      const poll = store.fetchState('vault-1')
       const freshRoom = { ...mockRoom, fight_started: true, countdown_remaining: 2 }
       if (order === 'after') {
         finishPoll({ rooms: [freshRoom] })
@@ -258,30 +247,29 @@ describe('Arena Store', () => {
     vi.mocked(arenaApi.clearEvents).mockResolvedValue(4)
     const store = useArenaStore()
 
-    const ok = await store.clearEvents('vault-1', 'room-1', 'token')
+    const ok = await store.clearEvents('vault-1', 'room-1')
 
     expect(ok).toBe(true)
-    expect(arenaApi.clearEvents).toHaveBeenCalledWith('vault-1', 'room-1', 'token')
+    expect(arenaApi.clearEvents).toHaveBeenCalledWith('vault-1', 'room-1')
   })
 
   it.each([
     [
       'setFighters',
       (store: ReturnType<typeof useArenaStore>) =>
-        store.setFighters(
-          'vault-1',
-          'room-1',
-          { mode: 'duel', fighterAId: 'a-1', fighterBId: 'b-1' },
-          'token'
-        ),
+        store.setFighters('vault-1', 'room-1', {
+          mode: 'duel',
+          fighterAId: 'a-1',
+          fighterBId: 'b-1',
+        }),
     ],
     [
       'startFight',
-      (store: ReturnType<typeof useArenaStore>) => store.startFight('vault-1', 'room-1', 'token'),
+      (store: ReturnType<typeof useArenaStore>) => store.startFight('vault-1', 'room-1'),
     ],
     [
       'clearEvents',
-      (store: ReturnType<typeof useArenaStore>) => store.clearEvents('vault-1', 'room-1', 'token'),
+      (store: ReturnType<typeof useArenaStore>) => store.clearEvents('vault-1', 'room-1'),
     ],
   ] as const)('returns false when the state refresh fails after %s', async (_name, action) => {
     vi.mocked(arenaApi.fetchState).mockResolvedValue(mockState)
@@ -297,14 +285,14 @@ describe('Arena Store', () => {
 
   it('reset clears the room map', async () => {
     const store = useArenaStore()
-    await store.fetchState('vault-1', 'token')
+    await store.fetchState('vault-1')
     store.reset()
 
     expect(store.rooms.size).toBe(0)
   })
   it.each(['reset', 'vault switch'])('ignores a delayed start after a %s', async (change) => {
     const store = useArenaStore()
-    await store.fetchState('vault-1', 'token')
+    await store.fetchState('vault-1')
     let finish!: () => void
     vi.mocked(arenaApi.startFight).mockImplementationOnce(
       () =>
@@ -312,13 +300,13 @@ describe('Arena Store', () => {
           finish = resolve
         })
     )
-    const pending = store.startFight('vault-1', 'room-1', 'token', {
+    const pending = store.startFight('vault-1', 'room-1', {
       mode: 'duel',
       fighterAId: 'a',
       fighterBId: 'b',
     })
     if (change === 'reset') store.reset()
-    else await store.fetchState('vault-2', 'new-token')
+    else await store.fetchState('vault-2')
     const calls = vi.mocked(arenaApi.fetchState).mock.calls.length
     finish()
     expect(await pending).toBe(false)

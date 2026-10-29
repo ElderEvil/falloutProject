@@ -58,7 +58,7 @@ describe('room destruction confirmation', () => {
     const confirmed = actions.destroyRoom('room', { onSuccess })
     actions.confirmDestroy()
     await confirmed
-    expect(destroyRoom).toHaveBeenCalledExactlyOnceWith('room', 'token', 'vault')
+    expect(destroyRoom).toHaveBeenCalledExactlyOnceWith('room', 'vault')
     expect(onSuccess).toHaveBeenCalledOnce()
     expect(native).not.toHaveBeenCalled()
     wrapper.unmount()

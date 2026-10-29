@@ -155,7 +155,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
   ): Promise<Dweller | null> {
     const roomStore = useRoomStore()
     try {
-      await roomStore.fetchRooms(vaultId, token)
+      await roomStore.fetchRooms(vaultId)
       await filterStore.fetchAllDwellers(vaultId, token)
     } catch (error) {
       handleStoreError(error, 'Failed to load rooms for apprentice assignment')

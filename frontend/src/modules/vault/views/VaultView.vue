@@ -154,7 +154,7 @@ const loadVaultData = async (id: string) => {
     }
 
     // Fetch rooms for this vault
-    await roomStore.fetchRooms(id, authStore.token)
+    await roomStore.fetchRooms(id)
 
     // Fetch dwellers for this vault
     await dwellerStore.fetchDwellersByVault(id, authStore.token)
@@ -267,7 +267,7 @@ const toggleBuildMode = async () => {
     roomStore.deselectRoom()
   } else {
     // Enter build mode
-    await roomStore.fetchBuildableRooms(authStore.token as string, vaultId.value)
+    await roomStore.fetchBuildableRooms(vaultId.value)
     showRoomMenu.value = true
   }
 }

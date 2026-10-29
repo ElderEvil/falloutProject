@@ -85,7 +85,7 @@ export function useChatActions(options: UseChatActionsOptions) {
       }
 
       if (roomStore.rooms.length === 0) {
-        await roomStore.fetchRooms(vaultId, authStore.token)
+        await roomStore.fetchRooms(vaultId)
       }
 
       let trainingRoomId = dweller.room_id

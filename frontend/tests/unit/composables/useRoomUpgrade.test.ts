@@ -68,7 +68,7 @@ describe('room remodel confirmation', () => {
       actions.confirmRemodel()
       await confirmed
       await flushPromises()
-      expect(remodelRoom).toHaveBeenCalledExactlyOnceWith('room', 'token', neighbor)
+      expect(remodelRoom).toHaveBeenCalledExactlyOnceWith('room', neighbor)
       wrapper.unmount()
       nativeConfirm.mockRestore()
     }

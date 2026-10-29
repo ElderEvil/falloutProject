@@ -172,7 +172,7 @@ describe('VaultView', () => {
       await wrapper.findComponent(BuildModeButton).find('button').trigger('click')
       await flushPromises()
 
-      expect(roomStore.fetchBuildableRooms).toHaveBeenCalledWith('test-token', 'vault-1')
+      expect(roomStore.fetchBuildableRooms).toHaveBeenCalledWith('vault-1')
       expect(buildDialog(wrapper).exists()).toBe(true)
       expect(wrapper.findComponent(BuildModeButton).text()).toContain('Cancel Building')
 

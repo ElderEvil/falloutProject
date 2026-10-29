@@ -198,8 +198,7 @@ describe('RoomDetailModal', () => {
     await flushPromises()
     expect(axios.post).toHaveBeenCalledWith(
       `/api/v1/rooms/${action}/room-1`,
-      action === 'split' ? {} : { other_room_id: 'neighbor' },
-      { headers: { Authorization: 'Bearer token' } }
+      action === 'split' ? {} : { other_room_id: 'neighbor' }
     )
     expect(wrapper.emitted('roomUpdated')).toHaveLength(1)
     expect(wrapper.emitted('close')).toHaveLength(1)
@@ -226,11 +225,9 @@ describe('RoomDetailModal', () => {
     select.vm.$emit('update:modelValue', 'party')
     await flushPromises()
 
-    expect(axios.post).toHaveBeenCalledWith(
-      '/api/v1/rooms/style/room-1',
-      { style: 'party' },
-      { headers: { Authorization: 'Bearer token' } }
-    )
+    expect(axios.post).toHaveBeenCalledWith('/api/v1/rooms/style/room-1', {
+      style: 'party',
+    })
     expect(wrapper.emitted('roomUpdated')).toHaveLength(1)
   })
 
@@ -862,8 +859,7 @@ describe('RoomDetailModal', () => {
             fighter_a_id: 'fighter-0',
             fighter_b_id: 'fighter-1',
             mode: 'duel',
-          }),
-          expect.any(Object)
+          })
         )
         expect(assign).not.toHaveBeenCalled()
         if (rejected) {

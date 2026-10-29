@@ -66,7 +66,7 @@ export function useRoomDestroy() {
     if (options?.actionError) options.actionError.value = null
 
     try {
-      await roomStore.destroyRoom(roomId, token, vaultId)
+      await roomStore.destroyRoom(roomId, vaultId)
       toast.success(`${options?.roomName || 'Room'} destroyed. Caps refunded (50%).`)
       options?.onSuccess?.()
     } catch (error) {

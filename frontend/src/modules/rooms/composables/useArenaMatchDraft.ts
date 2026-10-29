@@ -368,7 +368,7 @@ export function useArenaMatchDraft(
 
   const loadCreatures = async () => {
     if (!authStore.token) return
-    await arenaStore.fetchCreatures(vaultId, authStore.token)
+    await arenaStore.fetchCreatures(vaultId)
   }
 
   onMounted(() => {
@@ -508,7 +508,7 @@ export function useArenaMatchDraft(
 
   const clearJournal = async () => {
     if (!authStore.token) return
-    await arenaStore.clearEvents(vaultId, roomId, authStore.token)
+    await arenaStore.clearEvents(vaultId, roomId)
   }
 
   const unassign = async (entry: ArenaRosterEntry) => {

@@ -81,7 +81,7 @@ async function loadChoices() {
   try {
     if (!auth.token) throw new Error('Sign in again to load rooms.')
     const [roomResult] = await Promise.all([
-      roomStore.fetchRooms(props.vaultId, auth.token, true),
+      roomStore.fetchRooms(props.vaultId, true),
       filter.fetchAllDwellers(props.vaultId, auth.token, true),
     ])
     if (sequence !== loadSequence) return

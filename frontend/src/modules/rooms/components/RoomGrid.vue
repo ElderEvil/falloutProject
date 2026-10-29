@@ -99,7 +99,7 @@ const buildRowCount = computed(() => buildYMax.value + 1)
 const lockedRowCount = computed(() => Math.max(yMax.value - buildYMax.value, 0))
 
 onMounted(() => {
-  if (authStore.token) roomStore.fetchGridConfig(authStore.token as string)
+  if (authStore.token) roomStore.fetchGridConfig()
 })
 
 const placeRoom = async (x: number, y: number) => {
@@ -116,13 +116,7 @@ const placeRoom = async (x: number, y: number) => {
   }
 
   try {
-    const result = await roomStore.buildRoom(
-      selectedRoom.name,
-      placementX,
-      y,
-      authStore.token as string,
-      vaultId
-    )
+    const result = await roomStore.buildRoom(selectedRoom.name, placementX, y, vaultId)
     roomStore.deselectRoom()
     const message =
       result === 'extended'
@@ -277,7 +271,7 @@ const handleUpgradeRoom = async (roomId: string, event: MouseEvent) => {
   }
 
   try {
-    await roomStore.upgradeRoom(roomId, authStore.token as string, vaultId)
+    await roomStore.upgradeRoom(roomId, vaultId)
     toast.success('Room upgraded successfully!')
   } catch (error) {
     notifyErrorOnce(error, error instanceof Error ? error.message : 'Failed to upgrade room')
@@ -304,7 +298,7 @@ const handleRoomClick = (room: Room, event: MouseEvent | KeyboardEvent) => {
 const handleRoomUpdated = async () => {
   const vaultId = route.params.id as string
   if (vaultId && authStore.token) {
-    await roomStore.fetchRooms(vaultId, authStore.token)
+    await roomStore.fetchRooms(vaultId)
     await dwellerStore.fetchDwellersByVault(vaultId, authStore.token)
   }
   // The open modal holds its own room snapshot; re-point it at the refreshed

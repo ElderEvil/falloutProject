@@ -11,7 +11,7 @@ export const useArenaStore = defineStore('arena', () => {
   let contextEpoch = 0
   let activeVaultId: string | null = null
 
-  async function fetchState(vaultId: string, token: string, silent = false): Promise<boolean> {
+  async function fetchState(vaultId: string, silent = false): Promise<boolean> {
     if (activeVaultId !== vaultId) {
       contextEpoch += 1
       activeVaultId = vaultId
@@ -19,7 +19,7 @@ export const useArenaStore = defineStore('arena', () => {
     const request = ++stateRequest
     const epoch = contextEpoch
     try {
-      const state = await arenaApi.fetchState(vaultId, token)
+      const state = await arenaApi.fetchState(vaultId)
       // Same-vault polling supersedes state delivery without rejecting a successful mutation.
       if (request !== stateRequest) return epoch === contextEpoch
       rooms.value = new Map(state.rooms.map((room) => [room.room_id, room]))
@@ -30,9 +30,9 @@ export const useArenaStore = defineStore('arena', () => {
     }
   }
 
-  async function fetchCreatures(vaultId: string, token: string): Promise<boolean> {
+  async function fetchCreatures(vaultId: string): Promise<boolean> {
     try {
-      creatures.value = await arenaApi.fetchCreatures(vaultId, token)
+      creatures.value = await arenaApi.fetchCreatures(vaultId)
       return true
     } catch (error) {
       handleStoreError(error, 'Failed to load hunt creatures')
@@ -43,12 +43,11 @@ export const useArenaStore = defineStore('arena', () => {
   async function setFighters(
     vaultId: string,
     roomId: string,
-    selection: ArenaFighterSelection,
-    token: string
+    selection: ArenaFighterSelection
   ): Promise<boolean> {
     try {
-      await arenaApi.setFighters(vaultId, roomId, selection, token)
-      return await fetchState(vaultId, token, true)
+      await arenaApi.setFighters(vaultId, roomId, selection)
+      return await fetchState(vaultId, true)
     } catch (error) {
       handleStoreError(error, 'Failed to update fighters')
       return false
@@ -58,49 +57,43 @@ export const useArenaStore = defineStore('arena', () => {
   async function startFight(
     vaultId: string,
     roomId: string,
-    token: string,
     selection?: ArenaFighterSelection
   ): Promise<boolean> {
     const epoch = contextEpoch
     try {
-      await arenaApi.startFight(vaultId, roomId, token, selection)
+      await arenaApi.startFight(vaultId, roomId, selection)
       if (epoch !== contextEpoch) return false
-      return await fetchState(vaultId, token, true)
+      return await fetchState(vaultId, true)
     } catch (error) {
       handleStoreError(error, 'Failed to start fight')
       return false
     }
   }
 
-  async function stopFight(vaultId: string, roomId: string, token: string): Promise<boolean> {
+  async function stopFight(vaultId: string, roomId: string): Promise<boolean> {
     try {
-      await arenaApi.stopFight(vaultId, roomId, token)
-      return await fetchState(vaultId, token, true)
+      await arenaApi.stopFight(vaultId, roomId)
+      return await fetchState(vaultId, true)
     } catch (error) {
       handleStoreError(error, 'Failed to stop fight')
       return false
     }
   }
 
-  async function queueSkill(
-    vaultId: string,
-    roomId: string,
-    fighterId: string,
-    token: string
-  ): Promise<boolean> {
+  async function queueSkill(vaultId: string, roomId: string, fighterId: string): Promise<boolean> {
     try {
-      await arenaApi.queueSkill(vaultId, roomId, fighterId, token)
-      return await fetchState(vaultId, token, true)
+      await arenaApi.queueSkill(vaultId, roomId, fighterId)
+      return await fetchState(vaultId, true)
     } catch (error) {
       handleStoreError(error, 'Failed to use active skill')
       return false
     }
   }
 
-  async function clearEvents(vaultId: string, roomId: string, token: string): Promise<boolean> {
+  async function clearEvents(vaultId: string, roomId: string): Promise<boolean> {
     try {
-      await arenaApi.clearEvents(vaultId, roomId, token)
-      return await fetchState(vaultId, token, true)
+      await arenaApi.clearEvents(vaultId, roomId)
+      return await fetchState(vaultId, true)
     } catch (error) {
       handleStoreError(error, 'Failed to clear the battle journal')
       return false

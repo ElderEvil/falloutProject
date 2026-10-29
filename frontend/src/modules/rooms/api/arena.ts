@@ -1,4 +1,4 @@
-import axios from '@/core/plugins/axios'
+import { api, apiGet, apiPost } from '@/core/utils/api'
 import type { components } from '@/core/types/api.generated'
 
 type ArenaState = components['schemas']['ArenaState']
@@ -33,72 +33,35 @@ const selectionPayload = (selection: ArenaFighterSelection) => ({
 })
 
 export const arenaApi = {
-  async fetchState(vaultId: string, token: string): Promise<ArenaState> {
-    const response = await axios.get<ArenaState>(`/api/v1/arena/vault/${vaultId}/state`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    return response.data
-  },
+  fetchState: (vaultId: string) => apiGet<ArenaState>(`/api/v1/arena/vault/${vaultId}/state`),
 
-  async fetchCreatures(vaultId: string, token: string): Promise<ArenaCreature[]> {
-    const response = await axios.get<ArenaCreature[]>(`/api/v1/arena/vault/${vaultId}/creatures`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    return response.data
-  },
+  fetchCreatures: (vaultId: string) =>
+    apiGet<ArenaCreature[]>(`/api/v1/arena/vault/${vaultId}/creatures`),
 
-  async setFighters(
-    vaultId: string,
-    roomId: string,
-    selection: ArenaFighterSelection,
-    token: string
-  ): Promise<void> {
-    await axios.post(
+  setFighters: (vaultId: string, roomId: string, selection: ArenaFighterSelection) =>
+    apiPost<void>(
       `/api/v1/arena/vault/${vaultId}/rooms/${roomId}/fighters`,
-      selectionPayload(selection),
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-  },
+      selectionPayload(selection)
+    ),
 
-  async startFight(
-    vaultId: string,
-    roomId: string,
-    token: string,
-    selection?: ArenaFighterSelection
-  ): Promise<void> {
-    await axios.post(
+  startFight: (vaultId: string, roomId: string, selection?: ArenaFighterSelection) =>
+    apiPost<void>(
       `/api/v1/arena/vault/${vaultId}/rooms/${roomId}/start`,
-      selection ? selectionPayload(selection) : null,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    )
-  },
+      selection ? selectionPayload(selection) : null
+    ),
 
-  async stopFight(vaultId: string, roomId: string, token: string): Promise<void> {
-    await axios.post(`/api/v1/arena/vault/${vaultId}/rooms/${roomId}/stop`, null, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-  },
+  stopFight: (vaultId: string, roomId: string) =>
+    apiPost<void>(`/api/v1/arena/vault/${vaultId}/rooms/${roomId}/stop`, null),
 
-  async queueSkill(
-    vaultId: string,
-    roomId: string,
-    fighterId: string,
-    token: string
-  ): Promise<void> {
-    await axios.post(
-      `/api/v1/arena/vault/${vaultId}/rooms/${roomId}/skill`,
-      { fighter_id: fighterId },
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-  },
+  queueSkill: (vaultId: string, roomId: string, fighterId: string) =>
+    apiPost<void>(`/api/v1/arena/vault/${vaultId}/rooms/${roomId}/skill`, {
+      fighter_id: fighterId,
+    }),
 
-  async clearEvents(vaultId: string, roomId: string, token: string): Promise<number> {
-    const response = await axios.delete<{ cleared: number }>(
-      `/api/v1/arena/vault/${vaultId}/rooms/${roomId}/events`,
-      { headers: { Authorization: `Bearer ${token}` } }
+  clearEvents: async (vaultId: string, roomId: string): Promise<number> => {
+    const response = await api.delete<{ cleared: number }>(
+      `/api/v1/arena/vault/${vaultId}/rooms/${roomId}/events`
     )
-    return response.data.cleared
+    return response.cleared
   },
 }

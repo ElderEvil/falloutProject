@@ -1,6 +1,6 @@
 # HTTP Client Consolidation Plan (Axios Boundary)
 
-Status: in progress — Batch 1 merged; chat/radio, exploration and social transport migrated; remaining stores pending
+Status: in progress — Batch 1 merged; chat/radio, exploration, social and rooms transport migrated; remaining stores pending
 
 **Axios remains the supported transport.** This document defines the staged
 consolidation of frontend HTTP onto the shared API boundary in
@@ -19,7 +19,7 @@ without user gain.
    escape hatch — see below). Errors normalize to `ApiError { status, detail, fields,
    headers, cause }`; `getErrorMessage` reads both `ApiError` and raw `AxiosError`.
 2. **In progress:** migrate remaining services and stores in module-sized slices. Chat/radio,
-   exploration and social call sites moved to their module APIs in the dated slices below.
+   exploration, social and rooms call sites moved to their module APIs in the dated slices below.
 3. **Later (separate slice):** remove the axios interceptor's notifications so toasts are
    caller-owned end to end.
 4. **Toasts stay caller-owned as the target state.** The boundary throws and never
@@ -43,7 +43,8 @@ store + SettingsView, and ai-settings service.
 | 2026-10-28 | Chat + radio transport | `modules/chat/api/chat.ts` owns history, text and voice calls; `modules/radio/api/radio.ts` owns stats, mode and recruit. `DwellerChat.vue`, `useChatMessages.ts` and `useRadioRoom.ts` no longer import the axios plugin or build Bearer headers. |
 | 2026-10-29 | Exploration transport | `modules/exploration/api/exploration.ts` owns dispatch, heading suggestion, send, list, detail, progress, recall, complete, overflow resolution and pending overflow. The exploration store no longer imports the axios plugin or threads a token; only its SSE subscription still passes a token. |
 | 2026-10-29 | Social transport | `modules/social/api/relationship.ts` owns list/detail/create/romance/partner/marriage/breakup/compatibility/breeding; `modules/social/api/pregnancy.ts` owns list/detail/deliver. Both social stores no longer import the plugin, and the one-method `relationshipService` pass-through is gone. |
-| Pending | Batches 2–4 | 8 Pinia stores still import `@/core/plugins/axios`: dwellers (5), progression/quest, rooms/room, vault. No views, components or composables remain. `modules/exploration/api/expeditionSite.ts` still imports the plugin and belongs to a later slice. |
+| 2026-10-29 | Rooms transport | `modules/rooms/api/room.ts` owns list, buildable, build, destroy, upgrade, remodel, style, grid config and rush; `modules/rooms/api/barbershop.ts` owns status and appearance changes; `modules/rooms/api/arena.ts` owns state, creatures, fighter selection, match controls/skills and event clearing. Neither the room store nor the arena store imports the plugin or threads a token, and the barbershop service pass-through is gone. |
+| Pending | Batches 2–4 | 7 Pinia stores still import `@/core/plugins/axios`: dwellers (5), progression/quest, and vault. No views, components or composables remain. `modules/exploration/api/expeditionSite.ts` still imports the plugin and belongs to a later slice. |
 
 ## Action notifications
 

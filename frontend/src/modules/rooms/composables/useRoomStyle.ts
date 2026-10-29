@@ -30,7 +30,7 @@ export function useRoomStyle(
     isApplyingStyle.value = true
     actionError.value = null
     try {
-      await roomStore.applyRoomStyle(room.value.id, style, token)
+      await roomStore.applyRoomStyle(room.value.id, style)
       toast.success(
         style === 'default' ? 'Standard theme restored.' : `${roomStyleLabel(style)} theme applied.`
       )

@@ -2,19 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { mountWithSetup } from '../../helpers/mountWithSetup'
 import BarbershopPanel from '@/modules/rooms/components/BarbershopPanel.vue'
-import {
-  changeBarbershopAppearance,
-  fetchBarbershopStatus,
-} from '@/modules/rooms/services/barbershopService'
+import { barbershopApi } from '@/modules/rooms/api/barbershop'
 import type { BarbershopChangeResponse, BarbershopStatus } from '@/modules/rooms/models/barbershop'
 import type { Room } from '@/modules/rooms/models/room'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 
 enableAutoUnmount(afterEach)
 
-vi.mock('@/modules/rooms/services/barbershopService', () => ({
-  fetchBarbershopStatus: vi.fn(),
-  changeBarbershopAppearance: vi.fn(),
+vi.mock('@/modules/rooms/api/barbershop', () => ({
+  barbershopApi: { getStatus: vi.fn(), changeAppearance: vi.fn() },
 }))
 
 vi.mock('@/modules/auth/stores/auth', () => ({
@@ -146,11 +142,11 @@ describe('BarbershopPanel', () => {
       store.filter.allDwellers = [...store.filter.dwellers]
     })
     store.generation.generateDwellerPortrait.mockResolvedValue(null)
-    vi.mocked(fetchBarbershopStatus).mockResolvedValue(status())
+    vi.mocked(barbershopApi.getStatus).mockResolvedValue(status())
   })
 
   it('shows worker and client slots even when the room is empty', async () => {
-    vi.mocked(fetchBarbershopStatus).mockResolvedValue(status({ staffed: false }))
+    vi.mocked(barbershopApi.getStatus).mockResolvedValue(status({ staffed: false }))
     const wrapper = mountWithSetup(BarbershopPanel, {
       props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
     })
@@ -225,14 +221,14 @@ describe('BarbershopPanel', () => {
 
   it('ignores old status after switching rooms', async () => {
     let finish!: (value: BarbershopStatus) => void
-    vi.mocked(fetchBarbershopStatus).mockImplementationOnce(
+    vi.mocked(barbershopApi.getStatus).mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           finish = resolve
         })
     )
     const wrapper = mountPanel()
-    vi.mocked(fetchBarbershopStatus).mockResolvedValue(
+    vi.mocked(barbershopApi.getStatus).mockResolvedValue(
       status({ room_id: 'room-2', vault_caps: 250 })
     )
     await wrapper.setProps({ room: room({ id: 'room-2' }), assignedDwellers: [] })
@@ -298,7 +294,7 @@ describe('BarbershopPanel', () => {
   })
 
   it('shows neutral status placeholders until the Barbershop status loads', async () => {
-    vi.mocked(fetchBarbershopStatus).mockReturnValue(new Promise<BarbershopStatus>(() => {}))
+    vi.mocked(barbershopApi.getStatus).mockReturnValue(new Promise<BarbershopStatus>(() => {}))
 
     const wrapper = mountPanel()
     await flushPromises()
@@ -308,7 +304,7 @@ describe('BarbershopPanel', () => {
   })
 
   it('shows the assignment hint and disables saving while unstaffed', async () => {
-    vi.mocked(fetchBarbershopStatus).mockResolvedValue(status({ staffed: false }))
+    vi.mocked(barbershopApi.getStatus).mockResolvedValue(status({ staffed: false }))
 
     const wrapper = mountPanel()
     await flushPromises()
@@ -440,7 +436,7 @@ describe('BarbershopPanel', () => {
       thumbnail_url:
         '/static/dweller_thumbnails/variants/adult/FOS_Dw_Default_Human_Male_SkinTan_HairBlonde.webp',
     })
-    vi.mocked(changeBarbershopAppearance).mockResolvedValue(
+    vi.mocked(barbershopApi.changeAppearance).mockResolvedValue(
       changeResponse(updated, { fee: 200, remaining_caps: 800 })
     )
 
@@ -451,12 +447,10 @@ describe('BarbershopPanel', () => {
     await wrapper.get('[data-testid="barbershop-save"]').trigger('click')
     await flushPromises()
 
-    expect(changeBarbershopAppearance).toHaveBeenCalledWith(
-      'room-1',
-      ADULT_ID,
-      { skin_tone: 'Tan', hair_color: 'Blonde' },
-      'test-token'
-    )
+    expect(barbershopApi.changeAppearance).toHaveBeenCalledWith('room-1', ADULT_ID, {
+      skin_tone: 'Tan',
+      hair_color: 'Blonde',
+    })
     expect(wrapper.get('[data-testid="barbershop-caps"]').text()).toBe('800')
     expect(wrapper.get('[data-testid="barbershop-change-fee"]').text()).toBe('0 caps')
     expect(saveButton(wrapper).disabled).toBe(true)
@@ -473,7 +467,7 @@ describe('BarbershopPanel', () => {
       thumbnail_url: '/static/dweller_images/custom/ada-new.webp',
       visual_attributes: { race: 'human', skin_tone: 'Ebony', hair_color: 'Black' },
     })
-    vi.mocked(changeBarbershopAppearance).mockResolvedValue(
+    vi.mocked(barbershopApi.changeAppearance).mockResolvedValue(
       changeResponse(updated, { portrait_updated: false, remaining_caps: 650 })
     )
 

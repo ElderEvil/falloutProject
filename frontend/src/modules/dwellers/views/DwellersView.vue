@@ -452,7 +452,7 @@ async function loadVaultOverview(): Promise<void> {
     incidentStore.fetchIncidents(id, authStore.token as string).finally(() => {
       isIncidentsLoading.value = false
     }),
-    roomStore.fetchRooms(id, authStore.token as string),
+    roomStore.fetchRooms(id),
     // Recall gating reads the exploration store; a failed load must not block the roster.
     explorationStore.fetchExplorationsByVault(id).catch(() => undefined),
   ])

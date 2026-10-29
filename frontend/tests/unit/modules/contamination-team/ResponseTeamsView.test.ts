@@ -58,7 +58,7 @@ describe('ResponseTeamsView (compatibility redirect)', () => {
     mountWithSetup(ResponseTeamsView)
     await flushPromises()
 
-    expect(storeState.fetchRooms).toHaveBeenCalledWith('vault-1', 'test-token')
+    expect(storeState.fetchRooms).toHaveBeenCalledWith('vault-1')
     expect(mockReplace).toHaveBeenCalledWith({
       path: '/vault/vault-1',
       query: { roomId: 'station-1' },

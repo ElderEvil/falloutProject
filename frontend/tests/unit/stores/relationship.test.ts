@@ -1,10 +1,22 @@
 import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { setActivePinia, createPinia } from 'pinia'
 import { useRelationshipStore } from '@/modules/social/stores/relationship'
-import axios from '@/core/plugins/axios'
+import { relationshipApi } from '@/modules/social/api/relationship'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
-vi.mock('@/core/plugins/axios')
+vi.mock('@/modules/social/api/relationship', () => ({
+  relationshipApi: {
+    getByVault: vi.fn(),
+    get: vi.fn(),
+    create: vi.fn(),
+    initiateRomance: vi.fn(),
+    makePartners: vi.fn(),
+    marry: vi.fn(),
+    breakUp: vi.fn(),
+    getCompatibility: vi.fn(),
+    processVaultBreeding: vi.fn(),
+  },
+}))
 vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/core/utils/errorHandler')>()),
   handleStoreError: vi.fn(),
@@ -46,18 +58,18 @@ describe('Relationship Store', () => {
 
   describe('fetchVaultRelationships', () => {
     it('should fetch relationships successfully', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [mockRelationship] })
+      vi.mocked(relationshipApi.getByVault).mockResolvedValueOnce([mockRelationship])
 
       const store = useRelationshipStore()
       await store.fetchVaultRelationships('vault-1')
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/relationships/vault/vault-1')
+      expect(relationshipApi.getByVault).toHaveBeenCalledWith('vault-1')
       expect(store.relationships).toEqual([mockRelationship])
       expect(store.isLoading).toBe(false)
     })
 
     it('should handle fetch error', async () => {
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
+      vi.mocked(relationshipApi.getByVault).mockRejectedValueOnce(new Error('Network error'))
 
       const store = useRelationshipStore()
       await expect(store.fetchVaultRelationships('vault-1')).rejects.toThrow('Network error')
@@ -67,9 +79,9 @@ describe('Relationship Store', () => {
     })
 
     it('refreshes bond progress without replacing the list with a loading state', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({
-        data: [{ ...mockRelationship, bond_growth_per_tick: 3, bond_tick_seconds: 60 }],
-      })
+      vi.mocked(relationshipApi.getByVault).mockResolvedValueOnce([
+        { ...mockRelationship, bond_growth_per_tick: 3, bond_tick_seconds: 60 },
+      ])
 
       const store = useRelationshipStore()
       const refresh = store.fetchVaultRelationships('vault-1', { silent: true })
@@ -80,7 +92,7 @@ describe('Relationship Store', () => {
     })
 
     it('rethrows silent fetch errors without showing a store notification', async () => {
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
+      vi.mocked(relationshipApi.getByVault).mockRejectedValueOnce(new Error('Network error'))
 
       const store = useRelationshipStore()
       await expect(store.fetchVaultRelationships('vault-1', { silent: true })).rejects.toThrow(
@@ -95,26 +107,26 @@ describe('Relationship Store', () => {
     })
 
     it('keeps a completed romance when an older fetch resolves later', async () => {
-      let resolveFetch!: (value: { data: (typeof mockRelationship)[] }) => void
-      vi.mocked(axios.get).mockImplementationOnce(
+      let resolveFetch!: (value: (typeof mockRelationship)[]) => void
+      vi.mocked(relationshipApi.getByVault).mockImplementationOnce(
         () =>
           new Promise((resolve) => {
             resolveFetch = resolve
           })
       )
       const romantic = { ...mockRelationship, relationship_type: 'romantic' }
-      vi.mocked(axios.put).mockResolvedValueOnce({ data: romantic })
+      vi.mocked(relationshipApi.initiateRomance).mockResolvedValueOnce(romantic)
 
       const store = useRelationshipStore()
       store.relationships = [mockRelationship]
       const pendingFetch = store.fetchVaultRelationships('vault-1', { silent: true })
       await store.initiateRomance('rel-1')
-      resolveFetch({ data: [mockRelationship] })
+      resolveFetch([mockRelationship])
       await pendingFetch
 
       expect(store.relationships[0].relationship_type).toBe('romantic')
 
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [romantic] })
+      vi.mocked(relationshipApi.getByVault).mockResolvedValueOnce([romantic])
       await store.fetchVaultRelationships('vault-1', { silent: true })
       expect(store.relationships[0]).toEqual(romantic)
     })
@@ -122,7 +134,7 @@ describe('Relationship Store', () => {
 
   describe('createRelationship', () => {
     it('should create relationship successfully', async () => {
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: mockRelationship })
+      vi.mocked(relationshipApi.create).mockResolvedValueOnce(mockRelationship)
 
       const store = useRelationshipStore()
       const result = await store.createRelationship({
@@ -130,7 +142,7 @@ describe('Relationship Store', () => {
         dweller_2_id: 'dweller-2',
       })
 
-      expect(axios.post).toHaveBeenCalledWith('/api/v1/relationships/', {
+      expect(relationshipApi.create).toHaveBeenCalledWith({
         dweller_1_id: 'dweller-1',
         dweller_2_id: 'dweller-2',
       })
@@ -139,7 +151,7 @@ describe('Relationship Store', () => {
     })
 
     it('should handle create error', async () => {
-      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Failed'))
+      vi.mocked(relationshipApi.create).mockRejectedValueOnce(new Error('Failed'))
 
       const store = useRelationshipStore()
       const result = await store.createRelationship({
@@ -154,7 +166,7 @@ describe('Relationship Store', () => {
   describe('initiateRomance', () => {
     it('should initiate romance successfully', async () => {
       const romanticRelationship = { ...mockRelationship, relationship_type: 'romantic' }
-      vi.mocked(axios.put).mockResolvedValueOnce({ data: romanticRelationship })
+      vi.mocked(relationshipApi.initiateRomance).mockResolvedValueOnce(romanticRelationship)
 
       const store = useRelationshipStore()
       store.relationships = [
@@ -163,14 +175,14 @@ describe('Relationship Store', () => {
 
       const result = await store.initiateRomance('rel-1')
 
-      expect(axios.put).toHaveBeenCalledWith('/api/v1/relationships/rel-1/romance')
+      expect(relationshipApi.initiateRomance).toHaveBeenCalledWith('rel-1')
       expect(result?.relationship_type).toBe('romantic')
       expect(store.relationships[0].relationship_type).toBe('romantic')
       expect(store.relationships[0].bond_growth_per_tick).toBe(3)
     })
 
     it('should handle romance error', async () => {
-      vi.mocked(axios.put).mockRejectedValueOnce({
+      vi.mocked(relationshipApi.initiateRomance).mockRejectedValueOnce({
         response: { data: { detail: 'Affinity too low' } },
       })
 
@@ -184,14 +196,14 @@ describe('Relationship Store', () => {
   describe('makePartners', () => {
     it('should make partners successfully', async () => {
       const partnerRelationship = { ...mockRelationship, relationship_type: 'partner' }
-      vi.mocked(axios.put).mockResolvedValueOnce({ data: partnerRelationship })
+      vi.mocked(relationshipApi.makePartners).mockResolvedValueOnce(partnerRelationship)
 
       const store = useRelationshipStore()
       store.relationships = [{ ...mockRelationship, relationship_type: 'romantic' }]
 
       const result = await store.makePartners('rel-1')
 
-      expect(axios.put).toHaveBeenCalledWith('/api/v1/relationships/rel-1/partner')
+      expect(relationshipApi.makePartners).toHaveBeenCalledWith('rel-1')
       expect(result?.relationship_type).toBe('partner')
       expect(store.relationships[0].relationship_type).toBe('partner')
     })
@@ -199,23 +211,21 @@ describe('Relationship Store', () => {
 
   describe('breakUp', () => {
     it('should break up relationship successfully', async () => {
-      vi.mocked(axios.delete).mockResolvedValueOnce({
-        data: { message: 'Relationship ended' },
-      })
+      vi.mocked(relationshipApi.breakUp).mockResolvedValueOnce({ message: 'Relationship ended' })
 
       const store = useRelationshipStore()
       store.relationships = [mockRelationship]
 
       const result = await store.breakUp('rel-1')
 
-      expect(axios.delete).toHaveBeenCalledWith('/api/v1/relationships/rel-1')
+      expect(relationshipApi.breakUp).toHaveBeenCalledWith('rel-1')
       expect(result).toBe(true)
       expect(store.relationships[0].relationship_type).toBe('ex')
       expect(store.relationships[0].affinity).toBeLessThan(50)
     })
 
     it('should handle breakup error', async () => {
-      vi.mocked(axios.delete).mockRejectedValueOnce(new Error('Failed'))
+      vi.mocked(relationshipApi.breakUp).mockRejectedValueOnce(new Error('Failed'))
 
       const store = useRelationshipStore()
       const result = await store.breakUp('rel-1')
@@ -226,19 +236,17 @@ describe('Relationship Store', () => {
 
   describe('calculateCompatibility', () => {
     it('should calculate compatibility successfully', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockCompatibilityScore })
+      vi.mocked(relationshipApi.getCompatibility).mockResolvedValueOnce(mockCompatibilityScore)
 
       const store = useRelationshipStore()
       const result = await store.calculateCompatibility('dweller-1', 'dweller-2')
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/relationships/compatibility/dweller-1/dweller-2'
-      )
+      expect(relationshipApi.getCompatibility).toHaveBeenCalledWith('dweller-1', 'dweller-2')
       expect(result).toEqual(mockCompatibilityScore)
     })
 
     it('should handle compatibility error', async () => {
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Failed'))
+      vi.mocked(relationshipApi.getCompatibility).mockRejectedValueOnce(new Error('Failed'))
 
       const store = useRelationshipStore()
       const result = await store.calculateCompatibility('dweller-1', 'dweller-2')

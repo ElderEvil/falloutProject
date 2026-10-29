@@ -1,7 +1,7 @@
 import { notifyErrorOnce } from '@/core/utils/errorHandler'
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import axios from '@/core/plugins/axios'
+import { pregnancyApi } from '../api/pregnancy'
 import type { Pregnancy, DeliveryResult } from '../models/pregnancy'
 import { useToast } from '@/core/composables/useToast'
 import { getErrorMessage } from '@/core/types/utils'
@@ -33,8 +33,7 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
   async function fetchVaultPregnancies(vaultId: string) {
     isLoading.value = true
     try {
-      const response = await axios.get(`/api/v1/pregnancies/vault/${vaultId}`)
-      pregnancies.value = response.data
+      pregnancies.value = await pregnancyApi.getByVault(vaultId)
     } catch (error: unknown) {
       notifyErrorOnce(error, getErrorMessage(error))
       throw error
@@ -45,8 +44,7 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
 
   async function getPregnancy(pregnancyId: string): Promise<Pregnancy | null> {
     try {
-      const response = await axios.get(`/api/v1/pregnancies/${pregnancyId}`)
-      return response.data
+      return await pregnancyApi.get(pregnancyId)
     } catch (error: unknown) {
       notifyErrorOnce(error, getErrorMessage(error))
       return null
@@ -56,8 +54,7 @@ export const usePregnancyStore = defineStore('pregnancy', () => {
   async function deliverBaby(pregnancyId: string): Promise<DeliveryResult | null> {
     isLoading.value = true
     try {
-      const response = await axios.post(`/api/v1/pregnancies/${pregnancyId}/deliver`)
-      const result: DeliveryResult = response.data
+      const result: DeliveryResult = await pregnancyApi.deliver(pregnancyId)
 
       // Update local state
       const index = pregnancies.value.findIndex((p) => p.id === pregnancyId)

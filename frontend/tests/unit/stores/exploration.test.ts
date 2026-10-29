@@ -7,16 +7,23 @@ import {
 } from '@/modules/exploration/stores/exploration'
 import { explorationApi } from '@/modules/exploration/api/exploration'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import axios from '@/core/plugins/axios'
 import { addPendingReport } from '@/modules/exploration/composables/usePendingReports'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useToast } from '@/core/composables/useToast'
 import type { UserProfile } from '@/modules/profile/models/profile'
 
-vi.mock('@/core/plugins/axios')
 vi.mock('@/modules/exploration/api/exploration', () => ({
   explorationApi: {
     dispatchToLocation: vi.fn(),
+    suggestHeading: vi.fn(),
+    sendDwellerToWasteland: vi.fn(),
+    getExplorationsByVault: vi.fn(),
+    getExploration: vi.fn(),
+    getExplorationProgress: vi.fn(),
+    recallDweller: vi.fn(),
+    completeExploration: vi.fn(),
+    resolveOverflowItem: vi.fn(),
+    getPendingOverflow: vi.fn(),
     getExplorationParty: vi.fn(),
   },
 }))
@@ -196,15 +203,16 @@ describe('Exploration Store', () => {
   describe('sendDwellerToWasteland Action', () => {
     it('should send dweller successfully', async () => {
       const store = useExplorationStore()
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: mockExploration })
+      vi.mocked(explorationApi.sendDwellerToWasteland).mockResolvedValueOnce(mockExploration)
 
-      const result = await store.sendDwellerToWasteland('vault-1', 'dweller-1', 4, 'test-token')
+      const result = await store.sendDwellerToWasteland('vault-1', 'dweller-1', 4)
 
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/explorations/send?vault_id=vault-1',
-        { dweller_id: 'dweller-1', duration: 4, stimpaks: 0, radaways: 0 },
-        { headers: { Authorization: 'Bearer test-token' } }
-      )
+      expect(explorationApi.sendDwellerToWasteland).toHaveBeenCalledWith('vault-1', {
+        dweller_id: 'dweller-1',
+        duration: 4,
+        stimpaks: 0,
+        radaways: 0,
+      })
       expect(result).toEqual(mockExploration)
       expect(store.explorations).toContainEqual(mockExploration)
       expect(store.activeExplorations['exploration-1']).toEqual(mockExploration)
@@ -216,12 +224,12 @@ describe('Exploration Store', () => {
       const store = useExplorationStore()
       let loadingDuringRequest = false
 
-      vi.mocked(axios.post).mockImplementation(async () => {
+      vi.mocked(explorationApi.sendDwellerToWasteland).mockImplementation(async () => {
         loadingDuringRequest = store.isLoading
-        return { data: mockExploration }
+        return mockExploration
       })
 
-      await store.sendDwellerToWasteland('vault-1', 'dweller-1', 4, 'test-token')
+      await store.sendDwellerToWasteland('vault-1', 'dweller-1', 4)
 
       expect(loadingDuringRequest).toBe(true)
       expect(store.isLoading).toBe(false)
@@ -230,11 +238,11 @@ describe('Exploration Store', () => {
     it('should handle error', async () => {
       const store = useExplorationStore()
       const error = new Error('Failed to send dweller')
-      vi.mocked(axios.post).mockRejectedValueOnce(error)
+      vi.mocked(explorationApi.sendDwellerToWasteland).mockRejectedValueOnce(error)
 
-      await expect(
-        store.sendDwellerToWasteland('vault-1', 'dweller-1', 4, 'test-token')
-      ).rejects.toThrow('Failed to send dweller')
+      await expect(store.sendDwellerToWasteland('vault-1', 'dweller-1', 4)).rejects.toThrow(
+        'Failed to send dweller'
+      )
 
       expect(store.error).toBe('Failed to send dweller to wasteland')
       expect(store.isLoading).toBe(false)
@@ -242,28 +250,31 @@ describe('Exploration Store', () => {
 
     it('includes heading_degrees in the request body when a heading is given', async () => {
       const store = useExplorationStore()
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: mockExploration })
+      vi.mocked(explorationApi.sendDwellerToWasteland).mockResolvedValueOnce(mockExploration)
 
-      await store.sendDwellerToWasteland('vault-1', 'dweller-1', 4, 'test-token', 2, 1, 90)
+      await store.sendDwellerToWasteland('vault-1', 'dweller-1', 4, 2, 1, 90)
 
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/explorations/send?vault_id=vault-1',
-        { dweller_id: 'dweller-1', duration: 4, stimpaks: 2, radaways: 1, heading_degrees: 90 },
-        { headers: { Authorization: 'Bearer test-token' } }
-      )
+      expect(explorationApi.sendDwellerToWasteland).toHaveBeenCalledWith('vault-1', {
+        dweller_id: 'dweller-1',
+        duration: 4,
+        stimpaks: 2,
+        radaways: 1,
+        heading_degrees: 90,
+      })
     })
 
     it('omits heading_degrees for a free-roam send', async () => {
       const store = useExplorationStore()
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: mockExploration })
+      vi.mocked(explorationApi.sendDwellerToWasteland).mockResolvedValueOnce(mockExploration)
 
-      await store.sendDwellerToWasteland('vault-1', 'dweller-1', 4, 'test-token')
+      await store.sendDwellerToWasteland('vault-1', 'dweller-1', 4)
 
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/explorations/send?vault_id=vault-1',
-        { dweller_id: 'dweller-1', duration: 4, stimpaks: 0, radaways: 0 },
-        { headers: { Authorization: 'Bearer test-token' } }
-      )
+      expect(explorationApi.sendDwellerToWasteland).toHaveBeenCalledWith('vault-1', {
+        dweller_id: 'dweller-1',
+        duration: 4,
+        stimpaks: 0,
+        radaways: 0,
+      })
     })
   })
 
@@ -275,7 +286,7 @@ describe('Exploration Store', () => {
 
       const result = await store.dispatchToLocation('vault-1', ['dweller-1'], 'loc-1')
 
-      expect(explorationApi.dispatchToLocation).toHaveBeenCalledWith('test-token', 'vault-1', {
+      expect(explorationApi.dispatchToLocation).toHaveBeenCalledWith('vault-1', {
         dwellerIds: ['dweller-1'],
         locationId: 'loc-1',
         stimpaks: 0,
@@ -322,16 +333,11 @@ describe('Exploration Store', () => {
     it('should fetch active explorations successfully', async () => {
       const store = useExplorationStore()
       const explorations = [mockExploration, { ...mockExploration, id: 'exploration-2' }]
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: explorations })
+      vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce(explorations)
 
-      const result = await store.fetchExplorationsByVault('vault-1', 'test-token', true)
+      const result = await store.fetchExplorationsByVault('vault-1', true)
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/explorations/vault/vault-1?active_only=true',
-        {
-          headers: { Authorization: 'Bearer test-token' },
-        }
-      )
+      expect(explorationApi.getExplorationsByVault).toHaveBeenCalledWith('vault-1', true)
       expect(result).toEqual(explorations)
       expect(store.explorations).toEqual(explorations)
       expect(Object.keys(store.activeExplorations)).toHaveLength(2)
@@ -343,25 +349,20 @@ describe('Exploration Store', () => {
         mockExploration,
         { ...mockExploration, id: 'exploration-2', status: 'completed' },
       ]
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: explorations })
+      vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce(explorations)
 
-      await store.fetchExplorationsByVault('vault-1', 'test-token', false)
+      await store.fetchExplorationsByVault('vault-1', false)
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/explorations/vault/vault-1?active_only=false',
-        {
-          headers: { Authorization: 'Bearer test-token' },
-        }
-      )
+      expect(explorationApi.getExplorationsByVault).toHaveBeenCalledWith('vault-1', false)
       expect(store.explorations).toEqual(explorations)
       expect(Object.keys(store.activeExplorations)).toHaveLength(1) // Only active ones in map
     })
 
     it('should handle empty response', async () => {
       const store = useExplorationStore()
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+      vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce([])
 
-      await store.fetchExplorationsByVault('vault-1', 'test-token')
+      await store.fetchExplorationsByVault('vault-1')
 
       expect(store.explorations).toEqual([])
       expect(store.activeExplorations).toEqual({})
@@ -369,9 +370,11 @@ describe('Exploration Store', () => {
 
     it('does not toggle loading for a silent background refresh', () => {
       const store = useExplorationStore()
-      vi.mocked(axios.get).mockImplementationOnce(() => new Promise(() => undefined))
+      vi.mocked(explorationApi.getExplorationsByVault).mockImplementationOnce(
+        () => new Promise(() => undefined)
+      )
 
-      void store.fetchExplorationsByVault('vault-1', 'test-token', true, true)
+      void store.fetchExplorationsByVault('vault-1', true, true)
 
       expect(store.isLoading).toBe(false)
     })
@@ -379,11 +382,13 @@ describe('Exploration Store', () => {
     it('keeps the previous error when a silent refresh fails', async () => {
       const store = useExplorationStore()
       store.error = 'previous error'
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
+      vi.mocked(explorationApi.getExplorationsByVault).mockRejectedValueOnce(
+        new Error('Fetch failed')
+      )
 
-      await expect(
-        store.fetchExplorationsByVault('vault-1', 'test-token', true, true)
-      ).rejects.toThrow('Fetch failed')
+      await expect(store.fetchExplorationsByVault('vault-1', true, true)).rejects.toThrow(
+        'Fetch failed'
+      )
 
       expect(store.error).toBe('previous error')
     })
@@ -391,20 +396,20 @@ describe('Exploration Store', () => {
     it('clears a previous error when a silent refresh succeeds', async () => {
       const store = useExplorationStore()
       store.error = 'previous error'
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+      vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce([])
 
-      await store.fetchExplorationsByVault('vault-1', 'test-token', true, true)
+      await store.fetchExplorationsByVault('vault-1', true, true)
 
       expect(store.error).toBeNull()
     })
 
     it('should handle error', async () => {
       const store = useExplorationStore()
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
-
-      await expect(store.fetchExplorationsByVault('vault-1', 'test-token')).rejects.toThrow(
-        'Fetch failed'
+      vi.mocked(explorationApi.getExplorationsByVault).mockRejectedValueOnce(
+        new Error('Fetch failed')
       )
+
+      await expect(store.fetchExplorationsByVault('vault-1')).rejects.toThrow('Fetch failed')
 
       expect(store.error).toBe('Failed to fetch explorations')
       expect(store.isLoading).toBe(false)
@@ -418,13 +423,11 @@ describe('Exploration Store', () => {
       store.activeExplorations = { 'exploration-1': mockExploration }
 
       const updatedExploration = { ...mockExploration, total_distance: 50 }
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: updatedExploration })
+      vi.mocked(explorationApi.getExploration).mockResolvedValueOnce(updatedExploration)
 
-      const result = await store.fetchExplorationDetails('exploration-1', 'test-token')
+      const result = await store.fetchExplorationDetails('exploration-1')
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/explorations/exploration-1', {
-        headers: { Authorization: 'Bearer test-token' },
-      })
+      expect(explorationApi.getExploration).toHaveBeenCalledWith('exploration-1')
       expect(result).toEqual(updatedExploration)
       expect(store.explorations[0]).toEqual(updatedExploration)
       expect(store.activeExplorations['exploration-1']).toEqual(updatedExploration)
@@ -436,9 +439,9 @@ describe('Exploration Store', () => {
       store.activeExplorations = { 'exploration-1': mockExploration }
 
       const completedExploration = { ...mockExploration, status: 'completed' }
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: completedExploration })
+      vi.mocked(explorationApi.getExploration).mockResolvedValueOnce(completedExploration)
 
-      await store.fetchExplorationDetails('exploration-1', 'test-token')
+      await store.fetchExplorationDetails('exploration-1')
 
       expect(store.activeExplorations['exploration-1']).toBeUndefined()
       expect(store.explorations[0].status).toBe('completed')
@@ -447,9 +450,9 @@ describe('Exploration Store', () => {
     it('retains a directly loaded completed exploration for its detail view', async () => {
       const store = useExplorationStore()
       const completedExploration = { ...mockExploration, status: 'completed' }
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: completedExploration })
+      vi.mocked(explorationApi.getExploration).mockResolvedValueOnce(completedExploration)
 
-      await store.fetchExplorationDetails('exploration-1', 'test-token')
+      await store.fetchExplorationDetails('exploration-1')
 
       expect(store.explorations).toEqual([completedExploration])
       expect(store.activeExplorations['exploration-1']).toBeUndefined()
@@ -457,9 +460,11 @@ describe('Exploration Store', () => {
 
     it('does not toggle loading for a silent background refresh', () => {
       const store = useExplorationStore()
-      vi.mocked(axios.get).mockImplementationOnce(() => new Promise(() => undefined))
+      vi.mocked(explorationApi.getExplorationsByVault).mockImplementationOnce(
+        () => new Promise(() => undefined)
+      )
 
-      void store.fetchExplorationsByVault('vault-1', 'test-token', true, true)
+      void store.fetchExplorationsByVault('vault-1', true, true)
 
       expect(store.isLoading).toBe(false)
     })
@@ -467,11 +472,13 @@ describe('Exploration Store', () => {
     it('keeps the previous error when a silent refresh fails', async () => {
       const store = useExplorationStore()
       store.error = 'previous error'
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
+      vi.mocked(explorationApi.getExplorationsByVault).mockRejectedValueOnce(
+        new Error('Fetch failed')
+      )
 
-      await expect(
-        store.fetchExplorationsByVault('vault-1', 'test-token', true, true)
-      ).rejects.toThrow('Fetch failed')
+      await expect(store.fetchExplorationsByVault('vault-1', true, true)).rejects.toThrow(
+        'Fetch failed'
+      )
 
       expect(store.error).toBe('previous error')
     })
@@ -479,41 +486,41 @@ describe('Exploration Store', () => {
     it('clears a previous error when a silent refresh succeeds', async () => {
       const store = useExplorationStore()
       store.error = 'previous error'
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+      vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce([])
 
-      await store.fetchExplorationsByVault('vault-1', 'test-token', true, true)
+      await store.fetchExplorationsByVault('vault-1', true, true)
 
       expect(store.error).toBeNull()
     })
 
     it('should handle error', async () => {
       const store = useExplorationStore()
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
+      vi.mocked(explorationApi.getExploration).mockRejectedValueOnce(new Error('Fetch failed'))
 
-      await expect(store.fetchExplorationDetails('exploration-1', 'test-token')).rejects.toThrow(
-        'Fetch failed'
-      )
+      await expect(store.fetchExplorationDetails('exploration-1')).rejects.toThrow('Fetch failed')
     })
   })
 
   describe('fetchExplorationProgress Action', () => {
     it('should fetch progress successfully', async () => {
       const store = useExplorationStore()
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockExplorationProgress })
+      vi.mocked(explorationApi.getExplorationProgress).mockResolvedValueOnce(
+        mockExplorationProgress
+      )
 
-      const result = await store.fetchExplorationProgress('exploration-1', 'test-token')
+      const result = await store.fetchExplorationProgress('exploration-1')
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/explorations/exploration-1/progress', {
-        headers: { Authorization: 'Bearer test-token' },
-      })
+      expect(explorationApi.getExplorationProgress).toHaveBeenCalledWith('exploration-1')
       expect(result).toEqual(mockExplorationProgress)
     })
 
     it('should handle error', async () => {
       const store = useExplorationStore()
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Progress fetch failed'))
+      vi.mocked(explorationApi.getExplorationProgress).mockRejectedValueOnce(
+        new Error('Progress fetch failed')
+      )
 
-      await expect(store.fetchExplorationProgress('exploration-1', 'test-token')).rejects.toThrow(
+      await expect(store.fetchExplorationProgress('exploration-1')).rejects.toThrow(
         'Progress fetch failed'
       )
     })
@@ -530,15 +537,11 @@ describe('Exploration Store', () => {
         exploration: recalledExploration,
         rewards_summary: { ...mockRewardsSummary, recalled_early: true, progress_percentage: 50 },
       }
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: response })
+      vi.mocked(explorationApi.recallDweller).mockResolvedValueOnce(response)
 
-      const result = await store.recallDweller('exploration-1', 'test-token')
+      const result = await store.recallDweller('exploration-1')
 
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/explorations/exploration-1/recall',
-        {},
-        { headers: { Authorization: 'Bearer test-token' } }
-      )
+      expect(explorationApi.recallDweller).toHaveBeenCalledWith('exploration-1')
       expect(result).toEqual(response)
       expect(store.lastRewards).toEqual(response.rewards_summary)
       expect(store.explorations[0].status).toBe('recalled')
@@ -548,11 +551,9 @@ describe('Exploration Store', () => {
 
     it('should handle error', async () => {
       const store = useExplorationStore()
-      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Recall failed'))
+      vi.mocked(explorationApi.recallDweller).mockRejectedValueOnce(new Error('Recall failed'))
 
-      await expect(store.recallDweller('exploration-1', 'test-token')).rejects.toThrow(
-        'Recall failed'
-      )
+      await expect(store.recallDweller('exploration-1')).rejects.toThrow('Recall failed')
 
       expect(store.error).toBe('Failed to recall dweller')
       expect(store.isLoading).toBe(false)
@@ -570,15 +571,11 @@ describe('Exploration Store', () => {
         exploration: completedExploration,
         rewards_summary: mockRewardsSummary,
       }
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: response })
+      vi.mocked(explorationApi.completeExploration).mockResolvedValueOnce(response)
 
-      const result = await store.completeExploration('exploration-1', 'test-token')
+      const result = await store.completeExploration('exploration-1')
 
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/explorations/exploration-1/complete',
-        {},
-        { headers: { Authorization: 'Bearer test-token' } }
-      )
+      expect(explorationApi.completeExploration).toHaveBeenCalledWith('exploration-1')
       expect(result).toEqual(response)
       expect(store.lastRewards).toEqual(response.rewards_summary)
       expect(store.explorations[0].status).toBe('completed')
@@ -588,11 +585,11 @@ describe('Exploration Store', () => {
 
     it('should handle error', async () => {
       const store = useExplorationStore()
-      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Complete failed'))
-
-      await expect(store.completeExploration('exploration-1', 'test-token')).rejects.toThrow(
-        'Complete failed'
+      vi.mocked(explorationApi.completeExploration).mockRejectedValueOnce(
+        new Error('Complete failed')
       )
+
+      await expect(store.completeExploration('exploration-1')).rejects.toThrow('Complete failed')
 
       expect(store.error).toBe('Failed to complete exploration')
       expect(store.isLoading).toBe(false)
@@ -618,9 +615,9 @@ describe('Exploration Store', () => {
         { ...mockExploration, id: 'exploration-2', dweller_id: 'dweller-2', status: 'active' },
         { ...mockExploration, id: 'exploration-3', dweller_id: 'dweller-3', status: 'completed' },
       ]
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: explorations })
+      vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce(explorations)
 
-      await store.fetchExplorationsByVault('vault-1', 'test-token')
+      await store.fetchExplorationsByVault('vault-1')
 
       expect(store.explorations).toHaveLength(3)
       expect(Object.keys(store.activeExplorations)).toHaveLength(2) // Only active ones
@@ -639,9 +636,9 @@ describe('Exploration Store', () => {
         total_caps_found: 100,
         events: [{ type: 'loot_found', description: 'Found loot!' }],
       }
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: updatedExploration })
+      vi.mocked(explorationApi.getExploration).mockResolvedValueOnce(updatedExploration)
 
-      await store.fetchExplorationDetails('exploration-1', 'test-token')
+      await store.fetchExplorationDetails('exploration-1')
 
       expect(store.explorations[0].total_caps_found).toBe(100)
       expect(store.activeExplorations['exploration-1'].total_caps_found).toBe(100)
@@ -947,17 +944,12 @@ describe('Exploration Store', () => {
         { ...mockExploration, id: 'exploration-2', dweller_id: 'dweller-2', status: 'returning' },
         { ...mockExploration, id: 'exploration-3', dweller_id: 'dweller-3', status: 'completed' },
       ]
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: explorations })
+      vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce(explorations)
 
-      const result = await store.refreshActiveExplorations('vault-1', 'test-token')
+      const result = await store.refreshActiveExplorations('vault-1')
 
-      expect(axios.get).toHaveBeenCalledTimes(1)
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/explorations/vault/vault-1?active_only=true',
-        {
-          headers: { Authorization: 'Bearer test-token' },
-        }
-      )
+      expect(explorationApi.getExplorationsByVault).toHaveBeenCalledTimes(1)
+      expect(explorationApi.getExplorationsByVault).toHaveBeenCalledWith('vault-1', true)
       expect(result).toEqual(explorations)
       expect(store.activeExplorations['exploration-1']).toEqual(mockExploration)
       expect(store.activeExplorations['exploration-2']).toBeDefined()
@@ -967,10 +959,10 @@ describe('Exploration Store', () => {
 
     it('fetches parties only when includeParties is requested', async () => {
       const store = useExplorationStore()
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [mockExploration] })
+      vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce([mockExploration])
       vi.mocked(explorationApi.getExplorationParty).mockResolvedValueOnce([])
 
-      await store.refreshActiveExplorations('vault-1', 'test-token', { includeParties: true })
+      await store.refreshActiveExplorations('vault-1', { includeParties: true })
 
       expect(explorationApi.getExplorationParty).toHaveBeenCalledWith('vault-1', 'exploration-1')
       expect(store.explorationPartyMap).toEqual({ 'exploration-1': [] })
@@ -985,10 +977,10 @@ describe('Exploration Store', () => {
         { ...mockExploration, id: 'exploration-1' },
         { ...mockExploration, id: 'exploration-2', dweller_id: 'dweller-2' },
       ]
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: explorations })
+      vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce(explorations)
       vi.mocked(explorationApi.getExplorationParty).mockResolvedValue([])
 
-      await store.refreshActiveExplorations('vault-1', 'test-token', { includeParties: true })
+      await store.refreshActiveExplorations('vault-1', { includeParties: true })
 
       expect(explorationApi.getExplorationParty).toHaveBeenCalledTimes(2)
       expect(explorationApi.getExplorationParty).toHaveBeenCalledWith('vault-1', 'exploration-1')
@@ -1001,20 +993,22 @@ describe('Exploration Store', () => {
 
     it('surfaces loading and error state for an initial load', async () => {
       const store = useExplorationStore()
-      vi.mocked(axios.get).mockImplementationOnce(() => new Promise(() => undefined))
+      vi.mocked(explorationApi.getExplorationsByVault).mockImplementationOnce(
+        () => new Promise(() => undefined)
+      )
 
-      void store.refreshActiveExplorations('vault-1', 'test-token')
+      void store.refreshActiveExplorations('vault-1')
 
       expect(store.isLoading).toBe(true)
     })
 
     it('records the failure for an initial load and clears loading', async () => {
       const store = useExplorationStore()
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
-
-      await expect(store.refreshActiveExplorations('vault-1', 'test-token')).rejects.toThrow(
-        'Fetch failed'
+      vi.mocked(explorationApi.getExplorationsByVault).mockRejectedValueOnce(
+        new Error('Fetch failed')
       )
+
+      await expect(store.refreshActiveExplorations('vault-1')).rejects.toThrow('Fetch failed')
 
       expect(store.error).toBe('Failed to fetch explorations')
       expect(store.isLoading).toBe(false)
@@ -1023,11 +1017,13 @@ describe('Exploration Store', () => {
     it('stays silent for polling and skips parties on failure', async () => {
       const store = useExplorationStore()
       store.error = 'previous error'
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
+      vi.mocked(explorationApi.getExplorationsByVault).mockRejectedValueOnce(
+        new Error('Fetch failed')
+      )
 
-      await expect(
-        store.refreshActiveExplorations('vault-1', 'test-token', { silent: true })
-      ).rejects.toThrow('Fetch failed')
+      await expect(store.refreshActiveExplorations('vault-1', { silent: true })).rejects.toThrow(
+        'Fetch failed'
+      )
 
       expect(store.error).toBe('previous error')
       expect(store.isLoading).toBe(false)

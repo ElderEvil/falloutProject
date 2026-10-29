@@ -206,9 +206,7 @@ export function useDwellerDetail(
 
     if (fetched?.status === 'exploring') {
       // Recall gating reads the exploration store; best-effort so the page still loads.
-      await explorationStore
-        .fetchExplorationsByVault(vaultId.value, authStore.token as string)
-        .catch(() => undefined)
+      await explorationStore.fetchExplorationsByVault(vaultId.value).catch(() => undefined)
     }
 
     if (fetched?.is_dead && !fetched.is_permanently_dead) {
@@ -292,12 +290,9 @@ export function useDwellerDetail(
       toast.error('No active exploration found for this dweller')
       return
     }
-    await runAction(
-      () => explorationStore.recallDweller(exploration.id, authStore.token as string),
-      {
-        errorMessage: 'Failed to recall dweller',
-      }
-    )
+    await runAction(() => explorationStore.recallDweller(exploration.id), {
+      errorMessage: 'Failed to recall dweller',
+    })
   }
   const handleSendWasteland = () => {
     if (!dweller.value) return

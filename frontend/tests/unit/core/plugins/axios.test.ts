@@ -11,7 +11,7 @@ import { createToastMock } from '../../helpers/mocks'
 import axios, { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 import apiClient from '@/core/plugins/axios'
 import { handleStoreError } from '@/core/utils/errorHandler'
-import { apiGet } from '@/core/utils/api'
+import { apiGet, ApiError } from '@/core/utils/api'
 import { chatApi } from '@/modules/chat/api/chat'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import * as toastModule from '@/core/composables/useToast'
@@ -218,8 +218,8 @@ describe('axios response interceptor', () => {
   it('leaves a legacy overflow error for the modal to explain once', async () => {
     rejectWithError((config) => statusError(config, 404))
     await expect(
-      useExplorationStore().resolveOverflowItem('exp-1', 'sell', 0, 'token')
-    ).rejects.toBeInstanceOf(AxiosError)
+      useExplorationStore().resolveOverflowItem('exp-1', 'sell', 0)
+    ).rejects.toBeInstanceOf(ApiError)
     expect(mockToast.error).not.toHaveBeenCalled()
   })
 

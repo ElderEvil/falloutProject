@@ -72,10 +72,10 @@ where a direct read is intentionally retained.
 
 ### P1 — Frontend Store → Service → API boundary is still bypassed
 
-- 11 non-service frontend modules import `@/core/plugins/axios` directly, all Pinia
+- 10 non-service frontend modules import `@/core/plugins/axios` directly, all Pinia
   stores — no views, components or composables remain: five dweller stores
   (`dwellerDeath`, `dwellerGeneration`, `dwellerManagement`, `dwellerMedical`,
-  `exitRequests`), `exploration`, `progression/quest`, `rooms/room`, two social
+  `exitRequests`), `progression/quest`, `rooms/room`, two social
   stores (`pregnancy`, `relationship`), and `vault`.
 - `modules/rooms/stores/room.ts:3-145` illustrates the result: HTTP paths,
   bearer-header construction, Axios-specific error extraction, refresh
@@ -227,6 +227,15 @@ changing progression behavior.
 **Recommendation:** add one sorted-read helper. Decide explicitly whether an
 invalid `since` version should remain silently ignored or return validation.
 
+## Verification log — 2026-10-29
+
+- Frontend non-service Axios consumers: 10 (all Pinia stores), down from 11.
+  `modules/exploration/api/exploration.ts` now owns the exploration wire calls;
+  the exploration store no longer imports the plugin or threads a token. Its SSE
+  subscription still needs the token and is excluded from the count.
+- `modules/exploration/api/expeditionSite.ts` remains a direct plugin consumer
+  and is part of a later Batch 2+ slice.
+
 ## Verification log — 2026-10-28
 
 - Both P0 findings are resolved in the current tree: only the token-validated
@@ -243,7 +252,7 @@ invalid `since` version should remain silently ignored or return validation.
 | --- | --- | --- |
 | Unauthenticated debug mutation endpoints | Resolved | `endpoints/debug.py` no longer exists. |
 | Dweller CRUD/game logic in router | Mostly resolved | Dweller actions moved into services and service-layer baselines are empty. Router→CRUD bypasses persist elsewhere; retained as P1. |
-| Frontend direct Axios imports | Open, narrowed | 11 non-service consumers remain, all Pinia stores; views/composables now use module API layers. Retained as P1. |
+| Frontend direct Axios imports | Open, narrowed | 10 non-service consumers remain, all Pinia stores; views/composables now use module API layers. Retained as P1. |
 | `game_loop` and `chat_service` god services | Resolved as originally scoped | Reduced from 891/659 lines to 323/214, with chat helpers and tick responsibilities split. |
 | Mock-heavy tests | Improved, still open | Down from 1,796 to 1,404 occurrences; retained as P2. |
 | Broad list of untested modules | Superseded | The old filename-derived list is no longer reliable: many named services now have direct tests. A future decision needs fresh coverage-context data. |

@@ -127,7 +127,7 @@ const loadData = async () => {
   if (!vaultId.value || !authStore.token) return
 
   try {
-    await explorationStore.refreshActiveExplorations(vaultId.value, authStore.token, {
+    await explorationStore.refreshActiveExplorations(vaultId.value, {
       includeParties: true,
     })
     await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
@@ -154,10 +154,7 @@ onMounted(async () => {
   }
   if (vaultId.value && authStore.token) {
     explorationStore.startSseSubscription(vaultId.value, authStore.token)
-    pendingOverflow.value = await explorationStore.fetchPendingOverflow(
-      vaultId.value,
-      authStore.token
-    )
+    pendingOverflow.value = await explorationStore.fetchPendingOverflow(vaultId.value)
     if (showNextPendingOverflow()) return
   }
   if (pendingReports.value.length > 0) {
@@ -193,7 +190,7 @@ watch(
 const pollExplorations = async () => {
   if (!vaultId.value || !authStore.token) return
 
-  await explorationStore.refreshActiveExplorations(vaultId.value, authStore.token, {
+  await explorationStore.refreshActiveExplorations(vaultId.value, {
     includeParties: true,
     silent: true,
   })

@@ -94,15 +94,7 @@ describe('useSendToWasteland', () => {
     const dispatched = await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
 
     expect(dispatched).toBe(true)
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      'vault-1',
-      'dweller-adult',
-      8,
-      'test-token',
-      0,
-      0,
-      undefined
-    )
+    expect(dispatchSpy).toHaveBeenCalledWith('vault-1', 'dweller-adult', 8, 0, 0, undefined)
     expect(sendWasteland.showModal.value).toBe(false)
     expect(sendWasteland.pendingDweller.value).toBeNull()
   })
@@ -130,7 +122,7 @@ describe('useSendToWasteland', () => {
 
     await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
 
-    expect(dispatchSpy).toHaveBeenCalledWith('vault-1', 'dweller-adult', 8, 'test-token', 0, 0, 90)
+    expect(dispatchSpy).toHaveBeenCalledWith('vault-1', 'dweller-adult', 8, 0, 0, 90)
   })
 
   it('suggests a heading for a non-map open and sends it on confirm', async () => {
@@ -144,17 +136,12 @@ describe('useSendToWasteland', () => {
     await flushPromises()
 
     expect(apiMocks.suggestHeading).toHaveBeenCalledTimes(1)
-    expect(apiMocks.suggestHeading).toHaveBeenCalledWith(
-      'test-token',
-      'vault-1',
-      expect.any(String),
-      4
-    )
+    expect(apiMocks.suggestHeading).toHaveBeenCalledWith('vault-1', expect.any(String), 4)
     expect(sendWasteland.headingDegrees.value).toBe(135)
 
     await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
 
-    expect(dispatchSpy).toHaveBeenCalledWith('vault-1', 'dweller-adult', 8, 'test-token', 0, 0, 135)
+    expect(dispatchSpy).toHaveBeenCalledWith('vault-1', 'dweller-adult', 8, 0, 0, 135)
   })
 
   it('re-rolls the suggested heading', async () => {
@@ -180,12 +167,7 @@ describe('useSendToWasteland', () => {
     sendWasteland.reroll(24)
     await flushPromises()
 
-    expect(apiMocks.suggestHeading).toHaveBeenLastCalledWith(
-      'test-token',
-      'vault-1',
-      expect.any(String),
-      24
-    )
+    expect(apiMocks.suggestHeading).toHaveBeenLastCalledWith('vault-1', expect.any(String), 24)
   })
 
   it('ignores a suggestion that resolves after the modal is cancelled', async () => {
@@ -243,15 +225,7 @@ describe('useSendToWasteland', () => {
 
     await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
 
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      'vault-1',
-      'dweller-adult',
-      8,
-      'test-token',
-      0,
-      0,
-      undefined
-    )
+    expect(dispatchSpy).toHaveBeenCalledWith('vault-1', 'dweller-adult', 8, 0, 0, undefined)
   })
 
   describe('manual compass pick', () => {
@@ -271,15 +245,7 @@ describe('useSendToWasteland', () => {
 
       await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
 
-      expect(dispatchSpy).toHaveBeenCalledWith(
-        'vault-1',
-        'dweller-adult',
-        8,
-        'test-token',
-        0,
-        0,
-        90
-      )
+      expect(dispatchSpy).toHaveBeenCalledWith('vault-1', 'dweller-adult', 8, 0, 0, 90)
     })
 
     it('reroll clears a manual pick and re-suggests a fresh heading', async () => {
@@ -349,12 +315,7 @@ describe('useSendToWasteland', () => {
       })
       await flushPromises()
 
-      expect(apiMocks.suggestHeading).toHaveBeenCalledWith(
-        'test-token',
-        'vault-1',
-        expect.any(String),
-        24
-      )
+      expect(apiMocks.suggestHeading).toHaveBeenCalledWith('vault-1', expect.any(String), 24)
     })
 
     it('default open does not seed a prefill', () => {

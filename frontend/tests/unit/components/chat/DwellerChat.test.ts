@@ -1970,7 +1970,6 @@ describe('DwellerChat', () => {
         'vault-123',
         'dweller-123',
         8,
-        'test-token',
         5,
         3,
         undefined
@@ -2353,8 +2352,8 @@ describe('DwellerChat', () => {
       await confirmBtn.trigger('click')
       await flushPromises()
 
-      expect(mockFetchExplorationProgress).toHaveBeenCalledWith('exploration-999', 'test-token')
-      expect(mockRecallDweller).toHaveBeenCalledWith('exploration-999', 'test-token')
+      expect(mockFetchExplorationProgress).toHaveBeenCalledWith('exploration-999')
+      expect(mockRecallDweller).toHaveBeenCalledWith('exploration-999')
       expect(mockCompleteExploration).not.toHaveBeenCalled()
 
       // Verify action card is removed
@@ -2391,8 +2390,8 @@ describe('DwellerChat', () => {
       await confirmBtn.trigger('click')
       await flushPromises()
 
-      expect(mockFetchExplorationProgress).toHaveBeenCalledWith('exploration-999', 'test-token')
-      expect(mockCompleteExploration).toHaveBeenCalledWith('exploration-999', 'test-token')
+      expect(mockFetchExplorationProgress).toHaveBeenCalledWith('exploration-999')
+      expect(mockCompleteExploration).toHaveBeenCalledWith('exploration-999')
       expect(mockRecallDweller).not.toHaveBeenCalled()
 
       // Verify action card is removed

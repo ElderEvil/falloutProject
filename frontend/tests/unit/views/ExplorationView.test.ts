@@ -188,7 +188,7 @@ describe('ExplorationView', () => {
     await flushPromises()
 
     const refreshSpy = vi.mocked(explorationStore.refreshActiveExplorations)
-    expect(refreshSpy).toHaveBeenCalledWith('vault-123', 'mock-token', { includeParties: true })
+    expect(refreshSpy).toHaveBeenCalledWith('vault-123', { includeParties: true })
   })
 
   it('refreshes the list with a silent poll and keeps the quest refreshes', async () => {
@@ -207,7 +207,7 @@ describe('ExplorationView', () => {
     refreshSpy.mockClear()
     await pollState.callback?.()
 
-    expect(refreshSpy).toHaveBeenCalledWith('vault-123', 'mock-token', {
+    expect(refreshSpy).toHaveBeenCalledWith('vault-123', {
       includeParties: true,
       silent: true,
     })

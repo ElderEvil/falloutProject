@@ -5,11 +5,11 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useExplorationStore, type RewardsSummary } from '../stores/exploration'
+import type { ExplorationCompleteResponse } from '../api/exploration'
 
 export type ExplorationFinishAction = (
-  explorationId: string,
-  token: string
-) => Promise<{ rewards_summary?: RewardsSummary | null }>
+  explorationId: string
+) => Promise<ExplorationCompleteResponse>
 
 export interface FinishExplorationOptions {
   /** Display name override when the caller already resolved it (e.g. from detailed dwellers). */
@@ -71,13 +71,13 @@ export function useExplorationFinish(vaultId?: MaybeRefOrGetter<string | undefin
     if (!exploration) return
 
     try {
-      const result = await action(explorationId, authStore.token)
+      const result = await action(explorationId)
 
       if (result?.rewards_summary) {
         const dweller = dwellerStore.dwellers.find((d) => d.id === exploration.dweller_id)
         const dwellerName = options.dwellerName ?? (getDwellerDisplayName(dweller) || 'Dweller')
         explorationStore.acknowledgeSseReward(exploration.dweller_id)
-        openRewards(result.rewards_summary, dwellerName, explorationId)
+        openRewards(result.rewards_summary as unknown as RewardsSummary, dwellerName, explorationId)
       }
 
       options.onFinished?.(exploration.dweller_id)

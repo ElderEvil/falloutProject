@@ -129,11 +129,20 @@ class RelationshipService:
         return relationship
 
     @staticmethod
+    def _stage_update(db_session: AsyncSession, relationship: Relationship, update_data: dict) -> None:
+        for field, value in update_data.items():
+            setattr(relationship, field, value)
+        db_session.add(relationship)
+
+    @staticmethod
     async def increase_affinity(
         db_session: AsyncSession,
         dweller_1_id: UUID4,
         dweller_2_id: UUID4,
         amount: int = 1,
+        *,
+        relationship: Relationship | None = None,
+        commit: bool = True,
     ) -> Relationship:
         """Increase affinity between two dwellers.
 
@@ -142,11 +151,14 @@ class RelationshipService:
             dweller_1_id: First dweller ID
             dweller_2_id: Second dweller ID
             amount: Affinity increase amount
+            relationship: Already-loaded relationship, avoiding a pair lookup
+            commit: Whether to commit; pass False to let the caller own the transaction
 
         Returns:
             Updated relationship
         """
-        relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
+        if relationship is None:
+            relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
         if not relationship:
             msg = "Relationship not found between dwellers"
             raise ValueError(msg)
@@ -168,6 +180,7 @@ class RelationshipService:
                 # than raising, which would break the vault). Lock both dweller
                 # rows first so a concurrent manual make_partners cannot race the
                 # guard (the tick holds a per-vault advisory lock, endpoints do not).
+                await db_session.flush()
                 await RelationshipService._lock_dwellers(
                     db_session, relationship.dweller_1_id, relationship.dweller_2_id
                 )
@@ -194,12 +207,14 @@ class RelationshipService:
             relationship.relationship_type == RelationshipTypeEnum.PARTNER
             and new_affinity >= game_config.relationship.marriage_threshold
         )
+        committed = False
         if is_marriage_transition:
             # Defense-in-depth: skip the transition if either dweller is already
             # committed to a third dweller (pre-existing corrupt data). Log and
             # persist only the affinity bump rather than raising. Lock both
             # dweller rows first so a concurrent manual make_partners cannot race
             # the guard (the tick holds a per-vault advisory lock, endpoints do not).
+            await db_session.flush()
             await RelationshipService._lock_dwellers(db_session, relationship.dweller_1_id, relationship.dweller_2_id)
             if await RelationshipService._committed_partner_elsewhere(
                 db_session,
@@ -214,7 +229,7 @@ class RelationshipService:
                     f"Skipping PARTNER->MARRIED transition for {relationship.dweller_1_id} ↔ "
                     f"{relationship.dweller_2_id}: one dweller is already committed to another dweller"
                 )
-                relationship = await relationship_crud.update(db_session, relationship.id, update_data)
+                RelationshipService._stage_update(db_session, relationship, update_data)
             elif await relationship_crud.transition_partner_to_married(
                 db_session, relationship.id, affinity=new_affinity
             ):
@@ -227,11 +242,15 @@ class RelationshipService:
                 )
                 await db_session.commit()
                 await RelationshipService._notify_marriage(db_session, relationship)
+                committed = True
             else:
                 # Lost the race (already not PARTNER): just persist the affinity bump.
-                relationship = await relationship_crud.update(db_session, relationship.id, update_data)
+                RelationshipService._stage_update(db_session, relationship, update_data)
         else:
-            relationship = await relationship_crud.update(db_session, relationship.id, update_data)
+            RelationshipService._stage_update(db_session, relationship, update_data)
+
+        if commit and not committed:
+            await db_session.commit()
 
         logger.debug(
             f"Affinity increased {dweller_1_id} ↔ {dweller_2_id}: {old_type} → {relationship.relationship_type}"

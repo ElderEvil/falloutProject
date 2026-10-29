@@ -388,18 +388,46 @@ async def process_training(db_session: AsyncSession, vault_id: UUID4) -> Trainin
         # Capture ids before the sweep: recover_session expires the ORM instances.
         training_pairs = [(training.id, training.dweller_id) for training in active_trainings]
         for index, (training_id, dweller_id) in enumerate(training_pairs):
-            error = await guard_phase(
-                f"Error processing training {training_id}",
-                partial(_process_single_training, db_session, stats, dwellers_map, active_trainings[index]),
-                catch=(SQLAlchemyError, ValueError, RuntimeError),
-                db_session=db_session,
-            )
+            training = active_trainings[index]
+            if training.is_ready_to_complete():
+                await db_session.commit()
+                error = await guard_phase(
+                    f"Error processing training {training_id}",
+                    partial(
+                        _process_single_training,
+                        db_session,
+                        stats,
+                        dwellers_map,
+                        training,
+                        commit=True,
+                    ),
+                    catch=(SQLAlchemyError, ValueError, RuntimeError),
+                    db_session=db_session,
+                )
+            else:
+                error = await guard_phase(
+                    f"Error processing training {training_id}",
+                    partial(
+                        _process_single_training,
+                        db_session,
+                        stats,
+                        dwellers_map,
+                        training,
+                        commit=False,
+                    ),
+                    catch=(SQLAlchemyError, ValueError, RuntimeError),
+                    db_session=db_session,
+                    savepoint=True,
+                )
             if error is not None:
                 remaining = training_pairs[index + 1 :]
                 await refresh_after_recovery(db_session, active_trainings[index + 1 :])
                 await refresh_after_recovery(
                     db_session, [dwellers_map[dweller_id] for _, dweller_id in remaining if dweller_id in dwellers_map]
                 )
+
+        if stats["sessions_updated"]:
+            await db_session.commit()
 
     except (SQLAlchemyError, ResourceNotFoundException, ResourceConflictException, VaultOperationException) as e:
         await recover_session(db_session)
@@ -409,14 +437,18 @@ async def process_training(db_session: AsyncSession, vault_id: UUID4) -> Trainin
     return stats
 
 
-async def _process_single_training(db_session, stats: TrainingStats, dwellers_map, training) -> None:
+async def _process_single_training(
+    db_session, stats: TrainingStats, dwellers_map, training, *, commit: bool = True
+) -> None:
     from app.services.training_service import training_service
 
     # Get pre-fetched dweller
     dweller = dwellers_map.get(training.dweller_id)
 
     # Update progress (this will auto-complete if ready)
-    updated_training = await training_service.update_training_progress(db_session, training, dweller=dweller)
+    updated_training = await training_service.update_training_progress(
+        db_session, training, dweller=dweller, commit=commit
+    )
 
     stats["sessions_updated"] += 1
 

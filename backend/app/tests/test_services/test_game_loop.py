@@ -493,6 +493,100 @@ class TestProcessTraining:
         assert result["sessions_updated"] == 1
         assert result["completed"] == 1
 
+    async def _seed_trainings(self, async_session: AsyncSession, vault: Vault, count: int = 3):
+        from app import crud
+        from app.core.enums import SPECIALEnum, TrainingStatus
+        from app.models.training import Training
+        from app.schemas.common import RoomTypeEnum
+        from app.schemas.dweller import DwellerCreate
+        from app.schemas.room import RoomCreate
+        from app.tests.factory.dwellers import create_fake_dweller
+        from app.tests.factory.rooms import create_fake_room
+
+        room_data = create_fake_room()
+        room_data.update(
+            {
+                "name": "Weight room",
+                "category": RoomTypeEnum.TRAINING,
+                "ability": SPECIALEnum.STRENGTH,
+            }
+        )
+        room = await crud.room.create(async_session, RoomCreate(**room_data, vault_id=vault.id))
+
+        now = datetime.utcnow()
+        trainings = []
+        for index in range(count):
+            dweller_data = create_fake_dweller()
+            dweller_data["first_name"] = f"Trainee{index}"
+            dweller = await crud.dweller.create(
+                async_session,
+                DwellerCreate(**dweller_data, vault_id=vault.id),
+            )
+            training = Training(
+                dweller_id=dweller.id,
+                room_id=room.id,
+                vault_id=vault.id,
+                stat_being_trained=SPECIALEnum.STRENGTH,
+                current_stat_value=1,
+                target_stat_value=2,
+                goal_stat_value=10,
+                started_at=now,
+                estimated_completion_at=now + timedelta(hours=1),
+                status=TrainingStatus.ACTIVE,
+            )
+            async_session.add(training)
+            trainings.append(training)
+        await async_session.commit()
+        return trainings
+
+    @pytest.mark.asyncio
+    async def test_batches_progress_commit_once(self, async_session: AsyncSession, vault: Vault):
+        await self._seed_trainings(async_session, vault)
+
+        commit = AsyncMock(wraps=async_session.commit)
+        with patch.object(async_session, "commit", commit):
+            result = await game_loop_service._process_training(async_session, vault.id)
+
+        assert result["sessions_updated"] == 3
+        assert result["completed"] == 0
+        assert commit.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_failed_session_preserves_earlier_progress(self, async_session: AsyncSession, vault: Vault):
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from app.crud import training as training_crud
+        from app.services.training_service import training_service
+
+        trainings = await self._seed_trainings(async_session, vault)
+        failing_dweller_id = trainings[1].dweller_id
+        update_progress = training_service.update_training_progress
+
+        async def update_side(db_session, training, dweller=None, **kwargs):
+            if training.dweller_id == failing_dweller_id:
+                raise SQLAlchemyError("simulated training failure")
+            return await update_progress(db_session, training, dweller=dweller, **kwargs)
+
+        commit = AsyncMock(wraps=async_session.commit)
+        with (
+            patch.object(async_session, "commit", commit),
+            patch(
+                "app.services.training_service.training_service.update_training_progress",
+                side_effect=update_side,
+            ),
+        ):
+            result = await game_loop_service._process_training(async_session, vault.id)
+
+        assert result["sessions_updated"] == 2
+        assert commit.await_count == 1
+        by_dweller = {
+            training.dweller_id: training
+            for training in await training_crud.training.get_active_by_vault(async_session, vault.id)
+        }
+        assert by_dweller[failing_dweller_id].progress == 0
+        assert by_dweller[trainings[0].dweller_id].progress > 0
+        assert by_dweller[trainings[2].dweller_id].progress > 0
+
     @pytest.mark.asyncio
     async def test_error_in_one_does_not_stop(self, async_session: AsyncSession, vault: Vault):
         t1 = MagicMock()
@@ -505,7 +599,7 @@ class TestProcessTraining:
         t2u.is_completed = MagicMock(return_value=False)
         call_count = [0]
 
-        async def update_side(db_session, training, dweller=None):
+        async def update_side(db_session, training, dweller=None, **kwargs):
             call_count[0] += 1
             if call_count[0] == 1:
                 raise RuntimeError("Training failed")
@@ -569,6 +663,53 @@ class TestUpdateRoomRelationships:
         ):
             result = await game_loop_service._update_room_relationships(async_session, vault.id)
         assert result["relationships_updated"] == 0
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("existing", [False, True], ids=["new", "existing"])
+    async def test_pairs_use_loaded_relationship_and_commit_once(
+        self, async_session: AsyncSession, vault: Vault, existing: bool
+    ):
+        from app import crud
+        from app.crud.relationship import relationship_crud
+        from app.schemas.common import RoomTypeEnum
+        from app.schemas.dweller import DwellerCreate
+        from app.schemas.room import RoomCreate
+        from app.services.relationship_service import relationship_service
+        from app.tests.factory.dwellers import create_fake_dweller
+        from app.tests.factory.rooms import create_fake_room
+
+        room_data = create_fake_room()
+        room_data["name"] = "Living Quarters"
+        room_data["category"] = RoomTypeEnum.CAPACITY
+        room = await crud.room.create(async_session, RoomCreate(**room_data, vault_id=vault.id))
+        dwellers = []
+        for index in range(4):
+            dweller_data = create_fake_dweller()
+            dweller_data.update({"first_name": f"Pair{index}", "happiness": 50, "charisma": 5})
+            dweller = await crud.dweller.create(
+                async_session,
+                DwellerCreate(**dweller_data, vault_id=vault.id),
+            )
+            dweller.room_id = room.id
+            async_session.add(dweller)
+            dwellers.append(dweller)
+
+        await async_session.commit()
+        if existing:
+            for index, first in enumerate(dwellers):
+                for second in dwellers[index + 1 :]:
+                    await relationship_service.get_or_create_relationship(async_session, first.id, second.id)
+
+        commit = AsyncMock(wraps=async_session.commit)
+        with (
+            patch.object(relationship_crud, "get_by_dweller_pair", new_callable=AsyncMock) as pair_lookup,
+            patch.object(async_session, "commit", commit),
+        ):
+            result = await game_loop_service._update_room_relationships(async_session, vault.id)
+
+        assert result["relationships_updated"] == 6
+        pair_lookup.assert_not_awaited()
+        assert commit.await_count == 1
 
     @pytest.mark.asyncio
     async def test_processes_pairs(self, async_session: AsyncSession, vault: Vault):

@@ -171,15 +171,16 @@ async def update_pair_affinity(
         new_relationships.append((relationship, affinity_gain(dweller1, dweller2)))
         relationships_map[key] = relationship
         relationships_map[(dweller2.id, dweller1.id)] = relationship
-        return 0  # New relationships updated later after commit
+        return 0
 
-    # Only update affinity for existing (persistent) relationships
     if not any(new_relationship is relationship for new_relationship, _ in new_relationships):
         await relationship_service.increase_affinity(
             db_session,
             relationship.dweller_1_id,
             relationship.dweller_2_id,
             affinity_gain(dweller1, dweller2),
+            relationship=relationship,
+            commit=False,
         )
         return 1
     return 0
@@ -193,19 +194,18 @@ async def create_new_relationships(db_session: AsyncSession, new_relationships: 
         return 0
 
     db_session.add_all([relationship for relationship, _ in new_relationships])
-    await db_session.commit()
+    await db_session.flush()
 
-    # Update affinity for newly created relationships
-    count = 0
     for relationship, gain in new_relationships:
         await relationship_service.increase_affinity(
             db_session,
             relationship.dweller_1_id,
             relationship.dweller_2_id,
             gain,
+            relationship=relationship,
+            commit=False,
         )
-        count += 1
-    return count
+    return len(new_relationships)
 
 
 async def update_room_relationships(
@@ -244,8 +244,9 @@ async def update_room_relationships(
                     )
                     stats["relationships_updated"] += updated
 
-        # Bulk add new relationships and commit
         stats["relationships_updated"] += await service._create_new_relationships(db_session, new_relationships)
+        if stats["relationships_updated"]:
+            await db_session.commit()
 
     except SQLAlchemyError as e:
         await recover_session(db_session)

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.279.5 (2026-10-29)
+
+### Bug Fixes
+
+* **notifications:** reset recent-list loading when the session ends 1544066, closes #1229
+
 ## 2.279.4 (2026-10-28)
 
 ### Bug Fixes

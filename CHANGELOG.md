@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.279.8 (2026-10-29)
+
+### Performance Improvements
+
+* **radio:** batch radio-room dweller lookups 482d161
+
 ## 2.279.7 (2026-10-29)
 
 ### Bug Fixes

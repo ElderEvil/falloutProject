@@ -66,7 +66,6 @@ def _make_room(**overrides) -> Room:
         "population_required": None,
         "ability": SPECIALEnum.STRENGTH,
         "image_url": None,
-        "speedup_multiplier": 1.0,
     }
     defaults.update(overrides)
     return Room(**defaults)

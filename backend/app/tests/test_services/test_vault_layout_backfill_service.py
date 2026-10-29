@@ -44,7 +44,6 @@ def _room_payload(
         coordinate_x=coordinate_x,
         coordinate_y=coordinate_y,
         image_url=None,
-        speedup_multiplier=1.0,
     )
 
 

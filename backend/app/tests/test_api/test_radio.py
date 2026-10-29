@@ -57,8 +57,7 @@ async def test_get_radio_stats_with_radio(
     assert data["has_radio"] is True
     assert data["radio_rooms_count"] == 1
     assert data["recruitment_rate"] >= 0.0
-    assert "speedup_multipliers" in data
-    assert len(data["speedup_multipliers"]) == 1
+    assert "speedup_multipliers" not in data
 
 
 @pytest.mark.smoke
@@ -154,53 +153,6 @@ async def test_set_radio_mode(
     data = response.json()
     assert data["radio_mode"] == "happiness"
     assert "happiness" in data["message"].lower()
-
-
-@pytest.mark.asyncio
-async def test_set_radio_speedup(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-):
-    """Test setting radio room speedup multiplier."""
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault = await crud.vault.create_with_user_id(
-        db_session=async_session,
-        obj_in={"number": 993},
-        user_id=user.id,
-    )
-
-    # Create radio room
-    radio_room = RoomCreate(
-        name="Radio Studio",
-        vault_id=vault.id,
-        tier=1,
-        size=2,
-        coordinate_x=1,
-        coordinate_y=1,
-        category="misc.",
-        ability=None,
-        capacity=None,
-        output=None,
-        base_cost=100,
-        incremental_cost=50,
-        t2_upgrade_cost=500,
-        t3_upgrade_cost=1500,
-        size_min=1,
-        size_max=3,
-    )
-    room = await crud.room.create(async_session, radio_room)
-
-    # Set speedup to 5.0x
-    response = await async_client.put(
-        f"/radio/vault/{vault.id}/room/{room.id}/speedup",
-        headers=superuser_token_headers,
-        params={"speedup": 5.0},
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["speedup"] == 5.0
-    assert data["room_id"] == str(room.id)
 
 
 @pytest.mark.asyncio

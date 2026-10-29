@@ -66,7 +66,6 @@ def _response_station_create(vault_id, *, x: int = 1, size: int = 3) -> RoomCrea
         coordinate_x=x,
         coordinate_y=1,
         image_url=None,
-        speedup_multiplier=1.0,
         capacity_formula=None,
         output_formula=None,
     )
@@ -92,7 +91,6 @@ def _production_room_create(vault_id, *, name: str = "Incident Room", x: int = 1
         coordinate_x=x,
         coordinate_y=1,
         image_url=None,
-        speedup_multiplier=1.0,
         capacity_formula=None,
         output_formula=None,
     )

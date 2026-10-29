@@ -39,7 +39,6 @@ function makeRoom(overrides: Partial<Room> = {}): Room {
     coordinate_x: 0,
     coordinate_y: 0,
     image_url: null,
-    speedup_multiplier: 1,
     arena_last_fight_at: null,
     arena_fight_started_at: null,
     arena_fighter_a_id: null,

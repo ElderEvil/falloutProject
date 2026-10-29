@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.279.9 (2026-10-29)
+
+### Bug Fixes
+
+* **training:** isolate failed progress updates with savepoints 7014f3e
+
+### Performance Improvements
+
+* **happiness:** batch room and partner lookups d97ecbd
+* **relationship:** batch living-quarters affinity updates 6675bef
+* **training:** batch progress updates in the tick 97d181b
+
 ## 2.279.8 (2026-10-29)
 
 ### Performance Improvements

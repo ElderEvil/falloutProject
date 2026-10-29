@@ -31,6 +31,7 @@ PUBLIC_OPERATIONS: dict[str, str] = {
     "GET /api/v1/auth/oauth/{provider}/authorize": "starts the OAuth redirect",
     "GET /api/v1/auth/oauth/{provider}/callback": "provider callback; bound by oauth_bid cookie",
     "POST /api/v1/auth/oauth/handoff": "redeems a browser-bound, single-use handoff code",
+    "GET /api/v1/map/dev/world": "local-only ephemeral v3 preview; not mounted outside ENVIRONMENT=local and 404s otherwise",
 }
 
 HTTP_METHODS = ("get", "post", "put", "patch", "delete")

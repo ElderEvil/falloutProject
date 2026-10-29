@@ -109,6 +109,22 @@
        terrain. Their own tokens, so themes retint roads without shifting fog. */
     --color-terrain-road: #e6c886;
     --color-terrain-road-casing: #241f12;
+    --color-road-country: #a38f63;
+    --color-road-country-casing: #241f12;
+    --color-road-town: #bdb6a4;
+    --color-road-town-casing: #17140e;
+    --color-town-ground: rgba(66, 59, 45, 0.38);
+    --color-town-block: rgba(140, 128, 100, 0.55);
+    --color-town-building: rgba(52, 46, 34, 0.62);
+    --color-road-highway: #3a3a34;
+    --color-road-highway-casing: #0d0d0b;
+    --color-road-highway-marking: #d9c48a;
+
+    /* v3 region tints for the dev map lab overlay; index order matches world.regions. */
+    --color-region-green-belt: #4f7a3a;
+    --color-region-rust-basin: #a06a45;
+    --color-region-broken-highlands: #8b8069;
+    --color-region-mirelands: #4f7f7a;
 
     /* Regional-map design studies: a fixed print palette, scoped by the preview. */
     --color-atlas-amber: #f7bb32;

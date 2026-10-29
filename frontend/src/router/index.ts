@@ -92,6 +92,15 @@ const router = createRouter({
             component: () => import('@/modules/map/views/MapDesignsPreview.vue'),
           },
           {
+            path: '/dev/map-lab',
+            name: 'map-lab',
+            meta: {
+              devTitle: 'Map lab',
+              devDescription: 'Generate and inspect v3 worlds: regions, masks, slots and validation.',
+            },
+            component: () => import('@/modules/map/views/MapLabView.vue'),
+          },
+          {
             path: '/dev/asset-gallery',
             alias: '/dev/assets',
             name: 'asset-gallery',

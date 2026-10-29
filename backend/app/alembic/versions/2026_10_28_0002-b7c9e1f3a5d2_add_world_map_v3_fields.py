@@ -4,15 +4,14 @@ Revision ID: b7c9e1f3a5d2
 Revises: e2f3a4b5c6d7
 Create Date: 2026-10-28 00:02:00.000000
 
-Adds the World Map v3 payload: regions, per-tile region ids, bridges, places, the
-validation report, and the authored blueprint. All fields are additive and empty by
-default, so existing v2 snapshots stay readable and pinned explorations keep resolving
-without a backfill.
+Adds the World Map v3 payload: regions, per-tile region ids, places, the validation
+report, and the authored blueprint. All fields are additive and empty by default, so
+existing v2 snapshots stay readable and pinned explorations keep resolving without a
+backfill.
 
-Empty is a legal value for every column: an empty region map means "no region layer",
-an empty bridge set means "no bridge crossings", and an empty blueprint means "fully
-procedural world". The generator writes populated values only when ``GENERATOR_VERSION``
-reaches v3.
+Empty is a legal value for every column: an empty region map means "no region layer"
+and an empty blueprint means "fully procedural world". The generator writes populated
+values only when ``GENERATOR_VERSION`` reaches v3.
 """
 
 from collections.abc import Sequence
@@ -30,7 +29,6 @@ depends_on: str | Sequence[str] | None = None
 _JSONB_COLUMNS: tuple[tuple[str, str], ...] = (
     ("regions", "'[]'::jsonb"),
     ("region_map", "'[]'::jsonb"),
-    ("bridges", "'[]'::jsonb"),
     ("places", "'[]'::jsonb"),
     ("validation", "'{}'::jsonb"),
     ("blueprint", "'{}'::jsonb"),

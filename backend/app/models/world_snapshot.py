@@ -40,8 +40,8 @@ class WorldSnapshotBase(SQLModel):
         default_factory=list,
         sa_column=Column(JSONB, nullable=False, server_default="[]"),
     )
-    # v3 payload. Every field is empty on v2 rows: empty is the legal "no region, authored place
-    # or bridge layer yet" state, so pre-v3 readers and pinned runs keep working without a backfill.
+    # v3 payload. Every field is empty on v2 rows: empty is the legal "no region or authored
+    # place layer yet" state, so pre-v3 readers and pinned runs keep working without a backfill.
     regions: list[dict] = Field(
         default_factory=list,
         sa_column=Column(JSONB, nullable=False, server_default="[]"),
@@ -50,7 +50,19 @@ class WorldSnapshotBase(SQLModel):
         default_factory=list,
         sa_column=Column(JSONB, nullable=False, server_default="[]"),
     )
-    bridges: list[int] = Field(
+    # Smoothed float polylines (display source of truth). ``roads`` remains the derived
+    # gameplay mask. Each edge is ``{"class": "highway" | "country", "points": [[x, y], ...]}``.
+    road_edges: list[dict] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=False, server_default="[]"),
+    )
+    # Locations-lite topology nodes for the road graph; not gameplay locations yet.
+    road_anchors: list[dict] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=False, server_default="[]"),
+    )
+    # Town footprints plus street-template metadata; roads themselves live in road_edges.
+    towns: list[dict] = Field(
         default_factory=list,
         sa_column=Column(JSONB, nullable=False, server_default="[]"),
     )

@@ -309,11 +309,12 @@ const placeGroupByKey = computed(
   () => new Map(placeGroups.value.map((group) => [group.key, group]))
 )
 
-// Display-only road/river masks ride the active snapshot (preview prop or store).
-// Computed so prop identities stay stable across marker polling and the terrain
-// canvas repaints only when the snapshot itself changes.
+// Display-only road/river masks and vector road edges ride the active snapshot
+// (preview prop or store). Computed so prop identities stay stable across marker
+// polling and the terrain canvas repaints only when the snapshot itself changes.
 const snapshotRoads = computed(() => snapshot.value?.roads ?? [])
 const snapshotRivers = computed(() => snapshot.value?.rivers ?? [])
+const snapshotRoadEdges = computed(() => snapshot.value?.road_edges ?? [])
 const groupIconByKey = computed(
   () => new Map([...placeGroupByKey.value].map(([key, group]) => [key, group.icon]))
 )
@@ -551,12 +552,13 @@ function handleTouchEnd(event: TouchEvent) {
         focusable="false"
         @mousedown="handleMouseDown"
       >
-        <!-- Terrain layer (bottom — behind markers): biomes, rivers, roads -->
+        <!-- Terrain layer (bottom — behind markers): biomes, water, roads -->
         <AtlasTerrain
           :snapshot="snapshot"
           :palette="terrainPalette"
           :roads="snapshotRoads"
           :rivers="snapshotRivers"
+          :road-edges="snapshotRoadEdges"
           :underlay-url="underlayUrl"
         />
 

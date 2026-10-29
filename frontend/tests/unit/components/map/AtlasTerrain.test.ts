@@ -16,9 +16,21 @@ describe('AtlasTerrain', () => {
   function stubCanvas() {
     const ctx = {
       fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 0,
+      lineJoin: 'miter',
+      lineCap: 'butt',
+      setLineDash: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      filter: 'none',
       imageSmoothingEnabled: false,
       imageSmoothingQuality: 'low',
       fillRect: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
       drawImage: vi.fn(),
       getImageData: vi.fn((_x: number, _y: number, w: number, h: number) => ({
         data: new Uint8ClampedArray(w * h * 4),
@@ -36,6 +48,9 @@ describe('AtlasTerrain', () => {
     const tokens: Record<string, string> = {
       '--color-terrain-road': '#e6c886',
       '--color-terrain-road-casing': '#241f12',
+      '--color-road-highway': '#34342f',
+      '--color-road-highway-casing': '#0d0d0b',
+      '--color-road-highway-marking': '#d9c48a',
       '--color-terrain-water': '#253440',
     }
     vi.spyOn(window, 'getComputedStyle').mockImplementation(
@@ -172,5 +187,42 @@ describe('AtlasTerrain', () => {
 
     expect(wrapper.find('.atlas-terrain').attributes('data-underlay')).toBe('failed')
     expect(wrapper.find('image').exists()).toBe(true)
+  })
+
+  it('renders vector road edges as strokes instead of tile rects', async () => {
+    const store = useMapStore()
+    store.worldSnapshot = snapshot(new Array(16).fill('wasteland'))
+    const ctx = stubCanvas()
+    stubMaskTokens()
+
+    mount(AtlasTerrain, {
+      props: {
+        roadEdges: [{ class: 'country', points: [[0.5, 0.5], [1.5, 0.5]] }],
+      },
+    })
+    await flushPromises()
+
+    expect(ctx.fillRect).toHaveBeenCalledTimes(16)
+    expect(ctx.stroke).toHaveBeenCalledTimes(2)
+  })
+
+  it('renders highways and country roads with separate passes', async () => {
+    const store = useMapStore()
+    store.worldSnapshot = snapshot(new Array(16).fill('wasteland'))
+    const ctx = stubCanvas()
+    stubMaskTokens()
+
+    mount(AtlasTerrain, {
+      props: {
+        roadEdges: [
+          { class: 'country', points: [[0.5, 0.5], [1.5, 0.5]] },
+          { class: 'highway', points: [[3.5, 0.5], [3.5, 3.5]] },
+        ],
+      },
+    })
+    await flushPromises()
+
+    expect(ctx.stroke).toHaveBeenCalledTimes(5)
+    expect(ctx.setLineDash).toHaveBeenCalled()
   })
 })

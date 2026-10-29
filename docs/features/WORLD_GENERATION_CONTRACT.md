@@ -6,9 +6,10 @@
 > by this document alone; it locks the recipe and interfaces first.
 >
 > **v3 direction (2026-10-28):** [`WORLD_MAP_V3.md`](WORLD_MAP_V3.md) extends this contract with
-> regions, bridges, authored places and mechanical roads. Where this document still describes
-> rivers as deferred, roads as non-authoritative decoration, or the generated land-safe slots as
-> the only placement source, the v3 document wins; those lines are reconciled as v3 progresses.
+> regions, authored places, fair vector roads and lakes-only water. Rivers and bridges are deferred
+> to a later hydrology pass. Where this document still describes rivers as active, roads as
+> non-authoritative decoration, or the generated land-safe slots as the only placement source, the
+> v3 document wins; those lines are reconciled as v3 progresses.
 
 Supersedes, where they conflict: the frontend-owned generation in
 [`PROTOTYPE_TO_PRODUCTION_PORT.md`](PROTOTYPE_TO_PRODUCTION_PORT.md) and the land-safe-slot

@@ -63,7 +63,6 @@ V3_PARENT = "e2f3a4b5c6d7"
 _V3_PAYLOAD_COLUMNS = (
     "regions",
     "region_map",
-    "bridges",
     "places",
     "validation",
     "blueprint",
@@ -217,11 +216,11 @@ class TestWorldMapV3MigrationRoundTrip:
         harness.upgrade(V3_REVISION)
 
         payload = harness.fetch(
-            "SELECT regions::text, region_map::text, bridges::text, places::text, "
+            "SELECT regions::text, region_map::text, places::text, "
             "validation::text, blueprint::text, blueprint_hash, blueprint_version "
             "FROM worldsnapshot WHERE generator_version = 1"
         )
-        assert payload == [("[]", "[]", "[]", "[]", "{}", "{}", "", 0)]
+        assert payload == [("[]", "[]", "[]", "{}", "{}", "", 0)]
 
         harness.execute(_INSERT_LEGACY_ROW, version=2)
         assert harness.scalar("SELECT blueprint_version FROM worldsnapshot WHERE generator_version = 2") == 0
@@ -235,3 +234,91 @@ class TestWorldMapV3MigrationRoundTrip:
         }
         for column in _V3_PAYLOAD_COLUMNS:
             assert column not in columns
+
+
+EDGES_MIGRATION_PATH = (
+    Path(__file__).parents[2] / "alembic/versions/2026_10_28_0003-c1d3e5f7a9b2_add_world_map_v3_road_edges.py"
+)
+EDGES_MIGRATION_SPEC = importlib.util.spec_from_file_location("add_world_map_v3_road_edges", EDGES_MIGRATION_PATH)
+assert EDGES_MIGRATION_SPEC
+assert EDGES_MIGRATION_SPEC.loader
+EDGES_MIGRATION = importlib.util.module_from_spec(EDGES_MIGRATION_SPEC)
+EDGES_MIGRATION_SPEC.loader.exec_module(EDGES_MIGRATION)
+
+EDGES_REVISION = "c1d3e5f7a9b2"
+EDGES_PARENT = "b7c9e1f3a5d2"
+
+
+@pytest.mark.integration
+class TestWorldMapV3RoadEdgesMigrationFragment:
+    """The road-edge migration declares the right chain without touching a database."""
+
+    def test_revision_chain(self) -> None:
+        assert EDGES_MIGRATION.revision == EDGES_REVISION
+        assert EDGES_MIGRATION.down_revision == EDGES_PARENT
+
+
+@pytest.mark.integration
+class TestWorldMapV3RoadEdgesMigrationRoundTrip:
+    """Existing rows get an empty edge list; downgrade drops the column."""
+
+    def test_existing_rows_get_empty_edges_and_downgrade_drops_column(self, harness: MigrationHarness) -> None:
+        harness.upgrade(EDGES_PARENT)
+        harness.execute(_INSERT_LEGACY_ROW, version=1)
+
+        harness.upgrade(EDGES_REVISION)
+
+        assert harness.scalar("SELECT road_edges::text FROM worldsnapshot WHERE generator_version = 1") == "[]"
+
+        harness.downgrade(EDGES_PARENT)
+        columns = {
+            row[0]
+            for row in harness.fetch(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'worldsnapshot'"
+            )
+        }
+        assert "road_edges" not in columns
+
+
+TOWNS_MIGRATION_PATH = (
+    Path(__file__).parents[2] / "alembic/versions/2026_10_28_0005-f7a9b2c4d6e8_add_world_map_v3_towns.py"
+)
+TOWNS_MIGRATION_SPEC = importlib.util.spec_from_file_location("add_world_map_v3_towns", TOWNS_MIGRATION_PATH)
+assert TOWNS_MIGRATION_SPEC
+assert TOWNS_MIGRATION_SPEC.loader
+TOWNS_MIGRATION = importlib.util.module_from_spec(TOWNS_MIGRATION_SPEC)
+TOWNS_MIGRATION_SPEC.loader.exec_module(TOWNS_MIGRATION)
+
+TOWNS_REVISION = "f7a9b2c4d6e8"
+TOWNS_PARENT = "d4e6f8a0c2b3"
+
+
+@pytest.mark.integration
+class TestWorldMapV3TownsMigrationFragment:
+    """The town-footprint migration declares the right chain without touching a database."""
+
+    def test_revision_chain(self) -> None:
+        assert TOWNS_MIGRATION.revision == TOWNS_REVISION
+        assert TOWNS_MIGRATION.down_revision == TOWNS_PARENT
+
+
+@pytest.mark.integration
+class TestWorldMapV3TownsMigrationRoundTrip:
+    """Existing rows get an empty town list; downgrade drops the column."""
+
+    def test_existing_rows_get_empty_towns_and_downgrade_drops_column(self, harness: MigrationHarness) -> None:
+        harness.upgrade(TOWNS_PARENT)
+        harness.execute(_INSERT_LEGACY_ROW, version=1)
+
+        harness.upgrade(TOWNS_REVISION)
+
+        assert harness.scalar("SELECT towns::text FROM worldsnapshot WHERE generator_version = 1") == "[]"
+
+        harness.downgrade(TOWNS_PARENT)
+        columns = {
+            row[0]
+            for row in harness.fetch(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'worldsnapshot'"
+            )
+        }
+        assert "towns" not in columns

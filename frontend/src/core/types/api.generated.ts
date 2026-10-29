@@ -2453,6 +2453,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/map/dev/world": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview World
+         * @description Generate an ephemeral v3 world for the local map lab; never persisted.
+         *
+         *     The route is only mounted when ``ENVIRONMENT=local`` and also returns 404 if reached in
+         *     any other environment, so production can never expose an arbitrary-seed generator.
+         */
+        get: operations["preview_world_api_v1_map_dev_world_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications/": {
         parameters: {
             query?: never;
@@ -10672,6 +10695,16 @@ export interface components {
             vault_caps: number;
         };
         /**
+         * RoadEdgeRead
+         * @description One smoothed road polyline; ``class`` stays the wire name for the renderer.
+         */
+        RoadEdgeRead: {
+            /** Class */
+            class: string;
+            /** Points */
+            points: number[][];
+        };
+        /**
          * RoomBuild
          * @description The only player-controlled input for building a room.
          */
@@ -12377,6 +12410,30 @@ export interface components {
             roads: number[];
             /** Rivers */
             rivers: number[];
+            /** Road Edges */
+            road_edges?: components["schemas"]["RoadEdgeRead"][];
+            /** Road Anchors */
+            road_anchors?: {
+                [key: string]: unknown;
+            }[];
+            /** Towns */
+            towns?: {
+                [key: string]: unknown;
+            }[];
+            /** Regions */
+            regions?: {
+                [key: string]: unknown;
+            }[];
+            /** Region Map */
+            region_map?: number[];
+            /** Places */
+            places?: {
+                [key: string]: unknown;
+            }[];
+            /** Validation */
+            validation?: {
+                [key: string]: unknown;
+            };
         };
     };
     responses: never;
@@ -15893,6 +15950,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WastelandLocationWithDwellers"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_world_api_v1_map_dev_world_get: {
+        parameters: {
+            query?: {
+                seed?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorldSnapshotRead"];
                 };
             };
             /** @description Validation Error */

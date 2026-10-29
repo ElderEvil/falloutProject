@@ -39,6 +39,13 @@ async def get_world_snapshot(
         slots=[WorldSlotRead(**slot) for slot in snapshot.slots],
         roads=snapshot.roads,
         rivers=snapshot.rivers,
+        road_edges=snapshot.road_edges,
+        road_anchors=snapshot.road_anchors,
+        towns=snapshot.towns,
+        regions=snapshot.regions,
+        region_map=snapshot.region_map,
+        places=snapshot.places,
+        validation=snapshot.validation,
     )
 
 

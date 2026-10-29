@@ -14,6 +14,7 @@ from app.api.v1.endpoints import (
     game_control,
     hazard_team,
     junk,
+    map_dev,
     notifications,
     oauth,
     objective,
@@ -35,6 +36,7 @@ from app.api.v1.endpoints import (
     websocket,
 )
 from app.api.v1.endpoints import map as map_endpoints
+from app.core.config import settings
 
 api_router = APIRouter()
 
@@ -51,6 +53,8 @@ api_router.include_router(exploration.router)
 api_router.include_router(game_control.router)
 api_router.include_router(junk.router)
 api_router.include_router(map_endpoints.router)
+if settings.ENVIRONMENT == "local":
+    api_router.include_router(map_dev.router)
 api_router.include_router(notifications.router)
 api_router.include_router(objective.router)
 api_router.include_router(outfit.router)

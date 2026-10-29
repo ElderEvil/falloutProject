@@ -14,7 +14,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.world_snapshot import world_snapshot as snapshot_crud
-from app.services.world_generation_service import WorldConfig, WorldRecipe, generate_world
+from app.services.world_generation_service import (
+    MAP_V3_GENERATOR_VERSION,
+    WorldConfig,
+    WorldRecipe,
+    generate_world,
+)
 from app.services.world_snapshot_service import WorldSnapshotService, world_snapshot_service
 
 pytestmark = pytest.mark.asyncio
@@ -114,9 +119,53 @@ async def test_generated_snapshot_carries_empty_v3_payload(async_session: AsyncS
     for snapshot in (created, reloaded):
         assert snapshot.regions == []
         assert snapshot.region_map == []
-        assert snapshot.bridges == []
         assert snapshot.places == []
+        assert snapshot.road_edges == []
         assert snapshot.validation == {}
         assert snapshot.blueprint == {}
         assert snapshot.blueprint_hash == ""
         assert snapshot.blueprint_version == 0
+
+
+async def test_map_v3_flag_selects_the_v3_recipe(async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Flipping the flag changes which canonical recipe the default read generates."""
+    from app.core.game_config import game_config
+
+    monkeypatch.setattr(game_config.features, "map_v3", True)
+    snapshot = await world_snapshot_service.get_or_generate(async_session)
+
+    assert snapshot.generator_version == MAP_V3_GENERATOR_VERSION
+    assert snapshot.regions
+    assert len(snapshot.region_map) == snapshot.config["width"] * snapshot.config["height"]
+    assert snapshot.validation["reachable_slot_tiles"] == 100
+
+
+async def test_map_v3_flag_off_keeps_the_v2_recipe(
+    async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With the flag dark, the default read still resolves the legacy v2 world."""
+    from app.core.game_config import game_config
+
+    monkeypatch.setattr(game_config.features, "map_v3", False)
+    snapshot = await world_snapshot_service.get_or_generate(async_session)
+
+    assert snapshot.generator_version == 2
+    assert snapshot.regions == []
+    assert snapshot.region_map == []
+
+
+async def test_v3_snapshot_round_trips_road_edges(async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Generated vector road edges persist and reload unchanged for the map renderer."""
+    from app.core.game_config import game_config
+
+    monkeypatch.setattr(game_config.features, "map_v3", True)
+    created = await world_snapshot_service.get_or_generate(async_session)
+    reloaded = await snapshot_crud.get_version(
+        async_session, world_id=created.world_id, generator_version=created.generator_version
+    )
+
+    assert created.road_edges
+    assert created.rivers == []
+    assert reloaded is not None
+    assert reloaded.road_edges == created.road_edges
+    assert reloaded.validation["roads"]["slots_with_road"] == 100

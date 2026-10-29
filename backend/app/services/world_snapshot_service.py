@@ -12,9 +12,12 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 
+from app.core.game_config import game_config
 from app.crud.world_snapshot import world_snapshot as snapshot_crud
 from app.models.world_snapshot import WorldSnapshot
 from app.services.world_generation_service import (
+    MAP_V3_GENERATOR_VERSION,
+    MAP_V3_SEED_EPOCH,
     GeneratedWorld,
     WorldConfig,
     WorldRecipe,
@@ -28,6 +31,18 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _default_recipe() -> WorldRecipe:
+    """The flag-selected canonical world: v2 while dark, v3 once the flag is on."""
+    if game_config.features.map_v3:
+        return WorldRecipe(
+            seed="wasteland-atlas-v1",
+            config=WorldConfig(),
+            generator_version=MAP_V3_GENERATOR_VERSION,
+            seed_epoch=MAP_V3_SEED_EPOCH,
+        )
+    return WorldRecipe(seed="wasteland-atlas-v1", config=WorldConfig())
+
+
 class WorldSnapshotService:
     async def get_or_generate(self, db_session: AsyncSession, recipe: WorldRecipe | None = None) -> WorldSnapshot:
         """Return the persisted snapshot, generating and persisting it once if absent.
@@ -35,7 +50,7 @@ class WorldSnapshotService:
         Idempotent on (world_id, generator_version): an existing row is returned
         unchanged, so terrain and slots never drift between reads.
         """
-        recipe = recipe or WorldRecipe(seed="wasteland-atlas-v1", config=WorldConfig())
+        recipe = recipe or _default_recipe()
         existing = await snapshot_crud.get_version(
             db_session, world_id=recipe.world_id, generator_version=recipe.generator_version
         )
@@ -79,6 +94,12 @@ class WorldSnapshotService:
             terrain=list(world.terrain),
             roads=list(world.roads),
             rivers=list(world.rivers),
+            road_edges=[dict(edge) for edge in world.road_edges],
+            road_anchors=[dict(anchor) for anchor in world.road_anchors],
+            towns=[dict(town) for town in world.towns],
+            regions=list(world.regions),
+            region_map=list(world.region_map),
+            validation=dict(world.validation),
             slots=[
                 {
                     "slot_index": slot.slot_index,

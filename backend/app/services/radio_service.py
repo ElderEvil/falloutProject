@@ -88,6 +88,15 @@ class RadioService:
         if not radio_rooms:
             return 0.0
 
+        # Prefetch every radio room's assigned dwellers in one query. The radio
+        # tick runs for every vault, so a per-room query is a per-vault N+1.
+        dwellers_by_room: dict[UUID4, list[Dweller]] = {}
+        room_dwellers = await crud.dweller.get_by_room_ids(db_session, vault.id, [room.id for room in radio_rooms])
+        for dweller in room_dwellers:
+            if dweller.room_id is None:
+                continue
+            dwellers_by_room.setdefault(dweller.room_id, []).append(dweller)
+
         # Start with base rate
         rate = game_config.radio.base_recruitment_rate
 
@@ -99,11 +108,7 @@ class RadioService:
             # Apply speedup multiplier (1.0-10.0x)
             rate *= room.speedup_multiplier
 
-            # Add charisma bonus from assigned dwellers
-            # Query dwellers assigned to this room
-            dwellers = await crud.dweller.get_by_room(db_session, room.id)
-
-            for dweller in dwellers:
+            for dweller in dwellers_by_room.get(room.id, ()):
                 charisma_bonus = dweller.charisma * game_config.radio.charisma_rate_multiplier
                 rate += game_config.radio.base_recruitment_rate * charisma_bonus
 

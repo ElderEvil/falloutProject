@@ -28,6 +28,7 @@ from app.schemas.room import RoomCreate
 from app.services.dweller_recycling_service import dweller_recycling_service
 from app.services.radio_service import RadioService
 from app.tests.factory.dwellers import create_fake_dweller
+from app.tests.utils.query_counter import count_sql_statements
 from app.utils.exceptions import ResourceConflictException
 
 # ---------------------------------------------------------------------------
@@ -148,6 +149,87 @@ async def test_calculate_recruitment_rate_no_radio(
     """Test recruitment rate with no radio rooms."""
     rate = await RadioService.calculate_recruitment_rate(async_session, vault, [])
     assert rate == 0.0
+
+
+@pytest.mark.asyncio
+async def test_calculate_recruitment_rate_batches_room_dwellers(
+    async_session: AsyncSession,
+    vault: Vault,
+    radio_room: Room,
+    radio_dweller: Dweller,
+):
+    """All radio-room dwellers load in one query regardless of room count."""
+    second_room = await crud.room.create(
+        db_session=async_session,
+        obj_in=RoomCreate(
+            name="Radio Studio Two",
+            category=RoomTypeEnum.MISC,
+            ability=SPECIALEnum.CHARISMA,
+            population_required=None,
+            base_cost=100,
+            incremental_cost=50,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            capacity=2,
+            output=None,
+            size_min=1,
+            size_max=3,
+            size=2,
+            tier=1,
+            coordinate_x=3,
+            coordinate_y=0,
+            image_url=None,
+            vault_id=vault.id,
+        ),
+    )
+    second_dweller = await crud.dweller.create(
+        db_session=async_session,
+        obj_in=DwellerCreate(
+            first_name="Co-host",
+            last_name="Radio",
+            gender=GenderEnum.FEMALE,
+            rarity=RarityEnum.COMMON,
+            age_group=AgeGroupEnum.ADULT,
+            level=5,
+            experience=100,
+            max_health=100,
+            health=100,
+            radiation=0,
+            happiness=80,
+            strength=3,
+            perception=4,
+            endurance=4,
+            charisma=5,
+            intelligence=5,
+            agility=4,
+            luck=5,
+            vault_id=vault.id,
+        ),
+    )
+    second_dweller.room_id = second_room.id
+    async_session.add(second_dweller)
+    await async_session.commit()
+
+    with count_sql_statements(async_session) as single_room:
+        await RadioService.calculate_recruitment_rate(async_session, vault, [radio_room])
+    with count_sql_statements(async_session) as two_rooms:
+        rate = await RadioService.calculate_recruitment_rate(async_session, vault, [radio_room, second_room])
+
+    # Adding a room must not add a per-room dweller query.
+    assert two_rooms.value <= single_room.value
+
+    expected = game_config.radio.base_recruitment_rate
+    for room, dwellers in ((radio_room, [radio_dweller]), (second_room, [second_dweller])):
+        expected *= game_config.radio.get_tier_multiplier(room.tier)
+        expected *= room.speedup_multiplier
+        for dweller in dwellers:
+            expected += (
+                game_config.radio.base_recruitment_rate
+                * dweller.charisma
+                * (game_config.radio.charisma_rate_multiplier)
+            )
+    expected *= 1.0 + vault.happiness * game_config.radio.happiness_rate_multiplier
+    assert rate == pytest.approx(expected)
 
 
 @pytest.mark.asyncio

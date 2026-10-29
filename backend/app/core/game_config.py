@@ -12,6 +12,7 @@ Usage:
 """
 
 import logging
+import math
 from typing import Any
 
 from pydantic import Field, ValidationInfo, field_validator
@@ -345,6 +346,16 @@ class CombatConfig(BaseSettings):
         ge=0,
         description="Per-vault window during which further arena finishes grant no morale",
     )
+
+    @field_validator("incident_threat_health_multipliers")
+    @classmethod
+    def validate_incident_threat_health_multipliers(cls, v: dict[str, float]) -> dict[str, float]:
+        for incident_type, multiplier in v.items():
+            if not math.isfinite(multiplier) or multiplier <= 0:
+                raise ValueError(
+                    f"incident_threat_health_multipliers[{incident_type!r}] must be finite and greater than zero"
+                )
+        return v
 
     @field_validator("weapon_stat_weights", mode="before")
     @classmethod

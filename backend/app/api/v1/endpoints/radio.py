@@ -11,7 +11,7 @@ from app.core.enums import RadioModeEnum
 from app.db.session import get_async_session
 from app.schemas.dweller import DwellerRead
 from app.schemas.radio import ManualRecruitRequest, RadioStatsRead, RecruitmentResponse
-from app.schemas.responses import RadioModeResponse, RadioSpeedupResponse
+from app.schemas.responses import RadioModeResponse
 from app.services.radio_service import radio_service
 from app.utils.exceptions import ValidationException
 
@@ -88,36 +88,3 @@ async def set_radio_mode(
     vault = await get_user_vault_or_403(vault_id, user, db_session)
     new_mode = await radio_service.set_radio_mode(db_session, vault, mode.value)
     return RadioModeResponse(message=f"Radio mode set to {new_mode}", radio_mode=new_mode)
-
-
-@router.put("/vault/{vault_id}/room/{room_id}/speedup", response_model=RadioSpeedupResponse)
-async def set_radio_speedup(
-    vault_id: UUID4,
-    room_id: UUID4,
-    speedup: float,
-    user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> RadioSpeedupResponse:
-    """Set the speedup multiplier for a radio room.
-
-    Returns:
-        Response confirming the speedup setting.
-
-    Raises:
-        ValidationException: If speedup value is out of range or room not found.
-    """
-    await get_user_vault_or_403(vault_id, user, db_session)
-
-    if not 1.0 <= speedup <= 10.0:
-        raise ValidationException(detail="Speedup must be between 1.0 and 10.0")
-
-    try:
-        room = await radio_service.set_room_speedup(db_session, vault_id, room_id, speedup)
-    except ValueError as e:
-        raise ValidationException(detail=str(e)) from e
-
-    return RadioSpeedupResponse(
-        message=f"Radio room speedup set to {speedup}x",
-        room_id=str(room.id),
-        speedup=room.speedup_multiplier,
-    )

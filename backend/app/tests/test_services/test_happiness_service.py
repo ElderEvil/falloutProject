@@ -79,7 +79,6 @@ class TestHappinessService:
     ):
         """Radio affects residents' tick and breakdown, never explorers or quest parties."""
         test_room.name = "Radio studio"
-        test_room.speedup_multiplier = 1.0
         working_dweller.status = status
         assert working_dweller.is_in_vault is receives_radio
         working_dweller.partner_id = None

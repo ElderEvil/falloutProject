@@ -81,7 +81,6 @@ def _survivor_field_values(
         "coordinate_y": coordinate_y,
         "image_url": image_url,
         "room_style": getattr(source, "room_style", "default"),
-        "speedup_multiplier": source.speedup_multiplier,
     }
 
 
@@ -445,7 +444,6 @@ class RoomService:
                 coordinate_x=room_request.coordinate_x,
                 coordinate_y=room_request.coordinate_y,
                 image_url=room_template.image_url,
-                speedup_multiplier=room_template.speedup_multiplier,
                 capacity_formula=room_template.capacity_formula,
                 output_formula=room_template.output_formula,
             )

@@ -100,13 +100,8 @@ class RadioService:
         # Start with base rate
         rate = game_config.radio.base_recruitment_rate
 
-        # Apply tier and speedup multipliers for each radio room
         for room in radio_rooms:
-            tier_multiplier = game_config.radio.get_tier_multiplier(room.tier)
-            rate *= tier_multiplier
-
-            # Apply speedup multiplier (1.0-10.0x)
-            rate *= room.speedup_multiplier
+            rate *= game_config.radio.get_tier_multiplier(room.tier)
 
             for dweller in dwellers_by_room.get(room.id, ()):
                 charisma_bonus = dweller.charisma * game_config.radio.charisma_rate_multiplier
@@ -386,7 +381,6 @@ class RadioService:
                 "radio_rooms_count": 0,
                 "manual_cost_caps": game_config.radio.manual_recruitment_cost,
                 "radio_mode": "recruitment",
-                "speedup_multipliers": [],
                 "radio_happiness_bonus": 0.0,
             }
 
@@ -402,7 +396,6 @@ class RadioService:
                 "radio_rooms_count": 0,
                 "manual_cost_caps": game_config.radio.manual_recruitment_cost,
                 "radio_mode": vault.radio_mode,
-                "speedup_multipliers": [],
                 "radio_happiness_bonus": 0.0,
             }
 
@@ -413,13 +406,8 @@ class RadioService:
         rate_per_hour = rate_per_minute * 60
         hours_per_recruit = 1.0 / rate_per_hour if rate_per_hour > 0 else 0.0
 
-        # Get speedup multipliers for each radio room
-        speedup_multipliers = [{"room_id": str(room.id), "speedup": room.speedup_multiplier} for room in radio_rooms]
-
-        # In happiness mode the radio adds a flat happiness bonus per tick
-        total_speedup = sum(room.speedup_multiplier for room in radio_rooms)
         radio_happiness_bonus = (
-            game_config.radio.happiness_bonus * total_speedup if vault.radio_mode == "happiness" else 0.0
+            game_config.radio.happiness_bonus * len(radio_rooms) if vault.radio_mode == "happiness" else 0.0
         )
 
         return {
@@ -430,7 +418,6 @@ class RadioService:
             "radio_rooms_count": len(radio_rooms),
             "manual_cost_caps": game_config.radio.manual_recruitment_cost,
             "radio_mode": vault.radio_mode,
-            "speedup_multipliers": speedup_multipliers,
             "radio_happiness_bonus": radio_happiness_bonus,
         }
 
@@ -454,27 +441,6 @@ class RadioService:
         db_session.add(vault)
         await db_session.commit()
         return mode
-
-    @staticmethod
-    async def set_room_speedup(
-        db_session: AsyncSession,
-        vault_id: UUID4,
-        room_id: UUID4,
-        speedup: float,
-    ) -> Room:
-        room = await crud.room.get_or_none(db_session, room_id)
-        if not room or room.vault_id != vault_id:
-            msg = "Radio room not found"
-            raise ValueError(msg)
-
-        if "radio" not in room.name.lower():
-            msg = "Room is not a radio room"
-            raise ValueError(msg)
-
-        room.speedup_multiplier = speedup
-        await db_session.commit()
-
-        return room
 
 
 radio_service = RadioService()

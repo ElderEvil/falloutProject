@@ -151,9 +151,7 @@ class HappinessService:
         # Calculate radio happiness bonus
         radio_happiness_bonus = 0.0
         if vault.radio_mode == "happiness" and radio_rooms:
-            # Sum speedup multipliers from all radio rooms
-            total_speedup = sum(room.speedup_multiplier for room in radio_rooms)
-            radio_happiness_bonus = game_config.radio.happiness_bonus * total_speedup
+            radio_happiness_bonus = game_config.radio.happiness_bonus * len(radio_rooms)
 
         return {
             "has_low_resources": has_low_resources,

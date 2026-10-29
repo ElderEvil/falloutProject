@@ -70,7 +70,6 @@ async def ensure_station(session: AsyncSession, vault_id: UUID4) -> Room:
         coordinate_x=1,
         coordinate_y=1,
         image_url=None,
-        speedup_multiplier=1.0,
         capacity_formula=None,
         output_formula=None,
     )

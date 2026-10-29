@@ -6,13 +6,6 @@ from sqlmodel import SQLModel
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerRead
 
 
-class SpeedupMultiplier(SQLModel):
-    """Speedup multiplier for a radio room."""
-
-    room_id: str
-    speedup: float
-
-
 class RadioStatsRead(SQLModel):
     """Radio recruitment statistics."""
 
@@ -23,7 +16,6 @@ class RadioStatsRead(SQLModel):
     radio_rooms_count: int
     manual_cost_caps: int
     radio_mode: str
-    speedup_multipliers: list[SpeedupMultiplier]
     radio_happiness_bonus: float = 0.0  # +happiness per dweller per tick in happiness mode
 
 

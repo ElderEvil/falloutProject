@@ -67,7 +67,6 @@ def _production_room_create(
         coordinate_x=x,
         coordinate_y=1,
         image_url=None,
-        speedup_multiplier=1.0,
         capacity_formula=None,
         output_formula=None,
     )
@@ -359,7 +358,6 @@ async def test_bulk_and_manual_race_for_last_slot(production_ctx: dict) -> None:
                 coordinate_x=16,
                 coordinate_y=1,
                 image_url=None,
-                speedup_multiplier=1.0,
                 capacity_formula=None,
                 output_formula=None,
             ),

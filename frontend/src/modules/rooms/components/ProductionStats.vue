@@ -15,7 +15,6 @@ interface RadioStats {
   recruitmentRate: number
   ratePerHour: number
   estimatedHoursPerRecruit: number
-  speedupMultiplier: number
   manualCostCaps: number
   radioMode: string
   radioHappinessBonus: number
@@ -48,10 +47,6 @@ defineProps<Props>()
             <div class="stat-value">+{{ radioStats.radioHappinessBonus.toFixed(1) }}</div>
             <div class="stat-subvalue">per dweller per tick</div>
           </div>
-          <div class="stat-card">
-            <div class="stat-label">Speedup</div>
-            <div class="stat-value">&times;{{ radioStats.speedupMultiplier.toFixed(1) }}</div>
-          </div>
         </template>
         <template v-else>
           <div class="stat-card">
@@ -66,12 +61,12 @@ defineProps<Props>()
           <div class="stat-card">
             <div class="stat-label">Recruit ETA</div>
             <div class="stat-value">
-              {{ radioStats.estimatedHoursPerRecruit > 0 ? `${radioStats.estimatedHoursPerRecruit.toFixed(1)}h` : '—' }}
+              {{
+                radioStats.estimatedHoursPerRecruit > 0
+                  ? `${radioStats.estimatedHoursPerRecruit.toFixed(1)}h`
+                  : '—'
+              }}
             </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Speedup</div>
-            <div class="stat-value">&times;{{ radioStats.speedupMultiplier.toFixed(1) }}</div>
           </div>
         </template>
       </template>

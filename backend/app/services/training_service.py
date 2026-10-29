@@ -250,6 +250,8 @@ class TrainingService:
         db_session: AsyncSession,
         training: Training,
         dweller: Dweller | None = None,
+        *,
+        commit: bool = True,
     ) -> Training:
         """Update training progress based on elapsed time.
         Auto-completes training if duration has elapsed.
@@ -258,6 +260,7 @@ class TrainingService:
             db_session: Database session
             training: Training session to update
             dweller: Optional pre-fetched dweller to avoid N+1 query
+            commit: Whether to commit and refresh a progress-only update; completion always commits
 
         Returns:
             Updated training session
@@ -279,8 +282,9 @@ class TrainingService:
         # Update progress
         training.progress = progress
         db_session.add(training)
-        await db_session.commit()
-        await db_session.refresh(training)
+        if commit:
+            await db_session.commit()
+            await db_session.refresh(training)
 
         return training
 

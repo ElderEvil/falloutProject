@@ -390,7 +390,14 @@ async def process_training(db_session: AsyncSession, vault_id: UUID4) -> Trainin
         for index, (training_id, dweller_id) in enumerate(training_pairs):
             error = await guard_phase(
                 f"Error processing training {training_id}",
-                partial(_process_single_training, db_session, stats, dwellers_map, active_trainings[index]),
+                partial(
+                    _process_single_training,
+                    db_session,
+                    stats,
+                    dwellers_map,
+                    active_trainings[index],
+                    commit=False,
+                ),
                 catch=(SQLAlchemyError, ValueError, RuntimeError),
                 db_session=db_session,
             )
@@ -401,6 +408,9 @@ async def process_training(db_session: AsyncSession, vault_id: UUID4) -> Trainin
                     db_session, [dwellers_map[dweller_id] for _, dweller_id in remaining if dweller_id in dwellers_map]
                 )
 
+        if stats["sessions_updated"]:
+            await db_session.commit()
+
     except (SQLAlchemyError, ResourceNotFoundException, ResourceConflictException, VaultOperationException) as e:
         await recover_session(db_session)
         logger.error(f"Error loading training sessions for vault {vault_id}: {e}", exc_info=True)
@@ -409,14 +419,18 @@ async def process_training(db_session: AsyncSession, vault_id: UUID4) -> Trainin
     return stats
 
 
-async def _process_single_training(db_session, stats: TrainingStats, dwellers_map, training) -> None:
+async def _process_single_training(
+    db_session, stats: TrainingStats, dwellers_map, training, *, commit: bool = True
+) -> None:
     from app.services.training_service import training_service
 
     # Get pre-fetched dweller
     dweller = dwellers_map.get(training.dweller_id)
 
     # Update progress (this will auto-complete if ready)
-    updated_training = await training_service.update_training_progress(db_session, training, dweller=dweller)
+    updated_training = await training_service.update_training_progress(
+        db_session, training, dweller=dweller, commit=commit
+    )
 
     stats["sessions_updated"] += 1
 

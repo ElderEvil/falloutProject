@@ -494,6 +494,59 @@ class TestProcessTraining:
         assert result["completed"] == 1
 
     @pytest.mark.asyncio
+    async def test_batches_progress_commit_once(self, async_session: AsyncSession, vault: Vault):
+        from app import crud
+        from app.core.enums import SPECIALEnum, TrainingStatus
+        from app.models.training import Training
+        from app.schemas.common import RoomTypeEnum
+        from app.schemas.dweller import DwellerCreate
+        from app.schemas.room import RoomCreate
+        from app.tests.factory.dwellers import create_fake_dweller
+        from app.tests.factory.rooms import create_fake_room
+
+        room_data = create_fake_room()
+        room_data.update(
+            {
+                "name": "Weight room",
+                "category": RoomTypeEnum.TRAINING,
+                "ability": SPECIALEnum.STRENGTH,
+            }
+        )
+        room = await crud.room.create(async_session, RoomCreate(**room_data, vault_id=vault.id))
+
+        now = datetime.utcnow()
+        for index in range(3):
+            dweller_data = create_fake_dweller()
+            dweller_data["first_name"] = f"Trainee{index}"
+            dweller = await crud.dweller.create(
+                async_session,
+                DwellerCreate(**dweller_data, vault_id=vault.id),
+            )
+            async_session.add(
+                Training(
+                    dweller_id=dweller.id,
+                    room_id=room.id,
+                    vault_id=vault.id,
+                    stat_being_trained=SPECIALEnum.STRENGTH,
+                    current_stat_value=1,
+                    target_stat_value=2,
+                    goal_stat_value=10,
+                    started_at=now,
+                    estimated_completion_at=now + timedelta(hours=1),
+                    status=TrainingStatus.ACTIVE,
+                )
+            )
+        await async_session.commit()
+
+        commit = AsyncMock(wraps=async_session.commit)
+        with patch.object(async_session, "commit", commit):
+            result = await game_loop_service._process_training(async_session, vault.id)
+
+        assert result["sessions_updated"] == 3
+        assert result["completed"] == 0
+        assert commit.await_count == 1
+
+    @pytest.mark.asyncio
     async def test_error_in_one_does_not_stop(self, async_session: AsyncSession, vault: Vault):
         t1 = MagicMock()
         t1.id = "t-1"
@@ -505,7 +558,7 @@ class TestProcessTraining:
         t2u.is_completed = MagicMock(return_value=False)
         call_count = [0]
 
-        async def update_side(db_session, training, dweller=None):
+        async def update_side(db_session, training, dweller=None, **kwargs):
             call_count[0] += 1
             if call_count[0] == 1:
                 raise RuntimeError("Training failed")

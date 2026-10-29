@@ -1,5 +1,7 @@
 """Tests for happiness service."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 import pytest_asyncio
 from pydantic import UUID4
@@ -107,6 +109,42 @@ class TestHappinessService:
         assert bool(radio_modifiers) is receives_radio
         if receives_radio:
             assert radio_modifiers[0]["value"] == pytest.approx(game_config.radio.happiness_bonus)
+
+    async def test_update_vault_happiness_batches_room_and_partner_lookups(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        working_dweller: Dweller,
+        test_room: Room,
+    ):
+        partner_data = create_fake_dweller()
+        partner_data.update(
+            {
+                "first_name": "Partner",
+                "status": DwellerStatusEnum.WORKING,
+                "happiness": 50,
+                "charisma": 5,
+            }
+        )
+        partner = await crud.dweller.create(
+            async_session,
+            DwellerCreate(**partner_data, vault_id=vault.id),
+        )
+        partner.room_id = test_room.id
+        working_dweller.partner_id = partner.id
+        partner.partner_id = working_dweller.id
+        async_session.add_all([partner, working_dweller])
+        await async_session.commit()
+
+        with (
+            patch("app.services.happiness_service.room_crud.get", new_callable=AsyncMock) as room_get,
+            patch("app.services.happiness_service.dweller_crud.get", new_callable=AsyncMock) as dweller_get,
+        ):
+            stats = await happiness_service.update_vault_happiness(async_session, vault.id)
+
+        room_get.assert_not_awaited()
+        dweller_get.assert_not_awaited()
+        assert stats["dwellers_processed"] >= 2
 
     async def test_low_resources_reduces_happiness(
         self,

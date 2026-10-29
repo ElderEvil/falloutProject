@@ -60,6 +60,17 @@ class HappinessService:
         # Calculate vault-wide factors
         vault_factors = await HappinessService._calculate_vault_factors(vault, active_incidents, radio_rooms)
 
+        room_ids = {dweller.room_id for dweller in dwellers if dweller.room_id is not None}
+        rooms_by_id = (
+            {room.id: room for room in await room_crud.get_by_ids(list(room_ids), db_session)} if room_ids else {}
+        )
+        partner_ids = {dweller.partner_id for dweller in dwellers if dweller.partner_id is not None}
+        partners_by_id = (
+            {partner.id: partner for partner in await dweller_crud.get_by_ids(list(partner_ids), db_session)}
+            if partner_ids
+            else {}
+        )
+
         stats = {
             "dwellers_processed": 0,
             "happiness_increased": 0,
@@ -82,6 +93,8 @@ class HappinessService:
                 dweller,
                 vault_factors,
                 seconds_passed,
+                rooms_by_id=rooms_by_id,
+                partners_by_id=partners_by_id,
             )
 
             # Apply change
@@ -171,6 +184,9 @@ class HappinessService:
         dweller: Dweller,
         vault_factors: dict,
         seconds_passed: int,
+        *,
+        rooms_by_id: dict[UUID4, Room] | None = None,
+        partners_by_id: dict[UUID4, Dweller] | None = None,
     ) -> float:
         """Calculate happiness change for a single dweller.
 
@@ -179,6 +195,8 @@ class HappinessService:
             dweller: Dweller object
             vault_factors: Vault-wide factors
             seconds_passed: Seconds since last update
+            rooms_by_id: Prefetched rooms keyed by room ID
+            partners_by_id: Prefetched partners keyed by dweller ID
 
         Returns:
             Happiness change amount
@@ -227,8 +245,11 @@ class HappinessService:
                 change += game_config.happiness.high_health_bonus * tick_multiplier
 
             # Room-specific bonuses
-            # Get room to check category/name for specific bonuses via CRUD
-            room = await room_crud.get(db_session, dweller.room_id) if dweller.room_id else None
+            room = (
+                rooms_by_id.get(dweller.room_id)
+                if rooms_by_id is not None
+                else await room_crud.get(db_session, dweller.room_id)
+            )
             if room:
                 room_name_lower = (room.name or "").lower()
                 # Living quarters bonus (romance, privacy, comfort)
@@ -248,13 +269,18 @@ class HappinessService:
 
         # Partner bonus
         if dweller.partner_id:
-            try:
-                partner = await dweller_crud.get(db_session, dweller.partner_id)
-            except ResourceNotFoundException:
+            if partners_by_id is None:
+                try:
+                    partner = await dweller_crud.get(db_session, dweller.partner_id)
+                except ResourceNotFoundException:
+                    partner = None
+            else:
+                partner = partners_by_id.get(dweller.partner_id)
+
+            if partner is None:
                 logger.warning("Clearing stale partner reference for dweller %s", dweller.id)
                 dweller.partner_id = None
-                partner = None
-            if partner:
+            else:
                 # Base partner bonus
                 change += game_config.happiness.partner_nearby_bonus * tick_multiplier / 60.0  # Normalize bonus
 

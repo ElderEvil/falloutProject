@@ -571,6 +571,53 @@ class TestUpdateRoomRelationships:
         assert result["relationships_updated"] == 0
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("existing", [False, True], ids=["new", "existing"])
+    async def test_pairs_use_loaded_relationship_and_commit_once(
+        self, async_session: AsyncSession, vault: Vault, existing: bool
+    ):
+        from app import crud
+        from app.crud.relationship import relationship_crud
+        from app.schemas.common import RoomTypeEnum
+        from app.schemas.dweller import DwellerCreate
+        from app.schemas.room import RoomCreate
+        from app.services.relationship_service import relationship_service
+        from app.tests.factory.dwellers import create_fake_dweller
+        from app.tests.factory.rooms import create_fake_room
+
+        room_data = create_fake_room()
+        room_data["name"] = "Living Quarters"
+        room_data["category"] = RoomTypeEnum.CAPACITY
+        room = await crud.room.create(async_session, RoomCreate(**room_data, vault_id=vault.id))
+        dwellers = []
+        for index in range(4):
+            dweller_data = create_fake_dweller()
+            dweller_data.update({"first_name": f"Pair{index}", "happiness": 50, "charisma": 5})
+            dweller = await crud.dweller.create(
+                async_session,
+                DwellerCreate(**dweller_data, vault_id=vault.id),
+            )
+            dweller.room_id = room.id
+            async_session.add(dweller)
+            dwellers.append(dweller)
+
+        await async_session.commit()
+        if existing:
+            for index, first in enumerate(dwellers):
+                for second in dwellers[index + 1 :]:
+                    await relationship_service.get_or_create_relationship(async_session, first.id, second.id)
+
+        commit = AsyncMock(wraps=async_session.commit)
+        with (
+            patch.object(relationship_crud, "get_by_dweller_pair", new_callable=AsyncMock) as pair_lookup,
+            patch.object(async_session, "commit", commit),
+        ):
+            result = await game_loop_service._update_room_relationships(async_session, vault.id)
+
+        assert result["relationships_updated"] == 6
+        pair_lookup.assert_not_awaited()
+        assert commit.await_count == 1
+
+    @pytest.mark.asyncio
     async def test_processes_pairs(self, async_session: AsyncSession, vault: Vault):
         d1 = MagicMock()
         d1.id = "d-1"

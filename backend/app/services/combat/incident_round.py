@@ -246,14 +246,18 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     if active_ids:
         dweller_power = int(dweller_power * (1 + TEAM_RESPONSE_BONUS * len(active_ids)))
     threat_power = incident_math.raider_power(incident.difficulty)
+    effective_threat = incident_math.threat_health(incident.type, threat_power)
     if definition.objective == IncidentObjective.CONTAIN:
+        containment_threat = max(
+            effective_threat, incident_math.containment_threat_floor(dweller_power, seconds_passed)
+        )
         damage_to_dwellers = incident_math.containment_damage(threat_power, seconds_passed)
-        response_progress = incident_math.containment_progress(dweller_power, threat_power, seconds_passed)
+        response_progress = incident_math.containment_progress(dweller_power, containment_threat, seconds_passed)
         damage_to_raiders = 0.0
     else:
         damage_to_dwellers = incident_math.damage_to_dwellers(threat_power, seconds_passed)
-        response_progress = incident_math.damage_to_raiders(dweller_power, seconds_passed) / threat_power
-        damage_to_raiders = response_progress * threat_power
+        response_progress = incident_math.damage_to_raiders(dweller_power, seconds_passed) / effective_threat
+        damage_to_raiders = response_progress * effective_threat
 
     # Journal lines are built before apply_damage: a death expires the dweller
     # instance, so reading its power or name afterwards would trigger lazy IO.

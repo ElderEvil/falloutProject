@@ -132,6 +132,12 @@ def damage_to_raiders(dweller_power: float, seconds: int) -> float:
     return damage_per_second * seconds
 
 
+def threat_health(incident_type: IncidentType, threat_power: float) -> float:
+    """Effective threat health for progress denominators; incoming damage keeps raw power."""
+    multiplier = game_config.combat.incident_threat_health_multipliers.get(incident_type.value, 1.0)
+    return threat_power * multiplier
+
+
 def containment_damage(hazard_power: float, seconds: int) -> float:
     """A contained hazard harms occupants more slowly than an armed attack."""
     return damage_to_dwellers(hazard_power, seconds) / 2
@@ -140,3 +146,9 @@ def containment_damage(hazard_power: float, seconds: int) -> float:
 def containment_progress(dweller_power: float, hazard_power: float, seconds: int) -> float:
     """Return fractional containment progress, where one fully contains a hazard."""
     return dweller_power / max(1, hazard_power) * seconds / game_config.combat.incident_containment_progress_divisor
+
+
+def containment_threat_floor(dweller_power: float, seconds: int) -> float:
+    """Threat health needed to make containment take at least the configured rounds."""
+    min_rounds = game_config.combat.incident_containment_min_rounds
+    return dweller_power * seconds * min_rounds / game_config.combat.incident_containment_progress_divisor

@@ -96,21 +96,93 @@ places change nothing for it.
 
 | Matchup | Type | Diff | Resolved | Ticks p5 / mean / p95 | Damage p5 / mean / p95 | RAD mean (max) | Deaths (runs) |
 |---|---|---|---|---|---|---|---|
-| FIRE:2  | FIRE | 2 | 100/100 | 1 / 1.5 / 3 | 0 / 2.5 / 6 | 0 (0) | 0 (0) |
-| FIRE:3  | FIRE | 3 | 100/100 | 1 / 1.8 / 4 | 1 / 4.7 / 12 | 0 (0) | 0 (0) |
-| FIRE:4  | FIRE | 4 | 100/100 | 1 / 2.3 / 5 | 2 / 7.9 / 20 | 0 (0) | 0 (0) |
-| RADSCORPION:3 | RADSCORPION | 3 | 83/100 | 3 / 10.1 / 30 | 12 / 38.6 / 72 | 12.4 (36) | 17 (17) |
-| RADSCORPION:4 | RADSCORPION | 4 | 79/100 | 5 / 13.7 / 30 | 30 / 70.4 / 144 | 27.6 (72) | 47 (34) |
-| RADSCORPION:5 | RADSCORPION | 5 | 62/100 | 8 / 18.2 / 30 | 64 / 101.6 / 180 | 38.9 (72) | 61 (44) |
-| RADSCORPION:6 | RADSCORPION | 6 | 50/100 | 11 / 21.9 / 30 | 72 / 142.6 / 216 | 55.6 (108) | 92 (51) |
-| RAIDER:4 | RAIDER | 4 | 79/100 | 6 / 14.4 / 30 | 48 / 80.2 / 144 | 0 (0) | 55 (38) |
-| RAIDER:6 | RAIDER | 6 | 49/100 | 13 / 23.2 / 30 | 72 / 162.4 / 240 | 0 (0) | 94 (51) |
+| FIRE:2  | FIRE | 2 | 100/100 | 11 / 13.2 / 22 | 0 / 10.6 / 22 | 0 (0) | 0 (0) |
+| FIRE:3  | FIRE | 3 | 100/100 | 11 / 16.3 / 33 | 0 / 13.3 / 33 | 0 (0) | 0 (0) |
+| FIRE:4  | FIRE | 4 | 83/100 | 11 / 22.5 / 61 | 0 / 29.3 / 70 | 0 (0) | 17 (17) |
+| RADSCORPION:3 | RADSCORPION | 3 | 100/100 | 3 / 8.4 / 20 | 5 / 22.7 / 60 | 4.9 (20) | 0 (0) |
+| RADSCORPION:4 | RADSCORPION | 4 | 79/100 | 5 / 20.2 / 61 | 14 / 41.3 / 72 | 12.5 (36) | 21 (21) |
+| RADSCORPION:5 | RADSCORPION | 5 | 66/100 | 8 / 28.5 / 61 | 24 / 66.5 / 145 | 17.4 (58) | 47 (34) |
+| RADSCORPION:6 | RADSCORPION | 6 | 62/100 | 11 / 33.0 / 61 | 48 / 90.9 / 156 | 25.8 (78) | 55 (38) |
+| RAIDER:4 | RAIDER | 4 | 79/100 | 12 / 28.8 / 61 | 48 / 79.0 / 140 | 0 (0) | 55 (38) |
+| RAIDER:6 | RAIDER | 6 | 49/100 | 26 / 47.2 / 61 | 72 / 163.6 / 258 | 0 (0) | 116 (62) |
 
-Reading: FIRE containment is trivially won (100%) even at its top difficulty; it deals almost no
-damage. RADSCORPION is the lethal one — at difficulty 4 it already loses 21% of fights and kills in
-34% of runs, and by difficulty 6 it is a coin flip. RAIDER sits between; its longest tails are
-last-defender-standing fights (a lone responder absorbing the full split for 20+ sub-ticks), which
-resolve as losses when the room empties.
+Reading: after the #1221 containment floor, FIRE is no longer trivially won. Difficulties 2 and 3
+still resolve every run but take 13–16 mean rounds; difficulty 4 resolves 83/100 with 17 deaths,
+and 13 of its 100 samples draw six responders and are held to the 10-round minimum. RADSCORPION is
+the lethal one — at difficulty 4 it loses 21% of fights and kills in 34% of runs, and by difficulty 6
+it is a coin flip. RAIDER sits between; its longest tails are last-defender-standing fights (a lone
+responder absorbing the full split for 20+ sub-ticks), which resolve as losses when the room empties.
+
+Ticks include the post-death response grace for failed runs: a 61-round outcome is the 120-second
+grace window at 2s ticks, not active combat. The resolved means are the active fight length:
+
+| Matchup | Resolved mean ticks (~s) | Failed mean ticks (~s) |
+|---|---:|---:|
+| FIRE:4 | 14.6 (~29s) | 61 (~122s) |
+| RADSCORPION:4 | 9.4 (~19s) | 61 (~122s) |
+| RADSCORPION:5 | 11.7 (~23s) | 61 (~122s) |
+| RADSCORPION:6 | 15.8 (~32s) | 61 (~122s) |
+| RAIDER:4 | 20.2 (~40s) | 61 (~122s) |
+| RAIDER:6 | 32.9 (~66s) | 61 (~122s) |
+
+## 3b. Incident difficulty pass (#1221)
+
+Config: `combat.incident_containment_progress_divisor` 20 → **50**; new
+`combat.incident_threat_health_multipliers` = **2.0** for raider, feral ghoul and mole rat
+(absent for fire and Deathclaw). `incident_threat_damage_divisor` and `base_raider_power`
+are unchanged, and the multiplier is applied only to progress denominators — damage to
+dwellers still uses the raw threat power, so incoming DPS does not rise.
+
+Commands (from `backend/`, seed `20261012`, 100 runs each):
+
+```bash
+uv run fo-cli simulate-incidents --matchup FIRE:4 --hazard-team fire --runs 100 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RAIDER_ATTACK:4 --runs 100 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RAIDER_ATTACK:5 --runs 100 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RAIDER_ATTACK:7 --runs 100 --seed 20261012
+uv run fo-cli simulate-incidents --matchup DEATHCLAW_ATTACK:10 --runs 100 --seed 20261012
+```
+
+Before (issue #1221 baseline, same roster and seed):
+
+| Matchup | Resolved | Mean ticks (~s) | Mean damage | Deaths (runs) |
+|---|---:|---:|---:|---:|
+| FIRE:4 | 100/100 | 7.5 (~15s) | 12.5 | 0 (0%) |
+| RAIDER:4 | 79/100 | 21 (~42s) | 48 | 21 (21%) |
+| RAIDER:5 | 62/100 | 31 (~62s) | 78 | 38 (38%) |
+| RAIDER:7 | 49/100 | 42 (~84s) | 144 | 51 (51%) |
+| DEATHCLAW:10 | 0/100 | 61 (~122s) | 247 | 100 (100%) |
+
+After:
+
+| Matchup | Resolved | Mean ticks (~s) | Mean damage | Deaths (runs) |
+|---|---:|---:|---:|---:|
+| FIRE:4 | 83/100 | 22.5 (~45s) | 29.3 | 17 (17%) |
+| RAIDER:4 | 79/100 | 28.8 (~58s) | 79.0 | 38 (38%) |
+| RAIDER:5 | 62/100 | 38.9 (~78s) | 118.1 | 51 (51%) |
+| RAIDER:7 | 38/100 | 54.5 (~109s) | 215.5 | 100 (100%) |
+| DEATHCLAW:10 | 0/100 | 61.0 (~122s) | 247.1 | 100 (100%) |
+
+Reading: fire is no longer a guaranteed win. FIRE:4 resolves 83/100 with 17 deaths; resolved
+runs average 14.6 ticks (~29s) of active combat, while the 22.5 all-run mean includes the 61-tick
+grace window for its 17 failures. Mid-tier fights are 13–30% longer; the top raid loses another
+11 win-rate points. Deathclaw is unchanged. Damage rises because fights last longer and more runs
+end in deaths, not because threat DPS or `base_raider_power` changed.
+
+**Responder-relative containment floor.** A global divisor cannot serve both a fresh and a
+mature vault. `incident_containment_min_rounds` (10) floors effective containment threat at
+``responder_power × tick_seconds × min_rounds / divisor``, capping containment at 10% per
+round. It only binds for strong crews: vault 666's dispatched responders (~280–360 power
+with the team bonus) would otherwise contain a difficulty-3 fire in ~3 rounds (~6s) at
+divisor 50; the floor makes it 10–11 rounds (~20–22s). The floor also binds for some
+level-5 rows: FIRE:2/3 now take 13.2/16.3 mean ticks, and 13 of the 100 FIRE:4 samples draw
+six responders and are held to the 10-round minimum. Combat objectives are not floored;
+raider and feral-ghoul fights in that vault already run 13–33s.
+
+Observed on vault 666 (68 dwellers, average level 15.8, max 49): fires resolved in
+1.6–5.5s at the old divisor, raiders in 13–29s, feral ghouls in 27–33s. Those incident
+ticks ran in the long-lived Dramatiq worker, which does not hot-reload; restart it after a
+config change.
 
 ## 4. Resource baselines
 

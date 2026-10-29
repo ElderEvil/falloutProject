@@ -12,6 +12,7 @@ Usage:
 """
 
 import logging
+import math
 from typing import Any
 
 from pydantic import Field, ValidationInfo, field_validator
@@ -302,9 +303,30 @@ class CombatConfig(BaseSettings):
     # A fire/containment hazard fills at ``power / threat * seconds / divisor``; a higher
     # divisor makes containment take more rounds, so the fight is long enough to react to.
     incident_containment_progress_divisor: int = Field(
-        default=20,
+        default=50,
         description="Seconds of equal-power response per unit of containment progress (higher = longer fires)",
         ge=1,
+    )
+    # Containment cannot be finished faster than this many rounds regardless of crew power:
+    # threat health is floored relative to responder power. Damage to dwellers still uses raw
+    # threat, so this only sets pacing. Fire and Deathclaw are intentionally absent from the
+    # type multiplier above.
+    incident_containment_min_rounds: int = Field(
+        default=10,
+        ge=1,
+        le=120,
+        description="Minimum containment rounds; floors threat health relative to responder power",
+    )
+    # Tankier mid-tier threats without raising their damage: the multiplier applies only
+    # to progress denominators, so fights last longer while incoming damage is unchanged.
+    # Fire and Deathclaw are intentionally absent.
+    incident_threat_health_multipliers: dict[str, float] = Field(
+        default_factory=lambda: {
+            IncidentType.RAIDER_ATTACK.value: 2.0,
+            IncidentType.FERAL_GHOUL_ATTACK.value: 2.0,
+            IncidentType.MOLE_RAT_ATTACK.value: 2.0,
+        },
+        description="Per-incident threat-health multiplier for progress denominators (higher = tankier)",
     )
     # Per weapon-type SPECIAL weights for combat_power (keys: weapon type value or "unarmed").
     # Primary stats ~0.3, secondary ~0.15, unused 0; unarmed is a balanced spread with a strength lean.
@@ -324,6 +346,16 @@ class CombatConfig(BaseSettings):
         ge=0,
         description="Per-vault window during which further arena finishes grant no morale",
     )
+
+    @field_validator("incident_threat_health_multipliers")
+    @classmethod
+    def validate_incident_threat_health_multipliers(cls, v: dict[str, float]) -> dict[str, float]:
+        for incident_type, multiplier in v.items():
+            if not math.isfinite(multiplier) or multiplier <= 0:
+                raise ValueError(
+                    f"incident_threat_health_multipliers[{incident_type!r}] must be finite and greater than zero"
+                )
+        return v
 
     @field_validator("weapon_stat_weights", mode="before")
     @classmethod

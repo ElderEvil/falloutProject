@@ -62,9 +62,9 @@ def test_team_response_bonus_shortens_containment():
     )
     assert plain.resolved
     assert team.resolved
-    # 24 power -> 0.12 containment/tick (9 ticks); int(24 * 1.4) = 33 power -> 0.165/tick (7 ticks).
-    assert plain.ticks == 9
-    assert team.ticks == 7
+    # 24 power -> 0.048 containment/tick (21 ticks); int(24 * 1.4) = 33 power -> 0.066/tick (16 ticks).
+    assert plain.ticks == 21
+    assert team.ticks == 16
 
 
 def test_team_hazard_resist_reduces_damage():
@@ -78,11 +78,12 @@ def test_team_hazard_resist_reduces_damage():
     )
     assert plain.resolved
     assert team.resolved
-    assert plain.ticks == 1
-    assert team.ticks == 1
-    # 2 damage split 1/1: the active member resists 1 -> int(1 * 0.8) = 0.
-    assert plain.damage_taken == 2
-    assert team.damage_taken == 1
+    # The responder-relative containment floor keeps even this crew at ten rounds.
+    assert plain.ticks == 11
+    assert team.ticks == 11
+    # 2 containment damage split 1/1 per round: the active member resists 1 -> int(1 * 0.8) = 0.
+    assert plain.damage_taken == 22
+    assert team.damage_taken == 11
 
 
 def test_team_membership_ignored_for_incidents_without_a_team():
@@ -161,7 +162,9 @@ def test_kernel_matches_incident_math_non_fire():
     outcome = resolve_incident(IncidentType.RAIDER_ATTACK, difficulty, [_defender(power)], dt=dt)
 
     dmg = incident_math.damage_to_dwellers(threat, dt)
-    expected_progress = incident_math.damage_to_raiders(power, dt) / threat
+    expected_progress = incident_math.damage_to_raiders(power, dt) / incident_math.threat_health(
+        IncidentType.RAIDER_ATTACK, threat
+    )
 
     assert outcome.resolved
     assert outcome.ticks == 1
@@ -176,31 +179,48 @@ def test_kernel_matches_incident_math_fire():
     power = 1000.0
     outcome = resolve_incident(IncidentType.FIRE, difficulty, [_defender(power)], dt=dt)
 
+    containment_threat = max(threat, incident_math.containment_threat_floor(power, dt))
     dmg = incident_math.containment_damage(threat, dt)
-    expected_progress = incident_math.containment_progress(power, threat, dt)
+    expected_progress = incident_math.containment_progress(power, containment_threat, dt)
+    expected_ticks = 0
+    accumulated = 0.0
+    while accumulated < 1:
+        accumulated += expected_progress
+        expected_ticks += 1
 
     assert outcome.resolved
-    assert outcome.ticks == 1
-    assert outcome.progress == pytest.approx(expected_progress)
-    assert outcome.damage_taken == sum(incident_math.split_damage(max(0, int(dmg)), 1))
+    assert outcome.ticks == expected_ticks
+    assert outcome.progress == pytest.approx(expected_progress * expected_ticks)
+    assert outcome.damage_taken == sum(incident_math.split_damage(max(0, int(dmg)), 1)) * expected_ticks
 
 
 def test_golden_non_fire_ticks_to_win():
-    # difficulty 2 → threat 20; power 50 → 20 progress per 2s tick → win at int(progress) >= 4.
+    # difficulty 2 → raw threat 20, effective 40 after the 2.0 mid-tier health multiplier;
+    # power 50 → 20 progress per 2s tick → win at int(progress) >= 4 on tick 8.
     outcome = resolve_incident(IncidentType.RAIDER_ATTACK, 2, [_defender(50.0, health=1000)], dt=2)
     assert outcome.resolved
     assert not outcome.failed
-    assert outcome.ticks == 4
+    assert outcome.ticks == 8
     assert outcome.progress == pytest.approx(4.0)
 
 
 def test_golden_fire_ticks_to_win():
-    # difficulty 2 → threat 20; power 25 → 0.125 containment per 2s tick → win at progress >= 1 (tick 8).
+    # difficulty 2 → threat 20; power 25 → 0.05 containment per 2s tick → win at progress >= 1 (tick 20).
     outcome = resolve_incident(IncidentType.FIRE, 2, [_defender(25.0, health=1000)], dt=2)
     assert outcome.resolved
     assert not outcome.failed
-    assert outcome.ticks == 8
+    assert outcome.ticks == 20
     assert outcome.progress == pytest.approx(1.0)
+
+
+def test_containment_floor_keeps_a_strong_crew_to_ten_rounds():
+    # 1000 power vs threat 30 would contain in one tick; the responder-relative floor
+    # raises effective threat to 400 so containment takes at least the configured ten rounds.
+    outcome = resolve_incident(IncidentType.FIRE, 3, [_defender(1000.0, health=100_000)], dt=2)
+    assert outcome.resolved
+    assert outcome.ticks in (10, 11)
+    assert outcome.ticks >= 10
+    assert outcome.progress >= 1.0
 
 
 def test_incident_math_reads_configured_pacing_divisors(monkeypatch):
@@ -283,7 +303,7 @@ async def test_live_round_engine_matches_offline_kernel_fire_pacing(
     )
 
     rounds = 0
-    while rounds < 60:
+    while rounds < offline.ticks + 5:
         await incident_service.process_incident(async_session, incident, 2)
         rounds += 1
         await async_session.refresh(incident)
@@ -522,7 +542,7 @@ async def test_snapshot_defender_pet_reduction_applied_once_per_round(
 
     # Keep the snapshot's precomputed reductions; raise power only so the round
     # resolves in one tick, making damage_taken exactly one application.
-    responders = [SimDefender(profile=replace(profile, power=1000.0), health=100_000)]
+    responders = [SimDefender(profile=replace(profile, power=4000.0), health=100_000)]
     base_raider_power = 200.0
     outcome = resolve_incident(IncidentType.RAIDER_ATTACK, 1, responders, dt=2, base_raider_power=base_raider_power)
     assert outcome.resolved

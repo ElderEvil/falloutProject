@@ -137,7 +137,7 @@ async def test_combat_objective_uses_combat_flow(async_session: AsyncSession, ro
 
     with (
         patch("app.services.combat.incident_math.damage_to_dwellers", return_value=10.0),
-        patch("app.services.combat.incident_math.damage_to_raiders", return_value=20.0),
+        patch("app.services.combat.incident_math.damage_to_raiders", return_value=40.0),
         patch(
             "app.services.combat.incident_math.containment_damage",
             side_effect=AssertionError("containment damage used"),
@@ -152,15 +152,15 @@ async def test_combat_objective_uses_combat_flow(async_session: AsyncSession, ro
     await async_session.refresh(incident)
     events = await crud.incident_crud.get_recent_events(async_session, incident.id)
 
-    assert result.damage_to_raiders == 20.0
-    assert incident.enemies_defeated == 1  # 20.0 / (2 * 10) = one fractional kill
+    assert result.damage_to_raiders == 40.0
+    assert incident.enemies_defeated == 1  # 40.0 / (2 * 10 * 2.0) = one kill
     assert incident.combat_progress == pytest.approx(1.0)
     assert events[-1].kind == "turn"
     assert events[-1].message == "Responders attack"
     threat_hits = [event for event in events if event.data and "damage_to_threat" in event.data]
     dweller_hits = [event for event in events if event.data and "damage_to_dwellers" in event.data]
     assert all(event.kind == "hit" for event in threat_hits + dweller_hits)
-    assert sum(event.data["damage_to_threat"] for event in threat_hits) == 20
+    assert sum(event.data["damage_to_threat"] for event in threat_hits) == 40
     assert sum(event.data["damage_to_dwellers"] for event in dweller_hits) == incident.damage_dealt
     assert any("hits the raiders" in event.message for event in threat_hits)
 

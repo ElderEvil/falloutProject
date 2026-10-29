@@ -28,8 +28,12 @@ const matchingScenario = computed(() => {
   const parsed = Number.parseInt(number.value, 10)
   return props.scenarios.find((scenario) => scenario.number === parsed) ?? null
 })
+const scenarioRequiresBoosted = computed(() => matchingScenario.value?.requires_boosted === true)
 watch(matchingScenario, () => {
   scenarioEnabled.value = false
+})
+watch([scenarioEnabled, scenarioRequiresBoosted], ([enabled, required]) => {
+  if (enabled && required) boosted.value = true
 })
 const numberField = ref<InstanceType<typeof VaultNumberField> | null>(null)
 const heading = ref<HTMLElement | null>(null)
@@ -64,7 +68,10 @@ const summary = computed(() => {
 function selectMode(value: unknown) {
   if (value !== 'standard' && value !== 'survival') return
   vaultMode.value = value
-  if (value === 'survival') boosted.value = false
+  if (value === 'survival') {
+    boosted.value = false
+    if (scenarioRequiresBoosted.value) scenarioEnabled.value = false
+  }
 }
 
 async function focusStep() {
@@ -215,7 +222,7 @@ function advance() {
               <Switch
                 id="boosted-start"
                 v-model:checked="boosted"
-                :disabled="isSurvival || creating"
+                :disabled="isSurvival || creating || (scenarioEnabled && scenarioRequiresBoosted)"
                 class="mt-1"
               />
               <span class="flex flex-col gap-1">
@@ -225,6 +232,9 @@ function advance() {
                 >
                 <span class="text-xs leading-5 text-theme-primary/65"
                   >Skip ahead with an expanded vault and extra supplies.</span
+                >
+                <span v-if="scenarioEnabled && scenarioRequiresBoosted" class="text-xs text-warning"
+                  >Required by {{ matchingScenario?.title }}.</span
                 >
                 <span v-if="isSurvival" class="text-xs text-warning"
                   >Not available in Survival mode.</span
@@ -251,7 +261,7 @@ function advance() {
               <Switch
                 id="scenario-start"
                 v-model:checked="scenarioEnabled"
-                :disabled="creating"
+                :disabled="creating || (isSurvival && scenarioRequiresBoosted)"
                 class="mt-1"
               />
               <span class="flex flex-col gap-1">
@@ -262,7 +272,14 @@ function advance() {
                 <span class="text-xs leading-5 text-theme-primary/65">{{
                   matchingScenario.description
                 }}</span>
-                <span class="text-xs leading-5 text-theme-primary/65"
+                <span v-if="scenarioRequiresBoosted" class="text-xs leading-5 text-theme-primary/65"
+                  >Requires Boosted Start{{
+                    isSurvival ? ' — not available in Survival mode' : ''
+                  }}.</span
+                >
+                <span
+                  v-if="matchingScenario.expedition"
+                  class="text-xs leading-5 text-theme-primary/65"
                   >Multi-room encounters are disabled for scenario starts.</span
                 >
               </span>

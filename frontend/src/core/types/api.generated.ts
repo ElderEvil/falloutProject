@@ -12154,14 +12154,10 @@ export interface components {
             title: string;
             /** Description */
             description: string;
-            /** Dweller Level */
-            dweller_level: number;
-            /** Special */
-            special: number;
-            /** All Sites */
-            all_sites: boolean;
-            /** Single Scene Only */
-            single_scene_only: boolean;
+            /** Requires Boosted */
+            requires_boosted: boolean;
+            /** Expedition */
+            expedition: boolean;
         };
         /** VaultUpdate */
         VaultUpdate: {

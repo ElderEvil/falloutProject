@@ -86,10 +86,8 @@ async def list_scenario_options(
             key=scenario.key,
             title=scenario.title,
             description=scenario.description,
-            dweller_level=scenario.dweller_level,
-            special=scenario.special,
-            all_sites=scenario.all_sites,
-            single_scene_only=scenario.single_scene_only,
+            requires_boosted=scenario.requires_boosted,
+            expedition=scenario.expedition,
         )
         for scenario in vault_scenario_service.list()
     ]
@@ -158,6 +156,8 @@ async def start_vault(
         raise ValidationException(f"Unknown vault scenario: {vault_data.scenario}")
     if scenario is not None and scenario.number != vault_data.number:
         raise ValidationException(f"Vault {scenario.number} is required for this scenario")
+    if scenario is not None and scenario.requires_boosted and not vault_data.boosted:
+        raise ValidationException(f"{scenario.title} requires Boosted Start")
 
     is_boosted = vault_data.boosted
     vault = await vault_service.initiate_vault(

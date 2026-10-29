@@ -388,19 +388,37 @@ async def process_training(db_session: AsyncSession, vault_id: UUID4) -> Trainin
         # Capture ids before the sweep: recover_session expires the ORM instances.
         training_pairs = [(training.id, training.dweller_id) for training in active_trainings]
         for index, (training_id, dweller_id) in enumerate(training_pairs):
-            error = await guard_phase(
-                f"Error processing training {training_id}",
-                partial(
-                    _process_single_training,
-                    db_session,
-                    stats,
-                    dwellers_map,
-                    active_trainings[index],
-                    commit=False,
-                ),
-                catch=(SQLAlchemyError, ValueError, RuntimeError),
-                db_session=db_session,
-            )
+            training = active_trainings[index]
+            if training.is_ready_to_complete():
+                await db_session.commit()
+                error = await guard_phase(
+                    f"Error processing training {training_id}",
+                    partial(
+                        _process_single_training,
+                        db_session,
+                        stats,
+                        dwellers_map,
+                        training,
+                        commit=True,
+                    ),
+                    catch=(SQLAlchemyError, ValueError, RuntimeError),
+                    db_session=db_session,
+                )
+            else:
+                error = await guard_phase(
+                    f"Error processing training {training_id}",
+                    partial(
+                        _process_single_training,
+                        db_session,
+                        stats,
+                        dwellers_map,
+                        training,
+                        commit=False,
+                    ),
+                    catch=(SQLAlchemyError, ValueError, RuntimeError),
+                    db_session=db_session,
+                    savepoint=True,
+                )
             if error is not None:
                 remaining = training_pairs[index + 1 :]
                 await refresh_after_recovery(db_session, active_trainings[index + 1 :])

@@ -58,12 +58,25 @@ async def guard_phase(
     *,
     catch: tuple[type[BaseException], ...],
     db_session: "AsyncSession | None" = None,
+    savepoint: bool = False,
 ) -> str | None:
     """Run a per-entity tick step; return the error message, or None on success.
 
     Pass ``db_session`` so a database error recovers the session: without it the
-    aborted transaction fails every later entity in the sweep.
+    aborted transaction fails every later entity in the sweep. Pass
+    ``savepoint=True`` to roll back only this step and preserve earlier staged
+    work in the surrounding transaction.
     """
+    if savepoint and db_session is not None:
+        try:
+            async with db_session.begin_nested():
+                await fn()
+        except catch as e:
+            logger.error(f"{label}: {e}", exc_info=True)
+            return str(e)
+        else:
+            return None
+
     try:
         await fn()
     except catch as e:

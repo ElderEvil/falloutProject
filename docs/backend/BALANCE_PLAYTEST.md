@@ -112,6 +112,63 @@ damage. RADSCORPION is the lethal one — at difficulty 4 it already loses 21% o
 last-defender-standing fights (a lone responder absorbing the full split for 20+ sub-ticks), which
 resolve as losses when the room empties.
 
+## 3b. Incident difficulty pass (#1221)
+
+Config: `combat.incident_containment_progress_divisor` 20 → **50**; new
+`combat.incident_threat_health_multipliers` = **2.0** for raider, feral ghoul and mole rat
+(absent for fire and Deathclaw). `incident_threat_damage_divisor` and `base_raider_power`
+are unchanged, and the multiplier is applied only to progress denominators — damage to
+dwellers still uses the raw threat power, so incoming DPS does not rise.
+
+Commands (from `backend/`, seed `20261012`, 100 runs each):
+
+```bash
+uv run fo-cli simulate-incidents --matchup FIRE:4 --hazard-team fire --runs 100 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RAIDER_ATTACK:4 --runs 100 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RAIDER_ATTACK:5 --runs 100 --seed 20261012
+uv run fo-cli simulate-incidents --matchup RAIDER_ATTACK:7 --runs 100 --seed 20261012
+uv run fo-cli simulate-incidents --matchup DEATHCLAW_ATTACK:10 --runs 100 --seed 20261012
+```
+
+Before (issue #1221 baseline, same roster and seed):
+
+| Matchup | Resolved | Mean ticks (~s) | Mean damage | Deaths (runs) |
+|---|---:|---:|---:|---:|
+| FIRE:4 | 100/100 | 7.5 (~15s) | 12.5 | 0 (0%) |
+| RAIDER:4 | 79/100 | 21 (~42s) | 48 | 21 (21%) |
+| RAIDER:5 | 62/100 | 31 (~62s) | 78 | 38 (38%) |
+| RAIDER:7 | 49/100 | 42 (~84s) | 144 | 51 (51%) |
+| DEATHCLAW:10 | 0/100 | 61 (~122s) | 247 | 100 (100%) |
+
+After:
+
+| Matchup | Resolved | Mean ticks (~s) | Mean damage | Deaths (runs) |
+|---|---:|---:|---:|---:|
+| FIRE:4 | 83/100 | 21.0 (~42s) | 27.1 | 17 (17%) |
+| RAIDER:4 | 79/100 | 28.8 (~58s) | 79.0 | 38 (38%) |
+| RAIDER:5 | 62/100 | 38.9 (~78s) | 118.1 | 51 (51%) |
+| RAIDER:7 | 38/100 | 54.5 (~109s) | 215.5 | 100 (100%) |
+| DEATHCLAW:10 | 0/100 | 61.0 (~122s) | 247.1 | 100 (100%) |
+
+Reading: fire is no longer a guaranteed win and now runs about 42 seconds. Mid-tier fights
+are 13–30% longer; the top raid loses another 11 win-rate points. Deathclaw is unchanged.
+Damage rises because fights last longer and more runs end in deaths, not because threat DPS
+or `base_raider_power` changed.
+
+**Responder-relative containment floor.** A global divisor cannot serve both a fresh and a
+mature vault. `incident_containment_min_rounds` (10) floors effective containment threat at
+``responder_power × tick_seconds × min_rounds / divisor``, capping containment at 10% per
+round. It only binds for strong crews: vault 666's dispatched responders (~280–360 power
+with the team bonus) would otherwise contain a difficulty-3 fire in ~3 rounds (~6s) at
+divisor 50; the floor makes it 10–11 rounds (~20–22s). Weak crews keep the raw threat, so
+the level-5 simulator rows above are unchanged. Combat objectives are not floored; raider
+and feral-ghoul fights in that vault already run 13–33s.
+
+Observed on vault 666 (68 dwellers, average level 15.8, max 49): fires resolved in
+1.6–5.5s at the old divisor, raiders in 13–29s, feral ghouls in 27–33s. Those incident
+ticks ran in the long-lived Dramatiq worker, which does not hot-reload; restart it after a
+config change.
+
 ## 4. Resource baselines
 
 Commands (from `backend/`, `base_production_rate 0.100`; 60-minute run, starting 50/100 capped at 100):

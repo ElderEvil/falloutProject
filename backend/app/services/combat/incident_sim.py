@@ -106,6 +106,7 @@ def resolve_incident(
     threat = incident_math.raider_power(difficulty) if base_raider_power is None else difficulty * base_raider_power
     if threat <= 0:
         raise ValueError("Threat power must be positive")
+    effective_threat = incident_math.threat_health(incident_type, threat)
     effects = effects_for_incident_type(incident_type)
     channel = effects.damage
     objective = get_incident_definition(incident_type).objective
@@ -143,11 +144,12 @@ def resolve_incident(
 
         if objective == IncidentObjective.CONTAIN:
             dmg = incident_math.containment_damage(threat, dt)
-            progress += incident_math.containment_progress(power, threat, dt)
+            containment_threat = max(effective_threat, incident_math.containment_threat_floor(power, dt))
+            progress += incident_math.containment_progress(power, containment_threat, dt)
             won = progress >= 1
         else:
             dmg = incident_math.damage_to_dwellers(threat, dt)
-            progress += incident_math.damage_to_raiders(power, dt) / threat
+            progress += incident_math.damage_to_raiders(power, dt) / effective_threat
             won = int(progress) >= difficulty * 2
 
         if living:

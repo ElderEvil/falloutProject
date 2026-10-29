@@ -250,7 +250,8 @@ def test_four_defender_conditions_isolate_team_place_from_matching_gear():
     team_only = run(IncidentType.FIRE, hazard_team=HazardTeam.FIRE, team_size=3, outfit_count=0)
     team_gear = run(IncidentType.FIRE, hazard_team=HazardTeam.FIRE, team_size=3, outfit_count=3)
 
-    assert all(outcome.resolved for run_ in (plain, gear_only, team_only, team_gear) for outcome in run_)
+    # Fire is not a guaranteed win after #1221; mitigation must not reduce wins.
+    assert sum(outcome.resolved for outcome in team_gear) >= sum(outcome.resolved for outcome in plain)
     assert _total_damage(gear_only) < _total_damage(plain)
     assert _total_damage(team_only) < _total_damage(plain)
     assert _total_damage(team_gear) < _total_damage(plain)

@@ -1,22 +1,10 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import axios from '@/core/plugins/axios'
-import { relationshipService } from '../services/relationshipService'
+import { relationshipApi, type ProcessVaultBreedingResponse } from '../api/relationship'
 import type { Relationship, RelationshipCreate, CompatibilityScore } from '../models/relationship'
 import { isRelationshipType, PARTNER_LINKED_RELATIONSHIP_TYPES } from '../models/relationship'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
-
-interface VaultBreedingStats {
-  relationships_updated: number
-  conceptions: number
-  births: number
-  children_aged: number
-}
-
-interface ProcessVaultBreedingResponse {
-  stats: VaultBreedingStats
-}
 
 export const useRelationshipStore = defineStore('relationship', () => {
   const toast = useToast()
@@ -63,8 +51,8 @@ export const useRelationshipStore = defineStore('relationship', () => {
     if (!silent) isLoading.value = true
     const versionAtStart = mutationVersion
     try {
-      const response = await axios.get(`/api/v1/relationships/vault/${vaultId}`)
-      if (versionAtStart === mutationVersion) relationships.value = response.data
+      const fetched = await relationshipApi.getByVault(vaultId)
+      if (versionAtStart === mutationVersion) relationships.value = fetched
     } catch (error: unknown) {
       handleStoreError(error, 'Failed to fetch relationships', !silent)
       throw error
@@ -75,8 +63,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
 
   async function getRelationship(relationshipId: string): Promise<Relationship | null> {
     try {
-      const response = await axios.get(`/api/v1/relationships/${relationshipId}`)
-      return response.data
+      return await relationshipApi.get(relationshipId)
     } catch (error: unknown) {
       handleStoreError(error, 'Failed to fetch relationship')
       return null
@@ -86,8 +73,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
   async function createRelationship(data: RelationshipCreate): Promise<Relationship | null> {
     isLoading.value = true
     try {
-      const response = await axios.post('/api/v1/relationships/', data)
-      const relationship = response.data
+      const relationship = await relationshipApi.create(data)
       mutationVersion++
 
       // Add to local state if not already present
@@ -109,8 +95,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
   async function initiateRomance(relationshipId: string): Promise<Relationship | null> {
     isLoading.value = true
     try {
-      const response = await axios.put(`/api/v1/relationships/${relationshipId}/romance`)
-      const updated = response.data
+      const updated = await relationshipApi.initiateRomance(relationshipId)
 
       updateRelationship(updated)
 
@@ -127,8 +112,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
   async function makePartners(relationshipId: string): Promise<Relationship | null> {
     isLoading.value = true
     try {
-      const response = await axios.put(`/api/v1/relationships/${relationshipId}/partner`)
-      const updated = response.data
+      const updated = await relationshipApi.makePartners(relationshipId)
 
       updateRelationship(updated)
 
@@ -145,7 +129,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
   async function marry(relationshipId: string): Promise<Relationship | null> {
     isLoading.value = true
     try {
-      const updated = await relationshipService.marry(relationshipId)
+      const updated = await relationshipApi.marry(relationshipId)
 
       updateRelationship(updated)
 
@@ -162,7 +146,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
   async function breakUp(relationshipId: string): Promise<boolean> {
     isLoading.value = true
     try {
-      await axios.delete(`/api/v1/relationships/${relationshipId}`)
+      await relationshipApi.breakUp(relationshipId)
       mutationVersion++
 
       // Update local state
@@ -190,10 +174,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
     dweller2Id: string
   ): Promise<CompatibilityScore | null> {
     try {
-      const response = await axios.get(
-        `/api/v1/relationships/compatibility/${dweller1Id}/${dweller2Id}`
-      )
-      return response.data
+      return await relationshipApi.getCompatibility(dweller1Id, dweller2Id)
     } catch (error: unknown) {
       handleStoreError(error, 'Failed to calculate compatibility')
       return null
@@ -204,10 +185,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
     vaultId: string
   ): Promise<ProcessVaultBreedingResponse | null> {
     try {
-      const response = await axios.post<ProcessVaultBreedingResponse>(
-        `/api/v1/relationships/vault/${vaultId}/process`
-      )
-      return response.data
+      return await relationshipApi.processVaultBreeding(vaultId)
     } catch (error: unknown) {
       handleStoreError(error, 'Failed to process breeding')
       return null

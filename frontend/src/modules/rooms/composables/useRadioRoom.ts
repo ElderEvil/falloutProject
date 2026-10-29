@@ -16,7 +16,6 @@ interface RadioStats {
   recruitmentRate: number
   ratePerHour: number
   estimatedHoursPerRecruit: number
-  speedupMultiplier: number
   manualCostCaps: number
   radioMode: string
   radioHappinessBonus: number
@@ -72,7 +71,6 @@ export function useRadioRoom(
         recruitmentRate: data.recruitment_rate ?? 0,
         ratePerHour: data.rate_per_hour ?? 0,
         estimatedHoursPerRecruit: data.estimated_hours_per_recruit ?? 0,
-        speedupMultiplier: data.speedup_multipliers?.[0]?.speedup ?? 1,
         manualCostCaps: data.manual_cost_caps ?? 0,
         radioMode: data.radio_mode ?? 'recruitment',
         radioHappinessBonus: data.radio_happiness_bonus ?? 0,

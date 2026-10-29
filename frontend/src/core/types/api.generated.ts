@@ -3607,32 +3607,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/radio/vault/{vault_id}/room/{room_id}/speedup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Set Radio Speedup
-         * @description Set the speedup multiplier for a radio room.
-         *
-         *     Returns:
-         *         Response confirming the speedup setting.
-         *
-         *     Raises:
-         *         ValidationException: If speedup value is out of range or room not found.
-         */
-        put: operations["set_radio_speedup_api_v1_radio_vault__vault_id__room__room_id__speedup_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/relationships/vault/{vault_id}": {
         parameters: {
             query?: never;
@@ -10431,18 +10405,6 @@ export interface components {
             radio_mode: string;
         };
         /**
-         * RadioSpeedupResponse
-         * @description Response for radio speedup change.
-         */
-        RadioSpeedupResponse: {
-            /** Message */
-            message: string;
-            /** Room Id */
-            room_id: string;
-            /** Speedup */
-            speedup: number;
-        };
-        /**
          * RadioStatsRead
          * @description Radio recruitment statistics.
          */
@@ -10461,8 +10423,6 @@ export interface components {
             manual_cost_caps: number;
             /** Radio Mode */
             radio_mode: string;
-            /** Speedup Multipliers */
-            speedup_multipliers: components["schemas"]["SpeedupMultiplier"][];
             /**
              * Radio Happiness Bonus
              * @default 0
@@ -10728,11 +10688,6 @@ export interface components {
              * @default default
              */
             room_style: string;
-            /**
-             * Speedup Multiplier
-             * @default 1
-             */
-            speedup_multiplier: number;
             /** Capacity Formula */
             capacity_formula?: string | null;
             /** Output Formula */
@@ -10788,11 +10743,6 @@ export interface components {
              * @default default
              */
             room_style: string;
-            /**
-             * Speedup Multiplier
-             * @default 1
-             */
-            speedup_multiplier: number;
             /**
              * Id
              * Format: uuid4
@@ -11020,16 +10970,6 @@ export interface components {
              */
             lore: string;
             combat_state?: components["schemas"]["SiteCombatView"] | null;
-        };
-        /**
-         * SpeedupMultiplier
-         * @description Speedup multiplier for a radio room.
-         */
-        SpeedupMultiplier: {
-            /** Room Id */
-            room_id: string;
-            /** Speedup */
-            speedup: number;
         };
         /**
          * StartExplorationAction
@@ -17583,40 +17523,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RadioModeResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    set_radio_speedup_api_v1_radio_vault__vault_id__room__room_id__speedup_put: {
-        parameters: {
-            query: {
-                speedup: number;
-            };
-            header?: never;
-            path: {
-                vault_id: string;
-                room_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RadioSpeedupResponse"];
                 };
             };
             /** @description Validation Error */

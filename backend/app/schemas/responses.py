@@ -41,14 +41,6 @@ class RadioModeResponse(BaseModel):
     radio_mode: str
 
 
-class RadioSpeedupResponse(BaseModel):
-    """Response for radio speedup change."""
-
-    message: str
-    room_id: str
-    speedup: float
-
-
 class RelationshipActionResponse(BaseModel):
     """Response for relationship actions."""
 

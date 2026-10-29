@@ -44,7 +44,6 @@ const STATS_RESPONSE = {
     recruitment_rate: 0.1,
     rate_per_hour: 1.5,
     estimated_hours_per_recruit: 4,
-    speedup_multipliers: [{ room_id: 'room-1', speedup: 2 }],
     manual_cost_caps: 250,
     radio_mode: 'recruitment',
     radio_happiness_bonus: 0,
@@ -78,7 +77,6 @@ describe('useRadioRoom', () => {
 
     expect(get).toHaveBeenCalledWith('/api/v1/radio/vault/vault-1/stats')
     expect(api.manualRecruitCost.value).toBe(250)
-    expect(api.radioStats.value?.speedupMultiplier).toBe(2)
 
     scope.stop()
   })

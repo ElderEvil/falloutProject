@@ -337,7 +337,6 @@ describe('RoomGrid', () => {
         size_min: 3,
         size_max: 9,
         tier: 1,
-        speedup_multiplier: 1,
       }
       roomStore.isPlacingRoom = true
 
@@ -368,7 +367,6 @@ describe('RoomGrid', () => {
         size_min: 1,
         size_max: 1,
         tier: 1,
-        speedup_multiplier: 1,
       }
       roomStore.isPlacingRoom = true
 
@@ -399,7 +397,6 @@ describe('RoomGrid', () => {
         size_min: 1,
         size_max: 1,
         tier: 1,
-        speedup_multiplier: 1,
       }
       roomStore.isPlacingRoom = true
 
@@ -437,7 +434,6 @@ describe('RoomGrid', () => {
         size_min: 3,
         size_max: 9,
         tier: 1,
-        speedup_multiplier: 1,
       }
       roomStore.isPlacingRoom = true
 
@@ -520,7 +516,6 @@ describe('RoomGrid', () => {
       size_min: 3,
       size_max: 9,
       tier: 1,
-      speedup_multiplier: 1,
     }
 
     it('rejects a gap in both the preview and click handler', async () => {
@@ -947,7 +942,6 @@ describe('RoomGrid', () => {
         size_min: 3,
         size_max: 9,
         tier: 1,
-        speedup_multiplier: 1,
       }
       roomStore.isPlacingRoom = true
 

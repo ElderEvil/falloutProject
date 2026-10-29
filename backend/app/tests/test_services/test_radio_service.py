@@ -221,7 +221,6 @@ async def test_calculate_recruitment_rate_batches_room_dwellers(
     expected = game_config.radio.base_recruitment_rate
     for room, dwellers in ((radio_room, [radio_dweller]), (second_room, [second_dweller])):
         expected *= game_config.radio.get_tier_multiplier(room.tier)
-        expected *= room.speedup_multiplier
         for dweller in dwellers:
             expected += (
                 game_config.radio.base_recruitment_rate

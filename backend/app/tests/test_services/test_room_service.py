@@ -66,7 +66,6 @@ def _make_room_create(
         coordinate_x=coordinate_x,
         coordinate_y=coordinate_y,
         image_url=None,
-        speedup_multiplier=1.0,
         capacity_formula=capacity_formula,
         output_formula=output_formula,
     )
@@ -94,7 +93,6 @@ async def _create_elevator(session: AsyncSession, vault_id: UUID, coordinate_y: 
             coordinate_x=coordinate_x,
             coordinate_y=coordinate_y,
             image_url=None,
-            speedup_multiplier=1.0,
         ),
     )
 
@@ -134,7 +132,6 @@ async def _create_existing_room(
             coordinate_x=coordinate_x,
             coordinate_y=coordinate_y,
             image_url=image_url,
-            speedup_multiplier=1.0,
             capacity_formula=capacity_formula,
             output_formula=output_formula,
         ),
@@ -691,7 +688,6 @@ def _make_response_room_create(
         coordinate_x=coordinate_x,
         coordinate_y=coordinate_y,
         image_url=None,
-        speedup_multiplier=1.0,
         capacity_formula=None,
         output_formula=None,
     )

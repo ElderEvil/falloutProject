@@ -58,7 +58,6 @@ def _response_station_create(vault_id: UUID, *, coordinate_x: int = 1, size: int
         coordinate_x=coordinate_x,
         coordinate_y=1,
         image_url=None,
-        speedup_multiplier=1.0,
         capacity_formula=None,
         output_formula=None,
     )
@@ -98,7 +97,6 @@ async def _ensure_elevator(session: AsyncSession, vault_id: UUID, coordinate_y: 
             coordinate_x=0,
             coordinate_y=coordinate_y,
             image_url=None,
-            speedup_multiplier=1.0,
         ),
     )
 
@@ -143,7 +141,6 @@ async def _create_non_unique_room(session: AsyncSession, vault_id: UUID, *, coor
             coordinate_x=coordinate_x,
             coordinate_y=1,
             image_url=None,
-            speedup_multiplier=1.0,
             capacity_formula=None,
             output_formula=None,
         ),

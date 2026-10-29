@@ -35,10 +35,8 @@ class VaultScenarioRead(SQLModel):
     key: str
     title: str
     description: str
-    dweller_level: int
-    special: int
-    all_sites: bool
-    single_scene_only: bool
+    requires_boosted: bool
+    expedition: bool
 
 
 class ResourceLevelWarning(SQLModel):

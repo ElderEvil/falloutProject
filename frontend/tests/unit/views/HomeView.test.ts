@@ -180,10 +180,8 @@ describe('HomeView', () => {
                 key: 'vault_1_test',
                 title: 'Vault 1 — Scout Test',
                 description: 'Adds a level 5 / SPECIAL 4 Scout and a single-scene expedition.',
-                dweller_level: 5,
-                special: 4,
-                all_sites: true,
-                single_scene_only: true,
+                requires_boosted: false,
+                expedition: true,
               },
             ],
           }
@@ -216,6 +214,55 @@ describe('HomeView', () => {
         expect.anything()
       )
       expect(router.currentRoute.value.path).toBe('/vault/vault-1')
+    })
+
+    it('forces Boosted Start for a scenario that requires it', async () => {
+      vaultStore.vaults = []
+      vi.mocked(axios.get).mockImplementation(async (url: string) => {
+        if (url === '/api/v1/vaults/scenarios') {
+          return {
+            data: [
+              {
+                number: 68,
+                key: 'vault_68_test',
+                title: 'Vault 68 — The Ratio',
+                description: '99 men and 1 woman: a Vault-Tec gender-ratio experiment.',
+                requires_boosted: true,
+                expedition: false,
+              },
+            ],
+          }
+        }
+        return { data: [] }
+      })
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'vault-68' } })
+
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await settleView()
+
+      await wrapper.get('input[type="number"]').setValue('68')
+      await continueStep(wrapper)
+      await wrapper.get('#scenario-start').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.get('#boosted-start').attributes('aria-checked')).toBe('true')
+      await wrapper.get('#boosted-start').trigger('click')
+      expect(wrapper.get('#boosted-start').attributes('aria-checked')).toBe('true')
+
+      await continueStep(wrapper)
+      await wrapper.get('form').trigger('submit')
+      await settleView()
+
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/v1/vaults/initiate',
+        {
+          number: 68,
+          boosted: true,
+          vault_mode: 'standard',
+          scenario: 'vault_68_test',
+        },
+        expect.anything()
+      )
     })
 
     it('should show vault list when vaults exist', async () => {

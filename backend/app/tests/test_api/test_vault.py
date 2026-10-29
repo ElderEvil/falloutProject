@@ -508,36 +508,30 @@ async def test_vault_scenarios_list_vault_1(
                 "Adds a level 5 / SPECIAL 4 Scout and a single-scene stat-check expedition. "
                 "Extra living capacity; starter objectives skipped. Starts at the site picker."
             ),
-            "dweller_level": 5,
-            "special": 4,
-            "all_sites": True,
-            "single_scene_only": True,
+            "requires_boosted": False,
+            "expedition": True,
         },
         {
             "number": 68,
             "key": "vault_68_test",
             "title": "Vault 68 — The Ratio",
             "description": (
-                "99 men and 1 woman. Adds a level 10 / SPECIAL 7 Scout and the Vault 68 social "
-                "encounter. Extra living capacity; starter objectives skipped. Starts at the site picker."
+                "99 men and 1 woman: a Vault-Tec gender-ratio experiment. Requires Boosted Start; "
+                "no expedition scout. Starter objectives skipped."
             ),
-            "dweller_level": 10,
-            "special": 7,
-            "all_sites": True,
-            "single_scene_only": True,
+            "requires_boosted": True,
+            "expedition": False,
         },
         {
             "number": 69,
             "key": "vault_69_test",
             "title": "Vault 69 — 99 Women, 1 Man",
             "description": (
-                "99 women and 1 man. Adds a level 3 / SPECIAL 3 Scout and the Vault 69 social encounter. "
-                "Extra living capacity; starter objectives skipped. Starts at the site picker."
+                "99 women and 1 man: a Vault-Tec gender-ratio experiment. Requires Boosted Start; "
+                "no expedition scout. Starter objectives skipped."
             ),
-            "dweller_level": 3,
-            "special": 3,
-            "all_sites": True,
-            "single_scene_only": True,
+            "requires_boosted": True,
+            "expedition": False,
         },
     ]
 
@@ -583,71 +577,50 @@ async def test_vault_initiate_scenario_seeds_single_scene_scout(
 
 
 @pytest.mark.parametrize(
-    ("number", "key", "level", "special"),
+    ("number", "key", "expected_men", "expected_women"),
     [
-        (68, "vault_68_test", 10, 7),
-        (69, "vault_69_test", 3, 3),
+        (68, "vault_68_test", 99, 1),
+        (69, "vault_69_test", 1, 99),
     ],
 )
 @pytest.mark.asyncio
-async def test_vault_initiate_lore_scenario_profiles(
+async def test_vault_initiate_lore_scenario_requires_boosted(
     async_client: AsyncClient,
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
     number: int,
     key: str,
-    level: int,
-    special: int,
+    expected_men: int,
+    expected_women: int,
 ):
-    response = await async_client.post(
+    rejected = await async_client.post(
         "/vaults/initiate",
         headers=superuser_token_headers,
         json={"number": number, "scenario": key},
+    )
+    assert rejected.status_code == 400
+    assert "requires Boosted Start" in rejected.text
+
+    response = await async_client.post(
+        "/vaults/initiate",
+        headers=superuser_token_headers,
+        json={"number": number, "scenario": key, "boosted": True},
     )
     assert response.status_code == 201, response.text
     vault_id = UUID(response.json()["id"])
 
     dwellers = await crud.dweller.get_multi_by_vault(async_session, vault_id, limit=200)
     assert len(dwellers) == 100
-    expected_men, expected_women = (99, 1) if number == 68 else (1, 99)
     assert sum(dweller.gender == GenderEnum.MALE for dweller in dwellers) == expected_men
     assert sum(dweller.gender == GenderEnum.FEMALE for dweller in dwellers) == expected_women
+    assert not any(dweller.display_name == "Scout Scenario" for dweller in dwellers)
     stored_vault = await crud.vault.get(async_session, vault_id)
     assert stored_vault is not None
     assert stored_vault.population_max == 100
 
-    scout = next(dweller for dweller in dwellers if dweller.display_name == "Scout Scenario")
-    assert scout.gender == GenderEnum.MALE
-    assert scout.level == level
-    assert (scout.strength, scout.perception, scout.endurance, scout.charisma) == (
-        special,
-        special,
-        special,
-        special,
-    )
-    assert (scout.intelligence, scout.agility, scout.luck) == (special, special, special)
-
-    explorations = await crud.exploration.get_by_vault(async_session, vault_id=vault_id, active_only=True)
-    assert len(explorations) == 1
-    site_id = f"vault_{number}"
-    sites = {site.id for site in await expedition_service.list_available_sites(async_session, explorations[0].id)}
-    assert sites == {site_id}
-
-    entered = await async_client.post(
-        f"/explorations/{explorations[0].id}/site/enter",
-        headers=superuser_token_headers,
-        json={"site_id": site_id},
-    )
-    assert entered.status_code == 200
-    options = entered.json()["node"]["options"]
-    assert options
-    resolved = await async_client.post(
-        f"/explorations/{explorations[0].id}/site/resolve",
-        headers=superuser_token_headers,
-        json={"choice_id": options[0]["id"]},
-    )
-    assert resolved.status_code == 200
-    assert resolved.json()["status"] == "cleared"
+    assert await crud.exploration.get_by_vault(async_session, vault_id=vault_id, active_only=True) == []
+    objectives = await objective_crud.get_multi_for_vault(async_session, vault_id)
+    assert not any(objective.category is ObjectiveCategoryEnum.STARTER for objective in objectives)
 
 
 @pytest.mark.asyncio

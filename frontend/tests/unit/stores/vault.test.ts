@@ -231,10 +231,8 @@ describe('Vault Store', () => {
         key: 'vault_1_test',
         title: 'Vault 1 — Scout Test',
         description: 'Test scenario',
-        dweller_level: 5,
-        special: 4,
-        all_sites: true,
-        single_scene_only: true,
+        requires_boosted: false,
+        expedition: true,
       }
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [scenario] })
 

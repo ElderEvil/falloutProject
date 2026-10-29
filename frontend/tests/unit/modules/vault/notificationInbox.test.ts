@@ -461,6 +461,26 @@ describe('notification bell popup state', () => {
     expect(store.recentNotifications).toEqual([])
   })
 
+  it('clears recent loading and rows when the session ends mid-request', async () => {
+    const auth = useAuthStore()
+    auth.token = 'signed-in'
+    const store = useNotificationInboxStore()
+    vi.mocked(axios.get)
+      .mockResolvedValueOnce({ data: [notification('private')] })
+      .mockReturnValueOnce(new Promise(() => undefined))
+    await store.loadRecent()
+    expect(store.recentNotifications.map((item) => item.id)).toEqual(['private'])
+
+    void store.loadRecent()
+    expect(store.isRecentLoading).toBe(true)
+
+    auth.token = null
+    await flushPromises()
+
+    expect(store.isRecentLoading).toBe(false)
+    expect(store.recentNotifications).toEqual([])
+  })
+
   it('keeps an in-flight bell load alive when the page reloads', async () => {
     const store = useNotificationInboxStore()
     let finishRecent!: (value: { data: ReturnType<typeof notification>[] }) => void

@@ -224,6 +224,9 @@ export const useNotificationInboxStore = defineStore('notificationInbox', () => 
     recentGeneration++
     pageNotifications.value = []
     recentRows.value = []
+    // The superseded request's finalizer is generation-guarded and cannot clear
+    // this flag, so the session end owns the reset.
+    isRecentLoading.value = false
     readStates.value.clear()
     hasMore.value = false
     unreadCount.value = 0

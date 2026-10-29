@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.279.6 (2026-10-29)
+
+### Bug Fixes
+
+* **vault:** make Vaults 68/69 boosted-only experiments 37d5aa7, closes #1164
+
 ## 2.279.5 (2026-10-29)
 
 ### Bug Fixes

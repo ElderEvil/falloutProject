@@ -152,6 +152,18 @@ describe('ExplorationRewardsModal', () => {
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
 
+  it('treats a top-level ApiError status as a legacy overflow report', async () => {
+    mockResolve.mockRejectedValueOnce({ status: 404 })
+    const wrapper = mountModal()
+
+    await wrapper.findAll('.overflow-actions button')[0]!.trigger('click')
+
+    expect(wrapper.text()).toContain('This report predates overflow resolution')
+    expect(wrapper.get('.collect-btn').attributes('disabled')).toBeUndefined()
+    await wrapper.get('.collect-btn').trigger('click')
+    expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+
   it('restores overflow actions when the next report is not legacy', async () => {
     mockResolve.mockRejectedValueOnce({ response: { status: 404 } })
     const wrapper = mountModal()

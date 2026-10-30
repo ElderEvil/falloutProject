@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.279.10 (2026-10-30)
+
+### Bug Fixes
+
+* **exploration:** lock supply reads and report credited caps 199212b, closes #928
+* **exploration:** report settled rewards and stored supplies truthfully b539f55, closes #928
+
 ## 2.279.9 (2026-10-29)
 
 ### Bug Fixes

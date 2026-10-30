@@ -5,6 +5,7 @@ import type {
   IncidentOverflowResponse,
   IncidentTeamMember,
   IncidentRespondersResponse,
+  PendingIncidentOverflow,
 } from '../models/incident'
 
 export const incidentApi = {
@@ -60,6 +61,22 @@ export const incidentApi = {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+      }
+    )
+    return response.data
+  },
+
+  /**
+   * Resolved incidents still holding loot for a take or sell decision
+   */
+  async getPendingIncidentOverflow(
+    vaultId: string,
+    token: string
+  ): Promise<PendingIncidentOverflow[]> {
+    const response = await axios.get<PendingIncidentOverflow[]>(
+      `/api/v1/game/vaults/${vaultId}/incidents/pending-overflow`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
       }
     )
     return response.data

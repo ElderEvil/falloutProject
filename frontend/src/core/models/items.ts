@@ -33,6 +33,7 @@ export const GENERIC_ITEM_ICONS: Record<string, string> = {
   consumable: 'mdi:bottle-tonic',
   dweller: 'mdi:account-plus',
   lunchbox: 'mdi:gift',
+  pet_carrier: 'mdi:package-variant-closed',
   pet: 'mdi:paw',
 }
 

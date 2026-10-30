@@ -205,6 +205,13 @@ def _parse_objective_reward(reward_str: str) -> tuple[RewardType, dict[str, Any]
             return RewardType.EXPERIENCE, {"amount": amount, "dweller_ids": []}
         if reward_name in ("lunchbox", "lunchboxes"):
             return RewardType.LUNCHBOX, {"amount": amount}
+        if reward_name in ("pet carrier", "pet carriers"):
+            return RewardType.ITEM, {
+                "item_type": "pet_carrier",
+                "name": "Pet Carrier",
+                "rarity": RarityEnum.COMMON.value,
+                "amount": amount,
+            }
 
     if ":" in reward_str:
         prefix, value = reward_str.split(":", 1)

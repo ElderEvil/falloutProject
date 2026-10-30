@@ -16,6 +16,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import ContentProvenanceEnum, GenderEnum, RarityEnum
+from app.core.game_config import game_config
 from app.models.item import Item
 from app.models.quest_reward import RewardType
 from app.services.rewards import items
@@ -26,6 +27,14 @@ from app.utils.reward_delivery import defer_reward_delivery, persist_reward_chan
 logger = logging.getLogger(__name__)
 
 _LUNCHBOX_ITEM_COUNT = 3
+
+
+def _roll_lunchbox_rarity() -> RarityEnum:
+    weights = game_config.container.lunchbox
+    return random.choices(
+        [RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY],
+        weights=[weights.common, weights.rare, weights.legendary],
+    )[0]
 
 
 def _lunchbox_common_dweller_data(level: int, rarity: RarityEnum) -> dict[str, Any]:
@@ -97,10 +106,7 @@ async def _roll_lunchbox_contents(
     granted_items = []
     for _ in range(_LUNCHBOX_ITEM_COUNT):
         kind = random.choice(("weapon", "outfit"))
-        rarity = random.choices(
-            [RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY],
-            weights=[0.7, 0.2, 0.1],
-        )[0]
+        rarity = _roll_lunchbox_rarity()
         pool = [entry for entry in catalogs[kind] if RarityEnum(str(entry.get("rarity", ""))).value == rarity.value]
         if not pool:
             logger.warning(f"No {rarity.value} {kind} in the catalog; skipping a lunchbox roll")
@@ -110,9 +116,7 @@ async def _roll_lunchbox_contents(
         db_session.add(item)
         granted_items.append({"name": item.name, "type": kind, "rarity": rarity.value, "image_url": item.image_url})
 
-    lunchbox_rarity = random.choices(
-        [RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY], weights=[0.7, 0.2, 0.1]
-    )[0]
+    lunchbox_rarity = _roll_lunchbox_rarity()
     if lunchbox_rarity in (RarityEnum.RARE, RarityEnum.LEGENDARY):
         from app.utils.static_data import game_data_store
 

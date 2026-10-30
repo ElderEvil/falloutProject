@@ -10,7 +10,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
 from app.crud import storage as crud_storage
 from app.db.session import get_async_session
-from app.schemas.rewards import LunchboxOpened, LunchboxOpenRequest
+from app.schemas.rewards import (
+    LunchboxOpened,
+    LunchboxOpenRequest,
+    PetCarrierOpened,
+    PetCarrierOpenRequest,
+)
 from app.schemas.storage import StorageItemsResponse, StorageMaintenanceRead, StorageSpaceResponse
 from app.schemas.vault import MedicalDistributionResponse, MedicalTransferRequest, MedicalTransferResponse
 from app.services.storage_service import storage_service
@@ -156,6 +161,30 @@ async def open_lunchbox(
 
     opened = await reward_service.open_lunchbox(db_session, vault.id, request.item_id)
     return LunchboxOpened.model_validate(opened)
+
+
+@router.post("/vault/{vault_id}/pet-carrier/open", response_model=PetCarrierOpened)
+async def open_pet_carrier(
+    vault_id: UUID4,
+    request: PetCarrierOpenRequest,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    current_user: CurrentActiveUser,
+) -> PetCarrierOpened:
+    """Open one pet carrier and add its rolled pet to storage.
+
+    The carrier frees one slot and the pet takes one, so a full vault still opens.
+
+    Raises:
+        HTTPException: 403 if user lacks access to the vault.
+        HTTPException: 404 for unknown, foreign-vault, or non-carrier rows.
+        HTTPException: 400 when the pet catalog has no eligible pet.
+    """
+    from app.services.reward_service import reward_service
+
+    vault = await get_user_vault_or_403(vault_id, current_user, db_session)
+
+    opened = await reward_service.open_pet_carrier(db_session, vault.id, request.item_id)
+    return PetCarrierOpened.model_validate(opened)
 
 
 @router.get("/vault/{vault_id}/maintenance")

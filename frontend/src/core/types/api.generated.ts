@@ -4265,6 +4265,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/storage/vault/{vault_id}/pet-carrier/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open Pet Carrier
+         * @description Open one pet carrier and add its rolled pet to storage.
+         *
+         *     The carrier frees one slot and the pet takes one, so a full vault still opens.
+         *
+         *     Raises:
+         *         HTTPException: 403 if user lacks access to the vault.
+         *         HTTPException: 404 for unknown, foreign-vault, or non-carrier rows.
+         *         HTTPException: 400 when the pet catalog has no eligible pet.
+         */
+        post: operations["open_pet_carrier_api_v1_storage_vault__vault_id__pet_carrier_open_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/storage/vault/{vault_id}/maintenance": {
         parameters: {
             query?: never;
@@ -8901,7 +8928,7 @@ export interface components {
          * ItemTypeEnum
          * @enum {string}
          */
-        ItemTypeEnum: "misc" | "weapon" | "outfit" | "junk" | "consumable" | "lunchbox" | "pet" | "dweller";
+        ItemTypeEnum: "misc" | "weapon" | "outfit" | "junk" | "consumable" | "lunchbox" | "pet_carrier" | "pet" | "dweller";
         /**
          * JevStatus
          * @description Read-only Jev (TypeSafe) decision-model status; the key is env-only, never shown.
@@ -9760,6 +9787,27 @@ export interface components {
             unclaimed_loot: {
                 [key: string]: unknown;
             }[];
+        };
+        /** PetCarrierOpenRequest */
+        PetCarrierOpenRequest: {
+            /**
+             * Item Id
+             * Format: uuid4
+             */
+            item_id: string;
+        };
+        /**
+         * PetCarrierOpened
+         * @description Payload returned when a player opens a pet carrier Item.
+         */
+        PetCarrierOpened: {
+            /**
+             * Reward Type
+             * @default pet_carrier
+             * @constant
+             */
+            reward_type: "pet_carrier";
+            pet: components["schemas"]["PetRead"];
         };
         /**
          * PetEffectRead
@@ -18439,6 +18487,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LunchboxOpened"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    open_pet_carrier_api_v1_storage_vault__vault_id__pet_carrier_open_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PetCarrierOpenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PetCarrierOpened"];
                 };
             };
             /** @description Validation Error */

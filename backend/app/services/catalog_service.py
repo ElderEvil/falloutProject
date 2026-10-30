@@ -211,6 +211,17 @@ def load_outfits() -> list[dict]:
 
 
 @lru_cache(maxsize=1)
+def load_pets() -> list[dict]:
+    """Load the pet carrier pool (name + rarity)."""
+    pets_file = ITEMS_DIR / "pets.json"
+    if not pets_file.exists():
+        return []
+
+    with pets_file.open() as f:
+        return json.load(f)
+
+
+@lru_cache(maxsize=1)
 def load_themes() -> list[dict]:
     """Load the Theme workshop's room-theme recipes."""
     themes_file = VAULT_DIR / "themes.json"

@@ -188,7 +188,7 @@ async def grant_item(
     if _medication_kind(str(item_name)) == "radaway":
         return await grant_radaway(db_session, vault_id, quantity, emit_event=emit_event)
 
-    if item_type not in {"weapon", "outfit", "junk", "consumable", "lunchbox", "pet"}:
+    if item_type not in {"weapon", "outfit", "junk", "consumable", "lunchbox", "pet", "pet_carrier"}:
         raise ValueError(f"Unsupported item_type: {item_type}")
     # Space-free by design (app.utils.storage_policy): bottles live in storage
     # but occupy no slot, so a full vault must not reject them.

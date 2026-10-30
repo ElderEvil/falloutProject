@@ -112,7 +112,7 @@ class QuestRequirementJSON(SQLModel):
     is_mandatory: bool = True
 
 
-ItemType = Literal["weapon", "outfit", "junk", "consumable", "lunchbox", "pet", "dweller"]
+ItemType = Literal["weapon", "outfit", "junk", "consumable", "lunchbox", "pet_carrier", "pet", "dweller"]
 
 
 class QuestItemData(SQLModel):

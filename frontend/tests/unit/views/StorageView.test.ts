@@ -6,6 +6,7 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import { useStorageStore } from '@/modules/storage/stores/storage'
 import StorageView from '@/modules/storage/views/StorageView.vue'
 import LunchboxOpenModal from '@/modules/storage/components/LunchboxOpenModal.vue'
+import PetCarrierOpenModal from '@/modules/storage/components/PetCarrierOpenModal.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import axios from '@/core/plugins/axios'
@@ -153,6 +154,35 @@ describe('StorageView', () => {
   it('hides the maintenance badge when disabled', async () => {
     const wrapper = await mountWith({ weapons: [], outfits: [], junk: [], items: [], pets: [] })
     expect(wrapper.text()).not.toContain('per trial')
+    wrapper.unmount()
+  })
+
+  it('opens a pet carrier through its own reveal', async () => {
+    vi.mocked(axios.post).mockResolvedValue({
+      data: { reward_type: 'pet_carrier', pet: petFixture({ name: 'Husky', rarity: 'rare' }) },
+    })
+    const wrapper = await mountWith({
+      weapons: [],
+      outfits: [],
+      junk: [],
+      pets: [],
+      items: [{ id: 'carrier-1', name: 'Pet Carrier', item_type: 'pet_carrier', value: 10 }],
+    })
+    await clickTab(wrapper, 'Supplies')
+    wrapper.findComponent({ name: 'StorageItemCard' }).vm.$emit('open')
+    await flushPromises()
+
+    const modal = wrapper.findComponent(PetCarrierOpenModal)
+    expect(modal.props('show')).toBe(true)
+    expect(axios.post).not.toHaveBeenCalled()
+
+    modal.vm.$emit('reveal')
+    await flushPromises()
+
+    expect(axios.post).toHaveBeenCalledWith('/api/v1/storage/vault/vault-1/pet-carrier/open', {
+      item_id: 'carrier-1',
+    })
+    expect(modal.props('result')?.pet.name).toBe('Husky')
     wrapper.unmount()
   })
 

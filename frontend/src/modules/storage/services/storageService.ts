@@ -9,6 +9,8 @@ type ItemRead = components['schemas']['ItemRead']
 type PetRead = components['schemas']['PetRead']
 type LunchboxOpened = components['schemas']['LunchboxOpened']
 type LunchboxOpenRequest = components['schemas']['LunchboxOpenRequest']
+type PetCarrierOpened = components['schemas']['PetCarrierOpened']
+type PetCarrierOpenRequest = components['schemas']['PetCarrierOpenRequest']
 
 export interface StorageItemsResponse {
   weapons: WeaponRead[]
@@ -85,6 +87,17 @@ export const storageService = {
     const response = await axios.post<LunchboxOpened>(
       `/api/v1/storage/vault/${vaultId}/lunchbox/open`,
       { item_id: itemId } satisfies LunchboxOpenRequest
+    )
+    return response.data
+  },
+
+  /**
+   * Open one pet carrier and roll its pet into the vault
+   */
+  async openPetCarrier(vaultId: string, itemId: string): Promise<PetCarrierOpened> {
+    const response = await axios.post<PetCarrierOpened>(
+      `/api/v1/storage/vault/${vaultId}/pet-carrier/open`,
+      { item_id: itemId } satisfies PetCarrierOpenRequest
     )
     return response.data
   },

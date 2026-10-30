@@ -235,6 +235,7 @@ class ItemTypeEnum(CaseInsensitiveEnum):
     JUNK = "junk"
     CONSUMABLE = "consumable"
     LUNCHBOX = "lunchbox"
+    PET_CARRIER = "pet_carrier"
     PET = "pet"
     DWELLER = "dweller"
 

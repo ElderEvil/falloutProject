@@ -48,7 +48,7 @@ class Item(BaseUUIDModel, ItemBase, table=True):
 
     __table_args__ = (
         sa.CheckConstraint(
-            "item_type IN ('misc', 'weapon', 'outfit', 'junk', 'consumable', 'lunchbox', 'pet', 'dweller')",
+            "item_type IN ('misc', 'weapon', 'outfit', 'junk', 'consumable', 'lunchbox', 'pet_carrier', 'pet', 'dweller')",
             name="ck_item_item_type",
         ),
     )

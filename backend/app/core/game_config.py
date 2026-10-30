@@ -15,7 +15,7 @@ import logging
 import math
 from typing import Any
 
-from pydantic import Field, ValidationInfo, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.enums import IncidentType, RarityEnum, SPECIALEnum, VaultModeEnum, WeaponTypeEnum
@@ -1370,6 +1370,31 @@ class StorageConfig(BaseSettings):
     notify_cooldown_hours: float = Field(default=24, gt=0)
 
 
+class ContainerRarityWeights(BaseModel):
+    """Rarity weights for one sealed container."""
+
+    common: float = Field(default=70.0, ge=0.0)
+    rare: float = Field(default=25.0, ge=0.0)
+    legendary: float = Field(default=5.0, ge=0.0)
+
+    @model_validator(mode="after")
+    def _require_positive_total(self) -> "ContainerRarityWeights":
+        if self.common + self.rare + self.legendary <= 0:
+            raise ValueError("Container rarity weights must have a positive total")
+        return self
+
+
+class ContainerConfig(BaseSettings):
+    """Sealed-container rarity weights, one entry per container."""
+
+    model_config = SettingsConfigDict(env_prefix="CONTAINER_", env_nested_delimiter="__")
+
+    lunchbox: ContainerRarityWeights = Field(
+        default_factory=lambda: ContainerRarityWeights(common=70.0, rare=20.0, legendary=10.0)
+    )
+    pet_carrier: ContainerRarityWeights = Field(default_factory=ContainerRarityWeights)
+
+
 class RushConfig(BaseSettings):
     """Room Rush risk, payout, and outcome tuning."""
 
@@ -1431,6 +1456,7 @@ class GameConfig(BaseSettings):
     features: FeatureConfig = Field(default_factory=FeatureConfig)
     vault_slots: VaultSlotConfig = Field(default_factory=VaultSlotConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
+    container: ContainerConfig = Field(default_factory=ContainerConfig)
     rush: RushConfig = Field(default_factory=RushConfig)
 
 

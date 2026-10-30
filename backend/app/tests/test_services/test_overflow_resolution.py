@@ -352,6 +352,32 @@ async def test_settlement_holds_catalog_miss_loot_instead_of_dropping(
 
 
 @pytest.mark.asyncio
+async def test_sell_catalog_miss_loot_clears_the_entry(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """A catalog-miss overflow entry can be salvaged at its rarity value and cleared."""
+    await make_vault_storage(0)
+    exploration, _ = await _completed_with_overflow(
+        async_session,
+        vault,
+        dweller,
+        loots=[{"item_name": "Nonexistent Relic", "quantity": 1, "rarity": "Legendary", "item_type": "weapon"}],
+    )
+    await async_session.refresh(vault)
+    caps_before = vault.bottle_caps
+
+    caps, remaining = await rewards_service.sell_unclaimed_item(async_session, exploration.id, 0)
+
+    await async_session.refresh(vault)
+    assert remaining == []
+    assert caps == game_config.exploration.get_junk_value("Legendary")
+    assert vault.bottle_caps == caps_before + caps
+
+
+@pytest.mark.asyncio
 async def test_take_weapon_emits_item_collected_after_commit(
     async_session: AsyncSession,
     vault: Vault,

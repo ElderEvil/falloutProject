@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.279.11 (2026-10-30)
+
+### Bug Fixes
+
+* **exploration:** honor acknowledged reports across SSE and overflow close 7aed8c6, closes #928
+* **exploration:** keep deferred returns reviewable and stop report resurrection 76a832e, closes #928
+
 ## 2.279.10 (2026-10-30)
 
 ### Bug Fixes

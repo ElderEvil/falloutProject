@@ -244,7 +244,7 @@ class IncidentService:
         """Store one held incident item. 409 when storage is still full."""
         incident = await self.get_incident_for_vault(db_session, incident_id, vault_id, for_update=True)
         unclaimed = list(incident.unclaimed_loot or [])
-        unclaimed = await loot_overflow_service.settle_take_decision(
+        taken, unclaimed = await loot_overflow_service.settle_take_decision(
             db_session,
             unclaimed,
             index,
@@ -256,6 +256,8 @@ class IncidentService:
         incident.unclaimed_loot = unclaimed
         db_session.add(incident)
         await db_session.commit()
+        if payload := loot_overflow_service.collect_event_payload(taken):
+            await event_bus.emit(GameEvent.ITEM_COLLECTED, incident.vault_id, payload)
         return unclaimed
 
     async def sell_unclaimed_item(

@@ -201,11 +201,12 @@ class LootOverflowService:
         owner_id: Any,
         vault_id: UUID4,
         junk_description: str,
-    ) -> list[dict]:
+    ) -> tuple[dict, list[dict]]:
         """Shared take flow: pop, reject medical, require space, build rows, stage.
 
         The owner loads and persists its own row and supplies the junk prose; row
-        construction itself is shared. Returns the remaining list.
+        construction itself is shared. Returns the taken entry and the remaining
+        list so the caller can credit collection after its commit.
         """
         loot_item = self.pop_decision(unclaimed, index, owner=owner, owner_id=owner_id)
         self.reject_medical(loot_item)
@@ -220,7 +221,14 @@ class LootOverflowService:
         db_session.add_all(rows)
         await db_session.flush()
         await crud_storage.update_used_space(db_session, storage.id)
-        return unclaimed
+        return loot_item, unclaimed
+
+    @staticmethod
+    def collect_event_payload(loot_item: dict) -> dict | None:
+        """The ITEM_COLLECTED payload a taken entry should emit, or None for junk."""
+        if loot_item.get("item_type") not in {"weapon", "outfit"}:
+            return None
+        return {"item_type": loot_item["item_type"], "amount": LootOverflowService.quantity_of(loot_item)}
 
     async def settle_sell_decision(
         self,

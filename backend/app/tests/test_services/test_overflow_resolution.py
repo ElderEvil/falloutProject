@@ -328,3 +328,118 @@ async def test_taking_loot_with_no_catalog_row_is_rejected_and_kept(
     assert len(exploration.unclaimed_loot or []) == 1
     stored = (await async_session.execute(select(Weapon).where(Weapon.storage_id == storage.id))).scalars().all()
     assert stored == []
+
+
+@pytest.mark.asyncio
+async def test_settlement_holds_catalog_miss_loot_instead_of_dropping(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """A granted weapon with no catalog row falls back to overflow instead of vanishing."""
+    await make_vault_storage(10)
+    exploration, rewards = await _completed_with_overflow(
+        async_session,
+        vault,
+        dweller,
+        loots=[{"item_name": "Nonexistent Relic", "quantity": 1, "rarity": "Common", "item_type": "weapon"}],
+    )
+
+    await async_session.refresh(exploration)
+    assert rewards.items == []
+    assert [entry["item_name"] for entry in exploration.unclaimed_loot or []] == ["Nonexistent Relic"]
+
+
+@pytest.mark.asyncio
+async def test_sell_catalog_miss_loot_clears_the_entry(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """A catalog-miss overflow entry can be salvaged at its rarity value and cleared."""
+    await make_vault_storage(0)
+    exploration, _ = await _completed_with_overflow(
+        async_session,
+        vault,
+        dweller,
+        loots=[{"item_name": "Nonexistent Relic", "quantity": 1, "rarity": "Legendary", "item_type": "weapon"}],
+    )
+    await async_session.refresh(vault)
+    caps_before = vault.bottle_caps
+
+    caps, remaining = await rewards_service.sell_unclaimed_item(async_session, exploration.id, 0)
+
+    await async_session.refresh(vault)
+    assert remaining == []
+    assert caps == game_config.exploration.get_junk_value("Legendary")
+    assert vault.bottle_caps == caps_before + caps
+
+
+@pytest.mark.asyncio
+async def test_take_weapon_emits_item_collected_after_commit(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """Taking a held weapon credits collect objectives once the take is committed."""
+    storage = await make_vault_storage(0)
+    exploration, _ = await _completed_with_overflow(
+        async_session,
+        vault,
+        dweller,
+        loots=[{"item_name": "Laser pistol", "quantity": 1, "rarity": "Rare", "item_type": "weapon"}],
+    )
+    storage.max_space = 1
+    async_session.add(storage)
+    await async_session.flush()
+    vault_id = vault.id
+    observed = []
+
+    async def item_event(_kind, event_vault_id, data):
+        if event_vault_id == vault_id and data.get("item_type") == "weapon":
+            observed.append((async_session.in_transaction(), data["amount"]))
+
+    event_bus.subscribe(GameEvent.ITEM_COLLECTED, item_event)
+    try:
+        await rewards_service.take_unclaimed_item(async_session, exploration.id, 0)
+    finally:
+        event_bus.unsubscribe(GameEvent.ITEM_COLLECTED, item_event)
+
+    assert observed == [(False, 1)]
+
+
+@pytest.mark.asyncio
+async def test_take_junk_does_not_emit_item_collected(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """Junk takes stay out of the gear-collection objective feed."""
+    storage = await make_vault_storage(0)
+    exploration, _ = await _completed_with_overflow(
+        async_session,
+        vault,
+        dweller,
+        loots=[{"item_name": "Wonderglue", "quantity": 1, "rarity": "Common", "item_type": "junk"}],
+    )
+    storage.max_space = 1
+    async_session.add(storage)
+    await async_session.flush()
+    vault_id = vault.id
+    observed = []
+
+    async def item_event(_kind, event_vault_id, data):
+        if event_vault_id == vault_id:
+            observed.append(data)
+
+    event_bus.subscribe(GameEvent.ITEM_COLLECTED, item_event)
+    try:
+        await rewards_service.take_unclaimed_item(async_session, exploration.id, 0)
+    finally:
+        event_bus.unsubscribe(GameEvent.ITEM_COLLECTED, item_event)
+
+    assert observed == []

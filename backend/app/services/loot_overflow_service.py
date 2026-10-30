@@ -65,14 +65,15 @@ class LootOverflowService:
         """Caps paid for one unit of a held entry, priced from the shipped catalogs.
 
         Weapons and outfits carry their own catalog price; junk is priced by
-        rarity. Unknown names raise rather than silently paying zero.
+        rarity. Gear missing from the catalog is salvaged at its rarity value so
+        a catalog-miss overflow entry can still be sold and cleared.
         """
         if loot_item.get("item_type", "junk") not in {"weapon", "outfit"}:
             rarity = str(loot_item.get("rarity", "common"))
             return game_config.exploration.get_junk_value(rarity)
         catalog = self._catalog_row(loot_item)
         if catalog is None:
-            raise ValidationException(f"Unknown loot item: {self.item_name(loot_item)}")
+            return game_config.exploration.get_junk_value(str(loot_item.get("rarity", "common")))
         return catalog.value or 0
 
     def value_of(self, loot_item: dict) -> int:
@@ -116,8 +117,8 @@ class LootOverflowService:
     def _catalog_row(loot_item: dict) -> WeaponCreate | OutfitCreate | None:
         """The shipped catalog row a held weapon/outfit names, matched case-insensitively.
 
-        The one lookup behind both pricing and building, so a name that can be
-        taken can always be sold for the same price.
+        The one lookup behind both pricing and building. A missing row cannot be
+        taken, but pricing falls back to the rarity salvage value so it can be sold.
         """
         name = LootOverflowService.item_name(loot_item).lower()
         match loot_item.get("item_type", "junk"):
@@ -201,11 +202,12 @@ class LootOverflowService:
         owner_id: Any,
         vault_id: UUID4,
         junk_description: str,
-    ) -> list[dict]:
+    ) -> tuple[dict, list[dict]]:
         """Shared take flow: pop, reject medical, require space, build rows, stage.
 
         The owner loads and persists its own row and supplies the junk prose; row
-        construction itself is shared. Returns the remaining list.
+        construction itself is shared. Returns the taken entry and the remaining
+        list so the caller can credit collection after its commit.
         """
         loot_item = self.pop_decision(unclaimed, index, owner=owner, owner_id=owner_id)
         self.reject_medical(loot_item)
@@ -220,7 +222,14 @@ class LootOverflowService:
         db_session.add_all(rows)
         await db_session.flush()
         await crud_storage.update_used_space(db_session, storage.id)
-        return unclaimed
+        return loot_item, unclaimed
+
+    @staticmethod
+    def collect_event_payload(loot_item: dict) -> dict | None:
+        """The ITEM_COLLECTED payload a taken entry should emit, or None for junk."""
+        if loot_item.get("item_type") not in {"weapon", "outfit"}:
+            return None
+        return {"item_type": loot_item["item_type"], "amount": LootOverflowService.quantity_of(loot_item)}
 
     async def settle_sell_decision(
         self,

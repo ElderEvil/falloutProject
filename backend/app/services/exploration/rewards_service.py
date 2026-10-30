@@ -127,6 +127,7 @@ class RewardsService:
         granted, overflow = loot_overflow_service.grant_or_hold(candidates, available_space)
 
         transferred: list[dict] = []
+        materialization_failures: list[dict] = []
 
         for loot_item in granted:
             if "held_row_id" in loot_item:
@@ -147,6 +148,7 @@ class RewardsService:
                     loot_item, storage_id, junk_description="Found during wasteland exploration"
                 )
                 if item is None:
+                    materialization_failures.append({**loot_item, "quantity": loot_item["quantity"] - stored_quantity})
                     break
 
                 db_session.add(item)
@@ -170,7 +172,7 @@ class RewardsService:
                     },
                 )
 
-        overflow_specs: list[dict] = []
+        overflow_specs: list[dict] = list(materialization_failures)
         for loot_item in overflow:
             if "held_row_id" in loot_item:
                 await db_session.delete(held_rows[loot_item["held_row_id"]])
@@ -235,7 +237,7 @@ class RewardsService:
     async def take_unclaimed_item(self, db_session: AsyncSession, exploration_id: UUID4, index: int) -> list[dict]:
         """Store one overflow item. 409 when storage is still full."""
         exploration, unclaimed = await self._load_unclaimed(db_session, exploration_id)
-        unclaimed = await loot_overflow_service.settle_take_decision(
+        taken, unclaimed = await loot_overflow_service.settle_take_decision(
             db_session,
             unclaimed,
             index,
@@ -247,6 +249,8 @@ class RewardsService:
         exploration.unclaimed_loot = unclaimed
         db_session.add(exploration)
         await db_session.commit()
+        if payload := loot_overflow_service.collect_event_payload(taken):
+            await event_bus.emit(GameEvent.ITEM_COLLECTED, exploration.vault_id, payload)
         return unclaimed
 
     async def sell_unclaimed_item(

@@ -68,13 +68,13 @@ async def test_transfer_skips_medical_loot_entries(
 
 
 @pytest.mark.asyncio
-async def test_transfer_missing_weapon_data_skips_item(
+async def test_transfer_missing_weapon_data_holds_item_as_overflow(
     async_session: AsyncSession,
     vault: Vault,
     dweller: Dweller,
     make_vault_storage,
 ):
-    """Test that weapon loot with missing data is skipped gracefully."""
+    """A catalog-miss weapon is held as overflow instead of vanishing."""
     storage = await make_vault_storage()
 
     # Create exploration
@@ -94,11 +94,10 @@ async def test_transfer_missing_weapon_data_skips_item(
     # Transfer loot
     result = await rewards_service._transfer_loot_to_storage(async_session, exploration)
 
-    # Verify item was not transferred (missing data)
-    assert len(result["transferred"]) == 0
-    assert len(result["overflow"]) == 0  # Not in overflow, just skipped
+    assert result["transferred"] == []
+    assert [item["item_name"] for item in result["overflow"]] == ["NonExistentWeapon12345"]
 
-    # Verify no Weapon record was created
+    # Verify no defaulted Weapon record was created
     weapons = await async_session.execute(select(Weapon).where(Weapon.storage_id == storage.id))
     weapon_records = weapons.scalars().all()
     assert len(weapon_records) == 0

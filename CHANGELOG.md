@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.280.1 (2026-10-30)
+
+### Bug Fixes
+
+* **exploration:** salvage catalog-miss overflow at its rarity value b86ca23, closes #928
+* **exploration:** stop dropping catalog-miss loot and credit overflow takes 4fb6244, closes #928
+
 ## 2.280.0 (2026-10-30)
 
 ### Features

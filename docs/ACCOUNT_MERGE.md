@@ -28,6 +28,16 @@ Admin previews are bound to the resolved source/target UUIDs in a short-lived se
 
 There is no in-panel undo. The audit row records the source, target, actor, reason, counts and identity snapshots, but reversing a merge requires a database restore. Run a backup before applying a production merge.
 
+## Provider linking (Phase 2)
+
+A signed-in player can link Google/GitHub from Profile -> Connected accounts.
+
+- `POST /api/v1/auth/oauth/{provider}/link` returns an authorize URL; the browser-bound state records the initiating user and the callback links to that user, never by email.
+- A successful link redirects to the profile with `linked=<provider>`; it does not issue tokens or move data.
+- `DELETE /api/v1/auth/oauth/{provider}` unlinks a provider. The last sign-in method (no password and no other provider) is rejected.
+- A provider identity already owned by another account returns `provider_identity_in_use`; use the admin merge path.
+- Linking never merges accounts or moves vaults/progress.
+
 ## Scope
 
-This policy covers Phase 0/1. Signed-in provider linking and self-service account merge are later phases and do not implicitly merge accounts.
+This policy covers Phase 0/1 and Phase 2 provider linking. Self-service account merge is a later phase and does not implicitly merge accounts.

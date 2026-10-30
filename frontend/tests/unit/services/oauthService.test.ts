@@ -20,11 +20,61 @@ describe('oauthService', () => {
   })
 
   it('builds the backend authorize URL', () => {
-    expect(oauthService.authorizeUrl('github')).toMatch(/\/api\/v1\/auth\/oauth\/github\/authorize$/)
+    expect(oauthService.authorizeUrl('github')).toMatch(
+      /\/api\/v1\/auth\/oauth\/github\/authorize$/
+    )
+  })
+
+  it('loads linked accounts', async () => {
+    vi.mocked(apiRequest).mockResolvedValue({
+      data: { providers: ['google'], has_password: false },
+    } as never)
+
+    await expect(oauthService.getLinkedAccounts()).resolves.toEqual({
+      providers: ['google'],
+      has_password: false,
+    })
+    expect(apiRequest).toHaveBeenCalledWith(
+      'get',
+      '/api/v1/auth/oauth/accounts',
+      undefined,
+      expect.objectContaining({ skipErrorNotification: true })
+    )
+  })
+
+  it('starts a provider link', async () => {
+    vi.mocked(apiRequest).mockResolvedValue({
+      data: { authorize_url: 'https://provider' },
+    } as never)
+
+    await expect(oauthService.linkProvider('github')).resolves.toEqual({
+      authorize_url: 'https://provider',
+    })
+    expect(apiRequest).toHaveBeenCalledWith(
+      'post',
+      '/api/v1/auth/oauth/github/link',
+      {},
+      expect.objectContaining({ skipErrorNotification: true })
+    )
+  })
+
+  it('unlinks a provider', async () => {
+    vi.mocked(apiRequest).mockResolvedValue({ data: undefined } as never)
+
+    await oauthService.unlinkProvider('google')
+
+    expect(apiRequest).toHaveBeenCalledWith(
+      'delete',
+      '/api/v1/auth/oauth/google',
+      undefined,
+      expect.objectContaining({ skipErrorNotification: true })
+    )
   })
 
   it('redeems the handoff with credentials', async () => {
-    vi.mocked(apiRequest).mockResolvedValue({ data: { access_token: 'a', refresh_token: 'r' } } as never)
+    vi.mocked(apiRequest).mockResolvedValue({
+      data: { access_token: 'a', refresh_token: 'r' },
+    } as never)
 
     await oauthService.redeemHandoff('code-1')
 

@@ -1,3 +1,4 @@
+import json
 from urllib.parse import parse_qs, urlparse
 
 import fakeredis.aioredis
@@ -279,3 +280,176 @@ async def test_email_change_preserves_provider_login(redis_client, async_session
     again = await service.complete("google", "code", _state(url), browser_token, async_session, redis_client)
 
     assert again.id == user.id
+
+
+async def test_start_link_binds_state_to_initiator_and_purpose(redis_client, async_session: AsyncSession):
+    user = await crud.user.create(
+        async_session,
+        obj_in=UserCreate(username="linkstate", password="Secret123!", email="linkstate@example.com"),
+    )
+    service = OAuthService(transport=_google_transport("different@gmail.com"))
+
+    url, browser_token = await service.start_link("google", user.id, None, async_session, redis_client)
+
+    state = _state(url)
+    record = json.loads(await redis_client.get(f"oauth_state:{state}"))
+    assert record["purpose"] == "link"
+    assert record["link_user_id"] == str(user.id)
+    assert record["provider"] == "google"
+    assert browser_token
+
+
+async def test_link_flow_links_to_initiator_not_provider_email(redis_client, async_session: AsyncSession):
+    user = await crud.user.create(
+        async_session,
+        obj_in=UserCreate(username="linklocal", password="Secret123!", email="linklocal@example.com"),
+    )
+    service = OAuthService(transport=_google_transport("provider-other@gmail.com"))
+    url, browser_token = await service.start_link("google", user.id, None, async_session, redis_client)
+
+    completion = await service.complete_flow("google", "code", _state(url), browser_token, async_session, redis_client)
+
+    assert completion.purpose == "link"
+    assert completion.user.id == user.id
+    link = await crud.oauth_account.get_for_user(async_session, user.id, "google")
+    assert link is not None
+    assert link.provider_user_id == "google-1"
+    assert await crud.user.get_by_email(async_session, email="provider-other@gmail.com") is None
+
+
+async def test_link_flow_rejects_provider_identity_owned_by_another_account(redis_client, async_session: AsyncSession):
+    owner = await crud.user.create(
+        async_session,
+        obj_in=UserCreate(username="linkowner", password="Secret123!", email="linkowner@example.com"),
+    )
+    other = await crud.user.create(
+        async_session,
+        obj_in=UserCreate(username="linkother", password="Secret123!", email="linkother@example.com"),
+    )
+    await crud.oauth_account.link_to_user(
+        async_session, user_id=owner.id, provider="google", provider_user_id="google-1"
+    )
+    other_id = other.id
+    service = OAuthService(transport=_google_transport())
+    url, browser_token = await service.start_link("google", other_id, None, async_session, redis_client)
+
+    with pytest.raises(OAuthFlowError) as exc:
+        await service.complete_flow("google", "code", _state(url), browser_token, async_session, redis_client)
+
+    assert exc.value.code == "provider_identity_in_use"
+    assert await crud.oauth_account.get_for_user(async_session, other_id, "google") is None
+
+
+async def test_start_link_rejects_provider_already_linked_to_user(redis_client, async_session: AsyncSession):
+    user = await crud.user.create(
+        async_session,
+        obj_in=UserCreate(username="linktwice", password="Secret123!", email="linktwice@example.com"),
+    )
+    await crud.oauth_account.link_to_user(
+        async_session, user_id=user.id, provider="google", provider_user_id="google-1"
+    )
+    service = OAuthService()
+
+    with pytest.raises(OAuthFlowError) as exc:
+        await service.start_link("google", user.id, None, async_session, redis_client)
+
+    assert exc.value.code == "provider_already_linked"
+
+
+async def test_link_flow_rejects_inactive_initiator(redis_client, async_session: AsyncSession):
+    user = await crud.user.create(
+        async_session,
+        obj_in=UserCreate(username="linkinactive", password="Secret123!", email="linkinactive@example.com"),
+    )
+    user_id = user.id
+    service = OAuthService(transport=_google_transport())
+    url, browser_token = await service.start_link("google", user_id, None, async_session, redis_client)
+    user.is_active = False
+    await async_session.commit()
+
+    with pytest.raises(OAuthFlowError) as exc:
+        await service.complete_flow("google", "code", _state(url), browser_token, async_session, redis_client)
+
+    assert exc.value.code == "account_inactive"
+    assert await crud.oauth_account.get_for_user(async_session, user_id, "google") is None
+
+
+async def test_link_state_is_browser_bound(redis_client, async_session: AsyncSession):
+    user = await crud.user.create(
+        async_session,
+        obj_in=UserCreate(username="linkbrowser", password="Secret123!", email="linkbrowser@example.com"),
+    )
+    service = OAuthService(transport=_google_transport())
+    url, _browser_token = await service.start_link("google", user.id, None, async_session, redis_client)
+
+    with pytest.raises(OAuthFlowError) as exc:
+        await service.complete_flow("google", "code", _state(url), "other-browser", async_session, redis_client)
+
+    assert exc.value.code == "state_invalid"
+    assert await crud.oauth_account.get_for_user(async_session, user.id, "google") is None
+
+
+async def test_unlink_refuses_last_sign_in_method(redis_client, async_session: AsyncSession):
+    user = await crud.user.create(
+        async_session,
+        obj_in=UserCreate(username="lastmethod", password="Secret123!", email="lastmethod@example.com"),
+    )
+    user.hashed_password = None
+    await async_session.commit()
+    await crud.oauth_account.link_to_user(
+        async_session, user_id=user.id, provider="google", provider_user_id="lastmethod-google"
+    )
+
+    with pytest.raises(OAuthFlowError) as exc:
+        await OAuthService().unlink_provider(async_session, user.id, "google")
+
+    assert exc.value.code == "last_sign_in_method"
+    assert await crud.oauth_account.get_for_user(async_session, user.id, "google") is not None
+
+
+async def test_unlink_allows_password_user(redis_client, async_session: AsyncSession):
+    user = await crud.user.create(
+        async_session,
+        obj_in=UserCreate(username="unlinkpass", password="Secret123!", email="unlinkpass@example.com"),
+    )
+    await crud.oauth_account.link_to_user(
+        async_session, user_id=user.id, provider="google", provider_user_id="unlinkpass-google"
+    )
+
+    remaining = await OAuthService().unlink_provider(async_session, user.id, "google")
+
+    assert remaining == []
+    assert await crud.oauth_account.get_for_user(async_session, user.id, "google") is None
+
+
+async def test_unlink_allows_one_of_two_providers(redis_client, async_session: AsyncSession):
+    user = await crud.user.create(
+        async_session,
+        obj_in=UserCreate(username="unlinktwo", password="Secret123!", email="unlinktwo@example.com"),
+    )
+    user.hashed_password = None
+    await async_session.commit()
+    await crud.oauth_account.link_to_user(
+        async_session, user_id=user.id, provider="google", provider_user_id="unlinktwo-google"
+    )
+    await crud.oauth_account.link_to_user(
+        async_session, user_id=user.id, provider="github", provider_user_id="unlinktwo-github"
+    )
+
+    remaining = await OAuthService().unlink_provider(async_session, user.id, "google")
+
+    assert remaining == ["github"]
+    assert await crud.oauth_account.get_for_user(async_session, user.id, "google") is None
+    assert await crud.oauth_account.get_for_user(async_session, user.id, "github") is not None
+
+
+async def test_unlink_missing_provider_is_rejected(redis_client, async_session: AsyncSession):
+    user = await crud.user.create(
+        async_session,
+        obj_in=UserCreate(username="unlinknone", password="Secret123!", email="unlinknone@example.com"),
+    )
+
+    with pytest.raises(OAuthFlowError) as exc:
+        await OAuthService().unlink_provider(async_session, user.id, "google")
+
+    assert exc.value.code == "provider_not_linked"

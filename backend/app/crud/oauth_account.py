@@ -59,17 +59,34 @@ class CRUDOAuthAccount:
         return cast("CursorResult", result).rowcount or 0
 
     async def link_to_user(
-        self, db_session: AsyncSession, *, user_id: UUID4, provider: str, provider_user_id: str
+        self,
+        db_session: AsyncSession,
+        *,
+        user_id: UUID4,
+        provider: str,
+        provider_user_id: str,
+        commit: bool = True,
     ) -> OAuthAccount:
         link = OAuthAccount(provider=provider, provider_user_id=provider_user_id, user_id=user_id)
         db_session.add(link)
         try:
-            await db_session.commit()
+            if commit:
+                await db_session.commit()
+            else:
+                await db_session.flush()
         except IntegrityError as exc:
             await db_session.rollback()
             raise ResourceConflictException(detail="OAuth identity already linked") from exc
-        await db_session.refresh(link)
+        if commit:
+            await db_session.refresh(link)
         return link
+
+    async def delete_link(self, db_session: AsyncSession, link: OAuthAccount, *, commit: bool = True) -> None:
+        await db_session.delete(link)
+        if commit:
+            await db_session.commit()
+        else:
+            await db_session.flush()
 
 
 oauth_account = CRUDOAuthAccount()

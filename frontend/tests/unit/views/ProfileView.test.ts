@@ -23,6 +23,10 @@ vi.mock('@/core/composables/usePolling', () => ({
   usePolling: usePollingMock,
 }))
 
+vi.mock('@/modules/profile/components/ConnectedAccountsCard.vue', () => ({
+  default: { name: 'ConnectedAccountsCard', template: '<div data-testid="connected-accounts" />' },
+}))
+
 describe('ProfileView', () => {
   let router: any
   let authStore: any

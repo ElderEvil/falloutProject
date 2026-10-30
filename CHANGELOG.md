@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.281.0 (2026-10-30)
+
+### Features
+
+* **auth:** add signed-in provider linking and unlinking ([#1250](https://github.com/ElderEvil/falloutProject/issues/1250)) 913e411
+
 ## 2.280.1 (2026-10-30)
 
 ### Bug Fixes

@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vite-plus/test'
 import {
+  acknowledgeReport,
   addPendingReport,
   removePendingReport,
   usePendingReports,
@@ -53,5 +54,21 @@ describe('usePendingReports', () => {
     addPendingReport(report)
 
     expect(usePendingReports().pendingReports.value).toHaveLength(1)
+  })
+
+  it('does not resurrect a report that was already acknowledged', () => {
+    const report = {
+      explorationId: 'exploration-acknowledged',
+      vaultId: 'vault-1',
+      dwellerId: 'dweller-1',
+      dwellerName: 'Amata',
+      rewards,
+    }
+
+    addPendingReport(report)
+    acknowledgeReport(report.explorationId)
+    addPendingReport(report)
+
+    expect(usePendingReports().pendingReports.value).toHaveLength(0)
   })
 })

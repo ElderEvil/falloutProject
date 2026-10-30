@@ -74,6 +74,13 @@ describe('ExplorationRewardsModal', () => {
     expect(wrapper.text()).not.toContain('No items found')
   })
 
+  it('keeps the stored heading when no overflow remains', () => {
+    const wrapper = mountModal({ ...rewardsWithOverflow, overflow_items: [] })
+
+    expect(wrapper.text()).toContain('Stored in Vault')
+    expect(wrapper.text()).not.toContain('Items Found')
+  })
+
   it('shows the plain empty state only when nothing was found at all', () => {
     const wrapper = mountModal({ ...rewardsWithOverflow, items: [], overflow_items: [] })
 
@@ -149,6 +156,7 @@ describe('ExplorationRewardsModal', () => {
 
     expect(wrapper.text()).toContain('This report predates overflow resolution')
     expect(wrapper.get('.report-action-btn').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('.report-action-btn').text()).toContain('Close Report')
     await wrapper.get('.report-action-btn').trigger('click')
     expect(wrapper.emitted('close')).toHaveLength(1)
   })

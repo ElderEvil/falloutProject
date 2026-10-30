@@ -224,7 +224,7 @@ const tryClose = () => emit('close', requiresResolution.value)
         <h3 class="panel-header text-lg font-bold text-theme-primary">
           <span class="flex items-center gap-2">
             <Icon icon="mdi:package-variant" />
-            {{ requiresResolution ? 'Stored in Vault' : 'Items Found' }}
+            Stored in Vault
           </span>
         </h3>
         <div class="flex flex-col gap-3">
@@ -315,8 +315,8 @@ const tryClose = () => emit('close', requiresResolution.value)
 
     <template #footer>
       <Button variant="default" class="report-action-btn w-full" @click="tryClose">
-        <Icon :icon="hasOverflow ? 'mdi:clock-outline' : 'mdi:check-bold'" />
-        {{ hasOverflow ? 'Resolve Later' : 'Close Report' }}
+        <Icon :icon="requiresResolution ? 'mdi:clock-outline' : 'mdi:check-bold'" />
+        {{ requiresResolution ? 'Resolve Later' : 'Close Report' }}
       </Button>
     </template>
   </TerminalModal>

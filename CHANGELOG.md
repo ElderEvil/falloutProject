@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.280.0 (2026-10-30)
+
+### Features
+
+* **pets:** add pet carrier container for achievements and quests 6f8095d, closes #1243
+
+### Bug Fixes
+
+* **pets:** validate container weights, harden migrations, cover carrier rollback 6510d07, closes #1243
+
 ## 2.279.11 (2026-10-30)
 
 ### Bug Fixes

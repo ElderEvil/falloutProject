@@ -355,6 +355,8 @@ class RewardsService:
         transfer_result = await self._transfer_loot_to_storage(db_session, exploration)
 
         # Return unused stimpaks and radaways to vault storage
+        stimpaks_stored = 0
+        radaways_stored = 0
         if exploration.stimpaks > 0 or exploration.radaways > 0:
             storage_obj = await crud_storage.get_storage_by_vault(db_session, exploration.vault_id)
             if storage_obj:
@@ -362,29 +364,34 @@ class RewardsService:
                     db_session=db_session, vault_id=exploration.vault_id, skip=0, limit=1000
                 )
                 capacity = compute_medical_capacity(rooms)
+                before_stimpacks = storage_obj.stimpack or 0
+                before_radaways = storage_obj.radaway or 0
                 storage_obj.stimpack = min(
-                    (storage_obj.stimpack or 0) + exploration.stimpaks,
+                    before_stimpacks + exploration.stimpaks,
                     capacity.get("stimpack", 99999),
                 )
                 storage_obj.radaway = min(
-                    (storage_obj.radaway or 0) + exploration.radaways,
+                    before_radaways + exploration.radaways,
                     capacity.get("radaway", 99999),
                 )
                 db_session.add(storage_obj)
+                stimpaks_stored = max(0, (storage_obj.stimpack or 0) - before_stimpacks)
+                radaways_stored = max(0, (storage_obj.radaway or 0) - before_radaways)
 
-        if exploration.stimpaks > 0:
+        # Credit only what storage kept: collect objectives must not count dropped supplies.
+        if stimpaks_stored > 0:
             self._queue_event(
                 db_session,
                 GameEvent.ITEM_COLLECTED,
                 exploration.vault_id,
-                {"item_type": "stimpak", "amount": exploration.stimpaks},
+                {"item_type": "stimpak", "amount": stimpaks_stored},
             )
-        if exploration.radaways > 0:
+        if radaways_stored > 0:
             self._queue_event(
                 db_session,
                 GameEvent.ITEM_COLLECTED,
                 exploration.vault_id,
-                {"item_type": "radaway", "amount": exploration.radaways},
+                {"item_type": "radaway", "amount": radaways_stored},
             )
 
         if commit:
@@ -402,6 +409,8 @@ class RewardsService:
             events_encountered=len(exploration.events),
             stimpaks=exploration.stimpaks,
             radaways=exploration.radaways,
+            stimpaks_stored=stimpaks_stored,
+            radaways_stored=radaways_stored,
         )
 
 

@@ -808,6 +808,12 @@ async def test_starter_resident_reward_creates_named_dweller(async_session: Asyn
             {"item_type": "outfit", "name": "Combat Armor", "rarity": "common"},
             id="outfit",
         ),
+        pytest.param(
+            "1 pet carrier",
+            RewardType.ITEM,
+            {"item_type": "pet_carrier", "name": "Pet Carrier", "rarity": "common", "amount": 1},
+            id="pet-carrier",
+        ),
     ],
 )
 def test_parse_objective_reward(reward_str: str, expected_type: RewardType, expected_data: dict[str, object]) -> None:

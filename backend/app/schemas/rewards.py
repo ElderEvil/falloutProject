@@ -12,6 +12,7 @@ from pydantic import UUID4, Field, TypeAdapter
 from sqlmodel import SQLModel
 
 from app.core.enums import RarityEnum
+from app.schemas.pet import PetRead
 
 
 class CapsGranted(SQLModel):
@@ -89,6 +90,17 @@ class LunchboxOpened(SQLModel):
 
 
 class LunchboxOpenRequest(SQLModel):
+    item_id: UUID4
+
+
+class PetCarrierOpened(SQLModel):
+    """Payload returned when a player opens a pet carrier Item."""
+
+    reward_type: Literal["pet_carrier"] = "pet_carrier"
+    pet: PetRead
+
+
+class PetCarrierOpenRequest(SQLModel):
     item_id: UUID4
 
 

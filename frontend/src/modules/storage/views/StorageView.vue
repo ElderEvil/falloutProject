@@ -21,6 +21,7 @@ import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import StorageItemCard from '../components/StorageItemCard.vue'
 import LunchboxOpenModal from '../components/LunchboxOpenModal.vue'
+import PetCarrierOpenModal from '../components/PetCarrierOpenModal.vue'
 import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 
 const route = useRoute()
@@ -285,6 +286,50 @@ const closeLunchboxModal = async () => {
     await vaultStore.refreshVault(vaultId.value, authStore.token)
   }
 }
+
+const showPetCarrierModal = ref(false)
+const selectedPetCarrierId = ref<string | null>(null)
+const petCarrierResult = ref<components['schemas']['PetCarrierOpened'] | null>(null)
+const {
+  run: revealPetCarrier,
+  isLoading: openingPetCarrier,
+  error: petCarrierError,
+} = useAsyncAction(
+  async () => {
+    if (!vaultId.value || !selectedPetCarrierId.value || petCarrierResult.value) return
+    petCarrierResult.value = await storageStore.openPetCarrier(
+      vaultId.value,
+      selectedPetCarrierId.value
+    )
+    playSound('lunchboxOpen', 'ui')
+  },
+  { context: 'Failed to open pet carrier', showToast: false }
+)
+
+const handleOpenContainer = (itemId: string, itemType: string) => {
+  if (itemType !== 'pet_carrier') {
+    handleOpenLunchbox(itemId)
+    return
+  }
+  if (openingPetCarrier.value) return
+  selectedPetCarrierId.value = itemId
+  petCarrierResult.value = null
+  petCarrierError.value = null
+  showPetCarrierModal.value = true
+}
+
+const closePetCarrierModal = async () => {
+  if (openingPetCarrier.value) return
+  const opened = !!petCarrierResult.value
+  showPetCarrierModal.value = false
+  selectedPetCarrierId.value = null
+  petCarrierResult.value = null
+  if (!opened) return
+  await fetchStorageData()
+  if (vaultId.value && authStore.token) {
+    await vaultStore.refreshVault(vaultId.value, authStore.token)
+  }
+}
 </script>
 
 <template>
@@ -446,7 +491,7 @@ const closeLunchboxModal = async () => {
                 @sell="handleSellItem(item.ids[0], activeTab)"
                 @sell-all="handleSellItem(item.ids, activeTab)"
                 @scrap="handleScrapItem(item.id, activeTab as 'weapon' | 'outfit')"
-                @open="handleOpenLunchbox(item.ids[0])"
+                @open="handleOpenContainer(item.ids[0], cardItemType(item))"
               />
             </div>
           </TabsContent>
@@ -458,6 +503,14 @@ const closeLunchboxModal = async () => {
           :error="lunchboxError"
           @reveal="!openingLunchbox && revealLunchbox()"
           @close="closeLunchboxModal"
+        />
+        <PetCarrierOpenModal
+          :show="showPetCarrierModal"
+          :result="petCarrierResult"
+          :opening="openingPetCarrier"
+          :error="petCarrierError"
+          @reveal="!openingPetCarrier && revealPetCarrier()"
+          @close="closePetCarrierModal"
         />
       </PageContentRail>
     </div>

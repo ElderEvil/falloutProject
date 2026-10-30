@@ -27,7 +27,7 @@
   },
   {
     "challenge": "Reach 50 Dwellers",
-    "reward": "2500 caps",
+    "reward": "1 pet carrier",
     "category": "achievement",
     "objective_type": "reach",
     "target_entity": {
@@ -402,7 +402,7 @@
   },
   {
     "challenge": "Complete 5 Main Quests",
-    "reward": "2500 caps",
+    "reward": "1 pet carrier",
     "category": "achievement",
     "objective_type": "expedition",
     "target_entity": {
@@ -429,7 +429,7 @@
   },
   {
     "challenge": "Reverse-engineer a Legendary",
-    "reward": "1000 caps",
+    "reward": "1 pet carrier",
     "category": "achievement",
     "objective_type": "scrap",
     "target_entity": {

@@ -37,7 +37,7 @@ describe('StorageItemCard', () => {
     document.querySelectorAll('[role="tooltip"]').forEach((element) => element.remove())
   })
 
-  it.each(['weapon', 'junk', 'lunchbox'])(
+  it.each(['weapon', 'junk', 'lunchbox', 'pet_carrier'])(
     'disables all %s actions until the refresh finishes',
     async (itemType) => {
       const wrapper = mount(StorageItemCard, {
@@ -58,6 +58,18 @@ describe('StorageItemCard', () => {
       wrapper.unmount()
     }
   )
+
+  it('offers Open for a pet carrier with a carrier-specific tooltip', async () => {
+    const wrapper = mount(StorageItemCard, {
+      props: { item: { name: 'Pet Carrier', value: 10 }, itemType: 'pet_carrier', count: 1 },
+      global: { stubs: { Icon: true } },
+    })
+
+    const open = findButton(wrapper, 'Open')
+    expect(open).toBeTruthy()
+    await expectTooltip(open, 'Open pet carrier')
+    wrapper.unmount()
+  })
 
   it('presents the item description and clearly labelled inventory actions', async () => {
     const wrapper = mount(StorageItemCard, {

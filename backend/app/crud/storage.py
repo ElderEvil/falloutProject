@@ -239,21 +239,27 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         }
 
     async def get_unopened_lunchbox(self, db_session: AsyncSession, item_id: UUID4, vault_id: UUID4) -> Item | None:
-        """Fetch one unopened lunchbox Item scoped to a vault.
+        """Fetch one unopened lunchbox Item scoped to a vault."""
+        return await self.get_unopened_container(db_session, item_id, vault_id, item_type="lunchbox")
 
-        Returns None for unknown, foreign-vault, or non-lunchbox rows alike so
+    async def get_unopened_container(
+        self, db_session: AsyncSession, item_id: UUID4, vault_id: UUID4, *, item_type: str
+    ) -> Item | None:
+        """Fetch one unopened container Item of ``item_type`` scoped to a vault.
+
+        Returns None for unknown, foreign-vault, or other-type rows alike so
         callers cannot distinguish them (all surface as 404).
 
-        The row lock makes concurrent openings of the same box single-winner:
-        the loser blocks until the winner commits, then sees no row.
+        The row lock makes concurrent openings of the same container
+        single-winner: the loser blocks until the winner commits, then sees no row.
         """
         result = await db_session.execute(
             select(Item)
-            .join(Storage, Item.storage_id == Storage.id)
+            .join(Storage)
             .where(
                 Item.id == item_id,
                 Storage.vault_id == vault_id,
-                Item.item_type == "lunchbox",
+                Item.item_type == item_type,
             )
             .with_for_update()
         )
@@ -273,3 +279,4 @@ update_used_space = storage.update_used_space
 get_storage_info = storage.get_info
 get_all_items = storage.get_all_items
 get_unopened_lunchbox = storage.get_unopened_lunchbox
+get_unopened_container = storage.get_unopened_container

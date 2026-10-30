@@ -38,6 +38,20 @@ describe('storageService', () => {
     })
   })
 
+  describe('openPetCarrier', () => {
+    it('should POST to the pet carrier open endpoint', async () => {
+      const opened = { reward_type: 'pet_carrier', pet: { name: 'Husky' } }
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: opened })
+
+      const result = await storageService.openPetCarrier('vault-1', 'carrier-1')
+
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/storage/vault/vault-1/pet-carrier/open', {
+        item_id: 'carrier-1',
+      })
+      expect(result).toEqual(opened)
+    })
+  })
+
   describe('sellWeapon', () => {
     it('should POST to sell weapon endpoint', async () => {
       vi.mocked(axios.post).mockResolvedValueOnce({ data: {} })

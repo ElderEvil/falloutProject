@@ -35,7 +35,7 @@ const isActionable = computed(
   () => itemType === 'weapon' || itemType === 'outfit' || itemType === 'junk'
 )
 
-const isOpenable = computed(() => itemType === 'lunchbox')
+const isOpenable = computed(() => itemType === 'lunchbox' || itemType === 'pet_carrier')
 </script>
 
 <template>
@@ -76,7 +76,9 @@ const isOpenable = computed(() => itemType === 'lunchbox')
                     Open
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Open lunchbox</TooltipContent>
+                <TooltipContent>{{
+                  itemType === 'pet_carrier' ? 'Open pet carrier' : 'Open lunchbox'
+                }}</TooltipContent>
               </Tooltip>
               <Tooltip v-if="isActionable">
                 <TooltipTrigger as-child>

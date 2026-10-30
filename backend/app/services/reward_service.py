@@ -17,7 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.objective import Objective
 from app.models.quest import Quest
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.services.rewards import items, lunchbox, resources, settlement
+from app.services.rewards import items, lunchbox, pet_carrier, resources, settlement
 
 
 class RewardService:
@@ -65,6 +65,14 @@ class RewardService:
     async def open_lunchbox(self, db_session: AsyncSession, vault_id: UUID4, item_id: UUID4) -> dict[str, Any]:
         """Consume one unopened lunchbox and roll its contents."""
         return await lunchbox.open_lunchbox(db_session, vault_id, item_id)
+
+    async def grant_pet_carrier(self, db_session: AsyncSession, vault_id: UUID4, amount: int = 1) -> dict[str, Any]:
+        """Mint unopened pet carriers; the pet rolls only when the player opens one."""
+        return await pet_carrier.grant_pet_carrier(db_session, vault_id, amount)
+
+    async def open_pet_carrier(self, db_session: AsyncSession, vault_id: UUID4, item_id: UUID4) -> dict[str, Any]:
+        """Consume one unopened pet carrier and add its pet to storage."""
+        return await pet_carrier.open_pet_carrier(db_session, vault_id, item_id)
 
     async def process_quest_rewards(
         self, db_session: AsyncSession, vault_id: UUID4, quest: Quest

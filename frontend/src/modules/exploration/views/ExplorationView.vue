@@ -32,7 +32,11 @@ import {
 } from '@/core/components/ui/tooltip'
 import { ACTIVE_EXPLORATIONS_REFRESH_MS, useExplorationStore } from '../stores/exploration'
 import type { PendingOverflow } from '../stores/exploration'
-import { usePendingReports, acknowledgeReport } from '../composables/usePendingReports'
+import {
+  usePendingReports,
+  acknowledgeReport,
+  isReportAcknowledged,
+} from '../composables/usePendingReports'
 import { useExplorationFinish } from '../composables/useExplorationFinish'
 
 const route = useRoute()
@@ -71,10 +75,16 @@ const { isLoading: explorationLoading, error: explorationError } = storeToRefs(e
 
 const isPendingOverflowModal = ref(false)
 const pendingOverflow = ref<PendingOverflow[]>([])
+const deferredReportIds = ref<string[]>([])
+const deferredReturnCount = computed(() => {
+  const ids = new Set(pendingOverflow.value.map((pending) => pending.exploration_id))
+  for (const id of deferredReportIds.value) ids.add(id)
+  return ids.size
+})
 const deferredOverflowLabel = computed(
   () =>
-    `${pendingOverflow.value.length} ${
-      pendingOverflow.value.length === 1 ? 'return still needs' : 'returns still need'
+    `${deferredReturnCount.value} ${
+      deferredReturnCount.value === 1 ? 'return still needs' : 'returns still need'
     } a storage decision.`
 )
 
@@ -93,7 +103,9 @@ const {
 const { pendingReports } = usePendingReports(vaultId)
 
 function showNextPendingReport(): void {
-  const next = pendingReports.value[0]
+  const next =
+    pendingReports.value.find((report) => deferredReportIds.value.includes(report.explorationId)) ??
+    pendingReports.value[0]
   if (next) {
     isPendingOverflowModal.value = false
     openRewards(next.rewards, next.dwellerName, next.explorationId)
@@ -124,6 +136,11 @@ function showNextPendingOverflow(): boolean {
   if (!next) return false
   showPendingOverflow(next)
   return true
+}
+
+function reviewDeferredReturns(): void {
+  if (showNextPendingOverflow()) return
+  showNextPendingReport()
 }
 
 function removePendingOverflow(explorationId: string): void {
@@ -189,6 +206,10 @@ watch(
   () => explorationStore.pendingSseRewards,
   (pending) => {
     if (!pending) return
+    if (pending.explorationId && isReportAcknowledged(pending.explorationId)) {
+      explorationStore.clearPendingSseRewards()
+      return
+    }
     if (explorationStore.consumeAcknowledgedSseReward(pending.dwellerId)) {
       explorationStore.clearPendingSseRewards()
       return
@@ -293,16 +314,21 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
   const finishedExplorationId = completedExplorationId.value
   const wasPendingOverflow = isPendingOverflowModal.value
   if (!hasUnresolvedOverflow) {
-    acknowledgeReport(finishedExplorationId)
+    deferredReportIds.value = deferredReportIds.value.filter((id) => id !== finishedExplorationId)
     if (wasPendingOverflow) {
       removePendingOverflow(finishedExplorationId)
       if (showNextPendingOverflow()) return
+    } else {
+      acknowledgeReport(finishedExplorationId)
     }
     if (pendingReports.value.length > 0) {
       showNextPendingReport()
       return
     }
   } else {
+    if (!wasPendingOverflow && finishedExplorationId) {
+      deferredReportIds.value = [...new Set([...deferredReportIds.value, finishedExplorationId])]
+    }
     await refreshPendingOverflow()
   }
   resetRewards()
@@ -393,14 +419,14 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
           <!-- Explorer Cards List -->
           <div v-else class="explorers-section">
             <div
-              v-if="pendingOverflow.length > 0"
+              v-if="deferredReturnCount > 0"
               class="deferred-overflow-banner mb-4 flex flex-wrap items-center justify-between gap-3 rounded border border-warning/40 bg-warning/10 px-4 py-3"
             >
               <span class="flex items-center gap-2 text-sm text-warning">
                 <Icon icon="mdi:package-variant-closed-remove" class="size-5 shrink-0" />
                 {{ deferredOverflowLabel }}
               </span>
-              <Button size="sm" variant="secondary" @click="showNextPendingOverflow">
+              <Button size="sm" variant="secondary" @click="reviewDeferredReturns">
                 Review returns
               </Button>
             </div>

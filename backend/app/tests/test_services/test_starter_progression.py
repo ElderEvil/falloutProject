@@ -55,6 +55,9 @@ def objective_events(async_session):
 
 async def test_fresh_starter_rewards_reach_office_without_loot(async_session, superuser, objective_events, monkeypatch):
     await seed_objectives_from_json(async_session)
+    # A random twin birth would push the deterministic 18-dweller arc to 19.
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
+    monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     vault = await vault_service.initiate_vault(async_session, VaultNumber(number=random_vault_number()), superuser.id)
     initial_population = await crud.dweller.count_living_in_vault(async_session, vault.id)
     storage = await crud.storage.storage.get_by_vault(async_session, vault.id)

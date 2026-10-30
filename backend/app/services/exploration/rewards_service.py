@@ -323,6 +323,7 @@ class RewardsService:
 
         # Transfer caps to vault
         total_caps = exploration.total_caps_found
+        credited = 0
         if total_caps > 0:
             total_caps = int(total_caps * (1 + min(pet_modifiers_for(dweller_obj).caps_pct, MAX_PCT_BONUS)))
             vault = await crud_vault.get(db_session, exploration.vault_id)
@@ -358,7 +359,7 @@ class RewardsService:
         stimpaks_stored = 0
         radaways_stored = 0
         if exploration.stimpaks > 0 or exploration.radaways > 0:
-            storage_obj = await crud_storage.get_storage_by_vault(db_session, exploration.vault_id)
+            storage_obj = await crud_storage.get_storage_by_vault_for_update(db_session, exploration.vault_id)
             if storage_obj:
                 rooms = await room_crud.get_multy_by_vault(
                     db_session=db_session, vault_id=exploration.vault_id, skip=0, limit=1000
@@ -401,6 +402,7 @@ class RewardsService:
         return RewardsSchema(
             exploration_id=exploration.id,
             caps=total_caps,
+            caps_credited=credited,
             items=transfer_result["transferred"],
             overflow_items=transfer_result["overflow"],
             experience=experience,

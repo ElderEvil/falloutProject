@@ -244,6 +244,25 @@ describe('ExplorationRewardsModal', () => {
     expect(wrapper.text()).not.toContain('Caps, XP and storable loot were credited')
   })
 
+  it('shows only the caps the vault actually credited', () => {
+    const wrapper = mountModal({
+      ...rewardsWithOverflow,
+      overflow_items: [],
+      caps: 150,
+      caps_credited: 0,
+    })
+
+    expect(wrapper.get('.caps-value').text()).toBe('0')
+    expect(wrapper.text()).toContain('The vault wallet cap limited the credited caps.')
+  })
+
+  it('falls back to the found caps for legacy reports without a credited amount', () => {
+    const wrapper = mountModal({ ...rewardsWithOverflow, overflow_items: [], caps: 150 })
+
+    expect(wrapper.get('.caps-value').text()).toBe('150')
+    expect(wrapper.text()).not.toContain('vault wallet cap')
+  })
+
   it('reports supplies that were fully stored', () => {
     const wrapper = mountModal({
       ...rewardsWithOverflow,

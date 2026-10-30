@@ -386,6 +386,50 @@ async def test_complete_exploration_reports_stimpaks_actually_stored(
 
 
 @pytest.mark.asyncio
+async def test_return_reports_partially_stored_stimpaks(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Only the Stimpaks that fit in medical storage are reported and credited."""
+    await _add_medbay(async_session, vault, capacity=4)
+    storage = Storage(vault_id=vault.id, stimpack=5, radaway=0)
+    async_session.add(storage)
+    await async_session.commit()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4, stimpaks=2)
+
+    with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
+        rewards = await _complete_exploration(async_session, exploration)
+
+    assert rewards.stimpaks == 2
+    assert rewards.stimpaks_stored == 1
+    assert _stimpak_collect_events(emit) == [{"item_type": "stimpak", "amount": 1}]
+
+
+@pytest.mark.asyncio
+async def test_return_reports_caps_actually_credited_at_wallet_cap(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """A full wallet must not report caps it did not accept."""
+    vault.bottle_caps = 999_999
+    async_session.add(vault)
+    await async_session.commit()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    exploration.total_caps_found = 150
+    async_session.add(exploration)
+    await async_session.commit()
+
+    rewards = await _complete_exploration(async_session, exploration)
+
+    assert rewards.caps >= 150
+    assert rewards.caps_credited == 0
+
+
+@pytest.mark.asyncio
 async def test_complete_exploration_reports_zero_stored_when_medical_capacity_is_zero(
     async_session: AsyncSession,
     vault: Vault,

@@ -208,7 +208,7 @@ class ExplorationService:
             raise ValueError("Vault has no map placement; cannot depart spatially")
 
         # Check vault storage first, then fall back to dweller inventory
-        storage = await crud_storage.get_by_vault(db_session, vault_id)
+        storage = await crud_storage.get_by_vault_for_update(db_session, vault_id)
         vault_stimpaks = storage.stimpack if storage else 0
         vault_radaways = storage.radaway if storage else 0
 

@@ -115,6 +115,7 @@ class RewardsSchema(BaseModel):
 
     exploration_id: UUID4 | None = Field(None, description="Exploration these rewards came from")
     caps: int = Field(..., ge=0, description="Total caps earned")
+    caps_credited: int = Field(default=0, ge=0, description="Caps actually added to the vault wallet after its cap")
     items: list[dict] = Field(default_factory=list, description="Items collected and transferred to storage")
     overflow_items: list[dict] = Field(default_factory=list, description="Items dropped due to storage being full")
     experience: int = Field(..., ge=0, description="Experience earned")

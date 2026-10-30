@@ -101,6 +101,7 @@ export interface ExplorationProgress {
 
 export interface RewardsSummary {
   caps: number
+  caps_credited?: number
   items: LootItem[]
   experience: number
   distance: number

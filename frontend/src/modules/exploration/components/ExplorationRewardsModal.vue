@@ -53,6 +53,12 @@ watch(
 )
 
 const hasOverflow = computed(() => unclaimed.value.length > 0)
+const capsCredited = computed(() => safeRewards.value.caps_credited ?? safeRewards.value.caps)
+const capsCapped = computed(
+  () =>
+    safeRewards.value.caps_credited !== undefined &&
+    safeRewards.value.caps_credited < safeRewards.value.caps
+)
 const resolvedExplorationId = computed(
   () => safeRewards.value.exploration_id || props.explorationId
 )
@@ -161,6 +167,7 @@ const tryClose = () => emit('close', requiresResolution.value)
 
       <p v-if="!pendingOnly" class="mb-6 text-sm text-theme-primary/70">
         Caps, XP and storable loot were credited when the crew arrived.
+        <span v-if="capsCapped">The vault wallet cap limited the credited caps.</span>
       </p>
 
       <!-- Recalled Early Banner -->
@@ -188,7 +195,7 @@ const tryClose = () => emit('close', requiresResolution.value)
         <RewardCard
           icon="mdi:coins"
           label="Bottle Caps"
-          :value="String(safeRewards.caps)"
+          :value="String(capsCredited)"
           variant="caps"
           span
         />

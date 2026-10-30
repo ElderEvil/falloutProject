@@ -5,10 +5,12 @@ from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
+from pydantic import ValidationError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import ItemTypeEnum, RarityEnum
+from app.core.game_config import ContainerRarityWeights
 from app.crud.vault import vault as vault_crud
 from app.models.item import Item
 from app.models.pet import Pet
@@ -100,6 +102,31 @@ async def test_open_pet_carrier_keeps_the_carrier_when_the_pool_is_empty(
     assert await async_session.get(Item, carrier_id) is not None
 
 
+@pytest.mark.asyncio
+async def test_open_pet_carrier_rolls_back_when_commit_fails(async_session: AsyncSession, vault: Vault) -> None:
+    """A late failure leaves the carrier in place and adds no pet."""
+    from sqlalchemy import event
+
+    storage = await _storage(async_session, vault)
+    storage_id = storage.id
+    carrier_id = await _carrier(async_session, vault)
+
+    def fail_commit(_session):
+        raise RuntimeError("commit failed")
+
+    event.listen(async_session.sync_session, "before_commit", fail_commit)
+    try:
+        with pytest.raises(RuntimeError, match="commit failed"):
+            await pet_carrier.open_pet_carrier(async_session, vault.id, carrier_id)
+    finally:
+        event.remove(async_session.sync_session, "before_commit", fail_commit)
+        await async_session.rollback()
+
+    assert await async_session.get(Item, carrier_id) is not None
+    pets = (await async_session.execute(select(Pet).where(Pet.storage_id == storage_id))).scalars().all()
+    assert pets == []
+
+
 def test_roll_pet_uses_the_rolled_rarity() -> None:
     """The roll picks from the rarity bucket returned by the weighted choice."""
     with (
@@ -123,6 +150,12 @@ def test_roll_pet_falls_back_when_the_rolled_rarity_is_empty() -> None:
         patch("app.services.rewards.pet_carrier.random.choice", side_effect=operator.itemgetter(0)),
     ):
         assert pet_carrier._roll_pet()["name"] == "Husky"
+
+
+def test_container_weights_require_a_positive_total() -> None:
+    """A zero-total override would make every open raise from random.choices."""
+    with pytest.raises(ValidationError):
+        ContainerRarityWeights(common=0, rare=0, legendary=0)
 
 
 def test_item_type_constraint_covers_every_enum_value() -> None:

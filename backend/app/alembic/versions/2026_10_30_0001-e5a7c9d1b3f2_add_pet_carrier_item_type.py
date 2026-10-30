@@ -17,9 +17,17 @@ _NEW_TYPES = "'misc', 'weapon', 'outfit', 'junk', 'consumable', 'lunchbox', 'pet
 
 def upgrade() -> None:
     op.drop_constraint("ck_item_item_type", "item", type_="check")
-    op.create_check_constraint("ck_item_item_type", "item", f"item_type IN ({_NEW_TYPES})")
+    op.create_check_constraint(
+        "ck_item_item_type", "item", f"item_type IN ({_NEW_TYPES})", postgresql_not_valid=True
+    )
+    with op.get_context().autocommit_block():
+        op.execute("ALTER TABLE item VALIDATE CONSTRAINT ck_item_item_type")
 
 
 def downgrade() -> None:
     op.drop_constraint("ck_item_item_type", "item", type_="check")
-    op.create_check_constraint("ck_item_item_type", "item", f"item_type IN ({_OLD_TYPES})")
+    op.create_check_constraint(
+        "ck_item_item_type", "item", f"item_type IN ({_OLD_TYPES})", postgresql_not_valid=True
+    )
+    with op.get_context().autocommit_block():
+        op.execute("ALTER TABLE item VALIDATE CONSTRAINT ck_item_item_type")

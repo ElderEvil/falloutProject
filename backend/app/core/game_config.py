@@ -15,7 +15,7 @@ import logging
 import math
 from typing import Any
 
-from pydantic import BaseModel, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.enums import IncidentType, RarityEnum, SPECIALEnum, VaultModeEnum, WeaponTypeEnum
@@ -1376,6 +1376,12 @@ class ContainerRarityWeights(BaseModel):
     common: float = Field(default=70.0, ge=0.0)
     rare: float = Field(default=25.0, ge=0.0)
     legendary: float = Field(default=5.0, ge=0.0)
+
+    @model_validator(mode="after")
+    def _require_positive_total(self) -> "ContainerRarityWeights":
+        if self.common + self.rare + self.legendary <= 0:
+            raise ValueError("Container rarity weights must have a positive total")
+        return self
 
 
 class ContainerConfig(BaseSettings):

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/core/components/ui/card'
 import { useToast } from '@/core/composables/useToast'
@@ -113,13 +112,13 @@ onMounted(load)
 
 <template>
   <Card class="connected-accounts gap-0 border-theme-primary/20 bg-surface">
-    <CardHeader class="pb-4">
-      <CardTitle class="text-xl font-bold text-theme-primary">Connected accounts</CardTitle>
+    <CardHeader class="pb-2">
+      <CardTitle class="text-lg font-bold text-theme-primary">Connected accounts</CardTitle>
     </CardHeader>
     <CardContent class="pt-0">
       <p class="text-xs leading-5 text-theme-primary/60">
-        Sign in with your password or a linked provider. Linking never moves another account's
-        vaults or progress; ask an administrator to merge duplicate accounts.
+        Connect a provider to sign in with it. Linking never moves vaults or progress; ask an
+        administrator to merge duplicate accounts.
       </p>
 
       <div v-if="loading" class="py-6 text-center text-sm text-theme-primary/60">
@@ -129,41 +128,35 @@ onMounted(load)
       <p v-else-if="!allProviders.length" class="mt-4 text-sm text-theme-primary/60">
         No provider sign-in is configured for this deployment.
       </p>
-      <div v-else class="mt-4 space-y-2">
+      <div v-else class="mt-3 grid gap-2 sm:grid-cols-2">
         <div
           v-for="provider in allProviders"
           :key="provider"
-          class="flex flex-wrap items-center justify-between gap-3 rounded border border-theme-primary/20 bg-surface-sunken px-3 py-3"
+          class="flex items-center justify-between gap-2 rounded border border-theme-primary/20 bg-surface-sunken px-3 py-2"
           v-bind="{ 'data-testid': `connected-${provider}` }"
         >
-          <div class="flex min-w-0 items-center gap-3">
-            <Icon :icon="PROVIDER_ICONS[provider]" class="h-6 w-6 shrink-0 text-theme-primary" />
+          <div class="flex min-w-0 items-center gap-2">
+            <Icon :icon="PROVIDER_ICONS[provider]" class="h-5 w-5 shrink-0 text-theme-primary" />
             <div class="min-w-0">
-              <p class="text-sm font-semibold tracking-wide text-theme-primary">
+              <p class="text-xs font-bold tracking-wide text-theme-primary">
                 {{ provider.toUpperCase() }}
               </p>
-              <p class="text-xs text-theme-primary/60">
+              <p class="text-[0.65rem] text-theme-primary/60">
                 {{
                   isLinked(provider)
-                    ? 'Connected'
+                    ? 'CONNECTED'
                     : isEnabled(provider)
-                      ? 'Not connected'
-                      : 'Unavailable'
+                      ? 'NOT CONNECTED'
+                      : 'UNAVAILABLE'
                 }}
               </p>
             </div>
           </div>
 
-          <div class="flex flex-wrap items-center justify-end gap-2">
-            <Badge :variant="isLinked(provider) ? 'default' : 'outline'" class="text-[0.6rem]">
-              {{ isLinked(provider) ? 'CONNECTED' : 'NOT CONNECTED' }}
-            </Badge>
-
+          <div class="flex shrink-0 items-center gap-1">
             <template v-if="isLinked(provider)">
               <template v-if="confirmingProvider === provider">
-                <span class="text-[0.65rem] font-bold tracking-wider text-warning"
-                  >DISCONNECT?</span
-                >
+                <span class="text-[0.6rem] font-bold tracking-wider text-warning">DISCONNECT?</span>
                 <Button
                   size="xs"
                   variant="destructive"
@@ -196,10 +189,10 @@ onMounted(load)
           </div>
         </div>
 
-        <p v-if="!canUnlink" class="text-xs leading-5 text-warning">
+        <p v-if="!canUnlink" class="text-xs leading-5 text-warning sm:col-span-2">
           This is your only sign-in method. Set a password before disconnecting it.
         </p>
-        <p class="text-xs text-theme-primary/50">
+        <p class="text-xs text-theme-primary/50 sm:col-span-2">
           Password sign-in: {{ hasPassword ? 'enabled' : 'not set' }}.
         </p>
       </div>

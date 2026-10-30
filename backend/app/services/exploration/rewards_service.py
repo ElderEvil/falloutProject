@@ -323,6 +323,7 @@ class RewardsService:
 
         # Transfer caps to vault
         total_caps = exploration.total_caps_found
+        credited = 0
         if total_caps > 0:
             total_caps = int(total_caps * (1 + min(pet_modifiers_for(dweller_obj).caps_pct, MAX_PCT_BONUS)))
             vault = await crud_vault.get(db_session, exploration.vault_id)
@@ -355,36 +356,43 @@ class RewardsService:
         transfer_result = await self._transfer_loot_to_storage(db_session, exploration)
 
         # Return unused stimpaks and radaways to vault storage
+        stimpaks_stored = 0
+        radaways_stored = 0
         if exploration.stimpaks > 0 or exploration.radaways > 0:
-            storage_obj = await crud_storage.get_storage_by_vault(db_session, exploration.vault_id)
+            storage_obj = await crud_storage.get_storage_by_vault_for_update(db_session, exploration.vault_id)
             if storage_obj:
                 rooms = await room_crud.get_multy_by_vault(
                     db_session=db_session, vault_id=exploration.vault_id, skip=0, limit=1000
                 )
                 capacity = compute_medical_capacity(rooms)
+                before_stimpacks = storage_obj.stimpack or 0
+                before_radaways = storage_obj.radaway or 0
                 storage_obj.stimpack = min(
-                    (storage_obj.stimpack or 0) + exploration.stimpaks,
+                    before_stimpacks + exploration.stimpaks,
                     capacity.get("stimpack", 99999),
                 )
                 storage_obj.radaway = min(
-                    (storage_obj.radaway or 0) + exploration.radaways,
+                    before_radaways + exploration.radaways,
                     capacity.get("radaway", 99999),
                 )
                 db_session.add(storage_obj)
+                stimpaks_stored = max(0, (storage_obj.stimpack or 0) - before_stimpacks)
+                radaways_stored = max(0, (storage_obj.radaway or 0) - before_radaways)
 
-        if exploration.stimpaks > 0:
+        # Credit only what storage kept: collect objectives must not count dropped supplies.
+        if stimpaks_stored > 0:
             self._queue_event(
                 db_session,
                 GameEvent.ITEM_COLLECTED,
                 exploration.vault_id,
-                {"item_type": "stimpak", "amount": exploration.stimpaks},
+                {"item_type": "stimpak", "amount": stimpaks_stored},
             )
-        if exploration.radaways > 0:
+        if radaways_stored > 0:
             self._queue_event(
                 db_session,
                 GameEvent.ITEM_COLLECTED,
                 exploration.vault_id,
-                {"item_type": "radaway", "amount": exploration.radaways},
+                {"item_type": "radaway", "amount": radaways_stored},
             )
 
         if commit:
@@ -394,6 +402,7 @@ class RewardsService:
         return RewardsSchema(
             exploration_id=exploration.id,
             caps=total_caps,
+            caps_credited=credited,
             items=transfer_result["transferred"],
             overflow_items=transfer_result["overflow"],
             experience=experience,
@@ -402,6 +411,8 @@ class RewardsService:
             events_encountered=len(exploration.events),
             stimpaks=exploration.stimpaks,
             radaways=exploration.radaways,
+            stimpaks_stored=stimpaks_stored,
+            radaways_stored=radaways_stored,
         )
 
 

@@ -101,6 +101,7 @@ export interface ExplorationProgress {
 
 export interface RewardsSummary {
   caps: number
+  caps_credited?: number
   items: LootItem[]
   experience: number
   distance: number
@@ -110,6 +111,10 @@ export interface RewardsSummary {
   progress_percentage?: number
   recalled_early?: boolean
   exploration_id?: string
+  stimpaks?: number
+  radaways?: number
+  stimpaks_stored?: number
+  radaways_stored?: number
 }
 
 export interface OverflowResolution {

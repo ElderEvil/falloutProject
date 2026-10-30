@@ -41,10 +41,11 @@ const rewardsWithOverflow = {
 
 const mountModal = (
   rewards: RewardsSummary | null = rewardsWithOverflow,
-  explorationId = 'exp-1'
+  explorationId = 'exp-1',
+  pendingOnly = false
 ) =>
   mount(ExplorationRewardsModal, {
-    props: { show: true, rewards, dwellerName: 'Lucy MacLean', explorationId },
+    props: { show: true, rewards, dwellerName: 'Lucy MacLean', explorationId, pendingOnly },
     global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
   })
 
@@ -101,15 +102,15 @@ describe('ExplorationRewardsModal', () => {
     const wrapper = mountModal()
     const takeButtons = wrapper.findAll('.overflow-actions button')
 
-    expect(wrapper.get('.collect-btn').text()).toContain('Resolve Later')
+    expect(wrapper.get('.report-action-btn').text()).toContain('Resolve Later')
 
     await takeButtons[0]!.trigger('click')
     expect(mockResolve).toHaveBeenCalledWith('exp-1', 'take', 0)
     expect(wrapper.text()).not.toContain('Dropped A')
     expect(wrapper.text()).toContain('Dropped B')
-    expect(wrapper.get('.collect-btn').text()).toContain('Resolve Later')
+    expect(wrapper.get('.report-action-btn').text()).toContain('Resolve Later')
 
-    await wrapper.get('.collect-btn').trigger('click')
+    await wrapper.get('.report-action-btn').trigger('click')
     expect(wrapper.emitted('close')).toEqual([[true]])
   })
 
@@ -147,8 +148,8 @@ describe('ExplorationRewardsModal', () => {
     await wrapper.findAll('.overflow-actions button')[0]!.trigger('click')
 
     expect(wrapper.text()).toContain('This report predates overflow resolution')
-    expect(wrapper.get('.collect-btn').attributes('disabled')).toBeUndefined()
-    await wrapper.get('.collect-btn').trigger('click')
+    expect(wrapper.get('.report-action-btn').attributes('disabled')).toBeUndefined()
+    await wrapper.get('.report-action-btn').trigger('click')
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
 
@@ -159,8 +160,8 @@ describe('ExplorationRewardsModal', () => {
     await wrapper.findAll('.overflow-actions button')[0]!.trigger('click')
 
     expect(wrapper.text()).toContain('This report predates overflow resolution')
-    expect(wrapper.get('.collect-btn').attributes('disabled')).toBeUndefined()
-    await wrapper.get('.collect-btn').trigger('click')
+    expect(wrapper.get('.report-action-btn').attributes('disabled')).toBeUndefined()
+    await wrapper.get('.report-action-btn').trigger('click')
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
 
@@ -205,10 +206,10 @@ describe('ExplorationRewardsModal', () => {
     expect(mockToast.error).toHaveBeenCalledTimes(1)
   })
 
-  it('collects once every overflow item is decided', async () => {
+  it('closes once every overflow item is decided', async () => {
     const wrapper = mountModal({ ...rewardsWithOverflow, overflow_items: [] })
 
-    await wrapper.get('.collect-btn').trigger('click')
+    await wrapper.get('.report-action-btn').trigger('click')
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
 
@@ -218,5 +219,101 @@ describe('ExplorationRewardsModal', () => {
     await wrapper.get('[data-slot="dialog-close"]').trigger('click')
 
     expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+
+  it('labels the closing action truthfully instead of claiming an unclaimed reward', () => {
+    const settled = mountModal({ ...rewardsWithOverflow, overflow_items: [] })
+
+    expect(settled.get('.report-action-btn').text()).toContain('Close Report')
+    expect(settled.text()).not.toContain('Collect Rewards')
+
+    const unresolved = mountModal()
+
+    expect(unresolved.get('.report-action-btn').text()).toContain('Resolve Later')
+  })
+
+  it('explains that rewards were already settled on arrival', () => {
+    expect(mountModal().text()).toContain(
+      'Caps, XP and storable loot were credited when the crew arrived.'
+    )
+  })
+
+  it('omits the settlement clarification for a pending-overflow view', () => {
+    const wrapper = mountModal(rewardsWithOverflow, 'exp-1', true)
+
+    expect(wrapper.text()).not.toContain('Caps, XP and storable loot were credited')
+  })
+
+  it('shows only the caps the vault actually credited', () => {
+    const wrapper = mountModal({
+      ...rewardsWithOverflow,
+      overflow_items: [],
+      caps: 150,
+      caps_credited: 0,
+    })
+
+    expect(wrapper.get('.caps-value').text()).toBe('0')
+    expect(wrapper.text()).toContain('The vault wallet cap limited the credited caps.')
+  })
+
+  it('falls back to the found caps for legacy reports without a credited amount', () => {
+    const wrapper = mountModal({ ...rewardsWithOverflow, overflow_items: [], caps: 150 })
+
+    expect(wrapper.get('.caps-value').text()).toBe('150')
+    expect(wrapper.text()).not.toContain('vault wallet cap')
+  })
+
+  it('reports supplies that were fully stored', () => {
+    const wrapper = mountModal({
+      ...rewardsWithOverflow,
+      overflow_items: [],
+      stimpaks: 2,
+      stimpaks_stored: 2,
+      radaways: 1,
+      radaways_stored: 1,
+    })
+
+    const supplies = wrapper.get('.returned-supplies').text()
+    expect(supplies).toContain('Stimpaks')
+    expect(supplies).toContain('2 of 2 stored')
+    expect(supplies).toContain('Radaways')
+    expect(supplies).toContain('1 of 1 stored')
+    expect(supplies).not.toContain('lost')
+  })
+
+  it('reports supplies lost to full medical storage', () => {
+    const wrapper = mountModal({
+      ...rewardsWithOverflow,
+      overflow_items: [],
+      stimpaks: 3,
+      stimpaks_stored: 0,
+    })
+
+    const supplies = wrapper.get('.returned-supplies').text()
+    expect(supplies).toContain('3 lost')
+    expect(supplies).toContain('medical storage full')
+  })
+
+  it('never invents a loss for legacy reports without stored counts', () => {
+    const wrapper = mountModal({
+      ...rewardsWithOverflow,
+      overflow_items: [],
+      stimpaks: 2,
+    })
+
+    const supplies = wrapper.get('.returned-supplies').text()
+    expect(supplies).toContain('2 carried back')
+    expect(supplies).not.toContain('lost')
+  })
+
+  it('hides the returned supplies section when nothing was carried back', () => {
+    const wrapper = mountModal({
+      ...rewardsWithOverflow,
+      overflow_items: [],
+      stimpaks: 0,
+      radaways: 0,
+    })
+
+    expect(wrapper.find('.returned-supplies').exists()).toBe(false)
   })
 })

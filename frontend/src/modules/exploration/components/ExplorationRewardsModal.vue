@@ -53,6 +53,12 @@ watch(
 )
 
 const hasOverflow = computed(() => unclaimed.value.length > 0)
+const capsCredited = computed(() => safeRewards.value.caps_credited ?? safeRewards.value.caps)
+const capsCapped = computed(
+  () =>
+    safeRewards.value.caps_credited !== undefined &&
+    safeRewards.value.caps_credited < safeRewards.value.caps
+)
 const resolvedExplorationId = computed(
   () => safeRewards.value.exploration_id || props.explorationId
 )
@@ -112,6 +118,32 @@ const sellAll = async () => {
   reportBulkSale(sold, caps)
 }
 
+const returnedSupplies = computed(() =>
+  [
+    {
+      key: 'stimpaks',
+      icon: 'mdi:medical-bag',
+      label: 'Stimpaks',
+      carried: safeRewards.value.stimpaks ?? 0,
+      stored: safeRewards.value.stimpaks_stored,
+    },
+    {
+      key: 'radaways',
+      icon: 'mdi:radioactive',
+      label: 'Radaways',
+      carried: safeRewards.value.radaways ?? 0,
+      stored: safeRewards.value.radaways_stored,
+    },
+  ].filter((supply) => supply.carried > 0)
+)
+
+const supplyValue = (carried: number, stored?: number): string => {
+  if (stored === undefined) return `${carried} carried back`
+  const lost = carried - stored
+  const base = `${stored} of ${carried} stored`
+  return lost > 0 ? `${base} · ${lost} lost — medical storage full` : base
+}
+
 const tryClose = () => emit('close', requiresResolution.value)
 </script>
 
@@ -132,6 +164,11 @@ const tryClose = () => emit('close', requiresResolution.value)
         <Icon icon="mdi:account-check" class="h-6 w-6 shrink-0" />
         {{ dwellerName }} has returned from the wasteland!
       </div>
+
+      <p v-if="!pendingOnly" class="mb-6 text-sm text-theme-primary/70">
+        Caps, XP and storable loot were credited when the crew arrived.
+        <span v-if="capsCapped">The vault wallet cap limited the credited caps.</span>
+      </p>
 
       <!-- Recalled Early Banner -->
       <div
@@ -158,7 +195,7 @@ const tryClose = () => emit('close', requiresResolution.value)
         <RewardCard
           icon="mdi:coins"
           label="Bottle Caps"
-          :value="String(safeRewards.caps)"
+          :value="String(capsCredited)"
           variant="caps"
           span
         />
@@ -255,12 +292,31 @@ const tryClose = () => emit('close', requiresResolution.value)
           </Button>
         </div>
       </div>
+
+      <!-- Returned Supplies -->
+      <div v-if="returnedSupplies.length > 0" class="returned-supplies mt-6">
+        <h3 class="panel-header text-lg font-bold text-theme-primary">
+          <span class="flex items-center gap-2">
+            <Icon icon="mdi:medical-bag" />
+            Returned Supplies
+          </span>
+        </h3>
+        <div class="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-4">
+          <RewardCard
+            v-for="supply in returnedSupplies"
+            :key="supply.key"
+            :icon="supply.icon"
+            :label="supply.label"
+            :value="supplyValue(supply.carried, supply.stored)"
+          />
+        </div>
+      </div>
     </div>
 
     <template #footer>
-      <Button variant="default" class="collect-btn w-full" @click="tryClose">
+      <Button variant="default" class="report-action-btn w-full" @click="tryClose">
         <Icon :icon="hasOverflow ? 'mdi:clock-outline' : 'mdi:check-bold'" />
-        {{ hasOverflow ? 'Resolve Later' : 'Collect Rewards' }}
+        {{ hasOverflow ? 'Resolve Later' : 'Close Report' }}
       </Button>
     </template>
   </TerminalModal>

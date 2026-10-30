@@ -3,7 +3,7 @@
 from collections.abc import AsyncGenerator
 from contextlib import suppress
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -15,6 +15,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
+from app.core.event_bus import GameEvent
 from app.core.game_config import game_config
 from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
@@ -58,6 +59,36 @@ async def _complete_exploration(async_session: AsyncSession, exploration):
     async_session.add(exploration)
     await async_session.commit()
     return await exploration_service.finalize_return(async_session, exploration.id)
+
+
+async def _add_medbay(async_session: AsyncSession, vault: Vault, capacity: int = 10) -> None:
+    """Give the vault a Medbay so returned Stimpaks have somewhere to go."""
+    await room_crud.create(
+        async_session,
+        RoomCreate(
+            name="Medbay",
+            category=RoomTypeEnum.PRODUCTION,
+            tier=1,
+            size=3,
+            capacity=capacity,
+            ability=SPECIALEnum.INTELLIGENCE,
+            base_cost=400,
+            t2_upgrade_cost=1000,
+            t3_upgrade_cost=3000,
+            size_min=3,
+            size_max=9,
+            vault_id=vault.id,
+        ),
+    )
+
+
+def _stimpak_collect_events(emit: AsyncMock) -> list[dict]:
+    """The ITEM_COLLECTED payloads credited for returned Stimpaks."""
+    return [
+        call.args[2]
+        for call in emit.await_args_list
+        if call.args[0] == GameEvent.ITEM_COLLECTED and call.args[2].get("item_type") == "stimpak"
+    ]
 
 
 @pytest.mark.asyncio
@@ -330,6 +361,134 @@ async def test_complete_exploration_transfers_caps(
     await async_session.refresh(exploration)
     assert exploration.status == ExplorationStatus.COMPLETED
     assert exploration.end_time is not None
+
+
+@pytest.mark.asyncio
+async def test_complete_exploration_reports_stimpaks_actually_stored(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Returned Stimpaks that fit in medical storage are reported as stored."""
+    await _add_medbay(async_session, vault)
+    storage = Storage(vault_id=vault.id, stimpack=5, radaway=0)
+    async_session.add(storage)
+    await async_session.commit()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4, stimpaks=2)
+    rewards = await _complete_exploration(async_session, exploration)
+
+    assert rewards.stimpaks == 2
+    assert rewards.stimpaks_stored == 2
+    assert rewards.radaways_stored == 0
+    await async_session.refresh(storage)
+    assert storage.stimpack == 5  # 5 - 2 dispatched + 2 returned
+
+
+@pytest.mark.asyncio
+async def test_return_reports_partially_stored_stimpaks(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Only the Stimpaks that fit in medical storage are reported and credited."""
+    await _add_medbay(async_session, vault, capacity=4)
+    storage = Storage(vault_id=vault.id, stimpack=5, radaway=0)
+    async_session.add(storage)
+    await async_session.commit()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4, stimpaks=2)
+
+    with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
+        rewards = await _complete_exploration(async_session, exploration)
+
+    assert rewards.stimpaks == 2
+    assert rewards.stimpaks_stored == 1
+    assert _stimpak_collect_events(emit) == [{"item_type": "stimpak", "amount": 1}]
+
+
+@pytest.mark.asyncio
+async def test_return_reports_caps_actually_credited_at_wallet_cap(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """A full wallet must not report caps it did not accept."""
+    vault.bottle_caps = 999_999
+    async_session.add(vault)
+    await async_session.commit()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    exploration.total_caps_found = 150
+    async_session.add(exploration)
+    await async_session.commit()
+
+    rewards = await _complete_exploration(async_session, exploration)
+
+    assert rewards.caps >= 150
+    assert rewards.caps_credited == 0
+
+
+@pytest.mark.asyncio
+async def test_complete_exploration_reports_zero_stored_when_medical_capacity_is_zero(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Returned supplies that overflow a zero-capacity vault are carried but not stored."""
+    storage = Storage(vault_id=vault.id, stimpack=5, radaway=0)
+    async_session.add(storage)
+    await async_session.commit()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4, stimpaks=2)
+    rewards = await _complete_exploration(async_session, exploration)
+
+    assert rewards.stimpaks == 2
+    assert rewards.stimpaks_stored == 0
+    # Pre-existing behavior: capacity 0 zeroes the storage row; out of scope for this change.
+    await async_session.refresh(storage)
+    assert storage.stimpack == 0
+
+
+@pytest.mark.asyncio
+async def test_return_credits_only_stored_stimpaks_to_collect_objectives(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Supplies dropped for lack of medical capacity must not count as collected."""
+    storage = Storage(vault_id=vault.id, stimpack=5, radaway=0)
+    async_session.add(storage)
+    await async_session.commit()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4, stimpaks=2)
+
+    with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
+        rewards = await _complete_exploration(async_session, exploration)
+
+    assert rewards.stimpaks_stored == 0
+    assert _stimpak_collect_events(emit) == []
+
+
+@pytest.mark.asyncio
+async def test_return_credits_stored_stimpaks_to_collect_objectives(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """The collect event reports the supplies that were actually banked."""
+    await _add_medbay(async_session, vault)
+    storage = Storage(vault_id=vault.id, stimpack=5, radaway=0)
+    async_session.add(storage)
+    await async_session.commit()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4, stimpaks=2)
+
+    with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
+        rewards = await _complete_exploration(async_session, exploration)
+
+    assert rewards.stimpaks_stored == 2
+    assert _stimpak_collect_events(emit) == [{"item_type": "stimpak", "amount": 2}]
 
 
 @pytest.mark.asyncio

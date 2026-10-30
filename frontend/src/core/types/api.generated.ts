@@ -405,6 +405,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/oauth/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Linked Accounts
+         * @description List the provider identities linked to the signed-in account.
+         */
+        get: operations["list_linked_accounts_api_v1_auth_oauth_accounts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oauth/{provider}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Link Provider
+         * @description Start an authenticated provider link; the callback binds to this account.
+         */
+        post: operations["link_provider_api_v1_auth_oauth__provider__link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oauth/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Unlink Provider
+         * @description Remove a provider link, refusing to remove the last sign-in method.
+         */
+        delete: operations["unlink_provider_api_v1_auth_oauth__provider__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/oauth/{provider}/authorize": {
         parameters: {
             query?: never;
@@ -9347,6 +9407,18 @@ export interface components {
             /** Code */
             code: string;
         };
+        /** OAuthLinkAuthorizeResponse */
+        OAuthLinkAuthorizeResponse: {
+            /** Authorize Url */
+            authorize_url: string;
+        };
+        /** OAuthLinkedAccountsResponse */
+        OAuthLinkedAccountsResponse: {
+            /** Providers */
+            providers: string[];
+            /** Has Password */
+            has_password: boolean;
+        };
         /** OAuthProvidersResponse */
         OAuthProvidersResponse: {
             /** Google */
@@ -12815,6 +12887,86 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OAuthProvidersResponse"];
+                };
+            };
+        };
+    };
+    list_linked_accounts_api_v1_auth_oauth_accounts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthLinkedAccountsResponse"];
+                };
+            };
+        };
+    };
+    link_provider_api_v1_auth_oauth__provider__link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthLinkAuthorizeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlink_provider_api_v1_auth_oauth__provider__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

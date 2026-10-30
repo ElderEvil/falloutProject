@@ -5,6 +5,7 @@ import json
 import logging
 import re
 import secrets
+from dataclasses import dataclass
 from urllib.parse import urlencode
 from uuid import UUID
 
@@ -74,6 +75,14 @@ def _handoff_key(code: str) -> str:
     return f"oauth_handoff:{hash_browser_token(code)}"
 
 
+@dataclass(frozen=True)
+class OAuthCompletion:
+    """A completed provider flow, distinguishing sign-in from an explicit link."""
+
+    user: User
+    purpose: str
+
+
 def _google_email_is_authoritative(profile: dict) -> bool:
     """Gmail and Workspace (`hd`) mailboxes are Google-owned; third-party ones are not."""
     return bool(profile.get("hd")) or profile["email"].lower().endswith("@gmail.com")
@@ -109,6 +118,40 @@ class OAuthService:
         return self.providers()[provider.value]
 
     async def start(self, provider_name: str, browser_token: str | None, redis_client: Redis) -> tuple[str, str]:
+        return await self._start(provider_name, browser_token, redis_client)
+
+    async def start_link(
+        self,
+        provider_name: str,
+        user_id: UUID4,
+        browser_token: str | None,
+        db_session: AsyncSession,
+        redis_client: Redis,
+    ) -> tuple[str, str]:
+        """Start an authenticated link flow; the callback links to this user, never by email."""
+        provider = self._parse_provider(provider_name)
+        if not self.is_enabled(provider):
+            raise OAuthFlowError("provider_disabled", status_code=404)
+        existing = await crud.oauth_account.get_for_user(db_session, user_id, provider.value)
+        if existing is not None:
+            raise OAuthFlowError("provider_already_linked", status_code=409)
+        return await self._start(
+            provider_name,
+            browser_token,
+            redis_client,
+            purpose="link",
+            link_user_id=user_id,
+        )
+
+    async def _start(
+        self,
+        provider_name: str,
+        browser_token: str | None,
+        redis_client: Redis,
+        *,
+        purpose: str = "login",
+        link_user_id: UUID4 | None = None,
+    ) -> tuple[str, str]:
         provider = self._parse_provider(provider_name)
         if not self.is_enabled(provider):
             raise OAuthFlowError("provider_disabled", status_code=404)
@@ -116,18 +159,18 @@ class OAuthService:
         state = secrets.token_urlsafe(32)
         verifier, challenge = generate_pkce_pair()
         redirect_uri = self._redirect_uri(provider)
-        await redis_client.setex(
-            _state_key(state),
-            STATE_TTL_SECONDS,
-            json.dumps(
-                {
-                    "provider": provider.value,
-                    "code_verifier": verifier,
-                    "browser_hash": hash_browser_token(browser_token),
-                    "redirect_uri": redirect_uri,
-                }
-            ),
-        )
+        record = {
+            "provider": provider.value,
+            "code_verifier": verifier,
+            "browser_hash": hash_browser_token(browser_token),
+            "redirect_uri": redirect_uri,
+        }
+        if purpose == "link":
+            if link_user_id is None:
+                raise OAuthFlowError("state_invalid")
+            record["purpose"] = "link"
+            record["link_user_id"] = str(link_user_id)
+        await redis_client.setex(_state_key(state), STATE_TTL_SECONDS, json.dumps(record))
         params = {
             "client_id": self._client_id(provider),
             "redirect_uri": redirect_uri,
@@ -148,6 +191,17 @@ class OAuthService:
         db_session: AsyncSession,
         redis_client: Redis,
     ) -> User:
+        return (await self.complete_flow(provider_name, code, state, browser_token, db_session, redis_client)).user
+
+    async def complete_flow(
+        self,
+        provider_name: str,
+        code: str,
+        state: str,
+        browser_token: str | None,
+        db_session: AsyncSession,
+        redis_client: Redis,
+    ) -> OAuthCompletion:
         provider = self._parse_provider(provider_name)
         if not self.is_enabled(provider):
             raise OAuthFlowError("provider_disabled")
@@ -164,12 +218,52 @@ class OAuthService:
         ):
             raise OAuthFlowError("state_invalid")
         profile = await self._exchange_code(provider, code, record["code_verifier"], record["redirect_uri"])
-        return await self._resolve_user(db_session, provider, profile)
+        if record.get("purpose") == "link":
+            link_user_id = record.get("link_user_id")
+            if not isinstance(link_user_id, str) or not link_user_id:
+                raise OAuthFlowError("state_invalid")
+            try:
+                user_id = UUID(link_user_id)
+            except ValueError as exc:
+                raise OAuthFlowError("state_invalid") from exc
+            try:
+                user = await self._link_to_initiator(db_session, provider, profile, user_id)
+                await db_session.commit()
+            except Exception:
+                await db_session.rollback()
+                raise
+            return OAuthCompletion(user=user, purpose="link")
+        return OAuthCompletion(user=await self._resolve_user(db_session, provider, profile), purpose="login")
 
     async def discard_state(self, state: str, redis_client: Redis) -> None:
         """Consume a state record without exchanging a code (provider denial)."""
         if state:
             await redis_client.getdel(_state_key(state))
+
+    async def list_linked_accounts(self, db_session: AsyncSession, user_id: UUID4) -> list[str]:
+        links = await crud.oauth_account.list_by_user(db_session, user_id)
+        return [link.provider for link in links]
+
+    async def unlink_provider(self, db_session: AsyncSession, user_id: UUID4, provider_name: str) -> list[str]:
+        """Remove a provider link, refusing to remove the last way to sign in."""
+        provider = self._parse_provider(provider_name)
+        locked = await crud.user.get_for_update(db_session, user_id)
+        if locked is None or locked.is_deleted:
+            raise OAuthFlowError("account_deleted")
+        self._assert_active(locked)
+        links = await crud.oauth_account.list_by_user(db_session, locked.id)
+        target = next((link for link in links if link.provider == provider.value), None)
+        if target is None:
+            raise OAuthFlowError("provider_not_linked", status_code=404)
+        if not locked.hashed_password and len(links) <= 1:
+            raise OAuthFlowError("last_sign_in_method", status_code=409)
+        try:
+            await crud.oauth_account.delete_link(db_session, target, commit=False)
+            await db_session.commit()
+        except Exception:
+            await db_session.rollback()
+            raise
+        return [link.provider for link in links if link.provider != provider.value]
 
     async def create_handoff(self, user_id: UUID4, browser_token: str, redis_client: Redis) -> str:
         code = secrets.token_urlsafe(32)
@@ -353,6 +447,52 @@ class OAuthService:
             provider=provider.value,
             provider_user_id=profile["provider_user_id"],
         )
+        return locked
+
+    async def _link_to_initiator(
+        self, db_session: AsyncSession, provider: OAuthProviderEnum, profile: dict, user_id: UUID
+    ) -> User:
+        """Link a provider identity to the user who started the link flow.
+
+        The initiator comes from the browser-bound state record, never from the
+        provider email, so a link cannot silently become an account sign-in.
+        """
+        locked = await crud.user.get_for_update(db_session, user_id)
+        if locked is None or locked.is_deleted:
+            raise OAuthFlowError("account_deleted")
+        self._assert_active(locked)
+        identity = await crud.oauth_account.get_by_provider_subject(
+            db_session, provider.value, profile["provider_user_id"]
+        )
+        if identity is not None:
+            if identity.user_id == locked.id:
+                return locked
+            raise OAuthFlowError("provider_identity_in_use", status_code=409)
+        existing = await crud.oauth_account.get_for_user(db_session, locked.id, provider.value)
+        if existing is not None:
+            if existing.provider_user_id == profile["provider_user_id"]:
+                return locked
+            raise OAuthFlowError("provider_already_linked", status_code=409)
+        try:
+            await crud.oauth_account.link_to_user(
+                db_session,
+                user_id=locked.id,
+                provider=provider.value,
+                provider_user_id=profile["provider_user_id"],
+                commit=False,
+            )
+        except ResourceConflictException as exc:
+            await db_session.rollback()
+            identity = await crud.oauth_account.get_by_provider_subject(
+                db_session, provider.value, profile["provider_user_id"]
+            )
+            if identity is not None and identity.user_id == user_id:
+                user = await crud.user.get(db_session, user_id, include_deleted=True)
+                return self._assert_active(user)
+            existing = await crud.oauth_account.get_for_user(db_session, user_id, provider.value)
+            if existing is not None:
+                raise OAuthFlowError("provider_already_linked", status_code=409) from exc
+            raise OAuthFlowError("provider_identity_in_use", status_code=409) from exc
         return locked
 
     async def _create_user(self, db_session: AsyncSession, provider: OAuthProviderEnum, profile: dict) -> User:

@@ -17,6 +17,7 @@ function makeRouter() {
     routes: [
       { path: '/', component: { template: '<div>Home</div>' } },
       { path: '/auth/callback', component: OAuthCallbackView },
+      { path: '/profile', component: { template: '<div>Profile</div>' } },
       { path: '/login', component: { template: '<div>Login</div>' } },
     ],
   })
@@ -43,9 +44,37 @@ describe('OAuthCallbackView', () => {
     await flushPromises()
 
     expect(oauthService.redeemHandoff).toHaveBeenCalledWith('abc')
-    expect(loginWithTokens).toHaveBeenCalledWith({ access_token: 'access', refresh_token: 'refresh' })
+    expect(loginWithTokens).toHaveBeenCalledWith({
+      access_token: 'access',
+      refresh_token: 'refresh',
+    })
     expect(localStorage.getItem('auth_last_method')).toBe('github')
     expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  it('redirects a successful provider link to the profile', async () => {
+    const router = makeRouter()
+    await router.push('/auth/callback?linked=github')
+    await router.isReady()
+
+    mount(OAuthCallbackView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(oauthService.redeemHandoff).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.path).toBe('/profile')
+    expect(router.currentRoute.value.query).toEqual({ linked: 'github' })
+  })
+
+  it('explains a provider identity owned by another account', async () => {
+    const router = makeRouter()
+    await router.push('/auth/callback?error=provider_identity_in_use')
+    await router.isReady()
+
+    const wrapper = mount(OAuthCallbackView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.findComponent(AuthTerminalFrame).props('error')).toContain('another account')
+    expect(oauthService.redeemHandoff).not.toHaveBeenCalled()
   })
 
   it('shows a controlled message for a cancelled sign-in', async () => {

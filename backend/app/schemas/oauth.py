@@ -8,3 +8,12 @@ class OAuthProvidersResponse(BaseModel):
 
 class OAuthHandoffRequest(BaseModel):
     code: str
+
+
+class OAuthLinkedAccountsResponse(BaseModel):
+    providers: list[str]
+    has_password: bool
+
+
+class OAuthLinkAuthorizeResponse(BaseModel):
+    authorize_url: str

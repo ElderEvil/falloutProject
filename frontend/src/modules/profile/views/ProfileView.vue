@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -10,6 +11,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/core/com
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
 import { usePolling } from '@/core/composables/usePolling'
+import { useToast } from '@/core/composables/useToast'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useBackNavigation } from '@/core/composables/useBackNavigation'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
@@ -19,6 +21,7 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useProfileStore } from '../stores/profile'
 import { formatLongDateTime } from '@/core/utils/format'
 import ProfileEditor from '../components/ProfileEditor.vue'
+import ConnectedAccountsCard from '../components/ConnectedAccountsCard.vue'
 import AIUsageCard from '../components/AIUsageCard.vue'
 import VaultOperationsCard from '../components/VaultOperationsCard.vue'
 import { useEmailVerificationResend } from '@/modules/auth/composables/useEmailVerificationResend'
@@ -27,6 +30,9 @@ import type { ProfileUpdate } from '../models/profile'
 const profileStore = useProfileStore()
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
+const route = useRoute()
+const router = useRouter()
+const toast = useToast()
 const backNav = useBackNavigation('User Profile', () =>
   vaultStore.currentVaultId ? `/vault/${vaultStore.currentVaultId}` : '/'
 )
@@ -76,6 +82,12 @@ onMounted(async () => {
   await fetchProfile()
   await profileStore.fetchDeathStatistics()
   await profileStore.fetchAIUsage()
+
+  const linked = route.query.linked
+  if (typeof linked === 'string' && (linked === 'google' || linked === 'github')) {
+    toast.success(`${linked.toUpperCase()} connected to your account`)
+    void router.replace({ path: '/profile' })
+  }
 })
 
 const fetchProfile = async () => {
@@ -326,6 +338,8 @@ watch(
                     </aside>
                   </CardContent>
                 </Card>
+
+                <ConnectedAccountsCard />
 
                 <div>
                   <h2 class="mb-3 text-sm font-semibold text-theme-primary/75">Quick access</h2>

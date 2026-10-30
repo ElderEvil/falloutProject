@@ -9,15 +9,29 @@ export interface OAuthProviders {
   github: boolean
 }
 
+export interface OAuthLinkedAccounts {
+  providers: OAuthProvider[]
+  has_password: boolean
+}
+
+export interface OAuthLinkAuthorize {
+  authorize_url: string
+}
+
 function apiBase(): string {
   return (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 }
 
 export const oauthService = {
   async getProviders(): Promise<OAuthProviders> {
-    const response = await apiRequest<OAuthProviders>('get', '/api/v1/auth/oauth/providers', undefined, {
-      skipErrorNotification: true,
-    })
+    const response = await apiRequest<OAuthProviders>(
+      'get',
+      '/api/v1/auth/oauth/providers',
+      undefined,
+      {
+        skipErrorNotification: true,
+      }
+    )
     return response.data
   },
   authorizeUrl(provider: OAuthProvider): string {
@@ -30,5 +44,28 @@ export const oauthService = {
       { code },
       { withCredentials: true, skipErrorNotification: true }
     )
+  },
+  async getLinkedAccounts(): Promise<OAuthLinkedAccounts> {
+    const response = await apiRequest<OAuthLinkedAccounts>(
+      'get',
+      '/api/v1/auth/oauth/accounts',
+      undefined,
+      { skipErrorNotification: true }
+    )
+    return response.data
+  },
+  async linkProvider(provider: OAuthProvider): Promise<OAuthLinkAuthorize> {
+    const response = await apiRequest<OAuthLinkAuthorize>(
+      'post',
+      `/api/v1/auth/oauth/${provider}/link`,
+      {},
+      { skipErrorNotification: true }
+    )
+    return response.data
+  },
+  async unlinkProvider(provider: OAuthProvider): Promise<void> {
+    await apiRequest<void>('delete', `/api/v1/auth/oauth/${provider}`, undefined, {
+      skipErrorNotification: true,
+    })
   },
 }

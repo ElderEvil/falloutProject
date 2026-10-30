@@ -17,6 +17,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   account_deleted: 'This account has been deleted.',
   account_inactive: 'This account is inactive.',
   provider_already_linked: 'This provider is already linked to another identity.',
+  provider_identity_in_use:
+    'This provider is already connected to another account. Ask an administrator to merge the accounts.',
+  provider_not_linked: 'That provider is not connected.',
+  last_sign_in_method: 'You cannot remove your only sign-in method. Set a password first.',
   registration_closed: 'Open registration is disabled.',
   provider_disabled: 'This sign-in provider is not configured.',
   access_denied: 'Sign-in was cancelled.',
@@ -38,6 +42,17 @@ function queryValue(name: string): string | null {
 }
 
 onMounted(async () => {
+  const linked = queryValue('linked')
+  if (linked) {
+    window.history.replaceState(window.history.state, '', '/auth/callback')
+    if (linked === 'google' || linked === 'github') {
+      await router.replace({ path: '/profile', query: { linked } })
+      return
+    }
+    error.value = 'Provider link failed. Please try again.'
+    return
+  }
+
   const queryError = queryValue('error')
   if (queryError) {
     errorCode.value = queryError

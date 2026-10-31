@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.11 (2026-10-31)
+
+### Performance Improvements
+
+* **resources:** consolidate the tick load into five queries ([#1267](https://github.com/ElderEvil/falloutProject/issues/1267)) 75bec1a
+
 ## 2.282.10 (2026-10-31)
 
 ### Performance Improvements

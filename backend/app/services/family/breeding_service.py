@@ -26,6 +26,7 @@ from app.crud.relationship import relationship_crud
 from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
+from app.models.relationship import Relationship
 from app.options.pet_modifiers import pet_modifiers_for
 from app.options.races import can_breed, is_ageless, race_of
 from app.schemas.dweller import DwellerCreate
@@ -74,6 +75,8 @@ class BreedingService:
         db_session: AsyncSession,
         dweller: Dweller,
         partner: Dweller,
+        *,
+        relationships: dict[tuple[UUID4, UUID4], Relationship] | None = None,
     ) -> float:
         """Get relationship affinity and calculate conception chance.
 
@@ -83,10 +86,15 @@ class BreedingService:
         :type dweller: Dweller
         :param partner: Partner dweller
         :type partner: Dweller
+        :param relationships: Prefetched relationships keyed in both directions
+        :type relationships: dict[tuple[UUID4, UUID4], Relationship] | None
         :returns: Conception chance as decimal (0.0 to 1.0)
         :rtype: float
         """
-        relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller.id, partner.id)
+        if relationships is None:
+            relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller.id, partner.id)
+        else:
+            relationship = relationships.get((dweller.id, partner.id))
 
         # Calculate conception chance based on affinity (1% per affinity point)
         # If no relationship found, use base chance
@@ -163,6 +171,28 @@ class BreedingService:
             db_session, vault_id, game_config.breeding.birth_cooldown_hours
         )
 
+        partner_ids = {dweller.partner_id for dweller in dwellers if dweller.partner_id is not None}
+        partners_by_id = (
+            {
+                partner.id: partner
+                for partner in await dweller_crud.get_by_ids(list(partner_ids), db_session, include_deleted=True)
+            }
+            if partner_ids
+            else {}
+        )
+        requested_pairs: set[tuple[UUID4, UUID4]] = set()
+        for dweller in dwellers:
+            if dweller.partner_id is None:
+                continue
+            first, second = sorted((dweller.id, dweller.partner_id), key=str)
+            requested_pairs.add((first, second))
+
+        relationships_by_pair: dict[tuple[UUID4, UUID4], Relationship] = {}
+        if requested_pairs:
+            for relationship in await relationship_crud.get_by_pairs(db_session, list(requested_pairs)):
+                relationships_by_pair.setdefault((relationship.dweller_1_id, relationship.dweller_2_id), relationship)
+                relationships_by_pair.setdefault((relationship.dweller_2_id, relationship.dweller_1_id), relationship)
+
         new_pregnancies: list[Pregnancy] = []
         checked_pairs: set[tuple[str, str]] = set()
 
@@ -175,11 +205,7 @@ class BreedingService:
 
             checked_pairs.add(BreedingService._pair_key(dweller))
 
-            partner = (
-                await dweller_crud.get_or_none(db_session, dweller.partner_id, include_deleted=True)
-                if dweller.partner_id
-                else None
-            )
+            partner = partners_by_id.get(dweller.partner_id) if dweller.partner_id else None
 
             if not partner or partner.is_deleted or partner.room_id not in living_quarters_ids:
                 continue
@@ -187,7 +213,9 @@ class BreedingService:
             if conception_potential(dweller, partner) != "possible":
                 continue
 
-            conception_chance = await BreedingService._get_relationship_affinity(db_session, dweller, partner)
+            conception_chance = await BreedingService._get_relationship_affinity(
+                db_session, dweller, partner, relationships=relationships_by_pair
+            )
             pregnancy = await BreedingService._roll_for_conception(
                 db_session, dweller, partner, conception_chance, commit=False
             )

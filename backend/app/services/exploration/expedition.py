@@ -47,6 +47,7 @@ from app.services.exploration.event_service import (
     apply_loot_find,
     auto_use_supplies,
 )
+from app.services.exploration.journey_state import close_open_site_run
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.loot_calculator import loot_calculator
 from app.services.exploration.site_combat_service import combat_view, encounter_threat, initial_combat, resolve_turn
@@ -1086,12 +1087,12 @@ class ExpeditionService:
         exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
         if not exploration.is_in_progress():
             raise ValidationException("Expedition sites need an active exploration")
-        run = await _get_open_run(db_session, exploration_id)
+        run = await close_open_site_run(db_session, exploration_id)
+        if run is None:
+            raise ValidationException("No open expedition run for this exploration")
         site = data_loader.get_expedition_site(run.site_id)
         if site is None:
             raise ValidationException(f"Unknown expedition site: {run.site_id!r}")
-        run.status = ExpeditionRunStatus.RETREATED
-        run.finished_at = datetime.utcnow()
         run = await _refresh_run(db_session, run)
 
         from app.services.exploration_service import exploration_service

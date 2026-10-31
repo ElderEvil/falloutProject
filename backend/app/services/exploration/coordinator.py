@@ -1,18 +1,17 @@
 """Exploration coordinator - orchestrates exploration completion and recall."""
 
 import logging
-from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import dweller as dweller_crud
-from app.crud import expedition_run as crud_expedition_run
 from app.crud import exploration as crud_exploration
 from app.crud.team import team_crud
-from app.models.exploration import ExpeditionRunStatus, Exploration
+from app.models.exploration import Exploration
 from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration.event_service import event_service
+from app.services.exploration.journey_state import close_open_site_run
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.rewards_service import rewards_service
 from app.services.leveling_service import leveling_service
@@ -53,12 +52,7 @@ class ExplorationCoordinator:
 
         # Clock expiry and recall both force-retreat an open site run before the
         # return leg starts, all in this one transaction.
-        run = await crud_expedition_run.get_open_for_exploration_for_update(db_session, exploration_id)
-        if run is not None:
-            run.status = ExpeditionRunStatus.RETREATED
-            run.finished_at = datetime.utcnow()
-            db_session.add(run)
-            await db_session.flush()
+        await close_open_site_run(db_session, exploration_id)
 
         from app.services.exploration_service import exploration_service
 

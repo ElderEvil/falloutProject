@@ -223,6 +223,14 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         self.status = ExplorationStatus.RECALLED
         self.end_time = datetime.utcnow()
 
+    def abandon(self) -> None:
+        """End the journey for good: its dweller is gone, so there is no return leg or payout."""
+        self.recall()
+        self.return_started_at = None
+        self.return_completes_at = None
+        self.paused_at = None
+        self.unclaimed_loot = []
+
     def add_event(
         self,
         event_type: str,

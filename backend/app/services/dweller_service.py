@@ -15,8 +15,6 @@ from app.core.enums import (
     ContentProvenanceEnum,
     DwellerRosterFocus,
     DwellerStatusEnum,
-    ExpeditionRunStatus,
-    ExplorationStatus,
     FactionEnum,
     GenderEnum,
     RaceEnum,
@@ -54,6 +52,8 @@ from app.schemas.dweller import (
     DwellerUpdate,
     DwellerUpdateRequest,
 )
+from app.services.exploration.event_service import event_service
+from app.services.exploration.journey_state import close_open_site_run
 from app.services.leveling_service import leveling_service
 from app.services.map_service import map_service
 from app.services.room_assignment_policy import (
@@ -96,7 +96,8 @@ class DwellerService:
         """Delete a dweller and close any in-progress journey in one transaction.
 
         A deleted dweller cannot keep exploring; leaving the journey active would
-        orphan it (the detail endpoint could no longer resolve the dweller).
+        orphan it (the detail endpoint could no longer resolve the dweller). A
+        shared party journey is closed for every member, not just the deleted one.
         """
         dweller = await crud.dweller.get_for_update(db_session, dweller_id, include_deleted=True)
         if dweller is None:
@@ -104,20 +105,13 @@ class DwellerService:
         now = datetime.now(UTC).replace(tzinfo=None)
         explorations = await crud.exploration.get_in_progress_for_dwellers(db_session, [dweller_id])
         for exploration in explorations:
-            exploration.status = ExplorationStatus.RECALLED
-            exploration.end_time = now
-            exploration.return_started_at = None
-            exploration.return_completes_at = None
-            exploration.paused_at = None
-            exploration.unclaimed_loot = []
+            exploration.abandon()
             db_session.add(exploration)
-            run = await crud.expedition_run.get_open_for_exploration_for_update(db_session, exploration.id)
-            if run is not None:
-                run.status = ExpeditionRunStatus.RETREATED
-                run.finished_at = now
-                db_session.add(run)
+            await close_open_site_run(db_session, exploration.id, now=now)
         await crud.dweller.delete(db_session, dweller_id, soft=soft, commit=False)
         await db_session.commit()
+        for exploration in explorations:
+            await event_service.publish_sse(exploration, "exploration_deleted", status=exploration.status)
 
     def get_identity_options(self) -> DwellerIdentityOptions:
         """Return identity choices derived directly from the canonical options modules."""

@@ -30,13 +30,15 @@ spec:
               value: "1"
             - name: LOG_JSON_FORMAT
               value: "true"
+            - name: DRAMATIQ_PROCESSES
+              value: "4"
           command: ["sh", "-c"]
           args:
             - |
               set -u
               uv run periodiq app.core.dramatiq app.api.tasks &
               PERIODIQ_PID=$!
-              uv run dramatiq --processes 1 --worker-shutdown-timeout 15000 app.api.tasks &
+              uv run dramatiq --processes "${DRAMATIQ_PROCESSES:-1}" --worker-shutdown-timeout 15000 app.api.tasks &
               DRAMATIQ_PID=$!
               shutdown() {
                 trap - TERM INT
@@ -51,8 +53,8 @@ spec:
               exit 1
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "250m"
-            limits:
               memory: "512Mi"
               cpu: "500m"
+            limits:
+              memory: "3Gi"
+              cpu: "3"

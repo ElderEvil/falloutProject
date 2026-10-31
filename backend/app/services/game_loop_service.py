@@ -319,6 +319,10 @@ class GameLoopService:
         vault_ids = [gs.vault_id for gs in active_game_states]
         return list(await vault_crud.get_by_ids(vault_ids, db_session))
 
+    async def get_active_vault_ids(self, db_session: AsyncSession) -> list[UUID4]:
+        """Return the IDs of vaults with an active, unpaused game state."""
+        return [vault.id for vault in await self._get_active_vaults(db_session)]
+
     async def _get_or_create_game_state(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
         """Get existing game state or create a new one."""
         return await game_state_crud.get_or_create(db_session, vault_id)

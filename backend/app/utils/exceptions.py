@@ -51,6 +51,7 @@ class ResourceNotFoundException(DomainError):
         identifier_type: str = "id",
         headers: dict[str, Any] | None = None,
     ) -> None:
+        self.model = model
         super().__init__(f"Unable to find the {model.__name__} with {identifier_type} {identifier}.", headers)
 
 

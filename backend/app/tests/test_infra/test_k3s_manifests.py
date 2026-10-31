@@ -47,4 +47,6 @@ def test_worker_manifest_matches_the_release_deployment_contract() -> None:
 
     command = " ".join([*container["command"], *container["args"]])
     assert "periodiq app.core.dramatiq app.api.tasks" in command
-    assert "dramatiq --processes 1" in command
+    assert "dramatiq --processes" in command
+    assert "DRAMATIQ_PROCESSES" in command
+    assert any(env["name"] == "DRAMATIQ_PROCESSES" and env["value"] == "4" for env in container["env"])

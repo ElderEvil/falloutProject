@@ -102,9 +102,14 @@ class EventBus:
         self._emit_locks.clear()
         logger.debug("All event handlers cleared")
 
-    def clear_locks(self) -> None:
-        """Remove all emit locks while preserving subscriptions and handlers."""
-        self._emit_locks.clear()
+    def clear_locks(self, loop_id: int | None = None) -> None:
+        """Remove emit locks, optionally only those bound to one event loop."""
+        if loop_id is None:
+            self._emit_locks.clear()
+            return
+        for key in tuple(self._emit_locks):
+            if key[2] == loop_id:
+                self._emit_locks.pop(key, None)
 
     @staticmethod
     async def _safe_call(handler: EventHandler, event_type: GameEvent, vault_id: UUID4, data: dict[str, Any]) -> None:

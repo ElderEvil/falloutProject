@@ -1,6 +1,7 @@
 """Tests for scheduled background tasks."""
 
 import asyncio
+import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
@@ -21,6 +22,12 @@ from app.api.tasks import (
 from app.core.dramatiq import broker
 from app.models.pregnancy import Pregnancy
 from app.models.vault import Vault
+from app.services.game_tick.profiling import (
+    TickProfile,
+    reset_current_profile,
+    set_current_profile,
+    tick_phase,
+)
 from app.utils.exceptions import ResourceNotFoundException
 
 
@@ -32,6 +39,28 @@ def test_quest_completion_is_scheduled_every_minute() -> None:
 def test_current_message_middleware_is_enabled() -> None:
     """The dispatcher needs the current Dramatiq message id for idempotency."""
     assert any(isinstance(middleware, CurrentMessage) for middleware in broker.middleware)
+
+
+def test_tick_profile_records_named_phases() -> None:
+    """Profiling is opt-in and accumulates repeated phase measurements."""
+    profile = TickProfile(enqueued_at=time.time() - 0.01)
+    token = set_current_profile(profile)
+    try:
+        with tick_phase("first"):
+            pass
+        with tick_phase("first"):
+            pass
+        with tick_phase("second"):
+            pass
+    finally:
+        reset_current_profile(token)
+
+    profile.finish()
+    assert set(profile.phases) == {"first", "second"}
+    assert profile.phases["first"] >= 0
+    assert profile.queue_ms is not None
+    assert profile.queue_ms >= 0
+    assert profile.total_ms >= 0
 
 
 class _FakeTaskSession:
@@ -83,6 +112,7 @@ async def test_dispatch_game_tick_enqueues_every_active_vault_with_one_tick_id()
     assert [(call.args[0], call.args[1]) for call in send.call_args_list] == [
         (str(vault_id), tick_id) for vault_id in vault_ids
     ]
+    assert len({call.args[2] for call in send.call_args_list}) == 1
 
 
 def test_game_tick_uses_the_current_dramatiq_message_id() -> None:

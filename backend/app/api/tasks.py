@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 import sys
 import time
 from contextlib import suppress
@@ -25,6 +26,13 @@ from app.services.cleanup_service import cleanup_service
 from app.services.family.death_service import death_service
 from app.services.game_loop_service import game_loop_service
 from app.services.game_tick.guard import recover_session
+from app.services.game_tick.profiling import (
+    TickProfile,
+    current_profile,
+    reset_current_profile,
+    set_current_profile,
+    tick_phase,
+)
 from app.services.game_tick.tick_results import VaultTickResult
 from app.utils.exceptions import ResourceNotFoundException
 
@@ -72,8 +80,9 @@ def create_task(task_time: int):
 async def _dispatch_game_tick(tick_id: str) -> dict[str, int | float]:
     async with task_session() as session:
         vault_ids = await game_loop_service.get_active_vault_ids(session)
+    enqueued_at = time.time()
     for vault_id in vault_ids:
-        process_vault_tick.send(str(vault_id), tick_id)
+        process_vault_tick.send(str(vault_id), tick_id, enqueued_at)
     return {"vaults_dispatched": len(vault_ids)}
 
 
@@ -180,16 +189,23 @@ async def _run_vault_tick(vault_id: str, tick_id: str | None) -> VaultTickResult
     from app.services.progression.objectives.evaluators import evaluator_manager
     from app.services.progression.objectives.notifications import register_objective_event_handlers
 
-    evaluator_manager.initialize()
-    register_objective_event_handlers()
+    with tick_phase("actor_setup"):
+        evaluator_manager.initialize()
+        register_objective_event_handlers()
 
+    profile = current_profile()
+    engine_started = time.perf_counter()
     async with task_session() as session:
-        return await game_loop_service.process_vault_tick(session, UUID(vault_id), tick_id)
+        if profile is not None:
+            profile.add("engine_session", (time.perf_counter() - engine_started) * 1000)
+        with tick_phase("service"):
+            return await game_loop_service.process_vault_tick(session, UUID(vault_id), tick_id)
 
 
 async def _process_vault_tick_async(vault_id: str, redis: Redis, tick_id: str | None = None) -> VaultTickResult:
     loop_id = id(asyncio.get_running_loop())
-    token = await _acquire_vault_tick_lock(redis, vault_id)
+    with tick_phase("lock_acquire"):
+        token = await _acquire_vault_tick_lock(redis, vault_id)
     if token is None:
         return {"status": "skipped"}
 
@@ -221,9 +237,11 @@ async def _process_vault_tick_async(vault_id: str, redis: Redis, tick_id: str | 
 
 
 @dramatiq.actor(actor_name="process_vault_tick", max_retries=3, min_backoff=30000)
-def process_vault_tick(vault_id: str, tick_id: str | None = None):
+def process_vault_tick(vault_id: str, tick_id: str | None = None, enqueued_at: float | None = None):
     """Process one vault tick under a per-vault Redis lease."""
     start = time.perf_counter()
+    profile = TickProfile(enqueued_at=enqueued_at) if os.getenv("TICK_PROFILE") == "1" else None
+    profile_token = set_current_profile(profile)
 
     async def run_vault_tick():
         redis = Redis.from_url(settings.redis_url, decode_responses=True)
@@ -237,6 +255,11 @@ def process_vault_tick(vault_id: str, tick_id: str | None = None):
     except Exception:
         logger.exception(f"Vault {vault_id} tick failed")
         raise
+    finally:
+        if profile is not None:
+            profile.finish()
+            logger.info("Vault tick profile: %s", profile.summary())
+        reset_current_profile(profile_token)
     if result.get("status") in {"skipped", "missing", "duplicate"}:
         logger.info(f"Vault {vault_id} tick {result['status']}")
     else:

@@ -12,7 +12,7 @@ from app.models.user import User
 from app.models.vault import Vault
 from app.schemas.user import UserCreate, UserUpdate
 from app.services.exploration_service import exploration_service
-from app.services.game_loop import game_loop_service
+from app.services.game_loop_service import game_loop_service
 from app.services.training_service import training_service
 from app.utils.exceptions import (
     AccessDeniedException,

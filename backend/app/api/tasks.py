@@ -18,7 +18,7 @@ from app.core.tick_chain import claim_tick_chain
 from app.db.session import task_session, task_session_maker
 from app.services.cleanup_service import cleanup_service
 from app.services.family.death_service import death_service
-from app.services.game_loop import game_loop_service
+from app.services.game_loop_service import game_loop_service
 from app.services.game_tick.guard import recover_session
 
 logger = logging.getLogger(__name__)

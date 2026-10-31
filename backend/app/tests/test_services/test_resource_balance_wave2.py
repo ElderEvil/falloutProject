@@ -8,7 +8,7 @@ import pytest
 from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.models import Dweller, Room, Vault
 from app.models.game_state import GameState
-from app.services.resource_manager import ResourceManager
+from app.services.resource_manager_service import ResourceManager
 
 
 @pytest.mark.parametrize(("initial", "expected"), [(50, 25), (10, 10), (0, 0)])

@@ -21,7 +21,7 @@ from app.core.game_config import game_config
 from app.crud.room import CRUDRoom
 from app.models import Dweller, Room, Vault
 from app.models.game_state import GameState
-from app.services.resource_manager import ResourceManager
+from app.services.resource_manager_service import ResourceManager
 from app.utils.static_data import game_data_store
 
 RESOURCE_NAMES = ("power", "food", "water")

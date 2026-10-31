@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.services.dweller_ai import _require_image_bytes, _resolve_dweller
+from app.services.dweller_ai_service import _require_image_bytes, _resolve_dweller
 from app.utils.exceptions import AIProviderException, ValidationException
 
 
@@ -23,7 +23,7 @@ async def test_resolve_dweller_loads_by_id() -> None:
     dweller_id = uuid4()
 
     with patch(
-        "app.services.dweller_ai.dweller_crud.get_full_info", new_callable=AsyncMock, return_value=loaded
+        "app.services.dweller_ai_service.dweller_crud.get_full_info", new_callable=AsyncMock, return_value=loaded
     ) as get_full_info:
         resolved = await _resolve_dweller(MagicMock(), None, dweller_id)
 

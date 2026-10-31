@@ -17,7 +17,7 @@ from app.crud.storage import storage as storage_crud
 from app.models import Room, Storage, Vault
 from app.options.races import can_use_radaway
 from app.schemas.vault import MedicalTransferResponse, VaultUpdate
-from app.services.resource_manager import ResourceManager
+from app.services.resource_manager_service import ResourceManager
 from app.utils.exceptions import (
     AccessDeniedException,
     InsufficientResourcesException,

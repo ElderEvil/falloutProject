@@ -24,7 +24,7 @@ from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.rewards_calculator import rewards_calculator
 from app.services.loot_overflow_service import loot_overflow_service
-from app.services.resource_manager import compute_medical_capacity
+from app.services.resource_manager_service import compute_medical_capacity
 from app.services.vault_service import vault_service
 from app.utils.exceptions import ValidationException
 

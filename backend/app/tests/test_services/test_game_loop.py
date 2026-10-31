@@ -8,8 +8,8 @@ mocked external services for complex dependencies.
 
 IMPORTANT: Methods with local-from imports (e.g. `from app.services.X import Y`)
 need patches at the SOURCE module (e.g. `app.services.X.Y`), NOT at
-`app.services.game_loop.Y`. Methods with module-level imports can use
-`app.services.game_loop.Y` directly.
+`app.services.game_loop_service.Y`. Methods with module-level imports can use
+`app.services.game_loop_service.Y` directly.
 """
 
 import asyncio
@@ -29,7 +29,7 @@ from app.models.vault import Vault
 from app.schemas.incident import IncidentRoundResult
 from app.schemas.vault import ResourceTickEvents
 from app.services.dweller_service import dweller_service
-from app.services.game_loop import game_loop_service
+from app.services.game_loop_service import game_loop_service
 from app.utils.exceptions import VaultOperationException
 
 # ═════════════════════════════════════════════════════════════════════
@@ -136,7 +136,7 @@ class TestProcessGameTick:
         with (
             patch.object(game_loop_service, "_get_active_vaults", new=AsyncMock(return_value=vaults)),
             patch.object(game_loop_service, "process_vault_tick", new=fake_tick),
-            patch("app.services.game_loop.recover_session", new=AsyncMock()),
+            patch("app.services.game_loop_service.recover_session", new=AsyncMock()),
         ):
             stats = await game_loop_service.process_game_tick(_fake_session_maker, max_concurrency=2)
 
@@ -174,7 +174,7 @@ class TestProcessGameTick:
         with (
             patch.object(game_loop_service, "_get_active_vaults", new=AsyncMock(return_value=vaults)),
             patch.object(game_loop_service, "process_vault_tick", new=fake_tick),
-            caplog.at_level(logging.ERROR, logger="app.services.game_loop"),
+            caplog.at_level(logging.ERROR, logger="app.services.game_loop_service"),
             pytest.raises(RuntimeError, match="boom"),
         ):
             await game_loop_service.process_game_tick(_fake_session_maker, max_concurrency=2)
@@ -251,7 +251,7 @@ class TestProcessVaultTick:
 # So we patch app.services.combat.incident_service.incident_service
 #
 # incident_crud is imported at MODULE level:
-# So we patch app.services.game_loop.incident_crud
+# So we patch app.services.game_loop_service.incident_crud
 # ═════════════════════════════════════════════════════════════════════
 
 
@@ -1080,7 +1080,7 @@ async def test_storage_database_failure_recovers_before_remaining_tick_phases(as
 
     event.listen(connection.sync_connection, "before_cursor_execute", break_trial_query, retval=True)
     try:
-        with patch("app.services.game_loop.sse_manager.publish", new_callable=AsyncMock) as publish:
+        with patch("app.services.game_loop_service.sse_manager.publish", new_callable=AsyncMock) as publish:
             result = await game_loop_service.process_vault_tick(async_session, vault_id)
     finally:
         event.remove(connection.sync_connection, "before_cursor_execute", break_trial_query)

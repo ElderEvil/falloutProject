@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.services.dweller_ai import dweller_ai
+from app.services.dweller_ai_service import dweller_ai
 from app.utils.narration_keys import ELEVENLABS_VOICES, narration_cache_key
 
 

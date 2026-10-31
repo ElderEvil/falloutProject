@@ -17,7 +17,7 @@ from app.schemas.relationship import (
     VaultRelationshipRead,
 )
 from app.schemas.responses import BreedStatsResponse, RelationshipActionResponse
-from app.services.game_loop import game_loop_service
+from app.services.game_loop_service import game_loop_service
 from app.services.relationship_service import relationship_service
 
 router = APIRouter(prefix="/relationships", tags=["Relationship"])

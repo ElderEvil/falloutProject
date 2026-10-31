@@ -32,14 +32,7 @@ CRUD_SERVICE_ALLOWLIST = frozenset({"app.services.room_assignment_policy"})
 CRUD_SERVICE_BASELINE = frozenset({})
 SERVICES_SELECT_BASELINE = frozenset()
 SERVICE_NAME_PATTERN = re.compile(r"^([a-z][a-z0-9_]*_service|__init__)\.py$")
-SERVICE_NAME_GRANDFATHER = frozenset(
-    {
-        "dweller_ai.py",
-        "game_loop.py",
-        "resource_manager.py",
-        "room_assignment_policy.py",
-    }
-)
+SERVICE_NAME_GRANDFATHER = frozenset({"room_assignment_policy.py"})
 TRANSACTION_SUFFIX = "_transaction"
 COMMIT_OWNERSHIP_BASELINE = frozenset(
     {

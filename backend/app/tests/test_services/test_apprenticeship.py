@@ -17,7 +17,7 @@ from app.schemas.room import RoomCreate
 from app.services.dweller_service import dweller_service
 from app.services.family.apprentice_scenario_service import apprentice_scenario_service
 from app.services.family.breeding_service import BreedingService
-from app.services.game_loop import game_loop_service
+from app.services.game_loop_service import game_loop_service
 from app.services.training_service import TrainingService
 from app.utils.exceptions import ValidationException
 

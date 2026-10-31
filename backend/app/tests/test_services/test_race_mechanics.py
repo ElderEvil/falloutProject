@@ -32,7 +32,7 @@ from app.options.races import (
     state_stat_deltas_for,
     visual_vs_real_age,
 )
-from app.services.resource_manager import ResourceManager
+from app.services.resource_manager_service import ResourceManager
 from app.utils.combat import combat_power
 from app.utils.dwellers import roll_child_identity
 from app.utils.radiation import apply_radiation_gain

@@ -20,7 +20,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultNumber
-from app.services.game_loop import game_loop_service
+from app.services.game_loop_service import game_loop_service
 from app.services.vault_service import vault_service
 from app.tests.utils.query_counter import count_sql_statements
 

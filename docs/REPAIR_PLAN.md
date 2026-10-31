@@ -39,7 +39,7 @@
 **Goal:** end poisoned-session cascades, timezone drift, error leaks. No API shape changes except status-code corrections below.
 
 1. **Rollback before reuse (poisoned sessions).**
-   - Files: `backend/app/services/game_loop.py:72-74,149-151`, `game_tick/guard.py:21-25`, `game_tick/dwellers_tick.py:78-80`, `game_tick/family_tick.py:254-319`, `backend/app/api/tasks.py:246-263`.
+   - Files: `backend/app/services/game_loop_service.py:72-74,149-151`, `game_tick/guard.py:21-25`, `game_tick/dwellers_tick.py:78-80`, `game_tick/family_tick.py:254-319`, `backend/app/api/tasks.py:246-263`.
    - Approach: `await session.rollback()` in every `except` that continues to reuse the session. `guard_phase` (`game_tick/guard.py:14`) takes no session, so the caller owns the rollback — or add an explicit session parameter; either way, decide once and apply uniformly. Keep `incident_tick.py:95,110` as the reference pattern.
    - Test-first: failing test with a real SQL transaction failure (not just a generic exception), e.g. second vault still processes after first vault DB error; per-entity guard test proving next entity proceeds.
 2. **Background session compatibility.**

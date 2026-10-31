@@ -2018,7 +2018,7 @@ async def test_snapshot_bounds_and_clears_journal_without_mutation(
 
 
 async def test_idle_arena_occupants_do_not_earn_work_xp(async_session, arena_room, fighter_a):
-    from app.services.game_loop import game_loop_service
+    from app.services.game_loop_service import game_loop_service
 
     fighter_a.room_id = None
     await async_session.commit()

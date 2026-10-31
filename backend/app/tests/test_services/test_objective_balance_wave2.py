@@ -71,7 +71,7 @@ async def test_identical_labels_in_different_categories_are_seeded(async_session
 async def test_fractional_production_counts_at_full_storage(async_session, vault):
     from app.models import Dweller, Room
     from app.models.game_state import GameState
-    from app.services.resource_manager import ResourceManager
+    from app.services.resource_manager_service import ResourceManager
 
     vault.power = vault.power_max = 100
     state = GameState(vault_id=vault.id)
@@ -143,7 +143,7 @@ async def test_gross_production_at_capacity_advances_an_objective(async_session,
     from app.models import Dweller, Room
     from app.models.game_state import GameState
     from app.services.progression.objectives.evaluators import CollectEvaluator
-    from app.services.resource_manager import ResourceManager
+    from app.services.resource_manager_service import ResourceManager
 
     vault.power = vault.power_max = 100
     objective = Objective(

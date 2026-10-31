@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.dweller_ai import BIO_MAX_LENGTH, dweller_ai
+from app.services.dweller_ai_service import BIO_MAX_LENGTH, dweller_ai
 
 pytestmark = pytest.mark.asyncio
 
@@ -68,8 +68,8 @@ def _make_agent_result(output, input_tokens=50, output_tokens=30, total_tokens=8
         ("generate_visual_attributes", {"dweller_id": None}),
     ],
 )
-@patch("app.services.dweller_ai.quota_service")
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.quota_service")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_quota_exceeded_raises(
     mock_crud: MagicMock, mock_quota: MagicMock, method_name: str, method_kwargs: dict
 ) -> None:
@@ -91,11 +91,11 @@ async def test_quota_exceeded_raises(
         await getattr(dweller_ai, method_name)(**kwargs)
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.map_service")
-@patch("app.services.dweller_ai.dweller_crud")
-@patch("app.services.dweller_ai.backstory_agent")
-@patch("app.services.dweller_ai.quota_service")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.map_service")
+@patch("app.services.dweller_ai_service.dweller_crud")
+@patch("app.services.dweller_ai_service.backstory_agent")
+@patch("app.services.dweller_ai_service.quota_service")
 async def test_generate_backstory_truncates_long_bio(
     mock_quota: MagicMock,
     mock_agent: MagicMock,
@@ -134,8 +134,8 @@ async def test_generate_backstory_truncates_long_bio(
 # ── extend_bio edge cases ───────────────────────────────────────────────
 
 
-@patch("app.services.dweller_ai.quota_service")
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.quota_service")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_extend_bio_no_existing_bio(mock_crud: MagicMock, mock_quota: MagicMock) -> None:
     """Should raise ContentNoChangeException if dweller has no bio to extend."""
     from app.utils.exceptions import ContentNoChangeException
@@ -157,10 +157,10 @@ async def test_extend_bio_no_existing_bio(mock_crud: MagicMock, mock_quota: Magi
 # ── generate_visual_attributes edge cases ────────────────────────────────
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.visual_attributes_agent")
-@patch("app.services.dweller_ai.dweller_crud")
-@patch("app.services.dweller_ai.quota_service")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.visual_attributes_agent")
+@patch("app.services.dweller_ai_service.dweller_crud")
+@patch("app.services.dweller_ai_service.quota_service")
 async def test_generate_visual_usage_extraction_fails(
     mock_quota: MagicMock,
     mock_crud: MagicMock,
@@ -210,8 +210,8 @@ def test_has_substantial_non_dict() -> None:
 # ── generate_photo ──────────────────────────────────────────────────────
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_generate_photo_already_has_image(mock_crud: MagicMock, mock_llm: MagicMock) -> None:
     """Should raise ContentNoChangeException if dweller already has a photo."""
     from app.utils.exceptions import ContentNoChangeException
@@ -227,8 +227,8 @@ async def test_generate_photo_already_has_image(mock_crud: MagicMock, mock_llm: 
         )
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_generate_photo_allows_regeneration_of_default_portrait(
     mock_crud: MagicMock, mock_llm: MagicMock
 ) -> None:
@@ -246,8 +246,8 @@ async def test_generate_photo_allows_regeneration_of_default_portrait(
         )
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_generate_photo_no_storage_service(mock_crud: MagicMock, mock_llm: MagicMock) -> None:
     """Should raise AIStorageException (503) if storage service is not available."""
     from app.utils.exceptions import AIStorageException
@@ -265,8 +265,8 @@ async def test_generate_photo_no_storage_service(mock_crud: MagicMock, mock_llm:
     assert "not available" in exc_info.value.detail
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_generate_photo_maps_provider_failures_to_a_safe_error(mock_crud: MagicMock, mock_llm: MagicMock) -> None:
     """Portrait provider failures must not reach the client as an unstructured 500."""
     from app.utils.exceptions import AIProviderException
@@ -292,8 +292,8 @@ async def test_generate_photo_maps_provider_failures_to_a_safe_error(mock_crud: 
 # ── generate_audio ──────────────────────────────────────────────────────
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_generate_audio_already_has_voice_line(mock_crud: MagicMock, mock_llm: MagicMock) -> None:
     """Should raise ContentNoChangeException if dweller already has voice_line_url."""
     from app.utils.exceptions import ContentNoChangeException
@@ -309,8 +309,8 @@ async def test_generate_audio_already_has_voice_line(mock_crud: MagicMock, mock_
         )
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_generate_audio_storage_disabled(mock_crud: MagicMock, mock_llm: MagicMock) -> None:
     """Should raise AIStorageException (503) if storage service is disabled."""
     from app.utils.exceptions import AIStorageException
@@ -331,9 +331,9 @@ async def test_generate_audio_storage_disabled(mock_crud: MagicMock, mock_llm: M
     assert "not available" in exc_info.value.detail
 
 
-@patch("app.services.dweller_ai.quota_service")
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.quota_service")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_generate_audio_quota_exceeded(mock_crud: MagicMock, mock_llm: MagicMock, mock_quota: MagicMock) -> None:
     """Should raise QuotaExceededException if token estimate exceeds remaining quota."""
     from app.utils.exceptions import QuotaExceededException
@@ -362,9 +362,9 @@ async def test_generate_audio_quota_exceeded(mock_crud: MagicMock, mock_llm: Mag
     assert mock_storage.file_exists.call_count == 1
 
 
-@patch("app.services.dweller_ai.quota_service")
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.quota_service")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_generate_audio_openai_error(mock_crud: MagicMock, mock_llm: MagicMock, mock_quota: MagicMock) -> None:
     """Should raise AIAudioException (500) if OpenAI TTS call fails."""
     from app.utils.exceptions import AIAudioException
@@ -395,9 +395,9 @@ async def test_generate_audio_openai_error(mock_crud: MagicMock, mock_llm: Magic
     assert "generate audio" in exc_info.value.detail
 
 
-@patch("app.services.dweller_ai.quota_service")
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.quota_service")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_generate_audio_empty_bytes_warning(
     mock_crud: MagicMock, mock_llm: MagicMock, mock_quota: MagicMock
 ) -> None:
@@ -438,7 +438,7 @@ async def test_generate_audio_empty_bytes_warning(
 # ── generate_dweller_avatar ─────────────────────────────────────────────
 
 
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_generate_avatar_updates_and_generates_photo(
     mock_crud: MagicMock,
 ) -> None:
@@ -467,8 +467,8 @@ async def test_generate_avatar_updates_and_generates_photo(
     with (
         patch.object(dweller_ai, "storage_service", mock_storage),
         patch.object(dweller_ai, "ai_service", mock_openai),
-        patch("app.services.dweller_ai.llm_interaction_crud", mock_llm),
-        patch("app.services.dweller_ai.dweller_service.update_dweller", new_callable=AsyncMock) as mock_update,
+        patch("app.services.dweller_ai_service.llm_interaction_crud", mock_llm),
+        patch("app.services.dweller_ai_service.dweller_service.update_dweller", new_callable=AsyncMock) as mock_update,
     ):
         mock_update.return_value = mock_dweller
         result = await dweller_ai.generate_dweller_avatar(
@@ -494,7 +494,7 @@ async def test_generate_avatar_updates_and_generates_photo(
     assert mock_llm.create.call_count >= 1
 
 
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_generate_avatar_with_voice_line(mock_crud: MagicMock) -> None:
     """generate_dweller_avatar with voice_line_text should also generate audio."""
     import app.schemas.dweller as dweller_schemas
@@ -532,9 +532,9 @@ async def test_generate_avatar_with_voice_line(mock_crud: MagicMock) -> None:
     with (
         patch.object(dweller_ai, "storage_service", mock_storage),
         patch.object(dweller_ai, "ai_service", mock_openai),
-        patch("app.services.dweller_ai.llm_interaction_crud", mock_llm),
-        patch("app.services.dweller_ai.quota_service", mock_quota),
-        patch("app.services.dweller_ai.dweller_service.update_dweller", new_callable=AsyncMock) as mock_update,
+        patch("app.services.dweller_ai_service.llm_interaction_crud", mock_llm),
+        patch("app.services.dweller_ai_service.quota_service", mock_quota),
+        patch("app.services.dweller_ai_service.dweller_service.update_dweller", new_callable=AsyncMock) as mock_update,
     ):
         mock_update.return_value = mock_dweller
         result = await dweller_ai.generate_dweller_avatar(
@@ -556,7 +556,7 @@ async def test_generate_avatar_with_voice_line(mock_crud: MagicMock) -> None:
 # ── dweller_generate_pipeline ────────────────────────────────────────────
 
 
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_pipeline_dweller_already_complete(mock_crud: MagicMock) -> None:
     """Pipeline should raise ContentNoChangeException if dweller has bio, VA, and image."""
     from app.utils.exceptions import ContentNoChangeException
@@ -574,7 +574,7 @@ async def test_pipeline_dweller_already_complete(mock_crud: MagicMock) -> None:
         )
 
 
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_pipeline_regenerates_default_portrait(mock_crud: MagicMock) -> None:
     """A curated default must not make the dossier complete; the pipeline still generates a custom photo."""
     mock_dweller = _make_dweller_mock(
@@ -593,7 +593,7 @@ async def test_pipeline_regenerates_default_portrait(mock_crud: MagicMock) -> No
     assert result is mock_dweller
 
 
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_pipeline_generates_all_from_scratch(mock_crud: MagicMock) -> None:
     """Pipeline should generate bio, VA, and photo when all are missing."""
     import app.schemas.dweller as dweller_schemas
@@ -636,11 +636,11 @@ async def test_pipeline_generates_all_from_scratch(mock_crud: MagicMock) -> None
     mock_llm.create = AsyncMock()
 
     with (
-        patch("app.services.dweller_ai.quota_service", mock_quota),
-        patch("app.services.dweller_ai.backstory_agent", mock_bio_agent),
-        patch("app.services.dweller_ai.visual_attributes_agent", mock_va_agent),
-        patch("app.services.dweller_ai.map_service", mock_map),
-        patch("app.services.dweller_ai.llm_interaction_crud", mock_llm),
+        patch("app.services.dweller_ai_service.quota_service", mock_quota),
+        patch("app.services.dweller_ai_service.backstory_agent", mock_bio_agent),
+        patch("app.services.dweller_ai_service.visual_attributes_agent", mock_va_agent),
+        patch("app.services.dweller_ai_service.map_service", mock_map),
+        patch("app.services.dweller_ai_service.llm_interaction_crud", mock_llm),
         patch.object(dweller_ai, "storage_service", mock_storage),
         patch.object(dweller_ai, "ai_service", mock_openai),
     ):

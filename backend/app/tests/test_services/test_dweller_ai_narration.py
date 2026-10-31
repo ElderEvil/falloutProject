@@ -41,14 +41,14 @@ def _mock_get_full_info(db_session, dweller_id) -> MagicMock:
 # ── Cache-hit test ───────────────────────────────────────────────────────
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_cache_hit_skips_all_tts_calls(
     mock_crud: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
     """Second call with same text+voice finds cache → no ElevenLabs, no OpenAI calls."""
-    from app.services.dweller_ai import dweller_ai
+    from app.services.dweller_ai_service import dweller_ai
 
     mock_crud.get_full_info = AsyncMock(
         side_effect=lambda *a, **kw: _make_dweller_mock(visual_attributes=None, dweller_id=uuid.uuid4())
@@ -92,15 +92,15 @@ async def test_cache_hit_skips_all_tts_calls(
 # ── ElevenLabs routing test ─────────────────────────────────────────────
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_elevenlabs_enabled_skips_openai_and_quota(
     mock_crud: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
     """When ElevenLabs is enabled and succeeds, OpenAI generate_audio is never called
     and quota is NOT checked."""
-    from app.services.dweller_ai import dweller_ai
+    from app.services.dweller_ai_service import dweller_ai
 
     dweller_id = uuid.uuid4()
     mock_dweller = _make_dweller_mock(visual_attributes=None, dweller_id=dweller_id)
@@ -126,8 +126,8 @@ async def test_elevenlabs_enabled_skips_openai_and_quota(
 
     with (
         patch.object(dweller_ai, "storage_service", mock_storage),
-        patch("app.services.dweller_ai.get_elevenlabs_tts_service", return_value=mock_elevenlabs_svc),
-        patch("app.services.dweller_ai.quota_service") as mock_quota,
+        patch("app.services.dweller_ai_service.get_elevenlabs_tts_service", return_value=mock_elevenlabs_svc),
+        patch("app.services.dweller_ai_service.quota_service") as mock_quota,
     ):
         await dweller_ai.generate_audio(
             text=text,
@@ -158,14 +158,14 @@ async def test_elevenlabs_enabled_skips_openai_and_quota(
 # ── ElevenLabs failure falls through to OpenAI ──────────────────────────
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_elevenlabs_failure_falls_through_to_openai(
     mock_crud: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
     """When ElevenLabs raises, the code falls through to OpenAI (which IS quota-checked)."""
-    from app.services.dweller_ai import dweller_ai
+    from app.services.dweller_ai_service import dweller_ai
     from app.utils.exceptions import ElevenLabsProviderException
 
     dweller_id = uuid.uuid4()
@@ -196,8 +196,8 @@ async def test_elevenlabs_failure_falls_through_to_openai(
 
     with (
         patch.object(dweller_ai, "storage_service", mock_storage),
-        patch("app.services.dweller_ai.get_elevenlabs_tts_service", return_value=mock_elevenlabs_svc),
-        patch("app.services.dweller_ai.quota_service") as mock_quota,
+        patch("app.services.dweller_ai_service.get_elevenlabs_tts_service", return_value=mock_elevenlabs_svc),
+        patch("app.services.dweller_ai_service.quota_service") as mock_quota,
         patch.object(dweller_ai, "ai_service") as mock_ai_svc,
     ):
         mock_quota.check_quota = AsyncMock(return_value=mock_quota_result)
@@ -224,14 +224,14 @@ async def test_elevenlabs_failure_falls_through_to_openai(
 # ── Existing guard preserved ────────────────────────────────────────────
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.dweller_crud")
 async def test_already_has_audio_line_raises_before_anything(
     mock_crud: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
     """Pre-existing voice_line_url guard must still fire."""
-    from app.services.dweller_ai import dweller_ai
+    from app.services.dweller_ai_service import dweller_ai
 
     mock_dweller = _make_dweller_mock(visual_attributes={"voice_line_url": "http://cdn.example.com/existing.mp3"})
     mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
@@ -254,16 +254,16 @@ async def test_already_has_audio_line_raises_before_anything(
 
 async def test_cache_hit_attaches_voice_line_to_dweller(async_session, user_with_vault, dweller_in_vault) -> None:
     """A dweller reusing a cached line must end up with a playable voice_line_url."""
-    import app.services.dweller_ai as dweller_ai_mod
-    from app.services.dweller_ai import dweller_ai as dweller_ai_service
+    import app.services.dweller_ai_service as dweller_ai_mod
+    from app.services.dweller_ai_service import dweller_ai as dweller_ai_service
 
     user, _vault = user_with_vault
 
     with (
         patch.object(dweller_ai_service, "storage_service") as mock_storage,
         patch.object(dweller_ai_service, "ai_service") as mock_openai,
-        patch("app.services.dweller_ai.get_elevenlabs_tts_service") as mock_el,
-        patch("app.services.dweller_ai.quota_service") as mock_quota,
+        patch("app.services.dweller_ai_service.get_elevenlabs_tts_service") as mock_el,
+        patch("app.services.dweller_ai_service.quota_service") as mock_quota,
     ):
         mock_storage.enabled = True
         mock_storage.file_exists = MagicMock(return_value=True)
@@ -290,13 +290,13 @@ async def test_runtime_synthesizes_the_same_voice_as_pack(
 ) -> None:
     import scripts.generate_voices as gen
 
-    from app.services.dweller_ai import dweller_ai as service
+    from app.services.dweller_ai_service import dweller_ai as service
 
     entry = {"text": "Hello", "voice_type": voice_type}
     user, _ = user_with_vault
     with (
         patch.object(service, "storage_service") as storage,
-        patch("app.services.dweller_ai.get_elevenlabs_tts_service") as provider,
+        patch("app.services.dweller_ai_service.get_elevenlabs_tts_service") as provider,
     ):
         storage.enabled = True
         storage.file_exists.return_value = False

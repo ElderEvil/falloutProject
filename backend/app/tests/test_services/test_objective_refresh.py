@@ -65,7 +65,7 @@ async def test_calendar_refresh_is_idempotent_with_raw_worker_session(async_sess
 
 
 async def test_refresh_failure_preserves_period_and_tick_state_then_retries(async_session, vault):
-    from app.services.game_loop import game_loop_service
+    from app.services.game_loop_service import game_loop_service
 
     vault_id = vault.id
     await calendar_catalog(async_session, vault_id)

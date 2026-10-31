@@ -1,5 +1,5 @@
 // Snapshot terrain vocabulary shared by the map renderer and projection.
-// The backend owns this vocabulary (world_generation_service.TERRAIN_KINDS);
+// The backend owns this vocabulary (world_generation.TERRAIN_KINDS);
 // the frontend only renders persisted snapshots verbatim, never generates.
 
 export type TerrainType = 'wasteland' | 'forest' | 'ruins' | 'hills' | 'water'

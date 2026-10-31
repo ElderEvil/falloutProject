@@ -20,7 +20,7 @@ order remain server-owned. Arena skills are extra attacks before the normal hit;
   family overrides where the generic motion/effect would misrepresent the weapon.
 
 Sources: [weapon catalog](../../backend/app/data/items/weapons.json),
-[skill registry](../../backend/app/services/combat/weapon_skill_service.py),
+[skill registry](../../backend/app/services/combat/weapon_skill.py),
 [race/state enums](../../backend/app/core/enums.py), [race presentation policy](../../backend/app/options/races.py),
 and [power armor catalog](../../backend/app/data/items/outfits/power_armor.json).
 

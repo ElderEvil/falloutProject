@@ -51,8 +51,8 @@ from app.services.exploration.journey_state import close_open_site_run
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.loot_calculator import loot_calculator
 from app.services.exploration.site_combat_service import combat_view, encounter_threat, initial_combat, resolve_turn
+from app.services.map.world_generation import WORLD_ID
 from app.services.notification_service import notification_service
-from app.services.world_generation_service import WORLD_ID
 from app.utils import world_terrain
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 

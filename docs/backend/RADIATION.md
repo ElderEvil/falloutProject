@@ -45,13 +45,14 @@ elapsed game-loop tick**, after `dehydration_grace_ticks` of quiet:
 
 ## Single source of truth
 
-`app/services/radiation_service.py` holds session-free helpers:
+`app/utils/radiation.py` holds session-free helpers:
 
 - `apply_radiation_gain(dweller, amount, *, resisted_by_outfit=True)` — caps at `max_health`, pulls health to the new
   ceiling, and returns whether anything changed. Ingested radiation passes `resisted_by_outfit=False`.
 - `radiation_removal_amount(radiation, max_health)` — one RadAway's removal as the configured share of **max health**
   (not of current radiation), at least one point, never more than the dweller has.
-- `outfit_radiation_resist(outfit)` / `dehydration_rads(max_health, ticks)` — pure lookups and rate math.
+- `outfit_radiation_resist(outfit)` in `app/utils/hazard_resist.py` /
+  `dehydration_rads(max_health, ticks)` in `app/utils/radiation.py` — pure lookups and rate math.
 
 The helpers own no session and never commit; callers persist the dweller. Radiation has **no passive decay** — only
 RadAway removes it, which keeps inventory a real decision.

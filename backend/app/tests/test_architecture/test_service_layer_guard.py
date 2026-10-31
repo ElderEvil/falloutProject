@@ -65,6 +65,108 @@ COMMIT_OWNERSHIP_BASELINE = frozenset(
         ("rewards/settlement.py", "_settle_objective_link"),
     }
 )
+SERVICE_BOUNDARY_IMPORTS = frozenset(
+    {
+        "aiohttp",
+        "anthropic",
+        "boto3",
+        "botocore",
+        "dramatiq",
+        "elevenlabs",
+        "httpx",
+        "openai",
+        "pydantic_ai",
+        "redis",
+        "requests",
+        "smtplib",
+        "websockets",
+    }
+)
+PURE_SERVICE_BASELINE = frozenset(
+    {
+        # Read-model and SMTP adapters: they own a boundary but touch no persistence
+        # or sibling service, so the role check cannot see it from imports alone.
+        "changelog_service.py",
+        "email_service.py",
+    }
+)
+PURE_POLICY_IMPORTS = frozenset(
+    {
+        # Role-classified pure modules: importing them is not orchestration.
+        "app.services.combat.weapon_skill",
+        "app.services.map.world_generation",
+    }
+)
+SESSION_NAMES = frozenset({"db_session", "session", "async_session", "sess"})
+
+
+def _call_chains(tree: ast.AST) -> set[str]:
+    """Dotted names of every call expression, e.g. ``event_bus.emit``."""
+    chains: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        parts: list[str] = []
+        func = node.func
+        while isinstance(func, ast.Attribute):
+            parts.append(func.attr)
+            func = func.value
+        if isinstance(func, ast.Name):
+            parts.append(func.id)
+        if parts:
+            chains.add(".".join(reversed(parts)))
+    return chains
+
+
+def _service_boundary_signals(source: str) -> set[str]:
+    """Signals that a module under services/ owns an application boundary."""
+    tree = ast.parse(source)
+    imported: list[str] = []
+    imported_names: set[str] = set()
+    relative = False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.extend(alias.name for alias in node.names if alias.name not in PURE_POLICY_IMPORTS)
+        elif isinstance(node, ast.ImportFrom):
+            imported_names.update(alias.name for alias in node.names)
+            if node.level:
+                relative = True
+            elif node.module == "app" and "services" in imported_names:
+                imported.append("app.services")
+            elif node.module:
+                for alias in node.names:
+                    if f"{node.module}.{alias.name}" in PURE_POLICY_IMPORTS:
+                        continue
+                    imported.append(node.module)
+                    break
+
+    names = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+    calls = _call_chains(tree)
+    signals: set[str] = set()
+    if (
+        any(module == "app.crud" or module.startswith("app.crud.") for module in imported)
+        or ("crud" in imported_names and "app" in imported)
+        or "crud" in names
+    ):
+        signals.add("crud")
+    if (
+        names & (SESSION_NAMES | {"AsyncSession", "task_session"})
+        or any(isinstance(node, ast.arg) and node.arg in SESSION_NAMES for node in ast.walk(tree))
+        or any(module == "app.db.session" for module in imported)
+    ):
+        signals.add("session")
+    if relative or any(
+        module == "app.services" or (module.startswith("app.services.") and module not in PURE_POLICY_IMPORTS)
+        for module in imported
+    ):
+        signals.add("services")
+    if any(module.split(".")[0] in SERVICE_BOUNDARY_IMPORTS for module in imported):
+        signals.add("external")
+    if calls & {"event_bus.emit", "publish_sse", "sse_manager.publish", "manager.broadcast"} or any(
+        call.endswith(".publish_sse") for call in calls
+    ):
+        signals.add("events")
+    return signals
 
 
 def _committing_functions(source: str) -> dict[str, int]:
@@ -488,6 +590,48 @@ def test_service_module_names_follow_convention() -> None:
     messages = [f"{name} breaks the *_service.py naming convention" for name in sorted(new_names)]
     messages += [f"grandfather entry {name} is stale; remove it" for name in sorted(stale_entries)]
     assert not messages, "Service module names changed:\n" + "\n".join(messages)
+
+
+def test_service_modules_own_a_boundary_or_are_baselined() -> None:
+    """A *_service.py module owns persistence, orchestration or an external boundary.
+
+    Pure decisions and generators use a role name inside their domain package
+    (``services/combat/weapon_skill.py``, ``services/map/world_generation.py``) or
+    live in ``app/utils`` (``utils/radiation.py``). The baseline is shrink-only.
+    """
+    found = set()
+    for path in sorted((APP_DIR / "services").rglob("*_service.py")):
+        if not _service_boundary_signals(path.read_text(encoding="utf-8")):
+            found.add(path.relative_to(APP_DIR / "services").as_posix())
+
+    new = found - PURE_SERVICE_BASELINE
+    stale = PURE_SERVICE_BASELINE - found
+    messages = [
+        f"{rel} is named *_service.py but owns no persistence, orchestration or external boundary"
+        for rel in sorted(new)
+    ]
+    messages += [f"pure-service baseline entry {rel} is stale; remove it" for rel in sorted(stale)]
+    assert not messages, "Service module roles changed:\n" + "\n".join(messages)
+
+
+def test_guard_detects_pure_service_module() -> None:
+    """Self-test: boundary signals come from syntax, not comments or docstrings."""
+    assert _service_boundary_signals('"""Mentions db_session, crud and event_bus.emit."""\n') == set()
+    assert _service_boundary_signals("def f() -> int:\n    return 1\n") == set()
+    assert "crud" in _service_boundary_signals("from app import crud\n")
+    assert "crud" in _service_boundary_signals("from app.crud.dweller import dweller_crud\n")
+    assert "session" in _service_boundary_signals("async def f(db_session) -> None:\n    pass\n")
+    assert "session" in _service_boundary_signals("from app.db.session import task_session\n")
+    assert "services" in _service_boundary_signals("from app.services.vault_service import vault_service\n")
+    assert "services" in _service_boundary_signals("from app import services\n")
+    assert "services" in _service_boundary_signals("from ..services import vault_service\n")
+    assert "services" in _service_boundary_signals("from . import sibling\n")
+    assert "external" in _service_boundary_signals("import httpx\n")
+    assert "events" in _service_boundary_signals("await event_bus.emit('x', 1, {})\n")
+    assert _service_boundary_signals("from app.services.combat.weapon_skill import weapon_skill\n") == set()
+    assert _service_boundary_signals("import app.services.combat.weapon_skill\n") == set()
+    assert _service_boundary_signals("from app.services.map import world_generation\n") == set()
+    assert "services" in _service_boundary_signals("from app.services.combat import attack_service\n")
 
 
 def test_crud_stays_flat_and_lowercase() -> None:

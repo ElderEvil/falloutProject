@@ -13,7 +13,7 @@ from app.services.combat.arena_participants import (
     participant_from_dweller,
 )
 from app.services.combat.attack_service import resolve_attacks
-from app.services.combat.weapon_skill_service import MAX_CHARGE
+from app.services.combat.weapon_skill import MAX_CHARGE
 from app.utils.exceptions import ValidationException
 
 TURN_SECONDS = 2

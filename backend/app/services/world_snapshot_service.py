@@ -14,7 +14,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.crud.world_snapshot import world_snapshot as snapshot_crud
 from app.models.world_snapshot import WorldSnapshot
-from app.services.world_generation_service import (
+from app.services.map.world_generation import (
     GeneratedWorld,
     WorldConfig,
     WorldRecipe,

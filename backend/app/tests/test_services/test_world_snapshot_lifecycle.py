@@ -14,7 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.world_snapshot import world_snapshot as snapshot_crud
-from app.services.world_generation_service import WorldConfig, WorldRecipe, generate_world
+from app.services.map.world_generation import WorldConfig, WorldRecipe, generate_world
 from app.services.world_snapshot_service import WorldSnapshotService, world_snapshot_service
 
 pytestmark = pytest.mark.asyncio

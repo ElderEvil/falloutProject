@@ -17,7 +17,7 @@ from app.options.identity_modifiers import effective_stat
 from app.schemas.arena import ArenaActiveSkill, ArenaFighter
 from app.schemas.combat import CombatBody, CombatEffect, CombatPet
 from app.services.catalog_service import list_arena_creatures
-from app.services.combat.weapon_skill_service import MAX_CHARGE, weapon_skill
+from app.services.combat.weapon_skill import MAX_CHARGE, weapon_skill
 from app.utils.combat import combat_power
 from app.utils.equipped import equipped_pet
 from app.utils.pet_assets import get_pet_image_url

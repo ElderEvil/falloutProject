@@ -4,7 +4,7 @@ import pytest
 
 from app.models.dweller import Dweller
 from app.services.catalog_service import load_outfits, load_weapons
-from app.services.combat.weapon_skill_service import attack_effect, combat_body, weapon_skill
+from app.services.combat.weapon_skill import attack_effect, combat_body, weapon_skill
 from app.utils.item_factory import build_outfit, build_weapon
 
 

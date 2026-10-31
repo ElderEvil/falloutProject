@@ -34,6 +34,7 @@ from app.services.game_tick.tick_results import (
 )
 from app.services.vault_service import vault_service
 from app.utils.dwellers import group_dwellers_by_room
+from app.utils.exceptions import NoLivingSpaceError
 
 if TYPE_CHECKING:
     from app.services.game_loop_service import GameLoopService
@@ -263,6 +264,9 @@ async def _deliver_due_baby(db_session: AsyncSession, vault_id: UUID4, pregnancy
 
     try:
         babies = await breeding_service.deliver_baby(db_session, pregnancy_id)
+    except NoLivingSpaceError:
+        logger.info("Vault %s at capacity; deferring due pregnancy %s", vault_id, pregnancy_id)
+        return False
     except (SQLAlchemyError, ValueError) as e:
         if isinstance(e, SQLAlchemyError):
             await recover_session(db_session)

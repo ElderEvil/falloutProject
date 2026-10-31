@@ -141,6 +141,10 @@ class NoSpaceAvailableException(VaultOperationException):
         super().__init__(detail, headers)
 
 
+class NoLivingSpaceError(ValueError):
+    """Raised when a due birth cannot be delivered because the vault is full."""
+
+
 class InsufficientResourcesException(VaultOperationException):
     """Raised when attempting to perform an action without sufficient resources."""
 

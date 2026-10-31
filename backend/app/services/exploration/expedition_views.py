@@ -1,7 +1,5 @@
 """Player-facing projection of an expedition run row plus site content."""
 
-import random
-
 from app.models.dweller import Dweller
 from app.models.exploration import ExpeditionRun, ExpeditionRunStatus, Exploration
 from app.schemas.expedition import (
@@ -9,47 +7,12 @@ from app.schemas.expedition import (
     NodeOutcome,
     SiteDefinition,
     SiteNodeView,
-    SiteRoom,
     SiteRoomView,
-    TriviaQuestion,
-    TriviaRaider,
 )
-from app.services import catalog_service as data_loader
 from app.services.exploration.checks import stat_value, success_odds
+from app.services.exploration.runs import rooms_for_run
 from app.services.exploration.site_combat_service import combat_view
-from app.utils.exceptions import ValidationException
-
-
-def rooms_for_run(site: SiteDefinition, run: ExpeditionRun) -> list[SiteRoom]:
-    """Saved runs keep their original cursor; new spatial visits use one encounter."""
-    if run.flags.get("single_scene"):
-        if site.encounter is None:
-            raise ValidationException(f"Missing encounter content for {site.id}")
-        return [site.encounter]
-    return site.rooms
-
-
-def pick_trivia_questions(rooms: list[SiteRoom]) -> dict[str, str]:
-    """Pin one question id per trivia room at entry so a reconnect cannot reroll it."""
-    return {room.id: random.choice(room.node.trivia_questions).id for room in rooms if room.node.kind == "trivia"}
-
-
-def pick_trivia_raiders(rooms: list[SiteRoom]) -> dict[str, str]:
-    """Pin one shared raider persona per trivia room at entry, alongside its question."""
-    raiders = data_loader.load_trivia_raiders()
-    return {room.id: random.choice(raiders).id for room in rooms if room.node.kind == "trivia"}
-
-
-def trivia_question(room: SiteRoom, run: ExpeditionRun) -> TriviaQuestion | None:
-    """The question persisted for this room at entry, if any."""
-    question_id = run.flags.get("trivia_questions", {}).get(room.id)
-    return next((question for question in room.node.trivia_questions if question.id == question_id), None)
-
-
-def trivia_raider(room: SiteRoom, run: ExpeditionRun) -> TriviaRaider | None:
-    """The shared raider persona persisted for this room at entry, if any."""
-    raider_id = run.flags.get("trivia_raiders", {}).get(room.id)
-    return next((raider for raider in data_loader.load_trivia_raiders() if raider.id == raider_id), None)
+from app.services.exploration.trivia import trivia_question, trivia_raider
 
 
 def build_view(

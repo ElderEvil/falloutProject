@@ -41,17 +41,11 @@ from app.services.exploration.event_service import (
     apply_loot_find,
     auto_use_supplies,
 )
-from app.services.exploration.expedition_views import (
-    build_view,
-    pick_trivia_questions,
-    pick_trivia_raiders,
-    rooms_for_run,
-    trivia_question,
-    trivia_raider,
-)
+from app.services.exploration.expedition_views import build_view
 from app.services.exploration.journey_state import close_open_site_run
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.loot_calculator import loot_calculator
+from app.services.exploration.runs import rooms_for_run
 from app.services.exploration.site_combat_service import encounter_threat, initial_combat, resolve_turn
 from app.services.exploration.site_offers import (
     JourneyOfferContext,
@@ -59,6 +53,12 @@ from app.services.exploration.site_offers import (
     site_block_reason,
     site_is_offered,
     uses_single_scene,
+)
+from app.services.exploration.trivia import (
+    pick_trivia_questions,
+    pick_trivia_raiders,
+    trivia_question,
+    trivia_raider,
 )
 from app.services.notification_service import notification_service
 from app.utils import world_terrain

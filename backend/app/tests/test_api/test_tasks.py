@@ -111,6 +111,8 @@ async def test_process_vault_tick_keeps_lease_after_success_to_debounce_duplicat
     try:
         with (
             patch("app.api.tasks.task_session", new=lambda: _FakeTaskSession()),
+            patch("app.services.progression.objectives.evaluators.evaluator_manager.initialize"),
+            patch("app.services.progression.objectives.notifications.register_objective_event_handlers"),
             patch(
                 "app.api.tasks.game_loop_service.process_vault_tick",
                 new=AsyncMock(return_value={"vault_id": vault_id}),
@@ -134,6 +136,8 @@ async def test_process_vault_tick_releases_lease_on_failure_for_retry() -> None:
     try:
         with (
             patch("app.api.tasks.task_session", new=lambda: _FakeTaskSession()),
+            patch("app.services.progression.objectives.evaluators.evaluator_manager.initialize"),
+            patch("app.services.progression.objectives.notifications.register_objective_event_handlers"),
             patch(
                 "app.api.tasks.game_loop_service.process_vault_tick",
                 new=AsyncMock(side_effect=RuntimeError("boom")),
@@ -155,6 +159,8 @@ async def test_process_vault_tick_treats_deleted_vault_as_missing() -> None:
     try:
         with (
             patch("app.api.tasks.task_session", new=lambda: _FakeTaskSession()),
+            patch("app.services.progression.objectives.evaluators.evaluator_manager.initialize"),
+            patch("app.services.progression.objectives.notifications.register_objective_event_handlers"),
             patch(
                 "app.api.tasks.game_loop_service.process_vault_tick",
                 new=AsyncMock(side_effect=ResourceNotFoundException(Vault, vault_id)),

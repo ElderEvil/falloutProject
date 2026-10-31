@@ -36,7 +36,7 @@ const props = withDefaults(
 )
 
 const artwork = computed(() => (props.scene ? WASTELAND_SCENES[props.scene] : null))
-const variants = computed(() => artwork.value?.[props.variant].variants ?? [])
+const variants = computed(() => artwork.value?.landscape.variants ?? [])
 const fullImage = computed(() => widestSceneImage(variants.value))
 const srcset = computed(() =>
   variants.value.map((image) => `${image.src} ${image.width}w`).join(', ')
@@ -65,7 +65,10 @@ const { url: sceneImage, onError: imageFailed } = useFallbackImage(() => [fullIm
         :width="fullImage.width"
         :height="fullImage.height"
         :alt="artwork?.label ?? heading"
-        class="absolute inset-0 h-full w-full object-contain"
+        :class="[
+          'absolute inset-0 h-full w-full',
+          variant === 'battleback' ? 'object-cover' : 'object-contain',
+        ]"
         decoding="async"
         @error="imageFailed"
       />

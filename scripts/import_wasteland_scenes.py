@@ -9,6 +9,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
+MAX_VARIANT_BYTES = 200_000
 SCENES = {
     "desert_highway": "Desert highway",
     "supermarket_interior": "Abandoned supermarket",
@@ -29,37 +30,40 @@ def main() -> None:
     source_bytes = exported_bytes = 0
     for key, label in SCENES.items():
         scene: dict[str, object] = {"label": label}
-        for folder, role, widths in [
-            ("Backgrounds", "landscape", (640, 1280)),
-            ("Battlebacks", "battleback", (500, 1000)),
-        ]:
-            source = source_root / folder / f"{key}.png"
-            data = source.read_bytes()
-            source_bytes += len(data)
-            variants = []
-            with Image.open(source) as original:
-                for width in widths:
-                    image = original.copy()
-                    image.thumbnail((width, original.height), Image.Resampling.LANCZOS)
+        source = source_root / "Backgrounds" / f"{key}.png"
+        data = source.read_bytes()
+        source_bytes += len(data)
+        variants = []
+        with Image.open(source) as original:
+            for width in (640, 1280):
+                image = original.copy()
+                image.thumbnail((width, original.height), Image.Resampling.LANCZOS)
+                quality = 80
+                buffer = BytesIO()
+                image.save(buffer, format="WEBP", quality=quality, method=6)
+                content = buffer.getvalue()
+                # Keep the committed responsive variants under the test budget.
+                while len(content) > MAX_VARIANT_BYTES and quality > 50:
+                    quality -= 5
                     buffer = BytesIO()
-                    image.save(buffer, format="WEBP", quality=80, method=6)
+                    image.save(buffer, format="WEBP", quality=quality, method=6)
                     content = buffer.getvalue()
-                    digest = hashlib.sha256(content).hexdigest()[:16]
-                    filename = f"{key.replace('_', '-')}-{role}-{digest}.webp"
-                    (output / filename).write_bytes(content)
-                    variants.append(
-                        {
-                            "src": f"/assets/wasteland-scenes/{filename}",
-                            "width": image.width,
-                            "height": image.height,
-                        }
-                    )
-                    exported_bytes += len(content)
-            scene[role] = {
-                "source": f"{folder}/{source.name}",
-                "source_sha256": hashlib.sha256(data).hexdigest(),
-                "variants": variants,
-            }
+                digest = hashlib.sha256(content).hexdigest()[:16]
+                filename = f"{key.replace('_', '-')}-landscape-{digest}.webp"
+                (output / filename).write_bytes(content)
+                variants.append(
+                    {
+                        "src": f"/assets/wasteland-scenes/{filename}",
+                        "width": image.width,
+                        "height": image.height,
+                    }
+                )
+                exported_bytes += len(content)
+        scene["landscape"] = {
+            "source": source.relative_to(source_root).as_posix(),
+            "source_sha256": hashlib.sha256(data).hexdigest(),
+            "variants": variants,
+        }
         manifest[key] = scene
     target = ROOT / "frontend/src/modules/exploration/models/wasteland-scenes.json"
     target.write_text(json.dumps(manifest, indent=2) + "\n")

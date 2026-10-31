@@ -36,16 +36,16 @@ describe('Wasteland scenes', () => {
     expect(wrapper.get('[role="group"]').attributes('aria-label')).toBe('Lucy on expedition')
   })
 
-  it('uses the supplied battleback framing for encounters', () => {
+  it('crops the single landscape artwork for the encounter frame', () => {
     const wrapper = mount(WastelandScene, {
       props: { ...props, scene: 'supermarket_interior', variant: 'battleback' },
     })
     expect(wrapper.get('img').attributes()).toMatchObject({
-      width: '1000',
-      height: '740',
+      width: '1280',
+      height: '720',
       alt: 'Abandoned supermarket',
     })
-    expect(wrapper.get('img').attributes('src')).toContain('-battleback-')
+    expect(wrapper.get('img').attributes('src')).toContain('supermarket-interior-landscape')
   })
 
   it('keeps the scene and explorer readable when artwork fails, and retries a changed scene', async () => {
@@ -76,14 +76,12 @@ describe('Wasteland scenes', () => {
 
   it('ships every responsive variant as a content-addressed WebP within its asset budget', () => {
     for (const scene of Object.values(WASTELAND_SCENES)) {
-      for (const role of ['landscape', 'battleback'] as const) {
-        for (const variant of scene[role].variants) {
-          const bytes = readFileSync(`public${variant.src}`)
-          const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 16)
-          expect(variant.src).toContain(`-${hash}.webp`)
-          expect(bytes.toString('ascii', 8, 12)).toBe('WEBP')
-          expect(bytes.length).toBeLessThan(200000)
-        }
+      for (const variant of scene.landscape.variants) {
+        const bytes = readFileSync(`public${variant.src}`)
+        const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 16)
+        expect(variant.src).toContain(`-${hash}.webp`)
+        expect(bytes.toString('ascii', 8, 12)).toBe('WEBP')
+        expect(bytes.length).toBeLessThan(200000)
       }
     }
   })

@@ -30,8 +30,8 @@ resumes travel in the final combat-turn transaction. Defeat ends the encounter w
 leaves the dweller alive and resumes travel. Stat checks remain available in the legacy engine for later design.
 
 Site content owns `scene_id`; the client does not infer artwork from names or room labels.
-The picker, encounter, and result use the same battleback. Missing artwork has a reserved neutral
-frame and the dweller portrait. The ordinary exploration page shows status and the journey log;
+The picker, encounter, and result use the same landscape artwork; the encounter frame crops it.
+Missing artwork has a reserved neutral frame and the dweller portrait. The ordinary exploration page shows status and the journey log;
 artwork belongs to the encounter. Saved room-based runs retain their original definitions and cursors;
 new spatial runs persist `single_scene` in their existing flags. Legacy non-spatial journeys retain
 the old rooms for original sites; newly authored sites use the new combat flow.
@@ -39,13 +39,14 @@ The original five sites' `rooms` trees are frozen compatibility data for saved r
 text is migration debt; edit `encounter` for new visits and preserve legacy room identifiers/cursors.
 New sites author only `encounter`.
 
-`WastelandScene` reserves a 16:9 landscape or 50:37 battleback frame before images load. The explorer
-occupies 44% of that frame's height, with a 1:2 portrait frame. Original artwork is contained without
-cropping. Captions sit on an opaque semantic surface, and failed images preserve the frame, caption,
-and explorer. Landscape variants are 640/1280 pixels wide; battlebacks are 500/1000 pixels wide.
-Browsers choose through `srcset`. Content-addressed WebPs receive immutable cache headers.
+`WastelandScene` reserves a 16:9 landscape or 50:37 encounter frame before images load. The explorer
+occupies 44% of that frame's height, with a 1:2 portrait frame. The landscape image is contained in
+the 16:9 frame and cropped with `object-cover` in the 50:37 encounter frame. Captions sit on an opaque
+semantic surface, and failed images preserve the frame, caption, and explorer. Each scene ships one
+640px and one 1280px landscape WebP; browsers choose through `srcset`. Content-addressed WebPs receive
+immutable cache headers.
 
-The five backgrounds and five battlebacks were supplied by the maintainer in the local
+The five backgrounds were supplied by the maintainer in the local
 `fallout-asset-batch/backgrounds/` batch. No artwork was generated or recolored for this integration.
 `models/wasteland-scenes.json` records relative input names, source SHA-256 values, output paths, and
 dimensions. Reimport from the repository root with:
@@ -99,7 +100,7 @@ rules apply, including adulthood, health, and site level requirements.
 Spatial site encounters use `SiteCombatScene` and the shared Arena ring/playback. Fight starts alternating
 server-authoritative turns while the modal is open; weapon skills activate from the existing meter/target
 controls. Entry first shows a compact briefing. Fight expands to a viewport-sized encounter, using the
-location’s landscape artwork on desktop and battleback artwork on mobile. Reconnects to an ongoing
+location’s landscape artwork, cropped for the mobile encounter frame. Reconnects to an ongoing
 fight retain the expanded view. Closing stops advancing turns. Reconnect restores HP, skill charge, turn and enemy roster.
 Each request sends its expected round so delayed/duplicate requests cannot repeat an attack.
 

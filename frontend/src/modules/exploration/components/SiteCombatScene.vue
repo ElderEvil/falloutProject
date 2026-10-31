@@ -26,7 +26,7 @@ const playback = useCombatPlayback(
 )
 watch(playback.isPlaying, (value) => emit('playing', value), { immediate: true })
 const artwork = computed(() =>
-  props.room.scene_id ? WASTELAND_SCENES[props.room.scene_id].battleback : null
+  props.room.scene_id ? WASTELAND_SCENES[props.room.scene_id].landscape : null
 )
 const landscape = computed(() =>
   props.room.scene_id ? WASTELAND_SCENES[props.room.scene_id].landscape : null

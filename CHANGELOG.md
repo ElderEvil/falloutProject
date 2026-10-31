@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.3 (2026-10-31)
+
+### Code Refactoring
+
+* **services:** rename the remaining service modules to *_service.py ([#1255](https://github.com/ElderEvil/falloutProject/issues/1255)) 016410e
+
 ## 2.282.2 (2026-10-31)
 
 ### Code Refactoring

@@ -36,6 +36,8 @@ class VaultScenarioRead(SQLModel):
     title: str
     description: str
     requires_boosted: bool
+    default_boosted: bool
+    default_on: bool
     expedition: bool
 
 

@@ -203,7 +203,7 @@ async def delete_dweller(
     Use hard_delete=True to permanently remove the dweller.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    await crud.dweller.delete(db_session, dweller_id, soft=not hard_delete)
+    await dweller_service.delete_dweller(db_session, dweller_id, soft=not hard_delete)
 
 
 @router.get("/vault/{vault_id}/", response_model=list[DwellerReadLess])

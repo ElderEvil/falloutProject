@@ -529,7 +529,7 @@ const terminalBanner = computed(() => {
               v-if="site.scene_id"
               class="mb-3 [&>div]:aspect-auto [&>div]:h-[min(22dvh,12rem)] [&>figcaption]:hidden [&_img]:object-cover"
               :scene="site.scene_id"
-              variant="battleback"
+              frame="encounter"
               :heading="site.name"
               compact
             />
@@ -599,7 +599,7 @@ const terminalBanner = computed(() => {
           <WastelandScene
             v-else
             :scene="room.scene_id"
-            variant="battleback"
+            frame="encounter"
             :heading="room.site_name"
             :description="hasArenaCombat ? undefined : room.flavor"
             :dweller-name="dwellerName"
@@ -626,7 +626,7 @@ const terminalBanner = computed(() => {
           <WastelandScene
             v-if="multiRoom && !expandedCombat"
             :scene="room.scene_id"
-            variant="battleback"
+            frame="encounter"
             :heading="room.site_name"
             compact
             class="mb-4 [&>div]:aspect-auto [&>div]:h-[min(24dvh,10rem)] [&>figcaption]:hidden [&_img]:object-cover"

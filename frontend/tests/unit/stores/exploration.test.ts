@@ -719,6 +719,33 @@ describe('Exploration Store', () => {
     })
   })
 
+  describe('SSE Deleted Exploration', () => {
+    it('closes the journey without queuing a reward report', async () => {
+      const store = useExplorationStore()
+      const closed = { ...mockExploration }
+      store.explorations = [closed]
+      store.activeExplorations = { 'exploration-1': closed }
+      store.startSseSubscription('vault-1', 'test-token')
+
+      mockSseEvent.value = {
+        event: 'exploration',
+        data: {
+          type: 'exploration_deleted',
+          exploration_id: 'exploration-1',
+          dweller_id: 'dweller-1',
+          status: 'recalled',
+        },
+      }
+
+      await nextTick()
+
+      expect(store.explorations[0].status).toBe('recalled')
+      expect(store.activeExplorations['exploration-1']).toBeUndefined()
+      expect(store.pendingSseRewards).toBeNull()
+      expect(addPendingReport).not.toHaveBeenCalled()
+    })
+  })
+
   describe('SSE Live Event Log', () => {
     const liveExploration = () => ({ ...mockExploration, events: [] as unknown[] })
 

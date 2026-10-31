@@ -14,14 +14,20 @@ from app.services.exploration.expedition_scenario_service import expedition_scen
 
 @dataclass(frozen=True)
 class VaultScenario:
-    """One opt-in start: either a scout expedition or a population experiment."""
+    """One opt-in start: a scout expedition or a population experiment."""
 
     number: int
     key: str
     title: str
     description: str
     requires_boosted: bool = False
+    default_boosted: bool = False
+    default_on: bool = False
     expedition: bool = False
+    multi: bool = False
+    dwellers: int | None = None
+    discover: bool = True
+    outbound_hours: int = 8
     dweller_level: int = 5
     special: int = 5
     duration_hours: int = 8
@@ -37,14 +43,16 @@ VAULT_SCENARIOS = (
     VaultScenario(
         number=1,
         key="vault_1_test",
-        title="Vault 1 — Scout Test",
+        title="Vault 1 — Wasteland Test",
         description=(
-            "Adds a level 5 / SPECIAL 4 Scout and a single-scene stat-check expedition. "
-            "Extra living capacity; starter objectives skipped. Starts at the site picker."
+            "Boosted by default. Seeds one named dweller per expedition site, each already "
+            "scouting with its site reported in the bell. Starter objectives skipped."
         ),
+        default_boosted=True,
+        default_on=True,
         expedition=True,
+        multi=True,
         dweller_level=5,
-        special=4,
     ),
     VaultScenario(
         number=68,
@@ -82,21 +90,44 @@ class VaultScenarioService:
 
     async def seed(self, db_session: AsyncSession, vault: Vault, scenario: VaultScenario) -> None:
         if scenario.expedition:
-            await expedition_scenario_service.setup(
-                db_session,
-                vault_id=vault.id,
-                dweller_level=scenario.dweller_level,
-                duration_hours=scenario.duration_hours,
-                special=scenario.special,
-                all_sites=scenario.all_sites,
-                single_scene_only=scenario.single_scene_only,
-                scenario_site_id=scenario.site_id,
-                choice_only=scenario.choice_only,
-            )
+            if scenario.multi:
+                await expedition_scenario_service.setup_multi(
+                    db_session,
+                    vault_id=vault.id,
+                    dwellers=scenario.dwellers,
+                    dweller_level=scenario.dweller_level,
+                    duration_hours=scenario.duration_hours,
+                    discover=scenario.discover,
+                    outbound_hours=scenario.outbound_hours,
+                )
+                await self._raise_population_capacity(db_session, vault)
+                await db_session.commit()
+            else:
+                await expedition_scenario_service.setup(
+                    db_session,
+                    vault_id=vault.id,
+                    dweller_level=scenario.dweller_level,
+                    duration_hours=scenario.duration_hours,
+                    special=scenario.special,
+                    all_sites=scenario.all_sites,
+                    single_scene_only=scenario.single_scene_only,
+                    scenario_site_id=scenario.site_id,
+                    choice_only=scenario.choice_only,
+                )
         if scenario.male_dwellers is not None and scenario.female_dwellers is not None:
             await self._seed_population(db_session, vault, scenario.male_dwellers, scenario.female_dwellers)
             await db_session.commit()
             await db_session.refresh(vault)
+
+    @staticmethod
+    async def _raise_population_capacity(db_session: AsyncSession, vault: Vault) -> None:
+        """Stage a population cap that keeps every seeded dweller; the caller commits."""
+        await db_session.refresh(vault)
+        dwellers = await crud.dweller.get_multi_by_vault(db_session, vault.id, limit=1_000)
+        if (vault.population_max or 0) >= len(dwellers):
+            return
+        vault.population_max = len(dwellers)
+        db_session.add(vault)
 
     @staticmethod
     async def _seed_population(

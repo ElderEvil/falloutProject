@@ -216,8 +216,9 @@ async def verify_exploration_access(
     if not exploration:
         raise HTTPException(status_code=404, detail="Exploration not found")
 
-    # Get dweller to access vault_id
-    dweller = await crud.dweller.get(db_session, exploration.dweller_id)
+    # Get dweller to access vault_id. A deleted dweller's terminal journey must
+    # remain readable by the vault owner instead of turning the page into a 404.
+    dweller = await crud.dweller.get(db_session, exploration.dweller_id, include_deleted=True)
     if not dweller:
         raise HTTPException(status_code=404, detail="Dweller not found")
 

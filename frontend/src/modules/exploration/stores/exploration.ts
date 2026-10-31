@@ -232,6 +232,17 @@ export const useExplorationStore = defineStore('exploration', () => {
           return
         }
 
+        if (data.type === 'exploration_deleted') {
+          // The dweller is gone: close the journey locally without a reward report.
+          const closed = explorationId
+            ? (activeExplorations.value[explorationId] ??
+              explorations.value.find((exploration) => exploration.id === explorationId))
+            : undefined
+          if (closed) closed.status = 'recalled'
+          if (explorationId) delete activeExplorations.value[explorationId]
+          return
+        }
+
         if (data.type === 'exploration_returning') {
           const returning = explorationId
             ? (activeExplorations.value[explorationId] ??

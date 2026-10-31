@@ -47,6 +47,7 @@ from app.services.exploration.event_service import (
     apply_loot_find,
     auto_use_supplies,
 )
+from app.services.exploration.journey_state import close_open_site_run
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.loot_calculator import loot_calculator
 from app.services.exploration.site_combat_service import combat_view, encounter_threat, initial_combat, resolve_turn
@@ -408,8 +409,9 @@ def _pick_trivia_questions(rooms: list[SiteRoom]) -> dict[str, str]:
 
 
 def _pick_trivia_raiders(rooms: list[SiteRoom]) -> dict[str, str]:
-    """Pin one raider persona per trivia room at entry, alongside its question."""
-    return {room.id: random.choice(room.node.raiders).id for room in rooms if room.node.kind == "trivia"}
+    """Pin one shared raider persona per trivia room at entry, alongside its question."""
+    raiders = data_loader.load_trivia_raiders()
+    return {room.id: random.choice(raiders).id for room in rooms if room.node.kind == "trivia"}
 
 
 def _trivia_question(room: SiteRoom, run: ExpeditionRun) -> TriviaQuestion | None:
@@ -419,9 +421,9 @@ def _trivia_question(room: SiteRoom, run: ExpeditionRun) -> TriviaQuestion | Non
 
 
 def _trivia_raider(room: SiteRoom, run: ExpeditionRun) -> TriviaRaider | None:
-    """The raider persona persisted for this room at entry, if any."""
+    """The shared raider persona persisted for this room at entry, if any."""
     raider_id = run.flags.get("trivia_raiders", {}).get(room.id)
-    return next((raider for raider in room.node.raiders if raider.id == raider_id), None)
+    return next((raider for raider in data_loader.load_trivia_raiders() if raider.id == raider_id), None)
 
 
 def build_view(
@@ -1085,12 +1087,12 @@ class ExpeditionService:
         exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
         if not exploration.is_in_progress():
             raise ValidationException("Expedition sites need an active exploration")
-        run = await _get_open_run(db_session, exploration_id)
+        run = await close_open_site_run(db_session, exploration_id)
+        if run is None:
+            raise ValidationException("No open expedition run for this exploration")
         site = data_loader.get_expedition_site(run.site_id)
         if site is None:
             raise ValidationException(f"Unknown expedition site: {run.site_id!r}")
-        run.status = ExpeditionRunStatus.RETREATED
-        run.finished_at = datetime.utcnow()
         run = await _refresh_run(db_session, run)
 
         from app.services.exploration_service import exploration_service

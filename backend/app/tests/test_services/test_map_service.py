@@ -643,6 +643,9 @@ async def test_get_vault_map_expedition_sites_ready(async_session: AsyncSession,
         "rusted_midway",
         "frozen_research_outpost",
         "raider_tollbooth",
+        "gloomwater_bog",
+        "gloomwater_bog_night",
+        "outskirts_interchange",
     }
     for site in data_loader.load_expedition_sites():
         if site.scenario_only:
@@ -664,6 +667,9 @@ async def test_get_vault_map_expedition_sites_ready(async_session: AsyncSession,
         "rusted_midway": 1,
         "frozen_research_outpost": 1,
         "raider_tollbooth": 1,
+        "gloomwater_bog": 1,
+        "gloomwater_bog_night": 1,
+        "outskirts_interchange": 1,
     }
 
 

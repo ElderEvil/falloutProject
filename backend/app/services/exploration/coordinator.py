@@ -1,18 +1,20 @@
 """Exploration coordinator - orchestrates exploration completion and recall."""
 
 import logging
-from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import dweller as dweller_crud
-from app.crud import expedition_run as crud_expedition_run
 from app.crud import exploration as crud_exploration
-from app.crud.team import team_crud
-from app.models.exploration import ExpeditionRunStatus, Exploration
+from app.models.exploration import Exploration
 from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration.event_service import event_service
+from app.services.exploration.journey_state import (
+    close_open_site_run,
+    delete_journey_team,
+    restore_journey_dwellers,
+)
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.rewards_service import rewards_service
 from app.services.leveling_service import leveling_service
@@ -53,12 +55,7 @@ class ExplorationCoordinator:
 
         # Clock expiry and recall both force-retreat an open site run before the
         # return leg starts, all in this one transaction.
-        run = await crud_expedition_run.get_open_for_exploration_for_update(db_session, exploration_id)
-        if run is not None:
-            run.status = ExpeditionRunStatus.RETREATED
-            run.finished_at = datetime.utcnow()
-            db_session.add(run)
-            await db_session.flush()
+        await close_open_site_run(db_session, exploration_id)
 
         from app.services.exploration_service import exploration_service
 
@@ -104,16 +101,13 @@ class ExplorationCoordinator:
 
         try:
             await crud_exploration.finalize_return(db_session, exploration_id=exploration_id)
-            await self._update_dweller_status_after_return(db_session, exploration)
+            await restore_journey_dwellers(db_session, exploration)
             if recalled_early:
                 rewards = await rewards_service.apply_rewards(db_session, exploration, progress / 100, commit=False)
                 rewards = rewards.model_copy(update={"progress_percentage": progress, "recalled_early": True})
             else:
                 rewards = await rewards_service.apply_rewards(db_session, exploration, commit=False)
-            if exploration.team_id is not None:
-                team = await team_crud.get_exploration_team(db_session, exploration.id)
-                if team is not None:
-                    await db_session.delete(team)
+            await delete_journey_team(db_session, exploration)
             await db_session.commit()
         except Exception:
             notification_service.discard_deferred_notifications(db_session)
@@ -163,40 +157,6 @@ class ExplorationCoordinator:
             sender=send,
             context=f"exploration complete vault={exploration.vault_id} dweller={exploration.dweller_id}",
         )
-
-    async def _restore_dweller_status(self, db_session: AsyncSession, dweller_id: UUID4) -> None:
-        """Restore one dweller's room-appropriate status after exploration."""
-        from app.core.enums import DwellerStatusEnum
-        from app.crud.dweller import determine_status_for_room
-        from app.schemas.dweller import DwellerUpdate
-
-        dweller_obj = await dweller_crud.get(db_session, dweller_id)
-
-        if dweller_obj.is_dead:
-            # Dead dwellers never get a status restore (a wipe must not revive the anchor's status).
-            return
-
-        if dweller_obj.room_id:
-            # Dweller has a room - set status based on room type
-            from app.crud.room import room as room_crud
-
-            room_obj = await room_crud.get(db_session, dweller_obj.room_id)
-            new_status = determine_status_for_room(room_obj.category, room_obj.name)
-        else:
-            # No room - set to IDLE
-            new_status = DwellerStatusEnum.IDLE
-
-        await dweller_crud.update(db_session, dweller_id, DwellerUpdate(status=new_status), commit=False)
-
-    async def _update_dweller_status_after_return(self, db_session: AsyncSession, exploration: Exploration) -> None:
-        """Restore the dweller's room-appropriate status after exploration."""
-        if exploration.team_id is not None:
-            members = await team_crud.get_exploration_team_dwellers(db_session, exploration.id)
-            for member in members:
-                if not member.is_dead:
-                    await self._restore_dweller_status(db_session, member.id)
-            return
-        await self._restore_dweller_status(db_session, exploration.dweller_id)
 
 
 # Singleton instance

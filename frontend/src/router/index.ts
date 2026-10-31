@@ -78,7 +78,7 @@ const router = createRouter({
             name: 'wasteland-scenes-preview',
             meta: {
               devTitle: 'Wasteland scenes',
-              devDescription: 'Compare expedition backgrounds, battlebacks, and explorer framing.',
+              devDescription: 'Compare expedition artwork and explorer framing.',
             },
             component: () => import('@/modules/exploration/views/WastelandScenesPreview.vue'),
           },

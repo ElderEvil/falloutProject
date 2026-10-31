@@ -9,12 +9,21 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
+MAX_VARIANT_BYTES = 200_000
 SCENES = {
     "desert_highway": "Desert highway",
     "supermarket_interior": "Abandoned supermarket",
     "subway_station": "Subway station",
     "amusement_park": "Ruined amusement park",
     "arctic_research_station": "Arctic research station",
+    "gloomwater_bog": "Gloomwater Bog",
+    "gloomwater_bog_night": "Gloomwater Bog at night",
+    "outskirts_interchange": "Outskirts interchange",
+}
+SOURCE_NAMES = {
+    "gloomwater_bog": "gpt-image-2.5-sunburst-bog.png",
+    "gloomwater_bog_night": "gpt-image-2.5-sunburst-bog-night.png",
+    "outskirts_interchange": "gpt-image-2.5-sunburst-city-outskirts.png",
 }
 
 
@@ -26,41 +35,53 @@ def main() -> None:
     output = ROOT / "frontend/public/assets/wasteland-scenes"
     output.mkdir(parents=True, exist_ok=True)
     manifest: dict[str, object] = {}
+    written: set[str] = set()
     source_bytes = exported_bytes = 0
     for key, label in SCENES.items():
         scene: dict[str, object] = {"label": label}
-        for folder, role, widths in [
-            ("Backgrounds", "landscape", (640, 1280)),
-            ("Battlebacks", "battleback", (500, 1000)),
-        ]:
-            source = source_root / folder / f"{key}.png"
-            data = source.read_bytes()
-            source_bytes += len(data)
-            variants = []
-            with Image.open(source) as original:
-                for width in widths:
-                    image = original.copy()
-                    image.thumbnail((width, original.height), Image.Resampling.LANCZOS)
+        source = source_root / "Backgrounds" / SOURCE_NAMES.get(key, f"{key}.png")
+        data = source.read_bytes()
+        source_bytes += len(data)
+        variants = []
+        with Image.open(source) as original:
+            for width in (640, 1280):
+                image = original.copy()
+                image.thumbnail((width, original.height), Image.Resampling.LANCZOS)
+                quality = 80
+                buffer = BytesIO()
+                image.save(buffer, format="WEBP", quality=quality, method=6)
+                content = buffer.getvalue()
+                # Keep the committed responsive variants under the test budget.
+                while len(content) >= MAX_VARIANT_BYTES and quality > 50:
+                    quality -= 5
                     buffer = BytesIO()
-                    image.save(buffer, format="WEBP", quality=80, method=6)
+                    image.save(buffer, format="WEBP", quality=quality, method=6)
                     content = buffer.getvalue()
-                    digest = hashlib.sha256(content).hexdigest()[:16]
-                    filename = f"{key.replace('_', '-')}-{role}-{digest}.webp"
-                    (output / filename).write_bytes(content)
-                    variants.append(
-                        {
-                            "src": f"/assets/wasteland-scenes/{filename}",
-                            "width": image.width,
-                            "height": image.height,
-                        }
+                if len(content) >= MAX_VARIANT_BYTES:
+                    raise SystemExit(
+                        f"{key} at {width}px stays over {MAX_VARIANT_BYTES} bytes at quality 50"
                     )
-                    exported_bytes += len(content)
-            scene[role] = {
-                "source": f"{folder}/{source.name}",
-                "source_sha256": hashlib.sha256(data).hexdigest(),
-                "variants": variants,
-            }
+                digest = hashlib.sha256(content).hexdigest()[:16]
+                filename = f"{key.replace('_', '-')}-landscape-{digest}.webp"
+                (output / filename).write_bytes(content)
+                written.add(filename)
+                variants.append(
+                    {
+                        "src": f"/assets/wasteland-scenes/{filename}",
+                        "width": image.width,
+                        "height": image.height,
+                    }
+                )
+                exported_bytes += len(content)
+        scene["landscape"] = {
+            "source": source.relative_to(source_root).as_posix(),
+            "source_sha256": hashlib.sha256(data).hexdigest(),
+            "variants": variants,
+        }
         manifest[key] = scene
+    for stale in output.glob("*.webp"):
+        if stale.name not in written:
+            stale.unlink()
     target = ROOT / "frontend/src/modules/exploration/models/wasteland-scenes.json"
     target.write_text(json.dumps(manifest, indent=2) + "\n")
     print(

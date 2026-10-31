@@ -10,7 +10,7 @@ from operator import itemgetter
 from pathlib import Path
 
 from app.core.enums import SPECIAL_STATS, ExpeditionSceneId
-from app.schemas.expedition import EnemySpec, ExpeditionSiteList, SiteDefinition
+from app.schemas.expedition import EnemySpec, ExpeditionSiteList, SiteDefinition, TriviaRaider
 from app.schemas.exploration_event import EnemySchema
 from app.services.combat import incident_math
 from app.utils.exceptions import ValidationException
@@ -28,6 +28,9 @@ SITE_ENEMY_POOLS: dict[ExpeditionSceneId, frozenset[str]] = {
     ExpeditionSceneId.SUBWAY_STATION: frozenset({"feral-ghoul", "radroach-swarm", "mole-rat-pack"}),
     ExpeditionSceneId.AMUSEMENT_PARK: frozenset({"raider", "feral-ghoul", "radroach-swarm", "mole-rat-pack"}),
     ExpeditionSceneId.ARCTIC_RESEARCH_STATION: frozenset({"raider", "feral-ghoul"}),
+    ExpeditionSceneId.GLOOMWATER_BOG: frozenset({"mole-rat-pack", "radroach-swarm", "bloatfly", "feral-ghoul"}),
+    ExpeditionSceneId.GLOOMWATER_BOG_NIGHT: frozenset({"feral-ghoul", "night-stalker", "mole-rat-pack"}),
+    ExpeditionSceneId.OUTSKIRTS_INTERCHANGE: frozenset({"raider", "feral-ghoul", "super-mutant"}),
 }
 
 
@@ -136,8 +139,8 @@ def validate_site_content(site: SiteDefinition) -> None:
                 raise ValidationException(f"Scenario site {site.id} needs choice options")
         elif node.kind not in {"combat", "trivia"} or not node.enemies:
             raise ValidationException(f"Site {site.id} needs a combat or trivia encounter with enemies")
-        if node.kind == "trivia" and (not node.trivia_questions or not node.raiders):
-            raise ValidationException(f"Site {site.id} needs trivia questions and raiders")
+        if node.kind == "trivia" and not node.trivia_questions:
+            raise ValidationException(f"Site {site.id} needs trivia questions")
         for spec in node.enemies:
             if spec.arena_key not in SITE_ENEMY_POOLS[site.scene_id]:
                 raise ValidationException(f"Enemy {spec.arena_key!r} does not belong in scene {site.scene_id!r}")
@@ -248,17 +251,34 @@ def _get_fallback_discovery_names() -> dict[str, list[str]]:
     return {"prefixes": ["Old", "Abandoned", "Ruined"], "suffixes": ["Shack", "Depot", "Bunker"]}
 
 
+def _read_expedition_document() -> ExpeditionSiteList:
+    """Read and validate the expedition catalog document."""
+    sites_file = EXPLORATION_DIR / "expedition_sites.json"
+    if not sites_file.exists():
+        return ExpeditionSiteList(sites=[])
+    with sites_file.open() as f:
+        document = ExpeditionSiteList(**json.load(f))
+    if (
+        any(site.encounter is not None and site.encounter.node.kind == "trivia" for site in document.sites)
+        and not document.trivia_raiders
+    ):
+        raise ValidationException("Trivia sites need a shared raider roster")
+    return document
+
+
 @lru_cache(maxsize=1)
 def load_expedition_sites() -> list[SiteDefinition]:
     """Load hand-authored expedition site definitions from JSON (validated)."""
-    sites_file = EXPLORATION_DIR / "expedition_sites.json"
-    if not sites_file.exists():
-        return []
-    with sites_file.open() as f:
-        sites = ExpeditionSiteList(**json.load(f)).sites
+    sites = _read_expedition_document().sites
     for site in sites:
         validate_site_content(site)
     return sites
+
+
+@lru_cache(maxsize=1)
+def load_trivia_raiders() -> list[TriviaRaider]:
+    """Return the shared raider personas used by trivia encounters."""
+    return list(_read_expedition_document().trivia_raiders)
 
 
 def get_expedition_site(site_id: str) -> SiteDefinition | None:

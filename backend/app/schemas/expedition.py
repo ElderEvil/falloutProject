@@ -65,6 +65,7 @@ class TriviaQuestion(BaseModel):
 
     id: str
     prompt: str
+    difficulty: int = Field(ge=1, le=5)
     options: list[TriviaOption] = Field(min_length=2, max_length=4)
     correct_option_id: str
 
@@ -101,7 +102,6 @@ class SiteNode(BaseModel):
     enemies: list[EnemySpec] = Field(default_factory=list)
     options: list[NodeOption] = Field(default_factory=list)
     trivia_questions: list[TriviaQuestion] = Field(default_factory=list)
-    raiders: list[TriviaRaider] = Field(default_factory=list)
     stat: str | None = None
     difficulty: int | None = Field(default=None, ge=1, le=5)
     damage_min: int | None = None
@@ -117,12 +117,6 @@ class SiteNode(BaseModel):
         question_ids = [question.id for question in self.trivia_questions]
         if len(set(question_ids)) != len(question_ids):
             raise ValueError("trivia node has duplicate question ids")
-        if not self.raiders:
-            raise ValueError("trivia node needs at least one raider")
-        raider_ids = [raider.id for raider in self.raiders]
-        raider_names = [raider.name for raider in self.raiders]
-        if len(set(raider_ids)) != len(raider_ids) or len(set(raider_names)) != len(raider_names):
-            raise ValueError("trivia node has duplicate raider ids or names")
         if not self.enemies:
             raise ValueError("trivia node needs enemies for wrong answers")
         return self
@@ -196,6 +190,15 @@ class ExpeditionSiteList(BaseModel):
     """Top-level shape of expedition_sites.json."""
 
     sites: list[SiteDefinition]
+    trivia_raiders: list[TriviaRaider] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def trivia_raiders_are_unique(self) -> Self:
+        raider_ids = [raider.id for raider in self.trivia_raiders]
+        raider_names = [raider.name for raider in self.trivia_raiders]
+        if len(set(raider_ids)) != len(raider_ids) or len(set(raider_names)) != len(raider_names):
+            raise ValueError("trivia raiders need unique ids and names")
+        return self
 
 
 class NodeOptionView(BaseModel):

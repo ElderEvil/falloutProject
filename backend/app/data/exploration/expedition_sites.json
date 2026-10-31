@@ -1,4 +1,66 @@
 {
+  "trivia_raiders": [
+    {
+      "id": "sable",
+      "name": "Sable",
+      "gender": "female",
+      "intro": "A scarred raider named Sable watches you with a sawed-off across her lap.",
+      "correct_line": "pays up with a sour grin",
+      "wrong_line": "snarls and swings the stock at your head",
+      "image_url": "/static/raider_images/variants/sable.webp?v=5",
+      "alt_image_url": "/static/raider_images/variants/sable_alt.webp?v=5"
+    },
+    {
+      "id": "rook",
+      "name": "Rook",
+      "gender": "female",
+      "intro": "A wiry raider named Rook circles you, a knife loose in her hand.",
+      "correct_line": "tosses the caps over with a wink",
+      "wrong_line": "flicks the knife up and comes at you",
+      "image_url": "/static/raider_images/variants/rook.webp?v=5",
+      "alt_image_url": "/static/raider_images/variants/rook_alt.webp?v=5"
+    },
+    {
+      "id": "jinx",
+      "name": "Jinx",
+      "gender": "female",
+      "intro": "Jinx grins from behind cover, rifle propped on her knee.",
+      "correct_line": "laughs and slides the loot across the asphalt",
+      "wrong_line": "snaps the rifle up to her shoulder",
+      "image_url": "/static/raider_images/variants/jinx.webp?v=5",
+      "alt_image_url": "/static/raider_images/variants/jinx_alt.webp?v=5"
+    },
+    {
+      "id": "gristle",
+      "name": "Gristle",
+      "gender": "male",
+      "intro": "A broad-shouldered raider called Gristle blocks the way, chewing on a stimpak needle.",
+      "correct_line": "gives up the stash with a grunt",
+      "wrong_line": "roars and charges",
+      "image_url": "/static/raider_images/variants/gristle.webp?v=5",
+      "alt_image_url": "/static/raider_images/variants/gristle_alt.webp?v=5"
+    },
+    {
+      "id": "brick",
+      "name": "Brick",
+      "gender": "male",
+      "intro": "Brick, a raider with a face like a collapsed wall, leans on a rebar club.",
+      "correct_line": "shrugs and kicks the stash over",
+      "wrong_line": "hauls the club back over his shoulder",
+      "image_url": "/static/raider_images/variants/brick.webp?v=5",
+      "alt_image_url": "/static/raider_images/variants/brick_alt.webp?v=5"
+    },
+    {
+      "id": "cutter",
+      "name": "Cutter",
+      "gender": "male",
+      "intro": "Cutter sharpens a machete nearby, watching you the whole time.",
+      "correct_line": "nods once and steps aside",
+      "wrong_line": "comes over the rail with the blade leading",
+      "image_url": "/static/raider_images/variants/cutter.webp?v=5",
+      "alt_image_url": "/static/raider_images/variants/cutter_alt.webp?v=5"
+    }
+  ],
   "sites": [
     {
       "id": "red_rocket",
@@ -455,12 +517,254 @@
         "name": "Rusted Midway",
         "flavor": "A raider has turned the prize booth into a supply stash. The rides are silent, but the booth is occupied.",
         "node": {
-          "kind": "combat",
-          "prompt": "A raider has turned the prize booth into a supply stash. The rides are silent, but the booth is occupied.",
+          "kind": "trivia",
+          "prompt": "'You want the prize?' the raider says. 'Answer the question. Get it wrong and you become the main attraction.'",
           "enemies": [
             {
               "name": "Raider",
               "arena_key": "raider"
+            }
+          ],
+          "trivia_questions": [
+            {
+              "id": "grognak",
+              "prompt": "Which comic-book hero is a barbarian?",
+              "options": [
+                {
+                  "id": "grognak",
+                  "label": "Grognak the Barbarian"
+                },
+                {
+                  "id": "silver-shroud",
+                  "label": "The Silver Shroud"
+                },
+                {
+                  "id": "manta-man",
+                  "label": "Manta Man"
+                }
+              ],
+              "correct_option_id": "grognak",
+              "difficulty": 2
+            },
+            {
+              "id": "silver_shroud",
+              "prompt": "Which masked crime-fighter is Boston's radio hero?",
+              "options": [
+                {
+                  "id": "silver-shroud",
+                  "label": "The Silver Shroud"
+                },
+                {
+                  "id": "grognak",
+                  "label": "Grognak the Barbarian"
+                },
+                {
+                  "id": "unstoppables",
+                  "label": "The Unstoppables"
+                }
+              ],
+              "correct_option_id": "silver-shroud",
+              "difficulty": 2
+            },
+            {
+              "id": "hubris_comics",
+              "prompt": "Which pre-war publisher printed Grognak and the Silver Shroud?",
+              "options": [
+                {
+                  "id": "hubris-comics",
+                  "label": "Hubris Comics"
+                },
+                {
+                  "id": "vault-tec",
+                  "label": "Vault-Tec"
+                },
+                {
+                  "id": "nuka-cola",
+                  "label": "Nuka-Cola"
+                }
+              ],
+              "correct_option_id": "hubris-comics",
+              "difficulty": 3
+            },
+            {
+              "id": "guns_and_bullets",
+              "prompt": "Which pre-war magazine covers firearms?",
+              "options": [
+                {
+                  "id": "guns-and-bullets",
+                  "label": "Guns and Bullets"
+                },
+                {
+                  "id": "tesla-science",
+                  "label": "Tesla Science"
+                },
+                {
+                  "id": "tumblers-today",
+                  "label": "Tumblers Today"
+                }
+              ],
+              "correct_option_id": "guns-and-bullets",
+              "difficulty": 2
+            },
+            {
+              "id": "tesla_science",
+              "prompt": "Which pre-war magazine covers technology?",
+              "options": [
+                {
+                  "id": "tesla-science",
+                  "label": "Tesla Science"
+                },
+                {
+                  "id": "guns-and-bullets",
+                  "label": "Guns and Bullets"
+                },
+                {
+                  "id": "total-hack",
+                  "label": "Total Hack"
+                }
+              ],
+              "correct_option_id": "tesla-science",
+              "difficulty": 2
+            },
+            {
+              "id": "tumblers_today",
+              "prompt": "Which pre-war magazine covers lockpicking?",
+              "options": [
+                {
+                  "id": "tumblers-today",
+                  "label": "Tumblers Today"
+                },
+                {
+                  "id": "total-hack",
+                  "label": "Total Hack"
+                },
+                {
+                  "id": "tesla-science",
+                  "label": "Tesla Science"
+                }
+              ],
+              "correct_option_id": "tumblers-today",
+              "difficulty": 2
+            },
+            {
+              "id": "total_hack",
+              "prompt": "Which pre-war magazine covers hacking?",
+              "options": [
+                {
+                  "id": "total-hack",
+                  "label": "Total Hack"
+                },
+                {
+                  "id": "tumblers-today",
+                  "label": "Tumblers Today"
+                },
+                {
+                  "id": "guns-and-bullets",
+                  "label": "Guns and Bullets"
+                }
+              ],
+              "correct_option_id": "total-hack",
+              "difficulty": 2
+            },
+            {
+              "id": "kiddie_kingdom",
+              "prompt": "Which Nuka-World zone is a fairy-tale castle?",
+              "options": [
+                {
+                  "id": "kiddie-kingdom",
+                  "label": "Kiddie Kingdom"
+                },
+                {
+                  "id": "galactic-zone",
+                  "label": "Galactic Zone"
+                },
+                {
+                  "id": "dry-rock-gulch",
+                  "label": "Dry Rock Gulch"
+                }
+              ],
+              "correct_option_id": "kiddie-kingdom",
+              "difficulty": 3
+            },
+            {
+              "id": "galactic_zone",
+              "prompt": "Which Nuka-World zone is science-fiction themed?",
+              "options": [
+                {
+                  "id": "galactic-zone",
+                  "label": "Galactic Zone"
+                },
+                {
+                  "id": "kiddie-kingdom",
+                  "label": "Kiddie Kingdom"
+                },
+                {
+                  "id": "dry-rock-gulch",
+                  "label": "Dry Rock Gulch"
+                }
+              ],
+              "correct_option_id": "galactic-zone",
+              "difficulty": 3
+            },
+            {
+              "id": "dry_rock_gulch",
+              "prompt": "Which Nuka-World zone is western themed?",
+              "options": [
+                {
+                  "id": "dry-rock-gulch",
+                  "label": "Dry Rock Gulch"
+                },
+                {
+                  "id": "kiddie-kingdom",
+                  "label": "Kiddie Kingdom"
+                },
+                {
+                  "id": "galactic-zone",
+                  "label": "Galactic Zone"
+                }
+              ],
+              "correct_option_id": "dry-rock-gulch",
+              "difficulty": 3
+            },
+            {
+              "id": "grognak_game",
+              "prompt": "Which holotape game stars Grognak?",
+              "options": [
+                {
+                  "id": "grognak-ruby-ruins",
+                  "label": "Grognak & the Ruby Ruins"
+                },
+                {
+                  "id": "atomic-command",
+                  "label": "Atomic Command"
+                },
+                {
+                  "id": "zeta-invaders",
+                  "label": "Zeta Invaders"
+                }
+              ],
+              "correct_option_id": "grognak-ruby-ruins",
+              "difficulty": 4
+            },
+            {
+              "id": "zeta_invaders",
+              "prompt": "Which holotape game is about fighting aliens?",
+              "options": [
+                {
+                  "id": "zeta-invaders",
+                  "label": "Zeta Invaders"
+                },
+                {
+                  "id": "atomic-command",
+                  "label": "Atomic Command"
+                },
+                {
+                  "id": "grognak-ruby-ruins",
+                  "label": "Grognak & the Ruby Ruins"
+                }
+              ],
+              "correct_option_id": "zeta-invaders",
+              "difficulty": 4
             }
           ]
         }
@@ -551,7 +855,8 @@
                   "label": "Poseidon Energy"
                 }
               ],
-              "correct_option_id": "vault-tec"
+              "correct_option_id": "vault-tec",
+              "difficulty": 1
             },
             {
               "id": "nuka_cola",
@@ -570,7 +875,8 @@
                   "label": "Vim"
                 }
               ],
-              "correct_option_id": "nuka-cola"
+              "correct_option_id": "nuka-cola",
+              "difficulty": 1
             },
             {
               "id": "caps_currency",
@@ -589,7 +895,8 @@
                   "label": "Gold coins"
                 }
               ],
-              "correct_option_id": "caps"
+              "correct_option_id": "caps",
+              "difficulty": 1
             },
             {
               "id": "brotherhood_codex",
@@ -608,7 +915,8 @@
                   "label": "The Protocol"
                 }
               ],
-              "correct_option_id": "codex"
+              "correct_option_id": "codex",
+              "difficulty": 2
             },
             {
               "id": "ghoul_origin",
@@ -627,7 +935,8 @@
                   "label": "A pre-war robot"
                 }
               ],
-              "correct_option_id": "radiation-human"
+              "correct_option_id": "radiation-human",
+              "difficulty": 1
             },
             {
               "id": "ncr_name",
@@ -646,69 +955,248 @@
                   "label": "Northern Capital Region"
                 }
               ],
-              "correct_option_id": "new-california"
-            }
-          ],
-          "raiders": [
-            {
-              "id": "sable",
-              "name": "Sable",
-              "gender": "female",
-              "intro": "A scarred raider named Sable watches the road with a sawed-off across her lap.",
-              "correct_line": "pays up with a sour grin",
-              "wrong_line": "snarls and swings the stock at your head",
-              "image_url": "/static/raider_images/variants/sable.webp?v=5",
-              "alt_image_url": "/static/raider_images/variants/sable_alt.webp?v=5"
+              "correct_option_id": "new-california",
+              "difficulty": 2
             },
             {
-              "id": "rook",
-              "name": "Rook",
-              "gender": "female",
-              "intro": "A wiry raider named Rook circles you, a knife loose in her hand.",
-              "correct_line": "tosses the caps over with a wink",
-              "wrong_line": "flicks the knife up and comes at you",
-              "image_url": "/static/raider_images/variants/rook.webp?v=5",
-              "alt_image_url": "/static/raider_images/variants/rook_alt.webp?v=5"
+              "id": "fev_acronym",
+              "prompt": "What does FEV stand for?",
+              "options": [
+                {
+                  "id": "forced-evolutionary-virus",
+                  "label": "Forced Evolutionary Virus"
+                },
+                {
+                  "id": "field-energy-valve",
+                  "label": "Field Energy Valve"
+                },
+                {
+                  "id": "feral-exposure-vector",
+                  "label": "Feral Exposure Vector"
+                }
+              ],
+              "correct_option_id": "forced-evolutionary-virus",
+              "difficulty": 3
             },
             {
-              "id": "jinx",
-              "name": "Jinx",
-              "gender": "female",
-              "intro": "Jinx grins from the hood of a burned-out car, rifle propped on her knee.",
-              "correct_line": "laughs and slides the loot across the asphalt",
-              "wrong_line": "snaps the rifle up to her shoulder",
-              "image_url": "/static/raider_images/variants/jinx.webp?v=5",
-              "alt_image_url": "/static/raider_images/variants/jinx_alt.webp?v=5"
+              "id": "pipboy_maker",
+              "prompt": "Which company manufactured the Pip-Boy?",
+              "options": [
+                {
+                  "id": "robco",
+                  "label": "RobCo Industries"
+                },
+                {
+                  "id": "vault-tec",
+                  "label": "Vault-Tec"
+                },
+                {
+                  "id": "poseidon",
+                  "label": "Poseidon Energy"
+                }
+              ],
+              "correct_option_id": "robco",
+              "difficulty": 2
             },
             {
-              "id": "gristle",
-              "name": "Gristle",
-              "gender": "male",
-              "intro": "A broad-shouldered raider called Gristle blocks the lane, chewing on a stimpak needle.",
-              "correct_line": "gives up the stash with a grunt",
-              "wrong_line": "roars and charges",
-              "image_url": "/static/raider_images/variants/gristle.webp?v=5",
-              "alt_image_url": "/static/raider_images/variants/gristle_alt.webp?v=5"
+              "id": "diamond_city_ballpark",
+              "prompt": "Which settlement is built inside Fenway Park?",
+              "options": [
+                {
+                  "id": "diamond-city",
+                  "label": "Diamond City"
+                },
+                {
+                  "id": "goodneighbor",
+                  "label": "Goodneighbor"
+                },
+                {
+                  "id": "bunker-hill",
+                  "label": "Bunker Hill"
+                }
+              ],
+              "correct_option_id": "diamond-city",
+              "difficulty": 2
             },
             {
-              "id": "brick",
-              "name": "Brick",
-              "gender": "male",
-              "intro": "Brick, a raider with a face like a collapsed wall, leans on a rebar club.",
-              "correct_line": "shrugs and kicks the stash over",
-              "wrong_line": "hauls the club back over his shoulder",
-              "image_url": "/static/raider_images/variants/brick.webp?v=5",
-              "alt_image_url": "/static/raider_images/variants/brick_alt.webp?v=5"
+              "id": "deathclaw_origin",
+              "prompt": "What is a Deathclaw?",
+              "options": [
+                {
+                  "id": "engineered-reptile",
+                  "label": "A genetically engineered reptile"
+                },
+                {
+                  "id": "mutated-bear",
+                  "label": "A mutated bear"
+                },
+                {
+                  "id": "giant-insect",
+                  "label": "A giant insect"
+                }
+              ],
+              "correct_option_id": "engineered-reptile",
+              "difficulty": 2
             },
             {
-              "id": "cutter",
-              "name": "Cutter",
-              "gender": "male",
-              "intro": "Cutter sharpens a machete on the tollbooth rail, watching you the whole time.",
-              "correct_line": "nods once and steps aside",
-              "wrong_line": "comes over the rail with the blade leading",
-              "image_url": "/static/raider_images/variants/cutter.webp?v=5",
-              "alt_image_url": "/static/raider_images/variants/cutter_alt.webp?v=5"
+              "id": "institute_synths",
+              "prompt": "Which faction creates synthetic humans called synths?",
+              "options": [
+                {
+                  "id": "institute",
+                  "label": "The Institute"
+                },
+                {
+                  "id": "brotherhood",
+                  "label": "Brotherhood of Steel"
+                },
+                {
+                  "id": "railroad",
+                  "label": "The Railroad"
+                }
+              ],
+              "correct_option_id": "institute",
+              "difficulty": 3
+            },
+            {
+              "id": "railroad_goal",
+              "prompt": "What is the Railroad's main goal?",
+              "options": [
+                {
+                  "id": "free-synths",
+                  "label": "Freeing synths"
+                },
+                {
+                  "id": "restore-government",
+                  "label": "Restoring the pre-war government"
+                },
+                {
+                  "id": "control-water",
+                  "label": "Controlling the water supply"
+                }
+              ],
+              "correct_option_id": "free-synths",
+              "difficulty": 3
+            },
+            {
+              "id": "minutemen_castle",
+              "prompt": "Which settlement serves as the Minutemen's artillery headquarters?",
+              "options": [
+                {
+                  "id": "the-castle",
+                  "label": "The Castle"
+                },
+                {
+                  "id": "diamond-city",
+                  "label": "Diamond City"
+                },
+                {
+                  "id": "goodneighbor",
+                  "label": "Goodneighbor"
+                }
+              ],
+              "correct_option_id": "the-castle",
+              "difficulty": 3
+            },
+            {
+              "id": "ncr_capital",
+              "prompt": "What is the capital of the New California Republic?",
+              "options": [
+                {
+                  "id": "shady-sands",
+                  "label": "Shady Sands"
+                },
+                {
+                  "id": "new-reno",
+                  "label": "New Reno"
+                },
+                {
+                  "id": "vault-city",
+                  "label": "Vault City"
+                }
+              ],
+              "correct_option_id": "shady-sands",
+              "difficulty": 3
+            },
+            {
+              "id": "vegas_strip",
+              "prompt": "What is Mr. House's casino district in New Vegas called?",
+              "options": [
+                {
+                  "id": "the-strip",
+                  "label": "The Strip"
+                },
+                {
+                  "id": "freeside",
+                  "label": "Freeside"
+                },
+                {
+                  "id": "the-hub",
+                  "label": "The Hub"
+                }
+              ],
+              "correct_option_id": "the-strip",
+              "difficulty": 2
+            },
+            {
+              "id": "vats_acronym",
+              "prompt": "What does V.A.T.S. stand for?",
+              "options": [
+                {
+                  "id": "assisted-targeting",
+                  "label": "Vault-Tec Assisted Targeting System"
+                },
+                {
+                  "id": "automated-tactical",
+                  "label": "Vault-Tec Automated Tactical System"
+                },
+                {
+                  "id": "advanced-tracking",
+                  "label": "Vault-Tec Advanced Tracking System"
+                }
+              ],
+              "correct_option_id": "assisted-targeting",
+              "difficulty": 3
+            },
+            {
+              "id": "jet_origin",
+              "prompt": "Which chem is made from brahmin dung fumes?",
+              "options": [
+                {
+                  "id": "jet",
+                  "label": "Jet"
+                },
+                {
+                  "id": "psycho",
+                  "label": "Psycho"
+                },
+                {
+                  "id": "buffout",
+                  "label": "Buffout"
+                }
+              ],
+              "correct_option_id": "jet",
+              "difficulty": 3
+            },
+            {
+              "id": "quantum_cola",
+              "prompt": "What is the glowing blue Nuka-Cola variant called?",
+              "options": [
+                {
+                  "id": "quantum",
+                  "label": "Nuka-Cola Quantum"
+                },
+                {
+                  "id": "victory",
+                  "label": "Nuka-Cola Victory"
+                },
+                {
+                  "id": "quartz",
+                  "label": "Nuka-Cola Quartz"
+                }
+              ],
+              "correct_option_id": "quantum",
+              "difficulty": 2
             }
           ]
         }
@@ -720,6 +1208,356 @@
           "type": "junk",
           "floor": null
         }
+      }
+    },
+    {
+      "id": "gloomwater_bog",
+      "name": "Gloomwater Bog",
+      "flavor": "A rusted evacuation bus sinks into the marsh beside a rotten boardwalk. The old watchtower has a clear line on anyone who tries the crossing.",
+      "coord_x": 14.0,
+      "coord_y": 46.0,
+      "min_dweller_level": 2,
+      "scene_id": "gloomwater_bog",
+      "lore": "The watchtower log ends mid-sentence: 'Sunset over the bog is the most beautiful thing left in the world. Do not follow the light past the\u2014'",
+      "enemy_power_scale": 0.08,
+      "enemy_health_scale": 0.2,
+      "encounter": {
+        "id": "gloomwater_bog",
+        "name": "Gloomwater Bog",
+        "flavor": "Mud sucks at the boardwalk. Bloatflies rise from the reeds, and the tower's bell begins to ring on its own.",
+        "node": {
+          "kind": "combat",
+          "prompt": "Mud sucks at the boardwalk. Bloatflies rise from the reeds, and the tower's bell begins to ring on its own.",
+          "enemies": [
+            {
+              "name": "Bloatfly",
+              "arena_key": "bloatfly"
+            }
+          ]
+        }
+      },
+      "reward_vault": {
+        "caps_min": 30,
+        "caps_max": 55,
+        "item": {
+          "type": "junk",
+          "floor": null
+        },
+        "junk_bundles": 1
+      }
+    },
+    {
+      "id": "gloomwater_bog_night",
+      "name": "Gloomwater Bog at Night",
+      "flavor": "Moonlight turns the water silver. A lamp burns in the watchtower, and the boardwalk creaks under a slow, heavy tread.",
+      "coord_x": 16.0,
+      "coord_y": 50.0,
+      "min_dweller_level": 3,
+      "scene_id": "gloomwater_bog_night",
+      "lore": "The tower lamp was meant to guide evacuees. Now it burns for whatever learned to answer it.",
+      "enemy_power_scale": 0.1,
+      "enemy_health_scale": 0.25,
+      "encounter": {
+        "id": "gloomwater_bog_night",
+        "name": "Gloomwater Bog at Night",
+        "flavor": "A feral ghoul in a waterworks coat drags something metal through the shallows. The tower light catches its face.",
+        "node": {
+          "kind": "combat",
+          "prompt": "A feral ghoul in a waterworks coat drags something metal through the shallows. The tower light catches its face.",
+          "enemies": [
+            {
+              "name": "Feral Ghoul",
+              "arena_key": "feral-ghoul"
+            }
+          ]
+        }
+      },
+      "reward_vault": {
+        "caps_min": 40,
+        "caps_max": 70,
+        "item": {
+          "type": "junk",
+          "floor": null
+        },
+        "junk_bundles": 1
+      }
+    },
+    {
+      "id": "outskirts_interchange",
+      "name": "Outskirts Interchange",
+      "flavor": "A faded Nuka-Cola billboard promises a brighter tomorrow above a cracked interchange. A raider crew has made the overpass a checkpoint.",
+      "coord_x": 66.0,
+      "coord_y": 72.0,
+      "min_dweller_level": 3,
+      "scene_id": "outskirts_interchange",
+      "lore": "The billboard model has been smiling over the ruins for two centuries. Someone painted one word under her bottle: 'LATER.'",
+      "enemy_power_scale": 0.1,
+      "enemy_health_scale": 0.25,
+      "encounter": {
+        "id": "outskirts_interchange",
+        "name": "Outskirts Interchange",
+        "flavor": "A raider crew has turned the overpass into a checkpoint. They want a toll \u2014 or an answer.",
+        "node": {
+          "kind": "trivia",
+          "prompt": "'You want through?' the raider says. 'Name the wasteland and maybe we let you pass. Get it wrong and we take everything.'",
+          "enemies": [
+            {
+              "name": "Raider",
+              "arena_key": "raider"
+            }
+          ],
+          "trivia_questions": [
+            {
+              "id": "nuka_cola_company",
+              "prompt": "Which company made Nuka-Cola?",
+              "options": [
+                {
+                  "id": "nuka-cola-corporation",
+                  "label": "Nuka-Cola Corporation"
+                },
+                {
+                  "id": "sunset-company",
+                  "label": "Sunset Sarsaparilla Company"
+                },
+                {
+                  "id": "vim-pop",
+                  "label": "Vim! Pop Incorporated"
+                }
+              ],
+              "correct_option_id": "nuka-cola-corporation",
+              "difficulty": 1
+            },
+            {
+              "id": "nuka_girl",
+              "prompt": "Who is Nuka-Cola's pre-war mascot?",
+              "options": [
+                {
+                  "id": "nuka-girl",
+                  "label": "Nuka-Girl"
+                },
+                {
+                  "id": "vault-boy",
+                  "label": "Vault Boy"
+                },
+                {
+                  "id": "sierra-petrovita",
+                  "label": "Sierra Petrovita"
+                }
+              ],
+              "correct_option_id": "nuka-girl",
+              "difficulty": 2
+            },
+            {
+              "id": "sunset_sarsaparilla",
+              "prompt": "Which soft drink is associated with the Mojave Wasteland?",
+              "options": [
+                {
+                  "id": "sunset-sarsaparilla",
+                  "label": "Sunset Sarsaparilla"
+                },
+                {
+                  "id": "nuka-cola",
+                  "label": "Nuka-Cola"
+                },
+                {
+                  "id": "vim",
+                  "label": "Vim"
+                }
+              ],
+              "correct_option_id": "sunset-sarsaparilla",
+              "difficulty": 2
+            },
+            {
+              "id": "vim_far_harbor",
+              "prompt": "Which soft drink is bottled in Far Harbor?",
+              "options": [
+                {
+                  "id": "vim",
+                  "label": "Vim"
+                },
+                {
+                  "id": "nuka-cola",
+                  "label": "Nuka-Cola"
+                },
+                {
+                  "id": "sunset-sarsaparilla",
+                  "label": "Sunset Sarsaparilla"
+                }
+              ],
+              "correct_option_id": "vim",
+              "difficulty": 2
+            },
+            {
+              "id": "rivet_city",
+              "prompt": "Which settlement is built inside a pre-war aircraft carrier?",
+              "options": [
+                {
+                  "id": "rivet-city",
+                  "label": "Rivet City"
+                },
+                {
+                  "id": "megaton",
+                  "label": "Megaton"
+                },
+                {
+                  "id": "tenpenny-tower",
+                  "label": "Tenpenny Tower"
+                }
+              ],
+              "correct_option_id": "rivet-city",
+              "difficulty": 2
+            },
+            {
+              "id": "megaton_bomb",
+              "prompt": "Which settlement is built around an unexploded atomic bomb?",
+              "options": [
+                {
+                  "id": "megaton",
+                  "label": "Megaton"
+                },
+                {
+                  "id": "rivet-city",
+                  "label": "Rivet City"
+                },
+                {
+                  "id": "diamond-city",
+                  "label": "Diamond City"
+                }
+              ],
+              "correct_option_id": "megaton",
+              "difficulty": 1
+            },
+            {
+              "id": "the_hub",
+              "prompt": "Which trading settlement is the heart of Fallout's first wasteland?",
+              "options": [
+                {
+                  "id": "the-hub",
+                  "label": "The Hub"
+                },
+                {
+                  "id": "shady-sands",
+                  "label": "Shady Sands"
+                },
+                {
+                  "id": "junktown",
+                  "label": "Junktown"
+                }
+              ],
+              "correct_option_id": "the-hub",
+              "difficulty": 3
+            },
+            {
+              "id": "gunners",
+              "prompt": "Which mercenary group controls checkpoints and caravans in the Commonwealth?",
+              "options": [
+                {
+                  "id": "gunners",
+                  "label": "The Gunners"
+                },
+                {
+                  "id": "minutemen",
+                  "label": "The Minutemen"
+                },
+                {
+                  "id": "railroad",
+                  "label": "The Railroad"
+                }
+              ],
+              "correct_option_id": "gunners",
+              "difficulty": 3
+            },
+            {
+              "id": "corvega_maker",
+              "prompt": "Which pre-war company manufactured the Corvega?",
+              "options": [
+                {
+                  "id": "chryslus",
+                  "label": "Chryslus"
+                },
+                {
+                  "id": "red-rocket",
+                  "label": "Red Rocket"
+                },
+                {
+                  "id": "poseidon",
+                  "label": "Poseidon Energy"
+                }
+              ],
+              "correct_option_id": "chryslus",
+              "difficulty": 4
+            },
+            {
+              "id": "red_rocket",
+              "prompt": "Which pre-war company operated the rocket-shaped gas stations?",
+              "options": [
+                {
+                  "id": "red-rocket",
+                  "label": "Red Rocket"
+                },
+                {
+                  "id": "poseidon",
+                  "label": "Poseidon Energy"
+                },
+                {
+                  "id": "robco",
+                  "label": "RobCo Industries"
+                }
+              ],
+              "correct_option_id": "red-rocket",
+              "difficulty": 2
+            },
+            {
+              "id": "poseidon_energy",
+              "prompt": "Which pre-war company operated nuclear power plants?",
+              "options": [
+                {
+                  "id": "poseidon",
+                  "label": "Poseidon Energy"
+                },
+                {
+                  "id": "vault-tec",
+                  "label": "Vault-Tec"
+                },
+                {
+                  "id": "chryslus",
+                  "label": "Chryslus"
+                }
+              ],
+              "correct_option_id": "poseidon",
+              "difficulty": 3
+            },
+            {
+              "id": "publick_occurrences",
+              "prompt": "Which newspaper is published in Diamond City?",
+              "options": [
+                {
+                  "id": "publick-occurrences",
+                  "label": "Publick Occurrences"
+                },
+                {
+                  "id": "boston-bugle",
+                  "label": "The Boston Bugle"
+                },
+                {
+                  "id": "galaxy-news",
+                  "label": "Galaxy News"
+                }
+              ],
+              "correct_option_id": "publick-occurrences",
+              "difficulty": 3
+            }
+          ]
+        }
+      },
+      "reward_vault": {
+        "caps_min": 40,
+        "caps_max": 70,
+        "item": {
+          "type": "junk",
+          "floor": null
+        },
+        "junk_bundles": 1
       }
     },
     {

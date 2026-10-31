@@ -229,9 +229,11 @@ describe('Vault Store', () => {
       const scenario = {
         number: 1,
         key: 'vault_1_test',
-        title: 'Vault 1 — Scout Test',
+        title: 'Vault 1 — Wasteland Test',
         description: 'Test scenario',
         requires_boosted: false,
+        default_boosted: true,
+        default_on: true,
         expedition: true,
       }
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [scenario] })

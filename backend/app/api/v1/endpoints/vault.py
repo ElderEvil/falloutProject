@@ -87,6 +87,8 @@ async def list_scenario_options(
             title=scenario.title,
             description=scenario.description,
             requires_boosted=scenario.requires_boosted,
+            default_boosted=scenario.default_boosted,
+            default_on=scenario.default_on,
             expedition=scenario.expedition,
         )
         for scenario in vault_scenario_service.list()

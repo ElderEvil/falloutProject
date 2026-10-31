@@ -8,8 +8,9 @@ from app import crud
 from app.core.config import settings
 from app.core.enums import GenderEnum, ObjectiveCategoryEnum
 from app.crud.objective import objective_crud
+from app.models.exploration import ExplorationStatus
 from app.schemas.vault import VaultCreateWithUserID
-from app.services.exploration.expedition import expedition_service
+from app.services import catalog_service as data_loader
 from app.services.vault_service import vault_service
 from app.tests.factory.vaults import create_fake_vault
 
@@ -503,12 +504,14 @@ async def test_vault_scenarios_list_vault_1(
         {
             "number": 1,
             "key": "vault_1_test",
-            "title": "Vault 1 — Scout Test",
+            "title": "Vault 1 — Wasteland Test",
             "description": (
-                "Adds a level 5 / SPECIAL 4 Scout and a single-scene stat-check expedition. "
-                "Extra living capacity; starter objectives skipped. Starts at the site picker."
+                "Boosted by default. Seeds one named dweller per expedition site, each already "
+                "scouting with its site reported in the bell. Starter objectives skipped."
             ),
             "requires_boosted": False,
+            "default_boosted": True,
+            "default_on": True,
             "expedition": True,
         },
         {
@@ -520,6 +523,8 @@ async def test_vault_scenarios_list_vault_1(
                 "no expedition scout. Starter objectives skipped."
             ),
             "requires_boosted": True,
+            "default_boosted": False,
+            "default_on": False,
             "expedition": False,
         },
         {
@@ -531,13 +536,15 @@ async def test_vault_scenarios_list_vault_1(
                 "no expedition scout. Starter objectives skipped."
             ),
             "requires_boosted": True,
+            "default_boosted": False,
+            "default_on": False,
             "expedition": False,
         },
     ]
 
 
 @pytest.mark.asyncio
-async def test_vault_initiate_scenario_seeds_single_scene_scout(
+async def test_vault_initiate_scenario_seeds_dwellers_scouting_every_site(
     async_client: AsyncClient,
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
@@ -551,29 +558,28 @@ async def test_vault_initiate_scenario_seeds_single_scene_scout(
     vault_id = UUID(response.json()["id"])
 
     dwellers = await crud.dweller.get_multi_by_vault(async_session, vault_id)
-    scout = next(dweller for dweller in dwellers if dweller.display_name == "Scout Scenario")
-    assert scout.level == 5
-    assert (scout.strength, scout.perception, scout.endurance, scout.charisma) == (4, 4, 4, 4)
-    assert (scout.intelligence, scout.agility, scout.luck) == (4, 4, 4)
+    named = {dweller.display_name for dweller in dwellers}
+    assert {"Ada Voss", "Bram Cole"} <= named
+    assert next(dweller for dweller in dwellers if dweller.display_name == "Ada Voss").level == 5
 
     stored_vault = await crud.vault.get(async_session, vault_id)
     assert stored_vault is not None
     assert stored_vault.population_max is not None
-    assert stored_vault.population_max > len(dwellers)
+    assert stored_vault.population_max >= len(dwellers)
     objectives = await objective_crud.get_multi_for_vault(async_session, vault_id)
     assert not any(objective.category is ObjectiveCategoryEnum.STARTER for objective in objectives)
 
+    non_scenario_sites = {site.id for site in data_loader.load_expedition_sites() if not site.scenario_only}
     explorations = await crud.exploration.get_by_vault(async_session, vault_id=vault_id, active_only=True)
-    assert len(explorations) == 1
-    exploration = explorations[0]
-    assert any(
-        event.get("event") == "scenario_all_sites"
-        and event.get("single_scene_only") is True
-        and event.get("choice_only") is True
+    assert len(explorations) == len(non_scenario_sites)
+    assert all(exploration.status is ExplorationStatus.ACTIVE for exploration in explorations)
+    found = {
+        event["site_id"]
+        for exploration in explorations
         for event in exploration.events
-    )
-    sites = {site.id for site in await expedition_service.list_available_sites(async_session, exploration.id)}
-    assert sites == {"vault_68", "vault_69"}
+        if event.get("event") == "site_found"
+    }
+    assert non_scenario_sites <= found
 
 
 @pytest.mark.parametrize(

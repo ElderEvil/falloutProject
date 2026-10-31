@@ -285,7 +285,7 @@ describe('ExpeditionSiteModal', () => {
     const wrapper = mountModal()
     await flushPromises()
     const scene = wrapper.getComponent(WastelandScene)
-    expect(scene.props('variant')).toBe('battleback')
+    expect(scene.props('frame')).toBe('encounter')
     expect(scene.props('scene')).toBe('supermarket_interior')
     const initialSceneProps = { ...scene.props() }
     expect(wrapper.text()).not.toContain('Room 1 /')

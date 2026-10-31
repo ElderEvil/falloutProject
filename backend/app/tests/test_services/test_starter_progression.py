@@ -26,7 +26,7 @@ from app.services.leveling_service import leveling_service
 from app.services.progression.objectives.evaluators import evaluator_manager
 from app.services.progression.objectives.evaluators.base import current_session_maker
 from app.services.progression.objectives.guidance import current_state_progress, read_objectives
-from app.services.resource_manager import ResourceManager
+from app.services.resource_manager_service import ResourceManager
 from app.services.rewards.settlement import claim_objective_reward
 from app.services.room_service import room_service
 from app.services.vault_service import vault_service

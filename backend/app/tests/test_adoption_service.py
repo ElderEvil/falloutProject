@@ -19,7 +19,7 @@ from app.crud.relationship import relationship_crud
 from app.models.notification import Notification, NotificationType
 from app.schemas.user import UserCreate
 from app.services.family.adoption_service import adoption_service
-from app.services.game_loop import game_loop_service
+from app.services.game_loop_service import game_loop_service
 from app.services.game_tick import family_tick
 from app.services.notification_service import notification_service
 from app.tests.factory.dwellers import create_random_common_dweller

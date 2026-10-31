@@ -7,7 +7,7 @@ import pytest
 
 from app.models.dweller import BIO_MAX_CHARS
 from app.schemas.dweller_ai import DwellerBackstory, ExtendedBio
-from app.services.dweller_ai import dweller_ai
+from app.services.dweller_ai_service import dweller_ai
 
 pytestmark = pytest.mark.asyncio
 
@@ -34,11 +34,11 @@ def _make_dweller_mock(bio: str | None = None) -> MagicMock:
 # ── generate_backstory ────────────────────────────────────────────
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.map_service")
-@patch("app.services.dweller_ai.dweller_crud")
-@patch("app.services.dweller_ai.backstory_agent")
-@patch("app.services.dweller_ai.quota_service")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.map_service")
+@patch("app.services.dweller_ai_service.dweller_crud")
+@patch("app.services.dweller_ai_service.backstory_agent")
+@patch("app.services.dweller_ai_service.quota_service")
 async def test_generate_backstory_map_service_raising_is_swallowed(
     mock_quota: MagicMock,
     mock_agent: MagicMock,
@@ -84,11 +84,11 @@ async def test_generate_backstory_map_service_raising_is_swallowed(
 # ── extend_bio ─────────────────────────────────────────────────────
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.map_service")
-@patch("app.services.dweller_ai.dweller_crud")
-@patch("app.services.dweller_ai.bio_extension_agent")
-@patch("app.services.dweller_ai.quota_service")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.map_service")
+@patch("app.services.dweller_ai_service.dweller_crud")
+@patch("app.services.dweller_ai_service.bio_extension_agent")
+@patch("app.services.dweller_ai_service.quota_service")
 async def test_extend_bio_length_guard_truncates_at_the_bio_cap(
     mock_quota: MagicMock,
     mock_agent: MagicMock,
@@ -133,11 +133,11 @@ async def test_extend_bio_length_guard_truncates_at_the_bio_cap(
     assert not stored_bio.endswith("....")  # not double-truncated
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.map_service")
-@patch("app.services.dweller_ai.dweller_crud")
-@patch("app.services.dweller_ai.bio_extension_agent")
-@patch("app.services.dweller_ai.quota_service")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.map_service")
+@patch("app.services.dweller_ai_service.dweller_crud")
+@patch("app.services.dweller_ai_service.bio_extension_agent")
+@patch("app.services.dweller_ai_service.quota_service")
 async def test_extend_bio_rewrites_the_origin_entry(
     mock_quota: MagicMock,
     mock_agent: MagicMock,
@@ -174,11 +174,11 @@ async def test_extend_bio_rewrites_the_origin_entry(
     assert "More details." in update.bio
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.map_service")
-@patch("app.services.dweller_ai.dweller_crud")
-@patch("app.services.dweller_ai.bio_extension_agent")
-@patch("app.services.dweller_ai.quota_service")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.map_service")
+@patch("app.services.dweller_ai_service.dweller_crud")
+@patch("app.services.dweller_ai_service.bio_extension_agent")
+@patch("app.services.dweller_ai_service.quota_service")
 async def test_extend_bio_preserves_life_entries(
     mock_quota: MagicMock,
     mock_agent: MagicMock,
@@ -225,11 +225,11 @@ async def test_extend_bio_preserves_life_entries(
     assert "More details." in update.bio
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.map_service")
-@patch("app.services.dweller_ai.dweller_crud")
-@patch("app.services.dweller_ai.backstory_agent")
-@patch("app.services.dweller_ai.quota_service")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.map_service")
+@patch("app.services.dweller_ai_service.dweller_crud")
+@patch("app.services.dweller_ai_service.backstory_agent")
+@patch("app.services.dweller_ai_service.quota_service")
 async def test_generate_backstory_replaces_origin_entry(
     mock_quota: MagicMock,
     mock_agent: MagicMock,
@@ -295,7 +295,7 @@ async def test_failed_map_write_preserves_bio_and_usage_without_partial_places(a
         raise RuntimeError("map link failed")
 
     with (
-        patch(f"app.services.dweller_ai.{agent}.run", new=AsyncMock(return_value=result)),
+        patch(f"app.services.dweller_ai_service.{agent}.run", new=AsyncMock(return_value=result)),
         patch.object(crud.world_location, "link_dweller", new=fail_after_link),
     ):
         if extend:

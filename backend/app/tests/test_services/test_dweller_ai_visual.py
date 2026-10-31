@@ -9,7 +9,7 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior
 from app.core.enums import AgeGroupEnum
 from app.crud.storage import storage as storage_crud
 from app.schemas.dweller import DwellerVisualAttributes
-from app.services.dweller_ai import dweller_ai, restrict_equipment_fields
+from app.services.dweller_ai_service import dweller_ai, restrict_equipment_fields
 from app.utils.exceptions import AIProviderException
 
 
@@ -47,10 +47,10 @@ async def test_avatar_race_change_normalizes_age_and_medical_inventory(async_ses
     assert storage.radaway >= 2
 
 
-@patch("app.services.dweller_ai.llm_interaction_crud")
-@patch("app.services.dweller_ai.visual_attributes_agent")
-@patch("app.services.dweller_ai.dweller_crud")
-@patch("app.services.dweller_ai.quota_service")
+@patch("app.services.dweller_ai_service.llm_interaction_crud")
+@patch("app.services.dweller_ai_service.visual_attributes_agent")
+@patch("app.services.dweller_ai_service.dweller_crud")
+@patch("app.services.dweller_ai_service.quota_service")
 async def test_generate_replaces_substantial_attrs(
     mock_quota: MagicMock, mock_crud: MagicMock, mock_agent: MagicMock, mock_llm: MagicMock
 ) -> None:
@@ -107,11 +107,11 @@ async def test_generate_replaces_substantial_attrs(
     assert generated is updated_dweller
 
 
-@patch("app.services.dweller_ai.get_provider_model_snapshot", new_callable=AsyncMock)
-@patch("app.services.dweller_ai.get_instructions", new_callable=AsyncMock)
-@patch("app.services.dweller_ai.visual_attributes_agent")
-@patch("app.services.dweller_ai.dweller_crud")
-@patch("app.services.dweller_ai.quota_service")
+@patch("app.services.dweller_ai_service.get_provider_model_snapshot", new_callable=AsyncMock)
+@patch("app.services.dweller_ai_service.get_instructions", new_callable=AsyncMock)
+@patch("app.services.dweller_ai_service.visual_attributes_agent")
+@patch("app.services.dweller_ai_service.dweller_crud")
+@patch("app.services.dweller_ai_service.quota_service")
 async def test_generate_visual_attributes_maps_invalid_ai_output_to_safe_error(
     mock_quota: MagicMock,
     mock_crud: MagicMock,

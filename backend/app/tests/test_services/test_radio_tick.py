@@ -20,7 +20,7 @@ from app.models.vault import Vault
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
 from app.schemas.vault import ResourceTickEvents
-from app.services.game_loop import game_loop_service
+from app.services.game_loop_service import game_loop_service
 from app.services.game_tick.radio_tick import process_radio
 from app.services.radio_service import radio_service
 

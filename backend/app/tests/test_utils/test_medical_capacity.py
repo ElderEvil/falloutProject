@@ -7,7 +7,7 @@ keys in capacity maps use "stimpack".
 
 from unittest.mock import MagicMock
 
-from app.services.resource_manager import MEDICAL_ROOM_PRODUCTION, compute_medical_capacity
+from app.services.resource_manager_service import MEDICAL_ROOM_PRODUCTION, compute_medical_capacity
 
 
 def _make_room(name: str, capacity: int | None) -> MagicMock:

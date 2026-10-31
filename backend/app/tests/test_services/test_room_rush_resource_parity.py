@@ -2,7 +2,7 @@ from app.models import Dweller, Storage
 from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
-from app.services.resource_manager import ResourceManager
+from app.services.resource_manager_service import ResourceManager
 
 
 def _room() -> Room:

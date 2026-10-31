@@ -36,7 +36,7 @@ from app.services.vault_service import vault_service
 from app.utils.dwellers import group_dwellers_by_room
 
 if TYPE_CHECKING:
-    from app.services.game_loop import GameLoopService
+    from app.services.game_loop_service import GameLoopService
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ async def process_events(
     """Fire weighted random vault events (raider scout, resource cache, wanderer).
 
     ``rng`` is the ``random`` module passed in by the facade so tests can keep
-    patching ``app.services.game_loop.random``.
+    patching ``app.services.game_loop_service.random``.
     """
     # Import here to avoid circular import
     from app.models.incident import IncidentType

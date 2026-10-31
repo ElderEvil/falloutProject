@@ -30,7 +30,7 @@ from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreate
 from app.services.conversation_service import conversation_service
-from app.services.dweller_ai import dweller_ai
+from app.services.dweller_ai_service import dweller_ai
 from app.tests.utils.user import authentication_token_from_email
 
 pytestmark = pytest.mark.asyncio(scope="module")
@@ -139,7 +139,7 @@ class TestDwellerAIQuotaEnforcement:
             db_session=async_session,
         )
 
-        with patch("app.services.dweller_ai.backstory_agent") as mock_agent:
+        with patch("app.services.dweller_ai_service.backstory_agent") as mock_agent:
             mock_agent.run = AsyncMock(
                 return_value=MagicMock(output=DwellerBackstory(bio="Generated backstory", origin_place="Megaton"))
             )
@@ -170,7 +170,7 @@ class TestDwellerAIQuotaEnforcement:
             db_session=async_session,
         )
 
-        with patch("app.services.dweller_ai.visual_attributes_agent") as mock_agent:
+        with patch("app.services.dweller_ai_service.visual_attributes_agent") as mock_agent:
             mock_output = DwellerVisualAttributes(
                 hair_color="brown",
                 eye_color="blue",
@@ -216,7 +216,7 @@ class TestDwellerAIQuotaEnforcement:
             mock_storage.file_exists = MagicMock(return_value=False)
             mock_storage.public_url = MagicMock(return_value="https://example.com/audio.mp3")
 
-            with patch("app.services.dweller_ai.get_ai_service") as mock_ai:
+            with patch("app.services.dweller_ai_service.get_ai_service") as mock_ai:
                 mock_ai_service = MagicMock()
                 mock_ai_service.generate_audio = AsyncMock(return_value=b"fake audio bytes")
                 mock_ai.return_value = mock_ai_service

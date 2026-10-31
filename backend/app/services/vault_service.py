@@ -17,7 +17,7 @@ from app.crud.storage import storage as storage_crud
 from app.crud.vault import vault as vault_crud
 from app.models.vault import Vault
 from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultReadWithNumbers, VaultUpdate
-from app.services.resource_manager import compute_medical_capacity
+from app.services.resource_manager_service import compute_medical_capacity
 from app.services.vault import economy, reads, seeding
 
 

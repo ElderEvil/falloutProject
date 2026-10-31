@@ -496,7 +496,7 @@ async def test_process_vault_breeding_success(
             AsyncMock(return_value=None),
         ),
         patch(
-            "app.services.game_loop.game_loop_service._process_breeding",
+            "app.services.game_loop_service.game_loop_service._process_breeding",
             AsyncMock(return_value=mock_stats),
         ),
     ):

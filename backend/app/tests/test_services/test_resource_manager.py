@@ -14,7 +14,7 @@ from app.models.vault import Vault
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
 from app.schemas.vault import ResourceLevelWarning, ResourceProduction, ResourceTickEvents
-from app.services.resource_manager import ResourceManager
+from app.services.resource_manager_service import ResourceManager
 from app.utils.item_factory import build_outfit
 from app.utils.resource_warnings import get_resource_warnings
 
@@ -116,11 +116,11 @@ class TestResourceManager:
 
         with (
             patch(
-                "app.services.resource_manager.resource_crud.get_vault_resource_data",
+                "app.services.resource_manager_service.resource_crud.get_vault_resource_data",
                 new_callable=AsyncMock,
                 return_value=resource_data,
             ),
-            patch("app.services.resource_manager.event_bus.emit", new_callable=AsyncMock) as emit,
+            patch("app.services.resource_manager_service.event_bus.emit", new_callable=AsyncMock) as emit,
         ):
             _, events = await ResourceManager().process_vault_resources(MagicMock(), vault.id, 60)
             await ResourceManager.emit_production_events(vault.id, events)
@@ -136,7 +136,7 @@ class TestResourceManager:
             production=ResourceProduction(power=12.4, food=0.0, water=3.6, stimpack=1.0, radaway=0.0)
         )
 
-        with patch("app.services.resource_manager.event_bus.emit", new_callable=AsyncMock) as emit:
+        with patch("app.services.resource_manager_service.event_bus.emit", new_callable=AsyncMock) as emit:
             await ResourceManager.emit_production_events(vault.id, events)
 
         emit.assert_awaited_once()
@@ -148,7 +148,7 @@ class TestResourceManager:
     @pytest.mark.asyncio
     async def test_production_events_skip_an_empty_batch(self, vault: Vault) -> None:
         """A tick with no positive production must not emit an empty event."""
-        with patch("app.services.resource_manager.event_bus.emit", new_callable=AsyncMock) as emit:
+        with patch("app.services.resource_manager_service.event_bus.emit", new_callable=AsyncMock) as emit:
             await ResourceManager.emit_production_events(vault.id, ResourceTickEvents())
 
         emit.assert_not_awaited()
@@ -264,11 +264,11 @@ async def test_live_tick_matches_offline_kernel_production_at_default_rate(vault
 
     with (
         patch(
-            "app.services.resource_manager.resource_crud.get_vault_resource_data",
+            "app.services.resource_manager_service.resource_crud.get_vault_resource_data",
             new_callable=AsyncMock,
             return_value=resource_data,
         ),
-        patch("app.services.resource_manager.event_bus.emit", new_callable=AsyncMock),
+        patch("app.services.resource_manager_service.event_bus.emit", new_callable=AsyncMock),
     ):
         _, events = await manager.process_vault_resources(MagicMock(), vault.id, 60)
 

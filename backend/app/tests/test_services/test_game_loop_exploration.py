@@ -16,7 +16,7 @@ from app.schemas.dweller import DwellerCreate
 from app.schemas.exploration_event import CombatEventSchema, ItemSchema, LootEventSchema, LootSchema
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration_service import exploration_service
-from app.services.game_loop import game_loop_service
+from app.services.game_loop_service import game_loop_service
 from app.tests.factory.dwellers import create_fake_adult_dweller, create_fake_dweller
 
 # Note: Event persistence tested separately

@@ -13,7 +13,7 @@ from app.models.game_state import GameState
 from app.models.incident import IncidentType
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
-from app.services.game_loop import game_loop_service
+from app.services.game_loop_service import game_loop_service
 from app.tests.factory.dwellers import create_fake_dweller
 
 
@@ -42,7 +42,7 @@ async def test_process_events_spawn_chance_miss_returns_empty(async_session: Asy
     """Events must not trigger when the spawn chance roll fails."""
     await _create_dwellers(async_session, vault, count=3)
 
-    with patch("app.services.game_loop.random") as mock_random:
+    with patch("app.services.game_loop_service.random") as mock_random:
         mock_random.random.return_value = 0.99
         result = await game_loop_service._process_events(async_session, vault.id, 3600)
 
@@ -56,7 +56,7 @@ async def test_process_events_resource_cache_awards_caps_and_notifies(async_sess
     initial_caps = vault.bottle_caps
 
     with (
-        patch("app.services.game_loop.random") as mock_random,
+        patch("app.services.game_loop_service.random") as mock_random,
         patch("app.services.notification_service.notification_service") as mock_notification_service,
     ):
         mock_random.random.return_value = 0.0
@@ -80,7 +80,7 @@ async def test_process_events_wanderer_awards_caps_and_notifies(async_session: A
     initial_caps = vault.bottle_caps
 
     with (
-        patch("app.services.game_loop.random") as mock_random,
+        patch("app.services.game_loop_service.random") as mock_random,
         patch("app.services.notification_service.notification_service") as mock_notification_service,
     ):
         mock_random.random.return_value = 0.0
@@ -104,7 +104,7 @@ async def test_process_events_raider_scout_spawns_incident(async_session: AsyncS
     incident_id = uuid4()
 
     with (
-        patch("app.services.game_loop.random") as mock_random,
+        patch("app.services.game_loop_service.random") as mock_random,
         patch("app.services.combat.incident_service.incident_service") as mock_incident_service,
     ):
         mock_random.random.return_value = 0.0

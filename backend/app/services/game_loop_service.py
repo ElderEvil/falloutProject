@@ -38,7 +38,7 @@ from app.services.game_tick.tick_results import (
     TrainingStats,
     VaultTickResult,
 )
-from app.services.resource_manager import ResourceManager
+from app.services.resource_manager_service import ResourceManager
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
 logger = logging.getLogger(__name__)

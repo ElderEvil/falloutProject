@@ -26,7 +26,7 @@ from app.schemas.incident import (
 from app.schemas.overflow import OverflowActionRequest, OverflowActionResponse
 from app.schemas.system import GameBalanceResponse, PresenceResponse
 from app.services.combat.incident_service import incident_service
-from app.services.game_loop import game_loop_service
+from app.services.game_loop_service import game_loop_service
 from app.utils.exceptions import (
     AccessDeniedException,
     ResourceConflictException,

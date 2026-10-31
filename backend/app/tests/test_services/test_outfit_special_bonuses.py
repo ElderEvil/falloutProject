@@ -15,7 +15,7 @@ from app.models.vault import Vault
 from app.options.identity_modifiers import effective_stat
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
-from app.services.resource_manager import ResourceManager
+from app.services.resource_manager_service import ResourceManager
 from app.utils.combat import combat_power
 
 

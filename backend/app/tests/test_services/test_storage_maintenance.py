@@ -223,7 +223,7 @@ async def test_due_query_works_with_raw_sqlalchemy_session(async_session, vault)
 
 
 async def test_pause_resume_shifts_clock_preserving_remainder(async_session, vault):
-    from app.services.game_loop import game_loop_service
+    from app.services.game_loop_service import game_loop_service
 
     _, state, weapon = await setup_inventory(async_session, vault)
     now = datetime.utcnow()

@@ -26,7 +26,7 @@ from app.options.identity_modifiers import effective_stat
 from app.schemas.room_rush import RoomRushQuote, RoomRushResourceGain, RoomRushResult, RushBlockedReason
 from app.services.combat import incident_spawning
 from app.services.notification_service import notification_service
-from app.services.resource_manager import ResourceManager, compute_medical_capacity
+from app.services.resource_manager_service import ResourceManager, compute_medical_capacity
 from app.services.rewards.resources import grant_experience
 from app.services.vault_service import vault_service
 from app.utils.exceptions import (

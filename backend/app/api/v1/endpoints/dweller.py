@@ -54,7 +54,7 @@ from app.schemas.happiness import HappinessModifiersResponse
 from app.services import medical_service
 from app.services.barbershop_service import barbershop_service
 from app.services.bio_service import bio_service
-from app.services.dweller_ai import dweller_ai
+from app.services.dweller_ai_service import dweller_ai
 from app.services.dweller_service import dweller_service
 from app.services.exit_request_service import exit_request_service
 from app.services.family.death_service import death_service

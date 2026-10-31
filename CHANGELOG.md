@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.2 (2026-10-31)
+
+### Code Refactoring
+
+* **services:** move infrastructure and seed types out of the service layer ([#1253](https://github.com/ElderEvil/falloutProject/issues/1253)) 991e42e
+
 ## 2.282.1 (2026-10-31)
 
 ### Code Refactoring

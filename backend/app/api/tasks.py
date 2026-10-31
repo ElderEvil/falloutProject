@@ -5,24 +5,36 @@ import logging
 import sys
 import time
 from typing import Final
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import dramatiq
 import periodiq
+from redis.asyncio import Redis
 
 import app.api.arena_tasks  # ruff: ignore[unused-import] - registers the arena_tick watchdog cron
 import app.core.dramatiq  # ruff: ignore[unused-import] — ensures broker is configured when dramatiq CLI imports this module
+from app.core.config import settings
 from app.core.event_bus import event_bus
 from app.core.game_config import game_config
 from app.core.tick_chain import claim_tick_chain
-from app.db.session import task_session, task_session_maker
+from app.db.session import task_session
 from app.services.cleanup_service import cleanup_service
 from app.services.family.death_service import death_service
 from app.services.game_loop_service import game_loop_service
 from app.services.game_tick.guard import recover_session
+from app.services.game_tick.tick_results import VaultTickResult
+from app.utils.exceptions import ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
 INCIDENT_TICK_CHAIN_KEY: Final = "fallout:incident-tick:chain"
+VAULT_TICK_LOCK_PREFIX: Final = "fallout:vault-tick:"
+VAULT_TICK_LOCK_TTL_SECONDS: Final = game_config.game_loop.tick_interval - 5
+VAULT_TICK_LOCK_RELEASE_SCRIPT: Final = """
+if redis.call('get', KEYS[1]) == ARGV[1] then
+    return redis.call('del', KEYS[1])
+end
+return 0
+"""
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -42,38 +54,27 @@ def create_task(task_time: int):
     return True
 
 
+async def _dispatch_game_tick() -> dict[str, int | float]:
+    async with task_session() as session:
+        vault_ids = await game_loop_service.get_active_vault_ids(session)
+    for vault_id in vault_ids:
+        process_vault_tick.send(str(vault_id))
+    return {"vaults_dispatched": len(vault_ids)}
+
+
 @dramatiq.actor(actor_name="game_tick", max_retries=3, min_backoff=60000)
 def game_tick():
-    """Main game tick - processes all active vaults. Scheduled every 60 seconds.
-
-    Returns:
-        dict: Game tick processing statistics.
-    """
+    """Dispatch one vault tick per active vault. Scheduled every 60 seconds."""
+    start = time.perf_counter()
     try:
-        logger.info("Starting game tick")
-
-        async def run_tick():
-            from app.services.progression.objectives.evaluators import evaluator_manager
-            from app.services.progression.objectives.notifications import register_objective_event_handlers
-
-            evaluator_manager.initialize()
-            register_objective_event_handlers()
-
-            # task_session_maker() pins connections to UTC and binds the loop-local
-            # objective session maker, so each parallel vault and its handlers open
-            # sessions on this run's engine rather than the module-global pool.
-            async with task_session_maker() as session_maker:
-                return await game_loop_service.process_game_tick(session_maker)
-
-        stats = asyncio.run(run_tick())
+        logger.info("Dispatching game tick")
+        stats: dict[str, int | float] = asyncio.run(_dispatch_game_tick())
     except Exception:
-        logger.exception("Game tick failed")
+        logger.exception("Game tick dispatch failed")
         raise
-    else:
-        logger.info(f"Game tick completed: {stats}")
-        return stats
-    finally:
-        event_bus.clear_locks()
+    stats["dispatch_time"] = round(time.perf_counter() - start, 3)
+    logger.info(f"Game tick dispatched: {stats}")
+    return stats
 
 
 async def _run_incident_tick(chain_token: str | None) -> tuple[str | None, dict[str, int] | None]:
@@ -85,9 +86,6 @@ async def _run_incident_tick(chain_token: str | None) -> tuple[str | None, dict[
     logs the error but still returns the claimed token, so the chain keeps
     self-scheduling instead of stalling until lease expiry.
     """
-    from redis.asyncio import Redis
-
-    from app.core.config import settings
     from app.services.combat.incident_service import incident_service
 
     redis = Redis.from_url(settings.redis_url, decode_responses=True)
@@ -137,40 +135,66 @@ def incident_tick(chain_token: str | None = None):
             )
 
 
+async def _acquire_vault_tick_lock(redis: Redis, vault_id: str) -> str | None:
+    token = uuid4().hex
+    acquired = await redis.set(f"{VAULT_TICK_LOCK_PREFIX}{vault_id}", token, nx=True, ex=VAULT_TICK_LOCK_TTL_SECONDS)
+    return token if acquired else None
+
+
+async def _release_vault_tick_lock(redis: Redis, vault_id: str, token: str) -> None:
+    await redis.eval(VAULT_TICK_LOCK_RELEASE_SCRIPT, 1, f"{VAULT_TICK_LOCK_PREFIX}{vault_id}", token)
+
+
+async def _process_vault_tick_async(vault_id: str, redis: Redis) -> VaultTickResult:
+    loop_id = id(asyncio.get_running_loop())
+    token = await _acquire_vault_tick_lock(redis, vault_id)
+    if token is None:
+        return {"status": "skipped"}
+    succeeded = False
+    try:
+        from app.services.progression.objectives.evaluators import evaluator_manager
+        from app.services.progression.objectives.notifications import register_objective_event_handlers
+
+        evaluator_manager.initialize()
+        register_objective_event_handlers()
+
+        async with task_session() as session:
+            result = await game_loop_service.process_vault_tick(session, UUID(vault_id))
+    except ResourceNotFoundException:
+        logger.warning(f"Vault {vault_id} no longer exists; skipping tick")
+        return {"status": "missing"}
+    else:
+        succeeded = True
+        return result
+    finally:
+        if not succeeded:
+            await _release_vault_tick_lock(redis, vault_id, token)
+        event_bus.clear_locks(loop_id)
+
+
 @dramatiq.actor(actor_name="process_vault_tick", max_retries=3, min_backoff=30000)
 def process_vault_tick(vault_id: str):
-    """Process a single vault tick. Can be called manually or for catch-up processing.
+    """Process one vault tick under a per-vault Redis lease."""
+    start = time.perf_counter()
 
-    Args:
-        vault_id: UUID string of the vault to process.
+    async def run_vault_tick():
+        redis = Redis.from_url(settings.redis_url, decode_responses=True)
+        try:
+            return await _process_vault_tick_async(vault_id, redis)
+        finally:
+            await redis.aclose()
 
-    Returns:
-        dict: Vault tick processing result.
-    """
     try:
-        logger.info(f"Processing vault tick for {vault_id}")
-
-        async def run_vault_tick():
-            from app.services.progression.objectives.evaluators import evaluator_manager
-            from app.services.progression.objectives.notifications import register_objective_event_handlers
-
-            evaluator_manager.initialize()
-            register_objective_event_handlers()
-
-            # See game_tick: task_session() carries the UTC pin and the
-            # loop-local objective session maker.
-            async with task_session() as session:
-                return await game_loop_service.process_vault_tick(session, UUID(vault_id))
-
         result = asyncio.run(run_vault_tick())
     except Exception:
         logger.exception(f"Vault {vault_id} tick failed")
         raise
+    if result.get("status") in {"skipped", "missing"}:
+        logger.info(f"Vault {vault_id} tick {result['status']}")
     else:
-        logger.info(f"Vault {vault_id} tick completed")
-        return result
-    finally:
-        event_bus.clear_locks()
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.info(f"Vault {vault_id} tick completed in {elapsed_ms:.1f}ms")
+    return result
 
 
 async def _check_permanent_deaths() -> int:

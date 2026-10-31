@@ -28,8 +28,9 @@ watch(playback.isPlaying, (value) => emit('playing', value), { immediate: true }
 const artwork = computed(() =>
   props.room.scene_id ? WASTELAND_SCENES[props.room.scene_id].landscape : null
 )
-const landscape = computed(() =>
-  props.room.scene_id ? WASTELAND_SCENES[props.room.scene_id].landscape : null
+const sceneUrl = computed(() => widestSceneImage(artwork.value?.variants ?? [])?.src)
+const sceneSrcset = computed(() =>
+  artwork.value?.variants.map((image) => `${image.src} ${image.width}w`).join(', ')
 )
 const fighters = computed(() =>
   combat.value.fighters.map((fighter) => ({
@@ -52,12 +53,10 @@ const ring = computed(() => ({
       <ArenaRing
         class="absolute top-1/2 left-1/2 w-[min(100cqw,calc(100cqh*50/37))] -translate-x-1/2 -translate-y-1/2 lg:w-[min(100cqw,calc(100cqh*16/9))]"
         :state="ring"
-        :scene-image-url="widestSceneImage(artwork?.variants ?? [])?.src"
-        :scene-srcset="artwork?.variants.map((image) => `${image.src} ${image.width}w`).join(', ')"
-        :wide-scene-image-url="widestSceneImage(landscape?.variants ?? [])?.src"
-        :wide-scene-srcset="
-          landscape?.variants.map((image) => `${image.src} ${image.width}w`).join(', ')
-        "
+        :scene-image-url="sceneUrl"
+        :scene-srcset="sceneSrcset"
+        :wide-scene-image-url="sceneUrl"
+        :wide-scene-srcset="sceneSrcset"
         encounter
         contained
         :heading="room.site_name"

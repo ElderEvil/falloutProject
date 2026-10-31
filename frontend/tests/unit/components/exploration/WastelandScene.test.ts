@@ -38,7 +38,7 @@ describe('Wasteland scenes', () => {
 
   it('crops the single landscape artwork for the encounter frame', () => {
     const wrapper = mount(WastelandScene, {
-      props: { ...props, scene: 'supermarket_interior', variant: 'battleback' },
+      props: { ...props, scene: 'supermarket_interior', frame: 'encounter' },
     })
     expect(wrapper.get('img').attributes()).toMatchObject({
       width: '1280',
@@ -60,7 +60,7 @@ describe('Wasteland scenes', () => {
 
   it('reserves the encounter frame and actor for a site without authored artwork', () => {
     const wrapper = mount(WastelandScene, {
-      props: { ...props, scene: null, variant: 'battleback' },
+      props: { ...props, scene: null, frame: 'encounter' },
     })
     expect(wrapper.find('img').exists()).toBe(false)
     expect(wrapper.get('[role="img"]').attributes('aria-label')).toBe(props.heading)

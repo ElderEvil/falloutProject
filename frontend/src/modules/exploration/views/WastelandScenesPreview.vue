@@ -181,7 +181,7 @@ function selectScene(value: unknown): void {
       <h2 id="encounter-heading" class="text-lg font-bold">Encounter scene</h2>
       <WastelandScene
         :scene="selectedScene"
-        variant="battleback"
+        frame="encounter"
         heading="Encounter scene"
         :description="artwork.label"
         dweller-name="Lucy MacLean"

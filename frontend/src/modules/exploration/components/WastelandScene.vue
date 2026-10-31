@@ -9,13 +9,13 @@ import {
   WASTELAND_SCENES,
   widestSceneImage,
   type WastelandSceneId,
-  type WastelandSceneRole,
+  type WastelandSceneFrame,
 } from '../models/wastelandScenes'
 
 const props = withDefaults(
   defineProps<{
     scene?: WastelandSceneId | null
-    variant?: WastelandSceneRole
+    frame?: WastelandSceneFrame
     heading: string
     description?: string
     dwellerName?: string
@@ -25,7 +25,7 @@ const props = withDefaults(
     pet?: components['schemas']['CombatPet'] | null
   }>(),
   {
-    variant: 'landscape',
+    frame: 'wide',
     description: '',
     dwellerName: '',
     imageUrl: null,
@@ -51,7 +51,7 @@ const { url: sceneImage, onError: imageFailed } = useFallbackImage(() => [fullIm
   >
     <div
       class="relative overflow-hidden bg-surface-sunken"
-      :class="variant === 'battleback' ? 'aspect-[50/37]' : 'aspect-video'"
+      :class="frame === 'encounter' ? 'aspect-[50/37]' : 'aspect-video'"
     >
       <img
         v-if="fullImage && sceneImage"
@@ -67,7 +67,7 @@ const { url: sceneImage, onError: imageFailed } = useFallbackImage(() => [fullIm
         :alt="artwork?.label ?? heading"
         :class="[
           'absolute inset-0 h-full w-full',
-          variant === 'battleback' ? 'object-cover' : 'object-contain',
+          frame === 'encounter' ? 'object-cover' : 'object-contain',
         ]"
         decoding="async"
         @error="imageFailed"

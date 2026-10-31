@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from pydantic import UUID4
-from sqlalchemy import case, func
+from sqlalchemy import and_
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -32,11 +32,19 @@ class CRUDResource:
     """Database access used by the resource service."""
 
     async def get_vault_resource_data(self, db_session: AsyncSession, vault_id: UUID4) -> VaultResourceData:
-        vault = (await db_session.execute(select(Vault).where(Vault.id == vault_id))).scalar_one_or_none()
-        if vault is None:
+        vault_row = (
+            await db_session.execute(
+                select(Vault, Storage, GameState)
+                .select_from(Vault)
+                .outerjoin(Storage, Storage.vault_id == Vault.id)
+                .outerjoin(GameState, GameState.vault_id == Vault.id)
+                .where(Vault.id == vault_id)
+            )
+        ).one_or_none()
+        if vault_row is None:
             raise ResourceNotFoundException(Vault, identifier=vault_id)
 
-        storage = (await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))).scalar_one_or_none()
+        vault, storage, game_state = vault_row
         rooms = (await db_session.execute(select(Room).where(Room.vault_id == vault_id))).scalars().all()
         present = (
             Dweller.vault_id == vault_id,
@@ -44,29 +52,12 @@ class CRUDResource:
             Dweller.is_dead.is_(False),
             Dweller.status.not_in([DwellerStatusEnum.DEAD, DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING]),
         )
-        dweller_count = (
+        dweller_rows = (
             await db_session.execute(
-                select(
-                    func.coalesce(
-                        func.sum(
-                            case(
-                                (
-                                    Dweller.age_group.in_([AgeGroupEnum.CHILD, AgeGroupEnum.TEEN]),
-                                    game_config.breeding.child_consumption_multiplier,
-                                ),
-                                else_=1.0,
-                            )
-                        ),
-                        0.0,
-                    )
-                ).where(*present)
-            )
-        ).scalar_one()
-        room_dwellers = (
-            await db_session.execute(
-                select(Room, Dweller)
-                .join(Dweller, Room.id == Dweller.room_id)
-                .where(Room.vault_id == vault_id, *present)
+                select(Dweller, Room)
+                .select_from(Dweller)
+                .outerjoin(Room, and_(Room.id == Dweller.room_id, Room.vault_id == vault_id))
+                .where(*present)
                 # Production reads the outfit for its SPECIAL bonus, so it must
                 # be loaded here. selectinload batches it into one extra query
                 # for the whole vault rather than one per dweller per tick.
@@ -76,9 +67,16 @@ class CRUDResource:
             )
         ).all()
 
+        dweller_count = 0.0
         grouped_dwellers: dict[UUID4, tuple[Room, list[Dweller]]] = {}
-        for room, dweller in room_dwellers:
-            grouped_dwellers.setdefault(room.id, (room, []))[1].append(dweller)
+        for dweller, room in dweller_rows:
+            dweller_count += (
+                game_config.breeding.child_consumption_multiplier
+                if dweller.age_group in (AgeGroupEnum.CHILD, AgeGroupEnum.TEEN)
+                else 1.0
+            )
+            if room is not None:
+                grouped_dwellers.setdefault(room.id, (room, []))[1].append(dweller)
 
         return VaultResourceData(
             vault=vault,
@@ -86,9 +84,7 @@ class CRUDResource:
             rooms=rooms,
             dweller_count=dweller_count,
             rooms_with_dwellers=list(grouped_dwellers.values()),
-            game_state=(
-                await db_session.execute(select(GameState).where(GameState.vault_id == vault_id))
-            ).scalar_one_or_none(),
+            game_state=game_state,
         )
 
     @staticmethod

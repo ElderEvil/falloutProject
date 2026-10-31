@@ -36,6 +36,9 @@ class GameState(BaseUUIDModel, GameStateBase, TimeStampMixin, table=True):
     """Game state model linked to a specific vault."""
 
     resource_remainders: dict[str, float] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    recent_tick_ids: list[str] = Field(
+        default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]")
+    )
 
     vault_id: UUID4 = Field(foreign_key="vault.id", unique=True, index=True, ondelete="CASCADE")
 

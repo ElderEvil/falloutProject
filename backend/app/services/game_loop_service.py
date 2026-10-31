@@ -44,6 +44,7 @@ from app.utils.exceptions import ResourceNotFoundException, VaultOperationExcept
 logger = logging.getLogger(__name__)
 
 MAX_CONCURRENT_VAULT_TICKS = 4
+MAX_RECENT_TICK_IDS = 8
 
 
 class GameLoopService:
@@ -120,18 +121,26 @@ class GameLoopService:
 
         return stats
 
-    async def process_vault_tick(self, db_session: AsyncSession, vault_id: UUID4) -> VaultTickResult:
+    async def process_vault_tick(
+        self, db_session: AsyncSession, vault_id: UUID4, tick_id: str | None = None
+    ) -> VaultTickResult:
         """Process a single tick for a specific vault.
 
         Args:
             db_session: Database session
             vault_id: UUID of the vault to process
+            tick_id: Dispatch id used to make redeliveries idempotent
 
         Returns:
             dict: Results of the tick processing
         """
         # Get or create game state
         game_state = await self._get_or_create_game_state(db_session, vault_id)
+
+        recent_tick_ids = game_state.recent_tick_ids or []
+        if tick_id is not None and tick_id in recent_tick_ids:
+            self.logger.debug(f"Vault {vault_id} tick {tick_id} already completed, skipping duplicate")
+            return {"status": "duplicate"}
 
         # Skip if paused
         if game_state.is_paused:
@@ -257,6 +266,11 @@ class GameLoopService:
             )
         except Exception:
             self.logger.exception(f"Failed to publish SSE tick for vault {vault_id}")
+
+        if tick_id is not None:
+            game_state.recent_tick_ids = [*(game_state.recent_tick_ids or []), tick_id][-MAX_RECENT_TICK_IDS:]
+            db_session.add(game_state)
+            await db_session.commit()
 
         return results
 

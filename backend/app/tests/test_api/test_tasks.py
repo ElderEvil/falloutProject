@@ -129,8 +129,8 @@ async def test_process_vault_tick_skips_when_another_worker_holds_the_lock() -> 
 
 
 @pytest.mark.asyncio
-async def test_process_vault_tick_dedupes_the_same_dispatch_but_allows_the_next() -> None:
-    """A successful tick is idempotent per dispatch, not per time window."""
+async def test_process_vault_tick_passes_the_dispatch_id_to_the_service() -> None:
+    """The actor delegates dispatch idempotency to the service."""
     vault_id = str(uuid4())
     redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
     try:
@@ -143,21 +143,11 @@ async def test_process_vault_tick_dedupes_the_same_dispatch_but_allows_the_next(
                 new=AsyncMock(return_value={"vault_id": vault_id}),
             ) as process,
         ):
-            first = await _process_vault_tick_async(vault_id, redis, "dispatch-1")
-            duplicate = await _process_vault_tick_async(vault_id, redis, "dispatch-1")
-            next_tick = await _process_vault_tick_async(vault_id, redis, "dispatch-2")
-            stale_duplicate = await _process_vault_tick_async(vault_id, redis, "dispatch-1")
+            result = await _process_vault_tick_async(vault_id, redis, "dispatch-1")
 
-        assert first == {"vault_id": vault_id}
-        assert duplicate == {"status": "duplicate"}
-        assert next_tick == {"vault_id": vault_id}
-        assert stale_duplicate == {"status": "duplicate"}
-        assert process.await_count == 2
+        assert result == {"vault_id": vault_id}
+        assert process.await_args.args[2] == "dispatch-1"
         assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
-        assert await redis.exists(f"fallout:vault-tick-done:{vault_id}:dispatch-1") == 1
-        assert await redis.exists(f"fallout:vault-tick-done:{vault_id}:dispatch-2") == 1
-        done_ttl = await redis.ttl(f"fallout:vault-tick-done:{vault_id}:dispatch-2")
-        assert 0 < done_ttl <= 900
     finally:
         await redis.aclose()
 
@@ -181,32 +171,6 @@ async def test_process_vault_tick_releases_lease_on_failure_for_retry() -> None:
             await _process_vault_tick_async(vault_id, redis, "dispatch-1")
 
         assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
-        assert await redis.exists(f"fallout:vault-tick-done:{vault_id}:dispatch-1") == 0
-    finally:
-        await redis.aclose()
-
-
-@pytest.mark.asyncio
-async def test_process_vault_tick_retries_the_same_dispatch_after_failure() -> None:
-    """A failed tick leaves no completion marker, so its retry can run."""
-    vault_id = str(uuid4())
-    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
-    process = AsyncMock(side_effect=[RuntimeError("boom"), {"vault_id": vault_id}])
-    try:
-        with (
-            patch("app.api.tasks.task_session", new=lambda: _FakeTaskSession()),
-            patch("app.services.progression.objectives.evaluators.evaluator_manager.initialize"),
-            patch("app.services.progression.objectives.notifications.register_objective_event_handlers"),
-            patch("app.api.tasks.game_loop_service.process_vault_tick", new=process),
-        ):
-            with pytest.raises(RuntimeError):
-                await _process_vault_tick_async(vault_id, redis, "dispatch-1")
-
-            result = await _process_vault_tick_async(vault_id, redis, "dispatch-1")
-
-        assert result == {"vault_id": vault_id}
-        assert process.await_count == 2
-        assert await redis.exists(f"fallout:vault-tick-done:{vault_id}:dispatch-1") == 1
     finally:
         await redis.aclose()
 

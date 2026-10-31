@@ -137,6 +137,39 @@ async def test_deliver_baby_success(
     assert pregnancy_check.json()["status"] == "delivered"
 
 
+@pytest.mark.asyncio
+async def test_deliver_baby_at_capacity_returns_400(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A full vault returns the domain 400 instead of an unhandled 500."""
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault = await crud.vault.create_with_user_id(
+        db_session=async_session,
+        obj_in={"number": 796, "population_max": 2},
+        user_id=user.id,
+    )
+    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
+    father = await _adult(async_session, vault.id, GenderEnum.MALE)
+
+    from app.services.family.breeding_service import breeding_service
+
+    pregnancy = await breeding_service.create_pregnancy(async_session, mother.id, father.id)
+    pregnancy.due_at = datetime.now(UTC) - timedelta(minutes=1)
+    await async_session.commit()
+    monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
+
+    response = await async_client.post(
+        f"/pregnancies/{pregnancy.id}/deliver",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "No living space available for a newborn"
+
+
 # =============================================================================
 # Debug Endpoint Tests (Superuser-only)
 # =============================================================================

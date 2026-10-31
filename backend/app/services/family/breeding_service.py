@@ -34,6 +34,7 @@ from app.services.bio_service import bio_service
 from app.services.notification_service import notification_service
 from app.utils.bios import render_newborn_bio
 from app.utils.dwellers import elder_birth_threshold
+from app.utils.exceptions import NoLivingSpaceError
 
 logger = logging.getLogger(__name__)
 
@@ -455,7 +456,8 @@ class BreedingService:
 
         Raises:
             ResourceNotFoundException: If pregnancy or parents not found.
-            ValueError: If pregnancy is not due yet, the mother has no vault, or the vault has no free slot.
+            NoLivingSpaceError: If the vault is already at population capacity.
+            ValueError: If pregnancy is not due yet or the mother has no vault.
         """
         pregnancy = await pregnancy_crud.get(db_session, pregnancy_id)
 
@@ -490,8 +492,7 @@ class BreedingService:
             count = min(count, available)
 
         if count == 0:
-            msg = "No living space available for a newborn"
-            raise ValueError(msg)
+            raise NoLivingSpaceError("No living space available for a newborn")
 
         try:
             children = [

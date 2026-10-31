@@ -27,7 +27,7 @@ from app.schemas.room import RoomCreate
 from app.services.family.breeding_service import BreedingService, conception_potential
 from app.services.notification_service import NotificationService, notification_service
 from app.utils.dwellers import elder_birth_threshold
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import NoLivingSpaceError, ResourceNotFoundException
 
 
 @pytest.mark.parametrize(
@@ -1025,7 +1025,7 @@ async def test_deliver_baby_defers_delivery_when_no_living_space(
     await async_session.commit()
 
     with (
-        pytest.raises(ValueError, match="No living space available for a newborn"),
+        pytest.raises(NoLivingSpaceError, match="No living space available for a newborn"),
         patch("random.random", return_value=0.5),
     ):
         await BreedingService.deliver_baby(async_session, pregnancy.id)

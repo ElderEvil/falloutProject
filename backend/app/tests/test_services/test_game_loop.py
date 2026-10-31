@@ -30,7 +30,8 @@ from app.schemas.incident import IncidentRoundResult
 from app.schemas.vault import ResourceTickEvents
 from app.services.dweller_service import dweller_service
 from app.services.game_loop_service import game_loop_service
-from app.utils.exceptions import VaultOperationException
+from app.services.game_tick.family_tick import _deliver_due_baby
+from app.utils.exceptions import NoLivingSpaceError, VaultOperationException
 
 # ═════════════════════════════════════════════════════════════════════
 # pause_vault / resume_vault / get_vault_status / _get_or_create
@@ -883,6 +884,27 @@ class TestProcessPregnancies:
             mbs.deliver_baby = AsyncMock(side_effect=deliver_side)
             result = await game_loop_service._process_pregnancies_and_births(async_session, vault.id)
         assert result["births"] == 1
+
+    @pytest.mark.asyncio
+    async def test_capacity_deferral_logs_info_not_error(
+        self, async_session: AsyncSession, vault: Vault, caplog: pytest.LogCaptureFixture
+    ):
+        """A full vault is an expected deferral, not a delivery error."""
+        with (
+            patch(
+                "app.services.family.breeding_service.breeding_service.deliver_baby",
+                new=AsyncMock(side_effect=NoLivingSpaceError("No living space available for a newborn")),
+            ),
+            caplog.at_level(logging.INFO, logger="app.services.game_tick.family_tick"),
+        ):
+            delivered = await _deliver_due_baby(async_session, vault.id, uuid4())
+
+        assert delivered is False
+        assert not [record for record in caplog.records if record.levelno >= logging.ERROR]
+        assert any(
+            record.levelno == logging.INFO and "deferring due pregnancy" in record.getMessage()
+            for record in caplog.records
+        )
 
     @pytest.mark.asyncio
     async def test_conception_db_error(self, async_session: AsyncSession, vault: Vault):

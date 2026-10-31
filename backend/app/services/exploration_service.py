@@ -39,8 +39,8 @@ from app.schemas.exploration_event import ExplorationEvent, RewardsSchema
 from app.services.exploration.coordinator import ERROR_NOT_ACTIVE, exploration_coordinator
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration.event_service import event_service
+from app.services.map.world_generation import WORLD_ID
 from app.services.user_service import user_service
-from app.services.world_generation_service import WORLD_ID
 from app.services.world_snapshot_service import world_snapshot_service
 from app.utils import world_terrain
 from app.utils.dweller_availability import availability_error

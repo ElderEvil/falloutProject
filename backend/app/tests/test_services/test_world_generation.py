@@ -6,7 +6,7 @@ independence.
 
 import pytest
 
-from app.services.world_generation_service import (
+from app.services.map.world_generation import (
     TRAVEL_COST,
     PublicAnchor,
     WorldConfig,

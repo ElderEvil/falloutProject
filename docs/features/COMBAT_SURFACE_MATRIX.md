@@ -50,9 +50,9 @@ random exploration events; it is not part of the single-scene encounter and is e
 
 | Unit | Arena | Incident | Wasteland site |
 | --- | --- | --- | --- |
-| `weapon_skill_service.weapon_skill` | yes | no | yes (via `attack_service`) |
-| `weapon_skill_service.attack_effect` | yes | yes | yes |
-| `weapon_skill_service.combat_body` | yes | yes | yes |
+| `weapon_skill.weapon_skill` | yes | no | yes (via `attack_service`) |
+| `weapon_skill.attack_effect` | yes | yes | yes |
+| `weapon_skill.combat_body` | yes | yes | yes |
 | `MAX_CHARGE` / `arena_participants.charge_per_second` | yes | no | yes |
 | `arena_participants.participant_from_dweller` | yes | no | yes |
 | `arena_participants.catalog_participants` | yes | no | yes |

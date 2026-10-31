@@ -139,7 +139,7 @@ async def test_concurrent_use_radaway_spends_once(
     live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID4, int]
 ) -> None:
     """Two simultaneous uses with one RadAway: exactly one treats, the other is rejected."""
-    from app.services.radiation_service import radiation_removal_amount
+    from app.utils.radiation import radiation_removal_amount
 
     dweller_id: UUID4 = radiated_dweller[0]
     maker = _sessions(live_pg_engine)

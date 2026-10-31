@@ -45,7 +45,7 @@ elapsed game-loop tick**, after `dehydration_grace_ticks` of quiet:
 
 ## Single source of truth
 
-`app/services/radiation_service.py` holds session-free helpers:
+`app/utils/radiation.py` holds session-free helpers:
 
 - `apply_radiation_gain(dweller, amount, *, resisted_by_outfit=True)` — caps at `max_health`, pulls health to the new
   ceiling, and returns whether anything changed. Ingested radiation passes `resisted_by_outfit=False`.

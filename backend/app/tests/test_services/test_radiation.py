@@ -6,7 +6,7 @@ import pytest
 
 from app.core.enums import OutfitTypeEnum
 from app.core.game_config import game_config
-from app.services.radiation_service import (
+from app.utils.radiation import (
     apply_health_gain,
     apply_radiation_gain,
     dehydration_rads,

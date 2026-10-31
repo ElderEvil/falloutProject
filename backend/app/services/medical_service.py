@@ -12,12 +12,12 @@ from app.options.races import can_use_radaway
 from app.schemas.chat import MedicalAidStatus, MedicalRecommendation
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate
 from app.schemas.vault import MedicalDistributionResponse
-from app.services.radiation_service import apply_health_gain, radiation_removal_amount, stimpack_heal_amount
 from app.utils.exceptions import (
     ContentNoChangeException,
     ResourceConflictException,
     ResourceNotFoundException,
 )
+from app.utils.radiation import apply_health_gain, radiation_removal_amount, stimpack_heal_amount
 
 MAX_CARRY = 15
 

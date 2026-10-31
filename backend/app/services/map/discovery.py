@@ -21,8 +21,8 @@ from app.crud.world_location import world_location as wl_crud
 from app.crud.world_snapshot import world_snapshot as world_snapshot_crud
 from app.models.notification import NotificationPriority, NotificationType
 from app.schemas.wasteland_location import DiscoveryRoutePoint, DiscoveryRouteRead
+from app.services.map.world_generation import WORLD_ID
 from app.services.notification_service import notification_service
-from app.services.world_generation_service import WORLD_ID
 from app.utils import world_terrain
 from app.utils.places import WORLD_SCALE
 

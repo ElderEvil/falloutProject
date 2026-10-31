@@ -51,7 +51,7 @@ from app.services.combat.arena_participants import (
     persist_creature_hp,
 )
 from app.services.combat.attack_service import resolve_attacks
-from app.services.combat.weapon_skill_service import MAX_CHARGE
+from app.services.combat.weapon_skill import MAX_CHARGE
 from app.services.game_tick.tick_results import ArenaEventStats, ArenaRoomStats, ArenaStats
 from app.services.leveling_service import leveling_service
 from app.services.notification_service import NotificationService

@@ -2076,7 +2076,7 @@ async def test_batched_departures_do_not_restore_cleared_slots(async_session, ar
     ],
 )
 def test_active_skill_uses_weapon_type_and_subtype(weapon_type, subtype, name, area):
-    from app.services.combat.weapon_skill_service import weapon_skill
+    from app.services.combat.weapon_skill import weapon_skill
     from app.utils.item_factory import build_weapon
 
     dweller = Dweller()
@@ -2090,7 +2090,7 @@ def test_active_skill_uses_weapon_type_and_subtype(weapon_type, subtype, name, a
 
 def test_skill_icons_cover_the_weapon_catalog_and_unarmed():
     from app.services.catalog_service import load_weapons
-    from app.services.combat.weapon_skill_service import UNARMED_SKILL, weapon_skill
+    from app.services.combat.weapon_skill import UNARMED_SKILL, weapon_skill
     from app.utils.item_factory import build_weapon
 
     assert UNARMED_SKILL.icon == "unarmed"

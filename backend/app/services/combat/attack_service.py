@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from app.schemas.combat import CombatAction, CombatImpact
 from app.services.combat.arena_participants import ArenaParticipant
-from app.services.combat.weapon_skill_service import attack_effect, combat_body, weapon_skill
+from app.services.combat.weapon_skill import attack_effect, combat_body, weapon_skill
 
 
 @dataclass

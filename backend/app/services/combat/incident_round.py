@@ -25,12 +25,12 @@ from app.schemas.combat import CombatAction, CombatImpact
 from app.schemas.incident import IncidentRoundResult
 from app.services.combat import incident_math, incident_publishing
 from app.services.combat.incident_spawning import spread_incident
-from app.services.combat.weapon_skill_service import attack_effect, combat_body
+from app.services.combat.weapon_skill import attack_effect, combat_body
 from app.services.hazard_team_service import TEAM_HAZARD_RESIST, TEAM_RESPONSE_BONUS
 from app.services.notification_service import notification_service
-from app.services.radiation_service import apply_radiation_gain
 from app.utils.combat import combat_power
 from app.utils.damage_reductions import damage_reductions
+from app.utils.radiation import apply_radiation_gain
 
 logger = logging.getLogger(__name__)
 

@@ -33,8 +33,8 @@ from app.services.game_tick.tick_results import (
     WorkXpStats,
 )
 from app.services.happiness_service import happiness_service
-from app.services.radiation_service import apply_radiation_gain, dehydration_rads
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
+from app.utils.radiation import apply_radiation_gain, dehydration_rads
 
 logger = logging.getLogger(__name__)
 

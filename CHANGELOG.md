@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.8 (2026-10-31)
+
+### Bug Fixes
+
+* **family:** log deferred births at capacity as info ([#1264](https://github.com/ElderEvil/falloutProject/issues/1264)) 55f9a07
+
 ## 2.282.7 (2026-10-31)
 
 ### Bug Fixes

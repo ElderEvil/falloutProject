@@ -114,6 +114,13 @@ a module under `app/services/` may not define a Pydantic `BaseModel` subclass or
 (routers, CLI, tests) and lets a contract change hide in a file whose docstring promises behaviour.
 Keep it green; it is the mechanical check that batches stay compliant.
 
+The same suite enforces role honesty for the `*_service.py` suffix: a module with that name must own
+persistence, orchestration of other services, event delivery or an external integration. Pure
+decisions and generators use a role name inside their domain package
+(`services/combat/weapon_skill.py`, `services/map/world_generation.py`) or move to `app/utils`
+(`utils/radiation.py`). `PURE_SERVICE_BASELINE` lists the remaining non-persisting boundaries
+(read-model and SMTP adapters) and is shrink-only, like the other ratchets.
+
 ## Known deferrals
 
 - Chat quota validation is shared by text, streaming, and audio through `QuotaCheckResult.ensure_allowed()`.

@@ -65,6 +65,62 @@ COMMIT_OWNERSHIP_BASELINE = frozenset(
         ("rewards/settlement.py", "_settle_objective_link"),
     }
 )
+SERVICE_BOUNDARY_IMPORTS = frozenset(
+    {
+        "aiohttp",
+        "anthropic",
+        "boto3",
+        "botocore",
+        "dramatiq",
+        "elevenlabs",
+        "httpx",
+        "openai",
+        "pydantic_ai",
+        "redis",
+        "requests",
+        "smtplib",
+        "websockets",
+    }
+)
+PURE_SERVICE_BASELINE = frozenset(
+    {
+        # Read-model and SMTP adapters: they own a boundary but touch no persistence
+        # or sibling service, so the role check cannot see it from imports alone.
+        "changelog_service.py",
+        "email_service.py",
+    }
+)
+
+
+def _service_boundary_signals(source: str) -> set[str]:
+    """Signals that a module under services/ owns an application boundary."""
+    tree = ast.parse(source)
+    imported: list[str] = []
+    imported_names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                imported.append(node.module)
+            imported_names.update(alias.name for alias in node.names)
+
+    signals: set[str] = set()
+    if (
+        any(module == "app.crud" or module.startswith("app.crud.") for module in imported)
+        or ("crud" in imported_names and "app" in imported)
+        or re.search(r"\bcrud\.", source)
+    ):
+        signals.add("crud")
+    if "AsyncSession" in source or "db_session" in source:
+        signals.add("session")
+    if any(module == "app.services" or module.startswith("app.services.") for module in imported):
+        signals.add("services")
+    if any(module.split(".")[0] in SERVICE_BOUNDARY_IMPORTS for module in imported):
+        signals.add("external")
+    if re.search(r"event_bus\.emit|publish_sse|sse_manager\.publish|manager\.broadcast", source):
+        signals.add("events")
+    return signals
 
 
 def _committing_functions(source: str) -> dict[str, int]:
@@ -488,6 +544,39 @@ def test_service_module_names_follow_convention() -> None:
     messages = [f"{name} breaks the *_service.py naming convention" for name in sorted(new_names)]
     messages += [f"grandfather entry {name} is stale; remove it" for name in sorted(stale_entries)]
     assert not messages, "Service module names changed:\n" + "\n".join(messages)
+
+
+def test_service_modules_own_a_boundary_or_are_baselined() -> None:
+    """A *_service.py module owns persistence, orchestration or an external boundary.
+
+    Pure decisions and generators use a role name inside their domain package
+    (``services/combat/weapon_skill.py``, ``services/map/world_generation.py``) or
+    live in ``app/utils`` (``utils/radiation.py``). The baseline is shrink-only.
+    """
+    found = set()
+    for path in sorted((APP_DIR / "services").rglob("*_service.py")):
+        if not _service_boundary_signals(path.read_text(encoding="utf-8")):
+            found.add(path.relative_to(APP_DIR / "services").as_posix())
+
+    new = found - PURE_SERVICE_BASELINE
+    stale = PURE_SERVICE_BASELINE - found
+    messages = [
+        f"{rel} is named *_service.py but owns no persistence, orchestration or external boundary"
+        for rel in sorted(new)
+    ]
+    messages += [f"pure-service baseline entry {rel} is stale; remove it" for rel in sorted(stale)]
+    assert not messages, "Service module roles changed:\n" + "\n".join(messages)
+
+
+def test_guard_detects_pure_service_module() -> None:
+    """Self-test: boundary signals cover CRUD, sessions, sibling services, events and clients."""
+    assert _service_boundary_signals("def f() -> int:\n    return 1\n") == set()
+    assert "crud" in _service_boundary_signals("from app import crud\n")
+    assert "crud" in _service_boundary_signals("from app.crud.dweller import dweller_crud\n")
+    assert "session" in _service_boundary_signals("async def f(db_session) -> None:\n    pass\n")
+    assert "services" in _service_boundary_signals("from app.services.vault_service import vault_service\n")
+    assert "external" in _service_boundary_signals("import httpx\n")
+    assert "events" in _service_boundary_signals("await event_bus.emit('x', 1, {})\n")
 
 
 def test_crud_stays_flat_and_lowercase() -> None:

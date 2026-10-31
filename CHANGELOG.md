@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.4 (2026-10-31)
+
+### Code Refactoring
+
+* **exploration:** split site offers, checks and views out of the expedition engine ([#1256](https://github.com/ElderEvil/falloutProject/issues/1256)) 2ff1234
+
 ## 2.282.3 (2026-10-31)
 
 ### Code Refactoring

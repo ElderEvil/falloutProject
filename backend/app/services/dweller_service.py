@@ -53,7 +53,8 @@ from app.schemas.dweller import (
     DwellerUpdateRequest,
 )
 from app.services.exploration.event_service import event_service
-from app.services.exploration.journey_state import close_open_site_run
+from app.services.exploration.journey_state import close_open_site_run, settle_journey_dwellers
+from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.leveling_service import leveling_service
 from app.services.map_service import map_service
 from app.services.room_assignment_policy import (
@@ -98,16 +99,24 @@ class DwellerService:
         A deleted dweller cannot keep exploring; leaving the journey active would
         orphan it (the detail endpoint could no longer resolve the dweller). A
         shared party journey is closed for every member, not just the deleted one.
+
+        Journeys are locked vault -> exploration -> run before the dweller row,
+        matching site-combat resolution so the two paths cannot deadlock.
         """
+        explorations = await crud.exploration.get_in_progress_for_dwellers(db_session, [dweller_id])
+        for exploration in sorted(explorations, key=lambda item: str(item.id)):
+            locked = await lock_exploration_with_vault_claim(db_session, exploration.id)
+            await close_open_site_run(db_session, locked.id)
+
         dweller = await crud.dweller.get_for_update(db_session, dweller_id, include_deleted=True)
         if dweller is None:
             raise ResourceNotFoundException(Dweller, dweller_id)
-        now = datetime.now(UTC).replace(tzinfo=None)
-        explorations = await crud.exploration.get_in_progress_for_dwellers(db_session, [dweller_id])
+
         for exploration in explorations:
             exploration.abandon()
             db_session.add(exploration)
-            await close_open_site_run(db_session, exploration.id, now=now)
+            await settle_journey_dwellers(db_session, exploration)
+
         await crud.dweller.delete(db_session, dweller_id, soft=soft, commit=False)
         await db_session.commit()
         for exploration in explorations:

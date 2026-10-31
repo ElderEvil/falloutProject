@@ -901,7 +901,10 @@ class TestProcessPregnancies:
 
         assert delivered is False
         assert not [record for record in caplog.records if record.levelno >= logging.ERROR]
-        assert any("deferring due pregnancy" in record.getMessage() for record in caplog.records)
+        assert any(
+            record.levelno == logging.INFO and "deferring due pregnancy" in record.getMessage()
+            for record in caplog.records
+        )
 
     @pytest.mark.asyncio
     async def test_conception_db_error(self, async_session: AsyncSession, vault: Vault):

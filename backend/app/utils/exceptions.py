@@ -141,8 +141,11 @@ class NoSpaceAvailableException(VaultOperationException):
         super().__init__(detail, headers)
 
 
-class NoLivingSpaceError(ValueError):
+class NoLivingSpaceError(DomainError):
     """Raised when a due birth cannot be delivered because the vault is full."""
+
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "No living space available for a newborn."
 
 
 class InsufficientResourcesException(VaultOperationException):

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.0 (2026-10-31)
+
+### Features
+
+* **expedition:** add wasteland site scenarios and the Vault 1 test start ([#1251](https://github.com/ElderEvil/falloutProject/issues/1251)) 103a3f2
+
 ## 2.281.0 (2026-10-30)
 
 ### Features

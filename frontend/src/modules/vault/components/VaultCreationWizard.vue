@@ -29,16 +29,20 @@ const matchingScenario = computed(() => {
   return props.scenarios.find((scenario) => scenario.number === parsed) ?? null
 })
 const scenarioRequiresBoosted = computed(() => matchingScenario.value?.requires_boosted === true)
-watch(matchingScenario, (scenario) => {
-  scenarioEnabled.value = scenario?.default_on ?? false
-  if (scenario?.default_boosted) boosted.value = true
-})
 watch([scenarioEnabled, scenarioRequiresBoosted], ([enabled, required]) => {
   if (enabled && required) boosted.value = true
 })
 const numberField = ref<InstanceType<typeof VaultNumberField> | null>(null)
 const heading = ref<HTMLElement | null>(null)
 const isSurvival = computed(() => vaultMode.value === 'survival')
+watch(matchingScenario, (scenario, previous) => {
+  scenarioEnabled.value = scenario?.default_on ?? false
+  if (scenario?.default_boosted && !isSurvival.value) {
+    boosted.value = true
+  } else if (previous?.default_boosted && !scenario?.default_boosted) {
+    boosted.value = false
+  }
+})
 const modes = [
   {
     value: 'standard',

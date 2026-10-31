@@ -333,6 +333,59 @@ async def test_check_for_conception_in_living_quarters(
 
 
 @pytest.mark.asyncio
+async def test_check_for_conception_batches_partner_and_affinity_lookups(
+    async_session: AsyncSession,
+    vault: Vault,
+    living_quarters: Room,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    male_dweller_2: Dweller,
+    female_dweller_2: Dweller,
+):
+    """A second couple must not add per-pair partner or affinity queries."""
+    from app.crud.relationship import relationship_crud
+    from app.schemas.common import RelationshipTypeEnum
+    from app.tests.utils.query_counter import count_sql_statements
+
+    male_dweller.partner_id = female_dweller.id
+    female_dweller.partner_id = male_dweller.id
+    male_dweller.room_id = living_quarters.id
+    female_dweller.room_id = living_quarters.id
+    await async_session.commit()
+
+    await relationship_crud.create_with_defaults(
+        async_session,
+        male_dweller.id,
+        female_dweller.id,
+        relationship_type=RelationshipTypeEnum.ACQUAINTANCE,
+        affinity=0,
+    )
+
+    with patch("random.random", return_value=1.0):
+        with count_sql_statements(async_session) as one_couple:
+            assert await BreedingService.check_for_conception(async_session, vault.id) == []
+
+        male_dweller_2.partner_id = female_dweller_2.id
+        female_dweller_2.partner_id = male_dweller_2.id
+        male_dweller_2.room_id = living_quarters.id
+        female_dweller_2.room_id = living_quarters.id
+        await async_session.commit()
+
+        await relationship_crud.create_with_defaults(
+            async_session,
+            male_dweller_2.id,
+            female_dweller_2.id,
+            relationship_type=RelationshipTypeEnum.ACQUAINTANCE,
+            affinity=0,
+        )
+
+        with count_sql_statements(async_session) as two_couples:
+            assert await BreedingService.check_for_conception(async_session, vault.id) == []
+
+    assert two_couples.value <= one_couple.value
+
+
+@pytest.mark.asyncio
 async def test_check_for_conception_same_sex_couple_never_conceives(
     async_session: AsyncSession,
     vault: Vault,

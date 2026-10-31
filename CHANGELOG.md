@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.9 (2026-10-31)
+
+### Performance Improvements
+
+* **tick:** add opt-in phase and queue profiling ([#1265](https://github.com/ElderEvil/falloutProject/issues/1265)) 59fd56b
+
 ## 2.282.8 (2026-10-31)
 
 ### Bug Fixes

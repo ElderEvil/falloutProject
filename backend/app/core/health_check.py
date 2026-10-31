@@ -95,7 +95,7 @@ class HealthCheckService:
                 message="Redis connection successful",
                 details={"host": settings.REDIS_HOST, "port": settings.REDIS_PORT},
             )
-        except (RedisError, ConnectionError, TimeoutError) as e:
+        except (RedisError, ConnectionError, TimeoutError, ValueError) as e:
             logger.exception("Redis health check failed")
             return HealthCheckResult(
                 service="redis",

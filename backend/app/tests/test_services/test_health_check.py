@@ -102,6 +102,17 @@ async def test_check_redis_unhealthy_redis_error() -> None:
     assert "failed" in result.message
 
 
+@pytest.mark.asyncio
+async def test_check_redis_unhealthy_invalid_port() -> None:
+    """A non-numeric REDIS_PORT returns an unhealthy result instead of escaping the probe."""
+    with patch.object(settings, "REDIS_PORT", "not-a-port"):
+        result = await HealthCheckService.check_redis()
+
+    assert result.service == "redis"
+    assert result.status == ServiceStatus.UNHEALTHY
+    assert "failed" in result.message
+
+
 # =============================================================================
 # check_dramatiq
 # =============================================================================

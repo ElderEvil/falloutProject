@@ -35,6 +35,7 @@ def main() -> None:
     output = ROOT / "frontend/public/assets/wasteland-scenes"
     output.mkdir(parents=True, exist_ok=True)
     manifest: dict[str, object] = {}
+    written: set[str] = set()
     source_bytes = exported_bytes = 0
     for key, label in SCENES.items():
         scene: dict[str, object] = {"label": label}
@@ -51,14 +52,19 @@ def main() -> None:
                 image.save(buffer, format="WEBP", quality=quality, method=6)
                 content = buffer.getvalue()
                 # Keep the committed responsive variants under the test budget.
-                while len(content) > MAX_VARIANT_BYTES and quality > 50:
+                while len(content) >= MAX_VARIANT_BYTES and quality > 50:
                     quality -= 5
                     buffer = BytesIO()
                     image.save(buffer, format="WEBP", quality=quality, method=6)
                     content = buffer.getvalue()
+                if len(content) >= MAX_VARIANT_BYTES:
+                    raise SystemExit(
+                        f"{key} at {width}px stays over {MAX_VARIANT_BYTES} bytes at quality 50"
+                    )
                 digest = hashlib.sha256(content).hexdigest()[:16]
                 filename = f"{key.replace('_', '-')}-landscape-{digest}.webp"
                 (output / filename).write_bytes(content)
+                written.add(filename)
                 variants.append(
                     {
                         "src": f"/assets/wasteland-scenes/{filename}",
@@ -73,6 +79,9 @@ def main() -> None:
             "variants": variants,
         }
         manifest[key] = scene
+    for stale in output.glob("*.webp"):
+        if stale.name not in written:
+            stale.unlink()
     target = ROOT / "frontend/src/modules/exploration/models/wasteland-scenes.json"
     target.write_text(json.dumps(manifest, indent=2) + "\n")
     print(

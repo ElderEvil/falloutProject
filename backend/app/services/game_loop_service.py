@@ -23,6 +23,7 @@ from app.models.vault import Vault
 from app.services.combat.arena_service import arena_service
 from app.services.game_tick import crafting_tick, dwellers_tick, family_tick, radio_tick, storage_tick
 from app.services.game_tick.guard import recover_session
+from app.services.game_tick.profiling import tick_phase
 from app.services.game_tick.tick_results import (
     AgeStats,
     ApprenticeStats,
@@ -135,7 +136,8 @@ class GameLoopService:
             dict: Results of the tick processing
         """
         # Get or create game state
-        game_state = await self._get_or_create_game_state(db_session, vault_id)
+        with tick_phase("game_state"):
+            game_state = await self._get_or_create_game_state(db_session, vault_id)
 
         recent_tick_ids = game_state.recent_tick_ids or []
         if tick_id is not None and tick_id in recent_tick_ids:
@@ -168,26 +170,28 @@ class GameLoopService:
         }
 
         try:
-            resource_update, resource_events = await self.resource_manager.process_vault_resources(
-                db_session, vault_id, seconds_passed
-            )
-            await vault_crud.update(db_session, vault_id, resource_update)
+            with tick_phase("resources"):
+                resource_update, resource_events = await self.resource_manager.process_vault_resources(
+                    db_session, vault_id, seconds_passed
+                )
+                await vault_crud.update(db_session, vault_id, resource_update)
 
-            # Advance the tick boundary in the same transaction as the resource
-            # update: if a later phase raises and game_tick retries, the retried
-            # tick recomputes seconds_passed from this boundary instead of
-            # reapplying the same production window and duplicating events.
-            game_state.update_tick(seconds_passed)
-            if resource_update.water is not None:
-                if resource_update.water <= 0 and game_state.water_empty_since is None:
-                    game_state.water_empty_since = datetime.utcnow()
-                elif resource_update.water > 0:
-                    game_state.water_empty_since = None
-            db_session.add(game_state)
-            await db_session.commit()
+                # Advance the tick boundary in the same transaction as the resource
+                # update: if a later phase raises and game_tick retries, the retried
+                # tick recomputes seconds_passed from this boundary instead of
+                # reapplying the same production window and duplicating events.
+                game_state.update_tick(seconds_passed)
+                if resource_update.water is not None:
+                    if resource_update.water <= 0 and game_state.water_empty_since is None:
+                        game_state.water_empty_since = datetime.utcnow()
+                    elif resource_update.water > 0:
+                        game_state.water_empty_since = None
+                db_session.add(game_state)
+                await db_session.commit()
 
-            await self.resource_manager.emit_production_events(vault_id, resource_events)
-            await self._refresh_objectives(db_session, vault_id, game_state)
+                await self.resource_manager.emit_production_events(vault_id, resource_events)
+            with tick_phase("objective_refresh"):
+                await self._refresh_objectives(db_session, vault_id, game_state)
             results["updates"]["resources"] = {
                 "power": resource_update.power,
                 "food": resource_update.food,
@@ -205,72 +209,85 @@ class GameLoopService:
 
         # Incident combat runs on its own fast cadence (incident_tick actor), not here.
 
-        exploration_update = await self._process_explorations(db_session, vault_id)
-        results["updates"]["explorations"] = exploration_update
+        with tick_phase("explorations"):
+            exploration_update = await self._process_explorations(db_session, vault_id)
+            results["updates"]["explorations"] = exploration_update
 
-        dweller_update = await self._process_dwellers(db_session, vault_id, seconds_passed)
-        results["updates"]["dwellers"] = dweller_update
+        with tick_phase("dwellers"):
+            dweller_update = await self._process_dwellers(db_session, vault_id, seconds_passed)
+            results["updates"]["dwellers"] = dweller_update
 
-        apprenticeship_update = await self._process_apprenticeships(db_session, vault_id)
-        results["updates"]["apprenticeships"] = apprenticeship_update
+        with tick_phase("apprenticeships"):
+            apprenticeship_update = await self._process_apprenticeships(db_session, vault_id)
+            results["updates"]["apprenticeships"] = apprenticeship_update
 
-        training_update = await self._process_training(db_session, vault_id)
-        results["updates"]["training"] = training_update
+        with tick_phase("training"):
+            training_update = await self._process_training(db_session, vault_id)
+            results["updates"]["training"] = training_update
 
-        crafting_update = await self._process_crafting(db_session, vault_id)
-        results["updates"]["crafting"] = crafting_update
+        with tick_phase("crafting"):
+            crafting_update = await self._process_crafting(db_session, vault_id)
+            results["updates"]["crafting"] = crafting_update
 
         try:
-            results["updates"]["storage"] = await storage_tick.process_storage_maintenance(db_session, vault_id)
+            with tick_phase("storage"):
+                results["updates"]["storage"] = await storage_tick.process_storage_maintenance(db_session, vault_id)
         except (SQLAlchemyError, ResourceNotFoundException):
             await recover_session(db_session)
             self.logger.exception("Storage maintenance failed for vault %s", vault_id)
             results["updates"]["storage"] = {"checked": 0, "changed": 0}
             game_state = await self._get_or_create_game_state(db_session, vault_id)
 
-        happiness_update = await self._process_happiness(db_session, vault_id, seconds_passed)
-        results["updates"]["happiness"] = happiness_update
+        with tick_phase("happiness"):
+            happiness_update = await self._process_happiness(db_session, vault_id, seconds_passed)
+            results["updates"]["happiness"] = happiness_update
 
         # After happiness so the recruitment rate reads the freshest value.
-        radio_update = await self._process_radio(db_session, vault_id)
-        results["updates"]["radio"] = radio_update
+        with tick_phase("radio"):
+            radio_update = await self._process_radio(db_session, vault_id)
+            results["updates"]["radio"] = radio_update
 
-        breeding_update = await self._process_breeding(db_session, vault_id, seconds_passed=seconds_passed)
-        results["updates"]["breeding"] = breeding_update
+        with tick_phase("breeding"):
+            breeding_update = await self._process_breeding(db_session, vault_id, seconds_passed=seconds_passed)
+            results["updates"]["breeding"] = breeding_update
         # Family-phase recovery expires this instance; later events and SSE read it.
         if inspect(game_state, raiseerr=True).expired:
             await db_session.refresh(game_state)
 
         # Read only: arena_tick owns combat cadence. Recover before later phases.
         try:
-            results["updates"]["arena"] = await arena_service.get_tick_snapshot(db_session, vault_id)
+            with tick_phase("arena"):
+                results["updates"]["arena"] = await arena_service.get_tick_snapshot(db_session, vault_id)
         except SQLAlchemyError as exc:
             await recover_session(db_session)
             self.logger.exception("Error reading arena snapshot for vault %s", vault_id)
             results["updates"]["arena"] = {"rooms": [], "error": str(exc)}
             game_state = await self._get_or_create_game_state(db_session, vault_id)
 
-        event_update = await self._process_events(db_session, vault_id, seconds_passed, game_state)
-        results["updates"]["events"] = event_update
+        with tick_phase("events"):
+            event_update = await self._process_events(db_session, vault_id, seconds_passed, game_state)
+            results["updates"]["events"] = event_update
 
         try:
-            await sse_manager.publish(
-                vault_id,
-                "game_ticks",
-                {
-                    "event_id": str(game_state.last_tick_time.isoformat()),
-                    "type": "game_tick",
-                    "vault_id": str(vault_id),
-                    "results": results,
-                },
-            )
+            with tick_phase("sse"):
+                await sse_manager.publish(
+                    vault_id,
+                    "game_ticks",
+                    {
+                        "event_id": str(game_state.last_tick_time.isoformat()),
+                        "type": "game_tick",
+                        "vault_id": str(vault_id),
+                        "results": results,
+                    },
+                )
         except Exception:
             self.logger.exception(f"Failed to publish SSE tick for vault {vault_id}")
 
         if tick_id is not None:
-            game_state.recent_tick_ids = [*(game_state.recent_tick_ids or []), tick_id][-MAX_RECENT_TICK_IDS:]
-            db_session.add(game_state)
-            await db_session.commit()
+            with tick_phase("completion_marker"):
+                game_state.recent_tick_ids = [*(game_state.recent_tick_ids or []), tick_id][-MAX_RECENT_TICK_IDS:]
+                db_session.add(game_state)
+                await db_session.commit()
 
         return results
 

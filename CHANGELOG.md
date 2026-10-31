@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.1 (2026-10-31)
+
+### Code Refactoring
+
+* **services:** name pure policy modules for their role ([#1252](https://github.com/ElderEvil/falloutProject/issues/1252)) 4ef70cd
+
 ## 2.282.0 (2026-10-31)
 
 ### Features

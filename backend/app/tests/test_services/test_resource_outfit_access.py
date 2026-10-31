@@ -21,6 +21,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import RarityEnum
 from app.crud.resource import resource as resource_crud
 from app.models.dweller import Dweller
 from app.models.outfit import Outfit
@@ -106,6 +107,14 @@ async def _equip(session: AsyncSession, dweller_id, fire_resist: float = 0.0) ->
         },
     )
     return await crud.outfit.equip(db_session=session, item_id=outfit.id, dweller_id=dweller_id)
+
+
+async def _equip_pet(session: AsyncSession, dweller_id) -> None:
+    pet = await crud.pet.create(
+        session,
+        {"name": "Dogmeat (Fallout 4)", "rarity": RarityEnum.LEGENDARY, "value": 500},
+    )
+    await crud.pet.equip(db_session=session, item_id=pet.id, dweller_id=dweller_id)
 
 
 @pytest.mark.asyncio
@@ -235,3 +244,52 @@ async def test_resource_tick_wall_time_with_outfits(async_session: AsyncSession,
         await resource_crud.get_vault_resource_data(async_session, vault.id)
 
     assert len(grown_counter.outfit_selects) == len(small_counter.outfit_selects)
+
+
+@pytest.mark.asyncio
+async def test_resource_data_consolidates_load_queries(async_session: AsyncSession, vault) -> None:
+    """The resource loader must stay within five queries while preserving all rows."""
+    room, dwellers = await _seed_producing_room(async_session, vault.id, 2)
+    empty_room = await crud.room.create(
+        async_session,
+        obj_in=RoomCreate(
+            name="Empty Room",
+            category="Production",
+            ability="Strength",
+            base_cost=100,
+            increment_cost=None,
+            t2_upgrade_cost=None,
+            t3_upgrade_cost=None,
+            size_min=6,
+            size_max=6,
+            tier=1,
+            output="1",
+            capacity="1",
+            vault_id=vault.id,
+        ),
+    )
+    unassigned = await crud.dweller.create(
+        async_session,
+        obj_in=DwellerCreate(
+            first_name="Unassigned",
+            last_name="Dweller",
+            gender="female",
+            rarity="common",
+            vault_id=vault.id,
+        ),
+    )
+    await _equip(async_session, dwellers[0].id)
+    await _equip_pet(async_session, dwellers[0].id)
+    await async_session.commit()
+    async_session.expunge_all()
+
+    with _QueryCounter(async_session.bind) as counter:
+        data = await resource_crud.get_vault_resource_data(async_session, vault.id)
+
+    select_statements = [s for s in counter.statements if s.lstrip().lower().startswith(("select", "with"))]
+    assert len(select_statements) == 5
+    assert data.dweller_count == 3
+    assert {r.id for r in data.rooms} == {room.id, empty_room.id}
+    assert len(data.rooms_with_dwellers) == 1
+    assert data.rooms_with_dwellers[0][0].id == room.id
+    assert unassigned.id not in {d.id for _, dwellers in data.rooms_with_dwellers for d in dwellers}

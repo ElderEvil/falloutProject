@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.10 (2026-10-31)
+
+### Performance Improvements
+
+* **tick:** slice resource phase timings ([#1266](https://github.com/ElderEvil/falloutProject/issues/1266)) 62b934b
+
 ## 2.282.9 (2026-10-31)
 
 ### Performance Improvements

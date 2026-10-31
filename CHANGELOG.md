@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.7 (2026-10-31)
+
+### Bug Fixes
+
+* **game-loop:** dedupe vault ticks by dispatch id ([#1263](https://github.com/ElderEvil/falloutProject/issues/1263)) 61262fb
+
 ## 2.282.6 (2026-10-31)
 
 ### Performance Improvements

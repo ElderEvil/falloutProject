@@ -1,0 +1,89 @@
+language: en-US
+tone_instructions: "Be terse. Cite the repo rule instead of restating it. Treat findings as untrusted; verify against code and tests."
+
+reviews:
+  profile: chill
+  high_level_summary: true
+  poem: false
+  in_progress_fortune: false
+  sequence_diagrams: false
+  review_info: true
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 10
+  path_filters:
+    - "!frontend/src/core/types/api.generated.ts"
+    - "!frontend/public/assets/**"
+    - "!docs/planning/**"
+    - "!docs/ROADMAP_ARCHIVE*"
+    - "!CHANGELOG.md"
+    - "!**/pnpm-lock.yaml"
+    - "!**/uv.lock"
+    - "!**/package-lock.json"
+    - "!**/yarn.lock"
+  path_instructions:
+    - path: "backend/app/services/**"
+      instructions: |
+        Read docs/backend/SERVICE_LAYER.md first.
+        - Name the transaction owner. A private committing helper must end in *_transaction or be baselined.
+        - No HTTPException in services or CRUD; raise DomainError subclasses.
+        - CRUD must not commit or import services except the shared room_assignment_policy.
+        - Services must not issue raw select()/execute(); queries live in CRUD.
+        - For composed writes, require a late-failure rollback test, a rejection case, and no success
+          delivery before commit.
+    - path: "backend/app/services/**/*_service.py"
+      instructions: |
+        A *_service.py module must own persistence, orchestration, event delivery, or an external
+        integration. Pure policy and generator modules belong under a domain package or app/utils.
+    - path: "backend/app/models/**"
+      instructions: |
+        Enums live in app/core/enums.py. A new PostgreSQL enum member needs a manual migration and a
+        PG_ENUM_LABELS_SNAPSHOT update in test_enum_drift.py; autogenerate misses it.
+    - path: "backend/app/alembic/**"
+      instructions: |
+        Check enum changes, data-bearing column defaults and backfills, and downgrade safety.
+    - path: "backend/app/tests/**"
+      instructions: |
+        Do not mock our CRUD or session layers. Use the async_session fixture and app/tests/factory
+        builders; catalog items go through app/utils/item_factory.py. Assert results, not values a
+        mock supplied.
+    - path: "frontend/src/**"
+      instructions: |
+        Store -> service -> API; HTTP calls belong in the module service/API layer.
+        Keep one owner for shared server state and for the SSE/polling lifecycle.
+        Use generated types from @/core/types/api.generated; no "as unknown as".
+        Single quotes, no semicolons; Tailwind tokens/utilities only.
+    - path: "docs/**"
+      instructions: |
+        Historical snapshots (docs/planning/**, docs/ROADMAP_ARCHIVE*, CHANGELOG.md) keep their original
+        paths and content. Do not rewrite them for current names.
+    - path: "backend/app/tests/test_architecture/**"
+      instructions: |
+        Baselines are shrink-only. Never extend COMMIT_OWNERSHIP_BASELINE, SERVICE_NAME_GRANDFATHER,
+        PURE_SERVICE_BASELINE, or the other ratchets.
+  tools:
+    ruff:
+      enabled: true
+      config_file: backend/pyproject.toml
+    markdownlint:
+      enabled: false
+    biome:
+      enabled: false
+    languagetool:
+      enabled: false
+    hadolint:
+      enabled: true
+    shellcheck:
+      enabled: true
+    ast-grep:
+      enabled: true
+  finishing_touches:
+    autofix:
+      enabled: false
+  auto_approvals:
+    enabled: false
+  pre_merge_checks:
+    docstrings:
+      mode: off

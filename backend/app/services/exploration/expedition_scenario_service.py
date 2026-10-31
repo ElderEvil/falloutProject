@@ -110,6 +110,11 @@ def uniform_stats(special: int) -> tuple[int, int, int, int, int, int, int]:
     return (value, value, value, value, value, value, value)
 
 
+def _outbound_duration(travel_hours: float, outbound_hours: int) -> int:
+    """Journey length that still leaves ``outbound_hours`` before the outbound leg ends (24h cap)."""
+    return max(1, min(24, math.ceil(2 * (travel_hours + outbound_hours))))
+
+
 class ExpeditionScenarioService:
     """Opt-in builder for a ready-to-play interactive expedition-site scenario."""
 
@@ -230,15 +235,19 @@ class ExpeditionScenarioService:
         special: int | None = None,
         site_ids: list[str] | None = None,
         recreate: bool = False,
+        discover: bool = True,
+        outbound_hours: int = 8,
     ) -> ExpeditionScenarioMultiResult:
-        """Seed a vault with named dwellers, each limited to one expedition site.
+        """Seed a vault with named dwellers, each scouting one expedition site.
 
         ``vault_number`` is used only when no ``vault_id`` is given. With
         ``recreate`` any existing vault with that number for the owner is
         soft-deleted first, so the scenario starts from a fresh boosted vault;
-        otherwise the existing vault is reused. Each dweller gets an active
-        legacy journey whose picker is filtered to exactly one site, so several
-        site scenes can be tested in parallel from the same vault.
+        otherwise the existing vault is reused. With ``discover`` each dweller's
+        journey is fast-forwarded along a trail past its site, so the site is
+        reported in the bell while the dweller keeps an ``outbound_hours``
+        outbound window; otherwise the journey stays legacy and its picker is
+        filtered to that one site.
         """
         site_ids = site_ids or default_multi_site_ids()
         if not site_ids:
@@ -281,6 +290,9 @@ class ExpeditionScenarioService:
                 )
             owner_email = owner.email
 
+        if discover and await vault_slot.get_by_vault(db_session, vault.id) is None:
+            await vault_slot.claim_next(db_session=db_session, vault_id=vault.id)
+
         entries: list[ExpeditionScenarioResult] = []
         for index in range(dwellers):
             first_name, last_name, gender, profile_stats = VAULT_ONE_DWELLERS[index]
@@ -296,6 +308,10 @@ class ExpeditionScenarioService:
             levels = dweller_level - dweller.level
             if levels > 0:
                 await leveling_service.level_up_dweller(db_session, dweller, levels=levels)
+            site_id = site_ids[index % len(site_ids)]
+            site = data_loader.get_expedition_site(site_id)
+            if site is None:
+                raise ValueError(f"Unknown expedition site: {site_id!r}")
             exploration = await exploration_service.send_dweller(
                 db_session,
                 vault_id=vault.id,
@@ -304,14 +320,20 @@ class ExpeditionScenarioService:
                 stimpaks=0,
                 radaways=0,
             )
-            site_id = site_ids[index % len(site_ids)]
-            await self._make_all_sites_active_transaction(
-                db_session,
-                exploration,
-                single_scene_only=False,
-                scenario_site_id=site_id,
-                choice_only=False,
-            )
+            if discover:
+                travel_hours = self._stage_trail_to_site(exploration, site)
+                exploration.duration = _outbound_duration(travel_hours, outbound_hours)
+                db_session.add(exploration)
+                await db_session.commit()
+                await expedition_service.discover_sites(db_session, exploration.id)
+            else:
+                await self._make_all_sites_active_transaction(
+                    db_session,
+                    exploration,
+                    single_scene_only=False,
+                    scenario_site_id=site_id,
+                    choice_only=False,
+                )
             available_sites = await expedition_service.list_available_sites(db_session, exploration.id)
             if not available_sites:
                 raise ValueError(f"{site_id} is not available for {dweller.display_name}")
@@ -324,7 +346,7 @@ class ExpeditionScenarioService:
                     precleared_site_id=None,
                     created_vault=created_vault,
                     owner_email=owner_email,
-                    discovered_site_id=None,
+                    discovered_site_id=site.id if discover else None,
                 )
             )
         return ExpeditionScenarioMultiResult(
@@ -380,13 +402,13 @@ class ExpeditionScenarioService:
         await db_session.commit()
 
     @staticmethod
-    def _stage_discovery(exploration: Exploration, site: SiteDefinition) -> None:
-        """Stage a fast-forwarded QA trail at the site and start the return leg.
+    def _stage_trail_to_site(exploration: Exploration, site: SiteDefinition) -> float:
+        """Fast-forward a trail from the vault origin to the site; returns travel hours.
 
         Setup is deliberately multi-stage: vault/scout/departure remain durable
         if fast-forwarding or report delivery fails. This stage changes only the
-        exploration row; setup commits it before discover_sites owns its separate
-        atomic report transaction.
+        exploration row; the caller commits it before discover_sites owns its
+        separate atomic report transaction.
         """
         origin_x, origin_y = exploration.origin_x, exploration.origin_y
         if origin_x is None or origin_y is None:
@@ -403,6 +425,12 @@ class ExpeditionScenarioService:
             {"x": origin_x, "y": origin_y, "t": exploration.start_time.isoformat()},
             {"x": site.coord_x, "y": site.coord_y, "t": now.isoformat()},
         ]
+        return travel_hours
+
+    @classmethod
+    def _stage_discovery(cls, exploration: Exploration, site: SiteDefinition) -> None:
+        """Stage a fast-forwarded QA trail at the site and start the return leg."""
+        cls._stage_trail_to_site(exploration, site)
         exploration.start_return()
 
     @staticmethod

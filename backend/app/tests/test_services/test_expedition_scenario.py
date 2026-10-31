@@ -16,6 +16,7 @@ from app.services import catalog_service as data_loader
 from app.services.exploration.expedition import expedition_service
 from app.services.exploration.expedition_scenario_service import expedition_scenario_service
 from app.services.exploration_service import exploration_service
+from app.services.vault.scenario_service import vault_scenario_service
 from app.services.vault_service import vault_service
 from app.utils.exceptions import ResourceNotFoundException
 
@@ -475,8 +476,13 @@ async def test_setup_multi_seeds_named_dwellers_with_one_site_each(async_session
         ["gloomwater_bog", "gloomwater_bog_night", "outskirts_interchange"],
         strict=True,
     ):
-        assert entry.exploration.status == ExplorationStatus.ACTIVE
-        assert [site.id for site in entry.available_sites] == [site_id]
+        fresh = await crud.exploration.get(async_session, entry.exploration.id)
+        assert fresh is not None
+        assert fresh.status == ExplorationStatus.ACTIVE
+        assert entry.discovered_site_id == site_id
+        assert site_id in {site.id for site in entry.available_sites}
+        assert any(event.get("site_id") == site_id for event in fresh.events)
+        assert fresh.time_remaining_seconds() > 0
 
 
 @pytest.mark.asyncio
@@ -535,9 +541,24 @@ async def test_setup_multi_defaults_to_one_dweller_per_site(async_session: Async
     assert len(result.entries) == len(expected_sites)
     assert len({entry.dweller.id for entry in result.entries}) == len(expected_sites)
     assert len({entry.dweller.display_name for entry in result.entries}) == len(expected_sites)
-    offered = [entry.available_sites[0].id for entry in result.entries]
-    assert offered == expected_sites
-    assert len(set(offered)) == len(expected_sites)
+    assert [entry.discovered_site_id for entry in result.entries] == expected_sites
+    assert all(entry.exploration.status == ExplorationStatus.ACTIVE for entry in result.entries)
+
+
+@pytest.mark.asyncio
+async def test_setup_multi_can_keep_legacy_one_site_pickers(async_session: AsyncSession, vault: Vault) -> None:
+    site_ids = ["gloomwater_bog", "outskirts_interchange"]
+    result = await expedition_scenario_service.setup_multi(
+        async_session,
+        vault_id=vault.id,
+        dwellers=2,
+        site_ids=site_ids,
+        discover=False,
+    )
+
+    for entry, site_id in zip(result.entries, site_ids, strict=True):
+        assert entry.discovered_site_id is None
+        assert [site.id for site in entry.available_sites] == [site_id]
 
 
 @pytest.mark.asyncio
@@ -549,3 +570,22 @@ async def test_setup_multi_rejects_more_dwellers_than_sites(async_session: Async
             dwellers=2,
             site_ids=["gloomwater_bog"],
         )
+
+
+@pytest.mark.asyncio
+async def test_vault_1_scenario_scouts_every_site_and_fits_capacity(async_session: AsyncSession, vault: Vault) -> None:
+    scenario = vault_scenario_service.get("vault_1_test")
+    assert scenario is not None
+
+    await vault_scenario_service.seed(async_session, vault, scenario)
+    await async_session.refresh(vault)
+
+    dwellers = await crud.dweller.get_multi_by_vault(async_session, vault.id, limit=100)
+    explorations = await crud.exploration.get_by_vault(async_session, vault_id=vault.id, active_only=True)
+    expected_sites = {site.id for site in data_loader.load_expedition_sites() if not site.scenario_only}
+    assert len(explorations) == len(expected_sites)
+    assert vault.population_max is not None
+    assert vault.population_max >= len(dwellers)
+    for exploration in explorations:
+        assert exploration.status == ExplorationStatus.ACTIVE
+        assert any(event.get("event") == "site_found" for event in exploration.events)

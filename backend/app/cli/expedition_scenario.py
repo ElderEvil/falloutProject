@@ -62,12 +62,19 @@ def _print_multi(result) -> None:
     typer.echo(f"  created: {'yes (boosted)' if result.created_vault else 'no (existing)'}")
     for entry in result.entries:
         site = entry.available_sites[0] if entry.available_sites else None
+        if entry.discovered_site_id:
+            site = next(
+                (candidate for candidate in entry.available_sites if candidate.id == entry.discovered_site_id),
+                site,
+            )
         typer.echo("Dweller:")
         gender = getattr(entry.dweller.gender, "value", entry.dweller.gender)
         typer.echo(f"  {entry.dweller.display_name} ({gender}, level {entry.dweller.level}, id {entry.dweller.id})")
         typer.echo(f"  exploration: {entry.exploration.id}")
         if site is not None:
             typer.echo(f"  site: {site.id} ({site.name})")
+            if entry.discovered_site_id:
+                typer.echo(f"  found: {entry.discovered_site_id} (bell + toast)")
             typer.echo(
                 f"  Frontend: http://localhost:5173/vault/{result.vault.id}/exploration/"
                 f"{entry.exploration.id}?siteId={site.id}"
@@ -153,8 +160,12 @@ def vault1(
     dweller_level: Annotated[int, typer.Option("--dweller-level", min=1, max=50)] = 5,
     duration_hours: Annotated[
         int,
-        typer.Option("--duration-hours", min=1, max=24, help="Journey length in hours"),
+        typer.Option("--duration-hours", min=1, max=24, help="Legacy journey length in hours"),
     ] = 24,
+    outbound_hours: Annotated[
+        int,
+        typer.Option("--outbound-hours", min=1, max=12, help="Outbound window left after the site is reported"),
+    ] = 8,
     special: Annotated[
         int | None,
         typer.Option("--special", min=1, max=10, help="Every SPECIAL stat; omit for varied profiles"),
@@ -177,7 +188,7 @@ def vault1(
         typer.Option("--keep-existing", help="Reuse Vault 1 instead of recreating it"),
     ] = False,
 ) -> None:
-    """Create a fresh Vault 1 with one named dweller per selected site by default."""
+    """Create a fresh Vault 1 where every selected site is scouted and reported."""
     site_ids = [site.strip() for site in sites.split(",") if site.strip()] if sites else None
 
     async def _run() -> None:
@@ -195,6 +206,7 @@ def vault1(
                 special=special,
                 site_ids=site_ids,
                 recreate=not keep_existing,
+                outbound_hours=outbound_hours,
             )
             _print_multi(result)
 

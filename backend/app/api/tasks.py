@@ -174,9 +174,13 @@ async def _release_vault_tick_lock(redis: Redis, vault_id: str, token: str) -> N
     await redis.eval(VAULT_TICK_LOCK_RELEASE_SCRIPT, 1, f"{VAULT_TICK_LOCK_PREFIX}{vault_id}", token)
 
 
+def _vault_tick_done_key(vault_id: str, tick_id: str) -> str:
+    return f"{VAULT_TICK_DONE_PREFIX}{vault_id}:{tick_id}"
+
+
 async def _set_vault_tick_done(redis: Redis, vault_id: str, tick_id: str) -> None:
     try:
-        await redis.set(f"{VAULT_TICK_DONE_PREFIX}{vault_id}", tick_id, ex=VAULT_TICK_DONE_TTL_SECONDS)
+        await redis.set(_vault_tick_done_key(vault_id, tick_id), "1", ex=VAULT_TICK_DONE_TTL_SECONDS)
     except Exception:
         logger.exception("Failed to record completed vault tick for %s", vault_id)
 
@@ -205,7 +209,7 @@ async def _process_vault_tick_async(vault_id: str, redis: Redis, tick_id: str | 
     if token is None:
         return {"status": "skipped"}
 
-    if tick_id is not None and await redis.get(f"{VAULT_TICK_DONE_PREFIX}{vault_id}") == tick_id:
+    if tick_id is not None and await redis.exists(_vault_tick_done_key(vault_id, tick_id)):
         await _release_vault_tick_lock(redis, vault_id, token)
         return {"status": "duplicate"}
 

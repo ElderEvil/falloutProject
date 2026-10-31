@@ -146,14 +146,17 @@ async def test_process_vault_tick_dedupes_the_same_dispatch_but_allows_the_next(
             first = await _process_vault_tick_async(vault_id, redis, "dispatch-1")
             duplicate = await _process_vault_tick_async(vault_id, redis, "dispatch-1")
             next_tick = await _process_vault_tick_async(vault_id, redis, "dispatch-2")
+            stale_duplicate = await _process_vault_tick_async(vault_id, redis, "dispatch-1")
 
         assert first == {"vault_id": vault_id}
         assert duplicate == {"status": "duplicate"}
         assert next_tick == {"vault_id": vault_id}
+        assert stale_duplicate == {"status": "duplicate"}
         assert process.await_count == 2
         assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
-        assert await redis.get(f"fallout:vault-tick-done:{vault_id}") == "dispatch-2"
-        done_ttl = await redis.ttl(f"fallout:vault-tick-done:{vault_id}")
+        assert await redis.exists(f"fallout:vault-tick-done:{vault_id}:dispatch-1") == 1
+        assert await redis.exists(f"fallout:vault-tick-done:{vault_id}:dispatch-2") == 1
+        done_ttl = await redis.ttl(f"fallout:vault-tick-done:{vault_id}:dispatch-2")
         assert 0 < done_ttl <= 900
     finally:
         await redis.aclose()
@@ -178,7 +181,7 @@ async def test_process_vault_tick_releases_lease_on_failure_for_retry() -> None:
             await _process_vault_tick_async(vault_id, redis, "dispatch-1")
 
         assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
-        assert await redis.get(f"fallout:vault-tick-done:{vault_id}") is None
+        assert await redis.exists(f"fallout:vault-tick-done:{vault_id}:dispatch-1") == 0
     finally:
         await redis.aclose()
 
@@ -203,7 +206,7 @@ async def test_process_vault_tick_retries_the_same_dispatch_after_failure() -> N
 
         assert result == {"vault_id": vault_id}
         assert process.await_count == 2
-        assert await redis.get(f"fallout:vault-tick-done:{vault_id}") == "dispatch-1"
+        assert await redis.exists(f"fallout:vault-tick-done:{vault_id}:dispatch-1") == 1
     finally:
         await redis.aclose()
 

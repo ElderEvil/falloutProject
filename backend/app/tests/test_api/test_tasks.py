@@ -115,7 +115,6 @@ async def test_dispatch_game_tick_enqueues_every_active_vault_with_one_tick_id()
     assert [(call.args[0], call.args[1]) for call in send.call_args_list] == [
         (str(vault_id), tick_id) for vault_id in vault_ids
     ]
-    assert len({call.args[2] for call in send.call_args_list}) == 1
 
 
 def test_game_tick_uses_the_current_dramatiq_message_id() -> None:

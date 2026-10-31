@@ -81,9 +81,8 @@ def create_task(task_time: int):
 async def _dispatch_game_tick(tick_id: str) -> dict[str, int | float]:
     async with task_session() as session:
         vault_ids = await game_loop_service.get_active_vault_ids(session)
-    enqueued_at = time.time()
     for vault_id in vault_ids:
-        process_vault_tick.send(str(vault_id), tick_id, enqueued_at)
+        process_vault_tick.send(str(vault_id), tick_id)
     return {"vaults_dispatched": len(vault_ids)}
 
 
@@ -242,15 +241,16 @@ async def _process_vault_tick_async(vault_id: str, redis: Redis, tick_id: str | 
 def process_vault_tick(vault_id: str, tick_id: str | None = None, enqueued_at: float | None = None):
     """Process one vault tick under a per-vault Redis lease."""
     start = time.perf_counter()
-    profile = (
-        TickProfile(
+    profile = None
+    if os.getenv("TICK_PROFILE") == "1":
+        if enqueued_at is None:
+            message = CurrentMessage.get_current_message()
+            enqueued_at = message.message_timestamp / 1000 if message is not None else None
+        profile = TickProfile(
             vault_key=profile_key(vault_id),
             dispatch_key=profile_key(tick_id) if tick_id else "",
             enqueued_at=enqueued_at,
         )
-        if os.getenv("TICK_PROFILE") == "1"
-        else None
-    )
     profile_token = set_current_profile(profile)
 
     async def run_vault_tick():

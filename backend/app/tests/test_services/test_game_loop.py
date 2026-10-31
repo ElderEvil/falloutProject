@@ -958,6 +958,29 @@ async def test_tick_reports_arena_and_preserves_paused_contract(async_session, v
 
 
 @pytest.mark.asyncio
+async def test_process_vault_tick_dedupes_recent_tick_ids(async_session, vault):
+    first = await game_loop_service.process_vault_tick(async_session, vault.id, tick_id="dispatch-1")
+    state = await game_loop_service._get_or_create_game_state(async_session, vault.id)
+    first_tick_time = state.last_tick_time
+    first_total_time = state.total_game_time
+
+    duplicate = await game_loop_service.process_vault_tick(async_session, vault.id, tick_id="dispatch-1")
+
+    assert duplicate == {"status": "duplicate"}
+    await async_session.refresh(state)
+    assert state.last_tick_time == first_tick_time
+    assert state.total_game_time == first_total_time
+    assert "dispatch-1" in state.recent_tick_ids
+
+    next_tick = await game_loop_service.process_vault_tick(async_session, vault.id, tick_id="dispatch-2")
+
+    assert next_tick["vault_id"] == str(vault.id)
+    await async_session.refresh(state)
+    assert state.recent_tick_ids[-2:] == ["dispatch-1", "dispatch-2"]
+    assert first["vault_id"] == str(vault.id)
+
+
+@pytest.mark.asyncio
 async def test_arena_snapshot_database_failure_recovers_for_events(async_session, vault):
     from sqlalchemy import event
 

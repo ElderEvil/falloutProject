@@ -3,6 +3,7 @@ import os
 import dramatiq
 import periodiq
 from dramatiq.brokers.redis import RedisBroker
+from dramatiq.middleware import CurrentMessage
 
 from app.core.config import settings
 from app.core.logging import setup_logging
@@ -16,5 +17,6 @@ if os.getenv("FALLOUT_WORKER") == "1":
     )
 
 broker = RedisBroker(url=settings.redis_url)
+broker.add_middleware(CurrentMessage())
 broker.add_middleware(periodiq.PeriodiqMiddleware())
 dramatiq.set_broker(broker)

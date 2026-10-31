@@ -1,11 +1,13 @@
 """Tests for scheduled background tasks."""
 
 import asyncio
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import fakeredis.aioredis
 import pytest
+from dramatiq.middleware import CurrentMessage
 
 from app.api.tasks import (
     _acquire_vault_tick_lock,
@@ -14,7 +16,9 @@ from app.api.tasks import (
     _process_vault_tick_async,
     _release_vault_tick_lock,
     check_quest_completion,
+    game_tick,
 )
+from app.core.dramatiq import broker
 from app.models.pregnancy import Pregnancy
 from app.models.vault import Vault
 from app.utils.exceptions import ResourceNotFoundException
@@ -23,6 +27,11 @@ from app.utils.exceptions import ResourceNotFoundException
 def test_quest_completion_is_scheduled_every_minute() -> None:
     """Finished quest timers are settled without a player request."""
     assert "periodic" in check_quest_completion.options
+
+
+def test_current_message_middleware_is_enabled() -> None:
+    """The dispatcher needs the current Dramatiq message id for idempotency."""
+    assert any(isinstance(middleware, CurrentMessage) for middleware in broker.middleware)
 
 
 class _FakeTaskSession:
@@ -55,9 +64,10 @@ async def test_check_quest_completion_drives_both_passes() -> None:
 
 
 @pytest.mark.asyncio
-async def test_dispatch_game_tick_enqueues_every_active_vault() -> None:
+async def test_dispatch_game_tick_enqueues_every_active_vault_with_one_tick_id() -> None:
     """The dispatcher fans out one actor message per active vault."""
     vault_ids = [uuid4(), uuid4()]
+    tick_id = "dispatch-1"
 
     with (
         patch("app.api.tasks.task_session", new=lambda: _FakeTaskSession()),
@@ -67,10 +77,23 @@ async def test_dispatch_game_tick_enqueues_every_active_vault() -> None:
         ),
         patch("app.api.tasks.process_vault_tick.send") as send,
     ):
-        stats = await _dispatch_game_tick()
+        stats = await _dispatch_game_tick(tick_id)
 
     assert stats == {"vaults_dispatched": 2}
-    assert [call.args[0] for call in send.call_args_list] == [str(vault_id) for vault_id in vault_ids]
+    assert [(call.args[0], call.args[1]) for call in send.call_args_list] == [
+        (str(vault_id), tick_id) for vault_id in vault_ids
+    ]
+
+
+def test_game_tick_uses_the_current_dramatiq_message_id() -> None:
+    """A retry of the same game_tick message must reuse its tick id."""
+    with (
+        patch.object(CurrentMessage, "get_current_message", return_value=SimpleNamespace(message_id="dispatch-1")),
+        patch("app.api.tasks._dispatch_game_tick", new=AsyncMock(return_value={"vaults_dispatched": 2})) as dispatch,
+    ):
+        game_tick.fn()
+
+    dispatch.assert_awaited_once_with("dispatch-1")
 
 
 @pytest.mark.asyncio
@@ -106,8 +129,8 @@ async def test_process_vault_tick_skips_when_another_worker_holds_the_lock() -> 
 
 
 @pytest.mark.asyncio
-async def test_process_vault_tick_keeps_lease_after_success_to_debounce_duplicates() -> None:
-    """A successful tick leaves its lease until the next tick window."""
+async def test_process_vault_tick_passes_the_dispatch_id_to_the_service() -> None:
+    """The actor delegates dispatch idempotency to the service."""
     vault_id = str(uuid4())
     redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
     try:
@@ -118,14 +141,13 @@ async def test_process_vault_tick_keeps_lease_after_success_to_debounce_duplicat
             patch(
                 "app.api.tasks.game_loop_service.process_vault_tick",
                 new=AsyncMock(return_value={"vault_id": vault_id}),
-            ),
+            ) as process,
         ):
-            first = await _process_vault_tick_async(vault_id, redis)
-            second = await _process_vault_tick_async(vault_id, redis)
+            result = await _process_vault_tick_async(vault_id, redis, "dispatch-1")
 
-        assert first == {"vault_id": vault_id}
-        assert second == {"status": "skipped"}
-        assert await redis.get(f"fallout:vault-tick:{vault_id}") is not None
+        assert result == {"vault_id": vault_id}
+        assert process.await_args.args[2] == "dispatch-1"
+        assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
     finally:
         await redis.aclose()
 
@@ -146,7 +168,7 @@ async def test_process_vault_tick_releases_lease_on_failure_for_retry() -> None:
             ),
             pytest.raises(RuntimeError),
         ):
-            await _process_vault_tick_async(vault_id, redis)
+            await _process_vault_tick_async(vault_id, redis, "dispatch-1")
 
         assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
     finally:

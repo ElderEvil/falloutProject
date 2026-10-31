@@ -63,12 +63,12 @@ dedupePeerDependents: true
 shamefullyHoist: false
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@1.1.0
-  vite-plus: 1.1.0
+  vite-plus: 1.3.0
   # vitest itself is NOT a direct dep: it comes bundled with vite-plus
   # (vite-plus pins it exactly). These two release in lockstep with vitest
   # and must be bumped to match whenever vite-plus bumps its bundled vitest.
-  '@vitest/coverage-v8': 5.0.3
-  '@vitest/ui': 5.0.3
+  '@vitest/coverage-v8': 5.0.5
+  '@vitest/ui': 5.0.5
 peerDependencyRules:
   allowAny:
     - vite

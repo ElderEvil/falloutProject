@@ -109,7 +109,7 @@ export function getDamageRange(weapon: DamageSource): string {
 }
 
 // Outfit radiation resist, mirroring the backend mechanics map
-// (backend/app/utils/radiation.py): type base, specific names override.
+// (backend/app/utils/hazard_resist.py): type base, specific names override.
 const OUTFIT_RADIATION_RESIST_BY_TYPE: Record<string, number> = {
   power_armor: 0.75,
   common_outfit: 0,
@@ -128,7 +128,7 @@ interface ResistSource {
 }
 
 // An explicit share declared on the outfit wins; older rows without one keep
-// the type/name fallback below (mirrors radiation.outfit_radiation_resist).
+// the type/name fallback below (mirrors hazard_resist.outfit_radiation_resist).
 export function getOutfitRadiationResist(outfit: ResistSource): number {
   if (outfit.radiation_resist != null) return outfit.radiation_resist
   const byName = OUTFIT_RADIATION_RESIST_BY_NAME[outfit.name?.trim().toLowerCase() ?? '']

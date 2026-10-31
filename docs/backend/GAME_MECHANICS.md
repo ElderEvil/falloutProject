@@ -420,7 +420,7 @@ armor does not help, because the radiation enters through drinking. Non-humans s
 RadAway is the only cure for humans.
 - **External** — radscorpion incidents and wasteland danger events. Outfit resistance applies
   (see `OUTFIT_RADIATION_RESIST_BY_TYPE` / `OUTFIT_RADIATION_RESIST_BY_NAME` in
-  `utils/radiation.py`): hazmat suits block it fully, power armor blocks most.
+  `utils/hazard_resist.py`): hazmat suits block it fully, power armor blocks most.
 
 Drought radiation accrues at 1% of max health per tick after `dehydration_grace_ticks` of zero
 water, counting only the ticks past the grace boundary. Radiation saturates at the dweller's own

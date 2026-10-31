@@ -21,6 +21,7 @@ from app.schemas.vault import (
     ResourceTickEvents,
     VaultUpdate,
 )
+from app.services.game_tick.profiling import tick_phase
 from app.utils.resource_warnings import get_resource_warnings
 
 logger = logging.getLogger(__name__)
@@ -56,16 +57,18 @@ class ResourceManager:
         Returns:
             tuple: Updated resource levels and typed tick events.
         """
-        resource_data = await resource_crud.get_vault_resource_data(db_session, vault_id)
+        with tick_phase("resources.load"):
+            resource_data = await resource_crud.get_vault_resource_data(db_session, vault_id)
 
-        resource_update, events = self.calculate_resource_window(
-            resource_data.vault,
-            resource_data.rooms,
-            resource_data.dweller_count,
-            resource_data.rooms_with_dwellers,
-            seconds_passed,
-            state=resource_data.game_state,
-        )
+        with tick_phase("resources.calculate"):
+            resource_update, events = self.calculate_resource_window(
+                resource_data.vault,
+                resource_data.rooms,
+                resource_data.dweller_count,
+                resource_data.rooms_with_dwellers,
+                seconds_passed,
+                state=resource_data.game_state,
+            )
 
         # Write medical production to Storage (separate from VaultUpdate)
         # Medical events must reflect the integer, capacity-limited amount that
@@ -78,27 +81,29 @@ class ResourceManager:
         events.production.stimpack = 0
         events.production.radaway = 0
         if resource_data.storage is not None:
-            capacity = compute_medical_capacity(resource_data.rooms)
-            if any(medical_production.values()):
-                storage = resource_data.storage
-                applied = self.apply_room_payout(
-                    resource_data.vault,
-                    storage,
-                    capacity,
-                    medical_production,
-                )
-                for resource_type in ("stimpack", "radaway"):
-                    if medical_production[resource_type] == 0:
-                        previous = getattr(storage, resource_type)
-                        capped = min(previous, capacity.get(resource_type, 0))
-                        setattr(storage, resource_type, capped)
-                        applied[resource_type] = capped - previous
-                    setattr(events.production, resource_type, applied[resource_type])
-                resource_crud.save_storage(db_session, storage)
+            with tick_phase("resources.medical"):
+                capacity = compute_medical_capacity(resource_data.rooms)
+                if any(medical_production.values()):
+                    storage = resource_data.storage
+                    applied = self.apply_room_payout(
+                        resource_data.vault,
+                        storage,
+                        capacity,
+                        medical_production,
+                    )
+                    for resource_type in ("stimpack", "radaway"):
+                        if medical_production[resource_type] == 0:
+                            previous = getattr(storage, resource_type)
+                            capped = min(previous, capacity.get(resource_type, 0))
+                            setattr(storage, resource_type, capped)
+                            applied[resource_type] = capped - previous
+                        setattr(events.production, resource_type, applied[resource_type])
+                    resource_crud.save_storage(db_session, storage)
 
-        if events.objective_production is not None:
-            events.objective_production.stimpack = events.production.stimpack
-            events.objective_production.radaway = events.production.radaway
+        with tick_phase("resources.finalize"):
+            if events.objective_production is not None:
+                events.objective_production.stimpack = events.production.stimpack
+                events.objective_production.radaway = events.production.radaway
         return resource_update, events
 
     def calculate_resource_window(

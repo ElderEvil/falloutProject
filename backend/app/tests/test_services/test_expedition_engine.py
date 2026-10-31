@@ -691,9 +691,8 @@ async def _open_trivia_question(async_session: AsyncSession, exploration_id):
 
 async def _open_trivia_raider(run):
     """The raider persona pinned alongside the question on the same run."""
-    site = data_loader.get_expedition_site(run.site_id)
     raider_id = next(iter(run.flags["trivia_raiders"].values()))
-    return next(raider for raider in site.encounter.node.raiders if raider.id == raider_id)
+    return next(raider for raider in data_loader.load_trivia_raiders() if raider.id == raider_id)
 
 
 @pytest.mark.asyncio

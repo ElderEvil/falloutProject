@@ -67,14 +67,38 @@ def test_raider_tollbooth_shape():
     node = site.encounter.node
     assert node.kind == "trivia"
     assert [enemy.arena_key for enemy in node.enemies] == ["raider"]
-    assert len(node.trivia_questions) >= 5
+    assert len(node.trivia_questions) >= 18
     for question in node.trivia_questions:
         assert question.correct_option_id in {option.id for option in question.options}
-    assert {raider.gender for raider in node.raiders} == {"female", "male"}
-    assert len({raider.name for raider in node.raiders}) == len(node.raiders)
-    assert all(raider.intro and raider.correct_line and raider.wrong_line for raider in node.raiders)
-    assert all(raider.image_url and raider.alt_image_url for raider in node.raiders)
+        assert 1 <= question.difficulty <= 5
+    raiders = data_loader.load_trivia_raiders()
+    assert {raider.gender for raider in raiders} == {"female", "male"}
+    assert len({raider.name for raider in raiders}) == len(raiders)
+    assert all(raider.intro and raider.correct_line and raider.wrong_line for raider in raiders)
+    assert all(raider.image_url and raider.alt_image_url for raider in raiders)
     assert site.reward_vault.caps_min == 40
+
+
+@pytest.mark.parametrize(
+    ("site_id", "minimum_questions"),
+    [
+        ("raider_tollbooth", 18),
+        ("rusted_midway", 12),
+    ],
+)
+def test_trivia_sites_have_expanded_question_pools(site_id: str, minimum_questions: int):
+    site = data_loader.get_expedition_site(site_id)
+    assert site is not None
+    assert site.encounter is not None
+    node = site.encounter.node
+    assert node.kind == "trivia"
+    assert len(node.trivia_questions) >= minimum_questions
+    assert len({question.id for question in node.trivia_questions}) == len(node.trivia_questions)
+    assert all(len(question.options) >= 3 for question in node.trivia_questions)
+    assert all(
+        question.correct_option_id in {option.id for option in question.options} for question in node.trivia_questions
+    )
+    assert all(1 <= question.difficulty <= 5 for question in node.trivia_questions)
 
 
 def test_raider_variant_assets_are_shipped_and_transparent():
@@ -86,7 +110,7 @@ def test_raider_variant_assets_are_shipped_and_transparent():
     site = data_loader.get_expedition_site("raider_tollbooth")
     assert site is not None
     assert site.encounter is not None
-    for raider in site.encounter.node.raiders:
+    for raider in data_loader.load_trivia_raiders():
         for url in (raider.image_url, raider.alt_image_url):
             assert url is not None
             assert url.startswith("/static/raider_images/")
@@ -107,6 +131,7 @@ def test_trivia_question_rejects_unknown_answer():
         TriviaQuestion(
             id="q",
             prompt="?",
+            difficulty=2,
             options=[TriviaOption(id="a", label="A"), TriviaOption(id="b", label="B")],
             correct_option_id="c",
         )
@@ -118,18 +143,16 @@ def test_trivia_encounter_needs_questions():
 
     site = data_loader.get_expedition_site("raider_tollbooth").model_copy(deep=True)
     site.encounter.node.trivia_questions = []
-    with pytest.raises(ValidationException, match="needs trivia questions and raiders"):
+    with pytest.raises(ValidationException, match="needs trivia questions"):
         validate_site_content(site)
 
 
-def test_trivia_encounter_needs_raiders():
-    from app.services.catalog_service import validate_site_content
-    from app.utils.exceptions import ValidationException
+def test_shared_trivia_raiders_are_unique():
+    from app.schemas.expedition import ExpeditionSiteList
 
-    site = data_loader.get_expedition_site("raider_tollbooth").model_copy(deep=True)
-    site.encounter.node.raiders = []
-    with pytest.raises(ValidationException, match="needs trivia questions and raiders"):
-        validate_site_content(site)
+    raiders = data_loader.load_trivia_raiders()
+    with pytest.raises(ValidationError, match="unique ids and names"):
+        ExpeditionSiteList(sites=[], trivia_raiders=[raiders[0], raiders[0]])
 
 
 def test_invalid_site_definition_rejected():

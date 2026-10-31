@@ -408,8 +408,9 @@ def _pick_trivia_questions(rooms: list[SiteRoom]) -> dict[str, str]:
 
 
 def _pick_trivia_raiders(rooms: list[SiteRoom]) -> dict[str, str]:
-    """Pin one raider persona per trivia room at entry, alongside its question."""
-    return {room.id: random.choice(room.node.raiders).id for room in rooms if room.node.kind == "trivia"}
+    """Pin one shared raider persona per trivia room at entry, alongside its question."""
+    raiders = data_loader.load_trivia_raiders()
+    return {room.id: random.choice(raiders).id for room in rooms if room.node.kind == "trivia"}
 
 
 def _trivia_question(room: SiteRoom, run: ExpeditionRun) -> TriviaQuestion | None:
@@ -419,9 +420,9 @@ def _trivia_question(room: SiteRoom, run: ExpeditionRun) -> TriviaQuestion | Non
 
 
 def _trivia_raider(room: SiteRoom, run: ExpeditionRun) -> TriviaRaider | None:
-    """The raider persona persisted for this room at entry, if any."""
+    """The shared raider persona persisted for this room at entry, if any."""
     raider_id = run.flags.get("trivia_raiders", {}).get(room.id)
-    return next((raider for raider in room.node.raiders if raider.id == raider_id), None)
+    return next((raider for raider in data_loader.load_trivia_raiders() if raider.id == raider_id), None)
 
 
 def build_view(

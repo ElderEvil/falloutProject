@@ -174,22 +174,24 @@ class GameLoopService:
                 resource_update, resource_events = await self.resource_manager.process_vault_resources(
                     db_session, vault_id, seconds_passed
                 )
-                await vault_crud.update(db_session, vault_id, resource_update)
+                with tick_phase("resources.persist"):
+                    await vault_crud.update(db_session, vault_id, resource_update)
 
-                # Advance the tick boundary in the same transaction as the resource
-                # update: if a later phase raises and game_tick retries, the retried
-                # tick recomputes seconds_passed from this boundary instead of
-                # reapplying the same production window and duplicating events.
-                game_state.update_tick(seconds_passed)
-                if resource_update.water is not None:
-                    if resource_update.water <= 0 and game_state.water_empty_since is None:
-                        game_state.water_empty_since = datetime.utcnow()
-                    elif resource_update.water > 0:
-                        game_state.water_empty_since = None
-                db_session.add(game_state)
-                await db_session.commit()
+                    # Advance the tick boundary in the same transaction as the resource
+                    # update: if a later phase raises and game_tick retries, the retried
+                    # tick recomputes seconds_passed from this boundary instead of
+                    # reapplying the same production window and duplicating events.
+                    game_state.update_tick(seconds_passed)
+                    if resource_update.water is not None:
+                        if resource_update.water <= 0 and game_state.water_empty_since is None:
+                            game_state.water_empty_since = datetime.utcnow()
+                        elif resource_update.water > 0:
+                            game_state.water_empty_since = None
+                    db_session.add(game_state)
+                    await db_session.commit()
 
-                await self.resource_manager.emit_production_events(vault_id, resource_events)
+                with tick_phase("resources.events"):
+                    await self.resource_manager.emit_production_events(vault_id, resource_events)
             with tick_phase("objective_refresh"):
                 await self._refresh_objectives(db_session, vault_id, game_state)
             results["updates"]["resources"] = {

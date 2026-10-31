@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 
 import dramatiq
 import periodiq
+from dramatiq.middleware import CurrentMessage
 from redis.asyncio import Redis
 
 import app.api.arena_tasks  # ruff: ignore[unused-import] - registers the arena_tick watchdog cron
@@ -30,8 +31,12 @@ from app.utils.exceptions import ResourceNotFoundException
 logger = logging.getLogger(__name__)
 INCIDENT_TICK_CHAIN_KEY: Final = "fallout:incident-tick:chain"
 VAULT_TICK_LOCK_PREFIX: Final = "fallout:vault-tick:"
+VAULT_TICK_DONE_PREFIX: Final = "fallout:vault-tick-done:"
 VAULT_TICK_LOCK_TTL_SECONDS: Final = game_config.game_loop.tick_interval - 5
 VAULT_TICK_LOCK_RENEW_INTERVAL_SECONDS: Final = 15
+# Covers the dispatcher's retry window (3 retries, 60s+ backoff) so a redelivered
+# game_tick cannot re-run vaults that already completed that dispatch.
+VAULT_TICK_DONE_TTL_SECONDS: Final = 300
 VAULT_TICK_LOCK_RELEASE_SCRIPT: Final = """
 if redis.call('get', KEYS[1]) == ARGV[1] then
     return redis.call('del', KEYS[1])
@@ -68,11 +73,11 @@ def create_task(task_time: int):
     return True
 
 
-async def _dispatch_game_tick() -> dict[str, int | float]:
+async def _dispatch_game_tick(tick_id: str) -> dict[str, int | float]:
     async with task_session() as session:
         vault_ids = await game_loop_service.get_active_vault_ids(session)
     for vault_id in vault_ids:
-        process_vault_tick.send(str(vault_id))
+        process_vault_tick.send(str(vault_id), tick_id)
     return {"vaults_dispatched": len(vault_ids)}
 
 
@@ -80,14 +85,16 @@ async def _dispatch_game_tick() -> dict[str, int | float]:
 def game_tick():
     """Dispatch one vault tick per active vault. Scheduled every 60 seconds."""
     start = time.perf_counter()
+    message = CurrentMessage.get_current_message()
+    tick_id = message.message_id if message is not None else uuid4().hex
     try:
         logger.info("Dispatching game tick")
-        stats: dict[str, int | float] = asyncio.run(_dispatch_game_tick())
+        stats: dict[str, int | float] = asyncio.run(_dispatch_game_tick(tick_id))
     except Exception:
         logger.exception("Game tick dispatch failed")
         raise
     stats["dispatch_time"] = round(time.perf_counter() - start, 3)
-    logger.info(f"Game tick dispatched: {stats}")
+    logger.info("Game tick dispatched: %s tick_id=%s", stats, tick_id)
     return stats
 
 
@@ -166,11 +173,11 @@ async def _release_vault_tick_lock(redis: Redis, vault_id: str, token: str) -> N
     await redis.eval(VAULT_TICK_LOCK_RELEASE_SCRIPT, 1, f"{VAULT_TICK_LOCK_PREFIX}{vault_id}", token)
 
 
-async def _set_vault_tick_debounce(redis: Redis, vault_id: str, token: str, ttl: int) -> None:
+async def _set_vault_tick_done(redis: Redis, vault_id: str, tick_id: str) -> None:
     try:
-        await _refresh_vault_tick_lock(redis, vault_id, token, ttl)
+        await redis.set(f"{VAULT_TICK_DONE_PREFIX}{vault_id}", tick_id, ex=VAULT_TICK_DONE_TTL_SECONDS)
     except Exception:
-        logger.exception("Failed to set vault tick debounce for %s", vault_id)
+        logger.exception("Failed to record completed vault tick for %s", vault_id)
 
 
 async def _renew_vault_tick_lock(redis: Redis, vault_id: str, token: str) -> None:
@@ -191,16 +198,18 @@ async def _run_vault_tick(vault_id: str) -> VaultTickResult:
         return await game_loop_service.process_vault_tick(session, UUID(vault_id))
 
 
-async def _process_vault_tick_async(vault_id: str, redis: Redis) -> VaultTickResult:
+async def _process_vault_tick_async(vault_id: str, redis: Redis, tick_id: str | None = None) -> VaultTickResult:
     loop_id = id(asyncio.get_running_loop())
     token = await _acquire_vault_tick_lock(redis, vault_id)
     if token is None:
         return {"status": "skipped"}
 
-    started = time.monotonic()
+    if tick_id is not None and await redis.get(f"{VAULT_TICK_DONE_PREFIX}{vault_id}") == tick_id:
+        await _release_vault_tick_lock(redis, vault_id, token)
+        return {"status": "duplicate"}
+
     renewal = asyncio.create_task(_renew_vault_tick_lock(redis, vault_id, token))
     tick = asyncio.create_task(_run_vault_tick(vault_id))
-    succeeded = False
     try:
         done, _ = await asyncio.wait({tick, renewal}, return_when=asyncio.FIRST_COMPLETED)
         if tick not in done:
@@ -211,34 +220,32 @@ async def _process_vault_tick_async(vault_id: str, redis: Redis) -> VaultTickRes
             raise AssertionError("vault tick lease renewal returned unexpectedly")
 
         result = tick.result()
-        succeeded = True
     except ResourceNotFoundException as exc:
         if exc.model is not Vault:
             raise
         logger.warning(f"Vault {vault_id} no longer exists; skipping tick")
         return {"status": "missing"}
     else:
-        debounce_ttl = max(5, game_config.game_loop.tick_interval - int(time.monotonic() - started) - 1)
-        await _set_vault_tick_debounce(redis, vault_id, token, debounce_ttl)
+        if tick_id is not None:
+            await _set_vault_tick_done(redis, vault_id, tick_id)
         return result
     finally:
         renewal.cancel()
         with suppress(asyncio.CancelledError, VaultTickLeaseLost):
             await renewal
-        if not succeeded:
-            await _release_vault_tick_lock(redis, vault_id, token)
+        await _release_vault_tick_lock(redis, vault_id, token)
         event_bus.clear_locks(loop_id)
 
 
 @dramatiq.actor(actor_name="process_vault_tick", max_retries=3, min_backoff=30000)
-def process_vault_tick(vault_id: str):
+def process_vault_tick(vault_id: str, tick_id: str | None = None):
     """Process one vault tick under a per-vault Redis lease."""
     start = time.perf_counter()
 
     async def run_vault_tick():
         redis = Redis.from_url(settings.redis_url, decode_responses=True)
         try:
-            return await _process_vault_tick_async(vault_id, redis)
+            return await _process_vault_tick_async(vault_id, redis, tick_id)
         finally:
             await redis.aclose()
 
@@ -247,7 +254,7 @@ def process_vault_tick(vault_id: str):
     except Exception:
         logger.exception(f"Vault {vault_id} tick failed")
         raise
-    if result.get("status") in {"skipped", "missing"}:
+    if result.get("status") in {"skipped", "missing", "duplicate"}:
         logger.info(f"Vault {vault_id} tick {result['status']}")
     else:
         elapsed_ms = (time.perf_counter() - start) * 1000

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
+from app.core.stream_manager import sse_manager
 from app.crud import game_state_crud
 from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
@@ -38,7 +39,6 @@ from app.services.game_tick.tick_results import (
     VaultTickResult,
 )
 from app.services.resource_manager import ResourceManager
-from app.services.stream_manager import sse_manager
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
 logger = logging.getLogger(__name__)

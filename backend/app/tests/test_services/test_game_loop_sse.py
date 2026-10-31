@@ -9,9 +9,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.stream_manager import sse_manager
 from app.models.vault import Vault
 from app.services.game_loop import game_loop_service
-from app.services.stream_manager import sse_manager
 
 
 @pytest.mark.asyncio

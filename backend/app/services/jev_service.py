@@ -116,9 +116,9 @@ class JevService:
         and catching that exception without rolling back to a savepoint would leave
         the shared session unusable for the rest of the request.
         """
+        from app.core.ai_constants import JEV_OPERATION
         from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
         from app.schemas.llm_interaction import LLMInteractionCreate
-        from app.services.ai_constants import JEV_OPERATION
 
         try:
             async with db_session.begin_nested():

@@ -1,7 +1,7 @@
 import pytest
 from fakeredis.aioredis import FakeRedis
 
-from app.services.tick_chain import claim_tick_chain
+from app.core.tick_chain import claim_tick_chain
 
 CHAIN_KEY = "test:incident-tick"
 HEARTBEAT_KEY = "test:incident-tick:heartbeat"

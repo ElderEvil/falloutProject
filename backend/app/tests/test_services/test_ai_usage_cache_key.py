@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.services.ai_constants import AI_USAGE_CACHE_KEY
+from app.core.ai_constants import AI_USAGE_CACHE_KEY
 from app.services.quota_service import QuotaService
 from app.services.user_service import UserService
 

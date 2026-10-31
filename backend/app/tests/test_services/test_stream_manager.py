@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.api.v1.endpoints.stream import _with_heartbeat
-from app.services.stream_manager import SSEManager
+from app.core.stream_manager import SSEManager
 
 pytestmark = pytest.mark.asyncio
 

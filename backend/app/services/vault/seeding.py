@@ -43,7 +43,7 @@ from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate, RoomCreateWithoutVaultID
 from app.services.family.breeding_service import conception_potential
 from app.services.training_service import training_service
-from app.services.vault_seed import (
+from app.services.vault.seed_types import (
     BOOSTED_CRAFTING_ROOM_SPECS,
     BOOSTED_EQUIPPED_PETS,
     BOOSTED_LEGENDARY_DWELLER_COUNT,

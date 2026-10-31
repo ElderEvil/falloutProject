@@ -13,7 +13,7 @@ from app.models.weapon import Weapon
 from app.schemas.common import JunkTypeEnum, RarityEnum
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.recipe_unlock_service import catalog_entry
-from app.services.vault_seed import SEED_OUTFITS
+from app.services.vault.seed_types import SEED_OUTFITS
 from app.tests.factory.items import create_fake_junk, create_fake_outfit, create_fake_weapon
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.item_factory import build_outfit, build_weapon

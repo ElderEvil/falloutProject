@@ -14,8 +14,8 @@ import periodiq
 
 import app.core.dramatiq  # ruff: ignore[unused-import] — broker must be set before the actor registers
 from app.core.game_config import game_config
+from app.core.tick_chain import claim_tick_chain
 from app.db.session import task_session
-from app.services.tick_chain import claim_tick_chain
 
 logger = logging.getLogger(__name__)
 ARENA_TICK_CHAIN_KEY: Final = "fallout:arena-tick:chain"

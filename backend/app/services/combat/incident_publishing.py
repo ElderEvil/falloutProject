@@ -5,12 +5,12 @@ from datetime import datetime, timedelta
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.stream_manager import sse_manager
 from app.models.incident import Incident, IncidentType, get_incident_definition
 from app.models.incident_event import IncidentEvent
 from app.models.notification import NotificationPriority, NotificationType
 from app.schemas.incident_sse import IncidentSseEvent
 from app.services.notification_service import notification_service
-from app.services.stream_manager import sse_manager
 
 logger = logging.getLogger(__name__)
 

@@ -7,13 +7,13 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_data import get_static_game_data
 from app.core.notification_preferences import should_deliver_notification
+from app.core.stream_manager import sse_manager
+from app.core.websocket_manager import manager
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.notification import notification as notification_crud
 from app.crud.room import room as room_crud
 from app.crud.user_profile import profile_crud
 from app.models.notification import Notification, NotificationCreate, NotificationPriority, NotificationType
-from app.services.stream_manager import sse_manager
-from app.services.websocket_manager import manager
 
 logger = logging.getLogger(__name__)
 

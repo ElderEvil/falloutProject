@@ -18,10 +18,10 @@ from typing import TYPE_CHECKING
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.ai_constants import QUOTA_TRACKING_OPERATION
 from app.crud.llm_interaction import llm_interaction
 from app.crud.user import user as user_crud
 from app.schemas.ai_usage import AIOperationStats, AIUsageResponse, AIUsageStats, QuotaInfo
-from app.services.ai_constants import QUOTA_TRACKING_OPERATION
 from app.services.quota_service import DEFAULT_QUOTA_LIMIT
 
 if TYPE_CHECKING:

@@ -34,16 +34,10 @@ SERVICES_SELECT_BASELINE = frozenset()
 SERVICE_NAME_PATTERN = re.compile(r"^([a-z][a-z0-9_]*_service|__init__)\.py$")
 SERVICE_NAME_GRANDFATHER = frozenset(
     {
-        "ai_constants.py",
         "dweller_ai.py",
         "game_loop.py",
-        "health_check.py",
         "resource_manager.py",
         "room_assignment_policy.py",
-        "stream_manager.py",
-        "tick_chain.py",
-        "vault_seed.py",
-        "websocket_manager.py",
     }
 )
 TRANSACTION_SUFFIX = "_transaction"

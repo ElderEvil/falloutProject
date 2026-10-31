@@ -154,7 +154,7 @@ async def test_process_vault_tick_dedupes_the_same_dispatch_but_allows_the_next(
         assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
         assert await redis.get(f"fallout:vault-tick-done:{vault_id}") == "dispatch-2"
         done_ttl = await redis.ttl(f"fallout:vault-tick-done:{vault_id}")
-        assert 0 < done_ttl <= 300
+        assert 0 < done_ttl <= 900
     finally:
         await redis.aclose()
 

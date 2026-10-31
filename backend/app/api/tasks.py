@@ -34,9 +34,10 @@ VAULT_TICK_LOCK_PREFIX: Final = "fallout:vault-tick:"
 VAULT_TICK_DONE_PREFIX: Final = "fallout:vault-tick-done:"
 VAULT_TICK_LOCK_TTL_SECONDS: Final = game_config.game_loop.tick_interval - 5
 VAULT_TICK_LOCK_RENEW_INTERVAL_SECONDS: Final = 15
-# Covers the dispatcher's retry window (3 retries, 60s+ backoff) so a redelivered
-# game_tick cannot re-run vaults that already completed that dispatch.
-VAULT_TICK_DONE_TTL_SECONDS: Final = 300
+# Covers the dispatcher's retry window (3 retries with 60s base, exponential
+# backoff) so a redelivered game_tick cannot re-run vaults that already
+# completed that dispatch.
+VAULT_TICK_DONE_TTL_SECONDS: Final = 900
 VAULT_TICK_LOCK_RELEASE_SCRIPT: Final = """
 if redis.call('get', KEYS[1]) == ARGV[1] then
     return redis.call('del', KEYS[1])

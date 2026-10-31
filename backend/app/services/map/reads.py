@@ -29,7 +29,7 @@ from app.schemas.wasteland_location import (
     WastelandLocationWithDwellers,
 )
 from app.services.catalog_service import load_expedition_sites
-from app.services.exploration.expedition import (
+from app.services.exploration.site_offers import (
     SiteBlockState,
     journey_offer_context,
     site_block_state,

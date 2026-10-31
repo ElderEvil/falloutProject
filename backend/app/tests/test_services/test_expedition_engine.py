@@ -17,10 +17,10 @@ from app.schemas.vault import VaultCreateWithUserID
 from app.services import catalog_service as data_loader
 from app.services.catalog_service import resolve_enemy_spec, validate_site_content
 from app.services.exploration import expedition as expedition_module
+from app.services.exploration.checks import success_odds
 from app.services.exploration.expedition import (
     expedition_service,
     roll_gear,
-    success_odds,
 )
 from app.services.exploration_service import exploration_service
 from app.tests.factory.dwellers import create_fake_adult_dweller

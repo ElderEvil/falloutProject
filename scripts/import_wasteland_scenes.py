@@ -16,6 +16,14 @@ SCENES = {
     "subway_station": "Subway station",
     "amusement_park": "Ruined amusement park",
     "arctic_research_station": "Arctic research station",
+    "gloomwater_bog": "Gloomwater Bog",
+    "gloomwater_bog_night": "Gloomwater Bog at night",
+    "outskirts_interchange": "Outskirts interchange",
+}
+SOURCE_NAMES = {
+    "gloomwater_bog": "gpt-image-2.5-sunburst-bog.png",
+    "gloomwater_bog_night": "gpt-image-2.5-sunburst-bog-night.png",
+    "outskirts_interchange": "gpt-image-2.5-sunburst-city-outskirts.png",
 }
 
 
@@ -30,7 +38,7 @@ def main() -> None:
     source_bytes = exported_bytes = 0
     for key, label in SCENES.items():
         scene: dict[str, object] = {"label": label}
-        source = source_root / "Backgrounds" / f"{key}.png"
+        source = source_root / "Backgrounds" / SOURCE_NAMES.get(key, f"{key}.png")
         data = source.read_bytes()
         source_bytes += len(data)
         variants = []

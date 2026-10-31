@@ -9,6 +9,9 @@ class ExpeditionSceneId(StrEnum):
     SUBWAY_STATION = "subway_station"
     AMUSEMENT_PARK = "amusement_park"
     ARCTIC_RESEARCH_STATION = "arctic_research_station"
+    GLOOMWATER_BOG = "gloomwater_bog"
+    GLOOMWATER_BOG_NIGHT = "gloomwater_bog_night"
+    OUTSKIRTS_INTERCHANGE = "outskirts_interchange"
 
 
 class CaseInsensitiveEnum(StrEnum):

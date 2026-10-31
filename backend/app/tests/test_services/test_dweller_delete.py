@@ -27,7 +27,7 @@ async def test_delete_dweller_closes_active_exploration(
         async_session,
         exploration_id=exploration.id,
         vault_id=vault.id,
-        site_id="collapsed_subway",
+        site_id="gloomwater_bog",
     )
 
     await dweller_service.delete_dweller(async_session, dweller.id, soft=True)

@@ -1211,6 +1211,356 @@
       }
     },
     {
+      "id": "gloomwater_bog",
+      "name": "Gloomwater Bog",
+      "flavor": "A rusted evacuation bus sinks into the marsh beside a rotten boardwalk. The old watchtower has a clear line on anyone who tries the crossing.",
+      "coord_x": 14.0,
+      "coord_y": 46.0,
+      "min_dweller_level": 2,
+      "scene_id": "gloomwater_bog",
+      "lore": "The watchtower log ends mid-sentence: 'Sunset over the bog is the most beautiful thing left in the world. Do not follow the light past the\u2014'",
+      "enemy_power_scale": 0.08,
+      "enemy_health_scale": 0.2,
+      "encounter": {
+        "id": "gloomwater_bog",
+        "name": "Gloomwater Bog",
+        "flavor": "Mud sucks at the boardwalk. Bloatflies rise from the reeds, and the tower's bell begins to ring on its own.",
+        "node": {
+          "kind": "combat",
+          "prompt": "Mud sucks at the boardwalk. Bloatflies rise from the reeds, and the tower's bell begins to ring on its own.",
+          "enemies": [
+            {
+              "name": "Bloatfly",
+              "arena_key": "bloatfly"
+            }
+          ]
+        }
+      },
+      "reward_vault": {
+        "caps_min": 30,
+        "caps_max": 55,
+        "item": {
+          "type": "junk",
+          "floor": null
+        },
+        "junk_bundles": 1
+      }
+    },
+    {
+      "id": "gloomwater_bog_night",
+      "name": "Gloomwater Bog at Night",
+      "flavor": "Moonlight turns the water silver. A lamp burns in the watchtower, and the boardwalk creaks under a slow, heavy tread.",
+      "coord_x": 16.0,
+      "coord_y": 50.0,
+      "min_dweller_level": 3,
+      "scene_id": "gloomwater_bog_night",
+      "lore": "The tower lamp was meant to guide evacuees. Now it burns for whatever learned to answer it.",
+      "enemy_power_scale": 0.1,
+      "enemy_health_scale": 0.25,
+      "encounter": {
+        "id": "gloomwater_bog_night",
+        "name": "Gloomwater Bog at Night",
+        "flavor": "A feral ghoul in a waterworks coat drags something metal through the shallows. The tower light catches its face.",
+        "node": {
+          "kind": "combat",
+          "prompt": "A feral ghoul in a waterworks coat drags something metal through the shallows. The tower light catches its face.",
+          "enemies": [
+            {
+              "name": "Feral Ghoul",
+              "arena_key": "feral-ghoul"
+            }
+          ]
+        }
+      },
+      "reward_vault": {
+        "caps_min": 40,
+        "caps_max": 70,
+        "item": {
+          "type": "junk",
+          "floor": null
+        },
+        "junk_bundles": 1
+      }
+    },
+    {
+      "id": "outskirts_interchange",
+      "name": "Outskirts Interchange",
+      "flavor": "A faded Nuka-Cola billboard promises a brighter tomorrow above a cracked interchange. A raider crew has made the overpass a checkpoint.",
+      "coord_x": 66.0,
+      "coord_y": 72.0,
+      "min_dweller_level": 3,
+      "scene_id": "outskirts_interchange",
+      "lore": "The billboard model has been smiling over the ruins for two centuries. Someone painted one word under her bottle: 'LATER.'",
+      "enemy_power_scale": 0.1,
+      "enemy_health_scale": 0.25,
+      "encounter": {
+        "id": "outskirts_interchange",
+        "name": "Outskirts Interchange",
+        "flavor": "A raider crew has turned the overpass into a checkpoint. They want a toll \u2014 or an answer.",
+        "node": {
+          "kind": "trivia",
+          "prompt": "'You want through?' the raider says. 'Name the wasteland and maybe we let you pass. Get it wrong and we take everything.'",
+          "enemies": [
+            {
+              "name": "Raider",
+              "arena_key": "raider"
+            }
+          ],
+          "trivia_questions": [
+            {
+              "id": "nuka_cola_company",
+              "prompt": "Which company made Nuka-Cola?",
+              "options": [
+                {
+                  "id": "nuka-cola-corporation",
+                  "label": "Nuka-Cola Corporation"
+                },
+                {
+                  "id": "sunset-company",
+                  "label": "Sunset Sarsaparilla Company"
+                },
+                {
+                  "id": "vim-pop",
+                  "label": "Vim! Pop Incorporated"
+                }
+              ],
+              "correct_option_id": "nuka-cola-corporation",
+              "difficulty": 1
+            },
+            {
+              "id": "nuka_girl",
+              "prompt": "Who is Nuka-Cola's pre-war mascot?",
+              "options": [
+                {
+                  "id": "nuka-girl",
+                  "label": "Nuka-Girl"
+                },
+                {
+                  "id": "vault-boy",
+                  "label": "Vault Boy"
+                },
+                {
+                  "id": "sierra-petrovita",
+                  "label": "Sierra Petrovita"
+                }
+              ],
+              "correct_option_id": "nuka-girl",
+              "difficulty": 2
+            },
+            {
+              "id": "sunset_sarsaparilla",
+              "prompt": "Which soft drink is associated with the Mojave Wasteland?",
+              "options": [
+                {
+                  "id": "sunset-sarsaparilla",
+                  "label": "Sunset Sarsaparilla"
+                },
+                {
+                  "id": "nuka-cola",
+                  "label": "Nuka-Cola"
+                },
+                {
+                  "id": "vim",
+                  "label": "Vim"
+                }
+              ],
+              "correct_option_id": "sunset-sarsaparilla",
+              "difficulty": 2
+            },
+            {
+              "id": "vim_far_harbor",
+              "prompt": "Which soft drink is bottled in Far Harbor?",
+              "options": [
+                {
+                  "id": "vim",
+                  "label": "Vim"
+                },
+                {
+                  "id": "nuka-cola",
+                  "label": "Nuka-Cola"
+                },
+                {
+                  "id": "sunset-sarsaparilla",
+                  "label": "Sunset Sarsaparilla"
+                }
+              ],
+              "correct_option_id": "vim",
+              "difficulty": 2
+            },
+            {
+              "id": "rivet_city",
+              "prompt": "Which settlement is built inside a pre-war aircraft carrier?",
+              "options": [
+                {
+                  "id": "rivet-city",
+                  "label": "Rivet City"
+                },
+                {
+                  "id": "megaton",
+                  "label": "Megaton"
+                },
+                {
+                  "id": "tenpenny-tower",
+                  "label": "Tenpenny Tower"
+                }
+              ],
+              "correct_option_id": "rivet-city",
+              "difficulty": 2
+            },
+            {
+              "id": "megaton_bomb",
+              "prompt": "Which settlement is built around an unexploded atomic bomb?",
+              "options": [
+                {
+                  "id": "megaton",
+                  "label": "Megaton"
+                },
+                {
+                  "id": "rivet-city",
+                  "label": "Rivet City"
+                },
+                {
+                  "id": "diamond-city",
+                  "label": "Diamond City"
+                }
+              ],
+              "correct_option_id": "megaton",
+              "difficulty": 1
+            },
+            {
+              "id": "the_hub",
+              "prompt": "Which trading settlement is the heart of Fallout's first wasteland?",
+              "options": [
+                {
+                  "id": "the-hub",
+                  "label": "The Hub"
+                },
+                {
+                  "id": "shady-sands",
+                  "label": "Shady Sands"
+                },
+                {
+                  "id": "junktown",
+                  "label": "Junktown"
+                }
+              ],
+              "correct_option_id": "the-hub",
+              "difficulty": 3
+            },
+            {
+              "id": "gunners",
+              "prompt": "Which mercenary group controls checkpoints and caravans in the Commonwealth?",
+              "options": [
+                {
+                  "id": "gunners",
+                  "label": "The Gunners"
+                },
+                {
+                  "id": "minutemen",
+                  "label": "The Minutemen"
+                },
+                {
+                  "id": "railroad",
+                  "label": "The Railroad"
+                }
+              ],
+              "correct_option_id": "gunners",
+              "difficulty": 3
+            },
+            {
+              "id": "corvega_maker",
+              "prompt": "Which pre-war company manufactured the Corvega?",
+              "options": [
+                {
+                  "id": "chryslus",
+                  "label": "Chryslus"
+                },
+                {
+                  "id": "red-rocket",
+                  "label": "Red Rocket"
+                },
+                {
+                  "id": "poseidon",
+                  "label": "Poseidon Energy"
+                }
+              ],
+              "correct_option_id": "chryslus",
+              "difficulty": 4
+            },
+            {
+              "id": "red_rocket",
+              "prompt": "Which pre-war company operated the rocket-shaped gas stations?",
+              "options": [
+                {
+                  "id": "red-rocket",
+                  "label": "Red Rocket"
+                },
+                {
+                  "id": "poseidon",
+                  "label": "Poseidon Energy"
+                },
+                {
+                  "id": "robco",
+                  "label": "RobCo Industries"
+                }
+              ],
+              "correct_option_id": "red-rocket",
+              "difficulty": 2
+            },
+            {
+              "id": "poseidon_energy",
+              "prompt": "Which pre-war company operated nuclear power plants?",
+              "options": [
+                {
+                  "id": "poseidon",
+                  "label": "Poseidon Energy"
+                },
+                {
+                  "id": "vault-tec",
+                  "label": "Vault-Tec"
+                },
+                {
+                  "id": "chryslus",
+                  "label": "Chryslus"
+                }
+              ],
+              "correct_option_id": "poseidon",
+              "difficulty": 3
+            },
+            {
+              "id": "publick_occurrences",
+              "prompt": "Which newspaper is published in Diamond City?",
+              "options": [
+                {
+                  "id": "publick-occurrences",
+                  "label": "Publick Occurrences"
+                },
+                {
+                  "id": "boston-bugle",
+                  "label": "The Boston Bugle"
+                },
+                {
+                  "id": "galaxy-news",
+                  "label": "Galaxy News"
+                }
+              ],
+              "correct_option_id": "publick-occurrences",
+              "difficulty": 3
+            }
+          ]
+        }
+      },
+      "reward_vault": {
+        "caps_min": 40,
+        "caps_max": 70,
+        "item": {
+          "type": "junk",
+          "floor": null
+        },
+        "junk_bundles": 1
+      }
+    },
+    {
       "id": "vault_68",
       "name": "Vault 68",
       "flavor": "A sealed ration hall where the numbers never balanced. Ninety-nine men, one woman, and a ledger that decided everything.",

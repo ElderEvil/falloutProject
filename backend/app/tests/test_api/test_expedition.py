@@ -189,6 +189,9 @@ async def test_site_available_lists_all_sites(
         "rusted_midway",
         "frozen_research_outpost",
         "raider_tollbooth",
+        "gloomwater_bog",
+        "gloomwater_bog_night",
+        "outskirts_interchange",
     }
     assert sites["red_rocket"]["min_dweller_level"] == 3
     assert sites["red_rocket"]["room_total"] == 3
@@ -223,6 +226,9 @@ async def test_site_available_level_gate_excludes_sites(
         "rusted_midway",
         "frozen_research_outpost",
         "raider_tollbooth",
+        "gloomwater_bog",
+        "gloomwater_bog_night",
+        "outskirts_interchange",
     ]
 
 
@@ -263,6 +269,9 @@ async def test_site_available_anti_farm_excludes_recent_clear(
         "rusted_midway",
         "frozen_research_outpost",
         "raider_tollbooth",
+        "gloomwater_bog",
+        "gloomwater_bog_night",
+        "outskirts_interchange",
     ]
 
 

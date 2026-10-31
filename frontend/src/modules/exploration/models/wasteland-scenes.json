@@ -93,5 +93,62 @@
         }
       ]
     }
+  },
+  "gloomwater_bog": {
+    "label": "Gloomwater Bog",
+    "landscape": {
+      "source": "Backgrounds/gpt-image-2.5-sunburst-bog.png",
+      "source_sha256": "e81a5f1960a2bd7b8a18fff871693444a5c9ec888ce461be868100768b6b67e3",
+      "variants": [
+        {
+          "src": "/assets/wasteland-scenes/gloomwater-bog-landscape-32f6b07e5836de8a.webp",
+          "width": 640,
+          "height": 360
+        },
+        {
+          "src": "/assets/wasteland-scenes/gloomwater-bog-landscape-9abb947f780e5b14.webp",
+          "width": 1280,
+          "height": 720
+        }
+      ]
+    }
+  },
+  "gloomwater_bog_night": {
+    "label": "Gloomwater Bog at night",
+    "landscape": {
+      "source": "Backgrounds/gpt-image-2.5-sunburst-bog-night.png",
+      "source_sha256": "935916f3da0bcc282ecd9aac25641a2208019bed41d7eb77f25b1b353b1cf0ae",
+      "variants": [
+        {
+          "src": "/assets/wasteland-scenes/gloomwater-bog-night-landscape-5a8f2555adf12e14.webp",
+          "width": 640,
+          "height": 360
+        },
+        {
+          "src": "/assets/wasteland-scenes/gloomwater-bog-night-landscape-ac884d0e5054f886.webp",
+          "width": 1280,
+          "height": 720
+        }
+      ]
+    }
+  },
+  "outskirts_interchange": {
+    "label": "Outskirts interchange",
+    "landscape": {
+      "source": "Backgrounds/gpt-image-2.5-sunburst-city-outskirts.png",
+      "source_sha256": "1799a5eb429b7a2ba059d4006b06821b9d7031ea2d3c0aa652b89ed4a7594e09",
+      "variants": [
+        {
+          "src": "/assets/wasteland-scenes/outskirts-interchange-landscape-05c293a955b2f2d7.webp",
+          "width": 640,
+          "height": 360
+        },
+        {
+          "src": "/assets/wasteland-scenes/outskirts-interchange-landscape-cd775713be62898d.webp",
+          "width": 1280,
+          "height": 720
+        }
+      ]
+    }
   }
 }

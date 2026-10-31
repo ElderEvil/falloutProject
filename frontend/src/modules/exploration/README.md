@@ -46,7 +46,7 @@ semantic surface, and failed images preserve the frame, caption, and explorer. E
 640px and one 1280px landscape WebP; browsers choose through `srcset`. Content-addressed WebPs receive
 immutable cache headers.
 
-The five backgrounds were supplied by the maintainer in the local
+The eight backgrounds were supplied by the maintainer in the local
 `fallout-asset-batch/backgrounds/` batch. No artwork was generated or recolored for this integration.
 `models/wasteland-scenes.json` records relative input names, source SHA-256 values, output paths, and
 dimensions. Reimport from the repository root with:

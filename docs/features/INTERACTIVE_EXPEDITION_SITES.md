@@ -87,7 +87,8 @@ Site (static definition, JSON-seeded like enemies/loot)
   against that raider, leaving the run in the room; winning pays the same vault,
   and a defeat follows the existing nonlethal DEFEATED behavior.
   The shipped trivia sites are `raider_tollbooth` (level 3+, scene
-  `desert_highway`, coords 44/72; 18 questions) and `rusted_midway`
+  `desert_highway`, coords 44/72; 18 questions), `outskirts_interchange`
+  (level 3+, scene `outskirts_interchange`; 12 questions), and `rusted_midway`
   (level 1+, scene `amusement_park`; 12 questions). Each uses the same six raider
   personas (Sable, Rook, Jinx, Gristle, Brick, Cutter). Every question carries
   a 1-5 `difficulty` rating for later character/difficulty mapping;

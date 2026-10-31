@@ -28,6 +28,9 @@ SITE_ENEMY_POOLS: dict[ExpeditionSceneId, frozenset[str]] = {
     ExpeditionSceneId.SUBWAY_STATION: frozenset({"feral-ghoul", "radroach-swarm", "mole-rat-pack"}),
     ExpeditionSceneId.AMUSEMENT_PARK: frozenset({"raider", "feral-ghoul", "radroach-swarm", "mole-rat-pack"}),
     ExpeditionSceneId.ARCTIC_RESEARCH_STATION: frozenset({"raider", "feral-ghoul"}),
+    ExpeditionSceneId.GLOOMWATER_BOG: frozenset({"mole-rat-pack", "radroach-swarm", "bloatfly", "feral-ghoul"}),
+    ExpeditionSceneId.GLOOMWATER_BOG_NIGHT: frozenset({"feral-ghoul", "night-stalker", "mole-rat-pack"}),
+    ExpeditionSceneId.OUTSKIRTS_INTERCHANGE: frozenset({"raider", "feral-ghoul", "super-mutant"}),
 }
 
 

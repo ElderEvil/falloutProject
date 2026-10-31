@@ -102,7 +102,7 @@ async def test_delete_exploring_dweller_closes_journey(
         async_session,
         exploration_id=exploration.id,
         vault_id=vault.id,
-        site_id="collapsed_subway",
+        site_id="gloomwater_bog",
     )
 
     response = await async_client.delete(f"/dwellers/{dweller.id}", headers=superuser_token_headers)

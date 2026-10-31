@@ -7,12 +7,16 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import GenderEnum
 from app.models.exploration import ExpeditionRunStatus, ExplorationStatus
 from app.models.vault import Vault
 from app.schemas.expedition import ExpeditionResolveRequest
+from app.schemas.vault import VaultNumber
+from app.services import catalog_service as data_loader
 from app.services.exploration.expedition import expedition_service
 from app.services.exploration.expedition_scenario_service import expedition_scenario_service
 from app.services.exploration_service import exploration_service
+from app.services.vault_service import vault_service
 from app.utils.exceptions import ResourceNotFoundException
 
 
@@ -40,6 +44,9 @@ async def test_setup_creates_level_five_dweller_on_active_exploration(
         "rusted_midway",
         "frozen_research_outpost",
         "raider_tollbooth",
+        "gloomwater_bog",
+        "gloomwater_bog_night",
+        "outskirts_interchange",
     }
     assert result.precleared_site_id is None
 
@@ -64,6 +71,9 @@ async def test_setup_all_sites_offers_single_scene_sites_for_one_scout(
         "rusted_midway",
         "frozen_research_outpost",
         "raider_tollbooth",
+        "gloomwater_bog",
+        "gloomwater_bog_night",
+        "outskirts_interchange",
     }
 
 
@@ -90,6 +100,9 @@ async def test_setup_all_sites_can_include_multi_room_when_explicitly_enabled(
         "rusted_midway",
         "frozen_research_outpost",
         "raider_tollbooth",
+        "gloomwater_bog",
+        "gloomwater_bog_night",
+        "outskirts_interchange",
     }
 
 
@@ -236,6 +249,9 @@ async def test_setup_level_four_gates_super_duper_mart(async_session: AsyncSessi
         "rusted_midway",
         "frozen_research_outpost",
         "raider_tollbooth",
+        "gloomwater_bog",
+        "gloomwater_bog_night",
+        "outskirts_interchange",
     ]
 
 
@@ -286,6 +302,9 @@ async def test_get_status_none_before_setup_and_populated_after(async_session: A
         "rusted_midway",
         "frozen_research_outpost",
         "raider_tollbooth",
+        "gloomwater_bog",
+        "gloomwater_bog_night",
+        "outskirts_interchange",
     }
 
 
@@ -409,3 +428,119 @@ async def test_unknown_existing_scenario_dweller_never_creates_a_replacement(asy
     with pytest.raises(ResourceNotFoundException):
         await expedition_scenario_service.setup(async_session, vault_id=vault.id, dweller_id=uuid4())
     assert {dweller.id for dweller in await crud.dweller.get_multi_by_vault(async_session, vault.id)} == before
+
+
+@pytest.mark.asyncio
+async def test_setup_multi_seeds_named_dwellers_with_one_site_each(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    result = await expedition_scenario_service.setup_multi(
+        async_session,
+        vault_id=vault.id,
+        dwellers=3,
+        dweller_level=5,
+        duration_hours=8,
+        site_ids=["gloomwater_bog", "gloomwater_bog_night", "outskirts_interchange"],
+    )
+
+    assert len(result.entries) == 3
+    assert [entry.dweller.display_name for entry in result.entries] == [
+        "Ada Voss",
+        "Bram Cole",
+        "Cora Reyes",
+    ]
+    assert len({entry.dweller.id for entry in result.entries}) == 3
+    assert [entry.dweller.gender for entry in result.entries] == [
+        GenderEnum.FEMALE,
+        GenderEnum.MALE,
+        GenderEnum.FEMALE,
+    ]
+    assert [entry.dweller.strength for entry in result.entries] == [6, 5, 4]
+    stat_lines = {
+        (
+            entry.dweller.strength,
+            entry.dweller.perception,
+            entry.dweller.endurance,
+            entry.dweller.charisma,
+            entry.dweller.intelligence,
+            entry.dweller.agility,
+            entry.dweller.luck,
+        )
+        for entry in result.entries
+    }
+    assert len(stat_lines) == 3
+    assert "Female" in (result.entries[0].dweller.image_url or "")
+    assert "Male" in (result.entries[1].dweller.image_url or "")
+    assert "Female" in (result.entries[2].dweller.image_url or "")
+    for entry, site_id in zip(
+        result.entries,
+        ["gloomwater_bog", "gloomwater_bog_night", "outskirts_interchange"],
+        strict=True,
+    ):
+        assert entry.exploration.status == ExplorationStatus.ACTIVE
+        assert [site.id for site in entry.available_sites] == [site_id]
+
+
+@pytest.mark.asyncio
+async def test_setup_multi_reuses_or_creates_vault_one(async_session: AsyncSession, superuser) -> None:
+    result = await expedition_scenario_service.setup_multi(
+        async_session,
+        user_email=superuser.email,
+        vault_number=1,
+        dwellers=3,
+        dweller_level=5,
+        duration_hours=8,
+    )
+
+    assert result.vault.number == 1
+    assert len(result.entries) == 3
+    assert all(entry.vault.id == result.vault.id for entry in result.entries)
+
+
+@pytest.mark.asyncio
+async def test_setup_multi_recreates_vault_one_before_seeding(
+    async_session: AsyncSession, superuser
+) -> None:
+    old_vault = await vault_service.initiate_vault(
+        async_session,
+        obj_in=VaultNumber(number=1, boosted=False),
+        user_id=superuser.id,
+    )
+    old_vault_id = old_vault.id
+
+    result = await expedition_scenario_service.setup_multi(
+        async_session,
+        user_email=superuser.email,
+        vault_number=1,
+        dwellers=3,
+        dweller_level=5,
+        duration_hours=8,
+        recreate=True,
+    )
+
+    assert result.created_vault is True
+    assert result.vault.id != old_vault_id
+    assert result.vault.number == 1
+    assert len(result.entries) == 3
+    await async_session.refresh(old_vault)
+    assert old_vault.is_deleted is True
+
+
+@pytest.mark.asyncio
+async def test_setup_multi_defaults_to_one_dweller_per_site(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    result = await expedition_scenario_service.setup_multi(
+        async_session,
+        vault_id=vault.id,
+        dweller_level=10,
+        duration_hours=8,
+    )
+
+    expected_sites = [site.id for site in data_loader.load_expedition_sites() if not site.scenario_only]
+    assert len(result.entries) == len(expected_sites)
+    assert len({entry.dweller.id for entry in result.entries}) == len(expected_sites)
+    assert len({entry.dweller.display_name for entry in result.entries}) == len(expected_sites)
+    offered = [entry.available_sites[0].id for entry in result.entries]
+    assert offered == expected_sites
+    assert len(set(offered)) == len(expected_sites)

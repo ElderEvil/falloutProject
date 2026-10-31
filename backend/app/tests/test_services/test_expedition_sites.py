@@ -19,6 +19,9 @@ def test_sites_load_and_validate():
         "rusted_midway",
         "frozen_research_outpost",
         "raider_tollbooth",
+        "gloomwater_bog",
+        "gloomwater_bog_night",
+        "outskirts_interchange",
         "vault_68",
         "vault_69",
     }
@@ -83,6 +86,7 @@ def test_raider_tollbooth_shape():
     ("site_id", "minimum_questions"),
     [
         ("raider_tollbooth", 18),
+        ("outskirts_interchange", 12),
         ("rusted_midway", 12),
     ],
 )

@@ -51,6 +51,31 @@ def _print_setup(result) -> None:
         typer.echo(f"Login: {result.owner_email}")
 
 
+def _print_multi(result) -> None:
+    typer.echo("Vault:")
+    typer.echo(f"  id: {result.vault.id}")
+    typer.echo(f"  number: {result.vault.number}")
+    typer.echo(f"  created: {'yes (boosted)' if result.created_vault else 'no (existing)'}")
+    for entry in result.entries:
+        site = entry.available_sites[0] if entry.available_sites else None
+        typer.echo("Dweller:")
+        gender = getattr(entry.dweller.gender, "value", entry.dweller.gender)
+        typer.echo(
+            f"  {entry.dweller.display_name} ({gender}, level {entry.dweller.level}, id {entry.dweller.id})"
+        )
+        typer.echo(f"  exploration: {entry.exploration.id}")
+        if site is not None:
+            typer.echo(f"  site: {site.id} ({site.name})")
+            typer.echo(
+                f"  Frontend: http://localhost:5173/vault/{result.vault.id}/exploration/"
+                f"{entry.exploration.id}?siteId={site.id}"
+            )
+    if result.owner_email == settings.FIRST_SUPERUSER_EMAIL:
+        typer.echo(f"Login: {result.owner_email} (superuser — use the FIRST_SUPERUSER_PASSWORD from your .env)")
+    elif result.owner_email:
+        typer.echo(f"Login: {result.owner_email}")
+
+
 @app.command()
 def setup(
     vault_id: Annotated[
@@ -112,6 +137,78 @@ def setup(
     except Exception as exc:
         logger.exception("expedition-scenario setup failed")
         typer.echo("Error: expedition-scenario setup failed — see logs for details.", err=True)
+        raise typer.Exit(code=1) from exc
+
+
+@app.command()
+def vault1(
+    dwellers: Annotated[
+        int | None,
+        typer.Option(
+            "--dwellers",
+            min=1,
+            max=12,
+            help="How many named dwellers; default: one per expedition site",
+        ),
+    ] = None,
+    dweller_level: Annotated[int, typer.Option("--dweller-level", min=1, max=50)] = 5,
+    duration_hours: Annotated[
+        int,
+        typer.Option("--duration-hours", min=1, max=24, help="Journey length in hours"),
+    ] = 24,
+    special: Annotated[
+        int | None,
+        typer.Option("--special", min=1, max=10, help="Every SPECIAL stat; omit for varied profiles"),
+    ] = None,
+    sites: Annotated[
+        str | None,
+        typer.Option("--sites", help="Comma-separated site ids; defaults to the three new sites"),
+    ] = None,
+    vault_number: Annotated[int, typer.Option("--vault-number", min=1, max=999)] = 1,
+    vault_id: Annotated[
+        UUID | None,
+        typer.Option("--vault-id", help="Target an existing vault (for example the active Vault 1)"),
+    ] = None,
+    user_email: Annotated[
+        str | None,
+        typer.Option("--user-email", help="Owner email (default: FIRST_SUPERUSER_EMAIL)"),
+    ] = None,
+    keep_existing: Annotated[
+        bool,
+        typer.Option("--keep-existing", help="Reuse Vault 1 instead of recreating it"),
+    ] = False,
+) -> None:
+    """Create a fresh Vault 1 with one named dweller per expedition site by default."""
+    site_ids = [site.strip() for site in sites.split(",") if site.strip()] if sites else None
+
+    async def _run() -> None:
+        from app.db.session import async_session_maker
+
+        async with async_session_maker() as session:
+            result = await expedition_scenario_service.setup_multi(
+                session,
+                vault_id=vault_id,
+                vault_number=vault_number,
+                user_email=user_email,
+                dwellers=dwellers,
+                dweller_level=dweller_level,
+                duration_hours=duration_hours,
+                special=special,
+                site_ids=site_ids,
+                recreate=not keep_existing,
+            )
+            _print_multi(result)
+
+    try:
+        asyncio.run(_run())
+        typer.echo("✓ expedition-scenario vault1 complete.")
+    except (ResourceNotFoundException, ValueError) as exc:
+        detail = exc.detail if isinstance(exc, ResourceNotFoundException) else str(exc)
+        typer.echo(f"Error: {detail}", err=True)
+        raise typer.Exit(code=1) from None
+    except Exception as exc:
+        logger.exception("expedition-scenario vault1 failed")
+        typer.echo("Error: expedition-scenario vault1 failed — see logs for details.", err=True)
         raise typer.Exit(code=1) from exc
 
 

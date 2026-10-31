@@ -8041,7 +8041,7 @@ export interface components {
          * ExpeditionSceneId
          * @enum {string}
          */
-        ExpeditionSceneId: "desert_highway" | "supermarket_interior" | "subway_station" | "amusement_park" | "arctic_research_station";
+        ExpeditionSceneId: "desert_highway" | "supermarket_interior" | "subway_station" | "amusement_park" | "arctic_research_station" | "gloomwater_bog" | "gloomwater_bog_night" | "outskirts_interchange";
         /**
          * ExpeditionSiteMarkerRead
          * @description One interactive expedition site on the world map, with per-vault state.

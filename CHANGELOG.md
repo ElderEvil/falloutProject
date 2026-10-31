@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.5 (2026-10-31)
+
+### Performance Improvements
+
+* **breeding:** batch partner and affinity lookups in conception ([#1260](https://github.com/ElderEvil/falloutProject/issues/1260)) 13d46ca
+
 ## 2.282.4 (2026-10-31)
 
 ### Code Refactoring

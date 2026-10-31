@@ -4,20 +4,30 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
+from hashlib import sha256
 from time import perf_counter, time
 from typing import TypedDict
 
 
 class TickProfileSummary(TypedDict):
+    vault_key: str
+    dispatch_key: str
     queue_ms: float | None
     total_ms: float
     phases_ms: dict[str, float]
+
+
+def profile_key(value: str) -> str:
+    """Return a stable, non-reversible correlation key for profile grouping."""
+    return sha256(value.encode()).hexdigest()[:16]
 
 
 @dataclass
 class TickProfile:
     """Wall-clock phases for one vault tick."""
 
+    vault_key: str
+    dispatch_key: str
     enqueued_at: float | None = None
     started_at: float = field(default_factory=time)
     started_perf: float = field(default_factory=perf_counter)
@@ -38,6 +48,8 @@ class TickProfile:
 
     def summary(self) -> TickProfileSummary:
         return {
+            "vault_key": self.vault_key,
+            "dispatch_key": self.dispatch_key,
             "queue_ms": self.queue_ms,
             "total_ms": self.total_ms,
             "phases_ms": {name: round(elapsed, 2) for name, elapsed in self.phases.items()},

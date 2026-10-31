@@ -43,7 +43,7 @@ def test_current_message_middleware_is_enabled() -> None:
 
 def test_tick_profile_records_named_phases() -> None:
     """Profiling is opt-in and accumulates repeated phase measurements."""
-    profile = TickProfile(enqueued_at=time.time() - 0.01)
+    profile = TickProfile(vault_key="vault-key", dispatch_key="dispatch-key", enqueued_at=time.time() - 0.01)
     token = set_current_profile(profile)
     try:
         with tick_phase("first"):
@@ -61,6 +61,9 @@ def test_tick_profile_records_named_phases() -> None:
     assert profile.queue_ms is not None
     assert profile.queue_ms >= 0
     assert profile.total_ms >= 0
+    summary = profile.summary()
+    assert summary["vault_key"] == "vault-key"
+    assert summary["dispatch_key"] == "dispatch-key"
 
 
 class _FakeTaskSession:

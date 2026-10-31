@@ -29,6 +29,7 @@ from app.services.game_tick.guard import recover_session
 from app.services.game_tick.profiling import (
     TickProfile,
     current_profile,
+    profile_key,
     reset_current_profile,
     set_current_profile,
     tick_phase,
@@ -197,6 +198,7 @@ async def _run_vault_tick(vault_id: str, tick_id: str | None) -> VaultTickResult
     engine_started = time.perf_counter()
     async with task_session() as session:
         if profile is not None:
+            await session.connection()
             profile.add("engine_session", (time.perf_counter() - engine_started) * 1000)
         with tick_phase("service"):
             return await game_loop_service.process_vault_tick(session, UUID(vault_id), tick_id)
@@ -240,7 +242,15 @@ async def _process_vault_tick_async(vault_id: str, redis: Redis, tick_id: str | 
 def process_vault_tick(vault_id: str, tick_id: str | None = None, enqueued_at: float | None = None):
     """Process one vault tick under a per-vault Redis lease."""
     start = time.perf_counter()
-    profile = TickProfile(enqueued_at=enqueued_at) if os.getenv("TICK_PROFILE") == "1" else None
+    profile = (
+        TickProfile(
+            vault_key=profile_key(vault_id),
+            dispatch_key=profile_key(tick_id) if tick_id else "",
+            enqueued_at=enqueued_at,
+        )
+        if os.getenv("TICK_PROFILE") == "1"
+        else None
+    )
     profile_token = set_current_profile(profile)
 
     async def run_vault_tick():

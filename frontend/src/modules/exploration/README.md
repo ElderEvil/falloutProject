@@ -95,6 +95,22 @@ To use a dweller already in a vault, add `--vault-id VAULT_UUID --dweller-id DWE
 This preserves that dweller's level and SPECIAL and does not create another scout. The usual dispatch
 rules apply, including adulthood, health, and site level requirements.
 
+### Vault 1 test scenario
+
+Creating a vault numbered 1 pre-selects the `vault_1_test` scenario and Boosted Start; both stay
+toggleable. The scenario seeds one named dweller per non-scenario site, fast-forwards each journey
+past its site, and sends the real discovery report, so the bell lists every shipped site while each
+dweller keeps a long outbound window before turning home. Starter objectives are skipped.
+
+The same seeding is available from `backend/`:
+
+```bash
+uv run fo-cli expedition-scenario vault1 --user-email YOUR_LOCAL_EMAIL
+```
+
+`--sites` limits the picked sites, `--dwellers` caps the count (at most one per site), and
+`--outbound-hours` sets the window left after the reports arrive.
+
 ### Single-scene combat
 
 Spatial site encounters use `SiteCombatScene` and the shared Arena ring/playback. Fight starts alternating

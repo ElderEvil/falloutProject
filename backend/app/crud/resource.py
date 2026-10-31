@@ -34,21 +34,25 @@ class CRUDResource:
 
     async def get_vault_resource_data(self, db_session: AsyncSession, vault_id: UUID4) -> VaultResourceData:
         with tick_phase("resources.load.vault"):
-            vault_row = (
-                await db_session.execute(
+            with tick_phase("resources.load.vault.query"):
+                vault_result = await db_session.execute(
                     select(Vault, Storage, GameState)
                     .select_from(Vault)
                     .outerjoin(Storage, Storage.vault_id == Vault.id)
                     .outerjoin(GameState, GameState.vault_id == Vault.id)
                     .where(Vault.id == vault_id)
                 )
-            ).one_or_none()
+            with tick_phase("resources.load.vault.materialize"):
+                vault_row = vault_result.one_or_none()
         if vault_row is None:
             raise ResourceNotFoundException(Vault, identifier=vault_id)
 
         vault, storage, game_state = vault_row
         with tick_phase("resources.load.rooms"):
-            rooms = (await db_session.execute(select(Room).where(Room.vault_id == vault_id))).scalars().all()
+            with tick_phase("resources.load.rooms.query"):
+                rooms_result = await db_session.execute(select(Room).where(Room.vault_id == vault_id))
+            with tick_phase("resources.load.rooms.materialize"):
+                rooms = rooms_result.scalars().all()
         present = (
             Dweller.vault_id == vault_id,
             Dweller.is_deleted.is_(False),
@@ -56,8 +60,8 @@ class CRUDResource:
             Dweller.status.not_in([DwellerStatusEnum.DEAD, DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING]),
         )
         with tick_phase("resources.load.dwellers"):
-            dweller_rows = (
-                await db_session.execute(
+            with tick_phase("resources.load.dwellers.query"):
+                dweller_result = await db_session.execute(
                     select(Dweller, Room)
                     .select_from(Dweller)
                     .outerjoin(Room, and_(Room.id == Dweller.room_id, Room.vault_id == vault_id))
@@ -69,7 +73,8 @@ class CRUDResource:
                     # equipped pet's SPECIAL bonus (B7 eager-load fan-out).
                     .options(selectinload(Dweller.outfit), selectinload(Dweller.pet))
                 )
-            ).all()
+            with tick_phase("resources.load.dwellers.materialize"):
+                dweller_rows = dweller_result.all()
 
         dweller_count = 0.0
         grouped_dwellers: dict[UUID4, tuple[Room, list[Dweller]]] = {}

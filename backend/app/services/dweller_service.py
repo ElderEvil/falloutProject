@@ -15,6 +15,8 @@ from app.core.enums import (
     ContentProvenanceEnum,
     DwellerRosterFocus,
     DwellerStatusEnum,
+    ExpeditionRunStatus,
+    ExplorationStatus,
     FactionEnum,
     GenderEnum,
     RaceEnum,
@@ -89,6 +91,33 @@ class DwellerService:
         if dweller.vault_id is None:
             raise VaultOperationException(detail="Dweller is no longer in this vault")
         return dweller.vault_id
+
+    async def delete_dweller(self, db_session: AsyncSession, dweller_id: UUID4, *, soft: bool = True) -> None:
+        """Delete a dweller and close any in-progress journey in one transaction.
+
+        A deleted dweller cannot keep exploring; leaving the journey active would
+        orphan it (the detail endpoint could no longer resolve the dweller).
+        """
+        dweller = await crud.dweller.get_for_update(db_session, dweller_id, include_deleted=True)
+        if dweller is None:
+            raise ResourceNotFoundException(Dweller, dweller_id)
+        now = datetime.now(UTC).replace(tzinfo=None)
+        explorations = await crud.exploration.get_in_progress_for_dwellers(db_session, [dweller_id])
+        for exploration in explorations:
+            exploration.status = ExplorationStatus.RECALLED
+            exploration.end_time = now
+            exploration.return_started_at = None
+            exploration.return_completes_at = None
+            exploration.paused_at = None
+            exploration.unclaimed_loot = []
+            db_session.add(exploration)
+            run = await crud.expedition_run.get_open_for_exploration_for_update(db_session, exploration.id)
+            if run is not None:
+                run.status = ExpeditionRunStatus.RETREATED
+                run.finished_at = now
+                db_session.add(run)
+        await crud.dweller.delete(db_session, dweller_id, soft=soft, commit=False)
+        await db_session.commit()
 
     def get_identity_options(self) -> DwellerIdentityOptions:
         """Return identity choices derived directly from the canonical options modules."""

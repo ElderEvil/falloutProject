@@ -13,6 +13,7 @@ from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
+from app.services.exploration_service import exploration_service
 from app.tests.factory.dwellers import create_fake_dweller
 
 
@@ -84,6 +85,33 @@ async def test_delete_dweller(
     assert delete_response.status_code == 204
     read_response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
     assert read_response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_exploring_dweller_closes_journey(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    dweller: Dweller,
+    vault: Vault,
+) -> None:
+    exploration = await exploration_service.send_dweller(
+        async_session, vault.id, dweller.id, duration=4, stimpaks=0, radaways=0
+    )
+    await crud.expedition_run.create_run(
+        async_session,
+        exploration_id=exploration.id,
+        vault_id=vault.id,
+        site_id="collapsed_subway",
+    )
+
+    response = await async_client.delete(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
+    assert response.status_code == 204
+
+    detail = await async_client.get(f"/explorations/{exploration.id}", headers=superuser_token_headers)
+    assert detail.status_code == 200
+    assert detail.json()["status"] == "recalled"
+    assert (await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)).status_code == 404
 
 
 @pytest.mark.asyncio

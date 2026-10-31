@@ -9,12 +9,12 @@ from redis.asyncio import Redis
 from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.ai_constants import AI_USAGE_CACHE_KEY, QUOTA_TRACKING_OPERATION
 from app.core.config import settings
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.crud.user import user as user_crud
 from app.models.user import User
 from app.schemas.llm_interaction import LLMInteractionCreate
-from app.services.ai_constants import AI_USAGE_CACHE_KEY, QUOTA_TRACKING_OPERATION
 from app.utils.exceptions import QuotaExceededException, ResourceNotFoundException
 
 logger = logging.getLogger(__name__)

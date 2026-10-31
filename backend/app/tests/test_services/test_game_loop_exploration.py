@@ -7,6 +7,7 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.stream_manager import sse_manager
 from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
 from app.models.vault import Vault
@@ -16,7 +17,6 @@ from app.schemas.exploration_event import CombatEventSchema, ItemSchema, LootEve
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration_service import exploration_service
 from app.services.game_loop import game_loop_service
-from app.services.stream_manager import sse_manager
 from app.tests.factory.dwellers import create_fake_adult_dweller, create_fake_dweller
 
 # Note: Event persistence tested separately

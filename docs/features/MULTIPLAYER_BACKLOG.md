@@ -13,7 +13,7 @@ Effort: **S** ≈ days, **M** ≈ a focused slice, **L** ≈ a system with its o
 | Anonymous cross-vault market | `services/trading_post_service.py` | Soft-deleted dwellers, caps only, lists *other* vaults' listings |
 | Local duel (dweller vs dweller) | `services/combat/arena_service.py` | Experimental, room-based, one vault |
 | Shared world **geography** | `models/world_location.py` | `WorldLocation` is a global registry with stable, name-derived coords. **Discovery and visibility stay vault-specific** (`VaultLocationState`) — everyone draws the same map, but each vault knows only its own fog. |
-| Realtime transport | `services/websocket_manager.py` (Redis pub/sub) vs `services/stream_manager.py` (SSE) | **WebSockets are multi-instance capable.** SSE is **in-memory per process** (`_queue_maxsize = 256`), **drops events when a queue fills**, and has **no implemented replay**. |
+| Realtime transport | `core/websocket_manager.py` (Redis pub/sub) vs `core/stream_manager.py` (SSE) | **WebSockets are multi-instance capable.** SSE is **in-memory per process** (`_queue_maxsize = 256`), **drops events when a queue fills**, and has **no implemented replay**. |
 | Notifications + surfacing | `notification_service`, toast/modal stack | Progression red line enforced in `GAME_MECHANICS.md` |
 | Game event bus | `core/event_bus.py` | `GameEvent` + async handlers |
 | Feature flags | `game_config.FeatureConfig` → `/system/features` | Ship dark pattern |

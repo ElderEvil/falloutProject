@@ -26,9 +26,9 @@ async def test_readiness_probes_only_critical_dependencies(
     # An accidental optional probe must fail, even if local credentials are absent.
     monkeypatch.setattr(settings, "RUSTFS_ACCESS_KEY", "test-key")
     monkeypatch.setattr(settings, "RUSTFS_SECRET_KEY", "test-secret")
-    monkeypatch.setattr("app.services.health_check.broker", object())
+    monkeypatch.setattr("app.core.health_check.broker", object())
     with (
-        patch("app.services.health_check.Redis", return_value=redis_client),
+        patch("app.core.health_check.Redis", return_value=redis_client),
         patch("boto3.client", side_effect=AssertionError("Unexpected object storage probe")) as storage,
         patch("aiosmtplib.SMTP", side_effect=AssertionError("Unexpected SMTP probe")) as smtp,
         patch("httpx.AsyncClient", side_effect=AssertionError("Unexpected AI probe")) as ai,
@@ -56,7 +56,7 @@ async def test_readiness_probes_only_critical_dependencies(
 async def test_liveness_stays_lightweight_and_does_not_probe_dependencies(async_client: AsyncClient) -> None:
     with (
         patch.object(AsyncEngine, "connect", side_effect=AssertionError("Unexpected database probe")),
-        patch("app.services.health_check.Redis", side_effect=AssertionError("Unexpected Redis probe")),
+        patch("app.core.health_check.Redis", side_effect=AssertionError("Unexpected Redis probe")),
     ):
         response = await async_client.get("https://testserver/healthcheck")
 

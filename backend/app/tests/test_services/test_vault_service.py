@@ -39,7 +39,7 @@ from app.schemas.vault import (
     VaultUpdate,
 )
 from app.services.vault import economy, seeding
-from app.services.vault_seed import CreatedRooms, PreparedRooms
+from app.services.vault.seed_types import CreatedRooms, PreparedRooms
 from app.services.vault_service import VaultService
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 from app.utils.room_assets import get_room_image_url
@@ -491,7 +491,7 @@ class TestCreateInitialItems:
         """Boosted vaults start with unassigned pets in storage for quick testing."""
         from app.crud.item_base import get_items_by_vault
         from app.models.pet import Pet
-        from app.services.vault_seed import BOOSTED_SEED_PETS
+        from app.services.vault.seed_types import BOOSTED_SEED_PETS
 
         storage = await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
         await seeding.create_initial_items(async_session, vault.id, is_boosted=True)
@@ -507,7 +507,7 @@ class TestCreateInitialItems:
         from app.models.pet import Pet
         from app.schemas.common import RarityEnum
         from app.schemas.dweller import DwellerCreate
-        from app.services.vault_seed import BOOSTED_EQUIPPED_PETS
+        from app.services.vault.seed_types import BOOSTED_EQUIPPED_PETS
         from app.tests.factory.dwellers import create_fake_adult_dweller
 
         storage = await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
@@ -540,7 +540,7 @@ class TestCreateInitialItems:
         from sqlmodel import select
 
         from app.models.junk import Junk
-        from app.services.vault_seed import BOOSTED_SEED_JUNK
+        from app.services.vault.seed_types import BOOSTED_SEED_JUNK
 
         storage = await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
         await seeding.create_initial_items(async_session, vault.id, is_boosted=True)

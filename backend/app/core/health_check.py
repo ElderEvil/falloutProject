@@ -87,7 +87,7 @@ class HealthCheckService:
         """
         redis_client = None
         try:
-            redis_client = Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
+            redis_client = Redis(host=settings.REDIS_HOST, port=int(settings.REDIS_PORT), decode_responses=True)
             await redis_client.ping()
             return HealthCheckResult(
                 service="redis",
@@ -311,17 +311,13 @@ class HealthCheckService:
             HealthCheckResult with connection status
         """
         try:
-            smtp_kwargs = {
-                "hostname": settings.SMTP_HOST,
-                "port": settings.SMTP_PORT,
-                "timeout": 5,  # 5 second timeout
-            }
             # Keep TLS handling in sync with app.core.email.send_email (flag naming is inverted).
             if settings.SMTP_TLS:
-                smtp_kwargs["use_tls"] = True
+                smtp = aiosmtplib.SMTP(hostname=settings.SMTP_HOST, port=settings.SMTP_PORT, timeout=5, use_tls=True)
             elif settings.SMTP_SSL:
-                smtp_kwargs["start_tls"] = True
-            smtp = aiosmtplib.SMTP(**smtp_kwargs)
+                smtp = aiosmtplib.SMTP(hostname=settings.SMTP_HOST, port=settings.SMTP_PORT, timeout=5, start_tls=True)
+            else:
+                smtp = aiosmtplib.SMTP(hostname=settings.SMTP_HOST, port=settings.SMTP_PORT, timeout=5)
 
             await smtp.connect()
 

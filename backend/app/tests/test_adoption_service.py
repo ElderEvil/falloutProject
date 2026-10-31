@@ -14,6 +14,7 @@ from sqlmodel import select
 from app import crud
 from app.core.enums import AgeGroupEnum, GenderEnum, RaceEnum, RelationshipTypeEnum
 from app.core.game_config import game_config
+from app.core.stream_manager import sse_manager
 from app.crud.relationship import relationship_crud
 from app.models.notification import Notification, NotificationType
 from app.schemas.user import UserCreate
@@ -21,7 +22,6 @@ from app.services.family.adoption_service import adoption_service
 from app.services.game_loop import game_loop_service
 from app.services.game_tick import family_tick
 from app.services.notification_service import notification_service
-from app.services.stream_manager import sse_manager
 from app.tests.factory.dwellers import create_random_common_dweller
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import random_vault_number

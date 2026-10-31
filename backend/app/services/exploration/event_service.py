@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import RarityEnum
 from app.core.game_config import game_config
+from app.core.stream_manager import sse_manager
 from app.crud import dweller as dweller_crud
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
@@ -29,7 +30,6 @@ from app.schemas.exploration_event import (
 from app.services import catalog_service as data_loader
 from app.services.exploration.event_generator import describe_discovery, event_generator
 from app.services.notification_service import notification_service
-from app.services.stream_manager import sse_manager
 from app.utils.combat import expedition_combat_profile
 from app.utils.item_factory import build_catalog_item
 from app.utils.radiation import (

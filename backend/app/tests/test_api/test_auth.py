@@ -604,7 +604,7 @@ async def test_refresh_rejects_wrong_purpose_even_if_stored(
 
 
 async def test_access_token_opens_only_its_users_notification_stream(async_client: AsyncClient, verified_user):
-    from app.services.stream_manager import sse_manager
+    from app.core.stream_manager import sse_manager
 
     user, _ = verified_user
     user_id = user.id

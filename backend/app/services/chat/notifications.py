@@ -5,10 +5,10 @@ import logging
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.websocket_manager import manager
 from app.schemas.chat import ActionSuggestion, UnlockedPlace
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact
-from app.services.websocket_manager import manager
 
 logger = logging.getLogger(__name__)
 

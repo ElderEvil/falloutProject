@@ -404,7 +404,7 @@ Before going live, verify every item:
 
   Replace `<your-api-host>` with your deployed backend API hostname (e.g. the value of `PRODUCTION_API_URL`).
 
-  The `check_smtp` method in `backend/app/services/health_check.py` connects, authenticates, and quits.
+  The `check_smtp` method in `backend/app/core/health_check.py` connects, authenticates, and quits.
 
 - [ ] **Warm-up:** new IPs and domains start with low sending reputation. Keep volume low for the first
   few days (a handful of verification emails per hour is fine). Hetzner does not block outbound 25 on

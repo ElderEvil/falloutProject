@@ -14,8 +14,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.deps import CurrentUser, DBSession, get_user_vault_or_403
 from app.core.config import settings
 from app.core.game_config import game_config
+from app.core.stream_manager import sse_manager
 from app.models.vault import Vault
-from app.services.stream_manager import sse_manager
 
 logger = logging.getLogger(__name__)
 

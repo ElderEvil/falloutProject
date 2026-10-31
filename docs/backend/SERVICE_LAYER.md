@@ -121,6 +121,11 @@ decisions and generators use a role name inside their domain package
 (`utils/radiation.py`). `PURE_SERVICE_BASELINE` lists the remaining non-persisting boundaries
 (read-model and SMTP adapters) and is shrink-only, like the other ratchets.
 
+Cross-cutting infrastructure lives in `app/core/`, not under `services/`: the SSE and WebSocket
+transport managers, the Redis tick-chain claim, AI usage constants and the startup/runtime health
+probes all import downward from there. Value objects used while seeding a vault stay beside their
+domain in `services/vault/seed_types.py` rather than at the service root.
+
 ## Known deferrals
 
 - Chat quota validation is shared by text, streaming, and audio through `QuotaCheckResult.ensure_allowed()`.

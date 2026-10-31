@@ -14,12 +14,12 @@ import app.api.arena_tasks  # ruff: ignore[unused-import] - registers the arena_
 import app.core.dramatiq  # ruff: ignore[unused-import] — ensures broker is configured when dramatiq CLI imports this module
 from app.core.event_bus import event_bus
 from app.core.game_config import game_config
+from app.core.tick_chain import claim_tick_chain
 from app.db.session import task_session, task_session_maker
 from app.services.cleanup_service import cleanup_service
 from app.services.family.death_service import death_service
 from app.services.game_loop import game_loop_service
 from app.services.game_tick.guard import recover_session
-from app.services.tick_chain import claim_tick_chain
 
 logger = logging.getLogger(__name__)
 INCIDENT_TICK_CHAIN_KEY: Final = "fallout:incident-tick:chain"

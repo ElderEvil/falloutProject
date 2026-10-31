@@ -15,7 +15,7 @@ from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.config import settings
-from app.services.health_check import (
+from app.core.health_check import (
     HealthCheckResult,
     HealthCheckService,
     ServiceStatus,
@@ -79,7 +79,7 @@ async def test_check_redis_healthy() -> None:
     mock_redis.ping = AsyncMock()
     mock_redis.close = AsyncMock()
 
-    with patch("app.services.health_check.Redis", return_value=mock_redis):
+    with patch("app.core.health_check.Redis", return_value=mock_redis):
         result = await HealthCheckService.check_redis()
 
     assert result.service == "redis"
@@ -94,7 +94,7 @@ async def test_check_redis_unhealthy_redis_error() -> None:
     mock_redis.ping = AsyncMock(side_effect=RedisError("connection refused"))
     mock_redis.close = AsyncMock()
 
-    with patch("app.services.health_check.Redis", return_value=mock_redis):
+    with patch("app.core.health_check.Redis", return_value=mock_redis):
         result = await HealthCheckService.check_redis()
 
     assert result.service == "redis"
@@ -109,7 +109,7 @@ async def test_check_redis_unhealthy_redis_error() -> None:
 
 def test_check_dramatiq_not_configured() -> None:
     """Dramatiq broker is None (not imported)."""
-    with patch("app.services.health_check.broker", None):
+    with patch("app.core.health_check.broker", None):
         result = HealthCheckService.check_dramatiq()
 
     assert result.service == "dramatiq"
@@ -127,7 +127,7 @@ def test_check_dramatiq_unhealthy() -> None:
         def actors(self) -> dict:
             raise RedisError("broker down")
 
-    with patch("app.services.health_check.broker", BadBroker()):
+    with patch("app.core.health_check.broker", BadBroker()):
         result = HealthCheckService.check_dramatiq()
 
     assert result.service == "dramatiq"
@@ -139,7 +139,7 @@ def test_check_dramatiq_healthy_empty_actors() -> None:
     """Broker has zero actors but is healthy."""
     mock_broker = MagicMock()
     mock_broker.actors = {}
-    with patch("app.services.health_check.broker", mock_broker):
+    with patch("app.core.health_check.broker", mock_broker):
         result = HealthCheckService.check_dramatiq()
 
     assert result.status == ServiceStatus.HEALTHY
@@ -339,7 +339,7 @@ async def test_check_local_ai_provider_responses(
     message_fragment: str,
 ) -> None:
     """check_local_ai maps local provider HTTP outcomes onto component health."""
-    with patch("app.services.health_check.httpx.AsyncClient", return_value=_local_ai_client(get_effect)):
+    with patch("app.core.health_check.httpx.AsyncClient", return_value=_local_ai_client(get_effect)):
         result = await HealthCheckService.check_local_ai(local_ai_provider)
 
     assert result.service == local_ai_provider
@@ -354,7 +354,7 @@ async def test_check_local_ai_unexpected_error_propagates(
 ) -> None:
     """Non-HTTP, non-parse failures are bugs: they propagate instead of reporting UNHEALTHY."""
     with (
-        patch("app.services.health_check.httpx.AsyncClient", return_value=_local_ai_client(Exception("boom"))),
+        patch("app.core.health_check.httpx.AsyncClient", return_value=_local_ai_client(Exception("boom"))),
         pytest.raises(Exception, match="boom"),
     ):
         await HealthCheckService.check_local_ai(local_ai_provider)
@@ -383,7 +383,7 @@ async def test_check_smtp_healthy(
     mock_smtp.quit = AsyncMock()
 
     with (
-        patch("app.services.health_check.aiosmtplib.SMTP", return_value=mock_smtp),
+        patch("app.core.health_check.aiosmtplib.SMTP", return_value=mock_smtp),
         patch.object(settings, "SMTP_USER", smtp_user),
         patch.object(settings, "SMTP_PASSWORD", smtp_password),
     ):
@@ -414,7 +414,7 @@ async def test_check_smtp_connect_failures(connect_error: Exception, message_fra
     mock_smtp = MagicMock()
     mock_smtp.connect = AsyncMock(side_effect=connect_error)
 
-    with patch("app.services.health_check.aiosmtplib.SMTP", return_value=mock_smtp):
+    with patch("app.core.health_check.aiosmtplib.SMTP", return_value=mock_smtp):
         result = await HealthCheckService.check_smtp()
 
     assert result.status == ServiceStatus.UNHEALTHY
@@ -433,7 +433,7 @@ async def test_check_smtp_tls_mapping(
     tls: bool, ssl: bool, port: int, expected_tls_key: str, forbidden_tls_key: str
 ) -> None:
     """SMTP_TLS/SMTP_SSL map to aiosmtplib use_tls vs start_tls."""
-    with patch("app.services.health_check.aiosmtplib.SMTP") as mock_smtp_class:
+    with patch("app.core.health_check.aiosmtplib.SMTP") as mock_smtp_class:
         mock_smtp_class.return_value.connect = AsyncMock()
         mock_smtp_class.return_value.quit = AsyncMock()
         with (
@@ -500,7 +500,7 @@ def test_log_health_check_some_unhealthy() -> None:
         "redis": _unhealthy_result("redis"),
     }
 
-    logger_instance = logging.getLogger("app.services.health_check")
+    logger_instance = logging.getLogger("app.core.health_check")
     with patch.object(logger_instance, "info") as mock_info, patch.object(logger_instance, "warning") as mock_warning:
         overall = HealthCheckService.log_health_check_results(results)
 

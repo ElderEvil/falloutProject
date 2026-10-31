@@ -14,10 +14,10 @@ if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.security import decode_token_subject
+from app.core.websocket_manager import manager
 from app.crud.user import user as user_crud
 from app.db.session import async_session_maker
 from app.services.chat_service import chat_service
-from app.services.websocket_manager import manager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

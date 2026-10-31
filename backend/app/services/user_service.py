@@ -200,7 +200,7 @@ class UserService:
         """Get AI usage stats with Redis caching."""
         import json
 
-        from app.services.ai_constants import AI_USAGE_CACHE_KEY
+        from app.core.ai_constants import AI_USAGE_CACHE_KEY
         from app.services.ai_usage_service import AIUsageService
 
         cache_key = AI_USAGE_CACHE_KEY.format(user_id=user_id)

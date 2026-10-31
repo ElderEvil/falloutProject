@@ -10,16 +10,13 @@ exploration event log; run state lives in ``expedition_run`` rows.
 import logging
 import random
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Literal
+from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import SPECIAL_STATS
 from app.crud import dweller as dweller_crud
-from app.crud.world_snapshot import world_snapshot as world_snapshot_crud
 from app.models.dweller import Dweller
 from app.models.exploration import CONSUMING_STATUSES, ExpeditionRun, ExpeditionRunStatus, Exploration
 from app.models.notification import NotificationType
@@ -28,18 +25,15 @@ from app.schemas.expedition import (
     EnemySpec,
     ExpeditionResolveRequest,
     NodeBranch,
-    NodeOptionView,
     NodeOutcome,
     SiteDefinition,
-    SiteNodeView,
     SiteRoom,
     SiteRoomView,
-    TriviaQuestion,
-    TriviaRaider,
     rarity_meets_floor,
 )
 from app.schemas.exploration_event import CombatOutcomeSchema, EnemySchema, LootItemSchema
 from app.services import catalog_service as data_loader
+from app.services.exploration.checks import roll_check, stat_value
 from app.services.exploration.combat_calculator import combat_calculator
 from app.services.exploration.event_service import (
     apply_exploration_damage,
@@ -47,21 +41,33 @@ from app.services.exploration.event_service import (
     apply_loot_find,
     auto_use_supplies,
 )
+from app.services.exploration.expedition_views import (
+    build_view,
+    pick_trivia_questions,
+    pick_trivia_raiders,
+    rooms_for_run,
+    trivia_question,
+    trivia_raider,
+)
 from app.services.exploration.journey_state import close_open_site_run
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.loot_calculator import loot_calculator
-from app.services.exploration.site_combat_service import combat_view, encounter_threat, initial_combat, resolve_turn
-from app.services.map.world_generation import WORLD_ID
+from app.services.exploration.site_combat_service import encounter_threat, initial_combat, resolve_turn
+from app.services.exploration.site_offers import (
+    JourneyOfferContext,
+    journey_offer_context,
+    site_block_reason,
+    site_is_offered,
+    uses_single_scene,
+)
 from app.services.notification_service import notification_service
 from app.utils import world_terrain
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
 
-ANTI_FARM_DAYS = 7
 ALL_SITES_SCENARIO_EVENT = "scenario_all_sites"
 CACHE_CAPS = {"small": (5, 15), "standard": (10, 30), "rich": (20, 50)}
-STAT_SNAPSHOT_FIELDS = {stat: f"dweller_{stat}" for stat in SPECIAL_STATS}
 
 
 @dataclass
@@ -89,69 +95,6 @@ class BranchResult:
         )
 
 
-@dataclass(frozen=True)
-class SiteBlockState:
-    """Per-vault+site expedition gate: block reason plus remaining anti-farm seconds."""
-
-    reason: Literal["open", "cooldown"] | None = None
-    cooldown_remaining_seconds: int = 0
-    cleared: bool = False
-
-
-@dataclass(frozen=True)
-class JourneyOfferContext:
-    """Trail-relative inputs that decide which sites a spatial journey offers."""
-
-    trail: list[tuple[float, float]]
-    radius: float
-    consumed_site_ids: frozenset[str]
-
-
-async def journey_offer_context(db_session: AsyncSession, exploration: Exploration) -> JourneyOfferContext | None:
-    """Trail offer inputs for a spatial run, or None when terrain/version is unavailable."""
-    if exploration.heading_degrees is None or exploration.world_version is None:
-        return None
-    snapshot = await world_snapshot_crud.get_version(
-        db_session, world_id=WORLD_ID, generator_version=exploration.world_version
-    )
-    if snapshot is None:
-        return None
-    consumed = await crud.expedition_run.get_consumed_site_ids_for_exploration(
-        db_session, exploration_id=exploration.id
-    )
-    return JourneyOfferContext(
-        trail=[(float(step["x"]), float(step["y"])) for step in (exploration.trail or [])],
-        radius=world_terrain.reveal_radius_registry(snapshot, world_terrain.SITE_REVEAL_TILES),
-        consumed_site_ids=frozenset(consumed),
-    )
-
-
-def site_is_offered(site: SiteDefinition, context: JourneyOfferContext) -> bool:
-    """True when a spatial journey offers *site*: near its trail and not yet consumed."""
-    return site.id not in context.consumed_site_ids and world_terrain.path_passes_near(
-        context.trail, (site.coord_x, site.coord_y), context.radius
-    )
-
-
-def success_odds(stat_value: int, difficulty: int) -> float:
-    """Display odds for d20 + stat*2 >= 10 + difficulty*2, clamped to 5%-95%."""
-    need = _check_threshold(stat_value, difficulty)
-    return min(0.95, max(0.05, (21 - need) / 20))
-
-
-def roll_check(stat_value: int, difficulty: int) -> bool:
-    """Roll d20 + stat*2 against 10 + difficulty*2."""
-    return random.randint(1, 20) >= _check_threshold(stat_value, difficulty)
-
-
-def _check_threshold(stat_value: int, difficulty: int) -> int:
-    return 10 + 2 * (difficulty - stat_value)
-
-
-def _stat_value(exploration: Exploration, stat: str) -> int:
-    return int(getattr(exploration, STAT_SNAPSHOT_FIELDS[stat]))
-
-
 async def _get_exploration(db_session: AsyncSession, exploration_id: UUID4) -> Exploration:
     exploration = await crud.exploration.get(db_session, exploration_id)
     if exploration is None:
@@ -164,39 +107,6 @@ async def _get_open_run(db_session: AsyncSession, exploration_id: UUID4) -> Expe
     if run is None:
         raise ValidationException("No open expedition run for this exploration")
     return run
-
-
-async def site_block_state(
-    db_session: AsyncSession, vault_id: UUID4, site_id: str, *, include_open: bool = True
-) -> SiteBlockState:
-    """Return the vault/site expedition gate with the remaining anti-farm window."""
-    if (
-        include_open
-        and await crud.expedition_run.get_open_for_vault_site(db_session, vault_id=vault_id, site_id=site_id)
-        is not None
-    ):
-        return SiteBlockState(reason="open")
-    recent = await crud.expedition_run.get_recent_terminal(
-        db_session,
-        vault_id=vault_id,
-        site_id=site_id,
-        since=datetime.utcnow() - timedelta(days=ANTI_FARM_DAYS),
-    )
-    if recent is None:
-        return SiteBlockState()
-    cleared = recent.status == ExpeditionRunStatus.CLEARED
-    if recent.finished_at is None:
-        return SiteBlockState(reason="cooldown", cleared=cleared)
-    window_end = recent.finished_at + timedelta(days=ANTI_FARM_DAYS)
-    remaining = max(0, int((window_end - datetime.utcnow()).total_seconds()))
-    return SiteBlockState(reason="cooldown", cooldown_remaining_seconds=remaining, cleared=cleared)
-
-
-async def _site_block_reason(
-    db_session: AsyncSession, vault_id: UUID4, site_id: str, *, include_open: bool = True
-) -> Literal["open", "cooldown"] | None:
-    """Return the vault/site gate that prevents a new entry or finale payout."""
-    return (await site_block_state(db_session, vault_id, site_id, include_open=include_open)).reason
 
 
 async def _log_site_event(
@@ -305,16 +215,16 @@ async def _resolve_choice_branch(
     option,
     result: BranchResult,
 ) -> None:
-    stat_value = _stat_value(exploration, option.stat)
-    if roll_check(stat_value, option.difficulty):
+    option_stat = stat_value(exploration, option.stat)
+    if roll_check(option_stat, option.difficulty):
         result.texts.append(f"{option.label}: success!")
-        await _apply_branch(db_session, exploration, _stat_value(exploration, "luck"), option.success, result)
+        await _apply_branch(db_session, exploration, stat_value(exploration, "luck"), option.success, result)
     else:
         result.texts.append(f"{option.label}: failed.")
         if option.failure.trade_cost_caps and exploration.total_caps_found < option.failure.trade_cost_caps:
             result.texts.append("No caps to salvage it with.")
             return
-        await _apply_branch(db_session, exploration, _stat_value(exploration, "luck"), option.failure, result)
+        await _apply_branch(db_session, exploration, stat_value(exploration, "luck"), option.failure, result)
 
 
 async def _resolve_node(
@@ -327,7 +237,7 @@ async def _resolve_node(
 ) -> bool:
     """Resolve one room node. Returns True when the finale vault was paid."""
     node = room.node
-    luck = _stat_value(exploration, "luck")
+    luck = stat_value(exploration, "luck")
 
     if node.kind == "combat":
         await _fight_pack(db_session, exploration, node.enemies, result)
@@ -352,7 +262,7 @@ async def _resolve_node(
     elif node.kind == "finale":
         full_vault = True
         if node.stat is not None and node.difficulty is not None:
-            full_vault = roll_check(_stat_value(exploration, node.stat), node.difficulty)
+            full_vault = roll_check(stat_value(exploration, node.stat), node.difficulty)
             result.texts.append("Terminal cracked: full vault!" if full_vault else "Terminal resisted: half vault.")
         await _pay_reward_vault(exploration, site, full=full_vault, result=result)
         return True
@@ -376,138 +286,17 @@ async def _pay_reward_vault(
     result.texts.append(f"Reward vault: +{caps} caps.")
     if vault.item is not None:
         attempts = vault.item.attempts if full else 1
-        item = roll_gear(_stat_value(exploration, "luck"), vault.item.type, vault.item.floor, attempts)
+        item = roll_gear(stat_value(exploration, "luck"), vault.item.type, vault.item.floor, attempts)
         apply_loot_find(exploration, item_name=item.name, rarity=item.rarity, item_type=vault.item.type, caps=0)
         result.loot_gained.append(f"{item.name} ({item.rarity})")
         result.texts.append(f"Claimed {item.name} ({item.rarity}).")
     for _ in range(vault.junk_bundles):
-        junk = loot_calculator.select_random_junk(_stat_value(exploration, "luck"))
+        junk = loot_calculator.select_random_junk(stat_value(exploration, "luck"))
         apply_loot_find(exploration, item_name=junk.name, rarity=junk.rarity, item_type="junk", caps=0)
         result.loot_gained.append(f"{junk.name} ({junk.rarity})")
     for _ in range(vault.stimpaks):
         apply_loot_find(exploration, item_name="Stimpak", rarity="Common", item_type="stimpak", caps=0)
         result.loot_gained.append("Stimpak")
-
-
-def uses_single_scene(site: SiteDefinition, *, spatial: bool) -> bool:
-    """Use encounter content for spatial visits and sites without legacy rooms."""
-    return site.encounter is not None and (spatial or not site.rooms)
-
-
-def _rooms_for_run(site: SiteDefinition, run: ExpeditionRun) -> list[SiteRoom]:
-    """Saved runs keep their original cursor; new spatial visits use one encounter."""
-    if run.flags.get("single_scene"):
-        if site.encounter is None:
-            raise ValidationException(f"Missing encounter content for {site.id}")
-        return [site.encounter]
-    return site.rooms
-
-
-def _pick_trivia_questions(rooms: list[SiteRoom]) -> dict[str, str]:
-    """Pin one question id per trivia room at entry so a reconnect cannot reroll it."""
-    return {room.id: random.choice(room.node.trivia_questions).id for room in rooms if room.node.kind == "trivia"}
-
-
-def _pick_trivia_raiders(rooms: list[SiteRoom]) -> dict[str, str]:
-    """Pin one shared raider persona per trivia room at entry, alongside its question."""
-    raiders = data_loader.load_trivia_raiders()
-    return {room.id: random.choice(raiders).id for room in rooms if room.node.kind == "trivia"}
-
-
-def _trivia_question(room: SiteRoom, run: ExpeditionRun) -> TriviaQuestion | None:
-    """The question persisted for this room at entry, if any."""
-    question_id = run.flags.get("trivia_questions", {}).get(room.id)
-    return next((question for question in room.node.trivia_questions if question.id == question_id), None)
-
-
-def _trivia_raider(room: SiteRoom, run: ExpeditionRun) -> TriviaRaider | None:
-    """The shared raider persona persisted for this room at entry, if any."""
-    raider_id = run.flags.get("trivia_raiders", {}).get(room.id)
-    return next((raider for raider in data_loader.load_trivia_raiders() if raider.id == raider_id), None)
-
-
-def build_view(
-    exploration_id,
-    site: SiteDefinition,
-    run: ExpeditionRun,
-    exploration: Exploration,
-    outcome: NodeOutcome | None = None,
-    finale_paid: bool = False,
-    defeated: bool | None = None,
-    dweller: Dweller | None = None,
-) -> SiteRoomView:
-    """Project the run row plus site JSON into the player-facing room view."""
-    rooms = _rooms_for_run(site, run)
-    room_index = min(run.room_cursor, len(rooms) - 1)
-    room = rooms[room_index]
-    if defeated is None:
-        pending = run.flags.get("pending_fight")
-        defeated = run.status == ExpeditionRunStatus.DEFEATED or bool(
-            run.is_open() and pending is not None and pending.get("room_id") == room.id
-        )
-    question_text: str | None = None
-    prompt = room.node.prompt
-    raider = _trivia_raider(room, run) if room.node.kind == "trivia" else None
-    raider_image_url = raider.image_url if raider is not None else None
-    raider_alt_image_url = raider.alt_image_url if raider is not None else None
-    if room.node.kind == "trivia":
-        if raider is not None:
-            prompt = f"{raider.intro} {prompt}"
-        question = _trivia_question(room, run)
-        if question is not None and run.is_open() and not run.flags.get("combat"):
-            question_text = question.prompt
-            options = [NodeOptionView(id=option.id, label=option.label) for option in question.options]
-        else:
-            options = []
-    else:
-        options = [
-            NodeOptionView(
-                id=option.id,
-                label=option.label,
-                stat=option.stat,
-                difficulty=option.difficulty,
-                success_odds=success_odds(_stat_value(exploration, option.stat), option.difficulty),
-            )
-            for option in room.node.options
-        ]
-    enemies = (
-        [enemy["name"] for enemy in run.flags["combat"]["opponents"]]
-        if run.flags.get("combat")
-        else [spec.name for spec in room.node.enemies]
-    )
-    if raider is not None and not run.flags.get("combat") and enemies:
-        enemies = [raider.name, *enemies[1:]]
-    for option in room.node.options:
-        enemies.extend(spec.name for spec in (option.failure.combat_enemies or []))
-    return SiteRoomView(
-        exploration_id=exploration_id,
-        site_id=site.id,
-        site_name=site.name,
-        room_index=room_index,
-        room_total=len(rooms),
-        room_name=room.name,
-        room_names=[room.name for room in rooms],
-        flavor=room.flavor,
-        node=SiteNodeView(
-            kind=room.node.kind,
-            prompt=prompt,
-            question=question_text,
-            raider_image_url=raider_image_url,
-            raider_alt_image_url=raider_alt_image_url,
-            options=options,
-            enemy_names=enemies,
-        ),
-        can_retreat=run.is_open(),
-        status=run.status.value,
-        outcome=outcome,
-        finale_paid=finale_paid,
-        defeated=defeated,
-        dweller_health=dweller.health if dweller is not None else 0,
-        dweller_max_health=dweller.effective_max_health if dweller is not None else 0,
-        scene_id=site.scene_id,
-        lore=site.lore if run.flags.get("single_scene") else "",
-        combat_state=combat_view(run.flags["combat"], dweller) if dweller and run.flags.get("combat") else None,
-    )
 
 
 async def _refresh_run(db_session: AsyncSession, run: ExpeditionRun) -> ExpeditionRun:
@@ -678,7 +467,7 @@ class ExpeditionService:
         if exploration.heading_degrees is not None:
             await self._require_site_near_trail(db_session, exploration, site)
         else:
-            blocked = await _site_block_reason(db_session, exploration.vault_id, site_id)
+            blocked = await site_block_reason(db_session, exploration.vault_id, site_id)
             if blocked == "open":
                 raise ResourceConflictException(f"{site_id} already has an open expedition run")
             if blocked == "cooldown" and not _is_all_sites_scenario(exploration):
@@ -701,8 +490,8 @@ class ExpeditionService:
             rooms = [site.encounter] if single_scene and site.encounter is not None else site.rooms
             flags = {
                 **run.flags,
-                "trivia_questions": _pick_trivia_questions(rooms),
-                "trivia_raiders": _pick_trivia_raiders(rooms),
+                "trivia_questions": pick_trivia_questions(rooms),
+                "trivia_raiders": pick_trivia_raiders(rooms),
             }
             if single_scene:
                 flags["single_scene"] = True
@@ -713,7 +502,7 @@ class ExpeditionService:
         from app.services.exploration_service import exploration_service
 
         await exploration_service.pause_for_encounter(db_session, exploration)
-        await _log_site_event(db_session, exploration, f"Entered {site.name}: {_rooms_for_run(site, run)[0].flavor}")
+        await _log_site_event(db_session, exploration, f"Entered {site.name}: {rooms_for_run(site, run)[0].flavor}")
         await db_session.commit()
         return build_view(exploration_id, site, run, exploration, dweller=dweller_obj)
 
@@ -785,7 +574,7 @@ class ExpeditionService:
                 if not site_is_offered(site, context):
                     continue
             else:
-                blocked = await _site_block_reason(db_session, exploration.vault_id, site.id)
+                blocked = await site_block_reason(db_session, exploration.vault_id, site.id)
                 if blocked is not None and not (_is_all_sites_scenario(exploration) and blocked == "cooldown"):
                     continue
             available.append(site)
@@ -822,7 +611,7 @@ class ExpeditionService:
         site = data_loader.get_expedition_site(run.site_id)
         if site is None:
             raise ValidationException(f"Unknown expedition site: {run.site_id!r}")
-        rooms = _rooms_for_run(site, run)
+        rooms = rooms_for_run(site, run)
         room = rooms[run.room_cursor]
         if run.flags.get("single_scene") and room.node.kind == "combat":
             try:
@@ -853,7 +642,7 @@ class ExpeditionService:
                 )
                 if consumed is not None:
                     raise ValidationException(f"{site.name} is already spent for this journey")
-            elif not _is_all_sites_scenario(exploration) and await _site_block_reason(
+            elif not _is_all_sites_scenario(exploration) and await site_block_reason(
                 db_session, exploration.vault_id, run.site_id, include_open=False
             ):
                 raise ValidationException(f"{site.name} is quiet after a recent expedition")
@@ -941,7 +730,7 @@ class ExpeditionService:
         judges the same question and the same answer key. A cleared run has no open
         row, so a duplicate submission cannot pay the vault twice.
         """
-        question = _trivia_question(room, run)
+        question = trivia_question(room, run)
         if question is None:
             raise ValidationException("This trivia encounter has no persisted question")
         if request.choice_id is None:
@@ -950,7 +739,7 @@ class ExpeditionService:
             raise ValidationException(f"Unknown answer {request.choice_id!r} for this question")
 
         result = BranchResult()
-        raider = _trivia_raider(room, run)
+        raider = trivia_raider(room, run)
         correct = request.choice_id == question.correct_option_id
         if correct:
             await _pay_reward_vault(exploration, site, full=True, result=result)

@@ -1,6 +1,6 @@
 # Fallout Shelter — Development Roadmap
 
-_Last updated: 2026-10-20_
+_Last updated: 2026-10-31_
 
 ## Current direction
 
@@ -49,6 +49,31 @@ No PR is approved for merge by this roadmap.
 - [Operational correctness #885](https://github.com/ElderEvil/falloutProject/issues/885): verify the live
   inventory before changes; prioritize reproducible deployments, migration sequencing and recovery as warranted.
 - Fix demonstrated correctness/security blockers promptly. Avoid unrelated rewrites or library migrations.
+
+## 3.0 platform release plan
+
+3.0 is a deliberate, reversible runtime and database boundary, not a routine version bump. The boundary
+is split so the app major does not wait on upstream dependency schedules.
+
+**v3.0 — runtime and database boundary** ([tracker #1259](https://github.com/ElderEvil/falloutProject/issues/1259);
+target: late 2026 / early 2027)
+
+- Python 3.14 baseline: `requires-python`, CI, container images and development tasks.
+- SQLModel 0.0.48 + SQLAlchemy 2.1 with the aware-UTC migration (`timestamp → timestamptz` + backfill).
+- Alembic baseline regeneration and a production-clone migration/rollback rehearsal.
+- One maintenance window, a rollback pin, and a `BREAKING CHANGE:` commit so Semantic Release produces 3.0.0.
+- Starts only after journeys [#1034](https://github.com/ElderEvil/falloutProject/issues/1034) and
+  [#1112](https://github.com/ElderEvil/falloutProject/issues/1112) are verified/closed; #928 is closed.
+
+**v3.1 — dependency majors** ([milestone](https://github.com/ElderEvil/falloutProject/milestone/2); 2027,
+gated on upstream support)
+
+- [Pydantic v3 #1258](https://github.com/ElderEvil/falloutProject/issues/1258), TypeScript 7, HTTPX 2,
+  UUIDv7 and the remaining tooling items.
+- Each waits for its ecosystem: SQLModel/PydanticAI/FastAPI for Pydantic v3, Volar/`vue-tsc` for TypeScript 7.
+
+No v3.0 date is announced until the tracker's gates are green. Keep the Dependabot pre-3.0 ignores
+(`sqlmodel >=0.0.45`, `sqlalchemy >=2.1`, `typescript >=7`) until each boundary opens.
 
 ## Deferred direction and retained research
 

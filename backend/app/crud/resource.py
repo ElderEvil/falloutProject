@@ -11,7 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.core.game_config import game_config
-from app.core.tick_profiling import tick_phase
+from app.core.tick_profiling import tick_phase, tick_sql_phase
 from app.models import Dweller, Room, Storage, Vault
 from app.models.game_state import GameState
 from app.utils.exceptions import ResourceNotFoundException
@@ -33,24 +33,30 @@ class CRUDResource:
     """Database access used by the resource service."""
 
     async def get_vault_resource_data(self, db_session: AsyncSession, vault_id: UUID4) -> VaultResourceData:
-        with tick_phase("resources.load.vault"):
-            with tick_phase("resources.load.vault.query"):
-                vault_result = await db_session.execute(
-                    select(Vault, Storage, GameState)
-                    .select_from(Vault)
-                    .outerjoin(Storage, Storage.vault_id == Vault.id)
-                    .outerjoin(GameState, GameState.vault_id == Vault.id)
-                    .where(Vault.id == vault_id)
-                )
+        with (
+            tick_phase("resources.load.vault"),
+            tick_phase("resources.load.vault.execute"),
+            tick_sql_phase(db_session, "resources.load.vault"),
+        ):
+            vault_result = await db_session.execute(
+                select(Vault, Storage, GameState)
+                .select_from(Vault)
+                .outerjoin(Storage, Storage.vault_id == Vault.id)
+                .outerjoin(GameState, GameState.vault_id == Vault.id)
+                .where(Vault.id == vault_id)
+            )
             with tick_phase("resources.load.vault.materialize"):
                 vault_row = vault_result.one_or_none()
         if vault_row is None:
             raise ResourceNotFoundException(Vault, identifier=vault_id)
 
         vault, storage, game_state = vault_row
-        with tick_phase("resources.load.rooms"):
-            with tick_phase("resources.load.rooms.query"):
-                rooms_result = await db_session.execute(select(Room).where(Room.vault_id == vault_id))
+        with (
+            tick_phase("resources.load.rooms"),
+            tick_phase("resources.load.rooms.execute"),
+            tick_sql_phase(db_session, "resources.load.rooms"),
+        ):
+            rooms_result = await db_session.execute(select(Room).where(Room.vault_id == vault_id))
             with tick_phase("resources.load.rooms.materialize"):
                 rooms = rooms_result.scalars().all()
         present = (
@@ -59,20 +65,23 @@ class CRUDResource:
             Dweller.is_dead.is_(False),
             Dweller.status.not_in([DwellerStatusEnum.DEAD, DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING]),
         )
-        with tick_phase("resources.load.dwellers"):
-            with tick_phase("resources.load.dwellers.query"):
-                dweller_result = await db_session.execute(
-                    select(Dweller, Room)
-                    .select_from(Dweller)
-                    .outerjoin(Room, and_(Room.id == Dweller.room_id, Room.vault_id == vault_id))
-                    .where(*present)
-                    # Production reads the outfit for its SPECIAL bonus, so it must
-                    # be loaded here. selectinload batches it into one extra query
-                    # for the whole vault rather than one per dweller per tick.
-                    # The pet is loaded too: effective_stat also consumes the
-                    # equipped pet's SPECIAL bonus (B7 eager-load fan-out).
-                    .options(selectinload(Dweller.outfit), selectinload(Dweller.pet))
-                )
+        with (
+            tick_phase("resources.load.dwellers"),
+            tick_phase("resources.load.dwellers.execute"),
+            tick_sql_phase(db_session, "resources.load.dwellers"),
+        ):
+            dweller_result = await db_session.execute(
+                select(Dweller, Room)
+                .select_from(Dweller)
+                .outerjoin(Room, and_(Room.id == Dweller.room_id, Room.vault_id == vault_id))
+                .where(*present)
+                # Production reads the outfit for its SPECIAL bonus, so it must
+                # be loaded here. selectinload batches it into one extra query
+                # for the whole vault rather than one per dweller per tick.
+                # The pet is loaded too: effective_stat also consumes the
+                # equipped pet's SPECIAL bonus (B7 eager-load fan-out).
+                .options(selectinload(Dweller.outfit), selectinload(Dweller.pet))
+            )
             with tick_phase("resources.load.dwellers.materialize"):
                 dweller_rows = dweller_result.all()
 

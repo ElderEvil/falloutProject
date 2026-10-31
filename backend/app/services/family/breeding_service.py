@@ -171,7 +171,6 @@ class BreedingService:
             db_session, vault_id, game_config.breeding.birth_cooldown_hours
         )
 
-        # Batch partner and relationship lookups once per tick instead of per pair.
         partner_ids = {dweller.partner_id for dweller in dwellers if dweller.partner_id is not None}
         partners_by_id = (
             {
@@ -181,14 +180,18 @@ class BreedingService:
             if partner_ids
             else {}
         )
+        requested_pairs: set[tuple[UUID4, UUID4]] = set()
+        for dweller in dwellers:
+            if dweller.partner_id is None:
+                continue
+            first, second = sorted((dweller.id, dweller.partner_id), key=str)
+            requested_pairs.add((first, second))
+
         relationships_by_pair: dict[tuple[UUID4, UUID4], Relationship] = {}
-        if partner_ids:
-            involvements = await relationship_crud.get_involving_any(
-                db_session, {dweller.id for dweller in dwellers} | partner_ids
-            )
-            for relationship in involvements:
-                relationships_by_pair[(relationship.dweller_1_id, relationship.dweller_2_id)] = relationship
-                relationships_by_pair[(relationship.dweller_2_id, relationship.dweller_1_id)] = relationship
+        if requested_pairs:
+            for relationship in await relationship_crud.get_by_pairs(db_session, list(requested_pairs)):
+                relationships_by_pair.setdefault((relationship.dweller_1_id, relationship.dweller_2_id), relationship)
+                relationships_by_pair.setdefault((relationship.dweller_2_id, relationship.dweller_1_id), relationship)
 
         new_pregnancies: list[Pregnancy] = []
         checked_pairs: set[tuple[str, str]] = set()

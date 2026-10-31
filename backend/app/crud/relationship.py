@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import and_
+from sqlalchemy import and_, or_, tuple_
 from sqlalchemy import update as sa_update
 from sqlmodel import select
 
@@ -73,12 +73,30 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         :param dweller_2_id: Second dweller ID
         :returns: Relationship if exists, None otherwise
         """
-        query = select(Relationship).where(
-            ((Relationship.dweller_1_id == dweller_1_id) & (Relationship.dweller_2_id == dweller_2_id))
-            | ((Relationship.dweller_1_id == dweller_2_id) & (Relationship.dweller_2_id == dweller_1_id))
+        query = (
+            select(Relationship)
+            .where(
+                ((Relationship.dweller_1_id == dweller_1_id) & (Relationship.dweller_2_id == dweller_2_id))
+                | ((Relationship.dweller_1_id == dweller_2_id) & (Relationship.dweller_2_id == dweller_1_id))
+            )
+            .order_by(Relationship.id)
         )
         result = await db.execute(query)
         return result.scalars().first()
+
+    async def get_by_pairs(
+        self,
+        db: AsyncSession,
+        pairs: list[tuple[UUID4, UUID4]],
+    ) -> list[Relationship]:
+        """Relationships for the given unordered pairs, ordered by id."""
+        if not pairs:
+            return []
+        forward = tuple_(Relationship.dweller_1_id, Relationship.dweller_2_id).in_(pairs)
+        reverse = tuple_(Relationship.dweller_2_id, Relationship.dweller_1_id).in_(pairs)
+        query = select(Relationship).where(or_(forward, reverse)).order_by(Relationship.id)
+        result = await db.execute(query)
+        return list(result.scalars().all())
 
     async def transition_partner_to_married(
         self,

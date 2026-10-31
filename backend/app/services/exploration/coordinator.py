@@ -10,7 +10,11 @@ from app.crud import exploration as crud_exploration
 from app.models.exploration import Exploration
 from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration.event_service import event_service
-from app.services.exploration.journey_state import close_open_site_run, settle_journey_dwellers
+from app.services.exploration.journey_state import (
+    close_open_site_run,
+    delete_journey_team,
+    restore_journey_dwellers,
+)
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.rewards_service import rewards_service
 from app.services.leveling_service import leveling_service
@@ -97,12 +101,13 @@ class ExplorationCoordinator:
 
         try:
             await crud_exploration.finalize_return(db_session, exploration_id=exploration_id)
-            await settle_journey_dwellers(db_session, exploration)
+            await restore_journey_dwellers(db_session, exploration)
             if recalled_early:
                 rewards = await rewards_service.apply_rewards(db_session, exploration, progress / 100, commit=False)
                 rewards = rewards.model_copy(update={"progress_percentage": progress, "recalled_early": True})
             else:
                 rewards = await rewards_service.apply_rewards(db_session, exploration, commit=False)
+            await delete_journey_team(db_session, exploration)
             await db_session.commit()
         except Exception:
             notification_service.discard_deferred_notifications(db_session)

@@ -7,10 +7,13 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.crud.team import team_crud
 from app.models.dweller import Dweller
 from app.models.exploration import ExpeditionRunStatus, ExplorationStatus
+from app.models.team import Team, TeamMember
 from app.models.vault import Vault
 from app.schemas.common import DwellerStatusEnum
+from app.services.dweller_service import dweller_service
 from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration.expedition import expedition_service
 from app.services.exploration.rewards_service import rewards_service
@@ -276,3 +279,47 @@ async def test_tick_claims_vault_before_reading_the_run(
 
     assert order[0] == "vault"
     assert order[1] == "exploration"
+
+
+@pytest.mark.asyncio
+async def test_party_finalize_grants_xp_when_caps_are_deposited(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Depositing party caps flushes the session, so the roster must survive until XP is granted."""
+    partner = await dweller_service.create_random_dweller(async_session, vault.id, register_bio_places=False)
+    exploration = await _expired_exploration(async_session, vault, dweller)
+
+    team = Team(vault_id=vault.id, exploration_id=exploration.id)
+    async_session.add(team)
+    await async_session.flush()
+    async_session.add_all(
+        [
+            TeamMember(team_id=team.id, dweller_id=dweller.id, slot_number=1, status="assigned"),
+            TeamMember(team_id=team.id, dweller_id=partner.id, slot_number=2, status="assigned"),
+        ]
+    )
+    exploration.team_id = team.id
+    async_session.add(exploration)
+    await async_session.commit()
+
+    await exploration_coordinator.start_return(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    exploration.total_caps_found = 250
+    exploration.total_distance = 10
+    vault.bottle_caps = 0
+    async_session.add_all([exploration, vault])
+    await async_session.commit()
+
+    before = {dweller.id: dweller.experience, partner.id: partner.experience}
+    await exploration_coordinator.finalize_return(async_session, exploration.id)
+
+    await async_session.refresh(dweller)
+    await async_session.refresh(partner)
+    await async_session.refresh(vault)
+    assert dweller.experience > before[dweller.id]
+    assert partner.experience > before[partner.id]
+    assert vault.bottle_caps == 250
+    assert await team_crud.get_exploration_team(async_session, exploration.id) is None

@@ -45,19 +45,30 @@ async def restore_dweller_status(db_session: AsyncSession, dweller_id: UUID4) ->
     await dweller_crud.update(db_session, dweller_id, DwellerUpdate(status=new_status), commit=False)
 
 
-async def settle_journey_dwellers(db_session: AsyncSession, exploration: Exploration) -> None:
-    """Return every survivor to a room-appropriate status and drop the party roster.
+async def restore_journey_dwellers(db_session: AsyncSession, exploration: Exploration) -> None:
+    """Return every survivor to a room-appropriate status.
 
     Shared by normal finalization and terminal closes (dweller deletion): departure
-    marks every party member EXPLORING, so a terminal close that skipped this would
-    leave survivors unavailable for new assignments. The caller commits.
+    marks every party member EXPLORING, so a close that skipped this would leave
+    survivors unavailable for new assignments. The caller commits.
     """
     if exploration.team_id is not None:
         for member in await team_crud.get_exploration_team_dwellers(db_session, exploration.id):
             if not member.is_dead:
                 await restore_dweller_status(db_session, member.id)
-        team = await team_crud.get_exploration_team(db_session, exploration.id)
-        if team is not None:
-            await db_session.delete(team)
         return
     await restore_dweller_status(db_session, exploration.dweller_id)
+
+
+async def delete_journey_team(db_session: AsyncSession, exploration: Exploration) -> None:
+    """Drop the dispatch roster once nothing else reads it; the caller commits.
+
+    Rewards read the roster to grant per-member XP, so this must run after
+    ``apply_rewards`` in finalization: depositing caps flushes the session, which
+    would otherwise delete the roster mid-settlement.
+    """
+    if exploration.team_id is None:
+        return
+    team = await team_crud.get_exploration_team(db_session, exploration.id)
+    if team is not None:
+        await db_session.delete(team)

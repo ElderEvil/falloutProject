@@ -53,7 +53,11 @@ from app.schemas.dweller import (
     DwellerUpdateRequest,
 )
 from app.services.exploration.event_service import event_service
-from app.services.exploration.journey_state import close_open_site_run, settle_journey_dwellers
+from app.services.exploration.journey_state import (
+    close_open_site_run,
+    delete_journey_team,
+    restore_journey_dwellers,
+)
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.leveling_service import leveling_service
 from app.services.map_service import map_service
@@ -115,7 +119,8 @@ class DwellerService:
         for exploration in explorations:
             exploration.abandon()
             db_session.add(exploration)
-            await settle_journey_dwellers(db_session, exploration)
+            await restore_journey_dwellers(db_session, exploration)
+            await delete_journey_team(db_session, exploration)
 
         await crud.dweller.delete(db_session, dweller_id, soft=soft, commit=False)
         await db_session.commit()

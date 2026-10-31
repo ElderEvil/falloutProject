@@ -20,14 +20,14 @@ from app.api.tasks import (
     game_tick,
 )
 from app.core.dramatiq import broker
-from app.models.pregnancy import Pregnancy
-from app.models.vault import Vault
-from app.services.game_tick.profiling import (
+from app.core.tick_profiling import (
     TickProfile,
     reset_current_profile,
     set_current_profile,
     tick_phase,
 )
+from app.models.pregnancy import Pregnancy
+from app.models.vault import Vault
 from app.utils.exceptions import ResourceNotFoundException
 
 

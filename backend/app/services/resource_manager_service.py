@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
+from app.core.tick_profiling import tick_phase
 from app.crud.resource import resource as resource_crud
 from app.models import Dweller, Room, Storage, Vault
 from app.models.game_state import GameState
@@ -21,7 +22,6 @@ from app.schemas.vault import (
     ResourceTickEvents,
     VaultUpdate,
 )
-from app.services.game_tick.profiling import tick_phase
 from app.utils.resource_warnings import get_resource_warnings
 
 logger = logging.getLogger(__name__)

@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.core.game_config import game_config
+from app.core.tick_profiling import tick_phase
 from app.models import Dweller, Room, Storage, Vault
 from app.models.game_state import GameState
 from app.utils.exceptions import ResourceNotFoundException
@@ -32,40 +33,43 @@ class CRUDResource:
     """Database access used by the resource service."""
 
     async def get_vault_resource_data(self, db_session: AsyncSession, vault_id: UUID4) -> VaultResourceData:
-        vault_row = (
-            await db_session.execute(
-                select(Vault, Storage, GameState)
-                .select_from(Vault)
-                .outerjoin(Storage, Storage.vault_id == Vault.id)
-                .outerjoin(GameState, GameState.vault_id == Vault.id)
-                .where(Vault.id == vault_id)
-            )
-        ).one_or_none()
+        with tick_phase("resources.load.vault"):
+            vault_row = (
+                await db_session.execute(
+                    select(Vault, Storage, GameState)
+                    .select_from(Vault)
+                    .outerjoin(Storage, Storage.vault_id == Vault.id)
+                    .outerjoin(GameState, GameState.vault_id == Vault.id)
+                    .where(Vault.id == vault_id)
+                )
+            ).one_or_none()
         if vault_row is None:
             raise ResourceNotFoundException(Vault, identifier=vault_id)
 
         vault, storage, game_state = vault_row
-        rooms = (await db_session.execute(select(Room).where(Room.vault_id == vault_id))).scalars().all()
+        with tick_phase("resources.load.rooms"):
+            rooms = (await db_session.execute(select(Room).where(Room.vault_id == vault_id))).scalars().all()
         present = (
             Dweller.vault_id == vault_id,
             Dweller.is_deleted.is_(False),
             Dweller.is_dead.is_(False),
             Dweller.status.not_in([DwellerStatusEnum.DEAD, DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING]),
         )
-        dweller_rows = (
-            await db_session.execute(
-                select(Dweller, Room)
-                .select_from(Dweller)
-                .outerjoin(Room, and_(Room.id == Dweller.room_id, Room.vault_id == vault_id))
-                .where(*present)
-                # Production reads the outfit for its SPECIAL bonus, so it must
-                # be loaded here. selectinload batches it into one extra query
-                # for the whole vault rather than one per dweller per tick.
-                # The pet is loaded too: effective_stat also consumes the
-                # equipped pet's SPECIAL bonus (B7 eager-load fan-out).
-                .options(selectinload(Dweller.outfit), selectinload(Dweller.pet))
-            )
-        ).all()
+        with tick_phase("resources.load.dwellers"):
+            dweller_rows = (
+                await db_session.execute(
+                    select(Dweller, Room)
+                    .select_from(Dweller)
+                    .outerjoin(Room, and_(Room.id == Dweller.room_id, Room.vault_id == vault_id))
+                    .where(*present)
+                    # Production reads the outfit for its SPECIAL bonus, so it must
+                    # be loaded here. selectinload batches it into one extra query
+                    # for the whole vault rather than one per dweller per tick.
+                    # The pet is loaded too: effective_stat also consumes the
+                    # equipped pet's SPECIAL bonus (B7 eager-load fan-out).
+                    .options(selectinload(Dweller.outfit), selectinload(Dweller.pet))
+                )
+            ).all()
 
         dweller_count = 0.0
         grouped_dwellers: dict[UUID4, tuple[Room, list[Dweller]]] = {}

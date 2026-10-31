@@ -107,7 +107,9 @@ class EventBus:
         if loop_id is None:
             self._emit_locks.clear()
             return
-        self._emit_locks = {key: lock for key, lock in self._emit_locks.items() if key[2] != loop_id}
+        for key in tuple(self._emit_locks):
+            if key[2] == loop_id:
+                self._emit_locks.pop(key, None)
 
     @staticmethod
     async def _safe_call(handler: EventHandler, event_type: GameEvent, vault_id: UUID4, data: dict[str, Any]) -> None:

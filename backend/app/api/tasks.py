@@ -4,6 +4,7 @@ import asyncio
 import logging
 import sys
 import time
+from contextlib import suppress
 from typing import Final
 from uuid import UUID, uuid4
 
@@ -18,6 +19,7 @@ from app.core.event_bus import event_bus
 from app.core.game_config import game_config
 from app.core.tick_chain import claim_tick_chain
 from app.db.session import task_session
+from app.models.vault import Vault
 from app.services.cleanup_service import cleanup_service
 from app.services.family.death_service import death_service
 from app.services.game_loop_service import game_loop_service
@@ -29,12 +31,24 @@ logger = logging.getLogger(__name__)
 INCIDENT_TICK_CHAIN_KEY: Final = "fallout:incident-tick:chain"
 VAULT_TICK_LOCK_PREFIX: Final = "fallout:vault-tick:"
 VAULT_TICK_LOCK_TTL_SECONDS: Final = game_config.game_loop.tick_interval - 5
+VAULT_TICK_LOCK_RENEW_INTERVAL_SECONDS: Final = 15
 VAULT_TICK_LOCK_RELEASE_SCRIPT: Final = """
 if redis.call('get', KEYS[1]) == ARGV[1] then
     return redis.call('del', KEYS[1])
 end
 return 0
 """
+VAULT_TICK_LOCK_REFRESH_SCRIPT: Final = """
+if redis.call('get', KEYS[1]) == ARGV[1] then
+    return redis.call('expire', KEYS[1], ARGV[2])
+end
+return 0
+"""
+
+
+class VaultTickLeaseLost(RuntimeError):
+    """Raised when a vault tick's Redis lease can no longer be renewed."""
+
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -141,8 +155,40 @@ async def _acquire_vault_tick_lock(redis: Redis, vault_id: str) -> str | None:
     return token if acquired else None
 
 
+async def _refresh_vault_tick_lock(redis: Redis, vault_id: str, token: str, ttl: int) -> bool:
+    refreshed = await redis.eval(
+        VAULT_TICK_LOCK_REFRESH_SCRIPT, 1, f"{VAULT_TICK_LOCK_PREFIX}{vault_id}", token, str(ttl)
+    )
+    return bool(refreshed)
+
+
 async def _release_vault_tick_lock(redis: Redis, vault_id: str, token: str) -> None:
     await redis.eval(VAULT_TICK_LOCK_RELEASE_SCRIPT, 1, f"{VAULT_TICK_LOCK_PREFIX}{vault_id}", token)
+
+
+async def _set_vault_tick_debounce(redis: Redis, vault_id: str, token: str, ttl: int) -> None:
+    try:
+        await _refresh_vault_tick_lock(redis, vault_id, token, ttl)
+    except Exception:
+        logger.exception("Failed to set vault tick debounce for %s", vault_id)
+
+
+async def _renew_vault_tick_lock(redis: Redis, vault_id: str, token: str) -> None:
+    while True:
+        await asyncio.sleep(VAULT_TICK_LOCK_RENEW_INTERVAL_SECONDS)
+        if not await _refresh_vault_tick_lock(redis, vault_id, token, VAULT_TICK_LOCK_TTL_SECONDS):
+            raise VaultTickLeaseLost(vault_id)
+
+
+async def _run_vault_tick(vault_id: str) -> VaultTickResult:
+    from app.services.progression.objectives.evaluators import evaluator_manager
+    from app.services.progression.objectives.notifications import register_objective_event_handlers
+
+    evaluator_manager.initialize()
+    register_objective_event_handlers()
+
+    async with task_session() as session:
+        return await game_loop_service.process_vault_tick(session, UUID(vault_id))
 
 
 async def _process_vault_tick_async(vault_id: str, redis: Redis) -> VaultTickResult:
@@ -150,23 +196,35 @@ async def _process_vault_tick_async(vault_id: str, redis: Redis) -> VaultTickRes
     token = await _acquire_vault_tick_lock(redis, vault_id)
     if token is None:
         return {"status": "skipped"}
+
+    started = time.monotonic()
+    renewal = asyncio.create_task(_renew_vault_tick_lock(redis, vault_id, token))
+    tick = asyncio.create_task(_run_vault_tick(vault_id))
     succeeded = False
     try:
-        from app.services.progression.objectives.evaluators import evaluator_manager
-        from app.services.progression.objectives.notifications import register_objective_event_handlers
+        done, _ = await asyncio.wait({tick, renewal}, return_when=asyncio.FIRST_COMPLETED)
+        if tick not in done:
+            tick.cancel()
+            with suppress(asyncio.CancelledError):
+                await tick
+            renewal.result()
+            raise AssertionError("vault tick lease renewal returned unexpectedly")
 
-        evaluator_manager.initialize()
-        register_objective_event_handlers()
-
-        async with task_session() as session:
-            result = await game_loop_service.process_vault_tick(session, UUID(vault_id))
-    except ResourceNotFoundException:
+        result = tick.result()
+        succeeded = True
+    except ResourceNotFoundException as exc:
+        if exc.model is not Vault:
+            raise
         logger.warning(f"Vault {vault_id} no longer exists; skipping tick")
         return {"status": "missing"}
     else:
-        succeeded = True
+        debounce_ttl = max(5, game_config.game_loop.tick_interval - int(time.monotonic() - started) - 1)
+        await _set_vault_tick_debounce(redis, vault_id, token, debounce_ttl)
         return result
     finally:
+        renewal.cancel()
+        with suppress(asyncio.CancelledError, VaultTickLeaseLost):
+            await renewal
         if not succeeded:
             await _release_vault_tick_lock(redis, vault_id, token)
         event_bus.clear_locks(loop_id)

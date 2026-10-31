@@ -1,5 +1,6 @@
 """Tests for scheduled background tasks."""
 
+import asyncio
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -14,6 +15,7 @@ from app.api.tasks import (
     _release_vault_tick_lock,
     check_quest_completion,
 )
+from app.models.pregnancy import Pregnancy
 from app.models.vault import Vault
 from app.utils.exceptions import ResourceNotFoundException
 
@@ -171,4 +173,58 @@ async def test_process_vault_tick_treats_deleted_vault_as_missing() -> None:
         assert result == {"status": "missing"}
         assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
     finally:
+        await redis.aclose()
+
+
+@pytest.mark.asyncio
+async def test_process_vault_tick_reraises_missing_non_vault_resources() -> None:
+    """A missing pregnancy or parent must retry, not masquerade as a deleted vault."""
+    vault_id = str(uuid4())
+    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    try:
+        with (
+            patch("app.api.tasks.task_session", new=lambda: _FakeTaskSession()),
+            patch("app.services.progression.objectives.evaluators.evaluator_manager.initialize"),
+            patch("app.services.progression.objectives.notifications.register_objective_event_handlers"),
+            patch(
+                "app.api.tasks.game_loop_service.process_vault_tick",
+                new=AsyncMock(side_effect=ResourceNotFoundException(Pregnancy, uuid4())),
+            ),
+            pytest.raises(ResourceNotFoundException),
+        ):
+            await _process_vault_tick_async(vault_id, redis)
+
+        assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
+    finally:
+        await redis.aclose()
+
+
+@pytest.mark.asyncio
+async def test_vault_tick_heartbeat_keeps_the_lease_alive(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A tick longer than the base TTL must not overlap a second worker."""
+    vault_id = str(uuid4())
+    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    monkeypatch.setattr("app.api.tasks.VAULT_TICK_LOCK_TTL_SECONDS", 1)
+    monkeypatch.setattr("app.api.tasks.VAULT_TICK_LOCK_RENEW_INTERVAL_SECONDS", 0.2)
+
+    async def slow_tick(*_args, **_kwargs):
+        await asyncio.sleep(1.5)
+        return {"vault_id": vault_id}
+
+    try:
+        with (
+            patch("app.api.tasks.task_session", new=lambda: _FakeTaskSession()),
+            patch("app.services.progression.objectives.evaluators.evaluator_manager.initialize"),
+            patch("app.services.progression.objectives.notifications.register_objective_event_handlers"),
+            patch("app.api.tasks.game_loop_service.process_vault_tick", new=slow_tick),
+        ):
+            first = asyncio.create_task(_process_vault_tick_async(vault_id, redis))
+            await asyncio.sleep(1.2)
+            second = await _process_vault_tick_async(vault_id, redis)
+            result = await first
+
+        assert second == {"status": "skipped"}
+        assert result == {"vault_id": vault_id}
+    finally:
+        await redis.delete(f"fallout:vault-tick:{vault_id}")
         await redis.aclose()

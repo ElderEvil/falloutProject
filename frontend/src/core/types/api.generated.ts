@@ -12216,6 +12216,10 @@ export interface components {
             description: string;
             /** Requires Boosted */
             requires_boosted: boolean;
+            /** Default Boosted */
+            default_boosted: boolean;
+            /** Default On */
+            default_on: boolean;
             /** Expedition */
             expedition: boolean;
         };

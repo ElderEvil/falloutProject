@@ -29,8 +29,9 @@ const matchingScenario = computed(() => {
   return props.scenarios.find((scenario) => scenario.number === parsed) ?? null
 })
 const scenarioRequiresBoosted = computed(() => matchingScenario.value?.requires_boosted === true)
-watch(matchingScenario, () => {
-  scenarioEnabled.value = false
+watch(matchingScenario, (scenario) => {
+  scenarioEnabled.value = scenario?.default_on ?? false
+  if (scenario?.default_boosted) boosted.value = true
 })
 watch([scenarioEnabled, scenarioRequiresBoosted], ([enabled, required]) => {
   if (enabled && required) boosted.value = true

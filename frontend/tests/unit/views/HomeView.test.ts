@@ -169,7 +169,7 @@ describe('HomeView', () => {
       expect(router.currentRoute.value.path).toBe('/vault/vault-99')
     })
 
-    it('creates the Vault 1 scenario only when opted in', async () => {
+    it('creates the Vault 1 scenario by default with a toggleable Boosted Start', async () => {
       vaultStore.vaults = []
       vi.mocked(axios.get).mockImplementation(async (url: string) => {
         if (url === '/api/v1/vaults/scenarios') {
@@ -178,9 +178,11 @@ describe('HomeView', () => {
               {
                 number: 1,
                 key: 'vault_1_test',
-                title: 'Vault 1 — Scout Test',
-                description: 'Adds a level 5 / SPECIAL 4 Scout and a single-scene expedition.',
+                title: 'Vault 1 — Wasteland Test',
+                description: 'Seeds one named dweller per expedition site.',
                 requires_boosted: false,
+                default_boosted: true,
+                default_on: true,
                 expedition: true,
               },
             ],
@@ -195,9 +197,12 @@ describe('HomeView', () => {
 
       await wrapper.get('input[type="number"]').setValue('1')
       await continueStep(wrapper)
-      expect(wrapper.text()).toContain('Vault 1 — Scout Test')
-      await wrapper.get('#scenario-start').trigger('click')
+      expect(wrapper.text()).toContain('Vault 1 — Wasteland Test')
       expect(wrapper.get('#scenario-start').attributes('aria-checked')).toBe('true')
+      expect(wrapper.get('#boosted-start').attributes('aria-checked')).toBe('true')
+
+      await wrapper.get('#boosted-start').trigger('click')
+      expect(wrapper.get('#boosted-start').attributes('aria-checked')).toBe('false')
 
       await continueStep(wrapper)
       await wrapper.get('form').trigger('submit')
@@ -228,6 +233,8 @@ describe('HomeView', () => {
                 title: 'Vault 68 — The Ratio',
                 description: '99 men and 1 woman: a Vault-Tec gender-ratio experiment.',
                 requires_boosted: true,
+                default_boosted: false,
+                default_on: false,
                 expedition: false,
               },
             ],

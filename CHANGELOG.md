@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.6 (2026-10-31)
+
+### Performance Improvements
+
+* **game-loop:** fan out vault ticks to dramatiq workers ([#1262](https://github.com/ElderEvil/falloutProject/issues/1262)) c2f8a9b
+
+### Documentation
+
+* **roadmap:** add the 3.0 platform release plan 22a0b21
+
 ## 2.282.5 (2026-10-31)
 
 ### Performance Improvements

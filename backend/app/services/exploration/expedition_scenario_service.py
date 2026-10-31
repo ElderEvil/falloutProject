@@ -104,6 +104,12 @@ def default_multi_site_ids() -> list[str]:
     return [site.id for site in data_loader.load_expedition_sites() if not site.scenario_only]
 
 
+def uniform_stats(special: int) -> tuple[int, int, int, int, int, int, int]:
+    """Every SPECIAL stat clamped to the allowed 1-10 range."""
+    value = max(1, min(10, special))
+    return (value, value, value, value, value, value, value)
+
+
 class ExpeditionScenarioService:
     """Opt-in builder for a ready-to-play interactive expedition-site scenario."""
 
@@ -171,7 +177,9 @@ class ExpeditionScenarioService:
         )
         if discovered_site is not None and await vault_slot.get_by_vault(db_session, vault.id) is None:
             await vault_slot.claim_next(db_session=db_session, vault_id=vault.id)
-        dweller = existing_dweller or await self._create_scenario_dweller(db_session, vault, special=special)
+        dweller = existing_dweller or await self._create_scenario_dweller(
+            db_session, vault, stats=uniform_stats(special)
+        )
         levels = dweller_level - dweller.level
         if levels > 0:
             await leveling_service.level_up_dweller(db_session, dweller, levels=levels)
@@ -233,12 +241,14 @@ class ExpeditionScenarioService:
         site scenes can be tested in parallel from the same vault.
         """
         site_ids = site_ids or default_multi_site_ids()
+        if not site_ids:
+            raise ValueError("At least one expedition site is required")
         dwellers = len(site_ids) if dwellers is None else dwellers
+        if dwellers > len(site_ids):
+            raise ValueError("Each dweller needs its own site; pass more site ids or fewer dwellers")
         dwellers = max(1, min(len(VAULT_ONE_DWELLERS), dwellers))
         dweller_level = max(1, min(50, dweller_level))
         duration_hours = max(1, min(24, duration_hours))
-        if not site_ids:
-            raise ValueError("At least one expedition site is required")
         for site_id in site_ids:
             site = data_loader.get_expedition_site(site_id)
             if site is None:
@@ -251,9 +261,7 @@ class ExpeditionScenarioService:
                 db_session, vault_id=vault_id, user_email=user_email
             )
         else:
-            owner = await crud.user.get_by_email(
-                db_session, email=user_email or settings.FIRST_SUPERUSER_EMAIL
-            )
+            owner = await crud.user.get_by_email(db_session, email=user_email or settings.FIRST_SUPERUSER_EMAIL)
             if owner is None:
                 raise ValueError("No superuser found — run 'uv run fo-cli createsuperuser --no-input' first")
             vaults = await crud.vault.get_by_user_id(db_session=db_session, user_id=owner.id)
@@ -276,11 +284,10 @@ class ExpeditionScenarioService:
         entries: list[ExpeditionScenarioResult] = []
         for index in range(dwellers):
             first_name, last_name, gender, profile_stats = VAULT_ONE_DWELLERS[index]
-            stats = (max(1, min(10, special)),) * 7 if special is not None else profile_stats
+            stats = uniform_stats(special) if special is not None else profile_stats
             dweller = await self._create_scenario_dweller(
                 db_session,
                 vault,
-                special=special if special is not None else 5,
                 stats=stats,
                 gender=gender,
                 first_name=first_name,
@@ -427,17 +434,13 @@ class ExpeditionScenarioService:
         db_session: AsyncSession,
         vault: Vault,
         *,
-        special: int = 5,
-        stats: tuple[int, int, int, int, int, int, int] | None = None,
+        stats: tuple[int, int, int, int, int, int, int] = (5, 5, 5, 5, 5, 5, 5),
         gender: GenderEnum = GenderEnum.MALE,
         first_name: str = "Scout",
         last_name: str = "Scenario",
     ) -> Dweller:
-        """Create a scenario dweller with either uniform or profile SPECIAL stats."""
-        value = max(1, min(10, special))
-        strength, perception, endurance, charisma, intelligence, agility, luck = (
-            stats if stats is not None else (value,) * 7
-        )
+        """Create a scenario dweller with the given SPECIAL stats."""
+        strength, perception, endurance, charisma, intelligence, agility, luck = stats
         return await dweller_service.create_dweller(
             db_session,
             DwellerCreate(

@@ -431,9 +431,7 @@ async def test_unknown_existing_scenario_dweller_never_creates_a_replacement(asy
 
 
 @pytest.mark.asyncio
-async def test_setup_multi_seeds_named_dwellers_with_one_site_each(
-    async_session: AsyncSession, vault: Vault
-) -> None:
+async def test_setup_multi_seeds_named_dwellers_with_one_site_each(async_session: AsyncSession, vault: Vault) -> None:
     result = await expedition_scenario_service.setup_multi(
         async_session,
         vault_id=vault.id,
@@ -498,9 +496,7 @@ async def test_setup_multi_reuses_or_creates_vault_one(async_session: AsyncSessi
 
 
 @pytest.mark.asyncio
-async def test_setup_multi_recreates_vault_one_before_seeding(
-    async_session: AsyncSession, superuser
-) -> None:
+async def test_setup_multi_recreates_vault_one_before_seeding(async_session: AsyncSession, superuser) -> None:
     old_vault = await vault_service.initiate_vault(
         async_session,
         obj_in=VaultNumber(number=1, boosted=False),
@@ -527,9 +523,7 @@ async def test_setup_multi_recreates_vault_one_before_seeding(
 
 
 @pytest.mark.asyncio
-async def test_setup_multi_defaults_to_one_dweller_per_site(
-    async_session: AsyncSession, vault: Vault
-) -> None:
+async def test_setup_multi_defaults_to_one_dweller_per_site(async_session: AsyncSession, vault: Vault) -> None:
     result = await expedition_scenario_service.setup_multi(
         async_session,
         vault_id=vault.id,
@@ -544,3 +538,14 @@ async def test_setup_multi_defaults_to_one_dweller_per_site(
     offered = [entry.available_sites[0].id for entry in result.entries]
     assert offered == expected_sites
     assert len(set(offered)) == len(expected_sites)
+
+
+@pytest.mark.asyncio
+async def test_setup_multi_rejects_more_dwellers_than_sites(async_session: AsyncSession, vault: Vault) -> None:
+    with pytest.raises(ValueError, match="own site"):
+        await expedition_scenario_service.setup_multi(
+            async_session,
+            vault_id=vault.id,
+            dwellers=2,
+            site_ids=["gloomwater_bog"],
+        )

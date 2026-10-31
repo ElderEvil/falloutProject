@@ -45,10 +45,14 @@ def _print_setup(result) -> None:
     )
     if result.discovered_site_id:
         typer.echo(f"Site report: {result.discovered_site_id} (bell + toast; enter before arrival home)")
-    if result.owner_email == settings.FIRST_SUPERUSER_EMAIL:
-        typer.echo(f"Login: {result.owner_email} (superuser — use the FIRST_SUPERUSER_PASSWORD from your .env)")
-    elif result.owner_email:
-        typer.echo(f"Login: {result.owner_email}")
+    _print_login(result.owner_email)
+
+
+def _print_login(owner_email: str | None) -> None:
+    if owner_email == settings.FIRST_SUPERUSER_EMAIL:
+        typer.echo(f"Login: {owner_email} (superuser — use the FIRST_SUPERUSER_PASSWORD from your .env)")
+    elif owner_email:
+        typer.echo(f"Login: {owner_email}")
 
 
 def _print_multi(result) -> None:
@@ -60,9 +64,7 @@ def _print_multi(result) -> None:
         site = entry.available_sites[0] if entry.available_sites else None
         typer.echo("Dweller:")
         gender = getattr(entry.dweller.gender, "value", entry.dweller.gender)
-        typer.echo(
-            f"  {entry.dweller.display_name} ({gender}, level {entry.dweller.level}, id {entry.dweller.id})"
-        )
+        typer.echo(f"  {entry.dweller.display_name} ({gender}, level {entry.dweller.level}, id {entry.dweller.id})")
         typer.echo(f"  exploration: {entry.exploration.id}")
         if site is not None:
             typer.echo(f"  site: {site.id} ({site.name})")
@@ -70,10 +72,7 @@ def _print_multi(result) -> None:
                 f"  Frontend: http://localhost:5173/vault/{result.vault.id}/exploration/"
                 f"{entry.exploration.id}?siteId={site.id}"
             )
-    if result.owner_email == settings.FIRST_SUPERUSER_EMAIL:
-        typer.echo(f"Login: {result.owner_email} (superuser — use the FIRST_SUPERUSER_PASSWORD from your .env)")
-    elif result.owner_email:
-        typer.echo(f"Login: {result.owner_email}")
+    _print_login(result.owner_email)
 
 
 @app.command()
@@ -148,7 +147,7 @@ def vault1(
             "--dwellers",
             min=1,
             max=12,
-            help="How many named dwellers; default: one per expedition site",
+            help="How many named dwellers; default: one per selected site",
         ),
     ] = None,
     dweller_level: Annotated[int, typer.Option("--dweller-level", min=1, max=50)] = 5,
@@ -162,7 +161,7 @@ def vault1(
     ] = None,
     sites: Annotated[
         str | None,
-        typer.Option("--sites", help="Comma-separated site ids; defaults to the three new sites"),
+        typer.Option("--sites", help="Comma-separated site ids; defaults to every non-scenario site"),
     ] = None,
     vault_number: Annotated[int, typer.Option("--vault-number", min=1, max=999)] = 1,
     vault_id: Annotated[
@@ -178,7 +177,7 @@ def vault1(
         typer.Option("--keep-existing", help="Reuse Vault 1 instead of recreating it"),
     ] = False,
 ) -> None:
-    """Create a fresh Vault 1 with one named dweller per expedition site by default."""
+    """Create a fresh Vault 1 with one named dweller per selected site by default."""
     site_ids = [site.strip() for site in sites.split(",") if site.strip()] if sites else None
 
     async def _run() -> None:

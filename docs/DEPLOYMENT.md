@@ -67,6 +67,26 @@ docker compose logs -f
 docker compose down
 ```
 
+PostgreSQL 18 stores data under `/var/lib/postgresql/<major>/docker`, and every Compose
+file mounts the parent `/var/lib/postgresql`. The previous PostgreSQL 18 configuration
+did not place its default cluster in the old `/var/lib/postgresql/data` mount, so do not
+copy `postgres-data` or `postgres-data-local` into `18/docker`.
+
+If the old instance still runs, create and verify a logical backup before changing the
+mount, then restore it into a new PostgreSQL 18 data directory:
+
+```bash
+podman compose -f docker-compose.local.yml exec -T db \
+  sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > fallout-local-backup.sql
+podman compose -f docker-compose.local.yml up -d db
+podman compose -f docker-compose.local.yml exec -T db \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < fallout-local-backup.sql
+```
+
+A pre-18 on-disk cluster requires `pg_upgrade` or dump/restore; copying data files across
+major versions is not a valid migration. Do not remove the named volume until the backup
+restore is verified.
+
 **Access Points:**
 | Service | URL | Scope |
 |---------|-----|-------|

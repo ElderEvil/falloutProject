@@ -57,6 +57,8 @@ _WEAPON_OUTFIT_LOADS = (
     selectinload(Dweller.weapon),
     selectinload(Dweller.outfit),
 )
+#: Mirror of the frontend needs-care threshold.
+NEEDS_CARE_HEALTH_PERCENT = 50
 
 
 def determine_status_for_room(room_category: RoomTypeEnum | None, room_name: str | None = None) -> DwellerStatusEnum:
@@ -199,7 +201,12 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
                 health_ceiling = self.model.max_health + equipped_bonus - self.model.radiation
                 effective_max_health = case((health_ceiling > 1, health_ceiling), else_=1)
                 care_health_ratio = cast(self.model.health, Float) / effective_max_health
-                query = query.where(or_(self.model.radiation > 0, self.model.health * 2 < effective_max_health))
+                query = query.where(
+                    or_(
+                        self.model.radiation > 0,
+                        self.model.health * 100 < effective_max_health * NEEDS_CARE_HEALTH_PERCENT,
+                    )
+                )
 
         # Filter by status
         if status:
@@ -235,9 +242,9 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         if sort_by == "health" and care_health_ratio is not None:
             sort_column = care_health_ratio
             if order.lower() == "asc":
-                query = query.order_by(sort_column.asc())
+                query = query.order_by(sort_column.asc(), self.model.id.asc())
             else:
-                query = query.order_by(sort_column.desc())
+                query = query.order_by(sort_column.desc(), self.model.id.asc())
         elif sort_by == "name":
             # Special handling for name sorting - sort by first_name, then last_name
             if order.lower() == "asc":

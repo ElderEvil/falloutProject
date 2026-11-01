@@ -778,6 +778,35 @@ describe('DwellerFilter Store', () => {
       ])
     })
 
+    it('breaks Needs Care health ties by dweller id', () => {
+      const store = useDwellerFilterStore()
+      store.dwellers = [
+        {
+          id: 'tie-b',
+          first_name: 'Tie',
+          last_name: 'B',
+          status: 'idle',
+          health: 40,
+          max_health: 100,
+          radiation: 0,
+        } as any,
+        {
+          id: 'tie-a',
+          first_name: 'Tie',
+          last_name: 'A',
+          status: 'idle',
+          health: 40,
+          max_health: 100,
+          radiation: 0,
+        } as any,
+      ]
+      store.filterFocus = 'needs_care'
+      store.sortBy = 'health'
+      store.sortDirection = 'asc'
+
+      expect(store.filteredAndSortedDwellers.map((d) => d.id)).toEqual(['tie-a', 'tie-b'])
+    })
+
     it('should sort by happiness', () => {
       const store = useDwellerFilterStore()
       store.dwellers = [

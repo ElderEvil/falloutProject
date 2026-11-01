@@ -138,15 +138,17 @@ export function compareDwellers(
   direction: SortDirection,
   focus?: DwellerRosterFocus
 ): number {
+  const isCareHealthSort = sortBy === 'health' && focus === 'needs_care'
   const comparison =
     sortBy === 'name'
       ? `${a.first_name} ${a.last_name}`
           .toLowerCase()
           .localeCompare(`${b.first_name} ${b.last_name}`.toLowerCase())
-      : sortBy === 'health' && focus === 'needs_care'
+      : isCareHealthSort
         ? healthRatio(a) - healthRatio(b)
         : (a[sortBy] ?? 0) - (b[sortBy] ?? 0)
 
+  if (isCareHealthSort && comparison === 0) return a.id.localeCompare(b.id)
   return direction === 'asc' ? comparison : -comparison
 }
 

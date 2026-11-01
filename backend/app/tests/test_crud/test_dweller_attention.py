@@ -79,3 +79,19 @@ async def test_care_health_sort_uses_effective_health_percentage(async_session, 
     )
 
     assert [row.id for row in rows] == [low_percent.id, mid_percent.id, high_percent.id]
+
+
+@pytest.mark.asyncio
+async def test_care_health_sort_tie_breaks_by_dweller_id(async_session, vault, dweller_data):
+    first = await make_dweller(async_session, vault, dweller_data, "TieFirst", health=40, max_health=100)
+    second = await make_dweller(async_session, vault, dweller_data, "TieSecond", health=20, max_health=50)
+
+    rows = await crud.dweller.get_multi_by_vault(
+        async_session,
+        vault.id,
+        focus="needs_care",
+        sort_by="health",
+        order="asc",
+    )
+
+    assert [row.id for row in rows] == sorted([first.id, second.id], key=str)

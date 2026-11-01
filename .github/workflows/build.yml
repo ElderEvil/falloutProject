@@ -101,8 +101,10 @@ jobs:
             PYTHON_VERSION=${{ steps.release.outputs.python_version }}
             VITE_API_BASE_URL=${{ vars.PRODUCTION_API_URL }}
             VERSION=${{ steps.release.outputs.version }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}:latest
-          cache-to: type=inline
+          cache-from: |
+            type=registry,ref=${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}:buildcache
+            type=registry,ref=${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}:latest
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}:buildcache,mode=max
 
       - name: Check production backend image
         if: matrix.name == 'Backend'

@@ -7,11 +7,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=ghcr.io/astral-sh/uv:0.12.10@sha256:2bb3ebca0a796a155094a27773d290c4b074572e6107f171d88d086682fd2500 /uv /bin/uv
 WORKDIR /app
 
+ENV UV_LINK_MODE=copy
+
 # Cache runtime dependencies separately from the editable application and its CLI.
 COPY backend/pyproject.toml backend/uv.lock /app/
-RUN uv sync --frozen --no-default-groups --no-install-project --no-cache
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-default-groups --no-install-project
 COPY backend/ /app/
-RUN uv sync --frozen --no-default-groups --no-cache
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-default-groups
 
 FROM python:${PYTHON_VERSION:-3.13}-slim-bookworm
 COPY --from=builder /bin/uv /bin/uv

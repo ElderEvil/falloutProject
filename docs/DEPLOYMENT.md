@@ -564,6 +564,12 @@ Images built on push to `master` (when files change), org from the `DOCKER_USERN
 - `$DOCKER_USERNAME/fo-shelter-be:latest`, `v1.x.x`
 - `$DOCKER_USERNAME/fo-shelter-fe:latest`, `v1.x.x`
 
+Release builds keep a full BuildKit cache under
+`$DOCKER_USERNAME/fo-shelter-be:buildcache` and
+`$DOCKER_USERNAME/fo-shelter-fe:buildcache` (`mode=max`), so intermediate dependency
+layers survive between releases. The backend uses a uv cache mount; the frontend uses a
+pnpm store cache. Podman 5/Buildah and Docker BuildKit both support these cache mounts.
+
 ### Commit Conventions
 
 | Type | Version Bump | Example |

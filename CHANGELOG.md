@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.13 (2026-11-01)
+
+### Performance Improvements
+
+* **postgres:** enable query and slow-plan observability ([#1273](https://github.com/ElderEvil/falloutProject/issues/1273)) c94ca2a
+* **postgres:** tune dweller for high update churn ([#1274](https://github.com/ElderEvil/falloutProject/issues/1274)) 02e5388
+
 ## 2.282.12 (2026-11-01)
 
 ### Performance Improvements

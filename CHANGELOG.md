@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.284.4 (2026-11-01)
+
+### Performance Improvements
+
+* **tick:** reduce crafting and objective write overhead 7aa27ee
+* **worker:** cut dramatiq worker processes to two 261e608
+
 ## 2.284.3 (2026-11-01)
 
 ### Performance Improvements

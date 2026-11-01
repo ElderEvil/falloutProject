@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.17 (2026-11-01)
+
+### Performance Improvements
+
+* **build:** cache container dependencies and tighten context ([#1280](https://github.com/ElderEvil/falloutProject/issues/1280)) 92e0e08
+
 ## 2.282.16 (2026-11-01)
 
 ### Bug Fixes

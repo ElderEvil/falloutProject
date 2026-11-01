@@ -76,6 +76,16 @@ def test_service_manifest_matches_live_names_and_ingress() -> None:
     assert services["frontend-service"]["spec"]["ports"][0]["port"] == 3000
     assert services["postgres-service"]["spec"]["ports"][0]["port"] == 5432
 
+    deployments = {
+        "backend-service": "backend-deployment.yaml",
+        "frontend-service": "frontend-deployment.yaml",
+        "postgres-service": "postgres-deployment.yaml",
+    }
+    for service_name, filename in deployments.items():
+        deployment = _load(filename)
+        pod_labels = deployment["spec"]["template"]["metadata"]["labels"]
+        assert services[service_name]["spec"]["selector"].items() <= pod_labels.items()
+
     ingress = _load("ingress.yaml")
     backend_names = {
         path["backend"]["service"]["name"] for rule in ingress["spec"]["rules"] for path in rule["http"]["paths"]

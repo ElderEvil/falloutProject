@@ -6,6 +6,14 @@ fresh apply. Services are declared in `services.yaml` as `backend-service`,
 `frontend-service` and `postgres-service`; the ingress and `backend-env` depend on those
 names.
 
+If an existing namespace still has the old `backend` / `frontend` Services, remove them
+only after the new Services are ready:
+
+```bash
+kubectl apply -n fallout -f deployment/k3s/services.yaml
+kubectl delete -n fallout service backend frontend --ignore-not-found
+```
+
 ## Required external services
 
 - **PostgreSQL** — the manifest includes a single-node Postgres. Production may use an

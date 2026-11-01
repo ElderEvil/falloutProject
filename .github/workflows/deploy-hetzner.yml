@@ -401,11 +401,18 @@ jobs:
       - name: Clean up old images
         if: ${{ !inputs.preflight_only }}
         run: |
-          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
-            set -e
+          set -euo pipefail
+          SSH="ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key"
+          TARGET="${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }}"
 
-            echo "Pruning unused container images..."
-            sudo k3s crictl rmi --prune 2>/dev/null || echo "Nothing to prune"
+          $SSH "$TARGET" 'kubectl -n fallout delete job image-cleanup --ignore-not-found'
+          $SSH "$TARGET" 'kubectl apply -n fallout -f -' < deployment/k3s/image-cleanup-job.yaml
 
-            echo "Cleanup done."
-          EOF
+          if ! $SSH "$TARGET" 'kubectl -n fallout wait --for=condition=complete job/image-cleanup --timeout=180s'; then
+            $SSH "$TARGET" 'kubectl -n fallout logs job/image-cleanup --tail=200' || true
+            $SSH "$TARGET" 'kubectl -n fallout delete job image-cleanup --ignore-not-found'
+            exit 1
+          fi
+
+          $SSH "$TARGET" 'kubectl -n fallout logs job/image-cleanup --tail=200'
+          $SSH "$TARGET" 'kubectl -n fallout delete job image-cleanup --ignore-not-found'

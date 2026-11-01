@@ -56,3 +56,24 @@ the pod.
 `DRAMATIQ_PROCESSES` controls the Dramatiq worker-process count (default `4` in the
 manifest); Periodiq remains a single scheduler regardless of process count. Apply worker
 configuration changes explicitly and keep the selected release image tag.
+
+## Image cleanup
+
+`image-cleanup-job.yaml` is a one-shot privileged Job. It mounts the host root, selects
+only `fo-shelter-be` / `fo-shelter-fe` tags, and keeps the latest **two** releases
+(current + previous) before deleting older tags through the host's `k3s crictl`. It has
+no service account token and no access to unrelated repositories.
+
+The deploy workflow runs it after a successful rollout. Apply it manually with:
+
+```bash
+kubectl delete -n fallout job image-cleanup --ignore-not-found
+kubectl apply -n fallout -f deployment/k3s/image-cleanup-job.yaml
+kubectl -n fallout wait --for=condition=complete job/image-cleanup --timeout=180s
+kubectl -n fallout logs job/image-cleanup
+kubectl -n fallout delete job image-cleanup
+```
+
+The Job is intentionally privileged and host-root mounted; treat it as a controlled
+cleanup primitive, not a general-purpose pod. On a multi-node cluster it only cleans the
+node where it schedules.

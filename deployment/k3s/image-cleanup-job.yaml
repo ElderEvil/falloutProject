@@ -1,0 +1,62 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: image-cleanup
+  namespace: fallout
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 120
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: image-cleanup
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      containers:
+        - name: cleanup
+          image: alpine:3.22
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          env:
+            - name: KEEP_RELEASES
+              value: "2"
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              keep_releases="${KEEP_RELEASES:-2}"
+              for repo in fo-shelter-be fo-shelter-fe; do
+                full_repo="docker.io/elerevil/${repo}"
+                tags="$(chroot /host /usr/local/bin/k3s crictl images \
+                  | awk -v repo="${full_repo}" '$1 == repo && $2 ~ /^v[0-9]/ { print $2 }' \
+                  | sort -V)"
+                keep="$(printf '%s\n' "${tags}" | sed '/^$/d' | tail -n "${keep_releases}")"
+                for tag in ${tags}; do
+                  case " ${keep} " in
+                    *" ${tag} "*) echo "keep ${full_repo}:${tag}" ;;
+                    *)
+                      echo "remove ${full_repo}:${tag}"
+                      chroot /host /usr/local/bin/k3s crictl rmi "${full_repo}:${tag}"
+                      ;;
+                  esac
+                done
+              done
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+      volumes:
+        - name: host-root
+          hostPath:
+            path: /
+            type: Directory

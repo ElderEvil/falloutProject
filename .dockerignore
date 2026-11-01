@@ -8,16 +8,12 @@
 .gitignore
 .gitattributes
 
-# Frontend (not needed in backend image)
-frontend/node_modules/
-frontend/.pnpm-store/
-frontend/dist/
-frontend/coverage/
-frontend/*.tsbuildinfo
-frontend/.vscode/
-frontend/.idea/
-frontend/.DS_Store
-frontend/*.log
+# Frontend, deployment and local-agent files are not used by the backend image.
+frontend/
+deployment/
+.zed/
+.agents/
+.omo/
 
 # Backend exclusions
 backend/**/__pycache__/
@@ -28,7 +24,11 @@ backend/app.egg-info/
 backend/.mypy_cache/
 backend/.pytest_cache/
 backend/.coverage
+backend/coverage.json
+backend/coverage.xml
+backend/coverage-badge.json
 backend/htmlcov/
+backend/logs/
 backend/.venv/
 backend/venv/
 backend/env/

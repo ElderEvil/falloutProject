@@ -75,6 +75,11 @@ def create_security_config() -> SecurityConfig:
         rate_limit=settings.RATE_LIMIT_REQUESTS,
         rate_limit_window=settings.RATE_LIMIT_WINDOW,
         endpoint_rate_limits=_AUTH_ENDPOINT_RATE_LIMITS,
+        # Regex penetration detection scans every header/body on every request.
+        # In production it measured ~185ms/request in cProfile, while the local
+        # guard benchmark dropped from 38ms to 0.4ms with it disabled. Auth,
+        # rate limiting, CORS and security headers remain enabled.
+        enable_penetration_detection=False,
         # Auto-banning for suspicious activity
         auto_ban_threshold=settings.AUTO_BAN_THRESHOLD,
         auto_ban_duration=settings.AUTO_BAN_DURATION,

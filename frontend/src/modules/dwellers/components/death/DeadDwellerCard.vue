@@ -79,17 +79,21 @@ const handleViewDetails = () => {
         @keydown.enter.prevent="handleViewDetails"
         @keydown.space.prevent="handleViewDetails"
       >
-        <div v-if="normalizedThumbnail" class="absolute inset-0 grayscale contrast-125 sepia-0">
+        <div
+          v-if="normalizedThumbnail"
+          class="absolute inset-0 grayscale contrast-125 sepia-0 brightness-50"
+        >
           <img
             :src="normalizedThumbnail"
             :alt="dweller.first_name"
-            class="w-full h-full object-cover opacity-70"
+            class="w-full h-full object-cover opacity-60"
           />
         </div>
         <div v-else class="absolute inset-0 flex items-center justify-center bg-surface-sunken">
           <Icon icon="mdi:account" class="w-12 h-12 text-muted-foreground" />
         </div>
 
+        <div class="absolute inset-0 bg-black/25"></div>
         <!-- Red tint overlay -->
         <div class="absolute inset-0 bg-danger/30 mix-blend-overlay"></div>
 

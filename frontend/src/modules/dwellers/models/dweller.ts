@@ -11,13 +11,15 @@ export type DwellerShort = components['schemas']['DwellerReadLess']
 export type DwellerCreate = components['schemas']['DwellerCreate']
 
 /** Attention filters and overview counts share the API's pet-adjusted health ceiling. */
+export const NEEDS_CARE_HEALTH_PERCENT = 50
+
 export function needsCare(dweller: DwellerShort): boolean {
+  const effectiveMaxHealth =
+    dweller.effective_max_health ?? getEffectiveMaxHealth(dweller.radiation, dweller.max_health)
   return (
     dweller.status !== 'dead' &&
     (dweller.radiation > 0 ||
-      dweller.health <
-        (dweller.effective_max_health ??
-          getEffectiveMaxHealth(dweller.radiation, dweller.max_health)))
+      dweller.health / Math.max(1, effectiveMaxHealth) < NEEDS_CARE_HEALTH_PERCENT / 100)
   )
 }
 

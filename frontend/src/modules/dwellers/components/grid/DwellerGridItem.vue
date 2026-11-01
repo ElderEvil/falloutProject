@@ -100,6 +100,7 @@ const getStatColorClass = (value: number) => {
       <template v-if="dweller.thumbnail_url">
         <DwellerPortrait
           :thumbnail-url="dweller.thumbnail_url"
+          :dead="dweller.status === 'dead'"
           alt=""
           :image-class="`thumbnail-image ${portraitScaleClass}`"
           :scale="portraitScale"

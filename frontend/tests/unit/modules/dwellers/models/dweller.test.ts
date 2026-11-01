@@ -127,9 +127,11 @@ describe('Roster attention predicates', () => {
     effective_max_health: 100,
   } as DwellerShort
 
-  it('uses the API health ceiling including pet bonuses and excludes deceased dwellers', () => {
+  it('uses the 50% health ceiling plus radiation and excludes deceased dwellers', () => {
     expect(needsCare(dweller)).toBe(false)
-    expect(needsCare({ ...dweller, effective_max_health: 120 })).toBe(true)
+    expect(needsCare({ ...dweller, effective_max_health: 120 })).toBe(false)
+    expect(needsCare({ ...dweller, health: 59, effective_max_health: 120 })).toBe(true)
+    expect(needsCare({ ...dweller, health: 60, effective_max_health: 120 })).toBe(false)
     expect(needsCare({ ...dweller, radiation: 20, effective_max_health: 80 })).toBe(true)
     expect(needsCare({ ...dweller, status: 'dead', health: 0, radiation: 20 })).toBe(false)
   })

@@ -55,6 +55,7 @@ function activate() {
     <div class="flex-shrink-0">
       <DwellerPortrait
         :thumbnail-url="dweller.thumbnail_url"
+        :dead="dweller.status === 'dead'"
         alt=""
         fallback-icon="mdi:account-circle"
         :image-class="portraitClass"

@@ -12,6 +12,7 @@ interface Props {
   fallbackIcon?: string
   preferThumbnail?: boolean
   zoom?: boolean
+  dead?: boolean
   objectPosition?: string
   scale?: number
 }
@@ -24,6 +25,7 @@ const props = withDefaults(defineProps<Props>(), {
   fallbackIcon: 'mdi:account',
   preferThumbnail: false,
   zoom: true,
+  dead: false,
   objectPosition: undefined,
   scale: 1,
 })
@@ -89,7 +91,10 @@ watch(portraitUrl, () => {
       :class="[
         'portrait-clip-image',
         imageClass,
-        { 'default-portrait-zoom': isCuratedDefault && zoom },
+        {
+          'default-portrait-zoom': isCuratedDefault && zoom,
+          'dead-portrait-image': dead,
+        },
       ]"
       :style="imageStyle"
       @error="hasImageError = true"
@@ -130,5 +135,10 @@ watch(portraitUrl, () => {
 .portrait-clip-image.default-portrait-zoom {
   transform: scale(calc(var(--portrait-scale, 1) * 1.1));
   transform-origin: top center;
+}
+
+.dead-portrait-image {
+  filter: grayscale(1) brightness(0.4) contrast(1.25);
+  opacity: 0.6;
 }
 </style>

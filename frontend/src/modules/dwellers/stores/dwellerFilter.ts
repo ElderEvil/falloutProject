@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 import {
+  getEffectiveMaxHealth,
   hasLowHappiness,
   needsCare,
   GENDER_CONFIG_MAP,
@@ -124,19 +125,30 @@ export const isSortDirection = isOneOf(SORT_DIRECTIONS)
  * Roster ordering, shared by the store and the unassigned panel. The second copy that
  * lived in UnassignedDwellers had already drifted on how a missing stat sorts.
  */
+function healthRatio(dweller: DwellerShort): number {
+  const maxHealth =
+    dweller.effective_max_health ?? getEffectiveMaxHealth(dweller.radiation, dweller.max_health)
+  return dweller.health / Math.max(1, maxHealth)
+}
+
 export function compareDwellers(
   a: DwellerShort,
   b: DwellerShort,
   sortBy: DwellerSortBy,
-  direction: SortDirection
+  direction: SortDirection,
+  focus?: DwellerRosterFocus
 ): number {
+  const isCareHealthSort = sortBy === 'health' && focus === 'needs_care'
   const comparison =
     sortBy === 'name'
       ? `${a.first_name} ${a.last_name}`
           .toLowerCase()
           .localeCompare(`${b.first_name} ${b.last_name}`.toLowerCase())
-      : (a[sortBy] ?? 0) - (b[sortBy] ?? 0)
+      : isCareHealthSort
+        ? healthRatio(a) - healthRatio(b)
+        : (a[sortBy] ?? 0) - (b[sortBy] ?? 0)
 
+  if (isCareHealthSort && comparison === 0) return a.id.localeCompare(b.id)
   return direction === 'asc' ? comparison : -comparison
 }
 
@@ -335,7 +347,9 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
 
     // Apply sorting
-    result = [...result].sort((a, b) => compareDwellers(a, b, sortBy.value, sortDirection.value))
+    result = [...result].sort((a, b) =>
+      compareDwellers(a, b, sortBy.value, sortDirection.value, filterFocus.value)
+    )
 
     return result
   })

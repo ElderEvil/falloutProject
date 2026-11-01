@@ -736,6 +736,77 @@ describe('DwellerFilter Store', () => {
       expect(result[1].id).toBe('d1')
     })
 
+    it('sorts Needs Care by health percentage, not raw health', () => {
+      const store = useDwellerFilterStore()
+      store.dwellers = [
+        {
+          id: 'low-percent',
+          first_name: 'Low',
+          last_name: 'Percent',
+          status: 'idle',
+          health: 100,
+          max_health: 500,
+          radiation: 0,
+        } as any,
+        {
+          id: 'mid-percent',
+          first_name: 'Mid',
+          last_name: 'Percent',
+          status: 'idle',
+          health: 30,
+          max_health: 100,
+          radiation: 0,
+        } as any,
+        {
+          id: 'high-percent',
+          first_name: 'High',
+          last_name: 'Percent',
+          status: 'idle',
+          health: 24,
+          max_health: 50,
+          radiation: 0,
+        } as any,
+      ]
+      store.filterFocus = 'needs_care'
+      store.sortBy = 'health'
+      store.sortDirection = 'asc'
+
+      expect(store.filteredAndSortedDwellers.map((d) => d.id)).toEqual([
+        'low-percent',
+        'mid-percent',
+        'high-percent',
+      ])
+    })
+
+    it('breaks Needs Care health ties by dweller id', () => {
+      const store = useDwellerFilterStore()
+      store.dwellers = [
+        {
+          id: 'tie-b',
+          first_name: 'Tie',
+          last_name: 'B',
+          status: 'idle',
+          health: 40,
+          max_health: 100,
+          radiation: 0,
+        } as any,
+        {
+          id: 'tie-a',
+          first_name: 'Tie',
+          last_name: 'A',
+          status: 'idle',
+          health: 40,
+          max_health: 100,
+          radiation: 0,
+        } as any,
+      ]
+      store.filterFocus = 'needs_care'
+      store.sortBy = 'health'
+      store.sortDirection = 'asc'
+
+      expect(store.filteredAndSortedDwellers.map((d) => d.id)).toEqual(['tie-a', 'tie-b'])
+    })
+
     it('should sort by happiness', () => {
       const store = useDwellerFilterStore()
       store.dwellers = [

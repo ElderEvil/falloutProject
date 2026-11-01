@@ -54,30 +54,10 @@ jobs:
               - 'frontend/components.d.ts'
               - '.github/workflows/frontend-ci.yml'
 
-      - name: Restore pnpm binary
-        id: pnpm-bin
-        uses: actions/cache@v6
-        with:
-          path: ~/setup-pnpm
-          key: pnpm-bin-11.9.0-${{ runner.os }}
-
-      - name: Add cached pnpm to PATH
-        if: steps.pnpm-bin.outputs.cache-hit == 'true'
-        run: |
-          for d in "$HOME/setup-pnpm/node_modules/.bin" "$HOME/setup-pnpm"; do
-            if [ -x "$d/pnpm" ]; then
-              export PATH="$d:$PATH"; echo "$d" >> "$GITHUB_PATH"
-              break
-            fi
-          done
-          command -v pnpm
-
       - name: Install pnpm
-        if: steps.pnpm-bin.outputs.cache-hit != 'true'
         uses: pnpm/action-setup@v6
         with:
           version: 11.9.0
-          dest: ~/setup-pnpm
           run_install: false
 
       - name: Set up Node.js

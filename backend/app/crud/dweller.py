@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import UUID4
-from sqlalchemy import case, exists, func, update
+from sqlalchemy import Float, case, cast, exists, func, update
 from sqlalchemy.orm import selectinload
 from sqlmodel import and_, col, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -57,6 +57,8 @@ _WEAPON_OUTFIT_LOADS = (
     selectinload(Dweller.weapon),
     selectinload(Dweller.outfit),
 )
+#: Mirror of the frontend needs-care threshold.
+NEEDS_CARE_HEALTH_PERCENT = 50
 
 
 def determine_status_for_room(room_category: RoomTypeEnum | None, room_name: str | None = None) -> DwellerStatusEnum:
@@ -180,6 +182,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         if not include_deleted:
             query = query.where(~self.model.is_deleted)
 
+        care_health_ratio = None
         if focus is not None:
             query = query.where(
                 ~self.model.is_deleted, ~self.model.is_dead, self.model.status != DwellerStatusEnum.DEAD
@@ -197,7 +200,13 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
                 )
                 health_ceiling = self.model.max_health + equipped_bonus - self.model.radiation
                 effective_max_health = case((health_ceiling > 1, health_ceiling), else_=1)
-                query = query.where(or_(self.model.radiation > 0, self.model.health < effective_max_health))
+                care_health_ratio = cast(self.model.health, Float) / effective_max_health
+                query = query.where(
+                    or_(
+                        self.model.radiation > 0,
+                        self.model.health * 100 < effective_max_health * NEEDS_CARE_HEALTH_PERCENT,
+                    )
+                )
 
         # Filter by status
         if status:
@@ -230,7 +239,13 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             )
 
         # Sorting
-        if sort_by == "name":
+        if sort_by == "health" and care_health_ratio is not None:
+            sort_column = care_health_ratio
+            if order.lower() == "asc":
+                query = query.order_by(sort_column.asc(), self.model.id.asc())
+            else:
+                query = query.order_by(sort_column.desc(), self.model.id.asc())
+        elif sort_by == "name":
             # Special handling for name sorting - sort by first_name, then last_name
             if order.lower() == "asc":
                 query = query.order_by(self.model.first_name.asc(), self.model.last_name.asc())

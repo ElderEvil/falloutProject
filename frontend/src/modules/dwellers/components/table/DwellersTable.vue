@@ -95,6 +95,7 @@ function activate(dwellerId: string) {
             <DwellerPortrait
               v-if="column.id === 'portrait'"
               :thumbnail-url="dweller.thumbnail_url"
+              :dead="dweller.status === 'dead'"
               alt=""
               fallback-icon="mdi:account-circle"
               image-class="h-9 w-9 rounded object-cover"

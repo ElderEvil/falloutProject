@@ -3,6 +3,21 @@ export interface OverseerResourceWarning {
   message: string
 }
 
+export type ReadyActionKind =
+  | 'incident_aftermath'
+  | 'exploration_outcome'
+  | 'quest_claim'
+  | 'objective_claim'
+  | 'crafting_collect'
+  | 'training_complete'
+
+export interface ReadyAction {
+  kind: ReadyActionKind
+  label: string
+  route: string
+  count: number
+}
+
 export interface OverseerBriefingData {
   vaultNumber: number
   activeIncidentCount: number
@@ -14,6 +29,7 @@ export interface OverseerBriefingData {
   happiness: number
   resourceWarnings: OverseerResourceWarning[]
   dwellersPath: string
+  readyActions: ReadyAction[]
 }
 
 export const getOverseerAttentionCount = (briefing: OverseerBriefingData): number =>

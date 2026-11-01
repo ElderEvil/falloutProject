@@ -73,6 +73,8 @@ export interface Incident {
   events: components['schemas']['IncidentEventRead'][]
 }
 
+export type PendingIncidentOverflow = components['schemas']['PendingIncidentOverflowRead']
+
 export interface IncidentListResponse {
   vault_id: string
   incident_count: number

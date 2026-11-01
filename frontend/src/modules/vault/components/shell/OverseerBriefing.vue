@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
-import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
+import type { OverseerBriefingData, ReadyActionKind } from '@/modules/vault/models/overseerBriefing'
 
 type BriefingAction = 'incidents' | 'dwellers' | null
 
@@ -19,6 +19,15 @@ interface BriefingMetric {
   icon: string
   label: string
   value: string | number
+}
+
+const READY_ACTION_ICONS: Record<ReadyActionKind, string> = {
+  incident_aftermath: 'mdi:alert-octagon',
+  exploration_outcome: 'mdi:compass',
+  quest_claim: 'mdi:sword-cross',
+  objective_claim: 'mdi:target',
+  crafting_collect: 'mdi:hammer-wrench',
+  training_complete: 'mdi:dumbbell',
 }
 
 const props = defineProps<OverseerBriefingData>()
@@ -43,7 +52,7 @@ const metrics = computed<BriefingMetric[]>(() => [
   { icon: 'mdi:emoticon-outline', label: 'MORALE', value: `${Math.round(props.happiness)}%` },
 ])
 
-const attentionItems = computed<BriefingItem[]>(() => {
+const allAttentionItems = computed<BriefingItem[]>(() => {
   const items: BriefingItem[] = []
 
   if (props.activeIncidentCount > 0) {
@@ -102,18 +111,25 @@ const attentionItems = computed<BriefingItem[]>(() => {
     })
   }
 
-  return items.slice(0, 3)
+  return items
 })
+
+// No aggregate attention route exists, so overflow expands in place instead of inventing one.
+const showAllAttention = ref(false)
+const visibleAttentionItems = computed(() =>
+  showAllAttention.value ? allAttentionItems.value : allAttentionItems.value.slice(0, 3)
+)
+const hasMoreAttention = computed(() => allAttentionItems.value.length > 3)
 
 const statusLabel = computed(() => {
   if (props.activeIncidentCount > 0) return 'RESPONSE REQUIRED'
-  if (attentionItems.value.length > 0) return 'WATCH LIST ACTIVE'
+  if (allAttentionItems.value.length > 0) return 'WATCH LIST ACTIVE'
   return 'SYSTEMS NOMINAL'
 })
 
 const statusClass = computed(() => {
   if (props.activeIncidentCount > 0) return 'border-danger/60 bg-danger/10 text-foreground'
-  if (attentionItems.value.length > 0) return 'border-warning/60 bg-warning/10 text-foreground'
+  if (allAttentionItems.value.length > 0) return 'border-warning/60 bg-warning/10 text-foreground'
   return 'border-terminal-green/50 bg-terminal-green/10 text-terminal-green'
 })
 
@@ -158,9 +174,9 @@ const attentionIconClass = (tone: BriefingItem['tone']) =>
       />
     </div>
 
-    <div v-if="attentionItems.length" class="mt-4 space-y-2">
+    <div v-if="allAttentionItems.length" class="mt-4 space-y-2">
       <div
-        v-for="item in attentionItems"
+        v-for="item in visibleAttentionItems"
         :key="item.id"
         class="flex items-center gap-3 rounded border px-3 py-2"
         :class="attentionClass(item.tone)"
@@ -188,8 +204,53 @@ const attentionIconClass = (tone: BriefingItem['tone']) =>
           REVIEW
         </router-link>
       </div>
+
+      <Button
+        v-if="hasMoreAttention"
+        variant="ghost"
+        size="xs"
+        class="w-full justify-center text-[0.65rem] font-bold tracking-widest text-theme-primary"
+        v-bind="{ 'data-testid': 'attention-overflow-toggle' }"
+        @click="showAllAttention = !showAllAttention"
+      >
+        {{ showAllAttention ? 'SHOW LESS' : `VIEW ALL (${allAttentionItems.length})` }}
+      </Button>
     </div>
-    <p v-else class="mt-4 text-center text-xs tracking-wider text-terminal-green/80">
+
+    <div
+      v-if="readyActions.length"
+      class="mt-4 space-y-2"
+      v-bind="{ 'data-testid': 'ready-actions' }"
+    >
+      <p class="text-[0.65rem] font-bold tracking-[0.2em] text-muted-foreground">READY ACTIONS</p>
+      <RouterLink
+        v-for="action in readyActions"
+        :key="action.kind"
+        :to="action.route"
+        v-bind="{ 'data-testid': `ready-action-${action.kind}` }"
+        class="flex items-center gap-3 rounded border border-theme-primary/20 bg-surface px-3 py-2 transition-colors hover:bg-surface-warm-hover"
+      >
+        <Icon :icon="READY_ACTION_ICONS[action.kind]" class="h-5 w-5 shrink-0 text-theme-primary" />
+        <p class="min-w-0 flex-1 text-xs font-bold tracking-wide text-theme-primary">
+          {{ action.label }}
+        </p>
+        <span
+          class="shrink-0 rounded border border-theme-primary/30 px-1.5 py-0.5 text-[0.65rem] font-bold text-theme-primary"
+        >
+          {{ action.count }}
+        </span>
+        <Icon
+          icon="mdi:chevron-right"
+          class="h-4 w-4 shrink-0 text-muted-foreground"
+          :ariaHidden="true"
+        />
+      </RouterLink>
+    </div>
+
+    <p
+      v-if="!allAttentionItems.length && !readyActions.length"
+      class="mt-4 text-center text-xs tracking-wider text-terminal-green/80"
+    >
       All clear.
     </p>
   </section>

@@ -27,10 +27,11 @@ from app.models.vault_objective import VaultObjectiveProgressLink
 
 logger = logging.getLogger(__name__)
 
-# Loop-local session maker: dramatiq worker threads each run ``asyncio.run(run_tick())``
-# with their own event loop, so handlers must open sessions from the maker bound to
-# the loop that emitted the event (not the module-global one, which would share a
-# single asyncpg connection across loops and trigger InterfaceError collisions).
+# Loop-local session maker: dramatiq worker threads keep one event loop each
+# (``app.core.async_runtime.run_async``), so handlers must open sessions from the
+# maker bound to the loop that emitted the event (not the module-global one,
+# which would share an asyncpg connection across loops and trigger InterfaceError
+# collisions).
 current_session_maker: contextvars.ContextVar[Any] = contextvars.ContextVar("current_session_maker", default=None)
 
 

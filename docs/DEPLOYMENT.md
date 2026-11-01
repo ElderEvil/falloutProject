@@ -841,3 +841,29 @@ creation. Run this in a maintenance window:
 `deployment/k3s/postgres-deployment.yaml` is the source-of-truth manifest; it is pinned
 to the live `postgres:18-alpine` image and `/var/lib/postgresql` data mount to avoid a
 data-path change on future applies.
+
+### Postgres tuning and maintenance notes
+
+- Treat `idx_scan = 0` as a candidate, not proof. Check `pg_stat_database.stats_reset`
+  and a representative workload window before dropping an index, then use
+  `DROP INDEX CONCURRENTLY`; a normal `DROP INDEX` takes `ACCESS EXCLUSIVE`.
+  [Unused-index checklist](https://postgres.ai/docs/postgres-howtos/performance-optimization/indexing/how-to-find-unused-indexes),
+  [DROP INDEX](https://www.postgresql.org/docs/current/sql-dropindex.html)
+- The dweller autovacuum settings apply to the existing table; plain `VACUUM` reclaims
+  dead-tuple space for reuse. `fillfactor` only affects pages written after the
+  migration. Use `pg_repack` (preferred, online) or `VACUUM FULL` (maintenance window)
+  only for physical compaction or to apply the new `fillfactor` to existing pages.
+  [pg_repack](https://reorg.github.io/pg_repack/), [routine vacuuming](https://www.postgresql.org/docs/current/routine-vacuuming.html)
+- Keep `auto_explain.log_analyze=off` and a non-zero `auto_explain.log_min_duration` in
+  production; `auto_explain.log_analyze=on` and per-node timing
+  (`auto_explain.log_timing`) can add measurable overhead. Validate `track_io_timing`
+  on the host, because it is not free on every platform.
+  [auto_explain](https://www.postgresql.org/docs/current/auto-explain.html)
+- Do not change `random_page_cost` / `effective_io_concurrency` from a rule of thumb:
+  compare the actual plan with `SET LOCAL` first. The current workload showed no plan
+  change from `1.1` / `200`.
+- Size the worker task pool from the connection budget, not the SQLAlchemy default.
+  The task engine uses `pool_size=2`, `max_overflow=0` **per event loop**: `N` worker
+  loops can open up to `2 × N` pooled task connections, before API and other database
+  clients. Measure peak `pg_stat_activity` during a tick burst before changing worker
+  process counts.

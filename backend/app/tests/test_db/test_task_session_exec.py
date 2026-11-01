@@ -27,6 +27,8 @@ maker; SQLModel's ``AsyncSession`` subclasses SQLAlchemy's, so the
    through ``task_session()``.
 """
 
+import asyncio
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.engine import make_url
@@ -34,6 +36,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.async_runtime import run_async
 from app.core.config import settings
 from app.db.session import async_session_maker, task_session, task_session_maker
 
@@ -59,6 +62,19 @@ class TestTaskSessionExec:
         async with task_session_maker() as session_maker, session_maker() as session:
             assert isinstance(session, AsyncSession)
             assert hasattr(session, "exec")
+
+    async def test_task_session_reuses_the_loop_engine(self) -> None:
+        """Consecutive ticks on one loop must not build a new engine."""
+        async with task_session() as first, task_session() as second:
+            assert first.get_bind() is second.get_bind()
+
+    def test_run_async_reuses_the_thread_loop(self) -> None:
+        """Dramatiq worker threads keep one loop, so pooled connections survive."""
+
+        async def loop_id() -> int:
+            return id(asyncio.get_running_loop())
+
+        assert run_async(loop_id()) == run_async(loop_id())
 
     async def test_raw_sessionmaker_without_class_lacks_exec(self) -> None:
         """Documents the bug: ``async_sessionmaker`` without ``class_`` → no ``.exec()``."""

@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.284.0 (2026-11-01)
+
+### Features
+
+* **vault:** support shift-click repeat building d2cfed5
+
+### Bug Fixes
+
+* **dwellers:** make needs-care ordering deterministic 773180a
+* **dwellers:** sort needs care by health percentage cae7a5c
+
+### Continuous Integration
+
+* install pnpm without stale binary cache a592b87
+
 ## 2.283.2 (2026-11-01)
 
 ### Bug Fixes

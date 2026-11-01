@@ -113,7 +113,9 @@ uv run fo-cli ops check-ai --api-url https://fallout-api.evillab.tech --skip-cha
 
 4. Leave RustFS variables unset if storage is intentionally unavailable; the backend now starts without it. Configure
    them when media uploads are required.
-5. Run the **Deploy to Hetzner** workflow with the versioned backend image tag and migrations enabled when applicable.
+5. Run the **Deploy to Hetzner** workflow with the versioned backend image tag **only after the release
+   workflow has pushed both backend and frontend images**. A tag without images is not a deployable release;
+   the workflow's image-existence check intentionally rejects it.
    Migrations run in a dedicated Job using the target image before application images change. A failed Job aborts rollout.
    Enable `maintenance_mode` for incompatible schema changes, including the upgrade from v2.165.1 that drops
    `dweller.is_adult`: the workflow records API/worker replica counts, stops both writers, creates and verifies a
@@ -126,11 +128,14 @@ uv run fo-cli ops check-ai --api-url https://fallout-api.evillab.tech --skip-cha
    readability, not full restoreability; a separate isolated restore drill is still required.
    Plan a brief API maintenance window. Migration failure keeps writers stopped for inspection; retain the backup
    and restore the previous schema/image together rather than restarting old code against a changed schema.
-6. Confirm rollout and health after deployment:
+6. Confirm rollout, image tag, schema, and health after deployment:
 
    ```bash
    kubectl -n fallout rollout status deployment/backend deployment/dramatiq-worker
    kubectl -n fallout get pods
+   kubectl -n fallout get deployment backend dramatiq-worker frontend \
+     -o custom-columns=NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image
+   kubectl -n fallout exec deployment/backend -- uv run alembic current
    kubectl -n fallout logs deployment/backend --tail=100
    ```
 
@@ -530,6 +535,13 @@ so no `npm ci` or root lockfile is needed. Backend/frontend versions are synchro
 `.releaserc.json` (`@semantic-release/exec` runs `uv --directory backend version`; `@semantic-release/npm`
 updates `frontend/package.json` with `npmPublish: false`).
 
+Do **not** create or push version tags manually. Semantic release owns the tag, changelog, version commit,
+and image build; a tag that appears before the workflow completes can make semantic-release conclude that
+there is nothing to release and skip the version/changelog update and image build. If a tag is created
+accidentally, delete it, land a real commit on `master` through the normal PR flow, and wait for
+semantic-release to finish before deploying. Deploy only from a tag whose backend and frontend images
+exist; the workflow checks this.
+
 ### Branch protection and release writes
 
 `master` protection applies to administrators; force pushes and branch deletion are disabled.
@@ -595,6 +607,23 @@ docker compose exec fastapi uv run alembic downgrade -1
 # Create new migration
 docker compose exec fastapi uv run alembic revision --autogenerate -m "description"
 ```
+
+### Concurrent index DDL
+
+Index-only migrations can avoid a maintenance window. Run the concurrent DDL outside the migration
+transaction and gate it to PostgreSQL so SQLite test runs are unaffected:
+
+```python
+if op.get_bind().dialect.name != "postgresql":
+    return
+
+with op.get_context().autocommit_block():
+    op.drop_index("ix_example", table_name="example", postgresql_concurrently=True)
+    # op.create_index(..., postgresql_concurrently=True) works the same way.
+```
+
+This does **not** make a table rewrite or another lock-taking migration safe. Those still require
+`maintenance_mode=true`; concurrent index-only DDL does not.
 
 ### Content seeding
 Game content (quests, objectives, places) loads from JSON at **backend startup**, so a deploy's rollout

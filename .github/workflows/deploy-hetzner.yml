@@ -408,7 +408,7 @@ jobs:
           $SSH "$TARGET" 'kubectl -n fallout delete job image-cleanup --ignore-not-found'
           $SSH "$TARGET" 'kubectl apply -n fallout -f -' < deployment/k3s/image-cleanup-job.yaml
 
-          if ! $SSH "$TARGET" 'kubectl -n fallout wait --for=condition=complete job/image-cleanup --timeout=180s'; then
+          if ! $SSH "$TARGET" 'kubectl -n fallout wait --for=condition=complete job/image-cleanup --timeout=650s'; then
             $SSH "$TARGET" 'kubectl -n fallout logs job/image-cleanup --tail=200' || true
             $SSH "$TARGET" 'kubectl -n fallout delete job image-cleanup --ignore-not-found'
             exit 1

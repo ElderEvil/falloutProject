@@ -71,8 +71,9 @@ configuration changes explicitly and keep the selected release image tag.
 
 `image-cleanup-job.yaml` is a one-shot privileged Job. It mounts the host root, selects
 only `fo-shelter-be` / `fo-shelter-fe` tags, and keeps the latest **two** releases
-(current + previous) before deleting older tags through the host's `k3s crictl`. It has
-no service account token and no access to unrelated repositories.
+(current + previous) before deleting older tags through the host's `k3s crictl`. It validates
+`KEEP_RELEASES`, skips tags referenced by running containers, and has no service
+account token or access to unrelated repositories.
 
 The deploy workflow runs it after a successful rollout. Apply it manually with:
 

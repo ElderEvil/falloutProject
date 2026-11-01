@@ -71,6 +71,8 @@ def test_image_cleanup_job_is_privileged_and_keeps_two_releases() -> None:
     pod = job["spec"]["template"]["spec"]
     container = pod["containers"][0]
 
+    assert job["spec"]["backoffLimit"] == 2
+    assert job["spec"]["activeDeadlineSeconds"] == 600
     assert pod["automountServiceAccountToken"] is False
     assert pod["restartPolicy"] == "Never"
     assert container["securityContext"] == {"privileged": True, "runAsUser": 0}
@@ -78,10 +80,12 @@ def test_image_cleanup_job_is_privileged_and_keeps_two_releases() -> None:
     assert any(volume["hostPath"]["path"] == "/" for volume in pod["volumes"])
 
     script = " ".join([*container["command"], *container["args"]])
+    assert "set -euo pipefail" in script
     assert "fo-shelter-be" in script
     assert "fo-shelter-fe" in script
-    assert "sort -V" in script
+    assert "LC_ALL=C sort -V" in script
     assert "tail -n" in script
+    assert "userSpecifiedImage" in script
     assert "crictl rmi" in script
     assert "--prune" not in script
 

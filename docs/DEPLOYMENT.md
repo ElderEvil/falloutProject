@@ -941,3 +941,108 @@ data-path change on future applies.
   loops can open up to `2 × N` pooled task connections, before API and other database
   clients. Measure peak `pg_stat_activity` during a tick burst before changing worker
   process counts.
+
+### Connection budget
+
+Production PostgreSQL runs with `max_connections=100`; the budget is now explicit and
+validated at startup (`Settings.validate_connection_budget` rejects any configuration
+whose worst-case peak reaches the limit).
+
+| Client | Calculation | Ceiling |
+|---|---:|---:|
+| Reserved superuser slots | `POSTGRES_RESERVED_CONNECTIONS` | 3 |
+| API | `WEB_CONCURRENCY` 1 × (`API_DB_POOL_SIZE` 10 + `API_DB_MAX_OVERFLOW` 5) | 15 |
+| Dramatiq tasks | 2 processes × 8 threads × (`TASK_DB_POOL_SIZE` 2 + `TASK_DB_MAX_OVERFLOW` 0) | 32 |
+| **Worst-case database connections** | | **50** |
+| **Headroom below 100** | | **50** |
+
+The API deployment is one replica and pins `WEB_CONCURRENCY=1` (uvicorn reads it when
+`--workers` is absent), so a value inherited from the secret cannot spawn extra process
+pools behind the budget. The old `POOL_SIZE` calculation from
+`DB_POOL_SIZE // WEB_CONCURRENCY` plus `max_overflow=64` (up to 73 connections for a
+single API process) was both misleading and over budget.
+The worker deployment keeps `replicas: 1` with `DRAMATIQ_PROCESSES=2`; Dramatiq's
+default thread count is 8, now passed explicitly as `--threads "${DRAMATIQ_THREADS:-8}"`.
+A tick holds one session while a nested objective handler can open a second, which is
+why each loop keeps `pool_size=2`.
+
+If worker processes, threads, or API replicas change, update the corresponding
+settings in the same change; startup will fail rather than silently exceed PostgreSQL's
+limit. The 50-connection headroom absorbs the migration Job, `psql`/admin sessions, and
+transient connection churn; the validator only counts the long-lived application pools.
+Capture the live peak during the next tick burst before raising any value.
+
+### Notification retention
+
+`NOTIFICATION_READ_RETENTION_DAYS` (default **30**) applies to notifications that are
+read **or dismissed**. `NOTIFICATION_UNREAD_RETENTION_DAYS` (default **90**) applies
+only to rows that are unread and not dismissed. Configuration rejects an unread window
+shorter than the read window. Dismiss stays a soft delete; dismissal only makes the row
+eligible on the shorter read timeline.
+
+The daily `cleanup_old_records` actor calls `cleanup_old_notifications`, which fetches
+`CLEANUP_BATCH_SIZE` (500) oldest eligible rows at a time, deletes them, and commits per
+batch. The query is served by the existing `created_at` index and branches on the
+`is_read`/`is_dismissed` flags, so no new index is required by this change.
+
+Production was 17,772 notifications / ~51 MB with 16,416 unread (~93%). A read-only
+`created_at + 30d` prune would delete almost nothing; the split windows bound both the
+acted-on rows and the unread backlog while leaving recent unread state intact. Unread
+coalescing/analysis remains a separate concern (#1272).
+
+### Planner settings decision (rejected)
+
+The proposed `random_page_cost=1.1` / `effective_io_concurrency=200` change was tested
+with `SET LOCAL` on the top tick queries and **rejected**: estimated costs dropped but
+the dweller plan did not change, so there was no plan evidence to justify a global
+setting change. Production keeps `random_page_cost=4` and
+`effective_io_concurrency=16`. Revisit only with a specific query plan that improves.
+
+### Dweller bloat reclaim runbook (pending, not executed)
+
+Dweller is still ~1.5 GB after the write-path/index work. This is a one-time physical
+compaction to reclaim dead-tuple space and apply the new `fillfactor` to existing pages;
+it is **not** safe to run during normal traffic and was **not** run against production
+from this change.
+
+Preferred: `pg_repack` in a maintenance window. It needs the `pg_repack` extension and
+client binary, doubles the table's disk while it works, and leaves the original table
+intact if it aborts.
+
+```bash
+# Scheduled window only; scale writers down first if required by the plan.
+pg_repack --table public.dweller --no-superuser-check
+```
+
+Fallback: `VACUUM FULL public.dweller` with the API and workers paused. It takes
+`ACCESS EXCLUSIVE`, rewrites the table, and needs free disk roughly equal to the table
+plus indexes. Rollback is a restore from the pre-window backup; there is no online
+rollback for a completed `VACUUM FULL`.
+
+Before either path: take a database backup, record `pg_total_relation_size('dweller')`,
+confirm replica/worker counts are zero, and watch `pg_stat_activity` for blockers. After
+the run: refresh statistics (`ANALYZE public.dweller`), re-record table and index sizes,
+and confirm the next tick burst has no slow-query regression.
+
+### Issue #1271 status
+
+Complete in this change:
+
+- Connection headroom: explicit API/task pool settings, startup budget validation, and
+  deployment env alignment.
+- Notification retention: separate read/dismissed and unread windows, batched cleanup,
+  tests for read/unread/dismissed handling.
+- Planner decision: `random_page_cost` / `effective_io_concurrency` change explicitly
+  rejected with no setting applied.
+- Documentation: budget, retention policy, and bloat-reclaim runbook recorded.
+
+Already complete before this change: dead dweller indexes dropped (#1275) and worker
+engine reuse (#1277).
+
+Explicitly deferred:
+
+- One-time dweller bloat reclaim (`pg_repack` / `VACUUM FULL`) until a maintenance
+  window; current size and rollback notes are above.
+- Live `pg_stat_activity` peak sampling during a production tick burst; the budget is
+  derived from the deployed topology and will be validated at rollout.
+- Post-deploy notification growth measurement and unread coalescing (#1272).

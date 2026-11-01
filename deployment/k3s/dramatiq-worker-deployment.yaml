@@ -32,13 +32,21 @@ spec:
               value: "true"
             - name: DRAMATIQ_PROCESSES
               value: "2"
+            - name: DRAMATIQ_THREADS
+              value: "8"
+            - name: POSTGRES_MAX_CONNECTIONS
+              value: "100"
+            - name: TASK_DB_POOL_SIZE
+              value: "2"
+            - name: TASK_DB_MAX_OVERFLOW
+              value: "0"
           command: ["sh", "-c"]
           args:
             - |
               set -u
               uv run periodiq app.core.dramatiq app.api.tasks &
               PERIODIQ_PID=$!
-              uv run dramatiq --processes "${DRAMATIQ_PROCESSES:-1}" --worker-shutdown-timeout 15000 app.api.tasks &
+              uv run dramatiq --processes "${DRAMATIQ_PROCESSES:-1}" --threads "${DRAMATIQ_THREADS:-8}" --worker-shutdown-timeout 15000 app.api.tasks &
               DRAMATIQ_PID=$!
               shutdown() {
                 trap - TERM INT

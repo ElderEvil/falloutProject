@@ -13,8 +13,8 @@ async_engine = create_async_engine(
     str(settings.ASYNC_DATABASE_URI),
     echo=settings.ENVIRONMENT == "local",
     future=True,
-    pool_size=settings.POOL_SIZE,
-    max_overflow=64,
+    pool_size=settings.API_DB_POOL_SIZE,
+    max_overflow=settings.API_DB_MAX_OVERFLOW,
     # Force PostgreSQL connection to use UTC timezone
     # This ensures datetime.utcnow() values are correctly interpreted as UTC
     # Fixes 2-hour offset issue when system timezone differs from UTC
@@ -60,9 +60,10 @@ def _task_engine() -> AsyncEngine:
             future=True,
             pool_pre_ping=True,
             # One tick session plus one nested objective-handler session; other
-            # worker loops must not multiply the default 5 + 10 pool.
-            pool_size=2,
-            max_overflow=0,
+            # worker loops must not multiply the default 5 + 10 pool. The total
+            # is validated against max_connections in ``Settings``.
+            pool_size=settings.TASK_DB_POOL_SIZE,
+            max_overflow=settings.TASK_DB_MAX_OVERFLOW,
             connect_args={"server_settings": {"timezone": "UTC"}},
         )
         with _task_engines_lock:

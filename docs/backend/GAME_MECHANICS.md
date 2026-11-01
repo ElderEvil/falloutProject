@@ -419,11 +419,12 @@ loop per message.
 
 Each loop owns one task engine. Never share an `AsyncEngine` between loops: the
 default pool holds asyncpg connections bound to the loop that opened them.
-The task engine is deliberately capped at `pool_size=2` and `max_overflow=0`
-because a tick can hold one session while a nested objective handler opens a
-second. With four worker processes and eight threads each, this caps the task
-side at 64 connections instead of the default 5+10 pool multiplied across 32
-loops.
+The task engine defaults to `TASK_DB_POOL_SIZE=2` and
+`TASK_DB_MAX_OVERFLOW=0` because a tick can hold one session while a nested
+objective handler opens a second. With four worker processes and eight threads
+each, this caps the task side at 64 connections instead of the default 5+10
+pool multiplied across 32 loops. `Settings` validates the combined API/task
+budget against `POSTGRES_MAX_CONNECTIONS`; see `docs/DEPLOYMENT.md`.
 
 Engines currently live until the worker process exits. If short-lived loops or
 worker-restart tests are introduced, dispose each engine on its loop before

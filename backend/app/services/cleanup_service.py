@@ -41,17 +41,23 @@ class CleanupService:
     async def cleanup_old_notifications(
         self,
         db_session: AsyncSession,
-        retention_days: int | None = None,
+        read_retention_days: int | None = None,
+        unread_retention_days: int | None = None,
         batch_size: int | None = None,
     ) -> int:
-        retention = retention_days or settings.NOTIFICATION_RETENTION_DAYS
+        read_retention = read_retention_days or settings.NOTIFICATION_READ_RETENTION_DAYS
+        unread_retention = unread_retention_days or settings.NOTIFICATION_UNREAD_RETENTION_DAYS
         batch = batch_size or settings.CLEANUP_BATCH_SIZE
-        cutoff_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=retention)
+        now = datetime.now(UTC).replace(tzinfo=None)
+        read_cutoff = now - timedelta(days=read_retention)
+        unread_cutoff = now - timedelta(days=unread_retention)
 
         deleted_count = 0
 
         while True:
-            notifications_to_delete = await notification_crud.get_older_than(db_session, cutoff_date, batch)
+            notifications_to_delete = await notification_crud.get_expired_batch(
+                db_session, read_cutoff, unread_cutoff, batch
+            )
 
             if not notifications_to_delete:
                 break

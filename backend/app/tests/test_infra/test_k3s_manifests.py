@@ -49,7 +49,7 @@ def test_worker_manifest_matches_the_release_deployment_contract() -> None:
     assert "periodiq app.core.dramatiq app.api.tasks" in command
     assert "dramatiq --processes" in command
     assert "DRAMATIQ_PROCESSES" in command
-    assert any(env["name"] == "DRAMATIQ_PROCESSES" and env["value"] == "4" for env in container["env"])
+    assert any(env["name"] == "DRAMATIQ_PROCESSES" and env["value"] == "2" for env in container["env"])
 
 
 def test_postgres_observability_config_is_pinned() -> None:

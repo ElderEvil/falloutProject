@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.15 (2026-11-01)
+
+### Performance Improvements
+
+* **worker:** reuse task engine per event loop ([#1277](https://github.com/ElderEvil/falloutProject/issues/1277)) 7713764
+
+### Documentation
+
+* **deploy:** document release and concurrent-index ordering ([#1276](https://github.com/ElderEvil/falloutProject/issues/1276)) 851b58b
+* **roadmap:** defer zuvloop evaluation to 3.1 17de69d
+
 ## 2.282.14 (2026-11-01)
 
 ### Performance Improvements

@@ -4,7 +4,7 @@ services:
     restart: always
     env_file: ".env.local"
     volumes:
-      - postgres-data-local:/var/lib/postgresql/data
+      - postgres-data-local:/var/lib/postgresql
     ports:
       - "5432:5432"
     healthcheck:

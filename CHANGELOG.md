@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.284.3 (2026-11-01)
+
+### Performance Improvements
+
+* **security:** disable regex penetration scanning 0a1e7bc
+
 ## 2.284.2 (2026-11-01)
 
 ### Bug Fixes

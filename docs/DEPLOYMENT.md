@@ -773,3 +773,41 @@ older API replicas still accept untyped credentials until they have been replace
 
 This follows [RFC 8725 §3.12](https://www.rfc-editor.org/rfc/rfc8725.html#section-3.12),
 which requires mutually exclusive validation rules for different JWT uses.
+
+## Postgres observability and query profiling
+
+The production Postgres manifest enables `pg_stat_statements`, `auto_explain`, and
+`track_io_timing`. These settings require a Postgres restart and a one-time extension
+creation. Run this in a maintenance window:
+
+1. Back up the database and record replica counts, then scale API and workers down:
+
+   ```bash
+   kubectl -n fallout scale deployment/backend deployment/dramatiq-worker --replicas=0
+   ```
+
+2. Patch only the Postgres args; do not `kubectl apply` the full manifest over the live
+   deployment, whose environment wiring may differ:
+
+   ```bash
+   kubectl -n fallout patch deployment postgres --type=strategic -p '{"spec":{"template":{"spec":{"containers":[{"name":"postgres","args":["-c","shared_preload_libraries=pg_stat_statements,auto_explain","-c","track_io_timing=on","-c","auto_explain.log_min_duration=200ms","-c","auto_explain.log_analyze=off","-c","pg_stat_statements.max=5000","-c","pg_stat_statements.track=all"]}]}}}}'
+   kubectl -n fallout rollout status deployment/postgres --timeout=300s
+   ```
+
+3. Create the extension and reset the baseline:
+
+   ```bash
+   kubectl -n fallout exec deploy/postgres -- psql -U postgres -d fallout_db -c 'CREATE EXTENSION IF NOT EXISTS pg_stat_statements;'
+   kubectl -n fallout exec deploy/postgres -- psql -U postgres -d fallout_db -c 'SELECT pg_stat_statements_reset();'
+   ```
+
+4. Restore the API/worker replica counts. Verify `SHOW shared_preload_libraries`,
+   `SHOW track_io_timing`, and the `pg_stat_statements` view. Slow plans are emitted
+   to the Postgres pod logs through `auto_explain`.
+
+5. After collecting a representative window, review the top statements and slow plans
+   before changing query shape or indexes.
+
+`deployment/k3s/postgres-deployment.yaml` is the source-of-truth manifest; it is pinned
+to the live `postgres:18-alpine` image and `/var/lib/postgresql` data mount to avoid a
+data-path change on future applies.

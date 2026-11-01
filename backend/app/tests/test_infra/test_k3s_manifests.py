@@ -50,3 +50,17 @@ def test_worker_manifest_matches_the_release_deployment_contract() -> None:
     assert "dramatiq --processes" in command
     assert "DRAMATIQ_PROCESSES" in command
     assert any(env["name"] == "DRAMATIQ_PROCESSES" and env["value"] == "4" for env in container["env"])
+
+
+def test_postgres_observability_config_is_pinned() -> None:
+    """The production Postgres manifest must keep the live data path and enable profiling."""
+    manifest = _load("postgres-deployment.yaml")
+    container = _container(manifest)
+
+    assert container["image"] == "postgres:18-alpine"
+    assert any(mount["mountPath"] == "/var/lib/postgresql" for mount in container["volumeMounts"])
+    args = " ".join(container["args"])
+    assert "pg_stat_statements,auto_explain" in args
+    assert "track_io_timing=on" in args
+    assert "auto_explain.log_min_duration=200ms" in args
+    assert "pg_stat_statements.track=all" in args

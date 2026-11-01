@@ -14,7 +14,20 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: postgres:latest
+          image: postgres:18-alpine
+          args:
+            - "-c"
+            - "shared_preload_libraries=pg_stat_statements,auto_explain"
+            - "-c"
+            - "track_io_timing=on"
+            - "-c"
+            - "auto_explain.log_min_duration=200ms"
+            - "-c"
+            - "auto_explain.log_analyze=off"
+            - "-c"
+            - "pg_stat_statements.max=5000"
+            - "-c"
+            - "pg_stat_statements.track=all"
           ports:
             - containerPort: 5432
           env:
@@ -35,7 +48,7 @@ spec:
                   key: POSTGRES_PASSWORD
           volumeMounts:
             - name: postgres-storage
-              mountPath: /var/lib/postgresql/data
+              mountPath: /var/lib/postgresql
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:

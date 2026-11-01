@@ -2,7 +2,17 @@
 
 These manifests are the Git baseline. `.github/workflows/deploy-hetzner.yml` sets the
 release image tags with `kubectl set image`; the `:latest` tags here are only for a
-fresh apply.
+fresh apply. Services are declared in `services.yaml` as `backend-service`,
+`frontend-service` and `postgres-service`; the ingress and `backend-env` depend on those
+names.
+
+If an existing namespace still has the old `backend` / `frontend` Services, remove them
+only after the new Services are ready:
+
+```bash
+kubectl apply -n fallout -f deployment/k3s/services.yaml
+kubectl delete -n fallout service backend frontend --ignore-not-found
+```
 
 ## Required external services
 

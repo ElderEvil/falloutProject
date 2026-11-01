@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.16 (2026-11-01)
+
+### Bug Fixes
+
+* **infra:** align compose volumes and k3s services ([#1279](https://github.com/ElderEvil/falloutProject/issues/1279)) 2c14262
+
 ## 2.282.15 (2026-11-01)
 
 ### Performance Improvements

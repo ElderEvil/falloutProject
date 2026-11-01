@@ -31,7 +31,7 @@ spec:
             - name: LOG_JSON_FORMAT
               value: "true"
             - name: DRAMATIQ_PROCESSES
-              value: "4"
+              value: "2"
           command: ["sh", "-c"]
           args:
             - |

@@ -63,7 +63,7 @@ pod before starting its replacement during rollouts. The worker has no HTTP prob
 Kubernetes readiness is satisfied once the container starts, and process failure restarts
 the pod.
 
-`DRAMATIQ_PROCESSES` controls the Dramatiq worker-process count (default `4` in the
+`DRAMATIQ_PROCESSES` controls the Dramatiq worker-process count (default `2` in the
 manifest); Periodiq remains a single scheduler regardless of process count. Apply worker
 configuration changes explicitly and keep the selected release image tag.
 

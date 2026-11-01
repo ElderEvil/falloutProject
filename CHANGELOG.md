@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.14 (2026-11-01)
+
+### Performance Improvements
+
+* **dweller:** drop unused lookup indexes ([#1275](https://github.com/ElderEvil/falloutProject/issues/1275)) 14b2b3c, closes post-#1273
+
 ## 2.282.13 (2026-11-01)
 
 ### Performance Improvements

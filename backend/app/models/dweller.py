@@ -39,8 +39,8 @@ if TYPE_CHECKING:
 
 class DwellerBaseWithoutStats(SQLModel):
     # General info
-    first_name: str = Field(index=True, min_length=2, max_length=32)
-    last_name: str | None = Field(default=None, index=True, max_length=32)
+    first_name: str = Field(min_length=2, max_length=32)
+    last_name: str | None = Field(default=None, max_length=32)
     age_group: AgeGroupEnum = Field(default=AgeGroupEnum.ADULT)
     birth_date: datetime | None = Field(default=None)
     gender: GenderEnum = Field()
@@ -97,10 +97,10 @@ class DwellerBaseWithoutStats(SQLModel):
     despair_since: datetime | None = Field(default=None)
 
     # Death system
-    is_dead: bool = Field(default=False, index=True)
+    is_dead: bool = Field(default=False)
     death_timestamp: datetime | None = Field(default=None)
     death_cause: DeathCauseEnum | None = Field(default=None)
-    is_permanently_dead: bool = Field(default=False, index=True)
+    is_permanently_dead: bool = Field(default=False)
     epitaph: str | None = Field(default=None, max_length=255)
 
     # TBD

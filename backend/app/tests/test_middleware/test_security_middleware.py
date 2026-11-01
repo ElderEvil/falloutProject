@@ -24,6 +24,7 @@ def test_create_security_config_uses_trusted_proxy_and_limits(monkeypatch: pytes
     assert config.redis_fail_open is True
     assert config.endpoint_rate_limits == _AUTH_ENDPOINT_RATE_LIMITS
     assert config.rate_limit == settings.RATE_LIMIT_REQUESTS
+    assert config.security_headers["custom"]["Cross-Origin-Resource-Policy"] == "cross-origin"
 
 
 @pytest.mark.asyncio

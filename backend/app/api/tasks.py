@@ -239,8 +239,13 @@ async def _process_vault_tick_async(vault_id: str, redis: Redis, tick_id: str | 
 
 
 @dramatiq.actor(actor_name="process_vault_tick", max_retries=3, min_backoff=30000)
-def process_vault_tick(vault_id: str, tick_id: str | None = None, enqueued_at: float | None = None):
-    """Process one vault tick under a per-vault Redis lease."""
+def process_vault_tick(vault_id: str, tick_id: str | None = None, enqueued_at: float | None = None) -> None:
+    """Process one vault tick under a per-vault Redis lease.
+
+    The internal ``VaultTickResult`` is only used for the completion log. Returning
+    it here would hand a discarded payload to Dramatiq's Results middleware (which
+    warns on every tick), so the actor deliberately returns ``None``.
+    """
     start = time.perf_counter()
     profile = None
     if os.getenv("TICK_PROFILE") == "1":
@@ -276,7 +281,6 @@ def process_vault_tick(vault_id: str, tick_id: str | None = None, enqueued_at: f
     else:
         elapsed_ms = (time.perf_counter() - start) * 1000
         logger.info(f"Vault {vault_id} tick completed in {elapsed_ms:.1f}ms")
-    return result
 
 
 async def _check_permanent_deaths() -> int:

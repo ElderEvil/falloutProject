@@ -5,7 +5,6 @@ declares its ``objective_type``, the events it listens for, and how event data
 matches an objective's ``target_entity``.
 """
 
-import logging
 from typing import Any
 
 from pydantic import UUID4
@@ -20,8 +19,6 @@ from app.utils.objective_constants import (
     normalize_resource_type,
     normalize_room_type,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class CollectEvaluator(ObjectiveEvaluator):
@@ -260,19 +257,17 @@ class ReachEvaluator(ObjectiveEvaluator):
         else:
             current_value = amount
 
-        old_progress = link.progress
+        previous_progress, previous_total = link.progress, link.total
         link.progress = current_value
         link.total = objective.target_amount
-
-        logger.info(
-            f"Objective '{objective.challenge}' progress for vault {vault_id}: "
-            f"{old_progress} -> {link.progress}/{objective.target_amount}"
+        await self._persist_progress_transaction(
+            db_session,
+            vault_id,
+            objective,
+            link,
+            previous_progress=previous_progress,
+            previous_total=previous_total,
         )
-
-        if link.progress >= objective.target_amount:
-            await self._mark_ready(db_session, vault_id, objective, link)
-        else:
-            await db_session.commit()
 
     def _extract_amount(self, data: dict[str, Any]) -> int:
         return data.get("current_value", data.get("level", data.get("amount", 1)))

@@ -174,13 +174,39 @@ class ObjectiveEvaluator(abc.ABC):
         link: VaultObjectiveProgressLink,
         amount: int,
     ) -> None:
-        old_progress = link.progress
+        previous_progress, previous_total = link.progress, link.total
         link.progress = min(link.progress + amount, objective.target_amount)
         link.total = objective.target_amount
+        await self._persist_progress_transaction(
+            db_session,
+            vault_id,
+            objective,
+            link,
+            previous_progress=previous_progress,
+            previous_total=previous_total,
+        )
+
+    async def _persist_progress_transaction(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        objective: Objective,
+        link: VaultObjectiveProgressLink,
+        *,
+        previous_progress: int,
+        previous_total: int,
+    ) -> None:
+        """Commit only a real progress/total change; identical values need no write."""
+        if (
+            link.progress == previous_progress
+            and link.total == previous_total
+            and link.progress < objective.target_amount
+        ):
+            return
 
         logger.info(
             f"Objective '{objective.challenge}' progress for vault {vault_id}: "
-            f"{old_progress} -> {link.progress}/{objective.target_amount}"
+            f"{previous_progress} -> {link.progress}/{objective.target_amount}"
         )
 
         if link.progress >= objective.target_amount:

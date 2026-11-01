@@ -3,7 +3,7 @@
 import asyncio
 import time
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import ANY, AsyncMock, patch
 from uuid import uuid4
 
 import fakeredis.aioredis
@@ -18,6 +18,7 @@ from app.api.tasks import (
     _release_vault_tick_lock,
     check_quest_completion,
     game_tick,
+    process_vault_tick,
 )
 from app.core.dramatiq import broker
 from app.core.tick_profiling import (
@@ -182,6 +183,28 @@ async def test_process_vault_tick_passes_the_dispatch_id_to_the_service() -> Non
         assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
     finally:
         await redis.aclose()
+
+
+def test_process_vault_tick_actor_discards_the_internal_result(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Dramatiq Results must never receive the internal VaultTickResult payload."""
+    monkeypatch.delenv("TICK_PROFILE", raising=False)
+    with patch(
+        "app.api.tasks._process_vault_tick_async",
+        new=AsyncMock(return_value={"vault_id": "vault-1", "updates": {}}),
+    ) as process:
+        assert process_vault_tick.fn("vault-1") is None
+
+    process.assert_awaited_once_with("vault-1", ANY, None)
+
+
+def test_process_vault_tick_actor_still_raises_for_retry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Returning None must not swallow failures Dramatiq needs to retry."""
+    monkeypatch.delenv("TICK_PROFILE", raising=False)
+    with (
+        patch("app.api.tasks._process_vault_tick_async", new=AsyncMock(side_effect=RuntimeError("boom"))),
+        pytest.raises(RuntimeError, match="boom"),
+    ):
+        process_vault_tick.fn("vault-1")
 
 
 @pytest.mark.asyncio

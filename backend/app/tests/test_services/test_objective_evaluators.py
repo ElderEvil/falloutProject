@@ -13,6 +13,7 @@ from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
 from app.models.objective import Objective
 from app.models.storage import Storage
+from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.common import ObjectiveCategoryEnum
 from app.schemas.user import UserCreate
@@ -551,6 +552,59 @@ async def test_reach_evaluator_reacts_to_dweller_added(
     await async_session.refresh(link)
     assert link.progress == 10
     assert link.is_completed is False
+
+
+@pytest.mark.asyncio
+async def test_reach_evaluator_skips_unchanged_progress_write(
+    async_session: AsyncSession,
+    vault: Vault,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """A repeated absolute value must not issue a redundant progress UPDATE."""
+    from sqlalchemy import event
+
+    objective = Objective(
+        challenge="Reach 10 dwellers",
+        reward="500 caps",
+        objective_type="reach",
+        target_entity={"reach_type": "dweller_count", "target": 10},
+        target_amount=10,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
+    )
+    async_session.add(objective)
+    await async_session.commit()
+    await async_session.refresh(objective)
+    link = VaultObjectiveProgressLink(
+        vault_id=vault.id, objective_id=objective.id, progress=5, total=10, is_completed=False
+    )
+    async_session.add(link)
+    for index in range(5):
+        async_session.add(
+            Dweller(first_name=f"Test{index}", gender="male", rarity="common", level=1, vault_id=vault.id)
+        )
+    await async_session.commit()
+
+    ReachEvaluator(fresh_event_bus)
+    statements: list[str] = []
+
+    def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(statement)
+
+    connection = await async_session.connection()
+    event.listen(connection.sync_connection, "before_cursor_execute", capture)
+    try:
+        await fresh_event_bus.emit(GameEvent.DWELLER_ASSIGNED, vault.id, {"dweller_id": "test", "room_id": "test-room"})
+    finally:
+        event.remove(connection.sync_connection, "before_cursor_execute", capture)
+
+    await async_session.refresh(link)
+    assert link.progress == 5
+    assert not [
+        statement
+        for statement in statements
+        if statement.lstrip().upper().startswith("UPDATE") and "vaultobjectiveprogresslink" in statement.lower()
+    ]
 
 
 @pytest.mark.asyncio

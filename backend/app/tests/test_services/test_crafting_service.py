@@ -8,6 +8,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.config import settings
 from app.core.enums import GenderEnum, JunkTypeEnum, RarityEnum, RoomTypeEnum
 from app.core.game_config import game_config
 from app.models.crafting_order import CraftingOrderStatus
@@ -20,6 +21,7 @@ from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.schemas.dweller import DwellerCreate
 from app.services.crafting_service import crafting_service
+from app.services.game_tick import crafting_tick
 from app.services.recipe_unlock_service import recipe_unlock_service
 from app.utils.exceptions import (
     InsufficientResourcesException,
@@ -32,6 +34,11 @@ COMMON_WEAPON = "Pipe pistol"
 RARE_WEAPON = "Baseball bat"
 COMMON_OUTFIT = "Mechanic jumpsuit"
 UNCRAFTABLE_OUTFIT = "RobCo R&D suit"
+
+
+def _cadence_tick() -> dict[str, int]:
+    tick = game_config.game_loop.tick_interval
+    return {"total_game_time": settings.CRAFTING_ADVANCE_EVERY_N_TICKS * tick, "seconds_passed": tick}
 
 
 def _junk_cost(rarity: RarityEnum) -> int:
@@ -550,7 +557,7 @@ async def test_crafting_tick_notifies_owner_when_order_completes(async_session: 
     async_session.add(order)
     await async_session.commit()
 
-    stats = await crafting_tick.process_crafting(async_session, vault.id)
+    stats = await crafting_tick.process_crafting(async_session, vault.id, **_cadence_tick())
 
     assert stats["completed"] == 1
     await async_session.refresh(order)
@@ -558,6 +565,41 @@ async def test_crafting_tick_notifies_owner_when_order_completes(async_session: 
 
     result = await async_session.execute(select(Notification).where(Notification.vault_id == vault.id))
     assert any(n.notification_type == NotificationType.CRAFTING_COMPLETE for n in result.scalars().all())
+
+
+@pytest.mark.asyncio
+async def test_crafting_tick_detects_completion_only_on_a_cadence_boundary(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    """The checker's cadence delays detection, never the order's wall-clock completion time."""
+    storage = await _make_storage(async_session, vault)
+    await _add_workshop(async_session, vault, "Weapon workshop")
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON))
+    order = await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
+    order.estimated_completion_at = datetime.utcnow() - timedelta(seconds=1)
+    async_session.add(order)
+    await async_session.commit()
+    completion_at = order.estimated_completion_at
+    due = _cadence_tick()
+
+    skipped = await crafting_tick.process_crafting(
+        async_session,
+        vault.id,
+        total_game_time=due["total_game_time"] - due["seconds_passed"],
+        seconds_passed=due["seconds_passed"],
+    )
+
+    assert skipped == {"completed": 0}
+    await async_session.refresh(order)
+    assert order.status == CraftingOrderStatus.ACTIVE
+    assert order.estimated_completion_at == completion_at
+
+    completed = await crafting_tick.process_crafting(async_session, vault.id, **due)
+
+    assert completed == {"completed": 1}
+    await async_session.refresh(order)
+    assert order.status == CraftingOrderStatus.COMPLETED
+    assert order.estimated_completion_at == completion_at
 
 
 THEME_WORKSHOP = "Theme workshop"
@@ -767,7 +809,7 @@ async def test_crafting_tick_does_not_revive_a_cancelled_order(async_session: As
     async_session.add(order)
     await async_session.commit()
 
-    stats = await crafting_tick.process_crafting(async_session, vault.id)
+    stats = await crafting_tick.process_crafting(async_session, vault.id, **_cadence_tick())
 
     assert stats["completed"] == 0
     await async_session.refresh(order)

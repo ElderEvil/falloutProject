@@ -228,7 +228,7 @@ class GameLoopService:
             results["updates"]["training"] = training_update
 
         with tick_phase("crafting"):
-            crafting_update = await self._process_crafting(db_session, vault_id)
+            crafting_update = await self._process_crafting(db_session, vault_id, game_state, seconds_passed)
             results["updates"]["crafting"] = crafting_update
 
         try:
@@ -388,9 +388,16 @@ class GameLoopService:
         """Process all active training sessions for a vault."""
         return await dwellers_tick.process_training(db_session, vault_id)
 
-    async def _process_crafting(self, db_session: AsyncSession, vault_id: UUID4) -> CraftingStats:
-        """Advance the workshop crafting queue for a vault."""
-        return await crafting_tick.process_crafting(db_session, vault_id)
+    async def _process_crafting(
+        self, db_session: AsyncSession, vault_id: UUID4, game_state: GameState, seconds_passed: int
+    ) -> CraftingStats:
+        """Check the workshop crafting queue when the authoritative tick cadence is due."""
+        return await crafting_tick.process_crafting(
+            db_session,
+            vault_id,
+            total_game_time=game_state.total_game_time,
+            seconds_passed=seconds_passed,
+        )
 
     async def _process_happiness(self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> dict:
         """Process happiness updates for all dwellers in a vault."""

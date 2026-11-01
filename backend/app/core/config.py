@@ -205,6 +205,10 @@ class Settings(BaseSettings):
     NOTIFICATION_RETENTION_DAYS: int = Field(default=30, ge=1)
     CLEANUP_BATCH_SIZE: int = Field(default=500, ge=1, le=10_000)
 
+    # Crafting is wall-clock-driven (``advance_orders`` only detects completion),
+    # so the checker can run every Nth tick without changing completion times.
+    CRAFTING_ADVANCE_EVERY_N_TICKS: int = Field(default=5, ge=1)
+
     # Logfire Observability (optional)
     LOGFIRE_TOKEN: str | None = None  # Get token from https://logfire.pydantic.dev
 

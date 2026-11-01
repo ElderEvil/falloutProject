@@ -754,6 +754,30 @@ Regenerate scenes with `uv run --project backend python scripts/import_wasteland
 and commit `frontend/public/assets/wasteland-scenes/` together with
 `frontend/src/modules/exploration/models/wasteland-scenes.json`. The backend's public `/static` mount uses a
 seven-day lifetime with ETag/Last-Modified revalidation; catalog files can be replaced in place.
+
+### Deployment measurements
+
+A single-node Hetzner k3s deployment of `v2.283.1` on 2026-11-01 (nginx frontend, retained image
+cleanup) completed in **2m35s** from job start to finish. The migration job took 36s, all three
+workload rollouts took 21s, and image cleanup took 27s. The API and frontend both returned HTTP 200
+after rollout; the frontend reported `Content-Type: text/html; charset=utf-8`,
+`Cache-Control: no-cache`, and `X-Content-Type-Options: nosniff`.
+
+| Measurement | Before (`v2.282.15`) | After (`v2.283.1`) |
+|---|---:|---:|
+| Frontend image, Docker Hub compressed | 96.1 MiB | **53.6 MiB** |
+| Backend image, Docker Hub compressed | 159 MiB | 159 MiB |
+| Node memory used | 6.8 GiB / 85% | **5.9 GiB / 76%** |
+| dramatiq worker RSS | 1517 MiB | 1049 MiB |
+| frontend pod RSS | 39 MiB | 4 MiB |
+| PostgreSQL sessions | 82 total / 74 DB | **66 total / 58 DB** |
+
+These are point-in-time snapshots immediately after rollout, not a controlled benchmark; worker and
+database memory can vary with warm caches and tick load. The post-deploy worker log sample (132 ticks)
+had p50 1.15s, p90 2.98s, p95 3.30s, and p99 4.28s. Public endpoint measurements from the operator
+network were 0.23s TTFB for the API healthcheck and 0.30s TTFB for the frontend. The database schema
+remained `d1f3a5c7e9b2`; image cleanup removed `v2.282.14` and `v2.282.15` and kept `v2.283.1`.
+
 Rebuild compact grid images after changing room artwork with
 `uv run --project backend python scripts/optimize_room_grid_images.py` from the repo root. Commit the
 generated `frontend/public/assets/room-grid/` files and `roomGridImages.json` together; full-size sources

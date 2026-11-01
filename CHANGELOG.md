@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.282.12 (2026-11-01)
+
+### Performance Improvements
+
+* **resources:** slice the remaining load queries ([#1268](https://github.com/ElderEvil/falloutProject/issues/1268)) 5855848
+
 ## 2.282.11 (2026-10-31)
 
 ### Performance Improvements

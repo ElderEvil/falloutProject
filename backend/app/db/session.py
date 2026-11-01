@@ -59,6 +59,10 @@ def _task_engine() -> AsyncEngine:
             echo=False,
             future=True,
             pool_pre_ping=True,
+            # One tick session plus one nested objective-handler session; other
+            # worker loops must not multiply the default 5 + 10 pool.
+            pool_size=2,
+            max_overflow=0,
             connect_args={"server_settings": {"timezone": "UTC"}},
         )
         with _task_engines_lock:

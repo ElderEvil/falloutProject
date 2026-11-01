@@ -31,6 +31,18 @@ spec:
               value: /var/log/fallout_shelter/backend.log
             - name: LOG_FILE_RETENTION_DAYS
               value: "14"
+            - name: ENABLE_RATE_LIMITING
+              value: "true"
+            - name: RATE_LIMIT_REQUESTS
+              value: "600"
+            - name: RATE_LIMIT_WINDOW
+              value: "60"
+            - name: SECURITY_TRUSTED_PROXIES
+              value: '["10.42.0.0/16"]'
+            - name: SECURITY_TRUSTED_PROXY_DEPTH
+              value: "1"
+            - name: SECURITY_REDIS_FAIL_OPEN
+              value: "true"
           volumeMounts:
             - name: application-logs
               mountPath: /var/log/fallout_shelter

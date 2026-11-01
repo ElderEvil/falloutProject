@@ -12,6 +12,18 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Credential and account-recovery endpoints need a much tighter budget than the
+# normal roster/tick traffic. Paths are exact because fastapi-guard matches the
+# request path verbatim for static endpoint limits.
+_AUTH_ENDPOINT_RATE_LIMITS = {
+    "/api/v1/auth/login": (10, 60),
+    "/api/v1/auth/refresh": (30, 60),
+    "/api/v1/auth/forgot-password": (5, 60),
+    "/api/v1/auth/reset-password": (5, 60),
+    "/api/v1/auth/resend-verification": (3, 60),
+    "/api/v1/users/open": (5, 60),
+}
+
 
 def create_security_config() -> SecurityConfig:
     """
@@ -37,22 +49,30 @@ def create_security_config() -> SecurityConfig:
             "/openapi.yaml",
             "/favicon.ico",
             "/static",
+            "/healthcheck",
+            "/readiness",
             "/api/v1/system/changelog",
             "/api/v1/system/changelog/latest",
         ],
         # Rate Limiting
         rate_limit=settings.RATE_LIMIT_REQUESTS,
         rate_limit_window=settings.RATE_LIMIT_WINDOW,
+        endpoint_rate_limits=_AUTH_ENDPOINT_RATE_LIMITS,
         # Auto-banning for suspicious activity
         auto_ban_threshold=settings.AUTO_BAN_THRESHOLD,
         auto_ban_duration=settings.AUTO_BAN_DURATION,
         # IP Whitelisting/Blacklisting
         whitelist=settings.SECURITY_WHITELIST_IPS,
         blacklist=settings.SECURITY_BLACKLIST_IPS,
+        # Resolve the client from Traefik's forwarded chain. The backend must only
+        # trust the Kubernetes pod network, never arbitrary X-Forwarded-For input.
+        trusted_proxies=tuple(settings.SECURITY_TRUSTED_PROXIES),
+        trusted_proxy_depth=settings.SECURITY_TRUSTED_PROXY_DEPTH,
         # Redis for distributed rate limiting (production)
         enable_redis=settings.ENVIRONMENT == "production",
         redis_url=settings.redis_url if settings.ENVIRONMENT == "production" else None,
         redis_prefix="fastapi_guard:",
+        redis_fail_open=settings.SECURITY_REDIS_FAIL_OPEN,
         geo_ip_handler=geo_ip_handler,
         # Block cloud providers (optional - can enable in production)
         block_cloud_providers=None,  # Set to {'AWS', 'GCP', 'Azure'} to block

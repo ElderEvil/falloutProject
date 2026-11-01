@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.283.1 (2026-11-01)
+
+### Bug Fixes
+
+* **frontend:** harden nginx response headers 9ab3c66
+
+### Performance Improvements
+
+* **build:** cache container dependencies and tighten context d99703f
+* **frontend:** serve static assets with unprivileged nginx 1c9ccc6
+
 ## 2.283.0 (2026-11-01)
 
 ### Features

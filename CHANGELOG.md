@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.284.5 (2026-11-01)
+
+### Performance Improvements
+
+* **db:** bound pools and notification retention ddd9e0d
+
 ## 2.284.4 (2026-11-01)
 
 ### Performance Improvements

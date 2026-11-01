@@ -112,13 +112,13 @@ Traffic enters through the Traefik ingress in `deployment/k3s/ingress.yaml`: `fa
 Production runs fastapi-guard with a **600 requests/minute per client IP** global limit and tighter
 limits on credential/account-recovery endpoints (`/api/v1/auth/login` 10/min, `/api/v1/auth/refresh`
 30/min, password reset/forgot 5/min, registration 5/min). The guard uses Redis in production and is
-configured to fail open if Redis is unavailable, so a rate-limit store outage does not take the API
-down.
+configured to fail open for rate-limit checks if Redis is unavailable; readiness still reports the
+Redis outage and can remove the backend from service.
 
-The Traefik Service must preserve the public client address. The deploy workflow enforces
-`externalTrafficPolicy: Local` on `kube-system/traefik`; without it, Kubernetes SNAT makes every
-client appear as the node address and all users share one bucket. The backend trusts only the
-Kubernetes pod network for `X-Forwarded-For`:
+The Traefik Service must preserve the public client address. `deployment/k3s/traefik-config.yaml`
+sets `externalTrafficPolicy: Local` through the K3s `HelmChartConfig`, and the deploy workflow applies
+it; without that setting, Kubernetes SNAT makes every client appear as the node address and all users
+share one bucket. The backend trusts only the Kubernetes pod network for `X-Forwarded-For`:
 
 ```text
 SECURITY_TRUSTED_PROXIES=["10.42.0.0/16"]

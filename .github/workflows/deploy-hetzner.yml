@@ -78,11 +78,11 @@ jobs:
           echo "::error::GitHub runners cannot reach the production host over SSH. Read the verbose output above: 'connect to host ... timed out' means packets never arrived (Hetzner Cloud Firewall, or a fail2ban DROP on that source), while a completed key exchange followed by 'Connection closed by remote host' after ~120s means authentication never finished - 120s is sshd's LoginGraceTime, and a ban landing mid-session drops the auth packets. fail2ban's sshd jail on this host runs mode=aggressive with maxretry=3, which bans shared CI addresses; check sudo fail2ban-client status sshd. See docs/DEPLOYMENT.md 'Runner cannot reach the host'."
           exit 1
 
-      - name: Preserve ingress client IP
+      - name: Persist ingress client-IP configuration
         if: ${{ !inputs.preflight_only }}
         run: |
           ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
-            "kubectl -n kube-system patch svc traefik --type merge -p '{\"spec\":{\"externalTrafficPolicy\":\"Local\"}}'"
+            'kubectl apply -f -' < deployment/k3s/traefik-config.yaml
 
       - name: Log in to Docker Hub
         if: ${{ !inputs.preflight_only }}

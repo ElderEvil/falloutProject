@@ -747,8 +747,9 @@ Local source mounts still work; testing tools remain in the host development env
 The frontend runtime contains compiled `dist` assets and its static server. Build tools stay in the
 build stage. Both Dockerfiles copy dependency manifests before source to retain dependency caching.
 
-`frontend/serve.json` keeps HTML revalidated, caches assets for seven days, and caches content-addressed
-room-grid and content-addressed wasteland scene WebP images for one year with `immutable`.
+`frontend/nginx.conf` keeps HTML revalidated, caches assets for seven days, and caches content-addressed
+room-grid and content-addressed wasteland scene WebP images for one year with `immutable`; it also
+serves the SPA fallback and gzip-compresses text assets.
 Regenerate scenes with `uv run --project backend python scripts/import_wasteland_scenes.py /path/to/backgrounds`
 and commit `frontend/public/assets/wasteland-scenes/` together with
 `frontend/src/modules/exploration/models/wasteland-scenes.json`. The backend's public `/static` mount uses a

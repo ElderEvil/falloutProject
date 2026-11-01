@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.284.2 (2026-11-01)
+
+### Bug Fixes
+
+* **security:** allow cross-origin public assets cfeb334
+
 ## 2.284.1 (2026-11-01)
 
 ### Bug Fixes

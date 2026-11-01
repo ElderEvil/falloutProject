@@ -15,6 +15,7 @@ async def test_static_catalog_cache_and_revalidation():
         assert response.status_code == 200
         assert response.headers["cache-control"] == "public, max-age=604800"
         assert response.headers["content-type"] == "image/png"
+        assert response.headers["cross-origin-resource-policy"] == "cross-origin"
         head = await client.head("/static/room_images/Vault%20Door%20Adv.png")
         assert head.headers["cache-control"] == response.headers["cache-control"]
         assert head.content == b""

@@ -16,6 +16,7 @@ from redis.asyncio import Redis
 
 import app.api.arena_tasks  # ruff: ignore[unused-import] - registers the arena_tick watchdog cron
 import app.core.dramatiq  # ruff: ignore[unused-import] — ensures broker is configured when dramatiq CLI imports this module
+from app.core.async_runtime import run_async
 from app.core.config import settings
 from app.core.event_bus import event_bus
 from app.core.game_config import game_config
@@ -94,7 +95,7 @@ def game_tick():
     tick_id = message.message_id if message is not None else uuid4().hex
     try:
         logger.info("Dispatching game tick")
-        stats: dict[str, int | float] = asyncio.run(_dispatch_game_tick(tick_id))
+        stats: dict[str, int | float] = run_async(_dispatch_game_tick(tick_id))
     except Exception:
         logger.exception("Game tick dispatch failed")
         raise
@@ -145,7 +146,7 @@ def incident_tick(chain_token: str | None = None):
     """
     next_chain_token = None
     try:
-        next_chain_token, stats = asyncio.run(_run_incident_tick(chain_token))
+        next_chain_token, stats = run_async(_run_incident_tick(chain_token))
     except Exception:
         logger.exception("Incident tick failed")
     else:
@@ -261,7 +262,7 @@ def process_vault_tick(vault_id: str, tick_id: str | None = None, enqueued_at: f
             await redis.aclose()
 
     try:
-        result = asyncio.run(run_vault_tick())
+        result = run_async(run_vault_tick())
     except Exception:
         logger.exception(f"Vault {vault_id} tick failed")
         raise
@@ -294,7 +295,7 @@ def check_permanent_deaths():
         dict: Count of dwellers marked as permanently dead.
     """
     try:
-        count = asyncio.run(_check_permanent_deaths())
+        count = run_async(_check_permanent_deaths())
     except Exception:
         logger.exception("Permanent death check failed")
         raise
@@ -321,7 +322,7 @@ def check_quest_completion():
         dict: Count of quests auto-completed.
     """
     try:
-        count = asyncio.run(_check_quest_completion())
+        count = run_async(_check_quest_completion())
     except Exception:
         logger.exception("Quest completion check failed")
         raise
@@ -350,7 +351,7 @@ def check_location_reclears():
         dict: Count of map points swept.
     """
     try:
-        count = asyncio.run(_check_location_reclears())
+        count = run_async(_check_location_reclears())
     except Exception:
         logger.exception("Location reclear check failed")
         raise
@@ -384,7 +385,7 @@ def refresh_daily_objectives():
         dict: Number of vaults processed and objectives assigned.
     """
     try:
-        result = asyncio.run(_refresh_objectives())
+        result = run_async(_refresh_objectives())
     except Exception:
         logger.exception("Daily objectives refresh failed")
         raise
@@ -401,7 +402,7 @@ def refresh_weekly_objectives():
         dict: Number of vaults processed and objectives assigned.
     """
     try:
-        result = asyncio.run(_refresh_objectives())
+        result = run_async(_refresh_objectives())
     except Exception:
         logger.exception("Weekly objectives refresh failed")
         raise
@@ -429,7 +430,7 @@ def cleanup_old_records():
         dict: Counts of deleted incidents and notifications.
     """
     try:
-        result = asyncio.run(_cleanup_old_records())
+        result = run_async(_cleanup_old_records())
     except Exception:
         logger.exception("Cleanup of old records failed")
         raise

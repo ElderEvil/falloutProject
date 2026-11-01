@@ -5,7 +5,6 @@ Importing ``app.api.tasks`` from an endpoint creates a circular import chain
 lives here with only lightweight imports.
 """
 
-import asyncio
 import logging
 from typing import Final
 
@@ -13,6 +12,7 @@ import dramatiq
 import periodiq
 
 import app.core.dramatiq  # ruff: ignore[unused-import] — broker must be set before the actor registers
+from app.core.async_runtime import run_async
 from app.core.game_config import game_config
 from app.core.tick_chain import claim_tick_chain
 from app.db.session import task_session
@@ -58,7 +58,7 @@ def arena_tick(chain_token: str | None = None):
     """
     next_chain_token = None
     try:
-        next_chain_token, stats = asyncio.run(_run_arena_tick(chain_token))
+        next_chain_token, stats = run_async(_run_arena_tick(chain_token))
     except Exception:
         logger.exception("Arena tick failed")
     else:

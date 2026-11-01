@@ -22,9 +22,9 @@ from app import crud
 from app.agents.dweller_chat_agent import DwellerChatOutput, parse_action_suggestion
 from app.api.v1.endpoints.chat import chat_with_dweller, voice_chat_with_dweller
 from app.core.config import settings
+from app.core.enums import ExplorationStatus, GenderEnum, RoomTypeEnum, SPECIALEnum
 from app.models.dweller import Dweller
-from app.models.exploration import Exploration, ExplorationStatus
-from app.models.room import RoomTypeEnum
+from app.models.exploration import Exploration
 from app.models.vault import Vault
 from app.schemas.chat import (
     AssignToRoomAction,
@@ -34,7 +34,6 @@ from app.schemas.chat import (
     StartExplorationAction,
     UnlockedPlace,
 )
-from app.schemas.common import GenderEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.ai_service import ChatCompletionResult

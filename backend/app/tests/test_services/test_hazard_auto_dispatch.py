@@ -7,10 +7,8 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import DwellerStatusEnum, HazardTeam
-from app.models.incident import IncidentType
+from app.core.enums import DwellerStatusEnum, HazardTeam, IncidentType, RoomTypeEnum, SPECIALEnum
 from app.models.team import ACTIVE_STATUS, DISPATCHED_STATUS, RESERVE_STATUS, TeamMember
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultUpdate

@@ -10,8 +10,9 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from app.core.enums import RequirementType
 from app.models.quest import Quest
-from app.models.quest_requirement import QuestRequirement, RequirementType
+from app.models.quest_requirement import QuestRequirement
 from app.models.quest_reward import QuestReward
 from app.schemas.quest import QuestRewardJSON
 from app.utils.load_quests import load_all_quest_chain_files

@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
+from app.core.enums import IncidentType
 from app.crud.storage import storage as storage_crud
-from app.models.incident import IncidentType
 from app.models.storage import Storage
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultNumber
@@ -285,7 +285,7 @@ async def test_assign_incident_responders(
     normal_user_token_headers: dict[str, str],
 ):
     """Test assigning an eligible dweller to defend an incident."""
-    from app.models.incident import IncidentType
+    from app.core.enums import IncidentType
 
     # Create a vault with incident
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
@@ -355,7 +355,7 @@ async def test_get_incident_team_returns_assigned_responders(
     normal_user_token_headers: dict[str, str],
 ):
     """The incident team endpoint returns the assigned responder roster."""
-    from app.models.incident import IncidentType
+    from app.core.enums import IncidentType
     from app.schemas.dweller import DwellerCreate
     from app.schemas.room import RoomCreate
 

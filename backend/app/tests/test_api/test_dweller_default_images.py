@@ -5,10 +5,10 @@ from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.tests.factory.dwellers import create_fake_dweller
 from app.utils.dweller_assets import resolve_dweller_image_urls

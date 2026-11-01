@@ -19,10 +19,10 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import JunkTypeEnum, RarityEnum, RoomTypeEnum
+from app.core.enums import CraftingOrderStatus, JunkTypeEnum, RarityEnum, RoomTypeEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
-from app.models.crafting_order import CraftingOrder, CraftingOrderStatus
+from app.models.crafting_order import CraftingOrder
 from app.models.junk import Junk
 from app.models.room import Room
 from app.models.storage import Storage

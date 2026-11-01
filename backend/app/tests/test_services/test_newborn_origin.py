@@ -10,14 +10,13 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
+from app.core.enums import AgeGroupEnum, DwellerLocationRelationEnum, GenderEnum, LocationTypeEnum, RarityEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.llm_interaction import LLMInteraction
 from app.models.pregnancy import Pregnancy
 from app.models.vault import Vault
 from app.models.world_location import DwellerLocation
-from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.family.breeding_service import BreedingService
 

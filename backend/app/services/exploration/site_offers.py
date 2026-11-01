@@ -8,8 +8,9 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import ExpeditionRunStatus
 from app.crud.world_snapshot import world_snapshot as world_snapshot_crud
-from app.models.exploration import ExpeditionRunStatus, Exploration
+from app.models.exploration import Exploration
 from app.schemas.expedition import SiteDefinition
 from app.services.map.world_generation import WORLD_ID
 from app.utils import world_terrain

@@ -10,8 +10,7 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import HazardTeam
-from app.models.incident import IncidentType
+from app.core.enums import HazardTeam, IncidentType
 from app.models.team import ACTIVE_STATUS, RESERVE_STATUS
 from app.schemas.dweller import DwellerCreate
 from app.services.dweller_service import dweller_service

@@ -6,15 +6,14 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import DwellerStatusEnum
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum, RequirementType, RoomTypeEnum
 from app.models.dweller import Dweller
 from app.models.quest import Quest
-from app.models.quest_requirement import QuestRequirement, RequirementType
+from app.models.quest_requirement import QuestRequirement
 from app.models.room import Room
 from app.models.storage import Storage
 from app.models.vault import Vault
 from app.models.vault_quest import VaultQuestCompletionLink
-from app.schemas.common import AgeGroupEnum, RoomTypeEnum
 from app.schemas.quest import QuestCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
@@ -429,7 +428,8 @@ async def test_assign_quest_team_requires_existing_quest_and_vault(async_session
 @pytest.mark.asyncio
 async def test_quest_round_trip_assign_start_ready_claim(async_session: AsyncSession) -> None:
     """A full quest lifecycle: assign -> start -> ready -> claim, with status transitions."""
-    from app.models.quest_reward import QuestReward, RewardType
+    from app.core.enums import RewardType
+    from app.models.quest_reward import QuestReward
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(

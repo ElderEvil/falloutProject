@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import training as training_crud
@@ -12,7 +13,6 @@ from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
 from app.models.pet import Pet
 from app.models.vault import Vault
-from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
 from app.services.training_service import TrainingService
 from app.utils.exceptions import VaultOperationException
@@ -749,8 +749,8 @@ async def test_failed_demolition_rolls_back_training_cancellation(
 async def test_training_notification_explains_round_outcome(
     async_session, vault, dweller, training_service, continuous_trainee, repeat, goal, outcome
 ):
+    from app.core.enums import NotificationType
     from app.crud.notification import notification as notification_crud
-    from app.models.notification import NotificationType
 
     training, _ = continuous_trainee
     vault.continuous_training = repeat

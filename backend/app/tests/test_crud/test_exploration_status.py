@@ -6,8 +6,8 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum
 from app.crud.user_profile import profile_crud
-from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate

@@ -7,9 +7,9 @@ from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import HazardTeam
+from app.core.enums import HazardTeam, IncidentObjective, IncidentType
 from app.core.game_config import game_config
-from app.models.incident import IncidentObjective, IncidentType, get_incident_definition
+from app.models.incident import get_incident_definition
 from app.models.team import ACTIVE_STATUS, RESERVE_STATUS
 from app.schemas.dweller import DwellerCreate
 from app.services.combat.incident_math import split_proportional

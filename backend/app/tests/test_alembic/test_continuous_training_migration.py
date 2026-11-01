@@ -49,11 +49,11 @@ def test_concurrent_completions_create_only_one_successor(harness, monkeypatch, 
     from sqlalchemy import select
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-    from app.core.enums import DwellerStatusEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
+    from app.core.enums import DwellerStatusEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum, TrainingStatus
     from app.crud.vault import vault as vault_crud
     from app.models.dweller import Dweller
     from app.models.room import Room
-    from app.models.training import Training, TrainingStatus
+    from app.models.training import Training
     from app.services.notification_service import notification_service
     from app.services.training_service import training_service
     from app.utils.exceptions import VaultOperationException
@@ -171,10 +171,10 @@ def test_destroy_training_room_preserves_history_and_cancels_active_round(harnes
     from sqlalchemy import select
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-    from app.core.enums import DwellerStatusEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
+    from app.core.enums import DwellerStatusEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum, TrainingStatus
     from app.models.dweller import Dweller
     from app.models.room import Room
-    from app.models.training import Training, TrainingStatus
+    from app.models.training import Training
     from app.models.vault import Vault
     from app.services.notification_service import notification_service
     from app.services.room_service import room_service

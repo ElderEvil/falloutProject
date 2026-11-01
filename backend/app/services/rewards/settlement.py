@@ -10,22 +10,24 @@ facade in ``app.services.reward_service``.
 
 import logging
 import random
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import ContentProvenanceEnum, ObjectiveCategoryEnum, RarityEnum
+from app.core.enums import ContentProvenanceEnum, ObjectiveCategoryEnum, RarityEnum, RewardType
 from app.crud.objective import objective_crud
 from app.crud.vault import vault as vault_crud
 from app.models.objective import Objective
 from app.models.quest import Quest
-from app.models.quest_reward import QuestReward, RewardType
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.services.progression.objectives.guidance import current_state_progress
 from app.services.rewards import items, lunchbox, resources
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 from app.utils.reward_delivery import defer_reward_delivery
+
+if TYPE_CHECKING:
+    from app.models.quest_reward import QuestReward
 
 logger = logging.getLogger(__name__)
 

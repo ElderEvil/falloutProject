@@ -6,11 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
+from app.core.enums import JunkTypeEnum, RarityEnum
 from app.crud.vault import vault as vault_crud
 from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.weapon import Weapon
-from app.schemas.common import JunkTypeEnum, RarityEnum
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.recipe_unlock_service import catalog_entry
 from app.services.vault.seed_types import SEED_OUTFITS
@@ -182,7 +182,7 @@ async def test_get_storage_items_backfills_junk_art(
     superuser_token_headers: dict[str, str],
 ) -> None:
     """Legacy junk rows stored without image_url still render art in storage."""
-    from app.models.junk import JunkTypeEnum
+    from app.core.enums import JunkTypeEnum
 
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault_data = create_fake_vault()
@@ -334,8 +334,8 @@ async def test_storage_space_ignores_nuka_consumables(
     superuser_token_headers: dict[str, str],
 ) -> None:
     """Space-free nuka-cola bottles never reduce used_space or available_space."""
+    from app.core.enums import ItemTypeEnum
     from app.models.item import Item
-    from app.schemas.common import ItemTypeEnum
 
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault_data = create_fake_vault()

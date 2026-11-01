@@ -84,7 +84,7 @@ def register_objective_event_handlers() -> None:
 
 async def notify_objectives_refreshed(db_session: AsyncSession, vault_id: UUID4, categories: list[str]) -> None:
     """Persist and publish the fresh-task announcement beyond the notification bell."""
-    from app.models.notification import NotificationType
+    from app.core.enums import NotificationType
 
     await notification_service.notify_owner(
         db_session,

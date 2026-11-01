@@ -5,7 +5,7 @@ from faker import Faker
 from httpx import AsyncClient
 
 from app.core.config import settings
-from app.schemas.common import GenderEnum, RarityEnum
+from app.core.enums import GenderEnum, RarityEnum
 from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY
 
 fake = Faker()

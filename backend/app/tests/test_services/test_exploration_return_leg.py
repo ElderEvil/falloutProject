@@ -7,12 +7,11 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import DwellerStatusEnum, ExpeditionRunStatus, ExplorationStatus
 from app.crud.team import team_crud
 from app.models.dweller import Dweller
-from app.models.exploration import ExpeditionRunStatus, ExplorationStatus
 from app.models.team import Team, TeamMember
 from app.models.vault import Vault
-from app.schemas.common import DwellerStatusEnum
 from app.services.dweller_service import dweller_service
 from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration.expedition import expedition_service

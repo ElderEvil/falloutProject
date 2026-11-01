@@ -9,11 +9,11 @@ dweller stat, so unequipping reverts cleanly.
 import pytest
 
 from app import crud
+from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.core.game_config import game_config
 from app.models.room import Room
 from app.models.vault import Vault
 from app.options.identity_modifiers import effective_stat
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.resource_manager_service import ResourceManager
 from app.utils.combat import combat_power

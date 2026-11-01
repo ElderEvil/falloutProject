@@ -7,12 +7,12 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import DwellerStatusEnum
 from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.team import Team, TeamMember
 from app.models.vault import Vault
 from app.models.vault_quest import VaultQuestCompletionLink
-from app.schemas.common import DwellerStatusEnum
 from app.services.quest_state_objective_backfill_service import quest_state_objective_backfill_service
 
 

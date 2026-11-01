@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import NotificationType
 from app.core.notification_preferences import (
     NOTIFICATION_CATEGORY_BY_TYPE,
     NotificationCategory,
@@ -11,7 +12,7 @@ from app.core.notification_preferences import (
     validate_notification_preferences,
 )
 from app.crud.user_profile import profile_crud
-from app.models.notification import Notification, NotificationType
+from app.models.notification import Notification
 from app.schemas.user_profile import ProfileUpdate
 from app.services.notification_service import NotificationService
 

@@ -3,7 +3,7 @@ from typing import Any
 
 from faker import Faker
 
-from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
+from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
 from app.tests.utils.utils import get_gender_based_name, get_stats_by_rarity
 
 fake = Faker()

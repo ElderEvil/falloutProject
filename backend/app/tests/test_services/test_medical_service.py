@@ -220,8 +220,8 @@ class TestDistributeRecoverySupplies:
     async def test_skips_clean_dead_and_away_dwellers(
         self, async_session: AsyncSession, vault: Vault, dweller: Dweller
     ):
+        from app.core.enums import DwellerStatusEnum
         from app.models.storage import Storage
-        from app.schemas.common import DwellerStatusEnum
 
         await _set_dweller_state(async_session, dweller, radiation=40, status=DwellerStatusEnum.EXPLORING)
         async_session.add(Storage(vault_id=vault.id, radaway=10, stimpack=10))

@@ -7,11 +7,11 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.core.grid_config import ELEVATOR_UNITS, FLOOR_UNITS, GRID_BUILD_X_MAX, SHAFT_X, UNITS_PER_ROOM
 from app.crud.user_profile import profile_crud
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomBuild, RoomCreate, RoomUpdate
 from app.schemas.vault import VaultUpdate
 from app.services.room_service import room_service

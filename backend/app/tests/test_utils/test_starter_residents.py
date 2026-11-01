@@ -1,6 +1,6 @@
 """Starter objective dweller rewards must resolve to curated resident profiles."""
 
-from app.models.quest_reward import RewardType
+from app.core.enums import RewardType
 from app.schemas.objective import ObjectiveCreate
 from app.services.rewards.settlement import _parse_objective_reward
 from app.utils.static_data import DATA_DIR, StaticGameData

@@ -8,7 +8,8 @@ from pydantic import ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.models.exploration import ExpeditionRun, ExpeditionRunStatus, ExplorationStatus
+from app.core.enums import ExpeditionRunStatus, ExplorationStatus
+from app.models.exploration import ExpeditionRun
 from app.schemas.dweller import DwellerCreate
 from app.schemas.expedition import EnemySpec, ExpeditionResolveRequest, ItemRollSpec, NodeBranch, SiteNode
 from app.schemas.exploration_event import JunkSchema

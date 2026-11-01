@@ -6,16 +6,11 @@ from datetime import datetime
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import (
-    PARTNER_LINKED_STAGES,
-    SPECIAL_STATS,
-    RelationshipTypeEnum,
-)
+from app.core.enums import PARTNER_LINKED_STAGES, SPECIAL_STATS, NotificationType, RelationshipTypeEnum
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
 from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
-from app.models.notification import NotificationType
 from app.models.relationship import Relationship
 from app.schemas.relationship import CompatibilityScore, VaultRelationshipRead
 from app.services.bio_service import bio_service

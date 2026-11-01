@@ -6,7 +6,7 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.models.incident import IncidentType
+from app.core.enums import IncidentType
 from app.schemas.outfit import OutfitCreate
 from app.services.combat.incident_service import incident_service
 from app.utils.hazard_resist import outfit_fire_resist, outfit_radiation_resist

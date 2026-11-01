@@ -8,8 +8,8 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.core.enums import GenderEnum, RarityEnum
 from app.models.dweller import BIO_MAX_CHARS, Dweller
-from app.schemas.common import GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID

@@ -6,11 +6,10 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.core.enums import IncidentType, RoomTypeEnum, SPECIALEnum
 from app.crud.incident import incident_crud
-from app.models.incident import IncidentType
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultCreate

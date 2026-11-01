@@ -6,13 +6,12 @@ import random
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import AgeGroupEnum, GenderEnum
+from app.core.enums import AgeGroupEnum, GenderEnum, NotificationType
 from app.core.game_config import game_config
 from app.crud import dweller as crud_dweller
 from app.crud.relationship import relationship_crud as crud_relationship
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
-from app.models.notification import NotificationType
 from app.services.bio_service import bio_service
 from app.services.game_tick.guard import recover_session
 from app.services.notification_service import notification_service

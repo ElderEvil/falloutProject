@@ -7,10 +7,8 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import ExplorationStatus, IncidentStatus, IncidentType, NotificationType
 from app.core.game_config import game_config
-from app.models.exploration import ExplorationStatus
-from app.models.incident import IncidentStatus, IncidentType
-from app.models.notification import NotificationType
 from app.services.combat.incident_service import IncidentService
 from app.services.exploration.coordinator import ExplorationCoordinator
 from app.services.exploration_service import exploration_service

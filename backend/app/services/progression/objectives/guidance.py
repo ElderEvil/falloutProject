@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import TrainingStatus
 from app.crud import outfit as outfit_crud
 from app.crud import weapon as weapon_crud
 from app.crud.dweller import dweller as dweller_crud
@@ -15,7 +16,6 @@ from app.crud.quest import quest_crud
 from app.crud.room import room as room_crud
 from app.crud.training import training as training_crud
 from app.models.objective import ObjectiveBase
-from app.models.training import TrainingStatus
 from app.schemas.objective import ObjectiveRead
 from app.services.room_assignment_policy import get_highest_special
 from app.utils.objective_constants import normalize_room_type

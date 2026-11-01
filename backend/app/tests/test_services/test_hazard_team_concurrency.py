@@ -19,8 +19,7 @@ from sqlalchemy.pool import NullPool
 from app import crud
 from app.core import db_locks
 from app.core.config import settings
-from app.core.enums import HazardTeam
-from app.models.incident import IncidentType
+from app.core.enums import HazardTeam, IncidentType
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate

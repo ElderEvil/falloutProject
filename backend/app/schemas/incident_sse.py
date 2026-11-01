@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel
 
-from app.models.incident import IncidentStatus, IncidentType
+from app.core.enums import IncidentStatus, IncidentType
 
 
 class IncidentSseEvent(BaseModel):

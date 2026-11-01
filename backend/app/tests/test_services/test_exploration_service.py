@@ -14,12 +14,11 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
+from app.core.enums import DwellerStatusEnum, ExplorationStatus, RoomTypeEnum, SPECIALEnum
 from app.core.event_bus import GameEvent
 from app.core.game_config import game_config
 from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
-from app.models.exploration import ExplorationStatus
 from app.models.storage import Storage
 from app.models.user import User
 from app.models.vault import Vault

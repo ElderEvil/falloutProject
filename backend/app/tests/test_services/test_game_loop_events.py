@@ -8,9 +8,9 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import IncidentType
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
-from app.models.incident import IncidentType
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
 from app.services.game_loop_service import game_loop_service

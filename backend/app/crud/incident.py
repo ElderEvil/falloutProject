@@ -6,7 +6,8 @@ from pydantic import UUID4
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.incident import Incident, IncidentStatus, IncidentType
+from app.core.enums import IncidentStatus, IncidentType
+from app.models.incident import Incident
 from app.models.incident_event import IncidentEvent
 from app.models.team import COMMITTED_MEMBER_STATUSES, Team, TeamMember
 

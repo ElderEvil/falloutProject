@@ -15,9 +15,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
 from app.schemas.vault import ResourceTickEvents
 from app.services.game_loop_service import game_loop_service

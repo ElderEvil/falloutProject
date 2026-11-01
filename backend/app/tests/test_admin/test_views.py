@@ -788,8 +788,9 @@ async def test_admin_cannot_soft_delete_current_account(
 
 
 def test_quest_requirement_and_reward_labels_are_concise() -> None:
-    from app.models.quest_requirement import QuestRequirement, RequirementType
-    from app.models.quest_reward import QuestReward, RewardType
+    from app.core.enums import RequirementType, RewardType
+    from app.models.quest_requirement import QuestRequirement
+    from app.models.quest_reward import QuestReward
 
     requirement = QuestRequirement(
         quest_id=uuid4(), requirement_type=RequirementType.LEVEL, requirement_data={"level": 46}
@@ -802,8 +803,9 @@ def test_quest_requirement_and_reward_labels_are_concise() -> None:
 
 
 async def test_quest_related_labels_and_links_render(admin_client: AsyncClient, async_session: AsyncSession) -> None:
-    from app.models.quest_requirement import QuestRequirement, RequirementType
-    from app.models.quest_reward import QuestReward, RewardType
+    from app.core.enums import RequirementType, RewardType
+    from app.models.quest_requirement import QuestRequirement
+    from app.models.quest_reward import QuestReward
     from app.schemas.quest import QuestCreate
 
     quest = await crud.quest_crud.create(
@@ -837,7 +839,8 @@ async def test_quest_related_labels_and_links_render(admin_client: AsyncClient, 
 async def test_sent_notification_labels_do_not_dump_message_or_user_fields(
     admin_client: AsyncClient, async_session: AsyncSession, dweller: Dweller, vault: Vault
 ) -> None:
-    from app.models.notification import Notification, NotificationType
+    from app.core.enums import NotificationType
+    from app.models.notification import Notification
 
     notice = Notification(
         user_id=vault.user_id,

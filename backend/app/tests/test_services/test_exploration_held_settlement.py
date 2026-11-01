@@ -19,12 +19,11 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import RarityEnum
+from app.core.enums import ExplorationStatus, RarityEnum
 from app.core.event_bus import GameEvent
 from app.crud import storage as crud_storage
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
-from app.models.exploration import ExplorationStatus
 from app.models.outfit import Outfit
 from app.models.storage import Storage
 from app.models.vault import Vault

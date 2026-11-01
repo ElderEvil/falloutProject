@@ -9,8 +9,9 @@ from httpx import AsyncClient, Response
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import ExpeditionRunStatus
 from app.models.dweller import Dweller
-from app.models.exploration import ExpeditionRunStatus, Exploration
+from app.models.exploration import Exploration
 from app.models.vault import Vault
 from app.schemas.expedition import TriviaQuestion
 from app.services import catalog_service as data_loader

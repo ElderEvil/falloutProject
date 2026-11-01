@@ -9,15 +9,14 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import DwellerLocationRelationEnum
+from app.core.enums import AgeGroupEnum, DwellerLocationRelationEnum, ExplorationStatus
 from app.models.dweller import Dweller
-from app.models.exploration import Exploration, ExplorationStatus
+from app.models.exploration import Exploration
 from app.models.room import Room
 from app.models.team import Team, TeamMember
 from app.models.user import User
 from app.models.vault import Vault
 from app.models.world_location import VaultLocationState, WorldLocation
-from app.schemas.common import AgeGroupEnum
 from app.schemas.exploration import ExplorationCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.exploration_service import exploration_service

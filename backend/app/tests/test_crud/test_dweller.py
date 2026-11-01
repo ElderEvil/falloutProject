@@ -5,11 +5,11 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.core.enums import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
 from app.core.game_config import game_config
 from app.crud.user_profile import profile_crud
 from app.options.factions import faction_restrictions
 from app.options.races import RaceOption
-from app.schemas.common import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride, DwellerCreateWithoutVaultID
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
@@ -132,7 +132,7 @@ async def test_move_child_to_training_room_rejected(
 
 @pytest.mark.asyncio
 async def test_move_adult_to_arena_sets_idle_status(async_session: AsyncSession):
-    from app.schemas.common import DwellerStatusEnum
+    from app.core.enums import DwellerStatusEnum
 
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
@@ -236,7 +236,7 @@ async def test_count_alive_in_vault_excludes_dead(async_session: AsyncSession):
 @pytest.mark.asyncio
 async def test_get_dwellers_by_status(async_session: AsyncSession):
     """Test getting dwellers filtered by status."""
-    from app.schemas.common import DwellerStatusEnum
+    from app.core.enums import DwellerStatusEnum
     from app.schemas.dweller import DwellerUpdate
 
     # Setup - create user, vault, and multiple dwellers

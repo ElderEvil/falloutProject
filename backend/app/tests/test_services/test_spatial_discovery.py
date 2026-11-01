@@ -9,10 +9,9 @@ import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import PlaceKindEnum
+from app.core.enums import ExplorationStatus, PlaceKindEnum
 from app.crud.vault_slot import vault_slot
 from app.models.dweller import Dweller
-from app.models.exploration import ExplorationStatus
 from app.models.vault import Vault
 from app.models.world_location import WorldLocation
 from app.schemas.exploration_event import DiscoveryEventSchema

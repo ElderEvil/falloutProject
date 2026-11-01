@@ -1,7 +1,8 @@
 """Player-facing projection of an expedition run row plus site content."""
 
+from app.core.enums import ExpeditionRunStatus
 from app.models.dweller import Dweller
-from app.models.exploration import ExpeditionRun, ExpeditionRunStatus, Exploration
+from app.models.exploration import ExpeditionRun, Exploration
 from app.schemas.expedition import (
     NodeOptionView,
     NodeOutcome,

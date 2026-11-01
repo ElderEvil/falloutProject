@@ -11,12 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum, RelationshipTypeEnum
 from app.core.game_config import game_config
 from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
 from app.models.relationship import Relationship
 from app.models.vault import Vault
-from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum, RelationshipTypeEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.relationship_service import RelationshipService, affinity_gain
 from app.utils.exceptions import ValidationException

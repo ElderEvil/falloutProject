@@ -3,9 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.enums import VaultModeEnum
+from app.core.enums import IncidentType, VaultModeEnum
 from app.core.game_config import IncidentConfig
-from app.models.incident import IncidentType
 
 
 def test_default_tiers_cover_a_starter_vault() -> None:

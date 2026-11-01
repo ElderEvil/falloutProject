@@ -16,8 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
+from app.core.enums import NotificationType
 from app.crud.notification import notification as notification_crud
-from app.models.notification import NotificationCreate, NotificationType
+from app.models.notification import NotificationCreate
 from app.schemas.user import UserCreate
 from app.services.notification_service import NotificationService
 

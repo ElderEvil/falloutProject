@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import UUID4, Field, model_validator
 from sqlmodel import SQLModel
 
-from app.models.exploration import ExplorationStatus
+from app.core.enums import ExplorationStatus
 
 
 class ExplorationBase(SQLModel):

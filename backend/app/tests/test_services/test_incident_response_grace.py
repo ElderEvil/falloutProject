@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.incident import IncidentType
+from app.core.enums import IncidentType
 from app.models.vault import Vault
 from app.services.combat.incident_service import incident_service
 from app.services.combat.incident_sim import resolve_incident

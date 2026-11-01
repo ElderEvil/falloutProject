@@ -14,12 +14,17 @@ from typing import TYPE_CHECKING, Protocol
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
 
-from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, RarityEnum
+from app.core.enums import (
+    DwellerLocationRelationEnum,
+    LocationTypeEnum,
+    NotificationPriority,
+    NotificationType,
+    RarityEnum,
+)
 from app.core.game_config import game_config
 from app.crud.vault import vault as vault_crud
 from app.crud.vault_slot import vault_slot as vault_slot_crud
 from app.crud.world_location import world_location as wl_crud
-from app.models.notification import NotificationPriority, NotificationType
 from app.services.notification_service import notification_service
 from app.utils.places import GENERIC_ORIGIN_SKIP, normalize_place_name
 from app.utils.vault_slots import slot_coords

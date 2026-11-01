@@ -8,6 +8,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core import db_locks
+from app.core.enums import IncidentType
 from app.core.game_config import game_config
 from app.crud import game_state_crud
 from app.crud.dweller import dweller as crud_dweller
@@ -16,7 +17,7 @@ from app.crud.room import room as room_crud
 from app.crud.user_profile import profile_crud
 from app.crud.vault import vault as vault_crud
 from app.models.game_state import GameState
-from app.models.incident import Incident, IncidentType, hazard_team_for
+from app.models.incident import Incident, hazard_team_for
 from app.models.incident_event import IncidentEvent
 from app.models.room import Room
 from app.models.vault import Vault

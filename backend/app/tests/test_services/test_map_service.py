@@ -9,13 +9,12 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import ExpeditionRunStatus, LocationTypeEnum, PlaceKindEnum
+from app.core.enums import ExpeditionRunStatus, LocationTypeEnum, NotificationType, PlaceKindEnum, RarityEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
-from app.models.notification import Notification, NotificationType
+from app.models.notification import Notification
 from app.models.vault import Vault
 from app.models.world_location import DwellerLocation, VaultLocationState, WorldLocation
-from app.schemas.common import RarityEnum
 from app.services.map_service import map_service
 from app.utils.places import WORLD_SCALE, normalize_place_name
 
@@ -676,7 +675,8 @@ async def test_get_vault_map_expedition_sites_ready(async_session: AsyncSession,
 @pytest.mark.asyncio
 async def test_get_vault_map_expedition_sites_open(async_session: AsyncSession, vault: Vault) -> None:
     """An open run for a vault+site marks that site as blocked by 'open'."""
-    from app.models.exploration import ExpeditionRun, ExpeditionRunStatus
+    from app.core.enums import ExpeditionRunStatus
+    from app.models.exploration import ExpeditionRun
 
     await _legacy_journey(async_session, vault)
     async_session.add(
@@ -700,7 +700,8 @@ async def test_get_vault_map_expedition_sites_open(async_session: AsyncSession, 
 @pytest.mark.asyncio
 async def test_get_vault_map_expedition_sites_cooldown(async_session: AsyncSession, vault: Vault) -> None:
     """A recent terminal run puts the site in cooldown with remaining seconds."""
-    from app.models.exploration import ExpeditionRun, ExpeditionRunStatus
+    from app.core.enums import ExpeditionRunStatus
+    from app.models.exploration import ExpeditionRun
 
     await _legacy_journey(async_session, vault)
     async_session.add(

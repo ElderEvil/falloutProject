@@ -6,21 +6,13 @@ from datetime import datetime
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import HazardTeam
+from app.core.enums import HazardTeam, IncidentObjective, IncidentStatus, IncidentType
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.user_profile import profile_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
-from app.models.incident import (
-    Incident,
-    IncidentObjective,
-    IncidentStatus,
-    IncidentType,
-    effects_for_incident_type,
-    get_incident_definition,
-    hazard_team_for,
-)
+from app.models.incident import Incident, effects_for_incident_type, get_incident_definition, hazard_team_for
 from app.schemas.combat import CombatAction, CombatImpact
 from app.schemas.incident import IncidentRoundResult
 from app.services.combat import incident_math, incident_publishing

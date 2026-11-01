@@ -6,9 +6,7 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import HazardTeam
-from app.models.incident import IncidentType
-from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
+from app.core.enums import AgeGroupEnum, GenderEnum, HazardTeam, IncidentType, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.combat import incident_math
 from app.services.combat.incident_sim import DefenderProfile, IncidentOutcome, SimDefender, resolve_incident

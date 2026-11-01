@@ -12,10 +12,16 @@ from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
 
 from app import crud
 from app.core.config import settings
-from app.core.enums import AgeGroupEnum, ContentProvenanceEnum, GenderEnum, RarityEnum
+from app.core.enums import (
+    AgeGroupEnum,
+    ContentProvenanceEnum,
+    ExpeditionRunStatus,
+    ExplorationStatus,
+    GenderEnum,
+    RarityEnum,
+)
 from app.core.game_config import game_config
 from app.crud.vault_slot import vault_slot
-from app.models.exploration import ExpeditionRunStatus, ExplorationStatus
 from app.schemas.dweller import DwellerCreate
 from app.schemas.vault import VaultNumber
 from app.services import catalog_service as data_loader

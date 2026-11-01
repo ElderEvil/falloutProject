@@ -4,8 +4,9 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import CraftingOrderStatus
 from app.crud.base import CRUDBase
-from app.models.crafting_order import CraftingOrder, CraftingOrderStatus
+from app.models.crafting_order import CraftingOrder
 from app.schemas.crafting import CraftingOrderCreate, CraftingOrderUpdate
 
 

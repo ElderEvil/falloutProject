@@ -13,13 +13,12 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db_locks import try_advisory_xact_lock
-from app.core.enums import AvailabilityEnum, DwellerStatusEnum, LifecycleEnum
+from app.core.enums import AvailabilityEnum, DwellerStatusEnum, LifecycleEnum, TrainingStatus
 from app.core.game_config import game_config
 from app.crud import training as training_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
-from app.models.training import TrainingStatus
 from app.models.vault import Vault
 from app.services.notification_service import notification_service
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException

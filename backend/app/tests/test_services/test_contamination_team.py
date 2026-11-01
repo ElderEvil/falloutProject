@@ -7,9 +7,8 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import HazardTeam
-from app.models.incident import IncidentType
-from app.models.notification import Notification, NotificationType
+from app.core.enums import HazardTeam, IncidentType, NotificationType
+from app.models.notification import Notification
 from app.models.team import ACTIVE_STATUS, RESERVE_STATUS
 from app.schemas.dweller import DwellerCreate
 from app.services.catalog_service import load_outfits

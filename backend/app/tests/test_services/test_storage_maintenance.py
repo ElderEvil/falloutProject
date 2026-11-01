@@ -8,10 +8,10 @@ from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession as RawSession
 
 from app import crud
-from app.core.enums import DwellerStatusEnum, RarityEnum, RoomTypeEnum, SPECIALEnum, WeaponTypeEnum
+from app.core.enums import DwellerStatusEnum, NotificationType, RarityEnum, RoomTypeEnum, SPECIALEnum, WeaponTypeEnum
 from app.core.game_config import game_config
 from app.models.game_state import GameState
-from app.models.notification import Notification, NotificationType
+from app.models.notification import Notification
 from app.models.storage import Storage
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate

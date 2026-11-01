@@ -7,10 +7,10 @@ from types import SimpleNamespace
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import ExplorationStatus
 from app.core.game_config import game_config
 from app.crud.vault_slot import vault_slot
 from app.models.dweller import Dweller
-from app.models.exploration import ExplorationStatus
 from app.models.vault import Vault
 from app.services.exploration.dispatch_resolution import resolve_dispatch_arrival
 from app.services.exploration_service import exploration_service
@@ -48,9 +48,8 @@ async def _nearby_clearable(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dx: float = 5.0, name: str = "Slice3a Depot"
 ):
     """A clearable gas_station point due east of the vault's slot, snapped to land."""
-    from app.core.enums import DwellerLocationRelationEnum
+    from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
     from app.crud import world_location as crud_world_location
-    from app.models.world_location import LocationTypeEnum
 
     slot = await vault_slot.get_by_vault(async_session, vault.id)
     if slot is None:

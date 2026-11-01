@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum, TrainingStatus
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import training as training_crud
@@ -16,7 +16,7 @@ from app.crud.vault import vault as vault_crud
 from app.models.base import SPECIALModel
 from app.models.dweller import Dweller
 from app.models.room import Room
-from app.models.training import Training, TrainingStatus
+from app.models.training import Training
 from app.options.pet_modifiers import MAX_PCT_BONUS, pet_modifiers_for
 from app.services.notification_service import notification_service
 from app.services.room_assignment_policy import calculate_room_capacity

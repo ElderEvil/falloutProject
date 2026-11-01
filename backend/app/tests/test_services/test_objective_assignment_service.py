@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import ObjectiveCategoryEnum
 from app.crud.objective import objective_crud
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.schemas.common import ObjectiveCategoryEnum
 from app.services.progression.objectives.assignment import ObjectiveAssignmentService
 
 # ---------------------------------------------------------------------------

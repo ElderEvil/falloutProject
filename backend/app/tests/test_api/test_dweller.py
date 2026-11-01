@@ -7,11 +7,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.v1.endpoints.dweller import extend_bio
+from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
 from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.exploration_service import exploration_service
 from app.tests.factory.dwellers import create_fake_dweller
@@ -122,7 +122,7 @@ async def test_filter_dwellers_by_status(
     room: Room,
 ) -> None:
     """Test filtering dwellers by status."""
-    from app.schemas.common import DwellerStatusEnum
+    from app.core.enums import DwellerStatusEnum
     from app.schemas.dweller import DwellerUpdate
 
     # Create dwellers with different statuses

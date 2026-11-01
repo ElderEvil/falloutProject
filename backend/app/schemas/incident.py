@@ -2,7 +2,7 @@
 
 from pydantic import UUID4, BaseModel, Field
 
-from app.models.incident import IncidentFamily, IncidentObjective, IncidentStatus, IncidentType
+from app.core.enums import IncidentFamily, IncidentObjective, IncidentStatus, IncidentType
 from app.schemas.combat import CombatAction
 from app.schemas.team import TeamMemberRead
 

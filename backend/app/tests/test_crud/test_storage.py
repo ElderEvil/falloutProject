@@ -4,8 +4,8 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import ItemTypeEnum, RarityEnum
 from app.models.item import Item
-from app.schemas.common import ItemTypeEnum, RarityEnum
 
 
 @pytest.mark.asyncio

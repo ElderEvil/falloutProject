@@ -10,14 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import DwellerStatusEnum
+from app.core.enums import DwellerStatusEnum, IncidentStatus, IncidentType, RarityEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
-from app.models.incident import Incident, IncidentStatus, IncidentType
+from app.models.incident import Incident
 from app.models.pet import Pet
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.happiness_service import HappinessService, happiness_service
@@ -258,8 +257,8 @@ class TestHappinessService:
         dweller2 = await crud.dweller.create(db_session=async_session, obj_in=dweller2_in)
 
         # Make them partners
+        from app.core.enums import RelationshipTypeEnum
         from app.models.relationship import Relationship
-        from app.schemas.common import RelationshipTypeEnum
 
         relationship = Relationship(
             dweller_1_id=dweller1.id,

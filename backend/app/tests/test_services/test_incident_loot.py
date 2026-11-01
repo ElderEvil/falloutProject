@@ -7,10 +7,10 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import IncidentStatus, IncidentType
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud.storage import storage as storage_crud
-from app.models.incident import IncidentStatus, IncidentType
 from app.models.junk import Junk
 from app.models.storage import Storage
 from app.models.weapon import Weapon

@@ -15,9 +15,9 @@ from uuid import UUID
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import RewardType
 from app.core.event_bus import GameEvent, event_bus
 from app.crud.storage import storage as storage_crud
-from app.models.quest_reward import RewardType
 from app.models.storage import Storage
 from app.options.races import can_use_radaway
 from app.services.user_service import user_service

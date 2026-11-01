@@ -4,9 +4,10 @@ from pydantic import UUID4
 from sqlalchemy import select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import TrainingStatus
 from app.crud.base import CRUDBase
 from app.models.dweller import Dweller
-from app.models.training import Training, TrainingStatus
+from app.models.training import Training
 from app.schemas.training import TrainingCreate, TrainingUpdate
 
 

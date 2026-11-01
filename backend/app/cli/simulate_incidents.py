@@ -45,9 +45,8 @@ from app.cli.simulate_common import (
 from app.cli.simulate_common import (
     stats as _stats,
 )
-from app.core.enums import HazardTeam
+from app.core.enums import HazardTeam, IncidentType
 from app.core.game_config import game_config
-from app.models.incident import IncidentType
 from app.services.combat.incident_sim import DefenderProfile, IncidentOutcome, SimDefender, resolve_incident
 from app.services.combat.incident_sim_roster import synthetic_defenders
 

@@ -15,10 +15,9 @@ from uuid import UUID
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import ContentProvenanceEnum, GenderEnum, RarityEnum
+from app.core.enums import ContentProvenanceEnum, GenderEnum, RarityEnum, RewardType
 from app.core.game_config import game_config
 from app.models.item import Item
-from app.models.quest_reward import RewardType
 from app.services.rewards import items
 from app.utils.exceptions import ResourceNotFoundException
 from app.utils.item_factory import build_outfit, build_weapon

@@ -71,6 +71,10 @@ gated on upstream support)
 - [Pydantic v3 #1258](https://github.com/ElderEvil/falloutProject/issues/1258), TypeScript 7, HTTPX 2,
   UUIDv7 and the remaining tooling items.
 - Each waits for its ecosystem: SQLModel/PydanticAI/FastAPI for Pydantic v3, Volar/`vue-tsc` for TypeScript 7.
+- Evaluate [zuvloop](https://github.com/Kludex/zuvloop) after the Python 3.14 baseline. It requires Python
+  3.14+, is a young native Zig/libuv loop, and would replace uvloop on the API plus the worker loop factory.
+  Benchmark FastAPI/Uvicorn, Dramatiq, asyncpg/Redis compatibility, image size and connection footprint before
+  deciding; do not add it during the 3.0 boundary.
 
 No v3.0 date is announced until the tracker's gates are green. Keep the Dependabot pre-3.0 ignores
 (`sqlmodel >=0.0.45`, `sqlalchemy >=2.1`, `typescript >=7`) until each boundary opens.

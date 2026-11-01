@@ -131,11 +131,11 @@ uv run fo-cli ops check-ai --api-url https://fallout-api.evillab.tech --skip-cha
 6. Confirm rollout, image tag, schema, and health after deployment:
 
    ```bash
-   kubectl -n fallout rollout status deployment/backend deployment/dramatiq-worker
+   kubectl -n fallout rollout status deployment/backend deployment/dramatiq-worker deployment/frontend
    kubectl -n fallout get pods
    kubectl -n fallout get deployment backend dramatiq-worker frontend \
      -o custom-columns=NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image
-   kubectl -n fallout exec deployment/backend -- uv run alembic current
+   kubectl -n fallout exec deployment/backend -- uv run alembic current --check-heads
    kubectl -n fallout logs deployment/backend --tail=100
    ```
 
@@ -535,12 +535,12 @@ so no `npm ci` or root lockfile is needed. Backend/frontend versions are synchro
 `.releaserc.json` (`@semantic-release/exec` runs `uv --directory backend version`; `@semantic-release/npm`
 updates `frontend/package.json` with `npmPublish: false`).
 
-Do **not** create or push version tags manually. Semantic release owns the tag, changelog, version commit,
-and image build; a tag that appears before the workflow completes can make semantic-release conclude that
-there is nothing to release and skip the version/changelog update and image build. If a tag is created
-accidentally, delete it, land a real commit on `master` through the normal PR flow, and wait for
-semantic-release to finish before deploying. Deploy only from a tag whose backend and frontend images
-exist; the workflow checks this.
+Do **not** create or push version tags manually. The release workflow creates and pushes the synchronized
+baseline tag before semantic-release. Semantic-release updates the version and changelog, and the
+separate `build-images` job builds both images only when the release job detects a new tag. If a tag is
+created accidentally, delete it, land a real commit on `master` through the normal PR flow, and wait for
+the entire release workflow, including `build-images`, to finish before deploying. Deploy only from a
+tag whose backend and frontend images exist; the workflow checks this.
 
 ### Branch protection and release writes
 
@@ -610,16 +610,17 @@ docker compose exec fastapi uv run alembic revision --autogenerate -m "descripti
 
 ### Concurrent index DDL
 
-Index-only migrations can avoid a maintenance window. Run the concurrent DDL outside the migration
-transaction and gate it to PostgreSQL so SQLite test runs are unaffected:
+Index-only migrations can avoid a maintenance window. Run concurrent DDL outside the migration
+transaction on PostgreSQL, and use ordinary DDL on SQLite and other dialects:
 
 ```python
-if op.get_bind().dialect.name != "postgresql":
-    return
-
-with op.get_context().autocommit_block():
-    op.drop_index("ix_example", table_name="example", postgresql_concurrently=True)
-    # op.create_index(..., postgresql_concurrently=True) works the same way.
+if op.get_bind().dialect.name == "postgresql":
+    with op.get_context().autocommit_block():
+        op.drop_index("ix_example", table_name="example", postgresql_concurrently=True)
+        # op.create_index(..., postgresql_concurrently=True) works the same way.
+else:
+    op.drop_index("ix_example", table_name="example")
+    # op.create_index("ix_example", "example") works the same way.
 ```
 
 This does **not** make a table rewrite or another lock-taking migration safe. Those still require

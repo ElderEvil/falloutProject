@@ -67,6 +67,11 @@ docker compose logs -f
 docker compose down
 ```
 
+PostgreSQL 18 stores data under `/var/lib/postgresql/<major>/docker`; every Compose file
+mounts the parent `/var/lib/postgresql`. If a local volume was created with the old
+`/var/lib/postgresql/data` target, migrate it or recreate the development volume before
+starting; this affects local data only.
+
 **Access Points:**
 | Service | URL | Scope |
 |---------|-----|-------|

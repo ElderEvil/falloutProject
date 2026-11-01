@@ -64,3 +64,20 @@ def test_postgres_observability_config_is_pinned() -> None:
     assert "track_io_timing=on" in args
     assert "auto_explain.log_min_duration=200ms" in args
     assert "pg_stat_statements.track=all" in args
+
+
+def test_service_manifest_matches_live_names_and_ingress() -> None:
+    documents = [document for document in yaml.safe_load_all((K3S_DIR / "services.yaml").read_text()) if document]
+    services = {document["metadata"]["name"]: document for document in documents}
+
+    assert set(services) == {"backend-service", "frontend-service", "postgres-service"}
+    assert all(service["spec"]["type"] == "ClusterIP" for service in services.values())
+    assert services["backend-service"]["spec"]["ports"][0]["port"] == 8000
+    assert services["frontend-service"]["spec"]["ports"][0]["port"] == 3000
+    assert services["postgres-service"]["spec"]["ports"][0]["port"] == 5432
+
+    ingress = _load("ingress.yaml")
+    backend_names = {
+        path["backend"]["service"]["name"] for rule in ingress["spec"]["rules"] for path in rule["http"]["paths"]
+    }
+    assert backend_names == {"backend-service", "frontend-service"}

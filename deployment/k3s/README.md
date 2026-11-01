@@ -2,7 +2,9 @@
 
 These manifests are the Git baseline. `.github/workflows/deploy-hetzner.yml` sets the
 release image tags with `kubectl set image`; the `:latest` tags here are only for a
-fresh apply.
+fresh apply. Services are declared in `services.yaml` as `backend-service`,
+`frontend-service` and `postgres-service`; the ingress and `backend-env` depend on those
+names.
 
 ## Required external services
 

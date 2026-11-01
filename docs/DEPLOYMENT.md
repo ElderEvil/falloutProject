@@ -767,15 +767,16 @@ after rollout; the frontend reported `Content-Type: text/html; charset=utf-8`,
 |---|---:|---:|
 | Frontend image, Docker Hub compressed | 96.1 MiB | **53.6 MiB** |
 | Backend image, Docker Hub compressed | 159 MiB | 159 MiB |
-| Node memory used | 6.8 GiB / 85% | **5.9 GiB / 76%** |
-| dramatiq worker RSS | 1517 MiB | 1049 MiB |
+| Node memory used | 6.8 GiB / 85% | **5.9–6.3 GiB / 76–80%** |
+| dramatiq worker RSS | 1517 MiB | 1049–1187 MiB |
 | frontend pod RSS | 39 MiB | 4 MiB |
-| PostgreSQL sessions | 82 total / 74 DB | **66 total / 58 DB** |
+| PostgreSQL sessions | 82 total / 74 DB | **66–75 total / 58–67 DB** |
 
 These are point-in-time snapshots immediately after rollout, not a controlled benchmark; worker and
-database memory can vary with warm caches and tick load. The post-deploy worker log sample (132 ticks)
-had p50 1.15s, p90 2.98s, p95 3.30s, and p99 4.28s. Public endpoint measurements from the operator
-network were 0.23s TTFB for the API healthcheck and 0.30s TTFB for the frontend. The database schema
+database memory can vary with warm caches and tick load. The first post-deploy worker log sample
+(132 ticks) had p50 1.15s, p90 2.98s, p95 3.30s, and p99 4.28s; a second sample three minutes later
+(220 ticks) had p50 1.12s and p95 3.03s. Public endpoint measurements from the operator network were
+0.23s TTFB for the API healthcheck and 0.30s TTFB for the frontend. The database schema
 remained `d1f3a5c7e9b2`; image cleanup removed `v2.282.14` and `v2.282.15` and kept `v2.283.1`.
 
 Rebuild compact grid images after changing room artwork with

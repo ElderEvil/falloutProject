@@ -66,6 +66,30 @@ def test_postgres_observability_config_is_pinned() -> None:
     assert "pg_stat_statements.track=all" in args
 
 
+def test_image_cleanup_job_is_privileged_and_keeps_two_releases() -> None:
+    job = _load("image-cleanup-job.yaml")
+    pod = job["spec"]["template"]["spec"]
+    container = pod["containers"][0]
+
+    assert job["spec"]["backoffLimit"] == 2
+    assert job["spec"]["activeDeadlineSeconds"] == 600
+    assert pod["automountServiceAccountToken"] is False
+    assert pod["restartPolicy"] == "Never"
+    assert container["securityContext"] == {"privileged": True, "runAsUser": 0}
+    assert any(env["name"] == "KEEP_RELEASES" and env["value"] == "2" for env in container["env"])
+    assert any(volume["hostPath"]["path"] == "/" for volume in pod["volumes"])
+
+    script = " ".join([*container["command"], *container["args"]])
+    assert "set -euo pipefail" in script
+    assert "fo-shelter-be" in script
+    assert "fo-shelter-fe" in script
+    assert "LC_ALL=C sort -V" in script
+    assert "tail -n" in script
+    assert "userSpecifiedImage" in script
+    assert "crictl rmi" in script
+    assert "--prune" not in script
+
+
 def test_service_manifest_matches_live_names_and_ingress() -> None:
     documents = [document for document in yaml.safe_load_all((K3S_DIR / "services.yaml").read_text()) if document]
     services = {document["metadata"]["name"]: document for document in documents}

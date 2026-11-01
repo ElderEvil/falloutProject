@@ -1,0 +1,85 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: image-cleanup
+  namespace: fallout
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: image-cleanup
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      containers:
+        - name: cleanup
+          image: alpine:3.22
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          env:
+            - name: KEEP_RELEASES
+              value: "2"
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              keep_releases="${KEEP_RELEASES:-2}"
+              case "${keep_releases}" in
+                ''|*[!0-9]*)
+                  echo "ERROR: KEEP_RELEASES must be a positive integer" >&2
+                  exit 1
+                  ;;
+              esac
+              if [ "${keep_releases}" -lt 1 ]; then
+                echo "ERROR: KEEP_RELEASES must be at least 1" >&2
+                exit 1
+              fi
+
+              running="$(chroot /host /usr/local/bin/k3s crictl ps --state running -o json)"
+              for repo in fo-shelter-be fo-shelter-fe; do
+                full_repo="docker.io/elerevil/${repo}"
+                short_repo="elerevil/${repo}"
+                tags="$(chroot /host /usr/local/bin/k3s crictl images \
+                  | awk -v repo="${full_repo}" '$1 == repo && $2 ~ /^v[0-9]/ { print $2 }' \
+                  | LC_ALL=C sort -V)"
+                if [ -z "${tags}" ]; then
+                  continue
+                fi
+                keep="$(printf '%s\n' "${tags}" | sed '/^$/d' | tail -n "${keep_releases}")"
+                for tag in ${tags}; do
+                  case " ${keep} " in
+                    *" ${tag} "*) echo "keep ${full_repo}:${tag}" ;;
+                    *)
+                      if printf '%s' "${running}" | grep -Fq "\"userSpecifiedImage\": \"${short_repo}:${tag}\""; then
+                        echo "skip ${full_repo}:${tag} (in use)"
+                        continue
+                      fi
+                      echo "remove ${full_repo}:${tag}"
+                      if ! chroot /host /usr/local/bin/k3s crictl rmi "${full_repo}:${tag}"; then
+                        echo "WARNING: failed to remove ${full_repo}:${tag}" >&2
+                        exit 1
+                      fi
+                      ;;
+                  esac
+                done
+              done
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+      volumes:
+        - name: host-root
+          hostPath:
+            path: /
+            type: Directory

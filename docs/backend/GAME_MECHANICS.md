@@ -410,6 +410,28 @@ accessor by statement shape: `.all()` for multi-column queries,
 entity results. Any session-factory or CRUD refactor in this path requires a
 regression test using the raw SQLAlchemy session type.
 
+### Worker event loop and task engine lifetime
+
+Dramatiq actor functions are synchronous, but the tick services are async. Use
+`app.core.async_runtime.run_async`, which keeps one persistent event loop per
+worker thread; do not replace it with `asyncio.run`, which would create a new
+loop per message.
+
+Each loop owns one task engine. Never share an `AsyncEngine` between loops: the
+default pool holds asyncpg connections bound to the loop that opened them.
+The task engine is deliberately capped at `pool_size=2` and `max_overflow=0`
+because a tick can hold one session while a nested objective handler opens a
+second. With four worker processes and eight threads each, this caps the task
+side at 64 connections instead of the default 5+10 pool multiplied across 32
+loops.
+
+Engines currently live until the worker process exits. If short-lived loops or
+worker-restart tests are introduced, dispose each engine on its loop before
+closing the loop; SQLAlchemy cannot dispose async connections from `__del__`.
+
+Sources: [SQLAlchemy asyncio pools](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html),
+[Python asyncio threading](https://docs.python.org/3/library/asyncio-threading.html).
+
 ## Radiation sources and outfit resistance
 
 Radiation is either **ingested** or **external**, and outfits only resist the external kind.

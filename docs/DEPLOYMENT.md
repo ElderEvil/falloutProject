@@ -811,3 +811,26 @@ creation. Run this in a maintenance window:
 `deployment/k3s/postgres-deployment.yaml` is the source-of-truth manifest; it is pinned
 to the live `postgres:18-alpine` image and `/var/lib/postgresql` data mount to avoid a
 data-path change on future applies.
+
+### Postgres tuning and maintenance notes
+
+- Treat `idx_scan = 0` as a candidate, not proof. Check `pg_stat_database.stats_reset`
+  and a representative workload window before dropping an index, then use
+  `DROP INDEX CONCURRENTLY`; a normal `DROP INDEX` takes `ACCESS EXCLUSIVE`.
+  [Unused-index checklist](https://postgres.ai/docs/postgres-howtos/performance-optimization/indexing/how-to-find-unused-indexes),
+  [DROP INDEX](https://www.postgresql.org/docs/current/sql-dropindex.html)
+- `fillfactor=80` and the dweller autovacuum settings only affect pages written after
+  the migration. Existing bloat needs a rewrite. Prefer `pg_repack` for an online
+  rebuild (short exclusive locks at the start and swap); `VACUUM FULL` is the
+  maintenance-window fallback.
+  [pg_repack](https://reorg.github.io/pg_repack/), [routine vacuuming](https://www.postgresql.org/docs/current/routine-vacuuming.html)
+- Keep `auto_explain.log_analyze=off` and a non-zero `log_min_duration` in production;
+  `log_analyze=on` and per-node timing can add measurable overhead. Validate
+  `track_io_timing` on the host, because it is not free on every platform.
+  [auto_explain](https://www.postgresql.org/docs/current/auto-explain.html)
+- Do not change `random_page_cost` / `effective_io_concurrency` from a rule of thumb:
+  compare the actual plan with `SET LOCAL` first. The current workload showed no plan
+  change from `1.1` / `200`.
+- Size the worker task pool from the connection budget, not the SQLAlchemy default.
+  The task engine uses `pool_size=2`, `max_overflow=0`; measure peak
+  `pg_stat_activity` during a tick burst before changing worker process counts.

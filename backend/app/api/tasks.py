@@ -20,13 +20,7 @@ from app.core.config import settings
 from app.core.event_bus import event_bus
 from app.core.game_config import game_config
 from app.core.tick_chain import claim_tick_chain
-from app.db.session import task_session
-from app.models.vault import Vault
-from app.services.cleanup_service import cleanup_service
-from app.services.family.death_service import death_service
-from app.services.game_loop_service import game_loop_service
-from app.services.game_tick.guard import recover_session
-from app.services.game_tick.profiling import (
+from app.core.tick_profiling import (
     TickProfile,
     current_profile,
     profile_key,
@@ -34,6 +28,12 @@ from app.services.game_tick.profiling import (
     set_current_profile,
     tick_phase,
 )
+from app.db.session import task_session
+from app.models.vault import Vault
+from app.services.cleanup_service import cleanup_service
+from app.services.family.death_service import death_service
+from app.services.game_loop_service import game_loop_service
+from app.services.game_tick.guard import recover_session
 from app.services.game_tick.tick_results import VaultTickResult
 from app.utils.exceptions import ResourceNotFoundException
 

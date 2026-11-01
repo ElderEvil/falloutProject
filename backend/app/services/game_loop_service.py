@@ -13,6 +13,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
 from app.core.stream_manager import sse_manager
+from app.core.tick_profiling import tick_phase
 from app.crud import game_state_crud
 from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
@@ -23,7 +24,6 @@ from app.models.vault import Vault
 from app.services.combat.arena_service import arena_service
 from app.services.game_tick import crafting_tick, dwellers_tick, family_tick, radio_tick, storage_tick
 from app.services.game_tick.guard import recover_session
-from app.services.game_tick.profiling import tick_phase
 from app.services.game_tick.tick_results import (
     AgeStats,
     ApprenticeStats,

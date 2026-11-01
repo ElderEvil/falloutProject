@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.core.game_config import game_config
+from app.core.tick_profiling import tick_phase, tick_sql_phase
 from app.models import Dweller, Room, Storage, Vault
 from app.models.game_state import GameState
 from app.utils.exceptions import ResourceNotFoundException
@@ -32,28 +33,44 @@ class CRUDResource:
     """Database access used by the resource service."""
 
     async def get_vault_resource_data(self, db_session: AsyncSession, vault_id: UUID4) -> VaultResourceData:
-        vault_row = (
-            await db_session.execute(
+        with (
+            tick_phase("resources.load.vault"),
+            tick_phase("resources.load.vault.execute"),
+            tick_sql_phase(db_session, "resources.load.vault"),
+        ):
+            vault_result = await db_session.execute(
                 select(Vault, Storage, GameState)
                 .select_from(Vault)
                 .outerjoin(Storage, Storage.vault_id == Vault.id)
                 .outerjoin(GameState, GameState.vault_id == Vault.id)
                 .where(Vault.id == vault_id)
             )
-        ).one_or_none()
+            with tick_phase("resources.load.vault.materialize"):
+                vault_row = vault_result.one_or_none()
         if vault_row is None:
             raise ResourceNotFoundException(Vault, identifier=vault_id)
 
         vault, storage, game_state = vault_row
-        rooms = (await db_session.execute(select(Room).where(Room.vault_id == vault_id))).scalars().all()
+        with (
+            tick_phase("resources.load.rooms"),
+            tick_phase("resources.load.rooms.execute"),
+            tick_sql_phase(db_session, "resources.load.rooms"),
+        ):
+            rooms_result = await db_session.execute(select(Room).where(Room.vault_id == vault_id))
+            with tick_phase("resources.load.rooms.materialize"):
+                rooms = rooms_result.scalars().all()
         present = (
             Dweller.vault_id == vault_id,
             Dweller.is_deleted.is_(False),
             Dweller.is_dead.is_(False),
             Dweller.status.not_in([DwellerStatusEnum.DEAD, DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING]),
         )
-        dweller_rows = (
-            await db_session.execute(
+        with (
+            tick_phase("resources.load.dwellers"),
+            tick_phase("resources.load.dwellers.execute"),
+            tick_sql_phase(db_session, "resources.load.dwellers"),
+        ):
+            dweller_result = await db_session.execute(
                 select(Dweller, Room)
                 .select_from(Dweller)
                 .outerjoin(Room, and_(Room.id == Dweller.room_id, Room.vault_id == vault_id))
@@ -65,7 +82,8 @@ class CRUDResource:
                 # equipped pet's SPECIAL bonus (B7 eager-load fan-out).
                 .options(selectinload(Dweller.outfit), selectinload(Dweller.pet))
             )
-        ).all()
+            with tick_phase("resources.load.dwellers.materialize"):
+                dweller_rows = dweller_result.all()
 
         dweller_count = 0.0
         grouped_dwellers: dict[UUID4, tuple[Room, list[Dweller]]] = {}

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.284.1 (2026-11-01)
+
+### Bug Fixes
+
+* **static:** allow cross-origin portrait assets cc3fa32
+
 ## 2.284.0 (2026-11-01)
 
 ### Features

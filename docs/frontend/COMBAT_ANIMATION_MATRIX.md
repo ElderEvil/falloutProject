@@ -3,6 +3,7 @@
 Status: catalog-audited design; skill icons and the first shared motion slice implemented on 2026-10-25.
 Spec reference: [#1140 — weapon-type skill icons and free combat animation assets](https://github.com/ElderEvil/falloutProject/issues/1140).
 Playback foundation: [shared combat playback](../features/WASTELAND_COMBAT_EXPANSION.md#shared-combat-playback-2026-10-25).
+Animation source research: [dweller rig and animation sources](../features/DWELLER_RIG_ANIMATION.md).
 
 The matrix covers the actual weapon catalog and dweller races. It describes reusable choreography, rather
 than a separate animation asset for every item/race combination. Combat rules, damage, targeting and turn

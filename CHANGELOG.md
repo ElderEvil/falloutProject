@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.283.0 (2026-11-01)
+
+### Features
+
+* **infra:** add retained k3s image cleanup job fedc145
+
+### Bug Fixes
+
+* **infra:** harden image cleanup job d1fe810
+
 ## 2.282.17 (2026-11-01)
 
 ### Performance Improvements

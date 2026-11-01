@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import cast
 
 import pytest
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -109,7 +109,8 @@ async def test_cleanup_old_notifications(
 
     deleted_count = await cleanup_service.cleanup_old_notifications(
         async_session,
-        retention_days=7,
+        read_retention_days=7,
+        unread_retention_days=30,
         batch_size=100,
     )
 
@@ -120,6 +121,91 @@ async def test_cleanup_old_notifications(
 
     assert old_notification.id not in remaining_ids
     assert recent_notification.id in remaining_ids
+
+
+def _notification(
+    user: User, vault: Vault, *, created_days_ago: int, is_read: bool, is_dismissed: bool
+) -> Notification:
+    return Notification(
+        user_id=user.id,
+        vault_id=vault.id,
+        notification_type=NotificationType.COMBAT_STARTED,
+        priority=NotificationPriority.NORMAL,
+        title="Retention fixture",
+        message="retention",
+        is_read=is_read,
+        is_dismissed=is_dismissed,
+        created_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(days=created_days_ago),
+    )
+
+
+@pytest.mark.asyncio
+async def test_cleanup_notifications_respects_read_unread_and_dismissed_retention(
+    async_session: AsyncSession,
+    user_with_vault: tuple[User, Vault],
+) -> None:
+    """Read/dismissed rows use the short window; untouched unread rows use the long one."""
+    user, vault = user_with_vault
+
+    old_read = _notification(user, vault, created_days_ago=40, is_read=True, is_dismissed=False)
+    old_dismissed_unread = _notification(user, vault, created_days_ago=40, is_read=False, is_dismissed=True)
+    old_unread_kept = _notification(user, vault, created_days_ago=40, is_read=False, is_dismissed=False)
+    old_unread_expired = _notification(user, vault, created_days_ago=100, is_read=False, is_dismissed=False)
+    recent_read_kept = _notification(user, vault, created_days_ago=10, is_read=True, is_dismissed=False)
+    recent_dismissed_kept = _notification(user, vault, created_days_ago=10, is_read=False, is_dismissed=True)
+    async_session.add_all(
+        [
+            old_read,
+            old_dismissed_unread,
+            old_unread_kept,
+            old_unread_expired,
+            recent_read_kept,
+            recent_dismissed_kept,
+        ]
+    )
+    await async_session.commit()
+
+    deleted_count = await cleanup_service.cleanup_old_notifications(
+        async_session,
+        read_retention_days=30,
+        unread_retention_days=90,
+        batch_size=100,
+    )
+
+    assert deleted_count == 3
+    remaining_ids = {row.id for row in (await async_session.execute(select(Notification))).scalars().all()}
+    assert remaining_ids == {old_unread_kept.id, recent_read_kept.id, recent_dismissed_kept.id}
+
+
+@pytest.mark.asyncio
+async def test_cleanup_notifications_batches_expired_rows(
+    async_session: AsyncSession,
+    user_with_vault: tuple[User, Vault],
+) -> None:
+    """The CRUD limit bounds each pass and the service loops until the backlog is gone."""
+    user, vault = user_with_vault
+    expired = [_notification(user, vault, created_days_ago=40, is_read=True, is_dismissed=False) for _ in range(5)]
+    async_session.add_all(expired)
+    await async_session.commit()
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    first_batch = await crud.notification.get_expired_batch(
+        async_session,
+        read_cutoff=now - timedelta(days=30),
+        unread_cutoff=now - timedelta(days=90),
+        limit=2,
+    )
+    assert len(first_batch) == 2
+
+    deleted_count = await cleanup_service.cleanup_old_notifications(
+        async_session,
+        read_retention_days=30,
+        unread_retention_days=90,
+        batch_size=2,
+    )
+
+    assert deleted_count == 5
+    assert (await async_session.execute(select(Notification))).scalars().all() == []
 
 
 @pytest.mark.asyncio
@@ -156,6 +242,6 @@ async def test_cleanup_prunes_the_incidents_responder_team(
 
     assert (await async_session.execute(select(Team).where(Team.id == team_id))).scalars().all() == []
     remaining_members = (
-        (await async_session.execute(select(TeamMember).where(TeamMember.id.in_(member_ids)))).scalars().all()
+        (await async_session.execute(select(TeamMember).where(col(TeamMember.id).in_(member_ids)))).scalars().all()
     )
     assert remaining_members == []

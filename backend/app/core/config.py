@@ -46,9 +46,28 @@ class Settings(BaseSettings):
     POSTGRES_DB: str
     REDIS_HOST: str
     REDIS_PORT: str
-    DB_POOL_SIZE: int = 83
-    WEB_CONCURRENCY: int = 9
-    POOL_SIZE: int = max(DB_POOL_SIZE // WEB_CONCURRENCY, 5)
+
+    # PostgreSQL connection budget. Keep these aligned with the deployed
+    # PostgreSQL server and pod process/thread counts; ``validate_connection_budget``
+    # rejects a configuration whose worst-case peak reaches max_connections.
+    POSTGRES_MAX_CONNECTIONS: int = Field(default=100, ge=1)
+    POSTGRES_RESERVED_CONNECTIONS: int = Field(default=3, ge=0)
+
+    # API engine. Uvicorn reads WEB_CONCURRENCY when no --workers flag is given;
+    # pinning it to 1 keeps one bounded API pool per pod.
+    WEB_CONCURRENCY: int = Field(default=1, ge=1)
+    API_DB_POOL_SIZE: int = Field(default=10, ge=1)
+    API_DB_MAX_OVERFLOW: int = Field(default=5, ge=0)
+
+    # Dramatiq worker task engines. The worker manifest runs 4 processes with
+    # Dramatiq's default 8 threads each; every thread keeps one event loop and
+    # therefore one task pool. A tick can hold one session while a nested
+    # objective handler opens a second, so each pool keeps 2 connections.
+    DRAMATIQ_PROCESSES: int = Field(default=2, ge=1)
+    DRAMATIQ_THREADS: int = Field(default=8, ge=1)
+    TASK_DB_POOL_SIZE: int = Field(default=2, ge=1)
+    TASK_DB_MAX_OVERFLOW: int = Field(default=0, ge=0)
+
     ASYNC_DATABASE_URI: PostgresDsn | str = ""
 
     # Storage Provider - RustFS (S3-compatible)
@@ -202,7 +221,11 @@ class Settings(BaseSettings):
     LOG_FILE_RETENTION_DAYS: int = 14  # Number of days to retain log files
 
     INCIDENT_RETENTION_DAYS: int = Field(default=7, ge=1)
-    NOTIFICATION_RETENTION_DAYS: int = Field(default=30, ge=1)
+    # Read *or dismissed* notifications age out quickly; unread rows are user
+    # state and get a longer window. Production is ~93% unread, so a single
+    # read-only prune would barely shrink the table.
+    NOTIFICATION_READ_RETENTION_DAYS: int = Field(default=30, ge=1)
+    NOTIFICATION_UNREAD_RETENTION_DAYS: int = Field(default=90, ge=1)
     CLEANUP_BATCH_SIZE: int = Field(default=500, ge=1, le=10_000)
 
     # Crafting is wall-clock-driven (``advance_orders`` only detects completion),
@@ -247,6 +270,27 @@ class Settings(BaseSettings):
     )
 
     @property
+    def api_pool_connections(self) -> int:
+        """Worst-case connections held by all API processes."""
+        return self.WEB_CONCURRENCY * (self.API_DB_POOL_SIZE + self.API_DB_MAX_OVERFLOW)
+
+    @property
+    def task_pool_connections(self) -> int:
+        """Worst-case connections held by every dramatiq worker event loop."""
+        per_loop = self.TASK_DB_POOL_SIZE + self.TASK_DB_MAX_OVERFLOW
+        return self.DRAMATIQ_PROCESSES * self.DRAMATIQ_THREADS * per_loop
+
+    @property
+    def peak_database_connections(self) -> int:
+        """Worst-case total connections against ``max_connections``.
+
+        Sums the application pools plus the superuser slots that PostgreSQL
+        reserves out of ``max_connections``; the remaining difference is the
+        safety headroom.
+        """
+        return self.POSTGRES_RESERVED_CONNECTIONS + self.api_pool_connections + self.task_pool_connections
+
+    @property
     def redis_url(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
 
@@ -284,6 +328,24 @@ class Settings(BaseSettings):
             raise ValueError("QUEST_DURATION_MULTIPLIER must be 1.0 outside local development")
         if self.FRONTEND_URL and self.FRONTEND_URL not in self.BACKEND_CORS_ORIGINS:
             self.BACKEND_CORS_ORIGINS.append(self.FRONTEND_URL)
+        return self
+
+    @model_validator(mode="after")
+    def validate_connection_budget(self) -> "Settings":
+        if self.peak_database_connections >= self.POSTGRES_MAX_CONNECTIONS:
+            raise ValueError(
+                "PostgreSQL connection budget leaves no headroom: "
+                f"reserved={self.POSTGRES_RESERVED_CONNECTIONS} + "
+                f"api={self.api_pool_connections} + "
+                f"task={self.task_pool_connections} = {self.peak_database_connections} "
+                f">= max_connections={self.POSTGRES_MAX_CONNECTIONS}"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_notification_retention(self) -> "Settings":
+        if self.NOTIFICATION_UNREAD_RETENTION_DAYS < self.NOTIFICATION_READ_RETENTION_DAYS:
+            raise ValueError("NOTIFICATION_UNREAD_RETENTION_DAYS must be >= NOTIFICATION_READ_RETENTION_DAYS")
         return self
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

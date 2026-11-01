@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import CursorResult, func, update
+from sqlalchemy import CursorResult, and_, func, or_, update
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -132,11 +132,30 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
             return notification
         return None
 
-    async def get_older_than(self, db_session: AsyncSession, cutoff: datetime, limit: int) -> list[Notification]:
-        """Notifications created at or before the cutoff, oldest batch first."""
+    async def get_expired_batch(
+        self,
+        db_session: AsyncSession,
+        read_cutoff: datetime,
+        unread_cutoff: datetime,
+        limit: int,
+    ) -> list[Notification]:
+        """Oldest notification batch eligible for retention cleanup.
+
+        Read or dismissed rows expire at ``read_cutoff``; rows that are still
+        unread and not dismissed expire only at the later ``unread_cutoff``.
+        Dismissed-but-unread rows therefore follow the read path, preserving
+        the existing dismiss semantics.
+        """
+        acted_on = or_(col(Notification.is_read).is_(True), col(Notification.is_dismissed).is_(True))
+        untouched = and_(col(Notification.is_read).is_(False), col(Notification.is_dismissed).is_(False))
         query = (
             select(Notification)
-            .where(col(Notification.created_at) <= cutoff)
+            .where(
+                or_(
+                    and_(acted_on, col(Notification.created_at) <= read_cutoff),
+                    and_(untouched, col(Notification.created_at) <= unread_cutoff),
+                )
+            )
             .order_by(col(Notification.created_at).asc())
             .limit(limit)
         )

@@ -43,6 +43,17 @@ spec:
               value: "1"
             - name: SECURITY_REDIS_FAIL_OPEN
               value: "true"
+            - name: POSTGRES_MAX_CONNECTIONS
+              value: "100"
+            # Pin the uvicorn process count: a WEB_CONCURRENCY value inherited
+            # from the secret would otherwise multiply the API pool and break
+            # the connection budget validated from this same value.
+            - name: WEB_CONCURRENCY
+              value: "1"
+            - name: API_DB_POOL_SIZE
+              value: "10"
+            - name: API_DB_MAX_OVERFLOW
+              value: "5"
           volumeMounts:
             - name: application-logs
               mountPath: /var/log/fallout_shelter

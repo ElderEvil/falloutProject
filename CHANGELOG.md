@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.283.2 (2026-11-01)
+
+### Bug Fixes
+
+* **infra:** persist Traefik client-IP policy 9309ee8
+* **security:** restore rate limiting behind Traefik 3b3bf31
+
+### Documentation
+
+* **deploy:** include post-deploy metric range 8adc1ea
+* **deploy:** record v2.283.1 deployment measurements f5c2ac6
+
 ## 2.283.1 (2026-11-01)
 
 ### Bug Fixes

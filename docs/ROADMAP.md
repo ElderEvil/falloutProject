@@ -48,6 +48,8 @@ No PR is approved for merge by this roadmap.
   transaction/concurrency guarantees, rejected alternatives and measured duplication removal explicit.
 - [Operational correctness #885](https://github.com/ElderEvil/falloutProject/issues/885): verify the live
   inventory before changes; prioritize reproducible deployments, migration sequencing and recovery as warranted.
+  Repository evidence and remaining live checks are tracked in
+  [`deployment/k3s/README.md`](../deployment/k3s/README.md#issue-885-closure-evidence).
 - Fix demonstrated correctness/security blockers promptly. Avoid unrelated rewrites or library migrations.
 
 ## 3.0 platform release plan

@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app import crud
-from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.schemas.quest import QuestCreate, QuestUpdate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
@@ -67,7 +67,8 @@ async def test_assign_quest_twice_updates_visibility(async_session: AsyncSession
 @pytest.mark.asyncio
 async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
     """Test vault quests reveal only chain starters until their requirement completes."""
-    from app.models.quest_requirement import QuestRequirement, RequirementType
+    from app.core.enums import RequirementType
+    from app.models.quest_requirement import QuestRequirement
     from app.models.room import Room
     from app.services.progression.quests.service import quest_service
     from app.tests.factory.rooms import create_overseers_office
@@ -170,8 +171,9 @@ async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
 @pytest.mark.asyncio
 async def test_get_multi_for_vault_with_requirements_and_rewards(async_session: AsyncSession) -> None:
     """Test getting quests with their requirements and rewards."""
+    from app.core.enums import RewardType
     from app.models.quest_requirement import QuestRequirement
-    from app.models.quest_reward import QuestReward, RewardType
+    from app.models.quest_reward import QuestReward
     from app.schemas.quest import QuestRequirementJSON, QuestRewardJSON
 
     user_data = create_fake_user()
@@ -505,7 +507,8 @@ async def test_quest_cannot_complete_before_its_duration(async_session: AsyncSes
 async def test_check_and_complete_quests_for_vault(async_session: AsyncSession) -> None:
     """Refreshing a vault makes its elapsed quest claimable without granting rewards."""
 
-    from app.models.quest_reward import QuestReward, RewardType
+    from app.core.enums import RewardType
+    from app.models.quest_reward import QuestReward
     from app.models.vault_quest import VaultQuestCompletionLink
     from app.services.progression.quests.service import quest_service
 
@@ -573,12 +576,12 @@ async def test_check_and_complete_quests_for_vault(async_session: AsyncSession) 
 async def test_timed_quest_completion_simulation(async_session: AsyncSession) -> None:
     """Simulate a party return followed by an atomic reward claim."""
 
+    from app.core.enums import AgeGroupEnum, RewardType
     from app.core.event_bus import GameEvent, event_bus
     from app.models.dweller import Dweller
-    from app.models.quest_reward import QuestReward, RewardType
+    from app.models.quest_reward import QuestReward
     from app.models.storage import Storage
     from app.models.weapon import Weapon
-    from app.schemas.common import AgeGroupEnum
     from app.services.progression.quests.service import quest_service
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_dweller

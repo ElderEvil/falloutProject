@@ -12,11 +12,11 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import RoomActionEnum, RoomTypeEnum, SPECIALEnum
 from app.core.game_config import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN, game_config
 from app.crud.room import CRUDRoom
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import RoomActionEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate, RoomUpdate
 from app.services.room_service import RoomService
 from app.utils.exceptions import (

@@ -2,7 +2,8 @@ import pytest
 from sqlmodel import select
 
 from app import crud
-from app.models.notification import Notification, NotificationType
+from app.core.enums import NotificationType
+from app.models.notification import Notification
 from app.schemas.dweller import DwellerCreate
 from app.services.notification_service import NotificationService
 from app.tests.factory.dwellers import create_random_common_dweller

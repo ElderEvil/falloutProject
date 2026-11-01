@@ -6,6 +6,7 @@ from datetime import datetime
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import IncidentObjective, IncidentStatus, IncidentType
 from app.core.event_bus import GameEvent, event_bus
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident import incident_crud
@@ -13,13 +14,7 @@ from app.crud.room import room as room_crud
 from app.crud.team import team_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
-from app.models.incident import (
-    Incident,
-    IncidentObjective,
-    IncidentStatus,
-    IncidentType,
-    get_incident_definition,
-)
+from app.models.incident import Incident, get_incident_definition
 from app.models.team import COMMITTED_MEMBER_STATUSES
 from app.schemas.incident import (
     IncidentEventRead,

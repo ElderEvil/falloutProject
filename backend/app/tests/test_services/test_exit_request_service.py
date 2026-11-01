@@ -14,17 +14,19 @@ from app.core.enums import (
     DeathCauseEnum,
     DwellerStatusEnum,
     GenderEnum,
+    IncidentStatus,
+    IncidentType,
     LifecycleEnum,
     RarityEnum,
+    RoomTypeEnum,
+    SPECIALEnum,
+    TrainingStatus,
 )
 from app.core.game_config import game_config
 from app.crud import training as training_crud
 from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
-from app.models.incident import IncidentStatus, IncidentType
-from app.models.training import TrainingStatus
 from app.models.vault import Vault
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.combat.incident_service import incident_service

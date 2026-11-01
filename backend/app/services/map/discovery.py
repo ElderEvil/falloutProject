@@ -14,12 +14,11 @@ from typing import TYPE_CHECKING
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
 
-from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
+from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, NotificationPriority, NotificationType
 from app.crud.exploration import exploration as exploration_crud
 from app.crud.vault import vault as vault_crud
 from app.crud.world_location import world_location as wl_crud
 from app.crud.world_snapshot import world_snapshot as world_snapshot_crud
-from app.models.notification import NotificationPriority, NotificationType
 from app.schemas.wasteland_location import DiscoveryRoutePoint, DiscoveryRouteRead
 from app.services.map.world_generation import WORLD_ID
 from app.services.notification_service import notification_service

@@ -8,9 +8,9 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import NotificationType
 from app.core.game_config import game_config
 from app.crud.notification import notification as notification_crud
-from app.models.notification import NotificationType
 from app.services import storage_maintenance_service as maintenance
 from app.services.notification_service import notification_service
 from app.utils.item_factory import apply_weapon_catalog

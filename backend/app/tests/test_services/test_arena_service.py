@@ -10,14 +10,13 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import ArenaMode
+from app.core.enums import AgeGroupEnum, ArenaMode, DwellerStatusEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.crud.arena_state import arena_state_crud
 from app.models.arena_match_event import ArenaMatchEvent
 from app.models.arena_state import ArenaState
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.catalog_service import load_enemies

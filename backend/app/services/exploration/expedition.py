@@ -16,10 +16,10 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import ExpeditionRunStatus, NotificationType
 from app.crud import dweller as dweller_crud
 from app.models.dweller import Dweller
-from app.models.exploration import CONSUMING_STATUSES, ExpeditionRun, ExpeditionRunStatus, Exploration
-from app.models.notification import NotificationType
+from app.models.exploration import CONSUMING_STATUSES, ExpeditionRun, Exploration
 from app.schemas.expedition import (
     AvailableSiteView,
     EnemySpec,

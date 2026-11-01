@@ -2,8 +2,15 @@ import random
 
 from faker import Faker
 
-from app.core.enums import SPECIAL_STATS
-from app.schemas.common import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+from app.core.enums import (
+    SPECIAL_STATS,
+    GenderEnum,
+    JunkTypeEnum,
+    OutfitTypeEnum,
+    RarityEnum,
+    WeaponSubtypeEnum,
+    WeaponTypeEnum,
+)
 from app.tests.utils.utils import get_name_two_words
 
 fake = Faker()

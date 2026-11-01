@@ -6,8 +6,7 @@ from typing import Literal
 from pydantic import UUID4, Field
 from sqlmodel import SQLModel
 
-from app.core.enums import RarityEnum
-from app.models.crafting_order import CraftingOrderStatus
+from app.core.enums import CraftingOrderStatus, RarityEnum
 
 CraftableItemType = Literal["weapon", "outfit", "theme"]
 

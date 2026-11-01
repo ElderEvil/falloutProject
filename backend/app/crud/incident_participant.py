@@ -5,8 +5,9 @@ from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import IncidentType
 from app.crud.base import CRUDBase
-from app.models.incident import Incident, IncidentParticipant, IncidentType
+from app.models.incident import Incident, IncidentParticipant
 
 
 class CRUDIncidentParticipant(CRUDBase[IncidentParticipant, None, None]):

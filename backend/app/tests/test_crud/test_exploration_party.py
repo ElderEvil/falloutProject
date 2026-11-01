@@ -4,8 +4,9 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.core.enums import ExplorationStatus
 from app.models.dweller import Dweller
-from app.models.exploration import Exploration, ExplorationStatus
+from app.models.exploration import Exploration
 from app.models.team import Team, TeamMember
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID

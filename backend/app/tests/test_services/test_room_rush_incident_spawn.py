@@ -6,7 +6,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.models.incident import IncidentType
+from app.core.enums import IncidentType
 from app.models.room import Room
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate

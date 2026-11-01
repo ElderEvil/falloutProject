@@ -1,8 +1,10 @@
-"""Architecture guard: Python enums have one owner and one dependency direction.
+"""Architecture guard: Python enums have one owner, one import path and one dependency direction.
 
 Enums are defined in ``app/core/enums.py``; model modules must not define their own
 ``StrEnum``/``IntEnum`` and ``app/core`` must not import ``app.models`` (the old
-direction created a cycle that only deferred imports hid).
+direction created a cycle that only deferred imports hid). Enums are imported from
+``app.core.enums`` only: model modules and the retired ``app.schemas.common`` facade
+are not import paths for them.
 """
 
 from __future__ import annotations
@@ -13,6 +15,8 @@ from pathlib import Path
 APP_DIR = Path(__file__).resolve().parents[2]
 MODELS_DIR = APP_DIR / "models"
 CORE_DIR = APP_DIR / "core"
+ENUMS_FILE = CORE_DIR / "enums.py"
+COMPAT_ENUM_MODULES = frozenset({"app.schemas.common"})
 ENUM_BASES = frozenset({"StrEnum", "IntEnum"})
 
 
@@ -83,6 +87,43 @@ def core_model_imports(source: str, module_name: str) -> set[str]:
     return violations
 
 
+def core_enum_exports() -> set[str]:
+    """Top-level names defined in ``app/core/enums.py`` (enums plus their helper constants)."""
+    tree = ast.parse(ENUMS_FILE.read_text(encoding="utf-8"))
+    names = {node.name for node in tree.body if isinstance(node, ast.ClassDef)}
+    for node in tree.body:
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            names.add(node.target.id)
+        elif isinstance(node, ast.Assign):
+            names.update(target.id for target in node.targets if isinstance(target, ast.Name))
+    return names
+
+
+def compat_enum_imports(source: str, module_name: str, exports: set[str]) -> dict[str, set[str]]:
+    """Enum names imported from a non-canonical module, keyed by import target.
+
+    Model modules bind the enums they use for column types, so ``from app.models.incident
+    import IncidentType`` still resolves; that incidental re-export is not an import path.
+    """
+    violations: dict[str, set[str]] = {}
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        if node.level:
+            base = _relative_base(module_name, node.level)
+            if not base:
+                continue
+            resolved = ".".join([*base, *node.module.split(".")]) if node.module else None
+        else:
+            resolved = node.module
+        if resolved is None or not (_is_models_module(resolved) or resolved in COMPAT_ENUM_MODULES):
+            continue
+        moved = {alias.name for alias in node.names if alias.name in exports}
+        if moved:
+            violations.setdefault(f"{resolved} (line {node.lineno})", set()).update(moved)
+    return violations
+
+
 def test_model_modules_do_not_define_python_enums() -> None:
     violations = {
         str(path.relative_to(APP_DIR)): sorted(names)
@@ -130,6 +171,32 @@ def test_moved_enums_are_defined_in_core() -> None:
     assert {enum_cls.__module__ for enum_cls in moved} == {"app.core.enums"}
 
 
+def test_enums_are_imported_from_core_only() -> None:
+    exports = core_enum_exports()
+    violations = {
+        str(path.relative_to(APP_DIR)): found
+        for path in APP_DIR.rglob("*.py")
+        if "__pycache__" not in path.parts
+        and path != ENUMS_FILE
+        and (found := compat_enum_imports(path.read_text(encoding="utf-8"), _module_name(path), exports))
+    }
+
+    assert not violations, (
+        "Enums must be imported from app.core.enums, not from app.models or app.schemas.common:\n  "
+        + "\n  ".join(
+            f"{path}: {sorted(names)} via {target}"
+            for path, targets in sorted(violations.items())
+            for target, names in sorted(targets.items())
+        )
+    )
+
+
+def test_compat_enum_module_is_removed() -> None:
+    assert not (APP_DIR / "schemas" / "common.py").exists(), (
+        "app/schemas/common.py is retired: import enums from app.core.enums and serializers from app.utils.serialize"
+    )
+
+
 def test_detectors_catch_the_old_shapes() -> None:
     assert enum_class_names("from enum import StrEnum\nclass Bad(StrEnum):\n    A = 'a'\n") == {"Bad"}
     assert enum_class_names("from enum import IntEnum\nclass Bad(IntEnum):\n    A = 1\n") == {"Bad"}
@@ -142,3 +209,19 @@ def test_detectors_catch_the_old_shapes() -> None:
     assert core_model_imports("from app import models\n", "app.core.foo") == {"app.models (line 1)"}
     assert core_model_imports("from .models import Thing\n", "app.core.foo") == set()
     assert core_model_imports("from app.core import enums\n", "app.core.foo") == set()
+
+
+def test_compat_enum_detector_catches_the_old_shapes() -> None:
+    exports = {"IncidentType", "GenderEnum"}
+
+    assert compat_enum_imports("from app.models.incident import IncidentType\n", "app.services.x", exports) == {
+        "app.models.incident (line 1)": {"IncidentType"}
+    }
+    assert compat_enum_imports("from app.schemas.common import GenderEnum\n", "app.tests.x", exports) == {
+        "app.schemas.common (line 1)": {"GenderEnum"}
+    }
+    assert compat_enum_imports("from ..models.incident import IncidentType\n", "app.services.x", exports) == {
+        "app.models.incident (line 1)": {"IncidentType"}
+    }
+    assert compat_enum_imports("from app.models.incident import Incident\n", "app.services.x", exports) == {}
+    assert compat_enum_imports("from app.core.enums import IncidentType\n", "app.services.x", exports) == {}

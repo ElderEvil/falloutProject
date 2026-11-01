@@ -8,9 +8,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
+from app.core.enums import IncidentType
 from app.core.game_config import game_config
 from app.db.session import get_async_session
-from app.models.incident import IncidentType
 from app.models.vault import Vault
 from app.schemas.incident import (
     DeleteIncidentsResponse,

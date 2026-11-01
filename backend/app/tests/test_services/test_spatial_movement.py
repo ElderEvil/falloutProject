@@ -7,10 +7,10 @@ from uuid import uuid4
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import ExplorationStatus
 from app.core.game_config import game_config
 from app.crud.vault_slot import vault_slot
 from app.models.dweller import Dweller
-from app.models.exploration import ExplorationStatus
 from app.models.vault import Vault
 from app.models.vault_slot import VaultSlot
 from app.services.exploration_service import exploration_service

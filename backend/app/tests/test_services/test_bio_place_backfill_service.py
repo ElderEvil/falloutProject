@@ -33,7 +33,7 @@ def test_extract_no_bio_returns_none_empty() -> None:
 @pytest.mark.asyncio
 async def test_backfill_bio_places_for_vault_respects_max_dwellers(async_session: AsyncSession, vault: Vault) -> None:
     """max_dwellers limits how many dwellers are processed."""
-    from app.schemas.common import GenderEnum, RarityEnum
+    from app.core.enums import GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
 
     for i in range(3):
@@ -57,7 +57,7 @@ async def test_backfill_bio_places_for_active_vaults_skips_deleted(async_session
     """Only non-deleted vaults are backfilled."""
     from faker import Faker
 
-    from app.schemas.common import GenderEnum, RarityEnum
+    from app.core.enums import GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
     from app.schemas.user import UserCreate
     from app.schemas.vault import VaultCreateWithUserID

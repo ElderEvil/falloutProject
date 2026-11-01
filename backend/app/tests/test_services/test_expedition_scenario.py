@@ -7,8 +7,7 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import GenderEnum
-from app.models.exploration import ExpeditionRunStatus, ExplorationStatus
+from app.core.enums import ExpeditionRunStatus, ExplorationStatus, GenderEnum
 from app.models.vault import Vault
 from app.schemas.expedition import ExpeditionResolveRequest
 from app.schemas.vault import VaultNumber

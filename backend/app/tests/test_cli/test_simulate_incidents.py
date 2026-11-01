@@ -9,8 +9,7 @@ from typer.testing import CliRunner
 from app.cli import simulate_incidents as sim_cli
 from app.cli.main import cli
 from app.cli.simulate_incidents import IncidentConfig, IncidentSimulator
-from app.core.enums import HazardTeam
-from app.models.incident import IncidentType
+from app.core.enums import HazardTeam, IncidentType
 from app.services.combat.incident_sim import DefenderProfile, IncidentOutcome, SimDefender
 from app.utils.damage_reductions import DamageReductions
 

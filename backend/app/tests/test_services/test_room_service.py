@@ -13,11 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.training import Training
 from app.models.vault import Vault
-from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.room_assignment_policy import calculate_room_capacity
@@ -1024,7 +1024,8 @@ async def test_split_requires_multiple_base_segments_and_free_placement_lock(asy
 
 
 async def test_remodel_training_and_incident_references_follow_survivor(async_session, rich_vault):
-    from app.models.incident import Incident, IncidentStatus, IncidentType
+    from app.core.enums import IncidentStatus, IncidentType
+    from app.models.incident import Incident
     from app.services.room_remodel_service import remodel_room
     from app.utils.exceptions import VaultOperationException
 

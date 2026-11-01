@@ -16,7 +16,7 @@ from app.agents.chat_prompts import (
     state_mind_line,
 )
 from app.agents.chat_tools import load_family_members
-from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
+from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
 from app.services.chat.agent_runner import build_dweller_prompt
 
 

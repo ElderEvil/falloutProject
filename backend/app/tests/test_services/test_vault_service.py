@@ -10,7 +10,16 @@ import pytest
 from pydantic import UUID4, ValidationError
 
 from app import crud
-from app.core.enums import HazardTeam
+from app.core.enums import (
+    AgeGroupEnum,
+    DwellerStatusEnum,
+    GenderEnum,
+    HazardTeam,
+    RarityEnum,
+    RelationshipTypeEnum,
+    RoomTypeEnum,
+    SPECIALEnum,
+)
 from app.core.game_config import game_config
 from app.core.game_data import get_static_game_data
 from app.core.grid_config import FLOOR_UNITS, SHAFT_X
@@ -19,15 +28,6 @@ from app.models.room import Room
 from app.models.storage import Storage
 from app.models.team import ACTIVE_STATUS
 from app.models.vault import Vault
-from app.schemas.common import (
-    AgeGroupEnum,
-    DwellerStatusEnum,
-    GenderEnum,
-    RarityEnum,
-    RelationshipTypeEnum,
-    RoomTypeEnum,
-    SPECIALEnum,
-)
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate, RoomCreateWithoutVaultID
 from app.schemas.vault import (
@@ -503,9 +503,9 @@ class TestCreateInitialItems:
 
     async def test_boosted_vault_equips_some_pets_on_legendary_dwellers(self, async_session, vault) -> None:
         """The legendary pair starts equipped; the remaining pet stays in storage."""
+        from app.core.enums import RarityEnum
         from app.crud.item_base import get_items_by_vault
         from app.models.pet import Pet
-        from app.schemas.common import RarityEnum
         from app.schemas.dweller import DwellerCreate
         from app.services.vault.seed_types import BOOSTED_EQUIPPED_PETS
         from app.tests.factory.dwellers import create_fake_adult_dweller

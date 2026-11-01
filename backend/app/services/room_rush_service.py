@@ -10,7 +10,14 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core import db_locks
-from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
+from app.core.enums import (
+    DwellerStatusEnum,
+    IncidentType,
+    NotificationPriority,
+    NotificationType,
+    RoomTypeEnum,
+    SPECIALEnum,
+)
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as crud_dweller
@@ -18,8 +25,7 @@ from app.crud.incident import incident_crud
 from app.crud.room import room as crud_room
 from app.crud.storage import storage as crud_storage
 from app.models.dweller import Dweller
-from app.models.incident import Incident, IncidentType
-from app.models.notification import NotificationPriority, NotificationType
+from app.models.incident import Incident
 from app.models.room import Room
 from app.models.vault import Vault
 from app.options.identity_modifiers import effective_stat

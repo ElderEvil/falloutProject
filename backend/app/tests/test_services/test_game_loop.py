@@ -269,7 +269,7 @@ class TestProcessDwellers:
 
     @pytest.mark.asyncio
     async def test_skips_dead_dwellers(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        from app.schemas.common import DwellerStatusEnum
+        from app.core.enums import DwellerStatusEnum
 
         dweller.is_dead = True
         dweller.status = DwellerStatusEnum.DEAD
@@ -297,7 +297,7 @@ class TestProcessDwellers:
     @pytest.mark.asyncio
     async def test_awards_xp_to_working_dwellers(self, async_session: AsyncSession, vault: Vault):
         from app import crud
-        from app.schemas.common import RoomTypeEnum, SPECIALEnum
+        from app.core.enums import RoomTypeEnum, SPECIALEnum
         from app.schemas.dweller import DwellerCreate
         from app.schemas.room import RoomCreate
         from app.tests.factory.dwellers import create_fake_dweller
@@ -361,7 +361,7 @@ class TestDehydrationRadiation:
 
     @pytest.mark.asyncio
     async def test_away_dwellers_are_exempt(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        from app.schemas.common import DwellerStatusEnum
+        from app.core.enums import DwellerStatusEnum
 
         await self._prepare(async_session, vault, dweller, water=0)
         dweller.status = DwellerStatusEnum.EXPLORING
@@ -496,9 +496,8 @@ class TestProcessTraining:
 
     async def _seed_trainings(self, async_session: AsyncSession, vault: Vault, count: int = 3):
         from app import crud
-        from app.core.enums import SPECIALEnum, TrainingStatus
+        from app.core.enums import RoomTypeEnum, SPECIALEnum, TrainingStatus
         from app.models.training import Training
-        from app.schemas.common import RoomTypeEnum
         from app.schemas.dweller import DwellerCreate
         from app.schemas.room import RoomCreate
         from app.tests.factory.dwellers import create_fake_dweller
@@ -671,8 +670,8 @@ class TestUpdateRoomRelationships:
         self, async_session: AsyncSession, vault: Vault, existing: bool
     ):
         from app import crud
+        from app.core.enums import RoomTypeEnum
         from app.crud.relationship import relationship_crud
-        from app.schemas.common import RoomTypeEnum
         from app.schemas.dweller import DwellerCreate
         from app.schemas.room import RoomCreate
         from app.services.relationship_service import relationship_service
@@ -1062,7 +1061,7 @@ async def test_resume_preserves_incident_response_time_and_does_not_shift_twice(
     async_session, room_in_vault, start_offset, elapsed
 ):
     from app import crud
-    from app.models.incident import IncidentType
+    from app.core.enums import IncidentType
 
     incident = await crud.incident_crud.create(
         async_session,

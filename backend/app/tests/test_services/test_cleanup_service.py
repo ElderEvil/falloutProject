@@ -6,8 +6,9 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.models.incident import Incident, IncidentStatus, IncidentType
-from app.models.notification import Notification, NotificationPriority, NotificationType
+from app.core.enums import IncidentStatus, IncidentType, NotificationPriority, NotificationType
+from app.models.incident import Incident
+from app.models.notification import Notification
 from app.models.room import Room
 from app.models.team import Team, TeamMember
 from app.models.user import User

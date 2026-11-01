@@ -270,10 +270,10 @@ async def test_failed_map_write_preserves_bio_and_usage_without_partial_places(a
     from sqlalchemy import func, select
 
     from app import crud
+    from app.core.enums import NotificationType, RarityEnum
     from app.models.llm_interaction import LLMInteraction
-    from app.models.notification import Notification, NotificationType
+    from app.models.notification import Notification
     from app.models.world_location import DwellerLocation, WorldLocation
-    from app.schemas.common import RarityEnum
 
     dweller.bio = "Original biography."
     dweller.rarity = RarityEnum.LEGENDARY

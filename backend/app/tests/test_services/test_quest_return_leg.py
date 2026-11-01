@@ -6,14 +6,13 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import DwellerStatusEnum
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum, RewardType
 from app.models.dweller import Dweller
 from app.models.quest import Quest
-from app.models.quest_reward import QuestReward, RewardType
+from app.models.quest_reward import QuestReward
 from app.models.room import Room
 from app.models.vault import Vault
 from app.models.vault_quest import VaultQuestCompletionLink
-from app.schemas.common import AgeGroupEnum
 from app.schemas.quest import QuestCreate
 from app.services.progression.quests.service import quest_service
 from app.services.team_service import team_service

@@ -3,9 +3,9 @@
 import random
 from dataclasses import dataclass
 
+from app.core.enums import IncidentType
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
-from app.models.incident import IncidentType
 from app.utils.combat import total_combat_power
 from app.utils.static_data import game_data_store
 

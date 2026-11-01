@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.cli.simulate_resources import ResourceEconomyConfig, simulate
-from app.core.enums import RarityEnum
+from app.core.enums import RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.core.event_bus import GameEvent
 from app.core.game_config import game_config
 from app.crud import room as room_crud
@@ -11,7 +11,6 @@ from app.crud.resource import VaultResourceData
 from app.models import Dweller, Storage
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
 from app.schemas.vault import ResourceLevelWarning, ResourceProduction, ResourceTickEvents
 from app.services.resource_manager_service import ResourceManager

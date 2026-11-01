@@ -56,8 +56,7 @@ async def process_events(
     patching ``app.services.game_loop_service.random``.
     """
     # Import here to avoid circular import
-    from app.models.incident import IncidentType
-    from app.models.notification import NotificationPriority, NotificationType
+    from app.core.enums import IncidentType, NotificationPriority, NotificationType
     from app.services.combat.incident_service import incident_service
     from app.services.notification_service import notification_service
 

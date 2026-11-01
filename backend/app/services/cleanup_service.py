@@ -3,9 +3,9 @@ from datetime import UTC, datetime, timedelta
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
+from app.core.enums import IncidentStatus
 from app.crud.incident import incident_crud
 from app.crud.notification import notification as notification_crud
-from app.models.incident import IncidentStatus
 
 
 class CleanupService:

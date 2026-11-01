@@ -12,11 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession as RawAsyncSession
 from sqlmodel import select
 
 from app import crud
-from app.core.enums import AgeGroupEnum, GenderEnum, RaceEnum, RelationshipTypeEnum
+from app.core.enums import AgeGroupEnum, GenderEnum, NotificationType, RaceEnum, RelationshipTypeEnum
 from app.core.game_config import game_config
 from app.core.stream_manager import sse_manager
 from app.crud.relationship import relationship_crud
-from app.models.notification import Notification, NotificationType
+from app.models.notification import Notification
 from app.schemas.user import UserCreate
 from app.services.family.adoption_service import adoption_service
 from app.services.game_loop_service import game_loop_service

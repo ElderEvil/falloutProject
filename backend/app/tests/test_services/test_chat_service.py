@@ -9,13 +9,13 @@ from pydantic_ai.usage import RunUsage
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import GenderEnum
 from app.crud.chat_message import chat_message as chat_message_crud
 from app.models.dweller import Dweller
 from app.models.user import User
 from app.models.vault import Vault
 from app.schemas.chat import ChatStreamDone, ChatStreamError, ChatStreamToken, NoAction, UnlockedPlace
 from app.schemas.chat_models import AgentChatResult, StreamBundle
-from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerCreate, DwellerReadFull
 from app.services.chat.agent_runner import extract_usage, run_chat_agent
 from app.services.chat.notifications import maybe_unlock_places

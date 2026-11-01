@@ -8,8 +8,8 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import RoomTypeEnum
 from app.models.vault import Vault
-from app.schemas.common import RoomTypeEnum
 from app.schemas.room import RoomCreate
 from app.services.vault_layout_backfill_service import vault_layout_backfill_service
 

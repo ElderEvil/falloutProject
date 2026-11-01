@@ -12,8 +12,8 @@ from sqlalchemy import inspect
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import RequirementType
 from app.models.quest import Quest
-from app.models.quest_requirement import RequirementType
 from app.schemas.quest import QuestRead
 from app.services.progression.quests.requirements import vault_missing_requirements, vault_requirement_states
 

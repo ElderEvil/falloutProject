@@ -134,8 +134,9 @@ async def test_concurrent_postgres_refresh_runs_only_once():
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.core.config import settings
+    from app.core.enums import NotificationType
     from app.models.game_state import GameState
-    from app.models.notification import Notification, NotificationType
+    from app.models.notification import Notification
     from app.models.user import User
     from app.models.vault import Vault
 

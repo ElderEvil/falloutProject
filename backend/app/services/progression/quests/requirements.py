@@ -15,10 +15,10 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import SPECIAL_STATS
+from app.core.enums import SPECIAL_STATS, RequirementType
 from app.models.dweller import Dweller
 from app.models.quest import Quest
-from app.models.quest_requirement import QuestRequirement, RequirementType
+from app.models.quest_requirement import QuestRequirement
 from app.options.identity_modifiers import effective_stat
 from app.utils.objective_constants import normalize_room_type
 

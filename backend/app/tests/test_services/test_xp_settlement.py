@@ -11,12 +11,12 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import RoomTypeEnum, SPECIALEnum
+from app.core.enums import IncidentType, RoomTypeEnum, SPECIALEnum
 from app.core.event_bus import GameEvent
 from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
-from app.models.incident import Incident, IncidentType
+from app.models.incident import Incident
 from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.room import RoomCreate

@@ -8,13 +8,14 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import and_, func, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import RequirementType
 from app.crud.base import CRUDBase
 from app.crud.mixins import CompletionMixin
 from app.crud.vault_mixin import VaultActionsMixin
 from app.models import Vault
 from app.models.dweller import Dweller
 from app.models.quest import Quest
-from app.models.quest_requirement import QuestRequirement, RequirementType
+from app.models.quest_requirement import QuestRequirement
 from app.models.quest_reward import QuestReward
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate, QuestRead, QuestRequirementRead, QuestRewardRead, QuestUpdate

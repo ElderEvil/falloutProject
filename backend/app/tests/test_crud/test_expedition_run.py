@@ -4,7 +4,7 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.models.exploration import ExpeditionRunStatus
+from app.core.enums import ExpeditionRunStatus
 from app.schemas.dweller import DwellerCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID

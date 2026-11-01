@@ -8,16 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app import crud
-from app.core.enums import ItemTypeEnum
+from app.core.enums import GenderEnum, ItemTypeEnum, RarityEnum, RewardType
 from app.crud.user_profile import profile_crud
 from app.models.dweller import Dweller
 from app.models.item import Item
 from app.models.outfit import Outfit
 from app.models.quest import Quest
-from app.models.quest_reward import QuestReward, RewardType
+from app.models.quest_reward import QuestReward
 from app.models.storage import Storage
 from app.models.vault import Vault
-from app.schemas.common import GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
@@ -886,9 +885,9 @@ async def test_process_objective_reward(
     async_session: AsyncSession, reward_str: str, expected: dict[str, object]
 ) -> None:
     """process_objective_reward settles the objective's parsed reward for the vault."""
+    from app.core.enums import ObjectiveCategoryEnum
     from app.crud.objective import objective_crud
     from app.models.vault_objective import VaultObjectiveProgressLink
-    from app.schemas.common import ObjectiveCategoryEnum
     from app.schemas.objective import ObjectiveCreate
 
     user_data = create_fake_user()

@@ -9,9 +9,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.config import settings
-from app.core.enums import GenderEnum, JunkTypeEnum, RarityEnum, RoomTypeEnum
+from app.core.enums import CraftingOrderStatus, GenderEnum, JunkTypeEnum, RarityEnum, RoomTypeEnum
 from app.core.game_config import game_config
-from app.models.crafting_order import CraftingOrderStatus
 from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.models.outfit import Outfit
@@ -544,7 +543,8 @@ async def test_list_orders_returns_the_queue(async_session: AsyncSession, vault:
 @pytest.mark.asyncio
 async def test_crafting_tick_notifies_owner_when_order_completes(async_session: AsyncSession, vault: Vault) -> None:
     """A finished order both flips to completed and signals the owner (bell + toast)."""
-    from app.models.notification import Notification, NotificationType
+    from app.core.enums import NotificationType
+    from app.models.notification import Notification
     from app.services.game_tick import crafting_tick
 
     storage = await _make_storage(async_session, vault)

@@ -4,8 +4,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import GenderEnum, HazardTeam, OutfitTypeEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
-from app.models.incident import IncidentType
+from app.core.enums import GenderEnum, HazardTeam, IncidentType, OutfitTypeEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.models.room import Room
 from app.models.team import TeamMember
 from app.schemas.room import RoomCreate

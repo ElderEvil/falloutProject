@@ -7,11 +7,11 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
+from app.core.enums import AgeGroupEnum, RarityEnum
 from app.core.game_config import DwellerConfig, game_config
 from app.options.bios import ZONE_RUMORS
 from app.options.factions import faction_restrictions
 from app.options.races import STATE_OF_BEING_VALUES, RaceOption
-from app.schemas.common import AgeGroupEnum, RarityEnum
 from app.utils.bios import maybe_zone_rumor, render_adopted_child_bio, render_bio, render_newborn_bio
 from app.utils.dwellers import (
     _PLACE_POOL,

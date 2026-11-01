@@ -16,12 +16,11 @@ from typing import Any
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import ContentProvenanceEnum, RarityEnum
+from app.core.enums import ContentProvenanceEnum, RarityEnum, RewardType
 from app.core.event_bus import GameEvent, event_bus
 from app.crud.storage import get_available_space
 from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
-from app.models.quest_reward import RewardType
 from app.models.storage import Storage
 from app.services.rewards.resources import _medication_kind, grant_radaway, grant_stimpak
 from app.services.user_service import user_service

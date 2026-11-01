@@ -4,8 +4,9 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.core.enums import RequirementType
 from app.models.quest import Quest
-from app.models.quest_requirement import QuestRequirement, RequirementType
+from app.models.quest_requirement import QuestRequirement
 from app.models.room import Room
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID

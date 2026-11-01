@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.schemas.common import ObjectiveCategoryEnum
+from app.core.enums import ObjectiveCategoryEnum
 from app.schemas.objective import ObjectiveCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID

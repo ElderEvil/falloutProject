@@ -8,11 +8,11 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.core.enums import RequirementType, RoomTypeEnum, SPECIALEnum
 from app.models.dweller import Dweller
 from app.models.quest import Quest
-from app.models.quest_requirement import QuestRequirement, RequirementType
+from app.models.quest_requirement import QuestRequirement
 from app.models.room import Room
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.progression.quests import requirements

@@ -5,13 +5,13 @@ from datetime import datetime
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import DwellerStatusEnum
+from app.core.enums import DwellerStatusEnum, ExpeditionRunStatus
 from app.crud import dweller as dweller_crud
 from app.crud import expedition_run as crud_expedition_run
 from app.crud.dweller import determine_status_for_room
 from app.crud.room import room as room_crud
 from app.crud.team import team_crud
-from app.models.exploration import ExpeditionRun, ExpeditionRunStatus, Exploration
+from app.models.exploration import ExpeditionRun, Exploration
 from app.schemas.dweller import DwellerUpdate
 
 

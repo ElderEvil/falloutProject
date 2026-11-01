@@ -18,14 +18,8 @@ outfit reductions it is assumed to already hold.
 
 from dataclasses import dataclass, field
 
-from app.core.enums import DamageChannel, HazardTeam
-from app.models.incident import (
-    IncidentObjective,
-    IncidentType,
-    effects_for_incident_type,
-    get_incident_definition,
-    hazard_team_for,
-)
+from app.core.enums import DamageChannel, HazardTeam, IncidentObjective, IncidentType
+from app.models.incident import effects_for_incident_type, get_incident_definition, hazard_team_for
 from app.services.combat import incident_math
 from app.services.hazard_team_service import TEAM_HAZARD_RESIST, TEAM_RESPONSE_BONUS
 from app.utils.damage_reductions import DamageReductions

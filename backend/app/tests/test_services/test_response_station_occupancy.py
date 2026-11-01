@@ -16,13 +16,11 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import HazardTeam
+from app.core.enums import AgeGroupEnum, GenderEnum, HazardTeam, IncidentType, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.models.dweller import Dweller
-from app.models.incident import IncidentType
 from app.models.room import Room
 from app.models.team import ACTIVE_STATUS, RESERVE_STATUS
 from app.models.vault import Vault
-from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.dweller_service import dweller_service

@@ -18,9 +18,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
-from app.core.enums import GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
+from app.core.enums import GenderEnum, IncidentType, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.models.dweller import Dweller
-from app.models.incident import Incident, IncidentType
+from app.models.incident import Incident
 from app.models.room import Room
 from app.models.user import User
 from app.models.vault import Vault

@@ -440,7 +440,7 @@ class TestCombatAndProductionApplication:
 
 class TestIncidentResponsePerk:
     async def test_minutemen_responder_takes_less_incident_damage(self) -> None:
-        from app.models.incident import IncidentType
+        from app.core.enums import IncidentType
         from app.services.combat.incident_round import apply_damage
 
         def responder(faction: str | None):
@@ -459,7 +459,7 @@ class TestIncidentResponsePerk:
 
     async def test_reported_damage_reflects_the_response_perk(self) -> None:
         """Callers report what responders took, so a mitigated round cannot read as raw damage."""
-        from app.models.incident import IncidentType
+        from app.core.enums import IncidentType
         from app.services.combat.incident_round import apply_damage
 
         minuteman = _dweller("human", faction="minutemen")

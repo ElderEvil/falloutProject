@@ -15,7 +15,7 @@ from pydantic import UUID4
 from sqlalchemy import orm
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import DwellerStatusEnum
+from app.core.enums import DwellerStatusEnum, ExplorationStatus, TrainingStatus
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import exploration as crud_exploration
@@ -27,10 +27,9 @@ from app.crud.storage import storage as crud_storage
 from app.crud.vault_slot import vault_slot as vault_slot_crud
 from app.crud.world_snapshot import world_snapshot as world_snapshot_crud
 from app.models.dweller import Dweller
-from app.models.exploration import Exploration, ExplorationStatus
+from app.models.exploration import Exploration
 from app.models.storage import Storage
 from app.models.team import Team, TeamMember
-from app.models.training import TrainingStatus
 from app.models.world_location import WorldLocation
 from app.options.races import can_use_radaway
 from app.schemas.dweller import DwellerUpdate

@@ -4,10 +4,10 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
 from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
-from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 
 

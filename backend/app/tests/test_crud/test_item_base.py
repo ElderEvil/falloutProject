@@ -14,14 +14,13 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import AgeGroupEnum
+from app.core.enums import AgeGroupEnum, ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.crud.item_base import CRUDItem, get_item_vault_id, get_items_by_vault
 from app.models.dweller import Dweller
 from app.models.outfit import Outfit
 from app.models.storage import Storage
 from app.models.vault import Vault
 from app.models.weapon import Weapon
-from app.schemas.common import ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.tests.factory.items import create_fake_weapon

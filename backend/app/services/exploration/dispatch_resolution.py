@@ -13,12 +13,12 @@ from datetime import datetime, timedelta
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import NotificationPriority, NotificationType
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
 from app.crud import world_location as crud_world_location
 from app.crud.team import team_crud
 from app.crud.vault import vault as vault_crud
-from app.models.notification import NotificationPriority, NotificationType
 from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration.event_service import apply_exploration_damage, apply_loot_find
 from app.services.exploration.locking import lock_exploration_with_vault_claim

@@ -5,8 +5,7 @@ from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import HazardTeam
-from app.models.incident import IncidentType
+from app.core.enums import HazardTeam, IncidentType
 from app.models.team import ACTIVE_STATUS, RESERVE_STATUS
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate

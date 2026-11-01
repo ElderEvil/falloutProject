@@ -6,9 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
-from app.core.enums import GenderEnum, ObjectiveCategoryEnum
+from app.core.enums import ExplorationStatus, GenderEnum, ObjectiveCategoryEnum
 from app.crud.objective import objective_crud
-from app.models.exploration import ExplorationStatus
 from app.schemas.vault import VaultCreateWithUserID
 from app.services import catalog_service as data_loader
 from app.services.vault_service import vault_service
@@ -96,8 +95,7 @@ async def test_auto_assign_respects_age_group_filter(
     superuser_token_headers: dict[str, str],
 ):
     """Auto-assign with age_group=adult must leave teen dwellers unassigned."""
-    from app.models.room import RoomTypeEnum, SPECIALEnum
-    from app.schemas.common import DwellerStatusEnum
+    from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
     from app.schemas.dweller import DwellerCreate
     from app.schemas.room import RoomCreate
 
@@ -183,8 +181,7 @@ async def test_auto_assign_training_room_sets_training_status(
     superuser_token_headers: dict[str, str],
 ):
     """Test that assigning dwellers to training rooms sets status to 'training'."""
-    from app.models.room import RoomTypeEnum, SPECIALEnum
-    from app.schemas.common import DwellerStatusEnum
+    from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
     from app.schemas.dweller import DwellerCreate
     from app.schemas.room import RoomCreate
 
@@ -260,8 +257,7 @@ async def test_auto_assign_crafting_rooms_endpoint(
     superuser_token_headers: dict[str, str],
 ):
     """Crafting auto-assign endpoint fills workshops with highest-total-SPECIAL adults."""
-    from app.models.room import RoomTypeEnum
-    from app.schemas.common import DwellerStatusEnum
+    from app.core.enums import DwellerStatusEnum, RoomTypeEnum
     from app.schemas.dweller import DwellerCreate
     from app.schemas.room import RoomCreate
 

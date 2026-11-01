@@ -6,8 +6,8 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import IncidentType
 from app.crud.user_profile import profile_crud
-from app.models.incident import IncidentType
 from app.services.combat import incident_round
 from app.services.combat.incident_service import incident_service
 from app.tests.test_services._hazard_team_helpers import empty_room, raise_incident

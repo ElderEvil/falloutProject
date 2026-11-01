@@ -8,21 +8,14 @@ import pytest_asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import AgeGroupEnum, GenderEnum, NotificationType, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.core.game_config import game_config
 from app.crud.notification import notification as notification_crud
 from app.models.dweller import Dweller
-from app.models.notification import NotificationType
 from app.models.room import Room
 from app.models.vault import Vault
 from app.options.factions import faction_restrictions
 from app.options.races import RaceOption
-from app.schemas.common import (
-    AgeGroupEnum,
-    GenderEnum,
-    RarityEnum,
-    RoomTypeEnum,
-    SPECIALEnum,
-)
 from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
 from app.schemas.room import RoomCreate
 from app.services.dweller_recycling_service import dweller_recycling_service

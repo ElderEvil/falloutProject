@@ -22,9 +22,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core import db_locks
 from app.core.config import settings
-from app.models.incident import IncidentType
+from app.core.enums import IncidentType, RoomTypeEnum, SPECIALEnum
 from app.models.team import DISPATCHED_STATUS
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate

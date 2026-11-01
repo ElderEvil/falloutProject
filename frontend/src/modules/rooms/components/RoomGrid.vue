@@ -102,8 +102,12 @@ onMounted(() => {
   if (authStore.token) roomStore.fetchGridConfig()
 })
 
-const placeRoom = async (x: number, y: number) => {
-  if (!roomStore.selectedRoom || !roomStore.isPlacingRoom) return
+// Guards against a second build starting before the previous request settles,
+// which would race two placements (most likely while Shift-repeat building).
+const isBuilding = ref(false)
+
+const placeRoom = async (x: number, y: number, repeat: boolean) => {
+  if (!roomStore.selectedRoom || !roomStore.isPlacingRoom || isBuilding.value) return
 
   const selectedRoom = roomStore.selectedRoom
   const placementX = x
@@ -115,9 +119,11 @@ const placeRoom = async (x: number, y: number) => {
     return
   }
 
+  isBuilding.value = true
   try {
     const result = await roomStore.buildRoom(selectedRoom.name, placementX, y, vaultId)
-    roomStore.deselectRoom()
+    // Shift-click keeps the selection so the same room can be placed again.
+    if (!repeat) roomStore.deselectRoom()
     const message =
       result === 'extended'
         ? `${selectedRoom.name} extended!`
@@ -128,12 +134,14 @@ const placeRoom = async (x: number, y: number) => {
     }
   } catch (error) {
     notifyErrorOnce(error, error instanceof Error ? error.message : 'Failed to build room')
+  } finally {
+    isBuilding.value = false
   }
 }
 
-const handleEmptyCellClick = (x: number, y: number) => {
+const handleEmptyCellClick = (x: number, y: number, event: MouseEvent | KeyboardEvent) => {
   if (roomStore.isPlacingRoom && isValidPlacementAt(x, y)) {
-    placeRoom(x, y)
+    placeRoom(x, y, event.shiftKey)
   }
 }
 
@@ -401,12 +409,12 @@ const closeDetailModal = () => {
                 ? `Build room at row ${cell.y + 1}, column ${cell.x + 1}`
                 : `Empty room cell at row ${cell.y + 1}, column ${cell.x + 1}`
           "
-          @click="canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)"
+          @click="canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y, $event)"
           @keydown.enter.prevent="
-            canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)
+            canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y, $event)
           "
           @keydown.space.prevent="
-            canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)
+            canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y, $event)
           "
         >
           <span v-if="isLevelLocked(cell.y) && !isPlacingElevator" class="level-lock-indicator">

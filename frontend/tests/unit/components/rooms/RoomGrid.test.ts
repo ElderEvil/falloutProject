@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { createRouterMock } from '../../helpers/mocks'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { useRoute } from 'vue-router'
 import { setActivePinia, createPinia } from 'pinia'
 import RoomGrid from '@/modules/rooms/components/RoomGrid.vue'
@@ -573,6 +573,90 @@ describe('RoomGrid', () => {
 
       const successToast = toasts.value.find((toast) => toast.variant === 'success')
       expect(successToast?.message).toBe('Diner extended!')
+    })
+
+    it('keeps the selected room active for repeated Shift-click builds', async () => {
+      const roomStore = useRoomStore()
+      roomStore.rooms = [{ ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 }]
+      roomStore.selectedRoom = dinerTemplate
+      roomStore.isPlacingRoom = true
+
+      // The first build places a Diner at x=7, which makes the neighbouring
+      // slot at x=10 a valid adjacent placement for the repeat build.
+      const builtDiner = {
+        ...mockRoom,
+        id: 'diner-1',
+        name: 'Diner',
+        category: 'production',
+        ability: 'agility',
+        coordinate_x: 7,
+        coordinate_y: 0,
+        size: 3,
+        size_min: 3,
+      }
+      const build = vi.spyOn(roomStore, 'buildRoom').mockImplementation(async () => {
+        roomStore.rooms = [...roomStore.rooms, builtDiner]
+        return 'built'
+      })
+
+      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+
+      await wrapper.get('[aria-label="Build room at row 1, column 8"]').trigger('click', {
+        shiftKey: true,
+      })
+      await flushPromises()
+
+      await wrapper.get('[aria-label="Build room at row 1, column 11"]').trigger('click', {
+        shiftKey: true,
+      })
+      await flushPromises()
+
+      expect(build).toHaveBeenCalledTimes(2)
+      expect(roomStore.selectedRoom).toStrictEqual(dinerTemplate)
+      expect(roomStore.isPlacingRoom).toBe(true)
+    })
+
+    it('exits placement mode after a normal click build', async () => {
+      const roomStore = useRoomStore()
+      roomStore.rooms = [{ ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 }]
+      roomStore.selectedRoom = dinerTemplate
+      roomStore.isPlacingRoom = true
+      vi.spyOn(roomStore, 'buildRoom').mockResolvedValue('built')
+
+      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      await wrapper.get('[aria-label="Build room at row 1, column 8"]').trigger('click')
+      await flushPromises()
+
+      expect(roomStore.selectedRoom).toBeNull()
+      expect(roomStore.isPlacingRoom).toBe(false)
+    })
+
+    it('ignores a second click while a build is still in flight', async () => {
+      const roomStore = useRoomStore()
+      roomStore.rooms = [{ ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 }]
+      roomStore.selectedRoom = dinerTemplate
+      roomStore.isPlacingRoom = true
+
+      let resolveBuild: ((result: 'built' | 'extended') => void) | undefined
+      const build = vi.spyOn(roomStore, 'buildRoom').mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveBuild = resolve
+          })
+      )
+
+      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      const cell = wrapper.get('[aria-label="Build room at row 1, column 8"]')
+
+      // The first placement is still awaiting; a second click on the same cell
+      // must not start a parallel build request.
+      await cell.trigger('click')
+      await cell.trigger('click')
+
+      expect(build).toHaveBeenCalledTimes(1)
+
+      resolveBuild?.('built')
+      await flushPromises()
     })
   })
 

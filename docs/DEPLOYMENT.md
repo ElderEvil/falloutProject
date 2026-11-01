@@ -189,8 +189,8 @@ uv run fo-cli ops check-ai --api-url https://fallout-api.evillab.tech --skip-cha
    ```
 
 The API writes JSON logs to a 1 GiB persistent volume. Files rotate at midnight and retain 14 days of rotated logs.
-Kubernetes stdout logs remain enabled for immediate cluster diagnostics. The worker currently uses stdout until its
-deployment manifest is added; do not provision an unused worker log volume.
+Kubernetes stdout logs remain enabled for immediate cluster diagnostics. The worker uses stdout only; its checked-in
+manifest has no log volume, so do not provision one.
 
 The Gateway-specific secret patch and API verification steps are documented in
 [Pydantic AI Gateway Setup](backend/PYDANTIC_AI_GATEWAY.md).
@@ -708,7 +708,15 @@ manifest and the deploy order.
 
 ## Backup & Restore
 
-### Database Backup
+Persistent volumes, Redis and the k3s datastore are not application backups. The production
+database backup described below is the only application-data backup the deploy workflow creates,
+and it is created only when `maintenance_mode=true`. See
+[`deployment/k3s/README.md`](../deployment/k3s/README.md#backup-and-restore-boundaries) for the
+full boundary list and [#885 closure evidence](../deployment/k3s/README.md#issue-885-closure-evidence)
+for the remaining live checks.
+
+### Local Compose database backup
+
 ```bash
 # Backup
 docker compose exec db pg_dump -U postgres fallout_db > backup_$(date +%Y%m%d).sql
@@ -716,6 +724,108 @@ docker compose exec db pg_dump -U postgres fallout_db > backup_$(date +%Y%m%d).s
 # Restore
 cat backup.sql | docker compose exec -T db psql -U postgres -d fallout_db
 ```
+
+### Production maintenance backup
+
+With `maintenance_mode=true`, `.github/workflows/deploy-hetzner.yml` stops the API and worker,
+creates a custom-format dump inside the PostgreSQL pod, verifies it with `pg_restore --list`, and
+writes it on the server host as:
+
+```text
+~/fallout-backups/pre-<image_tag>-<run_id>.dump
+```
+
+The workflow does not copy that file off-host, rotate it, or restore it. A `.dump` that only
+passed `pg_restore --list` is readable, not proven restorable. Copy the most recent production
+dump to an isolated workstation and run the drill below.
+
+### Isolated restore drill
+
+`scripts/restore-drill.sh` restores a custom-format (`pg_dump -Fc`) backup into a dedicated
+scratch PostgreSQL container, verifies the schema, and optionally proves the application becomes
+ready against the restored database. It has no target-connection option: the only writable
+database it can reach is the scratch container it creates.
+
+Requirements: `podman` or `docker`, `curl`, `python3`, and the dump file. For `--app-command`,
+also run `uv sync --dev` in `backend/` first; the host application connects through the explicit
+`ASYNC_DATABASE_URI` the script exports.
+
+1. Record the expected schema revision read-only from the source database:
+
+   ```bash
+   kubectl -n fallout exec deployment/backend -- uv run alembic current
+   # or, directly from PostgreSQL:
+   kubectl -n fallout exec deployment/postgres -- \
+     sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT version_num FROM alembic_version"'
+   ```
+
+2. Run the drill with the release image (recommended, closest to production):
+
+   ```bash
+   scripts/restore-drill.sh \
+     --dump ~/fallout-backups/pre-vX.Y.Z-<run_id>.dump \
+     --expected-revision <revision> \
+     --app-image elerevil/fo-shelter-be:vX.Y.Z
+   ```
+
+   Or run the working tree's API process against the scratch database:
+
+   ```bash
+   scripts/restore-drill.sh \
+     --dump ~/fallout-backups/pre-vX.Y.Z-<run_id>.dump \
+     --expected-revision <revision> \
+     --app-command 'cd backend && uv run uvicorn main:app --host 127.0.0.1 --port "$DRILL_APP_PORT"'
+   ```
+
+3. A passing drill ends with:
+
+   ```text
+   [restore-drill] schema: tables=<n> revision=<revision> vaults=<n> users=<n> dwellers=<n>
+   readiness: HTTP 200 status=ready postgres=healthy redis=healthy
+   [restore-drill] RESULT: PASS — restore, schema and application readiness verified in isolation
+   ```
+
+   The script also rejects an unreadable archive, a missing required table, an `alembic_version`
+   without exactly one row, and a revision mismatch. Scratch containers and the network are
+   removed on exit; pass `--keep` only to inspect a failure.
+
+Record the dump name, size/hash, expected revision, schema counts, readiness line, host and date.
+Do not mark the drill passed unless it actually ran. This drill does not test the k3s datastore,
+object-storage assets, or an external managed PostgreSQL instance.
+
+#### Drill evidence (2026-11-01, production data)
+A read-only production `pg_dump -Fc` stream was restored locally with the same script:
+```text
+dump:      /tmp/fallout-prod-20261101.dump, 3,268,036 bytes
+sha256:    b7948568ed74a0ab674322e464e8790fe41adff883782e2b4b57653e0bd5e417
+revision:  d1f3a5c7e9b2
+result:    archive entries=435; restore ok; tables=46; vaults=80; users=38; dwellers=2447
+readiness: HTTP 200 status=ready postgres=healthy redis=healthy
+RESULT:    PASS
+```
+This proves the production schema and a real production dump restore. Production cluster state,
+Redis and RustFS/S3 assets remain outside this drill.
+#### Drill evidence (2026-11-01, local isolation)
+
+A local drill ran on branch `chore/k3s-recovery-885` (based on `origin/master` at `4892faae`)
+with a custom-format dump produced by running the current Alembic migrations against a scratch
+PostgreSQL 18.6 container (Podman 5.8.9, `postgres:18-alpine`):
+
+```text
+command:   ./scripts/restore-drill.sh --dump /tmp/drill-source.dump \
+             --expected-revision d1f3a5c7e9b2 \
+             --app-command 'cd backend && exec uv run uvicorn main:app --host 127.0.0.1 --port "$DRILL_APP_PORT"'
+dump:      drill-source.dump, 172,277 bytes
+sha256:    f68f025b617813c32aee7bd992bdd2654e337b71832ad7fd1953cd48dfca6a91
+revision:  d1f3a5c7e9b2
+result:    archive entries=433; restore ok; tables=46; vaults=1; users=1; dwellers=0
+readiness: HTTP 200 status=ready postgres=healthy redis=healthy
+RESULT:    PASS
+```
+
+This proves the script, the custom-format restore path, schema assertions and API readiness
+against a current-schema dump. The dump is **not** production data; a drill with the latest
+production dump and production release image remains for the maintainer.
 
 ## Troubleshooting
 

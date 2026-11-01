@@ -18,6 +18,19 @@ def _container(manifest: dict) -> dict:
     return manifest["spec"]["template"]["spec"]["containers"][0]
 
 
+def _pod_specs() -> list[tuple[str, dict]]:
+    specs: list[tuple[str, dict]] = []
+    for path in sorted(K3S_DIR.glob("*.yaml")):
+        for document in yaml.safe_load_all(path.read_text(encoding="utf-8")):
+            if not isinstance(document, dict):
+                continue
+            if document.get("kind") in {"Deployment", "StatefulSet", "DaemonSet", "Job"}:
+                specs.append((path.name, document["spec"]["template"]["spec"]))
+            elif document.get("kind") == "CronJob":
+                specs.append((path.name, document["spec"]["jobTemplate"]["spec"]["template"]["spec"]))
+    return specs
+
+
 def test_backend_uses_a_dependency_readiness_probe_and_a_light_liveness_probe() -> None:
     container = _container(_load("backend-deployment.yaml"))
 
@@ -50,6 +63,23 @@ def test_worker_manifest_matches_the_release_deployment_contract() -> None:
     assert "dramatiq --processes" in command
     assert "DRAMATIQ_PROCESSES" in command
     assert any(env["name"] == "DRAMATIQ_PROCESSES" and env["value"] == "2" for env in container["env"])
+
+
+def test_exactly_one_workload_invokes_the_periodiq_scheduler() -> None:
+    """A second checked-in scheduler would enqueue periodic work twice."""
+    invokers: list[tuple[str, str, str]] = []
+    for filename, pod_spec in _pod_specs():
+        for container in [*pod_spec.get("initContainers", []), *pod_spec.get("containers", [])]:
+            command = " ".join([*container.get("command", []), *container.get("args", [])])
+            if "periodiq" in command:
+                invokers.append((filename, container["name"], command))
+
+    assert len(invokers) == 1, f"expected exactly one Periodiq invoker, got {invokers}"
+    filename, container_name, command = invokers[0]
+    assert filename == "dramatiq-worker-deployment.yaml"
+    assert container_name == "dramatiq-worker"
+    assert command.count("periodiq app.core.dramatiq app.api.tasks") == 1
+    assert "periodiq --processes" not in command
 
 
 def test_postgres_observability_config_is_pinned() -> None:

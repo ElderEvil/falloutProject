@@ -215,13 +215,18 @@ class Settings(BaseSettings):
 
     # Security & Rate Limiting Configuration (fastapi-guard)
     ENABLE_RATE_LIMITING: bool = True  # Enable/disable rate limiting
-    RATE_LIMIT_REQUESTS: int = 100  # Requests per window per IP
+    RATE_LIMIT_REQUESTS: int = 600  # Requests per window per client IP
     RATE_LIMIT_WINDOW: int = 60  # Time window in seconds
     AUTO_BAN_THRESHOLD: int = 10  # Number of blocked requests before auto-ban
     AUTO_BAN_DURATION: int = 3600  # Ban duration in seconds (1 hour)
     IPINFO_TOKEN: str | None = None  # Optional: IPInfo API token for geolocation
     SECURITY_WHITELIST_IPS: list[str] = []  # IPs to whitelist (bypass rate limiting)
     SECURITY_BLACKLIST_IPS: list[str] = []  # IPs to block completely
+    # Traefik's pod/network is the trusted reverse-proxy chain in k3s.
+    SECURITY_TRUSTED_PROXIES: list[str] = []
+    SECURITY_TRUSTED_PROXY_DEPTH: int = 1
+    # Keep the API available when Redis (the shared rate-limit store) is down.
+    SECURITY_REDIS_FAIL_OPEN: bool = True
 
     # Quota Configuration
     QUOTA_DISABLED: bool = False  # Disable token quotas (useful for local dev/testing)

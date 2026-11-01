@@ -78,6 +78,12 @@ jobs:
           echo "::error::GitHub runners cannot reach the production host over SSH. Read the verbose output above: 'connect to host ... timed out' means packets never arrived (Hetzner Cloud Firewall, or a fail2ban DROP on that source), while a completed key exchange followed by 'Connection closed by remote host' after ~120s means authentication never finished - 120s is sshd's LoginGraceTime, and a ban landing mid-session drops the auth packets. fail2ban's sshd jail on this host runs mode=aggressive with maxretry=3, which bans shared CI addresses; check sudo fail2ban-client status sshd. See docs/DEPLOYMENT.md 'Runner cannot reach the host'."
           exit 1
 
+      - name: Persist ingress client-IP configuration
+        if: ${{ !inputs.preflight_only }}
+        run: |
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
+            'kubectl apply -f -' < deployment/k3s/traefik-config.yaml
+
       - name: Log in to Docker Hub
         if: ${{ !inputs.preflight_only }}
         uses: docker/login-action@v4
@@ -197,6 +203,20 @@ jobs:
             '{apiVersion: "v1", kind: "Secret", metadata: {name: "backend-env", namespace: "fallout"}, type: "Opaque", stringData: {PYDANTIC_AI_GATEWAY_API_KEY: $gateway_key, PYDANTIC_AI_GATEWAY_ROUTE: $gateway_route, PYDANTIC_AI_GATEWAY_BASE_URL: $gateway_base_url, LOGFIRE_TOKEN: $logfire_token, AI_PROVIDER: "openai", AI_MODEL: $ai_model, OPENAI_API_KEY: $openai_key, TYPESAFE_API_KEY: $typesafe_key, JEV_ENABLED: $jev_enabled, SMTP_HOST: $smtp_host, SMTP_PORT: $smtp_port, SMTP_USER: $smtp_user, SMTP_PASSWORD: $smtp_password, SMTP_TLS: $smtp_tls, SMTP_SSL: $smtp_ssl, EMAIL_FROM_ADDRESS: $email_from_address, EMAIL_FROM_NAME: $email_from_name, FRONTEND_URL: $frontend_url, GOOGLE_CLIENT_ID: $google_client_id, GOOGLE_CLIENT_SECRET: $google_client_secret, GITHUB_CLIENT_ID: $github_client_id, GITHUB_CLIENT_SECRET: $github_client_secret, OAUTH_REDIRECT_BASE: $oauth_redirect_base}}' \
             | ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
               'kubectl apply -f - && kubectl -n fallout set env deployment/backend deployment/dramatiq-worker --from=secret/backend-env'
+
+      - name: Configure API security limits
+        if: ${{ !inputs.preflight_only }}
+        run: |
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} <<'SHELL'
+            set -euo pipefail
+            kubectl -n fallout set env deployment/backend \
+              ENABLE_RATE_LIMITING=true \
+              RATE_LIMIT_REQUESTS=600 \
+              RATE_LIMIT_WINDOW=60 \
+              SECURITY_TRUSTED_PROXIES='["10.42.0.0/16"]' \
+              SECURITY_TRUSTED_PROXY_DEPTH=1 \
+              SECURITY_REDIS_FAIL_OPEN=true
+          SHELL
 
       - name: Prepare maintenance and database backup
         if: ${{ inputs.maintenance_mode && !inputs.preflight_only }}

@@ -173,18 +173,19 @@ app.add_exception_handler(DomainError, domain_exception_handler)
 # Add request ID middleware (first, so it wraps all other middleware)
 app.add_middleware(RequestIdMiddleware)
 
-# Add security middleware (rate limiting, IP filtering, etc.)
+# ProxyHeadersMiddleware adapts request.client and the URL scheme for the rest of
+# the app. It is added before SecurityMiddleware so the guard remains outside it
+# and resolves the client from the trusted Traefik chain itself rather than
+# trusting a pre-resolved X-Forwarded-For value.
+proxy_trusted_hosts = settings.SECURITY_TRUSTED_PROXIES or ["*"]
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=proxy_trusted_hosts)
+
+# Add security middleware (rate limiting, IP filtering, etc.). Added last so it
+# runs before ProxyHeadersMiddleware and rate-limits the actual client identity.
 if settings.ENABLE_RATE_LIMITING:
     security_config = create_security_config()
     app.add_middleware(SecurityMiddleware, config=security_config)
     logger.info("Security middleware enabled with rate limiting")
-
-# ProxyHeadersMiddleware must run before everything that reads request.client or
-# request scheme: it rewrites the client IP from X-Forwarded-For and the scheme
-# from X-Forwarded-Proto. Without it, sqladmin generates http:// asset URLs
-# behind the TLS-terminating proxy and browsers block them as mixed content.
-# Added after the conditional block above so it still runs before SecurityMiddleware.
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # Add session middleware for admin authentication.  The admin session is short-lived,
 # restricted to HTTPS in production, and never sent to cross-site requests.

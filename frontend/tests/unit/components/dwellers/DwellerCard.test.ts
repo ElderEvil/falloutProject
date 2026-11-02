@@ -105,6 +105,31 @@ describe('DwellerCard', () => {
       )
     })
 
+    it('frames legendary portraits like curated default portraits', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: '/static/legendary_dweller_images/FOS_Dw_Butch.png',
+        },
+      })
+
+      expect(wrapper.find('.portrait-container').classes()).toContain('default-portrait-frame')
+      expect(wrapper.find('.portrait-image').classes()).toContain('default-portrait-zoom')
+    })
+
+    it('keeps non-humanoid companion art out of the human frame', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: '/static/legendary_dweller_images/FOS_Dw_Snip_Snip.png',
+        },
+      })
+
+      expect(wrapper.find('.portrait-container').classes()).not.toContain('default-portrait-frame')
+      expect(wrapper.find('.portrait-image').classes()).not.toContain('default-portrait-zoom')
+      expect(wrapper.find('.portrait-image').classes()).toContain('portrait-image--contain')
+    })
+
     it('marks a dead dweller portrait as deceased', () => {
       const wrapper = mount(DwellerCard, {
         props: {

@@ -214,6 +214,33 @@ describe('ExplorerCard', () => {
 
     expect(wrapper.find('.party-section').exists()).toBe(false)
   })
+
+  it('links the dweller identity to the dweller page and the label to the expedition', () => {
+    const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
+
+    expect(wrapper.findAllComponents({ name: 'RouterLink' }).map((link) => link.props('to'))).toEqual(
+      [
+        '/vault/vault-1/dwellers/dweller-1',
+        '/vault/vault-1/dwellers/dweller-1',
+        '/vault/vault-1/exploration/exploration-1',
+      ]
+    )
+  })
+
+  it('links each party member to their own dweller page', () => {
+    const wrapper = mount(ExplorerCard, {
+      props: {
+        exploration,
+        dweller,
+        partyMembers: [companion('dweller-1', 'Lucy'), companion('dweller-2', 'Carla')],
+      },
+    })
+
+    expect(wrapper.findAllComponents('.party-member').map((member) => member.props('to'))).toEqual([
+      '/vault/vault-1/dwellers/dweller-1',
+      '/vault/vault-1/dwellers/dweller-2',
+    ])
+  })
 })
 
 function companion(id: string, firstName: string): DwellerShort {

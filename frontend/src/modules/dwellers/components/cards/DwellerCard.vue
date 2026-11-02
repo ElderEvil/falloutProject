@@ -69,6 +69,22 @@ const availableRadawaysCount = computed(() => props.availableRadaways ?? 0)
 const carriedStimpacks = computed(() => props.dweller.stimpack || 0)
 const carriedRadaways = computed(() => props.dweller.radaway || 0)
 
+// Curated portraits (defaults and legendary art) share the framed 1.1 zoom.
+// Non-humanoid companion art keeps its own framing instead.
+const isCuratedPortrait = computed(() => {
+  const source = props.imageUrl
+  return (
+    Boolean(source) &&
+    (source!.startsWith('/static/dweller_images/') ||
+      source!.startsWith('/static/dweller_thumbnails/') ||
+      source!.startsWith('/static/legendary_dweller_images/'))
+  )
+})
+const isNonHumanoidPortrait = computed(
+  () => Boolean(props.imageUrl?.endsWith('/FOS_Dw_Snip_Snip.png'))
+)
+const usesCuratedFrame = computed(() => isCuratedPortrait.value && !isNonHumanoidPortrait.value)
+
 // Healing is refused server-side for the deceased (409). Revival UI owns the
 // dead state, so the card never offers a medical action on a corpse.
 const isDead = computed(() => props.dweller.is_dead === true)
@@ -117,7 +133,7 @@ const canHealRadaway = computed(
 <template>
   <div class="dweller-card">
     <div class="portrait-rail">
-      <div class="portrait-container" :class="{ 'default-portrait-frame': dweller.is_default_portrait }">
+      <div class="portrait-container" :class="{ 'default-portrait-frame': usesCuratedFrame }">
         <template v-if="imageUrl">
           <img
             :src="getImageUrl(imageUrl)"
@@ -125,7 +141,8 @@ const canHealRadaway = computed(
             :class="[
               'portrait-image',
               { 'grayscale brightness-50 contrast-125': dweller.is_dead },
-              { 'default-portrait-zoom': dweller.is_default_portrait },
+              { 'default-portrait-zoom': usesCuratedFrame },
+              { 'portrait-image--contain': isNonHumanoidPortrait },
             ]"
           />
           <span
@@ -314,6 +331,13 @@ const canHealRadaway = computed(
   transform-origin: top center;
   border: none;
   box-shadow: none;
+}
+
+/* Non-humanoid companion art (for example Snip Snip) must stay whole instead of
+   being cropped like a human head-and-shoulders portrait. */
+.portrait-image--contain {
+  object-fit: contain;
+  object-position: center bottom;
 }
 
 /* The placeholder has no intrinsic size to borrow, so it takes a definite box

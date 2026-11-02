@@ -1,8 +1,11 @@
-import { describe, expect, it, beforeEach } from 'vite-plus/test'
+import { describe, expect, it, beforeEach, vi } from 'vite-plus/test'
+import { createRouterMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import ExplorerSummaryCard from '@/modules/exploration/components/ExplorerSummaryCard.vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
+
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
 
 const exploration = {
   id: 'exploration-1',
@@ -94,6 +97,19 @@ describe('ExplorerSummaryCard', () => {
     expect(portraitColumn.find('.dweller-level').text()).toBe('LVL 12')
     expect(portraitColumn.find('.dweller-portrait-frame').exists()).toBe(true)
     expect(healthRow.find('.dweller-level').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('links the portrait and the name to the dweller page', () => {
+    const wrapper = mountCard()
+
+    expect(wrapper.findComponent('.dweller-portrait-frame').props('to')).toBe(
+      '/vault/vault-1/dwellers/dweller-1'
+    )
+    expect(wrapper.findComponent('.dweller-name-link').props('to')).toBe(
+      '/vault/vault-1/dwellers/dweller-1'
+    )
 
     wrapper.unmount()
   })

@@ -44,14 +44,42 @@ const isThumbnailPreview = computed(
   () => portraitSource.value === props.thumbnailUrl && Boolean(props.thumbnailUrl)
 )
 
-const isCuratedDefault = computed(() => {
+// Curated portrait sets follow the same framing contract, so they share the card
+// zoom. Legendary art is curated too: leaving it out rendered every legendary
+// portrait ~9% smaller than a default dweller (1 / 1.1).
+const CURATED_PORTRAIT_PREFIXES = [
+  '/static/dweller_images/',
+  '/static/dweller_thumbnails/',
+  '/static/legendary_dweller_images/',
+] as const
+
+// Only the default sets are guaranteed to use the 1:2, 150x300 canvas, so only
+// they may reserve that intrinsic size before the image loads.
+const STANDARD_PORTRAIT_PREFIXES = [
+  '/static/dweller_images/',
+  '/static/dweller_thumbnails/',
+] as const
+
+// Non-humanoid companion art (docs/features/DWELLER_TEMPLATES.md §7) keeps its
+// own framing: no human card zoom and the whole subject stays visible.
+const NON_HUMANOID_PORTRAIT_FILES = ['/FOS_Dw_Snip_Snip.png'] as const
+
+const isCuratedPortrait = computed(() => {
   const source = portraitSource.value
-  return (
-    Boolean(source) &&
-    (source!.startsWith('/static/dweller_images/') ||
-      source!.startsWith('/static/dweller_thumbnails/'))
-  )
+  return Boolean(source) && CURATED_PORTRAIT_PREFIXES.some((prefix) => source!.startsWith(prefix))
 })
+
+const isStandardPortrait = computed(() => {
+  const source = portraitSource.value
+  return Boolean(source) && STANDARD_PORTRAIT_PREFIXES.some((prefix) => source!.startsWith(prefix))
+})
+
+const isNonHumanoidPortrait = computed(() => {
+  const source = portraitSource.value
+  return Boolean(source) && NON_HUMANOID_PORTRAIT_FILES.some((suffix) => source!.endsWith(suffix))
+})
+
+const usesCuratedZoom = computed(() => isCuratedPortrait.value && !isNonHumanoidPortrait.value)
 
 const clipClass = computed(() => {
   if (
@@ -69,7 +97,14 @@ const clipClass = computed(() => {
 })
 
 const imageStyle = computed(() => ({
-  objectPosition: props.objectPosition ?? (isThumbnailPreview.value ? 'center top' : undefined),
+  objectPosition:
+    props.objectPosition ??
+    (isNonHumanoidPortrait.value
+      ? 'center bottom'
+      : isThumbnailPreview.value
+        ? 'center top'
+        : undefined),
+  objectFit: isNonHumanoidPortrait.value ? ('contain' as const) : undefined,
   '--portrait-scale': String(props.scale),
   transformOrigin: props.scale > 1 ? 'center top' : undefined,
 }))
@@ -86,13 +121,13 @@ watch(portraitUrl, () => {
     <img
       :src="portraitUrl"
       :alt="alt"
-      :width="isCuratedDefault ? 150 : undefined"
-      :height="isCuratedDefault ? 300 : undefined"
+      :width="isStandardPortrait ? 150 : undefined"
+      :height="isStandardPortrait ? 300 : undefined"
       :class="[
         'portrait-clip-image',
         imageClass,
         {
-          'default-portrait-zoom': isCuratedDefault && zoom,
+          'default-portrait-zoom': usesCuratedZoom && zoom,
           'dead-portrait-image': dead,
         },
       ]"

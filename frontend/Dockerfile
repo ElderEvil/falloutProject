@@ -1,4 +1,4 @@
-FROM node:26.12.1-alpine AS build-stage
+FROM node:26.13.0-alpine AS build-stage
 WORKDIR /app
 
 RUN npm install -g pnpm@11.9.0

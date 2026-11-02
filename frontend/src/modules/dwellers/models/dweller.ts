@@ -10,6 +10,24 @@ export type DetailedDweller = DwellerFull
 export type DwellerShort = components['schemas']['DwellerReadLess']
 export type DwellerCreate = components['schemas']['DwellerCreate']
 
+/**
+ * Per-dweller state carried by a game-tick snapshot. The tick payload is authoritative for
+ * these mutable fields only — names, visuals and other immutable data still come from the roster.
+ */
+export interface DwellerTickSnapshot {
+  id: string
+  health: number
+  max_health: number
+  radiation: number
+  happiness: number
+  level: number
+  experience: number
+  status: string
+  room_id: string | null
+  is_dead: boolean
+  effective_max_health: number
+}
+
 /** Attention filters and overview counts share the API's pet-adjusted health ceiling. */
 export const NEEDS_CARE_HEALTH_PERCENT = 50
 

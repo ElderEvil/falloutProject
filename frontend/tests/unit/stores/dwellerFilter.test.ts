@@ -20,8 +20,27 @@ import {
 import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useRoomStore } from '@/modules/rooms/stores/room'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { DEFAULT_TABLE_COLUMNS } from '@/modules/dwellers/models/dwellerTable'
+import type { DwellerTickSnapshot } from '@/modules/dwellers/models/dweller'
+
+function tickSnapshot(overrides: Partial<DwellerTickSnapshot> = {}): DwellerTickSnapshot {
+  return {
+    id: 'd1',
+    health: 90,
+    max_health: 100,
+    radiation: 5,
+    happiness: 80,
+    level: 4,
+    experience: 12,
+    status: 'idle',
+    room_id: null,
+    is_dead: false,
+    effective_max_health: 95,
+    ...overrides,
+  }
+}
 
 describe('DwellerFilter Store', () => {
   beforeEach(() => {
@@ -1279,6 +1298,161 @@ describe('DwellerFilter Store', () => {
       store.applyTablePreset('does-not-exist')
 
       expect(store.tableColumns).toEqual(before)
+    })
+  })
+
+  describe('applyDwellerTick', () => {
+    it('patches every cache while preserving immutable roster fields', () => {
+      useVaultStore().activeVaultId = 'vault-1'
+      const store = useDwellerFilterStore()
+      const rosterEntry = {
+        id: 'd1',
+        first_name: 'John',
+        last_name: 'Doe',
+        health: 10,
+        max_health: 100,
+        radiation: 0,
+        happiness: 50,
+        level: 1,
+        experience: 0,
+        status: 'idle',
+        room_id: null,
+        visual_attributes: { race: 'human' },
+      }
+      store.dwellers = [{ ...rosterEntry }] as never
+      store.allDwellers = [{ ...rosterEntry }] as never
+      store.allDwellersLoadedVaultId = 'vault-1'
+      store.detailedDwellers = {
+        d1: {
+          ...rosterEntry,
+          room: null,
+        } as never,
+      }
+
+      store.applyDwellerTick(
+        'vault-1',
+        [tickSnapshot({ health: 90, level: 4, experience: 12, status: 'working' })],
+        'token'
+      )
+
+      for (const list of [store.dwellers, store.allDwellers]) {
+        expect(list[0]).toMatchObject({
+          health: 90,
+          max_health: 100,
+          radiation: 5,
+          happiness: 80,
+          level: 4,
+          experience: 12,
+          status: 'working',
+          effective_max_health: 95,
+          first_name: 'John',
+          visual_attributes: { race: 'human' },
+        })
+      }
+      expect(store.detailedDwellers.d1).toMatchObject({
+        health: 90,
+        level: 4,
+        experience: 12,
+        status: 'working',
+        effective_max_health: 95,
+        first_name: 'John',
+        visual_attributes: { race: 'human' },
+      })
+    })
+
+    it('resolves the detail room from the room store and clears it on a null room_id', () => {
+      useVaultStore().activeVaultId = 'vault-1'
+      const roomStore = useRoomStore()
+      roomStore.rooms = [{ id: 'room-1', name: 'Power Plant' }] as never
+      const store = useDwellerFilterStore()
+      store.detailedDwellers = {
+        d1: { id: 'd1', first_name: 'John', room: { id: 'old', name: 'Old' } } as never,
+      }
+
+      store.applyDwellerTick('vault-1', [tickSnapshot({ room_id: 'room-1' })], 'token')
+      expect(store.detailedDwellers.d1?.room).toEqual(roomStore.rooms[0])
+
+      store.applyDwellerTick('vault-1', [tickSnapshot({ room_id: null })], 'token')
+      expect(store.detailedDwellers.d1?.room).toBeNull()
+    })
+
+    it('ignores a tick for a vault that is not active', () => {
+      useVaultStore().activeVaultId = 'vault-2'
+      const store = useDwellerFilterStore()
+      store.dwellers = [{ id: 'd1', health: 10 }] as never
+      store.allDwellers = [{ id: 'd1', health: 10 }] as never
+      store.allDwellersLoadedVaultId = 'vault-1'
+      store.detailedDwellers = { d1: { id: 'd1', health: 10 } as never }
+
+      store.applyDwellerTick('vault-1', [tickSnapshot({ health: 90 })], 'token')
+
+      expect(store.dwellers[0]).toMatchObject({ health: 10 })
+      expect(store.allDwellers[0]).toMatchObject({ health: 10 })
+      expect(store.detailedDwellers.d1).toMatchObject({ health: 10 })
+    })
+
+    it('patches only the filtered page before the full roster loads', () => {
+      useVaultStore().activeVaultId = 'vault-1'
+      const store = useDwellerFilterStore()
+      store.dwellers = [
+        { id: 'd1', health: 10 },
+        { id: 'd2', health: 10 },
+      ] as never
+      store.allDwellers = [{ id: 'd1', health: 10 }] as never
+      store.allDwellersLoadedVaultId = null
+
+      store.applyDwellerTick(
+        'vault-1',
+        [tickSnapshot({ id: 'd1' }), tickSnapshot({ id: 'new', health: 40 })],
+        'token'
+      )
+
+      expect(store.dwellers.map((d) => d.id)).toEqual(['d1', 'd2'])
+      expect(store.dwellers[0]).toMatchObject({ health: 90 })
+      expect(store.dwellers[1]).toMatchObject({ health: 10 })
+      expect(store.allDwellers.map((d) => d.id)).toEqual(['d1'])
+      expect(store.allDwellers[0]).toMatchObject({ health: 10 })
+      expect(vi.mocked(axios.get)).not.toHaveBeenCalled()
+    })
+
+    it('drops ids absent from the snapshot from every cache when the roster is loaded', () => {
+      useVaultStore().activeVaultId = 'vault-1'
+      const store = useDwellerFilterStore()
+      store.dwellers = [{ id: 'd1' }, { id: 'gone' }] as never
+      store.allDwellers = [{ id: 'd1' }, { id: 'gone' }] as never
+      store.allDwellersLoadedVaultId = 'vault-1'
+      store.detailedDwellers = {
+        d1: { id: 'd1' } as never,
+        gone: { id: 'gone' } as never,
+      }
+
+      store.applyDwellerTick('vault-1', [tickSnapshot({ id: 'd1' })], 'token')
+
+      expect(store.dwellers.map((d) => d.id)).toEqual(['d1'])
+      expect(store.allDwellers.map((d) => d.id)).toEqual(['d1'])
+      expect(store.detailedDwellers.gone).toBeUndefined()
+      expect(store.detailedDwellers.d1).toBeDefined()
+    })
+
+    it('refreshes current filters and the full roster once when the snapshot adds an id', async () => {
+      useVaultStore().activeVaultId = 'vault-1'
+      vi.mocked(axios.get).mockResolvedValue({ data: [] } as never)
+      const store = useDwellerFilterStore()
+      store.dwellers = [{ id: 'd1' }] as never
+      store.allDwellers = [{ id: 'd1' }] as never
+      store.allDwellersLoadedVaultId = 'vault-1'
+
+      store.applyDwellerTick(
+        'vault-1',
+        [tickSnapshot({ id: 'd1' }), tickSnapshot({ id: 'new' })],
+        'token'
+      )
+
+      await vi.waitFor(() => expect(vi.mocked(axios.get)).toHaveBeenCalledTimes(2))
+      const urls = vi.mocked(axios.get).mock.calls.map((call) => call[0] as string)
+      expect(urls.some((url) => url.includes('limit='))).toBe(true)
+      expect(urls.some((url) => !url.includes('limit='))).toBe(true)
+      expect(store.detailedDwellers.new).toBeUndefined()
     })
   })
 })

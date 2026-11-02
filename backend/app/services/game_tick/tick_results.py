@@ -108,9 +108,26 @@ class ArenaStats(TypedDict, total=False):
     error: str
 
 
+class DwellerTickSnapshot(TypedDict):
+    """Authoritative post-tick dweller state carried in the SSE payload."""
+
+    id: str
+    health: int
+    max_health: int
+    radiation: int
+    happiness: int
+    level: int
+    experience: int
+    status: str
+    room_id: str | None
+    is_dead: bool
+    effective_max_health: int
+
+
 class TickUpdates(TypedDict, total=False):
     arena: ArenaStats
     resources: ResourcesStats
+    dweller_snapshot: list[DwellerTickSnapshot]
     explorations: ExplorationStats
     dwellers: DwellersStats
     apprenticeships: ApprenticeStats

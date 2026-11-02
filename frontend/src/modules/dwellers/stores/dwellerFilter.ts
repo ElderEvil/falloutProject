@@ -1,7 +1,11 @@
 import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
-import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
+import type {
+  Dweller,
+  DwellerShort,
+  DwellerTickSnapshot,
+} from '@/modules/dwellers/models/dweller'
 import {
   getEffectiveMaxHealth,
   hasLowHappiness,
@@ -27,6 +31,7 @@ import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useFeatureFlagsStore } from './featureFlags'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useRoomStore } from '@/modules/rooms/stores/room'
 
 /**
  * Non-null limit for complete-fetch requests (fetchAllDwellers). The backend
@@ -605,6 +610,53 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     tableColumns.value = [...DEFAULT_TABLE_COLUMNS]
   }
 
+  function applyDwellerTick(
+    vaultId: string,
+    snapshot: DwellerTickSnapshot[],
+    token: string
+  ): void {
+    const vaultStore = useVaultStore()
+    if (vaultStore.activeVaultId && vaultStore.activeVaultId !== vaultId) return
+
+    const delta = new Map(snapshot.map((d) => [d.id, d]))
+    const rosterLoaded = allDwellersLoadedVaultId.value === vaultId
+    const previousIds = new Set(allDwellers.value.map((d) => d.id))
+    const patch = (d: DwellerShort): DwellerShort => {
+      const next = delta.get(d.id)
+      return next ? ({ ...d, ...next } as DwellerShort) : d
+    }
+
+    if (rosterLoaded) {
+      allDwellers.value = allDwellers.value.filter((d) => delta.has(d.id)).map(patch)
+      dwellers.value = dwellers.value.filter((d) => delta.has(d.id)).map(patch)
+      for (const id of previousIds) {
+        if (!delta.has(id)) delete detailedDwellers.value[id]
+      }
+    } else {
+      dwellers.value = dwellers.value.map(patch)
+    }
+
+    const roomStore = useRoomStore()
+    for (const [id, d] of delta) {
+      const detail = detailedDwellers.value[id]
+      if (!detail) continue
+      const { room_id, id: _id, ...fields } = d
+      detailedDwellers.value[id] = {
+        ...detail,
+        ...fields,
+        room:
+          room_id === null
+            ? null
+            : (roomStore.rooms.find((room) => room.id === room_id) ?? detail.room),
+      } as Dweller
+    }
+
+    if (rosterLoaded && snapshot.some((d) => !previousIds.has(d.id))) {
+      void fetchWithCurrentFilters(vaultId, token)
+      void fetchAllDwellers(vaultId, token, true)
+    }
+  }
+
   return {
     dwellers,
     allDwellers,
@@ -648,5 +700,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     toggleTableColumn,
     applyTablePreset,
     resetTableColumns,
+    applyDwellerTick,
   }
 })

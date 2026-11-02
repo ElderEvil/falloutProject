@@ -35,8 +35,11 @@ async def test_process_game_tick_publishes_sse_once_per_vault(
         # This assertion FAILS before the fix (it's called twice)
         mock_publish.assert_called_once()
         args, _kwargs = mock_publish.call_args
-        _vault_id, topic, _data = args
+        _vault_id, topic, data = args
         assert topic == "game_ticks"
+        updates = data["results"]["updates"]
+        assert "resources" in updates
+        assert "dweller_snapshot" in updates
     assert stats["vaults_processed"] >= 1
 
 

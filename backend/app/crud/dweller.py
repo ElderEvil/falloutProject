@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import UUID4
-from sqlalchemy import Float, case, cast, exists, func, update
+from sqlalchemy import Float, Row, case, cast, exists, func, update
 from sqlalchemy.orm import selectinload
 from sqlmodel import and_, col, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -474,6 +474,29 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         query = self._vault_query(vault_id).options(selectinload(self.model.outfit), selectinload(self.model.pet))
         result = await db_session.execute(query)
         return result.scalars().all()
+
+    async def get_tick_snapshot(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Row]:
+        """One-row-per-dweller projection for the tick SSE snapshot (single SELECT).
+
+        The equipped pet name comes from a scalar subquery rather than an outer
+        join: ``Pet.dweller_id`` is not unique, so a join could fan out rows.
+        """
+        pet_name = select(Pet.name).where(Pet.dweller_id == Dweller.id).limit(1).scalar_subquery().label("pet_name")
+        query = select(
+            Dweller.id,
+            Dweller.health,
+            Dweller.max_health,
+            Dweller.radiation,
+            Dweller.happiness,
+            Dweller.level,
+            Dweller.experience,
+            Dweller.status,
+            Dweller.room_id,
+            Dweller.is_dead,
+            pet_name,
+        ).where(Dweller.vault_id == vault_id, ~Dweller.is_deleted)
+        result = await db_session.execute(query)
+        return result.all()
 
     async def count_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> int:
         """Count every dweller row of a vault (no status/deleted filters)."""

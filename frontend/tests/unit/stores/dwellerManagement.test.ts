@@ -127,6 +127,48 @@ describe('useDwellerManagementStore', () => {
     expect(audioManager.play).toHaveBeenCalledWith('cardDrop', 'ui')
   })
 
+  it('applies the room assignment before the server responds', async () => {
+    const filter = useDwellerFilterStore()
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'idle' }] as never
+    const pending = deferred<{ data: unknown }>()
+    vi.mocked(axios.post).mockReturnValueOnce(pending.promise as never)
+
+    const call = useDwellerManagementStore().assignDwellerToRoom('d1', 'room-2', 'token-1')
+    expect(filter.dwellers[0]?.room_id).toBe('room-2')
+
+    pending.resolve({ data: { id: 'd1', room_id: 'room-2', status: 'working' } })
+    await call
+    expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-2', status: 'working' })
+  })
+
+  it('rolls the room assignment back when the server rejects it', async () => {
+    const filter = useDwellerFilterStore()
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'working' }] as never
+    vi.mocked(axios.post).mockRejectedValueOnce({
+      response: { status: 400, data: { detail: 'Room is full' } },
+    })
+
+    await expect(
+      useDwellerManagementStore().assignDwellerToRoom('d1', 'room-2', 'token-1')
+    ).rejects.toBeTruthy()
+
+    expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-1', status: 'working' })
+  })
+
+  it('clears the room before the unassign response arrives', async () => {
+    const filter = useDwellerFilterStore()
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'working' }] as never
+    const pending = deferred<{ data: unknown }>()
+    vi.mocked(axios.put).mockReturnValueOnce(pending.promise as never)
+
+    const call = useDwellerManagementStore().unassignDwellerFromRoom('d1', 'token-1')
+    expect(filter.dwellers[0]).toMatchObject({ room_id: null, status: 'idle' })
+
+    pending.resolve({ data: { id: 'd1', room_id: null, status: 'idle' } })
+    await call
+    expect(filter.dwellers[0]).toMatchObject({ room_id: null, status: 'idle' })
+  })
+
   it('plays the card drop sound when a dweller is unassigned from a room', async () => {
     const managementStore = useDwellerManagementStore()
     vi.mocked(axios.put).mockResolvedValue({
@@ -182,3 +224,11 @@ describe('useDwellerManagementStore', () => {
     )
   })
 })
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((r) => {
+    resolve = r
+  })
+  return { promise, resolve }
+}

@@ -31,6 +31,9 @@ import {
   type BarbershopStatus,
 } from '../models/barbershop'
 import { barbershopApi } from '../api/barbershop'
+import { useVaultStore } from '@/modules/vault/stores/vault'
+
+const vaultStore = useVaultStore()
 
 const props = defineProps<{
   room: Room
@@ -474,6 +477,7 @@ async function handleSave(): Promise<void> {
       response.dweller.visual_attributes as DwellerShort['visual_attributes']
     )
     status.value = { ...current, vault_caps: response.remaining_caps }
+    vaultStore.applyCaps(props.vaultId, response.remaining_caps)
     emit('changed')
     toast.success(`${getDwellerDisplayName(dweller)} leaves the chair looking sharp.`)
     if (!response.portrait_updated) {

@@ -16,6 +16,7 @@ vi.mock('@/modules/dwellers/stores/dwellerFilter', () => ({
 }))
 
 import { useDwellerDeathStore } from '@/modules/dwellers/stores/dwellerDeath'
+import { useVaultStore, type VaultWithNumbers } from '@/modules/vault/stores/vault'
 
 describe('DwellerDeath Store', () => {
   beforeEach(() => {
@@ -189,6 +190,7 @@ describe('DwellerDeath Store', () => {
       const mockResponse = {
         dweller: { id: 'd1', first_name: 'John', last_name: 'Doe' },
         caps_spent: 500,
+        remaining_caps: 500,
         stimpaks_used: 2,
       }
       vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse })
@@ -224,6 +226,25 @@ describe('DwellerDeath Store', () => {
       expect(result).toBeNull()
       expect(mockToast.error).toHaveBeenCalledTimes(1)
       expect(mockToast.error).toHaveBeenCalledWith('Failed to revive dweller d1: Not enough caps')
+    })
+
+    it('applies the remaining caps to the active vault', async () => {
+      vi.mocked(axios.post).mockResolvedValueOnce({
+        data: {
+          dweller: { id: 'd1', first_name: 'John', last_name: 'Doe' },
+          caps_spent: 500,
+          remaining_caps: 500,
+        },
+      })
+      const vaultStore = useVaultStore()
+      vaultStore.activeVaultId = 'v1'
+      vaultStore.loadedVaults = {
+        v1: { id: 'v1', bottle_caps: 1000 } as unknown as VaultWithNumbers,
+      }
+
+      await useDwellerDeathStore().reviveDweller('d1', 'test-token')
+
+      expect(vaultStore.loadedVaults.v1.bottle_caps).toBe(500)
     })
   })
 })

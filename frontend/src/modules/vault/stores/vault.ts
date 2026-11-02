@@ -260,6 +260,12 @@ export const useVaultStore = defineStore('vault', () => {
     }
   }
 
+  function applyCaps(id: string, caps: number): void {
+    const vault = loadedVaults.value[id]
+    if (!vault || vault.bottle_caps === caps) return
+    loadedVaults.value[id] = { ...vault, bottle_caps: caps }
+  }
+
   async function refreshVault(id: string, token: string) {
     const requestGeneration = sessionGeneration
     try {
@@ -499,6 +505,7 @@ export const useVaultStore = defineStore('vault', () => {
     ensureVaultLoaded,
     revalidateVault,
     refreshVault,
+    applyCaps,
     setActiveVault,
     closeVaultTab,
     clearSession,

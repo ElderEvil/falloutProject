@@ -22,11 +22,56 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
   const isLoadingLineage = ref(false)
   let lineageRequestSeq = 0
 
+
+  function patchRoomAssignment(
+    dwellerId: string,
+    roomId: string | null,
+    status?: Dweller['status']
+  ): void {
+    const index = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
+    const current = filterStore.dwellers[index]
+    if (index !== -1 && current) {
+      filterStore.dwellers[index] = {
+        ...current,
+        room_id: roomId,
+        ...(status ? { status } : {}),
+      }
+    }
+    const detailed = filterStore.detailedDwellers[dwellerId]
+    if (detailed) {
+      filterStore.detailedDwellers[dwellerId] = {
+        ...detailed,
+        room_id: roomId,
+        ...(status ? { status } : {}),
+      } as typeof detailed
+    }
+  }
+
+  function restoreRoomAssignment(
+    dwellerId: string,
+    roomId: string | null | undefined,
+    status: Dweller['status'] | undefined,
+    detailed: Dweller | null | undefined
+  ): void {
+    if (detailed) filterStore.detailedDwellers[dwellerId] = detailed
+    const index = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
+    const current = filterStore.dwellers[index]
+    if (index === -1 || !current) return
+    filterStore.dwellers[index] = {
+      ...current,
+      room_id: roomId ?? null,
+      ...(status ? { status } : {}),
+    }
+  }
+
   async function assignDwellerToRoom(
     dwellerId: string,
     roomId: string,
     token: string
   ): Promise<Dweller> {
+    const previous = filterStore.dwellers.find((d) => d.id === dwellerId)
+    const previousDetailed = filterStore.detailedDwellers[dwellerId]
+    patchRoomAssignment(dwellerId, roomId)
     try {
       const response = await axios.post(`/api/v1/dwellers/${dwellerId}/move_to/${roomId}`, null, {
         headers: {
@@ -34,17 +79,8 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
         },
       })
 
-      // Update the dweller in the list
-      const dwellerIndex = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
-      if (dwellerIndex !== -1 && filterStore.dwellers[dwellerIndex]) {
-        filterStore.dwellers[dwellerIndex] = {
-          ...filterStore.dwellers[dwellerIndex]!,
-          room_id: roomId,
-        }
-      }
-
-      // Update detailed dweller if cached
-      if (filterStore.detailedDwellers[dwellerId]) {
+      patchRoomAssignment(dwellerId, roomId, response.data.status)
+      if (previousDetailed) {
         filterStore.detailedDwellers[dwellerId] = response.data
       }
 
@@ -52,6 +88,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
       return response.data
     } catch (error) {
+      restoreRoomAssignment(dwellerId, previous?.room_id, previous?.status, previousDetailed)
       handleStoreError(error, `Failed to assign dweller ${dwellerId} to room ${roomId}`)
       throw error
     }
@@ -82,6 +119,9 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
   }
 
   async function unassignDwellerFromRoom(dwellerId: string, token: string): Promise<Dweller> {
+    const previous = filterStore.dwellers.find((d) => d.id === dwellerId)
+    const previousDetailed = filterStore.detailedDwellers[dwellerId]
+    patchRoomAssignment(dwellerId, null, 'idle')
     try {
       // Move dweller to null room (unassign)
       const response = await axios.put(
@@ -94,18 +134,8 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
         }
       )
 
-      // Update the dweller in the list with full response data
-      const dwellerIndex = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
-      if (dwellerIndex !== -1 && filterStore.dwellers[dwellerIndex]) {
-        filterStore.dwellers[dwellerIndex] = {
-          ...filterStore.dwellers[dwellerIndex]!,
-          room_id: null,
-          status: response.data.status,
-        }
-      }
-
-      // Update detailed dweller if cached
-      if (filterStore.detailedDwellers[dwellerId]) {
+      patchRoomAssignment(dwellerId, null, response.data.status)
+      if (previousDetailed) {
         filterStore.detailedDwellers[dwellerId] = response.data
       }
 
@@ -113,6 +143,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
       return response.data
     } catch (error) {
+      restoreRoomAssignment(dwellerId, previous?.room_id, previous?.status, previousDetailed)
       handleStoreError(error, `Failed to unassign dweller ${dwellerId}`)
       throw error
     }

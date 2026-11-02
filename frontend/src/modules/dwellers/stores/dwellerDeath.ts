@@ -5,10 +5,12 @@ import type { DwellerDead, DwellerReviveResponse, RevivalCostResponse } from '..
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { useDwellerFilterStore } from './dwellerFilter'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 
 export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
   const toast = useToast()
   const filterStore = useDwellerFilterStore()
+  const vaultStore = useVaultStore()
 
   const deadDwellers = ref<DwellerDead[]>([])
   const graveyardDwellers = ref<DwellerDead[]>([])
@@ -126,6 +128,10 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
       if (dwellerId in filterStore.detailedDwellers) {
         filterStore.detailedDwellers[dwellerId] =
           revivedDweller as unknown as import('../models/dweller').Dweller
+      }
+
+      if (vaultStore.activeVaultId) {
+        vaultStore.applyCaps(vaultStore.activeVaultId, response.data.remaining_caps)
       }
 
       toast.success(

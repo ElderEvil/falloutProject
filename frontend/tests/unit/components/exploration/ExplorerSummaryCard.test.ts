@@ -1,8 +1,12 @@
-import { describe, expect, it, beforeEach } from 'vite-plus/test'
+import { describe, expect, it, beforeEach, vi } from 'vite-plus/test'
+import { createRouterMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
+import { useRouter } from 'vue-router'
 import ExplorerSummaryCard from '@/modules/exploration/components/ExplorerSummaryCard.vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
+
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
 
 const exploration = {
   id: 'exploration-1',
@@ -94,6 +98,21 @@ describe('ExplorerSummaryCard', () => {
     expect(portraitColumn.find('.dweller-level').text()).toBe('LVL 12')
     expect(portraitColumn.find('.dweller-portrait-frame').exists()).toBe(true)
     expect(healthRow.find('.dweller-level').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('opens the dweller page from the portrait and the name', async () => {
+    const push = vi.mocked(useRouter().push)
+    const wrapper = mountCard()
+
+    push.mockClear()
+    await wrapper.get('.dweller-name-link').trigger('click')
+    expect(push).toHaveBeenCalledWith('/vault/vault-1/dwellers/dweller-1')
+
+    push.mockClear()
+    await wrapper.get('.dweller-portrait-frame').trigger('click')
+    expect(push).toHaveBeenCalledWith('/vault/vault-1/dwellers/dweller-1')
 
     wrapper.unmount()
   })

@@ -95,35 +95,64 @@ const party = computed<(DwellerShort | Dweller)[]>(() => {
           <Icon icon="mdi:account-group" class="size-4 text-theme-accent" />
           Expedition party
         </div>
-        <h3 class="text-lg font-bold text-theme-primary">{{ exploration.duration }}h expedition</h3>
+        <button
+          type="button"
+          class="expedition-heading text-lg font-bold text-theme-primary"
+          @click.stop="openDetailView"
+        >
+          {{ exploration.duration }}h expedition
+          <Icon icon="mdi:chevron-right" :ariaHidden="true" />
+        </button>
       </div>
-      <TooltipProvider v-else :delay-duration="200">
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <button type="button" class="dweller-info dweller-link" @click.stop="openDwellerDetail">
-              <DwellerPortrait
-                :image-url="dweller?.image_url"
-                :thumbnail-url="dweller?.thumbnail_url"
-                prefer-thumbnail
-                :alt="`${dwellerName} portrait`"
-                image-class="dweller-portrait h-12 w-12 rounded-full border border-theme-primary object-cover"
-                fallback-class="h-12 w-12 text-theme-primary drop-shadow-[0_0_6px_var(--color-theme-glow)]"
-              />
-              <div>
-                <div class="dweller-name">{{ dwellerName }}</div>
-                <div class="exploration-duration">{{ exploration.duration }}h expedition</div>
-                <div class="mt-1 flex flex-wrap items-center gap-1.5">
-                  <DwellerIdentitySignal :visual-attributes="dweller?.visual_attributes" compact />
-                  <DwellerAgeBadge :age-group="dweller?.age_group" size="sm" />
-                  <DwellerGenderBadge :gender="dweller?.gender" size="sm" />
-                  <DwellerRarityBadge :rarity="dweller?.rarity" size="sm" />
-                </div>
-              </div>
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>Open dweller detail page</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <div v-else class="dweller-info">
+        <button
+          type="button"
+          class="dweller-portrait-link"
+          :aria-label="`Open ${dwellerName}'s dweller page`"
+          @click.stop="openDwellerDetail"
+        >
+          <DwellerPortrait
+            :image-url="dweller?.image_url"
+            :thumbnail-url="dweller?.thumbnail_url"
+            prefer-thumbnail
+            :alt="`${dwellerName} portrait`"
+            image-class="dweller-portrait h-12 w-12 rounded-md object-cover"
+            fallback-class="h-12 w-12 text-theme-primary drop-shadow-[0_0_6px_var(--color-theme-glow)]"
+          />
+        </button>
+        <div class="dweller-meta">
+          <TooltipProvider :delay-duration="200">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <button
+                  type="button"
+                  class="dweller-name-link"
+                  :aria-label="`Open ${dwellerName}'s dweller page`"
+                  @click.stop="openDwellerDetail"
+                >
+                  <span class="dweller-name">{{ dwellerName }}</span>
+                  <Icon
+                    icon="mdi:account-arrow-right"
+                    class="dweller-link-icon"
+                    :ariaHidden="true"
+                  />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Open dweller page</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <button type="button" class="expedition-link" @click.stop="openDetailView">
+            {{ exploration.duration }}h expedition
+            <Icon icon="mdi:chevron-right" :ariaHidden="true" />
+          </button>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <DwellerIdentitySignal :visual-attributes="dweller?.visual_attributes" compact />
+            <DwellerAgeBadge :age-group="dweller?.age_group" size="sm" />
+            <DwellerGenderBadge :gender="dweller?.gender" size="sm" />
+            <DwellerRarityBadge :rarity="dweller?.rarity" size="sm" />
+          </div>
+        </div>
+      </div>
       <div class="card-status">
         <ExplorationStatusBadges :exploration="exploration" :dweller="dweller ?? null" />
         <TooltipProvider v-if="selected" :delay-duration="200">
@@ -282,17 +311,59 @@ const party = computed<(DwellerShort | Dweller)[]>(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  min-width: 0;
 }
 
-.dweller-link {
+.dweller-meta {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.dweller-portrait-link,
+.dweller-name-link,
+.expedition-link,
+.expedition-heading {
   background: none;
   border: none;
   padding: 0;
-  font: inherit;
-  color: inherit;
-  text-align: left;
   cursor: pointer;
-  text-decoration: none;
+}
+
+.dweller-portrait-link {
+  display: block;
+  border-radius: 4px;
+}
+
+.dweller-name-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+  text-align: left;
+}
+
+.dweller-portrait-link:focus-visible,
+.dweller-name-link:focus-visible,
+.expedition-link:focus-visible,
+.expedition-heading:focus-visible {
+  outline: 2px solid var(--color-theme-primary);
+  outline-offset: 2px;
+}
+
+.dweller-name-link:hover .dweller-name,
+.dweller-name-link:focus-visible .dweller-name {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.dweller-link-icon {
+  opacity: 0.5;
+}
+
+.dweller-name-link:hover .dweller-link-icon,
+.dweller-name-link:focus-visible .dweller-link-icon {
+  opacity: 1;
 }
 
 .dweller-name {
@@ -302,9 +373,26 @@ const party = computed<(DwellerShort | Dweller)[]>(() => {
   text-shadow: 0 0 6px var(--color-theme-glow);
 }
 
-.exploration-duration {
+.expedition-link,
+.expedition-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  width: fit-content;
+  text-align: left;
+}
+
+.expedition-link {
   font-size: 0.75rem;
   color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.7);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.expedition-link:hover,
+.expedition-heading:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .expand-indicator {

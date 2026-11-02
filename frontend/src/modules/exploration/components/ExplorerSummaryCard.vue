@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useRoute, useRouter } from 'vue-router'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
 import DwellerAgeBadge from '@/modules/dwellers/components/DwellerAgeBadge.vue'
@@ -33,6 +34,9 @@ const props = defineProps<{
   dweller?: Dweller | DetailedDweller | DwellerShort | null
 }>()
 
+const router = useRouter()
+const route = useRoute()
+
 const radiationPercentage = computed(() => getRadiationPercentage(props.radiation, props.maxHealth))
 const healthPercentage = computed(
   () =>
@@ -40,6 +44,11 @@ const healthPercentage = computed(
       props.maxHealth) *
     100
 )
+
+const openDweller = () => {
+  const dwellerId = props.dweller?.id ?? props.exploration.dweller_id
+  if (dwellerId) router.push(`/vault/${route.params.id}/dwellers/${dwellerId}`)
+}
 </script>
 
 <template>
@@ -51,8 +60,11 @@ const healthPercentage = computed(
       class="mb-4 flex gap-4 border-b-2 border-theme-primary/30 pb-4 max-md:flex-col max-md:items-center max-md:text-center"
     >
       <div class="portrait-column flex shrink-0 flex-col items-center gap-1.5">
-        <div
-          class="dweller-portrait-frame flex h-[70px] w-[70px] items-center justify-center rounded-md border-2 border-theme-primary bg-terminal-background shadow-[0_0_15px_var(--color-theme-glow)]"
+        <button
+          type="button"
+          class="dweller-portrait-frame flex h-[70px] w-[70px] cursor-pointer items-center justify-center rounded-md border-2 border-theme-primary bg-terminal-background shadow-[0_0_15px_var(--color-theme-glow)]"
+          :aria-label="`Open ${dwellerName}'s dweller page`"
+          @click="openDweller"
         >
           <DwellerPortrait
             :image-url="dwellerImageUrl"
@@ -62,7 +74,7 @@ const healthPercentage = computed(
             image-class="dweller-portrait h-full w-full rounded-md object-cover"
             fallback-class="h-[45px] w-[45px] text-theme-primary drop-shadow-[0_0_8px_var(--color-theme-glow)]"
           />
-        </div>
+        </button>
         <div
           class="dweller-level shrink-0 rounded-[3px] bg-theme-primary px-1.5 py-0.5 text-[0.625rem] font-bold text-black shadow-[0_0_10px_var(--color-theme-glow)]"
         >
@@ -74,7 +86,15 @@ const healthPercentage = computed(
           <h2
             class="text-xl font-bold text-theme-primary [text-shadow:0_0_10px_var(--color-theme-glow)] max-md:text-2xl"
           >
-            {{ dwellerName }}
+            <button
+              type="button"
+              class="dweller-name-link"
+              :aria-label="`Open ${dwellerName}'s dweller page`"
+              @click="openDweller"
+            >
+              {{ dwellerName }}
+              <Icon icon="mdi:account-arrow-right" class="dweller-link-icon" :ariaHidden="true" />
+            </button>
           </h2>
           <ExplorationStatusBadges :exploration="exploration" :dweller="dweller" class="shrink-0" />
         </div>
@@ -126,3 +146,38 @@ const healthPercentage = computed(
     </div>
   </div>
 </template>
+
+<style scoped>
+.dweller-name-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.dweller-name-link:hover,
+.dweller-name-link:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.dweller-name-link:focus-visible,
+.dweller-portrait-frame:focus-visible {
+  outline: 2px solid var(--color-theme-primary);
+  outline-offset: 2px;
+}
+
+.dweller-link-icon {
+  opacity: 0.6;
+}
+
+.dweller-name-link:hover .dweller-link-icon,
+.dweller-name-link:focus-visible .dweller-link-icon {
+  opacity: 1;
+}
+</style>

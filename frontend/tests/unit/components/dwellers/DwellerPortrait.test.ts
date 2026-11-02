@@ -97,6 +97,32 @@ describe('DwellerPortrait', () => {
     expect(wrapper.find('img').attributes('class')).toContain('default-portrait-zoom')
   })
 
+  it('applies the curated zoom to legendary portraits without reserving a 1:2 canvas', () => {
+    const wrapper = mount(DwellerPortrait, {
+      props: {
+        thumbnailUrl: '/static/legendary_dweller_images/FOS_Dw_Butch.png',
+        alt: 'Butch portrait',
+      },
+    })
+
+    expect(wrapper.find('img').attributes('class')).toContain('default-portrait-zoom')
+    expect(wrapper.get('img').attributes('width')).toBeUndefined()
+  })
+
+  it('keeps non-humanoid companion art out of the human card framing', () => {
+    const wrapper = mount(DwellerPortrait, {
+      props: {
+        thumbnailUrl: '/static/legendary_dweller_images/FOS_Dw_Snip_Snip.png',
+        alt: 'Snip Snip portrait',
+      },
+    })
+
+    const image = wrapper.get('img')
+    expect(image.attributes('class')).not.toContain('default-portrait-zoom')
+    expect(image.attributes('style')).toContain('object-fit: contain')
+    expect(image.attributes('style')).toContain('object-position: center bottom')
+  })
+
   it('reserves the curated thumbnail aspect ratio without sizing arbitrary uploads', () => {
     const wrapper = mount(DwellerPortrait, {
       props: { thumbnailUrl: '/static/dweller_thumbnails/base/lucy.webp', alt: 'Lucy' },

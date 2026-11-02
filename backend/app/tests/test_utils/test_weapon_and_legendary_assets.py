@@ -65,6 +65,13 @@ def test_every_mapped_legendary_file_exists_on_disk() -> None:
     assert missing == []
 
 
+def test_cx404_is_a_pet_not_a_dweller_portrait() -> None:
+    """CX404 moved to pets; a dweller portrait for it is a miscategorized leftover."""
+    assert "cx404" not in LEGENDARY_DWELLER_IMAGE_FILES
+    assert not (LEGENDARY_IMAGE_DIR / "FOS_Dw_CX404.png").exists()
+    assert (LEGENDARY_IMAGE_DIR.parent / "pet_images" / "FOS CX404.png").exists()
+
+
 def test_legendary_aliases_resolve_to_the_same_portrait() -> None:
     """Catalog names that differ from the FOS character name share that character's portrait."""
     assert get_legendary_dweller_image_url("Colonel Autumn") == get_legendary_dweller_image_url("Augustus Autumn")

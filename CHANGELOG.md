@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.284.7 (2026-11-02)
+
+### Bug Fixes
+
+* **rooms:** resync dwellers after build, destroy, upgrade and remodel 5452ae4
+* **vault:** address review findings on state sync d0a8f63
+* **vault:** scope state sync to the originating vault and session 3d49789
+* **vault:** sync caps and assignments after mutations d02da4f
+
 ## 2.284.6 (2026-11-02)
 
 ### Bug Fixes

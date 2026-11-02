@@ -19,6 +19,14 @@ vi.mock('@/core/audio/audioManager', () => ({
   audioManager: { play: vi.fn() },
 }))
 
+const dwellerRefresh = vi.hoisted(() => ({
+  fetchDwellersByVault: vi.fn().mockResolvedValue(undefined),
+  fetchAllDwellers: vi.fn().mockResolvedValue(undefined),
+}))
+vi.mock('@/modules/dwellers/stores/dweller', () => ({
+  useDwellerStore: () => ({ filter: dwellerRefresh }),
+}))
+
 function makeRoom(overrides: Partial<Room> = {}): Room {
   return {
     id: 'room-1',
@@ -269,6 +277,7 @@ describe('Room Store', () => {
       })
       expect(store.rooms).toHaveLength(1)
       expect(store.rooms[0]).toEqual(newRoom)
+      expect(dwellerRefresh.fetchDwellersByVault).toHaveBeenCalledWith('vault-1', 'test-token')
       expect(audioManager.play).toHaveBeenCalledWith('vaultBuild', 'sfx')
     })
 
@@ -499,6 +508,7 @@ describe('Room Store', () => {
       expect(store.rooms).toHaveLength(1)
       expect(store.rooms[0].id).toBe('room-9')
       expect(store.mergedRoomId).toBe('room-9')
+      expect(dwellerRefresh.fetchDwellersByVault).toHaveBeenCalledWith('vault-1', 'test-token')
     })
   })
 

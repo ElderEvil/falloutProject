@@ -60,6 +60,18 @@ export const useRoomStore = defineStore('room', () => {
   }
 
   // Actions
+
+  async function refreshDwellerAssignments(vaultId: string): Promise<void> {
+    const token = authStore.token
+    if (!token) return
+    const { useDwellerStore } = await import('@/modules/dwellers/stores/dweller')
+    const { filter } = useDwellerStore()
+    await Promise.allSettled([
+      filter.fetchDwellersByVault(vaultId, token),
+      filter.fetchAllDwellers(vaultId, token, false, true),
+    ])
+  }
+
   async function fetchRooms(vaultId: string, throwOnError = false): Promise<FetchRoomsResult> {
     const requestSequence = ++fetchRoomsRequestSequence
 
@@ -125,10 +137,13 @@ export const useRoomStore = defineStore('room', () => {
       }
       throw error
     }
-    // Refresh vault to update caps (non-throwing)
-    await refreshVaultSafely(vaultId, 'Failed to refresh vault after building room')
-    // A merge can absorb several rooms, so resync the list instead of trusting one response.
-    await fetchRooms(vaultId)
+    // A merge absorbs rooms and reassigns their dwellers, so resync both lists
+    // instead of leaving dwellers pointing at a deleted room.
+    await Promise.all([
+      refreshVaultSafely(vaultId, 'Failed to refresh vault after building room'),
+      fetchRooms(vaultId),
+      refreshDwellerAssignments(vaultId),
+    ])
     audioManager.play('vaultBuild', 'sfx')
     return result
   }
@@ -144,8 +159,10 @@ export const useRoomStore = defineStore('room', () => {
       }
       throw error
     }
-    // Refresh vault to update caps after refund (non-throwing)
-    await refreshVaultSafely(vaultId, 'Failed to refresh vault after destroying room')
+    await Promise.all([
+      refreshVaultSafely(vaultId, 'Failed to refresh vault after destroying room'),
+      refreshDwellerAssignments(vaultId),
+    ])
   }
 
   async function upgradeRoom(roomId: string, vaultId: string): Promise<void> {
@@ -155,7 +172,7 @@ export const useRoomStore = defineStore('room', () => {
       // The backend returns the merge survivor, which may be a different room:
       // resync instead of patching one entry so absorbed rooms disappear.
       const previousSize = rooms.value.find((room) => room.id === roomId)?.size ?? 0
-      await fetchRooms(vaultId)
+      await Promise.all([fetchRooms(vaultId), refreshDwellerAssignments(vaultId)])
       if (survivor.id !== roomId || (survivor.size ?? 0) > previousSize) {
         flashMergedRoom(survivor.id)
       }
@@ -177,6 +194,8 @@ export const useRoomStore = defineStore('room', () => {
     rooms.value = rooms.value
       .filter((room) => room.id !== roomId && room.id !== otherRoomId)
       .concat(replacements)
+    const vaultId = useVaultStore().activeVaultId
+    if (vaultId) await refreshDwellerAssignments(vaultId)
     if (otherRoomId) flashMergedRoom(replacements[0]!.id)
     audioManager.play('vaultBuild', 'sfx')
   }

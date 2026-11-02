@@ -96,6 +96,7 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
     dwellerId: string,
     token: string
   ): Promise<DwellerReviveResponse | null> {
+    const vaultId = vaultStore.activeVaultId
     try {
       const response = await axios.post<DwellerReviveResponse>(
         `/api/v1/dwellers/${dwellerId}/revive`,
@@ -130,8 +131,8 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
           revivedDweller as unknown as import('../models/dweller').Dweller
       }
 
-      if (vaultStore.activeVaultId) {
-        vaultStore.applyCaps(vaultStore.activeVaultId, response.data.remaining_caps)
+      if (vaultId) {
+        vaultStore.applyCaps(vaultId, response.data.remaining_caps)
       }
 
       toast.success(

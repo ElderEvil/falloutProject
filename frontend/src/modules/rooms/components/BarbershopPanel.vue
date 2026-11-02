@@ -461,6 +461,7 @@ async function handleSave(): Promise<void> {
   if (!dweller || !current || !canSave.value) return
 
   const version = contextVersion
+  const vaultId = props.vaultId
   saving.value = true
   inlineError.value = null
   try {
@@ -468,6 +469,7 @@ async function handleSave(): Promise<void> {
       skin_tone: skinTone.value,
       hair_color: hairColor.value,
     })
+    vaultStore.applyCaps(vaultId, response.remaining_caps)
     if (version !== contextVersion) return
     filterStore.detailedDwellers[dweller.id] = response.dweller
     patchPortraitSnapshot(
@@ -477,7 +479,6 @@ async function handleSave(): Promise<void> {
       response.dweller.visual_attributes as DwellerShort['visual_attributes']
     )
     status.value = { ...current, vault_caps: response.remaining_caps }
-    vaultStore.applyCaps(props.vaultId, response.remaining_caps)
     emit('changed')
     toast.success(`${getDwellerDisplayName(dweller)} leaves the chair looking sharp.`)
     if (!response.portrait_updated) {

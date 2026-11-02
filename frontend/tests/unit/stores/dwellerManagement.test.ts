@@ -6,6 +6,7 @@ import { audioManager } from '@/core/audio/audioManager'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import { useDwellerManagementStore } from '@/modules/dwellers/stores/dwellerManagement'
 import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 
 vi.mock('@/core/plugins/axios', () => createAxiosMock())
 
@@ -155,6 +156,43 @@ describe('useDwellerManagementStore', () => {
     expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-1', status: 'working' })
   })
 
+  it('keeps a newer assignment when an older request fails', async () => {
+    const filter = useDwellerFilterStore()
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'idle' }] as never
+    const pending = deferred<{ data: unknown }>()
+    vi.mocked(axios.post)
+      .mockReturnValueOnce(pending.promise as never)
+      .mockResolvedValueOnce({ data: { id: 'd1', room_id: 'room-3', status: 'working' } })
+
+    const management = useDwellerManagementStore()
+    const first = management.assignDwellerToRoom('d1', 'room-2', 'token-1')
+    const second = management.assignDwellerToRoom('d1', 'room-3', 'token-1')
+    await second
+    expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-3' })
+
+    pending.reject({ response: { status: 400, data: { detail: 'Room is full' } } })
+    await expect(first).rejects.toBeTruthy()
+
+    expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-3', status: 'working' })
+  })
+
+  it('does not restore cached detail after the session changes', async () => {
+    const auth = useAuthStore()
+    auth.token = 'token-1'
+    const filter = useDwellerFilterStore()
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'idle' }] as never
+    filter.detailedDwellers.d1 = { id: 'd1', room_id: 'room-1' } as never
+    const pending = deferred<{ data: unknown }>()
+    vi.mocked(axios.post).mockReturnValueOnce(pending.promise as never)
+
+    const call = useDwellerManagementStore().assignDwellerToRoom('d1', 'room-2', 'token-1')
+    auth.token = 'token-2'
+    pending.reject({ response: { status: 400, data: { detail: 'Room is full' } } })
+    await expect(call).rejects.toBeTruthy()
+
+    expect(filter.detailedDwellers.d1).toBeUndefined()
+  })
+
   it('clears the room before the unassign response arrives', async () => {
     const filter = useDwellerFilterStore()
     filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'working' }] as never
@@ -227,8 +265,10 @@ describe('useDwellerManagementStore', () => {
 
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((r) => {
-    resolve = r
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
   })
-  return { promise, resolve }
+  return { promise, resolve, reject }
 }

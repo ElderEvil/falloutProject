@@ -462,6 +462,7 @@ async function handleSave(): Promise<void> {
 
   const version = contextVersion
   const vaultId = props.vaultId
+  const generation = vaultStore.currentSessionGeneration()
   saving.value = true
   inlineError.value = null
   try {
@@ -469,7 +470,9 @@ async function handleSave(): Promise<void> {
       skin_tone: skinTone.value,
       hair_color: hairColor.value,
     })
-    vaultStore.applyCaps(vaultId, response.remaining_caps)
+    if (vaultStore.currentSessionGeneration() === generation) {
+      vaultStore.applyCaps(vaultId, response.remaining_caps)
+    }
     if (version !== contextVersion) return
     filterStore.detailedDwellers[dweller.id] = response.dweller
     patchPortraitSnapshot(

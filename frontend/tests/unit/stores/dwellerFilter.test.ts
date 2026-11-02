@@ -8,9 +8,9 @@ vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/core/utils/errorHandler')>()),
   handleStoreError: vi.fn(),
 }))
-vi.mock('@vueuse/core', () => ({
+vi.mock('@vueuse/core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@vueuse/core')>()),
   useLocalStorage: <T>(key: string, defaultValue: T) => ref<T>(defaultValue),
-  createSharedComposable: <T>(fn: () => T) => fn,
 }))
 
 import {
@@ -19,6 +19,7 @@ import {
 } from '@/modules/dwellers/stores/dwellerFilter'
 import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { DEFAULT_TABLE_COLUMNS } from '@/modules/dwellers/models/dwellerTable'
 
@@ -101,6 +102,17 @@ describe('DwellerFilter Store', () => {
   })
 
   describe('fetchDwellersByVault', () => {
+    it('discards a roster response for a vault that is no longer active', async () => {
+      useVaultStore().activeVaultId = 'vault-2'
+      vi.mocked(axios.get).mockResolvedValue({ data: [{ id: 'v1-dweller' }] } as never)
+      const store = useDwellerFilterStore()
+      store.dwellers = [{ id: 'v2-dweller' }] as never
+
+      await store.fetchDwellersByVault('vault-1', 'test-token')
+
+      expect(store.dwellers).toEqual([{ id: 'v2-dweller' }])
+    })
+
     it('should fetch dwellers and update state', async () => {
       const mockDwellers = [
         { id: 'd1', first_name: 'John', last_name: 'Doe', status: 'idle', level: 5, happiness: 75 },

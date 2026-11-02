@@ -97,6 +97,7 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
     token: string
   ): Promise<DwellerReviveResponse | null> {
     const vaultId = vaultStore.activeVaultId
+    const generation = vaultStore.currentSessionGeneration()
     try {
       const response = await axios.post<DwellerReviveResponse>(
         `/api/v1/dwellers/${dwellerId}/revive`,
@@ -107,6 +108,8 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
           },
         }
       )
+
+      if (vaultStore.currentSessionGeneration() !== generation) return response.data
 
       // Remove from dead dwellers list
       deadDwellers.value = deadDwellers.value.filter((d) => d.id !== dwellerId)

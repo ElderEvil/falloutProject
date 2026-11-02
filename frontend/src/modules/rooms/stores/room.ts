@@ -66,7 +66,10 @@ export const useRoomStore = defineStore('room', () => {
     roomsReady?: Promise<unknown>
   ): Promise<void> {
     const token = authStore.token
+    const vaultStore = useVaultStore()
+    const generation = vaultStore.currentSessionGeneration()
     if (!token) return
+    if (vaultStore.activeVaultId && vaultStore.activeVaultId !== vaultId) return
     const { useDwellerStore } = await import('@/modules/dwellers/stores/dweller')
     const { filter } = useDwellerStore()
     await Promise.allSettled([
@@ -74,6 +77,12 @@ export const useRoomStore = defineStore('room', () => {
       filter.fetchAllDwellers(vaultId, token, false, true),
     ])
     await roomsReady
+    const activeVaultId = vaultStore.activeVaultId
+    if (
+      (activeVaultId && activeVaultId !== vaultId) ||
+      vaultStore.currentSessionGeneration() !== generation
+    )
+      return
     const freshById = new Map(filter.allDwellers.map((dweller) => [dweller.id, dweller]))
     const roomById = new Map(rooms.value.map((room) => [room.id, room]))
     for (const [id, detailed] of Object.entries(filter.detailedDwellers)) {

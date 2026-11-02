@@ -176,6 +176,44 @@ describe('useDwellerManagementStore', () => {
     expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-3', status: 'working' })
   })
 
+  it('restores the confirmed room when overlapping assignments both fail', async () => {
+    const filter = useDwellerFilterStore()
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'idle' }] as never
+    const first = deferred<{ data: unknown }>()
+    const second = deferred<{ data: unknown }>()
+    vi.mocked(axios.post)
+      .mockReturnValueOnce(first.promise as never)
+      .mockReturnValueOnce(second.promise as never)
+
+    const management = useDwellerManagementStore()
+    const firstCall = management.assignDwellerToRoom('d1', 'room-2', 'token-1')
+    const secondCall = management.assignDwellerToRoom('d1', 'room-3', 'token-1')
+    expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-3' })
+
+    first.reject({ response: { status: 400, data: { detail: 'Room 2 is full' } } })
+    second.reject({ response: { status: 400, data: { detail: 'Room 3 is full' } } })
+    await expect(firstCall).rejects.toBeTruthy()
+    await expect(secondCall).rejects.toBeTruthy()
+
+    expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-1', status: 'idle' })
+  })
+
+  it('patches the detail room optimistically', async () => {
+    const filter = useDwellerFilterStore()
+    const roomStore = useRoomStore()
+    roomStore.rooms = [{ id: 'room-2', name: 'Diner' }] as never
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'idle' }] as never
+    filter.detailedDwellers.d1 = { id: 'd1', room: { id: 'room-1' } } as never
+    const pending = deferred<{ data: unknown }>()
+    vi.mocked(axios.post).mockReturnValueOnce(pending.promise as never)
+
+    const call = useDwellerManagementStore().assignDwellerToRoom('d1', 'room-2', 'token-1')
+    expect(filter.detailedDwellers.d1?.room?.id).toBe('room-2')
+
+    pending.resolve({ data: { id: 'd1', room_id: 'room-2', status: 'working' } })
+    await call
+  })
+
   it('does not restore cached detail after the session changes', async () => {
     const auth = useAuthStore()
     auth.token = 'token-1'

@@ -303,6 +303,10 @@ export const useVaultStore = defineStore('vault', () => {
     }
   }
 
+  function currentSessionGeneration(): number {
+    return sessionGeneration
+  }
+
   function clearSession(): void {
     ++sessionGeneration
     stopResourcePolling()
@@ -506,6 +510,7 @@ export const useVaultStore = defineStore('vault', () => {
     revalidateVault,
     refreshVault,
     applyCaps,
+    currentSessionGeneration,
     setActiveVault,
     closeVaultTab,
     clearSession,

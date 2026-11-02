@@ -228,6 +228,33 @@ describe('DwellerDeath Store', () => {
       expect(mockToast.error).toHaveBeenCalledWith('Failed to revive dweller d1: Not enough caps')
     })
 
+    it('ignores caps from a response after the session changed', async () => {
+      const vaultStore = useVaultStore()
+      vaultStore.activeVaultId = 'v1'
+      vaultStore.loadedVaults = {
+        v1: { id: 'v1', bottle_caps: 1000 } as unknown as VaultWithNumbers,
+      }
+      const applyCaps = vi.spyOn(vaultStore, 'applyCaps')
+      let resolve!: (value: unknown) => void
+      const pending = new Promise((r) => {
+        resolve = r
+      })
+      vi.mocked(axios.post).mockReturnValueOnce(pending as never)
+
+      const call = useDwellerDeathStore().reviveDweller('d1', 'token-1')
+      vaultStore.clearSession()
+      resolve({
+        data: {
+          dweller: { id: 'd1', first_name: 'John', last_name: 'Doe' },
+          caps_spent: 500,
+          remaining_caps: 500,
+        },
+      })
+      await call
+
+      expect(applyCaps).not.toHaveBeenCalled()
+    })
+
     it('applies the remaining caps to the active vault', async () => {
       vi.mocked(axios.post).mockResolvedValueOnce({
         data: {

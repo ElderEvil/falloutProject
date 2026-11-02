@@ -6,6 +6,7 @@ import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { incidentApi } from '@/modules/combat/api/incident'
+import axios from '@/core/plugins/axios'
 import type {
   IncidentListResponse,
   Incident,
@@ -14,6 +15,7 @@ import type {
 import { IncidentType, IncidentStatus } from '@/modules/combat/models/incident'
 
 vi.mock('@/modules/combat/api/incident')
+vi.mock('@/core/plugins/axios')
 const sseMock = vi.hoisted(() => ({
   instance: null as any,
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
@@ -196,18 +198,20 @@ describe('Incident Store', () => {
 
     it('refreshes dwellers when the stream announces a spawn', async () => {
       const store = useIncidentStore()
-      const refresh = vi.spyOn(useDwellerFilterStore(), 'fetchDwellersByVault').mockResolvedValue()
+      const filter = useDwellerFilterStore()
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
       vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
       vi.mocked(incidentApi.getIncidentTeam).mockResolvedValue([])
       store.startPolling('vault-1', 'token', 10_000)
       await vi.advanceTimersByTimeAsync(0)
-      refresh.mockClear()
+      expect(filter.dwellers).toEqual([])
+      vi.mocked(axios.get).mockResolvedValue({ data: [{ id: 'responder-1', first_name: 'Ada' }] })
 
       sseMock.instance.event.value = { event: 'incident', data: { type: 'incident_spawned' } }
       await nextTick()
+      await vi.advanceTimersByTimeAsync(0)
 
-      expect(refresh).toHaveBeenCalledWith('vault-1', 'token')
+      expect(filter.dwellers).toEqual([{ id: 'responder-1', first_name: 'Ada' }])
       store.stopPolling()
     })
 
@@ -290,8 +294,10 @@ describe('Incident Store', () => {
   })
 
   describe('assignResponders', () => {
+    const roster = [{ id: 'dweller-2', first_name: 'Ada', last_name: 'Smith' }]
+
     beforeEach(() => {
-      vi.spyOn(useDwellerFilterStore(), 'fetchDwellersByVault').mockResolvedValue()
+      vi.mocked(axios.get).mockResolvedValue({ data: roster })
     })
 
     it('should refresh the incident after assigning a responder', async () => {
@@ -302,7 +308,7 @@ describe('Incident Store', () => {
         assigned_dweller_ids: ['dweller-1'],
       })
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
-      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({ ...mockIncident, damage_dealt: 40 })
       vi.mocked(incidentApi.getIncidentTeam).mockResolvedValueOnce([])
 
       await store.assignResponders('vault-1', 'incident-1', ['dweller-1'], 'token')
@@ -313,9 +319,9 @@ describe('Incident Store', () => {
         ['dweller-1'],
         'token'
       )
-      expect(incidentApi.getActiveIncidents).toHaveBeenCalledWith('vault-1', 'token')
-      expect(incidentApi.getIncident).toHaveBeenCalledWith('vault-1', 'incident-1', 'token')
-      expect(useDwellerFilterStore().fetchDwellersByVault).toHaveBeenCalledWith('vault-1', 'token')
+      expect(store.incidents.get('incident-1')?.damage_dealt).toBe(40)
+      expect(useDwellerFilterStore().dwellers).toEqual(roster)
+      expect(sseMock.toast.success).toHaveBeenCalledTimes(1)
     })
 
     it('warns when only part of the selected response team is accepted', async () => {
@@ -341,14 +347,18 @@ describe('Incident Store', () => {
 
     it('should rethrow assignment failures without refreshing the incident', async () => {
       const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
       vi.mocked(incidentApi.assignResponders).mockRejectedValueOnce(new Error('Assignment failed'))
 
       await expect(
         store.assignResponders('vault-1', 'incident-1', ['dweller-1'], 'token')
       ).rejects.toThrow('Assignment failed')
 
-      expect(incidentApi.getActiveIncidents).not.toHaveBeenCalled()
-      expect(incidentApi.getIncident).not.toHaveBeenCalled()
+      expect(store.incidents.get('incident-1')).toEqual(mockIncident)
+      expect(store.activeIncidentIds).toEqual(['incident-1'])
+      expect(useDwellerFilterStore().dwellers).toEqual([])
+      expect(sseMock.toast.success).not.toHaveBeenCalled()
     })
   })
 
@@ -705,8 +715,11 @@ describe('Incident Store', () => {
 
       await store.spawnDebugIncident('vault-1', 'token')
 
-      // Toast success notification is shown (tested by integration, not mocked here)
-      expect(incidentApi.getActiveIncidents).toHaveBeenCalled()
+      expect(sseMock.toast.success).toHaveBeenCalledWith(
+        'Incident Spawned: raider attack (Difficulty: 5)'
+      )
+      expect(store.activeIncidentIds).toEqual(['incident-1'])
+      expect(store.incidents.get('incident-1')).toEqual(mockIncident)
     })
 
     it('should handle spawn failure', async () => {
@@ -716,7 +729,10 @@ describe('Incident Store', () => {
 
       await expect(store.spawnDebugIncident('vault-1', 'token')).rejects.toThrow()
 
-      // Toast error notification is shown (tested by integration, not mocked here)
+      expect(store.incidents.size).toBe(0)
+      expect(store.activeIncidentIds).toEqual([])
+      expect(sseMock.toast.success).not.toHaveBeenCalled()
+      expect(sseMock.toast.error).toHaveBeenCalledTimes(1)
     })
 
     it('should spawn specific incident type', async () => {
@@ -734,6 +750,8 @@ describe('Incident Store', () => {
       await store.spawnDebugIncident('vault-1', 'token', 'fire')
 
       expect(incidentApi.spawnIncident).toHaveBeenCalledWith('vault-1', 'token', 'fire')
+      expect(sseMock.toast.success).toHaveBeenCalledWith('Incident Spawned: fire (Difficulty: 3)')
+      expect(store.activeIncidentIds).toEqual(['incident-1'])
     })
   })
 

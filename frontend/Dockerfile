@@ -15,7 +15,7 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 ENV APP_VERSION=${VERSION}
 RUN pnpm run build
 
-FROM nginxinc/nginx-unprivileged:1.29-alpine AS production
+FROM nginxinc/nginx-unprivileged:1.31-alpine AS production
 
 COPY --from=build-stage /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf

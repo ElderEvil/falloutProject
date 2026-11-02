@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.284.6 (2026-11-02)
+
+### Bug Fixes
+
+* **dwellers:** align legendary portraits with default dwellers 5ef18e9
+* **exploration:** make dweller and expedition navigation explicit f4e619e
+* **exploration:** use router links for portrait navigation f32e747
+
+### Documentation
+
+* **infra:** add restore drill and k3s recovery evidence 3f710c5
+
 ## 2.284.5 (2026-11-01)
 
 ### Performance Improvements

@@ -62,7 +62,7 @@ modulesCacheMaxAge: 604800
 dedupePeerDependents: true
 shamefullyHoist: false
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@1.1.0
+  vite: npm:@voidzero-dev/vite-plus-core@1.4.0
   vite-plus: 1.4.0
   # vitest itself is NOT a direct dep: it comes bundled with vite-plus
   # (vite-plus pins it exactly). These two release in lockstep with vitest

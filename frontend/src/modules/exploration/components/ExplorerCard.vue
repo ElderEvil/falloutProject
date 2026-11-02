@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import {
@@ -48,9 +48,6 @@ const emit = defineEmits<{
 const openDetailView = () =>
   router.push(`/vault/${route.params.id}/exploration/${props.exploration.id}`)
 
-const openDwellerDetail = () =>
-  router.push(`/vault/${route.params.id}/dwellers/${props.exploration.dweller_id}`)
-
 const dwellerName = computed(() => getDwellerDisplayName(props.dweller) || 'Unknown Dweller')
 
 const {
@@ -95,21 +92,21 @@ const party = computed<(DwellerShort | Dweller)[]>(() => {
           <Icon icon="mdi:account-group" class="size-4 text-theme-accent" />
           Expedition party
         </div>
-        <button
-          type="button"
+        <RouterLink
           class="expedition-heading text-lg font-bold text-theme-primary"
-          @click.stop="openDetailView"
+          :to="`/vault/${route.params.id}/exploration/${exploration.id}`"
+          @click.stop
         >
           {{ exploration.duration }}h expedition
           <Icon icon="mdi:chevron-right" :ariaHidden="true" />
-        </button>
+        </RouterLink>
       </div>
       <div v-else class="dweller-info">
-        <button
-          type="button"
+        <RouterLink
           class="dweller-portrait-link"
+          :to="`/vault/${route.params.id}/dwellers/${exploration.dweller_id}`"
           :aria-label="`Open ${dwellerName}'s dweller page`"
-          @click.stop="openDwellerDetail"
+          @click.stop
         >
           <DwellerPortrait
             :image-url="dweller?.image_url"
@@ -119,16 +116,16 @@ const party = computed<(DwellerShort | Dweller)[]>(() => {
             image-class="dweller-portrait h-12 w-12 rounded-md object-cover"
             fallback-class="h-12 w-12 text-theme-primary drop-shadow-[0_0_6px_var(--color-theme-glow)]"
           />
-        </button>
+        </RouterLink>
         <div class="dweller-meta">
           <TooltipProvider :delay-duration="200">
             <Tooltip>
               <TooltipTrigger as-child>
-                <button
-                  type="button"
+                <RouterLink
                   class="dweller-name-link"
+                  :to="`/vault/${route.params.id}/dwellers/${exploration.dweller_id}`"
                   :aria-label="`Open ${dwellerName}'s dweller page`"
-                  @click.stop="openDwellerDetail"
+                  @click.stop
                 >
                   <span class="dweller-name">{{ dwellerName }}</span>
                   <Icon
@@ -136,15 +133,19 @@ const party = computed<(DwellerShort | Dweller)[]>(() => {
                     class="dweller-link-icon"
                     :ariaHidden="true"
                   />
-                </button>
+                </RouterLink>
               </TooltipTrigger>
               <TooltipContent>Open dweller page</TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <button type="button" class="expedition-link" @click.stop="openDetailView">
+          <RouterLink
+            class="expedition-link"
+            :to="`/vault/${route.params.id}/exploration/${exploration.id}`"
+            @click.stop
+          >
             {{ exploration.duration }}h expedition
             <Icon icon="mdi:chevron-right" :ariaHidden="true" />
-          </button>
+          </RouterLink>
           <div class="flex flex-wrap items-center gap-1.5">
             <DwellerIdentitySignal :visual-attributes="dweller?.visual_attributes" compact />
             <DwellerAgeBadge :age-group="dweller?.age_group" size="sm" />
@@ -341,6 +342,7 @@ const party = computed<(DwellerShort | Dweller)[]>(() => {
   gap: 0.25rem;
   width: fit-content;
   text-align: left;
+  text-decoration: none;
 }
 
 .dweller-portrait-link:focus-visible,
@@ -380,6 +382,10 @@ const party = computed<(DwellerShort | Dweller)[]>(() => {
   gap: 0.125rem;
   width: fit-content;
   text-align: left;
+}
+
+.expedition-heading {
+  text-decoration: none;
 }
 
 .expedition-link {

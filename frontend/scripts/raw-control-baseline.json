@@ -14,7 +14,7 @@
   "src/modules/dwellers/components/table/DwellersTable.vue": 1,
   "src/modules/exploration/components/ExplorationDurationModal.vue": 1,
   "src/modules/exploration/components/ExplorationEventLog.vue": 1,
-  "src/modules/exploration/components/ExplorerCard.vue": 2,
+  "src/modules/exploration/components/ExplorerCard.vue": 1,
   "src/modules/exploration/components/ExplorerNavbar.vue": 2,
   "src/modules/exploration/views/ExplorationView.vue": 1,
   "src/modules/map/components/MarkerDetailModal.vue": 2,

@@ -3,7 +3,6 @@ import { createIconifyMock, createRouterMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
-import { useRouter } from 'vue-router'
 import { Progress } from '@/core/components/ui/progress'
 import ExplorerCard from '@/modules/exploration/components/ExplorerCard.vue'
 import ExplorerActions from '@/modules/exploration/components/ExplorerActions.vue'
@@ -216,29 +215,19 @@ describe('ExplorerCard', () => {
     expect(wrapper.find('.party-section').exists()).toBe(false)
   })
 
-  it('opens the dweller page from the dweller link, not the expedition', async () => {
+  it('links the dweller identity to the dweller page and the label to the expedition', () => {
     const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
-    const push = vi.mocked(useRouter().push)
-    push.mockClear()
 
-    await wrapper.get('.dweller-name-link').trigger('click')
-
-    expect(push).toHaveBeenCalledWith('/vault/vault-1/dwellers/dweller-1')
-    expect(push).not.toHaveBeenCalledWith('/vault/vault-1/exploration/exploration-1')
+    expect(wrapper.findAllComponents({ name: 'RouterLink' }).map((link) => link.props('to'))).toEqual(
+      [
+        '/vault/vault-1/dwellers/dweller-1',
+        '/vault/vault-1/dwellers/dweller-1',
+        '/vault/vault-1/exploration/exploration-1',
+      ]
+    )
   })
 
-  it('opens the expedition page from the explicit expedition link, not the dweller', async () => {
-    const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
-    const push = vi.mocked(useRouter().push)
-    push.mockClear()
-
-    await wrapper.get('.expedition-link').trigger('click')
-
-    expect(push).toHaveBeenCalledWith('/vault/vault-1/exploration/exploration-1')
-    expect(push).not.toHaveBeenCalledWith('/vault/vault-1/dwellers/dweller-1')
-  })
-
-  it('opens a party member dweller page without opening the expedition', async () => {
+  it('links each party member to their own dweller page', () => {
     const wrapper = mount(ExplorerCard, {
       props: {
         exploration,
@@ -246,13 +235,11 @@ describe('ExplorerCard', () => {
         partyMembers: [companion('dweller-1', 'Lucy'), companion('dweller-2', 'Carla')],
       },
     })
-    const push = vi.mocked(useRouter().push)
-    push.mockClear()
 
-    await wrapper.findAll('.party-member')[1].trigger('click')
-
-    expect(push).toHaveBeenCalledWith('/vault/vault-1/dwellers/dweller-2')
-    expect(push).not.toHaveBeenCalledWith('/vault/vault-1/exploration/exploration-1')
+    expect(wrapper.findAllComponents('.party-member').map((member) => member.props('to'))).toEqual([
+      '/vault/vault-1/dwellers/dweller-1',
+      '/vault/vault-1/dwellers/dweller-2',
+    ])
   })
 })
 

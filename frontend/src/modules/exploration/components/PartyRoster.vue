@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import {
   getDwellerDisplayName,
   type DwellerShort,
@@ -13,11 +13,7 @@ import DwellerRarityBadge from '@/modules/dwellers/components/DwellerRarityBadge
 
 defineProps<{ members: (DwellerShort | Dweller)[] }>()
 
-const router = useRouter()
 const route = useRoute()
-
-const openDweller = (dwellerId: string) =>
-  router.push(`/vault/${route.params.id}/dwellers/${dwellerId}`)
 </script>
 
 <template>
@@ -29,13 +25,13 @@ const openDweller = (dwellerId: string) =>
       <span>{{ members.length }} / 3 assigned</span>
     </div>
     <div class="party-members grid gap-1.5">
-      <button
+      <RouterLink
         v-for="member in members"
         :key="member.id"
-        type="button"
         class="party-member flex w-full min-w-0 items-center gap-2 text-left text-sm text-theme-primary"
+        :to="`/vault/${route.params.id}/dwellers/${member.id}`"
         :aria-label="`Open ${getDwellerDisplayName(member)}'s dweller page`"
-        @click.stop="openDweller(member.id)"
+        @click.stop
       >
         <Icon icon="mdi:account" class="member-icon size-4 shrink-0 text-theme-accent" />
         <div class="member-info grid min-w-0 gap-0.5">
@@ -57,7 +53,7 @@ const openDweller = (dwellerId: string) =>
         <span class="member-level ml-auto shrink-0 text-xs text-theme-accent"
           >Lv.{{ member.level }}</span
         >
-      </button>
+      </RouterLink>
       <p v-if="!members.length" class="text-xs text-theme-primary/70">Party roster unavailable.</p>
     </div>
   </div>
@@ -65,12 +61,10 @@ const openDweller = (dwellerId: string) =>
 
 <style scoped>
 .party-member {
-  background: none;
-  border: none;
   border-radius: 4px;
-  padding: 0;
   color: inherit;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .party-member:hover .member-name,

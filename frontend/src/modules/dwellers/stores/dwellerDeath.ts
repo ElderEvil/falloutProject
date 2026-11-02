@@ -5,10 +5,12 @@ import type { DwellerDead, DwellerReviveResponse, RevivalCostResponse } from '..
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { useDwellerFilterStore } from './dwellerFilter'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 
 export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
   const toast = useToast()
   const filterStore = useDwellerFilterStore()
+  const vaultStore = useVaultStore()
 
   const deadDwellers = ref<DwellerDead[]>([])
   const graveyardDwellers = ref<DwellerDead[]>([])
@@ -94,6 +96,8 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
     dwellerId: string,
     token: string
   ): Promise<DwellerReviveResponse | null> {
+    const vaultId = vaultStore.activeVaultId
+    const generation = vaultStore.currentSessionGeneration()
     try {
       const response = await axios.post<DwellerReviveResponse>(
         `/api/v1/dwellers/${dwellerId}/revive`,
@@ -104,6 +108,8 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
           },
         }
       )
+
+      if (vaultStore.currentSessionGeneration() !== generation) return response.data
 
       // Remove from dead dwellers list
       deadDwellers.value = deadDwellers.value.filter((d) => d.id !== dwellerId)
@@ -126,6 +132,10 @@ export const useDwellerDeathStore = defineStore('dwellerDeath', () => {
       if (dwellerId in filterStore.detailedDwellers) {
         filterStore.detailedDwellers[dwellerId] =
           revivedDweller as unknown as import('../models/dweller').Dweller
+      }
+
+      if (vaultId) {
+        vaultStore.applyCaps(vaultId, response.data.remaining_caps)
       }
 
       toast.success(

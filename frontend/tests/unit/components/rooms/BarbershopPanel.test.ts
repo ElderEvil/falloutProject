@@ -6,6 +6,7 @@ import { barbershopApi } from '@/modules/rooms/api/barbershop'
 import type { BarbershopChangeResponse, BarbershopStatus } from '@/modules/rooms/models/barbershop'
 import type { Room } from '@/modules/rooms/models/room'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 
 enableAutoUnmount(afterEach)
 
@@ -442,6 +443,7 @@ describe('BarbershopPanel', () => {
 
     const wrapper = mountPanel()
     await flushPromises()
+    const applyCaps = vi.spyOn(useVaultStore(), 'applyCaps')
 
     await wrapper.get('[data-testid="barbershop-skin-swatch"][data-value="Tan"]').trigger('click')
     await wrapper.get('[data-testid="barbershop-save"]').trigger('click')
@@ -451,10 +453,34 @@ describe('BarbershopPanel', () => {
       skin_tone: 'Tan',
       hair_color: 'Blonde',
     })
+    expect(applyCaps).toHaveBeenCalledWith('vault-1', 800)
     expect(wrapper.get('[data-testid="barbershop-caps"]').text()).toBe('800')
     expect(wrapper.get('[data-testid="barbershop-change-fee"]').text()).toBe('0 caps')
     expect(saveButton(wrapper).disabled).toBe(true)
     expect(wrapper.emitted('changed')).toHaveLength(1)
+  })
+
+  it('does not apply caps when the session changed while saving', async () => {
+    const updated = dweller({
+      visual_attributes: { race: 'human', skin_tone: 'Tan', hair_color: 'Blonde' },
+    })
+    let resolveChange!: (value: unknown) => void
+    const pending = new Promise((resolve) => {
+      resolveChange = resolve
+    })
+    vi.mocked(barbershopApi.changeAppearance).mockReturnValueOnce(pending as never)
+
+    const wrapper = mountPanel()
+    await flushPromises()
+    const applyCaps = vi.spyOn(useVaultStore(), 'applyCaps')
+
+    await wrapper.get('[data-testid="barbershop-skin-swatch"][data-value="Tan"]').trigger('click')
+    await wrapper.get('[data-testid="barbershop-save"]').trigger('click')
+    useVaultStore().clearSession()
+    resolveChange(changeResponse(updated, { fee: 200, remaining_caps: 800 }))
+    await flushPromises()
+
+    expect(applyCaps).not.toHaveBeenCalled()
   })
 
   it('preserves custom art and reports it after a real change', async () => {

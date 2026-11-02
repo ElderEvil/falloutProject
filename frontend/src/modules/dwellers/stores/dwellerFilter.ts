@@ -26,6 +26,7 @@ import { handleStoreError } from '@/core/utils/errorHandler'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useFeatureFlagsStore } from './featureFlags'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 
 /**
  * Non-null limit for complete-fetch requests (fetchAllDwellers). The backend
@@ -236,7 +237,8 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     async (vaultId: string, token: string, options?: DwellerFetchOptions) => {
       const requestSeq = ++dwellersRequestSeq
       const data = await getDwellersByVault(vaultId, token, toQueryParams(options))
-      if (requestSeq === dwellersRequestSeq) {
+      const activeVaultId = useVaultStore().activeVaultId
+      if (requestSeq === dwellersRequestSeq && (!activeVaultId || activeVaultId === vaultId)) {
         dwellers.value = data
       }
     },
@@ -507,6 +509,8 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       collected.push(...page)
     }
     if (requestSeq !== allDwellersRequestSeq || allDwellersVaultId !== vaultId) return false
+    const activeVaultId = useVaultStore().activeVaultId
+    if (activeVaultId && activeVaultId !== vaultId) return false
     allDwellers.value = collected
     allDwellersLoadedVaultId.value = vaultId
     return true

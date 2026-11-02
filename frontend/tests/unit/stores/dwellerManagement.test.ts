@@ -6,6 +6,7 @@ import { audioManager } from '@/core/audio/audioManager'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import { useDwellerManagementStore } from '@/modules/dwellers/stores/dwellerManagement'
 import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 
 vi.mock('@/core/plugins/axios', () => createAxiosMock())
 
@@ -127,6 +128,123 @@ describe('useDwellerManagementStore', () => {
     expect(audioManager.play).toHaveBeenCalledWith('cardDrop', 'ui')
   })
 
+  it('applies the room assignment before the server responds', async () => {
+    const filter = useDwellerFilterStore()
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'idle' }] as never
+    const pending = deferred<{ data: unknown }>()
+    vi.mocked(axios.post).mockReturnValueOnce(pending.promise as never)
+
+    const call = useDwellerManagementStore().assignDwellerToRoom('d1', 'room-2', 'token-1')
+    expect(filter.dwellers[0]?.room_id).toBe('room-2')
+
+    pending.resolve({ data: { id: 'd1', room_id: 'room-2', status: 'working' } })
+    await call
+    expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-2', status: 'working' })
+  })
+
+  it('rolls the room assignment back when the server rejects it', async () => {
+    const filter = useDwellerFilterStore()
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'working' }] as never
+    vi.mocked(axios.post).mockRejectedValueOnce({
+      response: { status: 400, data: { detail: 'Room is full' } },
+    })
+
+    await expect(
+      useDwellerManagementStore().assignDwellerToRoom('d1', 'room-2', 'token-1')
+    ).rejects.toBeTruthy()
+
+    expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-1', status: 'working' })
+  })
+
+  it('keeps a newer assignment when an older request fails', async () => {
+    const filter = useDwellerFilterStore()
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'idle' }] as never
+    const pending = deferred<{ data: unknown }>()
+    vi.mocked(axios.post)
+      .mockReturnValueOnce(pending.promise as never)
+      .mockResolvedValueOnce({ data: { id: 'd1', room_id: 'room-3', status: 'working' } })
+
+    const management = useDwellerManagementStore()
+    const first = management.assignDwellerToRoom('d1', 'room-2', 'token-1')
+    const second = management.assignDwellerToRoom('d1', 'room-3', 'token-1')
+    await second
+    expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-3' })
+
+    pending.reject({ response: { status: 400, data: { detail: 'Room is full' } } })
+    await expect(first).rejects.toBeTruthy()
+
+    expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-3', status: 'working' })
+  })
+
+  it('restores the confirmed room when overlapping assignments both fail', async () => {
+    const filter = useDwellerFilterStore()
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'idle' }] as never
+    const first = deferred<{ data: unknown }>()
+    const second = deferred<{ data: unknown }>()
+    vi.mocked(axios.post)
+      .mockReturnValueOnce(first.promise as never)
+      .mockReturnValueOnce(second.promise as never)
+
+    const management = useDwellerManagementStore()
+    const firstCall = management.assignDwellerToRoom('d1', 'room-2', 'token-1')
+    const secondCall = management.assignDwellerToRoom('d1', 'room-3', 'token-1')
+    expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-3' })
+
+    first.reject({ response: { status: 400, data: { detail: 'Room 2 is full' } } })
+    second.reject({ response: { status: 400, data: { detail: 'Room 3 is full' } } })
+    await expect(firstCall).rejects.toBeTruthy()
+    await expect(secondCall).rejects.toBeTruthy()
+
+    expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-1', status: 'idle' })
+  })
+
+  it('patches the detail room optimistically', async () => {
+    const filter = useDwellerFilterStore()
+    const roomStore = useRoomStore()
+    roomStore.rooms = [{ id: 'room-2', name: 'Diner' }] as never
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'idle' }] as never
+    filter.detailedDwellers.d1 = { id: 'd1', room: { id: 'room-1' } } as never
+    const pending = deferred<{ data: unknown }>()
+    vi.mocked(axios.post).mockReturnValueOnce(pending.promise as never)
+
+    const call = useDwellerManagementStore().assignDwellerToRoom('d1', 'room-2', 'token-1')
+    expect(filter.detailedDwellers.d1?.room?.id).toBe('room-2')
+
+    pending.resolve({ data: { id: 'd1', room_id: 'room-2', status: 'working' } })
+    await call
+  })
+
+  it('does not restore cached detail after the session changes', async () => {
+    const auth = useAuthStore()
+    auth.token = 'token-1'
+    const filter = useDwellerFilterStore()
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'idle' }] as never
+    filter.detailedDwellers.d1 = { id: 'd1', room_id: 'room-1' } as never
+    const pending = deferred<{ data: unknown }>()
+    vi.mocked(axios.post).mockReturnValueOnce(pending.promise as never)
+
+    const call = useDwellerManagementStore().assignDwellerToRoom('d1', 'room-2', 'token-1')
+    auth.token = 'token-2'
+    pending.reject({ response: { status: 400, data: { detail: 'Room is full' } } })
+    await expect(call).rejects.toBeTruthy()
+
+    expect(filter.detailedDwellers.d1).toBeUndefined()
+  })
+
+  it('clears the room before the unassign response arrives', async () => {
+    const filter = useDwellerFilterStore()
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'working' }] as never
+    const pending = deferred<{ data: unknown }>()
+    vi.mocked(axios.put).mockReturnValueOnce(pending.promise as never)
+
+    const call = useDwellerManagementStore().unassignDwellerFromRoom('d1', 'token-1')
+    expect(filter.dwellers[0]).toMatchObject({ room_id: null, status: 'idle' })
+
+    pending.resolve({ data: { id: 'd1', room_id: null, status: 'idle' } })
+    await call
+    expect(filter.dwellers[0]).toMatchObject({ room_id: null, status: 'idle' })
+  })
+
   it('plays the card drop sound when a dweller is unassigned from a room', async () => {
     const managementStore = useDwellerManagementStore()
     vi.mocked(axios.put).mockResolvedValue({
@@ -182,3 +300,13 @@ describe('useDwellerManagementStore', () => {
     )
   })
 })
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}

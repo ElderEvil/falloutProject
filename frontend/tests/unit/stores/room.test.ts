@@ -19,6 +19,16 @@ vi.mock('@/core/audio/audioManager', () => ({
   audioManager: { play: vi.fn() },
 }))
 
+const dwellerRefresh = vi.hoisted(() => ({
+  fetchWithCurrentFilters: vi.fn().mockResolvedValue(undefined),
+  fetchAllDwellers: vi.fn().mockResolvedValue(undefined),
+  allDwellers: [] as unknown[],
+  detailedDwellers: {} as Record<string, unknown>,
+}))
+vi.mock('@/modules/dwellers/stores/dweller', () => ({
+  useDwellerStore: () => ({ filter: dwellerRefresh }),
+}))
+
 function makeRoom(overrides: Partial<Room> = {}): Room {
   return {
     id: 'room-1',
@@ -54,6 +64,8 @@ describe('Room Store', () => {
     setActivePinia(createPinia())
     useAuthStore().token = 'test-token'
     vi.clearAllMocks()
+    dwellerRefresh.allDwellers = []
+    dwellerRefresh.detailedDwellers = {}
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
@@ -269,6 +281,7 @@ describe('Room Store', () => {
       })
       expect(store.rooms).toHaveLength(1)
       expect(store.rooms[0]).toEqual(newRoom)
+      expect(dwellerRefresh.fetchWithCurrentFilters).toHaveBeenCalledWith('vault-1', 'test-token')
       expect(audioManager.play).toHaveBeenCalledWith('vaultBuild', 'sfx')
     })
 
@@ -499,6 +512,26 @@ describe('Room Store', () => {
       expect(store.rooms).toHaveLength(1)
       expect(store.rooms[0].id).toBe('room-9')
       expect(store.mergedRoomId).toBe('room-9')
+      expect(dwellerRefresh.fetchWithCurrentFilters).toHaveBeenCalledWith('vault-1', 'test-token')
+    })
+
+    it('reconciles cached dweller details with the survivor room after a merge', async () => {
+      const absorbed = { id: 'room-1', name: 'Power Gen', tier: 1, size: 3 }
+      const survivor = makeRoom({ id: 'room-9', name: 'Power Gen', tier: 2, size: 6 })
+      mockUpgradeFlow(survivor, [survivor])
+      const store = useRoomStore()
+      const vaultStore = useVaultStore()
+      store.rooms = [absorbed as never]
+      vaultStore.loadedVaults['vault-1'] = { id: 'vault-1' } as never
+      dwellerRefresh.allDwellers = [{ id: 'd1', room_id: 'room-9' }]
+      dwellerRefresh.detailedDwellers = { d1: { id: 'd1', room: { id: 'room-1' } } }
+
+      await store.upgradeRoom('room-1', 'vault-1')
+
+      const detailed = dwellerRefresh.detailedDwellers.d1 as {
+        room?: { id: string } | null
+      }
+      expect(detailed.room?.id).toBe('room-9')
     })
   })
 

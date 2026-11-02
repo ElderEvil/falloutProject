@@ -31,6 +31,9 @@ import {
   type BarbershopStatus,
 } from '../models/barbershop'
 import { barbershopApi } from '../api/barbershop'
+import { useVaultStore } from '@/modules/vault/stores/vault'
+
+const vaultStore = useVaultStore()
 
 const props = defineProps<{
   room: Room
@@ -458,6 +461,8 @@ async function handleSave(): Promise<void> {
   if (!dweller || !current || !canSave.value) return
 
   const version = contextVersion
+  const vaultId = props.vaultId
+  const generation = vaultStore.currentSessionGeneration()
   saving.value = true
   inlineError.value = null
   try {
@@ -465,6 +470,9 @@ async function handleSave(): Promise<void> {
       skin_tone: skinTone.value,
       hair_color: hairColor.value,
     })
+    if (vaultStore.currentSessionGeneration() === generation) {
+      vaultStore.applyCaps(vaultId, response.remaining_caps)
+    }
     if (version !== contextVersion) return
     filterStore.detailedDwellers[dweller.id] = response.dweller
     patchPortraitSnapshot(

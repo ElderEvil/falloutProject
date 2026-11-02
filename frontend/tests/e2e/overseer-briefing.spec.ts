@@ -193,9 +193,35 @@ async function mockVaultApi(page: Page) {
     if (path === '/api/v1/rooms/vault/vault-1/') return route.fulfill({ json: rooms })
     if (path === '/api/v1/dwellers/vault/vault-1/') return route.fulfill({ json: dwellers })
     if (path.startsWith('/api/v1/dwellers/')) {
-      return route.fulfill({ json: { ...dwellers.find((dweller) => path.endsWith(dweller.id)), weapon: null, outfit: null } })
+      return route.fulfill({
+        json: {
+          ...dwellers.find((dweller) => path.endsWith(dweller.id)),
+          weapon: null,
+          outfit: null,
+        },
+      })
     }
     if (path === '/api/v1/explorations/vault/vault-1') return route.fulfill({ json: explorations })
+    if (path === '/api/v1/explorations/vault/vault-1/pending-overflow') {
+      return route.fulfill({ json: [] })
+    }
+    if (path === '/api/v1/quests/vault-1/') return route.fulfill({ json: [] })
+    if (path === '/api/v1/objectives/vault-1/') return route.fulfill({ json: [] })
+    if (path === '/api/v1/training/vault/vault-1') return route.fulfill({ json: [] })
+    if (path === '/api/v1/crafting/vault/vault-1/orders') {
+      return route.fulfill({ json: { orders: [] } })
+    }
+    if (path === '/api/v1/storage/vault/vault-1/items') {
+      return route.fulfill({
+        json: { weapons: [], outfits: [], junk: [], items: [], pets: [] },
+      })
+    }
+    if (path === '/api/v1/game/balance') {
+      return route.fulfill({ json: { resource: { base_production_rate: 1 }, rush: {} } })
+    }
+    if (path === '/api/v1/game/vaults/vault-1/presence') {
+      return route.fulfill({ status: 204 })
+    }
     if (path === '/api/v1/game/vaults/vault-1/game-state') {
       return route.fulfill({ json: { is_paused: true, total_game_time: 3600, paused_at: null } })
     }
@@ -208,6 +234,9 @@ async function mockVaultApi(page: Page) {
         },
       })
     }
+    if (path === '/api/v1/game/vaults/vault-1/incidents/pending-overflow') {
+      return route.fulfill({ json: [] })
+    }
     if (path.startsWith('/api/v1/game/vaults/vault-1/incidents/')) {
       const incident = incidents.find(({ id }) => path.endsWith(id)) ?? incidents[0]
       return route.fulfill({ json: incident })
@@ -216,7 +245,13 @@ async function mockVaultApi(page: Page) {
     if (path === '/api/v1/notifications/') return route.fulfill({ json: [] })
     if (path === '/api/v1/users/me/profile') {
       return route.fulfill({
-        json: { id: 'user-1', email: 'overseer@vault-tec.com', username: 'overseer', is_active: true, is_superuser: true },
+        json: {
+          id: 'user-1',
+          email: 'overseer@vault-tec.com',
+          username: 'overseer',
+          is_active: true,
+          is_superuser: true,
+        },
       })
     }
     if (path === '/api/v1/system/features') {
@@ -243,6 +278,13 @@ async function mockVaultApi(page: Page) {
     throw new Error(`Unhandled API request: ${route.request().method()} ${path}`)
   })
 }
+
+test('briefing fixture renders ready actions', async ({ page }) => {
+  await page.goto('/tests/e2e/fixtures/overseer-briefing.html?theme=fo4&surface=canvas')
+
+  await expect(page.getByText('READY ACTIONS').first()).toBeVisible()
+  await expect(page.getByText('QUEST REWARD READY').first()).toBeVisible()
+})
 
 test('authenticated vault route keeps the briefing in the Overseer’s Office', async ({ page }) => {
   await mockVaultApi(page)

@@ -297,6 +297,7 @@ describe('RoomDetailModal', () => {
             happiness: 82,
             resourceWarnings: [],
             dwellersPath: '/vault/vault-123/dwellers',
+            readyActions: [],
           },
         },
       })

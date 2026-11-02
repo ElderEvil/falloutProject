@@ -117,6 +117,9 @@ async function mockApi(page: Page) {
     if (path === '/api/v1/rooms/vault/vault-1/') {
       return route.fulfill({ json: [POWER_ROOM] })
     }
+    if (path === '/api/v1/crafting/vault/vault-1/orders') {
+      return route.fulfill({ json: { orders: [] } })
+    }
     if (path === '/api/v1/notifications/unread-count') return route.fulfill({ json: { count: 0 } })
     if (path === '/api/v1/notifications/') return route.fulfill({ json: [] })
     if (path.startsWith('/api/v1/stream/')) {

@@ -20,13 +20,17 @@ export const useTrainingStore = defineStore('training', () => {
   const error = ref<string | null>(null)
   const savingGoals = ref(new Set<string>())
   const isSettingContinuousTraining = ref(false)
+  let fetchVaultGeneration = 0
   const {
     run: runFetchVaultTrainings,
     isLoading,
     error: fetchVaultTrainingsError,
   } = useAsyncAction(
     async (vaultId: string, token: string) => {
+      const generation = ++fetchVaultGeneration
       const trainings = await trainingService.getVaultTrainings(vaultId, token)
+      // A vault switch may start a newer fetch while this one is in flight.
+      if (generation !== fetchVaultGeneration) return false
       activeTrainings.value.clear()
       trainings.forEach((training) => {
         if (training.id && training.status === 'active')
@@ -171,7 +175,9 @@ export const useTrainingStore = defineStore('training', () => {
   async function fetchVaultTrainings(vaultId: string, token: string): Promise<void> {
     error.value = null
     const result = await runFetchVaultTrainings(vaultId, token)
-    if (!result) error.value = fetchVaultTrainingsError.value
+    // `false` means a newer vault fetch superseded this one; `null` is a failure.
+    if (result === false) return
+    if (result === null) error.value = fetchVaultTrainingsError.value
   }
 
   async function fetchRoomTrainings(roomId: string, token: string): Promise<TrainingRead[]> {

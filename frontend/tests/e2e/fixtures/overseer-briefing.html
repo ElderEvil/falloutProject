@@ -32,6 +32,20 @@
         happiness: 100,
         resourceWarnings: [],
         dwellersPath: '/vault/vault-1/dwellers',
+        readyActions: [
+          {
+            kind: 'quest_claim',
+            label: 'QUEST REWARD READY',
+            route: '/vault/vault-1/quests?claimQuest=quest-1',
+            count: 1,
+          },
+          {
+            kind: 'crafting_collect',
+            label: 'CRAFTING ORDER READY',
+            route: '/vault/vault-1?roomId=room-craft',
+            count: 1,
+          },
+        ],
       }
       const app = createApp({
         setup() {

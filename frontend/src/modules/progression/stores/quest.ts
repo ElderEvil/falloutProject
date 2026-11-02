@@ -29,6 +29,7 @@ export const useQuestStore = defineStore('quest', () => {
   const isLoading = ref(false)
   const questSlotLimit = ref(3)
   const questPartyMap = ref<Record<string, QuestPartyMember[]>>({})
+  let fetchVaultGeneration = 0
 
   const getAuthHeaders = () => {
     const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
@@ -93,20 +94,24 @@ export const useQuestStore = defineStore('quest', () => {
 
   async function fetchVaultQuests(vaultId: string, options?: { silent?: boolean }): Promise<void> {
     const silent = options?.silent ?? false
+    const generation = ++fetchVaultGeneration
     try {
       if (!silent) isLoading.value = true
       const response = await axios.get<unknown>(`/api/v1/quests/${vaultId}/`, {
         headers: getAuthHeaders(),
       })
+      // A vault switch may start a newer fetch while this one is in flight.
+      if (generation !== fetchVaultGeneration) return
       if (!Array.isArray(response.data)) {
         throw new TypeError('Expected a list of vault quests')
       }
       vaultQuests.value = response.data as VaultQuest[]
     } catch (error: unknown) {
+      if (generation !== fetchVaultGeneration) return
       if (!silent) notifyErrorOnce(error, 'Failed to load vault quests')
       throw error
     } finally {
-      if (!silent) isLoading.value = false
+      if (generation === fetchVaultGeneration && !silent) isLoading.value = false
     }
   }
 

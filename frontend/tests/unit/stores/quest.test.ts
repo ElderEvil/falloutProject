@@ -292,6 +292,25 @@ describe('Quest Store', () => {
       expect(store.vaultQuests).toEqual(mockVaultQuests)
     })
 
+    it('ignores a late response for a vault the player already left', async () => {
+      let resolveOld: (value: unknown) => void = () => {}
+      const oldRequest = new Promise((resolve) => {
+        resolveOld = resolve
+      })
+      vi.mocked(axios.get)
+        .mockReturnValueOnce(oldRequest as never)
+        .mockResolvedValueOnce({ data: [{ id: 'new-vault-quest' }] })
+
+      const store = useQuestStore()
+      const oldFetch = store.fetchVaultQuests('vault-old', { silent: true })
+      await store.fetchVaultQuests('vault-new', { silent: true })
+
+      resolveOld({ data: [{ id: 'old-vault-quest' }] })
+      await oldFetch
+
+      expect(store.vaultQuests).toEqual([{ id: 'new-vault-quest' }])
+    })
+
     it('should handle fetch error', async () => {
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Vault not found'))
 

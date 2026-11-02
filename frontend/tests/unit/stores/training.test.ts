@@ -128,6 +128,34 @@ describe('Training Store', () => {
       expect(store.isLoading).toBe(false)
     })
 
+    it('ignores a late response for a vault the player already left', async () => {
+      let resolveOld: (value: unknown) => void = () => {}
+      const oldRequest = new Promise((resolve) => {
+        resolveOld = resolve
+      })
+      const newTraining = {
+        id: 't-new',
+        dweller_id: 'd-new',
+        room_id: 'r-new',
+        status: 'active',
+        stat_being_trained: 'strength',
+        estimated_completion_at: new Date(Date.now() + 3600000).toISOString(),
+      }
+      vi.mocked(trainingService.getVaultTrainings)
+        .mockReturnValueOnce(oldRequest as never)
+        .mockResolvedValueOnce([newTraining])
+
+      const store = useTrainingStore()
+      const oldFetch = store.fetchVaultTrainings('vault-old', 'token')
+      await store.fetchVaultTrainings('vault-new', 'token')
+
+      resolveOld([{ ...newTraining, id: 't-old', dweller_id: 'd-old' }])
+      await oldFetch
+
+      expect(store.activeTrainings.has('t-new')).toBe(true)
+      expect(store.activeTrainings.has('t-old')).toBe(false)
+    })
+
     it('should handle errors gracefully', async () => {
       vi.mocked(trainingService.getVaultTrainings).mockRejectedValueOnce(new Error('Network error'))
 

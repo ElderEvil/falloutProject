@@ -10,13 +10,26 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { isAvailableUnassignedDweller } from '@/modules/dwellers/models/dweller'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
+import { incidentApi } from '@/modules/combat/api'
+import type { PendingIncidentOverflow } from '@/modules/combat/models/incident'
+import { useQuestStore } from '@/modules/progression/stores/quest'
+import { useObjectivesStore } from '@/modules/progression/stores/objectives'
+import { useTrainingStore } from '@/modules/progression/stores/training'
+import { isObjectiveClaimable } from '@/modules/progression/models/objective'
+import { craftingService } from '@/modules/crafting/services/craftingService'
+import type { CraftingOrder } from '@/modules/crafting/models/crafting'
+import type { PendingOverflow } from '@/modules/exploration/stores/exploration'
+import { getNotificationRoute } from '@/modules/vault/utils/notificationRouting'
 import { useSound } from '@/core/composables/useSound'
 import RoomGrid from '@/modules/rooms/components/RoomGrid.vue'
 import { Button } from '@/core/components/ui/button'
 import BuildModeButton from '@/core/components/common/BuildModeButton.vue'
 import RoomMenu from '@/modules/rooms/components/RoomMenu.vue'
 import GameControlPanel from '@/modules/vault/components/shell/GameControlPanel.vue'
-import { getOverseerAttentionCount } from '@/modules/vault/models/overseerBriefing'
+import {
+  getOverseerAttentionCount,
+  type ReadyAction,
+} from '@/modules/vault/models/overseerBriefing'
 import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers.vue'
 import WastelandPanel from '@/modules/exploration/components/WastelandPanel.vue'
 import IncidentAlert from '@/modules/combat/components/incidents/IncidentAlert.vue'
@@ -41,6 +54,9 @@ const toast = useToast()
 const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const incidentStore = useIncidentStore()
+const questStore = useQuestStore()
+const objectivesStore = useObjectivesStore()
+const trainingStore = useTrainingStore()
 const { playMusic } = useSound()
 const { isCollapsed } = useSidePanel()
 const showRoomMenu = ref(false)
@@ -48,6 +64,9 @@ const isLoading = ref(true)
 const errorMessage = ref<string | null>(null)
 const openRoomId = ref<string | null>(null)
 const highlightedRoomId = ref<string | null>(null)
+const craftingOrders = ref<CraftingOrder[]>([])
+const pendingExplorationOverflow = ref<PendingOverflow[]>([])
+const pendingIncidentOverflow = ref<PendingIncidentOverflow[]>([])
 
 const buildModeActive = computed(() => showRoomMenu.value || roomStore.isPlacingRoom)
 
@@ -90,6 +109,136 @@ const unassignedCount = computed(
   () => dwellerStore.dwellers.filter((dweller) => isAvailableUnassignedDweller(dweller)).length
 )
 const dwellersPath = computed(() => `/vault/${vaultId.value}/dwellers`)
+
+const refreshReadyActions = async (id: string, token: string): Promise<void> => {
+  const results = await Promise.allSettled([
+    questStore.fetchVaultQuests(id, { silent: true }),
+    objectivesStore.fetchObjectives(id),
+    trainingStore.fetchVaultTrainings(id, token),
+    craftingService.listOrders(id),
+    explorationStore.fetchPendingOverflow(id),
+    incidentApi.getPendingIncidentOverflow(id, token),
+  ] as const)
+
+  // Ignore responses and errors for a vault/account the player already left.
+  if (vaultId.value !== id || authStore.token !== token) return
+
+  const failure = results.find((result) => result.status === 'rejected')
+  if (failure?.status === 'rejected') {
+    notifyErrorOnce(failure.reason, 'Some ready actions could not be refreshed')
+  }
+
+  const [, , , orders, explorationOverflow, incidentOverflow] = results
+  if (orders.status === 'fulfilled') craftingOrders.value = orders.value
+  if (explorationOverflow.status === 'fulfilled') {
+    pendingExplorationOverflow.value = explorationOverflow.value
+  }
+  if (incidentOverflow.status === 'fulfilled') {
+    pendingIncidentOverflow.value = incidentOverflow.value
+  }
+}
+
+const readyActions = computed<ReadyAction[]>(() => {
+  const id = vaultId.value
+  if (!id) return []
+  const actions: ReadyAction[] = []
+
+  const incidentCount = pendingIncidentOverflow.value.length
+  if (incidentCount > 0) {
+    const firstRoomId = pendingIncidentOverflow.value[0]?.room_id
+    actions.push({
+      kind: 'incident_aftermath',
+      label:
+        incidentCount === 1
+          ? 'INCIDENT LOOT AWAITS DECISION'
+          : `${incidentCount} INCIDENT REPORTS AWAIT DECISION`,
+      route: firstRoomId ? `/vault/${id}?roomId=${firstRoomId}` : `/vault/${id}`,
+      count: incidentCount,
+    })
+  }
+
+  const explorationCount = pendingExplorationOverflow.value.length
+  if (explorationCount > 0) {
+    actions.push({
+      kind: 'exploration_outcome',
+      label:
+        explorationCount === 1
+          ? 'EXPEDITION LOOT WAITING'
+          : `${explorationCount} EXPEDITIONS HAVE LOOT WAITING`,
+      route: `/vault/${id}/exploration`,
+      count: explorationCount,
+    })
+  }
+
+  const readyQuests = questStore.questCategories.readyToClaim
+  if (readyQuests.length > 0) {
+    const route =
+      readyQuests.length === 1
+        ? (getNotificationRoute({
+            vault_id: id,
+            notification_type: 'quest_complete',
+            meta_data: { quest_id: readyQuests[0]?.id, ready_to_claim: true },
+          }) ?? `/vault/${id}/quests`)
+        : `/vault/${id}/quests`
+    actions.push({
+      kind: 'quest_claim',
+      label:
+        readyQuests.length === 1
+          ? 'QUEST REWARD READY'
+          : `${readyQuests.length} QUEST REWARDS READY`,
+      route,
+      count: readyQuests.length,
+    })
+  }
+
+  const claimableObjectives = objectivesStore.objectives.filter(isObjectiveClaimable)
+  if (claimableObjectives.length > 0) {
+    actions.push({
+      kind: 'objective_claim',
+      label:
+        claimableObjectives.length === 1
+          ? 'OBJECTIVE REWARD READY'
+          : `${claimableObjectives.length} OBJECTIVE REWARDS READY`,
+      route: `/vault/${id}/objectives`,
+      count: claimableObjectives.length,
+    })
+  }
+
+  const completedOrders = craftingOrders.value.filter((order) => order.status === 'completed')
+  if (completedOrders.length > 0) {
+    const firstRoomId = completedOrders[0]?.room_id
+    actions.push({
+      kind: 'crafting_collect',
+      label:
+        completedOrders.length === 1
+          ? 'CRAFTING ORDER READY'
+          : `${completedOrders.length} CRAFTING ORDERS READY`,
+      route: firstRoomId ? `/vault/${id}?roomId=${firstRoomId}` : `/vault/${id}`,
+      count: completedOrders.length,
+    })
+  }
+
+  const completedTrainings = trainingStore.allActiveTrainings.filter(
+    (training) => new Date(training.estimated_completion_at).getTime() <= Date.now()
+  )
+  if (completedTrainings.length > 0) {
+    const singleTraining = completedTrainings.length === 1 ? completedTrainings[0] : undefined
+    actions.push({
+      kind: 'training_complete',
+      label:
+        completedTrainings.length === 1
+          ? 'TRAINING COMPLETE'
+          : `${completedTrainings.length} TRAININGS COMPLETE`,
+      route: singleTraining
+        ? `/vault/${id}/dwellers/${singleTraining.dweller_id}?tab=stats`
+        : `/vault/${id}/training`,
+      count: completedTrainings.length,
+    })
+  }
+
+  return actions
+})
+
 const overseerBriefing = computed(() => ({
   vaultNumber: currentVault.value?.number ?? 0,
   activeIncidentCount: activeIncidents.value.length,
@@ -101,6 +250,7 @@ const overseerBriefing = computed(() => ({
   happiness: happiness.value,
   resourceWarnings: resourceWarnings.value,
   dwellersPath: dwellersPath.value,
+  readyActions: readyActions.value,
 }))
 const overseerAttentionCount = computed(() => getOverseerAttentionCount(overseerBriefing.value))
 
@@ -112,10 +262,12 @@ const pendingIncidentReports = computed(() =>
 )
 
 usePolling(
-  () =>
-    vaultId.value && authStore.token
-      ? vaultStore.fetchGameState(vaultId.value, authStore.token)
-      : undefined,
+  () => {
+    const id = vaultId.value
+    const token = authStore.token
+    if (!id || !token) return undefined
+    return Promise.all([vaultStore.fetchGameState(id, token), refreshReadyActions(id, token)])
+  },
   { interval: 60_000, immediate: false }
 )
 
@@ -141,6 +293,9 @@ const loadVaultData = async (id: string) => {
   try {
     isLoading.value = true
     errorMessage.value = null
+
+    // Ready-action sources refresh alongside the main loads; failures never block the view.
+    const readyActionsLoad = refreshReadyActions(id, authStore.token)
 
     // Revalidate on overview entry; the shell's header load shares this request.
     await Promise.all([
@@ -176,6 +331,8 @@ const loadVaultData = async (id: string) => {
 
     // Start incident polling
     incidentStore.startPolling(id, authStore.token)
+
+    await readyActionsLoad
 
     isLoading.value = false
   } catch (error) {

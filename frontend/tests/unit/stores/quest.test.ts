@@ -337,10 +337,7 @@ describe('Quest Store', () => {
       expect(axios.post).toHaveBeenCalledWith('/api/v1/quests/vault-123/quest-1/assign', null, {
         params: { is_visible: true },
       })
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/quests/vault-123/',
-        expect.objectContaining({ headers: expect.any(Object) })
-      )
+      expect(store.vaultQuests).toEqual([mockAssignedQuest])
     })
 
     it('should handle assign error', async () => {
@@ -380,10 +377,7 @@ describe('Quest Store', () => {
       await store.claimQuestRewards('vault-123', 'quest-1')
 
       expect(axios.post).toHaveBeenCalledWith('/api/v1/quests/vault-123/quest-1/claim-rewards')
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/quests/vault-123/',
-        expect.objectContaining({ headers: expect.any(Object) })
-      )
+      expect(store.vaultQuests).toEqual([completedQuest])
     })
 
     it('should handle reward claim error', async () => {

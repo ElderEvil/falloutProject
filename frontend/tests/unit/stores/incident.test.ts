@@ -321,6 +321,7 @@ describe('Incident Store', () => {
       )
       expect(store.incidents.get('incident-1')?.damage_dealt).toBe(40)
       expect(useDwellerFilterStore().dwellers).toEqual(roster)
+      expect(store.getIncidentTeam('incident-1')).toEqual([])
       expect(sseMock.toast.success).toHaveBeenCalledTimes(1)
     })
 

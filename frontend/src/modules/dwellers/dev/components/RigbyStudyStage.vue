@@ -15,6 +15,7 @@ import {
   HEAD_IMAGES,
   REGIONS,
   CLIP_SECONDS,
+  aimSupportHand,
   createStudySkeleton,
   type StudyBody,
   type StudyClip,
@@ -101,33 +102,6 @@ onBeforeUnmount(() => {
   renderer?.dispose()
 })
 
-function aimSupportHand(skeleton: Skeleton, pose: Pose) {
-  const index = (name: string) => skeleton.bones.findIndex((b) => b.name === name)
-  const upper = index('backArm')
-  const lower = index('backForearm')
-  const weapon = index('weapon')
-  const shoulder = pose.world[upper]!
-  const gun = pose.world[weapon]!
-  const targetX = gun.tx + gun.a * 52 + gun.c * 5
-  const targetY = gun.ty + gun.b * 52 + gun.d * 5
-  const dx = targetX - shoulder.tx
-  const dy = targetY - shoulder.ty
-  const scale = Math.hypot(shoulder.a, shoulder.b)
-  const a = 50 * scale
-  const b = 45 * scale
-  const distance = Math.max(Math.abs(a - b) + 0.01, Math.min(a + b - 0.01, Math.hypot(dx, dy)))
-  const reflected = props.mirrored ? -1 : 1
-  const elbow = Math.acos((distance * distance - a * a - b * b) / (2 * a * b)) * reflected
-  const angle = Math.atan2(dy, dx) - Math.atan2(b * Math.sin(elbow), a + b * Math.cos(elbow))
-  const torso = pose.world[index('torso')]!
-  const determinant = torso.a * torso.d - torso.b * torso.c
-  const localX = (torso.d * Math.cos(angle) - torso.c * Math.sin(angle)) / determinant
-  const localY = (-torso.b * Math.cos(angle) + torso.a * Math.sin(angle)) / determinant
-  pose.local[upper]!.rotation = (Math.atan2(localY, localX) * 180) / Math.PI + 90
-  pose.local[lower]!.rotation = ((elbow * 180) / Math.PI) * reflected
-  pose.updateWorld(skeleton)
-}
-
 watchEffect(() => {
   if (!ready.value || !renderer || !gl || !canvas.value || !overlay.value) return
   const start = performance.now()
@@ -135,6 +109,12 @@ watchEffect(() => {
   if (key !== signature) {
     actors = Array.from({ length: props.mode === 'crowd' ? 36 : 1 }, () => {
       const original = createStudySkeleton(props.body)
+      // Serialize the current equipment too, so Reload really round-trips the configured rig.
+      original.skin = props.outfit
+      original.slots.find((slot) => slot.name === 'hat')!.attachment =
+        props.hat === 'none' ? null : props.hat
+      original.slots.find((slot) => slot.name === 'weapon')!.attachment =
+        props.weapon === 'none' ? null : props.weapon
       // Exercise the actual export/import path on every setup change.
       const { skeleton } = readSkeletonJson(
         JSON.parse(JSON.stringify(writeSkeletonJson(original).json))
@@ -210,7 +190,7 @@ watchEffect(() => {
         (props.mirrored ? -1 : 1)
       pose.updateWorld(skeleton)
       if (props.weapon === 'rifle') {
-        aimSupportHand(skeleton, pose)
+        aimSupportHand(skeleton, pose, props.mirrored)
         pose.attachment[slot('backHand')] = 'fist'
       }
     }

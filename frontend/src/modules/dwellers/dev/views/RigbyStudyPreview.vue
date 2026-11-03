@@ -260,7 +260,10 @@ function reloadRig() {
           <p class="text-xs leading-5 text-theme-primary/55">Attachments change. Motion stays.</p>
         </div>
         <div class="flex flex-col gap-2">
-          <label id="body-label" class="text-xs uppercase tracking-wider text-theme-primary/60"
+          <label
+            id="body-label"
+            for="body-select"
+            class="text-xs uppercase tracking-wider text-theme-primary/60"
             >Body profile</label
           >
           <Select
@@ -270,7 +273,8 @@ function reloadRig() {
                 if (v === 'male' || v === 'female') body = v
               }
             "
-            ><SelectTrigger aria-label="Body profile"><SelectValue /></SelectTrigger
+            ><SelectTrigger id="body-select" aria-label="Body profile"
+              ><SelectValue /></SelectTrigger
             ><SelectContent
               ><SelectGroup
                 ><SelectItem value="male">Male</SelectItem
@@ -280,7 +284,10 @@ function reloadRig() {
           >
         </div>
         <div class="flex flex-col gap-2">
-          <label id="outfit-label" class="text-xs uppercase tracking-wider text-theme-primary/60"
+          <label
+            id="outfit-label"
+            for="outfit-select"
+            class="text-xs uppercase tracking-wider text-theme-primary/60"
             >Outfit</label
           >
           <Select
@@ -290,7 +297,7 @@ function reloadRig() {
                 if (v === 'female-vault' || v === 'vault' || v === 'wasteland') outfit = v
               }
             "
-            ><SelectTrigger aria-label="Outfit"><SelectValue /></SelectTrigger
+            ><SelectTrigger id="outfit-select" aria-label="Outfit"><SelectValue /></SelectTrigger
             ><SelectContent
               ><SelectGroup v-if="body === 'female'"
                 ><SelectItem value="female-vault">Vault 101 suit</SelectItem></SelectGroup
@@ -302,7 +309,10 @@ function reloadRig() {
           >
         </div>
         <div class="flex flex-col gap-2">
-          <label id="weapon-label" class="text-xs uppercase tracking-wider text-theme-primary/60"
+          <label
+            id="weapon-label"
+            for="weapon-select"
+            class="text-xs uppercase tracking-wider text-theme-primary/60"
             >Weapon</label
           >
           <Select
@@ -312,7 +322,7 @@ function reloadRig() {
                 if (v === 'none' || v === 'pistol' || v === 'rifle') weapon = v
               }
             "
-            ><SelectTrigger aria-label="Weapon"><SelectValue /></SelectTrigger
+            ><SelectTrigger id="weapon-select" aria-label="Weapon"><SelectValue /></SelectTrigger
             ><SelectContent
               ><SelectGroup
                 ><SelectItem value="none">Unarmed</SelectItem
@@ -323,7 +333,10 @@ function reloadRig() {
           >
         </div>
         <div class="flex flex-col gap-2">
-          <label id="hat-label" class="text-xs uppercase tracking-wider text-theme-primary/60"
+          <label
+            id="hat-label"
+            for="hat-select"
+            class="text-xs uppercase tracking-wider text-theme-primary/60"
             >Headwear</label
           >
           <Select
@@ -333,7 +346,7 @@ function reloadRig() {
                 if (v === 'none' || v === 'fedora' || v === 'cowboy') hat = v
               }
             "
-            ><SelectTrigger aria-label="Headwear"><SelectValue /></SelectTrigger
+            ><SelectTrigger id="hat-select" aria-label="Headwear"><SelectValue /></SelectTrigger
             ><SelectContent
               ><SelectGroup
                 ><SelectItem value="none">No headwear</SelectItem

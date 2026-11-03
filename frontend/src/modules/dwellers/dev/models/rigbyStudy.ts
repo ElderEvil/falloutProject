@@ -1,4 +1,4 @@
-import { readSkeletonJson, type Skeleton } from '../../../../../vendor/rigby2d'
+import { readSkeletonJson, type Pose, type Skeleton } from '../../../../../vendor/rigby2d'
 import outfitsUrl from '../assets/rigby/outfits.png'
 import femaleOutfitsUrl from '../assets/rigby/outfits-female.png'
 import accessoriesUrl from '../assets/rigby/accessories.png'
@@ -71,7 +71,6 @@ export const REGIONS: Record<string, Region> = Object.fromEntries([
   ),
 ])
 Object.assign(REGIONS, {
-  'female-vault-pelvis': { page: 'outfits.png', rect: [955, 106, 88, 86] },
   hand: { page: 'accessories.png', rect: [17, 1640, 61, 47] },
   fist: { page: 'accessories.png', rect: [96, 1581, 51, 44] },
   fedora: { page: 'accessories.png', rect: [484, 578, 108, 53] },
@@ -244,7 +243,8 @@ export function createStudySkeleton(body: StudyBody): Skeleton {
   }
   arm('back')
   leg('back')
-  part('pelvis', 'pelvis', 'pelvis', 0, -4, pelvisWidth, pelvisHeight)
+  // Female Vault 101 torso art includes the yellow hip/waist, so it has no separate pelvis sprite.
+  if (!female) part('pelvis', 'pelvis', 'pelvis', 0, -4, pelvisWidth, pelvisHeight)
   leg('front')
   part('torso', 'torso', 'torso', 0, 48, torsoWidth, 113, true)
   slot(
@@ -265,8 +265,10 @@ export function createStudySkeleton(body: StudyBody): Skeleton {
     'hat',
     'head',
     {
-      fedora: { path: 'fedora', x: 0, y: 85, width: 104, height: 51 },
-      cowboy: { path: 'cowboy', x: 0, y: 86, width: 119, height: 63 },
+      // Hat art is authored facing left; mirror it to face the same way as the body.
+      // The female head art is shorter, so its hats sit lower to keep the same overlap.
+      fedora: { path: 'fedora', x: 0, y: female ? 69 : 85, width: 104, height: 51, scaleX: -1 },
+      cowboy: { path: 'cowboy', x: 0, y: female ? 70 : 86, width: 119, height: 63, scaleX: -1 },
     },
     null
   )
@@ -296,6 +298,9 @@ export function createStudySkeleton(body: StudyBody): Skeleton {
     walk[`${side}Arm`] = { rotate: rotate([20 * sign, 0, -20 * sign, 0, 20 * sign], 1.2) }
     walk[`${side}Forearm`] = { rotate: rotate([8, 18, 8, 0, 8], 1.2) }
   }
+  // Small hand drift so a held weapon does not look frozen while the legs walk.
+  walk.frontHand = { rotate: rotate([0, 2, 0, -2, 0], 1.2) }
+  walk.backHand = { rotate: rotate([0, -2, 0, 2, 0], 1.2) }
   // The three-quarter art faces right; mirror the authored stride so the swing foot travels right.
   for (const track of Object.values(walk) as Array<{ rotate: Array<{ angle: number }> }>) {
     for (const keyframe of track.rotate) keyframe.angle = -keyframe.angle
@@ -303,6 +308,10 @@ export function createStudySkeleton(body: StudyBody): Skeleton {
   const animations = {
     idle: {
       bones: {
+        // Subtle weight shift: the pelvis rocks while the thighs counter-rotate.
+        pelvis: { rotate: rotate([0, 1.5, 0], 3) },
+        frontThigh: { rotate: rotate([0, -1.5, 0], 3) },
+        backThigh: { rotate: rotate([0, -1.5, 0], 3) },
         torso: { translate: [{ y: 0 }, { time: 1.5, y: 2 }, { time: 3, y: 0 }] },
         head: { rotate: rotate([-1, 1, -1], 3) },
         frontArm: { rotate: rotate([0, 2, 0], 3) },
@@ -343,4 +352,32 @@ export function createStudySkeleton(body: StudyBody): Skeleton {
   if (warnings.length) throw new Error(warnings.join('; '))
   skeleton.skin = female ? 'female-vault' : 'vault'
   return skeleton
+}
+
+/** Analytic two-joint correction that places the support hand on the rifle foregrip. */
+export function aimSupportHand(skeleton: Skeleton, pose: Pose, mirrored: boolean) {
+  const index = (name: string) => skeleton.bones.findIndex((b) => b.name === name)
+  const upper = index('backArm')
+  const lower = index('backForearm')
+  const weapon = index('weapon')
+  const shoulder = pose.world[upper]!
+  const gun = pose.world[weapon]!
+  const targetX = gun.tx + gun.a * 52 + gun.c * 5
+  const targetY = gun.ty + gun.b * 52 + gun.d * 5
+  const dx = targetX - shoulder.tx
+  const dy = targetY - shoulder.ty
+  const scale = Math.hypot(shoulder.a, shoulder.b)
+  const a = 50 * scale
+  const b = 45 * scale
+  const distance = Math.max(Math.abs(a - b) + 0.01, Math.min(a + b - 0.01, Math.hypot(dx, dy)))
+  const reflected = mirrored ? -1 : 1
+  const elbow = Math.acos((distance * distance - a * a - b * b) / (2 * a * b)) * reflected
+  const angle = Math.atan2(dy, dx) - Math.atan2(b * Math.sin(elbow), a + b * Math.cos(elbow))
+  const torso = pose.world[index('torso')]!
+  const determinant = torso.a * torso.d - torso.b * torso.c
+  const localX = (torso.d * Math.cos(angle) - torso.c * Math.sin(angle)) / determinant
+  const localY = (-torso.b * Math.cos(angle) + torso.a * Math.sin(angle)) / determinant
+  pose.local[upper]!.rotation = (Math.atan2(localY, localX) * 180) / Math.PI + 90
+  pose.local[lower]!.rotation = ((elbow * 180) / Math.PI) * reflected
+  pose.updateWorld(skeleton)
 }

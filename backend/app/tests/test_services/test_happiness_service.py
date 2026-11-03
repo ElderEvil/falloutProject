@@ -375,6 +375,10 @@ class TestHappinessService:
         working_dweller: Dweller,
     ) -> None:
         """Failure writing the aggregate rolls back the already-flushed dweller change."""
+        # The vault fixture randomises happiness; pin it so the aggregate always dirties the row.
+        vault.happiness = 100
+        async_session.add(vault)
+        await async_session.commit()
         previous = working_dweller.happiness, vault.happiness
 
         def reject_vault_write(_connection, _cursor, statement, _parameters, _context, _executemany):

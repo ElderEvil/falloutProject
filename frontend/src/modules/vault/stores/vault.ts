@@ -422,7 +422,7 @@ export const useVaultStore = defineStore('vault', () => {
       (evt) => {
         if (!evt || evt.event !== 'tick') return
         useStorageStore().refreshIfActive(vaultId)
-        const tickData = (evt.data as { results?: GameTickUpdate }).results
+        const tickData = (evt.data as { results?: GameTickUpdate } | null | undefined)?.results
         if (!tickData) return
         if (tickData.vault_id && tickData.vault_id !== vaultId) return
         const resourceUpdate = tickData.updates?.resources
@@ -459,7 +459,7 @@ export const useVaultStore = defineStore('vault', () => {
         }
 
         const dwellerSnapshot = tickData.updates?.dweller_snapshot
-        if (dwellerSnapshot) {
+        if (Array.isArray(dwellerSnapshot)) {
           useDwellerFilterStore().applyDwellerTick(vaultId, dwellerSnapshot, token)
         }
       }

@@ -7,6 +7,7 @@ it as the post-tick state instead of reconciling per-phase deltas.
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -124,6 +125,28 @@ async def test_snapshot_reflects_late_tick_mutation(
 
     entry = next(item for item in updates["dweller_snapshot"] if item["id"] == str(dweller_id))
     assert entry["happiness"] == 97
+
+
+@pytest.mark.asyncio
+async def test_snapshot_sqlalchemy_failure_recovers_and_commits_marker(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    with (
+        patch(
+            "app.services.game_loop_service.dweller_crud.get_tick_snapshot",
+            new_callable=AsyncMock,
+            side_effect=SQLAlchemyError("snapshot boom"),
+        ),
+        patch("app.services.game_loop_service.recover_session", new_callable=AsyncMock) as recover,
+        patch.object(sse_manager, "publish", new_callable=AsyncMock) as publish,
+    ):
+        result = await game_loop_service.process_vault_tick(async_session, vault.id, tick_id="tick-snapshot-sqla-fail")
+
+    publish.assert_not_called()
+    recover.assert_awaited_once()
+    assert "dweller_snapshot" not in result["updates"]
+    state = await crud.game_state_crud.get_or_create(async_session, vault.id)
+    assert "tick-snapshot-sqla-fail" in (state.recent_tick_ids or [])
 
 
 @pytest.mark.asyncio

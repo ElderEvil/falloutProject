@@ -653,7 +653,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
 
     if (rosterLoaded && snapshot.some((d) => !previousIds.has(d.id))) {
       void fetchWithCurrentFilters(vaultId, token)
-      void fetchAllDwellers(vaultId, token, true)
+      void fetchAllDwellers(vaultId, token, false, true)
     }
   }
 

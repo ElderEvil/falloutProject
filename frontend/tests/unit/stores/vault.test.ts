@@ -739,6 +739,27 @@ describe('Vault Store', () => {
       expect(filterStore.allDwellers[0]).toMatchObject({ health: 90, first_name: 'John' })
     })
 
+    it('ignores a null payload and a non-array dweller snapshot', async () => {
+      const store = useVaultStore()
+      const filterStore = useDwellerFilterStore()
+      store.activeVaultId = 'vault-1'
+      filterStore.allDwellers = [{ id: 'd1', health: 10 }] as never
+      filterStore.allDwellersLoadedVaultId = 'vault-1'
+
+      store.startGameTickSse('vault-1', 'test-token')
+      const eventRef = sseMock.event as Ref<{ event: string; data: unknown } | null>
+      eventRef.value = { event: 'tick', data: null }
+      await nextTick()
+      eventRef.value = {
+        event: 'tick',
+        data: { results: { updates: { dweller_snapshot: 'not-an-array' } } },
+      }
+      await nextTick()
+
+      expect(filterStore.allDwellers).toHaveLength(1)
+      expect(filterStore.allDwellers[0]).toMatchObject({ health: 10 })
+    })
+
     it('leaves the roster untouched when a tick carries no dweller snapshot', async () => {
       const store = useVaultStore()
       const filterStore = useDwellerFilterStore()

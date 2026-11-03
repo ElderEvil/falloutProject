@@ -272,6 +272,7 @@ class GameLoopService:
             event_update = await self._process_events(db_session, vault_id, seconds_passed, game_state)
             results["updates"]["events"] = event_update
 
+        snapshot_ok = True
         try:
             with tick_phase("dweller_snapshot"):
                 snapshot_rows = await dweller_crud.get_tick_snapshot(db_session, vault_id)
@@ -296,19 +297,30 @@ class GameLoopService:
                     }
                     for row in snapshot_rows
                 ]
-            with tick_phase("sse"):
-                await sse_manager.publish(
-                    vault_id,
-                    "game_ticks",
-                    {
-                        "event_id": str(game_state.last_tick_time.isoformat()),
-                        "type": "game_tick",
-                        "vault_id": str(vault_id),
-                        "results": results,
-                    },
-                )
+        except SQLAlchemyError:
+            await recover_session(db_session)
+            self.logger.exception("Error reading dweller snapshot for vault %s", vault_id)
+            game_state = await self._get_or_create_game_state(db_session, vault_id)
+            snapshot_ok = False
         except Exception:
-            self.logger.exception(f"Failed to publish SSE tick for vault {vault_id}")
+            self.logger.exception("Failed to build dweller snapshot for vault %s", vault_id)
+            snapshot_ok = False
+
+        if snapshot_ok:
+            try:
+                with tick_phase("sse"):
+                    await sse_manager.publish(
+                        vault_id,
+                        "game_ticks",
+                        {
+                            "event_id": str(game_state.last_tick_time.isoformat()),
+                            "type": "game_tick",
+                            "vault_id": str(vault_id),
+                            "results": results,
+                        },
+                    )
+            except Exception:
+                self.logger.exception(f"Failed to publish SSE tick for vault {vault_id}")
 
         if tick_id is not None:
             with tick_phase("completion_marker"):

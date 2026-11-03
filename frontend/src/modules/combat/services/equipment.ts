@@ -11,13 +11,6 @@ export async function fetchWeapons(token: string, vaultId: string): Promise<Weap
   return response.data
 }
 
-export async function fetchWeapon(weaponId: string, token: string): Promise<Weapon> {
-  const response = await axios.get(`/api/v1/weapons/${weaponId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  return response.data
-}
-
 export async function equipWeapon(
   dwellerId: string,
   weaponId: string,
@@ -45,13 +38,6 @@ export async function fetchOutfits(token: string, vaultId: string): Promise<Outf
   const params = { vault_id: vaultId }
   const response = await axios.get('/api/v1/outfits/', {
     params,
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  return response.data
-}
-
-export async function fetchOutfit(outfitId: string, token: string): Promise<Outfit> {
-  const response = await axios.get(`/api/v1/outfits/${outfitId}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
   return response.data

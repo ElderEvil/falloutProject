@@ -218,10 +218,6 @@ export function questTypeLabel(questType: string | null | undefined): string {
   return capitalize(normalized)
 }
 
-export function isSideQuestType(questType: string | null | undefined): boolean {
-  return (questType || 'side') === 'side'
-}
-
 /** State quests settle from vault progress and start without a party. */
 export function isStateQuestCategory(category: string | null | undefined): boolean {
   return ['building', 'population', 'training'].includes(category ?? '')

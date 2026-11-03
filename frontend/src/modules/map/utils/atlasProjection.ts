@@ -4,8 +4,6 @@ import type { TerrainAnchor, TerrainType } from '../models/terrain'
 export const MAP_UNITS = 160
 /** Tile grid size of the generated atlas world. */
 export const ATLAS_TILES = 80
-/** Fixed world seed: one shared geography for every vault. */
-export const ATLAS_SEED = 'wasteland-atlas-v1'
 /** SVG units per tile. */
 export const UNITS_PER_TILE = MAP_UNITS / ATLAS_TILES
 
@@ -22,15 +20,6 @@ export const ATLAS_TERRAIN_VAR: Record<TerrainType, string> = {
   water: '--color-terrain-water',
 }
 
-/** Tailwind utility classes for the same tokens (legend swatches). */
-export const ATLAS_TERRAIN_CLASS: Record<TerrainType, string> = {
-  wasteland: 'bg-terrain-wasteland',
-  forest: 'bg-terrain-forest',
-  ruins: 'bg-terrain-ruins',
-  hills: 'bg-terrain-hills',
-  water: 'bg-terrain-water',
-}
-
 export const ATLAS_TERRAIN_ORDER: readonly TerrainType[] = [
   'wasteland',
   'forest',
@@ -38,14 +27,6 @@ export const ATLAS_TERRAIN_ORDER: readonly TerrainType[] = [
   'hills',
   'water',
 ]
-
-export const ATLAS_TERRAIN_LABEL: Record<TerrainType, string> = {
-  wasteland: 'Wasteland',
-  forest: 'Forest',
-  ruins: 'Ruins',
-  hills: 'Hills',
-  water: 'Water',
-}
 
 /** Scale the backend applies to registry coordinates on the wire (0-100 → 0-160). */
 export const WIRE_SCALE = 1.6

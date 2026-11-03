@@ -8029,6 +8029,8 @@ export interface components {
         ExpeditionResolveRequest: {
             /** Choice Id */
             choice_id?: string | null;
+            /** Question Id */
+            question_id?: string | null;
             /**
              * Use Skill
              * @default false
@@ -11024,6 +11026,8 @@ export interface components {
             prompt: string;
             /** Question */
             question?: string | null;
+            /** Question Id */
+            question_id?: string | null;
             /** Question Index */
             question_index?: number | null;
             /** Question Total */

@@ -70,9 +70,12 @@ const answer = (id: string) => {
 </script>
 
 <template>
-  <div class="relative flex h-full min-h-0 flex-col md:block" aria-label="Trivia encounter">
+  <div
+    class="relative flex h-full min-h-0 flex-col overflow-y-auto md:block md:overflow-hidden"
+    aria-label="Trivia encounter"
+  >
     <section
-      class="relative min-h-0 flex-1 overflow-hidden bg-surface-sunken md:h-full"
+      class="relative min-h-[14rem] flex-1 overflow-hidden bg-surface-sunken md:h-full md:min-h-0"
       :aria-label="`${raiderName} posing a question`"
     >
       <img

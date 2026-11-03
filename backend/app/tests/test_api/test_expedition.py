@@ -321,16 +321,16 @@ async def test_site_trivia_correct_answer_pays_once(
     dweller: Dweller,
 ) -> None:
     """A correct answer clears the site and pays once; resubmitting it fails without paying again."""
-    exploration, question, _ = await _enter_raider_tollbooth(
+    exploration, question, entered = await _enter_raider_tollbooth(
         async_client, superuser_token_headers, async_session, vault, dweller
     )
     before = (await crud.exploration.get(async_session, exploration.id)).total_caps_found
 
     body = None
-    while body is None or body["status"] == "in_room":
+    for _ in range(entered.json()["node"]["question_total"]):
         resolved = await async_client.post(
             f"/explorations/{exploration.id}/site/resolve",
-            json={"choice_id": question.correct_option_id},
+            json={"choice_id": question.correct_option_id, "question_id": question.id},
             headers=superuser_token_headers,
         )
         assert resolved.status_code == 200
@@ -342,6 +342,7 @@ async def test_site_trivia_correct_answer_pays_once(
         answered = next(iter(run.flags.get("trivia_answered", {}).values()), 0)
         site = data_loader.get_expedition_site("raider_tollbooth")
         question = next(q for q in site.encounter.node.trivia_questions if q.id == pinned[answered])
+    assert body is not None
     assert body["status"] == "cleared"
     assert body["finale_paid"] is True
     assert body["outcome"]["caps_gained"] >= 40
@@ -352,7 +353,7 @@ async def test_site_trivia_correct_answer_pays_once(
 
     duplicate = await async_client.post(
         f"/explorations/{exploration.id}/site/resolve",
-        json={"choice_id": question.correct_option_id},
+        json={"choice_id": question.correct_option_id, "question_id": question.id},
         headers=superuser_token_headers,
     )
     assert duplicate.status_code == 400
@@ -368,7 +369,7 @@ async def test_site_trivia_invalid_answer_rejected(
     dweller: Dweller,
 ) -> None:
     """An unknown answer id is rejected and leaves the pinned encounter untouched."""
-    exploration, _, _ = await _enter_raider_tollbooth(
+    exploration, question, _ = await _enter_raider_tollbooth(
         async_client, superuser_token_headers, async_session, vault, dweller
     )
     before_run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
@@ -376,7 +377,7 @@ async def test_site_trivia_invalid_answer_rejected(
 
     response = await async_client.post(
         f"/explorations/{exploration.id}/site/resolve",
-        json={"choice_id": "not-an-option"},
+        json={"choice_id": "not-an-option", "question_id": question.id},
         headers=superuser_token_headers,
     )
     assert response.status_code == 400
@@ -405,7 +406,7 @@ async def test_site_trivia_wrong_answer_starts_combat(
 
     resolved = await async_client.post(
         f"/explorations/{exploration.id}/site/resolve",
-        json={"choice_id": wrong_id},
+        json={"choice_id": wrong_id, "question_id": question.id},
         headers=superuser_token_headers,
     )
     assert resolved.status_code == 200

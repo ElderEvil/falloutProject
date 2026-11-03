@@ -31,12 +31,14 @@ export const expeditionSiteApi = {
     explorationId: string,
     choiceId?: string,
     useSkill = false,
-    expectedRound?: number
+    expectedRound?: number,
+    questionId?: string
   ): Promise<SiteRoomView> {
     const response = await axios.post<SiteRoomView>(
       `/api/v1/explorations/${explorationId}/site/resolve`,
       {
         ...(choiceId === undefined ? {} : { choice_id: choiceId }),
+        ...(questionId === undefined ? {} : { question_id: questionId }),
         ...(useSkill ? { use_skill: true } : {}),
         ...(expectedRound === undefined ? {} : { expected_round: expectedRound }),
       }

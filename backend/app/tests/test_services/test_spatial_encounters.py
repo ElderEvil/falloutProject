@@ -741,6 +741,33 @@ async def test_scene_combat_reconnect_skill_and_stale_round_rejection(async_sess
 
 
 @pytest.mark.asyncio
+async def test_site_skill_hits_respect_the_25_percent_cap(async_session, vault, dweller):
+    from app.schemas.expedition import ExpeditionResolveRequest
+
+    for stat in ("strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"):
+        setattr(dweller, stat, 10)
+    async_session.add(dweller)
+    await async_session.commit()
+
+    exploration = await _spatial_run_at_site(async_session, vault, dweller, "super_duper_mart")
+    entered = await expedition_module.expedition_service.enter_run(async_session, exploration.id, "super_duper_mart")
+    enemy_max_health = entered.combat_state.fighters[1].max_health
+    run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    run.flags = {**run.flags, "combat": {**run.flags["combat"], "charge": 100, "next_attack_team": "A"}}
+    async_session.add(run)
+    await async_session.commit()
+
+    skilled = await expedition_module.expedition_service.resolve_node(
+        async_session, exploration.id, ExpeditionResolveRequest(use_skill=True)
+    )
+    skill_events = [event for event in skilled.combat_state.events if event.action and event.action.skill]
+    assert skill_events
+    skill_hits = [impact.damage for event in skill_events for impact in event.action.targets]
+    assert skill_hits
+    assert max(skill_hits) <= math.ceil(enemy_max_health * 0.25)
+
+
+@pytest.mark.asyncio
 async def test_scene_reward_notification_failure_rolls_back_final_turn(async_session, vault, dweller, monkeypatch):
     from copy import deepcopy
     from unittest.mock import AsyncMock

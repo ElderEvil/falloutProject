@@ -123,7 +123,8 @@ const isTriviaEncounter = computed(
     room.value?.node.kind === 'trivia' &&
     !hasArenaCombat.value &&
     !isTerminalRun.value &&
-    !isDefeated.value
+    !isDefeated.value &&
+    !isRecovery.value
 )
 const modalSize = computed<'screen' | '5xl' | '3xl'>(() => {
   if (expandedCombat.value || isTriviaEncounter.value) return 'screen'

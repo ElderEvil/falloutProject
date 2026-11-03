@@ -159,7 +159,15 @@ def vault1(
             help="How many named dwellers; default: one per selected site",
         ),
     ] = None,
-    dweller_level: Annotated[int, typer.Option("--dweller-level", min=1, max=50)] = 5,
+    dweller_level: Annotated[
+        int,
+        typer.Option(
+            "--dweller-level",
+            min=1,
+            max=50,
+            help="Level for a uniform seed; ignored with --variety (the default), which cycles 5/10/15/20",
+        ),
+    ] = 5,
     duration_hours: Annotated[
         int,
         typer.Option("--duration-hours", min=1, max=24, help="Legacy journey length in hours"),

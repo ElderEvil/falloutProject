@@ -221,6 +221,7 @@ class SiteNodeView(BaseModel):
     kind: str
     prompt: str
     question: str | None = None
+    question_id: str | None = None
     question_index: int | None = None
     question_total: int | None = None
     raider_image_url: str | None = None
@@ -303,6 +304,7 @@ class ExpeditionResolveRequest(BaseModel):
     """Resolve the current node; choice_id required for choice/trap-with-options nodes."""
 
     choice_id: str | None = None
+    question_id: str | None = None
     use_skill: bool = False
     expected_round: int | None = Field(default=None, ge=0)
 

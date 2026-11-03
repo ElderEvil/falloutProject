@@ -9,6 +9,7 @@ import ExpeditionSiteModal from '@/modules/exploration/components/ExpeditionSite
 import ExpeditionRoomStepper from '@/modules/exploration/components/ExpeditionRoomStepper.vue'
 import WastelandScene from '@/modules/exploration/components/WastelandScene.vue'
 import SiteCombatScene from '@/modules/exploration/components/SiteCombatScene.vue'
+import TriviaEncounterScene from '@/modules/exploration/components/TriviaEncounterScene.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import { useExpeditionSiteStore } from '@/modules/exploration/stores/expeditionSite'
 import type { AvailableSiteView, SiteRoomView } from '@/modules/exploration/api/expeditionSite'
@@ -74,6 +75,7 @@ const triviaRoom: SiteRoomView = {
     kind: 'trivia',
     prompt: 'The raider taps her rifle.',
     question: 'Which pre-war company built the Vaults?',
+    question_id: 'q-vaults',
     raider_image_url: '/static/raider_images/variants/jinx.webp',
     raider_alt_image_url: '/static/raider_images/variants/jinx_alt.webp',
     options: [
@@ -678,6 +680,20 @@ describe('ExpeditionSiteModal', () => {
     wrapper.unmount()
   })
 
+  it('sends the current question id with a trivia answer', async () => {
+    const wrapper = mountModal()
+    const store = useExpeditionSiteStore()
+    store.room = triviaRoom
+    await flushPromises()
+    mockResolve.mockResolvedValue(triviaRoom)
+
+    await buttonByText(wrapper, 'Vault-Tec')!.trigger('click')
+    await flushPromises()
+
+    expect(mockResolve).toHaveBeenCalledWith('exp-1', 'vault-tec', false, undefined, 'q-vaults')
+    wrapper.unmount()
+  })
+
   it('treats a started trivia fight as combat and shows the wrong-answer outcome', async () => {
     const wrapper = mountModal()
     const store = useExpeditionSiteStore()
@@ -913,6 +929,18 @@ describe('ExpeditionSiteModal', () => {
     await buttonByText(wrapper, 'Close')!.trigger('click')
     expect(wrapper.emitted('close')).toHaveLength(1)
     expect(wrapper.emitted('updated')).toBeUndefined()
+  })
+
+  it('keeps a recovery trivia run close-only', async () => {
+    const wrapper = mountModal('exp-1', 'Lucy MacLean', undefined, false)
+    const store = useExpeditionSiteStore()
+    store.room = triviaRoom
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('This expedition has ended')
+    expect(wrapper.findComponent(TriviaEncounterScene).exists()).toBe(false)
+    expect(buttonByText(wrapper, 'Vault-Tec')).toBeUndefined()
+    expect(buttonByText(wrapper, 'Close')).toBeDefined()
   })
 
   it('shows the terminal banner in the recovery state for a terminal run', async () => {

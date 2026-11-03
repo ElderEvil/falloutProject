@@ -42,6 +42,7 @@ def build_view(
             run.is_open() and pending is not None and pending.get("room_id") == room.id
         )
     question_text: str | None = None
+    question_id: str | None = None
     question_index: int | None = None
     question_total: int | None = None
     prompt = room.node.prompt
@@ -54,6 +55,7 @@ def build_view(
         question = trivia_question(room, run)
         if question is not None and run.is_open() and not run.flags.get("combat"):
             question_text = question.prompt
+            question_id = question.id
             question_index = trivia_answered(room, run) + 1
             question_total = trivia_question_total(room, run)
             options = [NodeOptionView(id=option.id, label=option.label) for option in ordered_options(run, question)]
@@ -92,6 +94,7 @@ def build_view(
             kind=room.node.kind,
             prompt=prompt,
             question=question_text,
+            question_id=question_id,
             question_index=question_index,
             question_total=question_total,
             raider_image_url=raider_image_url,

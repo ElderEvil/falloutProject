@@ -731,16 +731,21 @@ async def test_trivia_entry_persists_one_question_without_the_answer_key(async_s
 @pytest.mark.asyncio
 async def test_trivia_correct_answer_pays_once(async_session: AsyncSession):
     _, _, exploration = await _make_exploration(async_session, level=5)
-    await expedition_service.enter_run(async_session, exploration.id, "raider_tollbooth")
+    entry = await expedition_service.enter_run(async_session, exploration.id, "raider_tollbooth")
     before_caps = (await crud.exploration.get(async_session, exploration.id)).total_caps_found
 
     view = None
-    while view is None or view.status == "in_room":
+    for _ in range(entry.node.question_total or 1):
         question, run = await _open_trivia_question(async_session, exploration.id)
         raider = await _open_trivia_raider(run)
         view = await expedition_service.resolve_node(
-            async_session, exploration.id, ExpeditionResolveRequest(choice_id=question.correct_option_id)
+            async_session,
+            exploration.id,
+            ExpeditionResolveRequest(choice_id=question.correct_option_id, question_id=question.id),
         )
+        if view.status != "in_room":
+            break
+    assert view is not None
     assert view.status == "cleared"
     assert view.finale_paid is True
     assert view.outcome is not None
@@ -752,7 +757,9 @@ async def test_trivia_correct_answer_pays_once(async_session: AsyncSession):
     assert after_caps > before_caps
     with pytest.raises((ResourceConflictException, ValidationException)):
         await expedition_service.resolve_node(
-            async_session, exploration.id, ExpeditionResolveRequest(choice_id=question.correct_option_id)
+            async_session,
+            exploration.id,
+            ExpeditionResolveRequest(choice_id=question.correct_option_id, question_id=question.id),
         )
     assert (await crud.exploration.get(async_session, exploration.id)).total_caps_found == after_caps
 
@@ -761,11 +768,13 @@ async def test_trivia_correct_answer_pays_once(async_session: AsyncSession):
 async def test_trivia_invalid_answer_leaves_the_encounter_untouched(async_session: AsyncSession):
     _, _, exploration = await _make_exploration(async_session, level=5)
     await expedition_service.enter_run(async_session, exploration.id, "raider_tollbooth")
-    _, run = await _open_trivia_question(async_session, exploration.id)
+    question, run = await _open_trivia_question(async_session, exploration.id)
 
     with pytest.raises(ValidationException, match="Unknown answer"):
         await expedition_service.resolve_node(
-            async_session, exploration.id, ExpeditionResolveRequest(choice_id="not-an-option")
+            async_session,
+            exploration.id,
+            ExpeditionResolveRequest(choice_id="not-an-option", question_id=question.id),
         )
 
     run_after = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
@@ -784,7 +793,7 @@ async def test_trivia_wrong_answer_starts_combat_then_pays_on_a_win(async_sessio
     wrong_id = next(option.id for option in question.options if option.id != question.correct_option_id)
 
     view = await expedition_service.resolve_node(
-        async_session, exploration.id, ExpeditionResolveRequest(choice_id=wrong_id)
+        async_session, exploration.id, ExpeditionResolveRequest(choice_id=wrong_id, question_id=question.id)
     )
     assert view.status == "in_room"
     assert view.combat_state is not None
@@ -891,7 +900,9 @@ async def test_trivia_encounter_can_ask_multiple_questions(async_session: AsyncS
 
     first_question, run = await _open_trivia_question(async_session, exploration.id)
     view = await expedition_service.resolve_node(
-        async_session, exploration.id, ExpeditionResolveRequest(choice_id=first_question.correct_option_id)
+        async_session,
+        exploration.id,
+        ExpeditionResolveRequest(choice_id=first_question.correct_option_id, question_id=first_question.id),
     )
     assert view.status == "in_room"
     assert view.finale_paid is False
@@ -903,8 +914,46 @@ async def test_trivia_encounter_can_ask_multiple_questions(async_session: AsyncS
     second_question, _ = await _open_trivia_question(async_session, exploration.id)
     assert second_question.id != first_question.id
     cleared = await expedition_service.resolve_node(
-        async_session, exploration.id, ExpeditionResolveRequest(choice_id=second_question.correct_option_id)
+        async_session,
+        exploration.id,
+        ExpeditionResolveRequest(choice_id=second_question.correct_option_id, question_id=second_question.id),
     )
     if entry.node.question_total == 2:
         assert cleared.status == "cleared"
         assert cleared.finale_paid is True
+
+
+@pytest.mark.asyncio
+async def test_trivia_rejects_a_stale_question(async_session: AsyncSession):
+    """A second tab answering an earlier question cannot resolve the current one."""
+    _, _, exploration = await _make_exploration(async_session, level=10)
+    await expedition_service.enter_run(async_session, exploration.id, "rusted_midway")
+    run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    room_id = next(iter(run.flags["trivia_questions"]))
+    run.flags = {
+        **run.flags,
+        "trivia_questions": {room_id: ["grognak", "silver_shroud"]},
+        "trivia_answered": {},
+    }
+    async_session.add(run)
+    await async_session.commit()
+
+    advanced = await expedition_service.resolve_node(
+        async_session,
+        exploration.id,
+        ExpeditionResolveRequest(choice_id="grognak", question_id="grognak"),
+    )
+    assert advanced.status == "in_room"
+    assert advanced.node.question_index == 2
+
+    with pytest.raises(ResourceConflictException):
+        await expedition_service.resolve_node(
+            async_session,
+            exploration.id,
+            ExpeditionResolveRequest(choice_id="grognak", question_id="grognak"),
+        )
+
+    run_after = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    assert run_after.status == ExpeditionRunStatus.IN_ROOM
+    assert "combat" not in run_after.flags
+    assert run_after.flags["trivia_answered"][room_id] == 1

@@ -737,6 +737,10 @@ class ExpeditionService:
         question = trivia_question(room, run)
         if question is None:
             raise ValidationException("This trivia encounter has no persisted question")
+        if request.question_id is None:
+            raise ValidationException("This room needs the current question id")
+        if request.question_id != question.id:
+            raise ResourceConflictException("This question has already advanced")
         if request.choice_id is None:
             raise ValidationException("This room needs an answer: pass choice_id")
         if request.choice_id not in {option.id for option in question.options}:

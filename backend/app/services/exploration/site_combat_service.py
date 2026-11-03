@@ -102,6 +102,7 @@ def resolve_turn(state: dict, dweller: Dweller, *, use_skill: bool) -> tuple[dic
         queued,
         carry,
         cap_fraction_per_second=SITE_DAMAGE_CAP_PER_SECOND,
+        scale_cap_with_skill=False,
     )
     turn = state["round"] + 1
     events = [

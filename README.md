@@ -42,7 +42,8 @@ See [docs/ROADMAP.md](./docs/ROADMAP.md) for recent updates and upcoming feature
 - **uv** (Python package manager):
   - macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
   - Windows: `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
-- **pnpm** (via Corepack): `corepack enable && corepack use pnpm@11.9.0`
+- **pnpm** (via Corepack): `corepack enable && corepack use pnpm@11.9.0` (or
+  `npm install -g pnpm@11.9.0` if Corepack is unavailable)
 
 ## 🚀 Quick Start (Hybrid Development)
 

@@ -21,7 +21,7 @@
   },
   {
     "label": "Fallout: Run frontend server",
-    "command": "corepack pnpm@11.9.0 run dev",
+    "command": "pnpm run dev",
     "cwd": "$ZED_WORKTREE_ROOT/frontend",
     "use_new_terminal": true,
     "allow_concurrent_runs": false,

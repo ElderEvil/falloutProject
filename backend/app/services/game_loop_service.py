@@ -15,12 +15,14 @@ from app.core.game_config import game_config
 from app.core.stream_manager import sse_manager
 from app.core.tick_profiling import tick_phase
 from app.crud import game_state_crud
+from app.crud.dweller import dweller as dweller_crud
 from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.relationship import Relationship
 from app.models.vault import Vault
+from app.options.pet_modifiers import pet_effect_for_name
 from app.services.combat.arena_service import arena_service
 from app.services.game_tick import crafting_tick, dwellers_tick, family_tick, radio_tick, storage_tick
 from app.services.game_tick.guard import recover_session
@@ -270,20 +272,55 @@ class GameLoopService:
             event_update = await self._process_events(db_session, vault_id, seconds_passed, game_state)
             results["updates"]["events"] = event_update
 
+        snapshot_ok = True
         try:
-            with tick_phase("sse"):
-                await sse_manager.publish(
-                    vault_id,
-                    "game_ticks",
+            with tick_phase("dweller_snapshot"):
+                snapshot_rows = await dweller_crud.get_tick_snapshot(db_session, vault_id)
+                results["updates"]["dweller_snapshot"] = [
                     {
-                        "event_id": str(game_state.last_tick_time.isoformat()),
-                        "type": "game_tick",
-                        "vault_id": str(vault_id),
-                        "results": results,
-                    },
-                )
+                        "id": str(row.id),
+                        "health": row.health,
+                        "max_health": row.max_health,
+                        "radiation": row.radiation,
+                        "happiness": row.happiness,
+                        "level": row.level,
+                        "experience": row.experience,
+                        "status": row.status.value,
+                        "room_id": str(row.room_id) if row.room_id is not None else None,
+                        "is_dead": row.is_dead,
+                        "effective_max_health": max(
+                            1,
+                            row.max_health
+                            + (pet_effect_for_name(row.pet_name).max_health if row.pet_name else 0)
+                            - max(0, row.radiation),
+                        ),
+                    }
+                    for row in snapshot_rows
+                ]
+        except SQLAlchemyError:
+            await recover_session(db_session)
+            self.logger.exception("Error reading dweller snapshot for vault %s", vault_id)
+            game_state = await self._get_or_create_game_state(db_session, vault_id)
+            snapshot_ok = False
         except Exception:
-            self.logger.exception(f"Failed to publish SSE tick for vault {vault_id}")
+            self.logger.exception("Failed to build dweller snapshot for vault %s", vault_id)
+            snapshot_ok = False
+
+        if snapshot_ok:
+            try:
+                with tick_phase("sse"):
+                    await sse_manager.publish(
+                        vault_id,
+                        "game_ticks",
+                        {
+                            "event_id": str(game_state.last_tick_time.isoformat()),
+                            "type": "game_tick",
+                            "vault_id": str(vault_id),
+                            "results": results,
+                        },
+                    )
+            except Exception:
+                self.logger.exception(f"Failed to publish SSE tick for vault {vault_id}")
 
         if tick_id is not None:
             with tick_phase("completion_marker"):

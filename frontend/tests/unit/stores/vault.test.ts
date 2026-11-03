@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { nextTick, ref, type Ref } from 'vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
+import type { DwellerTickSnapshot } from '@/modules/dwellers/models/dweller'
 import { useToast } from '@/core/composables/useToast'
 import axios from '@/core/plugins/axios'
 import { useRouter } from 'vue-router'
@@ -20,6 +22,23 @@ vi.mock('vue-router', () => ({
 vi.mock('@/core/composables/useEventStream', () => ({
   useSse: () => sseMock,
 }))
+
+function tickSnapshot(overrides: Partial<DwellerTickSnapshot> = {}): DwellerTickSnapshot {
+  return {
+    id: 'd1',
+    health: 90,
+    max_health: 100,
+    radiation: 5,
+    happiness: 80,
+    level: 4,
+    experience: 12,
+    status: 'idle',
+    room_id: null,
+    is_dead: false,
+    effective_max_health: 95,
+    ...overrides,
+  }
+}
 
 describe('Vault Store', () => {
   let mockRouter: any
@@ -596,7 +615,7 @@ describe('Vault Store', () => {
       store.startGameTickSse('vault-2', 'test-token')
       ;(sseMock.event as Ref<{ event: string; data: unknown } | null>).value = {
         event: 'tick',
-        data: { updates: { crafting: { completed: 1 } } },
+        data: { results: { updates: { crafting: { completed: 1 } } } },
       }
       await nextTick()
 
@@ -613,15 +632,17 @@ describe('Vault Store', () => {
       ;(sseMock.event as Ref<{ event: string; data: unknown } | null>).value = {
         event: 'tick',
         data: {
-          seconds_passed: 60,
-          updates: {
-            resources: {
-              power: 60,
-              food: 75,
-              water: 86,
-              events: {
-                production: { power: 15, food: 2, water: 9 },
-                consumption: { power: 5, food: 7, water: 4 },
+          results: {
+            seconds_passed: 60,
+            updates: {
+              resources: {
+                power: 60,
+                food: 75,
+                water: 86,
+                events: {
+                  production: { power: 15, food: 2, water: 9 },
+                  consumption: { power: 5, food: 7, water: 4 },
+                },
               },
             },
           },
@@ -638,6 +659,147 @@ describe('Vault Store', () => {
       expect(store.resourceRates['vault-1']).toEqual({ power: 10, food: -5, water: 5 })
     })
 
+    it('ignores a flat tick payload without the results envelope', async () => {
+      const store = useVaultStore()
+      const { toasts } = useToast()
+      toasts.value = []
+      store.loadedVaults = { 'vault-1': mockVault }
+
+      store.startGameTickSse('vault-1', 'test-token')
+      ;(sseMock.event as Ref<{ event: string; data: unknown } | null>).value = {
+        event: 'tick',
+        data: { updates: { crafting: { completed: 1 } } },
+      }
+      await nextTick()
+
+      expect(toasts.value.some((t) => t.message === 'A workshop order is ready to collect')).toBe(
+        false
+      )
+      expect(store.loadedVaults['vault-1']).toEqual(mockVault)
+    })
+
+    it('applies the nested results envelope the backend publishes', async () => {
+      const store = useVaultStore()
+      store.loadedVaults = { 'vault-1': mockVault }
+
+      store.startGameTickSse('vault-1', 'test-token')
+      ;(sseMock.event as Ref<{ event: string; data: unknown } | null>).value = {
+        event: 'tick',
+        data: {
+          event_id: 'tick-1',
+          type: 'game_tick',
+          vault_id: 'vault-1',
+          results: {
+            vault_id: 'vault-1',
+            seconds_passed: 60,
+            updates: {
+              resources: {
+                power: 61,
+                food: 76,
+                water: 87,
+                events: {
+                  production: { power: 15, food: 2, water: 9 },
+                  consumption: { power: 5, food: 7, water: 4 },
+                },
+              },
+              crafting: { completed: 1 },
+            },
+          },
+        },
+      }
+      await nextTick()
+
+      expect(store.loadedVaults['vault-1']).toMatchObject({ power: 61, food: 76, water: 87 })
+      expect(store.resourceRates['vault-1']).toEqual({ power: 10, food: -5, water: 5 })
+    })
+
+    it('patches the live dweller roster from the nested dweller snapshot', async () => {
+      const store = useVaultStore()
+      const filterStore = useDwellerFilterStore()
+      store.activeVaultId = 'vault-1'
+      filterStore.allDwellers = [{ id: 'd1', first_name: 'John', health: 10 }] as never
+      filterStore.allDwellersLoadedVaultId = 'vault-1'
+
+      store.startGameTickSse('vault-1', 'test-token')
+      ;(sseMock.event as Ref<{ event: string; data: unknown } | null>).value = {
+        event: 'tick',
+        data: {
+          event_id: 'tick-1',
+          type: 'game_tick',
+          vault_id: 'vault-1',
+          results: {
+            vault_id: 'vault-1',
+            seconds_passed: 60,
+            updates: { dweller_snapshot: [tickSnapshot({ health: 90 })] },
+          },
+        },
+      }
+      await vi.waitFor(() => {
+        expect(filterStore.allDwellers[0]).toMatchObject({ health: 90, first_name: 'John' })
+      })
+    })
+
+    it('ignores a null payload and a non-array dweller snapshot', async () => {
+      const store = useVaultStore()
+      const filterStore = useDwellerFilterStore()
+      store.activeVaultId = 'vault-1'
+      filterStore.allDwellers = [{ id: 'd1', health: 10 }] as never
+      filterStore.allDwellersLoadedVaultId = 'vault-1'
+
+      store.startGameTickSse('vault-1', 'test-token')
+      const eventRef = sseMock.event as Ref<{ event: string; data: unknown } | null>
+      eventRef.value = { event: 'tick', data: null }
+      await nextTick()
+      eventRef.value = {
+        event: 'tick',
+        data: { results: { updates: { dweller_snapshot: 'not-an-array' } } },
+      }
+      await nextTick()
+
+      expect(filterStore.allDwellers).toHaveLength(1)
+      expect(filterStore.allDwellers[0]).toMatchObject({ health: 10 })
+    })
+
+    it('leaves the roster untouched when a tick carries no dweller snapshot', async () => {
+      const store = useVaultStore()
+      const filterStore = useDwellerFilterStore()
+      store.activeVaultId = 'vault-1'
+      filterStore.allDwellers = [{ id: 'd1', first_name: 'John', health: 10 }] as never
+      filterStore.allDwellersLoadedVaultId = 'vault-1'
+
+      store.startGameTickSse('vault-1', 'test-token')
+      ;(sseMock.event as Ref<{ event: string; data: unknown } | null>).value = {
+        event: 'tick',
+        data: { results: { updates: { resources: { power: 60, food: 75, water: 86 } } } },
+      }
+      await nextTick()
+
+      expect(filterStore.allDwellers).toHaveLength(1)
+      expect(filterStore.allDwellers[0]).toMatchObject({ health: 10 })
+    })
+
+    it('coalesces frames so the last dweller snapshot wins', async () => {
+      const store = useVaultStore()
+      const filterStore = useDwellerFilterStore()
+      store.activeVaultId = 'vault-1'
+      filterStore.allDwellers = [{ id: 'd1', health: 10 }] as never
+      filterStore.allDwellersLoadedVaultId = 'vault-1'
+
+      store.startGameTickSse('vault-1', 'test-token')
+      const eventRef = sseMock.event as Ref<{ event: string; data: unknown } | null>
+      eventRef.value = {
+        event: 'tick',
+        data: { results: { updates: { dweller_snapshot: [tickSnapshot({ health: 50 })] } } },
+      }
+      eventRef.value = {
+        event: 'tick',
+        data: { results: { updates: { dweller_snapshot: [tickSnapshot({ health: 70 })] } } },
+      }
+      await vi.waitFor(() => {
+        expect(filterStore.allDwellers[0]).toMatchObject({ health: 70 })
+      })
+    })
+
     it('toasts when a workshop order completes', async () => {
       const store = useVaultStore()
       const { toasts } = useToast()
@@ -648,8 +810,10 @@ describe('Vault Store', () => {
       ;(sseMock.event as Ref<{ event: string; data: unknown } | null>).value = {
         event: 'tick',
         data: {
-          seconds_passed: 60,
-          updates: { crafting: { completed: 2 } },
+          results: {
+            seconds_passed: 60,
+            updates: { crafting: { completed: 2 } },
+          },
         },
       }
       await nextTick()

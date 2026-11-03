@@ -14,7 +14,6 @@ import { notifyErrorOnce, handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { audioManager } from '@/core/audio/audioManager'
 import { useSse } from '@/core/composables/useEventStream'
-import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { usePolling } from '@/core/composables/usePolling'
@@ -330,8 +329,9 @@ export const useIncidentStore = defineStore('incident', () => {
     dwellerIds: string[],
     token: string
   ): Promise<void> {
-    const filterStore = useDwellerFilterStore()
     try {
+      const { useDwellerFilterStore } = await import('@/modules/dwellers/stores/dwellerFilter')
+      const filterStore = useDwellerFilterStore()
       const result = await incidentApi.assignResponders(vaultId, incidentId, dwellerIds, token)
       await fetchIncidents(vaultId, token)
       await fetchIncidentTeam(vaultId, incidentId, token)
@@ -421,7 +421,15 @@ export const useIncidentStore = defineStore('incident', () => {
                 })
             }
             sseConnected.value = true
-            void useDwellerFilterStore().fetchDwellersByVault(vaultId, token)
+            void import('@/modules/dwellers/stores/dwellerFilter')
+              .then(({ useDwellerFilterStore }) => {
+                const currentVaultId = useVaultStore().activeVaultId
+                if (currentVaultId && currentVaultId !== vaultId) return
+                return useDwellerFilterStore().fetchDwellersByVault(vaultId, token)
+              })
+              .catch((error: unknown) => {
+                handleStoreError(error, 'Failed to refresh dwellers after incident spawn', false)
+              })
             void fetchIncidents(vaultId, token)
             break
 

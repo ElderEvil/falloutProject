@@ -7,6 +7,7 @@ import { handleStoreError } from '@/core/utils/errorHandler'
 import { useSse } from '@/core/composables/useEventStream'
 import { useToast } from '@/core/composables/useToast'
 import { useStorageStore } from '@/modules/storage/stores/storage'
+import type { DwellerTickSnapshot } from '@/modules/dwellers/models/dweller'
 import type { components } from '@/core/types/api.generated'
 
 // Use generated API types
@@ -36,10 +37,12 @@ interface CraftingTickUpdate {
 }
 
 interface GameTickUpdate {
+  vault_id?: string
   seconds_passed?: number
   updates?: {
     resources?: ResourceTickUpdate
     crafting?: CraftingTickUpdate
+    dweller_snapshot?: DwellerTickSnapshot[]
   }
 }
 
@@ -418,8 +421,10 @@ export const useVaultStore = defineStore('vault', () => {
       (evt) => {
         if (!evt || evt.event !== 'tick') return
         useStorageStore().refreshIfActive(vaultId)
-        const tickData = evt.data as GameTickUpdate | undefined
-        const resourceUpdate = tickData?.updates?.resources
+        const tickData = (evt.data as { results?: GameTickUpdate } | null | undefined)?.results
+        if (!tickData) return
+        if (tickData.vault_id && tickData.vault_id !== vaultId) return
+        const resourceUpdate = tickData.updates?.resources
         const vault = loadedVaults.value[vaultId]
         if (resourceUpdate && vault) {
           const resourceValues = Object.fromEntries(
@@ -429,7 +434,7 @@ export const useVaultStore = defineStore('vault', () => {
           ) as Partial<Pick<VaultWithNumbers, ResourceName>>
           loadedVaults.value[vaultId] = { ...vault, ...resourceValues }
 
-          const secondsPassed = tickData?.seconds_passed
+          const secondsPassed = tickData.seconds_passed
           if (typeof secondsPassed === 'number' && secondsPassed > 0) {
             const production = resourceUpdate.events?.production ?? {}
             const consumption = resourceUpdate.events?.consumption ?? {}
@@ -443,13 +448,28 @@ export const useVaultStore = defineStore('vault', () => {
         }
 
         // A finished workshop order surfaces beyond the bell (progression red line).
-        const completedOrders = tickData?.updates?.crafting?.completed ?? 0
+        const completedOrders = tickData.updates?.crafting?.completed ?? 0
         if (completedOrders > 0) {
           toast.success(
             completedOrders === 1
               ? 'A workshop order is ready to collect'
               : `${completedOrders} workshop orders are ready to collect`
           )
+        }
+
+        const dwellerSnapshot = tickData.updates?.dweller_snapshot
+        if (Array.isArray(dwellerSnapshot)) {
+          const generation = sessionGeneration
+          void import('@/modules/dwellers/stores/dwellerFilter')
+            .then(({ useDwellerFilterStore }) => {
+              if (sessionGeneration !== generation) return
+              if (streamingVaultId !== vaultId) return
+              if (activeVaultId.value && activeVaultId.value !== vaultId) return
+              useDwellerFilterStore().applyDwellerTick(vaultId, dwellerSnapshot, token)
+            })
+            .catch((error: unknown) => {
+              handleStoreError(error, 'Failed to load the dweller tick applier', false)
+            })
         }
       }
     )

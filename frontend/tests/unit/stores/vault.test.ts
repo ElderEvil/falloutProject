@@ -734,9 +734,9 @@ describe('Vault Store', () => {
           },
         },
       }
-      await nextTick()
-
-      expect(filterStore.allDwellers[0]).toMatchObject({ health: 90, first_name: 'John' })
+      await vi.waitFor(() => {
+        expect(filterStore.allDwellers[0]).toMatchObject({ health: 90, first_name: 'John' })
+      })
     })
 
     it('ignores a null payload and a non-array dweller snapshot', async () => {
@@ -795,9 +795,9 @@ describe('Vault Store', () => {
         event: 'tick',
         data: { results: { updates: { dweller_snapshot: [tickSnapshot({ health: 70 })] } } },
       }
-      await nextTick()
-
-      expect(filterStore.allDwellers[0]).toMatchObject({ health: 70 })
+      await vi.waitFor(() => {
+        expect(filterStore.allDwellers[0]).toMatchObject({ health: 70 })
+      })
     })
 
     it('toasts when a workshop order completes', async () => {

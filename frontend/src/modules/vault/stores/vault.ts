@@ -8,7 +8,6 @@ import { useSse } from '@/core/composables/useEventStream'
 import { useToast } from '@/core/composables/useToast'
 import { useStorageStore } from '@/modules/storage/stores/storage'
 import type { DwellerTickSnapshot } from '@/modules/dwellers/models/dweller'
-import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import type { components } from '@/core/types/api.generated'
 
 // Use generated API types
@@ -460,7 +459,15 @@ export const useVaultStore = defineStore('vault', () => {
 
         const dwellerSnapshot = tickData.updates?.dweller_snapshot
         if (Array.isArray(dwellerSnapshot)) {
-          useDwellerFilterStore().applyDwellerTick(vaultId, dwellerSnapshot, token)
+          const generation = sessionGeneration
+          void import('@/modules/dwellers/stores/dwellerFilter').then(
+            ({ useDwellerFilterStore }) => {
+              if (sessionGeneration !== generation) return
+              if (streamingVaultId !== vaultId) return
+              if (activeVaultId.value && activeVaultId.value !== vaultId) return
+              useDwellerFilterStore().applyDwellerTick(vaultId, dwellerSnapshot, token)
+            }
+          )
         }
       }
     )

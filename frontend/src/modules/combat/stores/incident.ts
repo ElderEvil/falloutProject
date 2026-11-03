@@ -14,7 +14,6 @@ import { notifyErrorOnce, handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { audioManager } from '@/core/audio/audioManager'
 import { useSse } from '@/core/composables/useEventStream'
-import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { usePolling } from '@/core/composables/usePolling'
@@ -330,6 +329,7 @@ export const useIncidentStore = defineStore('incident', () => {
     dwellerIds: string[],
     token: string
   ): Promise<void> {
+    const { useDwellerFilterStore } = await import('@/modules/dwellers/stores/dwellerFilter')
     const filterStore = useDwellerFilterStore()
     try {
       const result = await incidentApi.assignResponders(vaultId, incidentId, dwellerIds, token)
@@ -421,7 +421,9 @@ export const useIncidentStore = defineStore('incident', () => {
                 })
             }
             sseConnected.value = true
-            void useDwellerFilterStore().fetchDwellersByVault(vaultId, token)
+            void import('@/modules/dwellers/stores/dwellerFilter').then(
+              ({ useDwellerFilterStore }) => useDwellerFilterStore().fetchDwellersByVault(vaultId, token)
+            )
             void fetchIncidents(vaultId, token)
             break
 

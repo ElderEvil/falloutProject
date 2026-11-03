@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { Button } from '@/core/components/ui/button'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import { useFallbackImage } from '@/modules/rooms/composables/useFallbackImage'
 import { getStaticImageUrl } from '@/core/utils/image'
@@ -195,12 +196,14 @@ const answer = (id: string) => {
       aria-label="Answer options"
     >
       <div class="flex flex-col gap-2">
-        <button
+        <Button
           v-for="option in options"
           :key="option.id"
+          variant="ghost"
+          size="lg"
           type="button"
           :disabled="busy"
-          class="relative w-full rounded-lg border-2 border-theme-primary/70 bg-surface-sunken px-4 py-2.5 text-left text-sm font-semibold text-theme-primary transition-colors duration-150 hover:border-theme-primary hover:bg-theme-primary/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+          class="relative h-auto w-full justify-start rounded-lg border-2 border-theme-primary/70 bg-surface-sunken px-4 py-2.5 text-left text-sm font-semibold text-theme-primary hover:border-theme-primary hover:bg-theme-primary/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
           @click="answer(option.id)"
         >
           <span
@@ -208,7 +211,7 @@ const answer = (id: string) => {
             aria-hidden="true"
           ></span>
           {{ option.label }}
-        </button>
+        </Button>
       </div>
       <p
         v-if="busy"

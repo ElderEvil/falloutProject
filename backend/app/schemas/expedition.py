@@ -102,6 +102,7 @@ class SiteNode(BaseModel):
     enemies: list[EnemySpec] = Field(default_factory=list)
     options: list[NodeOption] = Field(default_factory=list)
     trivia_questions: list[TriviaQuestion] = Field(default_factory=list)
+    trivia_question_count: int = Field(default=1, ge=1, le=5)
     stat: str | None = None
     difficulty: int | None = Field(default=None, ge=1, le=5)
     damage_min: int | None = None
@@ -117,6 +118,8 @@ class SiteNode(BaseModel):
         question_ids = [question.id for question in self.trivia_questions]
         if len(set(question_ids)) != len(question_ids):
             raise ValueError("trivia node has duplicate question ids")
+        if self.trivia_question_count > len(question_ids):
+            raise ValueError("trivia question count exceeds the authored question pool")
         if not self.enemies:
             raise ValueError("trivia node needs enemies for wrong answers")
         return self
@@ -167,6 +170,7 @@ class SiteDefinition(BaseModel):
     coord_x: float = Field(ge=0, le=100)
     coord_y: float = Field(ge=0, le=100)
     min_dweller_level: int = Field(ge=1)
+    offer_weight: float = Field(default=1.0, gt=0, le=5)
     rooms: list[SiteRoom] = Field(default_factory=list)
     # Original rooms remain readable for already-saved runs. New spatial visits
     # resolve this single encounter and award the site's haul in the same transaction.
@@ -217,6 +221,9 @@ class SiteNodeView(BaseModel):
     kind: str
     prompt: str
     question: str | None = None
+    question_id: str | None = None
+    question_index: int | None = None
+    question_total: int | None = None
     raider_image_url: str | None = None
     raider_alt_image_url: str | None = None
     options: list[NodeOptionView] = Field(default_factory=list)
@@ -297,6 +304,7 @@ class ExpeditionResolveRequest(BaseModel):
     """Resolve the current node; choice_id required for choice/trap-with-options nodes."""
 
     choice_id: str | None = None
+    question_id: str | None = None
     use_skill: bool = False
     expected_round: int | None = Field(default=None, ge=0)
 

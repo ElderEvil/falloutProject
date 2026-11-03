@@ -20,8 +20,11 @@ def _apply_damage(
     *,
     seconds_passed: int,
     cap_multiplier: float,
+    cap_fraction_per_second: float = 0.05,
+    scale_cap_with_skill: bool = True,
 ) -> None:
-    capped = min(damage, target.max_health * 0.05 * max(0, seconds_passed) * cap_multiplier)
+    cap = cap_multiplier if scale_cap_with_skill else 1.0
+    capped = min(damage, target.max_health * cap_fraction_per_second * max(0, seconds_passed) * cap)
     carried = carry.get(target.key, 0.0) + capped
     total = int(carried)
     carry[target.key] = carried - total
@@ -34,6 +37,9 @@ def resolve_attacks(
     seconds_passed: int,
     queued: set[str],
     carry: dict[str, float],
+    *,
+    cap_fraction_per_second: float = 0.05,
+    scale_cap_with_skill: bool = True,
 ) -> list[ResolvedAttack]:
     """Resolve one team's turn; consume queued skills only when that fighter attacks."""
     attacks: list[ResolvedAttack] = []
@@ -56,7 +62,15 @@ def resolve_attacks(
             messages: list[str] = []
             for target in targets:
                 before = target.health
-                _apply_damage(target, damage, carry, seconds_passed=seconds_passed, cap_multiplier=multiplier)
+                _apply_damage(
+                    target,
+                    damage,
+                    carry,
+                    seconds_passed=seconds_passed,
+                    cap_multiplier=multiplier,
+                    cap_fraction_per_second=cap_fraction_per_second,
+                    scale_cap_with_skill=scale_cap_with_skill,
+                )
                 dealt = before - target.health
                 if dealt > 0 or attack_skill:
                     impacts.append(

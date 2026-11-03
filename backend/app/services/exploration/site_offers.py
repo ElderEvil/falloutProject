@@ -58,7 +58,7 @@ async def journey_offer_context(db_session: AsyncSession, exploration: Explorati
 def site_is_offered(site: SiteDefinition, context: JourneyOfferContext) -> bool:
     """True when a spatial journey offers *site*: near its trail and not yet consumed."""
     return site.id not in context.consumed_site_ids and world_terrain.path_passes_near(
-        context.trail, (site.coord_x, site.coord_y), context.radius
+        context.trail, (site.coord_x, site.coord_y), context.radius * site.offer_weight
     )
 
 

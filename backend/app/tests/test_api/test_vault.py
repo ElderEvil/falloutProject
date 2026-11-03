@@ -503,7 +503,8 @@ async def test_vault_scenarios_list_vault_1(
             "title": "Vault 1 — Wasteland Test",
             "description": (
                 "Boosted by default. Seeds one named dweller per expedition site, each already "
-                "scouting with its site reported in the bell. Starter objectives skipped."
+                "scouting with its site reported in the bell, at mixed levels with varied weapons and pets. "
+                "Starter objectives skipped."
             ),
             "requires_boosted": False,
             "default_boosted": True,

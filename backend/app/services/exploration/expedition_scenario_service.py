@@ -57,6 +57,7 @@ class ExpeditionScenarioResult:
     created_vault: bool
     owner_email: str | None = None
     discovered_site_id: str | None = None
+    loadout: str = ""
 
 
 @dataclass
@@ -103,6 +104,11 @@ VAULT_ONE_DWELLERS = (
     ("Mira", "Sato", GenderEnum.FEMALE, (5, 4, 5, 6, 6, 5, 4)),
     ("Nolan", "Cross", GenderEnum.MALE, (6, 5, 6, 4, 4, 5, 5)),
 )
+
+
+VARIETY_LEVELS = (5, 10, 15, 20)
+VARIETY_WEAPONS = (None, "melee", "gun", None, "energy", "heavy")
+VARIETY_PET_EVERY = 4
 
 
 def default_multi_site_ids() -> list[str]:
@@ -243,6 +249,7 @@ class ExpeditionScenarioService:
         recreate: bool = False,
         discover: bool = True,
         outbound_hours: int = 8,
+        variety: bool = False,
     ) -> ExpeditionScenarioMultiResult:
         """Seed a vault with named dwellers, each scouting one expedition site.
 
@@ -264,11 +271,12 @@ class ExpeditionScenarioService:
         dwellers = max(1, min(len(VAULT_ONE_DWELLERS), dwellers))
         dweller_level = max(1, min(50, dweller_level))
         duration_hours = max(1, min(24, duration_hours))
+        effective_level = min(VARIETY_LEVELS) if variety else dweller_level
         for site_id in site_ids:
             site = data_loader.get_expedition_site(site_id)
             if site is None:
                 raise ValueError(f"Unknown expedition site: {site_id!r}")
-            if dweller_level < site.min_dweller_level:
+            if effective_level < site.min_dweller_level:
                 raise ValueError(f"{site.name} needs dweller level {site.min_dweller_level}")
 
         if vault_id is not None:
@@ -311,7 +319,8 @@ class ExpeditionScenarioService:
                 first_name=first_name,
                 last_name=last_name,
             )
-            levels = dweller_level - dweller.level
+            target_level = VARIETY_LEVELS[index % len(VARIETY_LEVELS)] if variety else dweller_level
+            levels = target_level - dweller.level
             if levels > 0:
                 await leveling_service.level_up_dweller(db_session, dweller, levels=levels)
             site_id = site_ids[index % len(site_ids)]
@@ -326,6 +335,22 @@ class ExpeditionScenarioService:
                 stimpaks=0,
                 radaways=0,
             )
+            # Stage variety equipment only after departure succeeds, so a failed
+            # send cannot commit gear onto a dweller with no exploration.
+            loadout = ""
+            if variety:
+                weapon_type = VARIETY_WEAPONS[index % len(VARIETY_WEAPONS)]
+                weapon_name = (
+                    await self._equip_variety_weapon(db_session, dweller, weapon_type)
+                    if weapon_type is not None
+                    else None
+                )
+                pet_name = (
+                    await self._equip_variety_pet(db_session, dweller, index)
+                    if index % VARIETY_PET_EVERY == 0
+                    else None
+                )
+                loadout = ", ".join(part for part in (weapon_name, pet_name) if part) or "unarmed"
             if discover:
                 travel_hours = self._stage_trail_to_site(exploration, site)
                 exploration.duration = _outbound_duration(travel_hours, outbound_hours)
@@ -353,6 +378,7 @@ class ExpeditionScenarioService:
                     created_vault=created_vault,
                     owner_email=owner_email,
                     discovered_site_id=site.id if discover else None,
+                    loadout=loadout,
                 )
             )
         return ExpeditionScenarioMultiResult(
@@ -495,6 +521,38 @@ class ExpeditionScenarioService:
             ),
             content_provenance=ContentProvenanceEnum.GENERATED,
         )
+
+    @staticmethod
+    async def _equip_variety_weapon(db_session: AsyncSession, dweller: Dweller, weapon_type: str) -> str | None:
+        from app.services.catalog_service import load_weapons
+        from app.utils.item_factory import build_weapon
+
+        candidates = [weapon for weapon in load_weapons() if str(weapon.get("weapon_type", "")).lower() == weapon_type]
+        if not candidates:
+            return None
+        data = candidates[len(candidates) // 2]
+        weapon = build_weapon(data, data["rarity"])
+        weapon.dweller_id = dweller.id
+        db_session.add(weapon)
+        await db_session.flush()
+        db_session.expire(dweller, ["weapon"])
+        return weapon.name
+
+    @staticmethod
+    async def _equip_variety_pet(db_session: AsyncSession, dweller: Dweller, index: int) -> str | None:
+        from app.services.catalog_service import load_pets
+        from app.utils.item_factory import build_pet
+
+        pets = load_pets()
+        if not pets:
+            return None
+        data = pets[index % len(pets)]
+        pet = build_pet(data, data["rarity"])
+        pet.dweller_id = dweller.id
+        db_session.add(pet)
+        await db_session.flush()
+        db_session.expire(dweller, ["pet"])
+        return pet.name
 
     @staticmethod
     async def _preclear_site(

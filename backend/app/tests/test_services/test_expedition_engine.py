@@ -682,11 +682,13 @@ async def test_legacy_journey_picker_matches_actual_entry_mode(async_session, si
 
 
 async def _open_trivia_question(async_session: AsyncSession, exploration_id):
-    """The question pinned on the open trivia run, plus the run row."""
+    """The next unanswered question on the open trivia run, plus the run row."""
     run = await crud.expedition_run.get_open_for_exploration(async_session, exploration_id)
     site = data_loader.get_expedition_site(run.site_id)
-    question_id = next(iter(run.flags["trivia_questions"].values()))
-    question = next(question for question in site.encounter.node.trivia_questions if question.id == question_id)
+    pinned = next(iter(run.flags["trivia_questions"].values()))
+    ids = [pinned] if isinstance(pinned, str) else pinned
+    answered = next(iter(run.flags.get("trivia_answered", {}).values()), 0)
+    question = next(question for question in site.encounter.node.trivia_questions if question.id == ids[answered])
     return question, run
 
 
@@ -729,14 +731,21 @@ async def test_trivia_entry_persists_one_question_without_the_answer_key(async_s
 @pytest.mark.asyncio
 async def test_trivia_correct_answer_pays_once(async_session: AsyncSession):
     _, _, exploration = await _make_exploration(async_session, level=5)
-    await expedition_service.enter_run(async_session, exploration.id, "raider_tollbooth")
-    question, run = await _open_trivia_question(async_session, exploration.id)
-    raider = await _open_trivia_raider(run)
+    entry = await expedition_service.enter_run(async_session, exploration.id, "raider_tollbooth")
     before_caps = (await crud.exploration.get(async_session, exploration.id)).total_caps_found
 
-    view = await expedition_service.resolve_node(
-        async_session, exploration.id, ExpeditionResolveRequest(choice_id=question.correct_option_id)
-    )
+    view = None
+    for _ in range(entry.node.question_total or 1):
+        question, run = await _open_trivia_question(async_session, exploration.id)
+        raider = await _open_trivia_raider(run)
+        view = await expedition_service.resolve_node(
+            async_session,
+            exploration.id,
+            ExpeditionResolveRequest(choice_id=question.correct_option_id, question_id=question.id),
+        )
+        if view.status != "in_room":
+            break
+    assert view is not None
     assert view.status == "cleared"
     assert view.finale_paid is True
     assert view.outcome is not None
@@ -748,7 +757,9 @@ async def test_trivia_correct_answer_pays_once(async_session: AsyncSession):
     assert after_caps > before_caps
     with pytest.raises((ResourceConflictException, ValidationException)):
         await expedition_service.resolve_node(
-            async_session, exploration.id, ExpeditionResolveRequest(choice_id=question.correct_option_id)
+            async_session,
+            exploration.id,
+            ExpeditionResolveRequest(choice_id=question.correct_option_id, question_id=question.id),
         )
     assert (await crud.exploration.get(async_session, exploration.id)).total_caps_found == after_caps
 
@@ -757,11 +768,13 @@ async def test_trivia_correct_answer_pays_once(async_session: AsyncSession):
 async def test_trivia_invalid_answer_leaves_the_encounter_untouched(async_session: AsyncSession):
     _, _, exploration = await _make_exploration(async_session, level=5)
     await expedition_service.enter_run(async_session, exploration.id, "raider_tollbooth")
-    _, run = await _open_trivia_question(async_session, exploration.id)
+    question, run = await _open_trivia_question(async_session, exploration.id)
 
     with pytest.raises(ValidationException, match="Unknown answer"):
         await expedition_service.resolve_node(
-            async_session, exploration.id, ExpeditionResolveRequest(choice_id="not-an-option")
+            async_session,
+            exploration.id,
+            ExpeditionResolveRequest(choice_id="not-an-option", question_id=question.id),
         )
 
     run_after = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
@@ -780,7 +793,7 @@ async def test_trivia_wrong_answer_starts_combat_then_pays_on_a_win(async_sessio
     wrong_id = next(option.id for option in question.options if option.id != question.correct_option_id)
 
     view = await expedition_service.resolve_node(
-        async_session, exploration.id, ExpeditionResolveRequest(choice_id=wrong_id)
+        async_session, exploration.id, ExpeditionResolveRequest(choice_id=wrong_id, question_id=question.id)
     )
     assert view.status == "in_room"
     assert view.combat_state is not None
@@ -814,3 +827,133 @@ async def test_trivia_wrong_answer_starts_combat_then_pays_on_a_win(async_sessio
     assert view.finale_paid is True
     assert view.outcome is not None
     assert view.outcome.caps_gained >= 40
+
+
+@pytest.mark.asyncio
+async def test_scene_combat_damage_is_not_floored_to_one(async_session: AsyncSession):
+    """A scaled site enemy must lose more than a token 1 HP per connecting hit."""
+    stats = dict.fromkeys(("strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"), 8)
+    _, _, exploration = await _make_exploration(async_session, level=10, stats=stats)
+    view = await expedition_service.enter_run(async_session, exploration.id, "gloomwater_bog")
+    assert view.combat_state is not None
+    damages: list[int] = []
+    turns = 0
+    for _ in range(30):
+        if view.status != "in_room":
+            break
+        view = await expedition_service.resolve_node(async_session, exploration.id, ExpeditionResolveRequest())
+        turns += 1
+        damages.extend(
+            int(event.message.rsplit(" for ", 1)[1]) for event in view.combat_state.events if " for " in event.message
+        )
+    assert damages
+    assert max(damages) > 1, f"site combat still floors damage to 1: {damages}"
+    assert turns <= 8, f"scaled site fight took {turns} turns"
+
+
+def test_higher_level_sites_field_two_enemies():
+    """High-level sites should present a pack, not a lone enemy."""
+    from app.services.exploration.site_combat_service import initial_combat
+
+    for site_id in ("super_duper_mart", "gloomwater_bog_night"):
+        site = data_loader.get_expedition_site(site_id)
+        assert site is not None
+        assert len(initial_combat(site)["opponents"]) == 2
+
+
+def test_trivia_options_are_not_left_in_authored_order():
+    """The answer key is always option index 0 in content; ordering must break that."""
+    from types import SimpleNamespace
+    from uuid import uuid4
+
+    from app.services.exploration.trivia import ordered_options
+
+    site = data_loader.get_expedition_site("raider_tollbooth")
+    assert site is not None
+    question = site.encounter.node.trivia_questions[0]
+    positions = {
+        [option.id for option in ordered_options(SimpleNamespace(id=uuid4()), question)].index(
+            question.correct_option_id
+        )
+        for _ in range(24)
+    }
+    assert len(positions) > 1, f"correct answer never moved from one slot: {positions}"
+
+
+def test_trivia_difficulty_weights_toward_the_site_level():
+    """Hard questions should be rarer at easy sites and common at hard sites."""
+    from app.services.exploration.trivia import question_weight
+
+    assert question_weight(1, 1) > question_weight(5, 1)
+    assert question_weight(5, 5) > question_weight(1, 5)
+
+
+@pytest.mark.asyncio
+async def test_trivia_encounter_can_ask_multiple_questions(async_session: AsyncSession):
+    """A trivia site can require several correct answers before it pays."""
+    _, _, exploration = await _make_exploration(async_session, level=10)
+    entry = await expedition_service.enter_run(async_session, exploration.id, "raider_tollbooth")
+    assert entry.node.kind == "trivia"
+    assert entry.node.question_total is not None
+    assert entry.node.question_total >= 2
+    assert entry.node.question_index == 1
+
+    first_question, run = await _open_trivia_question(async_session, exploration.id)
+    view = await expedition_service.resolve_node(
+        async_session,
+        exploration.id,
+        ExpeditionResolveRequest(choice_id=first_question.correct_option_id, question_id=first_question.id),
+    )
+    assert view.status == "in_room"
+    assert view.finale_paid is False
+    assert view.node.question
+    assert view.node.question != entry.node.question
+    assert view.node.question_index == 2
+    assert view.node.options
+
+    second_question, _ = await _open_trivia_question(async_session, exploration.id)
+    assert second_question.id != first_question.id
+    cleared = await expedition_service.resolve_node(
+        async_session,
+        exploration.id,
+        ExpeditionResolveRequest(choice_id=second_question.correct_option_id, question_id=second_question.id),
+    )
+    if entry.node.question_total == 2:
+        assert cleared.status == "cleared"
+        assert cleared.finale_paid is True
+
+
+@pytest.mark.asyncio
+async def test_trivia_rejects_a_stale_question(async_session: AsyncSession):
+    """A second tab answering an earlier question cannot resolve the current one."""
+    _, _, exploration = await _make_exploration(async_session, level=10)
+    await expedition_service.enter_run(async_session, exploration.id, "rusted_midway")
+    run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    room_id = next(iter(run.flags["trivia_questions"]))
+    run.flags = {
+        **run.flags,
+        "trivia_questions": {room_id: ["grognak", "silver_shroud"]},
+        "trivia_answered": {},
+    }
+    async_session.add(run)
+    await async_session.commit()
+
+    advanced = await expedition_service.resolve_node(
+        async_session,
+        exploration.id,
+        ExpeditionResolveRequest(choice_id="grognak", question_id="grognak"),
+    )
+    assert advanced.status == "in_room"
+    assert advanced.node.question_index == 2
+
+    with pytest.raises(ResourceConflictException):
+        await expedition_service.resolve_node(
+            async_session,
+            exploration.id,
+            ExpeditionResolveRequest(choice_id="grognak", question_id="grognak"),
+        )
+
+    run_after = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    assert run_after.status == ExpeditionRunStatus.IN_ROOM
+    assert "combat" not in run_after.flags
+    assert run_after.flags["trivia_answered"][room_id] == 1

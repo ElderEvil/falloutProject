@@ -588,3 +588,73 @@ async def test_vault_1_scenario_scouts_every_site_and_fits_capacity(async_sessio
     for exploration in explorations:
         assert exploration.status == ExplorationStatus.ACTIVE
         assert any(event.get("event") == "site_found" for event in exploration.events)
+
+    scout_ids = {exploration.dweller_id for exploration in explorations}
+    scouts = [dweller for dweller in dwellers if dweller.id in scout_ids]
+    assert {dweller.level for dweller in scouts} == {5, 10, 15, 20}
+    weapons = [await crud.weapon.get_equipped(async_session, dweller.id) for dweller in scouts]
+    assert any(weapon is None for weapon in weapons)
+    assert {weapon.weapon_type.value for weapon in weapons if weapon is not None} == {
+        "melee",
+        "gun",
+        "energy",
+        "heavy",
+    }
+    pets = [await crud.pet.get_equipped(async_session, dweller.id) for dweller in scouts]
+    assert any(pet is not None for pet in pets)
+    assert sum(pet is not None for pet in pets) < len(scouts) // 2
+
+
+@pytest.mark.asyncio
+async def test_setup_multi_variety_spans_levels_weapons_and_sparse_pets(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    result = await expedition_scenario_service.setup_multi(
+        async_session,
+        vault_id=vault.id,
+        dwellers=8,
+        dweller_level=5,
+        duration_hours=8,
+        variety=True,
+    )
+
+    assert [entry.dweller.level for entry in result.entries] == [5, 10, 15, 20, 5, 10, 15, 20]
+    weapons = [await crud.weapon.get_equipped(async_session, entry.dweller.id) for entry in result.entries]
+    assert [weapon.weapon_type.value if weapon else None for weapon in weapons] == [
+        None,
+        "melee",
+        "gun",
+        None,
+        "energy",
+        "heavy",
+        None,
+        "melee",
+    ]
+    pets = [await crud.pet.get_equipped(async_session, entry.dweller.id) for entry in result.entries]
+    assert [pet is not None for pet in pets] == [True, False, False, False, True, False, False, False]
+    assert result.entries[3].loadout == "unarmed"
+
+
+@pytest.mark.asyncio
+async def test_setup_multi_variety_does_not_equip_when_departure_fails(
+    async_session: AsyncSession, vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fail_send_dweller(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("departure failed")
+
+    monkeypatch.setattr(exploration_service, "send_dweller", fail_send_dweller)
+
+    with pytest.raises(RuntimeError, match="departure failed"):
+        await expedition_scenario_service.setup_multi(
+            async_session,
+            vault_id=vault.id,
+            dwellers=2,
+            dweller_level=5,
+            duration_hours=8,
+            variety=True,
+        )
+
+    dwellers = await crud.dweller.get_all_in_vault(async_session, vault.id)
+    assert dwellers
+    assert [await crud.weapon.get_equipped(async_session, dweller.id) for dweller in dwellers] == [None] * len(dwellers)
+    assert [await crud.pet.get_equipped(async_session, dweller.id) for dweller in dwellers] == [None] * len(dwellers)

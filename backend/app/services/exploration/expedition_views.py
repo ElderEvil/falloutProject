@@ -13,7 +13,13 @@ from app.schemas.expedition import (
 from app.services.exploration.checks import stat_value, success_odds
 from app.services.exploration.runs import rooms_for_run
 from app.services.exploration.site_combat_service import combat_view
-from app.services.exploration.trivia import trivia_question, trivia_raider
+from app.services.exploration.trivia import (
+    ordered_options,
+    trivia_answered,
+    trivia_question,
+    trivia_question_total,
+    trivia_raider,
+)
 
 
 def build_view(
@@ -36,6 +42,9 @@ def build_view(
             run.is_open() and pending is not None and pending.get("room_id") == room.id
         )
     question_text: str | None = None
+    question_id: str | None = None
+    question_index: int | None = None
+    question_total: int | None = None
     prompt = room.node.prompt
     raider = trivia_raider(room, run) if room.node.kind == "trivia" else None
     raider_image_url = raider.image_url if raider is not None else None
@@ -46,7 +55,10 @@ def build_view(
         question = trivia_question(room, run)
         if question is not None and run.is_open() and not run.flags.get("combat"):
             question_text = question.prompt
-            options = [NodeOptionView(id=option.id, label=option.label) for option in question.options]
+            question_id = question.id
+            question_index = trivia_answered(room, run) + 1
+            question_total = trivia_question_total(room, run)
+            options = [NodeOptionView(id=option.id, label=option.label) for option in ordered_options(run, question)]
         else:
             options = []
     else:
@@ -82,6 +94,9 @@ def build_view(
             kind=room.node.kind,
             prompt=prompt,
             question=question_text,
+            question_id=question_id,
+            question_index=question_index,
+            question_total=question_total,
             raider_image_url=raider_image_url,
             raider_alt_image_url=raider_alt_image_url,
             options=options,

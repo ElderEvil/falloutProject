@@ -38,6 +38,13 @@ def test_sites_load_and_validate():
             assert site.rooms[-1].node.kind == "finale"
 
 
+def test_raider_tollbooth_offer_weight_is_boosted():
+    tollbooth = data_loader.get_expedition_site("raider_tollbooth")
+    assert tollbooth is not None
+    assert tollbooth.offer_weight == 2.0
+    assert data_loader.get_expedition_site("super_duper_mart").offer_weight == 1.0
+
+
 def test_red_rocket_shape():
     site = data_loader.get_expedition_site("red_rocket")
     assert site is not None
@@ -240,3 +247,83 @@ def test_catalog_rejects_invalid_encounter_before_returning_sites(tmp_path, monk
                 data_loader.load_expedition_sites()
         finally:
             data_loader.load_expedition_sites.cache_clear()
+
+
+LEVELS = (5, 10, 15, 20)
+WEAPON_TYPES = (None, "melee", "gun", "energy", "heavy")
+
+
+def _matrix_dweller(level: int, weapon_type: str | None):
+    from app.models.dweller import Dweller
+    from app.services.catalog_service import load_weapons
+    from app.tests.factory.dwellers import create_rush_dweller_payload
+    from app.utils.item_factory import build_weapon
+
+    payload = create_rush_dweller_payload(strength=5, luck=5, intelligence=5) | {
+        "level": level,
+        "max_health": 100 + 5 * (level - 1),
+        "health": 100 + 5 * (level - 1),
+        "radiation": 0,
+        "perception": 5,
+        "endurance": 5,
+        "charisma": 5,
+        "agility": 5,
+    }
+    dweller = Dweller(**payload)
+    if weapon_type is not None:
+        candidates = [weapon for weapon in load_weapons() if str(weapon.get("weapon_type", "")).lower() == weapon_type]
+        data = candidates[len(candidates) // 2]
+        dweller.weapon = build_weapon(data, data["rarity"])
+    return dweller
+
+
+@pytest.mark.parametrize("level", LEVELS)
+@pytest.mark.parametrize("weapon_type", WEAPON_TYPES)
+def test_scene_balance_matrix(level, weapon_type):
+    from app.services.exploration.site_combat_service import initial_combat, resolve_turn
+
+    dweller = _matrix_dweller(level, weapon_type)
+    for site in data_loader.load_expedition_sites():
+        if site.scenario_only or site.encounter is None or site.min_dweller_level > level:
+            continue
+        dweller.health = dweller.effective_max_health
+        state = initial_combat(site)
+        won = lost = False
+        turns = 0
+        for _ in range(200):
+            state, won, lost, _ = resolve_turn(state, dweller, use_skill=False)
+            turns += 1
+            if won or lost:
+                break
+        label = f"{site.id} level={level} weapon={weapon_type}"
+        assert won, f"{label}: lost"
+        assert dweller.health >= 0.6 * dweller.max_health, f"{label}: health {dweller.health}"
+        assert turns <= 20, f"{label}: {turns} turns"
+        damages = [
+            int(event["message"].rsplit(" for ", 1)[1]) for event in state["events"] if " for " in event["message"]
+        ]
+        assert max(damages) > 1, f"{label}: damage still 1"
+
+
+@pytest.mark.parametrize("level", [5, 20])
+def test_scene_balance_with_equipped_pet(level):
+    from app.services.catalog_service import load_pets
+    from app.services.exploration.site_combat_service import initial_combat, resolve_turn
+    from app.utils.item_factory import build_pet
+
+    dweller = _matrix_dweller(level, "gun")
+    data = load_pets()[0]
+    dweller.pet = build_pet(data, data["rarity"])
+    for site in data_loader.load_expedition_sites():
+        if site.scenario_only or site.encounter is None or site.min_dweller_level > level:
+            continue
+        dweller.health = dweller.effective_max_health
+        state = initial_combat(site)
+        won = lost = False
+        for _ in range(200):
+            state, won, lost, _ = resolve_turn(state, dweller, use_skill=False)
+            if won or lost:
+                break
+        assert won
+        assert not lost
+        assert dweller.health >= 0.6 * dweller.max_health

@@ -39,7 +39,9 @@ function previewCombat(combat = true): void {
   const desert = selectedScene.value === 'desert_highway'
   const enemy = desert
     ? { id: 'giant-radscorpion#0', name: 'Radscorpion' }
-    : selectedScene.value === 'supermarket_interior'
+    : selectedScene.value === 'supermarket_interior' ||
+        selectedScene.value === 'red_rocket' ||
+        selectedScene.value === 'raider_tollbooth'
       ? { id: 'raider#0', name: 'Raider' }
       : { id: 'feral-ghoul#0', name: 'Feral Ghoul' }
   store.room = {

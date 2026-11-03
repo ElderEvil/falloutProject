@@ -70,6 +70,8 @@ def _print_multi(result) -> None:
         typer.echo("Dweller:")
         gender = getattr(entry.dweller.gender, "value", entry.dweller.gender)
         typer.echo(f"  {entry.dweller.display_name} ({gender}, level {entry.dweller.level}, id {entry.dweller.id})")
+        if entry.loadout:
+            typer.echo(f"  loadout: {entry.loadout}")
         typer.echo(f"  exploration: {entry.exploration.id}")
         if site is not None:
             typer.echo(f"  site: {site.id} ({site.name})")
@@ -157,7 +159,15 @@ def vault1(
             help="How many named dwellers; default: one per selected site",
         ),
     ] = None,
-    dweller_level: Annotated[int, typer.Option("--dweller-level", min=1, max=50)] = 5,
+    dweller_level: Annotated[
+        int,
+        typer.Option(
+            "--dweller-level",
+            min=1,
+            max=50,
+            help="Level for a uniform seed; ignored with --variety (the default), which cycles 5/10/15/20",
+        ),
+    ] = 5,
     duration_hours: Annotated[
         int,
         typer.Option("--duration-hours", min=1, max=24, help="Legacy journey length in hours"),
@@ -187,6 +197,13 @@ def vault1(
         bool,
         typer.Option("--keep-existing", help="Reuse Vault 1 instead of recreating it"),
     ] = False,
+    variety: Annotated[
+        bool,
+        typer.Option(
+            "--variety/--no-variety",
+            help="Seed dwellers across levels 5/10/15/20 with mixed weapons and sparse pets",
+        ),
+    ] = True,
 ) -> None:
     """Create a fresh Vault 1 where every selected site is scouted and reported."""
     site_ids = [site.strip() for site in sites.split(",") if site.strip()] if sites else None
@@ -207,6 +224,7 @@ def vault1(
                 site_ids=site_ids,
                 recreate=not keep_existing,
                 outbound_hours=outbound_hours,
+                variety=variety,
             )
             _print_multi(result)
 

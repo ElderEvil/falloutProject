@@ -86,6 +86,36 @@ describe('Expedition Site Store', () => {
     expect(store.room).toEqual(nextRoom)
   })
 
+  it('reloads the current room when a resolve conflicts with an advanced question', async () => {
+    vi.mocked(expeditionSiteApi.enterSite).mockResolvedValue(mockRoom)
+    const store = useExpeditionSiteStore()
+    await store.enterSite('exploration-1', 'red_rocket')
+    const advancedRoom = { ...mockRoom, room_index: 1, room_name: 'Storefront' }
+    vi.mocked(expeditionSiteApi.resolveNode).mockRejectedValue({
+      response: { status: 409, data: { detail: 'This question has already advanced' } },
+    })
+    vi.mocked(expeditionSiteApi.getCurrentRoom).mockResolvedValue(advancedRoom)
+
+    await expect(store.resolveNode('exploration-1', 'opt-1')).rejects.toBeTruthy()
+
+    expect(expeditionSiteApi.getCurrentRoom).toHaveBeenCalledWith('exploration-1')
+    expect(store.room).toEqual(advancedRoom)
+  })
+
+  it('does not reload the room for non-conflict resolve failures', async () => {
+    vi.mocked(expeditionSiteApi.enterSite).mockResolvedValue(mockRoom)
+    const store = useExpeditionSiteStore()
+    await store.enterSite('exploration-1', 'red_rocket')
+    vi.mocked(expeditionSiteApi.resolveNode).mockRejectedValue({
+      response: { status: 500, data: { detail: 'boom' } },
+    })
+
+    await expect(store.resolveNode('exploration-1', 'opt-1')).rejects.toBeTruthy()
+
+    expect(expeditionSiteApi.getCurrentRoom).not.toHaveBeenCalled()
+    expect(store.room).toEqual(mockRoom)
+  })
+
   it('retreat stores the returned room', async () => {
     const retreatedRoom = { ...mockRoom, status: 'retreated' }
     vi.mocked(expeditionSiteApi.retreatSite).mockResolvedValue(retreatedRoom)

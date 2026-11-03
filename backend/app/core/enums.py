@@ -12,6 +12,9 @@ class ExpeditionSceneId(StrEnum):
     GLOOMWATER_BOG = "gloomwater_bog"
     GLOOMWATER_BOG_NIGHT = "gloomwater_bog_night"
     OUTSKIRTS_INTERCHANGE = "outskirts_interchange"
+    RED_ROCKET = "red_rocket"
+    RAIDER_TOLLBOOTH = "raider_tollbooth"
+    CAMP_SITE = "campsite"
 
 
 class CaseInsensitiveEnum(StrEnum):

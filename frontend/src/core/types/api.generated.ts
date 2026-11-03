@@ -8029,6 +8029,8 @@ export interface components {
         ExpeditionResolveRequest: {
             /** Choice Id */
             choice_id?: string | null;
+            /** Question Id */
+            question_id?: string | null;
             /**
              * Use Skill
              * @default false
@@ -8041,7 +8043,7 @@ export interface components {
          * ExpeditionSceneId
          * @enum {string}
          */
-        ExpeditionSceneId: "desert_highway" | "supermarket_interior" | "subway_station" | "amusement_park" | "arctic_research_station" | "gloomwater_bog" | "gloomwater_bog_night" | "outskirts_interchange";
+        ExpeditionSceneId: "desert_highway" | "supermarket_interior" | "subway_station" | "amusement_park" | "arctic_research_station" | "gloomwater_bog" | "gloomwater_bog_night" | "outskirts_interchange" | "red_rocket" | "raider_tollbooth" | "campsite";
         /**
          * ExpeditionSiteMarkerRead
          * @description One interactive expedition site on the world map, with per-vault state.
@@ -11024,6 +11026,12 @@ export interface components {
             prompt: string;
             /** Question */
             question?: string | null;
+            /** Question Id */
+            question_id?: string | null;
+            /** Question Index */
+            question_index?: number | null;
+            /** Question Total */
+            question_total?: number | null;
             /** Raider Image Url */
             raider_image_url?: string | null;
             /** Raider Alt Image Url */

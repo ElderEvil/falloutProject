@@ -647,14 +647,23 @@ New spatial site visits stay in one authored scene from entry through combat and
 Discovery creates a bell notification and visible toast; entry remains available during the outward
 and return journey until arrival home. Entering pauses travel, and closing the modal pauses player-driven
 combat without losing HP, turn, skill charge or fractional damage. Retreat resumes travel and preserves
-the encounter for re-entry. Cleared and defeated encounters are consumed for that journey.
+the encounter for re-entry. Cleared and defeated encounters are consumed for that journey. A site is
+offered when the traveled trail passes within the reveal radius; its content may raise `offer_weight`
+to widen that radius (`raider_tollbooth` uses 2.0 so it surfaces more often).
 
-Combat reuses Arena attacks, alternating team turns, weapon skills and playback. Encounter enemy
-power/HP scales live in site content and never change the Arena catalog. The first pass is forgiving:
-a modest unarmed dweller at the entry level should win with at least 60% health. Enemy pools are
-explicit per scene: desert wildlife never appears inside an arctic research station. Each encounter
+Combat reuses Arena attacks, alternating team turns, weapon skills and playback. Site turns cap each
+hit at 25% of the target's max HP per two-second turn (Arena keeps 5% per second), so scaled
+enemies still lose meaningful HP per hit; higher-level scenes may field two enemies at once. Encounter
+enemy power/HP scales live in site content and never change the Arena catalog. The first pass is
+forgiving: a modest unarmed dweller at the entry level should win with at least 60% health. Enemy pools
+are explicit per scene: desert wildlife never appears inside an arctic research station. Each encounter
 has a reason to enter and a short lore detail. The pre-entry threat estimate uses current health and
 equipment, not level alone. New humanoids share the fighter presentation vocabulary with Arena.
+
+Trivia nodes pin one or more distinct questions at entry, weighted toward the site's level band; each
+correct answer advances to the next and only the last pays the reward vault. A wrong answer starts the
+fight as before. Served option order is a stable per-run hash, so the authored answer slot is never a
+tell. Reconnects resume the same questions, order and progress.
 
 Defeat ends the encounter without site rewards, leaves the dweller alive at at least 1 HP, and resumes
 travel. It does not protect against later travel hazards. Successful completion stages the haul, consumed

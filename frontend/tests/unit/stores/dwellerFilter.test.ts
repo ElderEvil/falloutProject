@@ -1454,5 +1454,30 @@ describe('DwellerFilter Store', () => {
       expect(urls.some((url) => !url.includes('limit='))).toBe(true)
       expect(store.detailedDwellers.new).toBeUndefined()
     })
+    it('reapplies a newer tick over a slower full-roster refresh', async () => {
+      useVaultStore().activeVaultId = 'vault-1'
+      vi.mocked(axios.get).mockResolvedValue({
+        data: [{ id: 'd1', first_name: 'John', health: 10 }],
+      } as never)
+      const store = useDwellerFilterStore()
+      store.dwellers = [{ id: 'd1', health: 10 }] as never
+      store.allDwellers = [{ id: 'd1', health: 10 }] as never
+      store.allDwellersLoadedVaultId = 'vault-1'
+
+      store.applyDwellerTick(
+        'vault-1',
+        [tickSnapshot({ id: 'd1', health: 20 }), tickSnapshot({ id: 'new' })],
+        'token'
+      )
+      store.applyDwellerTick('vault-1', [tickSnapshot({ id: 'd1', health: 30 })], 'token')
+
+      await vi.waitFor(() => {
+        expect(vi.mocked(axios.get)).toHaveBeenCalledTimes(2)
+      })
+      await vi.waitFor(() => {
+        expect(store.dwellers.find((d) => d.id === 'd1')?.health).toBe(30)
+        expect(store.allDwellers.find((d) => d.id === 'd1')?.health).toBe(30)
+      })
+    })
   })
 })

@@ -7,7 +7,7 @@ it as the post-tick state instead of reconciling per-phase deltas.
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -128,25 +128,53 @@ async def test_snapshot_reflects_late_tick_mutation(
 
 
 @pytest.mark.asyncio
-async def test_snapshot_sqlalchemy_failure_recovers_and_commits_marker(
+async def test_snapshot_db_failure_recovers_session_and_commits_marker(
     async_session: AsyncSession, vault: Vault
 ) -> None:
+    vault_id = vault.id
+
+    async def drop_pet_table(db_session, _vault_id, _seconds_passed, _game_state=None):
+        await db_session.execute(text("DROP TABLE pet"))
+        return {"triggered": 0, "events": []}
+
     with (
-        patch(
-            "app.services.game_loop_service.dweller_crud.get_tick_snapshot",
-            new_callable=AsyncMock,
-            side_effect=SQLAlchemyError("snapshot boom"),
-        ),
-        patch("app.services.game_loop_service.recover_session", new_callable=AsyncMock) as recover,
+        patch.object(game_loop_service, "_process_events", new=drop_pet_table),
         patch.object(sse_manager, "publish", new_callable=AsyncMock) as publish,
     ):
-        result = await game_loop_service.process_vault_tick(async_session, vault.id, tick_id="tick-snapshot-sqla-fail")
+        result = await game_loop_service.process_vault_tick(async_session, vault_id, tick_id="tick-snapshot-db-fail")
 
     publish.assert_not_called()
-    recover.assert_awaited_once()
     assert "dweller_snapshot" not in result["updates"]
-    state = await crud.game_state_crud.get_or_create(async_session, vault.id)
-    assert "tick-snapshot-sqla-fail" in (state.recent_tick_ids or [])
+    state = await crud.game_state_crud.get_or_create(async_session, vault_id)
+    assert "tick-snapshot-db-fail" in (state.recent_tick_ids or [])
+
+
+@pytest.mark.asyncio
+async def test_snapshot_assembly_failure_skips_publish_but_commits_completion_marker(
+    async_session: AsyncSession,
+    user_with_vault: tuple,
+    dweller_in_vault: Dweller,
+) -> None:
+    _, vault = user_with_vault
+    vault_id = vault.id
+    async_session.add(Pet(name="Dogmeat (Fallout 4)", rarity=RarityEnum.LEGENDARY, dweller_id=dweller_in_vault.id))
+    await async_session.commit()
+
+    with (
+        patch(
+            "app.services.game_loop_service.pet_effect_for_name",
+            side_effect=RuntimeError("catalog boom"),
+        ),
+        patch.object(sse_manager, "publish", new_callable=AsyncMock) as publish,
+    ):
+        result = await game_loop_service.process_vault_tick(
+            async_session, vault_id, tick_id="tick-snapshot-assembly-fail"
+        )
+
+    publish.assert_not_called()
+    assert "dweller_snapshot" not in result["updates"]
+    state = await crud.game_state_crud.get_or_create(async_session, vault_id)
+    assert "tick-snapshot-assembly-fail" in (state.recent_tick_ids or [])
 
 
 @pytest.mark.asyncio
@@ -157,23 +185,3 @@ async def test_snapshot_costs_exactly_one_select(async_session: AsyncSession, va
     assert statements.value == 1
     assert [row.id for row in rows] == [dweller.id]
     assert rows[0].pet_name is None
-
-
-@pytest.mark.asyncio
-async def test_snapshot_failure_skips_publish_but_commits_completion_marker(
-    async_session: AsyncSession, vault: Vault
-) -> None:
-    with (
-        patch(
-            "app.services.game_loop_service.dweller_crud.get_tick_snapshot",
-            new_callable=AsyncMock,
-            side_effect=RuntimeError("snapshot boom"),
-        ),
-        patch.object(sse_manager, "publish", new_callable=AsyncMock) as publish,
-    ):
-        result = await game_loop_service.process_vault_tick(async_session, vault.id, tick_id="tick-snapshot-fail")
-
-    publish.assert_not_called()
-    assert result["vault_id"] == str(vault.id)
-    state = await crud.game_state_crud.get_or_create(async_session, vault.id)
-    assert "tick-snapshot-fail" in (state.recent_tick_ids or [])

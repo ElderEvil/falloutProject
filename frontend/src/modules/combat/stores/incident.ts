@@ -329,9 +329,9 @@ export const useIncidentStore = defineStore('incident', () => {
     dwellerIds: string[],
     token: string
   ): Promise<void> {
-    const { useDwellerFilterStore } = await import('@/modules/dwellers/stores/dwellerFilter')
-    const filterStore = useDwellerFilterStore()
     try {
+      const { useDwellerFilterStore } = await import('@/modules/dwellers/stores/dwellerFilter')
+      const filterStore = useDwellerFilterStore()
       const result = await incidentApi.assignResponders(vaultId, incidentId, dwellerIds, token)
       await fetchIncidents(vaultId, token)
       await fetchIncidentTeam(vaultId, incidentId, token)
@@ -421,9 +421,13 @@ export const useIncidentStore = defineStore('incident', () => {
                 })
             }
             sseConnected.value = true
-            void import('@/modules/dwellers/stores/dwellerFilter').then(
-              ({ useDwellerFilterStore }) => useDwellerFilterStore().fetchDwellersByVault(vaultId, token)
-            )
+            void import('@/modules/dwellers/stores/dwellerFilter')
+              .then(({ useDwellerFilterStore }) =>
+                useDwellerFilterStore().fetchDwellersByVault(vaultId, token)
+              )
+              .catch((error: unknown) => {
+                handleStoreError(error, 'Failed to refresh dwellers after incident spawn', false)
+              })
             void fetchIncidents(vaultId, token)
             break
 

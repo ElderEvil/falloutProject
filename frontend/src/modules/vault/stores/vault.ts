@@ -460,14 +460,16 @@ export const useVaultStore = defineStore('vault', () => {
         const dwellerSnapshot = tickData.updates?.dweller_snapshot
         if (Array.isArray(dwellerSnapshot)) {
           const generation = sessionGeneration
-          void import('@/modules/dwellers/stores/dwellerFilter').then(
-            ({ useDwellerFilterStore }) => {
+          void import('@/modules/dwellers/stores/dwellerFilter')
+            .then(({ useDwellerFilterStore }) => {
               if (sessionGeneration !== generation) return
               if (streamingVaultId !== vaultId) return
               if (activeVaultId.value && activeVaultId.value !== vaultId) return
               useDwellerFilterStore().applyDwellerTick(vaultId, dwellerSnapshot, token)
-            }
-          )
+            })
+            .catch((error: unknown) => {
+              handleStoreError(error, 'Failed to load the dweller tick applier', false)
+            })
         }
       }
     )

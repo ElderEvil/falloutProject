@@ -2,6 +2,13 @@
 
 Complete guide for deploying Fallout Shelter in various environments.
 
+## Container engine
+
+**Podman is the primary engine; Docker is a supported alternative.** All Compose files are
+engine-neutral, so every example below works with either CLI. Replace `podman compose` with
+`docker compose` (and `podman` with `docker`) when using Docker. Sections that describe
+third-party Docker-only stacks, such as Mailcow, keep their native Docker commands.
+
 ## Admin session security
 
 The embedded `/admin` interface uses an HTTPS-only production cookie with `SameSite=Strict` and a 30,008-second maximum age. Keep the admin route behind the same TLS reverse proxy as the API.
@@ -26,8 +33,10 @@ The admin PostgreSQL concurrency test is opt-in: set `ADMIN_TEST_DATABASE_URI` t
 
 ```bash
 # Local development
-docker compose up -d
+podman compose up -d
 # Access: http://localhost:5173
+
+# Docker alternative: docker compose up -d
 
 # Production (Hetzner K3s)
 # Push a verified release, then run the "Deploy to Hetzner" GitHub Actions workflow.
@@ -55,17 +64,19 @@ docker compose up -d
 **Usage:**
 ```bash
 # Start all services
-docker compose up -d
+podman compose up -d
 
 # Or use local config
-docker compose -f docker-compose.local.yml up -d
+podman compose -f docker-compose.local.yml up -d
 
 # View logs
-docker compose logs -f
+podman compose logs -f
 
 # Stop services
-docker compose down
+podman compose down
 ```
+
+With Docker, replace `podman compose` with `docker compose`.
 
 PostgreSQL 18 stores data under `/var/lib/postgresql/<major>/docker`, and every Compose
 file mounts the parent `/var/lib/postgresql`. The previous PostgreSQL 18 configuration
@@ -497,7 +508,7 @@ POSTGRES_PASSWORD=      # Database password
 
 **Database:**
 ```bash
-POSTGRES_SERVER=db      # Service name in Docker Compose
+POSTGRES_SERVER=db      # Service name on the Compose network
 POSTGRES_USER=postgres
 POSTGRES_DB=fallout_db
 ```
@@ -546,9 +557,9 @@ For the complete provider, local verification, Logfire, and Hetzner procedure, s
 | `.env.example` | Development template |
 | `.env` | Your local config (never commit!) |
 
-### Docker vs Native Services
+### Containers vs Native Services
 
-When using Docker Compose, use **service names**:
+When using Compose (Podman or Docker), use **service names**:
 ```bash
 POSTGRES_SERVER=db
 REDIS_HOST=redis
@@ -646,14 +657,14 @@ command: sh -c "uv run alembic upgrade head && uv run uvicorn main:app ..."
 
 ### Manual
 ```bash
-# Run migrations
-docker compose exec fastapi uv run alembic upgrade head
+# Run migrations (use `docker compose` instead for Docker)
+podman compose exec fastapi uv run alembic upgrade head
 
 # Rollback one migration
-docker compose exec fastapi uv run alembic downgrade -1
+podman compose exec fastapi uv run alembic downgrade -1
 
 # Create new migration
-docker compose exec fastapi uv run alembic revision --autogenerate -m "description"
+podman compose exec fastapi uv run alembic revision --autogenerate -m "description"
 ```
 
 ### Concurrent index DDL
@@ -718,11 +729,11 @@ for the remaining live checks.
 ### Local Compose database backup
 
 ```bash
-# Backup
-docker compose exec db pg_dump -U postgres fallout_db > backup_$(date +%Y%m%d).sql
+# Backup (use `docker compose` instead for Docker)
+podman compose exec db pg_dump -U postgres fallout_db > backup_$(date +%Y%m%d).sql
 
 # Restore
-cat backup.sql | docker compose exec -T db psql -U postgres -d fallout_db
+cat backup.sql | podman compose exec -T db psql -U postgres -d fallout_db
 ```
 
 ### Production maintenance backup
@@ -831,14 +842,14 @@ production dump and production release image remains for the maintainer.
 
 ### Services Won't Start
 ```bash
-docker compose logs
-docker compose config
+podman compose logs
+podman compose config
 ```
 
 ### Database Connection Errors
 ```bash
-docker compose ps db
-docker compose exec db psql -U postgres -d fallout_db -c "SELECT 1"
+podman compose ps db
+podman compose exec db psql -U postgres -d fallout_db -c "SELECT 1"
 ```
 
 ### Frontend Connection Errors
@@ -848,8 +859,8 @@ docker compose exec db psql -U postgres -d fallout_db -c "SELECT 1"
 
 ### Background Tasks Not Running
 ```bash
-docker compose ps redis
-docker compose logs dramatiq_worker
+podman compose ps redis
+podman compose logs dramatiq_worker
 ```
 
 ## Security Checklist
@@ -927,6 +938,8 @@ podman run --rm -i --network=none --read-only \
   --tmpfs /tmp --tmpfs /var/log/fallout_shelter:mode=1777 \
   --entrypoint uv fallout-backend-check run --offline python - < scripts/check_backend_image.py
 ```
+
+Use `docker build` / `docker run` instead when Docker is the engine.
 
 The database-backed application tests continue to run in backend CI; the image check does not apply
 migrations or contact infrastructure.

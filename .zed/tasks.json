@@ -10,7 +10,7 @@
     "save": "all"
   },
   {
-    "label": "Fallout: Run backend server",
+    "label": "Fallout: Run backend server (Podman)",
     "command": "until podman compose -f ../docker-compose.infra.yml exec -T db pg_isready -U postgres -d fallout_db; do sleep 1; done; uv run alembic upgrade head && exec uv run fastapi dev main.py --host 0.0.0.0 --port 8000 --reload-dir app",
     "cwd": "$ZED_WORKTREE_ROOT/backend",
     "use_new_terminal": true,
@@ -41,7 +41,7 @@
     "save": "all"
   },
   {
-    "label": "Fallout: Rebuild dramatiq worker",
+    "label": "Fallout: Rebuild dramatiq worker (Podman)",
     "command": "podman compose -f docker-compose.infra.yml up -d --build --force-recreate dramatiq_worker",
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": true,
@@ -53,6 +53,47 @@
   {
     "label": "Fallout: Stop Podman infrastructure",
     "command": "podman",
+    "args": ["compose", "-f", "docker-compose.infra.yml", "down"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "on_success",
+    "save": "none"
+  },
+  {
+    "label": "Fallout: Run Docker infrastructure (alternative)",
+    "command": "docker compose -f docker-compose.infra.yml up -d",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "save": "all"
+  },
+  {
+    "label": "Fallout: Run backend server (Docker)",
+    "command": "until docker compose -f ../docker-compose.infra.yml exec -T db pg_isready -U postgres -d fallout_db; do sleep 1; done; uv run alembic upgrade head && exec uv run fastapi dev main.py --host 0.0.0.0 --port 8000 --reload-dir app",
+    "cwd": "$ZED_WORKTREE_ROOT/backend",
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "save": "all"
+  },
+  {
+    "label": "Fallout: Rebuild dramatiq worker (Docker)",
+    "command": "docker compose -f docker-compose.infra.yml up -d --build --force-recreate dramatiq_worker",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "on_success",
+    "save": "none"
+  },
+  {
+    "label": "Fallout: Stop Docker infrastructure (alternative)",
+    "command": "docker",
     "args": ["compose", "-f", "docker-compose.infra.yml", "down"],
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": true,

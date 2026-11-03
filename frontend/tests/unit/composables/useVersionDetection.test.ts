@@ -66,11 +66,11 @@ describe('useVersionDetection', () => {
   })
 
   it('should detect update on patch version bump', () => {
-    localStorage.setItem(STORAGE_KEY, '2.18.0')
+    localStorage.setItem(STORAGE_KEY, '2.17.1')
 
     const { hasVersionUpdate } = useVersionDetection()
 
-    expect(hasVersionUpdate.value).toBe(false)
+    expect(hasVersionUpdate.value).toBe(true)
   })
 
   it('markVersionAsSeen stores version and hides changelog', () => {

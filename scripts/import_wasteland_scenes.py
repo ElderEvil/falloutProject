@@ -99,7 +99,10 @@ def main() -> None:
         manifest = existing
     for stale in output.glob("*.webp"):
         prefix = f"{stale.name.split('-landscape-')[0].replace('-', '_')}-landscape-"
-        if prefix in {f"{key.replace('_', '-')}-landscape-" for key in scenes} and stale.name not in written:
+        if (
+            prefix in {f"{key.replace('_', '-')}-landscape-" for key in scenes}
+            and stale.name not in written
+        ):
             stale.unlink()
     target.write_text(json.dumps(manifest, indent=2) + "\n")
     print(

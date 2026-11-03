@@ -1454,6 +1454,68 @@ describe('DwellerFilter Store', () => {
       expect(urls.some((url) => !url.includes('limit='))).toBe(true)
       expect(store.detailedDwellers.new).toBeUndefined()
     })
+
+    it('reapplies a tick that lands during an ordinary filtered fetch', async () => {
+      useVaultStore().activeVaultId = 'vault-1'
+      let resolvePage!: (value: unknown) => void
+      vi.mocked(axios.get).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolvePage = resolve
+          })
+      )
+      const store = useDwellerFilterStore()
+      store.dwellers = [{ id: 'd1', health: 10 }] as never
+
+      const request = store.fetchDwellersByVault('vault-1', 'token')
+      store.applyDwellerTick('vault-1', [tickSnapshot({ id: 'd1', health: 30 })], 'token')
+      resolvePage({ data: [{ id: 'd1', first_name: 'John', health: 10 }] })
+      await request
+
+      expect(store.dwellers[0]).toMatchObject({ health: 30 })
+    })
+
+    it('removes a dweller restored by an older full-roster response', async () => {
+      useVaultStore().activeVaultId = 'vault-1'
+      let resolveAll!: (value: unknown) => void
+      vi.mocked(axios.get).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveAll = resolve
+          })
+      )
+      const store = useDwellerFilterStore()
+      store.allDwellers = [{ id: 'd1' }, { id: 'd2' }] as never
+      store.allDwellersLoadedVaultId = 'vault-1'
+
+      const request = store.fetchAllDwellers('vault-1', 'token', false, true)
+      store.applyDwellerTick('vault-1', [tickSnapshot({ id: 'd1' })], 'token')
+      resolveAll({
+        data: [
+          { id: 'd1', first_name: 'A' },
+          { id: 'd2', first_name: 'B' },
+        ],
+      })
+      await request
+
+      expect(store.allDwellers.map((d) => d.id)).toEqual(['d1'])
+    })
+
+    it('refreshes the filtered page when a tick changes filter membership', async () => {
+      useVaultStore().activeVaultId = 'vault-1'
+      vi.mocked(axios.get).mockResolvedValue({
+        data: [{ id: 'd1', status: 'working' }],
+      } as never)
+      const store = useDwellerFilterStore()
+      store.filterStatus = 'idle'
+      store.dwellers = [{ id: 'd1', status: 'idle', health: 100 }] as never
+      store.allDwellers = [{ id: 'd1', status: 'idle' }] as never
+      store.allDwellersLoadedVaultId = 'vault-1'
+
+      store.applyDwellerTick('vault-1', [tickSnapshot({ id: 'd1', status: 'working' })], 'token')
+
+      await vi.waitFor(() => expect(vi.mocked(axios.get)).toHaveBeenCalledTimes(1))
+    })
     it('reapplies a newer tick over a slower full-roster refresh', async () => {
       useVaultStore().activeVaultId = 'vault-1'
       vi.mocked(axios.get).mockResolvedValue({

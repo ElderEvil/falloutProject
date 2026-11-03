@@ -422,9 +422,11 @@ export const useIncidentStore = defineStore('incident', () => {
             }
             sseConnected.value = true
             void import('@/modules/dwellers/stores/dwellerFilter')
-              .then(({ useDwellerFilterStore }) =>
-                useDwellerFilterStore().fetchDwellersByVault(vaultId, token)
-              )
+              .then(({ useDwellerFilterStore }) => {
+                const currentVaultId = useVaultStore().activeVaultId
+                if (currentVaultId && currentVaultId !== vaultId) return
+                return useDwellerFilterStore().fetchDwellersByVault(vaultId, token)
+              })
               .catch((error: unknown) => {
                 handleStoreError(error, 'Failed to refresh dwellers after incident spawn', false)
               })

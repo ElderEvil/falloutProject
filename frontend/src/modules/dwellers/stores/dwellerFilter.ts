@@ -204,6 +204,57 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   let allDwellersInFlight: { vaultId: string; token: string; promise: Promise<boolean> } | null =
     null
 
+  let latestTick: { vaultId: string; delta: Map<string, DwellerTickSnapshot> } | null = null
+  let tickEpoch = 0
+
+  function mergeTickFields(
+    list: DwellerShort[],
+    delta: Map<string, DwellerTickSnapshot>
+  ): DwellerShort[] {
+    return list.map((d) => {
+      const next = delta.get(d.id)
+      return next ? ({ ...d, ...next } as DwellerShort) : d
+    })
+  }
+
+  function patchDwellerDetails(delta: Map<string, DwellerTickSnapshot>): void {
+    const roomStore = useRoomStore()
+    for (const [id, d] of delta) {
+      const detail = detailedDwellers.value[id]
+      if (!detail) continue
+      const { room_id, id: _id, ...fields } = d
+      detailedDwellers.value[id] = {
+        ...detail,
+        ...fields,
+        room:
+          room_id === null
+            ? null
+            : (roomStore.rooms.find((room) => room.id === room_id) ?? detail.room),
+      } as Dweller
+    }
+  }
+
+  function reapplyLatestTick(
+    vaultId: string,
+    target: 'dwellers' | 'allDwellers',
+    knownIds: Set<string>
+  ): void {
+    const latest = latestTick
+    if (!latest || latest.vaultId !== vaultId) return
+    const delta = latest.delta
+    const mergeKnown = (list: DwellerShort[]) =>
+      mergeTickFields(
+        list.filter((d) => !knownIds.has(d.id) || delta.has(d.id)),
+        delta
+      )
+    if (target === 'dwellers') dwellers.value = mergeKnown(dwellers.value)
+    else allDwellers.value = mergeKnown(allDwellers.value)
+    patchDwellerDetails(delta)
+    for (const id of knownIds) {
+      if (!delta.has(id)) delete detailedDwellers.value[id]
+    }
+  }
+
   const cacheIdentity = computed(() => authStore.user?.id ?? authStore.token)
 
   watch(
@@ -241,10 +292,13 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   const { run: runFetchDwellers, isLoading } = useAsyncAction(
     async (vaultId: string, token: string, options?: DwellerFetchOptions) => {
       const requestSeq = ++dwellersRequestSeq
+      const tickEpochAtStart = tickEpoch
+      const knownIds = new Set(dwellers.value.map((d) => d.id))
       const data = await getDwellersByVault(vaultId, token, toQueryParams(options))
       const activeVaultId = useVaultStore().activeVaultId
       if (requestSeq === dwellersRequestSeq && (!activeVaultId || activeVaultId === vaultId)) {
         dwellers.value = data
+        if (tickEpoch !== tickEpochAtStart) reapplyLatestTick(vaultId, 'dwellers', knownIds)
       }
     },
     { context: 'Failed to fetch dwellers', showToast: false }
@@ -496,6 +550,8 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   }
 
   async function loadAllDwellers(vaultId: string, token: string): Promise<boolean> {
+    const tickEpochAtStart = tickEpoch
+    const knownIds = new Set(allDwellers.value.map((d) => d.id))
     allDwellers.value = []
     allDwellersLoadedVaultId.value = null
     allDwellersVaultId = vaultId
@@ -518,6 +574,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     if (activeVaultId && activeVaultId !== vaultId) return false
     allDwellers.value = collected
     allDwellersLoadedVaultId.value = vaultId
+    if (tickEpoch !== tickEpochAtStart) reapplyLatestTick(vaultId, 'allDwellers', knownIds)
     return true
   }
 
@@ -610,9 +667,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     tableColumns.value = [...DEFAULT_TABLE_COLUMNS]
   }
 
-  let latestTick: { vaultId: string; delta: Map<string, DwellerTickSnapshot> } | null = null
-  let tickEpoch = 0
-
   function patchDwellerLists(
     delta: Map<string, DwellerTickSnapshot>,
     mode: 'reconcile' | 'page' | 'all'
@@ -633,23 +687,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
   }
 
-  function patchDwellerDetails(delta: Map<string, DwellerTickSnapshot>): void {
-    const roomStore = useRoomStore()
-    for (const [id, d] of delta) {
-      const detail = detailedDwellers.value[id]
-      if (!detail) continue
-      const { room_id, id: _id, ...fields } = d
-      detailedDwellers.value[id] = {
-        ...detail,
-        ...fields,
-        room:
-          room_id === null
-            ? null
-            : (roomStore.rooms.find((room) => room.id === room_id) ?? detail.room),
-      } as Dweller
-    }
-  }
-
   function applyDwellerTick(
     vaultId: string,
     snapshot: DwellerTickSnapshot[],
@@ -664,6 +701,30 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     latestTick = { vaultId, delta }
     tickEpoch += 1
 
+    const filterActive =
+      filterFocus.value !== 'all' ||
+      filterStatus.value !== 'all' ||
+      filterAgeGroup.value !== 'all' ||
+      filterGender.value !== 'all' ||
+      filterRarity.value !== 'all' ||
+      filterRace.value !== 'all' ||
+      (featureFlags.factionMechanics && filterFaction.value !== 'all')
+    const membershipFields = [
+      'status',
+      'health',
+      'radiation',
+      'happiness',
+      'room_id',
+      'effective_max_health',
+    ] as const
+    const pageMembershipChanged =
+      filterActive &&
+      dwellers.value.some((d) => {
+        const next = delta.get(d.id)
+        if (!next) return false
+        return membershipFields.some((field) => d[field] !== next[field])
+      })
+
     patchDwellerLists(delta, rosterLoaded ? 'reconcile' : 'page')
     if (rosterLoaded) {
       for (const id of previousIds) {
@@ -672,18 +733,12 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
     patchDwellerDetails(delta)
 
-    if (rosterLoaded && snapshot.some((d) => !previousIds.has(d.id))) {
-      const epoch = tickEpoch
-      void Promise.allSettled([
-        fetchWithCurrentFilters(vaultId, token),
-        fetchAllDwellers(vaultId, token, false, true),
-      ]).then(() => {
-        if (tickEpoch === epoch) return
-        const latest = latestTick
-        if (!latest || latest.vaultId !== vaultId) return
-        patchDwellerLists(latest.delta, 'all')
-        patchDwellerDetails(latest.delta)
-      })
+    const hasNewDweller = snapshot.some((d) => !previousIds.has(d.id))
+    if (pageMembershipChanged || (rosterLoaded && hasNewDweller)) {
+      void fetchWithCurrentFilters(vaultId, token)
+    }
+    if (rosterLoaded && hasNewDweller) {
+      void fetchAllDwellers(vaultId, token, false, true)
     }
   }
 

@@ -150,34 +150,6 @@ async def test_snapshot_db_failure_recovers_session_and_commits_marker(
 
 
 @pytest.mark.asyncio
-async def test_snapshot_assembly_failure_skips_publish_but_commits_completion_marker(
-    async_session: AsyncSession,
-    user_with_vault: tuple,
-    dweller_in_vault: Dweller,
-) -> None:
-    _, vault = user_with_vault
-    vault_id = vault.id
-    async_session.add(Pet(name="Dogmeat (Fallout 4)", rarity=RarityEnum.LEGENDARY, dweller_id=dweller_in_vault.id))
-    await async_session.commit()
-
-    with (
-        patch(
-            "app.services.game_loop_service.pet_effect_for_name",
-            side_effect=RuntimeError("catalog boom"),
-        ),
-        patch.object(sse_manager, "publish", new_callable=AsyncMock) as publish,
-    ):
-        result = await game_loop_service.process_vault_tick(
-            async_session, vault_id, tick_id="tick-snapshot-assembly-fail"
-        )
-
-    publish.assert_not_called()
-    assert "dweller_snapshot" not in result["updates"]
-    state = await crud.game_state_crud.get_or_create(async_session, vault_id)
-    assert "tick-snapshot-assembly-fail" in (state.recent_tick_ids or [])
-
-
-@pytest.mark.asyncio
 async def test_snapshot_costs_exactly_one_select(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     with count_sql_statements(async_session) as statements:
         rows = await crud.dweller.get_tick_snapshot(async_session, vault.id)

@@ -39,7 +39,7 @@ random exploration events; it is not part of the single-scene encounter and is e
 | Unit | Arena | Incident | Wasteland site |
 | --- | --- | --- | --- |
 | `attack_service.resolve_attacks` | yes | no | yes |
-| `attack_service._apply_damage` (5% max-HP cap, fractional carry) | yes | no | yes |
+| `attack_service._apply_damage` (per-second max-HP cap, fractional carry) | yes (5%/s) | no | yes (12.5%/s = 25%/turn) |
 | "attacker deals power / 5 × seconds" | equivalent (inline in `resolve_attacks`) | yes (`incident_math.damage_to_raiders`) | equivalent (via `resolve_attacks`) |
 | "threat deals power / divisor × seconds" | no | yes (`incident_math.damage_to_dwellers`) | no |
 | `incident_math.split_damage` / `split_proportional` | no | yes | no |

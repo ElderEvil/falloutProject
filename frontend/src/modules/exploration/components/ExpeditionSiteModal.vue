@@ -9,10 +9,9 @@ import ExpeditionOutcomeLines from './ExpeditionOutcomeLines.vue'
 import ExpeditionRoomStepper from './ExpeditionRoomStepper.vue'
 import WastelandScene from './WastelandScene.vue'
 import SiteCombatScene from './SiteCombatScene.vue'
+import TriviaEncounterScene from './TriviaEncounterScene.vue'
 import BattleLog from '@/modules/rooms/components/BattleLog.vue'
 import type { BattleLogEntry } from '@/modules/rooms/models/battleLog'
-import { getStaticImageUrl } from '@/core/utils/image'
-import { pickRaiderPose, raiderVarietySeed } from '../models/raiderPoses'
 import { isTerminal, useExpeditionSiteStore } from '../stores/expeditionSite'
 
 const STAT_META: Record<string, { short: string; name: string; icon: string }> = {
@@ -116,20 +115,18 @@ const isDefeated = computed(() => !!room.value?.defeated && !isTerminalRun.value
 const isRecovery = computed(() => !props.explorationActive && !!room.value)
 const hasArenaCombat = computed(() => !!room.value?.combat_state)
 const isCombatRoom = computed(() => room.value?.node.kind === 'combat' || hasArenaCombat.value)
-const raiderImageUrl = computed(() => {
-  const current = room.value
-  if (!current) return null
-  const url = pickRaiderPose(
-    { image_url: current.node.raider_image_url, alt_image_url: current.node.raider_alt_image_url },
-    raiderVarietySeed(current.exploration_id, current.site_id)
-  )
-  return getStaticImageUrl(url)
-})
 const expandedCombat = computed(
   () => hasArenaCombat.value && (combatExpanded.value || (room.value?.combat_state?.round ?? 0) > 0)
 )
+const isTriviaEncounter = computed(
+  () =>
+    room.value?.node.kind === 'trivia' &&
+    !hasArenaCombat.value &&
+    !isTerminalRun.value &&
+    !isDefeated.value
+)
 const modalSize = computed<'screen' | '5xl' | '3xl'>(() => {
-  if (expandedCombat.value) return 'screen'
+  if (expandedCombat.value || isTriviaEncounter.value) return 'screen'
   return room.value?.node.kind === 'trivia' || (room.value?.node.options?.length ?? 0) > 0
     ? '5xl'
     : '3xl'
@@ -399,7 +396,11 @@ const terminalBanner = computed(() => {
     icon="mdi:radio-tower"
     icon-class="inline h-6 w-6 shrink-0 text-theme-primary"
     :size="modalSize"
-    :content-class="expandedCombat ? 'h-[calc(100dvh-2rem)] max-h-[calc(100dvh-2rem)]' : undefined"
+    :content-class="
+      expandedCombat || isTriviaEncounter
+        ? 'h-[calc(100dvh-2rem)] max-h-[calc(100dvh-2rem)]'
+        : undefined
+    "
     max-height="90"
     header-class="flex flex-shrink-0 flex-row items-center gap-2 border-b border-theme-primary/25 bg-theme-primary/5 pt-6 pr-14 pb-4 pl-6"
     @close="handleDialogClose"
@@ -452,8 +453,14 @@ const terminalBanner = computed(() => {
     </div>
 
     <div
-      class="min-h-0 flex-1 px-5 pt-5 pb-5"
-      :class="expandedCombat ? 'overflow-hidden' : 'overflow-y-auto'"
+      class="min-h-0 flex-1"
+      :class="
+        isTriviaEncounter
+          ? 'overflow-hidden'
+          : expandedCombat
+            ? 'overflow-hidden px-5 pt-5 pb-5'
+            : 'overflow-y-auto px-5 pt-5 pb-5'
+      "
     >
       <!-- PICKER: no active run -->
       <template v-if="!room">
@@ -572,6 +579,15 @@ const terminalBanner = computed(() => {
       </template>
 
       <!-- ACTIVE RUN -->
+      <TriviaEncounterScene
+        v-else-if="isTriviaEncounter"
+        :room="room"
+        :dweller-name="dwellerName"
+        :dweller-image-url="dwellerImageUrl"
+        :dweller-thumbnail-url="dwellerThumbnailUrl"
+        :busy="store.isLoading"
+        @answer="handleResolve"
+      />
       <div
         v-else
         class="grid gap-5"
@@ -776,43 +792,22 @@ const terminalBanner = computed(() => {
               <ExpeditionOutcomeLines :lines="outcomeLines" subdued />
             </div>
 
-            <div
-              v-if="room.node.kind === 'trivia' && !hasArenaCombat"
-              class="mb-4 grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start sm:gap-5"
+            <p v-if="!hasArenaCombat" class="mb-4 text-base font-semibold text-theme-primary">
+              {{ room.node.prompt }}
+            </p>
+            <p
+              v-if="room.node.question && !hasArenaCombat"
+              class="mb-4 border-l-2 border-theme-primary/30 pl-3 text-base leading-relaxed text-theme-primary/90"
             >
-              <img
-                v-if="raiderImageUrl"
-                :src="raiderImageUrl"
-                alt="Raider posing the question"
-                class="mx-auto h-48 w-auto object-contain sm:mx-0 sm:h-64"
-              />
-              <div class="min-w-0">
-                <p class="mb-2 text-base font-semibold text-theme-primary">{{ room.node.prompt }}</p>
-                <p
-                  class="border-l-2 border-theme-primary/30 pl-3 text-base leading-relaxed text-theme-primary/90"
-                >
-                  {{ room.node.question }}
-                </p>
-              </div>
-            </div>
-            <template v-else>
-              <p v-if="!hasArenaCombat" class="mb-4 text-base font-semibold text-theme-primary">
-                {{ room.node.prompt }}
-              </p>
-              <p
-                v-if="room.node.question && !hasArenaCombat"
-                class="mb-4 border-l-2 border-theme-primary/30 pl-3 text-base leading-relaxed text-theme-primary/90"
-              >
-                {{ room.node.question }}
-              </p>
-              <p v-else-if="!expandedCombat" class="mb-4 text-sm text-theme-primary/70">
-                {{
-                  fighting
-                    ? 'Combat is underway. Activate your weapon skill when its meter fills.'
-                    : 'Start combat when ready. You can retreat during the fight.'
-                }}
-              </p>
-            </template>
+              {{ room.node.question }}
+            </p>
+            <p v-else-if="!expandedCombat" class="mb-4 text-sm text-theme-primary/70">
+              {{
+                fighting
+                  ? 'Combat is underway. Activate your weapon skill when its meter fills.'
+                  : 'Start combat when ready. You can retreat during the fight.'
+              }}
+            </p>
 
             <div
               v-if="enemySummary && !expandedCombat && !isCombatRoom"
@@ -933,7 +928,7 @@ const terminalBanner = computed(() => {
           </div>
           <div v-else class="flex w-full items-center gap-3">
             <Button
-              v-if="isDefeated || !room.node.options?.length"
+              v-if="!isTriviaEncounter && (isDefeated || !room.node.options?.length)"
               class="flex-1"
               size="lg"
               :disabled="store.isLoading || fighting"

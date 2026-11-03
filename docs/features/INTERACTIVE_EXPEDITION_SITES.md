@@ -74,25 +74,28 @@ Site (static definition, JSON-seeded like enemies/loot)
   fallback branch (usually a combat or a trap), never a dead end.
 - **Trap**: fixed
   damage range + optional radiation (reuses `apply_radiation_gain` semantics).
-- **Trivia**: one of the shared raider personas poses a fixed multiple-choice
-  lore question with 2-4 answer options. The answer key (`correct_option_id`)
-  stays server-side; the player view exposes the prompt and option labels only.
-  Entry pins one random question id and one random raider id per trivia room
-  into `expedition_run.flags`, so reconnecting or re-entering shows the same
-  prompt and cannot reroll either. Resolution reuses
+- **Trivia**: one of the shared raider personas poses a sequence of fixed
+  multiple-choice lore questions with 2-4 answer options each. The answer key
+  (`correct_option_id`) stays server-side; the player view exposes the prompt and
+  option labels only, in a stable per-run hash order so the authored answer slot
+  is not a tell. Entry pins `trivia_question_count` distinct question ids
+  (weighted toward the site's `min_dweller_level`) and one random raider id per
+  trivia room into `expedition_run.flags`, so reconnecting or re-entering shows
+  the same prompts and cannot reroll them. Resolution reuses
   `POST /explorations/{id}/site/resolve` with the chosen option id as
-  `choice_id`; there is no trivia-specific endpoint. A correct answer pays the
-  site reward vault once into the exploration haul and marks the run cleared. A
-  wrong answer appends the raider's wrong line and starts the normal site combat
-  against that raider, leaving the run in the room; winning pays the same vault,
-  and a defeat follows the existing nonlethal DEFEATED behavior.
+  `choice_id`; there is no trivia-specific endpoint. Each correct answer advances
+  to the next question; the last one pays the site reward vault once into the
+  exploration haul and marks the run cleared. A wrong answer appends the raider's
+  wrong line and starts the normal site combat against that raider, leaving the
+  run in the room; winning pays the same vault, and a defeat follows the existing
+  nonlethal DEFEATED behavior.
   The shipped trivia sites are `raider_tollbooth` (level 3+, scene
-  `desert_highway`, coords 44/72; 18 questions), `outskirts_interchange`
-  (level 3+, scene `outskirts_interchange`; 12 questions), and `rusted_midway`
-  (level 1+, scene `amusement_park`; 12 questions). Each uses the same six raider
-  personas (Sable, Rook, Jinx, Gristle, Brick, Cutter). Every question carries
-  a 1-5 `difficulty` rating for later character/difficulty mapping;
-  `raider_tollbooth` pays 40-80 caps plus one junk item.
+  `desert_highway`, coords 44/72; 18 questions, asks 3), `outskirts_interchange`
+  (level 3+, scene `outskirts_interchange`; 12 questions, asks 2), and
+  `rusted_midway` (level 1+, scene `amusement_park`; 12 questions, asks 2). Each
+  uses the same six raider personas (Sable, Rook, Jinx, Gristle, Brick, Cutter).
+  Every question carries a 1-5 `difficulty` rating used to weight selection
+  toward the site's level; `raider_tollbooth` pays 40-80 caps plus one junk item.
 - **Cache rewards** live in choice branches; they are not standalone nodes.
 - **Finale**: locked until all prior rooms resolve; pays the reward vault (§8) and
   marks the site cleared.

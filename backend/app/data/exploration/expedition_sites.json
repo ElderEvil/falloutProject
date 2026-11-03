@@ -178,10 +178,10 @@
         "junk_bundles": 1,
         "stimpaks": 1
       },
-      "scene_id": "desert_highway",
+      "scene_id": "red_rocket",
       "lore": "The owner\u2019s last sign promises a free coolant check. Someone has crossed out \u201cfree.\u201d",
-      "enemy_power_scale": 0.12,
-      "enemy_health_scale": 0.3
+      "enemy_power_scale": 0.5,
+      "enemy_health_scale": 0.7
     },
     {
       "id": "super_duper_mart",
@@ -198,6 +198,10 @@
           "kind": "combat",
           "prompt": "A raider guards medical supplies stacked between toppled shelves. Secure the supplies for the vault.",
           "enemies": [
+            {
+              "name": "Raider",
+              "arena_key": "raider"
+            },
             {
               "name": "Raider",
               "arena_key": "raider"
@@ -325,8 +329,8 @@
         "stimpaks": 0
       },
       "lore": "A delivery manifest lists the medicine as overdue even before the bombs fell.",
-      "enemy_power_scale": 0.12,
-      "enemy_health_scale": 0.3
+      "enemy_power_scale": 0.3,
+      "enemy_health_scale": 0.6
     },
     {
       "id": "abandoned_campsite",
@@ -371,8 +375,8 @@
       },
       "scene_id": "desert_highway",
       "lore": "The camper\u2019s journal ends with a warning: \u201cThe rattling isn\u2019t coming from the engine.\u201d",
-      "enemy_power_scale": 0.08,
-      "enemy_health_scale": 0.2
+      "enemy_power_scale": 0.25,
+      "enemy_health_scale": 0.47
     },
     {
       "id": "roadside_supply_truck",
@@ -417,8 +421,8 @@
         }
       },
       "lore": "The truck\u2019s faded stencil reads: \u201cGuaranteed delivery, whatever the weather.\u201d",
-      "enemy_power_scale": 0.08,
-      "enemy_health_scale": 0.2
+      "enemy_power_scale": 0.2,
+      "enemy_health_scale": 0.35
     },
     {
       "id": "forgotten_shack",
@@ -463,8 +467,8 @@
       },
       "scene_id": "desert_highway",
       "lore": "A hand-painted sign on the shack reads \u201cNO HUMANS.\u201d The lettering has been corrected twice.",
-      "enemy_power_scale": 0.08,
-      "enemy_health_scale": 0.2
+      "enemy_power_scale": 0.2,
+      "enemy_health_scale": 0.35
     },
     {
       "id": "collapsed_subway",
@@ -475,8 +479,8 @@
       "min_dweller_level": 1,
       "scene_id": "subway_station",
       "lore": "A station announcement is frozen on \u201cNormal service will resume shortly.\u201d",
-      "enemy_power_scale": 0.08,
-      "enemy_health_scale": 0.2,
+      "enemy_power_scale": 0.4,
+      "enemy_health_scale": 0.7,
       "encounter": {
         "id": "subway_station",
         "name": "Collapsed Subway",
@@ -510,8 +514,8 @@
       "min_dweller_level": 1,
       "scene_id": "amusement_park",
       "lore": "A prize booth advertises a lifetime supply of sweets. The fine print is illegible.",
-      "enemy_power_scale": 0.08,
-      "enemy_health_scale": 0.2,
+      "enemy_power_scale": 0.4,
+      "enemy_health_scale": 0.7,
       "encounter": {
         "id": "amusement_park",
         "name": "Rusted Midway",
@@ -766,7 +770,8 @@
               "correct_option_id": "zeta-invaders",
               "difficulty": 4
             }
-          ]
+          ],
+          "trivia_question_count": 2
         }
       },
       "reward_vault": {
@@ -787,8 +792,8 @@
       "min_dweller_level": 1,
       "scene_id": "arctic_research_station",
       "lore": "The last research log says the cold would preserve everything. It does not mention the staff.",
-      "enemy_power_scale": 0.08,
-      "enemy_health_scale": 0.2,
+      "enemy_power_scale": 0.4,
+      "enemy_health_scale": 0.7,
       "encounter": {
         "id": "arctic_research_station",
         "name": "Frozen Research Outpost",
@@ -820,10 +825,11 @@
       "coord_x": 44.0,
       "coord_y": 72.0,
       "min_dweller_level": 3,
-      "scene_id": "desert_highway",
+      "offer_weight": 2.0,
+      "scene_id": "raider_tollbooth",
       "lore": "The tollbooth sign still reads 'PAY HERE.' Someone scratched 'OR KNOW THINGS' underneath.",
-      "enemy_power_scale": 0.1,
-      "enemy_health_scale": 0.25,
+      "enemy_power_scale": 0.5,
+      "enemy_health_scale": 0.7,
       "encounter": {
         "id": "raider_tollbooth",
         "name": "Raider Tollbooth",
@@ -860,7 +866,7 @@
             },
             {
               "id": "nuka_cola",
-              "prompt": "Which pre-war soft drink is still traded across the wastes?",
+              "prompt": "Which pre-war soft drink is the flagship product of Nuka-Cola Corporation?",
               "options": [
                 {
                   "id": "nuka-cola",
@@ -1198,7 +1204,8 @@
               "correct_option_id": "quantum",
               "difficulty": 2
             }
-          ]
+          ],
+          "trivia_question_count": 3
         }
       },
       "reward_vault": {
@@ -1219,8 +1226,8 @@
       "min_dweller_level": 2,
       "scene_id": "gloomwater_bog",
       "lore": "The watchtower log ends mid-sentence: 'Sunset over the bog is the most beautiful thing left in the world. Do not follow the light past the\u2014'",
-      "enemy_power_scale": 0.08,
-      "enemy_health_scale": 0.2,
+      "enemy_power_scale": 1.0,
+      "enemy_health_scale": 1.2,
       "encounter": {
         "id": "gloomwater_bog",
         "name": "Gloomwater Bog",
@@ -1255,8 +1262,8 @@
       "min_dweller_level": 3,
       "scene_id": "gloomwater_bog_night",
       "lore": "The tower lamp was meant to guide evacuees. Now it burns for whatever learned to answer it.",
-      "enemy_power_scale": 0.1,
-      "enemy_health_scale": 0.25,
+      "enemy_power_scale": 0.3,
+      "enemy_health_scale": 0.6,
       "encounter": {
         "id": "gloomwater_bog_night",
         "name": "Gloomwater Bog at Night",
@@ -1265,6 +1272,10 @@
           "kind": "combat",
           "prompt": "A feral ghoul in a waterworks coat drags something metal through the shallows. The tower light catches its face.",
           "enemies": [
+            {
+              "name": "Feral Ghoul",
+              "arena_key": "feral-ghoul"
+            },
             {
               "name": "Feral Ghoul",
               "arena_key": "feral-ghoul"
@@ -1291,8 +1302,8 @@
       "min_dweller_level": 3,
       "scene_id": "outskirts_interchange",
       "lore": "The billboard model has been smiling over the ruins for two centuries. Someone painted one word under her bottle: 'LATER.'",
-      "enemy_power_scale": 0.1,
-      "enemy_health_scale": 0.25,
+      "enemy_power_scale": 0.5,
+      "enemy_health_scale": 0.7,
       "encounter": {
         "id": "outskirts_interchange",
         "name": "Outskirts Interchange",
@@ -1547,7 +1558,8 @@
               "correct_option_id": "publick-occurrences",
               "difficulty": 3
             }
-          ]
+          ],
+          "trivia_question_count": 2
         }
       },
       "reward_vault": {

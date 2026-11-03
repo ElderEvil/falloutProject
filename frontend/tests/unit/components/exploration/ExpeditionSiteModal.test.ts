@@ -663,14 +663,16 @@ describe('ExpeditionSiteModal', () => {
     store.room = triviaRoom
     await flushPromises()
 
-    expect(wrapper.getComponent(TerminalModal).props('size')).toBe('5xl')
+    expect(wrapper.getComponent(TerminalModal).props('size')).toBe('screen')
     expect(wrapper.text()).toContain('Which pre-war company built the Vaults?')
     expect(wrapper.text()).toContain('If it goes wrong: Raider')
     const portrait = wrapper.get('img[alt="Raider posing the question"]')
     expect(portrait.attributes('src')).toContain('/static/raider_images/variants/jinx')
     const answers = wrapper
       .findAll('button')
-      .filter((button) => ['Vault-Tec', 'RobCo Industries'].some((label) => button.text().includes(label)))
+      .filter((button) =>
+        ['Vault-Tec', 'RobCo Industries'].some((label) => button.text().includes(label))
+      )
     expect(answers).toHaveLength(2)
     for (const answer of answers) expect(answer.text()).not.toContain('%')
     wrapper.unmount()

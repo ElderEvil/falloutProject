@@ -17,6 +17,8 @@ from app.services.combat.weapon_skill import MAX_CHARGE
 from app.utils.exceptions import ValidationException
 
 TURN_SECONDS = 2
+SITE_DAMAGE_CAP_PER_TURN = 0.25
+SITE_DAMAGE_CAP_PER_SECOND = SITE_DAMAGE_CAP_PER_TURN / TURN_SECONDS
 
 
 def initial_combat(site: SiteDefinition) -> dict:
@@ -70,13 +72,16 @@ def combat_view(state: dict, dweller: Dweller) -> SiteCombatView:
 
 
 def encounter_threat(site: SiteDefinition, dweller: Dweller) -> Literal["low", "moderate", "high"]:
-    """Estimate health pressure from actual equipment/current HP, using the shared arena damage cap."""
+    """Estimate health pressure from actual equipment/current HP, using the site damage cap."""
     player = participant_from_dweller(dweller)
     enemies = _opponents(initial_combat(site))
+    player_damage = player.power / 5 * TURN_SECONDS
+    incoming_cap = player.max_health * SITE_DAMAGE_CAP_PER_SECOND * TURN_SECONDS
     expected = 0.0
     for index, enemy in enumerate(enemies):
-        turns = enemy.health / max(0.1, min(player.power / 5, enemy.max_health * 0.05))
-        expected += turns * sum(min(p.power / 5, player.max_health * 0.05) for p in enemies[index:])
+        enemy_cap = enemy.max_health * SITE_DAMAGE_CAP_PER_SECOND * TURN_SECONDS
+        turns = enemy.health / max(0.1, min(player_damage, enemy_cap))
+        expected += turns * sum(min(other.power / 5 * TURN_SECONDS, incoming_cap) for other in enemies[index:])
     ratio = expected / max(1, player.health)
     return "low" if ratio < 0.5 else "moderate" if ratio < 0.9 else "high"
 
@@ -90,7 +95,14 @@ def resolve_turn(state: dict, dweller: Dweller, *, use_skill: bool) -> tuple[dic
     queued = {player.key} if use_skill else set()
     carry = dict(state["carry"])
     attackers, defenders = ([player], enemies) if state["next_attack_team"] == "A" else (enemies, [player])
-    attacks = resolve_attacks(attackers, defenders, TURN_SECONDS, queued, carry)
+    attacks = resolve_attacks(
+        attackers,
+        defenders,
+        TURN_SECONDS,
+        queued,
+        carry,
+        cap_fraction_per_second=SITE_DAMAGE_CAP_PER_SECOND,
+    )
     turn = state["round"] + 1
     events = [
         *state["events"],

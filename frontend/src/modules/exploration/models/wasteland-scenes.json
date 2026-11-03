@@ -150,5 +150,43 @@
         }
       ]
     }
+  },
+  "red_rocket": {
+    "label": "Red Rocket gas station",
+    "landscape": {
+      "source": "Backgrounds/gpt-image-2.5-sunburst-red-rocket.png",
+      "source_sha256": "096a4f3d2715326fcd0b280eca8d7d8511206837fa57167f039aea72187f3ff4",
+      "variants": [
+        {
+          "src": "/assets/wasteland-scenes/red-rocket-landscape-6e29b4fd9a96279c.webp",
+          "width": 640,
+          "height": 360
+        },
+        {
+          "src": "/assets/wasteland-scenes/red-rocket-landscape-c2215baf8d56b1ba.webp",
+          "width": 1280,
+          "height": 720
+        }
+      ]
+    }
+  },
+  "raider_tollbooth": {
+    "label": "Raider tollbooth",
+    "landscape": {
+      "source": "Backgrounds/gpt-image-2.5-sunburst-kn79va34fvgkf4hmajtr3f9dm98hgvyd.png",
+      "source_sha256": "e9ff128c805fc711a96945ac324283fc6b9f54ece9913229cc763adb04bc442e",
+      "variants": [
+        {
+          "src": "/assets/wasteland-scenes/raider-tollbooth-landscape-eaad536249f85a27.webp",
+          "width": 640,
+          "height": 360
+        },
+        {
+          "src": "/assets/wasteland-scenes/raider-tollbooth-landscape-8b54532fac39b6c3.webp",
+          "width": 1280,
+          "height": 720
+        }
+      ]
+    }
   }
 }

@@ -37,6 +37,7 @@ class VaultScenario:
     site_id: str | None = None
     male_dwellers: int | None = None
     female_dwellers: int | None = None
+    variety: bool = False
 
 
 VAULT_SCENARIOS = (
@@ -46,13 +47,15 @@ VAULT_SCENARIOS = (
         title="Vault 1 — Wasteland Test",
         description=(
             "Boosted by default. Seeds one named dweller per expedition site, each already "
-            "scouting with its site reported in the bell. Starter objectives skipped."
+            "scouting with its site reported in the bell, at mixed levels with varied weapons and pets. "
+            "Starter objectives skipped."
         ),
         default_boosted=True,
         default_on=True,
         expedition=True,
         multi=True,
         dweller_level=5,
+        variety=True,
     ),
     VaultScenario(
         number=68,
@@ -99,6 +102,7 @@ class VaultScenarioService:
                     duration_hours=scenario.duration_hours,
                     discover=scenario.discover,
                     outbound_hours=scenario.outbound_hours,
+                    variety=scenario.variety,
                 )
                 await self._raise_population_capacity(db_session, vault)
                 await db_session.commit()

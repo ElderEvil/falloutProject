@@ -57,7 +57,9 @@ from app.services.exploration.site_offers import (
 from app.services.exploration.trivia import (
     pick_trivia_questions,
     pick_trivia_raiders,
+    trivia_answered,
     trivia_question,
+    trivia_question_total,
     trivia_raider,
 )
 from app.services.notification_service import notification_service
@@ -415,7 +417,9 @@ class ExpeditionService:
         context = await journey_offer_context(db_session, exploration)
         if context is None:
             return
-        if not world_terrain.path_passes_near(context.trail, (site.coord_x, site.coord_y), context.radius):
+        if not world_terrain.path_passes_near(
+            context.trail, (site.coord_x, site.coord_y), context.radius * site.offer_weight
+        ):
             raise ValidationException(f"{site.name} is not on this journey's traveled path")
 
     async def enter_run(self, db_session: AsyncSession, exploration_id: UUID4, site_id: str) -> SiteRoomView:
@@ -490,7 +494,7 @@ class ExpeditionService:
             rooms = [site.encounter] if single_scene and site.encounter is not None else site.rooms
             flags = {
                 **run.flags,
-                "trivia_questions": pick_trivia_questions(rooms),
+                "trivia_questions": pick_trivia_questions(rooms, target_difficulty=site.min_dweller_level),
                 "trivia_raiders": pick_trivia_raiders(rooms),
             }
             if single_scene:
@@ -741,19 +745,29 @@ class ExpeditionService:
         result = BranchResult()
         raider = trivia_raider(room, run)
         correct = request.choice_id == question.correct_option_id
+        cleared = False
         if correct:
-            await _pay_reward_vault(exploration, site, full=True, result=result)
+            answered = trivia_answered(room, run) + 1
+            run.flags = {
+                **run.flags,
+                "trivia_answered": {**run.flags.get("trivia_answered", {}), room.id: answered},
+            }
+            cleared = answered >= trivia_question_total(room, run)
             result.texts.insert(
                 0,
                 f"Correct answer — {raider.name} {raider.correct_line}."
                 if raider is not None
                 else "Correct answer — the raider hands over the toll stash.",
             )
-            run.status = ExpeditionRunStatus.CLEARED
-            run.finished_at = datetime.utcnow()
-            from app.services.exploration_service import exploration_service
+            if cleared:
+                await _pay_reward_vault(exploration, site, full=True, result=result)
+                run.status = ExpeditionRunStatus.CLEARED
+                run.finished_at = datetime.utcnow()
+                from app.services.exploration_service import exploration_service
 
-            exploration_service.resume_from_encounter(exploration)
+                exploration_service.resume_from_encounter(exploration)
+            else:
+                result.texts.append("Next question.")
         else:
             result.texts.append(
                 f"Wrong answer — {raider.name} {raider.wrong_line}."
@@ -770,7 +784,7 @@ class ExpeditionService:
         await _log_site_event(db_session, exploration, f"{site.name}: {outcome.text}")
         await auto_use_supplies(db_session, exploration)
         run = await _refresh_run(db_session, run)
-        if correct:
+        if cleared:
             vault = await crud.vault.get(db_session, exploration.vault_id)
             raider_name = raider.name if raider is not None else "the raider"
             await notification_service.create_and_send(
@@ -792,7 +806,7 @@ class ExpeditionService:
             run,
             exploration,
             outcome=outcome,
-            finale_paid=correct,
+            finale_paid=cleared,
             defeated=False,
             dweller=dweller,
         )

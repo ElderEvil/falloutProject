@@ -19,11 +19,15 @@ SCENES = {
     "gloomwater_bog": "Gloomwater Bog",
     "gloomwater_bog_night": "Gloomwater Bog at night",
     "outskirts_interchange": "Outskirts interchange",
+    "red_rocket": "Red Rocket gas station",
+    "raider_tollbooth": "Raider tollbooth",
 }
 SOURCE_NAMES = {
     "gloomwater_bog": "gpt-image-2.5-sunburst-bog.png",
     "gloomwater_bog_night": "gpt-image-2.5-sunburst-bog-night.png",
     "outskirts_interchange": "gpt-image-2.5-sunburst-city-outskirts.png",
+    "red_rocket": "gpt-image-2.5-sunburst-red-rocket.png",
+    "raider_tollbooth": "gpt-image-2.5-sunburst-kn79va34fvgkf4hmajtr3f9dm98hgvyd.png",
 }
 
 

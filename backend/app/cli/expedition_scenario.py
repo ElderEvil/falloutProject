@@ -70,6 +70,8 @@ def _print_multi(result) -> None:
         typer.echo("Dweller:")
         gender = getattr(entry.dweller.gender, "value", entry.dweller.gender)
         typer.echo(f"  {entry.dweller.display_name} ({gender}, level {entry.dweller.level}, id {entry.dweller.id})")
+        if entry.loadout:
+            typer.echo(f"  loadout: {entry.loadout}")
         typer.echo(f"  exploration: {entry.exploration.id}")
         if site is not None:
             typer.echo(f"  site: {site.id} ({site.name})")
@@ -187,6 +189,13 @@ def vault1(
         bool,
         typer.Option("--keep-existing", help="Reuse Vault 1 instead of recreating it"),
     ] = False,
+    variety: Annotated[
+        bool,
+        typer.Option(
+            "--variety/--no-variety",
+            help="Seed dwellers across levels 5/10/15/20 with mixed weapons and sparse pets",
+        ),
+    ] = True,
 ) -> None:
     """Create a fresh Vault 1 where every selected site is scouted and reported."""
     site_ids = [site.strip() for site in sites.split(",") if site.strip()] if sites else None
@@ -207,6 +216,7 @@ def vault1(
                 site_ids=site_ids,
                 recreate=not keep_existing,
                 outbound_hours=outbound_hours,
+                variety=variety,
             )
             _print_multi(result)
 

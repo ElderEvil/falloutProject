@@ -35,7 +35,8 @@ async def _enter_raider_tollbooth(
     )
     assert entered.status_code == 200
     run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
-    question_id = next(iter(run.flags["trivia_questions"].values()))
+    pinned = next(iter(run.flags["trivia_questions"].values()))
+    question_id = pinned[0] if isinstance(pinned, list) else pinned
     site = data_loader.get_expedition_site("raider_tollbooth")
     question = next(q for q in site.encounter.node.trivia_questions if q.id == question_id)
     return exploration, question, entered
@@ -325,13 +326,22 @@ async def test_site_trivia_correct_answer_pays_once(
     )
     before = (await crud.exploration.get(async_session, exploration.id)).total_caps_found
 
-    resolved = await async_client.post(
-        f"/explorations/{exploration.id}/site/resolve",
-        json={"choice_id": question.correct_option_id},
-        headers=superuser_token_headers,
-    )
-    assert resolved.status_code == 200
-    body = resolved.json()
+    body = None
+    while body is None or body["status"] == "in_room":
+        resolved = await async_client.post(
+            f"/explorations/{exploration.id}/site/resolve",
+            json={"choice_id": question.correct_option_id},
+            headers=superuser_token_headers,
+        )
+        assert resolved.status_code == 200
+        body = resolved.json()
+        if body["status"] != "in_room":
+            break
+        run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+        pinned = next(iter(run.flags["trivia_questions"].values()))
+        answered = next(iter(run.flags.get("trivia_answered", {}).values()), 0)
+        site = data_loader.get_expedition_site("raider_tollbooth")
+        question = next(q for q in site.encounter.node.trivia_questions if q.id == pinned[answered])
     assert body["status"] == "cleared"
     assert body["finale_paid"] is True
     assert body["outcome"]["caps_gained"] >= 40

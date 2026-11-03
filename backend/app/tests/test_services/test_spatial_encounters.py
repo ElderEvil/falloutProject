@@ -14,6 +14,7 @@ from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
 from app.services import catalog_service as data_loader
 from app.services.exploration import expedition as expedition_module
+from app.services.exploration.site_offers import JourneyOfferContext, site_is_offered
 from app.services.exploration_service import exploration_service
 from app.services.game_tick.dwellers_tick import process_explorations
 from app.services.world_snapshot_service import world_snapshot_service
@@ -266,6 +267,21 @@ async def test_spatial_offers_only_sites_near_the_trail(
     available = await expedition_module.expedition_service.list_available_sites(async_session, exploration.id)
     # A retreat stays resumable for the journey, so the trail-offered site is still listed.
     assert SITE_ID in [site.id for site in available]
+
+
+def test_offer_weight_widens_the_tollbooth_reveal_radius():
+    """A weighted site is offered from farther off the trail than the base radius allows."""
+    tollbooth = data_loader.get_expedition_site("raider_tollbooth")
+    assert tollbooth is not None
+    assert tollbooth.offer_weight > 1
+    context = JourneyOfferContext(
+        trail=[(tollbooth.coord_x + 15.0, tollbooth.coord_y)],
+        radius=10.0,
+        consumed_site_ids=frozenset(),
+    )
+
+    assert site_is_offered(tollbooth, context)
+    assert not site_is_offered(tollbooth.model_copy(update={"offer_weight": 1.0}), context)
 
 
 @pytest.mark.asyncio
@@ -735,8 +751,8 @@ async def test_scene_reward_notification_failure_rolls_back_final_turn(async_ses
     from app.schemas.expedition import ExpeditionResolveRequest
     from app.services.notification_service import manager, notification_service, sse_manager
 
-    exploration = await _spatial_run_at_site(async_session, vault, dweller, "super_duper_mart")
-    await expedition_module.expedition_service.enter_run(async_session, exploration.id, "super_duper_mart")
+    exploration = await _spatial_run_at_site(async_session, vault, dweller, "red_rocket")
+    await expedition_module.expedition_service.enter_run(async_session, exploration.id, "red_rocket")
     run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
     run.flags = {
         **run.flags,

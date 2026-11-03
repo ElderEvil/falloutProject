@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.285.0 (2026-11-03)
+
+### Features
+
+* **expedition:** polish trivia, combat balance, and site scenes ([#1309](https://github.com/ElderEvil/falloutProject/issues/1309)) 0e1327a
+
 ## 2.284.7 (2026-11-02)
 
 ### Bug Fixes

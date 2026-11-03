@@ -323,6 +323,20 @@ class ExpeditionScenarioService:
             levels = target_level - dweller.level
             if levels > 0:
                 await leveling_service.level_up_dweller(db_session, dweller, levels=levels)
+            site_id = site_ids[index % len(site_ids)]
+            site = data_loader.get_expedition_site(site_id)
+            if site is None:
+                raise ValueError(f"Unknown expedition site: {site_id!r}")
+            exploration = await exploration_service.send_dweller(
+                db_session,
+                vault_id=vault.id,
+                dweller_id=dweller.id,
+                duration=duration_hours,
+                stimpaks=0,
+                radaways=0,
+            )
+            # Stage variety equipment only after departure succeeds, so a failed
+            # send cannot commit gear onto a dweller with no exploration.
             loadout = ""
             if variety:
                 weapon_type = VARIETY_WEAPONS[index % len(VARIETY_WEAPONS)]
@@ -337,18 +351,6 @@ class ExpeditionScenarioService:
                     else None
                 )
                 loadout = ", ".join(part for part in (weapon_name, pet_name) if part) or "unarmed"
-            site_id = site_ids[index % len(site_ids)]
-            site = data_loader.get_expedition_site(site_id)
-            if site is None:
-                raise ValueError(f"Unknown expedition site: {site_id!r}")
-            exploration = await exploration_service.send_dweller(
-                db_session,
-                vault_id=vault.id,
-                dweller_id=dweller.id,
-                duration=duration_hours,
-                stimpaks=0,
-                radaways=0,
-            )
             if discover:
                 travel_hours = self._stage_trail_to_site(exploration, site)
                 exploration.duration = _outbound_duration(travel_hours, outbound_hours)

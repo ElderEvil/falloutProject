@@ -82,15 +82,17 @@ Site (static definition, JSON-seeded like enemies/loot)
   (weighted toward the site's `min_dweller_level`) and one random raider id per
   trivia room into `expedition_run.flags`, so reconnecting or re-entering shows
   the same prompts and cannot reroll them. Resolution reuses
-  `POST /explorations/{id}/site/resolve` with the chosen option id as
-  `choice_id`; there is no trivia-specific endpoint. Each correct answer advances
+  `POST /explorations/{id}/site/resolve` with the current room's
+  `node.question_id` and the chosen option id as `choice_id`; there is no
+  trivia-specific endpoint. A stale `question_id` is rejected with a 409 rather
+  than judging the answer against the new question. Each correct answer advances
   to the next question; the last one pays the site reward vault once into the
   exploration haul and marks the run cleared. A wrong answer appends the raider's
   wrong line and starts the normal site combat against that raider, leaving the
   run in the room; winning pays the same vault, and a defeat follows the existing
   nonlethal DEFEATED behavior.
   The shipped trivia sites are `raider_tollbooth` (level 3+, scene
-  `desert_highway`, coords 44/72; 18 questions, asks 3), `outskirts_interchange`
+  `raider_tollbooth`, coords 44/72; 18 questions, asks 3), `outskirts_interchange`
   (level 3+, scene `outskirts_interchange`; 12 questions, asks 2), and
   `rusted_midway` (level 1+, scene `amusement_park`; 12 questions, asks 2). Each
   uses the same six raider personas (Sable, Rook, Jinx, Gristle, Brick, Cutter).

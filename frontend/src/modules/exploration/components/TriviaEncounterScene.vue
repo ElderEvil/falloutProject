@@ -206,7 +206,7 @@ const answer = (id: string) => {
           size="lg"
           type="button"
           :disabled="busy"
-          class="relative h-auto w-full justify-start rounded-lg border-2 border-theme-primary/70 bg-surface-sunken px-4 py-2.5 text-left text-sm font-semibold text-theme-primary hover:border-theme-primary hover:bg-theme-primary/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+          class="relative h-auto w-full justify-start whitespace-normal rounded-lg border-2 border-theme-primary/70 bg-surface-sunken px-4 py-2.5 text-left text-sm font-semibold break-words text-theme-primary hover:border-theme-primary hover:bg-theme-primary/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
           @click="answer(option.id)"
         >
           <span

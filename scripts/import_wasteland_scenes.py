@@ -98,7 +98,7 @@ def main() -> None:
         existing.update(manifest)
         manifest = existing
     for stale in output.glob("*.webp"):
-        prefix = f"{stale.name.split('-landscape-')[0].replace('-', '_')}-landscape-"
+        prefix = f"{stale.name.split('-landscape-')[0]}-landscape-"
         if (
             prefix in {f"{key.replace('_', '-')}-landscape-" for key in scenes}
             and stale.name not in written

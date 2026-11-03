@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { expeditionSiteApi } from '../api/expeditionSite'
 import type { AvailableSiteView, SiteRoomView } from '../api/expeditionSite'
 import { handleStoreError } from '@/core/utils/errorHandler'
+import { getErrorStatus } from '@/core/types/utils'
 
 export type SiteRunStatus = 'in_room' | 'retreated' | 'cleared' | 'died' | 'defeated'
 
@@ -85,24 +86,34 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
     useSkill = false
   ): Promise<SiteRoomView> {
     const questionId = room.value?.node.question_id ?? undefined
-    return runRequest(
-      explorationId,
-      () =>
-        room.value?.combat_state
-          ? expeditionSiteApi.resolveNode(
-              explorationId,
-              choiceId,
-              useSkill,
-              room.value.combat_state.round
-            )
-          : questionId
-            ? expeditionSiteApi.resolveNode(explorationId, choiceId, false, undefined, questionId)
-            : expeditionSiteApi.resolveNode(explorationId, choiceId),
-      'Failed to resolve expedition node',
-      (nextRoom) => {
-        room.value = nextRoom
+    try {
+      return await runRequest(
+        explorationId,
+        () =>
+          room.value?.combat_state
+            ? expeditionSiteApi.resolveNode(
+                explorationId,
+                choiceId,
+                useSkill,
+                room.value.combat_state.round
+              )
+            : questionId
+              ? expeditionSiteApi.resolveNode(explorationId, choiceId, false, undefined, questionId)
+              : expeditionSiteApi.resolveNode(explorationId, choiceId),
+        'Failed to resolve expedition node',
+        (nextRoom) => {
+          room.value = nextRoom
+        }
+      )
+    } catch (err) {
+      // A 409 means the question advanced while this answer was in flight.
+      // Reload the room so the player sees the current question instead of
+      // retrying a now-stale id forever.
+      if (getErrorStatus(err) === 409 && currentExplorationId.value === explorationId) {
+        await fetchCurrentRoom(explorationId).catch(() => undefined)
       }
-    )
+      throw err
+    }
   }
 
   async function retreat(explorationId: string): Promise<SiteRoomView> {

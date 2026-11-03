@@ -8043,7 +8043,7 @@ export interface components {
          * ExpeditionSceneId
          * @enum {string}
          */
-        ExpeditionSceneId: "desert_highway" | "supermarket_interior" | "subway_station" | "amusement_park" | "arctic_research_station" | "gloomwater_bog" | "gloomwater_bog_night" | "outskirts_interchange" | "red_rocket" | "raider_tollbooth";
+        ExpeditionSceneId: "desert_highway" | "supermarket_interior" | "subway_station" | "amusement_park" | "arctic_research_station" | "gloomwater_bog" | "gloomwater_bog_night" | "outskirts_interchange" | "red_rocket" | "raider_tollbooth" | "campsite";
         /**
          * ExpeditionSiteMarkerRead
          * @description One interactive expedition site on the world map, with per-vault state.

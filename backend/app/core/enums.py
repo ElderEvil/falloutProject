@@ -14,6 +14,7 @@ class ExpeditionSceneId(StrEnum):
     OUTSKIRTS_INTERCHANGE = "outskirts_interchange"
     RED_ROCKET = "red_rocket"
     RAIDER_TOLLBOOTH = "raider_tollbooth"
+    CAMP_SITE = "campsite"
 
 
 class CaseInsensitiveEnum(StrEnum):

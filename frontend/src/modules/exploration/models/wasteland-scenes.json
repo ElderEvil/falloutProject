@@ -188,5 +188,24 @@
         }
       ]
     }
+  },
+  "campsite": {
+    "label": "Abandoned campsite",
+    "landscape": {
+      "source": "Backgrounds/campsite.png",
+      "source_sha256": "074904401b2683e416f8aa02d317a5b63e050903b5530957baf6255bf5392baf",
+      "variants": [
+        {
+          "src": "/assets/wasteland-scenes/campsite-landscape-5dfe3cc89686b0fd.webp",
+          "width": 640,
+          "height": 360
+        },
+        {
+          "src": "/assets/wasteland-scenes/campsite-landscape-6f1b2452862e9190.webp",
+          "width": 1280,
+          "height": 720
+        }
+      ]
+    }
   }
 }

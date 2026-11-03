@@ -373,7 +373,7 @@
           "floor": null
         }
       },
-      "scene_id": "desert_highway",
+      "scene_id": "campsite",
       "lore": "The camper\u2019s journal ends with a warning: \u201cThe rattling isn\u2019t coming from the engine.\u201d",
       "enemy_power_scale": 0.25,
       "enemy_health_scale": 0.47

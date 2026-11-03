@@ -1,1 +1,0 @@
-export { incidentApi } from './incident'

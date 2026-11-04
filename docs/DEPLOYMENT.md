@@ -4,10 +4,17 @@ Complete guide for deploying Fallout Shelter in various environments.
 
 ## Container engine
 
-**Podman is the primary engine; Docker is a supported alternative.** All Compose files are
-engine-neutral, so every example below works with either CLI. Replace `podman compose` with
-`docker compose` (and `podman` with `docker`) when using Docker. Sections that describe
-third-party Docker-only stacks, such as Mailcow, keep their native Docker commands.
+**Podman is the primary engine; Docker is a supported alternative.** The Compose files and the
+examples below run with either CLI. Replace `podman compose` with `docker compose` (and `podman`
+with `docker`) when using Docker. Sections that describe third-party Docker-only stacks, such as
+Mailcow, keep their native Docker commands.
+
+The one engine-specific setting is a host-run Ollama: Compose points `OLLAMA_BASE_URL` at
+`http://host.containers.internal:11434/v1`, which Podman resolves but Docker Engine on Linux does
+not. Docker users running Ollama on the host should set
+`OLLAMA_BASE_URL=http://host.docker.internal:11434/v1` and add
+`extra_hosts: ["host.docker.internal:host-gateway"]` to the backend and worker services, or point
+the URL at the host IP.
 
 ## Admin session security
 

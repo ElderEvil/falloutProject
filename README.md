@@ -293,19 +293,20 @@ podman compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' 
 **⚠️ WARNING:** Restore will overwrite current data. Consider backing up first.
 
 ```bash
-# Stop the application
-podman compose stop fastapi
+# Stop the application (the worker also writes to the database)
+podman compose stop fastapi dramatiq_worker
 
 # Restore from backup (uncompressed)
 gunzip backup.sql.gz  # if compressed
-podman compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < backup.sql
 
-# Or restore to a fresh database
-podman compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d postgres -c "DROP DATABASE $POSTGRES_DB; CREATE DATABASE $POSTGRES_DB;"'
-podman compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < backup.sql
+# Recreate an empty database (separate -c flags: DROP DATABASE cannot run in a transaction)
+podman compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d postgres -c "DROP DATABASE IF EXISTS $POSTGRES_DB WITH (FORCE)" -c "CREATE DATABASE $POSTGRES_DB"'
+
+# Restore, aborting on the first SQL error so a failure cannot leave a partial restore
+podman compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1' < backup.sql
 
 # Restart application
-podman compose start fastapi
+podman compose start fastapi dramatiq_worker
 ```
 
 ## 🔑 Environment Variables
@@ -337,8 +338,9 @@ podman compose start fastapi
 
 **AI Setup Notes:**
 - **Ollama (Free):** [Install locally](https://ollama.ai/download); Compose does not run Ollama. Use
-  `OLLAMA_BASE_URL=http://host.containers.internal:11434/v1` for a Podman container, or
-  `http://localhost:11434/v1` when the backend runs natively.
+  `OLLAMA_BASE_URL=http://host.containers.internal:11434/v1` for a Podman container,
+  `http://host.docker.internal:11434/v1` (plus a `host-gateway` host mapping) for a Docker
+  container, or `http://localhost:11434/v1` when the backend runs natively.
 - **Gateway + OpenAI (recommended):** Set `PYDANTIC_AI_GATEWAY_API_KEY`, `AI_PROVIDER=openai`, and `AI_MODEL` for
   chat/agent calls. Set `PYDANTIC_AI_GATEWAY_ROUTE` when using a custom Gateway provider or routing group. Retain
   `OPENAI_API_KEY` for image and audio features. See [Pydantic AI Gateway Setup](docs/backend/PYDANTIC_AI_GATEWAY.md)

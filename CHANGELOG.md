@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.285.2 (2026-11-04)
+
+### Bug Fixes
+
+* **test:** restore the stubbed app version after the patch-bump case ([#1313](https://github.com/ElderEvil/falloutProject/issues/1313)) 71cb223
+
 ## 2.285.1 (2026-11-04)
 
 ### Bug Fixes

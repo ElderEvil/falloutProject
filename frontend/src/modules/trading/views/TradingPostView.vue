@@ -1,24 +1,14 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Icon } from '@iconify/vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import VaultPageShell from '@/core/components/common/VaultPageShell.vue'
-import { getItemIcon } from '@/core/models/items'
 import TradingPostPanel from '../components/TradingPostPanel.vue'
 
 const route = useRoute()
 
 const vaultId = computed(() => route.params.id as string)
-
-const activeTab = ref('dwellers')
-const tabs = [
-  { key: 'dwellers', label: 'Dwellers' },
-  { key: 'weapons', label: 'Weapons' },
-  { key: 'outfits', label: 'Outfits' },
-]
 </script>
 
 <template>
@@ -31,44 +21,7 @@ const tabs = [
           subtitle="Trade soft-deleted dwellers for bottle caps with other vaults"
         />
 
-        <Tabs
-          :model-value="activeTab"
-          @update:model-value="(value) => (activeTab = String(value))"
-        >
-          <TabsList>
-            <TabsTrigger v-for="tab in tabs" :key="tab.key" :value="tab.key">
-              {{ tab.label }}
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="dwellers" class="py-2 text-base">
-            <TradingPostPanel :vault-id="vaultId" />
-          </TabsContent>
-
-          <TabsContent value="weapons" class="py-2 text-base">
-            <div
-              class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-theme-glow p-8 text-center"
-            >
-              <Icon :icon="getItemIcon('weapon', {})" class="text-5xl text-theme-primary opacity-30" />
-              <p class="m-0 font-mono text-sm text-theme-primary opacity-70">Weapon trading coming soon</p>
-              <p class="m-0 font-mono text-xs text-theme-primary opacity-50">
-                Trade weapons with other vaults in a future update
-              </p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="outfits" class="py-2 text-base">
-            <div
-              class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-theme-glow p-8 text-center"
-            >
-              <Icon :icon="getItemIcon('outfit', {})" class="text-5xl text-theme-primary opacity-30" />
-              <p class="m-0 font-mono text-sm text-theme-primary opacity-70">Outfit trading coming soon</p>
-              <p class="m-0 font-mono text-xs text-theme-primary opacity-50">
-                Trade outfits with other vaults in a future update
-              </p>
-            </div>
-          </TabsContent>
-        </Tabs>
+        <TradingPostPanel :vault-id="vaultId" />
       </PageContentRail>
     </VaultPageShell>
   </div>

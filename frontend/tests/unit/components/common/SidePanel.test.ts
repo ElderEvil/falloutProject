@@ -118,16 +118,11 @@ describe('SidePanel', () => {
       expect(linkByLabel(links, 'Trading Post').attributes('href')).toBe('/vault/vault-1/trading')
     })
 
-    it('keeps the collapse toggle a button and coming-soon entries non-interactive', () => {
+    it('keeps the collapse toggle a button', () => {
       const wrapper = mountPanel()
 
       expect(wrapper.findAll('button')).toHaveLength(1)
       expect(wrapper.find('button.toggle-btn').exists()).toBe(true)
-
-      const locked = wrapper.find('.nav-item.locked')
-      expect(locked.exists()).toBe(true)
-      expect(locked.element.tagName).toBe('DIV')
-      expect(locked.find('a, button').exists()).toBe(false)
     })
 
     it('marks only the active route link with aria-current="page"', async () => {
@@ -231,22 +226,6 @@ describe('SidePanel', () => {
     })
   })
 
-  describe('coming soon copy', () => {
-    it('describes the locked entry as Coming soon without a stale roadmap date', async () => {
-      const wrapper = mountPanel()
-      const locked = wrapper.find('.nav-item.locked')
-
-      await locked.trigger('focus')
-      await nextTick()
-      await nextTick()
-
-      const bodyText = document.body.textContent ?? ''
-      expect(bodyText).toContain('Achievements - Coming soon')
-      expect(bodyText).not.toContain('Mar-Apr')
-      expect(bodyText).not.toContain('2026')
-    })
-  })
-
   describe('mobile drawer', () => {
     it('shows mobile labels after collapsing desktop navigation and preserves desktop collapse', async () => {
       const media = stubMatchMedia(false)
@@ -260,8 +239,6 @@ describe('SidePanel', () => {
       await toggle.trigger('click')
 
       expect(wrapper.findAll('a.nav-item .nav-label')).toHaveLength(10)
-      expect(wrapper.find('.locked-label').text()).toBe('Achievements')
-      expect(wrapper.find('.nav-divider').exists()).toBe(true)
       expect(wrapper.find('.wip-badge').exists()).toBe(true)
       expect(wrapper.find('.hotkey-badge').exists()).toBe(true)
 

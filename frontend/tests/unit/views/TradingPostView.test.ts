@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createRouterMock, createToastMock } from '../helpers/mocks'
-import { flushPromises, type VueWrapper } from '@vue/test-utils'
+import { flushPromises } from '@vue/test-utils'
 import { mountWithSetup } from '../helpers/mountWithSetup'
 import TradingPostView from '@/modules/trading/views/TradingPostView.vue'
 import { tradingService } from '@/modules/trading/services/tradingService'
@@ -34,23 +34,6 @@ const market = (): TradeMarketResponse => ({
   bottle_caps: 500,
 })
 
-// Keyboard roving focus needs the component inside the live document, so the
-// view is mounted with attachTo and torn down between tests.
-let wrapper: VueWrapper | null = null
-
-const mountView = () => {
-  wrapper = mountWithSetup(TradingPostView, {
-    attachTo: document.body,
-    global: { stubs: { SidePanel: true } },
-  })
-  return wrapper
-}
-
-// Inactive TabsContent stays in the DOM with a `hidden` attribute (its slot is
-// unmounted), so the visible panel is the one without `hidden`.
-const visiblePanel = (w: VueWrapper) =>
-  w.findAll('[role="tabpanel"]').find((panel) => panel.attributes('hidden') === undefined)!
-
 describe('TradingPostView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -58,75 +41,11 @@ describe('TradingPostView', () => {
     vi.mocked(tradingService.getMarket).mockResolvedValue(market())
   })
 
-  afterEach(() => {
-    wrapper?.unmount()
-    wrapper = null
-  })
-
-  it('renders a tablist with Dwellers active by default', async () => {
-    const wrapper = mountView()
+  it('renders the dweller market for the routed vault', async () => {
+    const wrapper = mountWithSetup(TradingPostView, { global: { stubs: { SidePanel: true } } })
     await flushPromises()
 
-    const tabs = wrapper.findAll('[role="tab"]')
-    expect(tabs).toHaveLength(3)
-    expect(tabs.map((tab) => tab.text())).toEqual(['Dwellers', 'Weapons', 'Outfits'])
-    expect(tabs[0].attributes('aria-selected')).toBe('true')
-    expect(tabs[1].attributes('aria-selected')).toBe('false')
-    expect(tabs[2].attributes('aria-selected')).toBe('false')
-
-    // The dwellers panel is the only visible content.
-    expect(visiblePanel(wrapper).exists()).toBe(true)
+    expect(tradingService.getMarket).toHaveBeenCalledWith('vault-1', 'test-token')
     expect(wrapper.text()).toContain('Your Listings')
-    expect(wrapper.text()).not.toContain('Weapon trading coming soon')
-    expect(wrapper.text()).not.toContain('Outfit trading coming soon')
-  })
-
-  it('switches content when a tab is activated and wires the tabpanel to its trigger', async () => {
-    const wrapper = mountView()
-    await flushPromises()
-
-    // reka-ui activates tabs on mousedown (not click).
-    await wrapper.findAll('[role="tab"]')[1].trigger('mousedown')
-    await flushPromises()
-
-    const tabs = wrapper.findAll('[role="tab"]')
-    expect(tabs[1].attributes('aria-selected')).toBe('true')
-    expect(tabs[0].attributes('aria-selected')).toBe('false')
-
-    const panel = visiblePanel(wrapper)
-    expect(panel.attributes('aria-labelledby')).toBe(tabs[1].attributes('id'))
-    expect(wrapper.text()).toContain('Weapon trading coming soon')
-    expect(wrapper.text()).not.toContain('Your Listings')
-  })
-
-  it('moves focus and activates the next tab with ArrowRight', async () => {
-    const wrapper = mountView()
-    await flushPromises()
-
-    // Tab into the tablist first: roving focus assigns the tab stop on focus.
-    wrapper.findAll('[role="tab"]')[0].element.focus()
-    await flushPromises()
-    expect(document.activeElement?.textContent).toBe('Dwellers')
-
-    await wrapper.findAll('[role="tab"]')[0].trigger('keydown', { key: 'ArrowRight' })
-    await flushPromises()
-
-    const tabs = wrapper.findAll('[role="tab"]')
-    expect(tabs[1].attributes('aria-selected')).toBe('true')
-    expect(wrapper.text()).toContain('Weapon trading coming soon')
-  })
-
-  it('remounts the dwellers panel on tab return, refetching the market', async () => {
-    const wrapper = mountView()
-    await flushPromises()
-    expect(tradingService.getMarket).toHaveBeenCalledTimes(1)
-
-    await wrapper.findAll('[role="tab"]')[1].trigger('mousedown')
-    await flushPromises()
-    await wrapper.findAll('[role="tab"]')[0].trigger('mousedown')
-    await flushPromises()
-
-    expect(tradingService.getMarket).toHaveBeenCalledTimes(2)
-    expect(tradingService.getMarket).toHaveBeenLastCalledWith('vault-1', 'test-token')
   })
 })

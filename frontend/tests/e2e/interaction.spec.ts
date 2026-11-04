@@ -79,18 +79,10 @@ test.describe('Side panel', () => {
       'Training',
       'Map',
       'Storage',
+      'Trading Post',
     ]) {
       await expect(panel).toContainText(label)
     }
-  })
-
-  test('shows coming soon section', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/dwellers')
-    const panel = page.locator('nav[aria-label="Game navigation panel"]')
-    await expect(panel).toContainText('Upcoming Features')
-    await expect(panel).toContainText('Workshop')
-    await expect(panel).toContainText('Trading Post')
-    await expect(panel).toContainText('Achievements')
   })
 
   test('collapse toggle button exists and toggles', async ({ page }) => {

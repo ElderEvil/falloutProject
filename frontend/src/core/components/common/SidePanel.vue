@@ -28,12 +28,6 @@ interface NavItem {
   wip?: boolean
 }
 
-interface ComingSoonItem {
-  id: string
-  label: string
-  icon: string
-}
-
 const navItems = computed((): NavItem[] => {
   if (!vaultId.value) return []
 
@@ -111,14 +105,6 @@ const navItems = computed((): NavItem[] => {
   ]
   return navItems
 })
-
-const comingSoonItems = computed((): ComingSoonItem[] => [
-  {
-    id: 'achievements',
-    label: 'Achievements',
-    icon: 'mdi:trophy',
-  },
-])
 
 const activePath = computed(
   () =>
@@ -297,27 +283,6 @@ watch(
             }}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
-
-        <!-- Coming Soon Divider -->
-        <div v-if="showLabels" class="nav-divider">
-          <span class="divider-text">Upcoming Features</span>
-        </div>
-
-        <!-- Coming Soon Items -->
-        <TooltipProvider :delay-duration="200">
-          <Tooltip v-for="item in comingSoonItems" :key="item.id">
-            <TooltipTrigger as-child>
-              <div class="nav-item locked">
-                <Icon :icon="item.icon" class="nav-icon" />
-                <span v-if="showLabels" class="nav-label locked-label">{{ item.label }}</span>
-                <span v-if="showLabels" class="lock-icon-wrap">
-                  <Icon icon="mdi:lock" class="lock-icon" />
-                </span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>{{ `${item.label} - Coming soon` }}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
       </div>
     </div>
 
@@ -492,48 +457,6 @@ watch(
 .collapsed .nav-label,
 .collapsed .hotkey-badge {
   display: none;
-}
-
-/* Nav Divider */
-.nav-divider {
-  margin: 16px 0 8px;
-  padding: 8px 16px;
-  border-top: 1px solid var(--color-theme-glow);
-  border-bottom: 1px solid var(--color-theme-glow);
-}
-
-.divider-text {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--color-theme-accent);
-  text-shadow: var(--glow-1);
-}
-
-/* Locked Items */
-.nav-item.locked {
-  opacity: 0.5;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.nav-item.locked:hover {
-  background: transparent;
-  border-left-color: transparent;
-}
-
-.locked-label {
-  color: var(--color-theme-accent);
-  opacity: 0.7;
-}
-
-.lock-icon {
-  width: 16px;
-  height: 16px;
-  color: var(--color-theme-accent);
-  pointer-events: auto;
-  cursor: help;
 }
 
 /* Scanline effect - theme-aware */

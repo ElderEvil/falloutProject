@@ -70,10 +70,15 @@ describe('useVersionDetection', () => {
     vi.stubGlobal('__APP_VERSION__', '2.18.1')
     localStorage.setItem(STORAGE_KEY, '2.18.0')
 
-    const { versionInfo, hasVersionUpdate } = useVersionDetection()
+    try {
+      const { versionInfo, hasVersionUpdate } = useVersionDetection()
 
-    expect(versionInfo.value.current).toBe('2.18.1')
-    expect(hasVersionUpdate.value).toBe(true)
+      expect(versionInfo.value.current).toBe('2.18.1')
+      expect(hasVersionUpdate.value).toBe(true)
+    } finally {
+      // Restore the file-level stub so later cases keep seeing 2.18.0.
+      vi.stubGlobal('__APP_VERSION__', '2.18.0')
+    }
   })
 
   it('markVersionAsSeen stores version and hides changelog', () => {

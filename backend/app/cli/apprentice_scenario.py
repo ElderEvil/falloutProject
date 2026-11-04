@@ -2,23 +2,19 @@
 
 from __future__ import annotations
 
-import asyncio
-import logging
 from typing import Annotated
 from uuid import UUID
 
 import typer
 
+from app.cli.scenario_common import run_scenario_command
 from app.services.family.apprentice_scenario_service import apprentice_scenario_service
-from app.utils.exceptions import ResourceNotFoundException
 
 app = typer.Typer(
     name="apprentice-scenario",
     help="Dev/QA: create or inspect an idempotent youth apprenticeship scenario.",
     no_args_is_help=True,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def _print_status(*, prefix: str, result) -> None:
@@ -47,17 +43,7 @@ def setup(
             result = await apprentice_scenario_service.setup(session, vault_id, ready=ready)
             _print_status(prefix="Created" if result.created else "Reused", result=result)
 
-    try:
-        asyncio.run(_run())
-        typer.echo("✓ apprentice-scenario setup complete.")
-    except (ResourceNotFoundException, ValueError) as exc:
-        detail = exc.detail if isinstance(exc, ResourceNotFoundException) else str(exc)
-        typer.echo(f"Error: {detail}", err=True)
-        raise typer.Exit(code=1) from None
-    except Exception as exc:
-        logger.exception("apprentice-scenario setup failed")
-        typer.echo("Error: apprentice-scenario setup failed — see logs for details.", err=True)
-        raise typer.Exit(code=1) from exc
+    run_scenario_command("apprentice-scenario setup", _run)
 
 
 @app.command()
@@ -76,16 +62,7 @@ def status(
                 return
             _print_status(prefix="Active apprentice", result=result)
 
-    try:
-        asyncio.run(_run())
-    except (ResourceNotFoundException, ValueError) as exc:
-        detail = exc.detail if isinstance(exc, ResourceNotFoundException) else str(exc)
-        typer.echo(f"Error: {detail}", err=True)
-        raise typer.Exit(code=1) from None
-    except Exception as exc:
-        logger.exception("apprentice-scenario status failed")
-        typer.echo("Error: apprentice-scenario status failed — see logs for details.", err=True)
-        raise typer.Exit(code=1) from exc
+    run_scenario_command("apprentice-scenario status", _run, success_message=False)
 
 
 if __name__ == "__main__":

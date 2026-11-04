@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.285.5 (2026-11-04)
+
+### Code Refactoring
+
+* **cli:** share the scenario command runner ([#1317](https://github.com/ElderEvil/falloutProject/issues/1317)) 313f1fd
+
 ## 2.285.4 (2026-11-04)
 
 ### Code Refactoring

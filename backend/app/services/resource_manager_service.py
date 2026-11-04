@@ -350,20 +350,3 @@ class ResourceManager:
                 vault_id,
                 {"resources": resources, "source": "production"},
             )
-
-    async def check_resource_availability(self, vault: Vault) -> dict[str, bool]:
-        """Check if vault has sufficient resources for basic operations.
-
-        Returns:
-            dict: Resource availability status
-        """
-        return {
-            "power": vault.power > 0,
-            "food": vault.food > 0,
-            "water": vault.water > 0,
-            "any_critical": (
-                vault.power < vault.power_max * game_config.resource.critical_threshold
-                or vault.food < vault.food_max * game_config.resource.critical_threshold
-                or vault.water < vault.water_max * game_config.resource.critical_threshold
-            ),
-        }

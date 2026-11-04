@@ -105,18 +105,6 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         )
         return result.scalar_one_or_none()
 
-    async def update_storage(self, db_session: AsyncSession, vault_id: UUID4, new_space_max: int) -> Storage:
-        """Update the storage max space for a vault (delegates to storage CRUD)."""
-        from app.crud.storage import storage as storage_crud
-
-        return await storage_crud.set_max_space(db_session, vault_id, new_space_max)
-
-    async def increase_storage_space(self, db_session: AsyncSession, vault_id: UUID4, amount: int) -> Storage:
-        """Increase a vault's storage capacity by a room's capacity."""
-        from app.crud.storage import storage as storage_crud
-
-        return await storage_crud.adjust_max_space(db_session, vault_id, amount)
-
     @staticmethod
     async def get_population(*, db_session: AsyncSession, vault_id: UUID4) -> int:
         """Current living population (dead and soft-deleted dwellers excluded).
@@ -157,17 +145,6 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         vault = await self.lock_for_update(db_session, vault_id)
         population = await self.get_population(db_session=db_session, vault_id=vault_id)
         return vault, population
-
-    @staticmethod
-    async def get_rooms_count(*, db_session: AsyncSession, vault_id: UUID4) -> int:
-        count = await db_session.execute(select(func.count(Vault.rooms)).where(Vault.id == vault_id))
-        return count.scalar()
-
-    @staticmethod
-    async def get_population_max(*, db_session: AsyncSession, vault_id: UUID4) -> int | None:
-        """Population cap, or None when the vault is missing (treated as unbounded by callers)."""
-        result = await db_session.execute(select(Vault.population_max).where(Vault.id == vault_id))
-        return result.scalar_one_or_none()
 
     @staticmethod
     async def get_active_ordered(db_session: AsyncSession, limit: int | None = None) -> Sequence[Vault]:

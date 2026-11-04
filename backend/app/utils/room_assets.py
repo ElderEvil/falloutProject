@@ -1,8 +1,6 @@
 import math
 from pathlib import Path
 
-from app.core.enums import RoomTypeEnum
-
 # Map internal room names (from rooms.json) to asset keys (from wiki filenames)
 ROOM_NAME_TO_ASSET_KEY = {
     "Vault Door": "Vault Door Adv",  # Special case
@@ -68,16 +66,6 @@ ROOM_STYLE_IMAGES: dict[str, dict[str, str]] = {
         "thanksgiving": "FOS LQ Thanksgiving.png",
         "xmas": "FOS LQ Xmas.png",
     },
-}
-
-ROOM_TYPE_TO_DEFAULT_NAME = {
-    RoomTypeEnum.PRODUCTION: "Power Generator",
-    RoomTypeEnum.CAPACITY: "Living room",
-    RoomTypeEnum.TRAINING: "Weight room",
-    RoomTypeEnum.CRAFTING: "Weapon workshop",
-    RoomTypeEnum.THEME: "Theme workshop",
-    RoomTypeEnum.QUESTS: "Overseer's Office",
-    RoomTypeEnum.MISC: "Elevator",
 }
 
 

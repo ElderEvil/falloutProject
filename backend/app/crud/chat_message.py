@@ -62,17 +62,6 @@ class CRUDChatMessage(CRUDBase[ChatMessage, ChatMessageCreate, ChatMessageRead])
         result = await db.execute(query)
         return list(result.scalars().all())
 
-    async def get_recent_conversations(self, db: AsyncSession, *, vault_id: UUID, limit: int = 10) -> list[ChatMessage]:
-        """Get recent chat messages for a vault"""
-        query = (
-            select(ChatMessage)
-            .where(ChatMessage.vault_id == vault_id)
-            .order_by(col(ChatMessage.created_at).desc())
-            .limit(limit)
-        )
-        result = await db.execute(query)
-        return list(result.scalars().all())
-
     async def create_message(
         self,
         db: AsyncSession,

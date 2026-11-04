@@ -55,9 +55,6 @@ class CRUDVaultSlot:
             return slot_index
         raise ResourceConflictException("No vault slots are available.")
 
-    async def list_all(self, db_session: AsyncSession) -> Sequence[VaultSlot]:
-        return (await db_session.execute(select(VaultSlot))).scalars().all()
-
     async def get_by_vault(self, db_session: AsyncSession, vault_id: UUID4) -> VaultSlot | None:
         return (await db_session.execute(select(VaultSlot).where(VaultSlot.vault_id == vault_id))).scalar_one_or_none()
 

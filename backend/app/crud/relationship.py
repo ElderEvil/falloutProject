@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import and_, or_, tuple_
+from sqlalchemy import or_, tuple_
 from sqlalchemy import update as sa_update
 from sqlmodel import select
 
@@ -142,88 +142,6 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         )
         result = await db.execute(query)
         return list(result.scalars().all())
-
-    async def get_by_type(
-        self,
-        db: AsyncSession,
-        relationship_type: str,
-        vault_id: UUID4 | None = None,
-    ) -> list[Relationship]:
-        """
-        Get relationships by type, optionally filtered by vault.
-
-        Args:
-            db: Database session
-            relationship_type: Type of relationship
-            vault_id: Optional vault ID filter
-
-        Returns:
-            List of matching relationships
-        """
-        from sqlalchemy.orm import aliased
-
-        from app.models.dweller import Dweller
-
-        query = select(Relationship).where(Relationship.relationship_type == relationship_type)
-
-        if vault_id is not None:
-            dweller_1_alias = aliased(Dweller)
-            dweller_2_alias = aliased(Dweller)
-            query = (
-                query.join(dweller_1_alias, Relationship.dweller_1_id == dweller_1_alias.id)
-                .join(dweller_2_alias, Relationship.dweller_2_id == dweller_2_alias.id)
-                .where(dweller_1_alias.vault_id == vault_id)
-                .where(dweller_2_alias.vault_id == vault_id)
-                .where(~dweller_1_alias.is_deleted)
-                .where(~dweller_2_alias.is_deleted)
-            )
-
-        result = await db.execute(query)
-        return list(result.scalars().all())
-
-    async def get_partners(
-        self,
-        db: AsyncSession,
-        dweller_id: UUID4,
-    ) -> Relationship | None:
-        """
-        Get partner relationship for a dweller.
-
-        Args:
-            db: Database session
-            dweller_id: Dweller ID
-
-        Returns:
-            Partner relationship if exists, None otherwise
-        """
-        query = select(Relationship).where(
-            and_(
-                (Relationship.dweller_1_id == dweller_id) | (Relationship.dweller_2_id == dweller_id),
-                Relationship.relationship_type.in_(PARTNER_LINKED_STAGES),
-            )
-        )
-        result = await db.execute(query)
-        return result.scalars().first()
-
-    async def exists_between(
-        self,
-        db: AsyncSession,
-        dweller_1_id: UUID4,
-        dweller_2_id: UUID4,
-    ) -> bool:
-        """
-        Check if relationship exists between two dwellers.
-
-        Args:
-            db: Database session
-            dweller_1_id: First dweller ID
-            dweller_2_id: Second dweller ID
-
-        Returns:
-            True if relationship exists, False otherwise
-        """
-        relationship = await self.get_by_dweller_pair(db, dweller_1_id, dweller_2_id)
-        return relationship is not None
 
     async def get_by_vault(
         self,

@@ -26,9 +26,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-#: Jev refuses anything above this; keep the state + questions under it.
-JEV_STATE_TOKEN_LIMIT = 32_000
-
 
 def is_configured() -> bool:
     """True when Jev is enabled and has an API key."""

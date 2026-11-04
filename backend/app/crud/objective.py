@@ -145,16 +145,6 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         for link in links:
             await db_session.delete(link)
 
-    async def link_exists(self, db_session: AsyncSession, *, vault_id: UUID4, objective_id: UUID4) -> bool:
-        """Whether the vault already has a progress link for the objective."""
-        result = await db_session.execute(
-            select(self.link_model).where(
-                self.link_model.vault_id == vault_id,
-                self.link_model.objective_id == objective_id,
-            )
-        )
-        return result.scalar_one_or_none() is not None
-
     def _current_starter_query(self, vault_id: UUID4) -> SelectOfScalar[UUID]:
         """Select the earliest unclaimed guided step independently of pagination."""
         return (

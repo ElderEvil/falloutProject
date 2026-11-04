@@ -49,7 +49,7 @@ from app.utils.dwellers import (
     create_random_common_dweller,
     level_progress,
 )
-from app.utils.exceptions import ContentNoChangeException, ResourceConflictException, ResourceNotFoundException
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 from app.utils.static_data import game_data_store
 
 #: Eager-load weapon/outfit — the shared baseline; callers that need pets add selectinload(Dweller.pet).
@@ -853,23 +853,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         result = await db_session.execute(query)
         return list(result.scalars().all())
 
-    async def get_dweller_by_name(self, db_session: AsyncSession, name: str) -> Dweller | None:
-        """Get dweller by name."""
-        query = select(self.model).where(self.model.first_name == name)
-        response = await db_session.execute(query)
-        return response.scalars().first()
-
-    async def reanimate(self, db_session: AsyncSession, dweller_obj: Dweller) -> Dweller | None:
-        """Revive a dead dweller."""
-        if self.is_alive(dweller_obj):
-            raise ContentNoChangeException(detail="Dweller is already alive")
-        await self.update(
-            db_session,
-            dweller_obj.id,
-            DwellerUpdate(health=dweller_obj.effective_max_health, status=DwellerStatusEnum.IDLE),
-        )
-        return dweller_obj
-
     async def mark_as_dead(self, db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
         """Mark dweller as dead (health=0, status=DEAD)."""
         return await self.update(db_session, dweller_id, DwellerUpdate(health=0, status=DwellerStatusEnum.DEAD))
@@ -1005,15 +988,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         if limit is not None:
             query = query.limit(limit)
         return (await db_session.execute(query)).scalars().all()
-
-    async def get_pool_eligible_by_id(self, db_session: AsyncSession, dweller_id: UUID4) -> Dweller | None:
-        """A single pool-eligible departure by id."""
-        query = (
-            select(self.model)
-            .where(self.model.id == dweller_id)
-            .where(*pool_eligible_conditions(datetime.now(UTC).replace(tzinfo=None)))
-        )
-        return (await db_session.execute(query)).scalars().one_or_none()
 
     async def get_recyclable(
         self,

@@ -122,15 +122,6 @@ class CRUDIncident:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_active_incident_types_in_vault(db_session: AsyncSession, vault_id: UUID4) -> set[IncidentType]:
-        """Get set of unique active incident types in a vault."""
-        query = select(Incident.type).where(
-            (Incident.vault_id == vault_id) & (Incident.status.in_([IncidentStatus.ACTIVE, IncidentStatus.SPREADING]))
-        )
-        result = await db_session.execute(query)
-        return set(result.scalars().all())
-
-    @staticmethod
     async def get_rooms_with_active_incidents(db_session: AsyncSession, vault_id: UUID4) -> set[UUID4]:
         """Get set of room IDs that have active incidents."""
         query = select(Incident.room_id).where(

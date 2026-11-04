@@ -74,23 +74,6 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         response = await db_session.execute(query)
         return response.scalars().all()
 
-    async def get_count(self, db_session: AsyncSession, include_deleted: bool = False) -> int:
-        """
-        Gets the number of items of the specified model type in the database.
-
-        :param db_session: A database session.
-        :param include_deleted: Whether to include soft-deleted items in count.
-        :returns: The number of items as an integer.
-        """
-        query = select(func.count()).select_from(self.model)
-
-        # Filter out soft-deleted items if the model has is_deleted attribute
-        if not include_deleted and hasattr(self.model, "is_deleted"):
-            query = query.where(~col(self.model.is_deleted))
-
-        response = await db_session.execute(query)
-        return response.scalar_one()
-
     async def get_multi(
         self, db_session: AsyncSession, skip: int = 0, limit: int = 100, include_deleted: bool = False
     ) -> Sequence[ModelType]:

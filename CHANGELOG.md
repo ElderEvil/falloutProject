@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.285.3 (2026-11-04)
+
+### Code Refactoring
+
+* **backend:** remove superseded helpers and dead constants ([#1314](https://github.com/ElderEvil/falloutProject/issues/1314)) 14dde42
+
 ## 2.285.2 (2026-11-04)
 
 ### Bug Fixes

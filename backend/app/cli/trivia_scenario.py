@@ -8,16 +8,14 @@ balanced (5/4), or hard (3/3).
 
 from __future__ import annotations
 
-import asyncio
-import logging
 from typing import Annotated
 from uuid import UUID
 
 import typer
 
+from app.cli.scenario_common import run_scenario_command
 from app.core.config import settings
 from app.services.exploration.expedition_scenario_service import expedition_scenario_service
-from app.utils.exceptions import ResourceNotFoundException
 
 app = typer.Typer(
     name="trivia-scenario",
@@ -27,8 +25,6 @@ app = typer.Typer(
     ),
     no_args_is_help=True,
 )
-
-logger = logging.getLogger(__name__)
 
 PROFILES: dict[str, tuple[int, int]] = {
     "demo": (10, 7),
@@ -126,14 +122,4 @@ def setup(
             )
             _print_setup(result, profile_name, special_value)
 
-    try:
-        asyncio.run(_run())
-        typer.echo("✓ trivia-scenario setup complete.")
-    except (ResourceNotFoundException, ValueError) as exc:
-        detail = exc.detail if isinstance(exc, ResourceNotFoundException) else str(exc)
-        typer.echo(f"Error: {detail}", err=True)
-        raise typer.Exit(code=1) from None
-    except Exception as exc:
-        logger.exception("trivia-scenario setup failed")
-        typer.echo("Error: trivia-scenario setup failed — see logs for details.", err=True)
-        raise typer.Exit(code=1) from exc
+    run_scenario_command("trivia-scenario setup", _run)

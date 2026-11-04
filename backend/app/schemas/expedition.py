@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.core.enums import ExpeditionSceneId
+from app.core.enums import DwellerPerk, ExpeditionSceneId
 from app.schemas.arena import ArenaFighter
 from app.schemas.combat import CombatAction
 
@@ -40,6 +40,7 @@ class NodeBranch(BaseModel):
     trap_damage_min: int | None = None
     trap_damage_max: int | None = None
     trade_cost_caps: int | None = None
+    text: str | None = None
 
 
 class NodeOption(BaseModel):
@@ -49,6 +50,8 @@ class NodeOption(BaseModel):
     label: str
     stat: str
     difficulty: int = Field(ge=1, le=5)
+    required_perk: DwellerPerk | None = None
+    guaranteed: bool = False
     success: NodeBranch = Field(default_factory=NodeBranch)
     failure: NodeBranch = Field(default_factory=NodeBranch)
 
@@ -108,6 +111,7 @@ class SiteNode(BaseModel):
     damage_min: int | None = None
     damage_max: int | None = None
     radiation: int = 0
+    require_choice_context: bool = False
 
     @model_validator(mode="after")
     def trivia_has_content(self) -> Self:
@@ -213,12 +217,15 @@ class NodeOptionView(BaseModel):
     stat: str | None = None
     difficulty: int | None = None
     success_odds: float | None = None
+    required_perk: DwellerPerk | None = None
+    unavailable_reason: str | None = None
 
 
 class SiteNodeView(BaseModel):
     """Player-facing node prompt."""
 
     kind: str
+    choice_context: str | None = None
     prompt: str
     question: str | None = None
     question_id: str | None = None
@@ -304,6 +311,7 @@ class ExpeditionResolveRequest(BaseModel):
     """Resolve the current node; choice_id required for choice/trap-with-options nodes."""
 
     choice_id: str | None = None
+    choice_context: str | None = None
     question_id: str | None = None
     use_skill: bool = False
     expected_round: int | None = Field(default=None, ge=0)

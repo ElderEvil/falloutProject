@@ -355,6 +355,11 @@ class HazardTeam(CaseInsensitiveEnum):
     RADIATION = "radiation"
 
 
+class DwellerPerk(StrEnum):
+    HACKER = "hacker"
+    TERRIFYING_PRESENCE = "terrifying_presence"
+
+
 class DamageChannel(StrEnum):
     """The damage channel a dweller can reduce; each channel has its own source set.
 
@@ -437,6 +442,7 @@ class NotificationType(StrEnum):
     EXPLORATION_UPDATE = "exploration_update"  # Found item, low health, etc.
     EXPLORATION_COMPLETE = "exploration_complete"
     LEVEL_UP = "level_up"
+    PERK_UNLOCKED = "perk_unlocked"
     TRAINING_COMPLETE = "training_complete"
     TRAINING_STARTED = "training_started"
 

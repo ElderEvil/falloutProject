@@ -12,6 +12,11 @@ const levelUpNotification = {
 }
 
 describe('getNotificationRoute', () => {
+  it('opens the source dweller perk selection surface', () => {
+    expect(
+      getNotificationRoute({ ...levelUpNotification, notification_type: 'perk_unlocked' })
+    ).toBe('/vault/vault-1/dwellers/dweller-1?tab=perks')
+  })
   it('opens the reported journey site and preserves older update fallbacks', () => {
     expect(
       getNotificationRoute({

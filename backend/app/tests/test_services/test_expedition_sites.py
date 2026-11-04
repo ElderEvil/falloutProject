@@ -24,6 +24,7 @@ def test_sites_load_and_validate():
         "outskirts_interchange",
         "vault_68",
         "vault_69",
+        "research_checkpoint",
     }
     for site in sites:
         assert isinstance(site, SiteDefinition)
@@ -183,7 +184,7 @@ def test_invalid_site_definition_rejected():
 
 @pytest.mark.parametrize(
     "site",
-    [site for site in data_loader.load_expedition_sites() if not site.scenario_only],
+    [site for site in data_loader.load_expedition_sites() if not site.scenario_only and site.encounter.node.enemies],
     ids=lambda site: site.id,
 )
 def test_scene_rosters_and_intro_balance(site):
@@ -284,7 +285,12 @@ def test_scene_balance_matrix(level, weapon_type):
 
     dweller = _matrix_dweller(level, weapon_type)
     for site in data_loader.load_expedition_sites():
-        if site.scenario_only or site.encounter is None or site.min_dweller_level > level:
+        if (
+            site.scenario_only
+            or site.encounter is None
+            or not site.encounter.node.enemies
+            or site.min_dweller_level > level
+        ):
             continue
         dweller.health = dweller.effective_max_health
         state = initial_combat(site)
@@ -315,7 +321,12 @@ def test_scene_balance_with_equipped_pet(level):
     data = load_pets()[0]
     dweller.pet = build_pet(data, data["rarity"])
     for site in data_loader.load_expedition_sites():
-        if site.scenario_only or site.encounter is None or site.min_dweller_level > level:
+        if (
+            site.scenario_only
+            or site.encounter is None
+            or not site.encounter.node.enemies
+            or site.min_dweller_level > level
+        ):
             continue
         dweller.health = dweller.effective_max_health
         state = initial_combat(site)

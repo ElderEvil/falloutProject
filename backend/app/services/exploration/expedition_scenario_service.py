@@ -103,6 +103,7 @@ VAULT_ONE_DWELLERS = (
     ("Jasper", "Kane", GenderEnum.MALE, (5, 6, 4, 4, 6, 5, 5)),
     ("Mira", "Sato", GenderEnum.FEMALE, (5, 4, 5, 6, 6, 5, 4)),
     ("Nolan", "Cross", GenderEnum.MALE, (6, 5, 6, 4, 4, 5, 5)),
+    ("Orla", "Finch", GenderEnum.FEMALE, (4, 5, 5, 6, 6, 4, 5)),
 )
 
 

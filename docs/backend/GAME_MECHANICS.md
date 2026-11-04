@@ -52,6 +52,13 @@ awarding stats and preserves completed/cancelled history with an empty room refe
 
 ## Dweller XP and leveling
 
+Explorer perks are an optional permanent choice from level 5, based on trained
+SPECIAL and available only to living adult dwellers in the vault. Selection and
+its notification commit together; equipment cannot grant learning eligibility.
+Authored encounters enforce perk prerequisites on the server and retain ordinary
+approaches. See [Explorer perks](../features/EXPLORER_PERKS.md) for the pilot's
+rules, saved-run behavior and validation requirements.
+
 `experience` is cumulative lifetime XP, never progress reset on level-up. Seeding,
 reward grants, work ticks and model progress bars share `app/utils/leveling.py`:
 level 1 starts at 0; later thresholds are `int(base_xp_requirement * level**xp_curve_exponent)`.

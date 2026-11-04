@@ -9,9 +9,9 @@ STAT_SNAPSHOT_FIELDS = {stat: f"dweller_{stat}" for stat in SPECIAL_STATS}
 
 
 def success_odds(stat_value: int, difficulty: int) -> float:
-    """Display odds for d20 + stat*2 >= 10 + difficulty*2, clamped to 5%-95%."""
+    """Exact odds for d20 + stat*2 >= 10 + difficulty*2, including certainty."""
     need = _check_threshold(stat_value, difficulty)
-    return min(0.95, max(0.05, (21 - need) / 20))
+    return min(1.0, max(0.0, (21 - need) / 20))
 
 
 def roll_check(stat_value: int, difficulty: int) -> bool:

@@ -802,7 +802,10 @@ const terminalBanner = computed(() => {
             >
               {{ room.node.question }}
             </p>
-            <p v-else-if="!expandedCombat" class="mb-4 text-sm text-theme-primary/70">
+            <p
+              v-else-if="isCombatRoom && !expandedCombat"
+              class="mb-4 text-sm text-theme-primary/70"
+            >
               {{
                 fighting
                   ? 'Combat is underway. Activate your weapon skill when its meter fills.'
@@ -842,7 +845,7 @@ const terminalBanner = computed(() => {
                   :class="optionButtonClass(option)"
                   variant="outline"
                   size="lg"
-                  :disabled="store.isLoading"
+                  :disabled="store.isLoading || !!option.unavailable_reason"
                   :title="statCheckDetail(option)"
                   :aria-label="statCheckAriaLabel(option)"
                   @click="handleResolve(option.id)"
@@ -854,6 +857,12 @@ const terminalBanner = computed(() => {
                         : 'min-w-0 flex-1 break-words text-left leading-relaxed'
                     "
                     >{{ optionLabel(option) }}</span
+                  >
+                  <span v-if="option.unavailable_reason" class="text-xs text-muted-foreground">{{
+                    option.unavailable_reason
+                  }}</span>
+                  <span v-else-if="option.required_perk" class="text-xs text-theme-accent"
+                    >Perk approach</span
                   >
                   <span
                     :class="

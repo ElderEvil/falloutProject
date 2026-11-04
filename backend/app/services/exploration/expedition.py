@@ -138,6 +138,8 @@ async def _apply_branch(
     result: BranchResult,
 ) -> None:
     """Apply one terminal branch: cache, combat, trap, trade, or nothing."""
+    if branch.text:
+        result.texts.append(branch.text)
     if branch.cache_tier is not None:
         caps_min, caps_max = CACHE_CAPS[branch.cache_tier]
         caps = random.randint(caps_min, caps_max)
@@ -218,7 +220,7 @@ async def _resolve_choice_branch(
     result: BranchResult,
 ) -> None:
     option_stat = stat_value(exploration, option.stat)
-    if roll_check(option_stat, option.difficulty):
+    if option.guaranteed or roll_check(option_stat, option.difficulty):
         result.texts.append(f"{option.label}: success!")
         await _apply_branch(db_session, exploration, stat_value(exploration, "luck"), option.success, result)
     else:
@@ -496,6 +498,7 @@ class ExpeditionService:
                 **run.flags,
                 "trivia_questions": pick_trivia_questions(rooms, target_difficulty=site.min_dweller_level),
                 "trivia_raiders": pick_trivia_raiders(rooms),
+                "selected_perk": dweller_obj.selected_perk,
             }
             if single_scene:
                 flags["single_scene"] = True
@@ -617,6 +620,12 @@ class ExpeditionService:
             raise ValidationException(f"Unknown expedition site: {run.site_id!r}")
         rooms = rooms_for_run(site, run)
         room = rooms[run.room_cursor]
+        if room.node.require_choice_context and request.choice_context != f"{run.id}:{room.id}":
+            raise ResourceConflictException("This encounter changed. Reopen it before choosing an approach.")
+        if room.node.options and room.node.kind != "trivia" and not run.flags.get("pending_fight"):
+            option = _find_option(room.node.options, request.choice_id, required=True)
+            if option.required_perk and run.flags.get("selected_perk") != option.required_perk:
+                raise ValidationException("This approach requires a perk this explorer has not learned.")
         if run.flags.get("single_scene") and room.node.kind == "combat":
             try:
                 return await self._resolve_scene_combat_transaction(

@@ -100,7 +100,7 @@ async def _push_on_until(async_session: AsyncSession, exploration_id, room_index
 
 
 def test_success_odds_boundaries():
-    assert success_odds(10, 1) == 0.95
+    assert success_odds(10, 1) == 1.0
     assert success_odds(1, 5) == pytest.approx(0.15)
     assert 0.05 < success_odds(5, 3) < 0.95
 

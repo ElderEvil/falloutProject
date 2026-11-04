@@ -47,6 +47,7 @@ async def test_setup_creates_level_five_dweller_on_active_exploration(
         "gloomwater_bog",
         "gloomwater_bog_night",
         "outskirts_interchange",
+        "research_checkpoint",
     }
     assert result.precleared_site_id is None
 
@@ -74,6 +75,7 @@ async def test_setup_all_sites_offers_single_scene_sites_for_one_scout(
         "gloomwater_bog",
         "gloomwater_bog_night",
         "outskirts_interchange",
+        "research_checkpoint",
     }
 
 
@@ -103,6 +105,7 @@ async def test_setup_all_sites_can_include_multi_room_when_explicitly_enabled(
         "gloomwater_bog",
         "gloomwater_bog_night",
         "outskirts_interchange",
+        "research_checkpoint",
     }
 
 
@@ -252,6 +255,7 @@ async def test_setup_level_four_gates_super_duper_mart(async_session: AsyncSessi
         "gloomwater_bog",
         "gloomwater_bog_night",
         "outskirts_interchange",
+        "research_checkpoint",
     ]
 
 
@@ -305,6 +309,7 @@ async def test_get_status_none_before_setup_and_populated_after(async_session: A
         "gloomwater_bog",
         "gloomwater_bog_night",
         "outskirts_interchange",
+        "research_checkpoint",
     }
 
 

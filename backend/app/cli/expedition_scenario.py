@@ -10,7 +10,7 @@ from uuid import UUID
 import typer
 
 from app.core.config import settings
-from app.services.exploration.expedition_scenario_service import expedition_scenario_service
+from app.services.exploration.expedition_scenario_service import VAULT_ONE_DWELLERS, expedition_scenario_service
 from app.utils.exceptions import ResourceNotFoundException
 
 app = typer.Typer(
@@ -155,7 +155,7 @@ def vault1(
         typer.Option(
             "--dwellers",
             min=1,
-            max=12,
+            max=len(VAULT_ONE_DWELLERS),
             help="How many named dwellers; default: one per selected site",
         ),
     ] = None,

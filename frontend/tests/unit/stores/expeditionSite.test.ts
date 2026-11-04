@@ -50,6 +50,25 @@ describe('Expedition Site Store', () => {
     vi.clearAllMocks()
   })
 
+  it('submits the persisted choice context with a perk encounter', async () => {
+    const store = useExpeditionSiteStore()
+    vi.mocked(expeditionSiteApi.enterSite).mockResolvedValue({
+      ...mockRoom,
+      node: { ...mockRoom.node, choice_context: 'run-a:checkpoint_locker' },
+    })
+    vi.mocked(expeditionSiteApi.resolveNode).mockResolvedValue({ ...mockRoom, status: 'cleared' })
+    await store.enterSite('exploration-1', 'research_checkpoint')
+    await store.resolveNode('exploration-1', 'salvage')
+    expect(expeditionSiteApi.resolveNode).toHaveBeenCalledWith(
+      'exploration-1',
+      'salvage',
+      false,
+      undefined,
+      undefined,
+      'run-a:checkpoint_locker'
+    )
+  })
+
   it('fetchAvailableSites populates availableSites', async () => {
     vi.mocked(expeditionSiteApi.listAvailableSites).mockResolvedValue([mockSite])
     const store = useExpeditionSiteStore()

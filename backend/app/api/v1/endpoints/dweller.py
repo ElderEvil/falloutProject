@@ -51,6 +51,7 @@ from app.schemas.dweller import (
 )
 from app.schemas.exit_request import ExitDecisionResponse, ExitRequestRead
 from app.schemas.happiness import HappinessModifiersResponse
+from app.schemas.perk import DwellerPerksRead, PerkSelectRequest
 from app.services import medical_service
 from app.services.barbershop_service import barbershop_service
 from app.services.bio_service import bio_service
@@ -60,10 +61,34 @@ from app.services.exit_request_service import exit_request_service
 from app.services.family.death_service import death_service
 from app.services.family.lineage_service import lineage_service
 from app.services.happiness_service import happiness_service
+from app.services.perk_service import perk_service
 from app.utils.exceptions import ResourceNotFoundException
 from app.utils.static_data import StaticGameData
 
 router = APIRouter(prefix="/dwellers", tags=["Dweller"])
+
+
+@router.get("/{dweller_id}/perks", response_model=DwellerPerksRead)
+async def read_dweller_perks(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> DwellerPerksRead:
+    """Read this dweller's elective perk and trained-stat eligibility."""
+    await verify_dweller_access(dweller_id, user, db_session)
+    return await perk_service.get_perks(db_session, dweller_id)
+
+
+@router.post("/{dweller_id}/perks", response_model=DwellerPerksRead)
+async def select_dweller_perk(
+    dweller_id: UUID4,
+    request: PerkSelectRequest,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> DwellerPerksRead:
+    """Choose the dweller's single explorer perk."""
+    await verify_dweller_access(dweller_id, user, db_session)
+    return await perk_service.select(db_session, dweller_id, request.perk, user.id)
 
 
 @router.post("/", response_model=DwellerRead)

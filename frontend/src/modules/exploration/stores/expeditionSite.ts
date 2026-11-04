@@ -86,6 +86,7 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
     useSkill = false
   ): Promise<SiteRoomView> {
     const questionId = room.value?.node.question_id ?? undefined
+    const choiceContext = room.value?.node.choice_context ?? undefined
     try {
       return await runRequest(
         explorationId,
@@ -99,7 +100,16 @@ export const useExpeditionSiteStore = defineStore('expeditionSite', () => {
               )
             : questionId
               ? expeditionSiteApi.resolveNode(explorationId, choiceId, false, undefined, questionId)
-              : expeditionSiteApi.resolveNode(explorationId, choiceId),
+              : choiceContext
+                ? expeditionSiteApi.resolveNode(
+                    explorationId,
+                    choiceId,
+                    false,
+                    undefined,
+                    undefined,
+                    choiceContext
+                  )
+                : expeditionSiteApi.resolveNode(explorationId, choiceId),
         'Failed to resolve expedition node',
         (nextRoom) => {
           room.value = nextRoom

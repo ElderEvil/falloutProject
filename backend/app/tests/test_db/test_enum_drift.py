@@ -70,6 +70,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
         "EXPLORATION_UPDATE",
         "EXPLORATION_COMPLETE",
         "LEVEL_UP",
+        "PERK_UNLOCKED",
         "TRAINING_COMPLETE",
         "TRAINING_STARTED",
         "CRAFTING_COMPLETE",

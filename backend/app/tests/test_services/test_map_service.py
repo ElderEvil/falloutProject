@@ -645,6 +645,7 @@ async def test_get_vault_map_expedition_sites_ready(async_session: AsyncSession,
         "gloomwater_bog",
         "gloomwater_bog_night",
         "outskirts_interchange",
+        "research_checkpoint",
     }
     for site in data_loader.load_expedition_sites():
         if site.scenario_only:
@@ -669,6 +670,7 @@ async def test_get_vault_map_expedition_sites_ready(async_session: AsyncSession,
         "gloomwater_bog": 1,
         "gloomwater_bog_night": 1,
         "outskirts_interchange": 1,
+        "research_checkpoint": 1,
     }
 
 
@@ -790,10 +792,15 @@ async def test_get_vault_map_spatial_journey_exposes_only_offered_sites(
     exploration = await _spatial_journey_near_red_rocket(async_session, vault, dweller)
 
     map_data = await map_service.get_vault_map(async_session, vault)
-    assert {site.id for site in map_data.expedition_sites} == {"red_rocket", "roadside_supply_truck"}
+    assert {site.id for site in map_data.expedition_sites} == {
+        "red_rocket",
+        "roadside_supply_truck",
+        "research_checkpoint",
+    }
     assert {site.id: site.room_total for site in map_data.expedition_sites} == {
         "red_rocket": 1,
         "roadside_supply_truck": 1,
+        "research_checkpoint": 1,
     }
 
     run = await crud.expedition_run.create_run(
@@ -805,7 +812,7 @@ async def test_get_vault_map_spatial_journey_exposes_only_offered_sites(
     await async_session.commit()
 
     map_data = await map_service.get_vault_map(async_session, vault)
-    assert {site.id for site in map_data.expedition_sites} == {"roadside_supply_truck"}
+    assert {site.id for site in map_data.expedition_sites} == {"roadside_supply_truck", "research_checkpoint"}
 
 
 @pytest.mark.asyncio

@@ -22,6 +22,7 @@ NOTIFICATION_CATEGORY_BY_TYPE: dict[NotificationType, NotificationCategory | Non
     NotificationType.EXPLORATION_UPDATE: NotificationCategory.EXPLORATION_UPDATES,
     NotificationType.EXPLORATION_COMPLETE: NotificationCategory.ARRIVALS_AND_COMPLETIONS,
     NotificationType.LEVEL_UP: NotificationCategory.ADVANCEMENT,
+    NotificationType.PERK_UNLOCKED: NotificationCategory.ADVANCEMENT,
     NotificationType.TRAINING_COMPLETE: NotificationCategory.ADVANCEMENT,
     NotificationType.TRAINING_STARTED: NotificationCategory.ADVANCEMENT,
     NotificationType.CRAFTING_COMPLETE: NotificationCategory.CRAFTING,

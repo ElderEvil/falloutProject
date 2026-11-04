@@ -171,6 +171,9 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
     # (e.g. template load-time identity validation) without an inherited override.
     visual_attributes: dict | None = Field(default=None, sa_column=sa.Column(JSONB))
 
+    # One elective perk; absent from public create/update bases to prevent grants by PATCH.
+    selected_perk: str | None = Field(default=None, sa_column=sa.Column(sa.String(32), nullable=True))
+
     # Youth apprenticeship in a production room.
     apprentice_stat: SPECIALEnum | None = Field(default=None)
     apprentice_started_at: datetime | None = Field(default=None)

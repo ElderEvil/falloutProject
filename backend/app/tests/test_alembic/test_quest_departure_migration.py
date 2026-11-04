@@ -2,9 +2,11 @@
 
 import asyncio
 from datetime import datetime, timedelta
+from enum import Enum
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy import MetaData, Table, insert
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.enums import DwellerStatusEnum, GenderEnum, RarityEnum
@@ -51,6 +53,10 @@ def test_recovers_orphaned_questing_dwellers_and_preserves_active_parties(harnes
         ids = {}
         try:
             async with async_sessionmaker(engine, expire_on_commit=False)() as db:
+                connection = await db.connection()
+                # Seed the historical table, not the current ORM mapping: later
+                # columns (e.g. selected_perk) do not exist at PARENT.
+                table = await connection.run_sync(lambda conn: Table("dweller", MetaData(), autoload_with=conn))
                 for state in (
                     "orphan",
                     "unlinked",
@@ -69,7 +75,15 @@ def test_recovers_orphaned_questing_dwellers_and_preserves_active_parties(harnes
                         status=DwellerStatusEnum.EXPLORING if state == "exploring" else DwellerStatusEnum.QUESTING,
                         room_id=UUID(room_id) if state in ("orphan", "outbound") else None,
                     )
-                    db.add(dweller)
+                    await db.execute(
+                        insert(table).values(
+                            {
+                                key: value.name if isinstance(value, Enum) else value
+                                for key, value in dweller.model_dump().items()
+                                if key in table.c
+                            }
+                        )
+                    )
                     await db.flush()
                     ids[state] = str(dweller.id)
                     if state in ("orphan", "exploring"):

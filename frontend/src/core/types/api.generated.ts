@@ -808,6 +808,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dwellers/{dweller_id}/perks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Dweller Perks
+         * @description Read this dweller's elective perk and trained-stat eligibility.
+         */
+        get: operations["read_dweller_perks_api_v1_dwellers__dweller_id__perks_get"];
+        put?: never;
+        /**
+         * Select Dweller Perk
+         * @description Choose the dweller's single explorer perk.
+         */
+        post: operations["select_dweller_perk_api_v1_dwellers__dweller_id__perks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dwellers/": {
         parameters: {
             query?: never;
@@ -7190,6 +7214,22 @@ export interface components {
          * @enum {string}
          */
         DwellerLocationRelationEnum: "origin" | "visited";
+        /**
+         * DwellerPerk
+         * @enum {string}
+         */
+        DwellerPerk: "hacker" | "terrifying_presence";
+        /** DwellerPerksRead */
+        DwellerPerksRead: {
+            /**
+             * Dweller Id
+             * Format: uuid4
+             */
+            dweller_id: string;
+            selected_perk: components["schemas"]["DwellerPerk"] | null;
+            /** Options */
+            options: components["schemas"]["PerkOption"][];
+        };
         /** DwellerRead */
         DwellerRead: {
             /**
@@ -8029,6 +8069,8 @@ export interface components {
         ExpeditionResolveRequest: {
             /** Choice Id */
             choice_id?: string | null;
+            /** Choice Context */
+            choice_context?: string | null;
             /** Question Id */
             question_id?: string | null;
             /**
@@ -9325,6 +9367,9 @@ export interface components {
             difficulty?: number | null;
             /** Success Odds */
             success_odds?: number | null;
+            required_perk?: components["schemas"]["DwellerPerk"] | null;
+            /** Unavailable Reason */
+            unavailable_reason?: string | null;
         };
         /**
          * NodeOutcome
@@ -9403,7 +9448,7 @@ export interface components {
          * @description Types of notifications
          * @enum {string}
          */
-        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "storage_item_degraded" | "storage_item_upgraded" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "rush_succeeded" | "rush_failed" | "quest_complete" | "objective_completed" | "objectives_refreshed" | "room_unlocked" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
+        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "perk_unlocked" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "storage_item_degraded" | "storage_item_upgraded" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "rush_succeeded" | "rush_failed" | "quest_complete" | "objective_completed" | "objectives_refreshed" | "room_unlocked" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
         /** OAuthHandoffRequest */
         OAuthHandoffRequest: {
             /** Code */
@@ -9861,6 +9906,34 @@ export interface components {
             unclaimed_loot: {
                 [key: string]: unknown;
             }[];
+        };
+        /** PerkOption */
+        PerkOption: {
+            id: components["schemas"]["DwellerPerk"];
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /**
+             * Stat
+             * @enum {string}
+             */
+            stat: "intelligence" | "charisma";
+            /** Minimum Stat */
+            minimum_stat: number;
+            /**
+             * Minimum Level
+             * @default 5
+             */
+            minimum_level: number;
+            /** Eligible */
+            eligible: boolean;
+            /** Unavailable Reason */
+            unavailable_reason?: string | null;
+        };
+        /** PerkSelectRequest */
+        PerkSelectRequest: {
+            perk: components["schemas"]["DwellerPerk"];
         };
         /** PetCarrierOpenRequest */
         PetCarrierOpenRequest: {
@@ -11022,6 +11095,8 @@ export interface components {
         SiteNodeView: {
             /** Kind */
             kind: string;
+            /** Choice Context */
+            choice_context?: string | null;
             /** Prompt */
             prompt: string;
             /** Question */
@@ -13533,6 +13608,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TestEmailResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_dweller_perks_api_v1_dwellers__dweller_id__perks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dweller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DwellerPerksRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    select_dweller_perk_api_v1_dwellers__dweller_id__perks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dweller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PerkSelectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DwellerPerksRead"];
                 };
             };
             /** @description Validation Error */

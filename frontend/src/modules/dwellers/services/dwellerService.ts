@@ -5,6 +5,30 @@ import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 export type IdentityOptions = components['schemas']['DwellerIdentityOptions']
 export type AppearanceOptions = components['schemas']['DwellerAppearanceOptions']
 export type FeatureFlags = components['schemas']['FeaturesResponse']
+export type DwellerPerks = components['schemas']['DwellerPerksRead']
+export type DwellerPerk = components['schemas']['DwellerPerk']
+
+export async function getDwellerPerks(id: string, token: string): Promise<DwellerPerks> {
+  const response = await axios.get<DwellerPerks>(`/api/v1/dwellers/${id}/perks`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return response.data
+}
+
+export async function selectDwellerPerk(
+  id: string,
+  perk: DwellerPerk,
+  token: string
+): Promise<DwellerPerks> {
+  const response = await axios.post<DwellerPerks>(
+    `/api/v1/dwellers/${id}/perks`,
+    { perk },
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  )
+  return response.data
+}
 
 export interface DwellerQueryParams {
   focus?: components['schemas']['DwellerRosterFocus']

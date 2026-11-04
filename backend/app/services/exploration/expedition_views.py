@@ -3,6 +3,7 @@
 from app.core.enums import ExpeditionRunStatus
 from app.models.dweller import Dweller
 from app.models.exploration import ExpeditionRun, Exploration
+from app.options.perks import PERKS
 from app.schemas.expedition import (
     NodeOptionView,
     NodeOutcome,
@@ -68,7 +69,15 @@ def build_view(
                 label=option.label,
                 stat=option.stat,
                 difficulty=option.difficulty,
-                success_odds=success_odds(stat_value(exploration, option.stat), option.difficulty),
+                success_odds=1.0
+                if option.guaranteed
+                else success_odds(stat_value(exploration, option.stat), option.difficulty),
+                required_perk=option.required_perk,
+                unavailable_reason=(
+                    f"Requires {PERKS[option.required_perk].name}."
+                    if option.required_perk and run.flags.get("selected_perk") != option.required_perk
+                    else None
+                ),
             )
             for option in room.node.options
         ]
@@ -92,6 +101,7 @@ def build_view(
         flavor=room.flavor,
         node=SiteNodeView(
             kind=room.node.kind,
+            choice_context=f"{run.id}:{room.id}" if room.node.require_choice_context else None,
             prompt=prompt,
             question=question_text,
             question_id=question_id,

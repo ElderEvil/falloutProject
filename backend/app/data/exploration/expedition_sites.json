@@ -1713,6 +1713,85 @@
         "junk_bundles": 0,
         "stimpaks": 0
       }
+    },
+    {
+      "id": "research_checkpoint",
+      "name": "Research Checkpoint",
+      "flavor": "Scavengers occupy a pre-war research checkpoint. A security terminal controls the supply locker.",
+      "coord_x": 52,
+      "coord_y": 48,
+      "min_dweller_level": 1,
+      "scene_id": "arctic_research_station",
+      "lore": "The console still expects a research credential. The scavengers prefer a convincing argument.",
+      "encounter": {
+        "id": "checkpoint_locker",
+        "name": "Checkpoint Supply Locker",
+        "flavor": "A sealed locker stands behind the scavengers. Decide how to claim its contents.",
+        "node": {
+          "kind": "choice",
+          "prompt": "The scavengers will not share willingly. How do you approach the supply locker?",
+          "require_choice_context": true,
+          "options": [
+            {
+              "id": "hack_terminal",
+              "label": "Override the locker terminal",
+              "stat": "intelligence",
+              "difficulty": 3,
+              "required_perk": "hacker",
+              "guaranteed": true,
+              "success": {
+                "cache_tier": "rich",
+                "cache_item": "junk",
+                "text": "Your terminal override releases the technical supplies. Take the recovered components to the workshop after returning."
+              }
+            },
+            {
+              "id": "intimidate",
+              "label": "Demand their spare equipment",
+              "stat": "charisma",
+              "difficulty": 3,
+              "required_perk": "terrifying_presence",
+              "guaranteed": true,
+              "success": {
+                "cache_tier": "standard",
+                "cache_item": "weapon",
+                "text": "The scavengers surrender a spare weapon. Compare it with your dwellers' equipment after returning."
+              }
+            },
+            {
+              "id": "negotiate",
+              "label": "Negotiate a share of their supplies",
+              "stat": "charisma",
+              "difficulty": 3,
+              "success": {
+                "cache_tier": "standard",
+                "cache_item": "junk",
+                "text": "They agree to share. These supplies can support crafting after your return."
+              },
+              "failure": {
+                "text": "They refuse the deal. You leave with no supplies, but no one gets hurt."
+              }
+            },
+            {
+              "id": "salvage",
+              "label": "Gather abandoned scrap outside",
+              "stat": "perception",
+              "difficulty": 1,
+              "guaranteed": true,
+              "success": {
+                "cache_tier": "small",
+                "cache_item": "junk",
+                "text": "You recover a modest haul without confronting the scavengers. Return it to storage for crafting."
+              }
+            }
+          ]
+        }
+      },
+      "reward_vault": {
+        "caps_min": 0,
+        "caps_max": 0,
+        "item": null
+      }
     }
   ]
 }

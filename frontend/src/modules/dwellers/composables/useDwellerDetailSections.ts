@@ -4,6 +4,7 @@ import DwellerAppearance from '../components/DwellerAppearance.vue'
 import DwellerStats from '../components/stats/DwellerStats.vue'
 import DwellerEquipment from '../components/DwellerEquipment.vue'
 import FamilyTreePanel from '../components/FamilyTreePanel.vue'
+import DwellerPerks from '../components/DwellerPerks.vue'
 
 export interface DwellerSection {
   key: string
@@ -15,6 +16,7 @@ export const dwellerDetailSections: DwellerSection[] = [
   { key: 'profile', label: 'Profile', component: markRaw(DwellerBio) },
   { key: 'appearance', label: 'Appearance', component: markRaw(DwellerAppearance) },
   { key: 'stats', label: 'SPECIAL', component: markRaw(DwellerStats) },
+  { key: 'perks', label: 'Perks', component: markRaw(DwellerPerks) },
   { key: 'equipment', label: 'Equipment', component: markRaw(DwellerEquipment) },
   { key: 'family', label: 'Family', component: markRaw(FamilyTreePanel) },
 ]

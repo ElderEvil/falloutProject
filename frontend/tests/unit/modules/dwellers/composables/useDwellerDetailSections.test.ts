@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vite-plus/test'
 import { dwellerDetailSections } from '@/modules/dwellers/composables/useDwellerDetailSections'
 
 describe('dwellerDetailSections', () => {
-  it('contains the five available detail sections', () => {
+  it('contains the available detail sections including elective perks', () => {
     expect(dwellerDetailSections.map((section) => section.key)).toEqual([
       'profile',
       'appearance',
       'stats',
+      'perks',
       'equipment',
       'family',
     ])

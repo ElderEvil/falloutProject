@@ -13,6 +13,7 @@ const NOTIFICATION_SOUNDS = {
   exploration_update: 'explorationLoot',
   exploration_complete: 'explorationComplete',
   level_up: 'levelUp',
+  perk_unlocked: 'success',
   training_complete: 'trainingComplete',
   training_started: 'trainingStart',
   crafting_complete: 'craftComplete',
@@ -86,6 +87,8 @@ export function getNotificationRoute(notification: NotificationNavigationContext
   const dwellerId = metadataString(notification, 'dweller_id') ?? notification.from_dweller_id
 
   switch (notification.notification_type) {
+    case 'perk_unlocked':
+      return dwellerId ? `${vaultPath}/dwellers/${dwellerId}?tab=perks` : `${vaultPath}/dwellers`
     case 'exploration_complete':
       return `${vaultPath}/exploration`
     case 'exploration_update':

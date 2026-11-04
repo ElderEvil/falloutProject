@@ -28,41 +28,47 @@ See [docs/ROADMAP.md](./docs/ROADMAP.md) for recent updates and upcoming feature
 
 **Backend:** FastAPI · SQLModel · PostgreSQL 18 · Redis · PydanticAI
 **Frontend:** Vue 3.5 · TypeScript · Vite · Pinia · TailwindCSS v4 · Vitest
-**Tooling:** uv · ruff · Rolldown · Oxlint · Docker/Podman
+**Tooling:** uv · ruff · Rolldown · Oxlint · Podman (Docker alternative)
 
 ## 📋 Prerequisites
 
 **Required:**
 - [Python 3.13](https://www.python.org/downloads/)
 - [Node.js 26](https://nodejs.org/) (recommended; Node 22.22.2+ still works during the transition)
-- [Docker Compose](https://docs.docker.com/compose/install/) (v2 - use `docker compose`, not `docker-compose`)
+- [Podman](https://podman.io/) with Compose support (primary; use `podman compose`)
+- [Docker Compose](https://docs.docker.com/compose/install/) (alternative; v2 - use `docker compose`, not `docker-compose`)
 
 **Installation:**
 - **uv** (Python package manager):
   - macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
   - Windows: `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
-- **pnpm** (via Corepack): `corepack enable && corepack use pnpm@11.9.0`
+- **pnpm** (via Corepack): `corepack enable && corepack use pnpm@11.9.0` (or
+  `npm install -g pnpm@11.9.0` if Corepack is unavailable)
 
 ## 🚀 Quick Start (Hybrid Development)
 
-**Recommended setup:** Run infrastructure in Docker; run backend + frontend locally for hot reload.
+**Recommended setup:** Run infrastructure with Podman; run backend + frontend locally for hot reload.
+Docker Compose is a supported alternative: every `podman compose` command below has a
+`docker compose` equivalent.
 
 ### Zed
 
 Open the repository in Zed and run these project tasks in order from
 `task: spawn`: `Fallout: Run Podman infrastructure`, `Fallout: Run backend
-server`, and `Fallout: Run frontend server`. Each opens its own terminal, like
-separate PyCharm run configurations. The backend task applies migrations before
-starting FastAPI. Run `Fallout: Stop Podman infrastructure` to stop the
-containers.
+server (Podman)`, and `Fallout: Run frontend server`. Each opens its own
+terminal, like separate PyCharm run configurations. The backend task applies
+migrations before starting FastAPI. Run `Fallout: Stop Podman infrastructure`
+to stop the containers. Docker users can pick the matching
+`Fallout: ... (Docker)` tasks instead.
 
 ```bash
 # 1. Clone and setup environment
 git clone https://github.com/ElderEvil/falloutProject && cd falloutProject
 cp .env.example .env  # Edit with your settings (keep localhost hostnames)
 
-# 2. Start infrastructure services (PostgreSQL, Redis, Mailpit for local dev email)
-docker compose -f docker-compose.infra.yml up -d
+# 2. Start infrastructure services (PostgreSQL, Redis, RustFS, Mailpit for local dev email)
+podman compose -f docker-compose.infra.yml up -d
+# Docker alternative: docker compose -f docker-compose.infra.yml up -d
 
 # 3. Setup and run backend (http://localhost:8000)
 cd backend
@@ -113,9 +119,9 @@ ollama pull llama2
 - **Mac/Linux:** All commands work as-is in Terminal.
 - **First run:** Backend will create database schema automatically via migrations
 
-### Alternative: Full Stack via Docker
+### Alternative: Full Stack via Containers
 
-Run everything in containers (no local Node/Python needed):
+Run everything in Podman (or Docker) containers (no local Node/Python needed):
 
 ```bash
 # 1. Clone and setup environment
@@ -123,10 +129,11 @@ git clone https://github.com/ElderEvil/falloutProject && cd falloutProject
 cp .env.example .env  # Edit SECRET_KEY, passwords, API keys as needed
 
 # 2. Start all services (environment overrides handled automatically)
-docker compose up -d
+podman compose up -d
+# Docker alternative: docker compose up -d
 
 # 3. Wait for services to be ready (30-60 seconds)
-docker compose logs -f fastapi  # Watch startup (Ctrl+C to exit)
+podman compose logs -f fastapi  # Watch startup (Ctrl+C to exit)
 ```
 
 **Access:**
@@ -135,7 +142,7 @@ docker compose logs -f fastapi  # Watch startup (Ctrl+C to exit)
 - **Mailpit (local dev email only; no real emails):** http://localhost:8025. For production real email (verification, password reset), see the [Mailcow-on-Hetzner setup in docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md#production-email-mailcow-on-hetzner).
 
 **Notes:**
-- No need to edit hostnames in `.env` - Docker Compose automatically overrides them
+- No need to edit hostnames in `.env` - Podman/Docker Compose automatically overrides them
 - First build takes 5-10 minutes (downloads images + builds backend/frontend)
 - Subsequent starts are fast (~30 seconds)
 
@@ -222,19 +229,21 @@ and [`docs/frontend/ACCESSIBILITY.md`](./docs/frontend/ACCESSIBILITY.md) for det
 
 ## 🐳 Deployment
 
-### Docker Compose Options
+### Container Compose Options
+
+Podman is the primary engine; replace `podman compose` with `docker compose` to use Docker.
 
 ```bash
 # Hybrid development (infra only)
-docker compose -f docker-compose.infra.yml up -d
+podman compose -f docker-compose.infra.yml up -d
 
 # Full stack (all services)
-docker compose up -d
+podman compose up -d
 # Access frontend: http://localhost:3000
 # Access backend: http://localhost:8000
 
 # Local dev with hot reload
-docker compose -f docker-compose.local.yml up -d
+podman compose -f docker-compose.local.yml up -d
 ```
 
 ### Docker Images
@@ -269,12 +278,14 @@ export POSTGRES_SERVER=localhost
 
 ### Manual Backup
 
+Podman is shown; replace `podman` with `docker` to use Docker.
+
 ```bash
-# Using pg_dump directly
-docker exec -t fallout-postgres pg_dump -U postgres fallout_db > backup.sql
+# Using pg_dump through the compose service
+podman compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > backup.sql
 
 # Or with compression
-docker exec -t fallout-postgres pg_dump -U postgres fallout_db | gzip > backup.sql.gz
+podman compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' | gzip > backup.sql.gz
 ```
 
 ### Restore from Backup
@@ -282,19 +293,20 @@ docker exec -t fallout-postgres pg_dump -U postgres fallout_db | gzip > backup.s
 **⚠️ WARNING:** Restore will overwrite current data. Consider backing up first.
 
 ```bash
-# Stop the application
-docker compose stop fastapi
+# Stop the application (the worker also writes to the database)
+podman compose stop fastapi dramatiq_worker
 
 # Restore from backup (uncompressed)
 gunzip backup.sql.gz  # if compressed
-docker exec -i fallout-postgres psql -U postgres -d fallout_db < backup.sql
 
-# Or restore to a fresh database
-docker exec -i fallout-postgres psql -U postgres -c "DROP DATABASE fallout_db; CREATE DATABASE fallout_db;"
-docker exec -i fallout-postgres psql -U postgres -d fallout_db < backup.sql
+# Recreate an empty database (separate -c flags: DROP DATABASE cannot run in a transaction)
+podman compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d postgres -c "DROP DATABASE IF EXISTS $POSTGRES_DB WITH (FORCE)" -c "CREATE DATABASE $POSTGRES_DB"'
+
+# Restore, aborting on the first SQL error so a failure cannot leave a partial restore
+podman compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1' < backup.sql
 
 # Restart application
-docker compose start fastapi
+podman compose start fastapi dramatiq_worker
 ```
 
 ## 🔑 Environment Variables
@@ -307,8 +319,8 @@ docker compose start fastapi
 
 **Configuration strategy:**
 - **Hybrid mode:** Use `.env` with localhost hostnames (as-is from `.env.example`)
-- **Full Docker mode:** Use `.env` as-is - Docker Compose auto-overrides hostnames
-- **Do NOT manually edit** hostnames for Docker - compose files handle it
+- **Full container mode:** Use `.env` as-is - Podman/Docker Compose auto-overrides hostnames
+- **Do NOT manually edit** hostnames for containers - compose files handle it
 
 **Key variables:**
 - **Required:**
@@ -326,8 +338,9 @@ docker compose start fastapi
 
 **AI Setup Notes:**
 - **Ollama (Free):** [Install locally](https://ollama.ai/download); Compose does not run Ollama. Use
-  `OLLAMA_BASE_URL=http://host.containers.internal:11434/v1` for a Podman container, or
-  `http://localhost:11434/v1` when the backend runs natively.
+  `OLLAMA_BASE_URL=http://host.containers.internal:11434/v1` for a Podman container,
+  `http://host.docker.internal:11434/v1` (plus a `host-gateway` host mapping) for a Docker
+  container, or `http://localhost:11434/v1` when the backend runs natively.
 - **Gateway + OpenAI (recommended):** Set `PYDANTIC_AI_GATEWAY_API_KEY`, `AI_PROVIDER=openai`, and `AI_MODEL` for
   chat/agent calls. Set `PYDANTIC_AI_GATEWAY_ROUTE` when using a custom Gateway provider or routing group. Retain
   `OPENAI_API_KEY` for image and audio features. See [Pydantic AI Gateway Setup](docs/backend/PYDANTIC_AI_GATEWAY.md)
@@ -339,17 +352,17 @@ docker compose start fastapi
 
 ### Common Issues
 
-**"Connection refused" errors in Docker:**
+**"Connection refused" errors in containers:**
 ```bash
-# Check all services are running
-docker compose ps
+# Check all services are running (use `docker compose` instead if using Docker)
+podman compose ps
 
 # View logs for specific service
-docker compose logs fastapi
-docker compose logs db
+podman compose logs fastapi
+podman compose logs db
 
 # Restart services
-docker compose restart
+podman compose restart
 ```
 
 **Port already in use:**
@@ -364,7 +377,7 @@ docker compose restart
 **Backend can't connect to database (hybrid mode):**
 ```bash
 # Verify infrastructure is running
-docker compose -f docker-compose.infra.yml ps
+podman compose -f docker-compose.infra.yml ps
 
 # Check .env has localhost (not 'db')
 grep POSTGRES_SERVER .env  # Should show: POSTGRES_SERVER=localhost
@@ -375,8 +388,8 @@ grep POSTGRES_SERVER .env  # Should show: POSTGRES_SERVER=localhost
 # Ensure backend is running and accessible
 curl http://localhost:8000/docs
 
-# If backend is in Docker, ensure port 8000 is exposed
-docker compose ps fastapi  # Should show 0.0.0.0:8000->8000/tcp
+# If backend is in a container, ensure port 8000 is exposed
+podman compose ps fastapi  # Should show 0.0.0.0:8000->8000/tcp
 ```
 
 **AI features not working:**

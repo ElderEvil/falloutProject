@@ -27,6 +27,9 @@ services:
       # SMTP_* come from .env (Mailcow in production)
       - FALLOUT_WORKER=0
       - OLLAMA_BASE_URL=http://host.containers.internal:11434/v1
+      # /app is root-owned in the image; use the appuser-writable directory
+      # created by backend/Dockerfile instead of the relative .env path.
+      - LOG_FILE_PATH=/var/log/fallout_shelter/backend.log
     env_file: ".env"
     depends_on:
       db:
@@ -67,6 +70,9 @@ services:
       # SMTP_* come from .env (Mailcow in production)
       - FALLOUT_WORKER=1
       - OLLAMA_BASE_URL=http://host.containers.internal:11434/v1
+      # /app is root-owned in the image; use the appuser-writable directory
+      # created by backend/Dockerfile instead of the relative .env path.
+      - LOG_FILE_PATH=/var/log/fallout_shelter/worker.log
     env_file: ".env"
     depends_on:
       db:

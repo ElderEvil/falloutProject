@@ -18,6 +18,7 @@ describe('useVersionDetection', () => {
     vi.clearAllMocks()
     localStorage.clear()
     mockAuthStore.isAuthenticated = false
+    vi.stubGlobal('__APP_VERSION__', '2.18.0')
   })
 
   afterEach(() => {
@@ -66,11 +67,13 @@ describe('useVersionDetection', () => {
   })
 
   it('should detect update on patch version bump', () => {
+    vi.stubGlobal('__APP_VERSION__', '2.18.1')
     localStorage.setItem(STORAGE_KEY, '2.18.0')
 
-    const { hasVersionUpdate } = useVersionDetection()
+    const { versionInfo, hasVersionUpdate } = useVersionDetection()
 
-    expect(hasVersionUpdate.value).toBe(false)
+    expect(versionInfo.value.current).toBe('2.18.1')
+    expect(hasVersionUpdate.value).toBe(true)
   })
 
   it('markVersionAsSeen stores version and hides changelog', () => {

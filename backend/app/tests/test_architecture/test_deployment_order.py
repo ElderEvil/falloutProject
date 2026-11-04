@@ -167,7 +167,7 @@ def test_maintenance_backup_verification_and_failure_recovery(tmp_path: Path, sc
 @pytest.mark.parametrize("migration_status", [0, 21])
 def test_dev_backend_starts_only_after_successful_migration(tmp_path: Path, migration_status: int) -> None:
     tasks = json.loads((WORKFLOW.parents[2] / ".zed/tasks.json").read_text())
-    command = next(task["command"] for task in tasks if task["label"] == "Fallout: Run backend server")
+    command = next(task["command"] for task in tasks if task["label"] == "Fallout: Run backend server (Podman)")
     tools = tmp_path / "bin"
     tools.mkdir()
     podman = tools / "podman"

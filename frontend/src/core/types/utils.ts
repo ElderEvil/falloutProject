@@ -1,10 +1,3 @@
-import type { Component } from 'vue'
-
-/**
- * Type for icon components (Iconify, custom components, etc.)
- */
-export type IconComponent = Component | string
-
 /**
  * Type guard to check if an error has a response property (Axios error)
  */

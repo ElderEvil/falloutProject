@@ -31,9 +31,3 @@ export function recruitDweller(
 ): Promise<RecruitmentResponse> {
   return apiPost<RecruitmentResponse>(`/api/v1/radio/vault/${vaultId}/recruit`, payload)
 }
-
-export const radioApi = {
-  getStats: getRadioStats,
-  setMode: setRadioMode,
-  recruit: recruitDweller,
-}

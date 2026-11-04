@@ -30,12 +30,12 @@ from app import crud
 from app.cli.apprentice_scenario import app as apprentice_scenario
 from app.cli.backfills import app as backfills
 from app.cli.debug import app as debug
-from app.cli.dweller_bios import dweller_bios as _dweller_bios
 from app.cli.expedition_scenario import app as expedition_scenario
 from app.cli.family_scenario import app as family_scenario
 from app.cli.jev_eval import app as jev_eval
 from app.cli.map_scenario import app as map_scenario
 from app.cli.ops import app as ops
+from app.cli.pregen_dwellers import dweller_bios as _dweller_bios
 from app.cli.pregen_dwellers import pregen_dwellers as _pregen_dwellers
 from app.cli.seed_places import seed_places as _seed_places
 from app.cli.simulate_exploration import simulate as simulate_exploration

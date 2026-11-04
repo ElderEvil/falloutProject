@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.285.1 (2026-11-04)
+
+### Bug Fixes
+
+* **dev:** make container logging writable and document Podman as primary ([#1310](https://github.com/ElderEvil/falloutProject/issues/1310)) c1b37fe
+
 ## 2.285.0 (2026-11-03)
 
 ### Features

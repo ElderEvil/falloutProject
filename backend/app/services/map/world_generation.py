@@ -32,8 +32,6 @@ WORLD_ID = "wasteland-atlas"
 
 TerrainType = Literal["wasteland", "forest", "ruins", "hills", "water"]
 
-TERRAIN_KINDS: tuple[TerrainType, ...] = ("wasteland", "forest", "ruins", "hills", "water")
-
 # Traversability cost per terrain; water is impassable. Kept here so validation and
 # reachability share one table with the snapshot.
 TRAVEL_COST: dict[TerrainType, float] = {

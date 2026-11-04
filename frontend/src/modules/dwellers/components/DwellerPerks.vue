@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Button } from '@/core/components/ui/button'
+import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 import { useDwellerPerksStore } from '../stores/perks'
@@ -10,6 +11,13 @@ const ctx = useDwellerDetailContext()
 const store = useDwellerPerksStore()
 const auth = useAuthStore()
 const pending = ref<DwellerPerk | null>(null)
+const pendingPerk = computed(() => store.data?.options.find((perk) => perk.id === pending.value))
+
+function confirmChoice() {
+  const perk = pending.value
+  pending.value = null
+  if (perk) void store.choose(perk)
+}
 
 watch(
   () => [ctx.vaultId.value, ctx.dweller.value?.id, auth.token] as const,
@@ -62,21 +70,7 @@ watch(
         <p v-if="perk.unavailable_reason" class="text-sm text-muted-foreground">
           {{ perk.unavailable_reason }}
         </p>
-        <template v-if="pending === perk.id">
-          <p class="text-sm">
-            Learn {{ perk.name }} permanently? This uses this dweller's only perk choice.
-          </p>
-          <div class="flex flex-wrap gap-2">
-            <Button :disabled="store.selecting" @click="store.choose(perk.id)"
-              >Confirm {{ perk.name }}</Button
-            >
-            <Button variant="outline" :disabled="store.selecting" @click="pending = null"
-              >Cancel</Button
-            >
-          </div>
-        </template>
         <Button
-          v-else
           variant="outline"
           :disabled="!perk.eligible || store.selecting"
           @click="pending = perk.id"
@@ -85,5 +79,13 @@ watch(
         </Button>
       </template>
     </article>
+    <TerminalConfirmation
+      :open="!!pendingPerk"
+      :title="`Learn ${pendingPerk?.name ?? ''}?`"
+      :message="`Learn ${pendingPerk?.name ?? ''} permanently? This uses this dweller's only perk choice.`"
+      :confirm-label="`Confirm ${pendingPerk?.name ?? ''}`"
+      @confirm="confirmChoice"
+      @cancel="pending = null"
+    />
   </section>
 </template>

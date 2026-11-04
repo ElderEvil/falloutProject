@@ -49,6 +49,12 @@ uv run pytest app/tests/test_services/test_expedition_engine.py app/tests/test_s
 
 From `frontend/`: `pnpm run lint`, `pnpm run typecheck`, `pnpm run test:run`, and `pnpm run build`.
 
-Before release, record an authenticated ordinary-player playthrough on desktop and phone: choose a perk, find the site through normal exploration, resolve a method, reconnect, return and use the haul. Automated tests alone do not establish discovery pacing, player comprehension or visual quality. Tune reward and acquisition pacing from that evidence before expanding the perk catalog.
+Authenticated Chromium playtesting on 2026-11-04 used an isolated PostgreSQL database and Redis instance, a normal non-superuser account, and a standard, non-boosted vault. Two adults were prepared at level 5 with trained INT 4 / CHA 6; this does not establish first-session leveling pacing. Desktop used 1440×1000 and phone used 390×844. No HTTP responses were mocked.
+
+- Desktop: learned Hacker, reloaded, departed, discovered and entered the checkpoint, reloaded the open encounter, confirmed intimidation was locked, and opened the terminal cache. The haul contained 45 caps and an Alarm clock.
+- Phone: opened confirmation with the keyboard, verified initial focus inside the dialog, cancelled with Escape and recovered focus on Choose, then learned Terrifying Presence. Hacker was locked at the checkpoint; intimidation returned 26 caps and a Pipe pistol. Choice buttons remained reachable in the dialog's scroll region without horizontal overflow.
+- Both explorers were recalled through the UI. After arrival, the normal exploration tick settled both runs; the vault balance increased from 1,000 to 1,071 caps. The Alarm clock appeared in storage. The returned Pipe pistol was equipped through the phone Equipment tab and remained equipped after reload.
+
+Elapsed travel and return time were accelerated in this isolated fixture, using the real movement, terrain, trail/discovery and settlement services. Fog and site offers were not bypassed. The playtest caught and corrected an ambiguous destination description and a keyboard-focus loss in the initial confirmation UI; confirmation now uses the existing shared dialog. Real-time discovery frequency, level-5 acquisition pacing and reward balance still need ordinary play evidence before expanding the catalog.
 
 Future candidates include Scrapper and Robotics Expert after relevant uses exist. Nuclear Physicist depends on the separate Power Armor/Fusion Core feature and is outside this pilot.

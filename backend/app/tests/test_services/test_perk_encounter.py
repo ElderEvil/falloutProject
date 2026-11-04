@@ -7,11 +7,19 @@ from sqlalchemy import event
 
 from app import crud
 from app.core.enums import AgeGroupEnum, DwellerPerk, DwellerStatusEnum, ExpeditionRunStatus
+from app.options.perks import PERKS
 from app.schemas.expedition import ExpeditionResolveRequest
+from app.services.catalog_service import get_expedition_site
 from app.services.exploration.expedition import expedition_service
 from app.services.exploration_service import exploration_service
 from app.services.notification_service import manager, sse_manager
 from app.utils.exceptions import ResourceConflictException, ValidationException
+
+
+def test_pilot_perks_point_to_their_playable_site():
+    site = get_expedition_site("research_checkpoint")
+    assert site is not None
+    assert all(site.name.lower() in perk.description.lower() for perk in PERKS.values())
 
 
 async def _enter(session, dweller, vault, perk=None):

@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createPinia, setActivePinia } from 'pinia'
-import { flushPromises } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
 import axios from '@/core/plugins/axios'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -12,6 +12,9 @@ import {
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 
 vi.mock('@/core/plugins/axios', () => ({ default: { get: vi.fn(), post: vi.fn() } }))
+vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+
+enableAutoUnmount(afterEach)
 
 const catalog = {
   dweller_id: 'dweller-1',
@@ -32,6 +35,7 @@ const catalog = {
 
 function mountPerks() {
   return mountWithDwellerContext(DwellerPerks, {
+    global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
     context: createMockDwellerDetailContext({
       vaultId: ref('vault-1'),
       dweller: ref({ id: 'dweller-1' } as Dweller),
@@ -86,5 +90,24 @@ describe('DwellerPerks', () => {
         .find((button) => button.text() === 'Choose Hacker')!
         .attributes('disabled')
     ).toBeDefined()
+  })
+
+  it('opens a shared confirmation dialog and cancels without consuming the choice', async () => {
+    vi.mocked(axios.get).mockResolvedValue({ data: catalog })
+    const wrapper = mountPerks()
+    await flushPromises()
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Choose Hacker')!
+      .trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Cancel')!
+      .trigger('click')
+    await flushPromises()
+    expect(axios.post).not.toHaveBeenCalled()
+    expect(wrapper.findAll('button').some((button) => button.text() === 'Choose Hacker')).toBe(true)
   })
 })

@@ -7,14 +7,14 @@ PERKS = {
     DwellerPerk.HACKER: PerkDefinition(
         id=DwellerPerk.HACKER,
         name="Hacker",
-        description="Access terminal solutions at wasteland encounters. Try the research outpost's security console.",
+        description="Access terminal solutions at wasteland encounters. Override the Research Checkpoint's security console.",
         stat="intelligence",
         minimum_stat=4,
     ),
     DwellerPerk.TERRIFYING_PRESENCE: PerkDefinition(
         id=DwellerPerk.TERRIFYING_PRESENCE,
         name="Terrifying Presence",
-        description="Unlock intimidation dialogue. Convince the research outpost's scavengers to surrender their haul.",
+        description="Unlock intimidation dialogue. Demand spare equipment from the Research Checkpoint's scavengers.",
         stat="charisma",
         minimum_stat=6,
     ),

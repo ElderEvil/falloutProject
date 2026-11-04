@@ -9,9 +9,11 @@ withDefaults(defineProps<{
   placeholder?: string
   autocomplete?: string
   required?: boolean
+  disabled?: boolean
 }>(), {
   type: 'text',
   required: false,
+  disabled: false,
 })
 
 const model = defineModel<string>({ required: true })
@@ -29,6 +31,7 @@ const model = defineModel<string>({ required: true })
       :placeholder="placeholder"
       :autocomplete="autocomplete"
       :required="required"
+      :disabled="disabled"
       class="h-11 border-theme-primary/40 bg-surface text-theme-primary placeholder:text-theme-primary/35 focus-visible:border-theme-primary"
     />
   </div>

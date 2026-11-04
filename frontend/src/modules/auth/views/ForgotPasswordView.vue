@@ -60,6 +60,7 @@ const handleSubmit = async () => {
         placeholder="overseer@vault-tec.com"
         autocomplete="email"
         required
+        :disabled="loading"
       />
 
       <Button type="submit" class="w-full border-theme-primary" :disabled="loading">

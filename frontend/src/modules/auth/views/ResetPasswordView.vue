@@ -82,6 +82,7 @@ const handleSubmit = async () => {
         placeholder="Minimum 8 characters"
         autocomplete="new-password"
         required
+        :disabled="loading"
       />
       <AuthTerminalField
         id="reset-confirm-password"
@@ -91,6 +92,7 @@ const handleSubmit = async () => {
         placeholder="Re-enter passphrase"
         autocomplete="new-password"
         required
+        :disabled="loading"
       />
 
       <Button type="submit" class="w-full border-theme-primary" :disabled="loading || !token">

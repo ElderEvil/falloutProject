@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.285.4 (2026-11-04)
+
+### Code Refactoring
+
+* **ui:** remove unfinished coming-soon surfaces ([#1315](https://github.com/ElderEvil/falloutProject/issues/1315)) 46725d6
+
 ## 2.285.3 (2026-11-04)
 
 ### Code Refactoring

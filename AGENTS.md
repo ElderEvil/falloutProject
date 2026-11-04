@@ -154,7 +154,7 @@ pnpm run test:run             # CI-equivalent (or: pnpm run test -- <file>)
 
 ## Dev Environment (Agent Quick-Start)
 
-In Zed, use the project tasks: `Fallout: Run Podman infrastructure`, then `Fallout: Run backend server` and `Fallout: Run frontend server`. The backend task applies migrations before starting FastAPI; use `Fallout: Stop Podman infrastructure` when finished.
+In Zed, use the project tasks: `Fallout: Run Podman infrastructure`, then `Fallout: Run backend server (Podman)` and `Fallout: Run frontend server`. The backend task applies migrations before starting FastAPI; use `Fallout: Stop Podman infrastructure` when finished. Podman is the primary engine; on Docker-only machines use the matching `Fallout: ... (Docker)` tasks instead (the compose files are engine-neutral).
 
 ---
 

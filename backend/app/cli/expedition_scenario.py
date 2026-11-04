@@ -2,24 +2,20 @@
 
 from __future__ import annotations
 
-import asyncio
-import logging
 from typing import Annotated
 from uuid import UUID
 
 import typer
 
+from app.cli.scenario_common import run_scenario_command
 from app.core.config import settings
 from app.services.exploration.expedition_scenario_service import VAULT_ONE_DWELLERS, expedition_scenario_service
-from app.utils.exceptions import ResourceNotFoundException
 
 app = typer.Typer(
     name="expedition-scenario",
     help="Dev/QA: build a playable interactive expedition-site scenario.",
     no_args_is_help=True,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def _print_setup(result) -> None:
@@ -135,17 +131,7 @@ def setup(
             )
             _print_setup(result)
 
-    try:
-        asyncio.run(_run())
-        typer.echo("✓ expedition-scenario setup complete.")
-    except (ResourceNotFoundException, ValueError) as exc:
-        detail = exc.detail if isinstance(exc, ResourceNotFoundException) else str(exc)
-        typer.echo(f"Error: {detail}", err=True)
-        raise typer.Exit(code=1) from None
-    except Exception as exc:
-        logger.exception("expedition-scenario setup failed")
-        typer.echo("Error: expedition-scenario setup failed — see logs for details.", err=True)
-        raise typer.Exit(code=1) from exc
+    run_scenario_command("expedition-scenario setup", _run)
 
 
 @app.command()
@@ -228,17 +214,7 @@ def vault1(
             )
             _print_multi(result)
 
-    try:
-        asyncio.run(_run())
-        typer.echo("✓ expedition-scenario vault1 complete.")
-    except (ResourceNotFoundException, ValueError) as exc:
-        detail = exc.detail if isinstance(exc, ResourceNotFoundException) else str(exc)
-        typer.echo(f"Error: {detail}", err=True)
-        raise typer.Exit(code=1) from None
-    except Exception as exc:
-        logger.exception("expedition-scenario vault1 failed")
-        typer.echo("Error: expedition-scenario vault1 failed — see logs for details.", err=True)
-        raise typer.Exit(code=1) from exc
+    run_scenario_command("expedition-scenario vault1", _run)
 
 
 @app.command()
@@ -263,16 +239,7 @@ def status(
                 for site in entry.available_sites:
                     typer.echo(f"    - {site.id} ({site.name})")
 
-    try:
-        asyncio.run(_run())
-    except (ResourceNotFoundException, ValueError) as exc:
-        detail = exc.detail if isinstance(exc, ResourceNotFoundException) else str(exc)
-        typer.echo(f"Error: {detail}", err=True)
-        raise typer.Exit(code=1) from None
-    except Exception as exc:
-        logger.exception("expedition-scenario status failed")
-        typer.echo("Error: expedition-scenario status failed — see logs for details.", err=True)
-        raise typer.Exit(code=1) from exc
+    run_scenario_command("expedition-scenario status", _run, success_message=False)
 
 
 if __name__ == "__main__":

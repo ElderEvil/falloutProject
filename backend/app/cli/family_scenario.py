@@ -14,14 +14,13 @@ Usage (from backend/):
 
 from __future__ import annotations
 
-import asyncio
-import logging
 from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
 import typer
 
+from app.cli.scenario_common import run_scenario_command
 from app.services.family.family_scenario_service import family_scenario_service
 from app.utils.exceptions import ResourceNotFoundException
 
@@ -30,8 +29,6 @@ app = typer.Typer(
     help="Dev/QA: build deterministic family/breeding scenarios for manual testing.",
     no_args_is_help=True,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def _parse_pairs(pairs: str | None) -> list[tuple[UUID, UUID]] | None:
@@ -191,6 +188,8 @@ def setup(
                 due_in = max(0, (preg.due_at - datetime.now(UTC).replace(tzinfo=None)).total_seconds() / 60)
                 typer.echo(f"  Pregnancy: due in {due_in:.0f} min")
             for preg in result.postpartum:
+                if preg.updated_at is None:
+                    continue
                 hours_ago = max(0, (datetime.now(UTC).replace(tzinfo=None) - preg.updated_at).total_seconds() / 3600)
                 typer.echo(f"  Postpartum: delivered {hours_ago:.1f} h ago")
             for child in result.children:
@@ -202,15 +201,11 @@ def setup(
                 suffix = f" — {row.countdown}" if row.countdown else ""
                 typer.echo(f"  [{row.kind:>13}] {row.label} ({row.detail}){suffix}")
 
-    try:
-        asyncio.run(_run(parsed_pairs, parsed_pregnancy, parsed_postpartum, parsed_child_ages))
-        typer.echo("✓ family-scenario setup complete.")
-    except typer.Exit:
-        raise
-    except Exception as exc:
-        logger.exception("family-scenario setup failed")
-        typer.echo("Error: family-scenario setup failed — see logs for details.", err=True)
-        raise typer.Exit(code=1) from exc
+    run_scenario_command(
+        "family-scenario setup",
+        lambda: _run(parsed_pairs, parsed_pregnancy, parsed_postpartum, parsed_child_ages),
+        detail_errors=False,
+    )
 
 
 @app.command()
@@ -231,12 +226,7 @@ def status(
                 suffix = f" — {row.countdown}" if row.countdown else ""
                 typer.echo(f"  [{row.kind:>13}] {row.label} ({row.detail}){suffix}")
 
-    try:
-        asyncio.run(_run())
-    except Exception as exc:
-        logger.exception("family-scenario status failed")
-        typer.echo("Error: family-scenario status failed — see logs for details.", err=True)
-        raise typer.Exit(code=1) from exc
+    run_scenario_command("family-scenario status", _run, success_message=False, detail_errors=False)
 
 
 @app.command()
@@ -264,14 +254,7 @@ def reset(
                 f"{counts['children']} children."
             )
 
-    try:
-        asyncio.run(_run())
-    except typer.Exit:
-        raise
-    except Exception as exc:
-        logger.exception("family-scenario reset failed")
-        typer.echo("Error: family-scenario reset failed — see logs for details.", err=True)
-        raise typer.Exit(code=1) from exc
+    run_scenario_command("family-scenario reset", _run, success_message=False, detail_errors=False)
 
 
 if __name__ == "__main__":

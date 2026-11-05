@@ -138,7 +138,7 @@ async def delete_vault(
 
     Use hard_delete=True to permanently remove the vault.
     """
-    await crud.vault.delete(db_session, vault_id, soft=not hard_delete)
+    await vault_service.delete_vault(db_session, vault_id, soft=not hard_delete)
 
 
 @router.post("/initiate", response_model=Vault, status_code=201)

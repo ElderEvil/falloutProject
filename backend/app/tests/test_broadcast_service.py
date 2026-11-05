@@ -209,53 +209,67 @@ async def test_clear_failure_rolls_back_prune(async_session, vault):
             patch.object(broadcast_service, "get_openrouter_tts_service", return_value=_tts(enabled=False)),
             patch.object(broadcast_service, "get_elevenlabs_tts_service", return_value=_tts(enabled=False)),
             patch.object(broadcast_service, "get_storage_client", return_value=client),
-            pytest.raises(RuntimeError, match="clear failed"),
         ):
             await get_or_create_daily(async_session, vault.id, vault_data=VAULT_DATA)
     finally:
         event.remove(connection, "before_cursor_execute", fail_clear)
 
-    await async_session.rollback()
     await async_session.refresh(older)
     assert older.audio_key == "broadcasts/yesterday.mp3"
 
 
 @pytest.mark.asyncio
-async def test_lock_failure_deletes_uploaded_audio(async_session, vault, monkeypatch):
+async def test_lock_failure_deletes_uploaded_audio(async_session, vault):
     client = _storage()
+    connection = (await async_session.connection()).sync_connection
 
-    async def fail_lock(*_args, **_kwargs):
-        raise RuntimeError("lock failed")
+    def fail_lock(_conn, _cursor, statement, _parameters, _context, _many):
+        normalized = statement.lower()
+        if normalized.startswith("select") and "from vault" in normalized and "where vault.id" in normalized:
+            raise RuntimeError("lock failed")
 
-    monkeypatch.setattr(broadcast_service.crud.vault, "get_for_update", fail_lock)
-    with (
-        patch.object(broadcast_service, "get_openrouter_tts_service", return_value=_tts(enabled=True, audio=b"wav")),
-        patch.object(broadcast_service, "get_elevenlabs_tts_service", return_value=_tts(enabled=False)),
-        patch.object(broadcast_service, "get_storage_client", return_value=client),
-        patch("app.services.broadcast_service.shutil.which", return_value=None),
-        pytest.raises(RuntimeError, match="lock failed"),
-    ):
-        await get_or_create_daily(async_session, vault.id, vault_data=VAULT_DATA)
+    event.listen(connection, "before_cursor_execute", fail_lock)
+    try:
+        with (
+            patch.object(
+                broadcast_service, "get_openrouter_tts_service", return_value=_tts(enabled=True, audio=b"wav")
+            ),
+            patch.object(broadcast_service, "get_elevenlabs_tts_service", return_value=_tts(enabled=False)),
+            patch.object(broadcast_service, "get_storage_client", return_value=client),
+            patch("app.services.broadcast_service.shutil.which", return_value=None),
+            pytest.raises(RuntimeError, match="lock failed"),
+        ):
+            await get_or_create_daily(async_session, vault.id, vault_data=VAULT_DATA)
+    finally:
+        event.remove(connection, "before_cursor_execute", fail_lock)
 
     assert client.delete_file.call_count == 1
 
 
 @pytest.mark.asyncio
-async def test_refresh_failure_does_not_delete_committed_audio(async_session, vault, monkeypatch):
+async def test_refresh_failure_does_not_delete_committed_audio(async_session, vault):
     client = _storage()
+    connection = (await async_session.connection()).sync_connection
 
-    async def fail_refresh(*_args, **_kwargs):
-        raise RuntimeError("refresh failed")
+    def fail_refresh(_conn, _cursor, statement, _parameters, _context, _many):
+        normalized = statement.lower()
+        if normalized.startswith("select") and "from broadcast" in normalized and "where broadcast.id" in normalized:
+            raise RuntimeError("refresh failed")
 
-    monkeypatch.setattr(async_session, "refresh", fail_refresh)
-    with (
-        patch.object(broadcast_service, "get_openrouter_tts_service", return_value=_tts(enabled=True, audio=b"wav")),
-        patch.object(broadcast_service, "get_elevenlabs_tts_service", return_value=_tts(enabled=False)),
-        patch.object(broadcast_service, "get_storage_client", return_value=client),
-        patch("app.services.broadcast_service.shutil.which", return_value=None),
-        pytest.raises(RuntimeError, match="refresh failed"),
-    ):
-        await get_or_create_daily(async_session, vault.id, vault_data=VAULT_DATA)
+    event.listen(connection, "before_cursor_execute", fail_refresh)
+    try:
+        with (
+            patch.object(
+                broadcast_service, "get_openrouter_tts_service", return_value=_tts(enabled=True, audio=b"wav")
+            ),
+            patch.object(broadcast_service, "get_elevenlabs_tts_service", return_value=_tts(enabled=False)),
+            patch.object(broadcast_service, "get_storage_client", return_value=client),
+            patch("app.services.broadcast_service.shutil.which", return_value=None),
+            pytest.raises(RuntimeError, match="refresh failed"),
+        ):
+            await get_or_create_daily(async_session, vault.id, vault_data=VAULT_DATA)
+    finally:
+        event.remove(connection, "before_cursor_execute", fail_refresh)
 
     rows = (await async_session.exec(select(Broadcast))).all()
     assert len(rows) == 1

@@ -149,18 +149,28 @@ async def _ensure_regeneration_allowed(db: AsyncSession, vault_id: UUID, today: 
         )
 
 
+async def delete_audio_keys(audio_keys: list[str]) -> None:
+    """Best-effort object deletion for a batch of broadcast audio keys."""
+    for key in audio_keys:
+        await asyncio.to_thread(_delete_uploaded, key)
+
+
 async def _delete_superseded(previous: Any | None, new_audio_key: str | None) -> None:
     if previous is not None and previous.audio_key and new_audio_key and previous.audio_key != new_audio_key:
         await asyncio.to_thread(_delete_uploaded, previous.audio_key)
 
 
 async def _prune_older_audio_transaction(db: AsyncSession, vault_id: UUID, today: date) -> None:
-    keys = await get_audio_keys_before(db, vault_id, datetime.combine(today, datetime.min.time()))
-    cleared = [key for key in keys if await asyncio.to_thread(_delete_uploaded, key)]
-    if not cleared:
-        return
-    await clear_audio_keys(db, vault_id, cleared)
-    await db.commit()
+    try:
+        keys = await get_audio_keys_before(db, vault_id, datetime.combine(today, datetime.min.time()))
+        cleared = [key for key in keys if await asyncio.to_thread(_delete_uploaded, key)]
+        if not cleared:
+            return
+        await clear_audio_keys(db, vault_id, cleared)
+        await db.commit()
+    except Exception:
+        logger.warning("Older broadcast audio prune failed for vault %s", vault_id, exc_info=True)
+        await db.rollback()
 
 
 def _serialize(broadcast: Any, *, audio_url: str | None = None) -> BroadcastRead:

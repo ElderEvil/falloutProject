@@ -46,6 +46,15 @@ async def get_audio_keys_before(db: AsyncSession, vault_id: UUID, before: dateti
     return [key for key in (await db.execute(query)).scalars().all() if key]
 
 
+async def get_audio_keys_for_vault(db: AsyncSession, vault_id: UUID) -> list[str]:
+    """Audio keys for every broadcast owned by one vault."""
+    query = select(Broadcast.audio_key).where(
+        Broadcast.vault_id == vault_id,
+        col(Broadcast.audio_key).is_not(None),
+    )
+    return [key for key in (await db.execute(query)).scalars().all() if key]
+
+
 async def clear_audio_keys(db: AsyncSession, vault_id: UUID, audio_keys: list[str]) -> None:
     """Null the audio key for the given broadcasts of one vault."""
     if not audio_keys:

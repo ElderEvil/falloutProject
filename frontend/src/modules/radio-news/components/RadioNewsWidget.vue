@@ -245,7 +245,11 @@ onBeforeUnmount(() => {
 
       <!-- Playback and regeneration controls -->
       <div v-if="broadcast" class="flex items-center gap-2">
-        <div v-if="isAudioAvailable" class="radio-news-widget__play-controls animate-pulse">
+        <div
+          v-if="isAudioAvailable"
+          class="radio-news-widget__play-controls"
+          :class="{ 'animate-pulse': isNew && !isPlaying }"
+        >
           <Button
             variant="outline"
             size="sm"

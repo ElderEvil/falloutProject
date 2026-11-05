@@ -13,10 +13,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
 from app.core.game_data import get_static_game_data
+from app.crud.broadcast import get_audio_keys_for_vault
 from app.crud.storage import storage as storage_crud
 from app.crud.vault import vault as vault_crud
 from app.models.vault import Vault
 from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultReadWithNumbers, VaultUpdate
+from app.services.broadcast_service import delete_audio_keys
 from app.services.resource_manager_service import compute_medical_capacity
 from app.services.vault import economy, reads, seeding
 
@@ -139,6 +141,14 @@ class VaultService:
         await seeding.create_initial_items(db_session, vault_db_obj.id, is_boosted)
 
         return vault_db_obj
+
+    async def delete_vault(self, db_session: AsyncSession, vault_id: UUID4, *, soft: bool = True) -> Vault:
+        """Delete a vault; hard deletion also removes its stored broadcast audio."""
+        audio_keys = [] if soft else await get_audio_keys_for_vault(db_session, vault_id)
+        vault = await vault_crud.delete(db_session, vault_id, soft=soft)
+        if audio_keys:
+            await delete_audio_keys(audio_keys)
+        return vault
 
     async def update_vault_resources(self, db_session: AsyncSession, vault_id: UUID4) -> Vault:
         """Update vault resources based on resource manager processing."""

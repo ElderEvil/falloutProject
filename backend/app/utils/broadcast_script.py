@@ -134,7 +134,9 @@ def _extract_notable(notifications: list[dict], *, _max: int = 3) -> str:
         for notification in notifications
         if "level" in str(notification.get("notification_type", "")).lower()
     ]
-    level_names = [name for notification in level_notifications if (name := _notification_name(notification))]
+    level_names = list(
+        dict.fromkeys(name for notification in level_notifications if (name := _notification_name(notification)))
+    )
     unnamed_level_messages = [
         str(notification.get("message", ""))
         for notification in level_notifications
@@ -147,7 +149,7 @@ def _extract_notable(notifications: list[dict], *, _max: int = 3) -> str:
         else:
             lines.append(f"{', '.join(level_names)} have reached new levels tonight.")
     if unnamed_level_messages:
-        lines.append(f"A resident has reached a new level. {unnamed_level_messages[0][:80]}.")
+        lines.append(f"A resident has reached a new level. {unnamed_level_messages[0][:80].rstrip(' .!')}.")
 
     others = [
         notification
@@ -159,7 +161,7 @@ def _extract_notable(notifications: list[dict], *, _max: int = 3) -> str:
         message = str(notification.get("message", ""))
         name = _notification_name(notification)
         if "dweller" in notif_type and name:
-            lines.append(f"{name} - {message[:80]}.")
+            lines.append(f"{name} - {message[:80].rstrip(' .!')}.")
         elif message:
-            lines.append(f"{message[:100]}.")
+            lines.append(f"{message[:100].rstrip(' .!')}.")
     return " ".join(lines)

@@ -19,7 +19,7 @@ const hasPlayed = ref(false)
 const isRegenerating = ref(false)
 const isOpen = ref(false)
 const rootRef = ref<HTMLElement | null>(null)
-const triggerRef = ref<HTMLButtonElement | null>(null)
+const triggerRef = ref<InstanceType<typeof Button> | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
 let loadVersion = 0
 let regenerateVersion = 0
@@ -177,7 +177,7 @@ function openPanel(): void {
 function closePanel(returnFocus = true): void {
   if (!isOpen.value) return
   isOpen.value = false
-  if (returnFocus) void nextTick(() => triggerRef.value?.focus())
+  if (returnFocus) void nextTick(() => (triggerRef.value?.$el as HTMLElement | undefined)?.focus())
 }
 
 const togglePanel = () => {
@@ -244,10 +244,12 @@ onBeforeUnmount(() => {
 <template>
   <div ref="rootRef" class="radio-news-widget">
     <!-- Tuner trigger: the only thing that lives in the HUD, so the control bar stays compact. -->
-    <button
+    <Button
       ref="triggerRef"
       type="button"
-      class="radio-news-widget__toggle fixed bottom-24 right-4 z-50 flex items-center gap-2 rounded-full border-2 border-theme-primary/40 bg-surface-warm/95 px-3 py-2 text-theme-primary shadow-lg transition-colors hover:border-theme-primary hover:bg-surface-raised focus:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-warm sm:right-6"
+      variant="ghost"
+      size="sm"
+      class="radio-news-widget__toggle fixed bottom-24 right-4 z-50 flex h-auto items-center gap-2 rounded-full border-2 border-theme-primary/40 bg-surface-warm/95 px-3 py-2 text-theme-primary shadow-lg transition-colors hover:border-theme-primary hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-theme-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-warm sm:right-6"
       :class="{ 'border-theme-primary shadow-glow-sm': isNew }"
       :aria-expanded="isOpen"
       aria-controls="radio-news-panel"
@@ -301,7 +303,7 @@ onBeforeUnmount(() => {
         :icon="isOpen ? 'mdi:chevron-down' : 'mdi:chevron-up'"
         class="h-4 w-4 shrink-0 text-theme-primary/50"
       />
-    </button>
+    </Button>
 
     <!-- Vintage receiver console, anchored above the control bar. -->
     <aside
@@ -350,14 +352,16 @@ onBeforeUnmount(() => {
           <span class="text-[0.55rem] uppercase tracking-widest text-theme-primary/50">
             {{ isPlaying ? 'On air' : 'Standby' }}
           </span>
-          <button
+          <Button
             type="button"
-            class="radio-news-widget__close rounded p-1 text-theme-primary/60 transition-colors hover:bg-theme-primary/10 hover:text-theme-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary"
+            variant="ghost"
+            size="icon-sm"
+            class="radio-news-widget__close rounded text-theme-primary/60 transition-colors hover:bg-theme-primary/10 hover:text-theme-primary"
             aria-label="Close the vault radio"
             @click="closePanel()"
           >
             <Icon icon="mdi:close" class="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       </header>
 

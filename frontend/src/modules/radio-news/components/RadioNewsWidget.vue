@@ -1,14 +1,9 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
+import { onClickOutside } from '@vueuse/core'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/core/components/ui/tooltip'
 import { useToast } from '@/core/composables/useToast'
 import { fetchRadioNews, regenerateRadioNews, type RadioNewsBroadcast } from '../api/radioNews'
 
@@ -22,8 +17,20 @@ const isPlaying = ref(false)
 const audioEl = ref<HTMLAudioElement | null>(null)
 const hasPlayed = ref(false)
 const isRegenerating = ref(false)
+const isOpen = ref(false)
+const rootRef = ref<HTMLElement | null>(null)
+const triggerRef = ref<HTMLButtonElement | null>(null)
+const panelRef = ref<HTMLElement | null>(null)
 let loadVersion = 0
 let regenerateVersion = 0
+
+const DIAL_TICKS = Array.from({ length: 25 }, (_, index) => index + 1)
+const SIGNAL_BARS = [
+  { key: 'one', height: 'h-1' },
+  { key: 'two', height: 'h-1.5' },
+  { key: 'three', height: 'h-2' },
+  { key: 'four', height: 'h-2.5' },
+] as const
 
 const utcDayStart = () => {
   const now = new Date()
@@ -55,13 +62,28 @@ function markPlayed(broadcastId: string): void {
 const isToday = computed(() => {
   if (!broadcast.value?.created_at) return false
   const created = parseUtcTimestamp(broadcast.value.created_at)
-  return Date.UTC(created.getUTCFullYear(), created.getUTCMonth(), created.getUTCDate()) === today.value.getTime()
+  return (
+    Date.UTC(created.getUTCFullYear(), created.getUTCMonth(), created.getUTCDate()) ===
+    today.value.getTime()
+  )
 })
 const isNew = computed(() => isToday.value && !hasPlayed.value)
 const isAudioAvailable = computed(() => !!broadcast.value?.audio_url)
 const hasScript = computed(() => !!broadcast.value?.script)
 const showTextBroadcast = computed(() => !isAudioAvailable.value && hasScript.value)
-const showCaption = computed(() => isPlaying.value && !!broadcast.value?.script)
+const title = computed(() => broadcast.value?.title?.trim() || 'Vault Radio Hour')
+const broadcastDate = computed(() => {
+  const createdAt = broadcast.value?.created_at
+  if (!createdAt) return 'Awaiting transmission'
+  return parseUtcTimestamp(createdAt).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
+})
+const toggleLabel = computed(() =>
+  isOpen.value ? 'Close the vault radio' : 'Open the vault radio'
+)
 
 const loadBroadcast = async () => {
   const requestVersion = ++loadVersion
@@ -147,6 +169,37 @@ const onRegenerate = async () => {
   }
 }
 
+function openPanel(): void {
+  isOpen.value = true
+  void nextTick(() => panelRef.value?.focus())
+}
+
+function closePanel(returnFocus = true): void {
+  if (!isOpen.value) return
+  isOpen.value = false
+  if (returnFocus) void nextTick(() => triggerRef.value?.focus())
+}
+
+const togglePanel = () => {
+  if (isOpen.value) closePanel()
+  else openPanel()
+}
+
+// The panel is non-modal, so Escape and a click outside both dismiss it.
+const onKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && isOpen.value) closePanel()
+}
+
+onClickOutside(rootRef, () => {
+  if (isOpen.value) closePanel(false)
+})
+
+// A transcript-only broadcast has nothing to play, so opening it counts as read.
+watch(isOpen, (open) => {
+  const current = broadcast.value
+  if (open && isNew.value && showTextBroadcast.value && current?.id) markPlayed(current.id)
+})
+
 let midnightTimer: ReturnType<typeof setTimeout> | null = null
 
 const scheduleNextMidnight = () => {
@@ -176,128 +229,274 @@ watch(
 )
 
 onMounted(() => {
+  document.addEventListener('keydown', onKeydown)
   void loadBroadcast()
   scheduleNextMidnight()
 })
 
 onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onKeydown)
   stopAudio()
   if (midnightTimer) clearTimeout(midnightTimer)
 })
 </script>
 
 <template>
-  <div class="radio-news-widget flex flex-col gap-2">
-    <!-- Loading state -->
-    <div v-if="isLoading" class="radio-news-widget__loading flex items-center gap-2" aria-label="Loading broadcast">
-      <div class="skeleton skeleton--pill h-5 w-24 animate-pulse rounded-full bg-surface-hover" />
-      <span class="radio-news-widget__loading-text text-xs text-theme-primary">Loading…</span>
-    </div>
-
-    <!-- Error state -->
-    <div v-else-if="error && !broadcast" class="radio-news-widget__error flex items-center gap-2" aria-label="Broadcast error">
-      <Icon icon="mdi:alert-circle-outline" class="radio-news-widget__error-icon h-4 w-4 text-danger" />
-      <span class="radio-news-widget__error-text text-xs text-danger">{{ error }}</span>
-    </div>
-
-    <!-- Broadcast present (normal mode) -->
-    <div v-else-if="broadcast" class="radio-news-widget__content">
-      <!-- Badge -->
-      <TooltipProvider :delay-duration="200">
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Badge
-              variant="outline"
-              class="radio-news-widget__badge cursor-default border-theme-primary/20 bg-theme-primary/5"
-              :class="{ 'border-theme-primary/60 bg-theme-primary/15 animate-pulse': isNew }"
-            >
-              <Icon icon="mdi:radio" class="radio-news-widget__badge-icon h-3.5 w-3.5" />
-              <span class="radio-news-widget__badge-text text-[0.6rem] font-bold uppercase tracking-widest">
-                {{ isNew ? 'New Broadcast' : 'Radio' }}
-              </span>
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <span v-if="isNew">New broadcast available — click to play</span>
-            <span v-else>Tune in to the radio news</span>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
-      <!-- Text-only broadcast panel (audio unavailable but script exists) -->
-      <div
-        v-if="showTextBroadcast"
-        class="radio-news-widget__text-panel mt-2 max-w-xs rounded-md border border-theme-primary/20 bg-surface-raised/80 p-3 shadow-sm"
+  <div ref="rootRef" class="radio-news-widget">
+    <!-- Tuner trigger: the only thing that lives in the HUD, so the control bar stays compact. -->
+    <button
+      ref="triggerRef"
+      type="button"
+      class="radio-news-widget__toggle fixed bottom-24 right-4 z-50 flex items-center gap-2 rounded-full border-2 border-theme-primary/40 bg-surface-warm/95 px-3 py-2 text-theme-primary shadow-lg transition-colors hover:border-theme-primary hover:bg-surface-raised focus:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-warm sm:right-6"
+      :class="{ 'border-theme-primary shadow-glow-sm': isNew }"
+      :aria-expanded="isOpen"
+      aria-controls="radio-news-panel"
+      :aria-label="toggleLabel"
+      @click="togglePanel"
+    >
+      <span
+        class="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-theme-primary/40 bg-surface-sunken"
       >
-        <div class="radio-news-widget__text-panel-header mb-1 flex items-center gap-2">
-          <Icon icon="mdi:radio" class="radio-news-widget__text-panel-icon h-4 w-4 text-theme-primary" />
-          <h4 class="radio-news-widget__text-panel-title m-0 text-xs font-bold uppercase text-theme-primary">
-            {{ broadcast.title || 'Radio Broadcast' }}
-          </h4>
+        <Icon icon="mdi:radio" class="h-4 w-4" />
+        <span
+          v-if="isPlaying || isNew"
+          class="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full motion-reduce:animate-none"
+          :class="isPlaying ? 'bg-danger animate-pulse' : 'bg-theme-primary animate-pulse'"
+          aria-hidden="true"
+        />
+      </span>
+
+      <span v-if="isLoading" class="radio-news-widget__loading flex items-center gap-2">
+        <span
+          class="h-2 w-12 animate-pulse rounded-full bg-theme-primary/30 motion-reduce:animate-none"
+        />
+        <span class="text-[0.6rem] font-bold uppercase tracking-[0.2em] text-theme-primary/70"
+          >Tuning</span
+        >
+      </span>
+      <span
+        v-else-if="error && !broadcast"
+        class="radio-news-widget__error flex max-w-[10rem] items-center gap-1 text-xs text-danger"
+        :aria-label="error"
+      >
+        <Icon icon="mdi:alert-circle-outline" class="h-4 w-4 shrink-0" />
+        <span class="truncate">{{ error }}</span>
+      </span>
+      <span v-else class="radio-news-widget__badge flex flex-col items-start leading-none">
+        <span
+          class="text-[0.55rem] font-bold uppercase tracking-[0.22em]"
+          :class="isNew ? 'text-theme-primary' : 'text-theme-primary/60'"
+        >
+          {{ isNew ? 'New Broadcast' : 'Radio' }}
+        </span>
+      </span>
+      <span
+        v-if="!isLoading && broadcast"
+        class="hidden max-w-[11rem] truncate text-[0.65rem] font-semibold sm:block"
+      >
+        {{ isPlaying ? 'On air — click to stop' : title }}
+      </span>
+
+      <Icon
+        :icon="isOpen ? 'mdi:chevron-down' : 'mdi:chevron-up'"
+        class="h-4 w-4 shrink-0 text-theme-primary/50"
+      />
+    </button>
+
+    <!-- Vintage receiver console, anchored above the control bar. -->
+    <aside
+      v-show="isOpen"
+      id="radio-news-panel"
+      ref="panelRef"
+      tabindex="-1"
+      role="region"
+      aria-label="Vault Radio Hour broadcast"
+      class="radio-news-widget__panel fixed bottom-40 right-4 z-50 max-h-[calc(100vh-11rem)] w-[min(26rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border-2 border-theme-primary/40 bg-surface-warm/95 shadow-2xl focus:outline-none motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 sm:right-6"
+    >
+      <header
+        class="flex items-center justify-between gap-3 border-b border-theme-primary/20 bg-surface-sunken/70 px-4 py-2"
+      >
+        <div class="flex min-w-0 items-center gap-2">
+          <span
+            class="h-2 w-2 shrink-0 rounded-full motion-reduce:animate-none"
+            :class="
+              isPlaying
+                ? 'bg-danger animate-pulse'
+                : isNew
+                  ? 'bg-theme-primary animate-pulse'
+                  : 'bg-theme-primary/30'
+            "
+            aria-hidden="true"
+          />
+          <Icon icon="mdi:radio-tower" class="h-4 w-4 shrink-0 text-theme-primary" />
+          <span
+            class="truncate text-[0.6rem] font-bold uppercase tracking-[0.3em] text-theme-primary"
+          >
+            Vault Radio Hour
+          </span>
         </div>
-        <p class="radio-news-widget__text-panel-script whitespace-pre-wrap text-[0.7rem] leading-normal text-theme-primary/80">
-          {{ broadcast.script }}
-        </p>
-        <div class="radio-news-widget__text-panel-meta mt-2 text-[0.6rem] text-theme-primary/50">
-          {{ broadcast.created_at ? new Date(broadcast.created_at).toLocaleString() : 'Audio unavailable' }}
+        <div class="flex shrink-0 items-center gap-2">
+          <div class="flex items-end gap-0.5" aria-hidden="true">
+            <span
+              v-for="(bar, index) in SIGNAL_BARS"
+              :key="bar.key"
+              class="w-0.5 rounded-sm transition-colors"
+              :class="[
+                bar.height,
+                isPlaying || index < 2 ? 'bg-theme-primary/70' : 'bg-theme-primary/20',
+              ]"
+            />
+          </div>
+          <span class="text-[0.55rem] uppercase tracking-widest text-theme-primary/50">
+            {{ isPlaying ? 'On air' : 'Standby' }}
+          </span>
+          <button
+            type="button"
+            class="radio-news-widget__close rounded p-1 text-theme-primary/60 transition-colors hover:bg-theme-primary/10 hover:text-theme-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary"
+            aria-label="Close the vault radio"
+            @click="closePanel()"
+          >
+            <Icon icon="mdi:close" class="h-4 w-4" />
+          </button>
         </div>
+      </header>
+
+      <div
+        v-if="isLoading"
+        class="flex items-center gap-2 px-4 py-6 text-xs uppercase tracking-widest text-theme-primary/60"
+      >
+        <Icon icon="mdi:loading" class="h-4 w-4 animate-spin" />
+        Receiving transmission
       </div>
 
-      <!-- Playback and regeneration controls -->
-      <div v-if="broadcast" class="flex items-center gap-2">
-        <div
-          v-if="isAudioAvailable"
-          class="radio-news-widget__play-controls"
-          :class="{ 'animate-pulse': isNew && !isPlaying }"
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            class="radio-news-widget__play-btn border-theme-primary/30"
-            :class="{ 'bg-theme-primary/20': isPlaying }"
-            @click="onTogglePlay"
-          >
-            <Icon
-              :icon="isPlaying ? 'mdi:pause' : 'mdi:play'"
-              class="radio-news-widget__play-icon h-4 w-4"
-            />
-            <span class="radio-news-widget__play-text text-xs font-semibold">
-              {{ isPlaying ? 'Stop' : 'Play' }}
-            </span>
-          </Button>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          class="radio-news-widget__regenerate-btn border-theme-primary/30"
-          :disabled="isRegenerating"
-          @click="onRegenerate"
-        >
-          <Icon
-            :icon="isRegenerating ? 'mdi:loading' : 'mdi:refresh'"
-            class="h-4 w-4"
-            :class="{ 'animate-spin': isRegenerating }"
-          />
-          <span class="text-xs font-semibold">Regenerate</span>
+      <div v-else-if="error && !broadcast" class="space-y-3 px-4 py-5">
+        <p class="radio-news-widget__error-text m-0 text-xs leading-relaxed text-danger">
+          {{ error }}
+        </p>
+        <Button variant="outline" size="sm" class="radio-news-widget__retry" @click="loadBroadcast">
+          <Icon icon="mdi:refresh" class="h-4 w-4" />
+          <span>Retry</span>
         </Button>
       </div>
-    </div>
 
-    <!-- Caption overlay while playing -->
-    <div
-      v-if="showCaption"
-      class="radio-news-widget__caption mt-2 max-w-xs rounded-md border border-theme-primary/30 bg-surface-warm/90 p-3 shadow-sm"
-      aria-live="polite"
-    >
-      <div class="radio-news-widget__caption-header mb-1 flex items-center gap-2">
-        <Icon icon="mdi:radio" class="radio-news-widget__caption-icon h-4 w-4 animate-pulse text-theme-primary" />
-        <h4 class="radio-news-widget__caption-title m-0 text-xs font-bold uppercase text-theme-primary">
-          {{ broadcast?.title || 'Radio Broadcast' }}
-        </h4>
-      </div>
-      <p class="radio-news-widget__caption-script whitespace-pre-wrap text-[0.7rem] leading-normal text-theme-primary">
-        {{ broadcast?.script }}
-      </p>
-    </div>
+      <template v-else-if="broadcast">
+        <div class="space-y-3 px-4 py-3">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <h3
+                class="radio-news-widget__title m-0 truncate font-mono text-sm font-bold uppercase tracking-wide text-theme-primary"
+                :class="{ 'terminal-glow': isPlaying }"
+              >
+                {{ title }}
+              </h3>
+              <p class="m-0 mt-0.5 text-[0.6rem] uppercase tracking-widest text-theme-primary/50">
+                {{ broadcastDate }}
+              </p>
+            </div>
+            <Badge
+              v-if="isNew"
+              variant="outline"
+              class="shrink-0 border-theme-primary/50 bg-theme-primary/10 px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-widest text-theme-primary"
+            >
+              New
+            </Badge>
+          </div>
+
+          <!-- Tuning dial: the needle slides while the broadcast plays. -->
+          <div
+            class="radio-news-widget__dial relative overflow-hidden rounded border border-theme-primary/20 bg-surface-sunken/70 px-3 pb-1 pt-2"
+            aria-hidden="true"
+          >
+            <div class="flex items-end justify-between gap-px">
+              <span
+                v-for="tick in DIAL_TICKS"
+                :key="tick"
+                class="w-px bg-theme-primary/40"
+                :class="tick % 5 === 0 ? 'h-3' : 'h-1.5'"
+              />
+            </div>
+            <div class="relative mt-1 h-4">
+              <span
+                class="absolute top-0 h-4 w-px bg-danger transition-all duration-700"
+                :class="isPlaying ? 'left-[62%]' : 'left-[38%]'"
+              />
+              <div
+                class="flex justify-between text-[0.5rem] uppercase tracking-widest text-theme-primary/40"
+              >
+                <span>530</span>
+                <span>1000</span>
+                <span>1600</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-stretch gap-2">
+            <Button
+              v-if="isAudioAvailable"
+              variant="outline"
+              size="sm"
+              class="radio-news-widget__play-btn flex-1 border-theme-primary/40"
+              :class="{ 'bg-theme-primary/15': isPlaying }"
+              :aria-pressed="isPlaying"
+              @click="onTogglePlay"
+            >
+              <Icon :icon="isPlaying ? 'mdi:stop' : 'mdi:play'" class="h-4 w-4" />
+              <span class="text-xs font-semibold">{{ isPlaying ? 'Stop' : 'Play' }}</span>
+            </Button>
+            <div
+              v-else
+              class="flex flex-1 items-center justify-center rounded border border-dashed border-theme-primary/30 px-2 text-[0.55rem] font-bold uppercase tracking-widest text-theme-primary/50"
+            >
+              Transcript only
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              class="radio-news-widget__regenerate-btn border-theme-primary/40"
+              :disabled="isRegenerating"
+              aria-label="Regenerate the broadcast"
+              @click="onRegenerate"
+            >
+              <Icon
+                :icon="isRegenerating ? 'mdi:loading' : 'mdi:refresh'"
+                class="h-4 w-4"
+                :class="{ 'animate-spin': isRegenerating }"
+              />
+              <span class="hidden text-xs font-semibold sm:inline">Regenerate</span>
+            </Button>
+          </div>
+
+          <!-- Transcript doubles as the live caption while audio plays. -->
+          <section
+            class="radio-news-widget__transcript rounded border border-theme-primary/20 bg-surface-sunken/50 p-3"
+            :class="{
+              'radio-news-widget__caption border-theme-primary/40': isPlaying,
+              'radio-news-widget__text-panel': showTextBroadcast,
+            }"
+            :aria-live="isPlaying ? 'polite' : undefined"
+          >
+            <header class="mb-1 flex items-center justify-between gap-2">
+              <h4
+                class="m-0 flex items-center gap-1.5 text-[0.55rem] font-bold uppercase tracking-[0.2em] text-theme-primary/60"
+              >
+                <Icon icon="mdi:text-box-outline" class="h-3.5 w-3.5" />
+                {{ title }}
+              </h4>
+              <span
+                v-if="showTextBroadcast"
+                class="shrink-0 text-[0.55rem] uppercase tracking-widest text-warning"
+              >
+                Audio unavailable
+              </span>
+            </header>
+            <p
+              class="m-0 max-h-32 overflow-y-auto whitespace-pre-wrap text-[0.7rem] leading-relaxed text-theme-primary/85 sm:max-h-40"
+            >
+              {{ broadcast.script }}
+            </p>
+          </section>
+        </div>
+      </template>
+    </aside>
   </div>
 </template>

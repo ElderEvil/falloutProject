@@ -14,8 +14,6 @@ import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { IncidentType } from '@/modules/combat/models/incident'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { formatDuration } from '@/core/utils/time'
-import RadioNewsWidget from '@/modules/radio-news/components/RadioNewsWidget.vue'
-import type { RadioNewsBroadcast } from '@/modules/radio-news/api/radioNews'
 
 const vaultStore = useVaultStore()
 const authStore = useAuthStore()
@@ -93,11 +91,6 @@ const initializeGameState = async () => {
   }
 }
 
-const handleNewBroadcast = (_broadcast: RadioNewsBroadcast) => {
-  // Broadcast badge surface handled by RadioNewsWidget; this hook is
-  // available for future toast / notification wiring.
-}
-
 onMounted(() => {
   void initializeGameState()
 })
@@ -130,9 +123,6 @@ onMounted(() => {
     </div>
 
     <div class="game-control-actions flex min-w-max flex-nowrap items-center gap-2">
-      <!-- Radio News Widget -->
-      <RadioNewsWidget :vault-id="vaultId" @new-broadcast="handleNewBroadcast" />
-
       <div class="h-4 w-px shrink-0 bg-theme-primary/10" />
       <!-- Pause/Resume Button -->
       <TooltipProvider :delay-duration="200">

@@ -48,6 +48,7 @@ const stubs = {
     props: ['openRoomId'],
   },
   GameControlPanel: true,
+  RadioNewsWidget: true,
   IncidentAlert: true,
   UnassignedDwellers: true,
   WastelandPanel: true,

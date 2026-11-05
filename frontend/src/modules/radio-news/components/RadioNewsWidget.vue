@@ -39,11 +39,11 @@ function isPlayedToday(broadcastId: string): boolean {
 }
 
 function markPlayed(broadcastId: string): void {
+  hasPlayed.value = true
   try {
     const played = JSON.parse(localStorage.getItem('radio_news_played') || '{}')
     played[broadcastId] = Date.now()
     localStorage.setItem('radio_news_played', JSON.stringify(played))
-    hasPlayed.value = true
   } catch {
     // localStorage may be unavailable; ignore
   }

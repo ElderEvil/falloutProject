@@ -12,6 +12,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.crud.broadcast import (
+    clear_audio_keys,
     count_trigger_on_date,
     create_broadcast,
     get_audio_keys_before,
@@ -123,16 +124,17 @@ def _audio_url(audio_key: str | None) -> str | None:
     return url or None
 
 
-def _delete_uploaded(audio_key: str | None) -> None:
+def _delete_uploaded(audio_key: str | None) -> bool:
     if not audio_key:
-        return
+        return False
     client = get_storage_client()
     if client is None:
-        return
+        return False
     try:
-        client.delete_file(file_name=audio_key)
+        return bool(client.delete_file(file_name=audio_key))
     except Exception as e:
         logger.warning("Could not delete unused broadcast audio %s: %s", audio_key, e)
+        return False
 
 
 async def _delete_superseded(previous: Any | None, new_audio_key: str | None) -> None:
@@ -140,9 +142,13 @@ async def _delete_superseded(previous: Any | None, new_audio_key: str | None) ->
         await asyncio.to_thread(_delete_uploaded, previous.audio_key)
 
 
-async def _prune_older_audio(db: AsyncSession, vault_id: UUID, today: date) -> None:
-    for key in await get_audio_keys_before(db, vault_id, datetime.combine(today, datetime.min.time())):
-        await asyncio.to_thread(_delete_uploaded, key)
+async def _prune_older_audio_transaction(db: AsyncSession, vault_id: UUID, today: date) -> None:
+    keys = await get_audio_keys_before(db, vault_id, datetime.combine(today, datetime.min.time()))
+    cleared = [key for key in keys if await asyncio.to_thread(_delete_uploaded, key)]
+    if not cleared:
+        return
+    await clear_audio_keys(db, vault_id, cleared)
+    await db.commit()
 
 
 def _serialize(broadcast: Any, *, audio_url: str | None = None) -> BroadcastRead:
@@ -299,8 +305,9 @@ async def get_or_create_daily(
     except Exception:
         await asyncio.to_thread(_delete_uploaded, audio_key)
         raise
-    await _prune_older_audio(db, vault_id, today)
-    return _serialize(broadcast, audio_url=audio_url)
+    result = _serialize(broadcast, audio_url=audio_url)
+    await _prune_older_audio_transaction(db, vault_id, today)
+    return result
 
 
 async def regenerate(
@@ -318,8 +325,6 @@ async def regenerate(
             detail=f"Manual regeneration limit reached ({MAX_REGENERATIONS_PER_DAY}/day for this vault).",
         )
 
-    previous = await get_today_broadcast(db, vault_id)
-
     title, script, audio_key, audio_url = await _prepare(
         db, vault_id, vault_data, recent_notifications, gender_counts, today
     )
@@ -333,6 +338,8 @@ async def regenerate(
         raise BroadcastRateLimitException(
             detail=f"Manual regeneration limit reached ({MAX_REGENERATIONS_PER_DAY}/day for this vault).",
         )
+
+    previous = await get_today_broadcast(db, vault_id)
 
     try:
         broadcast = await create_broadcast(
@@ -349,5 +356,6 @@ async def regenerate(
         await asyncio.to_thread(_delete_uploaded, audio_key)
         raise
     await _delete_superseded(previous, audio_key)
-    await _prune_older_audio(db, vault_id, today)
-    return _serialize(broadcast, audio_url=audio_url)
+    result = _serialize(broadcast, audio_url=audio_url)
+    await _prune_older_audio_transaction(db, vault_id, today)
+    return result

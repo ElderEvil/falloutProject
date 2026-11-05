@@ -3,7 +3,7 @@
 from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import func
+from sqlalchemy import func, update
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -44,6 +44,17 @@ async def get_audio_keys_before(db: AsyncSession, vault_id: UUID, before: dateti
         col(Broadcast.audio_key).is_not(None),
     )
     return [key for key in (await db.execute(query)).scalars().all() if key]
+
+
+async def clear_audio_keys(db: AsyncSession, vault_id: UUID, audio_keys: list[str]) -> None:
+    """Null the audio key for the given broadcasts of one vault."""
+    if not audio_keys:
+        return
+    await db.execute(
+        update(Broadcast)
+        .where(Broadcast.vault_id == vault_id, col(Broadcast.audio_key).in_(audio_keys))
+        .values(audio_key=None)
+    )
 
 
 async def count_trigger_on_date(

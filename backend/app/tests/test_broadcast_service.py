@@ -146,8 +146,8 @@ async def test_superseded_audio_is_deleted_on_regenerate(async_session, vault):
 
 
 @pytest.mark.asyncio
-async def test_older_day_audio_is_pruned(async_session, vault):
-    await _daily_row(async_session, vault, "broadcasts/yesterday.mp3", days_ago=1)
+async def test_older_day_audio_is_pruned_and_key_cleared(async_session, vault):
+    older = await _daily_row(async_session, vault, "broadcasts/yesterday.mp3", days_ago=1)
     client = _storage()
     with (
         patch.object(broadcast_service, "get_openrouter_tts_service", return_value=_tts(enabled=False)),
@@ -157,6 +157,67 @@ async def test_older_day_audio_is_pruned(async_session, vault):
         await get_or_create_daily(async_session, vault.id, vault_data=VAULT_DATA)
 
     client.delete_file.assert_called_with(file_name="broadcasts/yesterday.mp3")
+    await async_session.refresh(older)
+    assert older.audio_key is None
+
+
+@pytest.mark.asyncio
+async def test_second_prune_skips_cleared_keys(async_session, vault):
+    await _daily_row(async_session, vault, "broadcasts/yesterday.mp3", days_ago=1)
+    client = _storage()
+    with (
+        patch.object(broadcast_service, "get_openrouter_tts_service", return_value=_tts(enabled=False)),
+        patch.object(broadcast_service, "get_elevenlabs_tts_service", return_value=_tts(enabled=False)),
+        patch.object(broadcast_service, "get_storage_client", return_value=client),
+    ):
+        await regenerate(async_session, vault.id, vault_data=VAULT_DATA)
+        client.delete_file.reset_mock()
+        await regenerate(async_session, vault.id, vault_data=VAULT_DATA)
+
+    client.delete_file.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_failed_prune_keeps_key_for_retry(async_session, vault):
+    older = await _daily_row(async_session, vault, "broadcasts/yesterday.mp3", days_ago=1)
+    client = _storage()
+    client.delete_file.side_effect = RuntimeError("storage down")
+    with (
+        patch.object(broadcast_service, "get_openrouter_tts_service", return_value=_tts(enabled=False)),
+        patch.object(broadcast_service, "get_elevenlabs_tts_service", return_value=_tts(enabled=False)),
+        patch.object(broadcast_service, "get_storage_client", return_value=client),
+    ):
+        await get_or_create_daily(async_session, vault.id, vault_data=VAULT_DATA)
+
+    await async_session.refresh(older)
+    assert older.audio_key == "broadcasts/yesterday.mp3"
+
+
+@pytest.mark.asyncio
+async def test_clear_failure_rolls_back_prune(async_session, vault):
+    older = await _daily_row(async_session, vault, "broadcasts/yesterday.mp3", days_ago=1)
+    client = _storage()
+    connection = (await async_session.connection()).sync_connection
+
+    def fail_clear(_conn, _cursor, statement, _parameters, _context, _many):
+        if statement.startswith("UPDATE broadcast"):
+            raise RuntimeError("clear failed")
+
+    event.listen(connection, "before_cursor_execute", fail_clear)
+    try:
+        with (
+            patch.object(broadcast_service, "get_openrouter_tts_service", return_value=_tts(enabled=False)),
+            patch.object(broadcast_service, "get_elevenlabs_tts_service", return_value=_tts(enabled=False)),
+            patch.object(broadcast_service, "get_storage_client", return_value=client),
+            pytest.raises(RuntimeError, match="clear failed"),
+        ):
+            await get_or_create_daily(async_session, vault.id, vault_data=VAULT_DATA)
+    finally:
+        event.remove(connection, "before_cursor_execute", fail_clear)
+
+    await async_session.rollback()
+    await async_session.refresh(older)
+    assert older.audio_key == "broadcasts/yesterday.mp3"
 
 
 @pytest.mark.asyncio

@@ -78,6 +78,15 @@ function makeEmptyBroadcast() {
   }
 }
 
+const invalidVolumes = [
+  ['-20', 0],
+  ['175', 100],
+  ['NaN', 75],
+  ['Infinity', 75],
+  ['-Infinity', 75],
+  ['invalid', 75],
+] as const
+
 describe('RadioNewsWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -311,6 +320,50 @@ describe('RadioNewsWidget', () => {
     expect(instances[0].volume).toBe(0.25)
     second.unmount()
   })
+
+  it.each(invalidVolumes)('normalizes saved volume %s before playback', async (saved, expected) => {
+    localStorage.setItem('radio_news_volume', saved)
+    const audioMock = { play: vi.fn().mockResolvedValue(undefined), pause: vi.fn() }
+    const instances = stubAudio(audioMock)
+    mockApiGet.mockResolvedValue(makeBroadcast())
+    const wrapper = mount(RadioNewsWidget, { props: { vaultId: 'vault-1' } })
+    await flushPromises()
+    expect(wrapper.findComponent(Slider).props('modelValue')).toEqual([expected])
+    await wrapper.find('.radio-news-widget__play-btn').trigger('click')
+    await flushPromises()
+    expect(instances[0].volume).toBe(expected / 100)
+    expect(audioMock.play).toHaveBeenCalledOnce()
+    if (expected > 0) {
+      await wrapper.find('[aria-label="Mute broadcast"]').trigger('click')
+      await wrapper.find('[aria-label="Unmute broadcast"]').trigger('click')
+      expect(instances[0].volume).toBe(expected / 100)
+    }
+    wrapper.unmount()
+  })
+
+  it.each(invalidVolumes)(
+    'normalizes volume %s received through storage updates while playing',
+    async (saved, expected) => {
+      const audioMock = { play: vi.fn().mockResolvedValue(undefined), pause: vi.fn() }
+      const instances = stubAudio(audioMock)
+      mockApiGet.mockResolvedValue(makeBroadcast())
+      const wrapper = mount(RadioNewsWidget, { props: { vaultId: 'vault-1' } })
+      await flushPromises()
+      await wrapper.find('.radio-news-widget__play-btn').trigger('click')
+      // VueUse uses this event for the suite's custom storage backend.
+      window.dispatchEvent(
+        new CustomEvent('vueuse-storage', {
+          detail: { key: 'radio_news_volume', newValue: saved, storageArea: localStorage },
+        })
+      )
+      await flushPromises()
+      expect(wrapper.findComponent(Slider).props('modelValue')).toEqual([expected])
+      expect(instances[0].volume).toBe(expected / 100)
+      expect(wrapper.find('.radio-news-widget__play-btn').text()).toContain('Pause')
+      expect(audioMock.pause).not.toHaveBeenCalled()
+      wrapper.unmount()
+    }
+  )
 
   it('ignores a delayed play result after the vault changes', async () => {
     let resolvePlay!: () => void

@@ -16,7 +16,15 @@ const isLoading = ref(true)
 const error = ref<string | null>(null)
 const isPlaying = ref(false)
 const audioEl = shallowRef<HTMLAudioElement | null>(null)
-const volume = useLocalStorage('radio_news_volume', 75)
+const volume = useLocalStorage('radio_news_volume', 75, {
+  serializer: {
+    read: (value) => {
+      const percent = Number.parseFloat(value)
+      return Number.isFinite(percent) ? Math.min(100, Math.max(0, percent)) : 75
+    },
+    write: String,
+  },
+})
 const lastAudibleVolume = ref(volume.value || 75)
 const isPaused = computed(() => audioEl.value !== null && !isPlaying.value)
 const playLabel = computed(() => (isPlaying.value ? 'Pause' : isPaused.value ? 'Resume' : 'Play'))

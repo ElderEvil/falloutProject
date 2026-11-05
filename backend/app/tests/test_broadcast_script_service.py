@@ -42,9 +42,9 @@ class TestScriptWordCount:
 
 
 class TestGenderSplit:
-    """Gender split appears when notifications carry dweller gender data."""
+    """Gender split renders from the stored population counts."""
 
-    def test_gender_split_from_notifications(self):
+    def test_gender_split_from_counts(self):
         data = {
             "population": 10,
             "population_max": 20,
@@ -53,11 +53,8 @@ class TestGenderSplit:
             "power": (50, 100),
             "food": (50, 100),
             "water": (50, 100),
-            "recent_notifications": [
-                {"dweller_gender": "male"},
-                {"dweller_gender": "female"},
-                {"dweller_gender": "male"},
-            ],
+            "recent_notifications": [],
+            "gender_counts": [("male", 2), ("female", 1)],
             "vault_number": 7,
         }
         _, script = build_daily_script(**data)

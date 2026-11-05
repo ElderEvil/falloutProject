@@ -4,7 +4,7 @@ import type { components } from '@/core/types/api.generated'
 
 export type RadioNewsBroadcast = components['schemas']['BroadcastRead']
 
-/** Switch the vault radio between recruitment and happiness mode. */
+/** Fetch today's broadcast; the server generates it on the first call of the UTC day. */
 export async function fetchRadioNews(
   vaultId: string,
   options: ApiRequestOptions = {}

@@ -260,8 +260,7 @@ describe('RadioNewsWidget', () => {
     expect(errorEl.text()).toContain('network')
   })
 
-  // Welcome panel tests
-  it('attempts autoplay on mount for today\'s unplayed broadcast', async () => {
+  it('does not autoplay on mount', async () => {
     const audioMock = {
       onended: null,
       onerror: null,
@@ -269,166 +268,42 @@ describe('RadioNewsWidget', () => {
       pause: vi.fn(),
     }
     stubAudio(audioMock)
-
-
-    const broadcast = makeBroadcast({ id: 'broadcast-1' })
-    mockApiGet.mockResolvedValue(broadcast)
+    mockApiGet.mockResolvedValue(makeBroadcast({ id: 'broadcast-1' }))
 
     const wrapper = mount(RadioNewsWidget, {
       props: { vaultId: 'vault-1' },
     })
-
     await flushPromises()
 
-    expect(audioMock.play).toHaveBeenCalled()
-    expect(wrapper.find('.radio-news-widget__welcome-panel').exists()).toBe(false)
-  })
-
-  it('shows welcome panel with tap-to-listen when autoplay is blocked', async () => {
-
-    const broadcast = makeBroadcast({ id: 'broadcast-1' })
-    mockApiGet.mockResolvedValue(broadcast)
-
-    const wrapper = mount(RadioNewsWidget, {
-      props: { vaultId: 'vault-1' },
-    })
-
-    await flushPromises()
-
-    // Simulate autoplay blocking by directly setting the state
-    const vm = wrapper.vm as any
-    vm.showWelcomePanel = true
-    vm.welcomeBlocked = true
-    await flushPromises()
-
-    const panel = wrapper.find('.radio-news-widget__welcome-panel')
-    expect(panel.exists()).toBe(true)
-    expect(panel.text()).toContain('Vault Radio Hour')
-    expect(panel.text()).toContain('Tap to listen')
-    expect(panel.text()).toContain('Good evening')
-  })
-
-  it('marks broadcast as played after successful welcome panel playback', async () => {
-
-    const audioMock = {
-      onended: null,
-      onerror: null,
-      play: vi.fn().mockResolvedValue(undefined),
-      pause: vi.fn(),
-    }
-    stubAudio(audioMock)
-
-    const broadcast = makeBroadcast({ id: 'broadcast-1' })
-    mockApiGet.mockResolvedValue(broadcast)
-
-    const wrapper = mount(RadioNewsWidget, {
-      props: { vaultId: 'vault-1' },
-    })
-
-    await flushPromises()
-
-    // Simulate autoplay blocked
-    const vm = wrapper.vm as any
-    vm.showWelcomePanel = true
-    vm.welcomeBlocked = true
-    await flushPromises()
-
-    // Click "Tap to listen"
-    await wrapper.find('.radio-news-widget__welcome-panel').find('button').trigger('click')
-    await flushPromises()
-
-    expect(audioMock.play).toHaveBeenCalled()
-    expect(wrapper.find('.radio-news-widget__welcome-panel').exists()).toBe(false)
-
-    // Check localStorage
-    const played = JSON.parse(localStorage.getItem('radio_news_played') || '{}')
-    expect(played['broadcast-1']).toBeTruthy()
-  })
-
-  it('does not show welcome panel for yesterday broadcast', async () => {
-    const audioMock = {
-      onended: null,
-      onerror: null,
-      play: vi.fn().mockResolvedValue(undefined),
-      pause: vi.fn(),
-    }
-    stubAudio(audioMock)
-
-
-    const broadcast = makeBroadcast({ created_at: yesterdayISO, id: 'broadcast-yest' })
-    mockApiGet.mockResolvedValue(broadcast)
-
-    const wrapper = mount(RadioNewsWidget, {
-      props: { vaultId: 'vault-1' },
-    })
-
-    await flushPromises()
-
-    expect(wrapper.find('.radio-news-widget__welcome-panel').exists()).toBe(false)
-    // Should show badge normally
+    expect(audioMock.play).not.toHaveBeenCalled()
     expect(wrapper.find('.radio-news-widget__badge').exists()).toBe(true)
+    expect(wrapper.find('.radio-news-widget__play-btn').exists()).toBe(true)
   })
 
-  it('does not show welcome panel when broadcast is already played', async () => {
-    const audioMock = {
-      onended: null,
-      onerror: null,
-      play: vi.fn().mockResolvedValue(undefined),
-      pause: vi.fn(),
-    }
-    stubAudio(audioMock)
-
-
-    // Mark broadcast as played before mounting
-    localStorage.setItem('radio_news_played', JSON.stringify({ 'broadcast-1': Date.now() }))
-
-    const broadcast = makeBroadcast({ id: 'broadcast-1' })
-    mockApiGet.mockResolvedValue(broadcast)
+  it('reloads when the vault changes and ignores the old response', async () => {
+    let resolveFirst!: (value: unknown) => void
+    mockApiGet
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve
+          })
+      )
+      .mockResolvedValueOnce(makeBroadcast({ id: 'second', title: 'Second Vault' }))
 
     const wrapper = mount(RadioNewsWidget, {
       props: { vaultId: 'vault-1' },
     })
-
+    await wrapper.setProps({ vaultId: 'vault-2' })
     await flushPromises()
 
-    expect(wrapper.find('.radio-news-widget__welcome-panel').exists()).toBe(false)
-    expect(wrapper.find('.radio-news-widget__badge').exists()).toBe(true)
-  })
-
-  it('does not show welcome panel when audio_url is null', async () => {
-
-    const broadcast = makeEmptyBroadcast()
-    mockApiGet.mockResolvedValue(broadcast)
-
-    const wrapper = mount(RadioNewsWidget, {
-      props: { vaultId: 'vault-1' },
-    })
-
+    expect(wrapper.emitted('newBroadcast')?.at(-1)).toEqual([
+      makeBroadcast({ id: 'second', title: 'Second Vault' }),
+    ])
+    resolveFirst(makeBroadcast({ id: 'first', title: 'First Vault' }))
     await flushPromises()
-
-    expect(wrapper.find('.radio-news-widget__welcome-panel').exists()).toBe(false)
-    expect(wrapper.find('.radio-news-widget__text-panel').exists()).toBe(true)
-  })
-
-  it('does not show welcome panel when broadcast id is null', async () => {
-
-    // Broadcast with id: null and audio_url: null
-    const broadcast = {
-      id: null,
-      title: '',
-      script: 'No broadcast available today.',
-      audio_url: null,
-      trigger: 'daily' as const,
-      created_at: todayISO,
-    }
-    mockApiGet.mockResolvedValue(broadcast)
-
-    const wrapper = mount(RadioNewsWidget, {
-      props: { vaultId: 'vault-1' },
-    })
-
-    await flushPromises()
-
-    expect(wrapper.find('.radio-news-widget__welcome-panel').exists()).toBe(false)
+    expect(wrapper.emitted('newBroadcast')?.at(-1)).toEqual([
+      makeBroadcast({ id: 'second', title: 'Second Vault' }),
+    ])
   })
 })

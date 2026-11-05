@@ -1,6 +1,6 @@
 """Broadcast model for Vault Radio Hour."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -30,6 +30,6 @@ class Broadcast(BaseUUIDModel, BroadcastBase, TimeStampMixin, table=True):
     """A Vault Radio Hour broadcast — script + audio clip for a vault."""
 
     # Override TimeStampMixin.created_at to be non-nullable (matches migration)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
     vault: "Vault" = Relationship(back_populates="broadcasts")

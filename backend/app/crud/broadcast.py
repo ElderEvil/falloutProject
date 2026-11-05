@@ -1,6 +1,6 @@
 """Broadcast CRUD — date-range queries for the Vault Radio Hour broadcast model."""
 
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
 from sqlmodel import col, select
@@ -19,7 +19,7 @@ async def get_today_broadcast(db: AsyncSession, vault_id: UUID) -> Broadcast | N
 
     Returns the existing broadcast row or None.
     """
-    today_start, tomorrow_start = _day_bounds(datetime.utcnow().date())
+    today_start, tomorrow_start = _day_bounds(datetime.now(UTC).date())
 
     query = (
         select(Broadcast)
@@ -33,6 +33,16 @@ async def get_today_broadcast(db: AsyncSession, vault_id: UUID) -> Broadcast | N
     )
     result = await db.execute(query)
     return result.scalars().first()
+
+
+async def get_audio_keys_before(db: AsyncSession, vault_id: UUID, before: datetime) -> list[str]:
+    """Audio keys for broadcasts created before ``before``."""
+    query = select(Broadcast.audio_key).where(
+        Broadcast.vault_id == vault_id,
+        col(Broadcast.created_at) < before,
+        col(Broadcast.audio_key).is_not(None),
+    )
+    return [key for key in (await db.execute(query)).scalars().all() if key]
 
 
 async def count_trigger_on_date(
@@ -74,6 +84,5 @@ async def create_broadcast(
         trigger=trigger,
     )
     db.add(broadcast)
-    await db.commit()
-    await db.refresh(broadcast)
+    await db.flush()
     return broadcast

@@ -1,22 +1,34 @@
 """Broadcast service — daily broadcast lifecycle: script → TTS → post-process → upload."""
 
+import asyncio
 import logging
 import shutil
 import subprocess
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.crud.broadcast import count_trigger_on_date, create_broadcast, get_today_broadcast
+from app.crud.broadcast import (
+    count_trigger_on_date,
+    create_broadcast,
+    get_audio_keys_before,
+    get_today_broadcast,
+)
 from app.models.vault import Vault
 from app.schemas.broadcast import BroadcastRead
+from app.services.elevenlabs_service import get_elevenlabs_tts_service
 from app.services.openrouter_tts_service import get_openrouter_tts_service
 from app.services.storage.factory import get_storage_client
 from app.utils.broadcast_script import build_daily_script
-from app.utils.exceptions import BroadcastRateLimitException, TTSProviderException, ValidationException
+from app.utils.exceptions import (
+    BroadcastRateLimitException,
+    ElevenLabsProviderException,
+    TTSProviderException,
+    ValidationException,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +40,7 @@ MP3_CONTENT_TYPE = "audio/mpeg"
 
 
 def _utc_today() -> date:
-    return datetime.utcnow().date()
+    return datetime.now(UTC).date()
 
 
 def vault_stats_from_db(vault: Vault) -> dict[str, Any]:
@@ -123,9 +135,14 @@ def _delete_uploaded(audio_key: str | None) -> None:
         logger.warning("Could not delete unused broadcast audio %s: %s", audio_key, e)
 
 
-def _delete_superseded(previous: Any | None, new_audio_key: str | None) -> None:
+async def _delete_superseded(previous: Any | None, new_audio_key: str | None) -> None:
     if previous is not None and previous.audio_key and new_audio_key and previous.audio_key != new_audio_key:
-        _delete_uploaded(previous.audio_key)
+        await asyncio.to_thread(_delete_uploaded, previous.audio_key)
+
+
+async def _prune_older_audio(db: AsyncSession, vault_id: UUID, today: date) -> None:
+    for key in await get_audio_keys_before(db, vault_id, datetime.combine(today, datetime.min.time())):
+        await asyncio.to_thread(_delete_uploaded, key)
 
 
 def _serialize(broadcast: Any, *, audio_url: str | None = None) -> BroadcastRead:
@@ -178,9 +195,9 @@ async def _prepare(
         population_max=int(data.get("population_max") or 0),
         caps=int(data.get("bottle_caps", 0)),
         happiness=int(data.get("happiness", 50)),
-        power=(int(data.get("power", 0)), int(data.get("power_max") or 1)),
-        food=(int(data.get("food", 0)), int(data.get("food_max") or 1)),
-        water=(int(data.get("water", 0)), int(data.get("water_max") or 1)),
+        power=(int(data.get("power", 0)), int(data.get("power_max") or 0)),
+        food=(int(data.get("food", 0)), int(data.get("food_max") or 0)),
+        water=(int(data.get("water", 0)), int(data.get("water_max") or 0)),
         recent_notifications=recent_notifications,
         gender_counts=gender_counts,
         vault_number=data.get("number"),
@@ -191,17 +208,30 @@ async def _prepare(
 
 
 async def _render_audio(script: str, today: date) -> tuple[str | None, str | None]:
+    audio_bytes: bytes | None = None
+    content_type = MP3_CONTENT_TYPE
+    extension = "mp3"
+
     tts = get_openrouter_tts_service()
-    if not tts.is_enabled:
-        logger.info("No TTS provider enabled, script-only broadcast")
-        return None, None
-    try:
-        wav_bytes = await tts.generate_speech(script)
-    except TTSProviderException as e:
-        logger.warning("TTS generation failed, falling back to script-only: %s", e)
+    if tts.is_enabled:
+        try:
+            wav_bytes = await tts.generate_speech(script)
+            audio_bytes, content_type, extension = await asyncio.to_thread(_post_process, wav_bytes)
+        except TTSProviderException as e:
+            logger.warning("OpenRouter TTS failed, trying ElevenLabs: %s", e)
+
+    if audio_bytes is None:
+        eleven = get_elevenlabs_tts_service()
+        if eleven.is_enabled:
+            try:
+                audio_bytes = await eleven.generate_speech(script)
+            except ElevenLabsProviderException as e:
+                logger.warning("ElevenLabs fallback failed, returning script-only: %s", e)
+
+    if audio_bytes is None:
+        logger.info("No TTS provider available, script-only broadcast")
         return None, None
 
-    audio_bytes, content_type, extension = _post_process(wav_bytes)
     client = get_storage_client()
     if client is None:
         logger.info("Storage not enabled, returning script-only")
@@ -209,7 +239,8 @@ async def _render_audio(script: str, today: date) -> tuple[str | None, str | Non
 
     key = f"broadcasts/{today:%Y/%m/%d}/{uuid4()}.{extension}"
     try:
-        url = client.upload_file(
+        url = await asyncio.to_thread(
+            client.upload_file,
             file_data=audio_bytes,
             file_name=key,
             file_type=content_type,
@@ -246,12 +277,12 @@ async def get_or_create_daily(
     )
 
     if await crud.vault.get_for_update(db, vault_id) is None:
-        _delete_uploaded(audio_key)
+        await asyncio.to_thread(_delete_uploaded, audio_key)
         raise ValidationException("Vault not found")
 
     existing = await get_today_broadcast(db, vault_id)
     if existing:
-        _delete_uploaded(audio_key)
+        await asyncio.to_thread(_delete_uploaded, audio_key)
         return _serialize(existing)
 
     try:
@@ -263,9 +294,12 @@ async def get_or_create_daily(
             audio_key=audio_key,
             trigger="daily",
         )
+        await db.commit()
+        await db.refresh(broadcast)
     except Exception:
-        _delete_uploaded(audio_key)
+        await asyncio.to_thread(_delete_uploaded, audio_key)
         raise
+    await _prune_older_audio(db, vault_id, today)
     return _serialize(broadcast, audio_url=audio_url)
 
 
@@ -291,11 +325,11 @@ async def regenerate(
     )
 
     if await crud.vault.get_for_update(db, vault_id) is None:
-        _delete_uploaded(audio_key)
+        await asyncio.to_thread(_delete_uploaded, audio_key)
         raise ValidationException("Vault not found")
 
     if await count_trigger_on_date(db, vault_id, "manual", today) >= MAX_REGENERATIONS_PER_DAY:
-        _delete_uploaded(audio_key)
+        await asyncio.to_thread(_delete_uploaded, audio_key)
         raise BroadcastRateLimitException(
             detail=f"Manual regeneration limit reached ({MAX_REGENERATIONS_PER_DAY}/day for this vault).",
         )
@@ -309,8 +343,11 @@ async def regenerate(
             audio_key=audio_key,
             trigger="manual",
         )
+        await db.commit()
+        await db.refresh(broadcast)
     except Exception:
-        _delete_uploaded(audio_key)
+        await asyncio.to_thread(_delete_uploaded, audio_key)
         raise
-    _delete_superseded(previous, audio_key)
+    await _delete_superseded(previous, audio_key)
+    await _prune_older_audio(db, vault_id, today)
     return _serialize(broadcast, audio_url=audio_url)

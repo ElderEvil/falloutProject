@@ -6,7 +6,7 @@ Word count target: 120-180 words (excluding sign-off).
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 def build_daily_script(
@@ -39,11 +39,8 @@ def build_daily_script(
     Returns:
         (title, script) tuple. Script is ~120-180 words.
     """
-    now = _now or datetime.utcnow()
+    now = _now or datetime.now(UTC)
     day_str = now.strftime("%B %d, %Y")
-    if gender_counts is None:
-        gender_counts = _count_genders(recent_notifications)
-
     title = f"Vault Radio News - {day_str}"
 
     parts: list[str] = []
@@ -105,19 +102,6 @@ def build_daily_script(
 
     script = " ".join(parts)
     return (title, script)
-
-
-def _count_genders(notifications: list[dict]) -> list[tuple[str, int]]:
-    """Glean gender counts from dweller-related notifications."""
-    counts: dict[str, int] = {}
-    for n in notifications:
-        for key in ("gender", "dweller_gender"):
-            val = n.get(key)
-            if val:
-                gender = val if isinstance(val, str) else str(val)
-                counts[gender] = counts.get(gender, 0) + 1
-    # Return sorted by count desc
-    return sorted(counts.items(), key=lambda x: -x[1])[:3]
 
 
 def _extract_notified_names(notifications: list[dict]) -> list[str]:

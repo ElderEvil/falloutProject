@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
@@ -10,51 +10,38 @@ import {
   TooltipTrigger,
 } from '@/core/components/ui/tooltip'
 import { useToast } from '@/core/composables/useToast'
-import {
-  fetchRadioNews,
-  type RadioNewsBroadcast,
-} from '../api/radioNews'
+import { fetchRadioNews, type RadioNewsBroadcast } from '../api/radioNews'
 
-interface Props {
-  vaultId: string
-}
-
-const props = defineProps<Props>()
-
-const emit = defineEmits<{
-  newBroadcast: [broadcast: RadioNewsBroadcast]
-}>()
-
+const props = defineProps<{ vaultId: string }>()
+const emit = defineEmits<{ newBroadcast: [broadcast: RadioNewsBroadcast] }>()
 const toast = useToast()
 const broadcast = ref<RadioNewsBroadcast | null>(null)
 const isLoading = ref(true)
 const error = ref<string | null>(null)
 const isPlaying = ref(false)
 const audioEl = ref<HTMLAudioElement | null>(null)
+const hasPlayed = ref(false)
 
-// Welcome panel state
-const showWelcomePanel = ref(false)
-const welcomeBlocked = ref(false)
+const utcDayStart = () => {
+  const now = new Date()
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+}
+const today = ref(utcDayStart())
 
-const today = new Date()
-today.setHours(0, 0, 0, 0)
-
-/** Check if a broadcast has been played this session. */
 function isPlayedToday(broadcastId: string): boolean {
   try {
-    const played = JSON.parse(localStorage.getItem('radio_news_played') || '{}')
-    return !!played[broadcastId]
+    return !!JSON.parse(localStorage.getItem('radio_news_played') || '{}')[broadcastId]
   } catch {
     return false
   }
 }
 
-/** Mark a broadcast as played this session. */
 function markPlayed(broadcastId: string): void {
   try {
     const played = JSON.parse(localStorage.getItem('radio_news_played') || '{}')
     played[broadcastId] = Date.now()
     localStorage.setItem('radio_news_played', JSON.stringify(played))
+    hasPlayed.value = true
   } catch {
     // localStorage may be unavailable; ignore
   }
@@ -63,36 +50,31 @@ function markPlayed(broadcastId: string): void {
 const isToday = computed(() => {
   if (!broadcast.value?.created_at) return false
   const created = new Date(broadcast.value.created_at)
-  created.setHours(0, 0, 0, 0)
-  return created.getTime() === today.getTime()
+  return Date.UTC(created.getUTCFullYear(), created.getUTCMonth(), created.getUTCDate()) === today.value.getTime()
 })
-
+const isNew = computed(() => isToday.value && !hasPlayed.value)
 const isAudioAvailable = computed(() => !!broadcast.value?.audio_url)
-const hasScript = computed(() => !!broadcast.value?.script && broadcast.value.script.length > 0)
-const showTextBroadcast = computed(
-  () => !isAudioAvailable.value && hasScript.value
-)
-const showCaption = computed(
-  () => isPlaying.value && broadcast.value?.script
-)
+const hasScript = computed(() => !!broadcast.value?.script)
+const showTextBroadcast = computed(() => !isAudioAvailable.value && hasScript.value)
+const showCaption = computed(() => isPlaying.value && !!broadcast.value?.script)
 
 const loadBroadcast = async () => {
+  const requestedVaultId = props.vaultId
   isLoading.value = true
   error.value = null
+  today.value = utcDayStart()
   try {
-    const data = await fetchRadioNews(props.vaultId)
+    const data = await fetchRadioNews(requestedVaultId)
+    if (requestedVaultId !== props.vaultId) return
     broadcast.value = data
+    hasPlayed.value = data.id ? isPlayedToday(data.id) : false
     emit('newBroadcast', data)
-
-    // After loading, attempt auto-play for today's unplayed broadcast
-    if (isToday.value && data.audio_url && data.id && !isPlayedToday(data.id)) {
-      await attemptAutoPlay(data)
-    }
   } catch (err) {
+    if (requestedVaultId !== props.vaultId) return
     toast.warning('Broadcast unavailable')
     error.value = err instanceof Error ? err.message : 'Failed to load broadcast'
   } finally {
-    isLoading.value = false
+    if (requestedVaultId === props.vaultId) isLoading.value = false
   }
 }
 
@@ -126,52 +108,41 @@ async function playAudio(url: string): Promise<boolean> {
   }
 }
 
-async function attemptAutoPlay(b: RadioNewsBroadcast): Promise<void> {
-  if (!b.audio_url || !b.id) return
-  let audio: HTMLAudioElement
-  try {
-    audio = startAudio(b.audio_url)
-  } catch {
-    return
-  }
-  try {
-    await audio.play()
-    markPlayed(b.id)
-  } catch {
+const onTogglePlay = async () => {
+  const current = broadcast.value
+  if (!current?.audio_url) return
+  if (isPlaying.value) {
     stopAudio()
-    showWelcomePanel.value = true
-    welcomeBlocked.value = true
+  } else if ((await playAudio(current.audio_url)) && current.id) {
+    markPlayed(current.id)
   }
 }
 
-const onTogglePlay = () => {
-  if (!broadcast.value?.audio_url) return
-  if (isPlaying.value) stopAudio()
-  else void playAudio(broadcast.value.audio_url)
-}
-
-const onWelcomePanelPlay = async () => {
-  const b = broadcast.value
-  if (!b?.audio_url || !b.id) return
-  welcomeBlocked.value = false
-  showWelcomePanel.value = false
-  if (await playAudio(b.audio_url)) markPlayed(b.id)
-}
-
-// Periodically refresh at midnight to pick up new broadcasts
 let midnightTimer: ReturnType<typeof setTimeout> | null = null
 
 const scheduleNextMidnight = () => {
   if (midnightTimer) clearTimeout(midnightTimer)
-  const now = Date.now()
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  tomorrow.setHours(0, 0, 0, 0)
-  const delay = tomorrow.getTime() - now
-  if (delay > 0) {
-    midnightTimer = setTimeout(loadBroadcast, delay)
-  }
+  const now = new Date()
+  const nextUtcMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
+  midnightTimer = setTimeout(
+    () => {
+      today.value = utcDayStart()
+      void loadBroadcast()
+      scheduleNextMidnight()
+    },
+    Math.max(0, nextUtcMidnight - now.getTime())
+  )
 }
+
+watch(
+  () => props.vaultId,
+  () => {
+    stopAudio()
+    broadcast.value = null
+    error.value = null
+    void loadBroadcast()
+  }
+)
 
 onMounted(() => {
   void loadBroadcast()
@@ -198,31 +169,6 @@ onBeforeUnmount(() => {
       <span class="radio-news-widget__error-text text-xs text-danger">{{ error }}</span>
     </div>
 
-    <!-- Welcome panel: unplayed today broadcast with blocked autoplay -->
-    <div
-      v-if="showWelcomePanel && broadcast"
-      class="radio-news-widget__welcome-panel mt-2 rounded-md border border-theme-primary/30 bg-surface-warm/90 p-4 shadow-lg"
-    >
-      <div class="radio-news-widget__welcome-header mb-3 flex items-center gap-2">
-        <Icon icon="mdi:radio" class="radio-news-widget__welcome-icon h-5 w-5 text-theme-primary" />
-        <h3 class="radio-news-widget__welcome-title m-0 text-sm font-bold uppercase tracking-widest text-theme-primary">
-          📻 Vault Radio Hour
-        </h3>
-      </div>
-      <p class="radio-news-widget__welcome-script mb-3 whitespace-pre-wrap text-xs leading-relaxed text-theme-primary/80">
-        {{ broadcast.script }}
-      </p>
-      <Button
-        variant="outline"
-        size="sm"
-        class="radio-news-widget__welcome-play-btn w-full"
-        @click="onWelcomePanelPlay"
-      >
-        <Icon icon="mdi:play-circle-outline" class="radio-news-widget__welcome-play-icon mr-1.5 h-4 w-4" />
-        Tap to listen
-      </Button>
-    </div>
-
     <!-- Broadcast present (normal mode) -->
     <div v-else-if="broadcast" class="radio-news-widget__content">
       <!-- Badge -->
@@ -232,16 +178,16 @@ onBeforeUnmount(() => {
             <Badge
               variant="outline"
               class="radio-news-widget__badge cursor-default border-theme-primary/20 bg-theme-primary/5"
-              :class="{ 'border-theme-primary/60 bg-theme-primary/15 animate-pulse': isToday }"
+              :class="{ 'border-theme-primary/60 bg-theme-primary/15 animate-pulse': isNew }"
             >
               <Icon icon="mdi:radio" class="radio-news-widget__badge-icon h-3.5 w-3.5" />
               <span class="radio-news-widget__badge-text text-[0.6rem] font-bold uppercase tracking-widest">
-                {{ isToday ? 'New Broadcast' : 'Radio' }}
+                {{ isNew ? 'New Broadcast' : 'Radio' }}
               </span>
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
-            <span v-if="isToday">New broadcast available — click to play</span>
+            <span v-if="isNew">New broadcast available — click to play</span>
             <span v-else>Tune in to the radio news</span>
           </TooltipContent>
         </Tooltip>

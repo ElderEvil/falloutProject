@@ -1577,4 +1577,6 @@ class TestDeleteVault:
         with patch.object(broadcast_service, "get_storage_client", return_value=client):
             await vault_service.delete_vault(async_session, vault.id, soft=False)
 
-        client.delete_file.assert_called_once_with(file_name="broadcasts/old.mp3")
+        client.delete_file.assert_called_once_with(
+            file_name="broadcasts/old.mp3", bucket_name=broadcast_service.BROADCAST_AUDIO_BUCKET
+        )

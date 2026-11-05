@@ -38,6 +38,9 @@ MAX_REGENERATIONS_PER_DAY = 3
 
 WAV_CONTENT_TYPE = "audio/wav"
 MP3_CONTENT_TYPE = "audio/mpeg"
+# Broadcast clips must be publicly readable; the default storage bucket is private.
+# Reuse the existing public narration bucket rather than creating another one.
+BROADCAST_AUDIO_BUCKET = "dweller-audio"
 
 
 def _utc_today() -> date:
@@ -120,7 +123,7 @@ def _audio_url(audio_key: str | None) -> str | None:
     client = get_storage_client()
     if client is None:
         return None
-    url = client.public_url(file_name=audio_key)
+    url = client.public_url(file_name=audio_key, bucket_name=BROADCAST_AUDIO_BUCKET)
     return url or None
 
 
@@ -131,7 +134,7 @@ def _delete_uploaded(audio_key: str | None) -> bool:
     if client is None:
         return False
     try:
-        return bool(client.delete_file(file_name=audio_key))
+        return bool(client.delete_file(file_name=audio_key, bucket_name=BROADCAST_AUDIO_BUCKET))
     except Exception as e:
         logger.warning("Could not delete unused broadcast audio %s: %s", audio_key, e)
         return False
@@ -272,6 +275,7 @@ async def _render_audio(script: str, today: date) -> tuple[str | None, str | Non
             file_data=audio_bytes,
             file_name=key,
             file_type=content_type,
+            bucket_name=BROADCAST_AUDIO_BUCKET,
         )
     except Exception as e:
         logger.warning("S3 upload failed: %s; returning script-only", e)

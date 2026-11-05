@@ -118,6 +118,7 @@ async def test_elevenlabs_fallback_uploads_audio(async_session, vault):
 
     assert result.audio_url == "https://cdn/audio.mp3"
     client.upload_file.assert_called_once()
+    assert client.upload_file.call_args.kwargs["bucket_name"] == broadcast_service.BROADCAST_AUDIO_BUCKET
 
 
 @pytest.mark.asyncio
@@ -128,6 +129,9 @@ async def test_cached_audio_url_resolves_public_url(async_session, vault):
         result = await get_or_create_daily(async_session, vault.id, vault_data=VAULT_DATA)
 
     assert result.audio_url == "https://cdn/broadcasts/old.mp3"
+    client.public_url.assert_called_with(
+        file_name="broadcasts/old.mp3", bucket_name=broadcast_service.BROADCAST_AUDIO_BUCKET
+    )
 
 
 @pytest.mark.asyncio
@@ -142,7 +146,9 @@ async def test_superseded_audio_is_deleted_on_regenerate(async_session, vault):
     ):
         await regenerate(async_session, vault.id, vault_data=VAULT_DATA)
 
-    client.delete_file.assert_called_with(file_name="broadcasts/old.mp3")
+    client.delete_file.assert_called_with(
+        file_name="broadcasts/old.mp3", bucket_name=broadcast_service.BROADCAST_AUDIO_BUCKET
+    )
 
 
 @pytest.mark.asyncio
@@ -156,7 +162,9 @@ async def test_older_day_audio_is_pruned_and_key_cleared(async_session, vault):
     ):
         await get_or_create_daily(async_session, vault.id, vault_data=VAULT_DATA)
 
-    client.delete_file.assert_called_with(file_name="broadcasts/yesterday.mp3")
+    client.delete_file.assert_called_with(
+        file_name="broadcasts/yesterday.mp3", bucket_name=broadcast_service.BROADCAST_AUDIO_BUCKET
+    )
     await async_session.refresh(older)
     assert older.audio_key is None
 

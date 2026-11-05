@@ -29,7 +29,6 @@ def _mock_storage():
     mock_mod.get_storage_client = MagicMock(return_value=None)
     sys.modules["app.services.storage"] = mock_mod
     sys.modules["app.services.storage.factory"] = mock_mod.factory
-    yield
 
 
 class TestDailyCache:

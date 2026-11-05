@@ -6,7 +6,7 @@ from app.services.broadcast_script_service import build_daily_script
 
 
 class TestScriptWordCount:
-    """Ensure the script stays in the 120–180 word target range."""
+    """Ensure the script stays in the 120-180 word target range."""
 
     def _baseline_data(self):
         return {

@@ -364,14 +364,14 @@ onBeforeUnmount(() => {
 }
 
 .radio-news-widget__badge {
-  border-color: var(--color-theme-primary/20);
-  background: var(--color-theme-primary/5);
+  border-color: color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
+  background: color-mix(in srgb, var(--color-theme-primary) 5%, transparent);
   cursor: default;
 }
 
 .radio-news-widget__badge.badge-active {
-  border-color: var(--color-theme-primary/60);
-  background: var(--color-theme-primary/15);
+  border-color: color-mix(in srgb, var(--color-theme-primary) 60%, transparent);
+  background: color-mix(in srgb, var(--color-theme-primary) 15%, transparent);
   animation: badgePulse 2s ease-in-out infinite;
 }
 
@@ -402,11 +402,11 @@ onBeforeUnmount(() => {
 }
 
 .radio-news-widget__play-btn {
-  border-color: var(--color-theme-primary/30);
+  border-color: color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
 }
 
 .radio-news-widget__play-btn.is-playing {
-  background: var(--color-theme-primary/20);
+  background: color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
 }
 
 .radio-news-widget__play-icon {
@@ -428,8 +428,8 @@ onBeforeUnmount(() => {
   margin-top: 0.5rem;
   max-width: 20rem;
   border-radius: 0.375rem;
-  border: 1px solid var(--color-theme-primary/20);
-  background: var(--color-surface-raised/80);
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
+  background: color-mix(in srgb, var(--color-surface-raised) 80%, transparent);
   padding: 0.75rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
@@ -459,13 +459,13 @@ onBeforeUnmount(() => {
   white-space: pre-wrap;
   font-size: 0.7rem;
   line-height: 1.5;
-  color: var(--color-theme-primary/80);
+  color: color-mix(in srgb, var(--color-theme-primary) 80%, transparent);
 }
 
 .radio-news-widget__text-panel-meta {
   margin-top: 0.5rem;
   font-size: 0.6rem;
-  color: var(--color-theme-primary/50);
+  color: color-mix(in srgb, var(--color-theme-primary) 50%, transparent);
 }
 
 .radio-news-widget__error {
@@ -488,8 +488,8 @@ onBeforeUnmount(() => {
 .radio-news-widget__welcome-panel {
   margin-top: 0.5rem;
   border-radius: 0.375rem;
-  border: 1px solid var(--color-theme-primary/30);
-  background: var(--color-surface-warm/90);
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
+  background: color-mix(in srgb, var(--color-surface-warm) 90%, transparent);
   padding: 1rem;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   animation: welcomeSlideIn 0.3s ease-out;
@@ -527,7 +527,7 @@ onBeforeUnmount(() => {
   white-space: pre-wrap;
   font-size: 0.75rem;
   line-height: 1.5;
-  color: var(--color-theme-primary/80);
+  color: color-mix(in srgb, var(--color-theme-primary) 80%, transparent);
 }
 
 .radio-news-widget__welcome-play-btn {
@@ -544,8 +544,8 @@ onBeforeUnmount(() => {
   margin-top: 0.5rem;
   max-width: 20rem;
   border-radius: 0.375rem;
-  border: 1px solid var(--color-theme-primary/30);
-  background: var(--color-surface-warm/90);
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
+  background: color-mix(in srgb, var(--color-surface-warm) 90%, transparent);
   padding: 0.75rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }

@@ -59,6 +59,17 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         result = await db.execute(query)  # ty: ignore[deprecated] -- Compatible with tick/test SQLAlchemy sessions.
         return list(result.scalars().all())
 
+    async def get_recent_for_vault(self, db: AsyncSession, vault_id: UUID, *, limit: int = 5) -> list[Notification]:
+        """Most recent notifications for one vault, newest first."""
+        query = (
+            select(Notification)
+            .where(Notification.vault_id == vault_id)
+            .order_by(col(Notification.created_at).desc(), col(Notification.id).desc())
+            .limit(limit)
+        )
+        result = await db.execute(query)  # ty: ignore[deprecated] -- Compatible with tick/test SQLAlchemy sessions.
+        return list(result.scalars().all())
+
     async def count_by_user(self, db_session: AsyncSession, user_id: UUID) -> int:
         """Count every notification owned by a user, including dismissed ones."""
         result = await db_session.execute(

@@ -1554,3 +1554,27 @@ class TestSeededFamilies:
         rel = await relationship_crud.get_by_dweller_pair(async_session, first.id, second.id)
         assert rel is not None
         assert rel.relationship_type == RelationshipTypeEnum.MARRIED
+
+
+class TestDeleteVault:
+    @pytest.mark.asyncio
+    async def test_hard_delete_removes_broadcast_audio(self, async_session, vault):
+        from app.crud.broadcast import create_broadcast
+        from app.services import broadcast_service
+        from app.services.vault_service import vault_service
+
+        await create_broadcast(
+            async_session,
+            vault_id=vault.id,
+            title="Old broadcast",
+            script="Old script",
+            audio_key="broadcasts/old.mp3",
+        )
+        await async_session.commit()
+        client = MagicMock()
+        client.delete_file.return_value = True
+
+        with patch.object(broadcast_service, "get_storage_client", return_value=client):
+            await vault_service.delete_vault(async_session, vault.id, soft=False)
+
+        client.delete_file.assert_called_once_with(file_name="broadcasts/old.mp3")

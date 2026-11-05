@@ -7,6 +7,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import VaultModeEnum
 from app.models.base import BaseUUIDModel, SoftDeleteMixin, TimeStampMixin
+from app.models.broadcast import Broadcast
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.vault_quest import (
     VaultQuestCompletionLink,
@@ -87,4 +88,8 @@ class Vault(BaseUUIDModel, VaultBase, TimeStampMixin, SoftDeleteMixin, table=Tru
     teams: list["Team"] = Relationship(
         back_populates="vault",
         sa_relationship_kwargs={"cascade": "all"},
+    )
+    broadcasts: list["Broadcast"] = Relationship(
+        back_populates="vault",
+        cascade_delete=True,
     )

@@ -2,10 +2,17 @@
 
 import importlib.util
 import os
+import platform
 import shutil
 import subprocess
 from pathlib import Path
 
+image_python = subprocess.check_output(
+    ["/usr/local/bin/python", "--version"], text=True
+).strip()
+assert image_python == f"Python {platform.python_version()}", (
+    f"Baked environment uses Python {platform.python_version()}, but the image provides {image_python}"
+)
 assert os.getuid() == 1000, "Runtime must use appuser"
 for name in ("pytest", "coverage", "fakeredis", "ruff", "ty", "prek"):
     assert importlib.util.find_spec(name) is None, f"Dev package shipped: {name}"

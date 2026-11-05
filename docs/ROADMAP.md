@@ -1,6 +1,6 @@
 # Fallout Shelter — Development Roadmap
 
-_Last updated: 2026-10-31_
+_Last updated: 2026-11-05_
 
 ## Current direction
 
@@ -80,6 +80,41 @@ gated on upstream support)
 
 No v3.0 date is announced until the tracker's gates are green. Keep the Dependabot pre-3.0 ignores
 (`sqlmodel >=0.0.45`, `sqlalchemy >=2.1`, `typescript >=7`) until each boundary opens.
+
+### Preparation and remaining gates
+
+Tracker #1259 was closed on 2026-10-31 with its release checklist still unchecked. Its closed state
+does not establish that the boundary shipped. Use the evidence below when reassessing release readiness.
+Compatibility preparation may proceed alongside the selected gameplay journey; switching the baseline
+and migrating persisted timestamps remain gated on the journeys above.
+
+| Gate | Current state | Required next evidence |
+| --- | --- | --- |
+| Python 3.14 compatibility | `requires-python` admits 3.13 and 3.14; backend tests, Alembic checks and image smoke run for both. Package versions stay pinned in the shared lockfile. | Both CI runtimes stay green; the final baseline PR changes `.python-version`, Docker defaults, Ruff/ty targets, hook runtime and setup documentation together. |
+| Production runtime | `.python-version`, release-image selection and Docker defaults remain 3.13. | An explicit baseline switch after gameplay verification; compatibility CI alone does not complete this gate. |
+| Gameplay | #1034 and #1112 remain open; #928 is closed. | Authenticated standard-vault desktop/phone playthroughs, recovery boundaries and recorded remaining friction. |
+| ORM and aware UTC | SQLModel `<0.0.45`, SQLAlchemy `<2.1`; naive UTC remains the documented contract. | Inventory schema and serialized timestamps, then test conversion, comparisons, API round trips and background ticks against PostgreSQL before changing the bounds. |
+| Migration and recovery | `scripts/restore-drill.sh` provides an isolated restore foundation. | Run the final migrations on a production clone, prove enum/schema consistency and application readiness, and rehearse recovery with the pinned v2 image and matching database snapshot. Regenerate the Alembic baseline only after the final schema change. |
+| Release | No 3.0 cutover is established by this preparation. | Schedule the maintenance window, pin rollback artifacts and use a reviewed `BREAKING CHANGE:` release commit. |
+
+The next database slice starts with `TimeStampMixin`/`SoftDeleteMixin` in `app/models/base.py`,
+the UTC-pinned API and task engines in `app/db/session.py`, and deadlines in exploration, training,
+pregnancy, crafting, incidents and quest returns. Include timestamps embedded in exploration JSON,
+not just typed SQL columns. Explicitly interpret existing naive values as UTC during backfill; changing
+column types or replacing `datetime.utcnow()` alone does not establish correct elapsed-time behavior.
+PostgreSQL checks must cover preserved instants under a non-UTC session timezone, nullable timestamps,
+deadline boundaries, enum labels and API offset handling. Do not mix this with the runtime preparation PR.
+
+A fresh PostgreSQL 18 database migrated to `c8f2a1b3d4e5` on 2026-11-05 contains **122 timestamp
+columns across 39 tables**, all `timestamp without time zone`. This is a schema inventory, not a
+production-data audit or migration rehearsal. Reproduce the inventory before designing the conversion:
+
+```sql
+SELECT table_name, column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = 'public' AND data_type LIKE 'timestamp%'
+ORDER BY table_name, column_name;
+```
 
 ## Deferred direction and retained research
 

@@ -1,7 +1,7 @@
-"""Broadcast script renderer — pure function(s), no I/O.
+"""Broadcast script renderer - pure function(s), no I/O.
 
 Generates a 1950s-style radio announcer script from vault state data.
-Word count target: 120–180 words (excluding sign-off).
+Word count target: 120-180 words (excluding sign-off).
 """
 
 from __future__ import annotations
@@ -36,13 +36,13 @@ def build_daily_script(
         _now: Override datetime for testing.
 
     Returns:
-        (title, script) tuple. Script is ~120–180 words.
+        (title, script) tuple. Script is ~120-180 words.
     """
     now = _now or datetime.utcnow()
     day_str = now.strftime("%B %d, %Y")
     gender_counts = _count_genders(recent_notifications)
 
-    title = f"Vault Radio News — {day_str}"
+    title = f"Vault Radio News - {day_str}"
 
     parts: list[str] = []
 
@@ -56,7 +56,7 @@ def build_daily_script(
     if population_max and population_max > 0:
         parts.append(
             f"Your vault is home to {population} brave souls, "
-            f"squeezing comfortably — or so it seems — within a capacity of {population_max}."
+            f"squeezing comfortably - or so it seems - within a capacity of {population_max}."
         )
     else:
         parts.append(f"The vault is home to {population} residents today.")
@@ -67,15 +67,15 @@ def build_daily_script(
         parts.append(f"That breaks down to {genders}.")
 
     # Caps
-    parts.append(
-        f"Your bottle cap reserves stand at {caps:,} — enough to bribe most wastelanders, "
-        f"or at least a very persistent scoundrel."
-    )
+    parts.extend([
+        (f"Your bottle cap reserves stand at {caps:,} - enough to bribe most wastelanders, "
+         f"or at least a very persistent scoundrel.")
+    ])
 
     # Happiness
-    parts.append(
-        f"Vault morale sits at {happiness}%{' — a splendid showing!' if happiness >= 80 else ', though there is room for improvement.'}"
-    )
+    parts.extend([
+        f"Vault morale sits at {happiness}%{' - a splendid showing!' if happiness >= 80 else ', though there is room for improvement.'}"
+    ])
 
     # Resources
     parts.append("Let us turn to your essential supplies.")
@@ -92,8 +92,7 @@ def build_daily_script(
     # Notifications
     notable = _extract_notable(recent_notifications)
     if notable:
-        parts.append("Now for today's headlines.")
-        parts.append(notable)
+        parts.extend(["Now for today's headlines.", notable])
 
     # Sign-off
     sign_off = (
@@ -152,7 +151,7 @@ def _extract_notable(notifications: list[dict], *, _max: int = 3) -> str:
 
         if notif_type and "dweller" in notif_type.lower():
             if len(names) >= 1:
-                notable_lines.append(f"{names[0]} — {msg[:80]}.")
+                notable_lines.append(f"{names[0]} - {msg[:80]}.")
             elif msg:
                 notable_lines.append(f"{msg[:80]}.")
             continue

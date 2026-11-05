@@ -52,7 +52,7 @@ def _post_process(wav_bytes: bytes) -> bytes:
     )
 
     try:
-        proc = subprocess.run(
+        proc = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true]
             [
                 ffmpeg_path,
                 "-f", "s16le", "-ar", "44100", "-ac", "1",
@@ -62,18 +62,18 @@ def _post_process(wav_bytes: bytes) -> bytes:
                 "-f", "mp3",
                 "-",
             ],
-            input=wav_bytes,
+            check=False, shell=False, input=wav_bytes,
             capture_output=True,
             timeout=30,
         )
-        if proc.returncode != 0:
-            logger.warning("ffmpeg post-process returned %d: %s", proc.returncode, proc.stderr[:200].decode())
-            return wav_bytes
-        logger.info("ffmpeg post-process applied: WAV → MP3 (%d bytes)", len(proc.stdout))
-        return proc.stdout
     except (FileNotFoundError, subprocess.TimeoutExpired) as e:
         logger.warning("ffmpeg post-process failed: %s; returning raw WAV", e)
         return wav_bytes
+    if proc.returncode != 0:
+        logger.warning("ffmpeg post-process returned %d: %s", proc.returncode, proc.stderr[:200].decode())
+        return wav_bytes
+    logger.info("ffmpeg post-process applied: WAV to MP3 (%d bytes)", len(proc.stdout))
+    return proc.stdout
 
 
 async def get_or_create_daily(

@@ -73,14 +73,13 @@ class OpenRouterTtsService:
             logger.warning("OpenRouter TTS transport error: %s", e)
             raise TTSProviderException(detail=f"OpenRouter unreachable: {e}") from e
 
-        if response.status_code == 401:
-            raise TTSProviderException(detail="OpenRouter API key is invalid")
-        if response.status_code == 429:
-            raise TTSProviderException(detail="OpenRouter rate limit exceeded")
         if response.status_code != 200:
-            body = response.text[:200]
-            logger.warning("OpenRouter TTS returned status %d: %s", response.status_code, body)
-            raise TTSProviderException(detail=f"OpenRouter error: HTTP {response.status_code}")
+            logger.warning("OpenRouter TTS returned status %d: %s", response.status_code, response.text[:200])
+            raise TTSProviderException(
+                detail={401: "OpenRouter API key is invalid", 429: "OpenRouter rate limit exceeded"}.get(
+                    response.status_code, f"OpenRouter error: HTTP {response.status_code}"
+                )
+            )
 
         # Wrap PCM → WAV
         return _pcm_to_wav(response.content)

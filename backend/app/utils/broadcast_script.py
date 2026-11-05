@@ -68,20 +68,16 @@ def build_daily_script(
         genders = ", ".join(f"{cnt} {g}" for g, cnt in gender_counts)
         parts.append(f"That breaks down to {genders}.")
 
-    # Caps
     parts.extend(
         [
             (
                 f"Your bottle cap reserves stand at {caps:,} - enough to bribe most wastelanders, "
                 f"or at least a very persistent scoundrel."
-            )
-        ]
-    )
-
-    # Happiness
-    parts.extend(
-        [
-            f"Vault morale sits at {happiness}%{' - a splendid showing!' if happiness >= 80 else ', though there is room for improvement.'}"
+            ),
+            (
+                f"Vault morale sits at {happiness}%"
+                f"{' - a splendid showing!' if happiness >= 80 else ', though there is room for improvement.'}"
+            ),
         ]
     )
 

@@ -96,86 +96,66 @@ const loadBroadcast = async () => {
   }
 }
 
-/** Attempt to auto-play the broadcast. If blocked by autoplay policy,
- *  show the welcome panel with a "Tap to listen" button instead. */
+function stopAudio(): void {
+  audioEl.value?.pause()
+  audioEl.value = null
+  isPlaying.value = false
+}
+
+function startAudio(url: string): HTMLAudioElement {
+  stopAudio()
+  const audio = new Audio(url)
+  audioEl.value = audio
+  isPlaying.value = true
+  audio.onended = stopAudio
+  audio.onerror = () => {
+    stopAudio()
+    toast.error('Unable to play audio')
+  }
+  return audio
+}
+
+async function playAudio(url: string): Promise<boolean> {
+  try {
+    await startAudio(url).play()
+    return true
+  } catch {
+    stopAudio()
+    toast.error('Unable to play audio')
+    return false
+  }
+}
+
 async function attemptAutoPlay(b: RadioNewsBroadcast): Promise<void> {
   if (!b.audio_url || !b.id) return
-
-  const audio = new Audio(b.audio_url)
-  audioEl.value = audio
-
+  let audio: HTMLAudioElement
+  try {
+    audio = startAudio(b.audio_url)
+  } catch {
+    return
+  }
   try {
     await audio.play()
-    // Autoplay succeeded — play immediately, no welcome panel
-    isPlaying.value = true
     markPlayed(b.id)
-    audio.onended = () => {
-      isPlaying.value = false
-      audioEl.value = null
-    }
-    audio.onerror = () => {
-      isPlaying.value = false
-      audioEl.value = null
-      toast.error('Unable to play audio')
-    }
   } catch {
-    // Autoplay blocked by browser policy — show welcome panel
+    stopAudio()
     showWelcomePanel.value = true
     welcomeBlocked.value = true
   }
 }
 
-const playAudio = async (url: string) => {
-  stopAudio()
-
-  const audio = new Audio(url)
-  audioEl.value = audio
-  isPlaying.value = true
-
-  audio.onended = () => {
-    isPlaying.value = false
-    audioEl.value = null
-  }
-
-  audio.onerror = () => {
-    isPlaying.value = false
-    audioEl.value = null
-    toast.error('Unable to play audio')
-  }
-
-  try {
-    await audio.play()
-  } catch {
-    isPlaying.value = false
-    audioEl.value = null
-    toast.error('Unable to play audio')
-  }
-}
-
-const stopAudio = () => {
-  if (audioEl.value) {
-    audioEl.value.pause()
-    audioEl.value = null
-  }
-  isPlaying.value = false
-}
-
 const onTogglePlay = () => {
   if (!broadcast.value?.audio_url) return
-  if (isPlaying.value) {
-    stopAudio()
-  } else {
-    playAudio(broadcast.value.audio_url)
-  }
+  if (isPlaying.value) stopAudio()
+  else void playAudio(broadcast.value.audio_url)
 }
 
-const onWelcomePanelPlay = () => {
-  if (!broadcast.value?.audio_url || !broadcast.value.id) return
-  // User gesture satisfied; attempt playback now
+const onWelcomePanelPlay = async () => {
+  const b = broadcast.value
+  if (!b?.audio_url || !b.id) return
   welcomeBlocked.value = false
   showWelcomePanel.value = false
-  playAudio(broadcast.value.audio_url)
-  markPlayed(broadcast.value.id)
+  if (await playAudio(b.audio_url)) markPlayed(b.id)
 }
 
 // Periodically refresh at midnight to pick up new broadcasts

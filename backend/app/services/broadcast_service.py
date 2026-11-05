@@ -221,7 +221,6 @@ async def get_or_create_daily(
     db: AsyncSession,
     vault_id: UUID,
     vault_data: dict[str, Any] | None = None,
-    dweller_stats: list[dict] | None = None,
     recent_notifications: list[dict[str, Any]] | None = None,
     gender_counts: list[tuple[str, int]] | None = None,
 ) -> dict[str, Any]:
@@ -229,10 +228,7 @@ async def get_or_create_daily(
 
     Generation happens outside the vault lock; the lock is taken only to
     re-check and insert, so a slow TTS call does not block vault operations.
-    ``dweller_stats`` is accepted for backwards compatibility; gender data is
-    read from the vault directly.
     """
-    del dweller_stats
     today = _utc_today()
 
     existing = await get_today_broadcast(db, vault_id)
@@ -271,12 +267,10 @@ async def regenerate(
     db: AsyncSession,
     vault_id: UUID,
     vault_data: dict[str, Any] | None = None,
-    dweller_stats: list[dict] | None = None,
     recent_notifications: list[dict[str, Any]] | None = None,
     gender_counts: list[tuple[str, int]] | None = None,
 ) -> dict[str, Any]:
     """Render a new manual broadcast, rate-limited to three per UTC day."""
-    del dweller_stats
     today = _utc_today()
 
     if await count_trigger_on_date(db, vault_id, "manual", today) >= MAX_REGENERATIONS_PER_DAY:

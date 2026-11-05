@@ -9,15 +9,17 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.broadcast import Broadcast
 
 
+def _day_bounds(day: date) -> tuple[datetime, datetime]:
+    start = datetime.combine(day, datetime.min.time())
+    return start, start + timedelta(days=1)
+
+
 async def get_today_broadcast(db: AsyncSession, vault_id: UUID) -> Broadcast | None:
     """Get today's broadcast for the vault, if one exists.
 
     Returns the existing broadcast row or None.
     """
-    today = datetime.utcnow().date()
-    tomorrow = today + timedelta(days=1)
-    today_start = datetime.combine(today, datetime.min.time())
-    tomorrow_start = datetime.combine(tomorrow, datetime.min.time())
+    today_start, tomorrow_start = _day_bounds(datetime.utcnow().date())
 
     query = (
         select(Broadcast)
@@ -43,9 +45,7 @@ async def count_trigger_on_date(
 
     Used to enforce the manual-regeneration rate limit.
     """
-    tomorrow = trigger_date + timedelta(days=1)
-    day_start = datetime.combine(trigger_date, datetime.min.time())
-    day_end = datetime.combine(tomorrow, datetime.min.time())
+    day_start, day_end = _day_bounds(trigger_date)
 
     query = select(Broadcast).where(
         Broadcast.vault_id == vault_id,

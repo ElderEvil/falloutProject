@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.286.3 (2026-11-05)
+
+### Bug Fixes
+
+* **radio:** keep broadcast reports grounded in live vault data ([#1328](https://github.com/ElderEvil/falloutProject/issues/1328)) 39a49ad
+
 ## 2.286.2 (2026-11-05)
 
 ### Bug Fixes

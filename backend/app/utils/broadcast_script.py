@@ -6,6 +6,7 @@ Word count target: 120-180 words (excluding sign-off).
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 
 
@@ -104,11 +105,22 @@ def build_daily_script(
     return (title, script)
 
 
+_LEVEL_MESSAGE_NAME = re.compile(r"^(?P<name>.+?) reached level \d+", re.IGNORECASE)
+_LEVEL_TITLE_NAME = re.compile(r"^(?P<name>.+?) leveled up", re.IGNORECASE)
+
+
 def _notification_name(notification: dict) -> str:
     for key in ("dweller_name", "name", "dweller_first_name"):
         value = notification.get(key)
         if isinstance(value, str) and value.strip():
             return value.strip()
+    for key, pattern in (
+        ("message", _LEVEL_MESSAGE_NAME),
+        ("title", _LEVEL_TITLE_NAME),
+    ):
+        match = pattern.match(str(notification.get(key, "")))
+        if match:
+            return match.group("name").strip()
     return ""
 
 

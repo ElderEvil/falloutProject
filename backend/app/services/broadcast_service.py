@@ -137,6 +137,18 @@ def _delete_uploaded(audio_key: str | None) -> bool:
         return False
 
 
+async def _require_vault_lock(db: AsyncSession, vault_id: UUID) -> None:
+    if await crud.vault.get_for_update(db, vault_id) is None:
+        raise ValidationException("Vault not found")
+
+
+async def _ensure_regeneration_allowed(db: AsyncSession, vault_id: UUID, today: date) -> None:
+    if await count_trigger_on_date(db, vault_id, "manual", today) >= MAX_REGENERATIONS_PER_DAY:
+        raise BroadcastRateLimitException(
+            detail=f"Manual regeneration limit reached ({MAX_REGENERATIONS_PER_DAY}/day for this vault).",
+        )
+
+
 async def _delete_superseded(previous: Any | None, new_audio_key: str | None) -> None:
     if previous is not None and previous.audio_key and new_audio_key and previous.audio_key != new_audio_key:
         await asyncio.to_thread(_delete_uploaded, previous.audio_key)
@@ -282,16 +294,12 @@ async def get_or_create_daily(
         db, vault_id, vault_data, recent_notifications, gender_counts, today
     )
 
-    if await crud.vault.get_for_update(db, vault_id) is None:
-        await asyncio.to_thread(_delete_uploaded, audio_key)
-        raise ValidationException("Vault not found")
-
-    existing = await get_today_broadcast(db, vault_id)
-    if existing:
-        await asyncio.to_thread(_delete_uploaded, audio_key)
-        return _serialize(existing)
-
     try:
+        await _require_vault_lock(db, vault_id)
+        existing = await get_today_broadcast(db, vault_id)
+        if existing:
+            await asyncio.to_thread(_delete_uploaded, audio_key)
+            return _serialize(existing)
         broadcast = await create_broadcast(
             db,
             vault_id=vault_id,
@@ -320,28 +328,16 @@ async def regenerate(
     """Render a new manual broadcast, rate-limited to three per UTC day."""
     today = _utc_today()
 
-    if await count_trigger_on_date(db, vault_id, "manual", today) >= MAX_REGENERATIONS_PER_DAY:
-        raise BroadcastRateLimitException(
-            detail=f"Manual regeneration limit reached ({MAX_REGENERATIONS_PER_DAY}/day for this vault).",
-        )
+    await _ensure_regeneration_allowed(db, vault_id, today)
 
     title, script, audio_key, audio_url = await _prepare(
         db, vault_id, vault_data, recent_notifications, gender_counts, today
     )
 
-    if await crud.vault.get_for_update(db, vault_id) is None:
-        await asyncio.to_thread(_delete_uploaded, audio_key)
-        raise ValidationException("Vault not found")
-
-    if await count_trigger_on_date(db, vault_id, "manual", today) >= MAX_REGENERATIONS_PER_DAY:
-        await asyncio.to_thread(_delete_uploaded, audio_key)
-        raise BroadcastRateLimitException(
-            detail=f"Manual regeneration limit reached ({MAX_REGENERATIONS_PER_DAY}/day for this vault).",
-        )
-
-    previous = await get_today_broadcast(db, vault_id)
-
     try:
+        await _require_vault_lock(db, vault_id)
+        await _ensure_regeneration_allowed(db, vault_id, today)
+        previous = await get_today_broadcast(db, vault_id)
         broadcast = await create_broadcast(
             db,
             vault_id=vault_id,

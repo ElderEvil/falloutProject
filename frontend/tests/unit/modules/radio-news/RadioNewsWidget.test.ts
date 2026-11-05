@@ -348,3 +348,29 @@ describe('RadioNewsWidget', () => {
       makeBroadcast({ id: 'latest-a', title: 'Latest A' }),
     ])
   })
+
+  it('re-enables regeneration after switching vaults mid-request', async () => {
+    mockApiGet.mockResolvedValue(makeBroadcast())
+    let resolveRegenerate!: (value: unknown) => void
+    mockApiPost.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRegenerate = resolve
+        })
+    )
+
+    const wrapper = mount(RadioNewsWidget, {
+      props: { vaultId: 'vault-1' },
+    })
+    await flushPromises()
+    await wrapper.find('.radio-news-widget__regenerate-btn').trigger('click')
+    await flushPromises()
+
+    await wrapper.setProps({ vaultId: 'vault-2' })
+    await flushPromises()
+    expect(wrapper.find('.radio-news-widget__regenerate-btn').attributes('disabled')).toBeUndefined()
+
+    resolveRegenerate(makeBroadcast({ id: 'stale-regeneration' }))
+    await flushPromises()
+    expect(wrapper.find('.radio-news-widget__regenerate-btn').attributes('disabled')).toBeUndefined()
+  })

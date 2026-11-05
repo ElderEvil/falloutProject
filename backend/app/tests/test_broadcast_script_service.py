@@ -130,8 +130,16 @@ class TestNotificationBatching:
             "food": (50, 100),
             "water": (50, 100),
             "recent_notifications": [
-                {"notification_type": "level_up", "dweller_name": "Alice"},
-                {"notification_type": "level_up", "dweller_name": "Bob"},
+                {
+                    "notification_type": "level_up",
+                    "title": "Alice Leveled Up!",
+                    "message": "Alice reached level 6!",
+                },
+                {
+                    "notification_type": "level_up",
+                    "title": "Bob Leveled Up!",
+                    "message": "Bob reached level 7!",
+                },
             ],
             "vault_number": 1,
         }

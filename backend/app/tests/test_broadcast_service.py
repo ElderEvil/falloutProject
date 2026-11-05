@@ -221,6 +221,26 @@ async def test_clear_failure_rolls_back_prune(async_session, vault):
 
 
 @pytest.mark.asyncio
+async def test_lock_failure_deletes_uploaded_audio(async_session, vault, monkeypatch):
+    client = _storage()
+
+    async def fail_lock(*_args, **_kwargs):
+        raise RuntimeError("lock failed")
+
+    monkeypatch.setattr(broadcast_service.crud.vault, "get_for_update", fail_lock)
+    with (
+        patch.object(broadcast_service, "get_openrouter_tts_service", return_value=_tts(enabled=True, audio=b"wav")),
+        patch.object(broadcast_service, "get_elevenlabs_tts_service", return_value=_tts(enabled=False)),
+        patch.object(broadcast_service, "get_storage_client", return_value=client),
+        patch("app.services.broadcast_service.shutil.which", return_value=None),
+        pytest.raises(RuntimeError, match="lock failed"),
+    ):
+        await get_or_create_daily(async_session, vault.id, vault_data=VAULT_DATA)
+
+    assert client.delete_file.call_count == 1
+
+
+@pytest.mark.asyncio
 async def test_refresh_failure_does_not_delete_committed_audio(async_session, vault, monkeypatch):
     client = _storage()
 

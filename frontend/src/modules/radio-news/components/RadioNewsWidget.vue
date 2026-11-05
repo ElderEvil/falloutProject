@@ -23,6 +23,7 @@ const audioEl = ref<HTMLAudioElement | null>(null)
 const hasPlayed = ref(false)
 const isRegenerating = ref(false)
 let loadVersion = 0
+let regenerateVersion = 0
 
 const utcDayStart = () => {
   const now = new Date()
@@ -126,23 +127,23 @@ const onTogglePlay = async () => {
 const onRegenerate = async () => {
   const current = broadcast.value
   if (!current || isRegenerating.value) return
-  const requestVersion = ++loadVersion
+  const requestVersion = ++regenerateVersion
   const requestedVaultId = props.vaultId
   isRegenerating.value = true
   stopAudio()
   try {
     const data = await regenerateRadioNews(requestedVaultId)
-    if (requestVersion !== loadVersion) return
+    if (requestVersion !== regenerateVersion) return
     broadcast.value = data
     hasPlayed.value = data.id ? isPlayedToday(data.id) : false
     emit('newBroadcast', data)
     toast.success('Broadcast regenerated')
   } catch (err) {
-    if (requestVersion === loadVersion) {
+    if (requestVersion === regenerateVersion) {
       toast.error(err instanceof Error ? err.message : 'Unable to regenerate broadcast')
     }
   } finally {
-    if (requestVersion === loadVersion) isRegenerating.value = false
+    if (requestVersion === regenerateVersion) isRegenerating.value = false
   }
 }
 
@@ -165,6 +166,8 @@ const scheduleNextMidnight = () => {
 watch(
   () => props.vaultId,
   () => {
+    regenerateVersion += 1
+    isRegenerating.value = false
     stopAudio()
     broadcast.value = null
     error.value = null

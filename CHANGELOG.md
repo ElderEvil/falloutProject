@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.286.0 (2026-11-05)
+
+### Features
+
+* Vault Radio Hour — daily procedural radio broadcasts ([#1319](https://github.com/ElderEvil/falloutProject/issues/1319)) ([#1320](https://github.com/ElderEvil/falloutProject/issues/1320)) b8d5cce
+
 ## 2.285.5 (2026-11-04)
 
 ### Code Refactoring

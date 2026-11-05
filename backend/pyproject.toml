@@ -16,7 +16,7 @@ dependencies = [
     "passlib[bcrypt]>=1.7.4",
     "bcrypt>=4.0.0,<4.2",
     "pillow>=13.0.0",
-    "pydantic>=2.13.3,<2.15",
+    "pydantic>=2.14.0,<2.15",
     "pydantic-settings>=2.15.0,<3",
     "pydantic-extra-types>=2.11.0",
     "PyJWT>=2.9.0",
@@ -30,7 +30,7 @@ dependencies = [
     "httpcore>=1.0.9",
     "httptools>=0.8.0,<1",
     "greenlet>=3.5.3",
-    "pydantic-ai-slim[logfire,openai,typesafe]>=2.52.0",
+    "pydantic-ai-slim[logfire,openai,typesafe]>=2.65.0",
     "aiosmtplib>=5.1.2",
     "python-json-logger>=4.0.0",
     "uvloop>=0.21.0; sys_platform != 'win32'",
@@ -42,7 +42,7 @@ dependencies = [
 
 [project.optional-dependencies]
 typesafe = [
-    "pydantic-ai-slim[typesafe]>=2.52.0",
+    "pydantic-ai-slim[typesafe]>=2.65.0",
 ]
 
 [dependency-groups]
@@ -51,7 +51,7 @@ test = [
     "coverage>=7.15.4",
     "factory-boy>=3.3.3",
     "fakeredis[lua]>=2.36.2",
-    "pydantic-ai-slim[typesafe]>=2.52.0",
+    "pydantic-ai-slim[typesafe]>=2.65.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.0.0",

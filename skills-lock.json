@@ -1,11 +1,29 @@
 {
   "version": 1,
   "skills": {
+    "building-pydantic-ai-agents": {
+      "source": "pydantic/skills",
+      "sourceType": "github",
+      "skillPath": "skills/building-pydantic-ai-agents/SKILL.md",
+      "computedHash": "fca23a3734a865f11786ee59230c0df0dc5c1263bb5945c8cf34e712214de35e"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "skillPath": "skills/frontend-design/SKILL.md",
       "computedHash": "063a0e6448123cd359ad0044cc46b0e490cc7964d45ef4bb9fd842bd2ffbca67"
+    },
+    "logfire-instrumentation": {
+      "source": "pydantic/skills",
+      "sourceType": "github",
+      "skillPath": "skills/logfire-instrumentation/SKILL.md",
+      "computedHash": "48fc4085accf1015d26cbbbcb1ecc888c5527a290e377a12a495f0921ec57e4a"
+    },
+    "pydantic": {
+      "source": "pydantic/skills",
+      "sourceType": "github",
+      "skillPath": "skills/pydantic/SKILL.md",
+      "computedHash": "65f68dbab0f7e60bfd26998350d674a104848daf23311067e0829758a7cf6f91"
     },
     "shadcn-vue": {
       "source": "unovue/shadcn-vue",

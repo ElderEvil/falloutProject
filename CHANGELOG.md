@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.287.0 (2026-11-05)
+
+### Features
+
+* **radio:** add pause, resume, and volume controls ([#1329](https://github.com/ElderEvil/falloutProject/issues/1329)) 7c330df
+
 ## 2.286.3 (2026-11-05)
 
 ### Bug Fixes

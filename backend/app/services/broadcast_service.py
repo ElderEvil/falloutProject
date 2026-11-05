@@ -12,6 +12,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.crud.broadcast import count_trigger_on_date, create_broadcast, get_today_broadcast
 from app.models.vault import Vault
+from app.schemas.broadcast import BroadcastRead
 from app.services.openrouter_tts_service import get_openrouter_tts_service
 from app.services.storage.factory import get_storage_client
 from app.utils.broadcast_script import build_daily_script
@@ -122,15 +123,20 @@ def _delete_uploaded(audio_key: str | None) -> None:
         logger.warning("Could not delete unused broadcast audio %s: %s", audio_key, e)
 
 
-def _serialize(broadcast: Any, *, audio_url: str | None = None) -> dict[str, Any]:
-    return {
-        "id": str(broadcast.id),
-        "title": broadcast.title,
-        "script": broadcast.script,
-        "audio_url": audio_url if audio_url is not None else _audio_url(broadcast.audio_key),
-        "trigger": broadcast.trigger,
-        "created_at": broadcast.created_at.isoformat() if broadcast.created_at else None,
-    }
+def _delete_superseded(previous: Any | None, new_audio_key: str | None) -> None:
+    if previous is not None and previous.audio_key and new_audio_key and previous.audio_key != new_audio_key:
+        _delete_uploaded(previous.audio_key)
+
+
+def _serialize(broadcast: Any, *, audio_url: str | None = None) -> BroadcastRead:
+    return BroadcastRead(
+        id=broadcast.id,
+        title=broadcast.title,
+        script=broadcast.script,
+        audio_url=audio_url if audio_url is not None else _audio_url(broadcast.audio_key),
+        trigger=broadcast.trigger,
+        created_at=broadcast.created_at,
+    )
 
 
 async def _recent_notifications(db: AsyncSession, vault_id: UUID) -> list[dict[str, Any]]:
@@ -223,7 +229,7 @@ async def get_or_create_daily(
     vault_data: dict[str, Any] | None = None,
     recent_notifications: list[dict[str, Any]] | None = None,
     gender_counts: list[tuple[str, int]] | None = None,
-) -> dict[str, Any]:
+) -> BroadcastRead:
     """Get today's broadcast, generating it once if none exists.
 
     Generation happens outside the vault lock; the lock is taken only to
@@ -269,7 +275,7 @@ async def regenerate(
     vault_data: dict[str, Any] | None = None,
     recent_notifications: list[dict[str, Any]] | None = None,
     gender_counts: list[tuple[str, int]] | None = None,
-) -> dict[str, Any]:
+) -> BroadcastRead:
     """Render a new manual broadcast, rate-limited to three per UTC day."""
     today = _utc_today()
 
@@ -277,6 +283,8 @@ async def regenerate(
         raise BroadcastRateLimitException(
             detail=f"Manual regeneration limit reached ({MAX_REGENERATIONS_PER_DAY}/day for this vault).",
         )
+
+    previous = await get_today_broadcast(db, vault_id)
 
     title, script, audio_key, audio_url = await _prepare(
         db, vault_id, vault_data, recent_notifications, gender_counts, today
@@ -304,4 +312,5 @@ async def regenerate(
     except Exception:
         _delete_uploaded(audio_key)
         raise
+    _delete_superseded(previous, audio_key)
     return _serialize(broadcast, audio_url=audio_url)

@@ -39,6 +39,23 @@ def _mock_storage():
     mock_mod.get_storage_client = MagicMock(return_value=None)
     sys.modules["app.services.storage"] = mock_mod
     sys.modules["app.services.storage.factory"] = mock_mod.factory
+    with patch("app.services.broadcast_service.get_storage_client", return_value=None):
+        yield
+
+
+VAULT_DATA = {
+    "number": 1,
+    "population": 10,
+    "population_max": 20,
+    "bottle_caps": 500,
+    "happiness": 70,
+    "power": 50,
+    "power_max": 100,
+    "food": 50,
+    "food_max": 100,
+    "water": 50,
+    "water_max": 100,
+}
 
 
 class TestDailyCache:
@@ -88,27 +105,15 @@ class TestDailyCache:
                     result = await get_or_create_daily(
                         mock_db,
                         vault_id=uuid4(),
-                        vault_data={
-                            "number": 1,
-                            "population": 10,
-                            "population_max": 20,
-                            "bottle_caps": 500,
-                            "happiness": 70,
-                            "power": 50,
-                            "power_max": 100,
-                            "food": 50,
-                            "food_max": 100,
-                            "water": 50,
-                            "water_max": 100,
-                        },
+                        vault_data=VAULT_DATA,
                         recent_notifications=[],
                         gender_counts=[],
                     )
 
                     # First call should have called TTS
                     mock_service.generate_speech.assert_called_once()
-                    assert result["title"] == "New Title"
-                    assert result["script"] == "New script"
+                    assert result.title == "New Title"
+                    assert result.script == "New script"
 
                     # Reset the TTS mock BEFORE the second call
                     mock_service.generate_speech.reset_mock()
@@ -133,26 +138,14 @@ class TestDailyCache:
                 result = await get_or_create_daily(
                     mock_db,
                     vault_id=uuid4(),
-                    vault_data={
-                        "number": 1,
-                        "population": 10,
-                        "population_max": 20,
-                        "bottle_caps": 500,
-                        "happiness": 70,
-                        "power": 50,
-                        "power_max": 100,
-                        "food": 50,
-                        "food_max": 100,
-                        "water": 50,
-                        "water_max": 100,
-                    },
+                    vault_data=VAULT_DATA,
                 )
 
                 # TTS must NOT be called again
                 mock_service.generate_speech.assert_not_called()
-                assert result["title"] == "Test Title"
-                assert result["script"] == "Test script"
-                assert result["audio_url"] is None
+                assert result.title == "Test Title"
+                assert result.script == "Test script"
+                assert result.audio_url is None
 
     @pytest.mark.asyncio
     async def test_cached_broadcast_returns_public_url(self):
@@ -178,7 +171,7 @@ class TestDailyCache:
         ):
             result = await get_or_create_daily(mock_db, vault_id=uuid4())
 
-        assert result["audio_url"] == "https://cdn.example/broadcasts/2026/11/05/cached.mp3"
+        assert result.audio_url == "https://cdn.example/broadcasts/2026/11/05/cached.mp3"
 
     @pytest.mark.asyncio
     async def test_missing_population_is_read_from_vault(self):
@@ -293,24 +286,55 @@ class TestRegenerateCap:
                         result = await regenerate(
                             mock_db,
                             vault_id=uuid4(),
-                            vault_data={
-                                "number": 1,
-                                "population": 10,
-                                "population_max": 20,
-                                "bottle_caps": 500,
-                                "happiness": 70,
-                                "power": 50,
-                                "power_max": 100,
-                                "food": 50,
-                                "food_max": 100,
-                                "water": 50,
-                                "water_max": 100,
-                            },
+                            vault_data=VAULT_DATA,
                             recent_notifications=[],
                             gender_counts=[],
                         )
                         assert result is not None
-                        assert result["trigger"] == "manual"
+                        assert result.trigger == "manual"
+
+    @pytest.mark.asyncio
+    async def test_regenerate_deletes_superseded_audio(self):
+        from app.services.broadcast_service import regenerate
+
+        mock_db = AsyncMock()
+        previous = MagicMock()
+        previous.audio_key = "broadcasts/old.mp3"
+        fresh = MagicMock()
+        fresh.id = uuid4()
+        fresh.title = "Fresh"
+        fresh.script = "Fresh script"
+        fresh.audio_key = "broadcasts/new.mp3"
+        fresh.trigger = "manual"
+        fresh.created_at = datetime.now(UTC)
+
+        with (
+            patch(
+                "app.services.broadcast_service.get_today_broadcast",
+                new=AsyncMock(return_value=previous),
+            ),
+            patch(
+                "app.services.broadcast_service.count_trigger_on_date",
+                new=AsyncMock(return_value=0),
+            ),
+            patch(
+                "app.services.broadcast_service._prepare",
+                new=AsyncMock(return_value=("Fresh", "Fresh script", "broadcasts/new.mp3", "https://cdn/new.mp3")),
+            ),
+            patch(
+                "app.services.broadcast_service.crud.vault.get_for_update",
+                new=AsyncMock(return_value=MagicMock()),
+            ),
+            patch(
+                "app.services.broadcast_service.create_broadcast",
+                new=AsyncMock(return_value=fresh),
+            ),
+            patch("app.services.broadcast_service._delete_uploaded") as delete_audio,
+        ):
+            result = await regenerate(mock_db, vault_id=uuid4())
+
+        delete_audio.assert_called_once_with("broadcasts/old.mp3")
+        assert result.audio_url == "https://cdn/new.mp3"
 
 
 class TestTTSFailureDegradation:
@@ -349,27 +373,15 @@ class TestTTSFailureDegradation:
                     result = await get_or_create_daily(
                         mock_db,
                         vault_id=uuid4(),
-                        vault_data={
-                            "number": 1,
-                            "population": 10,
-                            "population_max": 20,
-                            "bottle_caps": 500,
-                            "happiness": 70,
-                            "power": 50,
-                            "power_max": 100,
-                            "food": 50,
-                            "food_max": 100,
-                            "water": 50,
-                            "water_max": 100,
-                        },
+                        vault_data=VAULT_DATA,
                         recent_notifications=[],
                         gender_counts=[],
                     )
 
                     # Should still have script, audio_url should be None
-                    assert result["script"] is not None
-                    assert len(result["script"]) > 0
-                    assert result["audio_url"] is None
+                    assert result.script is not None
+                    assert len(result.script) > 0
+                    assert result.audio_url is None
 
 
 class TestPostProcess:

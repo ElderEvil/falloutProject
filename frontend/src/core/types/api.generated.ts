@@ -3667,6 +3667,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vaults/{vault_id}/radio-news": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Vault Radio News
+         * @description Return today's broadcast, generating it once if none exists for the UTC day.
+         */
+        get: operations["get_vault_radio_news_api_v1_vaults__vault_id__radio_news_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vaults/{vault_id}/radio-news/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerate Vault Radio News
+         * @description Render a new manual broadcast, rate-limited to three per UTC day.
+         */
+        post: operations["regenerate_vault_radio_news_api_v1_vaults__vault_id__radio_news_regenerate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/relationships/vault/{vault_id}": {
         parameters: {
             query?: never;
@@ -6071,6 +6111,30 @@ export interface components {
             stats: {
                 [key: string]: unknown;
             };
+        };
+        /** BroadcastRead */
+        BroadcastRead: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /** Title */
+            title: string;
+            /** Script */
+            script: string;
+            /** Audio Url */
+            audio_url: string | null;
+            /**
+             * Trigger
+             * @enum {string}
+             */
+            trigger: "daily" | "manual";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** CapsGranted */
         CapsGranted: {
@@ -17735,6 +17799,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RadioModeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_vault_radio_news_api_v1_vaults__vault_id__radio_news_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BroadcastRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    regenerate_vault_radio_news_api_v1_vaults__vault_id__radio_news_regenerate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BroadcastRead"];
                 };
             };
             /** @description Validation Error */

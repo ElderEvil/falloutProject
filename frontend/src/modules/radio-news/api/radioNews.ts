@@ -1,15 +1,8 @@
 import { apiGet, apiPost } from '@/core/utils/api'
 import type { ApiRequestOptions } from '@/core/utils/api'
+import type { components } from '@/core/types/api.generated'
 
-/** Shape returned by the radio-news endpoint. */
-export interface RadioNewsBroadcast {
-  id: string | null
-  title: string
-  script: string
-  audio_url: string | null
-  trigger: 'daily' | 'manual'
-  created_at: string | null
-}
+export type RadioNewsBroadcast = components['schemas']['BroadcastRead']
 
 /** Switch the vault radio between recruitment and happiness mode. */
 export async function fetchRadioNews(

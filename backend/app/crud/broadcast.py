@@ -3,6 +3,7 @@
 from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -57,14 +58,14 @@ async def count_trigger_on_date(
     """
     day_start, day_end = _day_bounds(trigger_date)
 
-    query = select(Broadcast).where(
+    query = select(func.count()).select_from(Broadcast).where(
         Broadcast.vault_id == vault_id,
         Broadcast.trigger == trigger,
         col(Broadcast.created_at) >= day_start,
         col(Broadcast.created_at) < day_end,
     )
     result = await db.execute(query)
-    return len(result.fetchall())
+    return int(result.scalar_one())
 
 
 async def create_broadcast(

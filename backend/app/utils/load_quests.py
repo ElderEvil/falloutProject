@@ -2,7 +2,7 @@ import json
 import logging
 from pathlib import Path
 
-from app.schemas.quest import QuestChainJSON, QuestJSON
+from app.schemas.quest import QuestChainJSON
 
 logger = logging.getLogger(__name__)
 
@@ -21,34 +21,21 @@ def load_quest_chain_from_json(file_path: str) -> QuestChainJSON:
     Returns:
         QuestChainJSON with parsed quests
     """
-    from pathlib import Path
-
     path = Path(file_path)
-    with path.open("r", encoding="utf-8") as file:
+    with path.open(encoding="utf-8") as file:
         data = json.load(file)
 
-        # Check if this is a chain format (has "quests" key)
-        if isinstance(data, dict) and "quests" in data:
-            # Chain format
-            chain_data = data
-            quests = [QuestJSON.model_validate(q) for q in chain_data["quests"]]
-            return QuestChainJSON(
-                title=chain_data.get("chain_name", path.stem.replace("_", " ").title()),
-                chain_id=chain_data.get("chain_id"),
-                chain_description=chain_data.get("chain_description"),
-                quests=quests,
-            )
-
-        # Single quest format - wrap in list
-        if not isinstance(data, list):
-            data = [data]
-
-        # Use model_validate to leverage Field aliases
-        quests = [QuestJSON.model_validate(quest) for quest in data]
-
-        # Derive quest chain title from filename
-        chain_title = path.stem.replace("_", " ").title()
-        return QuestChainJSON(title=chain_title, quests=quests)
+    title = path.stem.replace("_", " ").title()
+    if isinstance(data, dict) and "quests" in data:
+        return QuestChainJSON.model_validate(
+            {
+                "title": data.get("chain_name", title),
+                "chain_id": data.get("chain_id"),
+                "chain_description": data.get("chain_description"),
+                "quests": data["quests"],
+            }
+        )
+    return QuestChainJSON.model_validate({"title": title, "quests": data if isinstance(data, list) else [data]})
 
 
 def load_all_quest_chain_files(quest_dir: Path | None = None) -> list[QuestChainJSON]:

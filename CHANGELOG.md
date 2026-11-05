@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.287.1 (2026-11-05)
+
+### Bug Fixes
+
+* **onboarding:** preserve vault context for objective claims ([#1331](https://github.com/ElderEvil/falloutProject/issues/1331)) f08e545
+
 ## 2.287.0 (2026-11-05)
 
 ### Features

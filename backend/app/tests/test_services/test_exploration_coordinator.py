@@ -441,6 +441,7 @@ async def test_auto_stimpak_gate_uses_full_max_health(
     dweller: Dweller,
 ):
     """The Stimpak gate compares against FULL max health, so radiation never hides a wound."""
+    dweller.stimpack = 1
     dweller.health = 45
     dweller.max_health = 100
     dweller.radiation = 30

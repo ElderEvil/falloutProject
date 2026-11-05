@@ -52,15 +52,15 @@ async def get_vault_radio_news(
     vault_data = _vault_stats_from_db(vault)
 
     try:
-        return await get_or_create_daily(
-            db_session, vault_id, vault_data=vault_data
-        )
+        return await get_or_create_daily(db_session, vault_id, vault_data=vault_data)
     except Exception as e:
         # Never 500 the endpoint — fall back to script-only
         logger.warning("Broadcast generation failed: %s", e, exc_info=True)
         # Build a minimal script-only response
         title = "Vault Radio News — Daily Brief"
-        script = f"Today's broadcast from Vault {vault_data.get('number', '???')} is unavailable. Please try again later."
+        script = (
+            f"Today's broadcast from Vault {vault_data.get('number', '???')} is unavailable. Please try again later."
+        )
         return {
             "id": None,
             "title": title,
@@ -87,9 +87,7 @@ async def regenerate_vault_radio_news(
     vault_data = _vault_stats_from_db(vault)
 
     try:
-        return await regenerate(
-            db_session, vault_id, vault_data=vault_data
-        )
+        return await regenerate(db_session, vault_id, vault_data=vault_data)
     except Exception as e:
         logger.warning("Broadcast regeneration failed: %s", e, exc_info=True)
         if "limit reached" in str(e).lower():
@@ -99,7 +97,9 @@ async def regenerate_vault_radio_news(
             ) from e
         # Other failures: fallback to script-only
         title = "Vault Radio News — Daily Brief"
-        script = f"Today's broadcast from Vault {vault_data.get('number', '???')} is unavailable. Please try again later."
+        script = (
+            f"Today's broadcast from Vault {vault_data.get('number', '???')} is unavailable. Please try again later."
+        )
         return {
             "id": None,
             "title": title,

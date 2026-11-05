@@ -5,7 +5,7 @@ No network in CI.
 """
 
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -39,20 +39,18 @@ class TestDailyCache:
     async def test_second_get_same_day_no_recall(
         self,
     ):
-        from app.services import broadcast_service
+        from app.services import broadcast_service, openrouter_tts_service
         from app.services.broadcast_service import get_or_create_daily
-        from app.services import openrouter_tts_service
 
         mock_db = AsyncMock()
 
         # Patch the TTS service to track calls
-        with patch.object(
-            broadcast_service, "get_openrouter_tts_service"
-        ) as mock_get:
+        with patch.object(broadcast_service, "get_openrouter_tts_service") as mock_get:
             mock_service = MagicMock()
             mock_service.is_enabled = True
             import io
             import wave
+
             buf = io.BytesIO()
             with wave.open(buf, "wb") as wf:
                 wf.setnchannels(1)
@@ -100,7 +98,7 @@ class TestDailyCache:
             mock_existing.script = "Test script"
             mock_existing.audio_key = "broadcasts/2026/11/05/test.mp3"
             mock_existing.trigger = "daily"
-            mock_existing.created_at = datetime.now(timezone.utc)
+            mock_existing.created_at = datetime.now(UTC)
 
             mock_result2 = MagicMock()
             mock_result2.first.return_value = mock_existing
@@ -173,13 +171,12 @@ class TestRegenerateCap:
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
 
-        with patch.object(
-            broadcast_service, "get_openrouter_tts_service"
-        ) as mock_get:
+        with patch.object(broadcast_service, "get_openrouter_tts_service") as mock_get:
             mock_service = MagicMock()
             mock_service.is_enabled = True
             import io
             import wave
+
             buf = io.BytesIO()
             with wave.open(buf, "wb") as wf:
                 wf.setnchannels(1)
@@ -229,14 +226,10 @@ class TestTTSFailureDegradation:
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
 
-        with patch.object(
-            broadcast_service, "get_openrouter_tts_service"
-        ) as mock_get:
+        with patch.object(broadcast_service, "get_openrouter_tts_service") as mock_get:
             mock_service = MagicMock()
             mock_service.is_enabled = True
-            mock_service.generate_speech = AsyncMock(
-                side_effect=TTSProviderException("OpenRouter unreachable")
-            )
+            mock_service.generate_speech = AsyncMock(side_effect=TTSProviderException("OpenRouter unreachable"))
             mock_get.return_value = mock_service
 
             result = await get_or_create_daily(
@@ -282,10 +275,12 @@ class TestPostProcess:
         mock_proc = MagicMock()
         mock_proc.returncode = 0
         mock_proc.stdout = b"fake mp3 data"
-        with patch("app.services.broadcast_service.shutil.which", return_value="/usr/bin/ffmpeg"):
-            with patch(
+        with (
+            patch("app.services.broadcast_service.shutil.which", return_value="/usr/bin/ffmpeg"),
+            patch(
                 "app.services.broadcast_service.subprocess.run",
                 return_value=mock_proc,
-            ):
-                result = _post_process(wav_bytes)
-                assert result == b"fake mp3 data"
+            ),
+        ):
+            result = _post_process(wav_bytes)
+            assert result == b"fake mp3 data"

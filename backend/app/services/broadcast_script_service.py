@@ -14,7 +14,7 @@ def build_daily_script(
     population_max: int,
     caps: int,
     happiness: int,
-    power: tuple[int, int],       # (current, max)
+    power: tuple[int, int],  # (current, max)
     food: tuple[int, int],
     water: tuple[int, int],
     recent_notifications: list[dict],
@@ -67,15 +67,21 @@ def build_daily_script(
         parts.append(f"That breaks down to {genders}.")
 
     # Caps
-    parts.extend([
-        (f"Your bottle cap reserves stand at {caps:,} - enough to bribe most wastelanders, "
-         f"or at least a very persistent scoundrel.")
-    ])
+    parts.extend(
+        [
+            (
+                f"Your bottle cap reserves stand at {caps:,} - enough to bribe most wastelanders, "
+                f"or at least a very persistent scoundrel."
+            )
+        ]
+    )
 
     # Happiness
-    parts.extend([
-        f"Vault morale sits at {happiness}%{' - a splendid showing!' if happiness >= 80 else ', though there is room for improvement.'}"
-    ])
+    parts.extend(
+        [
+            f"Vault morale sits at {happiness}%{' - a splendid showing!' if happiness >= 80 else ', though there is room for improvement.'}"
+        ]
+    )
 
     # Resources
     parts.append("Let us turn to your essential supplies.")
@@ -83,9 +89,7 @@ def build_daily_script(
         if maximum and maximum > 0:
             ratio = current / maximum
             pct = round(ratio * 100)
-            parts.append(
-                f"{label.capitalize()} is at {pct}% ({current} of {maximum})."
-            )
+            parts.append(f"{label.capitalize()} is at {pct}% ({current} of {maximum}).")
         else:
             parts.append(f"{label.capitalize()} stands at {current}.")
 

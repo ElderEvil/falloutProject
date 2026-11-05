@@ -55,14 +55,25 @@ def _post_process(wav_bytes: bytes) -> bytes:
         proc = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true]
             [
                 ffmpeg_path,
-                "-f", "s16le", "-ar", "44100", "-ac", "1",
-                "-i", "pipe:0",
-                "-af", af_chain,
-                "-b:a", "128k",
-                "-f", "mp3",
+                "-f",
+                "s16le",
+                "-ar",
+                "44100",
+                "-ac",
+                "1",
+                "-i",
+                "pipe:0",
+                "-af",
+                af_chain,
+                "-b:a",
+                "128k",
+                "-f",
+                "mp3",
                 "-",
             ],
-            check=False, shell=False, input=wav_bytes,
+            check=False,
+            shell=False,
+            input=wav_bytes,
             capture_output=True,
             timeout=30,
         )
@@ -251,5 +262,9 @@ async def regenerate(
         )
 
     return await get_or_create_daily(
-        db, vault_id, vault_data, dweller_stats, recent_notifications,
+        db,
+        vault_id,
+        vault_data,
+        dweller_stats,
+        recent_notifications,
     )

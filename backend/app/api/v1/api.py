@@ -22,6 +22,7 @@ from app.api.v1.endpoints import (
     pregnancy,
     quest,
     radio,
+    radio_news,
     relationship,
     room,
     storage,
@@ -59,6 +60,7 @@ api_router.include_router(pregnancy.router)
 api_router.include_router(quest.router)
 api_router.include_router(arena.router)
 api_router.include_router(radio.router)
+api_router.include_router(radio_news.router)
 api_router.include_router(relationship.router)
 api_router.include_router(room.router)
 api_router.include_router(storage.router)

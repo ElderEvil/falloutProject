@@ -110,6 +110,9 @@ class Settings(BaseSettings):
     # Local staging dir for the pack generator (environment-agnostic default)
     NARRATION_PACK_DIR: str = "voice-pack"
 
+    # OpenRouter TTS provider (HeyGen, primary broadcast TTS path)
+    OPENROUTER_API_KEY: str = ""
+
     # TypeSafe Jev decision model (optional). Independent of the chat provider:
     # Jev answers typed questions with confidence and is complementary to chat.
     TYPESAFE_API_KEY: str | None = None

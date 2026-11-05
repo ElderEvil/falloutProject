@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Literal, cast
 
-from pydantic import UUID4, Field, model_validator
+from pydantic import UUID4, AliasChoices, Field, model_validator
 from sqlmodel import SQLModel
 
 from app.models.quest import QuestBase
@@ -231,14 +231,20 @@ class QuestJSON(SQLModel):
     """Schema for individual quests in JSON files with field aliases for JSON compatibility."""
 
     # Support both "Quest name" (space) and "quest_name" (snake_case) formats
-    quest_name: str = Field(default="", alias="Quest name", validation_alias="quest_name")
-    long_description: str = Field(default="", alias="Long description", validation_alias="long_description")
-    short_description: str = Field(default="", alias="Short description", validation_alias="short_description")
-    requirements: str | list[str] = Field(default="", alias="Requirements", validation_alias="requirements")
-    rewards: str = Field(default="", alias="Rewards", validation_alias="rewards")
+    quest_name: str = Field(default="", alias="Quest name", validation_alias=AliasChoices("quest_name", "Quest name"))
+    long_description: str = Field(
+        default="", alias="Long description", validation_alias=AliasChoices("long_description", "Long description")
+    )
+    short_description: str = Field(
+        default="", alias="Short description", validation_alias=AliasChoices("short_description", "Short description")
+    )
+    requirements: str | list[str] = Field(
+        default="", alias="Requirements", validation_alias=AliasChoices("requirements", "Requirements")
+    )
+    rewards: str = Field(default="", alias="Rewards", validation_alias=AliasChoices("rewards", "Rewards"))
     # Quest objective can be a string or list of objects in the JSON
     quest_objective: str | list[QuestObjectiveJSON] | None = Field(
-        default=None, alias="Quest objective", validation_alias="quest_objective"
+        default=None, alias="Quest objective", validation_alias=AliasChoices("quest_objective", "Quest objective")
     )
     # Structured requirements and rewards
     quest_requirements: list[QuestRequirementJSON] = Field(default_factory=list, validation_alias="quest_requirements")
@@ -262,24 +268,10 @@ class QuestJSON(SQLModel):
 
     @model_validator(mode="before")
     @classmethod
-    def normalize_field_names(cls, data):
-        """Support both space-separated and snake_case field names from JSON."""
-        if isinstance(data, dict):
-            # Map space-separated keys to snake_case for fields that need it
-            field_mapping = {
-                "Quest name": "quest_name",
-                "Long description": "long_description",
-                "Short description": "short_description",
-                "Quest objective": "quest_objective",
-                "Rewards": "rewards",
-                "Requirements": "requirements",
-            }
-            for space_key, snake_key in field_mapping.items():
-                if space_key in data and snake_key not in data:
-                    data[snake_key] = data[space_key]
-            # If 'title' is present but 'quest_name' is not, use title as quest_name
-            if data.get("title") and not data.get("quest_name"):
-                data["quest_name"] = data["title"]
+    def normalize_quest_title(cls, data):
+        """Use a legacy title when neither name alias supplies a non-empty name."""
+        if isinstance(data, dict) and data.get("title") and not data.get("quest_name", data.get("Quest name")):
+            return {**data, "quest_name": data["title"]}
         return data
 
 

@@ -14,7 +14,7 @@ from app.core.enums import RequirementType
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement
 from app.models.quest_reward import QuestReward
-from app.schemas.quest import QuestRewardJSON
+from app.schemas.quest import QuestJSON, QuestRewardJSON
 from app.utils.load_quests import load_all_quest_chain_files, load_quest_chain_from_json
 from app.utils.seed_quests import seed_quests_from_json
 from app.utils.static_data import game_data_store
@@ -78,6 +78,42 @@ def test_quest_loader_rejects_invalid_nested_quest_data(tmp_path, file_format):
     path.write_text(json.dumps(data), encoding="utf-8")
     with pytest.raises(ValidationError, match="duration_minutes"):
         load_quest_chain_from_json(str(path))
+
+
+@pytest.mark.parametrize(
+    ("field", "alias"),
+    [
+        ("quest_name", "Quest name"),
+        ("long_description", "Long description"),
+        ("short_description", "Short description"),
+        ("requirements", "Requirements"),
+        ("rewards", "Rewards"),
+        ("quest_objective", "Quest objective"),
+    ],
+)
+def test_quest_json_accepts_both_aliases_and_prefers_snake_case(field, alias):
+    spaced = QuestJSON.model_validate({alias: "spaced"})
+    snake = QuestJSON.model_validate({field: "snake", alias: "spaced"})
+    assert getattr(spaced, field) == "spaced"
+    assert getattr(snake, field) == "snake"
+    assert snake.model_dump(by_alias=True)[alias] == "snake"
+
+
+@pytest.mark.parametrize(
+    ("names", "expected"),
+    [
+        ({}, "Legacy title"),
+        ({"Quest name": "Spaced"}, "Spaced"),
+        ({"quest_name": "Snake", "Quest name": "Spaced"}, "Snake"),
+        ({"quest_name": "", "Quest name": "Spaced"}, "Legacy title"),
+        ({"quest_name": None}, "Legacy title"),
+        ({"Quest name": ""}, "Legacy title"),
+    ],
+)
+def test_quest_json_preserves_legacy_title_fallback(names, expected):
+    data = {"title": "Legacy title", **names}
+    quest = QuestJSON.model_validate(data)
+    assert quest.quest_name == expected
 
 
 def test_quest_display_requirements_never_advertise_unenforced_gates() -> None:

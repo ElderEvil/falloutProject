@@ -18,13 +18,17 @@ def test_default_tiers_cover_a_starter_vault() -> None:
 
 
 def test_empty_tiers_are_rejected() -> None:
-    with pytest.raises(ValidationError, match="must not be empty"):
+    with pytest.raises(ValidationError) as exc:
         IncidentConfig(room_rate_tiers=[])
+    assert exc.value.errors()[0]["loc"] == ("room_rate_tiers",)
+    assert exc.value.errors()[0]["type"] == "too_short"
 
 
-def test_malformed_tier_is_rejected() -> None:
-    with pytest.raises(ValidationError, match=r"must be \[cap, rate\]"):
-        IncidentConfig(room_rate_tiers=[[15, 1.0, 2.0]])
+@pytest.mark.parametrize("tier", [[15], [15, 1.0, 2.0]])
+def test_malformed_tier_is_rejected(tier) -> None:
+    with pytest.raises(ValidationError) as exc:
+        IncidentConfig(room_rate_tiers=[tier])
+    assert exc.value.errors()[0]["loc"] == ("room_rate_tiers", 0)
 
 
 def test_descending_caps_are_rejected() -> None:

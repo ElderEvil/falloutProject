@@ -1,16 +1,12 @@
 """Broadcast CRUD — date-range queries for the Vault Radio Hour broadcast model."""
 
 from datetime import date, datetime, timedelta
-from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.broadcast import Broadcast
-
-if TYPE_CHECKING:
-    from sqlmodel import Row
 
 
 async def get_today_broadcast(db: AsyncSession, vault_id: UUID) -> Broadcast | None:
@@ -23,14 +19,11 @@ async def get_today_broadcast(db: AsyncSession, vault_id: UUID) -> Broadcast | N
     today_start = datetime.combine(today, datetime.min.time())
     tomorrow_start = datetime.combine(tomorrow, datetime.min.time())
 
-    query = (
-        select(Broadcast)
-        .where(
-            Broadcast.vault_id == vault_id,
-            Broadcast.trigger == "daily",
-            col(Broadcast.created_at) >= today_start,
-            col(Broadcast.created_at) < tomorrow_start,
-        )
+    query = select(Broadcast).where(
+        Broadcast.vault_id == vault_id,
+        Broadcast.trigger == "daily",
+        col(Broadcast.created_at) >= today_start,
+        col(Broadcast.created_at) < tomorrow_start,
     )
     result = await db.execute(query)
     return result.scalar_one_or_none()
@@ -50,14 +43,11 @@ async def count_trigger_on_date(
     day_start = datetime.combine(trigger_date, datetime.min.time())
     day_end = datetime.combine(tomorrow, datetime.min.time())
 
-    query = (
-        select(Broadcast)
-        .where(
-            Broadcast.vault_id == vault_id,
-            Broadcast.trigger == trigger,
-            col(Broadcast.created_at) >= day_start,
-            col(Broadcast.created_at) < day_end,
-        )
+    query = select(Broadcast).where(
+        Broadcast.vault_id == vault_id,
+        Broadcast.trigger == trigger,
+        col(Broadcast.created_at) >= day_start,
+        col(Broadcast.created_at) < day_end,
     )
     result = await db.execute(query)
     return len(result.fetchall())

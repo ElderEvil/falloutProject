@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { onClickOutside } from '@vueuse/core'
+import { onClickOutside, useLocalStorage } from '@vueuse/core'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
+import { Slider } from '@/core/components/ui/slider'
 import { useToast } from '@/core/composables/useToast'
 import { fetchRadioNews, regenerateRadioNews, type RadioNewsBroadcast } from '../api/radioNews'
 
@@ -14,7 +15,11 @@ const broadcast = ref<RadioNewsBroadcast | null>(null)
 const isLoading = ref(true)
 const error = ref<string | null>(null)
 const isPlaying = ref(false)
-const audioEl = ref<HTMLAudioElement | null>(null)
+const audioEl = shallowRef<HTMLAudioElement | null>(null)
+const volume = useLocalStorage('radio_news_volume', 75)
+const lastAudibleVolume = ref(volume.value || 75)
+const isPaused = computed(() => audioEl.value !== null && !isPlaying.value)
+const playLabel = computed(() => (isPlaying.value ? 'Pause' : isPaused.value ? 'Resume' : 'Play'))
 const hasPlayed = ref(false)
 const isRegenerating = ref(false)
 const isOpen = ref(false)
@@ -23,6 +28,7 @@ const triggerRef = ref<InstanceType<typeof Button> | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
 let loadVersion = 0
 let regenerateVersion = 0
+let playbackVersion = 0
 
 const DIAL_TICKS = Array.from({ length: 25 }, (_, index) => index + 1)
 const SIGNAL_BARS = [
@@ -94,6 +100,7 @@ const loadBroadcast = async () => {
   try {
     const data = await fetchRadioNews(requestedVaultId)
     if (requestVersion !== loadVersion) return
+    if (broadcast.value?.id !== data.id) stopAudio()
     broadcast.value = data
     hasPlayed.value = data.id ? isPlayedToday(data.id) : false
     emit('newBroadcast', data)
@@ -107,7 +114,12 @@ const loadBroadcast = async () => {
 }
 
 function stopAudio(): void {
-  audioEl.value?.pause()
+  playbackVersion += 1
+  if (audioEl.value) {
+    audioEl.value.onended = null
+    audioEl.value.onerror = null
+    audioEl.value.pause()
+  }
   audioEl.value = null
   isPlaying.value = false
 }
@@ -115,6 +127,7 @@ function stopAudio(): void {
 function startAudio(url: string): HTMLAudioElement {
   stopAudio()
   const audio = new Audio(url)
+  audio.volume = volume.value / 100
   audioEl.value = audio
   isPlaying.value = true
   audio.onended = stopAudio
@@ -126,12 +139,17 @@ function startAudio(url: string): HTMLAudioElement {
 }
 
 async function playAudio(url: string): Promise<boolean> {
+  const audio = audioEl.value ?? startAudio(url)
+  const requestVersion = ++playbackVersion
+  isPlaying.value = true
   try {
-    await startAudio(url).play()
-    return true
+    await audio.play()
+    return requestVersion === playbackVersion && audioEl.value === audio && isPlaying.value
   } catch {
-    stopAudio()
-    toast.error('Unable to play audio')
+    if (requestVersion === playbackVersion && audioEl.value === audio && isPlaying.value) {
+      stopAudio()
+      toast.error('Unable to play audio')
+    }
     return false
   }
 }
@@ -140,10 +158,35 @@ const onTogglePlay = async () => {
   const current = broadcast.value
   if (!current?.audio_url) return
   if (isPlaying.value) {
-    stopAudio()
+    playbackVersion += 1
+    audioEl.value?.pause()
+    isPlaying.value = false
   } else if ((await playAudio(current.audio_url)) && current.id) {
     markPlayed(current.id)
   }
+}
+
+function replayAudio(): void {
+  if (!audioEl.value) return
+  audioEl.value.currentTime = 0
+  if (!isPlaying.value) void onTogglePlay()
+}
+
+function setVolume(values: number[] | undefined): void {
+  if (values?.[0] !== undefined) volume.value = values[0]
+}
+
+watch(
+  volume,
+  (value, previous) => {
+    if (previous > 0) lastAudibleVolume.value = previous
+    if (audioEl.value) audioEl.value.volume = value / 100
+  },
+  { flush: 'sync' }
+)
+
+function toggleMute(): void {
+  volume.value = volume.value > 0 ? 0 : lastAudibleVolume.value
 }
 
 const onRegenerate = async () => {
@@ -306,7 +349,7 @@ onBeforeUnmount(() => {
           v-if="!isLoading && broadcast"
           class="hidden max-w-[11rem] truncate text-[0.65rem] font-semibold sm:block"
         >
-          {{ isPlaying ? 'On air — click to stop' : title }}
+          {{ isPlaying ? 'On air' : isPaused ? 'Paused' : title }}
         </span>
       </span>
 
@@ -361,7 +404,7 @@ onBeforeUnmount(() => {
             />
           </div>
           <span class="text-[0.55rem] uppercase tracking-widest text-theme-primary/50">
-            {{ isPlaying ? 'On air' : 'Standby' }}
+            {{ isPlaying ? 'On air' : isPaused ? 'Paused' : 'Standby' }}
           </span>
           <Button
             type="button"
@@ -452,11 +495,27 @@ onBeforeUnmount(() => {
               size="sm"
               class="radio-news-widget__play-btn flex-1 border-theme-primary/40"
               :class="{ 'bg-theme-primary/15': isPlaying }"
-              :aria-pressed="isPlaying"
+              :aria-label="`${playLabel} broadcast`"
+              :disabled="isRegenerating"
               @click="onTogglePlay"
             >
-              <Icon :icon="isPlaying ? 'mdi:stop' : 'mdi:play'" class="h-4 w-4" />
-              <span class="text-xs font-semibold">{{ isPlaying ? 'Stop' : 'Play' }}</span>
+              <Icon
+                :icon="isPlaying ? 'mdi:pause' : 'mdi:play'"
+                v-bind="{ 'data-icon': 'inline-start' }"
+              />
+              <span class="text-xs font-semibold">{{ playLabel }}</span>
+            </Button>
+            <Button
+              v-if="isAudioAvailable"
+              variant="outline"
+              size="icon-sm"
+              class="border-theme-primary/30"
+              aria-label="Replay broadcast from the beginning"
+              title="Replay from the beginning"
+              :disabled="!audioEl || isRegenerating"
+              @click="replayAudio"
+            >
+              <Icon icon="mdi:skip-previous" />
             </Button>
             <div
               v-else
@@ -479,6 +538,52 @@ onBeforeUnmount(() => {
               />
               <span class="hidden text-xs font-semibold sm:inline">Regenerate</span>
             </Button>
+          </div>
+
+          <div
+            v-if="isAudioAvailable"
+            class="radio-news-widget__volume flex items-center gap-3 rounded border border-theme-primary/20 bg-surface-sunken/50 px-2"
+          >
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              class="shrink-0 text-theme-primary/70 hover:text-theme-primary"
+              :aria-label="volume === 0 ? 'Unmute broadcast' : 'Mute broadcast'"
+              :aria-pressed="volume === 0"
+              :title="volume === 0 ? 'Unmute broadcast' : 'Mute broadcast'"
+              @click="toggleMute"
+            >
+              <Icon
+                :icon="
+                  volume === 0
+                    ? 'mdi:volume-off'
+                    : volume < 50
+                      ? 'mdi:volume-low'
+                      : 'mdi:volume-high'
+                "
+              />
+            </Button>
+            <span
+              class="hidden text-[0.55rem] uppercase tracking-widest text-theme-primary/60 sm:inline"
+              aria-hidden="true"
+            >
+              Volume
+            </span>
+            <Slider
+              :model-value="[volume]"
+              :min="0"
+              :max="100"
+              :step="1"
+              aria-label="Broadcast volume"
+              class="min-w-0 flex-1 py-3"
+              @update:model-value="setVolume"
+            />
+            <span
+              class="w-9 shrink-0 text-right font-mono text-[0.6rem] tabular-nums text-theme-primary/70"
+              aria-hidden="true"
+            >
+              {{ volume }}%
+            </span>
           </div>
 
           <!-- Transcript doubles as the live caption while audio plays. -->

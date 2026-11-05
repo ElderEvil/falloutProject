@@ -936,8 +936,9 @@ remain available to detail views and as fallbacks.
 
 CI builds the backend image and runs `scripts/check_backend_image.py` before publishing. The check
 runs as the image user, offline and with a read-only root filesystem, and verifies that tests and
-development packages are absent, runtime assets exist, API/worker modules import, and API, migration,
-worker, scheduler, and CLI entry points work. Run the same check locally:
+development packages are absent, runtime assets exist, ffmpeg runs (Vault Radio Hour audio
+post-processing), API/worker modules import, and API, migration, worker, scheduler, and CLI entry
+points work. Run the same check locally:
 
 ```bash
 podman build -t fallout-backend-check -f backend/Dockerfile .

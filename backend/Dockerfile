@@ -19,7 +19,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM python:${PYTHON_VERSION:-3.13}-slim-bookworm
 COPY --from=builder /bin/uv /bin/uv
-RUN useradd --create-home --uid 1000 appuser \
+# Vault Radio Hour post-processes TTS audio through ffmpeg; without the binary
+# broadcasts silently degrade to raw WAV.
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 1000 appuser \
     && install -d -o appuser -g appuser /var/log/fallout_shelter
 WORKDIR /app
 

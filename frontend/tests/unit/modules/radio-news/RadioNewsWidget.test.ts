@@ -46,11 +46,13 @@ const yesterday = new Date(now)
 yesterday.setDate(yesterday.getDate() - 1)
 const yesterdayISO = yesterday.toISOString()
 
-function makeBroadcast(overrides: Partial<Record<keyof Parameters<typeof makeBroadcast>[0], unknown>> = {}) {
+function makeBroadcast(
+  overrides: Partial<Record<keyof Parameters<typeof makeBroadcast>[0], unknown>> = {}
+) {
   return {
     id: 'broadcast-1',
-    title: "Vault 111 Evening News",
-    script: "Good evening, Vault dwellers. Population stands at 23.\nAll systems nominal.",
+    title: 'Vault 111 Evening News',
+    script: 'Good evening, Vault dwellers. Population stands at 23.\nAll systems nominal.',
     audio_url: 'https://s3.evillab.dev/narration/vault-1/2024-01-01.mp3',
     trigger: 'daily' as const,
     created_at: todayISO,
@@ -73,18 +75,76 @@ describe('RadioNewsWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // Reset audio mock
-    vi.stubGlobal('Audio', vi.fn().mockImplementation(() => ({
-      onended: null,
-      onerror: null,
-      play: vi.fn().mockResolvedValue(undefined),
-      pause: vi.fn(),
-    })))
+    vi.stubGlobal(
+      'Audio',
+      vi.fn().mockImplementation(() => ({
+        onended: null,
+        onerror: null,
+        play: vi.fn().mockResolvedValue(undefined),
+        pause: vi.fn(),
+      }))
+    )
     // Reset localStorage mock
     localStorage.clear()
   })
 
-  it('shows a loading skeleton on initial mount', async () => {
+  it('opens the receiver console from the HUD tuner', async () => {
+    mockApiGet.mockResolvedValue(makeBroadcast())
 
+    const wrapper = mount(RadioNewsWidget, {
+      props: { vaultId: 'vault-1' },
+    })
+    await flushPromises()
+
+    const panel = wrapper.find('#radio-news-panel')
+    expect(panel.attributes('style')).toContain('display: none')
+
+    await wrapper.find('.radio-news-widget__toggle').trigger('click')
+
+    expect(wrapper.find('.radio-news-widget__toggle').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.find('#radio-news-panel').attributes('style') ?? '').not.toContain(
+      'display: none'
+    )
+  })
+
+  it('dismisses the receiver console on Escape', async () => {
+    mockApiGet.mockResolvedValue(makeBroadcast())
+
+    const wrapper = mount(RadioNewsWidget, {
+      props: { vaultId: 'vault-1' },
+    })
+    await flushPromises()
+    await wrapper.find('.radio-news-widget__toggle').trigger('click')
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await flushPromises()
+
+    expect(wrapper.find('#radio-news-panel').attributes('style')).toContain('display: none')
+    expect(wrapper.find('.radio-news-widget__toggle').attributes('aria-expanded')).toBe('false')
+  })
+
+  it('marks a transcript-only broadcast read when it arrives while the console is open', async () => {
+    let resolveLoad!: (value: unknown) => void
+    mockApiGet.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveLoad = resolve
+        })
+    )
+
+    const wrapper = mount(RadioNewsWidget, {
+      props: { vaultId: 'vault-1' },
+    })
+    await wrapper.find('.radio-news-widget__toggle').trigger('click')
+
+    resolveLoad(makeEmptyBroadcast())
+    await flushPromises()
+
+    expect(localStorage.getItem('radio_news_played')).toContain('broadcast-empty')
+    expect(wrapper.find('.radio-news-widget__badge').text()).toContain('Radio')
+  })
+
+  it('shows a loading skeleton on initial mount', async () => {
     mockApiGet.mockResolvedValue(undefined as never)
 
     const wrapper = mount(RadioNewsWidget, {
@@ -95,7 +155,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('renders a badge when a broadcast loads', async () => {
-
     mockApiGet.mockResolvedValue(makeBroadcast())
 
     const wrapper = mount(RadioNewsWidget, {
@@ -110,7 +169,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('does not show the "New" label for a yesterday broadcast', async () => {
-
     const broadcast = makeBroadcast({ created_at: yesterdayISO })
     mockApiGet.mockResolvedValue(broadcast)
 
@@ -127,7 +185,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('emits newBroadcast on successful fetch', async () => {
-
     const broadcast = makeBroadcast()
     mockApiGet.mockResolvedValue(broadcast)
 
@@ -142,7 +199,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('shows a play button when audio_url is present', async () => {
-
     mockApiGet.mockResolvedValue(makeBroadcast())
 
     const wrapper = mount(RadioNewsWidget, {
@@ -165,7 +221,6 @@ describe('RadioNewsWidget', () => {
     }
     stubAudio(audioMock)
 
-
     mockApiGet.mockResolvedValue(makeBroadcast())
 
     const wrapper = mount(RadioNewsWidget, {
@@ -184,7 +239,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('shows a text-only panel when audio_url is null but script exists', async () => {
-
     mockApiGet.mockResolvedValue(makeEmptyBroadcast())
 
     const wrapper = mount(RadioNewsWidget, {
@@ -194,13 +248,14 @@ describe('RadioNewsWidget', () => {
     await flushPromises()
 
     expect(wrapper.find('.radio-news-widget__text-panel').exists()).toBe(true)
-    expect(wrapper.find('.radio-news-widget__text-panel').text()).toContain('No broadcast available today')
+    expect(wrapper.find('.radio-news-widget__text-panel').text()).toContain(
+      'No broadcast available today'
+    )
     // No play button
     expect(wrapper.find('.radio-news-widget__play-btn').exists()).toBe(false)
   })
 
   it('does not show a play button when audio_url is null', async () => {
-
     mockApiGet.mockResolvedValue(makeEmptyBroadcast())
 
     const wrapper = mount(RadioNewsWidget, {
@@ -220,7 +275,6 @@ describe('RadioNewsWidget', () => {
       pause: vi.fn(),
     }
     stubAudio(audioMock)
-
 
     mockApiGet.mockResolvedValue(makeBroadcast())
 
@@ -246,7 +300,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('shows error state when fetch fails and no broadcast exists', async () => {
-
     mockApiGet.mockRejectedValue(new Error('network'))
 
     const wrapper = mount(RadioNewsWidget, {
@@ -308,69 +361,69 @@ describe('RadioNewsWidget', () => {
   })
 })
 
-  it('regenerates from the HUD control', async () => {
-    const regenerated = makeBroadcast({ id: 'broadcast-2', title: 'Regenerated' })
-    mockApiGet.mockResolvedValue(makeBroadcast({ id: 'broadcast-1' }))
-    mockApiPost.mockResolvedValue(regenerated)
+it('regenerates from the HUD control', async () => {
+  const regenerated = makeBroadcast({ id: 'broadcast-2', title: 'Regenerated' })
+  mockApiGet.mockResolvedValue(makeBroadcast({ id: 'broadcast-1' }))
+  mockApiPost.mockResolvedValue(regenerated)
 
-    const wrapper = mount(RadioNewsWidget, {
-      props: { vaultId: 'vault-1' },
-    })
-    await flushPromises()
-    await wrapper.find('.radio-news-widget__regenerate-btn').trigger('click')
-    await flushPromises()
-
-    expect(mockApiPost.mock.calls[0][0]).toContain('/radio-news/regenerate')
-    expect(wrapper.emitted('newBroadcast')?.at(-1)).toEqual([regenerated])
+  const wrapper = mount(RadioNewsWidget, {
+    props: { vaultId: 'vault-1' },
   })
+  await flushPromises()
+  await wrapper.find('.radio-news-widget__regenerate-btn').trigger('click')
+  await flushPromises()
 
-  it('ignores a stale response when returning to the same vault', async () => {
-    const resolvers: Array<(value: unknown) => void> = []
-    mockApiGet.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolvers.push(resolve)
-        })
-    )
+  expect(mockApiPost.mock.calls[0][0]).toContain('/radio-news/regenerate')
+  expect(wrapper.emitted('newBroadcast')?.at(-1)).toEqual([regenerated])
+})
 
-    const wrapper = mount(RadioNewsWidget, {
-      props: { vaultId: 'vault-1' },
-    })
-    await wrapper.setProps({ vaultId: 'vault-2' })
-    await wrapper.setProps({ vaultId: 'vault-1' })
+it('ignores a stale response when returning to the same vault', async () => {
+  const resolvers: Array<(value: unknown) => void> = []
+  mockApiGet.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolvers.push(resolve)
+      })
+  )
 
-    resolvers[2](makeBroadcast({ id: 'latest-a', title: 'Latest A' }))
-    await flushPromises()
-    resolvers[0](makeBroadcast({ id: 'stale-a', title: 'Stale A' }))
-    await flushPromises()
-
-    expect(wrapper.emitted('newBroadcast')?.at(-1)).toEqual([
-      makeBroadcast({ id: 'latest-a', title: 'Latest A' }),
-    ])
+  const wrapper = mount(RadioNewsWidget, {
+    props: { vaultId: 'vault-1' },
   })
+  await wrapper.setProps({ vaultId: 'vault-2' })
+  await wrapper.setProps({ vaultId: 'vault-1' })
 
-  it('re-enables regeneration after switching vaults mid-request', async () => {
-    mockApiGet.mockResolvedValue(makeBroadcast())
-    let resolveRegenerate!: (value: unknown) => void
-    mockApiPost.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveRegenerate = resolve
-        })
-    )
+  resolvers[2](makeBroadcast({ id: 'latest-a', title: 'Latest A' }))
+  await flushPromises()
+  resolvers[0](makeBroadcast({ id: 'stale-a', title: 'Stale A' }))
+  await flushPromises()
 
-    const wrapper = mount(RadioNewsWidget, {
-      props: { vaultId: 'vault-1' },
-    })
-    await flushPromises()
-    await wrapper.find('.radio-news-widget__regenerate-btn').trigger('click')
-    await flushPromises()
+  expect(wrapper.emitted('newBroadcast')?.at(-1)).toEqual([
+    makeBroadcast({ id: 'latest-a', title: 'Latest A' }),
+  ])
+})
 
-    await wrapper.setProps({ vaultId: 'vault-2' })
-    await flushPromises()
-    expect(wrapper.find('.radio-news-widget__regenerate-btn').attributes('disabled')).toBeUndefined()
+it('re-enables regeneration after switching vaults mid-request', async () => {
+  mockApiGet.mockResolvedValue(makeBroadcast())
+  let resolveRegenerate!: (value: unknown) => void
+  mockApiPost.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveRegenerate = resolve
+      })
+  )
 
-    resolveRegenerate(makeBroadcast({ id: 'stale-regeneration' }))
-    await flushPromises()
-    expect(wrapper.find('.radio-news-widget__regenerate-btn').attributes('disabled')).toBeUndefined()
+  const wrapper = mount(RadioNewsWidget, {
+    props: { vaultId: 'vault-1' },
   })
+  await flushPromises()
+  await wrapper.find('.radio-news-widget__regenerate-btn').trigger('click')
+  await flushPromises()
+
+  await wrapper.setProps({ vaultId: 'vault-2' })
+  await flushPromises()
+  expect(wrapper.find('.radio-news-widget__regenerate-btn').attributes('disabled')).toBeUndefined()
+
+  resolveRegenerate(makeBroadcast({ id: 'stale-regeneration' }))
+  await flushPromises()
+  expect(wrapper.find('.radio-news-widget__regenerate-btn').attributes('disabled')).toBeUndefined()
+})

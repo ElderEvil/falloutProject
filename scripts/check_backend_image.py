@@ -2,19 +2,29 @@
 
 import importlib.util
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
 assert os.getuid() == 1000, "Runtime must use appuser"
 for name in ("pytest", "coverage", "fakeredis", "ruff", "ty", "prek"):
-    assert importlib.util.find_spec(name) is None, (
-        f"Development package shipped: {name}"
-    )
+    assert importlib.util.find_spec(name) is None, f"Dev package shipped: {name}"
 for name in ("app/tests", "tests", ".env", ".env.local", ".env.production"):
     assert not Path("/app", name).exists(), f"Non-runtime file shipped: {name}"
 assert Path("/app/app/data").is_dir()
 assert Path("/app/alembic.ini").is_file()
 assert Path("/CHANGELOG.md").is_file()
+
+# Vault Radio Hour degrades to raw WAV without this binary, so the production
+# image must ship it.
+ffmpeg = shutil.which("ffmpeg")
+assert ffmpeg, "ffmpeg is missing from the runtime image"
+subprocess.run(
+    [ffmpeg, "-version"],
+    check=True,
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
 
 os.environ.update(
     SECRET_KEY="container-smoke-test-key",

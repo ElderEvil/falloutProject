@@ -26,6 +26,8 @@ const utcDayStart = () => {
   const now = new Date()
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
 }
+const parseUtcTimestamp = (value: string) =>
+  new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(value) ? value : `${value}Z`)
 const today = ref(utcDayStart())
 
 function isPlayedToday(broadcastId: string): boolean {
@@ -49,7 +51,7 @@ function markPlayed(broadcastId: string): void {
 
 const isToday = computed(() => {
   if (!broadcast.value?.created_at) return false
-  const created = new Date(broadcast.value.created_at)
+  const created = parseUtcTimestamp(broadcast.value.created_at)
   return Date.UTC(created.getUTCFullYear(), created.getUTCMonth(), created.getUTCDate()) === today.value.getTime()
 })
 const isNew = computed(() => isToday.value && !hasPlayed.value)

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from app.services.broadcast_script_service import build_daily_script
+from app.utils.broadcast_script import build_daily_script
 
 
 class TestScriptWordCount:

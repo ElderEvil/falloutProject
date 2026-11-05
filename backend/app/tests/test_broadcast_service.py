@@ -59,34 +59,47 @@ class TestDailyCache:
             mock_service.generate_speech = AsyncMock(return_value=buf.getvalue())
             mock_get.return_value = mock_service
 
-            # First call: no existing broadcast
-            mock_result = MagicMock()
-            mock_result.first.return_value = None
-            mock_db.execute = AsyncMock(return_value=mock_result)
+            # First call: no existing broadcast (CRUD returns None)
+            with patch("app.services.broadcast_service.get_today_broadcast", new_callable=AsyncMock) as mock_get_today:
+                mock_get_today.return_value = None
 
-            await get_or_create_daily(
-                mock_db,
-                vault_id=uuid4(),
-                vault_data={
-                    "number": 1,
-                    "population": 10,
-                    "population_max": 20,
-                    "bottle_caps": 500,
-                    "happiness": 70,
-                    "power": 50,
-                    "power_max": 100,
-                    "food": 50,
-                    "food_max": 100,
-                    "water": 50,
-                    "water_max": 100,
-                },
-            )
+                # Patch create_broadcast for the DB commit path
+                mock_broadcast = MagicMock()
+                mock_broadcast.id = uuid4()
+                mock_broadcast.title = "New Title"
+                mock_broadcast.script = "New script"
+                mock_broadcast.audio_key = None
+                mock_broadcast.trigger = "daily"
+                mock_broadcast.created_at = datetime.now(UTC)
 
-            # First call should have called TTS
-            mock_service.generate_speech.assert_called_once()
+                with patch("app.services.broadcast_service.create_broadcast", new_callable=AsyncMock) as mock_create:
+                    mock_create.return_value = mock_broadcast
 
-            # Reset the call count
-            mock_service.generate_speech.reset_mock()
+                    result = await get_or_create_daily(
+                        mock_db,
+                        vault_id=uuid4(),
+                        vault_data={
+                            "number": 1,
+                            "population": 10,
+                            "population_max": 20,
+                            "bottle_caps": 500,
+                            "happiness": 70,
+                            "power": 50,
+                            "power_max": 100,
+                            "food": 50,
+                            "food_max": 100,
+                            "water": 50,
+                            "water_max": 100,
+                        },
+                    )
+
+                    # First call should have called TTS
+                    mock_service.generate_speech.assert_called_once()
+                    assert result["title"] == "New Title"
+                    assert result["script"] == "New script"
+
+                    # Reset the TTS mock BEFORE the second call
+                    mock_service.generate_speech.reset_mock()
 
             # Second call: simulate existing broadcast for today
             from app.models.broadcast import Broadcast
@@ -99,33 +112,32 @@ class TestDailyCache:
             mock_existing.trigger = "daily"
             mock_existing.created_at = datetime.now(UTC)
 
-            mock_result2 = MagicMock()
-            mock_result2.first.return_value = mock_existing
-            mock_db.execute = AsyncMock(return_value=mock_result2)
+            with patch("app.services.broadcast_service.get_today_broadcast", new_callable=AsyncMock) as mock_get_today:
+                mock_get_today.return_value = mock_existing
 
-            result = await get_or_create_daily(
-                mock_db,
-                vault_id=uuid4(),
-                vault_data={
-                    "number": 1,
-                    "population": 10,
-                    "population_max": 20,
-                    "bottle_caps": 500,
-                    "happiness": 70,
-                    "power": 50,
-                    "power_max": 100,
-                    "food": 50,
-                    "food_max": 100,
-                    "water": 50,
-                    "water_max": 100,
-                },
-            )
+                result = await get_or_create_daily(
+                    mock_db,
+                    vault_id=uuid4(),
+                    vault_data={
+                        "number": 1,
+                        "population": 10,
+                        "population_max": 20,
+                        "bottle_caps": 500,
+                        "happiness": 70,
+                        "power": 50,
+                        "power_max": 100,
+                        "food": 50,
+                        "food_max": 100,
+                        "water": 50,
+                        "water_max": 100,
+                    },
+                )
 
-            # TTS must NOT be called again
-            mock_service.generate_speech.assert_not_called()
-            assert result["title"] == "Test Title"
-            assert result["script"] == "Test script"
-            assert result["audio_url"] == "broadcasts/2026/11/05/test.mp3"
+                # TTS must NOT be called again
+                mock_service.generate_speech.assert_not_called()
+                assert result["title"] == "Test Title"
+                assert result["script"] == "Test script"
+                assert result["audio_url"] == "broadcasts/2026/11/05/test.mp3"
 
 
 class TestRegenerateCap:
@@ -137,15 +149,13 @@ class TestRegenerateCap:
 
         mock_db = AsyncMock()
 
-        # Simulate 3 existing manual regenerations today
-        mock_result = MagicMock()
-        mock_rows = [MagicMock() for _ in range(3)]
-        mock_result.fetchall.return_value = mock_rows
-        mock_db.execute = AsyncMock(return_value=mock_result)
+        # Patch CRUD to return 3 existing manual regenerations today
+        with patch("app.services.broadcast_service.count_trigger_on_date", new_callable=AsyncMock) as mock_count:
+            mock_count.return_value = 3
 
-        with pytest.raises(Exception) as exc_info:
-            await regenerate(mock_db, vault_id=uuid4())
-        assert "limit reached" in str(exc_info.value).lower()
+            with pytest.raises(Exception) as exc_info:
+                await regenerate(mock_db, vault_id=uuid4())
+            assert "limit reached" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     async def test_regenerate_under_cap_proceeds(self):
@@ -154,56 +164,59 @@ class TestRegenerateCap:
 
         mock_db = AsyncMock()
 
-        # Simulate 2 existing manual regenerations (under cap)
-        mock_result = MagicMock()
-        mock_rows = [MagicMock() for _ in range(2)]
-        mock_result.fetchall.return_value = mock_rows
-        mock_db.execute = AsyncMock(return_value=mock_result)
+        # Patch count to return 2 (under cap), and get_today_broadcast to return None
+        with patch("app.services.broadcast_service.count_trigger_on_date", new_callable=AsyncMock) as mock_count:
+            mock_count.return_value = 2
 
-        # First call for create
-        mock_create_result = MagicMock()
-        mock_create_result.first.return_value = None
-        mock_db.execute.side_effect = [mock_result, mock_create_result]
+            with patch("app.services.broadcast_service.get_today_broadcast", new_callable=AsyncMock) as mock_get_today:
+                mock_get_today.return_value = None
 
-        # Simulate db.add/commit/refresh
-        mock_db.add = MagicMock()
-        mock_db.commit = AsyncMock()
-        mock_db.refresh = AsyncMock()
+                # Mock create_broadcast for the DB commit path
+                mock_broadcast = MagicMock()
+                mock_broadcast.id = uuid4()
+                mock_broadcast.title = "Regenerated Title"
+                mock_broadcast.script = "Regenerated script"
+                mock_broadcast.audio_key = None
+                mock_broadcast.trigger = "daily"
+                mock_broadcast.created_at = datetime.now(UTC)
 
-        with patch.object(broadcast_service, "get_openrouter_tts_service") as mock_get:
-            mock_service = MagicMock()
-            mock_service.is_enabled = True
-            import io
-            import wave
+                with patch("app.services.broadcast_service.create_broadcast", new_callable=AsyncMock) as mock_create:
+                    mock_create.return_value = mock_broadcast
 
-            buf = io.BytesIO()
-            with wave.open(buf, "wb") as wf:
-                wf.setnchannels(1)
-                wf.setsampwidth(2)
-                wf.setframerate(44100)
-                wf.writeframes(b"\x00" * 100)
-            mock_service.generate_speech = AsyncMock(return_value=buf.getvalue())
-            mock_get.return_value = mock_service
+                    with patch.object(broadcast_service, "get_openrouter_tts_service") as mock_get:
+                        mock_service = MagicMock()
+                        mock_service.is_enabled = True
+                        import io
+                        import wave
 
-            result = await regenerate(
-                mock_db,
-                vault_id=uuid4(),
-                vault_data={
-                    "number": 1,
-                    "population": 10,
-                    "population_max": 20,
-                    "bottle_caps": 500,
-                    "happiness": 70,
-                    "power": 50,
-                    "power_max": 100,
-                    "food": 50,
-                    "food_max": 100,
-                    "water": 50,
-                    "water_max": 100,
-                },
-            )
-            assert result is not None
-            assert result["trigger"] == "daily"
+                        buf = io.BytesIO()
+                        with wave.open(buf, "wb") as wf:
+                            wf.setnchannels(1)
+                            wf.setsampwidth(2)
+                            wf.setframerate(44100)
+                            wf.writeframes(b"\x00" * 100)
+                        mock_service.generate_speech = AsyncMock(return_value=buf.getvalue())
+                        mock_get.return_value = mock_service
+
+                        result = await regenerate(
+                            mock_db,
+                            vault_id=uuid4(),
+                            vault_data={
+                                "number": 1,
+                                "population": 10,
+                                "population_max": 20,
+                                "bottle_caps": 500,
+                                "happiness": 70,
+                                "power": 50,
+                                "power_max": 100,
+                                "food": 50,
+                                "food_max": 100,
+                                "water": 50,
+                                "water_max": 100,
+                            },
+                        )
+                        assert result is not None
+                        assert result["trigger"] == "daily"
 
 
 class TestTTSFailureDegradation:
@@ -218,41 +231,49 @@ class TestTTSFailureDegradation:
         mock_db = AsyncMock()
 
         # No existing broadcast
-        mock_result = MagicMock()
-        mock_result.first.return_value = None
-        mock_db.execute = AsyncMock(return_value=mock_result)
-        mock_db.add = MagicMock()
-        mock_db.commit = AsyncMock()
-        mock_db.refresh = AsyncMock()
+        with patch("app.services.broadcast_service.get_today_broadcast", new_callable=AsyncMock) as mock_get_today:
+            mock_get_today.return_value = None
 
-        with patch.object(broadcast_service, "get_openrouter_tts_service") as mock_get:
-            mock_service = MagicMock()
-            mock_service.is_enabled = True
-            mock_service.generate_speech = AsyncMock(side_effect=TTSProviderException("OpenRouter unreachable"))
-            mock_get.return_value = mock_service
+            # Mock create_broadcast for the DB commit path
+            mock_broadcast = MagicMock()
+            mock_broadcast.id = uuid4()
+            mock_broadcast.title = "Fallback Title"
+            mock_broadcast.script = "Fallback script"
+            mock_broadcast.audio_key = None
+            mock_broadcast.trigger = "daily"
+            mock_broadcast.created_at = datetime.now(UTC)
 
-            result = await get_or_create_daily(
-                mock_db,
-                vault_id=uuid4(),
-                vault_data={
-                    "number": 1,
-                    "population": 10,
-                    "population_max": 20,
-                    "bottle_caps": 500,
-                    "happiness": 70,
-                    "power": 50,
-                    "power_max": 100,
-                    "food": 50,
-                    "food_max": 100,
-                    "water": 50,
-                    "water_max": 100,
-                },
-            )
+            with patch("app.services.broadcast_service.create_broadcast", new_callable=AsyncMock) as mock_create:
+                mock_create.return_value = mock_broadcast
 
-            # Should still have script, audio_url should be None
-            assert result["script"] is not None
-            assert len(result["script"]) > 0
-            assert result["audio_url"] is None
+                with patch.object(broadcast_service, "get_openrouter_tts_service") as mock_get:
+                    mock_service = MagicMock()
+                    mock_service.is_enabled = True
+                    mock_service.generate_speech = AsyncMock(side_effect=TTSProviderException("OpenRouter unreachable"))
+                    mock_get.return_value = mock_service
+
+                    result = await get_or_create_daily(
+                        mock_db,
+                        vault_id=uuid4(),
+                        vault_data={
+                            "number": 1,
+                            "population": 10,
+                            "population_max": 20,
+                            "bottle_caps": 500,
+                            "happiness": 70,
+                            "power": 50,
+                            "power_max": 100,
+                            "food": 50,
+                            "food_max": 100,
+                            "water": 50,
+                            "water_max": 100,
+                        },
+                    )
+
+                    # Should still have script, audio_url should be None
+                    assert result["script"] is not None
+                    assert len(result["script"]) > 0
+                    assert result["audio_url"] is None
 
 
 class TestPostProcess:

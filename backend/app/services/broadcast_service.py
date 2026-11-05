@@ -9,11 +9,11 @@ from uuid import UUID, uuid4
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.broadcast import Broadcast
-from app.services.broadcast_script_service import build_daily_script
+from app.crud.broadcast import count_trigger_on_date, create_broadcast, get_today_broadcast
 from app.services.openrouter_tts_service import get_openrouter_tts_service
 from app.services.storage.factory import get_storage_client
 from app.utils.exceptions import TTSProviderException
+from app.utils.broadcast_script import build_daily_script
 
 logger = logging.getLogger(__name__)
 
@@ -110,20 +110,9 @@ async def get_or_create_daily(
         Dict with keys: id, title, script, audio_url, trigger, created_at.
     """
     today = date.today()
-    tomorrow = today + timedelta(days=1)
-    today_start = datetime.combine(today, datetime.min.time(), tzinfo=UTC)
-    tomorrow_start = datetime.combine(tomorrow, datetime.min.time(), tzinfo=UTC)
 
-    # Check for existing daily broadcast for today
-    existing = await db.execute(
-        Broadcast.__table__.select().where(
-            Broadcast.vault_id == vault_id,
-            Broadcast.trigger == "daily",
-            Broadcast.created_at >= today_start,
-            Broadcast.created_at < tomorrow_start,
-        )
-    )
-    broadcast_row = existing.first()
+    # Check for existing daily broadcast for today (via CRUD)
+    broadcast_row = await get_today_broadcast(db, vault_id)
 
     if broadcast_row:
         return {
@@ -195,18 +184,15 @@ async def get_or_create_daily(
         else:
             logger.info("Storage not enabled, returning script-only")
 
-    # Persist broadcast
-    broadcast = Broadcast(
-        id=uuid4(),
+    # Persist broadcast via CRUD
+    broadcast = await create_broadcast(
+        db,
         vault_id=vault_id,
         title=title,
         script=script_text,
         audio_key=audio_key,
         trigger="daily",
     )
-    db.add(broadcast)
-    await db.commit()
-    await db.refresh(broadcast)
 
     return {
         "id": str(broadcast.id),
@@ -241,20 +227,9 @@ async def regenerate(
         TTSProviderException: If rate limit exceeded (mapped to 429).
     """
     today = date.today()
-    tomorrow = today + timedelta(days=1)
-    today_start = datetime.combine(today, datetime.min.time(), tzinfo=UTC)
-    tomorrow_start = datetime.combine(tomorrow, datetime.min.time(), tzinfo=UTC)
 
-    # Count manual regenerations today
-    count_result = await db.execute(
-        Broadcast.__table__.select().where(
-            Broadcast.vault_id == vault_id,
-            Broadcast.trigger == "manual",
-            Broadcast.created_at >= today_start,
-            Broadcast.created_at < tomorrow_start,
-        )
-    )
-    regen_count = len(count_result.fetchall())
+    # Count manual regenerations today (via CRUD)
+    regen_count = await count_trigger_on_date(db, vault_id, "manual", today)
 
     if regen_count >= MAX_REGENERATIONS_PER_DAY:
         raise TTSProviderException(

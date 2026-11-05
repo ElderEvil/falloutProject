@@ -194,10 +194,19 @@ onClickOutside(rootRef, () => {
   if (isOpen.value) closePanel(false)
 })
 
-// A transcript-only broadcast has nothing to play, so opening it counts as read.
-watch(isOpen, (open) => {
-  const current = broadcast.value
-  if (open && isNew.value && showTextBroadcast.value && current?.id) markPlayed(current.id)
+// A transcript-only broadcast has nothing to play, so an open console counts it
+// as read. Watch the broadcast too: it can arrive or change while the panel is open.
+watch([isOpen, broadcast], ([open, current]) => {
+  if (
+    open &&
+    current?.id &&
+    isToday.value &&
+    !hasPlayed.value &&
+    !current.audio_url &&
+    current.script
+  ) {
+    markPlayed(current.id)
+  }
 })
 
 let midnightTimer: ReturnType<typeof setTimeout> | null = null

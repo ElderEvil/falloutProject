@@ -123,6 +123,27 @@ describe('RadioNewsWidget', () => {
     expect(wrapper.find('.radio-news-widget__toggle').attributes('aria-expanded')).toBe('false')
   })
 
+  it('marks a transcript-only broadcast read when it arrives while the console is open', async () => {
+    let resolveLoad!: (value: unknown) => void
+    mockApiGet.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveLoad = resolve
+        })
+    )
+
+    const wrapper = mount(RadioNewsWidget, {
+      props: { vaultId: 'vault-1' },
+    })
+    await wrapper.find('.radio-news-widget__toggle').trigger('click')
+
+    resolveLoad(makeEmptyBroadcast())
+    await flushPromises()
+
+    expect(localStorage.getItem('radio_news_played')).toContain('broadcast-empty')
+    expect(wrapper.find('.radio-news-widget__badge').text()).toContain('Radio')
+  })
+
   it('shows a loading skeleton on initial mount', async () => {
     mockApiGet.mockResolvedValue(undefined as never)
 

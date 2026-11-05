@@ -4,9 +4,9 @@
 
 **Goal:** Procedural "radio news broadcast" for each vault — a 1950s-style DJ clip rendered from the vault's live DB state, playable in-game.
 
-**Architecture:** New backend `broadcast_service` renders a deterministic DJ script from vault state (population, caps, resources, happiness, recent notifications), synthesizes it via OpenRouter HeyGen with an ElevenLabs fallback (script-only when both are unavailable), stores the clip in S3, and serves it through a REST endpoint. The frontend gets a radio HUD widget that plays the daily broadcast. Vintage fx chain (band-limit, crackle, slow-down) is applied server-side with ffmpeg when available, else the raw voice ships.
+**Architecture:** New backend `broadcast_service` renders a deterministic DJ script from vault state (population, caps, resources, happiness, recent notifications), synthesizes it via OpenRouter HeyGen with an ElevenLabs fallback (script-only when both are unavailable), stores the clip in S3, and serves it through a REST endpoint. The frontend gets a radio HUD widget that plays the daily broadcast. Vintage fx chain (band-limit, crackle, slow-down) is applied server-side with ffmpeg when available, else the raw voice ships. The production backend image installs ffmpeg (`backend/Dockerfile`), so container deployments always run the chain; the raw-WAV fallback remains for local runs without it.
 
-**Tech Stack:** FastAPI + SQLModel, dramatiq (not needed for MVP), httpx (TTS), boto3/S3 (RustFS, reuse existing storage utils), ffmpeg (post-processing, optional at runtime), Vue 3 + TS module.
+**Tech Stack:** FastAPI + SQLModel, dramatiq (not needed for MVP), httpx (TTS), boto3/S3 (RustFS, reuse existing storage utils), ffmpeg (post-processing, installed in the backend image), Vue 3 + TS module.
 
 ## Playback design (where & when)
 

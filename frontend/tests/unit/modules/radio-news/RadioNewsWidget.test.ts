@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createToastMock, createIconifyMock } from '../../helpers/mocks'
+import { Slider } from '@/core/components/ui/slider'
 import RadioNewsWidget from '@/modules/radio-news/components/RadioNewsWidget.vue'
 
 // Capture mock references so we can control them in tests
@@ -30,14 +31,20 @@ vi.mock('@/core/composables/useToast', () => ({
 // Constructable Audio stub: vi.fn().mockImplementation is not callable with `new`,
 // but the widget does `new Audio(url)`. The stub exposes the mock's fns on the instance.
 function stubAudio(mock: { play: ReturnType<typeof vi.fn>; pause: ReturnType<typeof vi.fn> }) {
+  const instances: AudioStub[] = []
   class AudioStub {
     onended: unknown = null
     onerror: unknown = null
     play = mock.play
     pause = mock.pause
-    constructor(public src: string) {}
+    currentTime = 0
+    volume = 1
+    constructor(public src: string) {
+      instances.push(this)
+    }
   }
   vi.stubGlobal('Audio', AudioStub)
+  return instances
 }
 
 const now = new Date()
@@ -70,6 +77,15 @@ function makeEmptyBroadcast() {
     created_at: todayISO,
   }
 }
+
+const invalidVolumes = [
+  ['-20', 0],
+  ['175', 100],
+  ['NaN', 75],
+  ['Infinity', 75],
+  ['-Infinity', 75],
+  ['invalid', 75],
+] as const
 
 describe('RadioNewsWidget', () => {
   beforeEach(() => {
@@ -212,14 +228,14 @@ describe('RadioNewsWidget', () => {
     expect(playBtn.text()).toContain('Play')
   })
 
-  it('stops audio when the play button is toggled', async () => {
+  it('pauses and resumes the same audio at the current position', async () => {
     const audioMock = {
       onended: null,
       onerror: null,
       play: vi.fn().mockResolvedValue(undefined),
       pause: vi.fn(),
     }
-    stubAudio(audioMock)
+    const instances = stubAudio(audioMock)
 
     mockApiGet.mockResolvedValue(makeBroadcast())
 
@@ -233,9 +249,178 @@ describe('RadioNewsWidget', () => {
     await wrapper.find('.radio-news-widget__play-btn').trigger('click')
     expect(audioMock.play).toHaveBeenCalled()
 
-    // Click stop
+    instances[0].currentTime = 18
     await wrapper.find('.radio-news-widget__play-btn').trigger('click')
     expect(audioMock.pause).toHaveBeenCalled()
+    expect(wrapper.find('.radio-news-widget__play-btn').text()).toContain('Resume')
+    await wrapper.find('.radio-news-widget__play-btn').trigger('click')
+    await flushPromises()
+    expect(instances).toHaveLength(1)
+    expect(instances[0].currentTime).toBe(18)
+    expect(audioMock.play).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('.radio-news-widget__play-btn').text()).toContain('Pause')
+    wrapper.unmount()
+  })
+
+  it('replays from the beginning while playing or paused', async () => {
+    const audioMock = { play: vi.fn().mockResolvedValue(undefined), pause: vi.fn() }
+    const instances = stubAudio(audioMock)
+    mockApiGet.mockResolvedValue(makeBroadcast())
+    const wrapper = mount(RadioNewsWidget, { props: { vaultId: 'vault-1' } })
+    await flushPromises()
+    await wrapper.find('.radio-news-widget__play-btn').trigger('click')
+    await flushPromises()
+    instances[0].currentTime = 20
+    await wrapper.find('[aria-label="Replay broadcast from the beginning"]').trigger('click')
+    expect(instances[0].currentTime).toBe(0)
+    expect(audioMock.play).toHaveBeenCalledTimes(1)
+
+    await wrapper.find('.radio-news-widget__play-btn').trigger('click')
+    instances[0].currentTime = 12
+    await wrapper.find('[aria-label="Replay broadcast from the beginning"]').trigger('click')
+    await flushPromises()
+    expect(instances).toHaveLength(1)
+    expect(instances[0].currentTime).toBe(0)
+    expect(audioMock.play).toHaveBeenCalledTimes(2)
+    wrapper.unmount()
+  })
+
+  it('applies volume before playback and while playing, with mute and restore', async () => {
+    const instances = stubAudio({ play: vi.fn().mockResolvedValue(undefined), pause: vi.fn() })
+    mockApiGet.mockResolvedValue(makeBroadcast())
+    const wrapper = mount(RadioNewsWidget, { props: { vaultId: 'vault-1' } })
+    await flushPromises()
+    const slider = wrapper.findComponent(Slider)
+    slider.vm.$emit('update:modelValue', [30])
+    await flushPromises()
+    await wrapper.find('.radio-news-widget__play-btn').trigger('click')
+    expect(instances[0].volume).toBe(0.3)
+    slider.vm.$emit('update:modelValue', [45])
+    await flushPromises()
+    expect(instances[0].volume).toBe(0.45)
+    await wrapper.find('[aria-label="Mute broadcast"]').trigger('click')
+    expect(instances[0].volume).toBe(0)
+    await wrapper.find('[aria-label="Unmute broadcast"]').trigger('click')
+    expect(instances[0].volume).toBe(0.45)
+    wrapper.unmount()
+  })
+
+  it('remembers the broadcast volume when the widget remounts', async () => {
+    const instances = stubAudio({ play: vi.fn().mockResolvedValue(undefined), pause: vi.fn() })
+    mockApiGet.mockResolvedValue(makeBroadcast())
+    const first = mount(RadioNewsWidget, { props: { vaultId: 'vault-1' } })
+    await flushPromises()
+    first.findComponent(Slider).vm.$emit('update:modelValue', [25])
+    await flushPromises()
+    first.unmount()
+    const second = mount(RadioNewsWidget, { props: { vaultId: 'vault-1' } })
+    await flushPromises()
+    expect(second.findComponent(Slider).props('modelValue')).toEqual([25])
+    await second.find('.radio-news-widget__play-btn').trigger('click')
+    expect(instances[0].volume).toBe(0.25)
+    second.unmount()
+  })
+
+  it.each(invalidVolumes)('normalizes saved volume %s before playback', async (saved, expected) => {
+    localStorage.setItem('radio_news_volume', saved)
+    const audioMock = { play: vi.fn().mockResolvedValue(undefined), pause: vi.fn() }
+    const instances = stubAudio(audioMock)
+    mockApiGet.mockResolvedValue(makeBroadcast())
+    const wrapper = mount(RadioNewsWidget, { props: { vaultId: 'vault-1' } })
+    await flushPromises()
+    expect(wrapper.findComponent(Slider).props('modelValue')).toEqual([expected])
+    await wrapper.find('.radio-news-widget__play-btn').trigger('click')
+    await flushPromises()
+    expect(instances[0].volume).toBe(expected / 100)
+    expect(audioMock.play).toHaveBeenCalledOnce()
+    if (expected > 0) {
+      await wrapper.find('[aria-label="Mute broadcast"]').trigger('click')
+      await wrapper.find('[aria-label="Unmute broadcast"]').trigger('click')
+      expect(instances[0].volume).toBe(expected / 100)
+    }
+    wrapper.unmount()
+  })
+
+  it.each(invalidVolumes)(
+    'normalizes volume %s received through storage updates while playing',
+    async (saved, expected) => {
+      const audioMock = { play: vi.fn().mockResolvedValue(undefined), pause: vi.fn() }
+      const instances = stubAudio(audioMock)
+      mockApiGet.mockResolvedValue(makeBroadcast())
+      const wrapper = mount(RadioNewsWidget, { props: { vaultId: 'vault-1' } })
+      await flushPromises()
+      await wrapper.find('.radio-news-widget__play-btn').trigger('click')
+      // VueUse uses this event for the suite's custom storage backend.
+      window.dispatchEvent(
+        new CustomEvent('vueuse-storage', {
+          detail: { key: 'radio_news_volume', newValue: saved, storageArea: localStorage },
+        })
+      )
+      await flushPromises()
+      expect(wrapper.findComponent(Slider).props('modelValue')).toEqual([expected])
+      expect(instances[0].volume).toBe(expected / 100)
+      expect(wrapper.find('.radio-news-widget__play-btn').text()).toContain('Pause')
+      expect(audioMock.pause).not.toHaveBeenCalled()
+      wrapper.unmount()
+    }
+  )
+
+  it('ignores a delayed play result after the vault changes', async () => {
+    let resolvePlay!: () => void
+    const audioMock = {
+      play: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolvePlay = resolve
+          })
+      ),
+      pause: vi.fn(),
+    }
+    stubAudio(audioMock)
+    mockApiGet
+      .mockResolvedValueOnce(makeBroadcast())
+      .mockResolvedValueOnce(makeBroadcast({ id: 'second' }))
+    const wrapper = mount(RadioNewsWidget, { props: { vaultId: 'vault-1' } })
+    await flushPromises()
+    await wrapper.find('.radio-news-widget__play-btn').trigger('click')
+    await wrapper.setProps({ vaultId: 'vault-2' })
+    await flushPromises()
+    resolvePlay()
+    await flushPromises()
+    expect(audioMock.pause).toHaveBeenCalled()
+    expect(localStorage.getItem('radio_news_played') ?? '').not.toContain('broadcast-1')
+    expect(wrapper.find('.radio-news-widget__play-btn').text()).toContain('Play')
+    wrapper.unmount()
+  })
+
+  it('keeps resumed audio playing when the earlier play request is aborted', async () => {
+    let rejectFirstPlay!: (error: Error) => void
+    const audioMock = {
+      play: vi
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<void>((_resolve, reject) => {
+              rejectFirstPlay = reject
+            })
+        )
+        .mockResolvedValue(undefined),
+      pause: vi.fn(),
+    }
+    const instances = stubAudio(audioMock)
+    mockApiGet.mockResolvedValue(makeBroadcast())
+    const wrapper = mount(RadioNewsWidget, { props: { vaultId: 'vault-1' } })
+    await flushPromises()
+    await wrapper.find('.radio-news-widget__play-btn').trigger('click')
+    await wrapper.find('.radio-news-widget__play-btn').trigger('click')
+    await wrapper.find('.radio-news-widget__play-btn').trigger('click')
+    await flushPromises()
+    rejectFirstPlay(new DOMException('Playback interrupted by pause', 'AbortError'))
+    await flushPromises()
+    expect(instances).toHaveLength(1)
+    expect(audioMock.pause).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('.radio-news-widget__play-btn').text()).toContain('Pause')
+    wrapper.unmount()
   })
 
   it('shows a text-only panel when audio_url is null but script exists', async () => {

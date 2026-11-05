@@ -185,40 +185,40 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="radio-news-widget">
+  <div class="radio-news-widget flex flex-col gap-2">
     <!-- Loading state -->
-    <div v-if="isLoading" class="radio-news-widget__loading" aria-label="Loading broadcast">
-      <div class="skeleton skeleton--pill" />
-      <span class="radio-news-widget__loading-text">Loading…</span>
+    <div v-if="isLoading" class="radio-news-widget__loading flex items-center gap-2" aria-label="Loading broadcast">
+      <div class="skeleton skeleton--pill h-5 w-24 animate-pulse rounded-full bg-surface-hover" />
+      <span class="radio-news-widget__loading-text text-xs text-theme-primary">Loading…</span>
     </div>
 
     <!-- Error state -->
-    <div v-else-if="error && !broadcast" class="radio-news-widget__error" aria-label="Broadcast error">
-      <Icon icon="mdi:alert-circle-outline" class="radio-news-widget__error-icon" />
-      <span class="radio-news-widget__error-text">{{ error }}</span>
+    <div v-else-if="error && !broadcast" class="radio-news-widget__error flex items-center gap-2" aria-label="Broadcast error">
+      <Icon icon="mdi:alert-circle-outline" class="radio-news-widget__error-icon h-4 w-4 text-danger" />
+      <span class="radio-news-widget__error-text text-xs text-danger">{{ error }}</span>
     </div>
 
     <!-- Welcome panel: unplayed today broadcast with blocked autoplay -->
     <div
       v-if="showWelcomePanel && broadcast"
-      class="radio-news-widget__welcome-panel"
+      class="radio-news-widget__welcome-panel mt-2 rounded-md border border-theme-primary/30 bg-surface-warm/90 p-4 shadow-lg"
     >
-      <div class="radio-news-widget__welcome-header">
-        <Icon icon="mdi:radio" class="radio-news-widget__welcome-icon" />
-        <h3 class="radio-news-widget__welcome-title">
+      <div class="radio-news-widget__welcome-header mb-3 flex items-center gap-2">
+        <Icon icon="mdi:radio" class="radio-news-widget__welcome-icon h-5 w-5 text-theme-primary" />
+        <h3 class="radio-news-widget__welcome-title m-0 text-sm font-bold uppercase tracking-widest text-theme-primary">
           📻 Vault Radio Hour
         </h3>
       </div>
-      <p class="radio-news-widget__welcome-script">
+      <p class="radio-news-widget__welcome-script mb-3 whitespace-pre-wrap text-xs leading-relaxed text-theme-primary/80">
         {{ broadcast.script }}
       </p>
       <Button
         variant="outline"
         size="sm"
-        class="radio-news-widget__welcome-play-btn"
+        class="radio-news-widget__welcome-play-btn w-full"
         @click="onWelcomePanelPlay"
       >
-        <Icon icon="mdi:play-circle-outline" class="radio-news-widget__welcome-play-icon" />
+        <Icon icon="mdi:play-circle-outline" class="radio-news-widget__welcome-play-icon mr-1.5 h-4 w-4" />
         Tap to listen
       </Button>
     </div>
@@ -231,11 +231,11 @@ onBeforeUnmount(() => {
           <TooltipTrigger as-child>
             <Badge
               variant="outline"
-              class="radio-news-widget__badge"
-              :class="{ 'badge-active': isToday }"
+              class="radio-news-widget__badge cursor-default border-theme-primary/20 bg-theme-primary/5"
+              :class="{ 'border-theme-primary/60 bg-theme-primary/15 animate-pulse': isToday }"
             >
-              <Icon icon="mdi:radio" class="radio-news-widget__badge-icon" />
-              <span class="radio-news-widget__badge-text">
+              <Icon icon="mdi:radio" class="radio-news-widget__badge-icon h-3.5 w-3.5" />
+              <span class="radio-news-widget__badge-text text-[0.6rem] font-bold uppercase tracking-widest">
                 {{ isToday ? 'New Broadcast' : 'Radio' }}
               </span>
             </Badge>
@@ -250,36 +250,36 @@ onBeforeUnmount(() => {
       <!-- Text-only broadcast panel (audio unavailable but script exists) -->
       <div
         v-if="showTextBroadcast"
-        class="radio-news-widget__text-panel"
+        class="radio-news-widget__text-panel mt-2 max-w-xs rounded-md border border-theme-primary/20 bg-surface-raised/80 p-3 shadow-sm"
       >
-        <div class="radio-news-widget__text-panel-header">
-          <Icon icon="mdi:radio" class="radio-news-widget__text-panel-icon" />
-          <h4 class="radio-news-widget__text-panel-title">
+        <div class="radio-news-widget__text-panel-header mb-1 flex items-center gap-2">
+          <Icon icon="mdi:radio" class="radio-news-widget__text-panel-icon h-4 w-4 text-theme-primary" />
+          <h4 class="radio-news-widget__text-panel-title m-0 text-xs font-bold uppercase text-theme-primary">
             {{ broadcast.title || 'Radio Broadcast' }}
           </h4>
         </div>
-        <p class="radio-news-widget__text-panel-script">
+        <p class="radio-news-widget__text-panel-script whitespace-pre-wrap text-[0.7rem] leading-normal text-theme-primary/80">
           {{ broadcast.script }}
         </p>
-        <div class="radio-news-widget__text-panel-meta">
+        <div class="radio-news-widget__text-panel-meta mt-2 text-[0.6rem] text-theme-primary/50">
           {{ broadcast.created_at ? new Date(broadcast.created_at).toLocaleString() : 'Audio unavailable' }}
         </div>
       </div>
 
       <!-- Play button (audio available) -->
-      <div v-if="isAudioAvailable" class="radio-news-widget__play-controls">
+      <div v-if="isAudioAvailable" class="radio-news-widget__play-controls animate-pulse">
         <Button
           variant="outline"
           size="sm"
-          class="radio-news-widget__play-btn"
-          :class="{ 'is-playing': isPlaying }"
+          class="radio-news-widget__play-btn border-theme-primary/30"
+          :class="{ 'bg-theme-primary/20': isPlaying }"
           @click="onTogglePlay"
         >
           <Icon
             :icon="isPlaying ? 'mdi:pause' : 'mdi:play'"
-            class="radio-news-widget__play-icon"
+            class="radio-news-widget__play-icon h-4 w-4"
           />
-          <span class="radio-news-widget__play-text">
+          <span class="radio-news-widget__play-text text-xs font-semibold">
             {{ isPlaying ? 'Stop' : 'Play' }}
           </span>
         </Button>
@@ -289,279 +289,18 @@ onBeforeUnmount(() => {
     <!-- Caption overlay while playing -->
     <div
       v-if="showCaption"
-      class="radio-news-widget__caption"
+      class="radio-news-widget__caption mt-2 max-w-xs rounded-md border border-theme-primary/30 bg-surface-warm/90 p-3 shadow-sm"
       aria-live="polite"
     >
-      <div class="radio-news-widget__caption-header">
-        <Icon icon="mdi:radio" class="radio-news-widget__caption-icon" />
-        <h4 class="radio-news-widget__caption-title">
+      <div class="radio-news-widget__caption-header mb-1 flex items-center gap-2">
+        <Icon icon="mdi:radio" class="radio-news-widget__caption-icon h-4 w-4 animate-pulse text-theme-primary" />
+        <h4 class="radio-news-widget__caption-title m-0 text-xs font-bold uppercase text-theme-primary">
           {{ broadcast?.title || 'Radio Broadcast' }}
         </h4>
       </div>
-      <p class="radio-news-widget__caption-script">
+      <p class="radio-news-widget__caption-script whitespace-pre-wrap text-[0.7rem] leading-normal text-theme-primary">
         {{ broadcast?.script }}
       </p>
     </div>
   </div>
 </template>
-
-<style scoped>
-.radio-news-widget {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.radio-news-widget__loading {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.radio-news-widget__loading-text {
-  font-size: 0.75rem;
-  color: var(--color-theme-primary);
-}
-
-.skeleton {
-  background: linear-gradient(90deg,
-    var(--color-surface) 25%,
-    var(--color-surface-hover) 50%,
-    var(--color-surface) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
-  border-radius: 9999px;
-}
-
-.skeleton--pill {
-  width: 6rem;
-  height: 1.25rem;
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-.radio-news-widget__badge {
-  border-color: color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
-  background: color-mix(in srgb, var(--color-theme-primary) 5%, transparent);
-  cursor: default;
-}
-
-.radio-news-widget__badge.badge-active {
-  border-color: color-mix(in srgb, var(--color-theme-primary) 60%, transparent);
-  background: color-mix(in srgb, var(--color-theme-primary) 15%, transparent);
-  animation: badgePulse 2s ease-in-out infinite;
-}
-
-.radio-news-widget__badge-icon {
-  height: 0.875rem;
-  width: 0.875rem;
-}
-
-.radio-news-widget__badge-text {
-  font-size: 0.6rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-@keyframes badgePulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.75; }
-}
-
-@keyframes subtlePulse {
-  0%, 100% { opacity: 0.9; }
-  50% { opacity: 1; }
-}
-
-.radio-news-widget__play-controls {
-  animation: subtlePulse 2s ease-in-out infinite;
-}
-
-.radio-news-widget__play-btn {
-  border-color: color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
-}
-
-.radio-news-widget__play-btn.is-playing {
-  background: color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
-}
-
-.radio-news-widget__play-icon {
-  height: 1rem;
-  width: 1rem;
-}
-
-.radio-news-widget__play-text {
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.radio-news-widget__text-panel,
-.radio-news-widget__caption {
-  animation: subtlePulse 2s ease-in-out infinite;
-}
-
-.radio-news-widget__text-panel {
-  margin-top: 0.5rem;
-  max-width: 20rem;
-  border-radius: 0.375rem;
-  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
-  background: color-mix(in srgb, var(--color-surface-raised) 80%, transparent);
-  padding: 0.75rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.radio-news-widget__text-panel-header {
-  margin-bottom: 0.25rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.radio-news-widget__text-panel-icon {
-  height: 1rem;
-  width: 1rem;
-  color: var(--color-theme-primary);
-}
-
-.radio-news-widget__text-panel-title {
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--color-theme-primary);
-  margin: 0;
-}
-
-.radio-news-widget__text-panel-script {
-  white-space: pre-wrap;
-  font-size: 0.7rem;
-  line-height: 1.5;
-  color: color-mix(in srgb, var(--color-theme-primary) 80%, transparent);
-}
-
-.radio-news-widget__text-panel-meta {
-  margin-top: 0.5rem;
-  font-size: 0.6rem;
-  color: color-mix(in srgb, var(--color-theme-primary) 50%, transparent);
-}
-
-.radio-news-widget__error {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.radio-news-widget__error-icon {
-  height: 1rem;
-  width: 1rem;
-  color: var(--color-danger);
-}
-
-.radio-news-widget__error-text {
-  font-size: 0.75rem;
-  color: var(--color-danger);
-}
-
-.radio-news-widget__welcome-panel {
-  margin-top: 0.5rem;
-  border-radius: 0.375rem;
-  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
-  background: color-mix(in srgb, var(--color-surface-warm) 90%, transparent);
-  padding: 1rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  animation: welcomeSlideIn 0.3s ease-out;
-}
-
-@keyframes welcomeSlideIn {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.radio-news-widget__welcome-header {
-  margin-bottom: 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.radio-news-widget__welcome-icon {
-  height: 1.25rem;
-  width: 1.25rem;
-  color: var(--color-theme-primary);
-}
-
-.radio-news-widget__welcome-title {
-  font-size: 0.875rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--color-theme-primary);
-  margin: 0;
-}
-
-.radio-news-widget__welcome-script {
-  margin-bottom: 0.75rem;
-  white-space: pre-wrap;
-  font-size: 0.75rem;
-  line-height: 1.5;
-  color: color-mix(in srgb, var(--color-theme-primary) 80%, transparent);
-}
-
-.radio-news-widget__welcome-play-btn {
-  width: 100%;
-}
-
-.radio-news-widget__welcome-play-icon {
-  margin-right: 0.375rem;
-  height: 1rem;
-  width: 1rem;
-}
-
-.radio-news-widget__caption {
-  margin-top: 0.5rem;
-  max-width: 20rem;
-  border-radius: 0.375rem;
-  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
-  background: color-mix(in srgb, var(--color-surface-warm) 90%, transparent);
-  padding: 0.75rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.radio-news-widget__caption-header {
-  margin-bottom: 0.25rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.radio-news-widget__caption-icon {
-  height: 1rem;
-  width: 1rem;
-  animation: pulse 2s ease-in-out infinite;
-  color: var(--color-theme-primary);
-}
-
-@keyframes pulse {
-  0% { opacity: 0.5; }
-  50% { opacity: 1; }
-  100% { opacity: 0.5; }
-}
-
-.radio-news-widget__caption-title {
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--color-theme-primary);
-  margin: 0;
-}
-
-.radio-news-widget__caption-script {
-  white-space: pre-wrap;
-  font-size: 0.7rem;
-  line-height: 1.5;
-  color: var(--color-theme-primary);
-}
-</style>

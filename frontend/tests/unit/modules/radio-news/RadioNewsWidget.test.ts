@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createToastMock, createIconifyMock } from '../../helpers/mocks'
+import RadioNewsWidget from '@/modules/radio-news/components/RadioNewsWidget.vue'
 
 // Capture mock references so we can control them in tests
 const mockApiGet = vi.fn()
@@ -83,7 +84,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('shows a loading skeleton on initial mount', async () => {
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     mockApiGet.mockResolvedValue(undefined as never)
 
@@ -95,7 +95,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('renders a badge when a broadcast loads', async () => {
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     mockApiGet.mockResolvedValue(makeBroadcast())
 
@@ -111,7 +110,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('does not show the "New" label for a yesterday broadcast', async () => {
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     const broadcast = makeBroadcast({ created_at: yesterdayISO })
     mockApiGet.mockResolvedValue(broadcast)
@@ -129,7 +127,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('emits newBroadcast on successful fetch', async () => {
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     const broadcast = makeBroadcast()
     mockApiGet.mockResolvedValue(broadcast)
@@ -145,7 +142,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('shows a play button when audio_url is present', async () => {
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     mockApiGet.mockResolvedValue(makeBroadcast())
 
@@ -169,7 +165,6 @@ describe('RadioNewsWidget', () => {
     }
     stubAudio(audioMock)
 
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     mockApiGet.mockResolvedValue(makeBroadcast())
 
@@ -189,7 +184,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('shows a text-only panel when audio_url is null but script exists', async () => {
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     mockApiGet.mockResolvedValue(makeEmptyBroadcast())
 
@@ -206,7 +200,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('does not show a play button when audio_url is null', async () => {
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     mockApiGet.mockResolvedValue(makeEmptyBroadcast())
 
@@ -228,7 +221,6 @@ describe('RadioNewsWidget', () => {
     }
     stubAudio(audioMock)
 
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     mockApiGet.mockResolvedValue(makeBroadcast())
 
@@ -254,7 +246,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('shows error state when fetch fails and no broadcast exists', async () => {
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     mockApiGet.mockRejectedValue(new Error('network'))
 
@@ -279,7 +270,6 @@ describe('RadioNewsWidget', () => {
     }
     stubAudio(audioMock)
 
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     const broadcast = makeBroadcast({ id: 'broadcast-1' })
     mockApiGet.mockResolvedValue(broadcast)
@@ -295,7 +285,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('shows welcome panel with tap-to-listen when autoplay is blocked', async () => {
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     const broadcast = makeBroadcast({ id: 'broadcast-1' })
     mockApiGet.mockResolvedValue(broadcast)
@@ -320,7 +309,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('marks broadcast as played after successful welcome panel playback', async () => {
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     const audioMock = {
       onended: null,
@@ -366,7 +354,6 @@ describe('RadioNewsWidget', () => {
     }
     stubAudio(audioMock)
 
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     const broadcast = makeBroadcast({ created_at: yesterdayISO, id: 'broadcast-yest' })
     mockApiGet.mockResolvedValue(broadcast)
@@ -391,7 +378,6 @@ describe('RadioNewsWidget', () => {
     }
     stubAudio(audioMock)
 
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     // Mark broadcast as played before mounting
     localStorage.setItem('radio_news_played', JSON.stringify({ 'broadcast-1': Date.now() }))
@@ -410,7 +396,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('does not show welcome panel when audio_url is null', async () => {
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     const broadcast = makeEmptyBroadcast()
     mockApiGet.mockResolvedValue(broadcast)
@@ -426,7 +411,6 @@ describe('RadioNewsWidget', () => {
   })
 
   it('does not show welcome panel when broadcast id is null', async () => {
-    const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     // Broadcast with id: null and audio_url: null
     const broadcast = {

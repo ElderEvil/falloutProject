@@ -211,7 +211,7 @@ async def _prepare(
     today: date,
 ) -> tuple[str, str, str | None, str | None]:
     if vault_data is None:
-        vault = await db.get(Vault, vault_id)
+        vault = await crud.vault.get_or_none(db, vault_id, include_deleted=True)
         data = vault_stats_from_db(vault) if vault is not None else {}
     else:
         data = dict(vault_data)

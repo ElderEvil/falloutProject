@@ -72,6 +72,20 @@ async def test_daily_broadcast_created_once(async_session, vault):
 
 
 @pytest.mark.asyncio
+async def test_daily_broadcast_without_explicit_context_uses_vault_stats(async_session, vault):
+    with (
+        patch.object(broadcast_service, "get_openrouter_tts_service", return_value=_tts(enabled=False)),
+        patch.object(broadcast_service, "get_elevenlabs_tts_service", return_value=_tts(enabled=False)),
+        patch.object(broadcast_service, "get_storage_client", return_value=None),
+    ):
+        result = await get_or_create_daily(async_session, vault.id)
+
+    assert f"Vault {vault.number}" in result.script
+    assert f"{vault.bottle_caps:,}" in result.script
+    assert "Vault the vault" not in result.script
+
+
+@pytest.mark.asyncio
 async def test_regenerate_creates_manual_rows_and_enforces_cap(async_session, vault):
     with (
         patch.object(broadcast_service, "get_openrouter_tts_service", return_value=_tts(enabled=False)),

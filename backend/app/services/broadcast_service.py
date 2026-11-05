@@ -213,7 +213,11 @@ async def _prepare(
     gender_counts: list[tuple[str, int]] | None,
     today: date,
 ) -> tuple[str, str, str | None, str | None]:
-    data = dict(vault_data or {})
+    if vault_data is None:
+        vault = await crud.vault.get_or_none(db, vault_id, include_deleted=True)
+        data = vault_stats_from_db(vault) if vault is not None else {}
+    else:
+        data = dict(vault_data)
     if "population" not in data:
         data["population"] = await crud.vault.get_population(db_session=db, vault_id=vault_id)
     if recent_notifications is None:

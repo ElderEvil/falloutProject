@@ -9,6 +9,11 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 
+from app.core.enums import NotificationType
+
+# Action alerts belong in the live bell, not a retrospective news broadcast.
+_NON_HEADLINE_TYPES = {NotificationType.COMBAT_STARTED.value}
+
 
 def build_daily_script(
     population: int,
@@ -155,6 +160,7 @@ def _extract_notable(notifications: list[dict], *, _max: int = 3) -> str:
         notification
         for notification in notifications
         if "level" not in str(notification.get("notification_type", "")).lower()
+        and str(notification.get("notification_type", "")).lower() not in _NON_HEADLINE_TYPES
     ][:_max]
     for notification in others:
         notif_type = str(notification.get("notification_type", "")).lower()

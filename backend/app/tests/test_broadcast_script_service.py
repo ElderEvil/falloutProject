@@ -149,6 +149,31 @@ class TestNotificationBatching:
         assert script.count("Alice") == 1
         assert script.count("Bob") == 1
 
+    def test_active_combat_alert_is_not_a_headline(self):
+        data = {
+            "population": 10,
+            "population_max": 20,
+            "caps": 1000,
+            "happiness": 70,
+            "power": (50, 100),
+            "food": (50, 100),
+            "water": (50, 100),
+            "recent_notifications": [
+                {
+                    "notification_type": "combat_started",
+                    "message": "[Vault 666] 🐀 Mole Rat Attack in Power Generator! Send dwellers to defend.",
+                },
+                {
+                    "notification_type": "combat_victory",
+                    "message": "[Vault 666] Your dwellers defeated the attackers, recovered 52 caps.",
+                },
+            ],
+            "vault_number": 666,
+        }
+        _, script = build_daily_script(**data)
+        assert "defeated the attackers" in script
+        assert "Send dwellers to defend" not in script
+
     def test_multiple_notifications_batched(self):
         data = {
             "population": 10,

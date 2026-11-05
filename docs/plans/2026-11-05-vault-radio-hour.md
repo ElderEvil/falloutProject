@@ -10,7 +10,7 @@
 
 ## Playback design (where & when)
 
-1. **Daily news on first vault load of the day** — endpoint returns today's broadcast, cached per vault per UTC day. Frontend shows a "📻 New broadcast" badge (browser autoplay policies forbid auto-sound); one tap plays it.
+1. **Daily news on first vault load of the day** — endpoint returns today's broadcast, generating it on first call of the UTC day. **The user explicitly wants to hear it on login:** after the vault loads, if today's broadcast is unplayed, a "📻 Vault Radio Hour" welcome panel pre-fetches it and attempts playback immediately; if autoplay is policy-blocked, the panel shows "Tap to listen" (one gesture). Played state tracked per broadcast id in localStorage.
 2. **Radio room (diegetic)** — clicking an existing Radio Studio room plays the broadcast. Phase 2.
 3. **HUD radio button** — manual tune-in, replays cached clips any time (free).
 4. **Breaking news (Phase 2)** — HIGH-priority notifications debounced 10 min, max 3 renders/vault/day.
@@ -52,8 +52,8 @@ Auth: standard vault-access dependency, same as other vault endpoints.
   - `get_or_create_daily(db, vault)`: find today's broadcast (UTC date, trigger='daily'); if absent, build script, call TTS, post-process, upload to S3 (reuse whatever narration/asset storage util exists — search for how narration clips are uploaded), persist row, return.
   - `regenerate(db, vault)`: same but trigger='manual'; enforce 3/day cap via count query.
   - `_post_process(wav_bytes) -> bytes`: if `shutil.which("ffmpeg")`, pipe through
-    `ffmpeg -f s16le -ar 44100 -ac 1 -i - -af "asetrate=44100*0.92,aresample=44100,highpass=f=300,lowpass=f=3200,tremolo=f=9:d=0.04,loudnorm=I=-16:TP=-1.5" -b:a 128k -f mp3 -`
-    (slower tape feel + AM band-limit). Else return WAV unchanged. Log which path was taken.
+    `ffmpeg -f s16le -ar 44100 -ac 1 -i - -af "asetrate=44100*0.93,aresample=44100,highpass=f=250,lowpass=f=4000,equalizer=f=1500:width_type=h:width=2000:g=4,flanger=delay=2:depth=1:regen=0:width=30:speed=0.4,acompressor=threshold=0.3:ratio=3,volume=1.3" -b:a 128k -f mp3 -`
+    (tape slow-down, AM band-limit, 1.5 kHz presence boost per GNR research, wow via variable-delay flanger; no noise bed in MVP — CC0 static loop is a follow-up). Else return WAV unchanged. Log which path was taken.
 - Endpoint file `backend/app/api/v1/endpoints/radio_news.py`, router registered in `api.py`.
 - TTS failures: log + return script-only response (never 500 the endpoint).
 

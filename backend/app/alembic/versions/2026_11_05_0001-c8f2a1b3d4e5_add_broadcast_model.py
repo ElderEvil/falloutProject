@@ -34,9 +34,11 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_broadcast_id"), "broadcast", ["id"], unique=False)
     op.create_index(op.f("ix_broadcast_vault_id"), "broadcast", ["vault_id"], unique=False)
+    op.create_index("ix_broadcast_vault_id_created_at", "broadcast", ["vault_id", "created_at"], unique=False)
 
 
 def downgrade() -> None:
+    op.drop_index("ix_broadcast_vault_id_created_at", table_name="broadcast")
     op.drop_index(op.f("ix_broadcast_vault_id"), table_name="broadcast")
     op.drop_index(op.f("ix_broadcast_id"), table_name="broadcast")
     op.drop_table("broadcast")

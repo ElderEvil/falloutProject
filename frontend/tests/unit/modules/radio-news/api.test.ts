@@ -42,7 +42,7 @@ describe('fetchRadioNews', () => {
 
   it('handles script-only (null audio) responses', async () => {
     const scriptOnly = {
-      id: null,
+      id: 'broadcast-script-only',
       title: 'Technical Difficulties',
       script: 'We\'re working on restoring the broadcast feed…',
       audio_url: null,
@@ -54,7 +54,7 @@ describe('fetchRadioNews', () => {
 
     const result = await fetchRadioNews('vault-1')
     expect(result.audio_url).toBeNull()
-    expect(result.id).toBeNull()
+    expect(result.id).toBe('broadcast-script-only')
     expect(result.script).toBe(scriptOnly.script)
   })
 })

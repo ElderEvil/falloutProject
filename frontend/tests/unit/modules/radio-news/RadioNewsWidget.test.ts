@@ -60,7 +60,7 @@ function makeBroadcast(overrides: Partial<Record<keyof Parameters<typeof makeBro
 
 function makeEmptyBroadcast() {
   return {
-    id: null,
+    id: 'broadcast-empty',
     title: '',
     script: 'No broadcast available today.',
     audio_url: null,

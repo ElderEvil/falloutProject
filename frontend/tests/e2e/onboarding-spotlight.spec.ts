@@ -1,5 +1,15 @@
 import { test, expect, type Page } from '@playwright/test'
 import { setAuthToken, type TestUser } from './fixtures/auth'
+import type { components } from '@/core/types/api.generated'
+import {
+  BUILD_Y_MAX,
+  FLOOR_UNITS,
+  LEFT_SLOT_STARTS,
+  RIGHT_SLOT_STARTS,
+  SHAFT_X,
+  UNITS_PER_ROOM,
+  Y_MAX,
+} from '@/modules/rooms/models/grid'
 
 // Browser coverage for the spotlight guide (#1001): the card and cut-out must
 // coexist with the real vault UI at phone width, and the guide must yield to a
@@ -50,11 +60,11 @@ const VAULT = {
 // The staffing lesson only highlights when its objective is present and eligible.
 const STAFFING_OBJECTIVE = {
   id: 'obj-staffing',
-  vault_id: 'vault-1',
   challenge: 'Match a dweller to their room',
   description: 'Do the thing.',
   progress: 0,
   total: 2,
+  target_amount: 2,
   reward: '25 caps',
   is_completed: false,
   category: 'starter',
@@ -62,8 +72,7 @@ const STAFFING_OBJECTIVE = {
   template_key: 'starter:assign a dweller correctly#v2',
   objective_type: 'assign_correct',
   target_entity: {},
-  created_at: '2026-01-15T10:30:00Z',
-}
+} satisfies components['schemas']['ObjectiveRead']
 
 const ORIENTATION_ACKNOWLEDGED = {
   version: 1,
@@ -116,6 +125,22 @@ async function mockApi(page: Page) {
     }
     if (path === '/api/v1/rooms/vault/vault-1/') {
       return route.fulfill({ json: [POWER_ROOM] })
+    }
+    if (path === '/api/v1/rooms/grid-config/') {
+      return route.fulfill({
+        json: {
+          floor_units: FLOOR_UNITS,
+          shaft_x: SHAFT_X,
+          units_per_room: UNITS_PER_ROOM,
+          left_slot_starts: LEFT_SLOT_STARTS,
+          right_slot_starts: RIGHT_SLOT_STARTS,
+          build_y_max: BUILD_Y_MAX,
+          y_max: Y_MAX,
+        },
+      })
+    }
+    if (path === '/api/v1/storage/vault/vault-1/items') {
+      return route.fulfill({ json: { weapons: [], outfits: [], items: [], junk: [], pets: [] } })
     }
     if (path === '/api/v1/notifications/unread-count') return route.fulfill({ json: { count: 0 } })
     if (path === '/api/v1/notifications/') return route.fulfill({ json: [] })
@@ -171,6 +196,19 @@ test.describe('Spotlight guide — vault page', () => {
       cutoutBox!.y < cardBox!.y + cardBox!.height &&
       cutoutBox!.y + cutoutBox!.height > cardBox!.y
     expect(overlaps).toBe(false)
+  })
+
+  test('shows an earned staffing claim without per-objective vault metadata', async ({ page }) => {
+    await openVault(page, ORIENTATION_ACKNOWLEDGED)
+    await page.route('**/api/v1/objectives/vault-1/**', (route) =>
+      route.fulfill({ json: [{ ...STAFFING_OBJECTIVE, progress: 2 }] })
+    )
+    await page.reload()
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 900 })
+      await expect(page.getByRole('region', { name: 'Vault onboarding' })).toContainText('2 / 2')
+      await expect(page.getByRole('button', { name: 'Claim 25 caps', exact: true })).toBeVisible()
+    }
   })
 
   test('yields the guide to a dialog and resumes the same lesson', async ({ page }) => {

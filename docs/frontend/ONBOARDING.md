@@ -1,8 +1,8 @@
 # Spotlight onboarding
 
-> Status: **implemented** in PR #1000, not yet released. This document records the behaviour
-> that is implemented, its ownership boundaries and the checks still outstanding. Deferred
-> work is summarised at the end and tracked in [`../ROADMAP.md`](../ROADMAP.md).
+> Status: the guide is deployed in v2.287.0. Earlier validation below is historical;
+> the full first-session journey remains unverified. Current real-service findings are
+> recorded below. Deferred work is tracked in [`../ROADMAP.md`](../ROADMAP.md).
 
 ## Implemented behaviour
 
@@ -102,6 +102,43 @@ the onboarding module.
   replaying and reloading never replay a reward.
 
 ## Validation record
+
+### Real-service objective context repair — 2026-11-06
+
+On deployed v2.287.0, an ordinary, verified test account created Vault 846 through the standard,
+non-boosted creation wizard. Only account setup used administrative access; gameplay used ordinary
+player permissions. The vault began with 9 dwellers, capacity 26 and 1,000 caps. No gameplay rewards,
+progress or time were injected.
+
+The objective list API returned an earned staffing step (`progress=1`, `total=1`, reward `50 caps`)
+without a per-row `vault_id`. The guide filtered those rows out, hiding progress and the claim button.
+The newcomer celebration also used that missing field for its **View dwellers** destination. Older
+browser fixtures supplied a field that the real API never returned, masking both failures.
+
+The bounded repair recovers the objective-list context normalization already proposed in #1060:
+`objectiveService.fetchObjectives` attaches the requested vault ID once, before the existing store
+and presentation consumers receive the rows. The wire type comes from generated `ObjectiveRead`;
+vault context remains UI metadata. Existing stale-response guards and explicit claim authority remain.
+The failing regression uses the real service/store with HTTP stubbed at the boundary, and browser
+fixtures now match the generated response contract. Browser checks cover the earned claim at desktop
+and phone widths, and the existing newcomer-roster handoff without a fabricated wire `vault_id`.
+
+Verification of the patch uses the local frontend with live production services through a development
+proxy. The same test vault's local teaching ledger was restarted; server progress was retained.
+The explicit staffing claim showed its reward modal and raised caps from 1,000 to 1,050. Building a
+Living Quarters through the phone UI cost 175 caps, leaving 875 and raising capacity from 26 to 34.
+Claiming the housing reward showed Juno Pike’s celebration; **View dwellers** navigated to the correct
+vault roster, where Juno was present and population was 10. This evidence covers the response/context
+repair, not a completed first-session-to-quests playthrough.
+
+Remaining observed friction stays in #1034: the phone guide automatically collapses and hides its
+actions until expanded; the floating build control can cover a first-row placement target (another
+legal target worked); placement guidance still offers **Open Vault** while already at the vault.
+Equipment preparation, first departure, the funded Office path and an eligible quest party still
+need real-service verification. Reassess those pieces of #1060 individually rather than treating
+historical green mocked checks as completion evidence.
+
+### Historical validation
 
 Run for the simplification pass:
 

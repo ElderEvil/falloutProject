@@ -50,7 +50,9 @@ describe('Objectives Store', () => {
         expect(axios.get).toHaveBeenCalledWith('/api/v1/objectives/vault-123/', {
           params: { skip: 0, limit: 100 },
         })
-        expect(objectivesStore.objectives).toEqual(mockObjectives)
+        expect(objectivesStore.objectives).toEqual(
+          mockObjectives.map((objective) => ({ ...objective, vault_id: 'vault-123' }))
+        )
       })
 
       it('should fetch objectives with custom skip and limit', async () => {
@@ -114,7 +116,9 @@ describe('Objectives Store', () => {
         expect(axios.get).toHaveBeenCalledWith('/api/v1/objectives/vault-123/', {
           params: { skip: 0, limit: 100 },
         })
-        expect(objectivesStore.objectives).toEqual(updatedObjectives)
+        expect(objectivesStore.objectives).toEqual(
+          updatedObjectives.map((objective) => ({ ...objective, vault_id: 'vault-123' }))
+        )
       })
 
       it('should use correct API endpoint format for add (bug fix validation)', async () => {
@@ -187,6 +191,28 @@ describe('Objectives Store', () => {
   })
 
   describe('Integration Scenarios', () => {
+    it('keeps the current vault context when an earlier vault response arrives late', async () => {
+      let resolveEarlier!: (response: unknown) => void
+      vi.mocked(axios.get)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveEarlier = resolve
+            })
+        )
+        .mockResolvedValueOnce({ data: [{ id: 'current-objective' }] })
+
+      const earlier = objectivesStore.fetchObjectives('earlier-vault')
+      await objectivesStore.fetchObjectives('current-vault')
+      resolveEarlier({ data: [{ id: 'earlier-objective' }] })
+      await earlier
+
+      expect(objectivesStore.objectivesVaultId).toBe('current-vault')
+      expect(objectivesStore.objectives).toEqual([
+        { id: 'current-objective', vault_id: 'current-vault' },
+      ])
+    })
+
     it('should handle complete objective workflow', async () => {
       // Initial fetch
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
@@ -247,7 +273,7 @@ describe('Objectives Store', () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [completeObjective] })
       await objectivesStore.fetchObjectives('vault-123')
 
-      expect(objectivesStore.objectives[0]).toEqual(completeObjective)
+      expect(objectivesStore.objectives[0]).toEqual({ ...completeObjective, vault_id: 'vault-123' })
     })
 
     it('should handle completed objectives', async () => {

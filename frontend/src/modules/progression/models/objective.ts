@@ -4,39 +4,17 @@
  * Represents a challenge or objective for a vault that can be completed
  * for rewards (e.g., "Collect 100 caps", "Train 5 dwellers")
  */
-export type ObjectiveCategory = 'daily' | 'weekly' | 'achievement' | 'starter'
+import type { components } from '@/core/types/api.generated'
 
-export type ObjectiveType =
-  | 'assign'
-  | 'assign_correct'
-  | 'build'
-  | 'collect'
-  | 'equip'
-  | 'explore'
-  | 'expedition'
-  | 'level_up'
-  | 'reach'
-  | 'scrap'
-  | 'train'
+type ObjectiveRead = components['schemas']['ObjectiveRead']
+export type ObjectiveCategory = ObjectiveRead['category']
+export type ObjectiveType = NonNullable<ObjectiveRead['objective_type']>
 
-export interface Objective {
-  id: string
+/** Vault-scoped presentation data; progress and rewards come from the API. */
+export type Objective = Omit<ObjectiveRead, 'target_amount'> & {
   vault_id: string
-  challenge: string
-  progress: number
-  total: number
-  reward: string
-  is_completed: boolean
-  category: ObjectiveCategory
-  objective_type?: ObjectiveType
-  template_key?: string | null
-  target_entity?: Record<string, unknown>
-  track_key?: string | null
-  next_stage_challenge?: string | null
-  resets_at?: string | null
-  sequence?: number | null
-  description?: string | null
-  created_at: string
+  target_amount?: number
+  created_at?: string
   completed_at?: string
 }
 

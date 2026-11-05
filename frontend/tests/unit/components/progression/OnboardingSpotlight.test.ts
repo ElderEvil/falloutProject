@@ -8,6 +8,8 @@ import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
 import { useOnboardingState } from '@/core/composables/useOnboardingState'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import type { Objective } from '@/modules/progression/models/objective'
+import type { components } from '@/core/types/api.generated'
+import axios from '@/core/plugins/axios'
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), warning: vi.fn() }))
 vi.mock('@/core/composables/useToast', () => ({ useToast: () => toast }))
@@ -156,6 +158,37 @@ beforeEach(() => {
 })
 
 describe('OnboardingSpotlight', () => {
+  it('offers an earned starter claim from the API response without per-row vault metadata', async () => {
+    const row = {
+      id: 'staffing',
+      challenge: 'Match a dweller to their room',
+      category: 'starter',
+      objective_type: 'assign_correct',
+      target_amount: 1,
+      template_key: STAFFING_KEY,
+      sequence: 0,
+      reward: '25 caps',
+      progress: 1,
+      total: 1,
+      is_completed: false,
+    } satisfies components['schemas']['ObjectiveRead']
+    const get = vi.spyOn(axios, 'get').mockResolvedValue({ data: [row] })
+    const store = useObjectivesStore()
+    vi.mocked(store.fetchObjectives).mockRestore()
+    acknowledgeLessons('orientation.resources', 'orientation.generator')
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    await clickButton('Start')
+    expect(get).toHaveBeenCalledWith('/api/v1/objectives/v1/', {
+      params: { skip: 0, limit: 100 },
+    })
+    expect(document.body.textContent).toContain('1 / 1')
+    expect(findButton('Claim 25 caps')).toBeDefined()
+    expect(store.objectives[0]?.vault_id).toBe('v1')
+    wrapper.unmount()
+    get.mockRestore()
+  })
+
   it('shows the welcome card first for a new vault', async () => {
     const wrapper = mountSpotlight()
     await flushPromises()
@@ -185,7 +218,9 @@ describe('OnboardingSpotlight', () => {
     await clickButton('Start')
     await clickButton('Continue')
     expect(document.body.textContent).toContain('Open the Power Generator')
-    expect(useOnboardingState().teaching('v1').lessons['orientation.resources']).toBe('acknowledged')
+    expect(useOnboardingState().teaching('v1').lessons['orientation.resources']).toBe(
+      'acknowledged'
+    )
     wrapper.unmount()
   })
 
@@ -592,8 +627,7 @@ describe('OnboardingSpotlight', () => {
 
   describe('guide card', () => {
     const card = () => document.querySelector<HTMLElement>('.onboarding-card')
-    const collapseToggle = () =>
-      document.querySelector<HTMLButtonElement>('.onboarding-collapse')
+    const collapseToggle = () => document.querySelector<HTMLButtonElement>('.onboarding-collapse')
 
     const anchored = (top: number, key = 'resource-power') => {
       const anchor = document.createElement('div')
@@ -633,9 +667,9 @@ describe('OnboardingSpotlight', () => {
       collapseToggle()?.click()
       await flushPromises()
       expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('true')
-      expect(document.querySelector('#onboarding-guide-body')?.getAttribute('style') ?? '').not.toContain(
-        'display: none'
-      )
+      expect(
+        document.querySelector('#onboarding-guide-body')?.getAttribute('style') ?? ''
+      ).not.toContain('display: none')
       wrapper.unmount()
     })
 
@@ -747,23 +781,32 @@ describe('OnboardingSpotlight', () => {
   })
 })
 
-
 describe('first-session continuity', () => {
-  const mountHandoff = () => mount(OnboardingSpotlight, {
-    attachTo: document.body,
-    global: { stubs: {
-      IntroHandoffCard: {
-        props: ['vaultId'], emits: ['dismiss'],
-        template: '<section aria-label="First expedition handoff"><button @click="$emit(\'dismiss\')">Finish intro</button></section>',
+  const mountHandoff = () =>
+    mount(OnboardingSpotlight, {
+      attachTo: document.body,
+      global: {
+        stubs: {
+          IntroHandoffCard: {
+            props: ['vaultId'],
+            emits: ['dismiss'],
+            template:
+              '<section aria-label="First expedition handoff"><button @click="$emit(\'dismiss\')">Finish intro</button></section>',
+          },
+        },
       },
-    } },
-  })
+    })
   const finishOrientation = () => {
     acknowledgeLessons(...ALL_LESSONS)
     useOnboardingState().patch('v1', { welcomed: true })
-    useObjectivesStore().objectives = [objective('departure', {
-      templateKey: DEPARTURE_KEY, progress: 1, total: 1, isCompleted: true,
-    })]
+    useObjectivesStore().objectives = [
+      objective('departure', {
+        templateKey: DEPARTURE_KEY,
+        progress: 1,
+        total: 1,
+        isCompleted: true,
+      }),
+    ]
   }
 
   it('hands off only after a real departure claim and keeps dismissal per vault', async () => {
@@ -772,7 +815,9 @@ describe('first-session continuity', () => {
     await flushPromises()
     expect(!!document.querySelector('[aria-label="First expedition handoff"]')).toBe(true)
     expect(document.querySelector('.onboarding-cutout')).toBeNull()
-    document.querySelector<HTMLButtonElement>('[aria-label="First expedition handoff"] button')!.click()
+    document
+      .querySelector<HTMLButtonElement>('[aria-label="First expedition handoff"] button')!
+      .click()
     await flushPromises()
     expect(useOnboardingState().vaultState('v1').handoffDismissed).toBe(true)
     expect(useOnboardingState().vaultState('v2').handoffDismissed).toBeUndefined()
@@ -781,7 +826,8 @@ describe('first-session continuity', () => {
   })
 
   it.each(['skip', 'replay', 'unearned', 'other-vault'])(
-    'does not show the handoff for %s', async (condition) => {
+    'does not show the handoff for %s',
+    async (condition) => {
       finishOrientation()
       if (condition === 'skip') useOnboardingState().skipTour('v1')
       if (condition === 'replay') {
@@ -813,8 +859,9 @@ describe('first-session continuity', () => {
     await clickButton('Start')
     await clickButton('Claim dweller:Wanderer')
     expect(document.body.textContent).toContain('Wanderer has joined your vault')
-    const view = [...document.querySelectorAll<HTMLButtonElement>('button')]
-      .find(button => button.textContent?.trim() === 'View dwellers')
+    const view = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent?.trim() === 'View dwellers'
+    )
     expect(view).toBeDefined()
     view!.click()
     await flushPromises()

@@ -219,7 +219,7 @@ def test_crafting_config_rejects_negative_material_counts() -> None:
     """A negative count would consume the wrong junk."""
     from app.core.game_config import CraftingConfig
 
-    with pytest.raises(ValidationError, match="non-negative"):
+    with pytest.raises(ValidationError) as exc:
         CraftingConfig(
             junk_recipe_by_rarity={
                 "common": {"common": -1},
@@ -227,6 +227,7 @@ def test_crafting_config_rejects_negative_material_counts() -> None:
                 "legendary": {"common": 3, "rare": 3, "legendary": 3},
             }
         )
+    assert exc.value.errors()[0]["loc"] == ("junk_recipe_by_rarity", "common", "common")
 
 
 def test_crafting_config_normalizes_rarity_keys() -> None:

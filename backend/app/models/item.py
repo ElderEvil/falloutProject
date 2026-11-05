@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import sqlalchemy as sa
 from pydantic import UUID4, model_validator
@@ -17,7 +17,7 @@ class ItemBase(SQLModel):
     value: int | None = Field(default=None, ge=0)
     image_url: str | None = Field(default=None, max_length=255)
 
-    _value_by_rarity = {
+    _value_by_rarity: ClassVar[dict[RarityEnum, int]] = {
         RarityEnum.COMMON: 10,
         RarityEnum.RARE: 100,
         RarityEnum.LEGENDARY: 500,

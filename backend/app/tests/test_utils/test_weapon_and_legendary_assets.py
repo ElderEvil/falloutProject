@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import pytest
+
+from app.utils import weapon_assets
 from app.utils.legendary_dweller_assets import (
     LEGENDARY_DWELLER_IMAGE_FILES,
     get_legendary_dweller_image_url,
@@ -9,6 +12,35 @@ from app.utils.weapon_assets import WEAPON_NAME_TO_IMAGE_FILE, get_weapon_image_
 
 WEAPON_IMAGE_DIR = Path(__file__).parent.parent.parent / "static" / "weapon_images"
 LEGENDARY_IMAGE_DIR = Path(__file__).parent.parent.parent / "static" / "legendary_dweller_images"
+
+
+@pytest.fixture
+def isolated_weapon_art(tmp_path, monkeypatch):
+    monkeypatch.setattr(weapon_assets, "_WEAPON_IMAGE_DIR", tmp_path / "weapon_images")
+    weapon_assets._disk_index.cache_clear()
+    yield weapon_assets._WEAPON_IMAGE_DIR
+    weapon_assets._disk_index.cache_clear()
+
+
+def test_weapon_filename_lookup_keeps_its_lazy_directory_snapshot(isolated_weapon_art):
+    isolated_weapon_art.mkdir()
+    (isolated_weapon_art / "Prototype blaster FOS.png").touch()
+    (isolated_weapon_art / "10mm pistol FOS.png").touch()
+    assert get_weapon_image_url("PROTOTYPE BLASTER") == "/static/weapon_images/Prototype blaster FOS.png"
+
+    (isolated_weapon_art / "Future blaster FOS.png").touch()
+    assert get_weapon_image_url("Future blaster") == "/static/weapon_images/10mm pistol FOS.png"
+    weapon_assets._disk_index.cache_clear()
+    assert get_weapon_image_url("Future blaster") == "/static/weapon_images/Future blaster FOS.png"
+
+
+def test_weapon_filename_lookup_caches_a_missing_directory(isolated_weapon_art):
+    assert get_weapon_image_url("Prototype blaster") is None
+    isolated_weapon_art.mkdir()
+    (isolated_weapon_art / "Prototype blaster FOS.png").touch()
+    assert get_weapon_image_url("Prototype blaster") is None
+    weapon_assets._disk_index.cache_clear()
+    assert get_weapon_image_url("Prototype blaster") == "/static/weapon_images/Prototype blaster FOS.png"
 
 
 def test_static_weapons_have_image_urls() -> None:

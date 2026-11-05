@@ -14,13 +14,106 @@ from app.core.enums import RequirementType
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement
 from app.models.quest_reward import QuestReward
-from app.schemas.quest import QuestRewardJSON
-from app.utils.load_quests import load_all_quest_chain_files
+from app.schemas.quest import QuestJSON, QuestRewardJSON
+from app.utils.load_quests import load_all_quest_chain_files, load_quest_chain_from_json
 from app.utils.seed_quests import seed_quests_from_json
 from app.utils.static_data import game_data_store
 
 _LEVEL_GATE_RE = re.compile(r"level\s+(\d+)", re.IGNORECASE)
 _PREDECESSOR_RE = re.compile(r"complete\s+['\"]?([^'\"]+?)['\"]?\s+quest", re.IGNORECASE)
+
+
+@pytest.mark.parametrize("file_format", ["single", "list", "chain"])
+def test_quest_loader_preserves_supported_formats_and_filename_defaults(tmp_path, file_format):
+    quest = {
+        "Quest name": "Supply Run",
+        "Short description": "Gather supplies",
+        "Requirements": ["Level 1"],
+        "Quest objective": "Return safely",
+        "duration_minutes": 30,
+    }
+    data = {"quests": [quest]} if file_format == "chain" else ([quest] if file_format == "list" else quest)
+    path = tmp_path / "supply_runs.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    chain = load_quest_chain_from_json(str(path))
+
+    assert chain.title == "Supply Runs"
+    assert chain.chain_id is None
+    assert chain.chain_description is None
+    assert len(chain.quests) == 1
+    loaded = chain.quests[0]
+    assert loaded.quest_name == "Supply Run"
+    assert loaded.short_description == "Gather supplies"
+    assert loaded.requirements == ["Level 1"]
+    assert loaded.quest_objective == "Return safely"
+    assert loaded.duration_minutes == 30
+
+
+def test_quest_loader_preserves_chain_metadata_and_quest_order(tmp_path):
+    data = {
+        "chain_name": "The Supply Line",
+        "chain_id": "supply-line",
+        "chain_description": "A two-part expedition",
+        "quests": [{"quest_name": "First"}, {"quest_name": "Second"}],
+    }
+    path = tmp_path / "supplies.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    chain = load_quest_chain_from_json(str(path))
+
+    assert (chain.title, chain.chain_id, chain.chain_description) == (
+        "The Supply Line",
+        "supply-line",
+        "A two-part expedition",
+    )
+    assert [quest.quest_name for quest in chain.quests] == ["First", "Second"]
+
+
+@pytest.mark.parametrize("file_format", ["single", "list", "chain"])
+def test_quest_loader_rejects_invalid_nested_quest_data(tmp_path, file_format):
+    quest = {"quest_name": "Invalid", "duration_minutes": 1}
+    data = {"quests": [quest]} if file_format == "chain" else ([quest] if file_format == "list" else quest)
+    path = tmp_path / "invalid.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(ValidationError, match="duration_minutes"):
+        load_quest_chain_from_json(str(path))
+
+
+@pytest.mark.parametrize(
+    ("field", "alias"),
+    [
+        ("quest_name", "Quest name"),
+        ("long_description", "Long description"),
+        ("short_description", "Short description"),
+        ("requirements", "Requirements"),
+        ("rewards", "Rewards"),
+        ("quest_objective", "Quest objective"),
+    ],
+)
+def test_quest_json_accepts_both_aliases_and_prefers_snake_case(field, alias):
+    spaced = QuestJSON.model_validate({alias: "spaced"})
+    snake = QuestJSON.model_validate({field: "snake", alias: "spaced"})
+    assert getattr(spaced, field) == "spaced"
+    assert getattr(snake, field) == "snake"
+    assert snake.model_dump(by_alias=True)[alias] == "snake"
+
+
+@pytest.mark.parametrize(
+    ("names", "expected"),
+    [
+        ({}, "Legacy title"),
+        ({"Quest name": "Spaced"}, "Spaced"),
+        ({"quest_name": "Snake", "Quest name": "Spaced"}, "Snake"),
+        ({"quest_name": "", "Quest name": "Spaced"}, "Legacy title"),
+        ({"quest_name": None}, "Legacy title"),
+        ({"Quest name": ""}, "Legacy title"),
+    ],
+)
+def test_quest_json_preserves_legacy_title_fallback(names, expected):
+    data = {"title": "Legacy title", **names}
+    quest = QuestJSON.model_validate(data)
+    assert quest.quest_name == expected
 
 
 def test_quest_display_requirements_never_advertise_unenforced_gates() -> None:

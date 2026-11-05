@@ -1,5 +1,6 @@
 """Weapon image URL resolution for backend static assets."""
 
+from functools import cache
 from pathlib import Path
 
 from app.utils.weapon_naming import family_key
@@ -56,23 +57,17 @@ WEAPON_NAME_TO_IMAGE_FILE = {
 _WEAPON_IMAGE_DIR = Path(__file__).parent.parent / "static" / "weapon_images"
 _FALLBACK_IMAGE_FILE = "10mm pistol FOS.png"
 
-_file_index: dict[str, str] | None = None
 
-
+@cache
 def _disk_index() -> dict[str, str]:
     """Casefolded filename stem -> actual filename for vendored weapon art.
 
     Built once so variant cards resolve by naming convention without growing
     the hand-authored map per entry.
     """
-    global _file_index
-    if _file_index is None:
-        _file_index = (
-            {path.name.casefold(): path.name for path in _WEAPON_IMAGE_DIR.iterdir()}
-            if _WEAPON_IMAGE_DIR.is_dir()
-            else {}
-        )
-    return _file_index
+    return (
+        {path.name.casefold(): path.name for path in _WEAPON_IMAGE_DIR.iterdir()} if _WEAPON_IMAGE_DIR.is_dir() else {}
+    )
 
 
 def _convention_lookup(weapon_name: str) -> str | None:

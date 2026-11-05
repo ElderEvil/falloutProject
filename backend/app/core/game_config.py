@@ -12,10 +12,9 @@ Usage:
 """
 
 import logging
-import math
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
+from pydantic import BaseModel, Field, NonNegativeInt, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.enums import IncidentType, RarityEnum, SPECIALEnum, VaultModeEnum, WeaponTypeEnum
@@ -40,6 +39,8 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+NonNegativeStrictInt = Annotated[int, Field(strict=True, ge=0)]
 
 
 class GameLoopConfig(BaseSettings):
@@ -84,8 +85,9 @@ class IncidentConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="INCIDENT_")
 
-    room_rate_tiers: list[list[float]] = Field(
+    room_rate_tiers: list[Annotated[list[float], Field(min_length=2, max_length=2)]] = Field(
         default=[[15, 1.0], [30, 2.0], [9999, 4.0]],
+        min_length=1,
         description="Max rooms (transit included) to incidents per hour, first match wins; starter vaults see one per hour, developed ones one per quarter",
     )
     min_vault_population: int = Field(
@@ -213,12 +215,8 @@ class IncidentConfig(BaseSettings):
     @classmethod
     def validate_room_rate_tiers(cls, tiers: list[list[float]]) -> list[list[float]]:
         """Require non-empty [cap, rate] tiers with strictly ascending caps and non-negative rates."""
-        if not tiers:
-            raise ValueError("room_rate_tiers must not be empty")
         previous_cap = float("-inf")
         for tier in tiers:
-            if len(tier) != 2:
-                raise ValueError("Each room_rate_tiers entry must be [cap, rate]")
             cap, rate = tier
             if cap <= previous_cap:
                 raise ValueError("room_rate_tiers caps must ascend")
@@ -320,7 +318,7 @@ class CombatConfig(BaseSettings):
     # Tankier mid-tier threats without raising their damage: the multiplier applies only
     # to progress denominators, so fights last longer while incoming damage is unchanged.
     # Fire and Deathclaw are intentionally absent.
-    incident_threat_health_multipliers: dict[str, float] = Field(
+    incident_threat_health_multipliers: dict[str, Annotated[float, Field(gt=0, allow_inf_nan=False)]] = Field(
         default_factory=lambda: {
             IncidentType.RAIDER_ATTACK.value: 2.0,
             IncidentType.FERAL_GHOUL_ATTACK.value: 2.0,
@@ -346,16 +344,6 @@ class CombatConfig(BaseSettings):
         ge=0,
         description="Per-vault window during which further arena finishes grant no morale",
     )
-
-    @field_validator("incident_threat_health_multipliers")
-    @classmethod
-    def validate_incident_threat_health_multipliers(cls, v: dict[str, float]) -> dict[str, float]:
-        for incident_type, multiplier in v.items():
-            if not math.isfinite(multiplier) or multiplier <= 0:
-                raise ValueError(
-                    f"incident_threat_health_multipliers[{incident_type!r}] must be finite and greater than zero"
-                )
-        return v
 
     @field_validator("weapon_stat_weights", mode="before")
     @classmethod
@@ -475,7 +463,7 @@ class HappinessConfig(BaseSettings):
     radiation_penalty: float = Field(default=1.0, description="Happiness decay for irradiated dwellers", ge=0.0)
 
     # Sentiment to happiness delta mapping (sentiment -5..+5 → delta -10..+10)
-    sentiment_delta_mapping: dict[int, int] = Field(
+    sentiment_delta_mapping: dict[Annotated[int, Field(ge=-5, le=5)], Annotated[int, Field(ge=-10, le=10)]] = Field(
         default_factory=lambda: {
             -5: -10,
             -4: -8,
@@ -491,17 +479,6 @@ class HappinessConfig(BaseSettings):
         },
         description="Lookup table mapping sentiment score (-5..+5) to happiness delta (-10..+10)",
     )
-
-    @field_validator("sentiment_delta_mapping")
-    @classmethod
-    def validate_sentiment_delta_mapping(cls, v: dict[int, int]) -> dict[int, int]:
-        """Validate sentiment delta mapping keys and values."""
-        for key, value in v.items():
-            if not -5 <= key <= 5:
-                raise ValueError(f"Sentiment delta mapping key must be in range -5..+5, got {key}")
-            if not -10 <= value <= 10:
-                raise ValueError(f"Sentiment delta mapping value must be in range -10..+10, got {value}")
-        return v
 
     def get_happiness_delta(self, sentiment: int) -> int:
         """Get happiness delta for a given sentiment score.
@@ -805,7 +782,7 @@ class BioConfig(BaseSettings):
     # Keyed by RarityEnum value string so env overrides stay JSON-friendly.
     # Origin is always registered; only traveled history is rarity-gated, so a
     # common vault-born dweller is origin-only while a legendary knows two places.
-    visited_by_rarity: dict[str, int] = Field(
+    visited_by_rarity: dict[str, NonNegativeInt] = Field(
         default={"common": 0, "rare": 1, "legendary": 2},
         description="Max visited map places per rarity (common/rare/legendary)",
     )
@@ -818,14 +795,6 @@ class BioConfig(BaseSettings):
         le=1.0,
         description="Chance a generated dweller bio carries a Zone rumour (0-1)",
     )
-
-    @field_validator("visited_by_rarity")
-    @classmethod
-    def validate_visited_by_rarity(cls, v: dict[str, int]) -> dict[str, int]:
-        """Reject negative visited-place caps (would break rng.sample in the filler)."""
-        if any(count < 0 for count in v.values()):
-            raise ValueError("visited_by_rarity values must be non-negative")
-        return v
 
     def max_visited(self, rarity: str) -> int:
         """Resolve max visited places for a rarity value string (falls back to common)."""
@@ -1183,7 +1152,7 @@ class ExplorationConfig(BaseSettings):
 class CraftingConfig(BaseSettings):
     """Workshop crafting costs and the order queue."""
 
-    junk_recipe_by_rarity: dict[str, dict[str, int]] = Field(
+    junk_recipe_by_rarity: dict[str, dict[str, NonNegativeStrictInt]] = Field(
         default_factory=lambda: {
             "common": {"common": 3},
             "rare": {"common": 3, "rare": 3},
@@ -1191,11 +1160,11 @@ class CraftingConfig(BaseSettings):
         },
         description="Junk materials per crafted rarity, keyed by the material's own rarity",
     )
-    caps_cost_by_rarity: dict[str, int] = Field(
+    caps_cost_by_rarity: dict[str, NonNegativeStrictInt] = Field(
         default_factory=lambda: {"common": 0, "rare": 100, "legendary": 500},
         description="Bottle caps required, keyed by the crafted item's rarity",
     )
-    order_seconds_by_rarity: dict[str, int] = Field(
+    order_seconds_by_rarity: dict[str, NonNegativeStrictInt] = Field(
         default_factory=lambda: {"common": 3600, "rare": 21600, "legendary": 86400},
         description="Base workshop order duration in seconds (1h / 6h / 24h), keyed by rarity",
     )
@@ -1210,7 +1179,7 @@ class CraftingConfig(BaseSettings):
         le=1.0,
         description="Fastest an order can get, as a fraction of its base duration",
     )
-    unlock_scrap_count_by_rarity: dict[str, int] = Field(
+    unlock_scrap_count_by_rarity: dict[str, NonNegativeStrictInt] = Field(
         default_factory=lambda: {"rare": 1, "legendary": 1},
         description="Scraps of the exact item needed to learn its recipe, keyed by rarity; absent = unlocked",
     )
@@ -1227,17 +1196,12 @@ class CraftingConfig(BaseSettings):
         required = {rarity.value for rarity in RarityEnum}
         if missing := required - normalized.keys():
             raise ValueError(f"Crafting cost map is missing rarities: {sorted(missing)}")
-        if any(isinstance(cost, bool) or not isinstance(cost, int) or cost < 0 for cost in normalized.values()):
-            raise ValueError("Crafting costs must be non-negative integers")
         return normalized
 
     @field_validator("unlock_scrap_count_by_rarity", mode="before")
     @classmethod
     def validate_unlock_counts(cls, v: dict[str, int]) -> dict[str, int]:
-        normalized = {str(key).lower(): count for key, count in v.items()}
-        if any(isinstance(count, bool) or not isinstance(count, int) or count < 0 for count in normalized.values()):
-            raise ValueError("Unlock scrap counts must be non-negative integers")
-        return normalized
+        return {str(key).lower(): count for key, count in v.items()}
 
     def scrap_unlock_count(self, rarity: str) -> int:
         """Scraps of this rarity needed to learn its recipe; 0 means already unlocked."""
@@ -1259,8 +1223,6 @@ class CraftingConfig(BaseSettings):
             counts = {str(material).lower(): count for material, count in materials.items()}
             if unknown := set(counts) - required:
                 raise ValueError(f"Unknown material rarities: {sorted(unknown)}")
-            if any(isinstance(c, bool) or not isinstance(c, int) or c < 0 for c in counts.values()):
-                raise ValueError("Junk material counts must be non-negative integers")
             normalized[str(item_rarity).lower()] = counts
         if missing := required - normalized.keys():
             raise ValueError(f"Crafting junk recipe is missing rarities: {sorted(missing)}")

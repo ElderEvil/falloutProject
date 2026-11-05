@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.286.1 (2026-11-05)
+
+### Bug Fixes
+
+* **radio:** ship ffmpeg in the backend image and dock the broadcast console ([#1322](https://github.com/ElderEvil/falloutProject/issues/1322)) 79d4ef5
+
 ## 2.286.0 (2026-11-05)
 
 ### Features

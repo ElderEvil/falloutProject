@@ -26,6 +26,19 @@ vi.mock('@/core/composables/useToast', () => ({
   useToast: () => createToastMock(),
 }))
 
+// Constructable Audio stub: vi.fn().mockImplementation is not callable with `new`,
+// but the widget does `new Audio(url)`. The stub exposes the mock's fns on the instance.
+function stubAudio(mock: { play: ReturnType<typeof vi.fn>; pause: ReturnType<typeof vi.fn> }) {
+  class AudioStub {
+    onended: unknown = null
+    onerror: unknown = null
+    play = mock.play
+    pause = mock.pause
+    constructor(public src: string) {}
+  }
+  vi.stubGlobal('Audio', AudioStub)
+}
+
 const now = new Date()
 const todayISO = now.toISOString()
 const yesterday = new Date(now)
@@ -154,7 +167,7 @@ describe('RadioNewsWidget', () => {
       play: vi.fn().mockResolvedValue(undefined),
       pause: vi.fn(),
     }
-    vi.stubGlobal('Audio', vi.fn().mockImplementation(() => audioMock))
+    stubAudio(audioMock)
 
     const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
@@ -213,11 +226,15 @@ describe('RadioNewsWidget', () => {
       play: vi.fn().mockResolvedValue(undefined),
       pause: vi.fn(),
     }
-    vi.stubGlobal('Audio', vi.fn().mockImplementation(() => audioMock))
+    stubAudio(audioMock)
 
     const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
     mockApiGet.mockResolvedValue(makeBroadcast())
+
+    // Mark today's broadcast as played so the login auto-play doesn't fire —
+    // this test exercises the manual play button.
+    localStorage.setItem('radio_news_played', JSON.stringify({ 'broadcast-1': Date.now() }))
 
     const wrapper = mount(RadioNewsWidget, {
       props: { vaultId: 'vault-1' },
@@ -260,7 +277,7 @@ describe('RadioNewsWidget', () => {
       play: vi.fn().mockResolvedValue(undefined),
       pause: vi.fn(),
     }
-    vi.stubGlobal('Audio', vi.fn().mockImplementation(() => audioMock))
+    stubAudio(audioMock)
 
     const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
@@ -311,7 +328,7 @@ describe('RadioNewsWidget', () => {
       play: vi.fn().mockResolvedValue(undefined),
       pause: vi.fn(),
     }
-    vi.stubGlobal('Audio', vi.fn().mockImplementation(() => audioMock))
+    stubAudio(audioMock)
 
     const broadcast = makeBroadcast({ id: 'broadcast-1' })
     mockApiGet.mockResolvedValue(broadcast)
@@ -347,7 +364,7 @@ describe('RadioNewsWidget', () => {
       play: vi.fn().mockResolvedValue(undefined),
       pause: vi.fn(),
     }
-    vi.stubGlobal('Audio', vi.fn().mockImplementation(() => audioMock))
+    stubAudio(audioMock)
 
     const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 
@@ -372,7 +389,7 @@ describe('RadioNewsWidget', () => {
       play: vi.fn().mockResolvedValue(undefined),
       pause: vi.fn(),
     }
-    vi.stubGlobal('Audio', vi.fn().mockImplementation(() => audioMock))
+    stubAudio(audioMock)
 
     const { default: RadioNewsWidget } = await import('@/modules/radio-news/components/RadioNewsWidget.vue')
 

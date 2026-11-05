@@ -307,3 +307,44 @@ describe('RadioNewsWidget', () => {
     ])
   })
 })
+
+  it('regenerates from the HUD control', async () => {
+    const regenerated = makeBroadcast({ id: 'broadcast-2', title: 'Regenerated' })
+    mockApiGet.mockResolvedValue(makeBroadcast({ id: 'broadcast-1' }))
+    mockApiPost.mockResolvedValue(regenerated)
+
+    const wrapper = mount(RadioNewsWidget, {
+      props: { vaultId: 'vault-1' },
+    })
+    await flushPromises()
+    await wrapper.find('.radio-news-widget__regenerate-btn').trigger('click')
+    await flushPromises()
+
+    expect(mockApiPost.mock.calls[0][0]).toContain('/radio-news/regenerate')
+    expect(wrapper.emitted('newBroadcast')?.at(-1)).toEqual([regenerated])
+  })
+
+  it('ignores a stale response when returning to the same vault', async () => {
+    const resolvers: Array<(value: unknown) => void> = []
+    mockApiGet.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(resolve)
+        })
+    )
+
+    const wrapper = mount(RadioNewsWidget, {
+      props: { vaultId: 'vault-1' },
+    })
+    await wrapper.setProps({ vaultId: 'vault-2' })
+    await wrapper.setProps({ vaultId: 'vault-1' })
+
+    resolvers[2](makeBroadcast({ id: 'latest-a', title: 'Latest A' }))
+    await flushPromises()
+    resolvers[0](makeBroadcast({ id: 'stale-a', title: 'Stale A' }))
+    await flushPromises()
+
+    expect(wrapper.emitted('newBroadcast')?.at(-1)).toEqual([
+      makeBroadcast({ id: 'latest-a', title: 'Latest A' }),
+    ])
+  })

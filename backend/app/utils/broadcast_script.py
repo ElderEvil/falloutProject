@@ -104,47 +104,43 @@ def build_daily_script(
     return (title, script)
 
 
-def _extract_notified_names(notifications: list[dict]) -> list[str]:
-    """Pull dweller names from notifications for the level-up line."""
-    names = []
-    for n in notifications:
-        for key in ("dweller_name", "name", "dweller_first_name"):
-            val = n.get(key)
-            if val and isinstance(val, str) and val.strip():
-                names.append(val.strip())
-                break
-    return names[:2]
+def _notification_name(notification: dict) -> str:
+    for key in ("dweller_name", "name", "dweller_first_name"):
+        value = notification.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
 
 
 def _extract_notable(notifications: list[dict], *, _max: int = 3) -> str:
-    """Extract up to _max notable notifications into a single line."""
+    """Extract notable notifications, batching level-ups under each dweller's own name."""
     if not notifications:
         return ""
 
-    notable_lines: list[str] = []
-    names = _extract_notified_names(notifications)
+    level_names = [
+        name
+        for notification in notifications
+        if "level" in str(notification.get("notification_type", "")).lower()
+        and (name := _notification_name(notification))
+    ]
+    lines: list[str] = []
+    if level_names:
+        if len(level_names) == 1:
+            lines.append(f"{level_names[0]} has reached a new level tonight.")
+        else:
+            lines.append(f"{', '.join(level_names)} have reached new levels tonight.")
 
-    for n in notifications[:_max]:
-        notif_type = n.get("notification_type", "")
-        msg = n.get("message", "")
-
-        if notif_type and "level" in notif_type.lower():
-            if len(names) >= 1:
-                notable_lines.append(f"{names[0]} has reached a new level tonight.")
-            elif msg:
-                notable_lines.append(f"A resident has reached a new level. {msg[:80]}.")
-            continue
-
-        if notif_type and "dweller" in notif_type.lower():
-            if len(names) >= 1:
-                notable_lines.append(f"{names[0]} - {msg[:80]}.")
-            elif msg:
-                notable_lines.append(f"{msg[:80]}.")
-            continue
-
-        if msg:
-            notable_lines.append(f"{msg[:100]}.")
-
-    if not notable_lines:
-        return ""
-    return " ".join(notable_lines)
+    others = [
+        notification
+        for notification in notifications
+        if "level" not in str(notification.get("notification_type", "")).lower()
+    ][:_max]
+    for notification in others:
+        notif_type = str(notification.get("notification_type", "")).lower()
+        message = str(notification.get("message", ""))
+        name = _notification_name(notification)
+        if "dweller" in notif_type and name:
+            lines.append(f"{name} - {message[:80]}.")
+        elif message:
+            lines.append(f"{message[:100]}.")
+    return " ".join(lines)

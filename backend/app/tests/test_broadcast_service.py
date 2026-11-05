@@ -221,6 +221,29 @@ async def test_clear_failure_rolls_back_prune(async_session, vault):
 
 
 @pytest.mark.asyncio
+async def test_refresh_failure_does_not_delete_committed_audio(async_session, vault, monkeypatch):
+    client = _storage()
+
+    async def fail_refresh(*_args, **_kwargs):
+        raise RuntimeError("refresh failed")
+
+    monkeypatch.setattr(async_session, "refresh", fail_refresh)
+    with (
+        patch.object(broadcast_service, "get_openrouter_tts_service", return_value=_tts(enabled=True, audio=b"wav")),
+        patch.object(broadcast_service, "get_elevenlabs_tts_service", return_value=_tts(enabled=False)),
+        patch.object(broadcast_service, "get_storage_client", return_value=client),
+        patch("app.services.broadcast_service.shutil.which", return_value=None),
+        pytest.raises(RuntimeError, match="refresh failed"),
+    ):
+        await get_or_create_daily(async_session, vault.id, vault_data=VAULT_DATA)
+
+    rows = (await async_session.exec(select(Broadcast))).all()
+    assert len(rows) == 1
+    assert rows[0].audio_key is not None
+    client.delete_file.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_insert_failure_rolls_back_and_deletes_upload(async_session, vault):
     client = _storage()
     connection = (await async_session.connection()).sync_connection

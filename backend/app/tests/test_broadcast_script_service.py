@@ -103,6 +103,27 @@ class TestNotificationBatching:
         _, script = build_daily_script(**data)
         assert "level" in script.lower()
 
+    def test_level_ups_use_each_dwellers_name_once(self):
+        data = {
+            "population": 10,
+            "population_max": 20,
+            "caps": 1000,
+            "happiness": 70,
+            "power": (50, 100),
+            "food": (50, 100),
+            "water": (50, 100),
+            "recent_notifications": [
+                {"notification_type": "level_up", "dweller_name": "Alice"},
+                {"notification_type": "level_up", "dweller_name": "Bob"},
+            ],
+            "vault_number": 1,
+        }
+        _, script = build_daily_script(**data)
+        assert "Alice" in script
+        assert "Bob" in script
+        assert script.count("Alice") == 1
+        assert script.count("Bob") == 1
+
     def test_multiple_notifications_batched(self):
         data = {
             "population": 10,

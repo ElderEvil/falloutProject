@@ -301,10 +301,10 @@ async def get_or_create_daily(
             trigger="daily",
         )
         await db.commit()
-        await db.refresh(broadcast)
     except Exception:
         await asyncio.to_thread(_delete_uploaded, audio_key)
         raise
+    await db.refresh(broadcast)
     result = _serialize(broadcast, audio_url=audio_url)
     await _prune_older_audio_transaction(db, vault_id, today)
     return result
@@ -351,10 +351,10 @@ async def regenerate(
             trigger="manual",
         )
         await db.commit()
-        await db.refresh(broadcast)
     except Exception:
         await asyncio.to_thread(_delete_uploaded, audio_key)
         raise
+    await db.refresh(broadcast)
     await _delete_superseded(previous, audio_key)
     result = _serialize(broadcast, audio_url=audio_url)
     await _prune_older_audio_transaction(db, vault_id, today)

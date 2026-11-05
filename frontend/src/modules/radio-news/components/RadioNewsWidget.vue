@@ -10,7 +10,7 @@ import {
   TooltipTrigger,
 } from '@/core/components/ui/tooltip'
 import { useToast } from '@/core/composables/useToast'
-import { fetchRadioNews, type RadioNewsBroadcast } from '../api/radioNews'
+import { fetchRadioNews, regenerateRadioNews, type RadioNewsBroadcast } from '../api/radioNews'
 
 const props = defineProps<{ vaultId: string }>()
 const emit = defineEmits<{ newBroadcast: [broadcast: RadioNewsBroadcast] }>()
@@ -21,6 +21,8 @@ const error = ref<string | null>(null)
 const isPlaying = ref(false)
 const audioEl = ref<HTMLAudioElement | null>(null)
 const hasPlayed = ref(false)
+const isRegenerating = ref(false)
+let loadVersion = 0
 
 const utcDayStart = () => {
   const now = new Date()
@@ -61,22 +63,23 @@ const showTextBroadcast = computed(() => !isAudioAvailable.value && hasScript.va
 const showCaption = computed(() => isPlaying.value && !!broadcast.value?.script)
 
 const loadBroadcast = async () => {
+  const requestVersion = ++loadVersion
   const requestedVaultId = props.vaultId
   isLoading.value = true
   error.value = null
   today.value = utcDayStart()
   try {
     const data = await fetchRadioNews(requestedVaultId)
-    if (requestedVaultId !== props.vaultId) return
+    if (requestVersion !== loadVersion) return
     broadcast.value = data
     hasPlayed.value = data.id ? isPlayedToday(data.id) : false
     emit('newBroadcast', data)
   } catch (err) {
-    if (requestedVaultId !== props.vaultId) return
+    if (requestVersion !== loadVersion) return
     toast.warning('Broadcast unavailable')
     error.value = err instanceof Error ? err.message : 'Failed to load broadcast'
   } finally {
-    if (requestedVaultId === props.vaultId) isLoading.value = false
+    if (requestVersion === loadVersion) isLoading.value = false
   }
 }
 
@@ -117,6 +120,29 @@ const onTogglePlay = async () => {
     stopAudio()
   } else if ((await playAudio(current.audio_url)) && current.id) {
     markPlayed(current.id)
+  }
+}
+
+const onRegenerate = async () => {
+  const current = broadcast.value
+  if (!current || isRegenerating.value) return
+  const requestVersion = ++loadVersion
+  const requestedVaultId = props.vaultId
+  isRegenerating.value = true
+  stopAudio()
+  try {
+    const data = await regenerateRadioNews(requestedVaultId)
+    if (requestVersion !== loadVersion) return
+    broadcast.value = data
+    hasPlayed.value = data.id ? isPlayedToday(data.id) : false
+    emit('newBroadcast', data)
+    toast.success('Broadcast regenerated')
+  } catch (err) {
+    if (requestVersion === loadVersion) {
+      toast.error(err instanceof Error ? err.message : 'Unable to regenerate broadcast')
+    }
+  } finally {
+    if (requestVersion === loadVersion) isRegenerating.value = false
   }
 }
 
@@ -214,22 +240,38 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <!-- Play button (audio available) -->
-      <div v-if="isAudioAvailable" class="radio-news-widget__play-controls animate-pulse">
+      <!-- Playback and regeneration controls -->
+      <div v-if="broadcast" class="flex items-center gap-2">
+        <div v-if="isAudioAvailable" class="radio-news-widget__play-controls animate-pulse">
+          <Button
+            variant="outline"
+            size="sm"
+            class="radio-news-widget__play-btn border-theme-primary/30"
+            :class="{ 'bg-theme-primary/20': isPlaying }"
+            @click="onTogglePlay"
+          >
+            <Icon
+              :icon="isPlaying ? 'mdi:pause' : 'mdi:play'"
+              class="radio-news-widget__play-icon h-4 w-4"
+            />
+            <span class="radio-news-widget__play-text text-xs font-semibold">
+              {{ isPlaying ? 'Stop' : 'Play' }}
+            </span>
+          </Button>
+        </div>
         <Button
           variant="outline"
           size="sm"
-          class="radio-news-widget__play-btn border-theme-primary/30"
-          :class="{ 'bg-theme-primary/20': isPlaying }"
-          @click="onTogglePlay"
+          class="radio-news-widget__regenerate-btn border-theme-primary/30"
+          :disabled="isRegenerating"
+          @click="onRegenerate"
         >
           <Icon
-            :icon="isPlaying ? 'mdi:pause' : 'mdi:play'"
-            class="radio-news-widget__play-icon h-4 w-4"
+            :icon="isRegenerating ? 'mdi:loading' : 'mdi:refresh'"
+            class="h-4 w-4"
+            :class="{ 'animate-spin': isRegenerating }"
           />
-          <span class="radio-news-widget__play-text text-xs font-semibold">
-            {{ isPlaying ? 'Stop' : 'Play' }}
-          </span>
+          <span class="text-xs font-semibold">Regenerate</span>
         </Button>
       </div>
     </div>

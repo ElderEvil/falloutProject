@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -10,7 +10,6 @@ from app.api.deps import CurrentActiveUser, get_user_vault_or_403
 from app.db.session import get_async_session
 from app.schemas.broadcast import BroadcastRead
 from app.services.broadcast_service import get_or_create_daily, regenerate, vault_stats_from_db
-from app.utils.exceptions import BroadcastRateLimitException
 
 router = APIRouter(tags=["Vault Radio Hour"])
 
@@ -34,10 +33,4 @@ async def regenerate_vault_radio_news(
 ) -> BroadcastRead:
     """Render a new manual broadcast, rate-limited to three per UTC day."""
     vault = await get_user_vault_or_403(vault_id, user, db_session)
-    try:
-        return await regenerate(db_session, vault_id, vault_data=vault_stats_from_db(vault))
-    except BroadcastRateLimitException as exc:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=exc.detail,
-        ) from exc
+    return await regenerate(db_session, vault_id, vault_data=vault_stats_from_db(vault))

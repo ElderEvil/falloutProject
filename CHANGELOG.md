@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.286.2 (2026-11-05)
+
+### Bug Fixes
+
+* **radio:** match the tuner trigger width to the receiver panel ([#1327](https://github.com/ElderEvil/falloutProject/issues/1327)) f1edf86
+* **radio:** store broadcast audio in the public narration bucket ([#1326](https://github.com/ElderEvil/falloutProject/issues/1326)) 9b0595b
+
 ## 2.286.1 (2026-11-05)
 
 ### Bug Fixes

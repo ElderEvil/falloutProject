@@ -258,54 +258,56 @@ onBeforeUnmount(() => {
       type="button"
       variant="ghost"
       size="sm"
-      class="radio-news-widget__toggle fixed bottom-24 right-4 z-50 flex h-auto items-center gap-2 rounded-full border-2 border-theme-primary/40 bg-surface-warm/95 px-3 py-2 text-theme-primary shadow-lg transition-colors hover:border-theme-primary hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-theme-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-warm sm:right-6"
+      class="radio-news-widget__toggle fixed bottom-24 right-4 z-50 flex h-auto w-[min(26rem,calc(100vw-2rem))] items-center justify-between gap-2 rounded-lg border-2 border-theme-primary/40 bg-surface-warm/95 px-3 py-2 text-theme-primary shadow-lg transition-colors hover:border-theme-primary hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-theme-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-warm sm:right-6"
       :class="{ 'border-theme-primary shadow-glow-sm': isNew }"
       :aria-expanded="isOpen"
       aria-controls="radio-news-panel"
       :aria-label="toggleLabel"
       @click="togglePanel"
     >
-      <span
-        class="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-theme-primary/40 bg-surface-sunken"
-      >
-        <Icon icon="mdi:radio" class="h-4 w-4" />
+      <span class="flex min-w-0 items-center gap-2">
         <span
-          v-if="isPlaying || isNew"
-          class="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full motion-reduce:animate-none"
-          :class="isPlaying ? 'bg-danger animate-pulse' : 'bg-theme-primary animate-pulse'"
-          aria-hidden="true"
-        />
-      </span>
-
-      <span v-if="isLoading" class="radio-news-widget__loading flex items-center gap-2">
-        <span
-          class="h-2 w-12 animate-pulse rounded-full bg-theme-primary/30 motion-reduce:animate-none"
-        />
-        <span class="text-[0.6rem] font-bold uppercase tracking-[0.2em] text-theme-primary/70"
-          >Tuning</span
+          class="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-theme-primary/40 bg-surface-sunken"
         >
-      </span>
-      <span
-        v-else-if="error && !broadcast"
-        class="radio-news-widget__error flex max-w-[10rem] items-center gap-1 text-xs text-danger"
-        :aria-label="error"
-      >
-        <Icon icon="mdi:alert-circle-outline" class="h-4 w-4 shrink-0" />
-        <span class="truncate">{{ error }}</span>
-      </span>
-      <span v-else class="radio-news-widget__badge flex flex-col items-start leading-none">
-        <span
-          class="text-[0.55rem] font-bold uppercase tracking-[0.22em]"
-          :class="isNew ? 'text-theme-primary' : 'text-theme-primary/60'"
-        >
-          {{ isNew ? 'New Broadcast' : 'Radio' }}
+          <Icon icon="mdi:radio" class="h-4 w-4" />
+          <span
+            v-if="isPlaying || isNew"
+            class="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full motion-reduce:animate-none"
+            :class="isPlaying ? 'bg-danger animate-pulse' : 'bg-theme-primary animate-pulse'"
+            aria-hidden="true"
+          />
         </span>
-      </span>
-      <span
-        v-if="!isLoading && broadcast"
-        class="hidden max-w-[11rem] truncate text-[0.65rem] font-semibold sm:block"
-      >
-        {{ isPlaying ? 'On air — click to stop' : title }}
+
+        <span v-if="isLoading" class="radio-news-widget__loading flex items-center gap-2">
+          <span
+            class="h-2 w-12 animate-pulse rounded-full bg-theme-primary/30 motion-reduce:animate-none"
+          />
+          <span class="text-[0.6rem] font-bold uppercase tracking-[0.2em] text-theme-primary/70">
+            Tuning
+          </span>
+        </span>
+        <span
+          v-else-if="error && !broadcast"
+          class="radio-news-widget__error flex max-w-[10rem] items-center gap-1 text-xs text-danger"
+          :aria-label="error"
+        >
+          <Icon icon="mdi:alert-circle-outline" class="h-4 w-4 shrink-0" />
+          <span class="truncate">{{ error }}</span>
+        </span>
+        <span v-else class="radio-news-widget__badge flex flex-col items-start leading-none">
+          <span
+            class="text-[0.55rem] font-bold uppercase tracking-[0.22em]"
+            :class="isNew ? 'text-theme-primary' : 'text-theme-primary/60'"
+          >
+            {{ isNew ? 'New Broadcast' : 'Radio' }}
+          </span>
+        </span>
+        <span
+          v-if="!isLoading && broadcast"
+          class="hidden max-w-[11rem] truncate text-[0.65rem] font-semibold sm:block"
+        >
+          {{ isPlaying ? 'On air — click to stop' : title }}
+        </span>
       </span>
 
       <Icon

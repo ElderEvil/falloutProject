@@ -23,6 +23,7 @@ jobs:
         python-version: ['3.13', '3.14']
     env:
       UV_PYTHON: ${{ matrix.python-version }}
+      UTC_MIGRATION_REQUIRE_POSTGRES: '1'
     permissions:
       contents: read
 

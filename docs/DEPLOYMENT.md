@@ -167,14 +167,15 @@ uv run fo-cli ops check-ai --api-url https://fallout-api.evillab.tech --skip-cha
    PYDANTIC_AI_GATEWAY_BASE_URL
    OPENAI_API_KEY
    OPENROUTER_API_KEY
+   ELEVENLABS_API_KEY
    AI_PROVIDER
    AI_MODEL
    ENVIRONMENT=production
    ```
 
-   `OPENROUTER_API_KEY` powers Vault Radio Hour TTS. Keep it in the repository's GitHub Actions
-   secrets so the deploy workflow writes it into `backend-env`; without it broadcasts fall back to
-   script-only (or ElevenLabs when configured).
+   `OPENROUTER_API_KEY` (primary) and `ELEVENLABS_API_KEY` (fallback) power Vault Radio Hour TTS.
+   Keep both in the repository's GitHub Actions secrets so the deploy workflow writes them into
+   `backend-env`; without them broadcasts fall back to script-only.
 
 4. Leave RustFS variables unset if storage is intentionally unavailable; the backend now starts without it. Configure
    them when media uploads are required.

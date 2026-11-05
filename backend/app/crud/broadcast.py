@@ -58,11 +58,15 @@ async def count_trigger_on_date(
     """
     day_start, day_end = _day_bounds(trigger_date)
 
-    query = select(func.count()).select_from(Broadcast).where(
-        Broadcast.vault_id == vault_id,
-        Broadcast.trigger == trigger,
-        col(Broadcast.created_at) >= day_start,
-        col(Broadcast.created_at) < day_end,
+    query = (
+        select(func.count())
+        .select_from(Broadcast)
+        .where(
+            Broadcast.vault_id == vault_id,
+            Broadcast.trigger == trigger,
+            col(Broadcast.created_at) >= day_start,
+            col(Broadcast.created_at) < day_end,
+        )
     )
     result = await db.execute(query)
     return int(result.scalar_one())

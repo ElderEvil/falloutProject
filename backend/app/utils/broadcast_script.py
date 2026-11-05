@@ -117,11 +117,16 @@ def _extract_notable(notifications: list[dict], *, _max: int = 3) -> str:
     if not notifications:
         return ""
 
-    level_names = [
-        name
+    level_notifications = [
+        notification
         for notification in notifications
         if "level" in str(notification.get("notification_type", "")).lower()
-        and (name := _notification_name(notification))
+    ]
+    level_names = [name for notification in level_notifications if (name := _notification_name(notification))]
+    unnamed_level_messages = [
+        str(notification.get("message", ""))
+        for notification in level_notifications
+        if not _notification_name(notification) and notification.get("message")
     ]
     lines: list[str] = []
     if level_names:
@@ -129,6 +134,8 @@ def _extract_notable(notifications: list[dict], *, _max: int = 3) -> str:
             lines.append(f"{level_names[0]} has reached a new level tonight.")
         else:
             lines.append(f"{', '.join(level_names)} have reached new levels tonight.")
+    if unnamed_level_messages:
+        lines.append(f"A resident has reached a new level. {unnamed_level_messages[0][:80]}.")
 
     others = [
         notification

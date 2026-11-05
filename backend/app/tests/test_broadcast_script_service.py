@@ -103,6 +103,23 @@ class TestNotificationBatching:
         _, script = build_daily_script(**data)
         assert "level" in script.lower()
 
+    def test_unnamed_level_up_keeps_fallback(self):
+        data = {
+            "population": 10,
+            "population_max": 20,
+            "caps": 1000,
+            "happiness": 70,
+            "power": (50, 100),
+            "food": (50, 100),
+            "water": (50, 100),
+            "recent_notifications": [
+                {"notification_type": "level_up", "message": "A dweller reached level 6."},
+            ],
+            "vault_number": 1,
+        }
+        _, script = build_daily_script(**data)
+        assert "level" in script.lower()
+
     def test_level_ups_use_each_dwellers_name_once(self):
         data = {
             "population": 10,

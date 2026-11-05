@@ -8,7 +8,7 @@ export interface RadioNewsBroadcast {
   script: string
   audio_url: string | null
   trigger: 'daily' | 'manual'
-  created_at: string
+  created_at: string | null
 }
 
 /** Switch the vault radio between recruitment and happiness mode. */

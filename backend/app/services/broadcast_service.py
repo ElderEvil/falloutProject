@@ -3,45 +3,61 @@
 import logging
 import shutil
 import subprocess
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import crud
 from app.crud.broadcast import count_trigger_on_date, create_broadcast, get_today_broadcast
+from app.models.vault import Vault
 from app.services.openrouter_tts_service import get_openrouter_tts_service
 from app.services.storage.factory import get_storage_client
 from app.utils.broadcast_script import build_daily_script
-from app.utils.exceptions import TTSProviderException
+from app.utils.exceptions import BroadcastRateLimitException, TTSProviderException, ValidationException
 
 logger = logging.getLogger(__name__)
 
 # Rate limit: max regenerations per vault per UTC day
 MAX_REGENERATIONS_PER_DAY = 3
 
+WAV_CONTENT_TYPE = "audio/wav"
+MP3_CONTENT_TYPE = "audio/mpeg"
 
-def _post_process(wav_bytes: bytes) -> bytes:
+
+def _utc_today() -> date:
+    return datetime.utcnow().date()
+
+
+def vault_stats_from_db(vault: Vault) -> dict[str, Any]:
+    """Extract vault statistics for script rendering."""
+    return {
+        "number": vault.number,
+        "bottle_caps": vault.bottle_caps,
+        "happiness": vault.happiness,
+        "power": vault.power,
+        "power_max": vault.power_max,
+        "food": vault.food,
+        "food_max": vault.food_max,
+        "water": vault.water,
+        "water_max": vault.water_max,
+        "population_max": vault.population_max,
+    }
+
+
+def _post_process(wav_bytes: bytes) -> tuple[bytes, str, str]:
     """Apply vintage radio FX via ffmpeg when available.
 
-    Corrected chain (per prototype validation):
-    - asetrate 44100*0.93  → tape-speed wobble
-    - aresample 44100       → resample back
-    - highpass 250, lowpass 4000 → AM band-pass
-    - equalizer 1500 Hz +4 dB → voice band emphasis
-    - flanger → subtle chorus/space
-    - acompressor + volume boost → loudness glue
-
-    Note: loudnorm intentionally omitted for MVP simplicity (validated
-    in prototype).  No noise bed or CC0 static — that's a follow-up
-    enhancement.
-
-    Returns WAV bytes unchanged when ffmpeg is absent.
+    Returns ``(audio_bytes, content_type, extension)``. The input is a WAV file,
+    so ffmpeg must be told ``-f wav``; treating the header as raw PCM would inject
+    a noise burst and misalign the samples. When ffmpeg is unavailable, the WAV
+    is returned unchanged with its real content type.
     """
     ffmpeg_path = shutil.which("ffmpeg")
     if not ffmpeg_path:
         logger.info("ffmpeg not found; returning raw WAV for broadcast audio")
-        return wav_bytes
+        return wav_bytes, WAV_CONTENT_TYPE, "wav"
 
     af_chain = (
         "asetrate=44100*0.93,aresample=44100,"
@@ -56,11 +72,7 @@ def _post_process(wav_bytes: bytes) -> bytes:
             [
                 ffmpeg_path,
                 "-f",
-                "s16le",
-                "-ar",
-                "44100",
-                "-ac",
-                "1",
+                "wav",
                 "-i",
                 "pipe:0",
                 "-af",
@@ -79,12 +91,130 @@ def _post_process(wav_bytes: bytes) -> bytes:
         )
     except (FileNotFoundError, subprocess.TimeoutExpired) as e:
         logger.warning("ffmpeg post-process failed: %s; returning raw WAV", e)
-        return wav_bytes
+        return wav_bytes, WAV_CONTENT_TYPE, "wav"
     if proc.returncode != 0:
         logger.warning("ffmpeg post-process returned %d: %s", proc.returncode, proc.stderr[:200].decode())
-        return wav_bytes
+        return wav_bytes, WAV_CONTENT_TYPE, "wav"
     logger.info("ffmpeg post-process applied: WAV to MP3 (%d bytes)", len(proc.stdout))
-    return proc.stdout
+    return proc.stdout, MP3_CONTENT_TYPE, "mp3"
+
+
+def _audio_url(audio_key: str | None) -> str | None:
+    """Resolve a stored object key to a playable URL."""
+    if not audio_key:
+        return None
+    client = get_storage_client()
+    if client is None:
+        return None
+    url = client.public_url(file_name=audio_key)
+    return url or None
+
+
+def _delete_uploaded(audio_key: str | None) -> None:
+    if not audio_key:
+        return
+    client = get_storage_client()
+    if client is None:
+        return
+    try:
+        client.delete_file(file_name=audio_key)
+    except Exception as e:
+        logger.warning("Could not delete unused broadcast audio %s: %s", audio_key, e)
+
+
+def _serialize(broadcast: Any, *, audio_url: str | None = None) -> dict[str, Any]:
+    return {
+        "id": str(broadcast.id),
+        "title": broadcast.title,
+        "script": broadcast.script,
+        "audio_url": audio_url if audio_url is not None else _audio_url(broadcast.audio_key),
+        "trigger": broadcast.trigger,
+        "created_at": broadcast.created_at.isoformat() if broadcast.created_at else None,
+    }
+
+
+async def _recent_notifications(db: AsyncSession, vault_id: UUID) -> list[dict[str, Any]]:
+    rows = await crud.notification.get_recent_for_vault(db, vault_id, limit=5)
+    return [
+        {
+            **(row.meta_data or {}),
+            "notification_type": getattr(row.notification_type, "value", row.notification_type),
+            "title": row.title,
+            "message": row.message,
+        }
+        for row in rows
+    ]
+
+
+async def _gender_counts(db: AsyncSession, vault_id: UUID) -> list[tuple[str, int]]:
+    counts = await crud.dweller.count_living_by_gender(db, vault_id)
+    return sorted(counts.items(), key=lambda item: -item[1])[:3]
+
+
+async def _prepare(
+    db: AsyncSession,
+    vault_id: UUID,
+    vault_data: dict[str, Any] | None,
+    recent_notifications: list[dict[str, Any]] | None,
+    gender_counts: list[tuple[str, int]] | None,
+    today: date,
+) -> tuple[str, str, str | None, str | None]:
+    data = dict(vault_data or {})
+    if "population" not in data:
+        data["population"] = await crud.vault.get_population(db_session=db, vault_id=vault_id)
+    if recent_notifications is None:
+        recent_notifications = await _recent_notifications(db, vault_id)
+    if gender_counts is None:
+        gender_counts = await _gender_counts(db, vault_id)
+
+    title, script = build_daily_script(
+        population=int(data.get("population", 0)),
+        population_max=int(data.get("population_max") or 0),
+        caps=int(data.get("bottle_caps", 0)),
+        happiness=int(data.get("happiness", 50)),
+        power=(int(data.get("power", 0)), int(data.get("power_max") or 1)),
+        food=(int(data.get("food", 0)), int(data.get("food_max") or 1)),
+        water=(int(data.get("water", 0)), int(data.get("water_max") or 1)),
+        recent_notifications=recent_notifications,
+        gender_counts=gender_counts,
+        vault_number=data.get("number"),
+    )
+
+    audio_key, audio_url = await _render_audio(script, today)
+    return title, script, audio_key, audio_url
+
+
+async def _render_audio(script: str, today: date) -> tuple[str | None, str | None]:
+    tts = get_openrouter_tts_service()
+    if not tts.is_enabled:
+        logger.info("No TTS provider enabled, script-only broadcast")
+        return None, None
+    try:
+        wav_bytes = await tts.generate_speech(script)
+    except TTSProviderException as e:
+        logger.warning("TTS generation failed, falling back to script-only: %s", e)
+        return None, None
+
+    audio_bytes, content_type, extension = _post_process(wav_bytes)
+    client = get_storage_client()
+    if client is None:
+        logger.info("Storage not enabled, returning script-only")
+        return None, None
+
+    key = f"broadcasts/{today:%Y/%m/%d}/{uuid4()}.{extension}"
+    try:
+        url = client.upload_file(
+            file_data=audio_bytes,
+            file_name=key,
+            file_type=content_type,
+        )
+    except Exception as e:
+        logger.warning("S3 upload failed: %s; returning script-only", e)
+        return None, None
+    url = url or _audio_url(key)
+    if not url:
+        return None, None
+    return key, url
 
 
 async def get_or_create_daily(
@@ -92,116 +222,49 @@ async def get_or_create_daily(
     vault_id: UUID,
     vault_data: dict[str, Any] | None = None,
     dweller_stats: list[dict] | None = None,
-    recent_notifications: list[dict] | None = None,
+    recent_notifications: list[dict[str, Any]] | None = None,
+    gender_counts: list[tuple[str, int]] | None = None,
 ) -> dict[str, Any]:
-    """Get today's broadcast or create one from scratch.
+    """Get today's broadcast, generating it once if none exists.
 
-    Uses UTC day caching: once a broadcast exists for today, subsequent
-    calls return it without re-calling TTS.
-
-    Args:
-        db: Database session.
-        vault_id: Vault to generate for.
-        vault_data: Dict with vault stats (population, caps, etc.).
-        dweller_stats: Dweller data for gender splits.
-        recent_notifications: Recent notification records.
-
-    Returns:
-        Dict with keys: id, title, script, audio_url, trigger, created_at.
+    Generation happens outside the vault lock; the lock is taken only to
+    re-check and insert, so a slow TTS call does not block vault operations.
+    ``dweller_stats`` is accepted for backwards compatibility; gender data is
+    read from the vault directly.
     """
-    today = date.today()
+    del dweller_stats
+    today = _utc_today()
 
-    # Check for existing daily broadcast for today (via CRUD)
-    broadcast_row = await get_today_broadcast(db, vault_id)
+    existing = await get_today_broadcast(db, vault_id)
+    if existing:
+        return _serialize(existing)
 
-    if broadcast_row:
-        return {
-            "id": str(broadcast_row.id),
-            "title": broadcast_row.title,
-            "script": broadcast_row.script,
-            "audio_url": broadcast_row.audio_key,
-            "trigger": "daily",
-            "created_at": broadcast_row.created_at.isoformat() if broadcast_row.created_at else None,
-        }
-
-    # Build script
-    vd = vault_data or {}
-    ds = dweller_stats or []
-    rn = recent_notifications or []
-
-    pop = vd.get("population", 0)
-    pop_max = vd.get("population_max") or 0
-    caps = vd.get("bottle_caps", 0)
-    happiness = vd.get("happiness", 50)
-    power = (vd.get("power", 0), vd.get("power_max") or 1)
-    food = (vd.get("food", 0), vd.get("food_max") or 1)
-    water = (vd.get("water", 0), vd.get("water_max") or 1)
-
-    title, script_text = build_daily_script(
-        population=pop,
-        population_max=pop_max,
-        caps=caps,
-        happiness=happiness,
-        power=power,
-        food=food,
-        water=water,
-        recent_notifications=rn,
-        vault_number=vd.get("number"),
+    title, script, audio_key, audio_url = await _prepare(
+        db, vault_id, vault_data, recent_notifications, gender_counts, today
     )
 
-    audio_url = None
-    audio_key = None
+    if await crud.vault.get_for_update(db, vault_id) is None:
+        _delete_uploaded(audio_key)
+        raise ValidationException("Vault not found")
 
-    # Try TTS
-    tts = get_openrouter_tts_service()
-    if tts.is_enabled:
-        try:
-            wav_bytes = await tts.generate_speech(script_text)
-            audio_processed = _post_process(wav_bytes)
-        except TTSProviderException as e:
-            logger.warning("TTS generation failed, falling back to script-only: %s", e)
-            audio_processed = None
-    else:
-        logger.info("No TTS provider enabled, script-only broadcast")
-        audio_processed = None
+    existing = await get_today_broadcast(db, vault_id)
+    if existing:
+        _delete_uploaded(audio_key)
+        return _serialize(existing)
 
-    if audio_processed:
-        # Upload to S3
-        day_prefix = today.strftime("%Y/%m/%d")
-        key = f"broadcasts/{day_prefix}/{uuid4()}.mp3"
-        storage_client = get_storage_client()
-        if storage_client:
-            try:
-                audio_url = storage_client.upload_file(
-                    file_data=audio_processed,
-                    file_name=key,
-                    file_type="audio/mpeg",
-                )
-                audio_key = key
-            except Exception as e:
-                logger.warning("S3 upload failed: %s; returning script-only", e)
-                audio_url = None
-        else:
-            logger.info("Storage not enabled, returning script-only")
-
-    # Persist broadcast via CRUD
-    broadcast = await create_broadcast(
-        db,
-        vault_id=vault_id,
-        title=title,
-        script=script_text,
-        audio_key=audio_key,
-        trigger="daily",
-    )
-
-    return {
-        "id": str(broadcast.id),
-        "title": broadcast.title,
-        "script": broadcast.script,
-        "audio_url": audio_url,
-        "trigger": "daily",
-        "created_at": broadcast.created_at.isoformat() if broadcast.created_at else None,
-    }
+    try:
+        broadcast = await create_broadcast(
+            db,
+            vault_id=vault_id,
+            title=title,
+            script=script,
+            audio_key=audio_key,
+            trigger="daily",
+        )
+    except Exception:
+        _delete_uploaded(audio_key)
+        raise
+    return _serialize(broadcast, audio_url=audio_url)
 
 
 async def regenerate(
@@ -209,37 +272,42 @@ async def regenerate(
     vault_id: UUID,
     vault_data: dict[str, Any] | None = None,
     dweller_stats: list[dict] | None = None,
-    recent_notifications: list[dict] | None = None,
+    recent_notifications: list[dict[str, Any]] | None = None,
+    gender_counts: list[tuple[str, int]] | None = None,
 ) -> dict[str, Any]:
-    """Manually re-render a broadcast for the vault, rate-limited to 3/day.
+    """Render a new manual broadcast, rate-limited to three per UTC day."""
+    del dweller_stats
+    today = _utc_today()
 
-    Args:
-        db: Database session.
-        vault_id: Vault to regenerate for.
-        vault_data: Vault stats dict.
-        dweller_stats: Dweller data.
-        recent_notifications: Recent notifications.
-
-    Returns:
-        Same shape as get_or_create_daily.
-
-    Raises:
-        TTSProviderException: If rate limit exceeded (mapped to 429).
-    """
-    today = date.today()
-
-    # Count manual regenerations today (via CRUD)
-    regen_count = await count_trigger_on_date(db, vault_id, "manual", today)
-
-    if regen_count >= MAX_REGENERATIONS_PER_DAY:
-        raise TTSProviderException(
+    if await count_trigger_on_date(db, vault_id, "manual", today) >= MAX_REGENERATIONS_PER_DAY:
+        raise BroadcastRateLimitException(
             detail=f"Manual regeneration limit reached ({MAX_REGENERATIONS_PER_DAY}/day for this vault).",
         )
 
-    return await get_or_create_daily(
-        db,
-        vault_id,
-        vault_data,
-        dweller_stats,
-        recent_notifications,
+    title, script, audio_key, audio_url = await _prepare(
+        db, vault_id, vault_data, recent_notifications, gender_counts, today
     )
+
+    if await crud.vault.get_for_update(db, vault_id) is None:
+        _delete_uploaded(audio_key)
+        raise ValidationException("Vault not found")
+
+    if await count_trigger_on_date(db, vault_id, "manual", today) >= MAX_REGENERATIONS_PER_DAY:
+        _delete_uploaded(audio_key)
+        raise BroadcastRateLimitException(
+            detail=f"Manual regeneration limit reached ({MAX_REGENERATIONS_PER_DAY}/day for this vault).",
+        )
+
+    try:
+        broadcast = await create_broadcast(
+            db,
+            vault_id=vault_id,
+            title=title,
+            script=script,
+            audio_key=audio_key,
+            trigger="manual",
+        )
+    except Exception:
+        _delete_uploaded(audio_key)
+        raise
+    return _serialize(broadcast, audio_url=audio_url)

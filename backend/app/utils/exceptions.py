@@ -245,6 +245,13 @@ class TTSProviderException(DomainError):
     default_detail = "TTS provider request failed. Please try again."
 
 
+class BroadcastRateLimitException(DomainError):
+    """Raised when a vault exceeds its manual broadcast regeneration limit."""
+
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    default_detail = "Manual broadcast regeneration limit reached."
+
+
 class BucketNotFoundError(DomainError):
     """Raised when a storage bucket is not found or cannot be created."""
 

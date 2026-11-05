@@ -18,6 +18,7 @@ def build_daily_script(
     food: tuple[int, int],
     water: tuple[int, int],
     recent_notifications: list[dict],
+    gender_counts: list[tuple[str, int]] | None = None,
     vault_number: int | None = None,
     _now: datetime | None = None,
 ) -> tuple[str, str]:
@@ -40,7 +41,8 @@ def build_daily_script(
     """
     now = _now or datetime.utcnow()
     day_str = now.strftime("%B %d, %Y")
-    gender_counts = _count_genders(recent_notifications)
+    if gender_counts is None:
+        gender_counts = _count_genders(recent_notifications)
 
     title = f"Vault Radio News - {day_str}"
 

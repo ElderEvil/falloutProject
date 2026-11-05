@@ -4,7 +4,7 @@
 
 **Goal:** Procedural "radio news broadcast" for each vault — a 1950s-style DJ clip rendered from the vault's live DB state, playable in-game.
 
-**Architecture:** New backend `broadcast_service` renders a deterministic DJ script from vault state (population, caps, resources, happiness, recent notifications), synthesizes it via a TTS provider (OpenRouter HeyGen first, ElevenLabs fallback), stores the clip in S3, and serves it through a REST endpoint. The frontend gets a radio HUD widget that plays the daily broadcast. Vintage fx chain (band-limit, crackle, slow-down) is applied server-side with ffmpeg when available, else the raw voice ships.
+**Architecture:** New backend `broadcast_service` renders a deterministic DJ script from vault state (population, caps, resources, happiness, recent notifications), synthesizes it via OpenRouter HeyGen (script-only when unavailable), stores the clip in S3, and serves it through a REST endpoint. The frontend gets a radio HUD widget that plays the daily broadcast. Vintage fx chain (band-limit, crackle, slow-down) is applied server-side with ffmpeg when available, else the raw voice ships.
 
 **Tech Stack:** FastAPI + SQLModel, dramatiq (not needed for MVP), httpx (TTS), boto3/S3 (RustFS, reuse existing storage utils), ffmpeg (post-processing, optional at runtime), Vue 3 + TS module.
 
@@ -40,7 +40,7 @@ Auth: standard vault-access dependency, same as other vault endpoints.
   - `is_enabled` ← `settings.OPENROUTER_API_KEY` (add to `app/core/config.py` if absent).
   - `async generate_speech(text) -> bytes`: POST `https://openrouter.ai/api/v1/audio/speech`, JSON `{"model": "heygen/heygen-voice-1-turbo:free", "input": text, "voice": "weston", "response_format": "pcm"}`. Response is raw s16le mono 44.1 kHz PCM — wrap it into a WAV header in Python (stdlib `wave`/`io`, no numpy) and return WAV bytes.
   - Errors → new `TTSProviderException` in `app/utils/exceptions.py`, same patterns as `ElevenLabsProviderException` (401/429/other, transport errors).
-- Provider selection: `broadcast_service` uses OpenRouter when enabled, else falls back to `ElevenLabsTtsService`, else returns script-only.
+- Provider selection: `broadcast_service` uses OpenRouter when enabled, else returns script-only. The ElevenLabs fallback is deferred.
 
 ### Task 3: Script renderer
 - Create `backend/app/services/broadcast_script_service.py` — pure function(s), no I/O:

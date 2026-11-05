@@ -17,6 +17,16 @@ sys.modules.pop("app.services.storage.factory", None)
 
 
 @pytest.fixture(autouse=True)
+def _mock_vault_lock():
+    """The unit tests use AsyncMock sessions, not a real vault row."""
+    with patch(
+        "app.services.broadcast_service.crud.vault.get_for_update",
+        new=AsyncMock(return_value=MagicMock()),
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def _mock_storage():
     """Mock the storage module before any broadcast_service import."""
     mock_mod = MagicMock()
@@ -69,7 +79,7 @@ class TestDailyCache:
                 mock_broadcast.title = "New Title"
                 mock_broadcast.script = "New script"
                 mock_broadcast.audio_key = None
-                mock_broadcast.trigger = "daily"
+                mock_broadcast.trigger = "manual"
                 mock_broadcast.created_at = datetime.now(UTC)
 
                 with patch("app.services.broadcast_service.create_broadcast", new_callable=AsyncMock) as mock_create:
@@ -91,6 +101,8 @@ class TestDailyCache:
                             "water": 50,
                             "water_max": 100,
                         },
+                        recent_notifications=[],
+                        gender_counts=[],
                     )
 
                     # First call should have called TTS
@@ -112,7 +124,10 @@ class TestDailyCache:
             mock_existing.trigger = "daily"
             mock_existing.created_at = datetime.now(UTC)
 
-            with patch("app.services.broadcast_service.get_today_broadcast", new_callable=AsyncMock) as mock_get_today:
+            with (
+                patch("app.services.broadcast_service.get_today_broadcast", new_callable=AsyncMock) as mock_get_today,
+                patch("app.services.broadcast_service.get_storage_client", return_value=None),
+            ):
                 mock_get_today.return_value = mock_existing
 
                 result = await get_or_create_daily(
@@ -137,7 +152,84 @@ class TestDailyCache:
                 mock_service.generate_speech.assert_not_called()
                 assert result["title"] == "Test Title"
                 assert result["script"] == "Test script"
-                assert result["audio_url"] == "broadcasts/2026/11/05/test.mp3"
+                assert result["audio_url"] is None
+
+    @pytest.mark.asyncio
+    async def test_cached_broadcast_returns_public_url(self):
+        from app.services.broadcast_service import get_or_create_daily
+
+        mock_db = AsyncMock()
+        row = MagicMock()
+        row.id = uuid4()
+        row.title = "Cached"
+        row.script = "Cached script"
+        row.audio_key = "broadcasts/2026/11/05/cached.mp3"
+        row.trigger = "daily"
+        row.created_at = datetime.now(UTC)
+        client = MagicMock()
+        client.public_url.return_value = "https://cdn.example/broadcasts/2026/11/05/cached.mp3"
+
+        with (
+            patch(
+                "app.services.broadcast_service.get_today_broadcast",
+                new=AsyncMock(return_value=row),
+            ),
+            patch("app.services.broadcast_service.get_storage_client", return_value=client),
+        ):
+            result = await get_or_create_daily(mock_db, vault_id=uuid4())
+
+        assert result["audio_url"] == "https://cdn.example/broadcasts/2026/11/05/cached.mp3"
+
+    @pytest.mark.asyncio
+    async def test_missing_population_is_read_from_vault(self):
+        from app.services.broadcast_service import get_or_create_daily
+
+        mock_db = AsyncMock()
+        row = MagicMock()
+        row.id = uuid4()
+        row.title = "Population"
+        row.script = "Population script"
+        row.audio_key = None
+        row.trigger = "daily"
+        row.created_at = datetime.now(UTC)
+        tts = MagicMock()
+        tts.is_enabled = False
+
+        with (
+            patch(
+                "app.services.broadcast_service.get_today_broadcast",
+                new=AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.services.broadcast_service.crud.vault.get_population",
+                new=AsyncMock(return_value=7),
+            ),
+            patch("app.services.broadcast_service.get_openrouter_tts_service", return_value=tts),
+            patch(
+                "app.services.broadcast_service.create_broadcast",
+                new=AsyncMock(return_value=row),
+            ) as create,
+        ):
+            await get_or_create_daily(
+                mock_db,
+                vault_id=uuid4(),
+                vault_data={
+                    "number": 1,
+                    "population_max": 20,
+                    "bottle_caps": 0,
+                    "happiness": 50,
+                    "power": 0,
+                    "power_max": 1,
+                    "food": 0,
+                    "food_max": 1,
+                    "water": 0,
+                    "water_max": 1,
+                },
+                recent_notifications=[],
+                gender_counts=[],
+            )
+
+        assert "7 brave souls" in create.call_args.kwargs["script"]
 
 
 class TestRegenerateCap:
@@ -177,7 +269,7 @@ class TestRegenerateCap:
                 mock_broadcast.title = "Regenerated Title"
                 mock_broadcast.script = "Regenerated script"
                 mock_broadcast.audio_key = None
-                mock_broadcast.trigger = "daily"
+                mock_broadcast.trigger = "manual"
                 mock_broadcast.created_at = datetime.now(UTC)
 
                 with patch("app.services.broadcast_service.create_broadcast", new_callable=AsyncMock) as mock_create:
@@ -214,9 +306,11 @@ class TestRegenerateCap:
                                 "water": 50,
                                 "water_max": 100,
                             },
+                            recent_notifications=[],
+                            gender_counts=[],
                         )
                         assert result is not None
-                        assert result["trigger"] == "daily"
+                        assert result["trigger"] == "manual"
 
 
 class TestTTSFailureDegradation:
@@ -268,6 +362,8 @@ class TestTTSFailureDegradation:
                             "water": 50,
                             "water_max": 100,
                         },
+                        recent_notifications=[],
+                        gender_counts=[],
                     )
 
                     # Should still have script, audio_url should be None
@@ -285,7 +381,7 @@ class TestPostProcess:
         wav_bytes = b"fake wav data"
         with patch("app.services.broadcast_service.shutil.which", return_value=None):
             result = _post_process(wav_bytes)
-            assert result == wav_bytes
+            assert result == (wav_bytes, "audio/wav", "wav")
 
     def test_with_ffmpeg_available(self):
         from app.services.broadcast_service import _post_process
@@ -300,7 +396,9 @@ class TestPostProcess:
             patch(
                 "app.services.broadcast_service.subprocess.run",
                 return_value=mock_proc,
-            ),
+            ) as mock_run,
         ):
             result = _post_process(wav_bytes)
-            assert result == b"fake mp3 data"
+            assert result == (b"fake mp3 data", "audio/mpeg", "mp3")
+            command = mock_run.call_args.args[0]
+            assert command[command.index("-f") + 1] == "wav"

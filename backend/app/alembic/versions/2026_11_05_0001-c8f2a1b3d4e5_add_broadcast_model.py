@@ -1,7 +1,7 @@
 """add broadcast model
 
 Revision ID: c8f2a1b3d4e5
-Revises: b7e3d9c1a5f2
+Revises: d1f3a5c7e9b2
 Create Date: 2026-11-05 00:00:00.000000
 
 Adds the Broadcast table for the Vault Radio Hour feature.

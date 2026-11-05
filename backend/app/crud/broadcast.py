@@ -14,19 +14,23 @@ async def get_today_broadcast(db: AsyncSession, vault_id: UUID) -> Broadcast | N
 
     Returns the existing broadcast row or None.
     """
-    today = date.today()
+    today = datetime.utcnow().date()
     tomorrow = today + timedelta(days=1)
     today_start = datetime.combine(today, datetime.min.time())
     tomorrow_start = datetime.combine(tomorrow, datetime.min.time())
 
-    query = select(Broadcast).where(
-        Broadcast.vault_id == vault_id,
-        Broadcast.trigger == "daily",
-        col(Broadcast.created_at) >= today_start,
-        col(Broadcast.created_at) < tomorrow_start,
+    query = (
+        select(Broadcast)
+        .where(
+            Broadcast.vault_id == vault_id,
+            col(Broadcast.created_at) >= today_start,
+            col(Broadcast.created_at) < tomorrow_start,
+        )
+        .order_by(col(Broadcast.created_at).desc(), col(Broadcast.id).desc())
+        .limit(1)
     )
     result = await db.execute(query)
-    return result.scalar_one_or_none()
+    return result.scalars().first()
 
 
 async def count_trigger_on_date(

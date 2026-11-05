@@ -402,6 +402,16 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         """Count dwellers still alive in a vault (soft-deleted and dead excluded)."""
         return await self.count_alive_in_vault(db_session, vault_id)
 
+    async def count_living_by_gender(self, db_session: AsyncSession, vault_id: UUID4) -> dict[str, int]:
+        """Count living dwellers per gender in one vault."""
+        query = (
+            select(self.model.gender, func.count(self.model.id))
+            .where(*self._living_conditions(vault_id))
+            .group_by(self.model.gender)
+        )
+        rows = (await db_session.execute(query)).all()
+        return {str(gender.value if hasattr(gender, "value") else gender): int(count) for gender, count in rows}
+
     async def get_pending_exit_requests(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
         """Living dwellers who have asked to leave and are still waiting."""
         query = (

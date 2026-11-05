@@ -20,11 +20,7 @@ class BroadcastBase(SQLModel):
     title: str = Field(max_length=255)
     script: str = Field(sa_column=Column(String(), nullable=False))
     audio_key: str | None = Field(default=None, max_length=512)
-    trigger: str = Field(
-        default="daily",
-        sa_column=Field(default="daily", sa_type=String(20)),
-        description="daily | manual",
-    )
+    trigger: str = Field(default="daily", max_length=20, description="daily | manual")
 
     def __str__(self) -> str:
         return f"Broadcast #{self.id} for vault {self.vault_id}"

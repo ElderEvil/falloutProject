@@ -282,7 +282,7 @@ onBeforeUnmount(() => {
           {{ broadcast.script }}
         </p>
         <div class="radio-news-widget__text-panel-meta">
-          {{ new Date(broadcast.created_at).toLocaleString() }}
+          {{ broadcast.created_at ? new Date(broadcast.created_at).toLocaleString() : 'Audio unavailable' }}
         </div>
       </div>
 

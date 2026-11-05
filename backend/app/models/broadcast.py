@@ -1,11 +1,9 @@
 """Broadcast model for Vault Radio Hour."""
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from datetime import datetime
-
-import sqlalchemy as sa
 from sqlalchemy import Column, String
 from sqlmodel import Field, Relationship, SQLModel
 

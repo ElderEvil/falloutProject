@@ -7,7 +7,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=ghcr.io/astral-sh/uv:0.12.10@sha256:2bb3ebca0a796a155094a27773d290c4b074572e6107f171d88d086682fd2500 /uv /bin/uv
 WORKDIR /app
 
-ENV UV_LINK_MODE=copy
+# Use the image interpreter even after COPY brings in the development .python-version.
+ENV UV_LINK_MODE=copy \
+    UV_PYTHON=/usr/local/bin/python
 
 # Cache runtime dependencies separately from the editable application and its CLI.
 COPY backend/pyproject.toml backend/uv.lock /app/
@@ -30,6 +32,7 @@ WORKDIR /app
 # API, worker, migration, and CLI commands use the baked environment.
 ENV VIRTUAL_ENV=/app/.venv \
     PATH="/app/.venv/bin:$PATH" \
+    UV_PYTHON=/usr/local/bin/python \
     UV_NO_SYNC=1 \
     UV_NO_CACHE=1 \
     UV_NO_DEFAULT_GROUPS=1

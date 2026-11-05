@@ -15,8 +15,14 @@ on:
 
 jobs:
   backend-ci:
-    name: Backend Tests
+    name: Backend Tests (${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.13', '3.14']
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
     permissions:
       contents: read
 
@@ -58,7 +64,7 @@ jobs:
 
       - name: Set up Python
         working-directory: backend
-        run: uv python install
+        run: uv python install "$UV_PYTHON"
 
       - name: Install dependencies
         working-directory: backend

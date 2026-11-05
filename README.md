@@ -38,6 +38,12 @@ See [docs/ROADMAP.md](./docs/ROADMAP.md) for recent updates and upcoming feature
 - [Podman](https://podman.io/) with Compose support (primary; use `podman compose`)
 - [Docker Compose](https://docs.docker.com/compose/install/) (alternative; v2 - use `docker compose`, not `docker-compose`)
 
+Python 3.14 is also checked by backend test and production-image CI as preparation for 3.0.
+The default development and release runtime remains pinned to 3.13 until the
+[3.0 release gates](docs/ROADMAP.md#30-platform-release-plan) are satisfied. To check 3.14
+locally, run `uv sync --python 3.14 --locked` and `uv run --python 3.14 pytest app/tests`
+from `backend/`; return to the default with `uv sync --python 3.13 --locked`.
+
 **Installation:**
 - **uv** (Python package manager):
   - macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.289.0 (2026-11-06)
+
+### Features
+
+* **radio:** objectives count segment + tuner back outside the bar ([#1337](https://github.com/ElderEvil/falloutProject/issues/1337)) df372bb
+* **vault:** enforce strict population capacity, unassigned dwellers count ([#1336](https://github.com/ElderEvil/falloutProject/issues/1336)) 28bf5f7
+
 ## 2.288.0 (2026-11-06)
 
 ### Features

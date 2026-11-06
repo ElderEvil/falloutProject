@@ -297,22 +297,24 @@ class TestRotatingSegments:
             "vault_number": 666,
         }
 
-    def test_segment_rotates_across_seeds(self):
-        segments = set()
-        for n in range(30):
-            _, script = build_daily_script(**self._data(), variant_seed=f"s{n}")
-            segments.add(script.split(". ")[2] if len(script.split(". ")) > 2 else "")
-        assert len(segments) > 1, "The segment wheel never turns"
-
     def test_housing_segment_reflects_occupancy(self):
+        # s1 and s5 deterministically select the housing segment (asserted in
+        # test_segment_rotates_across_seeds), so these hit the housing branch.
         crowded = self._data() | {"population": 44, "population_max": 46}
-        # Force the housing segment via a seed; verify whichever occupancy line
-        # appears, it carries numbers consistent with the vault.
-        _, script = build_daily_script(**crowded, variant_seed="housing-seed")
-        assert "44 of 46" in script or "housing" not in script.lower()
+        _, script = build_daily_script(**crowded, variant_seed="s1")
+        assert "A note from housing: bunks are filling fast, 44 of 46 spoken for." in script
         sparse = self._data() | {"population": 5, "population_max": 46}
-        _, script = build_daily_script(**sparse, variant_seed="housing-seed")
-        assert "5 of 46" in script or "housing" not in script.lower()
+        _, script = build_daily_script(**sparse, variant_seed="s1")
+        assert "Housing reports plenty of open bunks, 5 of 46 occupied." in script
+        overflow = self._data() | {"population": 23, "population_max": 8}
+        _, script = build_daily_script(**overflow, variant_seed="s5")
+        assert "Housing reports 23 residents in a vault built for 8." in script
+
+    def test_segment_rotates_across_seeds(self):
+        _, script = build_daily_script(**self._data(), variant_seed="s1")
+        assert "Housing reports steady occupancy and no complaints on file." in script
+        _, script = build_daily_script(**self._data(), variant_seed="s6")
+        assert "The wasteland reports: blazing sun, irritable mole rats" in script
 
     def test_long_headlines_keep_the_script_in_budget(self):
         data = self._data()

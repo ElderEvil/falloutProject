@@ -34,16 +34,11 @@ _GREETINGS = (
 )
 
 _CAPS_LINES = (
-    (
-        "Treasury report: {caps:,} bottle caps, and every last one accounted for. Mostly."
-    ),
+    ("Treasury report: {caps:,} bottle caps, and every last one accounted for. Mostly."),
     "The cap counter reads {caps:,}. The vending machines remain deeply impressed.",
     "{caps:,} bottle caps sit in the till, give or take a souvenir.",
     "Our cap reserves stand at {caps:,}. Enough to keep the lights on and the Overseer content.",
-    (
-        "Down in the vault office, {caps:,} bottle caps wait for a rainy day. "
-        "It is always a rainy day."
-    ),
+    ("Down in the vault office, {caps:,} bottle caps wait for a rainy day. It is always a rainy day."),
 )
 
 _MORALE_TIERS: tuple[tuple[int, tuple[str, ...]], ...] = (
@@ -57,24 +52,15 @@ _MORALE_TIERS: tuple[tuple[int, tuple[str, ...]], ...] = (
     (
         60,
         (
-            (
-                "Morale sits at a steady {h}%. Neither the wasteland nor the week "
-                "has broken anyone's stride."
-            ),
+            ("Morale sits at a steady {h}%. Neither the wasteland nor the week has broken anyone's stride."),
             "Morale rests at a comfortable {h}%. The corridor hums along nicely.",
         ),
     ),
     (
         30,
         (
-            (
-                "Morale sits at {h}%, which leaves room for improvement. "
-                "Perhaps a concert in the atrium."
-            ),
-            (
-                "Morale holds at {h}%. Time to dust off the dance floor, "
-                "maybe book the atrium."
-            ),
+            ("Morale sits at {h}%, which leaves room for improvement. Perhaps a concert in the atrium."),
+            ("Morale holds at {h}%. Time to dust off the dance floor, maybe book the atrium."),
         ),
     ),
     (
@@ -138,10 +124,7 @@ def _pick_segment(seed: str, population: int, population_max: int) -> str:
                 f"{population_max} spoken for. Cozy is a feature."
             )
         if occupancy < 0.4:
-            return (
-                f"Housing reports plenty of open bunks, {population} of "
-                f"{population_max} occupied. Room to grow."
-            )
+            return f"Housing reports plenty of open bunks, {population} of {population_max} occupied. Room to grow."
         return "Housing reports steady occupancy and no complaints on file."
     variants = {
         "housekeeping": _HOUSEKEEPING_LINES,
@@ -267,11 +250,7 @@ def build_daily_script(
     # sentence back-to-back reads like an echo.
     housing_speaks = "Housing" in segment or "housing" in segment
     if population_max and population_max > 0 and not housing_speaks:
-        parts.append(
-            _pick(_POPULATION_LINES, f"{seed_base}:population").format(
-                pop=population, pmax=population_max
-            )
-        )
+        parts.append(_pick(_POPULATION_LINES, f"{seed_base}:population").format(pop=population, pmax=population_max))
     else:
         parts.append(f"Our vault is home to {population} dwellers today.")
 
@@ -283,11 +262,7 @@ def build_daily_script(
     if len(" ".join(parts).split()) + len(segment.split()) + reserved <= 195:
         parts.append(segment)
 
-    parts.extend(
-        (
-            _pick(_CAPS_LINES, f"{seed_base}:caps").format(caps=caps),
-        )
-    )
+    parts.extend((_pick(_CAPS_LINES, f"{seed_base}:caps").format(caps=caps),))
 
     morale_threshold, morale_pool = next(
         (threshold, pool) for threshold, pool in _MORALE_TIERS if happiness >= threshold

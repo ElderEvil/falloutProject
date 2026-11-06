@@ -393,9 +393,7 @@ class TestHeadlineTones:
 
     def test_untreated_types_stay_untouched(self):
         message = "A radroach was spotted in the kitchen."
-        _, script = build_daily_script(
-            **self._data([{"notification_type": "pest_spotted", "message": message}])
-        )
+        _, script = build_daily_script(**self._data([{"notification_type": "pest_spotted", "message": message}]))
         assert message.rstrip(".") + "." in script or message in script
 
 

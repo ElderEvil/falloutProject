@@ -14,11 +14,8 @@ import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import {
-  changelogService,
-  type ChangelogEntry,
-  type ChangeEntry,
-} from '@/modules/profile/services/changelogService'
+import { changelogService, type ChangelogEntry } from '@/modules/profile/services/changelogService'
+import { groupChangesByCategory } from '@/modules/profile/models/changelog'
 import FormattedChangeDescription from '@/modules/profile/components/FormattedChangeDescription.vue'
 import { getChangelogCategoryIcon } from '@/modules/profile/components/changelogCategoryIcons'
 
@@ -87,20 +84,6 @@ const filteredChangelog = computed(() => {
 
   return filtered
 })
-
-// Group changes by category
-const groupChangesByCategory = (changes: ChangeEntry[]) => {
-  const grouped = new Map<string, ChangeEntry[]>()
-
-  changes.forEach((change) => {
-    if (!grouped.has(change.category)) {
-      grouped.set(change.category, [])
-    }
-    grouped.get(change.category)!.push(change)
-  })
-
-  return grouped
-}
 
 const fetchChangelog = async () => {
   loading.value = true

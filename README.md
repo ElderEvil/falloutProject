@@ -101,6 +101,14 @@ To upgrade the first road recipe to the denser, curved network with railroads, r
 `uv run fo-cli backfill world-roads --upgrade`. This replaces only an older road layer;
 terrain, vault placements and travel timing are preserved. Reload the map afterwards.
 
+Run `uv run fo-cli backfill connect-world-places` to add country-road access to seeded
+public locations within 2 registry units of an existing road (the full spur must also
+fit within 2 units). Distant or unsafe places stay off-road. Repeat runs preserve existing
+connections. Use `connect-world-places --refresh` to replace access spurs after policy or
+place changes, including removing orphaned links; highways, country-road trunks and rails
+are preserved. The command requires the current road recipe. Run it again after upgrading
+the base road recipe, which replaces the road layer.
+
 The infrastructure worker bind-mounts `backend/app`, but does not hot-reload. Reload timeouts
 can leave orphan worker children holding PostgreSQL connections. After changing worker code,
 restart it with `podman restart dramatiq_worker_infra` (or the equivalent Docker command).

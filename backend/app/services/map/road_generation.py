@@ -22,6 +22,7 @@ from app.schemas.world_snapshot import WorldRoadRead, WorldRoadsRead
 from app.services.map.world_generation import TRAVEL_COST, TerrainType, _largest_traversable_component
 
 ROAD_VERSION = 4
+MAX_ACCESS_LENGTH = 2.0  # Registry units (1.6 cells on the default 80 x 80 world).
 # Largest casing is 1.36 SVG units: radius in registry space = 1.36 / 1.6 / 2.
 # Extra clearance absorbs serialization rounding. Country roads use the same safe corridor.
 ROAD_RADIUS = 0.426
@@ -342,9 +343,63 @@ def generate_roads(*, terrain: list[str], width: int, height: int, seed: str, ba
     payload = {
         "version": ROAD_VERSION,
         "base_checksum": base_checksum,
-        "segments": [s.model_dump(mode="json") for s in segments],
+        "segments": [s.model_dump(mode="json", exclude_none=True) for s in segments],
     }
     checksum = hashlib.blake2b(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode(), digest_size=16
     ).hexdigest()
     return WorldRoadsRead(version=ROAD_VERSION, base_checksum=base_checksum, checksum=checksum, segments=segments)
+
+
+def place_access_road(
+    *,
+    terrain: list[str],
+    width: int,
+    height: int,
+    origin: Point,
+    land: set[int],
+    vertices: set[Point],
+    location_id: str,
+) -> WorldRoadRead | None:
+    """Join an exact public registry coordinate to a persisted road vertex on land."""
+    from uuid import UUID
+
+    def clear(a: Point, b: Point) -> bool:
+        return road_segment_clear(terrain, width, height, a, b)
+
+    def tile(p: Point) -> int:
+        return min(height - 1, int(p[1] * height / 100)) * width + min(width - 1, int(p[0] * width / 100))
+
+    def center(cell: int) -> Point:
+        return ((cell % width + 0.5) * 100 / width, (cell // width + 0.5) * 100 / height)
+
+    if not clear(origin, origin):
+        return None
+    start = tile(origin)
+    if start not in land or not clear(origin, center(start)):
+        return None
+    targets = sorted(
+        (p for p in vertices if _distance(origin, p) <= MAX_ACCESS_LENGTH), key=lambda p: (_distance(origin, p), p)
+    )
+    goal = next((p for p in targets if tile(p) in land and clear(center(tile(p)), p)), None)
+    if goal is None:
+        return None
+    path = _route(start, tile(goal), land, terrain, width)
+    if not path:
+        return None
+    points = [origin]
+    for point in [*(center(c) for c in path), goal]:
+        if point != points[-1]:
+            points.append(point)
+    if len(points) == 1:
+        points.append(goal)
+    if not all(starmap(clear, pairwise(points))):
+        return None
+    # Short driveways need direct tangents and restrained bends, without the
+    # decorative meanders used on long country roads. Reuse the rail simplifier.
+    points = _rail_geometry(points, set(), clear)
+    if sum(starmap(_distance, pairwise(points))) > MAX_ACCESS_LENGTH:
+        return None
+    if not all(starmap(clear, pairwise(points))):
+        return None
+    return WorldRoadRead(id=f"access-{location_id}", location_id=UUID(location_id), kind="country", points=points)

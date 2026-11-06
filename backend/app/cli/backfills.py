@@ -22,6 +22,7 @@ import typer
 
 from app import crud
 from app.db.session import async_session_maker
+from app.schemas.world_snapshot import WorldRoadConnectionsResult
 from app.services.bio_place_backfill_service import bio_place_backfill_service
 from app.services.discovery_backfill_service import discovery_backfill_service
 from app.services.dweller_name_backfill_service import dweller_name_backfill_service
@@ -37,6 +38,21 @@ app = typer.Typer(
 )
 
 logger = logging.getLogger(__name__)
+
+
+@app.command(name="connect-world-places")
+def connect_world_places(
+    refresh: Annotated[
+        bool, typer.Option(help="Replace access spurs only, including orphaned or overlong connections")
+    ] = False,
+) -> None:
+    """Connect nearby seeded public places to the existing road network."""
+
+    async def _run() -> WorldRoadConnectionsResult:
+        async with async_session_maker() as session:
+            return await world_snapshot_service.connect_places(session, refresh=refresh)
+
+    typer.echo(str(asyncio.run(_run()).model_dump()))
 
 
 @app.command(name="world-roads")

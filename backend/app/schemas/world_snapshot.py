@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import Field
+from pydantic import UUID4, Field
 from sqlmodel import SQLModel
 
 RoadCoordinate = Annotated[float, Field(ge=0, le=100, allow_inf_nan=False)]
@@ -14,6 +14,7 @@ class WorldRoadRead(SQLModel):
     """Backend-validated centerline in registry coordinates, including rounded bends."""
 
     id: str
+    location_id: UUID4 | None = None
     kind: Literal["highway", "country", "railroad"]
     points: Annotated[list[tuple[RoadCoordinate, RoadCoordinate]], Field(min_length=2)]
 
@@ -25,6 +26,15 @@ class WorldRoadsRead(SQLModel):
     base_checksum: str
     checksum: str
     segments: list[WorldRoadRead]
+
+
+class WorldRoadConnectionsResult(SQLModel):
+    """Counts from an explicit public-place access-road pass."""
+
+    added: int
+    off_road: int
+    already_connected: int
+    removed: int
 
 
 class WorldSlotRead(SQLModel):

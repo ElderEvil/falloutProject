@@ -33,6 +33,15 @@ class CRUDWorldLocation:
 
     # -- WorldLocation registry ----------------------------------------------------
 
+    async def get_public_road_places(self, db_session: AsyncSession) -> list[WorldLocation]:
+        """Only fixed public seed places; never discoveries or occupied vaults."""
+        result = await db_session.execute(
+            select(WorldLocation)
+            .where(WorldLocation.source == "seed", WorldLocation.kind == PlaceKindEnum.PLACE)
+            .order_by(WorldLocation.normalized_name)
+        )
+        return list(result.scalars().all())
+
     async def get_registry(self, db_session: AsyncSession, location_id: UUID4) -> WorldLocation | None:
         """Return a canonical registry row by id, or None."""
         result = await db_session.execute(select(WorldLocation).where(WorldLocation.id == location_id))

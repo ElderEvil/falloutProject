@@ -7837,6 +7837,34 @@ export interface components {
             remaining_caps: number;
         };
         /**
+         * DwellerRosterFilters
+         * @description Identity filters and sort order for the vault roster.
+         *
+         *     Shared by the endpoint and the service so a new filter cannot be added on
+         *     one side only.
+         */
+        DwellerRosterFilters: {
+            status?: components["schemas"]["DwellerStatusEnum"] | null;
+            focus?: components["schemas"]["DwellerRosterFocus"] | null;
+            age_group?: components["schemas"]["AgeGroupEnum"] | null;
+            gender?: components["schemas"]["GenderEnum"] | null;
+            rarity?: components["schemas"]["RarityEnum"] | null;
+            /** Search */
+            search?: string | null;
+            race?: components["schemas"]["RaceEnum"] | null;
+            faction?: components["schemas"]["FactionEnum"] | null;
+            /**
+             * Sort By
+             * @default created_at
+             */
+            sort_by: string;
+            /**
+             * Order
+             * @default desc
+             */
+            order: string;
+        };
+        /**
          * DwellerRosterFocus
          * @description Wire-only roster attention filters; not a persisted database enum.
          * @enum {string}
@@ -9951,8 +9979,9 @@ export interface components {
          * PetEffectRead
          * @description Wire shape for the catalog-resolved bonus a pet grants.
          *
-         *     Mirrors ``PetEffect``; all-zero for pets without a catalog entry, so the
-         *     client can always read the shape without a null check.
+         *     Fields come from ``PetEffect``; the empty subclass keeps the public schema
+         *     name stable for generated clients. All-zero for pets without a catalog
+         *     entry, so the client can always read the shape without a null check.
          */
         PetEffectRead: {
             /**
@@ -12474,6 +12503,8 @@ export interface components {
         WorldRoadRead: {
             /** Id */
             id: string;
+            /** Location Id */
+            location_id?: string | null;
             /**
              * Kind
              * @enum {string}
@@ -13914,17 +13945,8 @@ export interface operations {
     };
     read_dwellers_by_vault_api_v1_dwellers_vault__vault_id___get: {
         parameters: {
-            query?: {
-                status?: components["schemas"]["DwellerStatusEnum"] | null;
-                focus?: components["schemas"]["DwellerRosterFocus"] | null;
-                age_group?: components["schemas"]["AgeGroupEnum"] | null;
-                gender?: components["schemas"]["GenderEnum"] | null;
-                rarity?: components["schemas"]["RarityEnum"] | null;
-                search?: string | null;
-                race?: components["schemas"]["RaceEnum"] | null;
-                faction?: components["schemas"]["FactionEnum"] | null;
-                sort_by?: string;
-                order?: string;
+            query: {
+                filters: components["schemas"]["DwellerRosterFilters"];
                 skip?: number;
                 limit?: number;
             };

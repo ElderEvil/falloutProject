@@ -189,3 +189,119 @@ async def test_explicit_road_upgrade_replaces_only_the_older_layer(async_session
     assert (updated.terrain, updated.slots, updated.snapshot_checksum, updated.generator_version) == original
     payload = updated.roads.copy()
     assert (await world_snapshot_service.backfill_roads(async_session, upgrade=True)).roads == payload
+
+
+@pytest.mark.parametrize("refresh", [False, True])
+@pytest.mark.parametrize("fail_write", [False, True])
+async def test_public_place_connections_preserve_network_and_privacy(
+    async_session: AsyncSession, fail_write: bool, refresh: bool
+) -> None:
+    from sqlalchemy import event
+
+    from app.core.enums import PlaceKindEnum
+    from app.models.world_location import WorldLocation
+
+    snapshot = await world_snapshot_service.get_or_generate(async_session)
+    if refresh:
+        from uuid import uuid4
+
+        snapshot.roads = {
+            **snapshot.roads,
+            "segments": [
+                *snapshot.roads["segments"],
+                {
+                    "id": "orphan",
+                    "kind": "country",
+                    "location_id": str(uuid4()),
+                    "points": [[10.0, 10.0], [90.0, 90.0]],
+                },
+            ],
+        }
+        await async_session.commit()
+    original = snapshot.roads.copy()
+    point = original["segments"][0]["points"][0]
+    slot = {"coord_x": point[0], "coord_y": point[1]}
+    public = WorldLocation(
+        name="Public depot",
+        normalized_name="public depot",
+        kind=PlaceKindEnum.PLACE,
+        source="seed",
+        coord_x=slot["coord_x"],
+        coord_y=slot["coord_y"],
+    )
+    private = WorldLocation(
+        name="Private discovery",
+        normalized_name="private discovery",
+        kind=PlaceKindEnum.PLACE,
+        source="emergent",
+        coord_x=slot["coord_x"],
+        coord_y=slot["coord_y"],
+    )
+    water = snapshot.terrain.index("water")
+    blocked = WorldLocation(
+        name="Water landmark",
+        normalized_name="water landmark",
+        kind=PlaceKindEnum.PLACE,
+        source="seed",
+        coord_x=(water % 80 + 0.5) * 1.25,
+        coord_y=(water // 80 + 0.5) * 1.25,
+    )
+    async_session.add_all([public, private, blocked])
+    await async_session.commit()
+    public_id, private_id = str(public.id), str(private.id)
+
+    def reject_write(session, context):
+        raise RuntimeError("connection write failed")
+
+    if fail_write:
+        event.listen(async_session.sync_session, "after_flush_postexec", reject_write)
+        try:
+            with pytest.raises(RuntimeError, match="connection write failed"):
+                await world_snapshot_service.connect_places(async_session, refresh=refresh)
+        finally:
+            event.remove(async_session.sync_session, "after_flush_postexec", reject_write)
+            await async_session.rollback()
+        reloaded = await snapshot_crud.get_version(async_session, world_id="wasteland-atlas", generator_version=1)
+        assert reloaded.roads == original
+        return
+    result = await world_snapshot_service.connect_places(async_session, refresh=refresh)
+    assert result.added == 1
+    assert result.off_road == 1
+    await async_session.refresh(snapshot)
+    access = [r for r in snapshot.roads["segments"] if r.get("location_id")]
+    backbone = [{k: v for k, v in r.items() if v is not None} for r in original["segments"] if not r.get("location_id")]
+    assert [r for r in snapshot.roads["segments"] if not r.get("location_id")] == backbone
+    assert len(access) == 1
+    assert access[0]["location_id"] == public_id
+    assert access[0]["location_id"] != private_id
+    assert access[0]["points"][0] == [slot["coord_x"], slot["coord_y"]]
+    assert access[0]["points"][-1] in [p for r in original["segments"] if r["kind"] != "railroad" for p in r["points"]]
+    assert result.removed == int(refresh)
+    payload = snapshot.roads.copy()
+    assert (await world_snapshot_service.connect_places(async_session)).added == 0
+    await world_snapshot_service.connect_places(async_session, refresh=True)
+    await async_session.refresh(snapshot)
+    assert snapshot.roads == payload
+
+
+@pytest.mark.parametrize("state", ["missing", "no_roads", "base", "old", "new"])
+async def test_place_connections_reject_invalid_snapshot(async_session: AsyncSession, state: str) -> None:
+    from app.services.map.road_generation import ROAD_VERSION
+    from app.utils.exceptions import ResourceConflictException
+
+    if state != "missing":
+        snapshot = await world_snapshot_service.get_or_generate(async_session)
+        if state == "no_roads":
+            snapshot.roads = None
+        elif state == "base":
+            snapshot.roads = {**snapshot.roads, "base_checksum": "stale"}
+        else:
+            snapshot.roads = {**snapshot.roads, "version": ROAD_VERSION + (1 if state == "new" else -1)}
+        await async_session.commit()
+        original = snapshot.roads
+    with pytest.raises(ResourceConflictException):
+        await world_snapshot_service.connect_places(async_session)
+    await async_session.rollback()
+    if state != "missing":
+        await async_session.refresh(snapshot)
+        assert snapshot.roads == original

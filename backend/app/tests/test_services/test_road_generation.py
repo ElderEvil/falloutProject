@@ -137,3 +137,49 @@ def test_default_roads_reach_outer_regions_with_a_denser_network():
     assert max(x for x, _ in points) > 93
     assert min(y for _, y in points) < 7
     assert max(y for _, y in points) > 93
+
+
+@pytest.mark.parametrize(("origin", "expected"), [((50.5, 50.5), True), ((49.5, 50.5), True), ((48.4, 50.5), False)])
+def test_access_roads_leave_distant_places_off_road(origin, expected):
+    from uuid import uuid4
+
+    from app.schemas.world_snapshot import WorldRoadRead, WorldRoadsRead
+    from app.services.map.road_generation import place_access_road
+
+    roads = WorldRoadsRead(
+        version=4,
+        base_checksum="base",
+        checksum="roads",
+        segments=[WorldRoadRead(id="main", kind="country", points=[(50.5, 50.5), (50.5, 60.5)])],
+    )
+    access = place_access_road(
+        terrain=["wasteland"] * 10000,
+        width=100,
+        height=100,
+        origin=origin,
+        land=set(range(10000)),
+        vertices=set(roads.segments[0].points),
+        location_id=str(uuid4()),
+    )
+    assert (access is not None) == expected
+
+
+def test_access_road_rejects_short_distance_with_long_water_detour():
+    from uuid import uuid4
+
+    from app.services.map.road_generation import place_access_road
+
+    terrain = ["wasteland"] * 10000
+    terrain[5050] = "water"
+    assert (
+        place_access_road(
+            terrain=terrain,
+            width=100,
+            height=100,
+            origin=(49.5, 50.5),
+            land=set(range(10000)) - {5050},
+            vertices={(51.5, 50.5)},
+            location_id=str(uuid4()),
+        )
+        is None
+    )

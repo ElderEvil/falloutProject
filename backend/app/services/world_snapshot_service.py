@@ -6,22 +6,27 @@ development/seed operation, not a request path.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 from dataclasses import asdict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy.exc import IntegrityError
 
+from app.crud.world_location import world_location as location_crud
 from app.crud.world_snapshot import world_snapshot as snapshot_crud
 from app.models.world_snapshot import WorldSnapshot
-from app.schemas.world_snapshot import WorldRoadsRead, WorldSlotRead, WorldSnapshotRead
-from app.services.map.road_generation import ROAD_VERSION, generate_roads
+from app.schemas.world_snapshot import WorldRoadConnectionsResult, WorldRoadsRead, WorldSlotRead, WorldSnapshotRead
+from app.services.map.road_generation import ROAD_VERSION, generate_roads, place_access_road
 from app.services.map.world_generation import (
     GENERATOR_VERSION,
     WORLD_ID,
     GeneratedWorld,
+    TerrainType,
     WorldConfig,
     WorldRecipe,
+    _largest_traversable_component,
     generate_world,
     snapshot_checksum,
 )
@@ -34,6 +39,58 @@ logger = logging.getLogger(__name__)
 
 
 class WorldSnapshotService:
+    async def connect_places(self, db_session: AsyncSession, *, refresh: bool = False) -> WorldRoadConnectionsResult:
+        """Add public-place access roads atomically; preserve the existing network."""
+        snapshot = await snapshot_crud.get_version(
+            db_session, world_id=WORLD_ID, generator_version=GENERATOR_VERSION, for_update=True
+        )
+        if snapshot is None or snapshot.roads is None:
+            raise ResourceConflictException("Generate the shared road network first")
+        roads = WorldRoadsRead.model_validate(snapshot.roads)
+        if roads.base_checksum != snapshot.snapshot_checksum:
+            raise ResourceConflictException("Roads belong to a different terrain snapshot")
+        if roads.version != ROAD_VERSION:
+            raise ResourceConflictException(
+                "Access roads require the current road recipe; upgrade the road layer first"
+            )
+        removed = 0
+        if refresh:
+            removed = sum(r.location_id is not None for r in roads.segments)
+            roads.segments = [r for r in roads.segments if r.location_id is None]
+        width, height = snapshot.config["width"], snapshot.config["height"]
+        land = _largest_traversable_component(cast("list[TerrainType]", snapshot.terrain), width, height)
+        vertices = {p for r in roads.segments if r.kind != "railroad" and r.location_id is None for p in r.points}
+        connected = {r.location_id for r in roads.segments if r.location_id is not None}
+        added = skipped = 0
+        for place in await location_crud.get_public_road_places(db_session):
+            if place.id in connected:
+                continue
+            access = place_access_road(
+                terrain=snapshot.terrain,
+                width=snapshot.config["width"],
+                height=snapshot.config["height"],
+                origin=(place.coord_x, place.coord_y),
+                land=land,
+                vertices=vertices,
+                location_id=str(place.id),
+            )
+            if access is None:
+                skipped += 1
+                continue
+            roads.segments.append(access)
+            added += 1
+        if added or removed:
+            payload = roads.model_dump(mode="json", exclude={"checksum"}, exclude_none=True)
+            roads.checksum = hashlib.blake2b(
+                json.dumps(payload, sort_keys=True, separators=(",", ":")).encode(), digest_size=16
+            ).hexdigest()
+            snapshot.roads = roads.model_dump(mode="json", exclude_none=True)
+            db_session.add(snapshot)
+            await db_session.commit()
+        return WorldRoadConnectionsResult(
+            added=added, off_road=skipped, already_connected=len(connected), removed=removed
+        )
+
     async def read(self, db_session: AsyncSession) -> WorldSnapshotRead:
         """Read public cartography; never backfill an existing world during GET."""
         snapshot = await self.get_or_generate(db_session)

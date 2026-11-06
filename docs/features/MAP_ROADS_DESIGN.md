@@ -1,5 +1,21 @@
 # Map roads and railroads
 
+Public-place connections: `uv run fo-cli backfill connect-world-places` appends country
+access roads from the saved coordinates of seeded public places to existing road vertices.
+Each access road carries `location_id`; the existing network and terrain stay fixed.
+Only places within 2 registry units of a backbone road vertex qualify, and the complete
+land-safe spur must be at most 2 units long (1.6 default terrain cells). This leaves
+distant places off-road and prevents long detours around water. Access roads keep normal
+country-road weight. Their short geometry reuses the railway tangent simplifier for
+direct driveways and restrained bends, without long-road meanders.
+
+Private discoveries and vaults do not affect this shared layer. The pass requires the
+current road recipe and is atomic and repeatable. `connect-world-places --refresh`
+replaces access spurs only, removing orphaned links and reapplying the current distance
+limit; ordinary runs preserve existing links. Refresh after moving/removing seeded places
+or changing the access policy. Rerun after a base road-recipe upgrade. These links are
+cartography, not travel bonuses.
+
 Status: approved and implemented, 2026-11-06. The sheet below remains the illustrative
 design reference. Production now renders roads from the existing backend snapshot.
 

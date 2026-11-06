@@ -129,8 +129,8 @@ const handleNewBroadcast = (_broadcast: RadioNewsBroadcast) => {
       <span class="font-mono text-sm">{{ totalGameTime }}</span>
     </div>
 
-    <!-- Radio News Widget: inline tuner trigger, next to the game clock -->
-    <RadioNewsWidget :vault-id="vaultId" inline @new-broadcast="handleNewBroadcast" />
+    <!-- Radio News Widget: floating tuner, docked bottom-right outside the bar -->
+    <RadioNewsWidget :vault-id="vaultId" @new-broadcast="handleNewBroadcast" />
 
     <div class="game-control-actions flex min-w-max flex-nowrap items-center gap-2">
       <div class="h-4 w-px shrink-0 bg-theme-primary/10" />

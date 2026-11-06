@@ -3,17 +3,24 @@ import { computed } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
 const router = useRouter()
-const menus = computed(() =>
-  router
+const menus = computed(() => {
+  const seen = new Set<string>()
+  return router
     .getRoutes()
-    .filter((route) => route.path.startsWith('/dev/') && typeof route.meta.devTitle === 'string')
+    .filter((route) => {
+      if (!route.path.startsWith('/dev/') || typeof route.meta.devTitle !== 'string') return false
+      if (!route.components?.default || typeof route.name !== 'string') return false
+      if (seen.has(route.name)) return false
+      seen.add(route.name)
+      return true
+    })
     .map((route) => ({
       path: route.path,
       title: String(route.meta.devTitle),
       description: String(route.meta.devDescription),
     }))
     .sort((a, b) => a.title.localeCompare(b.title))
-)
+})
 </script>
 
 <template>

@@ -102,7 +102,7 @@ def test_exotic_pet_effects_are_catalogued_and_within_caps(
 def test_catalog_covers_every_effect_field_at_least_once() -> None:
     uncovered = [
         field
-        for field in PetEffect.__dataclass_fields__
+        for field in PetEffect.model_fields
         if all(getattr(effect, field) == 0 for effect in PET_EFFECT_BY_NAME.values())
     ]
     assert uncovered == []

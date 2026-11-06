@@ -8,7 +8,7 @@ model carries no effect columns, so unlisted pets are neutral pending balance
 tuning.
 """
 
-from dataclasses import dataclass
+from pydantic import BaseModel, ConfigDict
 
 from app.utils.equipped import equipped_pet
 
@@ -20,14 +20,17 @@ MAX_RESIST_PCT = 0.95
 MAX_PCT_BONUS = 0.5
 
 
-@dataclass(frozen=True)
-class PetEffect:
+class PetEffect(BaseModel):
     """Mechanical bonuses granted by one pet.
 
     SPECIAL and ``max_health`` are additive integers; the percentage fields are
     additive fractions (``0.25`` = +25%) and are capped by the module constants
-    at the application points.
+    at the application points. Frozen so catalog entries stay immutable, and a
+    Pydantic model so ``PetEffectRead`` can inherit the field contract instead
+    of redeclaring it.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     strength: int = 0
     perception: int = 0

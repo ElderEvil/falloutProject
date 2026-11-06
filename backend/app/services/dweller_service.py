@@ -13,11 +13,7 @@ from app import crud
 from app.core.enums import (
     AgeGroupEnum,
     ContentProvenanceEnum,
-    DwellerRosterFocus,
     DwellerStatusEnum,
-    FactionEnum,
-    GenderEnum,
-    RaceEnum,
     RarityEnum,
     RoomTypeEnum,
 )
@@ -49,6 +45,7 @@ from app.schemas.dweller import (
     DwellerCreateCommonOverride,
     DwellerIdentityOptions,
     DwellerReadWithRoomID,
+    DwellerRosterFilters,
     DwellerUpdate,
     DwellerUpdateRequest,
 )
@@ -291,39 +288,31 @@ class DwellerService:
         *,
         skip: int = 0,
         limit: int = 100,
-        status: DwellerStatusEnum | None = None,
-        focus: DwellerRosterFocus | None = None,
-        age_group: AgeGroupEnum | None = None,
-        gender: GenderEnum | None = None,
-        rarity: RarityEnum | None = None,
-        search: str | None = None,
-        race: RaceEnum | None = None,
-        faction: FactionEnum | None = None,
-        sort_by: str = "created_at",
-        order: str = "desc",
+        filters: DwellerRosterFilters | None = None,
     ) -> Sequence[Dweller]:
         """The vault roster query.
 
         Identity filters are enum-typed at the boundary and translated to the stored
         ``visual_attributes`` values here, so the endpoint stays transport-only.
         """
-        if faction is not None and not game_config.features.faction_mechanics:
+        filters = filters or DwellerRosterFilters()
+        if filters.faction is not None and not game_config.features.faction_mechanics:
             raise FeatureDisabledException("Faction filtering is disabled while the faction switch is off.")
         return await crud.dweller.get_multi_by_vault(
             db_session=db_session,
             vault_id=vault_id,
             skip=skip,
             limit=limit,
-            status=status,
-            focus=focus,
-            age_group=age_group,
-            gender=gender,
-            rarity=rarity,
-            search=search,
-            race=race.value if race else None,
-            faction=faction.value if faction else None,
-            sort_by=sort_by,
-            order=order,
+            status=filters.status,
+            focus=filters.focus,
+            age_group=filters.age_group,
+            gender=filters.gender,
+            rarity=filters.rarity,
+            search=filters.search,
+            race=filters.race.value if filters.race else None,
+            faction=filters.faction.value if filters.faction else None,
+            sort_by=filters.sort_by,
+            order=filters.order,
         )
 
     async def update_dweller(

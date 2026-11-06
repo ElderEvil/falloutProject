@@ -63,6 +63,8 @@ def test_worker_manifest_matches_the_release_deployment_contract() -> None:
     assert "dramatiq --processes" in command
     assert "DRAMATIQ_PROCESSES" in command
     assert any(env["name"] == "DRAMATIQ_PROCESSES" and env["value"] == "2" for env in container["env"])
+    # Two connections per pool left no headroom: ticks timed out waiting on lock_for_update.
+    assert any(env["name"] == "TASK_DB_POOL_SIZE" and env["value"] == "4" for env in container["env"])
 
 
 def test_exactly_one_workload_invokes_the_periodiq_scheduler() -> None:

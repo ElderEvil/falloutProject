@@ -281,6 +281,135 @@ class TestPhraseVariety:
             )
 
 
+class TestRotatingSegments:
+    """One rotating segment per broadcast; different seeds, different segments."""
+
+    def _data(self):
+        return {
+            "population": 23,
+            "population_max": 46,
+            "caps": 1852,
+            "happiness": 87,
+            "power": (300, 300),
+            "food": (300, 300),
+            "water": (300, 300),
+            "recent_notifications": [],
+            "vault_number": 666,
+        }
+
+    def test_housing_segment_reflects_occupancy(self):
+        # s1 and s5 deterministically select the housing segment (asserted in
+        # test_segment_rotates_across_seeds), so these hit the housing branch.
+        crowded = self._data() | {"population": 44, "population_max": 46}
+        _, script = build_daily_script(**crowded, variant_seed="s1")
+        assert "A note from housing: bunks are filling fast, 44 of 46 spoken for." in script
+        sparse = self._data() | {"population": 5, "population_max": 46}
+        _, script = build_daily_script(**sparse, variant_seed="s1")
+        assert "Housing reports plenty of open bunks, 5 of 46 occupied." in script
+        overflow = self._data() | {"population": 23, "population_max": 8}
+        _, script = build_daily_script(**overflow, variant_seed="s5")
+        assert "Housing reports 23 residents in a vault built for 8." in script
+
+    def test_segment_rotates_across_seeds(self):
+        _, script = build_daily_script(**self._data(), variant_seed="s1")
+        assert "Housing reports steady occupancy: 23 of 46 bunks in use, no complaints on file." in script
+        _, script = build_daily_script(**self._data(), variant_seed="s6")
+        assert "The wasteland reports: blazing sun, irritable mole rats" in script
+
+    def test_housing_dropped_by_budget_keeps_capacity_numbers(self, monkeypatch):
+        """When the budget drops the housing segment, the population line keeps its numbers."""
+        import app.utils.broadcast_script as bs
+
+        monkeypatch.setattr(bs, "_SEGMENT_WORD_BUDGET", 30)
+        crowded = self._data() | {"population": 44, "population_max": 46}
+        _, script = build_daily_script(**crowded, variant_seed="s1")
+        assert "A note from housing" not in script, "segment should be budget-dropped"
+        assert "44" in script, "capacity must not disappear with the segment"
+        assert "46" in script, "capacity must not disappear with the segment"
+
+    def test_long_headlines_keep_the_script_in_budget(self):
+        data = self._data()
+        data["recent_notifications"] = [
+            {
+                "notification_type": "dweller_died",
+                "dweller_name": f"Resident Number {n}",
+                "message": (
+                    f"Resident Number {n} lost their life in a catastrophic "
+                    "accident in the water treatment facility during the night shift."
+                ),
+            }
+            for n in range(4)
+        ]
+        _, script = build_daily_script(**data, variant_seed="busy-day")
+        # Three somber headlines render; the script still respects the ceiling.
+        assert script.count("With heavy hearts") == 3
+        assert len(script.split()) <= 220
+
+
+class TestHeadlineTones:
+    """Headlines get tone-tinted wrappers by notification type."""
+
+    def _data(self, notifications):
+        return {
+            "population": 10,
+            "population_max": 20,
+            "caps": 1000,
+            "happiness": 70,
+            "power": (50, 100),
+            "food": (50, 100),
+            "water": (50, 100),
+            "recent_notifications": notifications,
+            "vault_number": 666,
+        }
+
+    def test_death_headline_is_somber(self):
+        _, script = build_daily_script(
+            **self._data(
+                [
+                    {
+                        "notification_type": "dweller_died",
+                        "dweller_name": "Gerald Moon",
+                        "message": "Gerald Moon died in a fire in the Power Generator.",
+                    }
+                ]
+            )
+        )
+        assert "With heavy hearts" in script
+        assert "Gerald Moon" in script
+
+    def test_victory_headline_celebrates(self):
+        _, script = build_daily_script(
+            **self._data(
+                [
+                    {
+                        "notification_type": "combat_victory",
+                        "message": "Your dwellers defeated the attackers, recovered 52 caps.",
+                    }
+                ]
+            )
+        )
+        assert "A round of applause" in script
+        assert "defeated the attackers" in script
+
+    def test_birth_headline_celebrates_arrival(self):
+        _, script = build_daily_script(
+            **self._data(
+                [
+                    {
+                        "notification_type": "baby_born",
+                        "message": "A healthy baby was born in the living quarters!",
+                    }
+                ]
+            )
+        )
+        assert "A new dweller among us" in script
+
+    def test_untreated_types_stay_untouched(self):
+        message = "A radroach was spotted in the kitchen."
+        _, script = build_daily_script(**self._data([{"notification_type": "pest_spotted", "message": message}]))
+        assert message.rstrip(".") + "." in script or message in script
+
+
 class TestSignOff:
     """Every script ends with a 1950s-style sign-off."""
 
@@ -316,7 +445,7 @@ class TestEdgeCases:
         }
         title, script = build_daily_script(**data)
         assert title  # still returns valid output
-        assert "residents" in script.lower()
+        assert "dwellers" in script.lower()
         # Zero-maximum resources report unavailability, never raw quantities.
         assert "readings are unavailable" in script
         assert "stands at 10" not in script

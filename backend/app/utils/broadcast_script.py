@@ -34,46 +34,40 @@ _GREETINGS = (
 )
 
 _CAPS_LINES = (
-    (
-        "Your bottle cap reserves stand at {caps:,} - enough to bribe most wastelanders, "
-        "or at least a very persistent scoundrel."
-    ),
-    "Your bottle cap reserves stand at {caps:,} - enough to make even a raider do a double take.",
+    ("Treasury report: {caps:,} bottle caps, and every last one accounted for. Mostly."),
     "The cap counter reads {caps:,}. The vending machines remain deeply impressed.",
-    "Treasury report: {caps:,} bottle caps, and every last one accounted for. Mostly.",
-    "Your cap stash holds {caps:,} - enough to keep the jukebox running and the Overseer smiling.",
+    "{caps:,} bottle caps sit in the till, give or take a souvenir.",
+    "Our cap reserves stand at {caps:,}. Enough to keep the lights on and the Overseer content.",
+    ("Down in the vault office, {caps:,} bottle caps wait for a rainy day. It is always a rainy day."),
 )
 
 _MORALE_TIERS: tuple[tuple[int, tuple[str, ...]], ...] = (
     (
         90,
         (
-            "Vault morale sits at {h}% - a splendid showing!",
             "Morale holds at {h}% - the jukebox plays, the people dance.",
+            "Vault morale sits at {h}%, a splendid showing by any measure.",
         ),
     ),
     (
         60,
         (
-            (
-                "Vault morale sits at a steady {h}% - neither the wasteland nor the week "
-                "has broken the spring in anyone's step."
-            ),
-            "Vault morale rests at a comfortable {h}%. The corridor hums along nicely.",
+            ("Morale sits at a steady {h}%. Neither the wasteland nor the week has broken anyone's stride."),
+            "Morale rests at a comfortable {h}%. The corridor hums along nicely.",
         ),
     ),
     (
         30,
         (
-            ("Vault morale sits at {h}%, though there is room for improvement - perhaps a concert in the atrium."),
-            "Morale reads {h}%, and the atmosphere could use some polish. Organize a dance, perhaps.",
+            ("Morale sits at {h}%, which leaves room for improvement. Perhaps a concert in the atrium."),
+            ("Morale holds at {h}%. Time to dust off the dance floor, maybe book the atrium."),
         ),
     ),
     (
         0,
         (
-            "Vault morale sits at a troubling {h}%. The counselor's door is open, dwellers.",
-            "Morale reads a grim {h}%. Ration the joy, but do not ration hope.",
+            "Morale sits at a troubling {h}%. The counselor's door is open, dwellers.",
+            "Morale holds at a grim {h}%. Ration the joy, but never ration hope.",
         ),
     ),
 )
@@ -86,12 +80,117 @@ _LOW_SUPPLY_FLAVOR: dict[str, tuple[str, ...]] = {
 
 _HOUSEKEEPING_LINES = (
     (
-        "Elsewhere in the vault: the corridors are swept, the reactors hum, and the "
-        "forecast calls for dust with a chance of radstorms."
+        "Elsewhere in the vault: the corridors are swept, the reactors hum, "
+        "and nobody has filed a complaint worth repeating."
     ),
     ("In housekeeping news: the water pipes sang all night, and nobody has yet asked them to stop."),
     "A reminder from maintenance: if you hear knocking in the walls, do not knock back.",
 )
+
+_WEATHER_LINES = (
+    "Now for the wasteland forecast: dust with a chance of radstorms. Dress accordingly, caravaneers.",
+    "The wasteland reports: blazing sun, irritable mole rats, and a mild chance of passing caravans. Plan your trips.",
+    "Tonight's wasteland outlook: cold, dark, and full of ghouls. Business as usual.",
+)
+
+_PSA_LINES = (
+    "A public service reminder: radroaches are to be reported, not negotiated with. Thank you for your cooperation.",
+    "A friendly reminder from Vault-Tec: the reactor room is not a lounge. The reactor room is never a lounge.",
+    "PSA: water pollution is everyone's business. Report cloudy taps to your local Purifier attendant.",
+)
+
+_JUKEBOX_LINES = (
+    "Coming up on the jukebox: a set of old classics. Do not set the world on fire while you dance.",
+    "The jukebox requests are in: six more songs about leaving, one about staying.",
+    "Tonight's jukebox special: one bottle cap to hear the same song twice. A bargain, twice over.",
+)
+
+_SEGMENT_KINDS = ("housekeeping", "weather", "psa", "jukebox", "housing")
+
+# Soft ceiling for the rendered script; the rotating segment is the only
+# component dropped when the rest of the broadcast pushes past it.
+_SEGMENT_WORD_BUDGET = 195
+
+
+def _pick_segment(seed: str, population: int, population_max: int) -> tuple[str, str]:
+    """One rotating segment per broadcast: (kind, text), chosen by the seed."""
+    kind = _pick(_SEGMENT_KINDS, f"{seed}:segment")
+    if kind == "housing" and population_max > 0:
+        occupancy = population / population_max
+        if occupancy > 1.0:
+            return kind, (
+                f"Housing reports {population} residents in a vault built for "
+                f"{population_max}. The math is officially above our department."
+            )
+        if occupancy > 0.85:
+            return kind, (
+                f"A note from housing: bunks are filling fast, {population} of "
+                f"{population_max} spoken for. Cozy is a feature."
+            )
+        if occupancy < 0.4:
+            return kind, (
+                f"Housing reports plenty of open bunks, {population} of {population_max} occupied. Room to grow."
+            )
+        return kind, (
+            f"Housing reports steady occupancy: {population} of {population_max} bunks in use, no complaints on file."
+        )
+    variants = {
+        "housekeeping": _HOUSEKEEPING_LINES,
+        "weather": _WEATHER_LINES,
+        "psa": _PSA_LINES,
+        "jukebox": _JUKEBOX_LINES,
+        "housing": _HOUSEKEEPING_LINES,  # no capacity data; a housekeeping line stands in
+    }
+    return kind, _pick(variants[kind], f"{seed}:{kind}")
+
+
+_POPULATION_LINES = (
+    "Our vault is home to {pop} dwellers, with bunks for {pmax}.",
+    "{pop} dwellers call this place home, and the bunks were built for {pmax}.",
+    "The latest head count: {pop} dwellers in a vault rated for {pmax}.",
+)
+
+# The one transition that used to repeat verbatim every day now rotates too.
+_SUPPLY_TRANSITIONS = (
+    "Let us turn to our essential supplies.",
+    "Now, the meters.",
+    "Time for the supply report.",
+    "A glance at the gauges, if you please.",
+)
+
+# Tone-tinted wrappers for headline notifications. The raw message stays intact;
+# the wrapper sets the announcer's mood. {msg} is the notification message.
+_HEADLINE_TONES: dict[str, tuple[str, ...]] = {
+    "dweller_died": ("With heavy hearts, we report: {msg}",),
+    "combat_defeat": ("A hard day for the militia: {msg}",),
+    "combat_victory": ("A round of applause is in order: {msg}",),
+    "baby_born": ("A new dweller among us: {msg}",),
+    "pregnancy_detected": ("Family news: {msg}",),
+    "relationship_formed": ("The heart wants what it wants: {msg}",),
+    "crafting_complete": ("Workshop news: {msg}",),
+    "recipe_unlocked": ("Workshop news: {msg}",),
+    "storage_item_upgraded": ("Workshop news: {msg}",),
+    "dweller_injured": ("Medbay bulletin: {msg}",),
+    "power_outage": ("An urgent notice from the grid: {msg}",),
+    "resource_critical": ("An urgent notice from the stores: {msg}",),
+}
+
+
+_LOWERIZE_OPENERS = re.compile(r"^(a|an|the|your|our|his|her|their|its|it)\b(.*)", re.IGNORECASE)
+
+
+def _tone_headline(notification_type: str, message: str, seed: str) -> str:
+    tones = _HEADLINE_TONES.get(notification_type)
+    if not tones:
+        return message
+    msg = message.rstrip(" .!") + "."
+    # A capital after a colon-wrapper reads like a second headline; settle it,
+    # but only for openers that are clearly not proper nouns.
+    match = _LOWERIZE_OPENERS.match(msg)
+    if match:
+        msg = match.group(1).lower() + match.group(2)
+    return _pick(tones, f"{seed}:tone:{notification_type}").format(msg=msg)
+
 
 _SIGN_OFFS = (
     ("And so ends another broadcast from {vault}. Stay safe out there, and remember: peace is our factory."),
@@ -151,26 +250,33 @@ def build_daily_script(
     # Opening
     parts.append(_pick(_GREETINGS, f"{seed_base}:greeting").format(vault=vault_label, day=day_str))
 
-    # Population
+    notable = _extract_notable(recent_notifications, seed=seed_base)
+    reserved = len(notable.split()) + 3 if notable else 0
+
+    # Population with numbers is the default; if the housing segment is kept,
+    # it is rewritten below so capacity is never stated twice (or zero times).
+    population_idx = len(parts)
     if population_max and population_max > 0:
-        parts.append(
-            f"Your vault is home to {population} brave souls, "
-            f"squeezing comfortably - or so it seems - within a capacity of {population_max}."
-        )
+        parts.append(_pick(_POPULATION_LINES, f"{seed_base}:population").format(pop=population, pmax=population_max))
     else:
-        parts.append(f"The vault is home to {population} residents today.")
+        parts.append(f"Our vault is home to {population} dwellers today.")
 
     # Gender split (from dweller data embedded in notifications)
     if gender_counts:
         genders = ", ".join(f"{cnt} {g}" for g, cnt in gender_counts)
         parts.append(f"That breaks down to {genders}.")
 
-    parts.extend(
-        (
-            _pick(_HOUSEKEEPING_LINES, f"{seed_base}:housekeeping"),
-            _pick(_CAPS_LINES, f"{seed_base}:caps").format(caps=caps),
-        )
-    )
+    # Rotating segment, inserted after the population/gender block when the
+    # full script (everything but the segment itself) stays in budget.
+    kind, segment = _pick_segment(seed_base, population, population_max)
+    segment_idx = len(parts)
+    if len(" ".join(parts).split()) + len(segment.split()) + reserved <= _SEGMENT_WORD_BUDGET:
+        parts.insert(segment_idx, segment)
+        if kind == "housing" and population_max and population_max > 0:
+            # The housing segment owns the capacity numbers now.
+            parts[population_idx] = f"Our vault is home to {population} dwellers today."
+
+    parts.extend((_pick(_CAPS_LINES, f"{seed_base}:caps").format(caps=caps),))
 
     morale_threshold, morale_pool = next(
         (threshold, pool) for threshold, pool in _MORALE_TIERS if happiness >= threshold
@@ -178,7 +284,7 @@ def build_daily_script(
     parts.extend(
         [
             _pick(morale_pool, f"{seed_base}:morale:{morale_threshold}").format(h=happiness),
-            "Let us turn to your essential supplies.",
+            _pick(_SUPPLY_TRANSITIONS, f"{seed_base}:transition"),
         ]
     )
     for label, (current, maximum) in [("power", power), ("food", food), ("water", water)]:
@@ -193,7 +299,6 @@ def build_daily_script(
             parts.append(f"{label.capitalize()} readings are unavailable.")
 
     # Notifications
-    notable = _extract_notable(recent_notifications)
     if notable:
         parts.extend(["Now for today's headlines.", notable])
 
@@ -231,7 +336,7 @@ def _notification_name(notification: dict) -> str:
     return ""
 
 
-def _extract_notable(notifications: list[dict], *, _max: int = 3) -> str:
+def _extract_notable(notifications: list[dict], *, seed: str = "", _max: int = 3) -> str:
     """Extract notable notifications, batching level-ups under each dweller's own name."""
     if not notifications:
         return ""
@@ -268,7 +373,9 @@ def _extract_notable(notifications: list[dict], *, _max: int = 3) -> str:
         notif_type = str(notification.get("notification_type", "")).lower()
         message = _strip_vault_prefix(str(notification.get("message", "")))
         name = _notification_name(notification)
-        if "dweller" in notif_type and name:
+        if notif_type in _HEADLINE_TONES and message:
+            lines.append(_tone_headline(notif_type, message[:100].rstrip(" .!"), seed))
+        elif "dweller" in notif_type and name:
             lines.append(f"{name} - {message[:80].rstrip(' .!')}.")
         elif message:
             lines.append(f"{message[:100].rstrip(' .!')}.")

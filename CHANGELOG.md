@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.290.0 (2026-11-06)
+
+### Features
+
+* render transactional emails with a dark green terminal theme 1cb2df0, closes #0b0f0a #101610 #00ff00
+
+### Bug Fixes
+
+* allow demolishing empty lowest elevators 9f64028
+
 ## 2.289.3 (2026-11-06)
 
 ### Bug Fixes

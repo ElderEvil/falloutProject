@@ -33,21 +33,20 @@ allowBuilds:
 overrides:
   # Pinned (not `@latest`): `@latest` re-resolves on every install and can pull a release newer
   # than `minimumReleaseAge`, which fails the lockfile supply-chain policy check (plan §10).
+  # Security fixes: keep these at or above the Dependabot patched versions.
   form-data: 4.0.6
-  js-yaml: 4.2.0
-  undici: 7.28.0
-  postcss: 8.5.15
+  follow-redirects: 1.16.2
+  js-yaml: 4.3.2
+  undici: 7.30.1
+  postcss: 8.5.23
+  brace-expansion: 2.1.7
+  source-map-js: 1.2.2
   minimatch: 5.1.8
   defu: 6.1.5
   fast-uri: 3.1.2
   dompurify@<=3.4.12: 3.4.13
   esbuild@>=0.27.3 <0.28.1: ^0.28.1
-  js-yaml@>=4.0.0 <4.3.0: 4.3.0
-  js-yaml@>=4.0.0 <4.3.1: 4.3.1
   nanoid@<3.3.17: ^3.3.17
-  postcss@<=8.5.17: ^8.5.18
-  postcss@<=8.5.22: ^8.5.23
-  undici@>=7.0.0 <7.29.0: ^7.29.0
   vite@*: 'catalog:'
 
 # === PACKAGE MANAGER SETTINGS ===

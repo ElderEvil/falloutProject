@@ -264,6 +264,9 @@ class TestEdgeCases:
         title, script = build_daily_script(**data)
         assert title  # still returns valid output
         assert "residents" in script.lower()
+        # Zero-maximum resources report unavailability, never raw quantities.
+        assert "readings are unavailable" in script
+        assert "stands at 10" not in script
 
     def test_no_vault_number(self):
         data = {

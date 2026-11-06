@@ -94,7 +94,7 @@ def build_daily_script(
             pct = round(ratio * 100)
             parts.append(f"{label.capitalize()} is at {pct}%.")
         else:
-            parts.append(f"{label.capitalize()} stands at {current}.")
+            parts.append(f"{label.capitalize()} readings are unavailable.")
 
     # Notifications
     notable = _extract_notable(recent_notifications)

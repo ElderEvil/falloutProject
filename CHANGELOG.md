@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.288.0 (2026-11-06)
+
+### Features
+
+* **radio:** rotating segments, tone-tinted headlines, voice pass ([#1335](https://github.com/ElderEvil/falloutProject/issues/1335)) 6d0bc97
+
 ## 2.287.3 (2026-11-06)
 
 ### Bug Fixes

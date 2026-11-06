@@ -312,9 +312,20 @@ class TestRotatingSegments:
 
     def test_segment_rotates_across_seeds(self):
         _, script = build_daily_script(**self._data(), variant_seed="s1")
-        assert "Housing reports steady occupancy and no complaints on file." in script
+        assert "Housing reports steady occupancy: 23 of 46 bunks in use, no complaints on file." in script
         _, script = build_daily_script(**self._data(), variant_seed="s6")
         assert "The wasteland reports: blazing sun, irritable mole rats" in script
+
+    def test_housing_dropped_by_budget_keeps_capacity_numbers(self, monkeypatch):
+        """When the budget drops the housing segment, the population line keeps its numbers."""
+        import app.utils.broadcast_script as bs
+
+        monkeypatch.setattr(bs, "_SEGMENT_WORD_BUDGET", 30)
+        crowded = self._data() | {"population": 44, "population_max": 46}
+        _, script = build_daily_script(**crowded, variant_seed="s1")
+        assert "A note from housing" not in script, "segment should be budget-dropped"
+        assert "44" in script, "capacity must not disappear with the segment"
+        assert "46" in script, "capacity must not disappear with the segment"
 
     def test_long_headlines_keep_the_script_in_budget(self):
         data = self._data()

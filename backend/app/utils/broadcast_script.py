@@ -107,25 +107,35 @@ _JUKEBOX_LINES = (
 
 _SEGMENT_KINDS = ("housekeeping", "weather", "psa", "jukebox", "housing")
 
+# Soft ceiling for the rendered script; the rotating segment is the only
+# component dropped when the rest of the broadcast pushes past it.
+_SEGMENT_WORD_BUDGET = 195
 
-def _pick_segment(seed: str, population: int, population_max: int) -> str:
-    """One rotating segment per broadcast, chosen by the seed."""
+
+def _pick_segment(seed: str, population: int, population_max: int) -> tuple[str, str]:
+    """One rotating segment per broadcast: (kind, text), chosen by the seed."""
     kind = _pick(_SEGMENT_KINDS, f"{seed}:segment")
     if kind == "housing" and population_max > 0:
         occupancy = population / population_max
         if occupancy > 1.0:
-            return (
+            return kind, (
                 f"Housing reports {population} residents in a vault built for "
                 f"{population_max}. The math is officially above our department."
             )
         if occupancy > 0.85:
-            return (
+            return kind, (
                 f"A note from housing: bunks are filling fast, {population} of "
                 f"{population_max} spoken for. Cozy is a feature."
             )
         if occupancy < 0.4:
-            return f"Housing reports plenty of open bunks, {population} of {population_max} occupied. Room to grow."
-        return "Housing reports steady occupancy and no complaints on file."
+            return kind, (
+                f"Housing reports plenty of open bunks, {population} of "
+                f"{population_max} occupied. Room to grow."
+            )
+        return kind, (
+            f"Housing reports steady occupancy: {population} of {population_max} "
+            "bunks in use, no complaints on file."
+        )
     variants = {
         "housekeeping": _HOUSEKEEPING_LINES,
         "weather": _WEATHER_LINES,
@@ -133,7 +143,7 @@ def _pick_segment(seed: str, population: int, population_max: int) -> str:
         "jukebox": _JUKEBOX_LINES,
         "housing": _HOUSEKEEPING_LINES,  # no capacity data; a housekeeping line stands in
     }
-    return _pick(variants[kind], f"{seed}:{kind}")
+    return kind, _pick(variants[kind], f"{seed}:{kind}")
 
 
 _POPULATION_LINES = (
@@ -164,7 +174,7 @@ _HEADLINE_TONES: dict[str, tuple[str, ...]] = {
     "storage_item_upgraded": ("Workshop news: {msg}",),
     "dweller_injured": ("Medbay bulletin: {msg}",),
     "power_outage": ("An urgent notice from the grid: {msg}",),
-    "resource_critical": ("An urgent notice from the grid: {msg}",),
+    "resource_critical": ("An urgent notice from the stores: {msg}",),
 }
 
 
@@ -242,14 +252,13 @@ def build_daily_script(
     # Opening
     parts.append(_pick(_GREETINGS, f"{seed_base}:greeting").format(vault=vault_label, day=day_str))
 
-    # Rotating segment, dropped when the headlines would blow the word budget.
     notable = _extract_notable(recent_notifications, seed=seed_base)
-    segment = _pick_segment(seed_base, population, population_max)
     reserved = len(notable.split()) + 3 if notable else 0
-    # The housing segment already speaks for the capacity; a second number
-    # sentence back-to-back reads like an echo.
-    housing_speaks = "Housing" in segment or "housing" in segment
-    if population_max and population_max > 0 and not housing_speaks:
+
+    # Population with numbers is the default; if the housing segment is kept,
+    # it is rewritten below so capacity is never stated twice (or zero times).
+    population_idx = len(parts)
+    if population_max and population_max > 0:
         parts.append(_pick(_POPULATION_LINES, f"{seed_base}:population").format(pop=population, pmax=population_max))
     else:
         parts.append(f"Our vault is home to {population} dwellers today.")
@@ -259,8 +268,15 @@ def build_daily_script(
         genders = ", ".join(f"{cnt} {g}" for g, cnt in gender_counts)
         parts.append(f"That breaks down to {genders}.")
 
-    if len(" ".join(parts).split()) + len(segment.split()) + reserved <= 195:
-        parts.append(segment)
+    # Rotating segment, inserted after the population/gender block when the
+    # full script (everything but the segment itself) stays in budget.
+    kind, segment = _pick_segment(seed_base, population, population_max)
+    segment_idx = len(parts)
+    if len(" ".join(parts).split()) + len(segment.split()) + reserved <= _SEGMENT_WORD_BUDGET:
+        parts.insert(segment_idx, segment)
+        if kind == "housing" and population_max and population_max > 0:
+            # The housing segment owns the capacity numbers now.
+            parts[population_idx] = f"Our vault is home to {population} dwellers today."
 
     parts.extend((_pick(_CAPS_LINES, f"{seed_base}:caps").format(caps=caps),))
 

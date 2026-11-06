@@ -15,6 +15,7 @@ import {
   getHappinessColor,
   getHappinessLevel,
   getHealthDisplay,
+  getHealthPercentage,
   getRadiationPercentage,
 } from '../../models/dweller'
 
@@ -46,17 +47,7 @@ const getImageUrl = (imagePath: string) => {
   return getStaticImageUrl(imagePath) ?? ''
 }
 
-const healthPercentage = computed(() => {
-  if (!props.dweller.max_health) return 0
-  return (
-    (Math.min(
-      props.dweller.health,
-      getEffectiveMaxHealth(props.dweller.radiation, props.dweller.max_health)
-    ) /
-      props.dweller.max_health) *
-    100
-  )
-})
+const healthPercentage = computed(() => getHealthPercentage(props.dweller))
 
 const radiationPercentage = computed(() =>
   getRadiationPercentage(props.dweller.radiation, props.dweller.max_health)
@@ -80,8 +71,8 @@ const isCuratedPortrait = computed(() => {
       source!.startsWith('/static/legendary_dweller_images/'))
   )
 })
-const isNonHumanoidPortrait = computed(
-  () => Boolean(props.imageUrl?.endsWith('/FOS_Dw_Snip_Snip.png'))
+const isNonHumanoidPortrait = computed(() =>
+  Boolean(props.imageUrl?.endsWith('/FOS_Dw_Snip_Snip.png'))
 )
 const usesCuratedFrame = computed(() => isCuratedPortrait.value && !isNonHumanoidPortrait.value)
 
@@ -156,7 +147,10 @@ const canHealRadaway = computed(
         </template>
         <template v-else>
           <div class="portrait-placeholder">
-            <Icon icon="mdi:account-circle" class="placeholder-icon text-theme-primary opacity-30" />
+            <Icon
+              icon="mdi:account-circle"
+              class="placeholder-icon text-theme-primary opacity-30"
+            />
             <span class="placeholder-hint">No portrait</span>
           </div>
         </template>

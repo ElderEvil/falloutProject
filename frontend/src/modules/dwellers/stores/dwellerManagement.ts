@@ -30,8 +30,6 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
   const isLoadingLineage = ref(false)
   let lineageRequestSeq = 0
 
-
-
   function beginAssignmentMutation(dwellerId: string): number {
     const sequence = (assignmentMutations.get(dwellerId) ?? 0) + 1
     assignmentMutations.set(dwellerId, sequence)
@@ -54,30 +52,6 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     dwellerId: string,
     roomId: string | null,
     status?: Dweller['status']
-  ): void {
-    const index = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
-    const current = filterStore.dwellers[index]
-    if (index !== -1 && current) {
-      filterStore.dwellers[index] = {
-        ...current,
-        room_id: roomId,
-        ...(status ? { status } : {}),
-      }
-    }
-    const detailed = filterStore.detailedDwellers[dwellerId]
-    if (detailed) {
-      filterStore.detailedDwellers[dwellerId] = {
-        ...detailed,
-        room: roomFor(roomId),
-        ...(status ? { status } : {}),
-      } as typeof detailed
-    }
-  }
-
-  function restoreRoomAssignment(
-    dwellerId: string,
-    roomId: string | null,
-    status: Dweller['status'] | undefined
   ): void {
     const index = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
     const current = filterStore.dwellers[index]
@@ -139,7 +113,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     } catch (error) {
       if (ownsAssignmentMutation(dwellerId, mutation) && sessionIdentity() === identity) {
         const confirmed = confirmedAssignments.get(dwellerId)
-        restoreRoomAssignment(dwellerId, confirmed?.roomId ?? null, confirmed?.status)
+        patchRoomAssignment(dwellerId, confirmed?.roomId ?? null, confirmed?.status)
       }
       handleStoreError(error, `Failed to assign dweller ${dwellerId} to room ${roomId}`)
       throw error
@@ -212,7 +186,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     } catch (error) {
       if (ownsAssignmentMutation(dwellerId, mutation) && sessionIdentity() === identity) {
         const confirmed = confirmedAssignments.get(dwellerId)
-        restoreRoomAssignment(dwellerId, confirmed?.roomId ?? null, confirmed?.status)
+        patchRoomAssignment(dwellerId, confirmed?.roomId ?? null, confirmed?.status)
       }
       handleStoreError(error, `Failed to unassign dweller ${dwellerId}`)
       throw error

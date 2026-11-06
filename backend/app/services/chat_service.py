@@ -31,7 +31,7 @@ from app.services.chat.agent_runner import (
     extract_provider_reason,
     run_chat_agent,
 )
-from app.services.chat.guardrail import screen_message
+from app.services.chat.guardrail import GuardrailVerdict, screen_message
 from app.services.chat.notifications import send_chat_notification, unlock_places_after_conversation
 from app.services.chat.persistence import persist_chat
 from app.services.chat.streaming import stream_with_fallback
@@ -46,6 +46,42 @@ from app.utils.exceptions import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _build_chat_debug(
+    *,
+    debug: bool,
+    provider: str,
+    model: str,
+    prompt_tokens: int | None,
+    completion_tokens: int | None,
+    total_tokens: int | None,
+    verdict: GuardrailVerdict,
+) -> ChatDebug | None:
+    """Build the opt-in dev diagnostics shared by the sync and streaming paths."""
+    if not debug:
+        return None
+    return ChatDebug(
+        provider=provider,
+        model=model,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=total_tokens,
+        guardrail=ChatGuardrailDebug(ran=verdict.ran, blocked=verdict.blocked, reason=verdict.reason),
+        jev_decisions=(
+            [
+                ChatJevDecision(
+                    name="guardrail",
+                    fields={
+                        name: ChatJevField(answer=field.answer, confidence=field.confidence)
+                        for name, field in verdict.fields.items()
+                    },
+                )
+            ]
+            if verdict.fields
+            else []
+        ),
+    )
 
 
 class ChatService:
@@ -114,30 +150,14 @@ class ChatService:
             happiness_impact=result.happiness_impact,
             action_suggestion=result.action_suggestion,
             unlocked_places=unlocked_places,
-            debug=(
-                ChatDebug(
-                    provider=provider,
-                    model=model,
-                    prompt_tokens=result.prompt_tokens,
-                    completion_tokens=result.completion_tokens,
-                    total_tokens=result.total_tokens,
-                    guardrail=ChatGuardrailDebug(ran=verdict.ran, blocked=verdict.blocked, reason=verdict.reason),
-                    jev_decisions=(
-                        [
-                            ChatJevDecision(
-                                name="guardrail",
-                                fields={
-                                    name: ChatJevField(answer=f.answer, confidence=f.confidence)
-                                    for name, f in verdict.fields.items()
-                                },
-                            )
-                        ]
-                        if verdict.fields
-                        else []
-                    ),
-                )
-                if debug
-                else None
+            debug=_build_chat_debug(
+                debug=debug,
+                provider=provider,
+                model=model,
+                prompt_tokens=result.prompt_tokens,
+                completion_tokens=result.completion_tokens,
+                total_tokens=result.total_tokens,
+                verdict=verdict,
             ),
         )
 
@@ -203,30 +223,14 @@ class ChatService:
                 happiness_impact=bundle.happiness_impact,
                 action_suggestion=bundle.action_suggestion,
                 unlocked_places=unlocked_places,
-                debug=(
-                    ChatDebug(
-                        provider=provider,
-                        model=model,
-                        prompt_tokens=bundle.prompt_tokens,
-                        completion_tokens=bundle.completion_tokens,
-                        total_tokens=bundle.total_tokens,
-                        guardrail=ChatGuardrailDebug(ran=verdict.ran, blocked=verdict.blocked, reason=verdict.reason),
-                        jev_decisions=(
-                            [
-                                ChatJevDecision(
-                                    name="guardrail",
-                                    fields={
-                                        name: ChatJevField(answer=f.answer, confidence=f.confidence)
-                                        for name, f in verdict.fields.items()
-                                    },
-                                )
-                            ]
-                            if verdict.fields
-                            else []
-                        ),
-                    )
-                    if debug
-                    else None
+                debug=_build_chat_debug(
+                    debug=debug,
+                    provider=provider,
+                    model=model,
+                    prompt_tokens=bundle.prompt_tokens,
+                    completion_tokens=bundle.completion_tokens,
+                    total_tokens=bundle.total_tokens,
+                    verdict=verdict,
                 ),
             )
 

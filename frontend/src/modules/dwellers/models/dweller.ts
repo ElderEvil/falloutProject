@@ -379,6 +379,15 @@ export function getEffectiveMaxHealth(
   return Math.max(1, maxHealth - Math.max(0, radiation ?? 0))
 }
 
+/** Health as a 0-100 share of max health, capped by the radiation-reduced ceiling. */
+export function getHealthPercentage(
+  dweller: Pick<Dweller, 'health' | 'max_health' | 'radiation'>
+): number {
+  if (!dweller.max_health) return 0
+  const effectiveMaxHealth = getEffectiveMaxHealth(dweller.radiation, dweller.max_health)
+  return (Math.min(dweller.health, effectiveMaxHealth) / dweller.max_health) * 100
+}
+
 /** Shows the radiation-reduced maximum while retaining the base maximum for context. */
 export function getHealthDisplay(
   health: number,

@@ -18,8 +18,8 @@ import {
   DWELLER_PORTRAIT_SCALE,
   getDwellerBodySize,
   getDwellerDisplayName,
-  getEffectiveMaxHealth,
   getHealthDisplay,
+  getHealthPercentage,
   getRadiationPercentage,
 } from '../../models/dweller'
 import DwellerPortrait from '../DwellerPortrait.vue'
@@ -45,17 +45,7 @@ const emit = defineEmits<{
   (e: 'room-click'): void
 }>()
 
-const healthPercentage = computed(() => {
-  if (!props.dweller.max_health) return 0
-  return (
-    (Math.min(
-      props.dweller.health,
-      getEffectiveMaxHealth(props.dweller.radiation, props.dweller.max_health)
-    ) /
-      props.dweller.max_health) *
-    100
-  )
-})
+const healthPercentage = computed(() => getHealthPercentage(props.dweller))
 
 const radiationPercentage = computed(() =>
   getRadiationPercentage(props.dweller.radiation, props.dweller.max_health)

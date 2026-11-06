@@ -544,6 +544,16 @@ async def pg_session_maker() -> AsyncGenerator[tuple[Any, Any]]:
     uri = str(settings.ASYNC_DATABASE_URI)
     if make_url(uri).get_backend_name() != "postgresql":
         pytest.skip("requires PostgreSQL")
+    probe = create_async_engine(uri, pool_size=1, max_overflow=0)
+    try:
+        async with probe.connect():
+            pass
+    except Exception:
+        # Settings assemble a Postgres DSN by default even when no server
+        # is running (e.g. plain local test runs); skip instead of failing.
+        pytest.skip("requires a reachable PostgreSQL server")
+    finally:
+        await probe.dispose()
     engine = create_async_engine(uri, pool_size=1, max_overflow=0)
     maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     try:

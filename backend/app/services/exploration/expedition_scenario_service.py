@@ -520,6 +520,7 @@ class ExpeditionScenarioService:
                 luck=luck,
             ),
             content_provenance=ContentProvenanceEnum.GENERATED,
+            enforce_capacity=False,  # QA scenario flow, not a live arrival
         )
 
     @staticmethod

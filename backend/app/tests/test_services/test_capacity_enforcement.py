@@ -106,3 +106,81 @@ async def test_work_assignment_allowed_when_vault_full(
 
     assigned = await dweller_service.move_to_room(async_session, dweller.id, room.id)
     assert assigned.room_id == room.id
+
+
+@pytest.mark.asyncio
+async def test_concurrent_creation_serializes_on_vault_row_lock(
+    pg_session_maker,
+    dweller_data: dict,
+) -> None:
+    """Two concurrent creations cannot both pass a plain read and overflow.
+
+    Session A inserts a dweller uncommitted (holding the vault row lock);
+    session B's gate blocks on that lock, and after A commits it sees the
+    new population and refuses. The old read-then-insert let both through.
+    """
+    import asyncio
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app import crud as root_crud
+    from app.core.config import settings
+    from app.schemas.user import UserCreate
+    from app.schemas.vault import VaultCreateWithUserID
+
+    engine_a, maker = pg_session_maker
+    uri = str(settings.ASYNC_DATABASE_URI)
+    engine_b = create_async_engine(uri, pool_size=1, max_overflow=0)
+    maker_b = async_sessionmaker(engine_b, class_=AsyncSession, expire_on_commit=False)
+
+    session_a = maker()
+    session_b = maker_b()
+    try:
+        import random as _random
+
+        from faker import Faker
+
+        fake = Faker()
+        user = await root_crud.user.create(
+            db_session=session_a,
+            obj_in=UserCreate(username=fake.user_name(), email=fake.email(), password=fake.password()),
+        )
+        vault = await root_crud.vault.create(
+            db_session=session_a,
+            obj_in=VaultCreateWithUserID(
+                number=_random.randint(100, 999), bottle_caps=100, happiness=50,
+                power=10, food=10, water=10, population_max=2, user_id=user.id,
+            ),
+        )
+        await session_a.commit()
+
+        # A fills one slot uncommitted, keeping the vault row locked.
+        await dweller_service.create_random_dweller(session_a, vault.id)
+        from app.schemas.dweller import DwellerCreate
+
+        pending = await dweller_service.create_dweller(
+            session_a,
+            DwellerCreate(**dweller_data, vault_id=vault.id),
+            commit=False,
+        )
+
+        # B races in: its gate must block on A's row lock, not read a stale count.
+        task = asyncio.create_task(
+            dweller_service.create_random_dweller(session_b, vault.id)
+        )
+        await asyncio.sleep(0.3)
+        assert not task.done(), "B passed the gate while A's insert was uncommitted"
+
+        await session_a.commit()
+        with pytest.raises(NoLivingSpaceError, match="population capacity reached"):
+            await task
+
+        population = await root_crud.vault.get_population(db_session=session_b, vault_id=vault.id)
+        assert population == 2, f"Vault overflowed: {population}/2"
+    finally:
+        await session_a.rollback()
+        await session_b.rollback()
+        await session_a.close()
+        await session_b.close()
+        await engine_b.dispose()
+        await engine_a.dispose()

@@ -348,6 +348,7 @@ class FamilyScenarioService:
             vault_id,
             seed=seed,
             register_bio_places=False,
+            enforce_capacity=False,  # QA scenario flow, not a live arrival
         )
         child.age_group = AgeGroupEnum.CHILD
         child.birth_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=age_hours)

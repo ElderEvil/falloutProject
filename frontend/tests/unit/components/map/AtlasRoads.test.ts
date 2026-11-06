@@ -40,20 +40,25 @@ function snapshot(): WorldSnapshotRead {
   }
 }
 
+function railSnapshot(): WorldSnapshotRead {
+  const world = snapshot()
+  world.roads!.segments.push({
+    id: 'rail',
+    kind: 'railroad',
+    points: [
+      [10, 10],
+      [90, 90],
+    ],
+  })
+  return world
+}
+
 describe('AtlasRoads', () => {
   it('draws a distinct railway with sleepers beneath roads and inside the same fog clip', () => {
-    const world = snapshot()
-    world.roads!.segments.push({
-      id: 'rail',
-      kind: 'railroad',
-      points: [
-        [10, 10],
-        [90, 90],
-      ],
-    })
     const wrapper = mount(AtlasRoads, {
-      props: { snapshot: world, explored: new Uint8Array([1, 0, 0, 0]) },
+      props: { snapshot: railSnapshot(), explored: new Uint8Array([1, 0, 0, 0]), zoom: 4 },
     })
+
     const rail = wrapper.find('[data-layer="railroad"]')
     expect(rail.findAll('polyline')).toHaveLength(3)
     const sleepers = rail.find('polyline[stroke-linecap="butt"]')
@@ -65,25 +70,72 @@ describe('AtlasRoads', () => {
 
   it('draws backend points at the map scale, with highways above narrower country roads', () => {
     const wrapper = mount(AtlasRoads, {
-      props: { snapshot: snapshot(), explored: new Uint8Array(4).fill(1) },
+      props: { snapshot: snapshot(), explored: new Uint8Array(4).fill(1), zoom: 2 },
     })
+
     expect(
       wrapper
         .findAll('[data-layer="country"], [data-layer="highway"]')
         .map((layer) => layer.attributes('data-layer'))
     ).toEqual(['country', 'highway'])
+
     const highway = wrapper.find('[data-layer="highway"]')
     expect(highway.find('polyline').attributes('points')).toBe('16,32 40,56 112,64')
-    expect(highway.findAll('polyline')[1].attributes('stroke-width')).toBe('0.8')
+    expect(highway.findAll('[data-role="road"]')[0].attributes('stroke-width')).toBe('0.8')
     expect(
-      wrapper.find('[data-layer="country"]').findAll('polyline')[1].attributes('stroke-width')
+      wrapper
+        .find('[data-layer="country"]')
+        .findAll('[data-role="road"]')[0]
+        .attributes('stroke-width')
     ).toBe('0.36')
     expect(wrapper.attributes('aria-hidden')).toBe('true')
   })
 
+  it('adds pre-war detail only where the zoom supports it', () => {
+    const overview = mount(AtlasRoads, {
+      props: { snapshot: snapshot(), explored: new Uint8Array(4).fill(1), zoom: 1 },
+    })
+    expect(overview.find('[data-layer="country"]').exists()).toBe(false)
+    expect(overview.findAll('[data-role="highway-dashes"]')).toHaveLength(0)
+    expect(overview.findAll('[data-role="junction"]')).toHaveLength(0)
+    expect(overview.findAll('[data-role="road-label"]')).toHaveLength(0)
+    expect(overview.findAll('[data-role="rail-stop"]')).toHaveLength(0)
+    expect(overview.find('[data-layer="highway"]').exists()).toBe(true)
+
+    const detail = mount(AtlasRoads, {
+      props: { snapshot: railSnapshot(), explored: new Uint8Array(4).fill(1), zoom: 4 },
+    })
+    expect(detail.findAll('[data-role="highway-dashes"]')).toHaveLength(1)
+    expect(detail.findAll('[data-role="junction"]')).toHaveLength(1)
+    expect(detail.findAll('[data-role="road-label"]')[0].text()).toMatch(/^OLD \d+$/)
+    expect(detail.findAll('[data-role="rail-stop"]')).toHaveLength(2)
+  })
+
+  it('renders worn segments with a decay overlay at close zoom', () => {
+    const world = snapshot()
+    world.roads!.segments.push({
+      id: 'A',
+      kind: 'highway',
+      points: [
+        [80, 10],
+        [90, 20],
+      ],
+    })
+
+    const far = mount(AtlasRoads, {
+      props: { snapshot: world, explored: new Uint8Array(4).fill(1), zoom: 2 },
+    })
+    expect(far.findAll('[data-role="road-decay"]')).toHaveLength(0)
+
+    const close = mount(AtlasRoads, {
+      props: { snapshot: world, explored: new Uint8Array(4).fill(1), zoom: 4 },
+    })
+    expect(close.findAll('[data-role="road-decay"]')).toHaveLength(1)
+  })
+
   it('clips the whole stroke to explored tiles, updates with fog, and supports the existing fog toggle', async () => {
     const wrapper = mount(AtlasRoads, {
-      props: { snapshot: snapshot(), explored: new Uint8Array([1, 0, 0, 0]) },
+      props: { snapshot: snapshot(), explored: new Uint8Array([1, 0, 0, 0]), zoom: 2 },
     })
     expect(wrapper.find('clipPath path').attributes('d')).toBe('M0 0h80v80H0Z')
     expect(wrapper.find('g[clip-path]').attributes('clip-path')).toContain(
@@ -99,7 +151,7 @@ describe('AtlasRoads', () => {
 
   it('fails closed on a mismatched explored mask', () => {
     const wrapper = mount(AtlasRoads, {
-      props: { snapshot: snapshot(), explored: new Uint8Array([1]) },
+      props: { snapshot: snapshot(), explored: new Uint8Array([1]), zoom: 2 },
     })
     expect(wrapper.find('clipPath path').attributes('d')).toBe('')
     expect(wrapper.find('g[clip-path]').exists()).toBe(true)
@@ -107,9 +159,9 @@ describe('AtlasRoads', () => {
 
   it('removes roads when the snapshot is missing, lacks roads, or belongs to another base', async () => {
     const wrapper = mount(AtlasRoads, {
-      props: { snapshot: snapshot(), explored: new Uint8Array(4) },
+      props: { snapshot: snapshot(), explored: new Uint8Array(4), zoom: 2 },
     })
-    expect(wrapper.findAll('polyline')).toHaveLength(4)
+    expect(wrapper.findAll('polyline')).toHaveLength(5)
     const stale = snapshot()
     stale.snapshot_checksum = 'different-base'
     await wrapper.setProps({ snapshot: stale })

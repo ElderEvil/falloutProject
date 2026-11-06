@@ -534,6 +534,7 @@ function handleTouchEnd(event: TouchEvent) {
           :snapshot="mapStore.worldSnapshot"
           :explored="exploredMask"
           :fog-disabled="fogDisabled"
+          :zoom="zoom"
         />
 
         <!-- Fog of war: derived explored mask over the terrain -->

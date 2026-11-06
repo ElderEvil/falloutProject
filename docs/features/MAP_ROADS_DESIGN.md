@@ -71,6 +71,14 @@ Roads have no pointer interactions. Clip their visible area with the explored ma
 do not rely on translucent fog alone to conceal them. Keep green dashed discovery
 trails visually separate from solid ochre roads. Markers remain the strongest signals.
 
+### Renderer detail pass (2026-11-07)
+
+A zoom-aware cartography pass now draws, from the same backend geometry: overview keeps
+only highways and railroads; mid zoom adds country roads, highway centre dashes and
+junction rings; close zoom adds deterministic wear, faded `OLD <number>` route labels and
+railway station/water-tower markers. No new recipe fields and no travel effects; fog
+clipping, exact junctions and the backend-owned geometry contract are unchanged.
+
 Junctions share exact endpoints. Country roads meet the highway cleanly; draw highway
 strokes over branch casings to avoid dark seams. A geometric crossing is an at-grade
 junction in this first pass. No overpasses or bridge semantics yet. Railroads are a separate sparse trunk and

@@ -14,7 +14,8 @@ Wasteland map module. Displays a schematic SVG map of the wasteland with locatio
 - `models/map.ts` — TypeScript type aliases for map schemas
 - `components/WorldMap.vue` — inline SVG map with grid lines and markers
 - `components/AtlasTerrain.vue` — renders terrain from the backend world snapshot
-- `components/AtlasRoads.vue` — renders backend highway/country centerlines below fog;
-  also renders sparse railroad lines with sleepers. No client generation or travel effects.
+- `components/AtlasRoads.vue` — renders backend highway/country centerlines below fog,
+  with zoom-aware detail (highway dashes, junction rings, wear, route labels, rail stops).
+  No client generation or travel effects.
 - `components/MapMarker.vue` — individual location/vault marker on the SVG
 - `components/MarkerDetailModal.vue` — detail modal with dweller links

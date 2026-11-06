@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.287.2 (2026-11-06)
+
+### Bug Fixes
+
+* raise dramatiq worker DB pool to prevent lock timeouts ([#1333](https://github.com/ElderEvil/falloutProject/issues/1333)) d8dbb7d
+
 ## 2.287.1 (2026-11-05)
 
 ### Bug Fixes

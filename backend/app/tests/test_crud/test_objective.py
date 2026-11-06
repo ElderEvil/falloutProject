@@ -17,9 +17,7 @@ from app.tests.factory.vaults import create_fake_vault
 async def test_count_claimable_for_vault(async_session: AsyncSession) -> None:
     """Count rewards-ready-but-unclaimed links, excluding locked and claimed ones."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
 
     def make(challenge: str, amount: int) -> ObjectiveCreate:
         return ObjectiveCreate(

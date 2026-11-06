@@ -124,9 +124,7 @@ _JUKEBOX_LINES = (
 _SEGMENT_WORD_BUDGET = 195
 
 
-def _pick_segment(
-    seed: str, population: int, population_max: int, rewards_ready: int = 0
-) -> tuple[str, str]:
+def _pick_segment(seed: str, population: int, population_max: int, rewards_ready: int = 0) -> tuple[str, str]:
     """One rotating segment per broadcast: (kind, text), chosen by the seed."""
     kind = _pick(_SEGMENT_KINDS, f"{seed}:segment")
     if kind == "housing" and population_max > 0:

@@ -254,9 +254,7 @@ async def is_enough_population_space(*, db_session: AsyncSession, vault_id: UUID
     Counts every living dweller in the vault — assigned or not. An
     unassigned dweller still occupies a bunk.
     """
-    population_max, current_population = await vault_crud.get_population_space(
-        db_session=db_session, vault_id=vault_id
-    )
+    population_max, current_population = await vault_crud.get_population_space(db_session=db_session, vault_id=vault_id)
     if population_max is None:
         if current_population == 0:
             raise ResourceNotFoundException(Vault, identifier=vault_id)

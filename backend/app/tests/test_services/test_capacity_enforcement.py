@@ -39,9 +39,7 @@ async def test_unassigned_dweller_counts_toward_capacity(
     ), "A full vault must refuse another dweller even if the resident is unassigned"
 
     await _set_population_max(async_session, vault, population_max=2)
-    assert await vault_service.is_enough_population_space(
-        db_session=async_session, vault_id=vault.id, space_required=1
-    )
+    assert await vault_service.is_enough_population_space(db_session=async_session, vault_id=vault.id, space_required=1)
 
 
 @pytest.mark.asyncio
@@ -68,9 +66,7 @@ async def test_create_random_dweller_bypasses_for_bootstrap(
     """Seeding/pregen run at vault bootstrap and must be able to fill a fresh vault."""
     await _set_population_max(async_session, vault, population_max=1)
 
-    bootstrap_dweller = await dweller_service.create_random_dweller(
-        async_session, vault.id, enforce_capacity=False
-    )
+    bootstrap_dweller = await dweller_service.create_random_dweller(async_session, vault.id, enforce_capacity=False)
     assert bootstrap_dweller.vault_id == vault.id
 
     with pytest.raises(NoLivingSpaceError, match="population capacity reached"):

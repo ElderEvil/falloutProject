@@ -179,8 +179,12 @@ class DwellerService:
         A ``commit=False`` caller owns the commit and must emit the DWELLER_ADDED event itself after committing.
         """
         vault_id = obj_in.vault_id
-        if vault_id is not None and enforce_capacity and not await vault_service.is_enough_population_space(
-            db_session=db_session, vault_id=vault_id, space_required=1
+        if (
+            vault_id is not None
+            and enforce_capacity
+            and not await vault_service.is_enough_population_space(
+                db_session=db_session, vault_id=vault_id, space_required=1
+            )
         ):
             raise NoLivingSpaceError(f"Vault population capacity reached ({vault_id})")
         obj_in = obj_in.model_copy(update={"visual_attributes": complete_appearance(obj_in.model_dump())})

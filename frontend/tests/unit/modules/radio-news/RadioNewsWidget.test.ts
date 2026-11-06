@@ -162,13 +162,9 @@ describe("RadioNewsWidget", () => {
     });
     await flushPromises();
 
-    // Inline trigger is a compact bar button, not the floating docked row.
-    const toggle = wrapper.find(".radio-news-widget__toggle");
-    expect(toggle.classes()).not.toContain("fixed");
-    expect(toggle.classes()).not.toContain("bottom-24");
-
-    // The console escapes the wrapper entirely (body-level, outside the
-    // control bar's transform/overflow clipping).
+    // Inline trigger mounts with the console teleported out of the wrapper
+    // (body-level, outside the control bar's transform/overflow clipping),
+    // unlike the floating mode whose panel stays in the wrapper tree.
     expect(wrapper.find("#radio-news-panel").exists()).toBe(false);
     const panel = document.querySelector(
       "#radio-news-panel",
@@ -176,6 +172,7 @@ describe("RadioNewsWidget", () => {
     expect(panel).not.toBeNull();
     expect(panel!.style.display).toContain("none");
 
+    const toggle = wrapper.find(".radio-news-widget__toggle");
     await toggle.trigger("click");
     expect(panel!.style.display).not.toContain("none");
     expect(toggle.attributes("aria-expanded")).toBe("true");

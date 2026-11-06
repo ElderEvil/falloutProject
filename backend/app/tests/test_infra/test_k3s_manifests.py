@@ -37,6 +37,10 @@ def test_backend_uses_a_dependency_readiness_probe_and_a_light_liveness_probe() 
     assert container["livenessProbe"]["httpGet"]["path"] == "/healthcheck"
     assert container["readinessProbe"]["httpGet"]["path"] == "/readiness"
     assert "fo-shelter-be" in container["image"]
+    assert container["envFrom"] == [
+        {"secretRef": {"name": "backend-env"}},
+        {"secretRef": {"name": "rustfs-credentials"}},
+    ]
 
 
 def test_frontend_uses_the_release_image_baseline() -> None:
@@ -54,7 +58,10 @@ def test_worker_manifest_matches_the_release_deployment_contract() -> None:
     assert manifest["spec"]["strategy"] == {"type": "Recreate"}
     assert container["name"] == "dramatiq-worker"
     assert "fo-shelter-be" in container["image"]
-    assert container["envFrom"] == [{"secretRef": {"name": "backend-env"}}]
+    assert container["envFrom"] == [
+        {"secretRef": {"name": "backend-env"}},
+        {"secretRef": {"name": "rustfs-credentials"}},
+    ]
     assert container["env"][0]["name"] == "ENVIRONMENT"
     assert any(env["name"] == "FALLOUT_WORKER" and env["value"] == "1" for env in container["env"])
 

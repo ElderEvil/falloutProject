@@ -228,9 +228,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Initialize: fetch user if we have a token but no user data
-  if (token.value && !user.value) {
-    clearSession()
+  // Initialize: the server owns the user record (roles, quota, verification),
+  // so refresh it on every boot instead of trusting the persisted copy. Without
+  // this, a role change only appears after an explicit logout/login.
+  if (token.value) {
+    if (!user.value) clearSession()
     void fetchUser()
   }
 

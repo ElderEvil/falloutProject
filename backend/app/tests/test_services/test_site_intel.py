@@ -52,9 +52,7 @@ def option(option_id: str, stat: str, difficulty: int, *, bloodless: bool) -> No
 
 
 def test_choice_options_advertise_checks():
-    site = make_site(
-        SiteNode(kind="choice", prompt="...", options=[option("a", "charisma", 3, bloodless=True)])
-    )
+    site = make_site(SiteNode(kind="choice", prompt="...", options=[option("a", "charisma", 3, bloodless=True)]))
     intel = site_intel(site, spatial=True)
     assert [(check.stat, check.difficulty) for check in intel.checks] == [("charisma", 3)]
     assert intel.checks[0].bloodless is True
@@ -62,9 +60,7 @@ def test_choice_options_advertise_checks():
 
 
 def test_combat_failure_marks_option_and_blocks_negotiable():
-    site = make_site(
-        SiteNode(kind="choice", prompt="...", options=[option("a", "guns", 4, bloodless=False)])
-    )
+    site = make_site(SiteNode(kind="choice", prompt="...", options=[option("a", "guns", 4, bloodless=False)]))
     intel = site_intel(site, spatial=True)
     assert intel.checks[0].bloodless is False
     assert intel.negotiable is False
@@ -89,13 +85,9 @@ def test_combat_room_blocks_negotiable_despite_bloodless_option():
 
 
 def test_finale_terminal_is_advertised():
-    site = make_site(
-        SiteNode(kind="finale", prompt="...", stat="intelligence", difficulty=4)
-    )
+    site = make_site(SiteNode(kind="finale", prompt="...", stat="intelligence", difficulty=4))
     intel = site_intel(site, spatial=True)
-    assert [(check.stat, check.difficulty, check.label) for check in intel.checks] == [
-        ("intelligence", 4, "Terminal")
-    ]
+    assert [(check.stat, check.difficulty, check.label) for check in intel.checks] == [("intelligence", 4, "Terminal")]
     # Nothing to fight at all, so the pass is bloodless by definition.
     assert intel.negotiable is True
 
@@ -116,14 +108,18 @@ def test_spatial_uses_encounter_legacy_uses_rooms():
 
 
 def test_intel_phrase_variants():
-    site = make_site(
-        SiteNode(kind="choice", prompt="...", options=[option("a", "charisma", 3, bloodless=True)])
-    )
+    site = make_site(SiteNode(kind="choice", prompt="...", options=[option("a", "charisma", 3, bloodless=True)]))
     assert "CHARISMA 3" in intel_phrase(site_intel(site, spatial=True))
     assert "without a shot" in intel_phrase(site_intel(site, spatial=True))
-    assert intel_phrase(site_intel(make_site(
-        SiteNode(kind="combat", prompt="...", enemies=[EnemySpec(name="Raider", power=1, health=1)])
-    ), spatial=True)) is None
+    assert (
+        intel_phrase(
+            site_intel(
+                make_site(SiteNode(kind="combat", prompt="...", enemies=[EnemySpec(name="Raider", power=1, health=1)])),
+                spatial=True,
+            )
+        )
+        is None
+    )
 
 
 def test_catalog_sites_all_advertise_sane_intel():

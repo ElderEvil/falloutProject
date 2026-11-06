@@ -48,9 +48,7 @@ def _node_checks(node: SiteNode) -> list[SiteCheckIntel]:
         if option.stat and option.difficulty
     ]
     if node.kind == "finale" and node.stat and node.difficulty:
-        checks.append(
-            SiteCheckIntel(stat=node.stat, difficulty=node.difficulty, label="Terminal", bloodless=True)
-        )
+        checks.append(SiteCheckIntel(stat=node.stat, difficulty=node.difficulty, label="Terminal", bloodless=True))
     return checks
 
 

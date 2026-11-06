@@ -537,9 +537,7 @@ class ExpeditionService:
                 name=site.name,
                 flavor=site.flavor,
                 min_dweller_level=site.min_dweller_level,
-                room_total=1
-                if (single := uses_single_scene(site, spatial=spatial))
-                else len(site.rooms),
+                room_total=1 if (single := uses_single_scene(site, spatial=spatial)) else len(site.rooms),
                 scene_id=site.scene_id,
                 enemy_names=[spec.name for spec in site.encounter.node.enemies] if single and site.encounter else [],
                 threat=encounter_threat(site, dweller_obj)

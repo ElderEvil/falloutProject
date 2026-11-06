@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.287.3 (2026-11-06)
+
+### Bug Fixes
+
+* **radio:** polish broadcast copy and dock the tuner next to the game clock ([#1334](https://github.com/ElderEvil/falloutProject/issues/1334)) e0edd21
+
 ## 2.287.2 (2026-11-06)
 
 ### Bug Fixes

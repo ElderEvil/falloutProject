@@ -107,6 +107,16 @@
     /* Reserved for a future road layer: no road data exists yet, do not draw. */
     --color-terrain-road: #e6c886;
 
+    /* Regional-map design studies: a fixed print palette, scoped by the preview. */
+    --color-atlas-amber: #f7bb32;
+    --color-atlas-paper: #e2d3a6;
+    --color-atlas-ink: #14160e;
+    --color-atlas-wasteland: #8b5a2a;
+    --color-atlas-forest: #4b6230;
+    --color-atlas-ruins: #696352;
+    --color-atlas-hills: #84775e;
+    --color-atlas-water: #59717b;
+
     /* Fog of war — unexplored atlas regions. Near-black olive drawn from the
        terrain palette, fully opaque so hidden terrain and markers do not ghost
        through. Themeable. */

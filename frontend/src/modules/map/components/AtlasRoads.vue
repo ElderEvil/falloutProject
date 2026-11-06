@@ -60,13 +60,13 @@ const exploredClip = computed(() => {
       stroke-linecap="round"
       stroke-linejoin="round"
     >
-      <g v-for="layer in layers" :key="layer.kind" :class="`atlas-road-${layer.kind}`">
+      <g v-for="layer in layers" :key="layer.kind" v-bind="{ 'data-layer': layer.kind }">
         <polyline
           v-for="road in layer.segments"
           :key="`${road.id}-casing`"
           :points="road.points"
           class="stroke-terminal-background/70"
-          :class="layer.kind === 'country' ? '[stroke-width:0.68]' : '[stroke-width:1.36]'"
+          :stroke-width="layer.kind === 'country' ? 0.68 : 1.36"
         />
         <template v-if="layer.kind === 'railroad'">
           <polyline
@@ -74,7 +74,9 @@ const exploredClip = computed(() => {
             :key="`${road.id}-sleepers`"
             :points="road.points"
             stroke-linecap="butt"
-            class="stroke-terrain-rail/70 [stroke-width:1.1] [stroke-dasharray:0.14_0.8]"
+            stroke-width="1.1"
+            stroke-dasharray="0.14 0.8"
+            class="stroke-terrain-rail/70"
           />
         </template>
         <polyline
@@ -83,11 +85,12 @@ const exploredClip = computed(() => {
           :points="road.points"
           :class="
             layer.kind === 'railroad'
-              ? 'stroke-terrain-rail/90 [stroke-width:0.24]'
+              ? 'stroke-terrain-rail/90'
               : layer.kind === 'highway'
-                ? 'stroke-terrain-road/85 [stroke-width:0.8]'
-                : 'stroke-terrain-road/60 [stroke-width:0.36]'
+                ? 'stroke-terrain-road/85'
+                : 'stroke-terrain-road/60'
           "
+          :stroke-width="layer.kind === 'railroad' ? 0.24 : layer.kind === 'highway' ? 0.8 : 0.36"
         />
       </g>
     </g>

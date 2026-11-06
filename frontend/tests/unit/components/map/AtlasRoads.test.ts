@@ -54,15 +54,13 @@ describe('AtlasRoads', () => {
     const wrapper = mount(AtlasRoads, {
       props: { snapshot: world, explored: new Uint8Array([1, 0, 0, 0]) },
     })
-    const rail = wrapper.find('.atlas-road-railroad')
+    const rail = wrapper.find('[data-layer="railroad"]')
     expect(rail.findAll('polyline')).toHaveLength(3)
     const sleepers = rail.find('polyline[stroke-linecap="butt"]')
-    expect(sleepers.classes()).toContain('[stroke-dasharray:0.14_0.8]')
+    expect(sleepers.attributes('stroke-dasharray')).toBe('0.14 0.8')
     expect(sleepers.attributes('points')).toBe('16,16 144,144')
     expect(wrapper.find('g[clip-path]').element.contains(rail.element)).toBe(true)
-    expect(wrapper.findAll('g[class^="atlas-road-"]')[0].attributes('class')).toBe(
-      'atlas-road-railroad'
-    )
+    expect(wrapper.findAll('g[data-layer]')[0].attributes('data-layer')).toBe('railroad')
   })
 
   it('draws backend points at the map scale, with highways above narrower country roads', () => {
@@ -71,16 +69,16 @@ describe('AtlasRoads', () => {
     })
     expect(
       wrapper
-        .findAll('.atlas-road-country, .atlas-road-highway')
-        .map((layer) => layer.attributes('class'))
-    ).toEqual(['atlas-road-country', 'atlas-road-highway'])
-    const highway = wrapper.find('.atlas-road-highway')
+        .findAll('[data-layer="country"], [data-layer="highway"]')
+        .map((layer) => layer.attributes('data-layer'))
+    ).toEqual(['country', 'highway'])
+    const highway = wrapper.find('[data-layer="highway"]')
     expect(highway.find('polyline').attributes('points')).toBe('16,32 40,56 112,64')
-    expect(highway.findAll('polyline')[1].classes()).toContain('[stroke-width:0.8]')
-    expect(wrapper.find('.atlas-road-country').findAll('polyline')[1].classes()).toContain(
-      '[stroke-width:0.36]'
-    )
-    expect(wrapper.classes()).toContain('pointer-events-none')
+    expect(highway.findAll('polyline')[1].attributes('stroke-width')).toBe('0.8')
+    expect(
+      wrapper.find('[data-layer="country"]').findAll('polyline')[1].attributes('stroke-width')
+    ).toBe('0.36')
+    expect(wrapper.attributes('aria-hidden')).toBe('true')
   })
 
   it('clips the whole stroke to explored tiles, updates with fog, and supports the existing fog toggle', async () => {

@@ -16,15 +16,6 @@ from app.api.deps import (
     get_user_vault_or_403,
     verify_dweller_access,
 )
-from app.core.enums import (
-    AgeGroupEnum,
-    DwellerRosterFocus,
-    DwellerStatusEnum,
-    FactionEnum,
-    GenderEnum,
-    RaceEnum,
-    RarityEnum,
-)
 from app.core.game_config import game_config
 from app.core.game_data import get_static_game_data
 from app.db.session import get_async_session
@@ -43,6 +34,7 @@ from app.schemas.dweller import (
     DwellerReadWithRoomID,
     DwellerRename,
     DwellerReviveResponse,
+    DwellerRosterFilters,
     DwellerUpdate,
     DwellerUpdateRequest,
     DwellerVisualAttributes,
@@ -212,16 +204,7 @@ async def read_dwellers_by_vault(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     pagination: PaginationParams,
-    status: DwellerStatusEnum | None = None,
-    focus: DwellerRosterFocus | None = None,
-    age_group: AgeGroupEnum | None = None,
-    gender: GenderEnum | None = None,
-    rarity: RarityEnum | None = None,
-    search: str | None = None,
-    race: RaceEnum | None = None,
-    faction: FactionEnum | None = None,
-    sort_by: str = "created_at",
-    order: str = "desc",
+    filters: Annotated[DwellerRosterFilters, Query()],
 ) -> Sequence[Dweller]:
     """Get dwellers by vault with optional filtering and sorting.
 
@@ -234,16 +217,7 @@ async def read_dwellers_by_vault(
         vault_id=vault_id,
         skip=pagination.skip,
         limit=pagination.limit,
-        status=status,
-        focus=focus,
-        age_group=age_group,
-        gender=gender,
-        rarity=rarity,
-        search=search,
-        race=race,
-        faction=faction,
-        sort_by=sort_by,
-        order=order,
+        filters=filters,
     )
 
 

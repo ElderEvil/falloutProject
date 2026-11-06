@@ -11,6 +11,7 @@ from app.core.enums import (
     AgeGroupEnum,
     AvailabilityEnum,
     DeathCauseEnum,
+    DwellerRosterFocus,
     DwellerStatusEnum,
     FactionEnum,
     GenderEnum,
@@ -42,6 +43,25 @@ STATS_RANGE_BY_RARITY = {
     RarityEnum.RARE: (3, 6),
     RarityEnum.LEGENDARY: (6, 10),
 }
+
+
+class DwellerRosterFilters(BaseModel):
+    """Identity filters and sort order for the vault roster.
+
+    Shared by the endpoint and the service so a new filter cannot be added on
+    one side only.
+    """
+
+    status: DwellerStatusEnum | None = None
+    focus: DwellerRosterFocus | None = None
+    age_group: AgeGroupEnum | None = None
+    gender: GenderEnum | None = None
+    rarity: RarityEnum | None = None
+    search: str | None = None
+    race: RaceEnum | None = None
+    faction: FactionEnum | None = None
+    sort_by: str = "created_at"
+    order: str = "desc"
 
 
 class DwellerCreateWithoutVaultID(DwellerBase):

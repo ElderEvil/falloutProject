@@ -27,7 +27,7 @@ import { useToast } from '@/core/composables/useToast'
 import { useSound } from '@/core/composables/useSound'
 import { usePolling } from '@/core/composables/usePolling'
 import { useNow } from '@/core/composables/useNow'
-import { computeRemainingSeconds, formatDuration } from '@/core/utils/time'
+import { computeRemainingSeconds, formatDuration, parseUtcMs } from '@/core/utils/time'
 import { notifyErrorOnce, getErrorMessage } from '@/core/utils/errorHandler'
 import { craftingService } from '../services/craftingService'
 import type { CraftableItemType, CraftingOrder, CraftingRecipe } from '../models/crafting'
@@ -150,8 +150,8 @@ function remainingLabel(order: CraftingOrder): string {
 
 // Live bar so the queue visibly fills between ticks, matching the training cards.
 function progressPercent(order: CraftingOrder): number {
-  const started = new Date(`${order.started_at}Z`).getTime()
-  const endsAt = new Date(`${order.estimated_completion_at}Z`).getTime()
+  const started = parseUtcMs(order.started_at)
+  const endsAt = parseUtcMs(order.estimated_completion_at)
   const total = endsAt - started
   const live = total > 0 ? ((now.value - started) / total) * 100 : 0
   return Math.min(100, Math.max(order.progress * 100, live))

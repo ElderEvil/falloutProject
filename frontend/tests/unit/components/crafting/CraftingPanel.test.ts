@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createIconifyMock, createToastMock } from '../../helpers/mocks'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import CraftingPanel from '@/modules/crafting/components/CraftingPanel.vue'
@@ -74,6 +74,8 @@ const findButton = (wrapper: VueWrapper, label: string) =>
   wrapper.findAll('button').find((button) => button.text().includes(label))!
 
 describe('CraftingPanel', () => {
+  afterEach(() => vi.useRealTimers())
+
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(craftingService.listRecipes).mockResolvedValue([recipe()])
@@ -227,6 +229,37 @@ describe('CraftingPanel', () => {
     expect(bar.exists()).toBe(true)
     expect(bar.attributes('aria-valuenow')).toBe('50')
     expect(wrapper.text()).toContain('50%')
+  })
+
+  it.each([
+    ['legacy UTC', '2026-11-06T12:00:00', '2026-11-06T12:02:00'],
+    ['space-separated UTC', '2026-11-06 12:00:00', '2026-11-06 12:02:00'],
+    ['UTC Z', '2026-11-06T12:00:00Z', '2026-11-06T12:02:00Z'],
+    ['positive offset', '2026-11-06T17:45:00+05:45', '2026-11-06T17:47:00+05:45'],
+    ['negative offset', '2026-11-06T08:00:00-04:00', '2026-11-06T08:02:00-04:00'],
+  ])('keeps queue progress and countdown consistent for %s after reload', async (_, start, end) => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
+    vi.setSystemTime(new Date('2026-11-06T12:01:00Z'))
+    vi.mocked(craftingService.listOrders).mockResolvedValue([
+      order({ started_at: start, estimated_completion_at: end, progress: 0.1 }),
+    ])
+    let wrapper = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('50')
+    expect(wrapper.text()).toContain('50%')
+    expect(wrapper.text()).toContain('1m 0s')
+
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(wrapper.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('75')
+    expect(wrapper.text()).toContain('30s')
+    wrapper.unmount()
+
+    wrapper = mountPanel()
+    await flushPromises()
+    expect(wrapper.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('75')
+    expect(wrapper.text()).toContain('30s')
+    wrapper.unmount()
   })
 
   it('cancels an active order and refreshes the queue', async () => {

@@ -125,6 +125,23 @@ describe('formatDaysRemaining', () => {
   })
 })
 
+describe('UTC timestamp compatibility', () => {
+  it.each([
+    '2026-11-06T12:01:00.123456',
+    '2026-11-06 12:01:00.123456',
+    '2026-11-06T12:01:00.123456Z',
+    '2026-11-06T12:01:00.123456+00:00',
+    '2026-11-06T17:46:00.123456+05:45',
+    '2026-11-06T08:01:00.123456-04:00',
+  ])('preserves the instant and countdown for %s', (timestamp) => {
+    const end = Date.parse('2026-11-06T12:01:00.123Z')
+    expect(parseUtcMs(timestamp)).toBe(end)
+    expect(computeRemainingSeconds(timestamp, end - 60_000)).toBe(60)
+    expect(computeRemainingSeconds(timestamp, end)).toBe(0)
+    expect(computeRemainingSeconds(timestamp, end + 1000)).toBe(0)
+  })
+})
+
 describe('computeRemainingSeconds', () => {
   const now = Date.parse('2026-08-21T12:00:00Z')
 

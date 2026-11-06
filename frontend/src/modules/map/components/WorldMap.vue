@@ -21,6 +21,7 @@ import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
 import MarkerListPanel from './MarkerListPanel.vue'
 import AtlasTerrain from './AtlasTerrain.vue'
+import AtlasRoads from './AtlasRoads.vue'
 import FogLayer from './FogLayer.vue'
 import { registryToTile, ATLAS_TILES } from '../utils/atlasProjection'
 import { computeExploredMask, isExploredTile } from '../utils/fog'
@@ -527,8 +528,13 @@ function handleTouchEnd(event: TouchEvent) {
         focusable="false"
         @mousedown="handleMouseDown"
       >
-        <!-- Terrain layer (bottom — behind markers): biomes, rivers, roads -->
+        <!-- Shared backend cartography beneath fog and private discovery trails. -->
         <AtlasTerrain />
+        <AtlasRoads
+          :snapshot="mapStore.worldSnapshot"
+          :explored="exploredMask"
+          :fog-disabled="fogDisabled"
+        />
 
         <!-- Fog of war: derived explored mask over the terrain -->
         <FogLayer v-if="!fogDisabled" :explored="exploredMask" :tiles="gridTiles" />

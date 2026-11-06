@@ -13,8 +13,8 @@ const imageUrl = ref('')
 
 // Backend-owned terrain: renders the persisted snapshot verbatim. No local
 // generation, no fallback geography — a missing snapshot renders nothing rather
-// than a second, divergent world. Roads are omitted deliberately: the snapshot
-// carries no roads, so unrelated TS roads cannot masquerade as movement authority.
+// than a second, divergent world. AtlasRoads renders the same snapshot's optional
+// backend-generated road layer separately, beneath the shared fog.
 //
 // Terrain is categorical, so it is first painted 1px-per-cell, then bilinearly
 // upscaled to blend differing biomes across their boundary, then given a

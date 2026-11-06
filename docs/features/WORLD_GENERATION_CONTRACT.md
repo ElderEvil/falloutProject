@@ -18,6 +18,34 @@ independent geography all require the backend to own the recipe. This slice repl
 frontend-owned geography with a small Python core — **not** a line-by-line port; the existing
 TS generator stays as a reference and is retired only once production renders the backend world.
 
+### Road-layer addendum (2026-11-06)
+
+The approved [road design](MAP_ROADS_DESIGN.md) adds background highways and country
+roads to this same persisted world. This supersedes the original road omission below.
+The base `generator_version`, recipe fingerprint, and terrain/slots checksum retain
+their existing meanings: changing that version would reseed terrain and slots.
+
+`WorldSnapshot.roads` is one nullable JSONB payload with its own recipe `version`,
+`base_checksum`, content `checksum`, and registry-coordinate centerline `segments`.
+Geometry, including smoothing and water clearance for the casing, is backend-owned.
+The frontend scales and clips it under fog in the existing SVG map. Occupancy,
+discoveries, and player identities never enter the road recipe. Roads do not affect
+travel or ETA, and remain quiet, non-interactive cartography.
+
+New snapshots include roads in their initial write. Existing rows remain explicitly
+unpopulated (`NULL`) after the schema migration until `uv run fo-cli backfill world-roads`
+is run from `backend/`. That idempotent operation locks the current v1 row and commits
+the entire road payload once; reads never backfill existing worlds. It preserves all
+base geometry and leaves other world versions alone. No world reset or activation
+catalog is introduced. Heightmaps remain deferred.
+
+Road recipe v2 adds more local roads, broader curves through displaced control points,
+and a sparse railroad trunk/feeder. Railroads use `kind: "railroad"` in the same
+payload; their junctions and geometry are independent of road intersections. An
+explicit `world-roads --upgrade` replaces an older recipe under the same row lock.
+Same-version runs are no-ops, and mismatched bases or newer recipes are rejected.
+The rail layer is cartography only, with no train service, stations or travel bonus.
+
 ## 1. World contract
 
 ### Identity and versioning
@@ -152,3 +180,13 @@ migration (see §6). No deletion happens during implementation without separate 
 2. **Slot count / grid:** keep 80×80 / 100 slots for this slice? (Recommend yes.)
 3. **Roads:** omit for the slice, or keep existing decoration? (Recommend omit — non-authoritative.)
 4. **Reset tooling:** `fo-cli` dev command scope (vault slots/home markers/world snapshot only).
+
+Road recipe v3 changes only railway geometry: long land-visible straight runs with
+short, roughly 10–15 degree transition steps where bends are needed. Junctions stay
+fixed and water clearance still takes precedence. The v2 road seed remains fixed,
+so upgrading does not redraw highways or country roads.
+
+Road recipe v4 increases local branches from 30 to 70 and allows their endpoints
+within three registry units of the map edge. Spaced endpoints are chosen by distance
+from the existing network, filling empty regions first. The highway hub recipe and
+rail alignments remain fixed; additional road junctions retain exact shared points.

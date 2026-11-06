@@ -2457,8 +2457,8 @@ export interface paths {
          * Get World Snapshot
          * @description Return the shared backend-generated base world (authenticated, public snapshot).
          *
-         *     Terrain and land-safe slots only — never ownership, discoveries, or expedition
-         *     state. The snapshot is generated once and read; this endpoint never regenerates.
+         *     Terrain, land-safe slots and background roads — never ownership, discoveries,
+         *     or expedition state. Existing snapshots are only read, never regenerated.
          */
         get: operations["get_world_snapshot_api_v1_map_world_get"];
         put?: never;
@@ -12468,6 +12468,38 @@ export interface components {
             storage_id?: string | null;
         };
         /**
+         * WorldRoadRead
+         * @description Backend-validated centerline in registry coordinates, including rounded bends.
+         */
+        WorldRoadRead: {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "highway" | "country" | "railroad";
+            /** Points */
+            points: [
+                number,
+                number
+            ][];
+        };
+        /**
+         * WorldRoadsRead
+         * @description Additive cartography; versioning this layer never reseeds the base world.
+         */
+        WorldRoadsRead: {
+            /** Version */
+            version: number;
+            /** Base Checksum */
+            base_checksum: string;
+            /** Checksum */
+            checksum: string;
+            /** Segments */
+            segments: components["schemas"]["WorldRoadRead"][];
+        };
+        /**
          * WorldSlotRead
          * @description One land-safe slot: stable index + registry coordinate.
          */
@@ -12503,6 +12535,7 @@ export interface components {
             terrain: string[];
             /** Slots */
             slots: components["schemas"]["WorldSlotRead"][];
+            roads?: components["schemas"]["WorldRoadsRead"] | null;
         };
     };
     responses: never;

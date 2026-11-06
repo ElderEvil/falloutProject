@@ -30,6 +30,8 @@ class WorldSnapshotBase(SQLModel):
     slots: list[dict] = Field(default_factory=list, sa_column=Column(JSONB, nullable=False))
     # Fixed public anchors baked into the recipe.
     anchors: list[dict] = Field(default_factory=list, sa_column=Column(JSONB, nullable=False))
+    # NULL means not generated yet; an empty segments list is an intentional empty network.
+    roads: dict | None = Field(default=None, sa_column=Column(JSONB(none_as_null=True), nullable=True))
 
 
 class WorldSnapshot(BaseUUIDModel, WorldSnapshotBase, TimeStampMixin, table=True):

@@ -148,3 +148,26 @@ async def test_get_location_detail_with_dwellers(
 # ------------------------------------------------------------------
 # OpenAPI schema assertion
 # ------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_world_roads_api_is_authenticated_and_reads_the_persisted_layer(
+    async_client: AsyncClient, async_session: AsyncSession, superuser_token_headers: dict[str, str]
+) -> None:
+    from app.services.world_snapshot_service import world_snapshot_service
+
+    assert (await async_client.get("/map/world")).status_code == 401
+    snapshot = await world_snapshot_service.get_or_generate(async_session)
+    response = await async_client.get("/map/world", headers=superuser_token_headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["roads"] == snapshot.roads
+    assert data["terrain"] == snapshot.terrain
+    assert data["roads"]["base_checksum"] == data["snapshot_checksum"]
+    assert set(data["roads"]) == {"version", "base_checksum", "checksum", "segments"}
+    snapshot.roads = None
+    await async_session.commit()
+    response = await async_client.get("/map/world", headers=superuser_token_headers)
+    assert response.json()["roads"] is None
+    await async_session.refresh(snapshot)
+    assert snapshot.roads is None  # reads do not backfill

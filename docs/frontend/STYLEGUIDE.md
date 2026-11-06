@@ -77,6 +77,10 @@ Use these tokens in your CSS/components (mapped in `tailwind.css`):
 | `--color-theme-accent`    | `var(--theme-accent)`    | Hover states, accents         |
 | `--color-theme-glow`      | `var(--theme-glow)`      | Glow effects                  |
 
+Atlas infrastructure uses `--color-terrain-road` (muted sand) for highways/country
+roads and `--color-terrain-rail` (`#9baca6`, cool stone) for railroads. Rail sleepers
+provide a non-color distinction. Both layers sit below fog, trails and markers.
+
 **Legacy aliases** (for backward compatibility):
 
 - `--color-terminal-green` → `--color-theme-primary`

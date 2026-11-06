@@ -88,3 +88,104 @@ async def test_persisted_config_matches_generation_input(async_session: AsyncSes
     recipe = WorldRecipe(seed="cfg", generator_version=1, config=WorldConfig())
     snapshot = await world_snapshot_service.get_or_generate(async_session, recipe)
     assert snapshot.config == asdict(recipe.config)
+
+
+async def test_road_backfill_preserves_world_and_is_idempotent(async_session: AsyncSession) -> None:
+    snapshot = await world_snapshot_service.get_or_generate(async_session)
+    snapshot.roads = None
+    await async_session.commit()
+    original = (snapshot.terrain.copy(), snapshot.slots.copy(), snapshot.recipe_fingerprint, snapshot.snapshot_checksum)
+    assert (await world_snapshot_service.read(async_session)).roads is None
+    updated = await world_snapshot_service.backfill_roads(async_session, expected_checksum=snapshot.snapshot_checksum)
+    assert updated.roads
+    assert updated.roads["segments"]
+    roads = updated.roads.copy()
+    await async_session.refresh(updated)
+    assert (updated.terrain, updated.slots, updated.recipe_fingerprint, updated.snapshot_checksum) == original
+    repeated = await world_snapshot_service.backfill_roads(async_session)
+    assert repeated.roads == roads
+    assert (await world_snapshot_service.read(async_session)).roads.model_dump(mode="json") == roads
+
+
+async def test_stale_road_backfill_rejects_without_writing(async_session: AsyncSession) -> None:
+    from app.utils.exceptions import ResourceConflictException
+
+    snapshot = await world_snapshot_service.get_or_generate(async_session)
+    snapshot.roads = None
+    await async_session.commit()
+    with pytest.raises(ResourceConflictException, match="World changed"):
+        await world_snapshot_service.backfill_roads(async_session, expected_checksum="old-base")
+    await async_session.rollback()
+    reloaded = await snapshot_crud.get_version(async_session, world_id="wasteland-atlas", generator_version=1)
+    assert reloaded.roads is None
+
+
+async def test_road_backfill_requires_an_existing_world(async_session: AsyncSession) -> None:
+    from app.utils.exceptions import ResourceNotFoundException
+
+    with pytest.raises(ResourceNotFoundException):
+        await world_snapshot_service.backfill_roads(async_session, world_id="missing-world")
+    assert await snapshot_crud.get_version(async_session, world_id="missing-world", generator_version=1) is None
+
+
+async def test_roads_from_a_different_base_are_neither_served_nor_overwritten(async_session: AsyncSession) -> None:
+    from app.utils.exceptions import ResourceConflictException
+
+    snapshot = await world_snapshot_service.get_or_generate(async_session)
+    incompatible = {**snapshot.roads, "base_checksum": "another-base"}
+    snapshot.roads = incompatible
+    await async_session.commit()
+    with pytest.raises(ResourceConflictException, match="different terrain"):
+        await world_snapshot_service.read(async_session)
+    with pytest.raises(ResourceConflictException, match="different base"):
+        await world_snapshot_service.backfill_roads(async_session)
+    await async_session.rollback()
+    reloaded = await snapshot_crud.get_version(async_session, world_id="wasteland-atlas", generator_version=1)
+    assert reloaded.roads == incompatible
+
+
+@pytest.mark.parametrize("legacy_roads", [False, True])
+async def test_failed_road_write_rolls_back_without_altering_geography(
+    async_session: AsyncSession, legacy_roads: bool
+) -> None:
+    from sqlalchemy import event
+
+    snapshot = await world_snapshot_service.get_or_generate(async_session)
+    original_roads = {**snapshot.roads, "version": 1} if legacy_roads else None
+    snapshot.roads = original_roads
+    await async_session.commit()
+    original = (snapshot.terrain.copy(), snapshot.slots.copy(), snapshot.snapshot_checksum)
+
+    def reject_commit(session, flush_context):
+        raise RuntimeError("late road persistence failure")
+
+    event.listen(async_session.sync_session, "after_flush_postexec", reject_commit)
+    try:
+        with pytest.raises(RuntimeError, match="late road persistence failure"):
+            await world_snapshot_service.backfill_roads(async_session, upgrade=legacy_roads)
+    finally:
+        event.remove(async_session.sync_session, "after_flush_postexec", reject_commit)
+        await async_session.rollback()
+    reloaded = await snapshot_crud.get_version(async_session, world_id="wasteland-atlas", generator_version=1)
+    assert reloaded.roads == original_roads
+    assert (reloaded.terrain, reloaded.slots, reloaded.snapshot_checksum) == original
+
+
+async def test_explicit_road_upgrade_replaces_only_the_older_layer(async_session: AsyncSession) -> None:
+    from app.services.map.road_generation import ROAD_VERSION
+    from app.utils.exceptions import ResourceConflictException
+
+    snapshot = await world_snapshot_service.get_or_generate(async_session)
+    snapshot.roads = {**snapshot.roads, "version": 1, "segments": []}
+    await async_session.commit()
+    original = (snapshot.terrain.copy(), snapshot.slots.copy(), snapshot.snapshot_checksum, snapshot.generator_version)
+    with pytest.raises(ResourceConflictException, match="--upgrade"):
+        await world_snapshot_service.backfill_roads(async_session)
+    await async_session.rollback()
+    updated = await world_snapshot_service.backfill_roads(async_session, upgrade=True)
+    assert updated.roads["version"] == ROAD_VERSION
+    assert len(updated.roads["segments"]) >= 30
+    assert any(segment["kind"] == "railroad" for segment in updated.roads["segments"])
+    assert (updated.terrain, updated.slots, updated.snapshot_checksum, updated.generator_version) == original
+    payload = updated.roads.copy()
+    assert (await world_snapshot_service.backfill_roads(async_session, upgrade=True)).roads == payload

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.289.2 (2026-11-06)
+
+### Bug Fixes
+
+* accept aware UTC timestamps in crafting and exploration readers abf60a8
+
 ## 2.289.1 (2026-11-06)
 
 ### Bug Fixes

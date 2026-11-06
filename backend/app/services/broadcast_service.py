@@ -212,6 +212,7 @@ async def _prepare(
     recent_notifications: list[dict[str, Any]] | None,
     gender_counts: list[tuple[str, int]] | None,
     today: date,
+    variant_seed: str | None = None,
 ) -> tuple[str, str, str | None, str | None]:
     if vault_data is None:
         vault = await crud.vault.get_or_none(db, vault_id, include_deleted=True)
@@ -236,6 +237,7 @@ async def _prepare(
         recent_notifications=recent_notifications,
         gender_counts=gender_counts,
         vault_number=data.get("number"),
+        variant_seed=variant_seed,
     )
 
     audio_key, audio_url = await _render_audio(script, today)
@@ -309,7 +311,13 @@ async def get_or_create_daily(
         return _serialize(existing)
 
     title, script, audio_key, audio_url = await _prepare(
-        db, vault_id, vault_data, recent_notifications, gender_counts, today
+        db,
+        vault_id,
+        vault_data,
+        recent_notifications,
+        gender_counts,
+        today,
+        variant_seed=f"{vault_id}:{today.isoformat()}",
     )
 
     try:
@@ -349,7 +357,14 @@ async def regenerate(
     await _ensure_regeneration_allowed(db, vault_id, today)
 
     title, script, audio_key, audio_url = await _prepare(
-        db, vault_id, vault_data, recent_notifications, gender_counts, today
+        db,
+        vault_id,
+        vault_data,
+        recent_notifications,
+        gender_counts,
+        today,
+        # A fresh nonce per regeneration so the reshuffle is real, not a replay.
+        variant_seed=f"{vault_id}:{today.isoformat()}:regen:{uuid4()}",
     )
 
     try:

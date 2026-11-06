@@ -5941,6 +5941,7 @@ export interface components {
             enemy_names?: string[];
             /** Threat */
             threat?: ("low" | "moderate" | "high") | null;
+            intel?: components["schemas"]["SiteIntel"] | null;
         };
         /**
          * BarbershopChangeRequest
@@ -11056,6 +11057,20 @@ export interface components {
          * @enum {string}
          */
         SPECIALEnum: "strength" | "perception" | "endurance" | "charisma" | "intelligence" | "agility" | "luck";
+        /**
+         * SiteCheckIntel
+         * @description One stat check a site's authored options advertise to would-be couriers.
+         */
+        SiteCheckIntel: {
+            /** Stat */
+            stat: string;
+            /** Difficulty */
+            difficulty: number;
+            /** Label */
+            label: string;
+            /** Bloodless */
+            bloodless: boolean;
+        };
         /** SiteCombatEvent */
         SiteCombatEvent: {
             /** Id */
@@ -11078,6 +11093,19 @@ export interface components {
             fighters: components["schemas"]["ArenaFighter"][];
             /** Events */
             events?: components["schemas"]["SiteCombatEvent"][];
+        };
+        /**
+         * SiteIntel
+         * @description Derived check profile for a site, computed from its own content.
+         */
+        SiteIntel: {
+            /** Checks */
+            checks?: components["schemas"]["SiteCheckIntel"][];
+            /**
+             * Negotiable
+             * @default false
+             */
+            negotiable: boolean;
         };
         /**
          * SiteNodeView

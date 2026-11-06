@@ -569,6 +569,24 @@ const terminalBanner = computed(() => {
                 Lv {{ site.min_dweller_level }}
               </span>
               <span
+                v-for="check in site.intel?.checks ?? []"
+                :key="`${check.stat}-${check.difficulty}`"
+                class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-theme-primary/10 px-1.5 py-0.5 text-[0.75rem] font-semibold text-theme-primary"
+              >
+                <Icon
+                  :icon="check.bloodless ? 'mdi:comment-text-outline' : 'mdi:sword-cross'"
+                  class="h-3.5 w-3.5"
+                />
+                {{ check.stat.toUpperCase() }} {{ check.difficulty }}
+              </span>
+              <span
+                v-if="site.intel?.negotiable"
+                class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-theme-primary/10 px-1.5 py-0.5 text-[0.75rem] font-semibold text-theme-primary"
+              >
+                <Icon icon="mdi:handshake-outline" class="h-3.5 w-3.5" />
+                Talks down
+              </span>
+              <span
                 class="inline-flex items-center gap-1 rounded-[3px] border border-theme-primary/40 bg-theme-primary/10 px-1.5 py-0.5 text-[0.75rem] font-semibold text-theme-primary"
               >
                 <Icon icon="mdi:door" class="h-3.5 w-3.5" />

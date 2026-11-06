@@ -51,6 +51,15 @@ def test_default_connection_budget_keeps_headroom() -> None:
     assert settings.POSTGRES_MAX_CONNECTIONS - settings.peak_database_connections == 50
 
 
+def test_production_worker_pool_size_keeps_headroom() -> None:
+    """The k3s worker overrides TASK_DB_POOL_SIZE to 4; keep that inside the budget."""
+    settings = _settings_with_documented_defaults(TASK_DB_POOL_SIZE=4)
+
+    assert settings.task_pool_connections == 64
+    assert settings.peak_database_connections == 82
+    assert settings.POSTGRES_MAX_CONNECTIONS - settings.peak_database_connections == 18
+
+
 def test_worker_process_increase_is_rejected() -> None:
     with pytest.raises(ValidationError, match="connection budget"):
         _settings_with_documented_defaults(DRAMATIQ_PROCESSES=6)

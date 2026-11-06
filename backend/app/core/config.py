@@ -59,10 +59,11 @@ class Settings(BaseSettings):
     API_DB_POOL_SIZE: int = Field(default=10, ge=1)
     API_DB_MAX_OVERFLOW: int = Field(default=5, ge=0)
 
-    # Dramatiq worker task engines. The worker manifest runs 4 processes with
+    # Dramatiq worker task engines. The worker manifest runs 2 processes with
     # Dramatiq's default 8 threads each; every thread keeps one event loop and
     # therefore one task pool. A tick can hold one session while a nested
-    # objective handler opens a second, so each pool keeps 2 connections.
+    # objective handler opens a second, so production raises the pool to 4
+    # (3 reserved + 15 API + 2*8*4 task = 82 < POSTGRES_MAX_CONNECTIONS).
     DRAMATIQ_PROCESSES: int = Field(default=2, ge=1)
     DRAMATIQ_THREADS: int = Field(default=8, ge=1)
     TASK_DB_POOL_SIZE: int = Field(default=2, ge=1)

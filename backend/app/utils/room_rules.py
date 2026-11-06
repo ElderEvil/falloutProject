@@ -6,7 +6,7 @@ Single source of truth for the vault-grid invariants:
 - R2: non-elevator rooms above row 0 need an elevator on their level
 - D0: only outermost non-elevator rooms on a level may be destroyed
 - D1: an elevator that is the only access to its level cannot be destroyed
-- D2: an elevator with another elevator stacked directly above cannot be destroyed
+- D2: an elevator with another elevator stacked directly below cannot be destroyed
 
 Raised exceptions match the pre-existing contract: build violations raise
 ``VaultOperationException`` (the API maps it to 400); destroy violations raise
@@ -170,25 +170,25 @@ def validate_row_end_destroy(room: Room, rooms: list[Room]) -> None:
 
 
 async def validate_elevator_destroy(db_session: AsyncSession, elevator_room: Room) -> None:
-    """Enforce D2 (nothing stacked above) and D1 (no stranded rooms) before a destroy."""
+    """Enforce D2 (nothing stacked below) and D1 (no stranded rooms) before a destroy."""
     if not is_elevator(elevator_room.name):
         return
     if elevator_room.coordinate_x is None or elevator_room.coordinate_y is None:
         return
 
-    # D2: an elevator directly above depends on this one — removing it breaks the stack.
-    elevator_above = await db_session.exec(
+    # D2: an elevator directly below depends on this one — removing it breaks the stack.
+    elevator_below = await db_session.exec(
         select(Room).where(
             and_(
                 col(Room.vault_id) == elevator_room.vault_id,
                 col(Room.name) == "Elevator",
                 col(Room.coordinate_x) == elevator_room.coordinate_x,
-                col(Room.coordinate_y) == elevator_room.coordinate_y - 1,
+                col(Room.coordinate_y) == elevator_room.coordinate_y + 1,
             )
         )
     )
-    if elevator_above.first() is not None:
-        raise ValueError("Cannot destroy this elevator: another elevator is stacked directly above it.")
+    if elevator_below.first() is not None:
+        raise ValueError("Cannot destroy this elevator: another elevator is stacked directly below it.")
 
     # D1: if this is the only elevator on its level, rooms there would be stranded.
     elevators_result = await db_session.exec(

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.290.2 (2026-11-06)
+
+### Code Refactoring
+
+* share dweller roster filters and pet effect contract ebab219
+
 ## 2.290.1 (2026-11-06)
 
 ### Code Refactoring

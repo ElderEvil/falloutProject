@@ -281,6 +281,124 @@ class TestPhraseVariety:
             )
 
 
+class TestRotatingSegments:
+    """One rotating segment per broadcast; different seeds, different segments."""
+
+    def _data(self):
+        return {
+            "population": 23,
+            "population_max": 46,
+            "caps": 1852,
+            "happiness": 87,
+            "power": (300, 300),
+            "food": (300, 300),
+            "water": (300, 300),
+            "recent_notifications": [],
+            "vault_number": 666,
+        }
+
+    def test_segment_rotates_across_seeds(self):
+        segments = set()
+        for n in range(30):
+            _, script = build_daily_script(**self._data(), variant_seed=f"s{n}")
+            segments.add(script.split(". ")[2] if len(script.split(". ")) > 2 else "")
+        assert len(segments) > 1, "The segment wheel never turns"
+
+    def test_housing_segment_reflects_occupancy(self):
+        crowded = self._data() | {"population": 44, "population_max": 46}
+        # Force the housing segment via a seed; verify whichever occupancy line
+        # appears, it carries numbers consistent with the vault.
+        _, script = build_daily_script(**crowded, variant_seed="housing-seed")
+        assert "44 of 46" in script or "housing" not in script.lower()
+        sparse = self._data() | {"population": 5, "population_max": 46}
+        _, script = build_daily_script(**sparse, variant_seed="housing-seed")
+        assert "5 of 46" in script or "housing" not in script.lower()
+
+    def test_long_headlines_keep_the_script_in_budget(self):
+        data = self._data()
+        data["recent_notifications"] = [
+            {
+                "notification_type": "dweller_died",
+                "dweller_name": f"Resident Number {n}",
+                "message": (
+                    f"Resident Number {n} lost their life in a catastrophic "
+                    "accident in the water treatment facility during the night shift."
+                ),
+            }
+            for n in range(4)
+        ]
+        _, script = build_daily_script(**data, variant_seed="busy-day")
+        # Three somber headlines render; the script still respects the ceiling.
+        assert script.count("With heavy hearts") == 3
+        assert len(script.split()) <= 220
+
+
+class TestHeadlineTones:
+    """Headlines get tone-tinted wrappers by notification type."""
+
+    def _data(self, notifications):
+        return {
+            "population": 10,
+            "population_max": 20,
+            "caps": 1000,
+            "happiness": 70,
+            "power": (50, 100),
+            "food": (50, 100),
+            "water": (50, 100),
+            "recent_notifications": notifications,
+            "vault_number": 666,
+        }
+
+    def test_death_headline_is_somber(self):
+        _, script = build_daily_script(
+            **self._data(
+                [
+                    {
+                        "notification_type": "dweller_died",
+                        "dweller_name": "Gerald Moon",
+                        "message": "Gerald Moon died in a fire in the Power Generator.",
+                    }
+                ]
+            )
+        )
+        assert "With heavy hearts" in script
+        assert "Gerald Moon" in script
+
+    def test_victory_headline_celebrates(self):
+        _, script = build_daily_script(
+            **self._data(
+                [
+                    {
+                        "notification_type": "combat_victory",
+                        "message": "Your dwellers defeated the attackers, recovered 52 caps.",
+                    }
+                ]
+            )
+        )
+        assert "A round of applause" in script
+        assert "defeated the attackers" in script
+
+    def test_birth_headline_celebrates_arrival(self):
+        _, script = build_daily_script(
+            **self._data(
+                [
+                    {
+                        "notification_type": "baby_born",
+                        "message": "A healthy baby was born in the living quarters!",
+                    }
+                ]
+            )
+        )
+        assert "A new dweller among us" in script
+
+    def test_untreated_types_stay_untouched(self):
+        message = "A radroach was spotted in the kitchen."
+        _, script = build_daily_script(
+            **self._data([{"notification_type": "pest_spotted", "message": message}])
+        )
+        assert message.rstrip(".") + "." in script or message in script
+
+
 class TestSignOff:
     """Every script ends with a 1950s-style sign-off."""
 

@@ -93,6 +93,80 @@ _HOUSEKEEPING_LINES = (
     "A reminder from maintenance: if you hear knocking in the walls, do not knock back.",
 )
 
+_WEATHER_LINES = (
+    "Now for the wasteland forecast: dust with a chance of radstorms. Dress accordingly, caravaneers.",
+    "The wasteland reports: blazing sun, irritable mole rats, and a mild chance of passing caravans. Plan your trips.",
+    "Tonight's wasteland outlook: cold, dark, and full of ghouls. Business as usual.",
+)
+
+_PSA_LINES = (
+    "A public service reminder: radroaches are to be reported, not negotiated with. Thank you for your cooperation.",
+    "A friendly reminder from Vault-Tec: the reactor room is not a lounge. The reactor room is never a lounge.",
+    "PSA: water pollution is everyone's business. Report cloudy taps to your local Purifier attendant.",
+)
+
+_JUKEBOX_LINES = (
+    "Coming up on the jukebox: a set of old classics. Do not set the world on fire while you dance.",
+    "The jukebox requests are in: six more songs about leaving, one about staying.",
+    "Tonight's jukebox special: two dollars to hear the same song twice. A bargain, twice over.",
+)
+
+_SEGMENT_KINDS = ("housekeeping", "weather", "psa", "jukebox", "housing")
+
+
+def _pick_segment(seed: str, population: int, population_max: int) -> str:
+    """One rotating segment per broadcast, chosen by the seed."""
+    kind = _pick(_SEGMENT_KINDS, f"{seed}:segment")
+    if kind == "housing" and population_max > 0:
+        occupancy = population / population_max
+        if occupancy > 0.85:
+            return (
+                f"A note from housing: bunks are filling fast - {population} of "
+                f"{population_max} spoken for. Cozy is a feature."
+            )
+        if occupancy < 0.4:
+            return (
+                f"Housing reports plenty of open bunks - {population} of "
+                f"{population_max} occupied. Room to grow."
+            )
+        return "Housing is at it again: steady occupancy, no complaints on file."
+    variants = {
+        "housekeeping": _HOUSEKEEPING_LINES,
+        "weather": _WEATHER_LINES,
+        "psa": _PSA_LINES,
+        "jukebox": _JUKEBOX_LINES,
+        "housing": _HOUSEKEEPING_LINES,  # no capacity data; a housekeeping line stands in
+    }
+    return _pick(variants[kind], f"{seed}:{kind}")
+
+
+# Tone-tinted wrappers for headline notifications. The raw message stays intact;
+# the wrapper sets the announcer's mood. {msg} is the notification message.
+_HEADLINE_TONES: dict[str, tuple[str, ...]] = {
+    "dweller_died": ("With heavy hearts, we report: {msg}",),
+    "combat_defeat": ("A hard day for the militia: {msg}",),
+    "combat_victory": ("A round of applause, dwellers: {msg}",),
+    "baby_born": ("A new dweller among us: {msg}",),
+    "pregnancy_detected": ("Family news: {msg}",),
+    "relationship_formed": ("The heart wants what it wants: {msg}",),
+    "crafting_complete": ("Workshop news: {msg}",),
+    "recipe_unlocked": ("Workshop news: {msg}",),
+    "storage_item_upgraded": ("Workshop news: {msg}",),
+    "dweller_injured": ("Medbay bulletin: {msg}",),
+    "power_outage": ("An urgent notice from the grid: {msg}",),
+    "resource_critical": ("An urgent notice from the grid: {msg}",),
+}
+
+
+def _tone_headline(notification_type: str, message: str, seed: str) -> str:
+    tones = _HEADLINE_TONES.get(notification_type)
+    if not tones:
+        return message
+    return _pick(tones, f"{seed}:tone:{notification_type}").format(
+        msg=message.rstrip(" .!") + "."
+    )
+
+
 _SIGN_OFFS = (
     ("And so ends another broadcast from {vault}. Stay safe out there, and remember: peace is our factory."),
     "That is the daily report from {vault}. Warm beds and quiet pipes to you all.",
@@ -165,9 +239,15 @@ def build_daily_script(
         genders = ", ".join(f"{cnt} {g}" for g, cnt in gender_counts)
         parts.append(f"That breaks down to {genders}.")
 
+    # Rotating segment, dropped when the headlines would blow the word budget.
+    notable = _extract_notable(recent_notifications, seed=seed_base)
+    segment = _pick_segment(seed_base, population, population_max)
+    reserved = len(notable.split()) + 3 if notable else 0
+    if len(" ".join(parts).split()) + len(segment.split()) + reserved <= 195:
+        parts.append(segment)
+
     parts.extend(
         (
-            _pick(_HOUSEKEEPING_LINES, f"{seed_base}:housekeeping"),
             _pick(_CAPS_LINES, f"{seed_base}:caps").format(caps=caps),
         )
     )
@@ -193,7 +273,6 @@ def build_daily_script(
             parts.append(f"{label.capitalize()} readings are unavailable.")
 
     # Notifications
-    notable = _extract_notable(recent_notifications)
     if notable:
         parts.extend(["Now for today's headlines.", notable])
 
@@ -231,7 +310,7 @@ def _notification_name(notification: dict) -> str:
     return ""
 
 
-def _extract_notable(notifications: list[dict], *, _max: int = 3) -> str:
+def _extract_notable(notifications: list[dict], *, seed: str = "", _max: int = 3) -> str:
     """Extract notable notifications, batching level-ups under each dweller's own name."""
     if not notifications:
         return ""
@@ -268,7 +347,9 @@ def _extract_notable(notifications: list[dict], *, _max: int = 3) -> str:
         notif_type = str(notification.get("notification_type", "")).lower()
         message = _strip_vault_prefix(str(notification.get("message", "")))
         name = _notification_name(notification)
-        if "dweller" in notif_type and name:
+        if notif_type in _HEADLINE_TONES and message:
+            lines.append(_tone_headline(notif_type, message[:100].rstrip(" .!"), seed))
+        elif "dweller" in notif_type and name:
             lines.append(f"{name} - {message[:80].rstrip(' .!')}.")
         elif message:
             lines.append(f"{message[:100].rstrip(' .!')}.")

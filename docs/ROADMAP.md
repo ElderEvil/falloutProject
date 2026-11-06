@@ -83,6 +83,10 @@ No v3.0 date is announced until the tracker's gates are green. Keep the Dependab
 
 ### Preparation and remaining gates
 
+The [UTC migration preparation](backend/UTC_MIGRATION.md) records the column/JSON/API inventory,
+isolated PostgreSQL conversion contracts and the ordered migration/recovery plan. Production-clone
+and application-domain cutover evidence remains outstanding.
+
 Tracker #1259 was closed on 2026-10-31 with its release checklist still unchecked. Its closed state
 does not establish that the boundary shipped. Use the evidence below when reassessing release readiness.
 Compatibility preparation may proceed alongside the selected gameplay journey; switching the baseline

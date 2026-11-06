@@ -22,9 +22,27 @@ spec:
           envFrom:
             - secretRef:
                 name: backend-env
+            - secretRef:
+                name: rustfs-credentials
           env:
             - name: ENVIRONMENT
               value: "production"
+            - name: REDIS_HOST
+              value: redis-service
+            - name: REDIS_PORT
+              value: "6379"
+            - name: EMAIL_TEST_USER
+              value: test@fallout.evillab.tech
+            - name: USERS_OPEN_REGISTRATION
+              value: "true"
+            - name: DOMAIN
+              value: fallout-api.evillab.tech
+            - name: BACKEND_CORS_ORIGINS
+              value: '["https://fallout.evillab.tech"]'
+            - name: STORAGE_PROVIDER
+              value: rustfs
+            - name: AUTO_BAN_THRESHOLD
+              value: "50"
             - name: LOG_JSON_FORMAT
               value: "true"
             - name: LOG_FILE_PATH

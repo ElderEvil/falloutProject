@@ -306,6 +306,19 @@ jobs:
             kubectl -n fallout delete job "$job"
           SHELL
 
+      - name: Apply deployment manifests
+        if: ${{ !inputs.preflight_only }}
+        run: |
+          set -euo pipefail
+          # The checked-in manifests are the source of truth for the workloads the
+          # pipeline owns. Postgres stays out of this loop: its manifest carries
+          # tuning that is applied deliberately, not on every release.
+          for manifest in backend-deployment.yaml dramatiq-worker-deployment.yaml frontend-deployment.yaml services.yaml ingress.yaml; do
+            echo "Applying deployment/k3s/$manifest"
+            ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
+              'kubectl apply -n fallout -f -' < "deployment/k3s/$manifest"
+          done
+
       - name: Update images
         if: ${{ !inputs.preflight_only }}
         run: |

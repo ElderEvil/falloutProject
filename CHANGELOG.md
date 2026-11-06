@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.290.1 (2026-11-06)
+
+### Code Refactoring
+
+* collapse duplicated service and dweller helpers 56de9fa
+
 ## 2.290.0 (2026-11-06)
 
 ### Features

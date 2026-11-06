@@ -197,3 +197,92 @@ def test_dev_backend_starts_only_after_successful_migration(tmp_path: Path, migr
         assert "migration failed" in result.stderr
     else:
         assert "backend started" in result.stdout
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="Requires bash")
+@pytest.mark.parametrize("maintenance", [False, True])
+@pytest.mark.parametrize("fail_apply", [False, True])
+def test_manifest_apply_pins_images_and_keeps_maintenance_writers_stopped(
+    tmp_path: Path, maintenance: bool, fail_apply: bool
+) -> None:
+    """Capture actual apply payloads, including a late failure before image updates."""
+    import yaml
+
+    workflow = yaml.safe_load(WORKFLOW.read_text())
+    step = next(step for step in workflow["jobs"]["deploy"]["steps"] if step["name"] == "Apply deployment manifests")
+    script = step["run"]
+    for expression, value in {
+        "inputs.image_tag": "v2.289.1",
+        "inputs.maintenance_mode": str(maintenance).lower(),
+        "secrets.DOCKER_USERNAME": "test-registry",
+        "secrets.HETZNER_USER": "test-user",
+        "secrets.HETZNER_HOST": "test-host",
+    }.items():
+        script = script.replace("${{ " + expression + " }}", value)
+    tools = tmp_path / "bin"
+    tools.mkdir()
+    log = tmp_path / "applied.jsonl"
+    fake = f"#!{sys.executable}\n" + textwrap.dedent("""\
+        import json, os, sys
+        from pathlib import Path
+        import yaml
+
+        args = sys.argv[1:]
+        if Path(sys.argv[0]).name == "ssh":
+            os.execv("/bin/bash", ["bash", "-c", args[-1]])
+        documents = list(yaml.safe_load_all(sys.stdin.read()))
+        document = documents[0]
+        if args[:2] == ["set", "image"]:
+            assert "--local" in args
+            assignment = next(arg for arg in args if "=" in arg and not arg.startswith("-"))
+            name, image = assignment.split("=", 1)
+            container = next(c for c in document["spec"]["template"]["spec"]["containers"] if c["name"] == name)
+            container["image"] = image
+            print(json.dumps(document))
+        elif args[0] == "patch":
+            assert "--local" in args
+            patch = json.loads(args[args.index("-p") + 1])
+            document.setdefault("spec", {}).update(patch.get("spec", {}))
+            print(json.dumps(document))
+        else:
+            assert args == ["apply", "-n", "fallout", "-f", "-"]
+            with open(os.environ["MANIFEST_TEST_LOG"], "a") as stream:
+                for item in documents:
+                    stream.write(json.dumps(item) + "\\n")
+            if os.environ["MANIFEST_TEST_FAIL"] == "true" and document["metadata"]["name"] == "dramatiq-worker":
+                sys.exit(42)
+        """)
+    for name in ("ssh", "kubectl"):
+        executable = tools / name
+        executable.write_text(fake)
+        executable.chmod(0o755)
+    env = os.environ | {
+        "PATH": f"{tools}{os.pathsep}{os.environ['PATH']}",
+        "MANIFEST_TEST_LOG": str(log),
+        "MANIFEST_TEST_FAIL": str(fail_apply).lower(),
+        "IMAGE_TAG": "v2.289.1",
+        "DOCKER_USERNAME": "test-registry",
+        "MAINTENANCE_MODE": str(maintenance).lower(),
+    }
+    result = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - checked-in workflow, isolated tool fakes
+        [shutil.which("bash") or "bash", "-c", script],
+        cwd=WORKFLOW.parents[2],
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=10,
+        check=False,
+    )
+    applied = [json.loads(line) for line in log.read_text().splitlines()]
+    deployments = {doc["metadata"]["name"]: doc for doc in applied if doc["kind"] == "Deployment"}
+    assert set(deployments) == (
+        {"backend", "dramatiq-worker"} if fail_apply else {"backend", "dramatiq-worker", "frontend"}
+    )
+    for name, document in deployments.items():
+        image = "fo-shelter-fe" if name == "frontend" else "fo-shelter-be"
+        assert document["spec"]["template"]["spec"]["containers"][0]["image"] == f"test-registry/{image}:v2.289.1"
+        assert document["spec"]["replicas"] == (0 if maintenance and name != "frontend" else 1)
+    assert result.returncode == (42 if fail_apply else 0), result.stderr
+    if not fail_apply:
+        assert {doc["kind"] for doc in applied} == {"Deployment", "Service", "Ingress"}
+        assert all(doc["metadata"]["name"] != "postgres" for doc in applied)

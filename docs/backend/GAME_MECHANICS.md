@@ -12,6 +12,10 @@ Merged rooms follow the same rule using their entire footprint. Construction, de
 and room merging share the vault placement lock. Elevator dependency and vault door
 protections still apply.
 
+Elevator shafts can be demolished from the bottom up. An elevator with another
+segment directly below it cannot be removed; the lowest segment can be removed
+when it is not the only elevator providing access to rooms on its floor.
+
 Each new room segment costs its base price plus its incremental price per existing base segment of
 that same named room in the vault, across all tiers. Quote before merging the new segment; merging
 or splitting existing rooms must not change the next build price.

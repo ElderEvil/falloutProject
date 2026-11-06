@@ -27,6 +27,7 @@ from app.utils.exceptions import (
     ResourceConflictException,
     ResourceNotFoundException,
     UniqueRoomViolationException,
+    VaultOperationException,
 )
 
 # ---------------------------------------------------------------------------
@@ -944,6 +945,45 @@ async def test_destroy_requires_outermost_room(async_session: AsyncSession, rich
 
 
 @pytest.mark.asyncio
+async def test_destroy_lowest_elevator_on_empty_floor(async_session: AsyncSession, rich_vault: Vault):
+    rich_vault.bottle_caps = 1000
+    async_session.add(rich_vault)
+    await async_session.commit()
+    above = await _create_elevator(async_session, rich_vault.id, 1)
+    lowest = await _create_elevator(async_session, rich_vault.id, 2)
+    above_id, lowest_id = above.id, lowest.id
+    initial_caps = rich_vault.bottle_caps
+
+    destroyed = await room_service.destroy_room(async_session, lowest_id)
+
+    assert destroyed.id == lowest_id
+    assert await async_session.get(Room, lowest_id) is None
+    assert await crud.room.get(async_session, above_id)
+    await async_session.refresh(rich_vault)
+    assert rich_vault.bottle_caps == initial_caps + 50
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("room_x", [3, 7])
+async def test_destroy_lowest_elevator_with_attached_room_rejected(
+    async_session: AsyncSession, rich_vault: Vault, room_x: int
+):
+    await _create_elevator(async_session, rich_vault.id, 1)
+    lowest = await _create_elevator(async_session, rich_vault.id, 2)
+    attached = await _create_existing_room(async_session, rich_vault.id, coordinate_x=room_x, coordinate_y=2)
+    vault_id, lowest_id, attached_id = rich_vault.id, lowest.id, attached.id
+    initial_caps = rich_vault.bottle_caps
+
+    with pytest.raises(VaultOperationException, match="only access to level 2"):
+        await room_service.destroy_room(async_session, lowest_id)
+
+    await async_session.rollback()
+    assert await crud.room.get(async_session, lowest_id)
+    assert await crud.room.get(async_session, attached_id)
+    assert (await crud.vault.get(async_session, vault_id)).bottle_caps == initial_caps
+
+
+@pytest.mark.asyncio
 async def test_destroy_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
     room = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7)
     with (
@@ -1240,12 +1280,17 @@ async def test_upgrade_failure_preserves_caps(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("is_elevator", [False, True])
 async def test_destroy_failure_preserves_room_and_caps(
-    async_session: AsyncSession, db_connection: AsyncConnection, rich_vault: Vault
+    async_session: AsyncSession, db_connection: AsyncConnection, rich_vault: Vault, is_elevator: bool
 ):
     """A failed refund must not leave the room deletion and refund split apart."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    room = await _create_existing_room(async_session, rich_vault.id, coordinate_x=0)
+    room = (
+        await _create_elevator(async_session, rich_vault.id, coordinate_y=2)
+        if is_elevator
+        else await _create_existing_room(async_session, rich_vault.id, coordinate_x=0)
+    )
     vault_id, room_id = rich_vault.id, room.id
     initial_caps = rich_vault.bottle_caps
 

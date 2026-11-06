@@ -2,6 +2,7 @@ import asyncio
 import logging
 from math import ceil
 from typing import Any
+from uuid import UUID
 
 from pydantic import UUID4
 from pydantic_ai.exceptions import ModelHTTPError, UnexpectedModelBehavior
@@ -117,6 +118,42 @@ class DwellerAIService:
         else:
             return usage.input_tokens, usage.output_tokens, usage.total_tokens
 
+    async def _record_llm_interaction(
+        self,
+        db_session: AsyncSession,
+        *,
+        user: User,
+        parameters: str | None,
+        response: str,
+        usage: str,
+        provider: str,
+        model: str,
+        prompt_id: UUID | None,
+        instructions_hash: str,
+        instructions: str,
+        result: Any,
+        agent_name: str,
+    ) -> None:
+        """Persist one LLM interaction, extracting token usage from the agent result."""
+        prompt_tokens, completion_tokens, total_tokens = self._extract_usage(result, agent_name=agent_name)
+        await llm_interaction_crud.create(
+            db_session,
+            obj_in=LLMInteractionCreate(
+                parameters=parameters,
+                response=response,
+                usage=usage,
+                user_id=user.id,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+                provider=provider,
+                model=model,
+                prompt_id=prompt_id,
+                instructions_hash=instructions_hash,
+                instructions_snapshot=instructions,
+            ),
+        )
+
     @staticmethod
     def _provider_error_detail(error: ModelHTTPError) -> str:
         """Return a safe provider message suitable for a player-facing API response."""
@@ -186,25 +223,19 @@ class DwellerAIService:
             explicit_origin=origin,
         )
 
-        prompt_tokens, completion_tokens, total_tokens = self._extract_usage(result, agent_name="backstory")
-
-        llm_int_create = LLMInteractionCreate(
+        await self._record_llm_interaction(
+            db_session,
+            user=user,
             parameters=origin,
             response=backstory,
             usage="generate_backstory",
-            user_id=user.id,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
             provider=provider,
             model=model,
             prompt_id=prompt_id,
             instructions_hash=instructions_hash,
-            instructions_snapshot=instructions,
-        )
-        await llm_interaction_crud.create(
-            db_session,
-            obj_in=llm_int_create,
+            instructions=instructions,
+            result=result,
+            agent_name="backstory",
         )
         await db_session.commit()
         if not registered:
@@ -261,25 +292,19 @@ class DwellerAIService:
             visited_places=result.output.visited_places,
         )
 
-        prompt_tokens, completion_tokens, total_tokens = self._extract_usage(result, agent_name="bio extension")
-
-        llm_int_create = LLMInteractionCreate(
+        await self._record_llm_interaction(
+            db_session,
+            user=user,
             parameters=origin_text,
             response=extended_bio,
             usage="extend_bio",
-            user_id=user.id,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
             provider=provider,
             model=model,
             prompt_id=prompt_id,
             instructions_hash=instructions_hash,
-            instructions_snapshot=instructions,
-        )
-        await llm_interaction_crud.create(
-            db_session,
-            obj_in=llm_int_create,
+            instructions=instructions,
+            result=result,
+            agent_name="bio extension",
         )
         await db_session.commit()
         if not registered:

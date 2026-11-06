@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import random as std_random
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
 
@@ -23,6 +23,8 @@ from app.utils.places import GENERIC_ORIGIN_SKIP, normalize_place_name
 
 if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.models.dweller import Dweller
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +120,41 @@ class PregenService:
         name_pools = load_discovery_names()
         return name_pools["prefixes"], name_pools["suffixes"]
 
+    async def _generate_bio(
+        self,
+        db_session: AsyncSession,
+        dweller: Dweller,
+        *,
+        rng: std_random.Random,
+        prefixes: list[str],
+        suffixes: list[str],
+        origin: str | None,
+    ) -> PregenResult:
+        """Compose and persist one dweller's bio, then register its world-map places."""
+        origin_place = _clean_name(origin) if origin else _pick_place(rng, prefixes, suffixes)
+        visited_count = rng.randint(0, 3)
+        visited_places = [_pick_place(rng, prefixes, suffixes) for _ in range(visited_count)]
+        bio = _compose_bio(rng, dweller.first_name, origin_place, visited_places)
+
+        await crud.dweller.update(db_session, id=dweller.id, obj_in=DwellerUpdate(bio=bio))
+        await map_service.register_bio_places(
+            db_session=db_session,
+            # ORM Dweller declares vault_id nullable; both call sites only pass
+            # persisted vault dwellers, but the structural protocol wants non-null.
+            dweller=cast("Any", dweller),
+            origin_place=origin_place,
+            visited_places=visited_places,
+            explicit_origin=origin,
+        )
+        return PregenResult(
+            dweller_id=dweller.id,
+            first_name=dweller.first_name,
+            last_name=dweller.last_name,
+            origin_place=origin_place,
+            visited_count=visited_count,
+            bio_length=len(bio),
+        )
+
     async def pregen_dwellers(
         self,
         db_session: AsyncSession,
@@ -153,30 +190,14 @@ class PregenService:
                 enforce_capacity=False,  # dev/QA seeding CLI: deliberately overrides the game rule
             )
 
-            origin_place = _clean_name(origin) if origin else _pick_place(rng, prefixes, suffixes)
-            visited_count = rng.randint(0, 3)
-            visited_places = [_pick_place(rng, prefixes, suffixes) for _ in range(visited_count)]
-
-            bio = _compose_bio(rng, dweller.first_name, origin_place, visited_places)
-
-            await crud.dweller.update(db_session, id=dweller.id, obj_in=DwellerUpdate(bio=bio))
-
-            await map_service.register_bio_places(
-                db_session=db_session,
-                dweller=dweller,
-                origin_place=origin_place,
-                visited_places=visited_places,
-                explicit_origin=origin,
-            )
-
             results.append(
-                PregenResult(
-                    dweller_id=dweller.id,
-                    first_name=dweller.first_name,
-                    last_name=dweller.last_name,
-                    origin_place=origin_place,
-                    visited_count=visited_count,
-                    bio_length=len(bio),
+                await self._generate_bio(
+                    db_session,
+                    dweller,
+                    rng=rng,
+                    prefixes=prefixes,
+                    suffixes=suffixes,
+                    origin=origin,
                 )
             )
         return results
@@ -207,35 +228,17 @@ class PregenService:
         if count > 0:
             eligible = eligible[:count]
 
-        results: list[PregenResult] = []
-        for dweller in eligible:
-            origin_place = _clean_name(origin) if origin else _pick_place(rng, prefixes, suffixes)
-            visited_count = rng.randint(0, 3)
-            visited_places = [_pick_place(rng, prefixes, suffixes) for _ in range(visited_count)]
-
-            bio = _compose_bio(rng, dweller.first_name, origin_place, visited_places)
-
-            await crud.dweller.update(db_session, id=dweller.id, obj_in=DwellerUpdate(bio=bio))
-
-            await map_service.register_bio_places(
-                db_session=db_session,
-                dweller=dweller,
-                origin_place=origin_place,
-                visited_places=visited_places,
-                explicit_origin=origin,
+        return [
+            await self._generate_bio(
+                db_session,
+                dweller,
+                rng=rng,
+                prefixes=prefixes,
+                suffixes=suffixes,
+                origin=origin,
             )
-
-            results.append(
-                PregenResult(
-                    dweller_id=dweller.id,
-                    first_name=dweller.first_name,
-                    last_name=dweller.last_name,
-                    origin_place=origin_place,
-                    visited_count=visited_count,
-                    bio_length=len(bio),
-                )
-            )
-        return results
+            for dweller in eligible
+        ]
 
 
 pregen_service = PregenService()

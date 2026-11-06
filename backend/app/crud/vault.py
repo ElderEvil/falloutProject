@@ -165,9 +165,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         vault_check = await db_session.execute(select(Vault.population_max).where(Vault.id == vault_id))
         return (vault_check.scalar_one_or_none(), population)
 
-    async def get_vault_count_rows(self, *, db_session: AsyncSession, user_id: UUID4) -> Sequence[Row]:
-        """Raw aggregate rows (vault, room_count, dweller_count, stimpack, radaway) for a user's vaults."""
-        result = await db_session.execute(
+    def _vault_count_select(self):
+        """Aggregate select shared by the per-user and per-vault count rows."""
+        return (
             select(
                 self.model,
                 func.count(Room.id.distinct()).label("room_count"),
@@ -183,6 +183,12 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
                 isouter=True,
             )
             .join(Storage, Storage.vault_id == self.model.id, isouter=True)
+        )
+
+    async def get_vault_count_rows(self, *, db_session: AsyncSession, user_id: UUID4) -> Sequence[Row]:
+        """Raw aggregate rows (vault, room_count, dweller_count, stimpack, radaway) for a user's vaults."""
+        result = await db_session.execute(
+            self._vault_count_select()
             .where(Vault.user_id == user_id)
             .where(Vault.deleted_at.is_(None))
             .group_by(Vault.id)
@@ -191,25 +197,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
     async def get_vault_count_row(self, *, db_session: AsyncSession, vault_id: UUID4) -> Row:
         """Raw aggregate row (vault, room_count, dweller_count, stimpack, radaway) for a single vault."""
-        result = await db_session.execute(
-            select(
-                self.model,
-                func.count(Room.id.distinct()).label("room_count"),
-                func.count(Dweller.id.distinct()).label("dweller_count"),
-                func.coalesce(func.max(Storage.stimpack), 0).label("stimpack"),
-                func.coalesce(func.max(Storage.radaway), 0).label("radaway"),
-            )
-            .select_from(Vault)
-            .join(Room, Room.vault_id == self.model.id, isouter=True)
-            .join(
-                Dweller,
-                and_(Dweller.vault_id == self.model.id, ~Dweller.is_deleted, ~Dweller.is_dead),
-                isouter=True,
-            )
-            .join(Storage, Storage.vault_id == self.model.id, isouter=True)
-            .where(Vault.id == vault_id)
-            .group_by(Vault.id)
-        )
+        result = await db_session.execute(self._vault_count_select().where(Vault.id == vault_id).group_by(Vault.id))
         return result.one()
 
     @staticmethod
@@ -323,7 +311,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         if vault_ids is not None:
             statement = statement.where(col(Vault.id).in_(vault_ids))
         result = await db_session.execute(statement)
-        return result.rowcount
+        return cast("CursorResult", result).rowcount or 0
 
 
 vault = CRUDVault(Vault)

@@ -287,6 +287,24 @@ class SiteRoomView(BaseModel):
     combat_state: SiteCombatView | None = None
 
 
+class SiteCheckIntel(BaseModel):
+    """One stat check a site's authored options advertise to would-be couriers."""
+
+    stat: str
+    difficulty: int
+    label: str
+    # Neither branch pulls combat: the site can be settled without a fight.
+    bloodless: bool
+
+
+class SiteIntel(BaseModel):
+    """Derived check profile for a site, computed from its own content."""
+
+    checks: list[SiteCheckIntel] = Field(default_factory=list)
+    # At least one advertised check can resolve without combat.
+    negotiable: bool = False
+
+
 class AvailableSiteView(BaseModel):
     """One expedition site the dweller may currently enter."""
 
@@ -298,6 +316,7 @@ class AvailableSiteView(BaseModel):
     scene_id: ExpeditionSceneId | None = None
     enemy_names: list[str] = Field(default_factory=list)
     threat: Literal["low", "moderate", "high"] | None = None
+    intel: SiteIntel | None = None
 
 
 class ExpeditionResolveRequest(BaseModel):

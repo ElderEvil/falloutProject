@@ -47,6 +47,7 @@ from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.loot_calculator import loot_calculator
 from app.services.exploration.runs import rooms_for_run
 from app.services.exploration.site_combat_service import encounter_threat, initial_combat, resolve_turn
+from app.services.exploration.site_intel import intel_phrase, site_intel
 from app.services.exploration.site_offers import (
     JourneyOfferContext,
     journey_offer_context,
@@ -394,6 +395,8 @@ class ExpeditionService:
                     "site_name": site.name,
                 }
                 message = f"{dweller_obj.first_name} found {site.name}. Enter before the dweller arrives home."
+                if phrase := intel_phrase(site_intel(site, spatial=exploration.heading_degrees is not None)):
+                    message = f"{message} {phrase}"
                 record = exploration.add_event(event_type="site", description=message)
                 record.update(metadata)
                 await notification_service.create_and_send(
@@ -527,20 +530,20 @@ class ExpeditionService:
             return []
         context = await journey_offer_context(db_session, exploration)
         sites = await self._available_sites(db_session, exploration, dweller_obj, context)
+        spatial = exploration.heading_degrees is not None
         return [
             AvailableSiteView(
                 id=site.id,
                 name=site.name,
                 flavor=site.flavor,
                 min_dweller_level=site.min_dweller_level,
-                room_total=1
-                if (single := uses_single_scene(site, spatial=exploration.heading_degrees is not None))
-                else len(site.rooms),
+                room_total=1 if (single := uses_single_scene(site, spatial=spatial)) else len(site.rooms),
                 scene_id=site.scene_id,
                 enemy_names=[spec.name for spec in site.encounter.node.enemies] if single and site.encounter else [],
                 threat=encounter_threat(site, dweller_obj)
                 if single and site.encounter and site.encounter.node.kind == "combat"
                 else None,
+                intel=site_intel(site, spatial=spatial),
             )
             for site in sites
         ]

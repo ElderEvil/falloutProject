@@ -228,6 +228,65 @@ class TestNotificationBatching:
         assert "radroach" in script.lower() or "kitchen" in script.lower()
 
 
+class TestPhraseVariety:
+    """Deterministic phrase pools: stable per day, varied across days/seeds."""
+
+    def _data(self):
+        return {
+            "population": 23,
+            "population_max": 46,
+            "caps": 1852,
+            "happiness": 87,
+            "power": (300, 300),
+            "food": (300, 300),
+            "water": (300, 300),
+            "recent_notifications": [],
+            "gender_counts": [("male", 13), ("female", 10)],
+            "vault_number": 666,
+        }
+
+    def test_same_seed_is_deterministic(self):
+        first = build_daily_script(**self._data(), variant_seed="seed-1")
+        second = build_daily_script(**self._data(), variant_seed="seed-1")
+        assert first == second
+
+    def test_seeds_produce_varied_greetings(self):
+        openings = {
+            build_daily_script(**self._data(), variant_seed=f"s{n}")[1].split(". ")[0]
+            for n in range(12)
+        }
+        assert len(openings) > 1, "Greetings never rotate across seeds"
+
+    def test_seeds_produce_varied_sign_offs(self):
+        endings = {
+            build_daily_script(**self._data(), variant_seed=f"s{n}")[1].rsplit(". ", 2)[-2]
+            for n in range(20)
+        }
+        assert len(endings) > 1, "Sign-offs never rotate across seeds"
+
+    def test_low_supplies_get_flavor(self):
+        data = self._data()
+        data["power"] = (5, 100)
+        _, script = build_daily_script(**data)
+        assert "Conserve those bulbs" in script
+        assert "Power is at 5%." in script
+
+    def test_morale_tiers_change_the_tone(self):
+        cases = {
+            95: ("splendid", "jukebox"),
+            72: ("steady", "comfortable"),
+            40: ("improvement", "dance"),
+            20: ("troubling", "grim"),
+        }
+        for happiness, expected_words in cases.items():
+            data = self._data()
+            data["happiness"] = happiness
+            _, script = build_daily_script(**data)
+            assert any(word in script for word in expected_words), (
+                f"happiness {happiness}: no tone marker from {expected_words}"
+            )
+
+
 class TestSignOff:
     """Every script ends with a 1950s-style sign-off."""
 

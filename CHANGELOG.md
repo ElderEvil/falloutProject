@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.289.3 (2026-11-06)
+
+### Bug Fixes
+
+* **deploy:** pin applied images and preserve maintenance shutdown 18f9bff
+
 ## 2.289.2 (2026-11-06)
 
 ### Bug Fixes

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.289.1 (2026-11-06)
+
+### Bug Fixes
+
+* **radio:** mount the tuner outside the transformed control bar b2813a7, closes pre-#1334
+
 ## 2.289.0 (2026-11-06)
 
 ### Features

@@ -46,15 +46,17 @@ def build_daily_script(
         (title, script) tuple. Script is ~120-180 words.
     """
     now = _now or datetime.now(UTC)
-    day_str = now.strftime("%B %d, %Y")
+    # The vault day rolls over at UTC midnight, but listeners play the broadcast
+    # at every local hour, so the greeting stays time-of-day neutral.
+    day_str = f"{now.strftime('%B')} {now.day}, {now.year}"
     title = f"Vault Radio News - {day_str}"
 
     parts: list[str] = []
 
     # Opening
     parts.append(
-        f"Good evening, this is your evening broadcast from Vault {vault_number or 'the vault'} "
-        f"on the {day_str}. We begin with today's vault report."
+        f"Greetings, dwellers of Vault {vault_number or 'the vault'} - "
+        f"this is your daily broadcast for {day_str}, and we begin with today's vault report."
     )
 
     # Population
@@ -90,7 +92,7 @@ def build_daily_script(
         if maximum and maximum > 0:
             ratio = current / maximum
             pct = round(ratio * 100)
-            parts.append(f"{label.capitalize()} is at {pct}% ({current} of {maximum}).")
+            parts.append(f"{label.capitalize()} is at {pct}%.")
         else:
             parts.append(f"{label.capitalize()} stands at {current}.")
 
@@ -112,20 +114,28 @@ def build_daily_script(
 
 _LEVEL_MESSAGE_NAME = re.compile(r"^(?P<name>.+?) reached level \d+", re.IGNORECASE)
 _LEVEL_TITLE_NAME = re.compile(r"^(?P<name>.+?) leveled up", re.IGNORECASE)
+# Notification messages carry a "[Vault N]" prefix for cross-vault
+# disambiguation in the notification center; the broadcast is already
+# bound to one vault, so the prefix is noise here.
+_VAULT_PREFIX = re.compile(r"^\[Vault \d+\]\s*", re.IGNORECASE)
+
+
+def _strip_vault_prefix(text: str) -> str:
+    return _VAULT_PREFIX.sub("", text)
 
 
 def _notification_name(notification: dict) -> str:
     for key in ("dweller_name", "name", "dweller_first_name"):
         value = notification.get(key)
         if isinstance(value, str) and value.strip():
-            return value.strip()
+            return _strip_vault_prefix(value.strip())
     for key, pattern in (
         ("message", _LEVEL_MESSAGE_NAME),
         ("title", _LEVEL_TITLE_NAME),
     ):
-        match = pattern.match(str(notification.get(key, "")))
+        match = pattern.match(_strip_vault_prefix(str(notification.get(key, ""))))
         if match:
-            return match.group("name").strip()
+            return _strip_vault_prefix(match.group("name").strip())
     return ""
 
 
@@ -143,16 +153,16 @@ def _extract_notable(notifications: list[dict], *, _max: int = 3) -> str:
         dict.fromkeys(name for notification in level_notifications if (name := _notification_name(notification)))
     )
     unnamed_level_messages = [
-        str(notification.get("message", ""))
+        _strip_vault_prefix(str(notification.get("message", "")))
         for notification in level_notifications
         if not _notification_name(notification) and notification.get("message")
     ]
     lines: list[str] = []
     if level_names:
         if len(level_names) == 1:
-            lines.append(f"{level_names[0]} has reached a new level tonight.")
+            lines.append(f"{level_names[0]} has reached a new level today.")
         else:
-            lines.append(f"{', '.join(level_names)} have reached new levels tonight.")
+            lines.append(f"{', '.join(level_names)} have reached new levels today.")
     if unnamed_level_messages:
         lines.append(f"A resident has reached a new level. {unnamed_level_messages[0][:80].rstrip(' .!')}.")
 
@@ -164,7 +174,7 @@ def _extract_notable(notifications: list[dict], *, _max: int = 3) -> str:
     ][:_max]
     for notification in others:
         notif_type = str(notification.get("notification_type", "")).lower()
-        message = str(notification.get("message", ""))
+        message = _strip_vault_prefix(str(notification.get("message", "")))
         name = _notification_name(notification)
         if "dweller" in notif_type and name:
             lines.append(f"{name} - {message[:80].rstrip(' .!')}.")

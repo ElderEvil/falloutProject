@@ -8,7 +8,8 @@ import { Slider } from '@/core/components/ui/slider'
 import { useToast } from '@/core/composables/useToast'
 import { fetchRadioNews, regenerateRadioNews, type RadioNewsBroadcast } from '../api/radioNews'
 
-const props = defineProps<{ vaultId: string }>()
+const props = defineProps<{ vaultId: string; inline?: boolean }>()
+const isInline = computed(() => props.inline ?? false)
 const emit = defineEmits<{ newBroadcast: [broadcast: RadioNewsBroadcast] }>()
 const toast = useToast()
 const broadcast = ref<RadioNewsBroadcast | null>(null)
@@ -39,6 +40,17 @@ let regenerateVersion = 0
 let playbackVersion = 0
 
 const DIAL_TICKS = Array.from({ length: 25 }, (_, index) => index + 1)
+// Floating mode docks the tuner at the bottom-right; inline mode renders a
+// compact trigger that lives inside the bottom control bar, next to the clock.
+const FLOATING_TOGGLE_CLASS =
+  'fixed bottom-24 right-4 z-50 flex h-auto w-[min(26rem,calc(100vw-2rem))] items-center justify-between gap-2 rounded-lg border-2 border-theme-primary/40 bg-surface-warm/95 px-3 py-2 text-theme-primary shadow-lg transition-colors hover:border-theme-primary hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-theme-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-warm sm:right-6'
+const INLINE_TOGGLE_CLASS =
+  'flex h-auto shrink-0 items-center gap-2 rounded border border-theme-primary/30 px-3 py-1 text-theme-primary transition-colors hover:border-theme-primary/60 hover:bg-theme-primary/10'
+const FLOATING_PANEL_CLASS =
+  'fixed bottom-40 right-4 z-50 max-h-[calc(100vh-11rem)] w-[min(26rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border-2 border-theme-primary/40 bg-surface-warm/95 shadow-2xl focus:outline-none motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 sm:right-6'
+// Inline mode has no floating trigger, so the console sits just above the control bar.
+const INLINE_PANEL_CLASS =
+  'fixed bottom-24 right-4 z-50 max-h-[calc(100vh-8rem)] w-[min(26rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border-2 border-theme-primary/40 bg-surface-warm/95 shadow-2xl focus:outline-none motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 sm:right-6'
 const SIGNAL_BARS = [
   { key: 'one', height: 'h-1' },
   { key: 'two', height: 'h-1.5' },
@@ -309,8 +321,11 @@ onBeforeUnmount(() => {
       type="button"
       variant="ghost"
       size="sm"
-      class="radio-news-widget__toggle fixed bottom-24 right-4 z-50 flex h-auto w-[min(26rem,calc(100vw-2rem))] items-center justify-between gap-2 rounded-lg border-2 border-theme-primary/40 bg-surface-warm/95 px-3 py-2 text-theme-primary shadow-lg transition-colors hover:border-theme-primary hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-theme-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-warm sm:right-6"
-      :class="{ 'border-theme-primary shadow-glow-sm': isNew }"
+      class="radio-news-widget__toggle"
+      :class="[
+        isInline ? INLINE_TOGGLE_CLASS : FLOATING_TOGGLE_CLASS,
+        { 'border-theme-primary shadow-glow-sm': isNew },
+      ]"
       :aria-expanded="isOpen"
       aria-controls="radio-news-panel"
       :aria-label="toggleLabel"
@@ -354,7 +369,7 @@ onBeforeUnmount(() => {
           </span>
         </span>
         <span
-          v-if="!isLoading && broadcast"
+          v-if="!isLoading && broadcast && !isInline"
           class="hidden max-w-[11rem] truncate text-[0.65rem] font-semibold sm:block"
         >
           {{ isPlaying ? 'On air' : isPaused ? 'Paused' : title }}
@@ -375,7 +390,8 @@ onBeforeUnmount(() => {
       tabindex="-1"
       role="region"
       aria-label="Vault Radio Hour broadcast"
-      class="radio-news-widget__panel fixed bottom-40 right-4 z-50 max-h-[calc(100vh-11rem)] w-[min(26rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border-2 border-theme-primary/40 bg-surface-warm/95 shadow-2xl focus:outline-none motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 sm:right-6"
+      class="radio-news-widget__panel"
+      :class="isInline ? INLINE_PANEL_CLASS : FLOATING_PANEL_CLASS"
     >
       <header
         class="flex items-center justify-between gap-3 border-b border-theme-primary/20 bg-surface-sunken/70 px-4 py-2"

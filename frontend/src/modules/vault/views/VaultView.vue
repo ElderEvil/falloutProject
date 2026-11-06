@@ -16,7 +16,6 @@ import { Button } from '@/core/components/ui/button'
 import BuildModeButton from '@/core/components/common/BuildModeButton.vue'
 import RoomMenu from '@/modules/rooms/components/RoomMenu.vue'
 import GameControlPanel from '@/modules/vault/components/shell/GameControlPanel.vue'
-import RadioNewsWidget from '@/modules/radio-news/components/RadioNewsWidget.vue'
 import { getOverseerAttentionCount } from '@/modules/vault/models/overseerBriefing'
 import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers.vue'
 import WastelandPanel from '@/modules/exploration/components/WastelandPanel.vue'
@@ -319,7 +318,6 @@ const reviewActiveIncidents = () => {
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8">
           <GameControlPanel v-if="vaultId" :vaultId="vaultId" />
-          <RadioNewsWidget v-if="vaultId" :vault-id="vaultId" />
 
           <!-- Incident Alert Banner -->
           <div v-if="activeIncidents.length > 0" class="w-full mb-4">

@@ -81,6 +81,9 @@ class TestResourceReporting:
         assert "50%" in script
         assert "0%" in script
         assert "100%" in script
+        # Percentages only - the raw "current of maximum" numbers are noise.
+        assert "of 50" not in script
+        assert "of 20" not in script
 
 
 class TestNotificationBatching:
@@ -148,6 +151,35 @@ class TestNotificationBatching:
         assert "Bob" in script
         assert script.count("Alice") == 1
         assert script.count("Bob") == 1
+
+    def test_vault_prefix_stripped_from_headlines(self):
+        """The "[Vault N]" notification prefix never reaches the broadcast."""
+        data = {
+            "population": 10,
+            "population_max": 20,
+            "caps": 1000,
+            "happiness": 70,
+            "power": (50, 100),
+            "food": (50, 100),
+            "water": (50, 100),
+            "recent_notifications": [
+                {
+                    "notification_type": "level_up",
+                    "title": "[Vault 666] Alice Leveled Up!",
+                    "message": "[Vault 666] Alice reached level 6!",
+                },
+                {
+                    "notification_type": "dweller_training_complete",
+                    "dweller_name": "[Vault 666] Bob",
+                    "message": "[Vault 666] Bob finished training Strength!",
+                },
+            ],
+            "vault_number": 666,
+        }
+        _, script = build_daily_script(**data)
+        assert "[Vault" not in script
+        assert "Alice" in script
+        assert "Bob" in script
 
     def test_active_combat_alert_is_not_a_headline(self):
         data = {

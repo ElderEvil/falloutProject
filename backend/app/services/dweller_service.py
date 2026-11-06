@@ -69,13 +69,13 @@ from app.services.room_assignment_policy import (
 )
 from app.services.training_service import training_service
 from app.services.user_service import user_service
-from app.services.vault_service import vault_service
 from app.utils.appearance_roll import complete_appearance
 from app.utils.dwellers import elder_birth_threshold
 from app.utils.exceptions import (
     ContentNoChangeException,
     FeatureDisabledException,
     InvalidVaultTransferException,
+    NoLivingSpaceError,
     ResourceConflictException,
     ResourceNotFoundException,
     VaultOperationException,
@@ -96,6 +96,18 @@ class DwellerService:
         if dweller.vault_id is None:
             raise VaultOperationException(detail="Dweller is no longer in this vault")
         return dweller.vault_id
+
+    async def _require_population_slot(self, db_session: AsyncSession, vault_id: UUID4) -> None:
+        """Atomically verify a free population slot (row-locks the vault).
+
+        A plain read-then-insert race lets two concurrent creations both pass
+        and overflow the vault; serializing on the vault row lock (the same
+        primitive radio recruitment, breeding and rewards use) closes that.
+        The lock is held until the caller's commit/rollback.
+        """
+        vault, population = await crud.vault.lock_population_for_update(db_session, vault_id)
+        if crud.vault.population_limit_reached(vault.population_max, population):
+            raise NoLivingSpaceError(f"Vault population capacity reached ({population}/{vault.population_max})")
 
     async def delete_dweller(self, db_session: AsyncSession, dweller_id: UUID4, *, soft: bool = True) -> None:
         """Delete a dweller and close any in-progress journey in one transaction.
@@ -164,6 +176,7 @@ class DwellerService:
         *,
         commit: bool = True,
         content_provenance: ContentProvenanceEnum = ContentProvenanceEnum.PLAYER_EDITED,
+        enforce_capacity: bool = True,
     ) -> Dweller:
         """Create a dweller and record the overseer's lifetime total.
 
@@ -171,8 +184,14 @@ class DwellerService:
         generators pass ``GENERATED`` and curated templates pass ``CURATED`` so future
         backfills can exclude content they must not rewrite.
 
+        ``enforce_capacity=False`` is reserved for vault-bootstrap flows (seeding,
+        pregen) that must be able to fill a fresh vault.
+
         A ``commit=False`` caller owns the commit and must emit the DWELLER_ADDED event itself after committing.
         """
+        vault_id = obj_in.vault_id
+        if vault_id is not None and enforce_capacity:
+            await self._require_population_slot(db_session, vault_id)
         obj_in = obj_in.model_copy(update={"visual_attributes": complete_appearance(obj_in.model_dump())})
         dweller = await crud.dweller.create(db_session, obj_in, commit=False)
         dweller.content_provenance = content_provenance
@@ -193,11 +212,15 @@ class DwellerService:
         seed: int | None = None,
         rarity: RarityEnum = RarityEnum.COMMON,
         register_bio_places: bool = True,
+        enforce_capacity: bool = True,
     ) -> Dweller:
         """Create a random dweller, recording the overseer's total and registering bio places.
 
         Callers composing their OWN bio (e.g. pregen_service) pass ``register_bio_places=False``.
+        Vault-bootstrap callers (seeding, pregen) pass ``enforce_capacity=False``.
         """
+        if enforce_capacity:
+            await self._require_population_slot(db_session, vault_id)
         payload = await crud.dweller.prepare_random_dweller(db_session, vault_id, obj_in, seed=seed, rarity=rarity)
         payload["visual_attributes"] = complete_appearance(payload, random.Random(seed))
         return await self._persist_registered_dweller(db_session, vault_id, payload, register_bio_places)
@@ -208,8 +231,11 @@ class DwellerService:
         vault_id: UUID4,
         template_id: str,
         overrides: Mapping[str, Any] | None = None,
+        enforce_capacity: bool = True,
     ) -> Dweller:
         """Instantiate a dweller from a named template, recording the overseer's total and bio places."""
+        if enforce_capacity:
+            await self._require_population_slot(db_session, vault_id)
         payload = await crud.dweller.prepare_template_dweller(db_session, vault_id, template_id, overrides=overrides)
         dweller = await self._persist_registered_dweller(db_session, vault_id, payload, register_bio_places=True)
         from app.services.family.known_relations import reconcile_known_parent_links
@@ -393,10 +419,8 @@ class DwellerService:
 
         await validate_room_assignment(db_session, dweller_obj, room_obj)
 
-        if not dweller_obj.room_id and not await vault_service.is_enough_population_space(
-            db_session=db_session, vault_id=self._require_vault_id(dweller_obj), space_required=1
-        ):
-            raise ContentNoChangeException(detail="Not enough space in the vault to move dweller")
+        # Work assignment never changes population: the dweller is already
+        # counted, assigned or not. No capacity gate here.
 
         new_status = determine_status_for_room(room_obj.category, room_obj.name)
 

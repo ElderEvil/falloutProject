@@ -161,6 +161,7 @@ class VaultScenarioService:
                     db_session,
                     vault.id,
                     DwellerCreateCommonOverride(gender=gender),
+                    enforce_capacity=False,  # bootstrap: the scenario grows population_max to fit below
                 )
         await db_session.refresh(vault)
         vault.population_max = max(vault.population_max or 0, target_total)

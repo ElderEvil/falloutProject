@@ -102,6 +102,7 @@ class ApprenticeScenarioService:
                     vault_id=vault_id,
                 ),
                 content_provenance=ContentProvenanceEnum.GENERATED,
+                enforce_capacity=False,  # QA scenario flow, not a live arrival
             )
             await dweller_service.move_to_room(db_session, apprentice.id, production_room.id)
             await db_session.refresh(apprentice)

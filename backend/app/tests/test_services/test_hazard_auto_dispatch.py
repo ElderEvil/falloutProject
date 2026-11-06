@@ -785,15 +785,16 @@ async def test_full_original_room_leaves_manual_responder_idle_until_retry(
     assert await crud.dweller.count_in_room(async_session, origin.id) == 2
 
     if population_full:
-        # Free an original-room slot without freeing a vault population slot.
+        # Under strict total-population capacity the responder is already
+        # counted while dispatched; population full no longer blocks the
+        # return. Only the origin-room slot matters.
         await crud.vault.update(async_session, vault.id, VaultUpdate(population_max=3))
         await dweller_service.move_to_room(async_session, blockers[0].id, room_with_dwellers["room"].id)
-        assert await hazard_team_service.return_dispatched_responders(async_session, incident) == 0
+        assert await hazard_team_service.return_dispatched_responders(async_session, incident) == 1
         await async_session.refresh(responder)
-        assert responder.room_id is None
-        assert [row.id for row in await crud.incident_crud.get_pending_responder_returns(async_session, vault.id)] == [
-            incident.id
-        ]
+        assert responder.room_id == origin.id
+        assert await crud.incident_crud.get_pending_responder_returns(async_session, vault.id) == []
+        return
 
     await dweller_service.update_dweller(async_session, blockers[0].id, {"room_id": None})
     assert await hazard_team_service.return_dispatched_responders(async_session, incident) == 1

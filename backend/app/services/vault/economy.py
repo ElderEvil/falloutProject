@@ -251,17 +251,15 @@ async def is_enough_dwellers(*, db_session: AsyncSession, vault_id: UUID4, popul
 async def is_enough_population_space(*, db_session: AsyncSession, vault_id: UUID4, space_required: int) -> bool:
     """Check if the vault has enough space to perform an operation.
 
-    Only counts dwellers that are assigned to rooms (have room_id).
-    Unassigned dwellers don't take up living space.
+    Counts every living dweller in the vault — assigned or not. An
+    unassigned dweller still occupies a bunk.
     """
-    population_max, current_assigned_population = await vault_crud.get_population_space(
-        db_session=db_session, vault_id=vault_id
-    )
+    population_max, current_population = await vault_crud.get_population_space(db_session=db_session, vault_id=vault_id)
     if population_max is None:
-        if current_assigned_population == 0:
+        if current_population == 0:
             raise ResourceNotFoundException(Vault, identifier=vault_id)
         return False
-    return current_assigned_population + space_required <= population_max
+    return current_population + space_required <= population_max
 
 
 async def deposit_caps(

@@ -23,8 +23,10 @@ def _pick(options: tuple[str, ...], seed: str) -> str:
 
 
 _GREETINGS = (
-    ("Greetings, dwellers of {vault} - this is your daily broadcast for {day}, "
-    "and we begin with today's vault report."),
+    (
+        "Greetings, dwellers of {vault} - this is your daily broadcast for {day}, "
+        "and we begin with today's vault report."
+    ),
     "This is {vault} radio, signing on for {day} with your daily vault report.",
     "Attention, dwellers of {vault}: the daily broadcast for {day} is on the air.",
     "Good day, residents of {vault}. Settle in - your daily report for {day} begins now.",
@@ -32,8 +34,10 @@ _GREETINGS = (
 )
 
 _CAPS_LINES = (
-    ("Your bottle cap reserves stand at {caps:,} - enough to bribe most wastelanders, "
-    "or at least a very persistent scoundrel."),
+    (
+        "Your bottle cap reserves stand at {caps:,} - enough to bribe most wastelanders, "
+        "or at least a very persistent scoundrel."
+    ),
     "Your bottle cap reserves stand at {caps:,} - enough to make even a raider do a double take.",
     "The cap counter reads {caps:,}. The vending machines remain deeply impressed.",
     "Treasury report: {caps:,} bottle caps, and every last one accounted for. Mostly.",
@@ -51,16 +55,17 @@ _MORALE_TIERS: tuple[tuple[int, tuple[str, ...]], ...] = (
     (
         60,
         (
-            ("Vault morale sits at a steady {h}% - neither the wasteland nor the week "
-            "has broken the spring in anyone's step."),
+            (
+                "Vault morale sits at a steady {h}% - neither the wasteland nor the week "
+                "has broken the spring in anyone's step."
+            ),
             "Vault morale rests at a comfortable {h}%. The corridor hums along nicely.",
         ),
     ),
     (
         30,
         (
-            ("Vault morale sits at {h}%, though there is room for improvement - "
-            "perhaps a concert in the atrium."),
+            ("Vault morale sits at {h}%, though there is room for improvement - perhaps a concert in the atrium."),
             "Morale reads {h}%, and the atmosphere could use some polish. Organize a dance, perhaps.",
         ),
     ),
@@ -80,22 +85,20 @@ _LOW_SUPPLY_FLAVOR: dict[str, tuple[str, ...]] = {
 }
 
 _HOUSEKEEPING_LINES = (
-    ("Elsewhere in the vault: the corridors are swept, the reactors hum, and the "
-    "forecast calls for dust with a chance of radstorms."),
-    ("In housekeeping news: the water pipes sang all night, and nobody has yet "
-    "asked them to stop."),
+    (
+        "Elsewhere in the vault: the corridors are swept, the reactors hum, and the "
+        "forecast calls for dust with a chance of radstorms."
+    ),
+    ("In housekeeping news: the water pipes sang all night, and nobody has yet asked them to stop."),
     "A reminder from maintenance: if you hear knocking in the walls, do not knock back.",
 )
 
 _SIGN_OFFS = (
-    ("And so ends another broadcast from {vault}. Stay safe out there, and remember: "
-    "peace is our factory."),
+    ("And so ends another broadcast from {vault}. Stay safe out there, and remember: peace is our factory."),
     "That is the daily report from {vault}. Warm beds and quiet pipes to you all.",
-    ("This is your announcer, closing another day at {vault}. Keep your Vault suit shiny "
-    "and your head down."),
+    ("This is your announcer, closing another day at {vault}. Keep your Vault suit shiny and your head down."),
     "From all of us at {vault} radio: sleep tight, dwellers, and trust the Overseer.",
-    ("The broadcast ends, but the vault endures. From {vault}, good night - whenever "
-    "that is for you."),
+    ("The broadcast ends, but the vault endures. From {vault}, good night - whenever that is for you."),
 )
 
 
@@ -146,9 +149,7 @@ def build_daily_script(
     parts: list[str] = []
 
     # Opening
-    parts.append(
-        _pick(_GREETINGS, f"{seed_base}:greeting").format(vault=vault_label, day=day_str)
-    )
+    parts.append(_pick(_GREETINGS, f"{seed_base}:greeting").format(vault=vault_label, day=day_str))
 
     # Population
     if population_max and population_max > 0:
@@ -164,7 +165,12 @@ def build_daily_script(
         genders = ", ".join(f"{cnt} {g}" for g, cnt in gender_counts)
         parts.append(f"That breaks down to {genders}.")
 
-    parts.extend((_pick(_HOUSEKEEPING_LINES, f"{seed_base}:housekeeping"), _pick(_CAPS_LINES, f"{seed_base}:caps").format(caps=caps)))
+    parts.extend(
+        (
+            _pick(_HOUSEKEEPING_LINES, f"{seed_base}:housekeeping"),
+            _pick(_CAPS_LINES, f"{seed_base}:caps").format(caps=caps),
+        )
+    )
 
     morale_threshold, morale_pool = next(
         (threshold, pool) for threshold, pool in _MORALE_TIERS if happiness >= threshold
@@ -181,9 +187,7 @@ def build_daily_script(
             pct = round(ratio * 100)
             line = f"{label.capitalize()} is at {pct}%."
             if ratio < 0.25:
-                line += " " + _pick(
-                    _LOW_SUPPLY_FLAVOR[label], f"{seed_base}:{label}:low"
-                )
+                line += " " + _pick(_LOW_SUPPLY_FLAVOR[label], f"{seed_base}:{label}:low")
             parts.append(line)
         else:
             parts.append(f"{label.capitalize()} readings are unavailable.")

@@ -251,17 +251,11 @@ class TestPhraseVariety:
         assert first == second
 
     def test_seeds_produce_varied_greetings(self):
-        openings = {
-            build_daily_script(**self._data(), variant_seed=f"s{n}")[1].split(". ")[0]
-            for n in range(12)
-        }
+        openings = {build_daily_script(**self._data(), variant_seed=f"s{n}")[1].split(". ")[0] for n in range(12)}
         assert len(openings) > 1, "Greetings never rotate across seeds"
 
     def test_seeds_produce_varied_sign_offs(self):
-        endings = {
-            build_daily_script(**self._data(), variant_seed=f"s{n}")[1].rsplit(". ", 2)[-2]
-            for n in range(20)
-        }
+        endings = {build_daily_script(**self._data(), variant_seed=f"s{n}")[1].rsplit(". ", 2)[-2] for n in range(20)}
         assert len(endings) > 1, "Sign-offs never rotate across seeds"
 
     def test_low_supplies_get_flavor(self):

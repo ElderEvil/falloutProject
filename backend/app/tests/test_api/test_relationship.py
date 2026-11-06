@@ -28,7 +28,7 @@ async def test_get_vault_relationships_empty(
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
-        obj_in={"number": 899},
+        obj_in={"number": 899, "population_max": 50},
         user_id=user.id,
     )
 
@@ -52,7 +52,7 @@ async def test_initiate_romance(
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
-        obj_in={"number": 896},
+        obj_in={"number": 896, "population_max": 50},
         user_id=user.id,
     )
 
@@ -356,7 +356,7 @@ async def test_marry(
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
-        obj_in={"number": 892},
+        obj_in={"number": 892, "population_max": 50},
         user_id=user.id,
     )
 

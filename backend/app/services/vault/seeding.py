@@ -264,6 +264,7 @@ async def seed_working_dweller(
         vault_id,
         DwellerCreateCommonOverride(special_boost=boosted_stat),
         rarity=roll_initial_rarity(is_boosted),
+        enforce_capacity=False,  # vault bootstrap: fill a fresh vault
     )
     await dweller_crud.update(
         db_session=db_session,
@@ -320,6 +321,7 @@ async def seed_boosted_response_team(db_session: AsyncSession, vault_id: UUID4, 
             vault_id,
             DwellerCreateCommonOverride(special_boost=boosted_stat),
             rarity=roll_initial_rarity(is_boosted=True),
+            enforce_capacity=False,  # vault bootstrap: fill a fresh vault
         )
         await dweller_crud.update(
             db_session=db_session,
@@ -387,7 +389,11 @@ async def create_initial_dwellers(
                     room = created_training_rooms[i]
                     dweller_data = DwellerCreateCommonOverride(special_boost=training_stat)
                     dweller_obj = await dweller_service.create_random_dweller(
-                        db_session, vault_id, dweller_data, rarity=roll_initial_rarity(is_boosted)
+                        db_session,
+                        vault_id,
+                        dweller_data,
+                        rarity=roll_initial_rarity(is_boosted),
+                        enforce_capacity=False,  # vault bootstrap: fill a fresh vault
                     )
 
                     # Assign to training room with IDLE status (training service will update status)
@@ -422,7 +428,11 @@ async def create_initial_dwellers(
                     special_boost=SPECIALEnum.CHARISMA if is_boosted else None,
                 )
                 dweller = await dweller_service.create_random_dweller(
-                    db_session, vault_id, dweller_data, rarity=roll_initial_rarity(is_boosted)
+                    db_session,
+                    vault_id,
+                    dweller_data,
+                    rarity=roll_initial_rarity(is_boosted),
+                    enforce_capacity=False,  # vault bootstrap: fill a fresh vault
                 )
                 if is_boosted and dweller.charisma != game_config.dweller.boosted_stat_value:
                     await dweller_crud.update(
@@ -500,6 +510,7 @@ async def seed_family_child(
         vault_id,
         DwellerCreateCommonOverride(special_boost=room.ability if room else None),
         rarity=roll_initial_rarity(is_boosted),
+        enforce_capacity=False,  # vault bootstrap: fill a fresh vault
     )
     surname = father.last_name or child.last_name
     child_name = f"{child.first_name} {surname or ''}".strip()
@@ -735,7 +746,12 @@ async def create_boosted_legendary_dwellers(db_session: AsyncSession, vault_id: 
         if not template.weapon or not template.outfit:
             continue
         try:
-            dweller = await dweller_service.create_dweller_from_template(db_session, vault_id, template.template_id)
+            dweller = await dweller_service.create_dweller_from_template(
+                db_session,
+                vault_id,
+                template.template_id,
+                enforce_capacity=False,  # vault bootstrap: fill a fresh vault
+            )
         except ResourceConflictException:
             logger.info("Boosted template %s already active in vault %s, skipping", template.template_id, vault_id)
             continue

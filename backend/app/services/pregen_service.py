@@ -146,7 +146,11 @@ class PregenService:
         results: list[PregenResult] = []
         for _ in range(count):
             dweller = await dweller_service.create_random_dweller(
-                db_session, vault_id=vault_id, seed=seed, register_bio_places=False
+                db_session,
+                vault_id=vault_id,
+                seed=seed,
+                register_bio_places=False,
+                enforce_capacity=False,  # dev/QA seeding CLI: deliberately overrides the game rule
             )
 
             origin_place = _clean_name(origin) if origin else _pick_place(rng, prefixes, suffixes)

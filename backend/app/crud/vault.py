@@ -155,20 +155,15 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return (await db_session.execute(query)).scalars().all()
 
     async def get_population_space(self, *, db_session: AsyncSession, vault_id: UUID4) -> tuple[int | None, int]:
-        """Population cap with assigned-dweller count; (None, 0) when the vault is missing."""
-        result = await db_session.execute(
-            select(Vault.population_max, func.count(Dweller.id))
-            .select_from(Vault)
-            .join(Dweller, Dweller.vault_id == Vault.id)
-            .where(Vault.id == vault_id)
-            .where(Dweller.room_id.is_not(None))
-            .group_by(Vault.id)
-        )
-        row = result.first()
-        if row:
-            return (row[0], row[1])
+        """Population cap with total living-dweller count; (None, 0) when the vault is missing.
+
+        Counts every living dweller, assigned or not — an unassigned dweller
+        still occupies a bunk. This matches the canonical ``get_population``
+        definition; the old assigned-only counting let vaults overflow.
+        """
+        population = await self.get_population(db_session=db_session, vault_id=vault_id)
         vault_check = await db_session.execute(select(Vault.population_max).where(Vault.id == vault_id))
-        return (vault_check.scalar_one_or_none(), 0)
+        return (vault_check.scalar_one_or_none(), population)
 
     async def get_vault_count_rows(self, *, db_session: AsyncSession, user_id: UUID4) -> Sequence[Row]:
         """Raw aggregate rows (vault, room_count, dweller_count, stimpack, radaway) for a user's vaults."""

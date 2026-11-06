@@ -107,9 +107,7 @@ class DwellerService:
         """
         vault, population = await crud.vault.lock_population_for_update(db_session, vault_id)
         if crud.vault.population_limit_reached(vault.population_max, population):
-            raise NoLivingSpaceError(
-                f"Vault population capacity reached ({population}/{vault.population_max})"
-            )
+            raise NoLivingSpaceError(f"Vault population capacity reached ({population}/{vault.population_max})")
 
     async def delete_dweller(self, db_session: AsyncSession, dweller_id: UUID4, *, soft: bool = True) -> None:
         """Delete a dweller and close any in-progress journey in one transaction.

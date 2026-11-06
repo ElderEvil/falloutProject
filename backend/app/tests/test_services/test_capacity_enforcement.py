@@ -148,8 +148,14 @@ async def test_concurrent_creation_serializes_on_vault_row_lock(
         vault = await root_crud.vault.create(
             db_session=session_a,
             obj_in=VaultCreateWithUserID(
-                number=_random.randint(100, 999), bottle_caps=100, happiness=50,
-                power=10, food=10, water=10, population_max=2, user_id=user.id,
+                number=_random.randint(100, 999),
+                bottle_caps=100,
+                happiness=50,
+                power=10,
+                food=10,
+                water=10,
+                population_max=2,
+                user_id=user.id,
             ),
         )
         await session_a.commit()
@@ -165,9 +171,7 @@ async def test_concurrent_creation_serializes_on_vault_row_lock(
         )
 
         # B races in: its gate must block on A's row lock, not read a stale count.
-        task = asyncio.create_task(
-            dweller_service.create_random_dweller(session_b, vault.id)
-        )
+        task = asyncio.create_task(dweller_service.create_random_dweller(session_b, vault.id))
         await asyncio.sleep(0.3)
         assert not task.done(), "B passed the gate while A's insert was uncommitted"
 

@@ -26,36 +26,35 @@ async def send_email(
     email_to: str,
     subject: str,
     html_content: str,
+    text_content: str | None = None,
 ) -> None:
     """
     Send an email using the configured SMTP server.
+
+    ``text_content`` is attached as a text/plain alternative so clients that
+    refuse HTML still show a readable message and spam filters see both parts.
     """
     message = MIMEMultipart("alternative")
     message["Subject"] = subject
     message["From"] = f"{settings.EMAIL_FROM_NAME} <{settings.EMAIL_FROM_ADDRESS}>"
     message["To"] = email_to
 
-    # Attach HTML content
-    html_part = MIMEText(html_content, "html")
-    message.attach(html_part)
+    if text_content:
+        message.attach(MIMEText(text_content, "plain", "utf-8"))
+    message.attach(MIMEText(html_content, "html", "utf-8"))
 
     try:
-        # Connect and send email
-        smtp_options = {
-            "hostname": settings.SMTP_HOST,
-            "port": settings.SMTP_PORT,
-        }
-
-        if settings.SMTP_USER and settings.SMTP_PASSWORD:
-            smtp_options["username"] = settings.SMTP_USER
-            smtp_options["password"] = settings.SMTP_PASSWORD
-
-        if settings.SMTP_TLS:
-            smtp_options["use_tls"] = True
-        elif settings.SMTP_SSL:
-            smtp_options["start_tls"] = True
-
-        await aiosmtplib.send(message, **smtp_options)
+        # Config naming is inverted vs. aiosmtplib (documented in config.py):
+        # SMTP_TLS means implicit TLS (port 465), SMTP_SSL means STARTTLS (port 587).
+        await aiosmtplib.send(
+            message,
+            hostname=settings.SMTP_HOST,
+            port=settings.SMTP_PORT,
+            username=settings.SMTP_USER or None,
+            password=settings.SMTP_PASSWORD or None,
+            use_tls=settings.SMTP_TLS,
+            start_tls=settings.SMTP_SSL,
+        )
         logger.info(f"Email sent successfully to {email_to}")
     except SMTPExceptionTypes:
         logger.exception(f"Failed to send email to {email_to}")
@@ -84,11 +83,18 @@ async def send_verification_email(*, email_to: str, username: str, token: str) -
             "project_name": settings.PROJECT_NAME,
         },
     )
+    text_content = (
+        f"Welcome, {username}!\n\n"
+        f"Verify your {settings.PROJECT_NAME} email address by opening this link:\n"
+        f"{verification_url}\n\n"
+        "If you didn't create an account, you can safely ignore this email.\n"
+    )
 
     await send_email(
         email_to=email_to,
         subject=f"{settings.PROJECT_NAME} - Verify Your Email",
         html_content=html_content,
+        text_content=text_content,
     )
 
 
@@ -97,6 +103,7 @@ async def send_password_reset_email(*, email_to: str, username: str, token: str)
     Send password reset email to user.
     """
     reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+    expiry_hours = 1
 
     html_content = render_email_template(
         "reset_password.html",
@@ -104,14 +111,22 @@ async def send_password_reset_email(*, email_to: str, username: str, token: str)
             "username": username,
             "reset_url": reset_url,
             "project_name": settings.PROJECT_NAME,
-            "expiry_hours": 1,
+            "expiry_hours": expiry_hours,
         },
+    )
+    text_content = (
+        f"Hello, {username}!\n\n"
+        "We received a request to reset your password. Open this link to choose a new password:\n"
+        f"{reset_url}\n\n"
+        f"This link expires in {expiry_hours} hour(s).\n\n"
+        "If you didn't request a password reset, you can safely ignore this email.\n"
     )
 
     await send_email(
         email_to=email_to,
         subject=f"{settings.PROJECT_NAME} - Password Reset Request",
         html_content=html_content,
+        text_content=text_content,
     )
 
 
@@ -127,9 +142,17 @@ async def send_password_changed_email(*, email_to: str, username: str) -> None:
             "support_email": settings.EMAIL_FROM_ADDRESS,
         },
     )
+    text_content = (
+        f"Hello, {username}!\n\n"
+        f"Your {settings.PROJECT_NAME} password was changed successfully.\n\n"
+        "If you made this change, no further action is required.\n"
+        f"If you did not, contact {settings.EMAIL_FROM_ADDRESS} immediately.\n\n"
+        "For your security, all active sessions have been logged out.\n"
+    )
 
     await send_email(
         email_to=email_to,
         subject=f"{settings.PROJECT_NAME} - Password Changed",
         html_content=html_content,
+        text_content=text_content,
     )

@@ -18,13 +18,14 @@ class EmailService:
         Raises EmailDeliveryException (HTTP 502) if the SMTP server cannot be reached
         or rejects the message, so the caller can surface the failure to the client.
         """
+        body = message or "This is a test email sent from the vault control panel."
         html_content = render_email_template(
             "test_email.html",
             {
                 "project_name": settings.PROJECT_NAME,
                 "smtp_host": settings.SMTP_HOST,
                 "smtp_port": settings.SMTP_PORT,
-                "message": message or "This is a test email sent from the vault control panel.",
+                "message": body,
             },
         )
 
@@ -33,6 +34,7 @@ class EmailService:
                 email_to=email_to,
                 subject=subject or f"{settings.PROJECT_NAME} - Test Email",
                 html_content=html_content,
+                text_content=f"{body}\n\nRouted via SMTP server {settings.SMTP_HOST}:{settings.SMTP_PORT}.\n",
             )
         except SMTPExceptionTypes as exc:
             logger.exception(f"Test email to {email_to} failed")

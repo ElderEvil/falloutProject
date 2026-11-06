@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="x-apple-disable-message-reformatting">
+    <meta name="color-scheme" content="dark light">
+    <meta name="supported-color-schemes" content="dark light">
+    <title>{% block title %}{{ project_name }}{% endblock %}</title>
+</head>
+<!--
+  Terminal theme: dark background with the game's #00ff00 accent.
+
+  Table-based layout with every value inline: Outlook desktop (Word engine) and
+  some corporate clients drop embedded CSS, so a fixed width attribute keeps the
+  card inside their viewport. Only border-radius is decorative, and it degrades
+  gracefully.
+-->
+<body style="margin: 0; padding: 0; background-color: #0b0f0a;">
+    <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">
+        {% block preheader %}{% endblock %}
+    </div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0b0f0a" style="background-color: #0b0f0a;">
+        <tr>
+            <td align="center" style="padding: 24px 12px;">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#101610" style="width: 600px; background-color: #101610; border: 1px solid #1f3a1f; border-radius: 8px;">
+                    <tr>
+                        <td align="center" style="padding: 32px 30px 0 30px; font-family: Arial, Helvetica, sans-serif;">
+                            <h1 style="margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: 24px; line-height: 1.3; color: #00ff00;">{{ project_name }}</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 24px 30px 8px 30px; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #d8e6d8;">
+                            {% block content %}{% endblock %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 24px 30px 28px 30px; border-top: 1px solid #1f3a1f; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 1.5; color: #86a086; text-align: center;">
+                            {% block footer %}
+                            <p style="margin: 0;">&copy; {{ project_name }}. All rights reserved.</p>
+                            {% endblock %}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

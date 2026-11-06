@@ -129,12 +129,10 @@ def _pick_segment(seed: str, population: int, population_max: int) -> tuple[str,
             )
         if occupancy < 0.4:
             return kind, (
-                f"Housing reports plenty of open bunks, {population} of "
-                f"{population_max} occupied. Room to grow."
+                f"Housing reports plenty of open bunks, {population} of {population_max} occupied. Room to grow."
             )
         return kind, (
-            f"Housing reports steady occupancy: {population} of {population_max} "
-            "bunks in use, no complaints on file."
+            f"Housing reports steady occupancy: {population} of {population_max} bunks in use, no complaints on file."
         )
     variants = {
         "housekeeping": _HOUSEKEEPING_LINES,

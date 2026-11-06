@@ -205,6 +205,15 @@ async def _gender_counts(db: AsyncSession, vault_id: UUID) -> list[tuple[str, in
     return sorted(counts.items(), key=lambda item: -item[1])[:3]
 
 
+async def _rewards_ready(db: AsyncSession, vault_id: UUID) -> int:
+    """Unclaimed objective rewards for the broadcast's objectives segment."""
+    try:
+        return await crud.objective_crud.count_claimable_for_vault(db, vault_id)
+    except Exception:
+        logger.warning("Claimable objective count failed for vault %s", vault_id, exc_info=True)
+        return 0
+
+
 async def _prepare(
     db: AsyncSession,
     vault_id: UUID,
@@ -213,6 +222,7 @@ async def _prepare(
     gender_counts: list[tuple[str, int]] | None,
     today: date,
     variant_seed: str | None = None,
+    rewards_ready: int | None = None,
 ) -> tuple[str, str, str | None, str | None]:
     if vault_data is None:
         vault = await crud.vault.get_or_none(db, vault_id, include_deleted=True)
@@ -225,6 +235,8 @@ async def _prepare(
         recent_notifications = await _recent_notifications(db, vault_id)
     if gender_counts is None:
         gender_counts = await _gender_counts(db, vault_id)
+    if rewards_ready is None:
+        rewards_ready = await _rewards_ready(db, vault_id)
 
     title, script = build_daily_script(
         population=int(data.get("population", 0)),
@@ -236,6 +248,7 @@ async def _prepare(
         water=(int(data.get("water", 0)), int(data.get("water_max") or 0)),
         recent_notifications=recent_notifications,
         gender_counts=gender_counts,
+        rewards_ready=rewards_ready,
         vault_number=data.get("number"),
         variant_seed=variant_seed,
     )

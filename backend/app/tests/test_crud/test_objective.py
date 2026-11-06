@@ -14,6 +14,40 @@ from app.tests.factory.vaults import create_fake_vault
 
 
 @pytest.mark.asyncio
+async def test_count_claimable_for_vault(async_session: AsyncSession) -> None:
+    """Count rewards-ready-but-unclaimed links, excluding locked and claimed ones."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+
+    def make(challenge: str, amount: int) -> ObjectiveCreate:
+        return ObjectiveCreate(
+            challenge=challenge,
+            reward="50 caps",
+            category=ObjectiveCategoryEnum.ACHIEVEMENT,
+            target_amount=amount,
+        )
+
+    ready = await crud.objective_crud.create_for_vault(
+        db_session=async_session, vault_id=vault.id, obj_in=make("Collect 10 weapons", 10)
+    )
+    incomplete = await crud.objective_crud.create_for_vault(
+        db_session=async_session, vault_id=vault.id, obj_in=make("Collect 20 weapons", 20)
+    )
+    await crud.objective_crud.create_for_vault(
+        db_session=async_session, vault_id=vault.id, obj_in=make("Collect 30 weapons", 30)
+    )
+
+    await reward_service.settle_objective_progress(
+        db_session=async_session, objective_id=ready.id, vault_id=vault.id, progress=10
+    )
+    await reward_service.settle_objective_progress(
+        db_session=async_session, objective_id=incomplete.id, vault_id=vault.id, progress=2
+    )
+
+    assert await crud.objective_crud.count_claimable_for_vault(async_session, vault.id) == 1
+
+
+@pytest.mark.asyncio
 async def test_update_objective_progress(async_session: AsyncSession) -> None:
     """Test updating progress for an objective."""
     # Create user and vault

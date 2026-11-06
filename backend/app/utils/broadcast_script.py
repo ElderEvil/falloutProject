@@ -93,6 +93,20 @@ _WEATHER_LINES = (
     "Tonight's wasteland outlook: cold, dark, and full of ghouls. Business as usual.",
 )
 
+# Objectives status is count-only: the segment nudges, the Objectives desk
+# (the screen) tells the story. {n} is the count, {s} the plural ending.
+_OBJECTIVES_LINES = (
+    "Vault-Tec's objectives desk reports {n} unclaimed reward{s} waiting. The caps grow impatient.",
+    "A note from the Office: {n} directive reward{s} ready for collection. Do keep them waiting.",
+    "The objectives ledger shows {n} reward{s} unclaimed. Your diligence will be compensated. Eventually.",
+)
+_OBJECTIVES_ZERO_LINES = (
+    "The objectives desk reports nothing pending. A rare and suspicious calm.",
+    "No unclaimed rewards at the objectives desk. Enjoy the quiet while it lasts.",
+)
+
+_SEGMENT_KINDS = ("housekeeping", "weather", "psa", "jukebox", "objectives", "housing")
+
 _PSA_LINES = (
     "A public service reminder: radroaches are to be reported, not negotiated with. Thank you for your cooperation.",
     "A friendly reminder from Vault-Tec: the reactor room is not a lounge. The reactor room is never a lounge.",
@@ -105,14 +119,12 @@ _JUKEBOX_LINES = (
     "Tonight's jukebox special: one bottle cap to hear the same song twice. A bargain, twice over.",
 )
 
-_SEGMENT_KINDS = ("housekeeping", "weather", "psa", "jukebox", "housing")
-
 # Soft ceiling for the rendered script; the rotating segment is the only
 # component dropped when the rest of the broadcast pushes past it.
 _SEGMENT_WORD_BUDGET = 195
 
 
-def _pick_segment(seed: str, population: int, population_max: int) -> tuple[str, str]:
+def _pick_segment(seed: str, population: int, population_max: int, rewards_ready: int = 0) -> tuple[str, str]:
     """One rotating segment per broadcast: (kind, text), chosen by the seed."""
     kind = _pick(_SEGMENT_KINDS, f"{seed}:segment")
     if kind == "housing" and population_max > 0:
@@ -139,9 +151,13 @@ def _pick_segment(seed: str, population: int, population_max: int) -> tuple[str,
         "weather": _WEATHER_LINES,
         "psa": _PSA_LINES,
         "jukebox": _JUKEBOX_LINES,
+        "objectives": _OBJECTIVES_LINES if rewards_ready > 0 else _OBJECTIVES_ZERO_LINES,
         "housing": _HOUSEKEEPING_LINES,  # no capacity data; a housekeeping line stands in
     }
-    return kind, _pick(variants[kind], f"{seed}:{kind}")
+    text = _pick(variants[kind], f"{seed}:{kind}")
+    if kind == "objectives" and rewards_ready > 0:
+        text = text.format(n=rewards_ready, s="" if rewards_ready == 1 else "s")
+    return kind, text
 
 
 _POPULATION_LINES = (
@@ -211,6 +227,7 @@ def build_daily_script(
     water: tuple[int, int],
     recent_notifications: list[dict],
     gender_counts: list[tuple[str, int]] | None = None,
+    rewards_ready: int = 0,
     vault_number: int | None = None,
     variant_seed: str | None = None,
     _now: datetime | None = None,
@@ -268,7 +285,7 @@ def build_daily_script(
 
     # Rotating segment, inserted after the population/gender block when the
     # full script (everything but the segment itself) stays in budget.
-    kind, segment = _pick_segment(seed_base, population, population_max)
+    kind, segment = _pick_segment(seed_base, population, population_max, rewards_ready)
     segment_idx = len(parts)
     if len(" ".join(parts).split()) + len(segment.split()) + reserved <= _SEGMENT_WORD_BUDGET:
         parts.insert(segment_idx, segment)

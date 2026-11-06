@@ -6,7 +6,7 @@ from uuid import UUID
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col, or_, select
+from sqlmodel import col, func, or_, select
 from sqlmodel.sql.expression import SelectOfScalar
 
 from app.core.enums import ObjectiveCategoryEnum
@@ -40,6 +40,24 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         await db_session.refresh(link_obj)
 
         return db_obj
+
+    async def count_claimable_for_vault(self, db_session: AsyncSession, vault_id: UUID4) -> int:
+        """Count unlocked vault objectives whose reward is ready but unclaimed.
+
+        Mirrors the frontend's claimable rule: progress met, not yet marked
+        completed (claim settles that flag).
+        """
+        query = (
+            select(func.count())
+            .select_from(self.link_model)
+            .where(
+                self.link_model.vault_id == vault_id,
+                col(self.link_model.is_locked).is_(False),
+                col(self.link_model.is_completed).is_(False),
+                col(self.link_model.progress) >= col(self.link_model.total),
+            )
+        )
+        return int((await db_session.execute(query)).scalar_one())
 
     async def get_multi_for_vault(
         self, db_session: AsyncSession, vault_id: UUID4, skip: int = 0, limit: int = 100

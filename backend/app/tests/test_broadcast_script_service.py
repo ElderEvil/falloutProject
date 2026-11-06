@@ -298,23 +298,36 @@ class TestRotatingSegments:
         }
 
     def test_housing_segment_reflects_occupancy(self):
-        # s1 and s5 deterministically select the housing segment (asserted in
+        # s3 deterministically selects the housing segment (asserted in
         # test_segment_rotates_across_seeds), so these hit the housing branch.
         crowded = self._data() | {"population": 44, "population_max": 46}
-        _, script = build_daily_script(**crowded, variant_seed="s1")
+        _, script = build_daily_script(**crowded, variant_seed="s3")
         assert "A note from housing: bunks are filling fast, 44 of 46 spoken for." in script
         sparse = self._data() | {"population": 5, "population_max": 46}
-        _, script = build_daily_script(**sparse, variant_seed="s1")
+        _, script = build_daily_script(**sparse, variant_seed="s3")
         assert "Housing reports plenty of open bunks, 5 of 46 occupied." in script
         overflow = self._data() | {"population": 23, "population_max": 8}
-        _, script = build_daily_script(**overflow, variant_seed="s5")
+        _, script = build_daily_script(**overflow, variant_seed="s3")
         assert "Housing reports 23 residents in a vault built for 8." in script
 
     def test_segment_rotates_across_seeds(self):
-        _, script = build_daily_script(**self._data(), variant_seed="s1")
+        _, script = build_daily_script(**self._data(), variant_seed="s3")
         assert "Housing reports steady occupancy: 23 of 46 bunks in use, no complaints on file." in script
-        _, script = build_daily_script(**self._data(), variant_seed="s6")
+        _, script = build_daily_script(**self._data(), variant_seed="s50")
         assert "The wasteland reports: blazing sun, irritable mole rats" in script
+
+    def test_objectives_segment_counts_unclaimed_rewards(self):
+        # s9 selects the objectives segment; the count is the only detail.
+        _, script = build_daily_script(**self._data(), rewards_ready=2, variant_seed="s9")
+        assert "The objectives ledger shows 2 rewards unclaimed." in script
+        _, script = build_daily_script(**self._data(), rewards_ready=1, variant_seed="s9")
+        assert "The objectives ledger shows 1 reward unclaimed." in script
+
+    def test_objectives_segment_zero_state_has_no_count(self):
+        # Nothing claimable: a filler line, never a "0 rewards" confession.
+        _, script = build_daily_script(**self._data(), variant_seed="s9")
+        assert "nothing pending" in script
+        assert "reward" not in script
 
     def test_housing_dropped_by_budget_keeps_capacity_numbers(self, monkeypatch):
         """When the budget drops the housing segment, the population line keeps its numbers."""
@@ -322,7 +335,7 @@ class TestRotatingSegments:
 
         monkeypatch.setattr(bs, "_SEGMENT_WORD_BUDGET", 30)
         crowded = self._data() | {"population": 44, "population_max": 46}
-        _, script = build_daily_script(**crowded, variant_seed="s1")
+        _, script = build_daily_script(**crowded, variant_seed="s3")
         assert "A note from housing" not in script, "segment should be budget-dropped"
         assert "44" in script, "capacity must not disappear with the segment"
         assert "46" in script, "capacity must not disappear with the segment"

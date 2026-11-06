@@ -1,7 +1,7 @@
 """Event generation for wasteland exploration."""
 
 import random
-from datetime import datetime
+from datetime import UTC, datetime
 
 from app.core.game_config import game_config
 from app.models.exploration import Exploration
@@ -55,6 +55,9 @@ class EventGenerator:
         if exploration.events:
             last_event = exploration.events[-1]
             last_event_time = datetime.fromisoformat(last_event["timestamp"])
+            if last_event_time.tzinfo is not None:
+                # Keep the legacy naive-UTC clock contract, preserving aware history's instant.
+                last_event_time = last_event_time.astimezone(UTC).replace(tzinfo=None)
 
         if not last_event_time:
             # First event - check if initial delay has passed

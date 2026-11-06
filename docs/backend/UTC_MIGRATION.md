@@ -1,8 +1,9 @@
 # Aware-UTC migration preparation
 
 Baseline: v2.287.1 (`d842b2c7`), Alembic `c8f2a1b3d4e5`, audited 2026-11-06.
-This is a local schema inventory, conversion contract and cutover plan. It adds no migration,
-changes no runtime datetime behavior, and does not claim a production-clone rehearsal.
+This is a local schema inventory, conversion contract and cutover plan, with compatible-reader
+follow-up recorded below. It adds no migration, keeps the naive-UTC storage/clock contract, and
+does not claim a production-clone rehearsal.
 The release gates remain in [the roadmap](../ROADMAP.md#30-platform-release-plan).
 
 ## Current schema
@@ -74,11 +75,11 @@ Paths in this section are relative to the repository root.
 | ORM clocks | `backend/app/models/base.py` uses `datetime.utcnow()` for creation/update/deletion. Other models and CRUD/services also use naive UTC, including `datetime.now(UTC).replace(tzinfo=None)`. | Move persisted datetime fields and their defaults/onupdate hooks to aware UTC together with SQLModel/SQLAlchemy types. Keep the API and worker engines in `backend/app/db/session.py` pinned to UTC. |
 | Deadlines and elapsed time | `models/{exploration,training,crafting_order,pregnancy,incident,vault_quest,game_state}.py` compare stored dates with naive current time. CRUD queries use matching naive bounds. | Audit both Python and SQL operands: completion thresholds, returns, pause/resume, offline ticks, breeding/cooldowns, age/death, retention and room/weapon cooldowns. Replacing defaults alone leaves mixed arithmetic. |
 | Offset stripping | `Pregnancy.is_due` drops tzinfo without first converting an aware value to UTC; `services/combat/arena_service.py` relabels event dates with `replace(tzinfo=UTC)`. | Review each occurrence for its input contract. Convert an aware instant with `astimezone(UTC)`; only label a naive value UTC when the legacy contract establishes UTC. |
-| Exploration JSON | `models/exploration.py` emits bare ISO strings in `events[].timestamp` and `loot_collected[].found_at`. `services/exploration_service.py` and `exploration/expedition_scenario_service.py` write `trail[].t` and scenario event timestamps. | Keep historical payload text intact for this cutover; make readers accept legacy naive UTC and explicit offsets before new writers emit aware values. `exploration/event_generator.py` currently parses with `fromisoformat` then subtracts naive current time. Typed-column DDL cannot fix that reader. |
+| Exploration JSON | `models/exploration.py` emits bare ISO strings in `events[].timestamp` and `loot_collected[].found_at`. `services/exploration_service.py` and `exploration/expedition_scenario_service.py` write `trail[].t` and scenario event timestamps. | Keep historical payload text intact for this cutover; make readers accept legacy naive UTC and explicit offsets before new writers emit aware values. `exploration/event_generator.py` accepts legacy naive UTC and normalizes aware event timestamps to naive UTC for its current clock comparison without modifying history. Preserve that compatibility during the coordinated clock cutover. |
 | Other JSON and delivery | `dweller.bio_entries[].created_at` comes from `services/bio_service.py`; notification metadata is extensible JSON. `game_loop_service.py` derives delivery `event_id` text from `last_tick_time`; `gamestate.recent_tick_ids` stores opaque identifiers. | Inventory real metadata keys on the clone. Do not blanket-rewrite JSON strings, user text, event IDs or deduplication keys. Preserve replay/reconnect identity and normalize only known temporal fields when reading them. |
 | Canonical API output | `schemas/training.py` uses `utils/serialize.py` to emit UTC `Z` strings for naive and aware inputs, including nullable completion. | Preserve this contract. The new schema round-trip tests cover naive UTC, UTC, positive/fractional and negative offsets, and present/absent completion values. |
 | Other API output | Exploration and broadcast schemas rely on ordinary datetime serialization. Game-control, quest-member, incident and notification delivery paths also call `isoformat()` directly. `system/info` already emits an aware value. | Specify which outputs become UTC `Z` or explicit `+00:00`; preserve instants, optional values and consumers of old cached payloads. Regenerate frontend API types when the API changes, even if datetime still maps to string. |
-| Browser parsing | `frontend/src/core/utils/time.ts:parseUtcMs` and radio parsing accept naive UTC and explicit offsets. Training consumes its already-normalized API output. `CraftingPanel.vue` unconditionally appends `Z`; other views use `new Date(value)` directly. | Land compatible readers first: avoid double suffixes and local-time interpretation. Reuse `parseUtcMs`; cover old and new strings, offsets, phone/browser timezone differences and reload. This preparation PR changes no frontend code. |
+| Browser parsing | `frontend/src/core/utils/time.ts:parseUtcMs` and radio parsing accept naive UTC and explicit offsets. Training consumes its already-normalized API output. `CraftingPanel.vue` now reuses `parseUtcMs` for both progress endpoints and its countdown; some other views still use `new Date(value)` directly. | Land compatible readers first: avoid double suffixes and local-time interpretation. Reuse `parseUtcMs`; cover old and new strings, offsets, phone/browser timezone differences and reload. Crafting regressions cover legacy/aware strings, live progress and reload; the wider browser-reader audit remains open. |
 | Calendar periods and credentials | `services/progression/objectives/refresh_service.py` computes UTC daily/weekly boundaries. JWT helpers turn datetime expirations into numeric claims; Redis uses TTL/opaque keys as well as date-based caches. | Retain UTC day/week/reset semantics. Do not reinterpret epoch numbers, elapsed durations, TTLs or opaque IDs as naive datetime strings. Review password-reset DB deadlines with the rest of `user`. |
 
 This is a source audit, not proof that every historic JSON payload has the same shape. On the clone,
@@ -143,6 +144,33 @@ These are SQL conversion and API contracts against the current pinned dependenci
 Alembic revision that has not been written. When the real revision exists, invoke that revision in the
 migration regressions and exercise real domain rows, API/worker deadlines and JSON readers under the
 new ORM versions. Do not remove this distinction from the release evidence.
+
+## Compatible-reader follow-up
+
+The first reader slice fixes crafting progress and exploration event intervals while keeping writers,
+API output and storage unchanged. Crafting progress now shares `parseUtcMs` with its countdown.
+Exploration converts explicit offsets to UTC before removing tzinfo for the existing naive-UTC clock;
+it leaves legacy naive values and the event/loot/trail JSON, unknown fields and identity strings intact.
+Malformed event timestamps continue to fail at the existing parse boundary.
+
+Regressions cover legacy naive UTC, `Z`, positive fractional-hour and negative offsets; exploration
+checks one microsecond before, at and after the event interval. Crafting checks progress/countdown
+agreement while time advances and after remount. Shared parser cases cover fractional seconds and
+elapsed countdown clamping. Run frontend cases under different process timezones to detect accidental
+local-time interpretation:
+
+```bash
+cd frontend
+TZ=America/New_York pnpm run test:run tests/unit/core/utils/time.test.ts tests/unit/components/crafting/CraftingPanel.test.ts
+TZ=Asia/Kathmandu pnpm run test:run tests/unit/core/utils/time.test.ts tests/unit/components/crafting/CraftingPanel.test.ts
+```
+
+The adjacent training deadline readers use ordinary `Date` parsing against the existing canonical
+`Z` output described above. Exploration countdowns already reuse the shared time helpers; Arena journal
+readers also use `parseUtcMs`. This slice does not complete the wider audit: generic date formatting,
+notification absolute-time tooltips, home ordering and chat history still include direct `Date` parsing.
+Notification reconnect/deduplication behavior, real browser/phone displays and production JSON sampling
+remain separate validation work before cutover. No subscription or delivery owner changes here.
 
 ## Ordered implementation and cutover
 

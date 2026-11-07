@@ -198,6 +198,109 @@ def can_breed(entity: object) -> bool:
     return BREEDING_ELIGIBLE.get(race_of(entity) or RaceOption.HUMAN, False)
 
 
+class SocialPresence(StrEnum):
+    """How a dweller's race and state read to coworkers."""
+
+    NORMAL = "normal"
+    GHOUL = "ghoul"
+    FERAL = "feral"
+    MUTANT = "mutant"
+    BEHEMOTH = "behemoth"
+    SYNTH_GEN_1 = "synth_gen_1"
+    SYNTH_GEN_2 = "synth_gen_2"
+
+
+class DiscomfortSeverity(StrEnum):
+    """Severity of a coworker's unease around a feral ghoul or super mutant."""
+
+    MILD = "mild"
+    MODERATE = "moderate"
+    STRONG = "strong"
+
+    @property
+    def rank(self) -> int:
+        """Ordering for taking the worst discomfort in a room."""
+        return list(type(self)).index(self)
+
+
+@dataclass(frozen=True)
+class Discomfort:
+    """One pair's unease: how strong it is and which presence causes it."""
+
+    severity: DiscomfortSeverity
+    source: SocialPresence
+
+
+def social_presence(entity: object) -> SocialPresence:
+    """Classify a dweller for social-friction rules."""
+    race = race_of(entity) or RaceOption.HUMAN
+    state = state_of_being_of(entity)
+    if race == RaceOption.GHOUL:
+        return SocialPresence.FERAL if state == GhoulFeralnessEnum.FERAL.value else SocialPresence.GHOUL
+    if race == RaceOption.SUPER_MUTANT:
+        return SocialPresence.BEHEMOTH if state == SuperMutantMutationEnum.BEHEMOTH.value else SocialPresence.MUTANT
+    if race == RaceOption.SYNTH:
+        if state == SynthTypeEnum.GEN_1.value:
+            return SocialPresence.SYNTH_GEN_1
+        if state == SynthTypeEnum.GEN_2.value:
+            return SocialPresence.SYNTH_GEN_2
+    return SocialPresence.NORMAL
+
+
+def _same_monster_kind(left: SocialPresence, right: SocialPresence) -> bool:
+    if left == right:
+        return True
+    super_mutants = {SocialPresence.MUTANT, SocialPresence.BEHEMOTH}
+    return left in super_mutants and right in super_mutants
+
+
+def discomfort_between(entity_a: object, entity_b: object) -> Discomfort | None:
+    """Pair unease from feral ghouls and super mutants; None when they are at ease."""
+    left = social_presence(entity_a)
+    right = social_presence(entity_b)
+    if _same_monster_kind(left, right):
+        return None
+    presences = {left, right}
+    if SocialPresence.FERAL in presences:
+        severity = (
+            DiscomfortSeverity.MILD
+            if presences == {SocialPresence.FERAL, SocialPresence.GHOUL}
+            else DiscomfortSeverity.STRONG
+        )
+        return Discomfort(severity=severity, source=SocialPresence.FERAL)
+    if SocialPresence.BEHEMOTH in presences:
+        return Discomfort(severity=DiscomfortSeverity.STRONG, source=SocialPresence.BEHEMOTH)
+    if SocialPresence.MUTANT in presences:
+        return Discomfort(severity=DiscomfortSeverity.MODERATE, source=SocialPresence.MUTANT)
+    if SocialPresence.SYNTH_GEN_1 in presences:
+        return Discomfort(severity=DiscomfortSeverity.MODERATE, source=SocialPresence.SYNTH_GEN_1)
+    if SocialPresence.SYNTH_GEN_2 in presences:
+        return Discomfort(severity=DiscomfortSeverity.MILD, source=SocialPresence.SYNTH_GEN_2)
+    return None
+
+
+@dataclass(frozen=True)
+class DiscomfortEffect:
+    """Mechanical unease for one severity, declared beside the race data."""
+
+    chemistry_penalty: float
+    happiness_penalty: float
+    production_multiplier: float
+
+
+#: Severity-keyed effects; a balance pass follows play-testing, like RACE_MODIFIERS.
+DISCOMFORT_EFFECTS: dict[DiscomfortSeverity, DiscomfortEffect] = {
+    DiscomfortSeverity.MILD: DiscomfortEffect(chemistry_penalty=0.10, happiness_penalty=0.5, production_multiplier=0.97),
+    DiscomfortSeverity.MODERATE: DiscomfortEffect(
+        chemistry_penalty=0.15, happiness_penalty=1.0, production_multiplier=0.90
+    ),
+    DiscomfortSeverity.STRONG: DiscomfortEffect(chemistry_penalty=0.25, happiness_penalty=1.5, production_multiplier=0.85),
+}
+
+#: Lowest combined discomfort/rival production multiplier for one room.
+DISCOMFORT_PRODUCTION_FLOOR = 0.75
+
+
 race_descriptions: dict[RaceOption, str] = {
     RaceOption.GHOUL: (
         "A Ghoul is a human with visible radiation scarring and leathery, slightly decayed skin. "

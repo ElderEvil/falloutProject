@@ -43,6 +43,8 @@ class VaultRelationshipRead(RelationshipRead):
     same_race: bool
     average_charisma: int
     can_make_partners: bool
+    discomfort_severity: Literal["mild", "moderate", "strong"] | None = None
+    discomfort_source: Literal["feral", "mutant", "behemoth", "synth_gen_1", "synth_gen_2"] | None = None
 
 
 class CompatibilityScore(SQLModel):

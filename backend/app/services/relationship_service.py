@@ -3,7 +3,6 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from uuid import UUID
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -15,7 +14,7 @@ from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
 from app.models.relationship import Relationship
 from app.options.identity_modifiers import effective_stat
-from app.options.races import RaceOption, race_of
+from app.options.races import DISCOMFORT_EFFECTS, RaceOption, discomfort_between, race_of
 from app.schemas.relationship import CompatibilityScore, VaultRelationshipRead
 from app.services.bio_service import bio_service
 from app.services.family.breeding_service import conception_potential
@@ -26,6 +25,8 @@ logger = logging.getLogger(__name__)
 
 #: Neutral SPECIAL baseline: the Charisma point where relationship modifiers are 1.0x.
 _CHARISMA_BASELINE = 5
+#: Lowest affinity a non-committed relationship can reach (model invariant).
+_AFFINITY_MIN = -100
 
 
 @dataclass(frozen=True)
@@ -37,18 +38,6 @@ class CompatibilityParts:
     happiness_score: float
     level_score: float
     proximity_score: float
-
-
-@dataclass(frozen=True)
-class DemotionNotice:
-    """Everything needed to announce a demotion after its transaction commits."""
-
-    vault_id: UUID
-    relationship_id: UUID
-    from_dweller_id: UUID
-    from_type: RelationshipTypeEnum
-    to_type: RelationshipTypeEnum
-    message: str
 
 
 def effective_charisma(dweller: Dweller) -> int:
@@ -90,12 +79,15 @@ def compatibility_components(dweller1: Dweller, dweller2: Dweller) -> Compatibil
 
 
 def affinity_chemistry(dweller1: Dweller, dweller2: Dweller) -> float:
-    """Compatibility plus the race and Charisma shifts that decide bond direction."""
+    """Compatibility plus race, Charisma and comfort shifts that decide bond direction."""
     config = game_config.relationship
     race_shift = config.race_chemistry_bonus if shares_race(dweller1, dweller2) else -config.race_chemistry_bonus
     average_charisma = (effective_charisma(dweller1) + effective_charisma(dweller2)) / 2
     charisma_shift = (average_charisma - _CHARISMA_BASELINE) * config.charisma_chemistry_weight
-    return compatibility_components(dweller1, dweller2).score + race_shift + charisma_shift
+    chemistry = compatibility_components(dweller1, dweller2).score + race_shift + charisma_shift
+    if discomfort := discomfort_between(dweller1, dweller2):
+        chemistry -= DISCOMFORT_EFFECTS[discomfort.severity].chemistry_penalty
+    return chemistry
 
 
 def _charisma_affinity_multiplier(average_charisma: float) -> float:
@@ -168,7 +160,9 @@ class RelationshipService:
             if change > 0:
                 change = min(change, 100 - relationship.affinity)
             else:
-                change = max(change, -relationship.affinity)
+                floor = 0 if relationship.relationship_type in PARTNER_LINKED_STAGES else _AFFINITY_MIN
+                change = max(change, floor - relationship.affinity)
+            discomfort = discomfort_between(first, second)
             result.append(
                 VaultRelationshipRead.model_validate(
                     relationship,
@@ -178,6 +172,8 @@ class RelationshipService:
                         "conception_potential": conception_potential(first, second),
                         "same_race": shares_race(first, second),
                         "average_charisma": int((effective_charisma(first) + effective_charisma(second)) / 2 + 0.5),
+                        "discomfort_severity": discomfort.severity.value if discomfort else None,
+                        "discomfort_source": discomfort.source.value if discomfort else None,
                         "can_make_partners": not (
                             relationship.relationship_type == RelationshipTypeEnum.ROMANTIC
                             and (
@@ -274,15 +270,23 @@ class RelationshipService:
         new_affinity = min(100, relationship.affinity + amount)
         update_data = {"affinity": new_affinity, "updated_at": datetime.utcnow()}
         old_type = relationship.relationship_type
+        current_type = old_type
+
+        if (
+            current_type == RelationshipTypeEnum.RIVAL
+            and new_affinity >= game_config.relationship.rival_recovery_threshold
+        ):
+            update_data["relationship_type"] = RelationshipTypeEnum.ACQUAINTANCE
+            current_type = RelationshipTypeEnum.ACQUAINTANCE
 
         # Auto-upgrade relationship based on affinity thresholds
         if update_data["affinity"] >= game_config.relationship.romance_threshold:
             # Progress through relationship stages
-            if relationship.relationship_type == RelationshipTypeEnum.ACQUAINTANCE:
+            if current_type == RelationshipTypeEnum.ACQUAINTANCE:
                 update_data["relationship_type"] = RelationshipTypeEnum.FRIEND
-            elif relationship.relationship_type == RelationshipTypeEnum.FRIEND:
+            elif current_type == RelationshipTypeEnum.FRIEND:
                 update_data["relationship_type"] = RelationshipTypeEnum.ROMANTIC
-            elif relationship.relationship_type == RelationshipTypeEnum.ROMANTIC:
+            elif current_type == RelationshipTypeEnum.ROMANTIC:
                 # Skip the promotion if either dweller is already committed to a
                 # third dweller (game-loop tick path: log and keep ROMANTIC rather
                 # than raising, which would break the vault). Lock both dweller
@@ -375,11 +379,11 @@ class RelationshipService:
         relationship: Relationship | None = None,
         commit: bool = True,
     ) -> Relationship:
-        """Lower affinity; only non-committed stages can demote.
+        """Lower affinity; non-committed stages can demote into rivalry.
 
         PARTNER and MARRIED links survive any affinity drop and end only through
-        ``break_up``. Demotions announce through the bell and a toast, delivered
-        after the caller's commit when ``commit=False``.
+        ``break_up``. Relationship changes stay silent; a first rivalry is
+        narrated into both bios instead of the notification bell.
         """
         if amount <= 0:
             msg = "Affinity decrease amount must be positive"
@@ -390,24 +394,21 @@ class RelationshipService:
             msg = "Relationship not found between dwellers"
             raise ValueError(msg)
 
-        new_affinity = max(0, relationship.affinity - amount)
+        config = game_config.relationship
+        floor = 0 if relationship.relationship_type in PARTNER_LINKED_STAGES else _AFFINITY_MIN
+        new_affinity = max(floor, relationship.affinity - amount)
         demoted_from = relationship.relationship_type
         demoted_to = RelationshipService._demotion_for(demoted_from, new_affinity)
-        notice = (
-            await RelationshipService._prepare_demotion_notice(db_session, relationship, demoted_from, demoted_to)
-            if demoted_to is not None
-            else None
-        )
 
         update_data = {"affinity": new_affinity, "updated_at": datetime.utcnow()}
         if demoted_to is not None:
             update_data["relationship_type"] = demoted_to
         RelationshipService._stage_update(db_session, relationship, update_data)
+        if demoted_to == RelationshipTypeEnum.RIVAL:
+            await RelationshipService._record_rival_bios(db_session, relationship)
 
         if commit:
             await db_session.commit()
-        if notice is not None:
-            await RelationshipService._send_demotion_notice(db_session, notice, commit=commit)
 
         logger.debug(
             f"Affinity decreased {dweller_1_id} ↔ {dweller_2_id}: {demoted_from} → {demoted_to or demoted_from}"
@@ -417,6 +418,10 @@ class RelationshipService:
     @staticmethod
     def _demotion_for(current: RelationshipTypeEnum, new_affinity: int) -> RelationshipTypeEnum | None:
         config = game_config.relationship
+        if current in PARTNER_LINKED_STAGES or current in {RelationshipTypeEnum.RIVAL, RelationshipTypeEnum.EX}:
+            return None
+        if new_affinity < 0:
+            return RelationshipTypeEnum.RIVAL
         if current == RelationshipTypeEnum.ROMANTIC and new_affinity < config.romantic_demotion_threshold:
             return RelationshipTypeEnum.FRIEND
         if current == RelationshipTypeEnum.FRIEND and new_affinity < config.friend_demotion_threshold:
@@ -424,55 +429,17 @@ class RelationshipService:
         return None
 
     @staticmethod
-    async def _prepare_demotion_notice(
-        db_session: AsyncSession,
-        relationship: Relationship,
-        from_type: RelationshipTypeEnum,
-        to_type: RelationshipTypeEnum,
-    ) -> DemotionNotice | None:
-        try:
-            first = await dweller_crud.get(db_session, relationship.dweller_1_id)
-            second = await dweller_crud.get(db_session, relationship.dweller_2_id)
-            name_1 = f"{first.first_name} {first.last_name or ''}".strip()
-            name_2 = f"{second.first_name} {second.last_name or ''}".strip()
-            if first.vault_id is None:
-                return None
-            bond = "romantic" if from_type == RelationshipTypeEnum.ROMANTIC else "friends"
-            message = f"{name_1} and {name_2} drifted apart — no longer {bond}."
-            return DemotionNotice(
-                vault_id=first.vault_id,
-                relationship_id=relationship.id,
-                from_dweller_id=relationship.dweller_1_id,
-                from_type=from_type,
-                to_type=to_type,
-                message=message,
-            )
-        except Exception:
-            logger.exception("Failed to prepare relationship demotion notice for %s", relationship.id)
-            return None
-
-    @staticmethod
-    async def _send_demotion_notice(db_session: AsyncSession, notice: DemotionNotice, *, commit: bool) -> None:
-        await NotificationService.notify_owner(
-            db_session,
-            notice.vault_id,
-            context=f"relationship demotion relationship={notice.relationship_id} vault={notice.vault_id}",
-            sender=lambda user_id: NotificationService.create_and_send(
-                db_session,
-                user_id=user_id,
-                notification_type=NotificationType.RELATIONSHIP_FORMED,
-                title="Drifting Apart",
-                message=notice.message,
-                vault_id=notice.vault_id,
-                from_dweller_id=notice.from_dweller_id,
-                meta_data={
-                    "event": "relationship_demoted",
-                    "relationship_id": str(notice.relationship_id),
-                    "from": notice.from_type.value,
-                    "to": notice.to_type.value,
-                },
-                commit=commit,
-            ),
+    async def _record_rival_bios(db_session: AsyncSession, relationship: Relationship) -> None:
+        """Narrate a first rivalry into both dwellers' bios."""
+        first = await dweller_crud.get(db_session, relationship.dweller_1_id)
+        second = await dweller_crud.get(db_session, relationship.dweller_2_id)
+        name_1 = f"{first.first_name} {first.last_name or ''}".strip()
+        name_2 = f"{second.first_name} {second.last_name or ''}".strip()
+        await bio_service.append_entry(
+            db_session, first.id, "family", f"Can't stand {name_2}.", ref={"rival_id": str(second.id)}
+        )
+        await bio_service.append_entry(
+            db_session, second.id, "family", f"Can't stand {name_1}.", ref={"rival_id": str(first.id)}
         )
 
     @staticmethod

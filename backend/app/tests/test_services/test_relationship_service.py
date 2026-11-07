@@ -8,7 +8,6 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncConnection
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -16,18 +15,16 @@ from app.core.enums import (
     SPECIAL_STATS,
     AgeGroupEnum,
     GenderEnum,
-    NotificationType,
     RarityEnum,
     RelationshipTypeEnum,
 )
 from app.core.game_config import game_config
 from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
-from app.models.notification import Notification
 from app.models.relationship import Relationship
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
-from app.services.relationship_service import RelationshipService, affinity_change
+from app.services.relationship_service import RelationshipService, affinity_change, affinity_chemistry
 from app.utils.exceptions import ValidationException
 
 
@@ -36,6 +33,7 @@ def _stub_dweller(
     room_id,
     charisma: int = 5,
     race: str = "human",
+    state: str | None = None,
     level: int = 5,
     happiness: int = 60,
     gender: GenderEnum = GenderEnum.MALE,
@@ -44,6 +42,9 @@ def _stub_dweller(
     stats = dict.fromkeys(SPECIAL_STATS, 5)
     stats.update(stat_overrides)
     stats["charisma"] = charisma
+    visual_attributes = {"race": race}
+    if state is not None:
+        visual_attributes["state_of_being"] = state
     return SimpleNamespace(
         id=uuid4(),
         room_id=room_id,
@@ -51,7 +52,7 @@ def _stub_dweller(
         happiness=happiness,
         gender=gender,
         age_group=AgeGroupEnum.ADULT,
-        visual_attributes={"race": race},
+        visual_attributes=visual_attributes,
         **stats,
     )
 
@@ -198,6 +199,49 @@ async def test_vault_relationship_progress_blocks_partner_when_committed(monkeyp
     assert by_id[free_romance.id].can_make_partners is True
 
 
+@pytest.mark.asyncio
+async def test_vault_relationship_progress_reports_discomfort(monkeypatch: pytest.MonkeyPatch):
+    room_id = uuid4()
+    human = _stub_dweller(
+        room_id=room_id,
+        charisma=1,
+        race="human",
+        level=1,
+        happiness=0,
+        strength=10,
+        perception=0,
+        endurance=10,
+        intelligence=0,
+        agility=10,
+        luck=0,
+    )
+    feral = _stub_dweller(
+        room_id=room_id,
+        charisma=1,
+        race="ghoul",
+        state="feral",
+        level=50,
+        happiness=100,
+        strength=0,
+        perception=10,
+        endurance=0,
+        intelligence=10,
+        agility=0,
+        luck=10,
+    )
+    relationship = Relationship(dweller_1_id=human.id, dweller_2_id=feral.id, affinity=5)
+    monkeypatch.setattr(relationship_crud, "get_by_vault", AsyncMock(return_value=[relationship]))
+    monkeypatch.setattr(crud.dweller, "get_living_quarters_dwellers", AsyncMock(return_value=[human, feral]))
+    monkeypatch.setattr(crud.dweller, "get_by_ids_in_vault", AsyncMock(return_value=[human, feral]))
+
+    progress = await RelationshipService.get_vault_relationships_with_progress(AsyncMock(), uuid4())
+
+    item = progress[0]
+    assert item.discomfort_severity == "strong"
+    assert item.discomfort_source == "feral"
+    assert item.bond_change_per_tick < 0
+
+
 def test_affinity_change_same_race_beats_cross_race():
     room_id = uuid4()
     human = _stub_dweller(room_id=room_id)
@@ -247,6 +291,52 @@ def test_affinity_change_drifts_down_for_incompatible_mixed_pair():
     )
 
     assert affinity_change(first, second) < 0
+
+
+def test_affinity_chemistry_penalizes_discomfort():
+    room_id = uuid4()
+    human = _stub_dweller(room_id=room_id)
+    human_peer = _stub_dweller(room_id=room_id)
+    feral = _stub_dweller(room_id=room_id, race="ghoul", state="feral")
+    mutant = _stub_dweller(room_id=room_id, race="super_mutant")
+    behemoth = _stub_dweller(room_id=room_id, race="super_mutant", state="behemoth")
+
+    assert affinity_chemistry(human, human_peer) > affinity_chemistry(human, mutant)
+    assert affinity_chemistry(human, mutant) > affinity_chemistry(human, behemoth)
+    assert affinity_chemistry(human, human_peer) > affinity_chemistry(human, feral)
+
+
+def test_feral_discomfort_tips_incompatible_pair_below_drift_threshold():
+    room_id = uuid4()
+    human = _stub_dweller(
+        room_id=room_id,
+        charisma=1,
+        race="human",
+        level=1,
+        happiness=0,
+        strength=10,
+        perception=0,
+        endurance=10,
+        intelligence=0,
+        agility=10,
+        luck=0,
+    )
+    feral = _stub_dweller(
+        room_id=room_id,
+        charisma=1,
+        race="ghoul",
+        state="feral",
+        level=50,
+        happiness=100,
+        strength=0,
+        perception=10,
+        endurance=0,
+        intelligence=10,
+        agility=0,
+        luck=10,
+    )
+
+    assert affinity_chemistry(human, feral) < game_config.relationship.affinity_drift_threshold
 
 
 @pytest_asyncio.fixture(name="dweller_2")
@@ -652,25 +742,60 @@ async def test_decrease_affinity_floors_at_zero(
 
 
 @pytest.mark.asyncio
-async def test_decrease_affinity_notifies_demotion(
+async def test_decrease_affinity_records_rival_bios(
     async_session: AsyncSession,
     dweller: Dweller,
     dweller_2: Dweller,
 ):
     relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
-    relationship.relationship_type = RelationshipTypeEnum.ROMANTIC
-    relationship.affinity = game_config.relationship.romantic_demotion_threshold
+    relationship.relationship_type = RelationshipTypeEnum.ACQUAINTANCE
+    relationship.affinity = 0
     await async_session.commit()
 
-    await RelationshipService.decrease_affinity(async_session, dweller.id, dweller_2.id, 1)
+    updated = await RelationshipService.decrease_affinity(async_session, dweller.id, dweller_2.id, 1)
 
-    notifications = (
-        (await async_session.execute(select(Notification).where(Notification.meta_data.is_not(None)))).scalars().all()
-    )
-    demotions = [row for row in notifications if row.meta_data and row.meta_data.get("event") == "relationship_demoted"]
-    assert len(demotions) == 1
-    assert demotions[0].notification_type == NotificationType.RELATIONSHIP_FORMED
-    assert demotions[0].meta_data["to"] == RelationshipTypeEnum.FRIEND.value
+    await async_session.refresh(updated)
+    assert updated.relationship_type == RelationshipTypeEnum.RIVAL
+    assert updated.affinity == -1
+    first = await crud.dweller.get(async_session, dweller.id)
+    second = await crud.dweller.get(async_session, dweller_2.id)
+    assert any(entry["text"].startswith("Can't stand") for entry in first.bio_entries)
+    assert any(entry["text"].startswith("Can't stand") for entry in second.bio_entries)
+
+
+@pytest.mark.asyncio
+async def test_rival_recovers_to_acquaintance_at_threshold(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+):
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
+    relationship.relationship_type = RelationshipTypeEnum.RIVAL
+    relationship.affinity = game_config.relationship.rival_recovery_threshold - 1
+    await async_session.commit()
+
+    updated = await RelationshipService.increase_affinity(async_session, dweller.id, dweller_2.id, amount=1)
+
+    await async_session.refresh(updated)
+    assert updated.relationship_type == RelationshipTypeEnum.ACQUAINTANCE
+
+
+@pytest.mark.asyncio
+async def test_committed_partner_never_becomes_rival(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+):
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
+    relationship.relationship_type = RelationshipTypeEnum.PARTNER
+    relationship.affinity = 1
+    await async_session.commit()
+
+    updated = await RelationshipService.decrease_affinity(async_session, dweller.id, dweller_2.id, 10)
+
+    await async_session.refresh(updated)
+    assert updated.relationship_type == RelationshipTypeEnum.PARTNER
+    assert updated.affinity == 0
 
 
 @pytest.mark.asyncio

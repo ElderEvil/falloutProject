@@ -5,16 +5,19 @@ import logging
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import RelationshipTypeEnum
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
 from app.crud import room as room_crud
 from app.crud.incident import incident_crud
+from app.crud.relationship import relationship_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.incident import Incident
 from app.models.room import Room
 from app.models.vault import Vault
 from app.options.pet_modifiers import MAX_PCT_BONUS, pet_modifiers_for
+from app.options.races import DISCOMFORT_EFFECTS, discomfort_between
 from app.services.radio_service import RadioService
 from app.utils.exceptions import ResourceNotFoundException
 
@@ -70,6 +73,16 @@ class HappinessService:
             if partner_ids
             else {}
         )
+        dwellers_by_room: dict[UUID4, list[Dweller]] = {}
+        for dweller in dwellers:
+            if dweller.room_id is not None:
+                dwellers_by_room.setdefault(dweller.room_id, []).append(dweller)
+        rivals_by_dweller: dict[UUID4, set[UUID4]] = {}
+        for relationship in await relationship_crud.get_involving_any(db_session, {dweller.id for dweller in dwellers}):
+            if relationship.relationship_type != RelationshipTypeEnum.RIVAL:
+                continue
+            rivals_by_dweller.setdefault(relationship.dweller_1_id, set()).add(relationship.dweller_2_id)
+            rivals_by_dweller.setdefault(relationship.dweller_2_id, set()).add(relationship.dweller_1_id)
 
         stats = {
             "dwellers_processed": 0,
@@ -95,6 +108,8 @@ class HappinessService:
                 seconds_passed,
                 rooms_by_id=rooms_by_id,
                 partners_by_id=partners_by_id,
+                dwellers_by_room=dwellers_by_room,
+                rivals_by_dweller=rivals_by_dweller,
             )
 
             # Apply change
@@ -185,6 +200,8 @@ class HappinessService:
         *,
         rooms_by_id: dict[UUID4, Room] | None = None,
         partners_by_id: dict[UUID4, Dweller] | None = None,
+        dwellers_by_room: dict[UUID4, list[Dweller]] | None = None,
+        rivals_by_dweller: dict[UUID4, set[UUID4]] | None = None,
     ) -> float:
         """Calculate happiness change for a single dweller.
 
@@ -195,6 +212,8 @@ class HappinessService:
             seconds_passed: Seconds since last update
             rooms_by_id: Prefetched rooms keyed by room ID
             partners_by_id: Prefetched partners keyed by dweller ID
+            dwellers_by_room: Prefetched coworkers grouped by room ID
+            rivals_by_dweller: Rival IDs keyed by dweller ID
 
         Returns:
             Happiness change amount
@@ -306,6 +325,23 @@ class HappinessService:
         pet_effect = pet_modifiers_for(dweller)
         if pet_effect.happiness:
             change += min(pet_effect.happiness, MAX_PCT_BONUS) * tick_multiplier
+
+        coworkers = (
+            [coworker for coworker in dwellers_by_room.get(dweller.room_id, []) if coworker.id != dweller.id]
+            if dwellers_by_room is not None and dweller.room_id is not None
+            else []
+        )
+        if coworkers:
+            discomforts = [discomfort for coworker in coworkers if (discomfort := discomfort_between(dweller, coworker))]
+            if discomforts:
+                worst = max(discomforts, key=lambda item: item.severity.rank)
+                change -= DISCOMFORT_EFFECTS[worst.severity].happiness_penalty * tick_multiplier
+            if rivals_by_dweller is not None:
+                rival_ids = rivals_by_dweller.get(dweller.id, set())
+                rival_count = sum(1 for coworker in coworkers if coworker.id in rival_ids)
+                if rival_count:
+                    per_rival = game_config.relationship.rival_happiness_penalty
+                    change -= min(rival_count * per_rival, 2 * per_rival) * tick_multiplier
 
         return round(change, 2)
 

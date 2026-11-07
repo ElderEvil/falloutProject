@@ -628,6 +628,15 @@ class RelationshipConfig(BaseSettings):
     friend_demotion_threshold: int = Field(
         default=45, description="Affinity below which friends drop to acquaintance", ge=0, le=100
     )
+    rival_recovery_threshold: int = Field(
+        default=10, description="Affinity at which a rival returns to acquaintance", ge=0, le=100
+    )
+    rival_production_penalty: float = Field(
+        default=0.10, description="Production fraction lost per rival pair in a room", ge=0.0, le=1.0
+    )
+    rival_happiness_penalty: float = Field(
+        default=1.0, description="Happiness lost per co-located rival per 60s tick", ge=0.0
+    )
     romance_threshold: int = Field(default=70, description="Affinity required for romance", ge=0, le=100)
     partner_happiness_bonus: int = Field(default=10, description="Happiness bonus from having partner", ge=0)
     marriage_threshold: int = Field(default=85, description="Affinity required for marriage", ge=0, le=100)

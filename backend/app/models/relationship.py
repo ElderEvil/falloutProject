@@ -19,7 +19,7 @@ class RelationshipBase(SQLModel):
         sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE"), index=True),
     )
     relationship_type: RelationshipTypeEnum = Field(default=RelationshipTypeEnum.ACQUAINTANCE)
-    affinity: int = Field(default=0, ge=0, le=100)
+    affinity: int = Field(default=0, ge=-100, le=100)
 
 
 class Relationship(BaseUUIDModel, RelationshipBase, TimeStampMixin, table=True):

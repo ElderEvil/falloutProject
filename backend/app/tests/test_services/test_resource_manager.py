@@ -11,6 +11,7 @@ from app.crud.resource import VaultResourceData
 from app.models import Dweller, Storage
 from app.models.room import Room
 from app.models.vault import Vault
+from app.options.races import DISCOMFORT_EFFECTS, DISCOMFORT_PRODUCTION_FLOOR, DiscomfortSeverity
 from app.schemas.room import RoomCreate
 from app.schemas.vault import ResourceLevelWarning, ResourceProduction, ResourceTickEvents
 from app.services.resource_manager_service import ResourceManager
@@ -120,6 +121,11 @@ class TestResourceManager:
                 return_value=resource_data,
             ),
             patch("app.services.resource_manager_service.event_bus.emit", new_callable=AsyncMock) as emit,
+            patch(
+                "app.services.resource_manager_service.relationship_crud.get_involving_any",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
         ):
             _, events = await ResourceManager().process_vault_resources(MagicMock(), vault.id, 60)
             await ResourceManager.emit_production_events(vault.id, events)
@@ -268,6 +274,11 @@ async def test_live_tick_matches_offline_kernel_production_at_default_rate(vault
             return_value=resource_data,
         ),
         patch("app.services.resource_manager_service.event_bus.emit", new_callable=AsyncMock),
+        patch(
+            "app.services.resource_manager_service.relationship_crud.get_involving_any",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
     ):
         _, events = await manager.process_vault_resources(MagicMock(), vault.id, 60)
 
@@ -389,3 +400,28 @@ async def test_seeded_boosted_diner_outfitted_crew_keeps_live_food_positive() ->
     prepared = seeding.prepare_initial_rooms((await get_static_game_data()).rooms, uuid4(), is_boosted=True)
     diner_crew = [*_outfitted_workers("agility", 2), _apprentice(5, SPECIALEnum.AGILITY)]
     assert _seeded_net(prepared, 33, [diner_crew], "food", "diner") > 0
+
+
+def test_friction_multiplier_penalizes_discomfort_and_rivals() -> None:
+    human = Dweller(strength=5)
+    human.visual_attributes = {"race": "human"}
+    peer = Dweller(strength=5)
+    peer.visual_attributes = {"race": "human"}
+    feral = Dweller(strength=5)
+    feral.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
+    mutant = Dweller(strength=5)
+    mutant.visual_attributes = {"race": "super_mutant"}
+
+    assert ResourceManager._friction_multiplier([human, peer], None) == 1.0
+    assert ResourceManager._friction_multiplier([human, feral], None) == pytest.approx(
+        DISCOMFORT_EFFECTS[DiscomfortSeverity.STRONG].production_multiplier
+    )
+
+    rival_pairs = {frozenset((human.id, mutant.id))}
+    penalty = game_config.relationship.rival_production_penalty
+    expected = max(
+        DISCOMFORT_PRODUCTION_FLOOR,
+        DISCOMFORT_EFFECTS[DiscomfortSeverity.MODERATE].production_multiplier
+        * max(1 - 2 * penalty, 1 - penalty),
+    )
+    assert ResourceManager._friction_multiplier([human, mutant], rival_pairs) == pytest.approx(expected)

@@ -180,6 +180,7 @@ class RelationshipTypeEnum(CaseInsensitiveEnum):
     ROMANTIC = "romantic"
     PARTNER = "partner"
     MARRIED = "MARRIED"
+    RIVAL = "rival"
     EX = "ex"
 
 

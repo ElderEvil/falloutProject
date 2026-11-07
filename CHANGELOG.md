@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.290.4 (2026-11-07)
+
+### Code Refactoring
+
+* split quest seeding into focused steps 427e4d5
+
 ## 2.290.3 (2026-11-07)
 
 ### Code Refactoring

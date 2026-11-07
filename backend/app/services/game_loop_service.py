@@ -214,24 +214,21 @@ class GameLoopService:
         # Incident combat runs on its own fast cadence (incident_tick actor), not here.
 
         with tick_phase("explorations"):
-            exploration_update = await self._process_explorations(db_session, vault_id)
-            results["updates"]["explorations"] = exploration_update
+            results["updates"]["explorations"] = await self._process_explorations(db_session, vault_id)
 
         with tick_phase("dwellers"):
-            dweller_update = await self._process_dwellers(db_session, vault_id, seconds_passed)
-            results["updates"]["dwellers"] = dweller_update
+            results["updates"]["dwellers"] = await self._process_dwellers(db_session, vault_id, seconds_passed)
 
         with tick_phase("apprenticeships"):
-            apprenticeship_update = await self._process_apprenticeships(db_session, vault_id)
-            results["updates"]["apprenticeships"] = apprenticeship_update
+            results["updates"]["apprenticeships"] = await self._process_apprenticeships(db_session, vault_id)
 
         with tick_phase("training"):
-            training_update = await self._process_training(db_session, vault_id)
-            results["updates"]["training"] = training_update
+            results["updates"]["training"] = await self._process_training(db_session, vault_id)
 
         with tick_phase("crafting"):
-            crafting_update = await self._process_crafting(db_session, vault_id, game_state, seconds_passed)
-            results["updates"]["crafting"] = crafting_update
+            results["updates"]["crafting"] = await self._process_crafting(
+                db_session, vault_id, game_state, seconds_passed
+            )
 
         try:
             with tick_phase("storage"):
@@ -243,17 +240,16 @@ class GameLoopService:
             game_state = await self._get_or_create_game_state(db_session, vault_id)
 
         with tick_phase("happiness"):
-            happiness_update = await self._process_happiness(db_session, vault_id, seconds_passed)
-            results["updates"]["happiness"] = happiness_update
+            results["updates"]["happiness"] = await self._process_happiness(db_session, vault_id, seconds_passed)
 
         # After happiness so the recruitment rate reads the freshest value.
         with tick_phase("radio"):
-            radio_update = await self._process_radio(db_session, vault_id)
-            results["updates"]["radio"] = radio_update
+            results["updates"]["radio"] = await self._process_radio(db_session, vault_id)
 
         with tick_phase("breeding"):
-            breeding_update = await self._process_breeding(db_session, vault_id, seconds_passed=seconds_passed)
-            results["updates"]["breeding"] = breeding_update
+            results["updates"]["breeding"] = await self._process_breeding(
+                db_session, vault_id, seconds_passed=seconds_passed
+            )
         # Family-phase recovery expires this instance; later events and SSE read it.
         if inspect(game_state, raiseerr=True).expired:
             await db_session.refresh(game_state)
@@ -269,8 +265,7 @@ class GameLoopService:
             game_state = await self._get_or_create_game_state(db_session, vault_id)
 
         with tick_phase("events"):
-            event_update = await self._process_events(db_session, vault_id, seconds_passed, game_state)
-            results["updates"]["events"] = event_update
+            results["updates"]["events"] = await self._process_events(db_session, vault_id, seconds_passed, game_state)
 
         snapshot_ok = True
         try:

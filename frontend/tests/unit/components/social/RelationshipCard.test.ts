@@ -129,6 +129,27 @@ describe('RelationshipCard', () => {
     expect(wrapper.text()).not.toContain('Growing closer')
   })
 
+  it('renders a rivalry with hostility and discomfort reasons', () => {
+    const wrapper = createWrapper({
+      id: '1',
+      dweller_1_id: 'd1',
+      dweller_2_id: 'd2',
+      relationship_type: 'rival',
+      affinity: -42,
+      bond_change_per_tick: -1,
+      bond_tick_seconds: 60,
+      discomfort_severity: 'strong',
+      discomfort_source: 'feral',
+    })
+
+    expect(wrapper.text()).toContain('Rival')
+    expect(wrapper.text()).toContain('HOSTILITY')
+    expect(wrapper.text()).toContain('-42/100')
+    expect(wrapper.text()).toContain('Feral ghoul unease')
+    expect(wrapper.text()).toContain('Drifting apart')
+    expect(wrapper.text()).not.toContain('Romance')
+  })
+
   it('shows a resting bond when the pair is apart', () => {
     const wrapper = createWrapper({
       id: '1',

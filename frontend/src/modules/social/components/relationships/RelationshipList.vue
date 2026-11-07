@@ -84,7 +84,7 @@ import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 
 interface Props {
   vaultId: string
-  stageFilter?: 'forming' | 'partners'
+  stageFilter?: 'forming' | 'partners' | 'tensions'
 }
 
 const props = defineProps<Props>()
@@ -132,12 +132,17 @@ const filteredRelationships = computed(() => {
   // Apply stage filter
   if (props.stageFilter === 'forming') {
     filtered = filtered.filter(
-      (r) => !isRelationshipType(r.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES)
+      (r) =>
+        !isRelationshipType(r.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES) &&
+        r.relationship_type !== 'rival'
     )
   } else if (props.stageFilter === 'partners') {
     filtered = filtered.filter((r) =>
       isRelationshipType(r.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES)
     )
+  } else if (props.stageFilter === 'tensions') {
+    filtered = filtered.filter((r) => r.relationship_type === 'rival')
+    return [...filtered].sort((a, b) => a.affinity - b.affinity)
   }
 
   // Sort by relationship type priority
@@ -148,9 +153,10 @@ const filteredRelationships = computed(() => {
       romantic: 1,
       friend: 2,
       acquaintance: 3,
-      ex: 4,
+      rival: 4,
+      ex: 5,
     }
-    return (priority[a.relationship_type] ?? 5) - (priority[b.relationship_type] ?? 5)
+    return (priority[a.relationship_type] ?? 6) - (priority[b.relationship_type] ?? 6)
   })
 })
 
@@ -160,6 +166,8 @@ const emptyMessage = computed(() => {
     return 'No developing relationships in this vault yet.'
   } else if (props.stageFilter === 'partners') {
     return 'No partner couples in this vault yet.'
+  } else if (props.stageFilter === 'tensions') {
+    return 'No rivalries in this vault.'
   }
   return 'No relationships in this vault yet.'
 })
@@ -170,6 +178,8 @@ const emptyHint = computed(() => {
     return 'Assign dwellers to the same room to start building relationships!'
   } else if (props.stageFilter === 'partners') {
     return 'Relationships need to reach romantic status (70+ affinity) before becoming partners.'
+  } else if (props.stageFilter === 'tensions') {
+    return 'Incompatible roommates can drift into rivalry. Separate them to cool things down.'
   }
   return 'Assign dwellers to rooms together to start relationships!'
 })

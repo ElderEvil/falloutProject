@@ -20,6 +20,7 @@ export function useRelationshipMilestone(relationship: () => Relationship) {
     }
     if (relationship_type === 'acquaintance' && affinity >= ROMANCE_THRESHOLD)
       return 'Romance is within reach'
+    if (relationship_type === 'rival') return 'Rivals can still reconcile'
     if (relationship_type === 'romantic') {
       return 'Ready to become partners'
     }

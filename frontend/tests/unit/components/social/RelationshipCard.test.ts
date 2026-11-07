@@ -333,6 +333,40 @@ describe('RelationshipCard', () => {
       expect(wrapper.text()).not.toContain('Marry')
     })
 
+    it('disables the Partner action when a dweller is already committed', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'romantic',
+        affinity: 75,
+        can_make_partners: false,
+      })
+
+      const partnerButton = wrapper
+        .findAll('button')
+        .find((button) => button.text().trim() === 'Partner')
+      expect(partnerButton).toBeDefined()
+      expect(partnerButton?.attributes('disabled')).toBeDefined()
+      expect(partnerButton?.attributes('title')).toContain('Already committed')
+    })
+
+    it('enables the Partner action when both dwellers are free', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'romantic',
+        affinity: 75,
+        can_make_partners: true,
+      })
+
+      const partnerButton = wrapper
+        .findAll('button')
+        .find((button) => button.text().trim() === 'Partner')
+      expect(partnerButton?.attributes('disabled')).toBeUndefined()
+    })
+
     it('shows a Break Up button for married relationships', () => {
       const wrapper = createWrapper({
         id: '1',

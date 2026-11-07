@@ -57,6 +57,7 @@ export interface Relationship {
   conception_potential?: 'possible' | 'race' | 'age' | 'gender'
   same_race?: boolean
   average_charisma?: number
+  can_make_partners?: boolean
   created_at?: string
   updated_at?: string
 }

@@ -91,8 +91,52 @@ async def test_vault_relationship_progress_uses_living_quarters_and_charisma(mon
     assert progress[0].bond_change_per_tick == expected
     assert progress[0].same_race is True
     assert progress[0].average_charisma == 10
+    assert all(item.can_make_partners for item in progress)
     assert all(item.bond_tick_seconds == game_config.game_loop.tick_interval for item in progress)
     assert all(item.conception_potential == "possible" for item in progress)
+
+
+@pytest.mark.asyncio
+async def test_vault_relationship_progress_blocks_partner_when_committed(monkeypatch: pytest.MonkeyPatch):
+    room_id = uuid4()
+    committed = _stub_dweller(room_id=room_id, gender=GenderEnum.FEMALE)
+    spouse = _stub_dweller(room_id=room_id, gender=GenderEnum.MALE)
+    romantic_peer = _stub_dweller(room_id=room_id, gender=GenderEnum.MALE)
+    free = _stub_dweller(room_id=room_id, gender=GenderEnum.FEMALE)
+    free_peer = _stub_dweller(room_id=room_id, gender=GenderEnum.MALE)
+    spouse_link = Relationship(
+        dweller_1_id=committed.id,
+        dweller_2_id=spouse.id,
+        relationship_type=RelationshipTypeEnum.PARTNER,
+        affinity=90,
+    )
+    blocked_romance = Relationship(
+        dweller_1_id=committed.id,
+        dweller_2_id=romantic_peer.id,
+        relationship_type=RelationshipTypeEnum.ROMANTIC,
+        affinity=75,
+    )
+    free_romance = Relationship(
+        dweller_1_id=free.id,
+        dweller_2_id=free_peer.id,
+        relationship_type=RelationshipTypeEnum.ROMANTIC,
+        affinity=75,
+    )
+    dwellers = [committed, spouse, romantic_peer, free, free_peer]
+
+    monkeypatch.setattr(
+        relationship_crud,
+        "get_by_vault",
+        AsyncMock(return_value=[spouse_link, blocked_romance, free_romance]),
+    )
+    monkeypatch.setattr(crud.dweller, "get_living_quarters_dwellers", AsyncMock(return_value=dwellers))
+    monkeypatch.setattr(crud.dweller, "get_by_ids_in_vault", AsyncMock(return_value=dwellers))
+
+    progress = await RelationshipService.get_vault_relationships_with_progress(AsyncMock(), uuid4())
+
+    by_id = {item.id: item for item in progress}
+    assert by_id[blocked_romance.id].can_make_partners is False
+    assert by_id[free_romance.id].can_make_partners is True
 
 
 def test_affinity_change_same_race_beats_cross_race():

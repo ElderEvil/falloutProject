@@ -42,6 +42,7 @@ class VaultRelationshipRead(RelationshipRead):
     conception_potential: Literal["possible", "race", "age", "gender"]
     same_race: bool
     average_charisma: int
+    can_make_partners: bool
 
 
 class CompatibilityScore(SQLModel):

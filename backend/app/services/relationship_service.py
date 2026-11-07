@@ -150,6 +150,12 @@ class RelationshipService:
         )
         dwellers_by_id = {dweller.id: dweller for dweller in dwellers}
         living_quarters_ids = {dweller.id for dweller in living_quarters_dwellers}
+        committed_ids = {
+            dweller_id
+            for relationship in relationships
+            if relationship.relationship_type in PARTNER_LINKED_STAGES
+            for dweller_id in (relationship.dweller_1_id, relationship.dweller_2_id)
+        }
 
         result = []
         for relationship in relationships:
@@ -172,6 +178,12 @@ class RelationshipService:
                         "conception_potential": conception_potential(first, second),
                         "same_race": shares_race(first, second),
                         "average_charisma": int((effective_charisma(first) + effective_charisma(second)) / 2 + 0.5),
+                        "can_make_partners": not (
+                            relationship.relationship_type == RelationshipTypeEnum.ROMANTIC
+                            and (
+                                relationship.dweller_1_id in committed_ids or relationship.dweller_2_id in committed_ids
+                            )
+                        ),
                     },
                 )
             )

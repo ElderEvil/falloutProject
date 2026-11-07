@@ -266,8 +266,9 @@ MARRIED links only end through `break_up`. A demotion creates the existing `RELA
 with `meta_data.event = "relationship_demoted"`, surfaces as a toast plus bell entry, and is delivered after the
 family tick commits. Negative affinity (rival/enemy bonds) is not modeled yet; the floor remains 0.
 
-The vault relationships API returns `bond_change_per_tick` (signed), `same_race` and `average_charisma` so the
-UI can explain why a bond is growing or drifting.
+The vault relationships API returns `bond_change_per_tick` (signed), `same_race`, `average_charisma` and
+`can_make_partners` so the UI can explain why a bond is growing or drifting and disable the Partner action when
+either dweller is already committed.
 
 ## Exit requests (Someone Wants Out)
 

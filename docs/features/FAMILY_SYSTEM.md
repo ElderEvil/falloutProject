@@ -118,7 +118,7 @@ All stored on `Dweller` (one row per dweller) + two child tables.
 
 **What exists (keep):**
 - `/vault/:id/relationships` view — 4 tabs: **Forming**, **Partners**, **Pregnancies**, **Children** + stat cards.
-- `RelationshipCard` actions gated by stage/affinity: Romance (acquaintance ≥70), Partner (romantic), Marry (partner ≥85), Break Up (committed types).
+- `RelationshipCard` actions gated by stage/affinity: Romance (acquaintance ≥70), Partner (romantic; disabled when either dweller is already committed to someone else), Marry (partner ≥85), Break Up (committed types).
 - `PregnancyTracker` with manual deliver.
 - Dweller detail **Family tab** → `FamilyTreePanel` (parents / self+partners / children / generation, clickable nodes navigating to dweller).
 - Pregnancy, relationship, and family stores + services.

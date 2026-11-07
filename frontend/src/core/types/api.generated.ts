@@ -12308,6 +12308,8 @@ export interface components {
             same_race: boolean;
             /** Average Charisma */
             average_charisma: number;
+            /** Can Make Partners */
+            can_make_partners: boolean;
         };
         /** VaultScenarioRead */
         VaultScenarioRead: {

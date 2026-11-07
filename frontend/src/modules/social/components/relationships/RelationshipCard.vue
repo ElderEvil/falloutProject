@@ -164,6 +164,12 @@
         variant="default"
         size="sm"
         class="border-2 border-theme-primary hover:shadow-glow-md"
+        :disabled="relationship.can_make_partners === false"
+        :title="
+          relationship.can_make_partners === false
+            ? 'Already committed to another dweller'
+            : undefined
+        "
         @click="$emit('make-partners')"
       >
         Partner

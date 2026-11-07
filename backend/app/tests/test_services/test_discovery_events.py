@@ -1,5 +1,6 @@
 """Tests for discovery event generation (procedural, no LLM)."""
 
+import sys
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
@@ -131,6 +132,33 @@ async def test_process_event_register_discovery_failure_does_not_break_event(
     llm_count_stmt = select(LLMInteraction)
     llm_rows = (await async_session.execute(llm_count_stmt)).scalars().all()
     assert len(llm_rows) == 0
+
+
+@pytest.mark.asyncio
+async def test_process_event_map_service_import_failure_does_not_break_event(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Failure: a failed map_service import is swallowed and the event still persists."""
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    await async_session.refresh(exploration)
+    _make_expired_exploration(exploration)
+
+    mock_event = DiscoveryEventSchema(
+        description="Discovery event whose map service cannot be imported.",
+        location_name="Glowing Crater",
+    )
+
+    with (
+        patch.object(event_generator, "generate_event", return_value=mock_event),
+        patch.dict(sys.modules, {"app.services.map_service": None}),
+    ):
+        result = await exploration_service.process_event(async_session, exploration)
+
+    await async_session.refresh(result)
+    assert len(result.events) == 1
+    assert result.events[0]["location_name"] == "Glowing Crater"
 
 
 @pytest.mark.asyncio

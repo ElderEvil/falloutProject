@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.291.1 (2026-11-07)
+
+### Bug Fixes
+
+* refresh the user record on boot so role changes apply ([#1351](https://github.com/ElderEvil/falloutProject/issues/1351)) 7b8aa5f
+
 ## 2.291.0 (2026-11-07)
 
 ### Features

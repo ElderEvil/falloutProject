@@ -214,11 +214,10 @@ describe('authService', () => {
       expect(apiRequest).toHaveBeenCalledWith('get', '/api/v1/users/me')
     })
 
-    it('should throw AuthError on fetch failure', async () => {
+    it('preserves the original fetch failure', async () => {
       vi.mocked(apiRequest).mockRejectedValue(new Error('Unauthorized'))
 
-      await expect(authService.getCurrentUser()).rejects.toThrow(AuthError)
-      await expect(authService.getCurrentUser()).rejects.toThrow('Failed to fetch current user')
+      await expect(authService.getCurrentUser()).rejects.toThrow('Unauthorized')
     })
 
     it('should not include manual authorization header', async () => {
@@ -240,7 +239,6 @@ describe('authService', () => {
         () => authService.login({ username: 'test', password: 'test' }),
         () => authService.register({ username: 'test', email: 'test', password: 'test' }),
         () => authService.logout(),
-        () => authService.getCurrentUser(),
       ]
 
       vi.mocked(apiRequest).mockRejectedValue(new Error('Generic error'))

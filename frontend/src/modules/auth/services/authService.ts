@@ -52,11 +52,7 @@ export const authService = {
     }
   },
   async getCurrentUser(): Promise<AxiosResponse<User>> {
-    try {
-      return await apiRequest<User>('get', '/api/v1/users/me')
-    } catch {
-      throw new AuthError('Failed to fetch current user')
-    }
+    return apiRequest<User>('get', '/api/v1/users/me')
   },
   async updateAccount(payload: AccountUpdate): Promise<AxiosResponse<User>> {
     return await apiRequest<User>('put', '/api/v1/users/me', payload, {

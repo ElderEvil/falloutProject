@@ -5,6 +5,7 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import axios from '@/core/plugins/axios'
 import rawAxios from 'axios'
 import { useProfileStore } from '@/modules/profile/stores/profile'
+import { flushPromises } from '@vue/test-utils'
 import { useToast } from '@/core/composables/useToast'
 
 vi.mock('@/core/plugins/axios')
@@ -26,6 +27,71 @@ describe('Auth Store', () => {
   afterEach(() => {
     localStorage.clear()
     vi.restoreAllMocks()
+  })
+
+  describe('User refresh session safety', () => {
+    it('waits for refreshed boot roles before authorizing initial navigation', async () => {
+      localStorage.setItem('token', 'cached')
+      localStorage.setItem('user', JSON.stringify({ id: '1', is_superuser: false }))
+      let resolve!: (value: { data: { id: string; is_superuser: boolean } }) => void
+      vi.mocked(axios.get).mockImplementationOnce(
+        () =>
+          new Promise((yes) => {
+            resolve = yes
+          })
+      )
+      const store = useAuthStore()
+      const { default: router } = await import('@/router')
+      const navigation = router.push('/admin/ai-settings')
+      await flushPromises()
+      expect(router.currentRoute.value.path).not.toBe('/admin/ai-settings')
+      resolve({ data: { id: '1', is_superuser: true } })
+      await navigation
+      expect(router.currentRoute.value.path).toBe('/admin/ai-settings')
+      expect(store.isSuperuser).toBe(true)
+    })
+
+    it.each([undefined, 503])('preserves credentials on transient failure %s', async (status) => {
+      const store = useAuthStore()
+      store.token = 'current'
+      vi.mocked(axios.get).mockRejectedValueOnce({ response: { status } })
+      await store.fetchUser()
+      expect(store.token).toBe('current')
+      expect(axios.post).not.toHaveBeenCalled()
+    })
+
+    it.each(['success', 'failure'])(
+      'ignores stale %s after account replacement',
+      async (outcome) => {
+        const store = useAuthStore()
+        store.token = 'old'
+        let resolve!: (value: { data: { id: string } }) => void
+        let reject!: (error: unknown) => void
+        vi.mocked(axios.get).mockImplementationOnce(
+          () =>
+            new Promise((yes, no) => {
+              resolve = yes
+              reject = no
+            })
+        )
+        const pending = store.fetchUser()
+        await store.logout()
+        store.token = 'new'
+        if (outcome === 'success') resolve({ data: { id: 'old-account' } })
+        else reject({ response: { status: 401 } })
+        await pending
+        expect(store.token).toBe('new')
+        expect(store.user).toBeNull()
+      }
+    )
+
+    it('expires credentials on confirmed unauthorized response', async () => {
+      const store = useAuthStore()
+      store.token = 'invalid'
+      vi.mocked(axios.get).mockRejectedValueOnce({ response: { status: 401 } })
+      await store.fetchUser()
+      expect(store.token).toBeNull()
+    })
   })
 
   describe('State Initialization', () => {
@@ -436,10 +502,10 @@ describe('Auth Store', () => {
       expect(axios.get).not.toHaveBeenCalled()
     })
 
-    it('should logout on fetch user failure', async () => {
+    it('should clear the session on unauthorized fetch', async () => {
       const store = useAuthStore()
       store.token = 'test-token'
-      vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
+      vi.mocked(axios.get).mockRejectedValueOnce({ response: { status: 401 } })
       vi.mocked(axios.post).mockResolvedValueOnce({})
 
       await store.fetchUser()

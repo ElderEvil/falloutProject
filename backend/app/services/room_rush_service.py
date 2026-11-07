@@ -32,7 +32,7 @@ from app.options.identity_modifiers import effective_stat
 from app.schemas.room_rush import RoomRushQuote, RoomRushResourceGain, RoomRushResult, RushBlockedReason
 from app.services.combat import incident_spawning
 from app.services.notification_service import notification_service
-from app.services.resource_manager_service import ResourceManager, compute_medical_capacity
+from app.services.resource_manager_service import ResourceManager, compute_medical_capacity, load_rival_pairs
 from app.services.rewards.resources import grant_experience
 from app.services.vault_service import vault_service
 from app.utils.exceptions import (
@@ -331,7 +331,10 @@ class RoomRushService:
     ) -> RoomRushResourceGain:
         storage = await crud_storage.get_by_vault(db_session, vault.id)
         rooms = await crud_room.get_all_by_vault(db_session, vault.id)
-        raw_payout = self.resource_manager.calculate_room_production(room, workers, game_config.rush.payout_seconds)
+        rival_pairs = await load_rival_pairs(db_session, {worker.id for worker in workers})
+        raw_payout = self.resource_manager.calculate_room_production(
+            room, workers, game_config.rush.payout_seconds, rival_pairs=rival_pairs
+        )
         applied = self.resource_manager.apply_room_payout(
             vault, storage, compute_medical_capacity(rooms), raw_payout, dry_run=preview
         )

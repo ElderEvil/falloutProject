@@ -19,15 +19,19 @@ from app.options.identity_modifiers import (
 from app.options.races import (
     BREEDING_ELIGIBLE,
     RACE_MODIFIERS,
+    DiscomfortSeverity,
     RaceModifiers,
     RaceOption,
+    SocialPresence,
     can_breed,
     can_take_purposeful_action,
     can_use_radaway,
     chronological_years,
+    discomfort_between,
     is_ageless,
     modifiers_for_race,
     race_of,
+    social_presence,
     state_of_being_of,
     state_stat_deltas_for,
     visual_vs_real_age,
@@ -80,6 +84,18 @@ def _feral_ghoul() -> SimpleNamespace:
     return entity
 
 
+def _behemoth() -> SimpleNamespace:
+    entity = _dweller("super_mutant")
+    entity.visual_attributes["state_of_being"] = "behemoth"
+    return entity
+
+
+def _synth(state: str) -> SimpleNamespace:
+    entity = _dweller("synth")
+    entity.visual_attributes["state_of_being"] = state
+    return entity
+
+
 def _feral_ghoul_with_stat() -> SimpleNamespace:
     entity = _feral_ghoul()
     entity.charisma = 5
@@ -98,6 +114,48 @@ class TestRaceHelpers:
         assert race_of(_dweller(None)) is None
         assert race_of(_dweller("reptilian")) is None
         assert race_of(SimpleNamespace(visual_attributes=None)) is None
+
+    def test_social_presence_classifies_race_and_state(self) -> None:
+        assert social_presence(_dweller("human")) is SocialPresence.NORMAL
+        assert social_presence(_dweller("ghoul")) is SocialPresence.GHOUL
+        assert social_presence(_feral_ghoul()) is SocialPresence.FERAL
+        assert social_presence(_dweller("super_mutant")) is SocialPresence.MUTANT
+        assert social_presence(_behemoth()) is SocialPresence.BEHEMOTH
+        assert social_presence(_synth("gen_1")) is SocialPresence.SYNTH_GEN_1
+        assert social_presence(_synth("gen_2")) is SocialPresence.SYNTH_GEN_2
+        assert social_presence(_synth("gen_3")) is SocialPresence.NORMAL
+
+    def test_discomfort_matrix_ferals_super_mutants_and_synths(self) -> None:
+        human = _dweller("human")
+        ghoul = _dweller("ghoul")
+        feral = _feral_ghoul()
+        mutant = _dweller("super_mutant")
+        behemoth = _behemoth()
+        synth_gen_1 = _synth("gen_1")
+        synth_gen_2 = _synth("gen_2")
+        synth_gen_3 = _synth("gen_3")
+
+        assert discomfort_between(human, human) is None
+        assert discomfort_between(human, ghoul) is None
+
+        human_feral = discomfort_between(human, feral)
+        assert human_feral is not None
+        assert human_feral.severity is DiscomfortSeverity.STRONG
+        assert human_feral.source is SocialPresence.FERAL
+
+        ghoul_feral = discomfort_between(ghoul, feral)
+        assert ghoul_feral is not None
+        assert ghoul_feral.severity is DiscomfortSeverity.MILD
+
+        assert discomfort_between(human, mutant).severity is DiscomfortSeverity.MODERATE
+        assert discomfort_between(human, behemoth).severity is DiscomfortSeverity.STRONG
+        assert discomfort_between(mutant, behemoth) is None
+        assert discomfort_between(feral, feral) is None
+        assert discomfort_between(human, synth_gen_3) is None
+        assert discomfort_between(human, synth_gen_2).severity is DiscomfortSeverity.MILD
+        assert discomfort_between(human, synth_gen_1).severity is DiscomfortSeverity.MODERATE
+        assert discomfort_between(synth_gen_2, synth_gen_2) is None
+        assert discomfort_between(synth_gen_1, synth_gen_1) is None
 
     def test_only_humans_are_breeding_eligible(self) -> None:
         assert BREEDING_ELIGIBLE == {

@@ -1,6 +1,8 @@
 """Tests for happiness service."""
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -17,6 +19,7 @@ from app.models.incident import Incident
 from app.models.pet import Pet
 from app.models.room import Room
 from app.models.vault import Vault
+from app.options.races import DISCOMFORT_EFFECTS, DiscomfortSeverity
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.happiness_service import HappinessService, happiness_service
@@ -744,3 +747,74 @@ class TestHappinessService:
         await async_session.refresh(no_pet_dweller)
 
         assert dweller.happiness > no_pet_dweller.happiness
+
+
+@pytest.mark.asyncio
+async def test_feral_coworker_and_rival_reduce_happiness(
+    async_session: AsyncSession,
+    vault: Vault,
+) -> None:
+    dweller_data = create_fake_dweller()
+    dweller_data.update(
+        {
+            "first_name": "Mood",
+            "last_name": "Check",
+            "status": "training",
+            "happiness": 50,
+            "health": 100,
+            "max_health": 100,
+            "radiation": 0,
+        }
+    )
+    dweller = await crud.dweller.create(
+        db_session=async_session,
+        obj_in=DwellerCreate(**dweller_data, vault_id=vault.id),
+    )
+    room_id = uuid4()
+    dweller.room_id = room_id
+    async_session.add(dweller)
+    await async_session.commit()
+
+    vault_factors = {
+        "has_low_resources": False,
+        "has_critical_resources": False,
+        "active_incident_count": 0,
+        "power_ratio": 0.9,
+        "food_ratio": 0.9,
+        "water_ratio": 0.9,
+        "radio_happiness_bonus": 0.0,
+    }
+
+    baseline = await HappinessService._calculate_happiness_change(
+        async_session,
+        dweller,
+        vault_factors,
+        seconds_passed=60,
+        dwellers_by_room={room_id: [dweller]},
+        rivals_by_dweller={},
+    )
+    feral = SimpleNamespace(
+        id=uuid4(),
+        room_id=room_id,
+        visual_attributes={"race": "ghoul", "state_of_being": "feral"},
+    )
+    with_feral = await HappinessService._calculate_happiness_change(
+        async_session,
+        dweller,
+        vault_factors,
+        seconds_passed=60,
+        dwellers_by_room={room_id: [dweller, feral]},
+        rivals_by_dweller={},
+    )
+    assert with_feral == pytest.approx(baseline - DISCOMFORT_EFFECTS[DiscomfortSeverity.STRONG].happiness_penalty)
+
+    rival = SimpleNamespace(id=uuid4(), room_id=room_id)
+    with_rival = await HappinessService._calculate_happiness_change(
+        async_session,
+        dweller,
+        vault_factors,
+        seconds_passed=60,
+        dwellers_by_room={room_id: [dweller, rival]},
+        rivals_by_dweller={dweller.id: {rival.id}},
+    )
+    assert with_rival == pytest.approx(baseline - game_config.relationship.rival_happiness_penalty)

@@ -259,16 +259,42 @@ per pair from three inputs:
   `race_chemistry_bonus` (±0.05) and `charisma_chemistry_weight` (0.03/point). At or above
   `affinity_drift_threshold` (0.5) the pair gains; below it the pair drifts apart.
 
-Loss is capped by `affinity_max_loss_per_tick` (2), and affinity stays within 0–100. Pairs that do not share a
-room do not change. Non-committed stages demote with hysteresis: romantic→friend below
-`romantic_demotion_threshold` (60), friend→acquaintance below `friend_demotion_threshold` (45). PARTNER and
-MARRIED links only end through `break_up`. A demotion creates the existing `RELATIONSHIP_FORMED` notification
-with `meta_data.event = "relationship_demoted"`, surfaces as a toast plus bell entry, and is delivered after the
-family tick commits. Negative affinity (rival/enemy bonds) is not modeled yet; the floor remains 0.
+Affinity is a single signed scale, **−100 … +100**. Pairs that do not share a room do not change. A pair at
+negative affinity is a **rival**; it returns to acquaintance at `rival_recovery_threshold` (10), which keeps it
+from oscillating across zero. Non-committed stages demote with hysteresis: romantic→friend below
+`romantic_demotion_threshold` (60), friend→acquaintance below `friend_demotion_threshold` (45), then rival below
+zero. PARTNER and MARRIED links are immune to negative drift and end only through `break_up`.
 
-The vault relationships API returns `bond_change_per_tick` (signed), `same_race`, `average_charisma` and
-`can_make_partners` so the UI can explain why a bond is growing or drifting and disable the Partner action when
-either dweller is already committed.
+### Race discomfort
+
+Feral ghouls, super mutants, and visible-generation synths unsettle coworkers. `social_presence()` classifies
+the race/state; `discomfort_between()` returns a severity and its source:
+
+| Pair | Severity |
+| --- | --- |
+| non-feral ↔ feral ghoul | strong |
+| sane/wild ghoul ↔ feral ghoul | mild |
+| non-super-mutant ↔ super mutant | moderate (behemoth: strong) |
+| non-synth / Gen 3 ↔ Gen 1 synth | moderate |
+| non-synth / Gen 3 ↔ Gen 2 synth | mild |
+| Gen 3 synth ↔ non-scary dweller | none |
+| same scary kind (feral↔feral, mutant/behemoth pairs, same synth generation) | none |
+
+`DISCOMFORT_EFFECTS` (`options/races.py`) maps severity to a chemistry penalty, a happiness penalty, and a
+room production multiplier. Chemistry uses the penalty directly. Happiness applies the **worst single**
+discomfort among a dweller's coworkers once per tick. Room production applies the worst discomfort plus rival
+pairs (below), floored at `DISCOMFORT_PRODUCTION_FLOOR` (0.75).
+
+### Rival consequences
+
+When rivals share a room, room output is reduced by `rival_production_penalty` per rival pair (capped at two
+pairs' worth) and each rival loses `rival_happiness_penalty` per tick (capped at two rivals' worth). The
+combined production multiplier never drops below the discomfort floor.
+
+Relationship changes stay **silent**: no bell or toast for promotions, demotions, or rivalry. A first rivalry is
+written into both dwellers' bios instead. The vault relationships API returns the signed `bond_change_per_tick`,
+`same_race`, `average_charisma`, `can_make_partners`, `discomfort_severity` and `discomfort_source` so the UI can
+explain a bond and disable the Partner action when either dweller is already committed.
 
 ## Exit requests (Someone Wants Out)
 

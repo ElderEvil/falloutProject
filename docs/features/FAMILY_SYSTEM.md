@@ -24,8 +24,8 @@ All stored on `Dweller` (one row per dweller) + two child tables.
 > Lineage is **bipartite / single-generation** by design: we store parents and the *current* partner, not a full multi-union graph. Siblings are computed by shared parents; partners by `partner_id` + `PARTNER`/`MARRIED` relationships.
 
 ### 2.2 `Relationship` (relationship table)
-- Pair `(dweller_1_id, dweller_2_id)` + `relationship_type` + `affinity` (0–100).
-- Stages: `acquaintance → friend → romantic → partner → MARRIED → ex`.
+- Pair `(dweller_1_id, dweller_2_id)` + `relationship_type` + `affinity` (−100…+100).
+- Stages: `acquaintance → friend → romantic → partner → MARRIED → rival → ex` (rival is negative affinity; committed stages never demote).
 - Not the same as `partner_id` — a dweller can have many relationships but at most one *partner* (via `partner_id`).
 
 ### 2.3 `Pregnancy`
@@ -37,10 +37,12 @@ All stored on `Dweller` (one row per dweller) + two child tables.
 ## 3. Relationship Lifecycle (backend service: `relationship_service.py`)
 
 **What exists (keep):**
-- Affinity moves per game tick while a pair shares Living Quarters: same-race pairs and higher effective
-  Charisma gain faster, incompatible pairs can drift apart, and non-committed stages demote with hysteresis
-  (romantic→friend below 60, friend→acquaintance below 45). PARTNER/MARRIED links only end through `break_up`.
-  Negative affinity (rival/enemy bonds) is a future update; the floor stays at 0.
+- Affinity moves on a signed −100…+100 scale while a pair shares Living Quarters: same-race pairs and higher
+  effective Charisma gain faster, incompatible pairs drift into rivalry, and non-committed stages demote with
+  hysteresis (romantic→friend below 60, friend→acquaintance below 45, rival below 0). PARTNER/MARRIED links only
+  end through `break_up` and are immune to negative drift. Feral ghouls, super mutants, and low-generation synths
+  unsettle coworkers: discomfort lowers chemistry, happiness, and room production. Rivals cost happiness and
+  production while co-located. Relationship changes stay silent (bio entry on first rivalry, no bell/toast).
 - Auto-upgrade on affinity: `acquaintance→friend→romantic` at 70, `→partner` at 70, `partner→MARRIED` at 85 (defaults: romance 70, partnership 70, marriage 85).
 - `initiate_romance` / `make_partners` / `marry` / `break_up` endpoints + service methods.
 - `marry` grants **each** dweller a one-time cumulative **+25** happiness bonus (+10 for becoming partners, +15 for becoming married) and fires a `RELATIONSHIP_FORMED` notification.
@@ -117,8 +119,8 @@ All stored on `Dweller` (one row per dweller) + two child tables.
 ## 6. UI (frontend)
 
 **What exists (keep):**
-- `/vault/:id/relationships` view — 4 tabs: **Forming**, **Partners**, **Pregnancies**, **Children** + stat cards.
-- `RelationshipCard` actions gated by stage/affinity: Romance (acquaintance ≥70), Partner (romantic; disabled when either dweller is already committed to someone else), Marry (partner ≥85), Break Up (committed types).
+- `/vault/:id/relationships` view — 5 tabs: **Forming**, **Tensions**, **Partners**, **Pregnancies**, **Children** + stat cards.
+- `RelationshipCard` actions gated by stage/affinity: Romance (acquaintance ≥70), Partner (romantic; disabled when either dweller is already committed to someone else), Marry (partner ≥85), Break Up (committed types). Rivals render a hostility meter and no relationship actions.
 - `PregnancyTracker` with manual deliver.
 - Dweller detail **Family tab** → `FamilyTreePanel` (parents / self+partners / children / generation, clickable nodes navigating to dweller).
 - Pregnancy, relationship, and family stores + services.
@@ -141,7 +143,8 @@ See `../AGENTS.md` "Bug Fix Workflow" + this doc. Key manual checks:
 
 **Relationships**
 - [ ] Co-located dwellers change affinity each tick (signed; same-race and high-Charisma pairs gain faster, incompatible pairs lose up to 2).
-- [ ] Romantic pairs below 60 demote to friend; friend pairs below 45 demote to acquaintance; PARTNER/MARRIED never demote.
+- [ ] Romantic pairs below 60 demote to friend; friend pairs below 45 demote to acquaintance; non-committed pairs below 0 become rivals; PARTNER/MARRIED never demote or rival.
+- [ ] Feral ghouls and super mutants unsettle coworkers; Gen 1/2 synths unsettle more than Gen 3; rivals reduce room production and happiness while co-located.
 - [ ] Stage progression at 70 / 70 / 85 thresholds.
 - [ ] Romance / Partner / Marry buttons appear exactly when allowed.
 - [ ] Marry: happiness bonus +25, `RELATIONSHIP_FORMED` notification, badge shows `MARRIED`.
@@ -193,7 +196,7 @@ See `../AGENTS.md` "Bug Fix Workflow" + this doc. Key manual checks:
   class DwellerRelationshipBriefing(BaseModel):
       partner_name: str | None = None
       relationship_stage: str | None = None      # friend/romantic/partner/MARRIED/ex
-      affinity: int | None = None                # 0-100
+      affinity: int | None = None                # -100..100
       is_pregnant: bool = False
       children: list[str] = []                   # names
       parents: list[str] = []                    # names

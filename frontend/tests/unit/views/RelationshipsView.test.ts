@@ -128,7 +128,7 @@ describe('RelationshipsView', () => {
       expect(wrapper.find('.main-content > div').classes()).toContain('max-w-[1400px]')
     })
 
-    it('should render all four tabs', async () => {
+    it('should render all five tabs', async () => {
       const wrapper = mount(RelationshipsView, {
         global: {
           plugins: [router],
@@ -138,6 +138,7 @@ describe('RelationshipsView', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('Forming')
+      expect(wrapper.text()).toContain('Tensions')
       expect(wrapper.text()).toContain('Partners')
       expect(wrapper.text()).toContain('Pregnancies')
       expect(wrapper.text()).toContain('Children')
@@ -176,7 +177,7 @@ describe('RelationshipsView', () => {
       await flushPromises()
 
       const tabs = wrapper.findAll('[role="tab"]')
-      expect(tabs.length).toBe(4)
+      expect(tabs.length).toBe(5)
 
       // Check that first tab is active by default
       expect(tabs[0].attributes('aria-selected')).toBe('true')
@@ -196,33 +197,15 @@ describe('RelationshipsView', () => {
       await flushPromises()
 
       const tabs = wrapper.findAll('[role="tab"]')
-      await tabs[1].trigger('mousedown')
-
-      await flushPromises()
-
-      expect(tabs[1].attributes('aria-selected')).toBe('true')
-      expect(wrapper.text()).toContain('Partner Couples')
-    })
-
-    it('should switch to pregnancies tab when clicked', async () => {
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      const tabs = wrapper.findAll('[role="tab"]')
       await tabs[2].trigger('mousedown')
 
       await flushPromises()
 
       expect(tabs[2].attributes('aria-selected')).toBe('true')
-      expect(wrapper.text()).toContain('Active Pregnancies')
+      expect(wrapper.text()).toContain('Partner Couples')
     })
 
-    it('should switch to children tab when clicked', async () => {
+    it('should switch to pregnancies tab when clicked', async () => {
       const wrapper = mount(RelationshipsView, {
         global: {
           plugins: [router],
@@ -237,6 +220,24 @@ describe('RelationshipsView', () => {
       await flushPromises()
 
       expect(tabs[3].attributes('aria-selected')).toBe('true')
+      expect(wrapper.text()).toContain('Active Pregnancies')
+    })
+
+    it('should switch to children tab when clicked', async () => {
+      const wrapper = mount(RelationshipsView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await flushPromises()
+
+      const tabs = wrapper.findAll('[role="tab"]')
+      await tabs[4].trigger('mousedown')
+
+      await flushPromises()
+
+      expect(tabs[4].attributes('aria-selected')).toBe('true')
       expect(wrapper.text()).toContain('Growing Children')
     })
 
@@ -252,9 +253,14 @@ describe('RelationshipsView', () => {
       // Forming tab (default)
       expect(wrapper.text()).toContain('Forming Relationships')
 
-      // Switch to partners
+      // Switch to tensions
       const tabs = wrapper.findAll('[role="tab"]')
       await tabs[1].trigger('mousedown')
+      await flushPromises()
+      expect(wrapper.text()).toContain('Rivals lose production and happiness')
+
+      // Switch to partners
+      await tabs[2].trigger('mousedown')
       await flushPromises()
       expect(wrapper.text()).toContain('Committed partners in living quarters')
     })
@@ -265,6 +271,7 @@ describe('RelationshipsView', () => {
       relationshipStore.relationships = [
         { id: '1', relationship_type: 'friend' },
         { id: '2', relationship_type: 'partner' },
+        { id: '3', relationship_type: 'rival' },
       ]
 
       const wrapper = mount(RelationshipsView, {
@@ -276,6 +283,7 @@ describe('RelationshipsView', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('Forming (1)')
+      expect(wrapper.text()).toContain('Tensions (1)')
       expect(wrapper.text()).toContain('Partners (1)')
     })
 

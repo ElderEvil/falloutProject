@@ -108,7 +108,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
     "pregnancystatusenum": {"PREGNANT", "DELIVERED", "MISCARRIED"},
     "questtype": {"MAIN", "SIDE", "DAILY", "EVENT", "REPEATABLE"},
     "rarityenum": {"COMMON", "RARE", "LEGENDARY"},
-    "relationshiptypeenum": {"ACQUAINTANCE", "FRIEND", "ROMANTIC", "PARTNER", "MARRIED", "EX"},
+    "relationshiptypeenum": {"ACQUAINTANCE", "FRIEND", "ROMANTIC", "PARTNER", "MARRIED", "RIVAL", "EX"},
     "requirementtype": {"LEVEL", "ITEM", "ROOM", "DWELLER_COUNT", "QUEST_COMPLETED", "ATTACK", "STAT"},
     "rewardtype": {"CAPS", "ITEM", "DWELLER", "RESOURCE", "EXPERIENCE", "STIMPAK", "RADAWAY", "LUNCHBOX"},
     "roomtypeenum": {

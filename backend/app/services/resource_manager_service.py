@@ -8,14 +8,16 @@ from datetime import timedelta
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import RoomTypeEnum, SPECIALEnum
+from app.core.enums import RelationshipTypeEnum, RoomTypeEnum, SPECIALEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.core.tick_profiling import tick_phase
+from app.crud.relationship import relationship_crud
 from app.crud.resource import resource as resource_crud
 from app.models import Dweller, Room, Storage, Vault
 from app.models.game_state import GameState
 from app.options.identity_modifiers import effective_stat, identity_modifiers_for
+from app.options.races import DISCOMFORT_EFFECTS, DISCOMFORT_PRODUCTION_FLOOR, discomfort_between
 from app.schemas.vault import (
     PrimaryResourceAmounts,
     ResourceProduction,
@@ -31,6 +33,17 @@ MEDICAL_ROOM_PRODUCTION: dict[str, str] = {
     "medbay": "stimpack",
     "science lab": "radaway",
 }
+
+
+async def load_rival_pairs(db_session: AsyncSession, dweller_ids: set[UUID4] | list[UUID4]) -> set[frozenset[UUID4]]:
+    """Rival pairs among the given dwellers, shared by tick and rush production."""
+    if not dweller_ids:
+        return set()
+    return {
+        frozenset((relationship.dweller_1_id, relationship.dweller_2_id))
+        for relationship in await relationship_crud.get_involving_any(db_session, dweller_ids)
+        if relationship.relationship_type == RelationshipTypeEnum.RIVAL
+    }
 
 
 def compute_medical_capacity(rooms: Sequence[Room]) -> dict[str, int]:
@@ -60,6 +73,9 @@ class ResourceManager:
         with tick_phase("resources.load"):
             resource_data = await resource_crud.get_vault_resource_data(db_session, vault_id)
 
+        dweller_ids = {dweller.id for _, dwellers in resource_data.rooms_with_dwellers for dweller in dwellers}
+        rival_pairs = await load_rival_pairs(db_session, dweller_ids)
+
         with tick_phase("resources.calculate"):
             resource_update, events = self.calculate_resource_window(
                 resource_data.vault,
@@ -68,6 +84,7 @@ class ResourceManager:
                 resource_data.rooms_with_dwellers,
                 seconds_passed,
                 state=resource_data.game_state,
+                rival_pairs=rival_pairs,
             )
 
         # Write medical production to Storage (separate from VaultUpdate)
@@ -115,6 +132,7 @@ class ResourceManager:
         seconds_passed: int,
         *,
         state: GameState | None = None,
+        rival_pairs: set[frozenset[UUID4]] | None = None,
     ) -> tuple[VaultUpdate, ResourceTickEvents]:
         """Calculate net resource change considering production, consumption, and efficiency.
 
@@ -131,7 +149,7 @@ class ResourceManager:
         while elapsed < seconds_passed:
             step = min(60, seconds_passed - elapsed)
             used = self._calculate_consumption(rooms, dweller_count, step)
-            made = self._calculate_production(rooms_with_dwellers, step, stocks["power"])
+            made = self._calculate_production(rooms_with_dwellers, step, stocks["power"], rival_pairs=rival_pairs)
             offline = (
                 state is not None
                 and (state.last_tick_time + timedelta(seconds=elapsed) - state.last_activity_time).total_seconds() > 600
@@ -190,13 +208,22 @@ class ResourceManager:
             "water": round(water_consumption, 2),
         }
 
-    def calculate_room_production(self, room: Room, dwellers: list[Dweller], seconds_passed: int) -> dict[str, float]:
+    def calculate_room_production(
+        self,
+        room: Room,
+        dwellers: list[Dweller],
+        seconds_passed: int,
+        *,
+        rival_pairs: set[frozenset[UUID4]] | None = None,
+    ) -> dict[str, float]:
         """Return this room's raw production split across resource keys."""
         totals = dict.fromkeys(("power", "food", "water", "stimpack", "radaway"), 0.0)
         if room.ability is None:
             return totals
 
-        production = self._calculate_room_production(room, dwellers, seconds_passed)
+        production = self._calculate_room_production(room, dwellers, seconds_passed) * self._friction_multiplier(
+            dwellers, rival_pairs
+        )
         self._apply_room_production(room.name, room.ability, production, totals)
         return totals
 
@@ -240,7 +267,12 @@ class ResourceManager:
         return applied
 
     def _calculate_production(
-        self, rooms_with_dwellers: list[tuple[Room, list[Dweller]]], seconds_passed: int, current_power: float
+        self,
+        rooms_with_dwellers: list[tuple[Room, list[Dweller]]],
+        seconds_passed: int,
+        current_power: float,
+        *,
+        rival_pairs: set[frozenset[UUID4]] | None = None,
     ) -> dict[str, float]:
         """Calculate resource production from all production rooms."""
         production_totals = {"power": 0.0, "food": 0.0, "water": 0.0, "stimpack": 0.0, "radaway": 0.0}
@@ -256,7 +288,7 @@ class ResourceManager:
             if current_power <= 0 and room.ability != SPECIALEnum.STRENGTH:
                 continue
 
-            production = self.calculate_room_production(room, dwellers, seconds_passed)
+            production = self.calculate_room_production(room, dwellers, seconds_passed, rival_pairs=rival_pairs)
             for resource_type, amount in production.items():
                 production_totals[resource_type] += amount
 
@@ -299,6 +331,32 @@ class ResourceManager:
         )
 
         return production
+
+    @staticmethod
+    def _friction_multiplier(dwellers: list[Dweller], rival_pairs: set[frozenset[UUID4]] | None) -> float:
+        """Room output multiplier from coworker discomfort and rival pairs."""
+        multiplier = 1.0
+        discomforts = [
+            discomfort
+            for index, first in enumerate(dwellers)
+            for second in dwellers[index + 1 :]
+            if (discomfort := discomfort_between(first, second))
+        ]
+        if discomforts:
+            worst = max(discomforts, key=lambda item: item.severity.rank)
+            multiplier *= DISCOMFORT_EFFECTS[worst.severity].production_multiplier
+        if rival_pairs:
+            dweller_ids = [dweller.id for dweller in dwellers]
+            rival_count = sum(
+                1
+                for index, first_id in enumerate(dweller_ids)
+                for second_id in dweller_ids[index + 1 :]
+                if frozenset((first_id, second_id)) in rival_pairs
+            )
+            if rival_count:
+                penalty = game_config.relationship.rival_production_penalty
+                multiplier *= max(1 - 2 * penalty, 1 - rival_count * penalty)
+        return max(DISCOMFORT_PRODUCTION_FLOOR, multiplier)
 
     @staticmethod
     def _apply_room_production(

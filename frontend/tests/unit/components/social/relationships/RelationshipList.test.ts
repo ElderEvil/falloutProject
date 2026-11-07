@@ -53,9 +53,9 @@ vi.mock('@/modules/social/components/relationships/RelationshipCard.vue', () => 
 const dweller1 = { id: 'd1', first_name: 'Alice', last_name: 'Smith' }
 const dweller2 = { id: 'd2', first_name: 'Bob', last_name: 'Jones' }
 
-function mountList() {
+function mountList(props: Record<string, unknown> = {}) {
   return mount(RelationshipList, {
-    props: { vaultId: 'v1' },
+    props: { vaultId: 'v1', ...props },
     global: {
       stubs: {
         Teleport: { template: '<div><slot /></div>' },
@@ -125,6 +125,42 @@ describe('RelationshipList', () => {
     await flushPromises()
 
     expect(wrapper.findAllComponents({ name: 'RelationshipCard' })).toHaveLength(0)
+  })
+
+  it('shows only rival pairs in the tensions filter', async () => {
+    allDwellers.push(
+      { ...dweller1 },
+      { ...dweller2 },
+      { id: 'd3', first_name: 'Cara', last_name: 'Stone' },
+      { id: 'd4', first_name: 'Dan', last_name: 'Reed' }
+    )
+    relationships.push(
+      {
+        id: 'r1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'rival',
+        affinity: -30,
+      },
+      {
+        id: 'r2',
+        dweller_1_id: 'd3',
+        dweller_2_id: 'd4',
+        relationship_type: 'friend',
+        affinity: 20,
+      }
+    )
+
+    const wrapper = mountList({ stageFilter: 'tensions' })
+    await flushPromises()
+
+    const cards = wrapper.findAllComponents({ name: 'RelationshipCard' })
+    expect(cards).toHaveLength(1)
+    expect(cards[0].props('relationship')).toMatchObject({
+      id: 'r1',
+      relationship_type: 'rival',
+      affinity: -30,
+    })
   })
 
   it('forwards select-dweller events from the card', async () => {

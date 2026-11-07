@@ -143,6 +143,8 @@ async def test_get_vault_relationships_includes_bond_progress(
             "same_race": True,
             "average_charisma": 8,
             "can_make_partners": False,
+            "discomfort_severity": None,
+            "discomfort_source": None,
         },
     )
     with (
@@ -160,6 +162,8 @@ async def test_get_vault_relationships_includes_bond_progress(
     assert response.json()[0]["conception_potential"] == "possible"
     assert response.json()[0]["same_race"] is True
     assert response.json()[0]["average_charisma"] == 8
+    assert response.json()[0]["discomfort_severity"] is None
+    assert response.json()[0]["discomfort_source"] is None
     assert response.json()[0]["can_make_partners"] is False
 
 

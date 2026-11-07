@@ -26,7 +26,7 @@ const { filter: dwellerStore } = useDwellerStore()
 const authStore = useAuthStore()
 
 const vaultId = computed(() => route.params.id as string)
-const activeStage = ref<'forming' | 'partners' | 'pregnancies' | 'children'>('forming')
+const activeStage = ref<'forming' | 'tensions' | 'partners' | 'pregnancies' | 'children'>('forming')
 
 // Stats
 /** Total number of relationships in the vault. */
@@ -51,8 +51,16 @@ const stages = computed(() => [
     label: 'Forming',
     icon: 'mdi:account-group',
     count: relationshipStore.relationships.filter(
-      (r) => !isRelationshipType(r.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES)
+      (r) =>
+        !isRelationshipType(r.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES) &&
+        r.relationship_type !== 'rival'
     ).length,
+  },
+  {
+    id: 'tensions',
+    label: 'Tensions',
+    icon: 'mdi:sword-cross',
+    count: relationshipStore.relationships.filter((r) => r.relationship_type === 'rival').length,
   },
   {
     id: 'partners',
@@ -126,10 +134,10 @@ const navigateToDweller = (dwellerId: string) => {
                 Build bonds
               </h2>
               <p>
-                Dwellers sharing Living Quarters gradually build affinity. Same-race pairs bond
-                faster, Charisma raises the pace, and poor chemistry can make a pair drift apart.
-                Use Forming to inspect each bond and its current progress; affinity and eligibility
-                determine when romance and commitment are possible.
+                Dwellers sharing Living Quarters gradually build affinity or drift into rivalry.
+                Same-race pairs bond faster, Charisma raises the pace, and poor chemistry or
+                uncomfortable coworkers (feral ghouls, super mutants, low-generation synths) push a
+                pair apart. Use Forming and Tensions to inspect each bond and its current progress.
               </p>
             </section>
             <section>
@@ -197,6 +205,29 @@ const navigateToDweller = (dwellerId: string) => {
               v-if="vaultId"
               :vaultId="vaultId"
               stageFilter="forming"
+              @select-dweller="navigateToDweller"
+            />
+          </TabsContent>
+
+          <TabsContent
+            v-if="activeStage === 'tensions'"
+            value="tensions"
+            class="min-w-0 space-y-5 py-2"
+          >
+            <div>
+              <h2 class="flex items-center gap-2 text-lg font-bold text-theme-primary">
+                <Icon icon="mdi:sword-cross" class="h-5 w-5" />
+                Tensions
+              </h2>
+              <p class="mt-1 text-sm leading-6 text-theme-primary/60">
+                Rivals lose production and happiness while sharing a room. Separate them or let time
+                and better chemistry bring them back.
+              </p>
+            </div>
+            <RelationshipList
+              v-if="vaultId"
+              :vaultId="vaultId"
+              stageFilter="tensions"
               @select-dweller="navigateToDweller"
             />
           </TabsContent>

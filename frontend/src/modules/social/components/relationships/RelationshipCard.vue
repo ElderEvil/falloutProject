@@ -32,10 +32,20 @@
       </div>
       <div class="rounded border border-theme-primary/20 bg-surface-sunken p-3">
         <div class="flex items-center justify-between gap-2 text-xs">
-          <span class="font-bold tracking-[0.08em] text-theme-primary/60">AFFINITY</span>
-          <span class="font-bold text-theme-primary">{{ relationship.affinity }}/100</span>
+          <span class="font-bold tracking-[0.08em] text-theme-primary/60">{{ affinityLabel }}</span>
+          <span
+            class="font-bold"
+            :class="relationship.affinity < 0 ? 'text-danger' : 'text-theme-primary'"
+            >{{ relationship.affinity }}/100</span
+          >
         </div>
-        <Progress :model-value="relationship.affinity" class="mt-2 h-2" />
+        <Progress
+          :model-value="Math.abs(relationship.affinity)"
+          :tone="relationship.affinity < 0 ? 'danger' : 'default'"
+          :label="affinityLabel"
+          :value-text="`${Math.abs(relationship.affinity)} of 100`"
+          class="mt-2 h-2"
+        />
         <div
           v-if="relationship.bond_change_per_tick !== undefined"
           class="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs"
@@ -135,7 +145,7 @@
       class="mt-auto flex items-start gap-2 border-t border-theme-primary/15 pt-2 text-xs text-theme-primary/70"
     >
       <Icon
-        :icon="relationship.relationship_type === 'ex' ? 'mdi:heart-broken' : 'mdi:human-child'"
+        :icon="familyPotentialIcon"
         class="h-4 w-4 shrink-0"
         :ariaHidden="true"
       />
@@ -280,7 +290,19 @@ const hasActions = computed(
     isRelationshipType(props.relationship.relationship_type, COMMITTED_RELATIONSHIP_TYPES)
 )
 
+const familyPotentialIcon = computed(() => {
+  switch (props.relationship.relationship_type) {
+    case 'ex':
+      return 'mdi:heart-broken'
+    case 'rival':
+      return 'mdi:sword-cross'
+    default:
+      return 'mdi:human-child'
+  }
+})
+
 const familyPotentialLabel = computed(() => {
+  if (props.relationship.relationship_type === 'rival') return 'Rivals'
   if (props.relationship.relationship_type === 'ex') return 'Former couple'
   switch (props.relationship.conception_potential) {
     case 'possible':
@@ -313,7 +335,17 @@ const bondChangeLabel = computed(() => {
   return `${sign}${Math.abs(change)} hearts every ${bondCadence.value}`
 })
 
-/** Why the bond is moving: race match and the pair's effective Charisma. */
+const affinityLabel = computed(() => (props.relationship.affinity < 0 ? 'HOSTILITY' : 'AFFINITY'))
+
+const DISCOMFORT_LABEL = {
+  feral: 'Feral ghoul unease',
+  mutant: 'Super mutant unease',
+  behemoth: 'Behemoth unease',
+  synth_gen_1: 'Gen 1 synth unease',
+  synth_gen_2: 'Gen 2 synth unease',
+} as const
+
+/** Why the bond is moving: race match, effective Charisma, and coworker unease. */
 const bondFactors = computed(() => {
   const factors: string[] = []
   if (props.relationship.same_race === true) factors.push('Same race')
@@ -321,6 +353,8 @@ const bondFactors = computed(() => {
   if (typeof props.relationship.average_charisma === 'number') {
     factors.push(`Charisma ${props.relationship.average_charisma}`)
   }
+  const source = props.relationship.discomfort_source
+  if (source) factors.push(DISCOMFORT_LABEL[source])
   return factors
 })
 </script>

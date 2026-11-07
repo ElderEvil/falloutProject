@@ -10747,7 +10747,7 @@ export interface components {
          * RelationshipTypeEnum
          * @enum {string}
          */
-        RelationshipTypeEnum: "acquaintance" | "friend" | "romantic" | "partner" | "MARRIED" | "ex";
+        RelationshipTypeEnum: "acquaintance" | "friend" | "romantic" | "partner" | "MARRIED" | "rival" | "ex";
         /**
          * RequestExitAction
          * @description Suggestion to let the dweller leave the vault. Granting is permanent.
@@ -12310,6 +12310,10 @@ export interface components {
             average_charisma: number;
             /** Can Make Partners */
             can_make_partners: boolean;
+            /** Discomfort Severity */
+            discomfort_severity?: ("mild" | "moderate" | "strong") | null;
+            /** Discomfort Source */
+            discomfort_source?: ("feral" | "mutant" | "behemoth" | "synth_gen_1" | "synth_gen_2") | null;
         };
         /** VaultScenarioRead */
         VaultScenarioRead: {

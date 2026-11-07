@@ -9,7 +9,7 @@ from app.core.game_config import game_config
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
-from app.options.races import RaceOption, race_of
+from app.options.races import RaceOption, passes_as_human, race_of, state_of_being_of
 from app.schemas.barbershop import BarbershopChangeRequest, BarbershopChangeResponse, BarbershopStatus
 from app.schemas.dweller import DwellerUpdate
 from app.services.vault_service import vault_service
@@ -163,8 +163,9 @@ class BarbershopService:
             raise ValidationException(detail="Only adult or elder dwellers can use the Barbershop.")
         if dweller.is_dead or dweller.is_deleted:
             raise ValidationException(detail="This dweller cannot use the Barbershop right now.")
-        if race_of(dweller) is not RaceOption.HUMAN:
-            raise ValidationException(detail="Only human dwellers can use the Barbershop.")
+        race = race_of(dweller)
+        if race not in (None, RaceOption.HUMAN) and not passes_as_human(race, state_of_being_of(dweller)):
+            raise ValidationException(detail="Only human or Gen-3 synth dwellers can use the Barbershop.")
 
         skin_tone = self._canonical(request.skin_tone, HUMAN_PORTRAIT_SKIN_TONES, "skin tone")
         hair_color = self._canonical(request.hair_color, HUMAN_PORTRAIT_HAIR_COLORS, "hair color").casefold()

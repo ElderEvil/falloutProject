@@ -26,7 +26,7 @@ from app.services.progression.quests.requirements import (
 )
 from app.services.reward_service import reward_service
 from app.services.team_service import team_service
-from app.utils.dweller_availability import availability_error
+from app.utils.dweller_availability import DwellerAction, availability_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 from app.utils.quest_duration import (
     STATE_QUEST_CATEGORIES,
@@ -171,7 +171,7 @@ class QuestService:
         if len(locked_party) != len(members):
             raise ValidationException("A selected dweller is no longer available")
         for dweller in locked_party:
-            error = availability_error(dweller, require_healthy=False)
+            error = availability_error(dweller, action=DwellerAction.EXPLORE, require_healthy=False)
             if error is not None:
                 raise ValidationException(f"Dweller {dweller.id} {error}")
         party_dwellers = locked_party

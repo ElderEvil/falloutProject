@@ -131,6 +131,43 @@ async def test_can_start_training_dweller_not_idle(
 
 
 @pytest.mark.asyncio
+async def test_can_start_training_rejects_feral_ghoul(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    training_service: TrainingService,
+):
+    """Feral ghouls may defend but cannot begin purposeful training."""
+    room = await room_crud.create(
+        async_session,
+        RoomCreate(
+            name="Weight Room",
+            category=RoomTypeEnum.TRAINING,
+            tier=1,
+            size=2,
+            capacity=6,
+            ability=SPECIALEnum.STRENGTH,
+            base_cost=1000,
+            t2_upgrade_cost=2500,
+            t3_upgrade_cost=5000,
+            size_min=1,
+            size_max=3,
+            vault_id=vault.id,
+        ),
+    )
+    dweller.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
+    dweller.status = DwellerStatusEnum.IDLE
+    async_session.add(dweller)
+    await async_session.commit()
+    await async_session.refresh(dweller)
+
+    can_train, reason = await training_service.can_start_training(async_session, dweller, room)
+
+    assert can_train is False
+    assert "state prevents purposeful training" in reason.lower()
+
+
+@pytest.mark.asyncio
 async def test_complete_training(
     async_session: AsyncSession,
     vault: Vault,

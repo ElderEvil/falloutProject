@@ -1146,6 +1146,20 @@ class TestArenaService:
             await service.set_fighters(async_session, arena_room.id, fighter_a.id, child.id)
 
     @pytest.mark.asyncio
+    async def test_set_fighters_accepts_behemoth(self, async_session, arena_room, fighter_a, fighter_b):
+        """Behemoths are barred from work but remain eligible to fight."""
+        fighter_a.visual_attributes = {"race": "super_mutant", "state_of_being": "behemoth"}
+        fighter_a.room_id = arena_room.id
+        fighter_b.room_id = arena_room.id
+        await async_session.commit()
+        service = ArenaService()
+
+        state = await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
+
+        assert state.fighter_a_id == fighter_a.id
+        assert state.fighter_b_id == fighter_b.id
+
+    @pytest.mark.asyncio
     async def test_get_arena_state_duel_teams(self, async_session, arena_room, fighter_a, fighter_b, vault):
         fighter_a.room_id = arena_room.id
         fighter_b.room_id = arena_room.id

@@ -12,6 +12,7 @@ from app.core.enums import ADULT_AGE_GROUPS, STAT_BY_SPECIAL, RoomTypeEnum, SPEC
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.dweller import DwellerReadFull
+from app.utils.dweller_availability import DwellerAction, purposeful_action_error
 from app.utils.exceptions import ResourceConflictException, ValidationException
 
 ABILITY_TO_STAT_MAP = STAT_BY_SPECIAL
@@ -93,6 +94,8 @@ async def validate_room_assignment(db_session: AsyncSession, dweller: Dweller, r
     resource manager) and advances the room's SPECIAL while they are posted there.
     """
     if dweller.is_mature:
+        if error := purposeful_action_error(dweller, DwellerAction.WORK):
+            raise ValidationException(detail=error)
         await validate_room_worker_capacity(db_session, room)
         return
     if room.category == RoomTypeEnum.ARENA:
@@ -117,3 +120,5 @@ def validate_automatic_assignment(dweller: Dweller) -> None:
     """Keep single-dweller auto-assign adult-only; youth are placed by the apprentice pass in room auto-assign flows."""
     if not dweller.is_mature:
         raise ValidationException(detail="Child and teen dwellers must be assigned manually as apprentices")
+    if error := purposeful_action_error(dweller, DwellerAction.WORK):
+        raise ValidationException(detail=error)

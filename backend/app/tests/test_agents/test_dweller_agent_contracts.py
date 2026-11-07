@@ -350,9 +350,9 @@ async def test_non_reasoning_dweller_still_gets_needed_stimpak() -> None:
 
 
 @pytest.mark.asyncio
-async def test_nonhuman_cannot_get_radaway_action_from_model_output() -> None:
+async def test_visible_synth_cannot_get_radaway_action_from_model_output() -> None:
     dweller = _make_dweller()
-    dweller.visual_attributes = {"race": "synth", "state_of_being": "gen_3"}
+    dweller.visual_attributes = {"race": "synth", "state_of_being": "gen_1"}
     dweller.radiation = 35  # Legacy state before immunity migration.
     dweller.health = 65
     dweller.stimpack = 0
@@ -361,6 +361,20 @@ async def test_nonhuman_cannot_get_radaway_action_from_model_output() -> None:
     result = await parse_action_suggestion(output, _medical_session(radaway=5), dweller)
 
     assert isinstance(result, NoAction)
+
+
+@pytest.mark.asyncio
+async def test_gen_3_synth_can_get_radaway_action_from_model_output() -> None:
+    dweller = _make_dweller()
+    dweller.visual_attributes = {"race": "synth", "state_of_being": "gen_3"}
+    dweller.radiation = 35
+    dweller.health = 65
+    dweller.stimpack = 0
+    output = _output(action_type="request_radaway")
+
+    result = await parse_action_suggestion(output, _medical_session(radaway=5), dweller)
+
+    assert isinstance(result, RequestRadawayAction)
 
 
 @pytest.mark.asyncio

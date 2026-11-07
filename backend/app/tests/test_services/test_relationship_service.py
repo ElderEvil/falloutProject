@@ -240,7 +240,10 @@ async def test_vault_relationship_progress_reports_discomfort(monkeypatch: pytes
     item = progress[0]
     assert item.discomfort_severity == "strong"
     assert item.discomfort_source == "feral"
-    assert item.bond_change_per_tick < 0
+    # Feral ghouls cannot initiate social bonds, so the discomfort is reported but
+    # the pair does not drift while one side is non-reasoning.
+    assert item.bond_change_per_tick == 0
+    assert item.can_make_partners is False
 
 
 def test_affinity_change_same_race_beats_cross_race():
@@ -305,6 +308,16 @@ def test_affinity_chemistry_penalizes_discomfort():
     assert affinity_chemistry(human, human_peer) > affinity_chemistry(human, mutant)
     assert affinity_chemistry(human, mutant) > affinity_chemistry(human, behemoth)
     assert affinity_chemistry(human, human_peer) > affinity_chemistry(human, feral)
+
+
+def test_affinity_change_is_zero_for_non_reasoning_states():
+    room_id = uuid4()
+    human = _stub_dweller(room_id=room_id)
+    feral = _stub_dweller(room_id=room_id, race="ghoul", state="feral")
+    behemoth = _stub_dweller(room_id=room_id, race="super_mutant", state="behemoth")
+
+    assert affinity_change(human, feral) == 0
+    assert affinity_change(human, behemoth) == 0
 
 
 def test_feral_discomfort_tips_incompatible_pair_below_drift_threshold():
@@ -518,6 +531,28 @@ async def test_initiate_romance_fails_no_relationship(
 
 
 @pytest.mark.asyncio
+async def test_initiate_romance_rejects_feral_ghoul(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+):
+    """Feral ghouls cannot initiate romance even at sufficient affinity."""
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
+    await RelationshipService.increase_affinity(
+        async_session,
+        relationship.dweller_1_id,
+        relationship.dweller_2_id,
+        amount=game_config.relationship.romance_threshold,
+    )
+    dweller.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
+    async_session.add(dweller)
+    await async_session.commit()
+
+    with pytest.raises(ValidationException, match="cannot take purposeful actions"):
+        await RelationshipService.initiate_romance(async_session, dweller.id, dweller_2.id)
+
+
+@pytest.mark.asyncio
 async def test_make_partners_fails_low_affinity(
     async_session: AsyncSession,
     dweller: Dweller,
@@ -626,6 +661,24 @@ async def _make_partners(
     )
     await RelationshipService.initiate_romance(async_session, dweller_1.id, dweller_2.id)
     return await RelationshipService.make_partners(async_session, dweller_1.id, dweller_2.id)
+
+
+@pytest.mark.asyncio
+async def test_marry_rejects_feral_ghoul(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+):
+    """A feral ghoul cannot complete a marriage even from a pre-existing partner link."""
+    partner_rel = await _make_partners(async_session, dweller, dweller_2)
+    partner_rel.affinity = game_config.relationship.marriage_threshold
+    async_session.add(partner_rel)
+    dweller.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
+    async_session.add(dweller)
+    await async_session.commit()
+
+    with pytest.raises(ValidationException, match="cannot take purposeful actions"):
+        await RelationshipService.marry(async_session, partner_rel.id)
 
 
 @pytest.mark.asyncio

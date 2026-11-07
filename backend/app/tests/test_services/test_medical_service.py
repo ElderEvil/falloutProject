@@ -21,11 +21,16 @@ async def _set_dweller_state(async_session: AsyncSession, dweller: Dweller, **st
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("race", ["ghoul", "super_mutant", "synth"])
-async def test_non_humans_are_offered_stimpaks_but_not_radaway(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller, race: str
+@pytest.mark.parametrize(
+    ("race", "state"),
+    [("ghoul", None), ("super_mutant", None), ("synth", "gen_1"), ("synth", "gen_2")],
+)
+async def test_non_immune_dwellers_are_offered_stimpaks_but_not_radaway(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, race: str, state: str | None
 ) -> None:
     dweller.visual_attributes = {"race": race}
+    if state is not None:
+        dweller.visual_attributes["state_of_being"] = state
     dweller.health = 20
     dweller.max_health = 1000
     dweller.radiation = 35  # Legacy state before immunity was introduced.
@@ -43,6 +48,24 @@ async def test_non_humans_are_offered_stimpaks_but_not_radaway(
 
     healed = await medical_service.use_stimpack(async_session, dweller.id)
     assert healed.health > 20
+
+
+@pytest.mark.asyncio
+async def test_gen_3_synth_can_use_radaway(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    dweller.visual_attributes = {"race": "synth", "state_of_being": "gen_3"}
+    dweller.health = 20
+    dweller.max_health = 1000
+    dweller.radiation = 35
+    dweller.stimpack = 1
+    dweller.radaway = 1
+    async_session.add(dweller)
+    await async_session.commit()
+
+    status = await medical_service.get_dweller_medical_status(async_session, dweller, vault.id)
+    assert status.available_radaways == 1
+
+    result = await medical_service.use_radaway(async_session, dweller.id)
+    assert result.radiation < 35
 
 
 class TestUseRadaway:

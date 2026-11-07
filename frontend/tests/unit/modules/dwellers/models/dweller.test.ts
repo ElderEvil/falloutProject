@@ -12,6 +12,7 @@ import {
   isMature,
   isSeverelyIrradiated,
   orderRoomDwellers,
+  passesAsHuman,
 } from '@/modules/dwellers/models/dweller'
 
 /**
@@ -43,13 +44,42 @@ describe('isMature', () => {
   })
 })
 
+describe('passesAsHuman', () => {
+  it.each([
+    ['human', undefined],
+    ['synth', 'gen_3'],
+    ['synth', undefined],
+  ])('treats %s/%s as human-presenting', (race, state_of_being) => {
+    expect(passesAsHuman({ visual_attributes: { race, state_of_being } })).toBe(true)
+  })
+
+  it.each([
+    ['ghoul', 'sane'],
+    ['super_mutant', 'behemoth'],
+    ['synth', 'gen_1'],
+    ['synth', 'gen_2'],
+  ])('rejects %s/%s', (race, state_of_being) => {
+    expect(passesAsHuman({ visual_attributes: { race, state_of_being } })).toBe(false)
+  })
+})
+
 describe('canUseRadaway', () => {
-  it.each(['ghoul', 'super_mutant', 'synth'])('blocks %s', (race) => {
+  it.each(['ghoul', 'super_mutant'])('blocks %s', (race) => {
     expect(canUseRadaway({ visual_attributes: { race } })).toBe(false)
+  })
+
+  it.each(['gen_1', 'gen_2'])('blocks visible synth model %s', (state_of_being) => {
+    expect(canUseRadaway({ visual_attributes: { race: 'synth', state_of_being } })).toBe(false)
   })
 
   it.each(['human', 'unknown'])('allows %s using the backend fallback', (race) => {
     expect(canUseRadaway({ visual_attributes: { race } })).toBe(true)
+  })
+
+  it('allows an organic Gen-3 synth', () => {
+    expect(canUseRadaway({ visual_attributes: { race: 'synth', state_of_being: 'gen_3' } })).toBe(
+      true
+    )
   })
 
   it('defaults missing race to human eligibility', () => {

@@ -15,7 +15,7 @@ from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.team import TeamMember
 from app.models.vault import Vault
-from app.utils.dweller_availability import availability_error
+from app.utils.dweller_availability import DwellerAction, availability_error
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 from app.utils.quest_duration import STATE_QUEST_CATEGORIES
 
@@ -61,7 +61,7 @@ class TeamService:
                 raise ResourceNotFoundException(Dweller, identifier=dweller_id)
             if dweller.vault_id != vault_id:
                 raise ValidationException(f"Dweller {dweller_id} does not belong to vault {vault_id}")
-            error = availability_error(dweller, require_healthy=False)
+            error = availability_error(dweller, action=DwellerAction.EXPLORE, require_healthy=False)
             if error is not None:
                 raise ValidationException(f"Dweller {dweller_id} {error}")
 

@@ -33,6 +33,7 @@ from app.services.game_tick.tick_results import (
     RelationshipsStats,
 )
 from app.services.vault_service import vault_service
+from app.utils.dweller_availability import DwellerAction, purposeful_action_error
 from app.utils.dwellers import group_dwellers_by_room
 from app.utils.exceptions import NoLivingSpaceError
 
@@ -156,6 +157,12 @@ async def update_pair_affinity(
 ) -> int:
     """Update affinity for a pair of dwellers, creating relationship if needed."""
     from app.services.relationship_service import affinity_change, relationship_service
+
+    if (
+        purposeful_action_error(dweller1, DwellerAction.SOCIAL) is not None
+        or purposeful_action_error(dweller2, DwellerAction.SOCIAL) is not None
+    ):
+        return 0
 
     key = (dweller1.id, dweller2.id)
     relationship = relationships_map.get(key)

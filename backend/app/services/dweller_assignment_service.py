@@ -19,6 +19,7 @@ from app.services.room_assignment_policy import (
     validate_room_worker_capacity,
 )
 from app.services.training_service import training_service
+from app.utils.dweller_availability import DwellerAction, purposeful_action_error
 from app.utils.exceptions import ResourceConflictException
 
 PRODUCTION_ABILITIES = [
@@ -368,7 +369,11 @@ class DwellerAssignmentService:
             if room.ability in PRODUCTION_ABILITIES
         ]
 
-        unassigned_dwellers = await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
+        unassigned_dwellers = [
+            dweller
+            for dweller in await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
+            if purposeful_action_error(dweller, DwellerAction.WORK) is None
+        ]
 
         assignments: list[dict[str, str]] = []
         assigned_dweller_ids: set = set()
@@ -462,7 +467,11 @@ class DwellerAssignmentService:
         training_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.TRAINING]
         crafting_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.CRAFTING]
 
-        unassigned_dwellers = await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
+        unassigned_dwellers = [
+            dweller
+            for dweller in await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
+            if purposeful_action_error(dweller, DwellerAction.WORK) is None
+        ]
 
         assignments: list[dict[str, str]] = []
         assigned_dweller_ids: set = set()

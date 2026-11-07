@@ -267,6 +267,19 @@ async def test_assign_quest_team_rejects_unavailable_dwellers(async_session: Asy
 
 
 @pytest.mark.asyncio
+async def test_assign_quest_team_rejects_feral_ghoul(async_session: AsyncSession) -> None:
+    """Feral ghouls may defend the vault but cannot join an exploration quest."""
+    vault, quest = await _make_quest_vault(async_session)
+    feral = await _make_adult_dweller(async_session, vault)
+    feral.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
+    async_session.add(feral)
+    await async_session.commit()
+
+    with pytest.raises(ValidationException, match="cannot take purposeful actions"):
+        await team_service.assign_quest_team(async_session, quest.id, vault.id, [feral.id])
+
+
+@pytest.mark.asyncio
 async def test_assign_quest_team_rejects_foreign_dweller(async_session: AsyncSession) -> None:
     """A dweller from another vault cannot join the team."""
     vault, quest = await _make_quest_vault(async_session)

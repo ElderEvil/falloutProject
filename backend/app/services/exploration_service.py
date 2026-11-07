@@ -42,7 +42,7 @@ from app.services.map.world_generation import WORLD_ID
 from app.services.user_service import user_service
 from app.services.world_snapshot_service import world_snapshot_service
 from app.utils import world_terrain
-from app.utils.dweller_availability import availability_error
+from app.utils.dweller_availability import DwellerAction, availability_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 from app.utils.place_groups import effective_place_group
 from app.utils.vault_slots import slot_coords
@@ -217,7 +217,7 @@ class ExplorationService:
             raise ValueError("Dweller does not belong to this vault")
         if radaways > 0 and not can_use_radaway(dweller):
             raise ValueError("This dweller cannot carry RadAway")
-        reason = availability_error(dweller, require_healthy=True)
+        reason = availability_error(dweller, action=DwellerAction.EXPLORE, require_healthy=True)
         if reason is not None:
             raise ValueError(reason)
         dweller_stimpaks = dweller.stimpack or 0
@@ -455,7 +455,7 @@ class ExplorationService:
             dweller = await dweller_crud.get(db_session, dweller_id)
             if dweller.vault_id != vault_id:
                 raise ValidationException("Dweller does not belong to this vault")
-            reason = availability_error(dweller, require_healthy=True)
+            reason = availability_error(dweller, action=DwellerAction.EXPLORE, require_healthy=True)
             if reason is not None:
                 raise ValidationException(reason)
             dwellers.append(dweller)

@@ -5,7 +5,7 @@ race option under its domain name and owns the race-specific data (descriptions,
 modifiers, breeding eligibility).
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
@@ -61,6 +61,7 @@ class RaceModifiers:
 
 
 #: Racial modifiers keyed by race; humans are the baseline every other race trades against.
+#: Synth immunity is the Gen-1/Gen-2 baseline; Gen-3 is organic and adjusted on read below.
 RACE_MODIFIERS: dict[RaceOption, RaceModifiers] = {
     RaceOption.HUMAN: RaceModifiers(),
     RaceOption.GHOUL: RaceModifiers(endurance=2, radiation_immune=True),
@@ -70,8 +71,16 @@ RACE_MODIFIERS: dict[RaceOption, RaceModifiers] = {
 
 
 def modifiers_for_race(entity: object) -> RaceModifiers:
-    """Racial modifiers for an entity; unknown or missing races take the human baseline."""
-    return RACE_MODIFIERS.get(race_of(entity) or RaceOption.HUMAN, RACE_MODIFIERS[RaceOption.HUMAN])
+    """Racial modifiers for an entity; unknown or missing races take the human baseline.
+
+    Gen-3 synths pass as human, so their organic body accumulates radiation like
+    a human. Gen-1/Gen-2 synths keep the synthetic radiation immunity.
+    """
+    race = race_of(entity) or RaceOption.HUMAN
+    modifiers = RACE_MODIFIERS.get(race, RACE_MODIFIERS[RaceOption.HUMAN])
+    if race == RaceOption.SYNTH and passes_as_human(race, state_of_being_of(entity)):
+        return replace(modifiers, radiation_immune=False)
+    return modifiers
 
 
 def race_of(entity: object) -> RaceOption | None:
@@ -115,7 +124,7 @@ def can_use_radaway(entity: object) -> bool:
 
 
 def can_take_purposeful_action(entity: object) -> bool:
-    """Feral ghouls and behemoths cannot initiate intentional chat actions."""
+    """Feral ghouls and behemoths cannot take purposeful actions outside combat/defence."""
     race = race_of(entity)
     return (race, state_of_being_of(entity)) not in {
         (RaceOption.GHOUL, GhoulFeralnessEnum.FERAL.value),
@@ -194,8 +203,16 @@ def passes_as_human(race: RaceOption | str | None, state_of_being: str | None) -
 
 
 def can_breed(entity: object) -> bool:
-    """Whether an entity's race may conceive; entities without a race default to human."""
-    return BREEDING_ELIGIBLE.get(race_of(entity) or RaceOption.HUMAN, False)
+    """Whether an entity's race may conceive; entities without a race default to human.
+
+    Explicit decision: Gen-3 synths pass as human socially and visually, but
+    remain synthetic and non-breeding. This is intentionally a branch rather
+    than a silent table lookup so a future lore change must update the rule here.
+    """
+    race = race_of(entity) or RaceOption.HUMAN
+    if race == RaceOption.SYNTH:
+        return False
+    return BREEDING_ELIGIBLE.get(race, False)
 
 
 class SocialPresence(StrEnum):

@@ -167,6 +167,7 @@ class TestRaceHelpers:
         assert can_breed(_dweller("human")) is True
         assert can_breed(_dweller("ghoul")) is False
         assert can_breed(_dweller("synth")) is False
+        assert can_breed(_synth("gen_3")) is False
         assert can_breed(_dweller("super_mutant")) is False
 
     def test_entity_without_race_defaults_to_human(self) -> None:
@@ -252,9 +253,19 @@ class TestStateOfBeingDeltas:
         assert chronological_years(None) is None
 
 
-@pytest.mark.parametrize("race", ["ghoul", "super_mutant", "synth"])
-def test_non_humans_are_radiation_immune_and_cannot_use_radaway(race: str) -> None:
+@pytest.mark.parametrize(
+    ("race", "state"),
+    [
+        ("ghoul", None),
+        ("super_mutant", None),
+        ("synth", "gen_1"),
+        ("synth", "gen_2"),
+    ],
+)
+def test_synthetic_and_mutated_races_are_radiation_immune(race: str, state: str | None) -> None:
     entity = _dweller(race)
+    if state is not None:
+        entity.visual_attributes["state_of_being"] = state
     assert identity_modifiers_for(entity).radiation_immune is True
     assert can_use_radaway(entity) is False
     entity.is_dead = False
@@ -262,6 +273,19 @@ def test_non_humans_are_radiation_immune_and_cannot_use_radaway(race: str) -> No
     entity.radiation = 0
     assert apply_radiation_gain(entity, 25, resisted_by_outfit=False) is False
     assert entity.radiation == 0
+
+
+def test_gen_3_synth_accumulates_radiation_and_can_use_radaway() -> None:
+    """Gen-3 synths are organic and pass as human, so they are not radiation-immune."""
+    entity = _synth("gen_3")
+    assert identity_modifiers_for(entity).radiation_immune is False
+    assert can_use_radaway(entity) is True
+    entity.is_dead = False
+    entity.max_health = entity.health = 100
+    entity.effective_max_health = 100
+    entity.radiation = 0
+    assert apply_radiation_gain(entity, 25, resisted_by_outfit=False) is True
+    assert entity.radiation == 25
 
 
 def test_humans_can_use_radaway() -> None:
@@ -477,8 +501,8 @@ class TestCombatAndProductionApplication:
         assert mixed == pytest.approx(10 * (5 * 1.05 + 5 * 1.0) * rate * 1.0 * 60)
         assert mixed < 10 * (5 + 5) * rate * 1.0 * 1.05 * 60
 
-    def test_synth_immunity_blocks_the_dose(self) -> None:
-        synth = _dweller("synth")
+    def test_visible_synth_immunity_blocks_the_dose(self) -> None:
+        synth = _synth("gen_1")
         synth.is_dead = False
         synth.radiation, synth.max_health, synth.health = 10, 120, 100
         synth.effective_max_health = 100
@@ -540,7 +564,8 @@ class TestFeatureFlag:
         assert effective_stat(mutant, "strength") == (8 if race_flag else 5)
 
     def test_radiation_immunity_survives_race_switch(self, race_flag: bool) -> None:
-        assert identity_modifiers_for(_dweller("synth")).radiation_immune is True
+        assert identity_modifiers_for(_synth("gen_1")).radiation_immune is True
+        assert identity_modifiers_for(_synth("gen_3")).radiation_immune is False
 
     def test_faction_perks_follow_faction_switch(self, faction_flag: bool) -> None:
         assert weapon_damage_pct(_dweller("human", faction="brotherhood_of_steel"), "energy") == (

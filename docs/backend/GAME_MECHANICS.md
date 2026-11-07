@@ -438,8 +438,16 @@ evolves gradually.
 flipping the switch back on restores them. While it is off the roster filter rejects `faction` with 422,
 `identity-options` returns no factions (races still offered), and `GET /system/features` tells clients the state
 so nothing rejected is ever offered. Non-human radiation immunity survives both switches. Ghouls,
-super mutants and synths cannot accumulate radiation or use RadAway; all races can use Stimpaks
-(including Gen 1/2 synths until a repair system exists).
+super mutants, Gen-1 synths and Gen-2 synths cannot accumulate radiation or use RadAway; Gen-3
+synths are organic and pass as human, so they accumulate radiation and can use RadAway. All races
+can use Stimpaks (including Gen 1/2 synths until a repair system exists).
+
+**State-of-being action policy.** Age and reasoning state share one gate in
+`app/utils/dweller_availability.py`. Feral ghouls and behemoths may fight and defend only; they
+cannot work, train, explore, join quests, initiate romance, marry, gain social affinity, or use the
+Barbershop. Gen-3 synths pass as human for the Barbershop and other human-only surfaces. All synth
+generations remain explicitly non-breeding, including Gen-3: passing as human is a social/visual
+rule, not a reproduction rule.
 
 **Do not gate faction on the shared identity schema.** `DwellerVisualAttributes` validates curated
 `DwellerTemplate` seeds, AI generation and partial updates, which legitimately carry a faction; a schema-level
@@ -522,7 +530,7 @@ Every reduction a dweller applies to incoming damage or radiation is resolved by
 
 **Stacking rule:** shares combine multiplicatively as complements — `combined = 1 - product(1 - r)` —
 so the result is order-independent, and the amount is truncated exactly once, at the end
-(`int(amount * (1 - combined))`). Immunity (Ghoul) short-circuits to zero. This replaces the old
+(`int(amount * (1 - combined))`). Immunity (ghoul, super mutant, Gen-1/2 synth) short-circuits to zero. This replaces the old
 per-source sequential truncation, so small hits can shift by 1 (e.g. 3 damage with 0.15 + 0.20:
 `int(int(3*0.85)*0.8) = 1` before, `int(3*0.85*0.8) = 2` now). The team share is owned by
 `contamination_team_service` (`TEAM_HAZARD_RESIST`) and passed into the resolver by the service

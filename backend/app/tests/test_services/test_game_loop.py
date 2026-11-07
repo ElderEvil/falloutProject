@@ -670,7 +670,7 @@ class TestUpdateRoomRelationships:
         self, async_session: AsyncSession, vault: Vault, existing: bool
     ):
         from app import crud
-        from app.core.enums import RoomTypeEnum
+        from app.core.enums import AgeGroupEnum, RoomTypeEnum
         from app.crud.relationship import relationship_crud
         from app.schemas.dweller import DwellerCreate
         from app.schemas.room import RoomCreate
@@ -685,7 +685,9 @@ class TestUpdateRoomRelationships:
         dwellers = []
         for index in range(4):
             dweller_data = create_fake_dweller()
-            dweller_data.update({"first_name": f"Pair{index}", "happiness": 50, "charisma": 5})
+            dweller_data.update(
+                {"first_name": f"Pair{index}", "happiness": 50, "charisma": 5, "age_group": AgeGroupEnum.ADULT}
+            )
             dweller = await crud.dweller.create(
                 async_session,
                 DwellerCreate(**dweller_data, vault_id=vault.id),

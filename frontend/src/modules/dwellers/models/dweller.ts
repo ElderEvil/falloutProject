@@ -46,12 +46,28 @@ export function hasLowHappiness(dweller: DwellerShort): boolean {
   return dweller.status !== 'dead' && (band === 'low' || band === 'critical')
 }
 
-/** Match the server's medical eligibility rule for supply controls. */
-export function canUseRadaway(
-  dweller: { visual_attributes?: { race?: string | null } | null } | null | undefined
-): boolean {
+type DwellerIdentity = {
+  visual_attributes?: { race?: string | null; state_of_being?: string | null } | null
+} | null | undefined
+
+/**
+ * Match the server's Gen-3 concealment rule: humans and Gen-3 synths present as
+ * human, while ghouls, super mutants, Gen-1 and Gen-2 synths do not.
+ */
+export function passesAsHuman(dweller: DwellerIdentity): boolean {
   const race = dweller?.visual_attributes?.race
-  return race !== 'ghoul' && race !== 'super_mutant' && race !== 'synth'
+  if (!race || race === 'human') return true
+  if (race !== 'synth') return false
+  const state = dweller.visual_attributes?.state_of_being
+  return state !== 'gen_1' && state !== 'gen_2'
+}
+
+/** Match the server's medical eligibility rule for supply controls. */
+export function canUseRadaway(dweller: DwellerIdentity): boolean {
+  const race = dweller?.visual_attributes?.race
+  if (race === 'ghoul' || race === 'super_mutant') return false
+  if (race === 'synth') return passesAsHuman(dweller)
+  return true
 }
 
 export type DwellerBodySize = 'small' | 'medium' | 'large'

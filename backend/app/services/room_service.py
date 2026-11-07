@@ -258,41 +258,33 @@ class RoomService:
             else None
         )
         created = False
-        if survivor_is_candidate:
-            if candidate_id is None:
-                survivor_room = await crud.room.create(
-                    db_session,
-                    obj_in=RoomCreate(
-                        coordinate_x=coordinate_x,
-                        **survivor_fields,
-                        capacity_formula=capacity_formula,
-                        output_formula=output_formula,
-                    ),
-                    commit=commit,
-                )
-                created = True
-            else:
-                survivor_room = await _apply_merged_size(
-                    db_session,
-                    candidate_id,
-                    size=total_size,
-                    capacity=new_capacity,
-                    output=new_output,
-                    image_url=new_image_url,
-                    commit=commit,
-                )
-        elif survivor_room is not None:
+        if survivor_is_candidate and candidate_id is None:
+            survivor_room = await crud.room.create(
+                db_session,
+                obj_in=RoomCreate(
+                    coordinate_x=coordinate_x,
+                    **survivor_fields,
+                    capacity_formula=capacity_formula,
+                    output_formula=output_formula,
+                ),
+                commit=commit,
+            )
+            created = True
+        else:
+            survivor_id = candidate_id
+            if not survivor_is_candidate:
+                survivor_id = survivor_room.id if survivor_room is not None else None
+            if survivor_id is None:
+                return MergeResult(room=None, absorbed_ids=[], merged=False)
             survivor_room = await _apply_merged_size(
                 db_session,
-                survivor_room.id,
+                survivor_id,
                 size=total_size,
                 capacity=new_capacity,
                 output=new_output,
                 image_url=new_image_url,
                 commit=commit,
             )
-        else:
-            return MergeResult(room=None, absorbed_ids=[], merged=False)
 
         survivor_room.refund_caps = allocated_refund
         db_session.add(survivor_room)

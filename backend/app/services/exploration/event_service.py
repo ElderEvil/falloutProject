@@ -17,6 +17,7 @@ from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.outfit import Outfit
 from app.models.weapon import Weapon
+from app.models.world_location import WorldLocation
 from app.options.races import can_use_radaway
 from app.schemas.exploration_event import (
     CombatEventSchema,
@@ -44,6 +45,40 @@ logger = logging.getLogger(__name__)
 # Equip bell entries are parked during the event transaction and sent after its
 # commit: sending mid-event would commit the loot/equip work prematurely.
 _PENDING_EQUIP_NOTIFICATIONS = "pending_exploration_equip_notifications"
+
+
+async def _register_event_discovery(
+    db_session: AsyncSession, exploration: Exploration, location_name: str | None
+) -> WorldLocation | None:
+    """Resolve an event's place using spatial or legacy registration, best-effort."""
+    if not location_name:
+        return None
+    from app.services.map_service import map_service
+
+    try:
+        if exploration.heading_degrees is None:
+            return await map_service.register_discovery(
+                db_session, exploration.vault_id, exploration.id, exploration.dweller_id, location_name
+            )
+        if exploration.pos_x is None or exploration.pos_y is None:
+            return None
+        return await map_service.register_spatial_discovery(
+            db_session,
+            exploration.vault_id,
+            exploration.id,
+            exploration.dweller_id,
+            location_name,
+            (exploration.pos_x, exploration.pos_y),
+            exploration.world_version,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to register discovery: vault=%s exploration=%s location=%r",
+            exploration.vault_id,
+            exploration.id,
+            location_name,
+        )
+        return None
 
 
 async def apply_exploration_damage(
@@ -223,37 +258,7 @@ class EventService:
         # site radius is claimed in place, else a new place is snapped near the
         # current position. Legacy runs keep the name-derived registry placement.
         location_name = getattr(event, "location_name", None)
-        location = None
-        if location_name:
-            try:
-                from app.services.map_service import map_service
-
-                if exploration.heading_degrees is not None:
-                    if exploration.pos_x is not None and exploration.pos_y is not None:
-                        location = await map_service.register_spatial_discovery(
-                            db_session,
-                            exploration.vault_id,
-                            exploration.id,
-                            exploration.dweller_id,
-                            location_name,
-                            (exploration.pos_x, exploration.pos_y),
-                            exploration.world_version,
-                        )
-                else:
-                    location = await map_service.register_discovery(
-                        db_session,
-                        exploration.vault_id,
-                        exploration.id,
-                        exploration.dweller_id,
-                        location_name,
-                    )
-            except Exception:
-                logger.exception(
-                    "Failed to register discovery: vault=%s exploration=%s location=%r",
-                    exploration.vault_id,
-                    exploration.id,
-                    location_name,
-                )
+        location = await _register_event_discovery(db_session, exploration, location_name)
         location_id = location.id if location else None
         coord_x = location.coord_x if location else None
         coord_y = location.coord_y if location else None

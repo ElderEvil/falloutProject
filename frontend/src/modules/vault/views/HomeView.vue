@@ -17,11 +17,13 @@ import { formatDateTime } from '@/core/utils/format'
 import { useOnboardingState } from '@/core/composables/useOnboardingState'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { isSetupComplete } from '@/modules/profile/models/setup'
-import FirstRunSetupModal from '@/modules/profile/components/FirstRunSetupModal.vue'
 import { useVisualEffects } from '@/core/composables/useVisualEffects'
 
 const VaultCreationWizard = defineAsyncComponent(
   () => import('../components/VaultCreationWizard.vue')
+)
+const FirstRunSetupModal = defineAsyncComponent(
+  () => import('@/modules/profile/components/FirstRunSetupModal.vue')
 )
 
 const authStore = useAuthStore()

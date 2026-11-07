@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.290.3 (2026-11-07)
+
+### Code Refactoring
+
+* dedupe radio activation, changelog grouping and dweller panel shell 4181951
+* derive changelog entry types from generated API schemas f6f34df
+
 ## 2.290.2 (2026-11-06)
 
 ### Code Refactoring

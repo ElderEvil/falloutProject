@@ -526,6 +526,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         """Dwellers assigned to living-quarter (capacity) rooms of a vault."""
         query = (
             select(self.model)
+            .options(selectinload(self.model.outfit), selectinload(self.model.pet))
             .join(Room, self.model.room_id == Room.id)
             .where(
                 self.model.vault_id == vault_id,
@@ -566,7 +567,11 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         self, db_session: AsyncSession, ids: list[UUID4], vault_id: UUID4
     ) -> Sequence[Dweller]:
         """Dwellers by ids scoped to one vault (no status filters)."""
-        query = select(self.model).where(self.model.id.in_(ids), self.model.vault_id == vault_id)
+        query = (
+            select(self.model)
+            .options(selectinload(self.model.outfit), selectinload(self.model.pet))
+            .where(self.model.id.in_(ids), self.model.vault_id == vault_id)
+        )
         return (await db_session.execute(query)).scalars().all()
 
     @staticmethod

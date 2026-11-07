@@ -97,6 +97,65 @@ async def test_vault_relationship_progress_uses_living_quarters_and_charisma(mon
 
 
 @pytest.mark.asyncio
+async def test_affinity_queries_include_equipped_charisma(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    dweller_2: Dweller,
+):
+    from app.core.enums import RoomTypeEnum
+    from app.models.pet import Pet
+    from app.options.identity_modifiers import identity_modifiers_for
+    from app.schemas.room import RoomCreate
+    from app.services.game_loop_service import game_loop_service
+    from app.services.relationship_service import effective_charisma
+    from app.tests.factory.rooms import create_fake_room
+    from app.utils.item_factory import build_outfit
+
+    vault_id = vault.id
+    dweller_ids = (dweller.id, dweller_2.id)
+    room_data = create_fake_room()
+    room_data["name"] = "Living Quarters"
+    room_data["category"] = RoomTypeEnum.CAPACITY
+    room = await crud.room.create(async_session, RoomCreate(**room_data, vault_id=vault_id))
+    for member in (dweller, dweller_2):
+        member.room_id = room.id
+        async_session.add(member)
+    outfit = build_outfit({"name": "Charisma Suit", "charisma": 2}, RarityEnum.COMMON)
+    outfit.dweller_id = dweller_ids[0]
+    async_session.add(outfit)
+    async_session.add(Pet(name="Mr. Pebbles", rarity=RarityEnum.LEGENDARY, dweller_id=dweller_ids[0]))
+    await async_session.commit()
+    async_session.expire_all()
+
+    living = {member.id: member for member in await crud.dweller.get_living_quarters_dwellers(async_session, vault_id)}
+    equipped = living[dweller_ids[0]]
+    assert equipped.__dict__.get("outfit") is not None
+    assert equipped.__dict__.get("pet") is not None
+    expected_charisma = equipped.charisma + identity_modifiers_for(equipped).charisma + 4
+    assert effective_charisma(equipped) == expected_charisma
+
+    by_ids = {
+        member.id: member
+        for member in await crud.dweller.get_by_ids_in_vault(async_session, list(dweller_ids), vault_id)
+    }
+    assert by_ids[dweller_ids[0]].__dict__.get("outfit") is not None
+    assert effective_charisma(by_ids[dweller_ids[0]]) == expected_charisma
+
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller_ids[0], dweller_ids[1])
+    progress = await RelationshipService.get_vault_relationships_with_progress(async_session, vault_id)
+    item = next(row for row in progress if row.id == relationship.id)
+    expected_average = int((effective_charisma(equipped) + effective_charisma(living[dweller_ids[1]])) / 2 + 0.5)
+    assert item.average_charisma == expected_average
+
+    before = relationship.affinity
+    await game_loop_service._update_room_relationships(async_session, vault_id)
+    await async_session.refresh(relationship)
+    expected_affinity = max(0, min(100, before + affinity_change(equipped, living[dweller_ids[1]])))
+    assert relationship.affinity == expected_affinity
+
+
+@pytest.mark.asyncio
 async def test_vault_relationship_progress_blocks_partner_when_committed(monkeypatch: pytest.MonkeyPatch):
     room_id = uuid4()
     committed = _stub_dweller(room_id=room_id, gender=GenderEnum.FEMALE)

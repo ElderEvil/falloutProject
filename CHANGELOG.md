@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.295.0 (2026-11-07)
+
+### Features
+
+* **onboarding:** add first-run theme and audio setup ([#1357](https://github.com/ElderEvil/falloutProject/issues/1357)) 8751257
+
 ## 2.294.0 (2026-11-07)
 
 ### Features

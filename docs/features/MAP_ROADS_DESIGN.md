@@ -75,9 +75,18 @@ trails visually separate from solid ochre roads. Markers remain the strongest si
 
 A zoom-aware cartography pass now draws, from the same backend geometry: overview keeps
 only highways and railroads; mid zoom adds country roads, highway centre dashes and
-junction rings; close zoom adds deterministic wear, faded `OLD <number>` route labels and
-railway station/water-tower markers. No new recipe fields and no travel effects; fog
-clipping, exact junctions and the backend-owned geometry contract are unchanged.
+deterministic, very low-opacity region-name stencils; close zoom adds wear, pre-war
+hole-shield route markers and railway station/water-tower markers. A faint survey
+graticule (11×11 lines) sits inside the fog clip beneath the roads. Junctions merge
+through the shared stroke and round joins, with no drawn rings or dots. No new recipe fields and no travel effects; fog clipping, exact junctions and
+the backend-owned geometry contract are unchanged.
+
+**Compositing rule:** road paint is one isolated opacity group with fully opaque strokes.
+SVG flattens the group's children first, unions overlapping opaque strokes, then applies
+the group opacity once — so shared endpoints and crossings do not stack into darker
+blobs. Never add per-element alpha to road paint; wear is expressed only by the decay
+overlay. Region stencils are keyed off the snapshot checksum, so the same snapshot always
+produces the same names; no randomness.
 
 Junctions share exact endpoints. Country roads meet the highway cleanly; draw highway
 strokes over branch casings to avoid dark seams. A geometric crossing is an at-grade

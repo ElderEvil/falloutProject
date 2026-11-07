@@ -17,6 +17,25 @@ const props = defineProps<{
 const OVERVIEW_ZOOM = 2
 const DETAIL_ZOOM = 4
 
+// One isolated opacity group for the whole road network: SVG flattens the
+// children first, unions their fully opaque strokes, then applies this once.
+// That keeps shared endpoints and crossings from stacking alpha.
+const ROAD_OPACITY = 0.72
+
+// Survey graticule: every 16 units across the 160-unit viewBox (11 lines each way).
+const GRATICULE_STEPS = Array.from({ length: 11 }, (_, index) => index * 16)
+
+const REGION_NAMES = [
+  'THE DIVIDE',
+  'ASH FLATS',
+  'RUST BELT',
+  'GLOWING SEA',
+  'DRY GULCH',
+  'OLD TERRITORIES',
+  'CINDER WASTES',
+  'THE LONG 80',
+] as const
+
 const zoom = computed(() => props.zoom ?? 1)
 const overview = computed(() => zoom.value < OVERVIEW_ZOOM)
 const detailed = computed(() => zoom.value >= DETAIL_ZOOM)
@@ -62,35 +81,9 @@ const visibleLayers = computed(() =>
   overview.value ? layers.value.filter((layer) => layer.kind !== 'country') : layers.value
 )
 
-interface Junction {
-  key: string
-  x: number
-  y: number
-}
-
-/** Vertices shared by two or more road segments, so intersections read as junctions. */
-const junctions = computed<Junction[]>(() => {
-  if (overview.value) return []
-  const seen = new Map<string, { x: number; y: number; count: number }>()
-  for (const layer of layers.value) {
-    if (layer.kind === 'railroad') continue
-    for (const segment of layer.segments) {
-      for (const point of new Set(segment.points.split(' '))) {
-        const [x, y] = point.split(',').map(Number)
-        const entry = seen.get(point) ?? { x, y, count: 0 }
-        entry.count += 1
-        seen.set(point, entry)
-      }
-    }
-  }
-  return [...seen.entries()]
-    .filter(([, entry]) => entry.count > 1)
-    .map(([key, entry]) => ({ key, x: entry.x, y: entry.y }))
-})
-
-interface RoadLabel {
+interface RouteShield {
   id: string
-  text: string
+  route: string
   x: number
   y: number
   angle: number
@@ -103,7 +96,7 @@ function routeNumber(id: string): string {
   return String(10 + hash)
 }
 
-function midpointLabel(segment: RoadSegment): RoadLabel | null {
+function midpointShield(segment: RoadSegment): RouteShield | null {
   const coords = segment.points.split(' ').map((point) => point.split(',').map(Number))
   if (coords.length < 2) return null
   const index = Math.floor((coords.length - 1) / 2)
@@ -114,19 +107,19 @@ function midpointLabel(segment: RoadSegment): RoadLabel | null {
   if (angle < -90) angle += 180
   return {
     id: segment.id,
-    text: `OLD ${routeNumber(segment.id)}`,
+    route: routeNumber(segment.id),
     x: (x1 + x2) / 2,
-    y: (y1 + y2) / 2 - 0.9,
+    y: (y1 + y2) / 2,
     angle,
   }
 }
 
-const roadLabels = computed<RoadLabel[]>(() => {
+const routeShields = computed<RouteShield[]>(() => {
   if (!detailed.value) return []
   const highway = layers.value.find((layer) => layer.kind === 'highway')
   return (highway?.segments ?? []).flatMap((segment) => {
-    const label = midpointLabel(segment)
-    return label ? [label] : []
+    const shield = midpointShield(segment)
+    return shield ? [shield] : []
   })
 })
 
@@ -153,10 +146,64 @@ const railStops = computed<RailStop[]>(() => {
   })
 })
 
-/** Worn roads fade with distance at close zoom; overview keeps full contrast. */
-function roadOpacity(condition: number): number {
-  return detailed.value ? 0.55 + 0.45 * condition : 1
+interface RegionLabel {
+  name: string
+  x: number
+  y: number
 }
+
+/**
+ * Deterministic region stencils: one per 2x2 snapshot quadrant that carries
+ * enough wasteland/ruins cells. Uses the same cheap hash as `conditionFor`
+ * so the same snapshot always yields the same names.
+ */
+function checksumOffset(checksum: string): number {
+  let hash = 0
+  for (const char of checksum) hash = (hash * 31 + char.charCodeAt(0)) % 1009
+  return hash
+}
+
+const regionLabels = computed<RegionLabel[]>(() => {
+  const snapshot = props.snapshot
+  if (!snapshot || overview.value) return []
+  const { width, height, terrain } = snapshot
+  if (width < 1 || height < 1 || terrain.length !== width * height) return []
+
+  const offset = checksumOffset(snapshot.snapshot_checksum) % REGION_NAMES.length
+  const halfWidth = Math.ceil(width / 2)
+  const halfHeight = Math.ceil(height / 2)
+  const labels: RegionLabel[] = []
+
+  for (let quadrantY = 0; quadrantY < 2; quadrantY++) {
+    for (let quadrantX = 0; quadrantX < 2; quadrantX++) {
+      const x0 = quadrantX * halfWidth
+      const y0 = quadrantY * halfHeight
+      const x1 = Math.min(width, x0 + halfWidth)
+      const y1 = Math.min(height, y0 + halfHeight)
+      let count = 0
+      let sumX = 0
+      let sumY = 0
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          const tile = terrain[y * width + x]
+          if (tile !== 'wasteland' && tile !== 'ruins') continue
+          count++
+          sumX += x
+          sumY += y
+        }
+      }
+      const area = (x1 - x0) * (y1 - y0)
+      if (count < Math.max(1, Math.floor(area * 0.02))) continue
+      const quadrantIndex = quadrantY * 2 + quadrantX
+      labels.push({
+        name: REGION_NAMES[(quadrantIndex + offset) % REGION_NAMES.length],
+        x: ((sumX / count + 0.5) / width) * MAP_UNITS,
+        y: ((sumY / count + 0.5) / height) * MAP_UNITS,
+      })
+    }
+  }
+  return labels
+})
 
 // One SVG path of explored horizontal runs, rather than thousands of tile nodes.
 // An absent/mismatched mask reveals nothing. This also clips the road casings.
@@ -192,95 +239,147 @@ const exploredClip = computed(() => {
       stroke-linecap="round"
       stroke-linejoin="round"
     >
-      <g v-for="layer in visibleLayers" :key="layer.kind" v-bind="{ 'data-layer': layer.kind }">
-        <polyline
-          v-for="road in layer.segments"
-          :key="`${road.id}-casing`"
-          :points="road.points"
-          class="stroke-terminal-background/70"
-          :stroke-width="layer.kind === 'country' ? 0.68 : 1.36"
-          v-bind="{ 'data-role': 'casing' }"
+      <g v-bind="{ 'data-role': 'graticule' }" :opacity="0.07" class="stroke-terrain-road">
+        <line
+          v-for="step in GRATICULE_STEPS"
+          :key="`graticule-v-${step}`"
+          :x1="step"
+          y1="0"
+          :x2="step"
+          y2="160"
+          stroke-width="0.12"
         />
-        <template v-if="layer.kind === 'railroad'">
-          <polyline
-            v-for="road in layer.segments"
-            :key="`${road.id}-sleepers`"
-            :points="road.points"
-            stroke-linecap="butt"
-            stroke-width="1.1"
-            stroke-dasharray="0.14 0.8"
-            class="stroke-terrain-rail/70"
-          />
-        </template>
-        <polyline
-          v-for="road in layer.segments"
-          :key="road.id"
-          :points="road.points"
-          :class="
-            layer.kind === 'railroad'
-              ? 'stroke-terrain-rail/90'
-              : layer.kind === 'highway'
-                ? 'stroke-terrain-road/85'
-                : 'stroke-terrain-road/60'
-          "
-          :stroke-width="layer.kind === 'railroad' ? 0.24 : layer.kind === 'highway' ? 0.8 : 0.36"
-          :opacity="roadOpacity(road.condition)"
-          v-bind="{ 'data-role': 'road' }"
+        <line
+          v-for="step in GRATICULE_STEPS"
+          :key="`graticule-h-${step}`"
+          x1="0"
+          :y1="step"
+          x2="160"
+          :y2="step"
+          stroke-width="0.12"
         />
-        <template v-if="layer.kind === 'highway' && !overview">
-          <polyline
-            v-for="road in layer.segments"
-            :key="`${road.id}-dashes`"
-            :points="road.points"
-            stroke-width="0.14"
-            stroke-linecap="butt"
-            stroke-dasharray="0.7 0.9"
-            class="stroke-terrain-road"
-            opacity="0.85"
-            v-bind="{ 'data-role': 'highway-dashes' }"
-          />
-        </template>
-        <template v-if="detailed">
-          <polyline
-            v-for="road in layer.segments.filter((segment) => segment.condition < 0.5)"
-            :key="`${road.id}-decay`"
-            :points="road.points"
-            :stroke-width="layer.kind === 'country' ? 0.18 : 0.32"
-            stroke-dasharray="0.4 1.2"
-            stroke-linecap="butt"
-            class="stroke-terminal-background/60"
-            v-bind="{ 'data-role': 'road-decay' }"
-          />
-        </template>
       </g>
 
-      <circle
-        v-for="junction in junctions"
-        :key="`junction-${junction.key}`"
-        :cx="junction.x"
-        :cy="junction.y"
-        r="0.55"
-        stroke-width="0.18"
-        class="fill-terminal-background stroke-terrain-road/80"
-        v-bind="{ 'data-role': 'junction' }"
-      />
-
-      <text
-        v-for="label in roadLabels"
-        :key="`label-${label.id}`"
-        :x="label.x"
-        :y="label.y"
-        :transform="`rotate(${label.angle} ${label.x} ${label.y})`"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        font-size="2.2"
-        letter-spacing="0.25"
-        fill="currentColor"
-        class="font-mono text-terrain-road/60"
-        v-bind="{ 'data-role': 'road-label' }"
+      <g
+        v-if="!overview"
+        v-bind="{ 'data-role': 'region-labels' }"
+        :opacity="0.1"
+        class="fill-terrain-road font-mono"
       >
-        {{ label.text }}
-      </text>
+        <text
+          v-for="region in regionLabels"
+          :key="`region-${region.name}`"
+          :x="region.x"
+          :y="region.y"
+          font-size="6.2"
+          letter-spacing="0.8"
+          text-anchor="middle"
+          dominant-baseline="middle"
+          v-bind="{ 'data-role': 'region-label', 'data-region': region.name }"
+        >
+          {{ region.name }}
+        </text>
+      </g>
+
+      <g v-bind="{ 'data-role': 'road-paint' }" :opacity="ROAD_OPACITY">
+        <g v-for="layer in visibleLayers" :key="layer.kind" v-bind="{ 'data-layer': layer.kind }">
+          <polyline
+            v-for="road in layer.segments"
+            :key="`${road.id}-casing`"
+            :points="road.points"
+            class="stroke-terminal-background"
+            :stroke-width="layer.kind === 'country' ? 0.68 : 1.36"
+            v-bind="{ 'data-role': 'casing' }"
+          />
+          <template v-if="layer.kind === 'railroad'">
+            <polyline
+              v-for="road in layer.segments"
+              :key="`${road.id}-sleepers`"
+              :points="road.points"
+              stroke-linecap="butt"
+              stroke-width="1.1"
+              stroke-dasharray="0.14 0.8"
+              class="stroke-terrain-rail"
+            />
+          </template>
+          <polyline
+            v-for="road in layer.segments"
+            :key="road.id"
+            :points="road.points"
+            :class="
+              layer.kind === 'railroad'
+                ? 'stroke-terrain-rail'
+                : layer.kind === 'highway'
+                  ? 'stroke-terrain-road'
+                  : 'stroke-terrain-road-dim'
+            "
+            :stroke-width="layer.kind === 'railroad' ? 0.24 : layer.kind === 'highway' ? 0.8 : 0.36"
+            v-bind="{ 'data-role': 'road' }"
+          />
+          <template v-if="layer.kind === 'highway' && !overview">
+            <polyline
+              v-for="road in layer.segments"
+              :key="`${road.id}-dashes`"
+              :points="road.points"
+              stroke-width="0.14"
+              stroke-linecap="butt"
+              stroke-dasharray="0.7 0.9"
+              class="stroke-terrain-road"
+              v-bind="{ 'data-role': 'highway-dashes' }"
+            />
+          </template>
+          <template v-if="detailed">
+            <polyline
+              v-for="road in layer.segments.filter((segment) => segment.condition < 0.5)"
+              :key="`${road.id}-decay`"
+              :points="road.points"
+              :stroke-width="layer.kind === 'country' ? 0.18 : 0.32"
+              stroke-dasharray="0.4 1.2"
+              stroke-linecap="butt"
+              class="stroke-terminal-background"
+              v-bind="{ 'data-role': 'road-decay' }"
+            />
+          </template>
+        </g>
+      </g>
+
+      <g v-if="detailed" v-bind="{ 'data-role': 'route-shields' }" :opacity="0.8">
+        <g
+          v-for="shield in routeShields"
+          :key="`shield-${shield.id}`"
+          :transform="`translate(${shield.x} ${shield.y}) rotate(${shield.angle})`"
+          v-bind="{ 'data-role': 'route-shield', 'data-route': shield.route }"
+        >
+          <path
+            d="M -2.2 -2 H 2.2 L 2.2 0.4 Q 2.2 2.4 0 2.8 Q -2.2 2.4 -2.2 0.4 Z"
+            stroke-width="0.22"
+            stroke-linejoin="round"
+            class="fill-terminal-background stroke-terrain-road"
+          />
+          <text
+            x="0"
+            y="-1.25"
+            font-size="0.8"
+            letter-spacing="0.15"
+            text-anchor="middle"
+            dominant-baseline="middle"
+            class="fill-terrain-road font-mono"
+          >
+            OLD
+          </text>
+          <text
+            x="0"
+            y="0.2"
+            font-size="1.9"
+            letter-spacing="0.1"
+            text-anchor="middle"
+            dominant-baseline="middle"
+            class="fill-terrain-road font-mono"
+          >
+            {{ shield.route }}
+          </text>
+        </g>
+      </g>
 
       <g
         v-for="stop in railStops"

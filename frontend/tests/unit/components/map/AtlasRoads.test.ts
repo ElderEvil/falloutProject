@@ -97,18 +97,63 @@ describe('AtlasRoads', () => {
     })
     expect(overview.find('[data-layer="country"]').exists()).toBe(false)
     expect(overview.findAll('[data-role="highway-dashes"]')).toHaveLength(0)
-    expect(overview.findAll('[data-role="junction"]')).toHaveLength(0)
-    expect(overview.findAll('[data-role="road-label"]')).toHaveLength(0)
+    expect(overview.findAll('[data-role="route-shield"]')).toHaveLength(0)
+    expect(overview.findAll('[data-role="region-label"]')).toHaveLength(0)
     expect(overview.findAll('[data-role="rail-stop"]')).toHaveLength(0)
+    expect(overview.find('[data-role="graticule"]').exists()).toBe(true)
     expect(overview.find('[data-layer="highway"]').exists()).toBe(true)
 
     const detail = mount(AtlasRoads, {
       props: { snapshot: railSnapshot(), explored: new Uint8Array(4).fill(1), zoom: 4 },
     })
     expect(detail.findAll('[data-role="highway-dashes"]')).toHaveLength(1)
-    expect(detail.findAll('[data-role="junction"]')).toHaveLength(1)
-    expect(detail.findAll('[data-role="road-label"]')[0].text()).toMatch(/^OLD \d+$/)
+    const shields = detail.findAll('[data-role="route-shield"]')
+    expect(shields).toHaveLength(1)
+    expect(shields[0].attributes('data-route')).toMatch(/^\d+$/)
     expect(detail.findAll('[data-role="rail-stop"]')).toHaveLength(2)
+    expect(detail.findAll('[data-role="region-label"]').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('flattens road paint into one isolated opacity group with opaque strokes', () => {
+    const wrapper = mount(AtlasRoads, {
+      props: { snapshot: railSnapshot(), explored: new Uint8Array(4).fill(1), zoom: 4 },
+    })
+
+    const paint = wrapper.find('[data-role="road-paint"]')
+    expect(paint.exists()).toBe(true)
+    expect(Number(paint.attributes('opacity'))).toBeLessThan(1)
+
+    const roads = wrapper.findAll('[data-role="road"]')
+    expect(roads.length).toBeGreaterThan(0)
+    for (const road of roads) {
+      expect(paint.element.contains(road.element)).toBe(true)
+      expect(road.attributes('opacity')).toBeUndefined()
+    }
+  })
+
+  it('renders deterministic region stencils at mid zoom only', () => {
+    const regions = (zoom: number) =>
+      mount(AtlasRoads, {
+        props: { snapshot: snapshot(), explored: new Uint8Array(4).fill(1), zoom },
+      })
+        .findAll('[data-role="region-label"]')
+        .map((label) => label.attributes('data-region'))
+
+    const first = regions(2)
+    const second = regions(2)
+    expect(first.length).toBeGreaterThan(0)
+    expect(second).toEqual(first)
+    expect(regions(1)).toHaveLength(0)
+  })
+
+  it('draws an 11x11 survey graticule inside the fog clip', () => {
+    const wrapper = mount(AtlasRoads, {
+      props: { snapshot: snapshot(), explored: new Uint8Array(4).fill(1), zoom: 2 },
+    })
+
+    const graticule = wrapper.find('[data-role="graticule"]')
+    expect(graticule.findAll('line')).toHaveLength(22)
+    expect(wrapper.find('g[clip-path]').element.contains(graticule.element)).toBe(true)
   })
 
   it('renders worn segments with a decay overlay at close zoom', () => {

@@ -106,6 +106,7 @@
     --color-terrain-water: #253440;
     /* Background cartography; both road sizes derive from this muted sand. */
     --color-terrain-road: #e6c886;
+    --color-terrain-road-dim: color-mix(in srgb, var(--color-terrain-road) 62%, var(--color-terminal-background));
     --color-terrain-rail: #9baca6;
 
     /* Fog of war — unexplored atlas regions. Near-black olive drawn from the

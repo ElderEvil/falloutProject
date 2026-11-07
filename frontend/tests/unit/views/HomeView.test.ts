@@ -5,6 +5,8 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import HomeView from '@/modules/vault/views/HomeView.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useProfileStore } from '@/modules/profile/stores/profile'
+import type { UserProfile } from '@/models/profile'
 import axios from '@/core/plugins/axios'
 
 vi.mock('@/core/plugins/axios')
@@ -70,6 +72,20 @@ describe('HomeView', () => {
     await continueStep(wrapper)
   }
 
+  const profileWithPreferences = (preferences: Record<string, unknown>): UserProfile => ({
+    id: 'profile-1',
+    user_id: 'test-user-id',
+    bio: null,
+    avatar_url: null,
+    preferences,
+    total_dwellers_created: 0,
+    total_caps_earned: 0,
+    total_explorations: 0,
+    total_rooms_built: 0,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  })
+
   const vaultsAtCount = (count: number) =>
     Array.from({ length: count }, (_, index) => ({
       id: `vault-${index + 1}`,
@@ -86,6 +102,51 @@ describe('HomeView', () => {
       dweller_count: 10,
       updated_at: new Date().toISOString(),
     }))
+
+  describe('First-run setup', () => {
+    const mountWithTeleport = () =>
+      mount(HomeView, {
+        global: {
+          plugins: [router],
+          stubs: { Teleport: { template: '<div><slot /></div>' } },
+        },
+      })
+
+    it('shows setup for a new account with no vaults', async () => {
+      vaultStore.vaults = []
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      useProfileStore().profile = profileWithPreferences({})
+
+      const wrapper = mountWithTeleport()
+      await settleView()
+
+      expect(wrapper.text()).toContain('Welcome, Overseer')
+      expect(wrapper.text()).toContain('Terminal theme')
+    })
+
+    it('does not show setup once the account completed it', async () => {
+      vaultStore.vaults = []
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      useProfileStore().profile = profileWithPreferences({
+        setup: { version: 1, completed: true, skipped: false },
+      })
+
+      const wrapper = mountWithTeleport()
+      await settleView()
+
+      expect(wrapper.text()).not.toContain('Welcome, Overseer')
+    })
+
+    it('does not show setup when the account already has a vault', async () => {
+      vaultStore.vaults = vaultsAtCount(1)
+      useProfileStore().profile = profileWithPreferences({})
+
+      const wrapper = mountWithTeleport()
+      await settleView()
+
+      expect(wrapper.text()).not.toContain('Welcome, Overseer')
+    })
+  })
 
   describe('Rendering', () => {
     it('should render welcome message', async () => {

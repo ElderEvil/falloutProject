@@ -8,8 +8,9 @@ import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 import { useRoomRendering } from '@/core/composables/useRoomRendering'
 import { useBadgeStyle } from '@/core/composables/useBadgeStyle'
 import { useGroupColors } from '@/core/composables/useGroupColors'
-import { audioManager, type AudioBus } from '@/core/audio/audioManager'
 import { useProfileStore } from '../stores/profile'
+import ThemePicker from '../components/ThemePicker.vue'
+import SoundSettingsPanel from '../components/SoundSettingsPanel.vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useBackNavigation } from '@/core/composables/useBackNavigation'
 import { handleStoreError } from '@/core/utils/errorHandler'
@@ -30,7 +31,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/core/components/ui/t
 import { Switch } from '@/core/components/ui/switch'
 import { Label } from '@/core/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/core/components/ui/toggle-group'
-import { Slider } from '@/core/components/ui/slider'
 import {
   Tooltip,
   TooltipContent,
@@ -65,7 +65,7 @@ const {
   resetToDefaults,
 } = useVisualEffects()
 
-const { currentTheme, availableThemes, setTheme } = useTheme()
+const { currentTheme, setTheme } = useTheme()
 const { showRoomImages, toggleRoomImages } = useRoomRendering()
 const { isMonochrome, toggleBadgeStyle } = useBadgeStyle()
 const { groupColors, toggleGroupColors } = useGroupColors()
@@ -186,31 +186,6 @@ const toggleNotificationCategory = (category: string, next?: boolean) => {
     })
 }
 
-const soundBusOptions: { bus: AudioBus; label: string; description: string }[] = [
-  { bus: 'ui', label: 'Interface', description: 'Button clicks, tab switches, popups' },
-  { bus: 'sfx', label: 'Game Effects', description: 'Incidents, completions, rewards' },
-  { bus: 'music', label: 'Music', description: 'Vault ambient and exploration loops' },
-  { bus: 'ambience', label: 'Room Ambience', description: 'Per-room ambience loops' },
-]
-
-const toggleSound = () => {
-  audioManager.setMuted(!audioManager.muted)
-  if (!audioManager.muted) audioManager.play('success', 'ui')
-}
-
-const toggleAlarm = () => {
-  audioManager.setAlarmEnabled(!audioManager.alarmEnabled)
-  if (audioManager.alarmEnabled && !audioManager.muted) audioManager.play('alarm', 'sfx')
-}
-
-const setBusVolume = (bus: AudioBus, volume: number) => {
-  audioManager.setVolume(bus, volume)
-  // Audible feedback: play that bus's sample so the change is heard live.
-  if (bus === 'music') audioManager.previewMusic()
-  else if (bus === 'ambience') audioManager.previewAmbience()
-  else audioManager.play(bus === 'sfx' ? 'success' : 'select', bus)
-}
-
 // Persist theme to the user profile so fetchProfile() does not reset the
 // local choice back to the server-side preference on the next profile load.
 const handleThemeChange = (themeName: ThemeName) => {
@@ -295,35 +270,10 @@ const handleGlowSelect = (value: unknown) => {
                         Choose a color palette inspired by different Fallout games.
                       </p>
 
-                      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <button
-                          v-for="theme in availableThemes"
-                          :key="theme.name"
-                          @click="handleThemeChange(theme.name)"
-                          class="theme-card"
-                          :class="{ active: currentTheme.name === theme.name }"
-                          :style="{
-                            borderColor: theme.colors.primary,
-                            boxShadow:
-                              currentTheme.name === theme.name
-                                ? `0 0 15px ${theme.colors.glow}`
-                                : 'none',
-                          }"
-                          :aria-label="`Select ${theme.displayName}`"
-                          :aria-pressed="currentTheme.name === theme.name"
-                        >
-                          <div
-                            class="theme-preview"
-                            :style="{ backgroundColor: theme.colors.primary }"
-                          ></div>
-                          <div class="theme-info">
-                            <h4 class="theme-name" :style="{ color: theme.colors.primary }">
-                              {{ theme.displayName }}
-                            </h4>
-                            <p class="theme-description">{{ theme.description }}</p>
-                          </div>
-                        </button>
-                      </div>
+                      <ThemePicker
+                        :model-value="currentTheme.name"
+                        @update:model-value="handleThemeChange"
+                      />
                     </div>
 
                     <div>
@@ -518,55 +468,7 @@ const handleGlowSelect = (value: unknown) => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <!-- Master Enable -->
-                    <Label class="setting-row cursor-pointer">
-                      <div class="setting-info">
-                        <h4 class="setting-label">Sound Enabled</h4>
-                        <p class="setting-description">Master switch for all game audio</p>
-                      </div>
-                      <Switch
-                        :checked="audioManager.muted === false"
-                        :aria-label="audioManager.muted ? 'Enable sound' : 'Disable sound'"
-                        @update:checked="() => toggleSound()"
-                      />
-                    </Label>
-
-                    <!-- Incident Alarm (independent of the master switch) -->
-                    <Label class="setting-row cursor-pointer">
-                      <div class="setting-info">
-                        <h4 class="setting-label">Incident Alarm</h4>
-                        <p class="setting-description">
-                          Looping siren while an incident is active; music and effects are
-                          unaffected
-                        </p>
-                      </div>
-                      <Switch
-                        :checked="audioManager.alarmEnabled"
-                        :disabled="audioManager.muted"
-                        aria-label="Toggle incident alarm"
-                        @update:checked="() => toggleAlarm()"
-                      />
-                    </Label>
-
-                    <!-- Volume Sliders -->
-                    <div v-for="option in soundBusOptions" :key="option.bus" class="setting-row">
-                      <div class="setting-info">
-                        <h4 class="setting-label">{{ option.label }}</h4>
-                        <p class="setting-description">{{ option.description }}</p>
-                      </div>
-                      <div class="w-40 shrink-0">
-                        <!-- @vue-ignore -->
-                        <Slider
-                          :model-value="[audioManager.volumes[option.bus]]"
-                          :disabled="audioManager.muted"
-                          :min="0"
-                          :max="1"
-                          :step="0.01"
-                          :aria-label="`${option.label} volume`"
-                          @update:model-value="setBusVolume(option.bus, $event[0] ?? 0)"
-                        />
-                      </div>
-                    </div>
+                    <SoundSettingsPanel />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -734,46 +636,6 @@ const handleGlowSelect = (value: unknown) => {
   margin-bottom: 0.5rem;
 }
 
-/* Theme Cards */
-.theme-card {
-  position: relative;
-  padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.3);
-  border: 2px solid;
-  border-radius: 4px;
-  transition: all 0.3s ease;
-  text-align: left;
-  cursor: pointer;
-}
-
-.theme-card:hover {
-  background: rgba(0, 0, 0, 0.5);
-}
-
-.theme-card.active {
-  background: rgba(0, 0, 0, 0.6);
-  border-width: 3px;
-}
-
-.theme-preview {
-  width: 100%;
-  height: 30px;
-  border-radius: 2px;
-  margin-bottom: 0.5rem;
-}
-
-.theme-name {
-  font-size: 0.95rem;
-  font-weight: bold;
-  margin-bottom: 0.125rem;
-}
-
-.theme-description {
-  font-size: 0.75rem;
-  color: color-mix(in srgb, var(--color-theme-primary) 60%, transparent);
-  line-height: 1.2;
-}
-
 /* Settings Rows */
 .setting-row {
   display: flex;
@@ -854,8 +716,6 @@ const handleGlowSelect = (value: unknown) => {
   font-weight: 700;
   letter-spacing: 0.05em;
 }
-
-/* Volume sliders use the shared Slider component */
 
 @media (max-width: 768px) {
   .main-content {

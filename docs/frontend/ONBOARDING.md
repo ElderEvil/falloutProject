@@ -50,6 +50,22 @@ A first-session guide that shows one useful action at a time, then hands off to 
   the spotlight (`Show control` calls the refresh directly) and resizing that hides the control
   falls back to explicit navigation instead of leaving a detached highlight.
 
+## Account first-run setup
+
+A separate, account-level setup appears on `HomeView` only when the profile is loaded, the account
+has no vaults, and `preferences.setup.completed` is not true. It is not part of the per-vault
+spotlight ledger and does not gate or reward gameplay.
+
+- **One skippable screen.** The player can choose a theme, enable audio, or **Skip for now**; both
+  actions persist `setup: { version: 1, completed: true, skipped }` to the profile so the setup
+  follows the account across devices.
+- **Reused controls.** `ThemePicker` and `SoundSettingsPanel` are extracted from Preferences, so
+  the setup and the full Preferences page share one implementation.
+- **Audio unlock.** Sound remains off by default. Enabling it during setup provides the user gesture
+  browsers require before audio playback and immediately previews the selected audio.
+- **Existing accounts.** Accounts that already have a vault do not see the setup, avoiding a
+  surprise first-run interruption after deploy. Theme and sound remain editable in Preferences.
+
 ## Compatibility (starter cohort)
 
 Objectives share template rows, so preserving a legacy vault's ordering and rewards requires

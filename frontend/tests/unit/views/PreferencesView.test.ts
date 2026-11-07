@@ -265,6 +265,19 @@ describe('PreferencesView', () => {
     expect(lastPayload.preferences.notifications.disabled_categories).toContain('crafting')
   })
 
+  it('saves theme changes from the shared picker', async () => {
+    const store = useProfileStore()
+    store.profile = mockProfile
+    const wrapper = mountView()
+
+    await wrapper.get('[aria-label="Select Fallout: New Vegas — Amber Terminal"]').trigger('click')
+    await flushPromises()
+
+    expect(axios.put).toHaveBeenCalledWith('/api/v1/users/me/profile', {
+      preferences: { theme: 'fnv' },
+    })
+  })
+
   it('selects glow intensity through the toggle group', async () => {
     const store = useProfileStore()
     store.profile = mockProfile

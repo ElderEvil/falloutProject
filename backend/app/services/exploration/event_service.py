@@ -53,9 +53,10 @@ async def _register_event_discovery(
     """Resolve an event's place using spatial or legacy registration, best-effort."""
     if not location_name:
         return None
-    from app.services.map_service import map_service
 
     try:
+        from app.services.map_service import map_service
+
         if exploration.heading_degrees is None:
             return await map_service.register_discovery(
                 db_session, exploration.vault_id, exploration.id, exploration.dweller_id, location_name

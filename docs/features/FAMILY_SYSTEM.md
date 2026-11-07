@@ -140,7 +140,8 @@ All stored on `Dweller` (one row per dweller) + two child tables.
 See `../AGENTS.md` "Bug Fix Workflow" + this doc. Key manual checks:
 
 **Relationships**
-- [ ] Affinity auto-growth for co-located dwellers (+2/tick).
+- [ ] Co-located dwellers change affinity each tick (signed; same-race and high-Charisma pairs gain faster, incompatible pairs lose up to 2).
+- [ ] Romantic pairs below 60 demote to friend; friend pairs below 45 demote to acquaintance; PARTNER/MARRIED never demote.
 - [ ] Stage progression at 70 / 70 / 85 thresholds.
 - [ ] Romance / Partner / Marry buttons appear exactly when allowed.
 - [ ] Marry: happiness bonus +25, `RELATIONSHIP_FORMED` notification, badge shows `MARRIED`.

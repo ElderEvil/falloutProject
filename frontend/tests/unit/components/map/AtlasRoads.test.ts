@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import AtlasRoads from '@/modules/map/components/AtlasRoads.vue'
+import { MIN_ZOOM, WHEEL_STEP } from '@/modules/map/composables/useMapZoomPan'
 import type { WorldSnapshotRead } from '@/modules/map/models/map'
 
 function snapshot(): WorldSnapshotRead {
@@ -112,6 +113,20 @@ describe('AtlasRoads', () => {
     expect(shields[0].attributes('data-route')).toMatch(/^\d+$/)
     expect(detail.findAll('[data-role="rail-stop"]')).toHaveLength(2)
     expect(detail.findAll('[data-role="region-label"]').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('reveals local roads on the first zoom step in from the full atlas', () => {
+    const wrapper = mount(AtlasRoads, {
+      props: {
+        snapshot: snapshot(),
+        explored: new Uint8Array(4).fill(1),
+        zoom: MIN_ZOOM + WHEEL_STEP,
+      },
+    })
+
+    const country = wrapper.find('[data-layer="country"]')
+    expect(country.exists()).toBe(true)
+    expect(country.findAll('[data-role="road"]')[0].attributes('stroke-width')).toBe('0.36')
   })
 
   it('flattens road paint into one isolated opacity group with opaque strokes', () => {

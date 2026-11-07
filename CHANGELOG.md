@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.291.0 (2026-11-07)
+
+### Features
+
+* add backend-owned roads and railroads to the world map 5bf223a
+* add zoom-aware pre-war detail to the atlas roads 3f7ff80
+* connect public places to the road network d6291d3
+* **map:** flatten road compositing and add pre-war cartography detail 5030f6f
+
+### Bug Fixes
+
+* refuse degenerate access spurs for places already standing on roads 72a0066
+
 ## 2.290.4 (2026-11-07)
 
 ### Code Refactoring

@@ -18,7 +18,7 @@ from app.crud.world_location import world_location as location_crud
 from app.crud.world_snapshot import world_snapshot as snapshot_crud
 from app.models.world_snapshot import WorldSnapshot
 from app.schemas.world_snapshot import WorldRoadConnectionsResult, WorldRoadsRead, WorldSlotRead, WorldSnapshotRead
-from app.services.map.road_generation import ROAD_VERSION, generate_roads, place_access_road
+from app.services.map.road_generation import ROAD_VERSION, generate_roads, place_access_road, place_on_road
 from app.services.map.world_generation import (
     GENERATOR_VERSION,
     WORLD_ID,
@@ -65,11 +65,16 @@ class WorldSnapshotService:
         for place in await location_crud.get_public_road_places(db_session):
             if place.id in connected:
                 continue
+            origin = (place.coord_x, place.coord_y)
+            if place_on_road(origin, vertices):
+                # A spur this short grafts as a round-cap dot; the place already stands on the network.
+                connected.add(place.id)
+                continue
             access = place_access_road(
                 terrain=snapshot.terrain,
                 width=snapshot.config["width"],
                 height=snapshot.config["height"],
-                origin=(place.coord_x, place.coord_y),
+                origin=origin,
                 land=land,
                 vertices=vertices,
                 location_id=str(place.id),

@@ -139,8 +139,8 @@ def test_default_roads_reach_outer_regions_with_a_denser_network():
     assert max(y for _, y in points) > 93
 
 
-@pytest.mark.parametrize(("origin", "expected"), [((50.5, 50.5), True), ((49.5, 50.5), True), ((48.4, 50.5), False)])
-def test_access_roads_leave_distant_places_off_road(origin, expected):
+def _access_road_for(origin):
+    """Build one country backbone and ask for an access spur at `origin` (0-100 units, all land)."""
     from uuid import uuid4
 
     from app.schemas.world_snapshot import WorldRoadRead, WorldRoadsRead
@@ -152,16 +152,36 @@ def test_access_roads_leave_distant_places_off_road(origin, expected):
         checksum="roads",
         segments=[WorldRoadRead(id="main", kind="country", points=[(50.5, 50.5), (50.5, 60.5)])],
     )
-    access = place_access_road(
-        terrain=["wasteland"] * 10000,
-        width=100,
-        height=100,
-        origin=origin,
-        land=set(range(10000)),
-        vertices=set(roads.segments[0].points),
-        location_id=str(uuid4()),
+    return (
+        place_access_road(
+            terrain=["wasteland"] * 10000,
+            width=100,
+            height=100,
+            origin=origin,
+            land=set(range(10000)),
+            vertices=set(roads.segments[0].points),
+            location_id=str(uuid4()),
+        ),
+        set(roads.segments[0].points),
     )
+
+
+@pytest.mark.parametrize(("origin", "expected"), [((49.5, 50.5), True), ((48.4, 50.5), False)])
+def test_access_roads_leave_distant_places_off_road(origin, expected):
+    access, _ = _access_road_for(origin)
     assert (access is not None) == expected
+
+
+@pytest.mark.parametrize(("origin", "on_road"), [((50.5, 50.5), True), ((50.8, 50.5), True), ((49.5, 50.5), False)])
+def test_places_already_standing_on_the_network_get_no_access_spur(origin, on_road):
+    from app.services.map.road_generation import place_on_road
+
+    access, vertices = _access_road_for(origin)
+    assert place_on_road(origin, vertices) is on_road
+    if on_road:
+        assert access is None
+    else:
+        assert access is not None
 
 
 def test_access_road_rejects_short_distance_with_long_water_detour():

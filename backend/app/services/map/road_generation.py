@@ -23,6 +23,8 @@ from app.services.map.world_generation import TRAVEL_COST, TerrainType, _largest
 
 ROAD_VERSION = 4
 MAX_ACCESS_LENGTH = 2.0  # Registry units (1.6 cells on the default 80 x 80 world).
+# Country stroke in registry space (0.68 SVG / 1.6): a shorter spur grafts as a round-cap dot.
+MIN_ACCESS_LENGTH = 0.425
 # Largest casing is 1.36 SVG units: radius in registry space = 1.36 / 1.6 / 2.
 # Extra clearance absorbs serialization rounding. Country roads use the same safe corridor.
 ROAD_RADIUS = 0.426
@@ -351,6 +353,11 @@ def generate_roads(*, terrain: list[str], width: int, height: int, seed: str, ba
     return WorldRoadsRead(version=ROAD_VERSION, base_checksum=base_checksum, checksum=checksum, segments=segments)
 
 
+def place_on_road(origin: Point, vertices: set[Point]) -> bool:
+    """True when the coordinate already stands on a road vertex closer than a visible driveway."""
+    return any(_distance(origin, point) <= MIN_ACCESS_LENGTH for point in vertices)
+
+
 def place_access_road(
     *,
     terrain: list[str],
@@ -373,6 +380,8 @@ def place_access_road(
     def center(cell: int) -> Point:
         return ((cell % width + 0.5) * 100 / width, (cell // width + 0.5) * 100 / height)
 
+    if place_on_road(origin, vertices):
+        return None
     if not clear(origin, origin):
         return None
     start = tile(origin)

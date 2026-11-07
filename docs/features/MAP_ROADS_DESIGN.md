@@ -5,7 +5,9 @@ access roads from the saved coordinates of seeded public places to existing road
 Each access road carries `location_id`; the existing network and terrain stay fixed.
 Only places within 2 registry units of a backbone road vertex qualify, and the complete
 land-safe spur must be at most 2 units long (1.6 default terrain cells). This leaves
-distant places off-road and prevents long detours around water. Access roads keep normal
+distant places off-road and prevents long detours around water. A place already within a
+country-stroke width (0.425 registry units) of the network connects without a driveway;
+shorter spurs would graft as round-cap dots instead of roads. Access roads keep normal
 country-road weight. Their short geometry reuses the railway tangent simplifier for
 direct driveways and restrained bends, without long-road meanders.
 

@@ -191,6 +191,27 @@ async def test_explicit_road_upgrade_replaces_only_the_older_layer(async_session
     assert (await world_snapshot_service.backfill_roads(async_session, upgrade=True)).roads == payload
 
 
+def _roadside_slot(terrain: list[str], spine: list[tuple[float, float]]) -> tuple[float, float]:
+    """A land coordinate far enough from every road vertex that connect_places owes it a genuine spur."""
+    from app.services.map.road_generation import place_on_road
+    from app.services.map.world_generation import _largest_traversable_component
+
+    land = _largest_traversable_component(terrain, 80, 80)
+    vertices = set(spine)
+
+    def cell(point: tuple[float, float]) -> int:
+        return min(79, int(point[1] * 0.8)) * 80 + min(79, int(point[0] * 0.8))
+
+    offsets = ((1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0), (1.0, 1.0), (-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0))
+    for vertex in sorted(vertices):
+        for dx, dy in offsets:
+            point = (vertex[0] + dx, vertex[1] + dy)
+            usable = all(0.0 <= c < 100 for c in point) and cell(point) in land
+            if usable and not place_on_road(point, vertices):
+                return point
+    pytest.fail("no roadside slot near the backbone")
+
+
 @pytest.mark.parametrize("refresh", [False, True])
 @pytest.mark.parametrize("fail_write", [False, True])
 async def test_public_place_connections_preserve_network_and_privacy(
@@ -246,9 +267,25 @@ async def test_public_place_connections_preserve_network_and_privacy(
         coord_x=(water % 80 + 0.5) * 1.25,
         coord_y=(water // 80 + 0.5) * 1.25,
     )
-    async_session.add_all([public, private, blocked])
+    spine = [
+        tuple(point)
+        for road in original["segments"]
+        if road["kind"] != "railroad" and not road.get("location_id")
+        for point in road["points"]
+    ]
+    roadside_slot = _roadside_slot(snapshot.terrain, spine)
+    roadside = WorldLocation(
+        name="Roadside depot",
+        normalized_name="roadside depot",
+        kind=PlaceKindEnum.PLACE,
+        source="seed",
+        coord_x=roadside_slot[0],
+        coord_y=roadside_slot[1],
+    )
+    async_session.add_all([public, private, blocked, roadside])
     await async_session.commit()
     public_id, private_id = str(public.id), str(private.id)
+    roadside_id = str(roadside.id)
 
     def reject_write(session, context):
         raise RuntimeError("connection write failed")
@@ -267,15 +304,19 @@ async def test_public_place_connections_preserve_network_and_privacy(
     result = await world_snapshot_service.connect_places(async_session, refresh=refresh)
     assert result.added == 1
     assert result.off_road == 1
+    assert result.already_connected == 1
     await async_session.refresh(snapshot)
     access = [r for r in snapshot.roads["segments"] if r.get("location_id")]
     backbone = [{k: v for k, v in r.items() if v is not None} for r in original["segments"] if not r.get("location_id")]
     assert [r for r in snapshot.roads["segments"] if not r.get("location_id")] == backbone
     assert len(access) == 1
-    assert access[0]["location_id"] == public_id
+    assert access[0]["location_id"] == roadside_id
     assert access[0]["location_id"] != private_id
-    assert access[0]["points"][0] == [slot["coord_x"], slot["coord_y"]]
-    assert access[0]["points"][-1] in [p for r in original["segments"] if r["kind"] != "railroad" for p in r["points"]]
+    assert access[0]["points"][0] == [roadside_slot[0], roadside_slot[1]]
+    assert access[0]["points"][-1] in [
+        p for r in original["segments"] if r["kind"] != "railroad" and not r.get("location_id") for p in r["points"]
+    ]
+    assert not any(r.get("location_id") == public_id for r in snapshot.roads["segments"])
     assert result.removed == int(refresh)
     payload = snapshot.roads.copy()
     assert (await world_snapshot_service.connect_places(async_session)).added == 0

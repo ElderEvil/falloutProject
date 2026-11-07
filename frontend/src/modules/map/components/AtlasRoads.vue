@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
 import type { WorldSnapshotRead } from '../models/map'
+import { MIN_ZOOM } from '../composables/useMapZoomPan'
 import { MAP_UNITS, registryToWire } from '../utils/atlasProjection'
 
 const props = defineProps<{
@@ -11,9 +12,10 @@ const props = defineProps<{
   zoom?: number
 }>()
 
-// Overview keeps only the long-distance network; close zoom reveals the
-// pre-war detail (dashes, decay, labels, rail stops). Both are decoration over
-// backend-owned geometry.
+// The backbone network stays visible at every zoom; local roads join it as soon
+// as the player steps in from the full-world atlas. Close zoom then adds the
+// pre-war detail (dashes, decay, labels, rail stops) on top. Both are decoration
+// over backend-owned geometry.
 const OVERVIEW_ZOOM = 2
 const DETAIL_ZOOM = 4
 
@@ -78,7 +80,7 @@ const layers = computed<RoadLayer[]>(() => {
 })
 
 const visibleLayers = computed(() =>
-  overview.value ? layers.value.filter((layer) => layer.kind !== 'country') : layers.value
+  zoom.value > MIN_ZOOM ? layers.value : layers.value.filter((layer) => layer.kind !== 'country')
 )
 
 interface RouteShield {

@@ -109,6 +109,7 @@ export const useRoomStore = defineStore('room', () => {
       handleStoreError(error, 'Failed to fetch rooms')
       if (requestSequence !== fetchRoomsRequestSequence) return 'superseded'
       rooms.value = [] // Reset to empty array on error
+      roomsLoadedVaultId.value = null
       if (throwOnError) throw error
       return 'failed'
     }

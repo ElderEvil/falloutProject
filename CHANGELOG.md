@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.293.0 (2026-11-07)
+
+### Features
+
+* race and Charisma driven relationship affinity drift ([#1355](https://github.com/ElderEvil/falloutProject/issues/1355)) bd51549
+
 ## 2.292.0 (2026-11-07)
 
 ### Features

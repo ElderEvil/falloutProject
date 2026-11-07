@@ -68,7 +68,7 @@ describe('canUseRadaway', () => {
     expect(canUseRadaway({ visual_attributes: { race } })).toBe(false)
   })
 
-  it.each(['gen_1', 'gen_2'])('blocks visible synth model %s', (state_of_being) => {
+  it.each(['gen_1', 'gen_2', undefined])('blocks non-Gen-3 synth model %s', (state_of_being) => {
     expect(canUseRadaway({ visual_attributes: { race: 'synth', state_of_being } })).toBe(false)
   })
 

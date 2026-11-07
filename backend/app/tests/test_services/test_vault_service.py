@@ -41,7 +41,7 @@ from app.schemas.vault import (
 from app.services.vault import economy, seeding
 from app.services.vault.seed_types import CreatedRooms, PreparedRooms
 from app.services.vault_service import VaultService
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
 from app.utils.room_assets import get_room_image_url
 
 # Valid UUIDv4 constants for use in mocked objects
@@ -369,7 +369,15 @@ class TestStartTrainingSessions:
 
         # If we got this far without exception, the call went through
 
-    async def test_training_failure_is_logged_not_raised(self) -> None:
+    @pytest.mark.parametrize(
+        "error",
+        [
+            ResourceNotFoundException(Dweller, "test-id"),
+            VaultOperationException(detail="This dweller's state prevents purposeful training."),
+        ],
+        ids=["not-found", "state-rejected"],
+    )
+    async def test_training_failure_is_logged_not_raised(self, error: Exception) -> None:
         """If training fails for one dweller, it is logged and other dwellers proceed."""
         vault_id = VAULT_ID
         train_room = _make_room(
@@ -408,7 +416,7 @@ class TestStartTrainingSessions:
             patch(
                 "app.services.vault.seeding.training_service.start_training",
                 new_callable=AsyncMock,
-                side_effect=ResourceNotFoundException(Dweller, "test-id"),
+                side_effect=error,
             ),
         ):
             await seeding.start_training_sessions(db_session, vault_id, [train_room], is_boosted=True)

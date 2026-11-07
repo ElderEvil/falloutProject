@@ -258,6 +258,7 @@ class TestStateOfBeingDeltas:
     [
         ("ghoul", None),
         ("super_mutant", None),
+        ("synth", None),
         ("synth", "gen_1"),
         ("synth", "gen_2"),
     ],

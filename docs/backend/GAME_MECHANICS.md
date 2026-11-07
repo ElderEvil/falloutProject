@@ -439,15 +439,17 @@ flipping the switch back on restores them. While it is off the roster filter rej
 `identity-options` returns no factions (races still offered), and `GET /system/features` tells clients the state
 so nothing rejected is ever offered. Non-human radiation immunity survives both switches. Ghouls,
 super mutants, Gen-1 synths and Gen-2 synths cannot accumulate radiation or use RadAway; Gen-3
-synths are organic and pass as human, so they accumulate radiation and can use RadAway. All races
-can use Stimpaks (including Gen 1/2 synths until a repair system exists).
+synths are organic and pass as human, so they accumulate radiation and can use RadAway. This is
+lore-accurate: Gen-3 synths are biological, while Gen-1 and Gen-2 synths are mechanical. Synths with
+no recorded generation keep the synthetic immunity. All races can use Stimpaks (including Gen 1/2
+synths until a repair system exists).
 
 **State-of-being action policy.** Age and reasoning state share one gate in
 `app/utils/dweller_availability.py`. Feral ghouls and behemoths may fight and defend only; they
-cannot work, train, explore, join quests, initiate romance, marry, gain social affinity, or use the
-Barbershop. Gen-3 synths pass as human for the Barbershop and other human-only surfaces. All synth
-generations remain explicitly non-breeding, including Gen-3: passing as human is a social/visual
-rule, not a reproduction rule.
+cannot work, train, explore, join quests, initiate romance, marry, or gain social affinity. The
+Barbershop is separate: it admits humans and human-presenting synths (`passes_as_human`), so every
+ghoul and super mutant is rejected there. All synth generations remain explicitly non-breeding,
+including Gen-3: passing as human is a social/visual rule, not a reproduction rule.
 
 **Do not gate faction on the shared identity schema.** `DwellerVisualAttributes` validates curated
 `DwellerTemplate` seeds, AI generation and partial updates, which legitimately carry a faction; a schema-level

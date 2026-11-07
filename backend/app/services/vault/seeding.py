@@ -65,7 +65,7 @@ from app.services.vault.seed_types import (
     PreparedRooms,
 )
 from app.utils.dwellers import group_dwellers_by_room
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
 from app.utils.item_factory import build_catalog_item, build_junk, build_outfit, build_pet, build_weapon
 from app.utils.junk_assets import get_junk_image_url
 from app.utils.room_assets import get_room_image_url
@@ -604,7 +604,7 @@ async def start_dweller_training(db_session: AsyncSession, dweller: Dweller, roo
         await db_session.refresh(dweller)
         await training_service.start_training(db_session, dweller.id, room.id)
         logger.info(f"Started training for dweller {dweller.id} in room {room.id}")
-    except (ResourceNotFoundException, ResourceConflictException, ValueError) as e:
+    except (ResourceNotFoundException, ResourceConflictException, VaultOperationException, ValueError) as e:
         logger.warning(f"Failed to start training for dweller {dweller.id} in room {room.id}: {e}")
 
 

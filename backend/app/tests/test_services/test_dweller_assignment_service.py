@@ -650,6 +650,44 @@ class TestAutoAssignTrainingRooms:
         assert result["assigned_count"] == 2
         assert [call.args[1] for call in mock_start_training.await_args_list] == [_DWEAK, _DSTRONG]
 
+    @pytest.mark.asyncio
+    async def test_skips_dwellers_ineligible_for_work(self, svc, mock_db):
+        """Feral dwellers never reach the training service."""
+        room = _make_room(
+            _id=_R_TRAIN,
+            category=RoomTypeEnum.TRAINING,
+            ability=SPECIALEnum.STRENGTH,
+            size=3,
+        )
+        feral = _make_dweller(_id=_D1, strength=8)
+        feral.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
+        adult = _make_dweller(_id=_D2, strength=2)
+
+        with (
+            patch(
+                "app.services.dweller_assignment_service.crud.room.get_by_category",
+                new_callable=AsyncMock,
+                return_value=[room],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
+                new_callable=AsyncMock,
+                return_value=[feral, adult],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
+                new_callable=AsyncMock,
+                return_value=0,
+            ),
+            patch(
+                "app.services.dweller_assignment_service.training_service.start_training", new_callable=AsyncMock
+            ) as mock_start_training,
+        ):
+            result = await svc.auto_assign_training_rooms(mock_db, "v1")
+
+        assert result["assigned_count"] == 1
+        assert [call.args[1] for call in mock_start_training.await_args_list] == [_D2]
+
 
 # ===================================================================
 # _total_special
@@ -733,6 +771,37 @@ class TestAutoAssignCraftingRooms:
         assert result["assigned_count"] == 2
         assert [call.args[1] for call in mock_update.call_args_list] == [_D1, _D2]
         assert result["assignments"][0]["room_id"] == str(_R_CRAFT)
+
+    @pytest.mark.asyncio
+    async def test_skips_dwellers_ineligible_for_work(self, svc, mock_db):
+        """Feral dwellers are not posted to crafting rooms."""
+        room = _make_room(_id=_R_CRAFT, category=RoomTypeEnum.CRAFTING, ability=None, size=9)
+        feral = _make_dweller(_id=_D1)
+        feral.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
+        adult = _make_dweller(_id=_D2)
+
+        with (
+            patch(
+                "app.services.dweller_assignment_service.crud.room.get_by_category",
+                new_callable=AsyncMock,
+                return_value=[room],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
+                new_callable=AsyncMock,
+                return_value=[feral, adult],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
+                new_callable=AsyncMock,
+                return_value=0,
+            ),
+            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
+        ):
+            result = await svc.auto_assign_crafting_rooms(mock_db, "v1")
+
+        assert result["assigned_count"] == 1
+        assert [call.args[1] for call in mock_update.call_args_list] == [_D2]
 
     @pytest.mark.asyncio
     async def test_crafting_room_capacity_respected(self, svc, mock_db):

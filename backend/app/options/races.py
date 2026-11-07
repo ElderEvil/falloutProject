@@ -74,11 +74,12 @@ def modifiers_for_race(entity: object) -> RaceModifiers:
     """Racial modifiers for an entity; unknown or missing races take the human baseline.
 
     Gen-3 synths pass as human, so their organic body accumulates radiation like
-    a human. Gen-1/Gen-2 synths keep the synthetic radiation immunity.
+    a human. Gen-1/Gen-2 synths, and synths with no recorded generation, keep
+    the synthetic radiation immunity.
     """
     race = race_of(entity) or RaceOption.HUMAN
     modifiers = RACE_MODIFIERS.get(race, RACE_MODIFIERS[RaceOption.HUMAN])
-    if race == RaceOption.SYNTH and passes_as_human(race, state_of_being_of(entity)):
+    if race == RaceOption.SYNTH and state_of_being_of(entity) == SynthTypeEnum.GEN_3.value:
         return replace(modifiers, radiation_immune=False)
     return modifiers
 

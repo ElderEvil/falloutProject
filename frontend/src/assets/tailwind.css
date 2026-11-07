@@ -104,8 +104,10 @@
     --color-terrain-ruins: #4d4638;
     --color-terrain-hills: #3a2b18;
     --color-terrain-water: #253440;
-    /* Reserved for a future road layer: no road data exists yet, do not draw. */
+    /* Background cartography; both road sizes derive from this muted sand. */
     --color-terrain-road: #e6c886;
+    --color-terrain-road-dim: color-mix(in srgb, var(--color-terrain-road) 62%, var(--color-terminal-background));
+    --color-terrain-rail: #9baca6;
 
     /* Fog of war — unexplored atlas regions. Near-black olive drawn from the
        terrain palette, fully opaque so hidden terrain and markers do not ghost

@@ -2457,8 +2457,8 @@ export interface paths {
          * Get World Snapshot
          * @description Return the shared backend-generated base world (authenticated, public snapshot).
          *
-         *     Terrain and land-safe slots only — never ownership, discoveries, or expedition
-         *     state. The snapshot is generated once and read; this endpoint never regenerates.
+         *     Terrain, land-safe slots and background roads — never ownership, discoveries,
+         *     or expedition state. Existing snapshots are only read, never regenerated.
          */
         get: operations["get_world_snapshot_api_v1_map_world_get"];
         put?: never;
@@ -7837,6 +7837,34 @@ export interface components {
             remaining_caps: number;
         };
         /**
+         * DwellerRosterFilters
+         * @description Identity filters and sort order for the vault roster.
+         *
+         *     Shared by the endpoint and the service so a new filter cannot be added on
+         *     one side only.
+         */
+        DwellerRosterFilters: {
+            status?: components["schemas"]["DwellerStatusEnum"] | null;
+            focus?: components["schemas"]["DwellerRosterFocus"] | null;
+            age_group?: components["schemas"]["AgeGroupEnum"] | null;
+            gender?: components["schemas"]["GenderEnum"] | null;
+            rarity?: components["schemas"]["RarityEnum"] | null;
+            /** Search */
+            search?: string | null;
+            race?: components["schemas"]["RaceEnum"] | null;
+            faction?: components["schemas"]["FactionEnum"] | null;
+            /**
+             * Sort By
+             * @default created_at
+             */
+            sort_by: string;
+            /**
+             * Order
+             * @default desc
+             */
+            order: string;
+        };
+        /**
          * DwellerRosterFocus
          * @description Wire-only roster attention filters; not a persisted database enum.
          * @enum {string}
@@ -9951,8 +9979,9 @@ export interface components {
          * PetEffectRead
          * @description Wire shape for the catalog-resolved bonus a pet grants.
          *
-         *     Mirrors ``PetEffect``; all-zero for pets without a catalog entry, so the
-         *     client can always read the shape without a null check.
+         *     Fields come from ``PetEffect``; the empty subclass keeps the public schema
+         *     name stable for generated clients. All-zero for pets without a catalog
+         *     entry, so the client can always read the shape without a null check.
          */
         PetEffectRead: {
             /**
@@ -12468,6 +12497,40 @@ export interface components {
             storage_id?: string | null;
         };
         /**
+         * WorldRoadRead
+         * @description Backend-validated centerline in registry coordinates, including rounded bends.
+         */
+        WorldRoadRead: {
+            /** Id */
+            id: string;
+            /** Location Id */
+            location_id?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "highway" | "country" | "railroad";
+            /** Points */
+            points: [
+                number,
+                number
+            ][];
+        };
+        /**
+         * WorldRoadsRead
+         * @description Additive cartography; versioning this layer never reseeds the base world.
+         */
+        WorldRoadsRead: {
+            /** Version */
+            version: number;
+            /** Base Checksum */
+            base_checksum: string;
+            /** Checksum */
+            checksum: string;
+            /** Segments */
+            segments: components["schemas"]["WorldRoadRead"][];
+        };
+        /**
          * WorldSlotRead
          * @description One land-safe slot: stable index + registry coordinate.
          */
@@ -12503,6 +12566,7 @@ export interface components {
             terrain: string[];
             /** Slots */
             slots: components["schemas"]["WorldSlotRead"][];
+            roads?: components["schemas"]["WorldRoadsRead"] | null;
         };
     };
     responses: never;
@@ -13881,17 +13945,8 @@ export interface operations {
     };
     read_dwellers_by_vault_api_v1_dwellers_vault__vault_id___get: {
         parameters: {
-            query?: {
-                status?: components["schemas"]["DwellerStatusEnum"] | null;
-                focus?: components["schemas"]["DwellerRosterFocus"] | null;
-                age_group?: components["schemas"]["AgeGroupEnum"] | null;
-                gender?: components["schemas"]["GenderEnum"] | null;
-                rarity?: components["schemas"]["RarityEnum"] | null;
-                search?: string | null;
-                race?: components["schemas"]["RaceEnum"] | null;
-                faction?: components["schemas"]["FactionEnum"] | null;
-                sort_by?: string;
-                order?: string;
+            query: {
+                filters: components["schemas"]["DwellerRosterFilters"];
                 skip?: number;
                 limit?: number;
             };

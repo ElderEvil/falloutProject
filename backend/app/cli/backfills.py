@@ -22,11 +22,13 @@ import typer
 
 from app import crud
 from app.db.session import async_session_maker
+from app.schemas.world_snapshot import WorldRoadConnectionsResult
 from app.services.bio_place_backfill_service import bio_place_backfill_service
 from app.services.discovery_backfill_service import discovery_backfill_service
 from app.services.dweller_name_backfill_service import dweller_name_backfill_service
 from app.services.quest_state_objective_backfill_service import quest_state_objective_backfill_service
 from app.services.room_service import room_service
+from app.services.world_snapshot_service import world_snapshot_service
 from app.utils.exceptions import ResourceNotFoundException
 
 app = typer.Typer(
@@ -36,6 +38,36 @@ app = typer.Typer(
 )
 
 logger = logging.getLogger(__name__)
+
+
+@app.command(name="connect-world-places")
+def connect_world_places(
+    refresh: Annotated[
+        bool, typer.Option(help="Replace access spurs only, including orphaned or overlong connections")
+    ] = False,
+) -> None:
+    """Connect nearby seeded public places to the existing road network."""
+
+    async def _run() -> WorldRoadConnectionsResult:
+        async with async_session_maker() as session:
+            return await world_snapshot_service.connect_places(session, refresh=refresh)
+
+    typer.echo(str(asyncio.run(_run()).model_dump()))
+
+
+@app.command(name="world-roads")
+def world_roads(
+    upgrade: Annotated[bool, typer.Option(help="Replace an older road recipe on the same terrain")] = False,
+) -> None:
+    """Add roads to the existing shared world once, preserving terrain and placements."""
+
+    async def _run() -> int:
+        async with async_session_maker() as session:
+            snapshot = await world_snapshot_service.backfill_roads(session, upgrade=upgrade)
+            return len(snapshot.roads["segments"]) if snapshot.roads is not None else 0
+
+    count = asyncio.run(_run())
+    typer.echo(f"World roads ready: {count} segments (terrain and placements preserved).")
 
 
 @app.command(name="backfill-state-objectives")

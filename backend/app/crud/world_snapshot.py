@@ -18,19 +18,20 @@ if TYPE_CHECKING:
 
 class CRUDWorldSnapshot:
     async def get_version(
-        self, db_session: AsyncSession, *, world_id: str, generator_version: int
+        self, db_session: AsyncSession, *, world_id: str, generator_version: int, for_update: bool = False
     ) -> WorldSnapshot | None:
         """The persisted snapshot for an explicitly selected world version, or None.
 
         Selection is by exact ``(world_id, generator_version)`` — never "the newest" —
         so generating a later version cannot silently change what an existing reader sees.
         """
-        result = await db_session.execute(
-            select(WorldSnapshot).where(
-                WorldSnapshot.world_id == world_id,
-                WorldSnapshot.generator_version == generator_version,
-            )
+        statement = select(WorldSnapshot).where(
+            WorldSnapshot.world_id == world_id,
+            WorldSnapshot.generator_version == generator_version,
         )
+        if for_update:
+            statement = statement.with_for_update().execution_options(populate_existing=True)
+        result = await db_session.execute(statement)
         return result.scalar_one_or_none()
 
     async def create(self, db_session: AsyncSession, *, snapshot: WorldSnapshot) -> WorldSnapshot:

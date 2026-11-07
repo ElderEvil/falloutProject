@@ -9,12 +9,10 @@ import { Icon } from '@iconify/vue'
 import { useDwellerStore } from '../stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
-import PageContentRail from '@/core/components/common/PageContentRail.vue'
-import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Card } from '@/core/components/ui/card'
+import DwellerPanelLayout from '../components/DwellerPanelLayout.vue'
 import { DeadDwellerCard } from '../components/death'
 
 const route = useRoute()
@@ -22,7 +20,6 @@ const router = useRouter()
 const authStore = useAuthStore()
 const { death: dwellerStore } = useDwellerStore()
 const vaultStore = useVaultStore()
-const { isCollapsed } = useSidePanel()
 
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
@@ -44,98 +41,60 @@ const viewDwellerDetails = (dwellerId: string) => {
 </script>
 
 <template>
-  <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div class="vault-layout">
-      <!-- Side Panel -->
-      <SidePanel />
+  <DwellerPanelLayout>
+    <PageHeader
+      title="Graveyard"
+      icon="mdi:grave-stone"
+      subtitle="Memorial for permanently deceased dwellers"
+    >
+      <template #back>
+        <PageNavigation back-label="Back to Dwellers" :breadcrumbs="breadcrumbs" />
+      </template>
+    </PageHeader>
 
-      <!-- Main Content Area -->
-      <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
-        <PageContentRail>
-          <PageHeader
-            title="Graveyard"
-            icon="mdi:grave-stone"
-            subtitle="Memorial for permanently deceased dwellers"
-          >
-            <template #back>
-              <PageNavigation back-label="Back to Dwellers" :breadcrumbs="breadcrumbs" />
-            </template>
-          </PageHeader>
-
-          <!-- Loading State -->
-          <div v-if="dwellerStore.isDeadLoading" class="w-full text-center py-12">
-            <Icon icon="mdi:loading" class="h-12 w-12 animate-spin text-theme-primary mx-auto" />
-            <p class="mt-4 text-theme-primary/60">Loading graveyard records...</p>
-          </div>
-
-          <!-- Empty State -->
-          <Card
-            v-else-if="dwellerStore.graveyardDwellers.length === 0"
-            class="w-full max-w-lg text-center gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-glow-md ring-0 crt-screen"
-          >
-            <div class="py-8 px-4">
-              <Icon
-                icon="mdi:emoticon-happy"
-                class="h-16 w-16 text-theme-primary/40 mx-auto mb-4"
-              />
-              <h3 class="text-xl font-bold text-theme-primary mb-2">No Permanent Casualties</h3>
-              <p class="text-theme-primary/60 text-sm">
-                The graveyard is empty. All deceased dwellers are still within the revival window.
-              </p>
-            </div>
-          </Card>
-
-          <!-- Graveyard Grid -->
-          <div v-else class="w-full graveyard-grid">
-            <DeadDwellerCard
-              v-for="dweller in dwellerStore.graveyardDwellers"
-              :key="dweller.id"
-              :dweller="dweller"
-              @view-details="viewDwellerDetails"
-            />
-          </div>
-
-          <!-- Summary Footer -->
-          <div v-if="dwellerStore.graveyardDwellers.length > 0" class="w-full mt-8 text-center">
-            <p class="text-xs text-muted-foreground font-mono">
-              {{ dwellerStore.graveyardDwellers.length }} soul{{
-                dwellerStore.graveyardDwellers.length !== 1 ? 's' : ''
-              }}
-              laid to rest
-            </p>
-          </div>
-        </PageContentRail>
-      </div>
+    <!-- Loading State -->
+    <div v-if="dwellerStore.isDeadLoading" class="w-full text-center py-12">
+      <Icon icon="mdi:loading" class="h-12 w-12 animate-spin text-theme-primary mx-auto" />
+      <p class="mt-4 text-theme-primary/60">Loading graveyard records...</p>
     </div>
-  </div>
+
+    <!-- Empty State -->
+    <Card
+      v-else-if="dwellerStore.graveyardDwellers.length === 0"
+      class="w-full max-w-lg text-center gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-glow-md ring-0 crt-screen"
+    >
+      <div class="py-8 px-4">
+        <Icon icon="mdi:emoticon-happy" class="h-16 w-16 text-theme-primary/40 mx-auto mb-4" />
+        <h3 class="text-xl font-bold text-theme-primary mb-2">No Permanent Casualties</h3>
+        <p class="text-theme-primary/60 text-sm">
+          The graveyard is empty. All deceased dwellers are still within the revival window.
+        </p>
+      </div>
+    </Card>
+
+    <!-- Graveyard Grid -->
+    <div v-else class="w-full graveyard-grid">
+      <DeadDwellerCard
+        v-for="dweller in dwellerStore.graveyardDwellers"
+        :key="dweller.id"
+        :dweller="dweller"
+        @view-details="viewDwellerDetails"
+      />
+    </div>
+
+    <!-- Summary Footer -->
+    <div v-if="dwellerStore.graveyardDwellers.length > 0" class="w-full mt-8 text-center">
+      <p class="text-xs text-muted-foreground font-mono">
+        {{ dwellerStore.graveyardDwellers.length }} soul{{
+          dwellerStore.graveyardDwellers.length !== 1 ? 's' : ''
+        }}
+        laid to rest
+      </p>
+    </div>
+  </DwellerPanelLayout>
 </template>
 
 <style scoped>
-.vault-layout {
-  display: flex;
-  min-height: 100vh;
-}
-
-.main-content {
-  flex: 1;
-  margin-left: 240px;
-  transition: margin-left 0.3s ease;
-  font-weight: 700;
-  letter-spacing: 0.025em;
-  line-height: 1.6;
-}
-
-.main-content.collapsed {
-  margin-left: 64px;
-}
-
-.main-content h1,
-.main-content h2,
-.main-content h3 {
-  font-weight: 700;
-  text-shadow: 0 0 8px var(--color-theme-glow);
-}
-
 .graveyard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));

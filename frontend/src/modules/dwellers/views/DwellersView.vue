@@ -19,8 +19,7 @@ import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { happinessService } from '@/modules/dwellers/services/happinessService'
-import { useAsyncAction } from '@/core/composables/useAsyncAction'
-import { setRadioMode } from '@/modules/radio/api/radio'
+import { useActivateRadio } from '@/modules/vault/composables/useActivateRadio'
 import type { Room } from '@/modules/rooms/models/room'
 import { findProductionRoom, type ResourceName } from '@/modules/rooms/models/roomParts'
 import SidePanel from '@/core/components/common/SidePanel.vue'
@@ -568,18 +567,7 @@ const handleAssignIdle = () => {
   void router.push({ query: idleQuery.value })
 }
 
-const { run: runActivateRadio, isLoading: isActivatingRadio } = useAsyncAction(
-  async (currentVaultId: string, token: string) => {
-    await setRadioMode(currentVaultId, 'happiness')
-    await vaultStore.refreshVault(currentVaultId, token)
-  },
-  { context: 'Failed to activate radio mode' }
-)
-
-const handleActivateRadio = async () => {
-  if (!vaultId.value || !authStore.token || isActivatingRadio.value) return
-  await runActivateRadio(vaultId.value, authStore.token)
-}
+const { isActivatingRadio, handleActivateRadio } = useActivateRadio(vaultId)
 
 const handleViewLowHappiness = () => {
   happinessOverviewOpen.value = false

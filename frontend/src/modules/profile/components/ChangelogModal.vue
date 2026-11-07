@@ -9,11 +9,8 @@ import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
 import { Card } from '@/core/components/ui/card'
 import { Icon } from '@iconify/vue'
-import {
-  changelogService,
-  type ChangelogEntry,
-  type ChangeEntry,
-} from '@/modules/profile/services/changelogService'
+import { changelogService, type ChangelogEntry } from '@/modules/profile/services/changelogService'
+import { groupChangesByCategory } from '@/modules/profile/models/changelog'
 import FormattedChangeDescription from '@/modules/profile/components/FormattedChangeDescription.vue'
 import { getChangelogCategoryIcon } from '@/modules/profile/components/changelogCategoryIcons'
 import { useBlockingOverlay } from '@/core/composables/useBlockingOverlay'
@@ -88,20 +85,6 @@ const handleViewAllChangelog = () => {
 }
 
 const handleEscape = (event: KeyboardEvent) => event.key === 'Escape' && show && emit('close')
-
-// Group changes by category
-const groupChangesByCategory = (changes: ChangeEntry[]) => {
-  const grouped = new Map<string, ChangeEntry[]>()
-
-  changes.forEach((change) => {
-    if (!grouped.has(change.category)) {
-      grouped.set(change.category, [])
-    }
-    grouped.get(change.category)!.push(change)
-  })
-
-  return Array.from(grouped.entries())
-}
 
 // Fetch changelog when modal opens (with immediate:true for initial show=true)
 watch(

@@ -1,17 +1,9 @@
 import { apiGet } from '@/core/utils/api'
 import { useToast } from '@/core/composables/useToast'
+import type { components } from '@/core/types/api.generated'
 
-export interface ChangelogEntry {
-  version: string
-  date: string
-  date_display: string
-  changes: ChangeEntry[]
-}
-
-export interface ChangeEntry {
-  category: string
-  description: string
-}
+export type ChangelogEntry = components['schemas']['ChangelogEntry']
+export type ChangeEntry = components['schemas']['ChangeEntry']
 
 class ChangelogService {
   private readonly baseUrl = '/api/v1/system/changelog'

@@ -594,6 +594,40 @@ class RelationshipConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="RELATIONSHIP_")
 
     affinity_increase_per_tick: int = Field(default=2, description="Affinity gain when in same room", ge=0)
+    affinity_loss_per_tick: int = Field(default=1, description="Base affinity loss when chemistry is poor", ge=0)
+    affinity_max_loss_per_tick: int = Field(default=2, description="Upper bound on affinity lost per tick", ge=1)
+    charisma_affinity_rate: float = Field(
+        default=0.08,
+        description="Affinity multiplier change per effective Charisma point away from baseline 5",
+        ge=0.0,
+    )
+    charisma_affinity_min_multiplier: float = Field(
+        default=0.5, description="Floor for the Charisma affinity multiplier", ge=0.0
+    )
+    charisma_affinity_max_multiplier: float = Field(
+        default=1.6, description="Ceiling for the Charisma affinity multiplier", ge=1.0
+    )
+    charisma_chemistry_weight: float = Field(
+        default=0.03, description="Chemistry shift per effective Charisma point away from baseline 5", ge=0.0
+    )
+    same_race_affinity_multiplier: float = Field(
+        default=1.25, description="Affinity rate multiplier when both dwellers share a race", ge=0.0
+    )
+    cross_race_affinity_multiplier: float = Field(
+        default=0.75, description="Affinity rate multiplier when dwellers have different races", ge=0.0
+    )
+    race_chemistry_bonus: float = Field(
+        default=0.05, description="Chemistry shift for a shared race (subtracted when races differ)", ge=0.0, le=1.0
+    )
+    affinity_drift_threshold: float = Field(
+        default=0.5, description="Chemistry at or below which a co-located pair drifts apart", ge=0.0, le=1.0
+    )
+    romantic_demotion_threshold: int = Field(
+        default=60, description="Affinity below which romantic pairs drop to friend", ge=0, le=100
+    )
+    friend_demotion_threshold: int = Field(
+        default=45, description="Affinity below which friends drop to acquaintance", ge=0, le=100
+    )
     romance_threshold: int = Field(default=70, description="Affinity required for romance", ge=0, le=100)
     partner_happiness_bonus: int = Field(default=10, description="Happiness bonus from having partner", ge=0)
     marriage_threshold: int = Field(default=85, description="Affinity required for marriage", ge=0, le=100)
@@ -631,6 +665,15 @@ class RelationshipConfig(BaseSettings):
         if not 0.99 <= total <= 1.01:  # Allow small floating point error
             raise ValueError(f"Compatibility weights must sum to 1.0, got {total}")
         return v
+
+    @model_validator(mode="after")
+    def validate_demotion_thresholds(self) -> "RelationshipConfig":
+        """Keep demotion below promotion so affinity cannot oscillate at a threshold."""
+        if self.friend_demotion_threshold >= self.romantic_demotion_threshold:
+            raise ValueError("friend_demotion_threshold must be below romantic_demotion_threshold")
+        if self.romantic_demotion_threshold >= self.romance_threshold:
+            raise ValueError("romantic_demotion_threshold must be below romance_threshold")
+        return self
 
 
 class BreedingConfig(BaseSettings):

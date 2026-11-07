@@ -1,7 +1,9 @@
 """Service for managing dweller relationships and compatibility."""
 
 import logging
+from dataclasses import dataclass
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -12,6 +14,8 @@ from app.crud import dweller as dweller_crud
 from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
 from app.models.relationship import Relationship
+from app.options.identity_modifiers import effective_stat
+from app.options.races import RaceOption, race_of
 from app.schemas.relationship import CompatibilityScore, VaultRelationshipRead
 from app.services.bio_service import bio_service
 from app.services.family.breeding_service import conception_potential
@@ -20,10 +24,105 @@ from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
 
+#: Neutral SPECIAL baseline: the Charisma point where relationship modifiers are 1.0x.
+_CHARISMA_BASELINE = 5
 
-def affinity_gain(dweller1: Dweller, dweller2: Dweller) -> int:
-    """Affinity gained per tick when a pair shares Living Quarters."""
-    return game_config.relationship.affinity_increase_per_tick + min(dweller1.charisma, dweller2.charisma) // 10
+
+@dataclass(frozen=True)
+class CompatibilityParts:
+    """Pure compatibility inputs shared by the API score and the affinity tick."""
+
+    score: float
+    special_score: float
+    happiness_score: float
+    level_score: float
+    proximity_score: float
+
+
+@dataclass(frozen=True)
+class DemotionNotice:
+    """Everything needed to announce a demotion after its transaction commits."""
+
+    vault_id: UUID
+    relationship_id: UUID
+    from_dweller_id: UUID
+    from_type: RelationshipTypeEnum
+    to_type: RelationshipTypeEnum
+    message: str
+
+
+def effective_charisma(dweller: Dweller) -> int:
+    """Charisma after racial, outfit and pet modifiers: the value production reads."""
+    return effective_stat(dweller, "charisma")
+
+
+def shares_race(dweller1: Dweller, dweller2: Dweller) -> bool:
+    """Whether both dwellers resolve to the same race; missing races count as human."""
+    return (race_of(dweller1) or RaceOption.HUMAN) == (race_of(dweller2) or RaceOption.HUMAN)
+
+
+def compatibility_components(dweller1: Dweller, dweller2: Dweller) -> CompatibilityParts:
+    """Compatibility scores from loaded dweller rows, without touching the session."""
+    special_diff = sum(abs(getattr(dweller1, attr, 0) - getattr(dweller2, attr, 0)) for attr in SPECIAL_STATS)
+    special_score = 1.0 - (special_diff / game_config.relationship.max_special_diff)
+
+    happiness_diff = abs(dweller1.happiness - dweller2.happiness)
+    happiness_score = 1.0 - (happiness_diff / 100.0)
+
+    level_diff = abs(dweller1.level - dweller2.level)
+    level_score = 1.0 - (level_diff / game_config.relationship.max_level_diff)
+
+    proximity_score = 1.0 if (dweller1.room_id and dweller1.room_id == dweller2.room_id) else 0.0
+
+    compatibility = (
+        special_score * game_config.relationship.compatibility_special_weight
+        + happiness_score * game_config.relationship.compatibility_happiness_weight
+        + level_score * game_config.relationship.compatibility_level_weight
+        + proximity_score * game_config.relationship.compatibility_proximity_weight
+    )
+    return CompatibilityParts(
+        score=min(1.0, max(0.0, compatibility)),
+        special_score=special_score,
+        happiness_score=happiness_score,
+        level_score=level_score,
+        proximity_score=proximity_score,
+    )
+
+
+def affinity_chemistry(dweller1: Dweller, dweller2: Dweller) -> float:
+    """Compatibility plus the race and Charisma shifts that decide bond direction."""
+    config = game_config.relationship
+    race_shift = config.race_chemistry_bonus if shares_race(dweller1, dweller2) else -config.race_chemistry_bonus
+    average_charisma = (effective_charisma(dweller1) + effective_charisma(dweller2)) / 2
+    charisma_shift = (average_charisma - _CHARISMA_BASELINE) * config.charisma_chemistry_weight
+    return compatibility_components(dweller1, dweller2).score + race_shift + charisma_shift
+
+
+def _charisma_affinity_multiplier(average_charisma: float) -> float:
+    config = game_config.relationship
+    raw = 1 + (average_charisma - _CHARISMA_BASELINE) * config.charisma_affinity_rate
+    return max(config.charisma_affinity_min_multiplier, min(config.charisma_affinity_max_multiplier, raw))
+
+
+def affinity_change(dweller1: Dweller, dweller2: Dweller) -> int:
+    """Signed affinity change per tick for a co-located pair.
+
+    Shared race and Charisma raise the gain; poor chemistry (low compatibility,
+    low Charisma, mixed races) tips the same pair into a slow loss instead.
+    """
+    config = game_config.relationship
+    average_charisma = (effective_charisma(dweller1) + effective_charisma(dweller2)) / 2
+    charisma_factor = _charisma_affinity_multiplier(average_charisma)
+    race_factor = (
+        config.same_race_affinity_multiplier
+        if shares_race(dweller1, dweller2)
+        else (config.cross_race_affinity_multiplier)
+    )
+    if affinity_chemistry(dweller1, dweller2) >= config.affinity_drift_threshold:
+        return max(1, int(config.affinity_increase_per_tick * charisma_factor * race_factor + 0.5))
+    loss_factor = max(0.5, 2 - charisma_factor) / max(race_factor, 0.01)
+    loss = max(1, int(config.affinity_loss_per_tick * loss_factor + 0.5))
+    return -min(config.affinity_max_loss_per_tick, loss)
 
 
 class RelationshipService:
@@ -59,18 +158,20 @@ class RelationshipService:
             growing_together = (
                 first.id in living_quarters_ids and second.id in living_quarters_ids and first.room_id == second.room_id
             )
-            growth = (
-                min(affinity_gain(first, second), 100 - relationship.affinity)
-                if growing_together and relationship.affinity < 100
-                else 0
-            )
+            change = affinity_change(first, second) if growing_together else 0
+            if change > 0:
+                change = min(change, 100 - relationship.affinity)
+            else:
+                change = max(change, -relationship.affinity)
             result.append(
                 VaultRelationshipRead.model_validate(
                     relationship,
                     update={
-                        "bond_growth_per_tick": growth,
+                        "bond_change_per_tick": change,
                         "bond_tick_seconds": game_config.game_loop.tick_interval,
                         "conception_potential": conception_potential(first, second),
+                        "same_race": shares_race(first, second),
+                        "average_charisma": int((effective_charisma(first) + effective_charisma(second)) / 2 + 0.5),
                     },
                 )
             )
@@ -251,6 +352,116 @@ class RelationshipService:
             f"Affinity increased {dweller_1_id} ↔ {dweller_2_id}: {old_type} → {relationship.relationship_type}"
         )
         return relationship
+
+    @staticmethod
+    async def decrease_affinity(
+        db_session: AsyncSession,
+        dweller_1_id: UUID4,
+        dweller_2_id: UUID4,
+        amount: int,
+        *,
+        relationship: Relationship | None = None,
+        commit: bool = True,
+    ) -> Relationship:
+        """Lower affinity; only non-committed stages can demote.
+
+        PARTNER and MARRIED links survive any affinity drop and end only through
+        ``break_up``. Demotions announce through the bell and a toast, delivered
+        after the caller's commit when ``commit=False``.
+        """
+        if amount <= 0:
+            msg = "Affinity decrease amount must be positive"
+            raise ValueError(msg)
+        if relationship is None:
+            relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
+        if not relationship:
+            msg = "Relationship not found between dwellers"
+            raise ValueError(msg)
+
+        new_affinity = max(0, relationship.affinity - amount)
+        demoted_from = relationship.relationship_type
+        demoted_to = RelationshipService._demotion_for(demoted_from, new_affinity)
+        notice = (
+            await RelationshipService._prepare_demotion_notice(db_session, relationship, demoted_from, demoted_to)
+            if demoted_to is not None
+            else None
+        )
+
+        update_data = {"affinity": new_affinity, "updated_at": datetime.utcnow()}
+        if demoted_to is not None:
+            update_data["relationship_type"] = demoted_to
+        RelationshipService._stage_update(db_session, relationship, update_data)
+
+        if commit:
+            await db_session.commit()
+        if notice is not None:
+            await RelationshipService._send_demotion_notice(db_session, notice, commit=commit)
+
+        logger.debug(
+            f"Affinity decreased {dweller_1_id} ↔ {dweller_2_id}: {demoted_from} → {demoted_to or demoted_from}"
+        )
+        return relationship
+
+    @staticmethod
+    def _demotion_for(current: RelationshipTypeEnum, new_affinity: int) -> RelationshipTypeEnum | None:
+        config = game_config.relationship
+        if current == RelationshipTypeEnum.ROMANTIC and new_affinity < config.romantic_demotion_threshold:
+            return RelationshipTypeEnum.FRIEND
+        if current == RelationshipTypeEnum.FRIEND and new_affinity < config.friend_demotion_threshold:
+            return RelationshipTypeEnum.ACQUAINTANCE
+        return None
+
+    @staticmethod
+    async def _prepare_demotion_notice(
+        db_session: AsyncSession,
+        relationship: Relationship,
+        from_type: RelationshipTypeEnum,
+        to_type: RelationshipTypeEnum,
+    ) -> DemotionNotice | None:
+        try:
+            first = await dweller_crud.get(db_session, relationship.dweller_1_id)
+            second = await dweller_crud.get(db_session, relationship.dweller_2_id)
+            name_1 = f"{first.first_name} {first.last_name or ''}".strip()
+            name_2 = f"{second.first_name} {second.last_name or ''}".strip()
+            if first.vault_id is None:
+                return None
+            bond = "romantic" if from_type == RelationshipTypeEnum.ROMANTIC else "friends"
+            message = f"{name_1} and {name_2} drifted apart — no longer {bond}."
+            return DemotionNotice(
+                vault_id=first.vault_id,
+                relationship_id=relationship.id,
+                from_dweller_id=relationship.dweller_1_id,
+                from_type=from_type,
+                to_type=to_type,
+                message=message,
+            )
+        except Exception:
+            logger.exception("Failed to prepare relationship demotion notice for %s", relationship.id)
+            return None
+
+    @staticmethod
+    async def _send_demotion_notice(db_session: AsyncSession, notice: DemotionNotice, *, commit: bool) -> None:
+        await NotificationService.notify_owner(
+            db_session,
+            notice.vault_id,
+            context=f"relationship demotion relationship={notice.relationship_id} vault={notice.vault_id}",
+            sender=lambda user_id: NotificationService.create_and_send(
+                db_session,
+                user_id=user_id,
+                notification_type=NotificationType.RELATIONSHIP_FORMED,
+                title="Drifting Apart",
+                message=notice.message,
+                vault_id=notice.vault_id,
+                from_dweller_id=notice.from_dweller_id,
+                meta_data={
+                    "event": "relationship_demoted",
+                    "relationship_id": str(notice.relationship_id),
+                    "from": notice.from_type.value,
+                    "to": notice.to_type.value,
+                },
+                commit=commit,
+            ),
+        )
 
     @staticmethod
     async def initiate_romance(
@@ -592,41 +803,16 @@ class RelationshipService:
         # Let ResourceNotFoundException propagate directly (HTTP 404)
         dweller_1 = await dweller_crud.get(db_session, dweller_1_id)
         dweller_2 = await dweller_crud.get(db_session, dweller_2_id)
-
-        # SPECIAL similarity score
-        special_attrs = SPECIAL_STATS
-        special_diff = sum(abs(getattr(dweller_1, attr, 0) - getattr(dweller_2, attr, 0)) for attr in special_attrs)
-        max_special_diff = game_config.relationship.max_special_diff
-        special_score = 1.0 - (special_diff / max_special_diff)
-
-        # Happiness similarity
-        happiness_diff = abs(dweller_1.happiness - dweller_2.happiness)
-        happiness_score = 1.0 - (happiness_diff / 100.0)
-
-        # Level similarity
-        level_diff = abs(dweller_1.level - dweller_2.level)
-        max_level_diff = game_config.relationship.max_level_diff
-        level_score = 1.0 - (level_diff / max_level_diff)
-
-        # Proximity (same room bonus)
-        proximity_score = 1.0 if (dweller_1.room_id and dweller_1.room_id == dweller_2.room_id) else 0.0
-
-        # Weighted total
-        compatibility = (
-            special_score * game_config.relationship.compatibility_special_weight
-            + happiness_score * game_config.relationship.compatibility_happiness_weight
-            + level_score * game_config.relationship.compatibility_level_weight
-            + proximity_score * game_config.relationship.compatibility_proximity_weight
-        )
+        parts = compatibility_components(dweller_1, dweller_2)
 
         return CompatibilityScore(
             dweller_1_id=dweller_1_id,
             dweller_2_id=dweller_2_id,
-            score=min(1.0, max(0.0, compatibility)),
-            special_score=special_score,
-            happiness_score=happiness_score,
-            level_score=level_score,
-            proximity_score=proximity_score,
+            score=parts.score,
+            special_score=parts.special_score,
+            happiness_score=parts.happiness_score,
+            level_score=parts.level_score,
+            proximity_score=parts.proximity_score,
         )
 
     @staticmethod

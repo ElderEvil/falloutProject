@@ -12270,7 +12270,7 @@ export interface components {
         };
         /**
          * VaultRelationshipRead
-         * @description Relationship with its current bond growth in the vault.
+         * @description Relationship with its current bond pace and the factors behind it.
          */
         VaultRelationshipRead: {
             /**
@@ -12295,8 +12295,8 @@ export interface components {
              * Format: uuid4
              */
             id: string;
-            /** Bond Growth Per Tick */
-            bond_growth_per_tick: number;
+            /** Bond Change Per Tick */
+            bond_change_per_tick: number;
             /** Bond Tick Seconds */
             bond_tick_seconds: number;
             /**
@@ -12304,6 +12304,10 @@ export interface components {
              * @enum {string}
              */
             conception_potential: "possible" | "race" | "age" | "gender";
+            /** Same Race */
+            same_race: boolean;
+            /** Average Charisma */
+            average_charisma: number;
         };
         /** VaultScenarioRead */
         VaultScenarioRead: {

@@ -790,11 +790,35 @@ class TestRelationshipHelpers:
         d2.id = "d-2"
         d2.charisma = 5
         rel_map = {("d-1", "d-2"): mr, ("d-2", "d-1"): mr}
-        with patch(
-            "app.services.relationship_service.relationship_service.increase_affinity", new_callable=AsyncMock
-        ) as mi:
+        with (
+            patch("app.services.relationship_service.affinity_change", return_value=2),
+            patch(
+                "app.services.relationship_service.relationship_service.increase_affinity", new_callable=AsyncMock
+            ) as mi,
+        ):
             result = await game_loop_service._update_pair_affinity(async_session, d1, d2, rel_map, [])
-        mi.assert_called_once()
+        mi.assert_awaited_once()
+        assert result == 1
+
+    @pytest.mark.asyncio
+    async def test_update_pair_affinity_dispatches_decrease(self, async_session: AsyncSession):
+        mr = MagicMock()
+        mr.dweller_1_id = "d-1"
+        mr.dweller_2_id = "d-2"
+        d1 = MagicMock()
+        d1.id = "d-1"
+        d2 = MagicMock()
+        d2.id = "d-2"
+        rel_map = {("d-1", "d-2"): mr, ("d-2", "d-1"): mr}
+        with (
+            patch("app.services.relationship_service.affinity_change", return_value=-2),
+            patch(
+                "app.services.relationship_service.relationship_service.decrease_affinity", new_callable=AsyncMock
+            ) as md,
+        ):
+            result = await game_loop_service._update_pair_affinity(async_session, d1, d2, rel_map, [])
+        md.assert_awaited_once()
+        assert md.await_args.args[3] == 2
         assert result == 1
 
     @pytest.mark.asyncio

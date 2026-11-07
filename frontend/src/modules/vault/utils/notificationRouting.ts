@@ -121,13 +121,17 @@ export function getNotificationRoute(notification: NotificationNavigationContext
     }
     case 'room_unlocked':
       return vaultPath
+    case 'relationship_formed':
+      if (notification.meta_data?.event === 'relationship_demoted') {
+        return `${vaultPath}/relationships`
+      }
+      return dwellerId ? `${vaultPath}/dwellers/${dwellerId}` : `${vaultPath}/dwellers`
     case 'level_up':
     case 'hazard_team_joined':
     case 'dweller_died':
     case 'dweller_injured':
     case 'dweller_exit_requested':
     case 'baby_born':
-    case 'relationship_formed':
     case 'pregnancy_detected':
     case 'radio_new_dweller':
     case 'map_registration_failed':

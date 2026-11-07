@@ -80,7 +80,7 @@ describe('Relationship Store', () => {
 
     it('refreshes bond progress without replacing the list with a loading state', async () => {
       vi.mocked(relationshipApi.getByVault).mockResolvedValueOnce([
-        { ...mockRelationship, bond_growth_per_tick: 3, bond_tick_seconds: 60 },
+        { ...mockRelationship, bond_change_per_tick: 3, bond_tick_seconds: 60 },
       ])
 
       const store = useRelationshipStore()
@@ -88,7 +88,7 @@ describe('Relationship Store', () => {
 
       expect(store.isLoading).toBe(false)
       await refresh
-      expect(store.relationships[0].bond_growth_per_tick).toBe(3)
+      expect(store.relationships[0].bond_change_per_tick).toBe(3)
     })
 
     it('rethrows silent fetch errors without showing a store notification', async () => {
@@ -170,7 +170,7 @@ describe('Relationship Store', () => {
 
       const store = useRelationshipStore()
       store.relationships = [
-        { ...mockRelationship, bond_growth_per_tick: 3, bond_tick_seconds: 60 },
+        { ...mockRelationship, bond_change_per_tick: 3, bond_tick_seconds: 60 },
       ]
 
       const result = await store.initiateRomance('rel-1')
@@ -178,7 +178,7 @@ describe('Relationship Store', () => {
       expect(relationshipApi.initiateRomance).toHaveBeenCalledWith('rel-1')
       expect(result?.relationship_type).toBe('romantic')
       expect(store.relationships[0].relationship_type).toBe('romantic')
-      expect(store.relationships[0].bond_growth_per_tick).toBe(3)
+      expect(store.relationships[0].bond_change_per_tick).toBe(3)
     })
 
     it('should handle romance error', async () => {

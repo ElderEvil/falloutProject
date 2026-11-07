@@ -126,9 +126,10 @@ const navigateToDweller = (dwellerId: string) => {
                 Build bonds
               </h2>
               <p>
-                Dwellers sharing Living Quarters gradually build affinity. Charisma affects bond
-                growth. Use Forming to inspect each bond and its current progress; affinity and
-                eligibility determine when romance and commitment are possible.
+                Dwellers sharing Living Quarters gradually build affinity. Same-race pairs bond
+                faster, Charisma raises the pace, and poor chemistry can make a pair drift apart.
+                Use Forming to inspect each bond and its current progress; affinity and eligibility
+                determine when romance and commitment are possible.
               </p>
             </section>
             <section>
@@ -187,8 +188,9 @@ const navigateToDweller = (dwellerId: string) => {
                 Forming Relationships
               </h2>
               <p class="mt-1 text-sm leading-6 text-theme-primary/60">
-                Dwellers in the same room will gradually increase their affinity. Romance can begin
-                at 70+ affinity.
+                Dwellers in the same room will gradually change their affinity: same-race and
+                high-Charisma pairs grow faster, while incompatible pairs can drift apart. Romance
+                can begin at 70+ affinity.
               </p>
             </div>
             <RelationshipList

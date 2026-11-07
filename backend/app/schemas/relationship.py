@@ -35,11 +35,13 @@ class RelationshipRead(RelationshipBase):
 
 
 class VaultRelationshipRead(RelationshipRead):
-    """Relationship with its current bond growth in the vault."""
+    """Relationship with its current bond pace and the factors behind it."""
 
-    bond_growth_per_tick: int
+    bond_change_per_tick: int
     bond_tick_seconds: int
     conception_potential: Literal["possible", "race", "age", "gender"]
+    same_race: bool
+    average_charisma: int
 
 
 class CompatibilityScore(SQLModel):

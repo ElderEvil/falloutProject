@@ -37,7 +37,10 @@ All stored on `Dweller` (one row per dweller) + two child tables.
 ## 3. Relationship Lifecycle (backend service: `relationship_service.py`)
 
 **What exists (keep):**
-- Affinity auto-growth per game tick (+2 when in the same room).
+- Affinity moves per game tick while a pair shares Living Quarters: same-race pairs and higher effective
+  Charisma gain faster, incompatible pairs can drift apart, and non-committed stages demote with hysteresis
+  (romantic→friend below 60, friend→acquaintance below 45). PARTNER/MARRIED links only end through `break_up`.
+  Negative affinity (rival/enemy bonds) is a future update; the floor stays at 0.
 - Auto-upgrade on affinity: `acquaintance→friend→romantic` at 70, `→partner` at 70, `partner→MARRIED` at 85 (defaults: romance 70, partnership 70, marriage 85).
 - `initiate_romance` / `make_partners` / `marry` / `break_up` endpoints + service methods.
 - `marry` grants **each** dweller a one-time cumulative **+25** happiness bonus (+10 for becoming partners, +15 for becoming married) and fires a `RELATIONSHIP_FORMED` notification.

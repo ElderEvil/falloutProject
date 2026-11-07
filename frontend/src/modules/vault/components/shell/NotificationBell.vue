@@ -107,6 +107,13 @@ function isAdoptionNotification(notification: InboxNotification): boolean {
   )
 }
 
+function isRelationshipDemotionNotification(notification: InboxNotification): boolean {
+  return (
+    notification.notification_type === 'relationship_formed' &&
+    notification.meta_data?.event === 'relationship_demoted'
+  )
+}
+
 // The same delivery path surfaces live events and unread events missed while paused.
 function processNotification(notificationData: InboxNotification) {
   if (seenNotificationIds.has(notificationData.id)) return
@@ -177,6 +184,10 @@ function processNotification(notificationData: InboxNotification) {
     isAdoptionNotification(notificationData)
   ) {
     toast.success(notificationData.message)
+  }
+  // A bond demotion is asynchronous; announce it beyond the bell (relationship is user-visible state).
+  if (isRelationshipDemotionNotification(notificationData)) {
+    toast.info(notificationData.message)
   }
   // An arena morale boost is vault-wide and asynchronous; announce it beyond the bell
   // (progression red line).
@@ -334,6 +345,7 @@ const handleNotificationClick = (notification: InboxNotification) => {
 
 const getNotificationIcon = (notification: InboxNotification): string => {
   if (isAdoptionNotification(notification)) return 'mdi:account-heart'
+  if (isRelationshipDemotionNotification(notification)) return 'mdi:heart-broken'
   const iconMap: Record<string, string> = {
     baby_born: 'mdi:baby-face',
     storage_item_degraded: 'mdi:tools',

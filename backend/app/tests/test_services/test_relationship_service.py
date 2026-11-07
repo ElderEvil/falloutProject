@@ -8,56 +8,62 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncConnection
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum, RelationshipTypeEnum
+from app.core.enums import (
+    SPECIAL_STATS,
+    AgeGroupEnum,
+    GenderEnum,
+    NotificationType,
+    RarityEnum,
+    RelationshipTypeEnum,
+)
 from app.core.game_config import game_config
 from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
+from app.models.notification import Notification
 from app.models.relationship import Relationship
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
-from app.services.relationship_service import RelationshipService, affinity_gain
+from app.services.relationship_service import RelationshipService, affinity_change
 from app.utils.exceptions import ValidationException
+
+
+def _stub_dweller(
+    *,
+    room_id,
+    charisma: int = 5,
+    race: str = "human",
+    level: int = 5,
+    happiness: int = 60,
+    gender: GenderEnum = GenderEnum.MALE,
+    **stat_overrides: int,
+) -> SimpleNamespace:
+    stats = dict.fromkeys(SPECIAL_STATS, 5)
+    stats.update(stat_overrides)
+    stats["charisma"] = charisma
+    return SimpleNamespace(
+        id=uuid4(),
+        room_id=room_id,
+        level=level,
+        happiness=happiness,
+        gender=gender,
+        age_group=AgeGroupEnum.ADULT,
+        visual_attributes={"race": race},
+        **stats,
+    )
 
 
 @pytest.mark.asyncio
 async def test_vault_relationship_progress_uses_living_quarters_and_charisma(monkeypatch: pytest.MonkeyPatch):
-    """Only a co-located pair gains affinity, with the tick's Charisma bonus."""
+    """Only a co-located pair changes affinity, using the signed race/Charisma pace."""
     room_id = uuid4()
-    first = SimpleNamespace(
-        id=uuid4(),
-        room_id=room_id,
-        charisma=10,
-        gender=GenderEnum.FEMALE,
-        age_group=AgeGroupEnum.ADULT,
-        visual_attributes={"race": "human"},
-    )
-    second = SimpleNamespace(
-        id=uuid4(),
-        room_id=room_id,
-        charisma=10,
-        gender=GenderEnum.MALE,
-        age_group=AgeGroupEnum.ADULT,
-        visual_attributes={"race": "human"},
-    )
-    elsewhere = SimpleNamespace(
-        id=uuid4(),
-        room_id=uuid4(),
-        charisma=10,
-        gender=GenderEnum.MALE,
-        age_group=AgeGroupEnum.ADULT,
-        visual_attributes={"race": "human"},
-    )
-    outside_living_quarters = SimpleNamespace(
-        id=uuid4(),
-        room_id=room_id,
-        charisma=10,
-        gender=GenderEnum.MALE,
-        age_group=AgeGroupEnum.ADULT,
-        visual_attributes={"race": "human"},
-    )
+    first = _stub_dweller(room_id=room_id, charisma=10, gender=GenderEnum.FEMALE)
+    second = _stub_dweller(room_id=room_id, charisma=10)
+    elsewhere = _stub_dweller(room_id=uuid4(), charisma=10)
+    outside_living_quarters = _stub_dweller(room_id=room_id, charisma=10)
     growing = Relationship(dweller_1_id=first.id, dweller_2_id=second.id, affinity=50)
     nearly_full = Relationship(dweller_1_id=first.id, dweller_2_id=second.id, affinity=99)
     apart = Relationship(dweller_1_id=first.id, dweller_2_id=elsewhere.id, affinity=50)
@@ -80,16 +86,64 @@ async def test_vault_relationship_progress_uses_living_quarters_and_charisma(mon
 
     progress = await RelationshipService.get_vault_relationships_with_progress(AsyncMock(), uuid4())
 
-    assert [item.bond_growth_per_tick for item in progress] == [affinity_gain(first, second), 1, 0, 0, 0]
-    assert progress[0].bond_growth_per_tick == game_config.relationship.affinity_increase_per_tick + 1
+    expected = affinity_change(first, second)
+    assert [item.bond_change_per_tick for item in progress] == [expected, 1, 0, 0, 0]
+    assert progress[0].bond_change_per_tick == expected
+    assert progress[0].same_race is True
+    assert progress[0].average_charisma == 10
     assert all(item.bond_tick_seconds == game_config.game_loop.tick_interval for item in progress)
     assert all(item.conception_potential == "possible" for item in progress)
 
 
-def test_affinity_gain_needs_both_dwellers_at_ten_charisma():
-    assert affinity_gain(SimpleNamespace(charisma=10), SimpleNamespace(charisma=9)) == (
-        game_config.relationship.affinity_increase_per_tick
+def test_affinity_change_same_race_beats_cross_race():
+    room_id = uuid4()
+    human = _stub_dweller(room_id=room_id)
+    human_peer = _stub_dweller(room_id=room_id)
+    ghoul_peer = _stub_dweller(room_id=room_id, race="ghoul")
+
+    assert affinity_change(human, human_peer) > affinity_change(human, ghoul_peer)
+
+
+def test_affinity_change_rewards_charisma():
+    room_id = uuid4()
+    low = _stub_dweller(room_id=room_id, charisma=1)
+    low_peer = _stub_dweller(room_id=room_id, charisma=1)
+    high = _stub_dweller(room_id=room_id, charisma=10)
+    high_peer = _stub_dweller(room_id=room_id, charisma=10)
+
+    assert affinity_change(high, high_peer) > affinity_change(low, low_peer)
+
+
+def test_affinity_change_drifts_down_for_incompatible_mixed_pair():
+    room_id = uuid4()
+    first = _stub_dweller(
+        room_id=room_id,
+        charisma=1,
+        race="human",
+        level=1,
+        happiness=0,
+        strength=10,
+        perception=0,
+        endurance=10,
+        intelligence=0,
+        agility=10,
+        luck=0,
     )
+    second = _stub_dweller(
+        room_id=room_id,
+        charisma=1,
+        race="ghoul",
+        level=50,
+        happiness=100,
+        strength=0,
+        perception=10,
+        endurance=0,
+        intelligence=10,
+        agility=0,
+        luck=10,
+    )
+
+    assert affinity_change(first, second) < 0
 
 
 @pytest_asyncio.fixture(name="dweller_2")
@@ -421,6 +475,111 @@ async def test_increase_affinity_auto_marries_partners(
 
     assert updated.relationship_type == RelationshipTypeEnum.MARRIED
     assert updated.affinity == game_config.relationship.marriage_threshold
+
+
+@pytest.mark.asyncio
+async def test_decrease_affinity_demotes_romantic_to_friend(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+):
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
+    relationship.relationship_type = RelationshipTypeEnum.ROMANTIC
+    relationship.affinity = game_config.relationship.romantic_demotion_threshold + 1
+    await async_session.commit()
+
+    updated = await RelationshipService.decrease_affinity(async_session, dweller.id, dweller_2.id, 2)
+
+    await async_session.refresh(updated)
+    assert updated.relationship_type == RelationshipTypeEnum.FRIEND
+    assert updated.affinity == game_config.relationship.romantic_demotion_threshold - 1
+
+
+@pytest.mark.asyncio
+async def test_decrease_affinity_demotes_friend_to_acquaintance(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+):
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
+    relationship.relationship_type = RelationshipTypeEnum.FRIEND
+    relationship.affinity = game_config.relationship.friend_demotion_threshold
+    await async_session.commit()
+
+    updated = await RelationshipService.decrease_affinity(async_session, dweller.id, dweller_2.id, 1)
+
+    await async_session.refresh(updated)
+    assert updated.relationship_type == RelationshipTypeEnum.ACQUAINTANCE
+
+
+@pytest.mark.asyncio
+async def test_decrease_affinity_keeps_committed_partner(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+):
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
+    relationship.relationship_type = RelationshipTypeEnum.PARTNER
+    relationship.affinity = 50
+    await async_session.commit()
+
+    updated = await RelationshipService.decrease_affinity(async_session, dweller.id, dweller_2.id, 10)
+
+    await async_session.refresh(updated)
+    assert updated.relationship_type == RelationshipTypeEnum.PARTNER
+    assert updated.affinity == 40
+
+
+@pytest.mark.asyncio
+async def test_decrease_affinity_floors_at_zero(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+):
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
+    relationship.relationship_type = RelationshipTypeEnum.MARRIED
+    relationship.affinity = 5
+    await async_session.commit()
+
+    updated = await RelationshipService.decrease_affinity(async_session, dweller.id, dweller_2.id, 10)
+
+    await async_session.refresh(updated)
+    assert updated.affinity == 0
+    assert updated.relationship_type == RelationshipTypeEnum.MARRIED
+
+
+@pytest.mark.asyncio
+async def test_decrease_affinity_notifies_demotion(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+):
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
+    relationship.relationship_type = RelationshipTypeEnum.ROMANTIC
+    relationship.affinity = game_config.relationship.romantic_demotion_threshold
+    await async_session.commit()
+
+    await RelationshipService.decrease_affinity(async_session, dweller.id, dweller_2.id, 1)
+
+    notifications = (
+        (await async_session.execute(select(Notification).where(Notification.meta_data.is_not(None)))).scalars().all()
+    )
+    demotions = [row for row in notifications if row.meta_data and row.meta_data.get("event") == "relationship_demoted"]
+    assert len(demotions) == 1
+    assert demotions[0].notification_type == NotificationType.RELATIONSHIP_FORMED
+    assert demotions[0].meta_data["to"] == RelationshipTypeEnum.FRIEND.value
+
+
+@pytest.mark.asyncio
+async def test_decrease_affinity_rejects_non_positive_amount(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+):
+    await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
+
+    with pytest.raises(ValueError, match="must be positive"):
+        await RelationshipService.decrease_affinity(async_session, dweller.id, dweller_2.id, 0)
 
 
 @pytest.mark.asyncio

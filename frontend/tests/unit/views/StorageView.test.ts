@@ -13,6 +13,21 @@ import axios from '@/core/plugins/axios'
 
 vi.mock('@/core/plugins/axios')
 
+// The auth store refreshes the cached user on boot; resolve it from the seeded
+// session so this view test never falls back to a real network call.
+vi.mock('@/modules/auth/services/authService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/modules/auth/services/authService')>()
+  return {
+    ...actual,
+    authService: {
+      ...actual.authService,
+      getCurrentUser: vi.fn(async () => ({
+        data: JSON.parse(localStorage.getItem('user') ?? '{}'),
+      })),
+    },
+  }
+})
+
 // Mock Iconify so icon-only assertions read the resolved icon name
 vi.mock('@iconify/vue', () => createIconifyMock())
 
@@ -72,8 +87,8 @@ describe('StorageView', () => {
     localStorage.clear()
     setActivePinia(createPinia())
 
-    // Set token and user in localStorage before initializing the store
-    // so useLocalStorage picks them up and doesn't trigger fetchUser.
+    // Seed a cached session before initializing the store; the mocked
+    // getCurrentUser refreshes it with the same identity.
     localStorage.setItem('token', 'test-token')
     localStorage.setItem(
       'user',

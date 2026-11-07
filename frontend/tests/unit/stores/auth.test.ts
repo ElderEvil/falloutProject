@@ -79,19 +79,28 @@ describe('Auth Store', () => {
       expect(localStorage.getItem('selectedVaultId')).toBeNull()
     })
 
-    it('should not fetch user if both token and user exist in localStorage', () => {
+    it('refreshes the cached user on boot so server-side roles apply', async () => {
       const mockToken = 'test-token'
       const mockRefreshToken = 'test-refresh-token'
-      const mockUser = { id: '1', username: 'test', email: 'test@test.com' }
+      const cachedUser = {
+        id: '1',
+        username: 'Elder',
+        email: 'elder@test.com',
+        is_superuser: false,
+      }
+      const freshUser = { ...cachedUser, is_superuser: true }
 
       localStorage.setItem('token', mockToken)
       localStorage.setItem('refreshToken', mockRefreshToken)
-      localStorage.setItem('user', JSON.stringify(mockUser))
+      localStorage.setItem('user', JSON.stringify(cachedUser))
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: freshUser })
 
       const store = useAuthStore()
+      await new Promise((resolve) => setTimeout(resolve, 0))
 
-      expect(axios.get).not.toHaveBeenCalled()
-      expect(store.user).toEqual(mockUser)
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me')
+      expect(store.user).toEqual(freshUser)
+      expect(store.isSuperuser).toBe(true)
     })
   })
 

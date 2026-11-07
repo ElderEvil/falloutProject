@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import UUID4, field_validator
 from sqlmodel import SQLModel
 
-from app.core.notification_preferences import validate_notification_preferences
+from app.core.profile_preferences import validate_profile_preferences
 from app.models.user_profile import UserProfileBase
 from app.utils.partial import optional
 
@@ -24,7 +24,7 @@ class ProfileUpdate(SQLModel):
     @classmethod
     def validate_preferences(cls, preferences: dict | None) -> dict | None:
         if preferences is not None:
-            validate_notification_preferences(preferences)
+            validate_profile_preferences(preferences)
             if "pause_on_incident" in preferences and type(preferences["pause_on_incident"]) is not bool:
                 raise ValueError("pause_on_incident must be a boolean")
         return preferences

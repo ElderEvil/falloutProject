@@ -15,6 +15,9 @@ import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import type { VaultNumberData } from '../schemas/vault'
 import { formatDateTime } from '@/core/utils/format'
 import { useOnboardingState } from '@/core/composables/useOnboardingState'
+import { useProfileStore } from '@/modules/profile/stores/profile'
+import { isSetupComplete } from '@/modules/profile/models/setup'
+import FirstRunSetupModal from '@/modules/profile/components/FirstRunSetupModal.vue'
 import { useVisualEffects } from '@/core/composables/useVisualEffects'
 
 const VaultCreationWizard = defineAsyncComponent(
@@ -22,6 +25,7 @@ const VaultCreationWizard = defineAsyncComponent(
 )
 
 const authStore = useAuthStore()
+const profileStore = useProfileStore()
 const vaultStore = useVaultStore()
 const router = useRouter()
 const { patch: patchOnboarding } = useOnboardingState()
@@ -49,6 +53,14 @@ const canCreateVault = computed(
 )
 const isCreationVisible = computed(
   () => canCreateVault.value && (!sortedVaults.value.length || showCreation.value)
+)
+
+const showFirstRunSetup = computed(
+  () =>
+    vaultsReady.value &&
+    sortedVaults.value.length === 0 &&
+    profileStore.hasProfile &&
+    !isSetupComplete(profileStore.profile?.preferences)
 )
 
 const refreshVaults = async () => {
@@ -335,4 +347,5 @@ onMounted(async () => {
     @confirm="confirmDelete()"
     @cancel="cancelDeletion()"
   />
+  <FirstRunSetupModal v-if="showFirstRunSetup" />
 </template>

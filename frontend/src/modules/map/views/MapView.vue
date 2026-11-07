@@ -8,6 +8,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '../stores/map'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { isMature, type DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useGroupColors } from '@/core/composables/useGroupColors'
@@ -39,12 +40,14 @@ import type {
   VaultMarkerRead,
 } from '../models/map'
 import { buildExplorerTracks } from '../utils/explorerTracks'
+import { sortDepartureCandidates } from '../utils/departureOrder'
 import { isReadyToClear } from '../utils/visibility'
 
 const authStore = useAuthStore()
 const mapStore = useMapStore()
 const explorationStore = useExplorationStore()
 const { filter: dwellerStore } = useDwellerStore()
+const roomStore = useRoomStore()
 const vaultStore = useVaultStore()
 const route = useRoute()
 const router = useRouter()
@@ -288,7 +291,13 @@ async function ensureDispatchData() {
     await vaultStore.ensureVaultLoaded(requestedVaultId, token)
     // A route change mid-load means this data no longer belongs to the view.
     if (vaultId.value !== requestedVaultId || authStore.token !== token) return
-    await dwellerStore.fetchDwellersByVault(requestedVaultId, token)
+    // Room names drive the picker's job grouping; reuse cached rooms when this
+    // vault already loaded them, otherwise fetch them alongside the roster.
+    const roomsReady =
+      roomStore.roomsLoadedVaultId === requestedVaultId
+        ? Promise.resolve()
+        : roomStore.fetchRooms(requestedVaultId)
+    await Promise.all([dwellerStore.fetchDwellersByVault(requestedVaultId, token), roomsReady])
   } catch {
     // Unloadable vault: the section still renders, supplies just stay at zero.
   } finally {
@@ -370,7 +379,17 @@ function isAvailableForDeparture(dweller: DwellerShort): boolean {
   )
 }
 
-const departureCandidates = computed(() => dwellerStore.dwellers.filter(isAvailableForDeparture))
+const roomNameById = computed(() =>
+  roomStore.roomsLoadedVaultId === vaultId.value
+    ? new Map(roomStore.rooms.map((room) => [room.id, room.name]))
+    : new Map<string, string>()
+)
+
+// Unassigned dwellers first, then employed dwellers grouped by job name; the
+// roster's default order is preserved within each group.
+const departureCandidates = computed(() =>
+  sortDepartureCandidates(dwellerStore.dwellers.filter(isAvailableForDeparture), roomNameById.value)
+)
 
 function handleMarkerClick(
   payload:

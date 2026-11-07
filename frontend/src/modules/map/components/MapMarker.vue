@@ -2,7 +2,7 @@
 import { computed, ref, useId, watch, type CSSProperties } from 'vue'
 import { Icon } from '@iconify/vue'
 import { getStaticImageUrl, normalizeImageUrl } from '@/core/utils/image'
-import { markerTypeMeta, type MarkerType } from '../models/markerTypeMeta'
+import { MARKER_GLYPH_SIZE, markerTypeMeta, type MarkerType } from '../models/markerTypeMeta'
 import { riskLabel } from '../utils/dangerStyle'
 import { isHintLocation } from '../utils/visibility'
 
@@ -26,6 +26,8 @@ interface Props {
   baseDifficulty?: number | null
   interactive?: boolean
   scale?: number
+  /** Glyph-only scale; the backing disc and hit area stay full size. */
+  iconScale?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -38,6 +40,7 @@ const props = withDefaults(defineProps<Props>(), {
   exploring: false,
   interactive: true,
   scale: 1,
+  iconScale: 1,
 })
 
 const emit = defineEmits<{
@@ -70,8 +73,8 @@ const shouldPulse = computed(() => isDiscovery.value && !isLocked.value && props
 // ring of dark margin around every glyph. Passed to Iconify with an explicit
 // unit: a unitless nested-<svg> width is rejected by Chromium (it then
 // shrink-wraps each icon to its artwork) but honoured by Firefox.
-const GLYPH_SIZE = 5.4
-const GLYPH_SIZE_CSS = `${GLYPH_SIZE}px`
+const glyphSize = computed(() => MARKER_GLYPH_SIZE * props.iconScale)
+const glyphSizeCss = computed(() => `${glyphSize.value}px`)
 const portraitClipId = useId()
 
 // Explorer thumbnail: normalise the backend static path and fall back to the
@@ -154,9 +157,9 @@ const tooltipText = computed(() => {
       class="marker-glyph"
       :style="glyphStyle"
       :class="{ 'marker-discovery': shouldPulse, 'opacity-50': isLocked }"
-      :transform="`translate(${-GLYPH_SIZE / 2}, ${-GLYPH_SIZE / 2})`"
+      :transform="`translate(${-glyphSize / 2}, ${-glyphSize / 2})`"
     >
-      <Icon :icon="displayIcon" :width="GLYPH_SIZE_CSS" :height="GLYPH_SIZE_CSS" />
+      <Icon :icon="displayIcon" :width="glyphSizeCss" :height="glyphSizeCss" />
     </g>
 
     <!-- Cleared badge: small shield-check pinned to the marker's top-right -->

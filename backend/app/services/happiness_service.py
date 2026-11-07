@@ -332,7 +332,9 @@ class HappinessService:
             else []
         )
         if coworkers:
-            discomforts = [discomfort for coworker in coworkers if (discomfort := discomfort_between(dweller, coworker))]
+            discomforts = [
+                discomfort for coworker in coworkers if (discomfort := discomfort_between(dweller, coworker))
+            ]
             if discomforts:
                 worst = max(discomforts, key=lambda item: item.severity.rank)
                 change -= DISCOMFORT_EFFECTS[worst.severity].happiness_penalty * tick_multiplier

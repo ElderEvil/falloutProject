@@ -290,11 +290,15 @@ class DiscomfortEffect:
 
 #: Severity-keyed effects; a balance pass follows play-testing, like RACE_MODIFIERS.
 DISCOMFORT_EFFECTS: dict[DiscomfortSeverity, DiscomfortEffect] = {
-    DiscomfortSeverity.MILD: DiscomfortEffect(chemistry_penalty=0.10, happiness_penalty=0.5, production_multiplier=0.97),
+    DiscomfortSeverity.MILD: DiscomfortEffect(
+        chemistry_penalty=0.10, happiness_penalty=0.5, production_multiplier=0.97
+    ),
     DiscomfortSeverity.MODERATE: DiscomfortEffect(
         chemistry_penalty=0.15, happiness_penalty=1.0, production_multiplier=0.90
     ),
-    DiscomfortSeverity.STRONG: DiscomfortEffect(chemistry_penalty=0.25, happiness_penalty=1.5, production_multiplier=0.85),
+    DiscomfortSeverity.STRONG: DiscomfortEffect(
+        chemistry_penalty=0.25, happiness_penalty=1.5, production_multiplier=0.85
+    ),
 }
 
 #: Lowest combined discomfort/rival production multiplier for one room.

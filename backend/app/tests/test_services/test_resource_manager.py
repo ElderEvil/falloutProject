@@ -421,7 +421,6 @@ def test_friction_multiplier_penalizes_discomfort_and_rivals() -> None:
     penalty = game_config.relationship.rival_production_penalty
     expected = max(
         DISCOMFORT_PRODUCTION_FLOOR,
-        DISCOMFORT_EFFECTS[DiscomfortSeverity.MODERATE].production_multiplier
-        * max(1 - 2 * penalty, 1 - penalty),
+        DISCOMFORT_EFFECTS[DiscomfortSeverity.MODERATE].production_multiplier * max(1 - 2 * penalty, 1 - penalty),
     )
     assert ResourceManager._friction_multiplier([human, mutant], rival_pairs) == pytest.approx(expected)

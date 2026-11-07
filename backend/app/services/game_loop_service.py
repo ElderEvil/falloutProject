@@ -226,7 +226,9 @@ class GameLoopService:
             results["updates"]["training"] = await self._process_training(db_session, vault_id)
 
         with tick_phase("crafting"):
-            results["updates"]["crafting"] = await self._process_crafting(db_session, vault_id, game_state, seconds_passed)
+            results["updates"]["crafting"] = await self._process_crafting(
+                db_session, vault_id, game_state, seconds_passed
+            )
 
         try:
             with tick_phase("storage"):

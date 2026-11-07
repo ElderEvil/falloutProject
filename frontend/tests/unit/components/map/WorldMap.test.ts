@@ -14,6 +14,7 @@ import type {
   ExplorerTrack,
   WastelandLocationWithDwellers,
   VaultMarkerRead,
+  WorldSnapshotRead,
 } from '@/modules/map/models/map'
 
 // Stub child components that need complex DOM (Iconify, UTooltip)
@@ -2200,6 +2201,52 @@ describe('WorldMap', () => {
 
       expect(wrapper.emitted('vault-info')).toEqual([['v-mine']])
       expect(wrapper.emitted('marker-click')).toBeUndefined()
+    })
+  })
+
+  describe('Atlas layer order', () => {
+    it('draws roads above terrain and below fog and markers', async () => {
+      const store = useMapStore()
+      store.worldSnapshot = {
+        world_id: 'atlas',
+        generator_version: 1,
+        recipe_fingerprint: 'recipe',
+        snapshot_checksum: 'base',
+        width: 2,
+        height: 2,
+        terrain: ['wasteland', 'wasteland', 'wasteland', 'water'],
+        slots: [],
+        roads: {
+          version: 4,
+          base_checksum: 'base',
+          checksum: 'roads',
+          segments: [
+            {
+              id: 'h',
+              kind: 'highway',
+              points: [
+                [10, 20],
+                [70, 40],
+              ],
+            },
+          ],
+        },
+      } satisfies WorldSnapshotRead
+
+      const wrapper = mount(WorldMap, {
+        props: { locations: createLocations(5), vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+      })
+      await zoomPastDeclutterThreshold(wrapper)
+
+      const order = wrapper
+        .findAll('.atlas-terrain-stub, .atlas-roads, .fog-layer-stub, .map-marker-stub')
+        .map((el) => el.classes().find((name) => name === 'atlas-roads' || name.endsWith('-stub')))
+
+      expect(order[0]).toBe('atlas-terrain-stub')
+      expect(order[1]).toBe('atlas-roads')
+      expect(order[2]).toBe('fog-layer-stub')
+      expect(order.indexOf('map-marker-stub')).toBeGreaterThan(2)
     })
   })
 })

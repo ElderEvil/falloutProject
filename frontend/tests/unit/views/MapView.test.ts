@@ -15,6 +15,21 @@ vi.mock('@/modules/map/services/mapService', () => ({
   getLocationDetail: vi.fn(),
 }))
 
+// The auth store refreshes the cached user on boot; resolve it from the seeded
+// session so this view test never falls back to a real network call.
+vi.mock('@/modules/auth/services/authService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/modules/auth/services/authService')>()
+  return {
+    ...actual,
+    authService: {
+      ...actual.authService,
+      getCurrentUser: vi.fn(async () => ({
+        data: JSON.parse(localStorage.getItem('user') ?? '{}'),
+      })),
+    },
+  }
+})
+
 const mockPush = vi.fn()
 const mockReplace = vi.fn()
 

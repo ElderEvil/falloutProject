@@ -277,8 +277,8 @@ the race/state; `discomfort_between()` returns a severity and its source:
 | non-super-mutant ↔ super mutant | moderate (behemoth: strong) |
 | non-synth / Gen 3 ↔ Gen 1 synth | moderate |
 | non-synth / Gen 3 ↔ Gen 2 synth | mild |
-| Gen 3 synth ↔ anyone | none |
-| same scary kind (feral↔feral, mutant↔mutant, same synth generation) | none |
+| Gen 3 synth ↔ non-scary dweller | none |
+| same scary kind (feral↔feral, mutant/behemoth pairs, same synth generation) | none |
 
 `DISCOMFORT_EFFECTS` (`options/races.py`) maps severity to a chemistry penalty, a happiness penalty, and a
 room production multiplier. Chemistry uses the penalty directly. Happiness applies the **worst single**

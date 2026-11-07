@@ -30,10 +30,8 @@ def downgrade() -> None:
         "ALTER TABLE relationship ALTER COLUMN relationship_type TYPE VARCHAR(32) "
         "USING relationship_type::text"
     )
-    op.execute(
-        "UPDATE relationship SET relationship_type = 'ACQUAINTANCE', affinity = GREATEST(affinity, 0) "
-        "WHERE relationship_type = 'RIVAL'"
-    )
+    op.execute("UPDATE relationship SET relationship_type = 'ACQUAINTANCE' WHERE relationship_type = 'RIVAL'")
+    op.execute("UPDATE relationship SET affinity = 0 WHERE affinity < 0")
     op.execute("DROP TYPE relationshiptypeenum")
     op.execute(
         "CREATE TYPE relationshiptypeenum AS ENUM "

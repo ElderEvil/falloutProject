@@ -430,17 +430,17 @@ class RelationshipService:
 
     @staticmethod
     async def _record_rival_bios(db_session: AsyncSession, relationship: Relationship) -> None:
-        """Narrate a first rivalry into both dwellers' bios."""
-        first = await dweller_crud.get(db_session, relationship.dweller_1_id)
-        second = await dweller_crud.get(db_session, relationship.dweller_2_id)
+        """Stage a first rivalry into both dwellers' bios inside the caller's transaction."""
+        try:
+            first = await dweller_crud.get(db_session, relationship.dweller_1_id)
+            second = await dweller_crud.get(db_session, relationship.dweller_2_id)
+        except ResourceNotFoundException:
+            logger.warning("Skipping rivalry bio for relationship %s: a dweller is missing", relationship.id)
+            return
         name_1 = f"{first.first_name} {first.last_name or ''}".strip()
         name_2 = f"{second.first_name} {second.last_name or ''}".strip()
-        await bio_service.append_entry(
-            db_session, first.id, "family", f"Can't stand {name_2}.", ref={"rival_id": str(second.id)}
-        )
-        await bio_service.append_entry(
-            db_session, second.id, "family", f"Can't stand {name_1}.", ref={"rival_id": str(first.id)}
-        )
+        bio_service.add_entry(first, "family", f"Can't stand {name_2}.", ref={"rival_id": str(second.id)})
+        bio_service.add_entry(second, "family", f"Can't stand {name_1}.", ref={"rival_id": str(first.id)})
 
     @staticmethod
     async def initiate_romance(

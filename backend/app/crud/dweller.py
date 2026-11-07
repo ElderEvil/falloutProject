@@ -531,6 +531,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             .where(
                 self.model.vault_id == vault_id,
                 self.model.room_id.is_not(None),
+                ~self.model.is_deleted,
                 Room.name.ilike("%living%"),
                 Room.category == RoomTypeEnum.CAPACITY,
             )

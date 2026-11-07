@@ -145,7 +145,7 @@
       class="mt-auto flex items-start gap-2 border-t border-theme-primary/15 pt-2 text-xs text-theme-primary/70"
     >
       <Icon
-        :icon="relationship.relationship_type === 'ex' ? 'mdi:heart-broken' : 'mdi:human-child'"
+        :icon="familyPotentialIcon"
         class="h-4 w-4 shrink-0"
         :ariaHidden="true"
       />
@@ -289,6 +289,17 @@ const hasActions = computed(
       props.relationship.affinity >= 70) ||
     isRelationshipType(props.relationship.relationship_type, COMMITTED_RELATIONSHIP_TYPES)
 )
+
+const familyPotentialIcon = computed(() => {
+  switch (props.relationship.relationship_type) {
+    case 'ex':
+      return 'mdi:heart-broken'
+    case 'rival':
+      return 'mdi:sword-cross'
+    default:
+      return 'mdi:human-child'
+  }
+})
 
 const familyPotentialLabel = computed(() => {
   if (props.relationship.relationship_type === 'rival') return 'Rivals'

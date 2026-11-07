@@ -35,6 +35,17 @@ MEDICAL_ROOM_PRODUCTION: dict[str, str] = {
 }
 
 
+async def load_rival_pairs(db_session: AsyncSession, dweller_ids: set[UUID4] | list[UUID4]) -> set[frozenset[UUID4]]:
+    """Rival pairs among the given dwellers, shared by tick and rush production."""
+    if not dweller_ids:
+        return set()
+    return {
+        frozenset((relationship.dweller_1_id, relationship.dweller_2_id))
+        for relationship in await relationship_crud.get_involving_any(db_session, dweller_ids)
+        if relationship.relationship_type == RelationshipTypeEnum.RIVAL
+    }
+
+
 def compute_medical_capacity(rooms: Sequence[Room]) -> dict[str, int]:
     """Compute max stimpack/radaway capacity from Medbay/Science Lab rooms."""
     capacities: dict[str, int] = {"stimpack": 0, "radaway": 0}
@@ -63,11 +74,7 @@ class ResourceManager:
             resource_data = await resource_crud.get_vault_resource_data(db_session, vault_id)
 
         dweller_ids = {dweller.id for _, dwellers in resource_data.rooms_with_dwellers for dweller in dwellers}
-        rival_pairs: set[frozenset[UUID4]] = set()
-        if dweller_ids:
-            for relationship in await relationship_crud.get_involving_any(db_session, dweller_ids):
-                if relationship.relationship_type == RelationshipTypeEnum.RIVAL:
-                    rival_pairs.add(frozenset((relationship.dweller_1_id, relationship.dweller_2_id)))
+        rival_pairs = await load_rival_pairs(db_session, dweller_ids)
 
         with tick_phase("resources.calculate"):
             resource_update, events = self.calculate_resource_window(

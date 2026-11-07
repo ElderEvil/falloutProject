@@ -24,8 +24,8 @@ All stored on `Dweller` (one row per dweller) + two child tables.
 > Lineage is **bipartite / single-generation** by design: we store parents and the *current* partner, not a full multi-union graph. Siblings are computed by shared parents; partners by `partner_id` + `PARTNER`/`MARRIED` relationships.
 
 ### 2.2 `Relationship` (relationship table)
-- Pair `(dweller_1_id, dweller_2_id)` + `relationship_type` + `affinity` (0–100).
-- Stages: `acquaintance → friend → romantic → partner → MARRIED → ex`.
+- Pair `(dweller_1_id, dweller_2_id)` + `relationship_type` + `affinity` (−100…+100).
+- Stages: `acquaintance → friend → romantic → partner → MARRIED → rival → ex` (rival is negative affinity; committed stages never demote).
 - Not the same as `partner_id` — a dweller can have many relationships but at most one *partner* (via `partner_id`).
 
 ### 2.3 `Pregnancy`
@@ -119,9 +119,8 @@ All stored on `Dweller` (one row per dweller) + two child tables.
 ## 6. UI (frontend)
 
 **What exists (keep):**
-- `/vault/:id/relationships` view — 4 tabs: **Forming**, **Partners**, **Pregnancies**, **Children** + stat cards.
+- `/vault/:id/relationships` view — 5 tabs: **Forming**, **Tensions**, **Partners**, **Pregnancies**, **Children** + stat cards.
 - `RelationshipCard` actions gated by stage/affinity: Romance (acquaintance ≥70), Partner (romantic; disabled when either dweller is already committed to someone else), Marry (partner ≥85), Break Up (committed types). Rivals render a hostility meter and no relationship actions.
-- Relationships view: Forming, **Tensions** (rivals sorted by lowest affinity), Partners, Pregnancies, Children.
 - `PregnancyTracker` with manual deliver.
 - Dweller detail **Family tab** → `FamilyTreePanel` (parents / self+partners / children / generation, clickable nodes navigating to dweller).
 - Pregnancy, relationship, and family stores + services.
@@ -197,7 +196,7 @@ See `../AGENTS.md` "Bug Fix Workflow" + this doc. Key manual checks:
   class DwellerRelationshipBriefing(BaseModel):
       partner_name: str | None = None
       relationship_stage: str | None = None      # friend/romantic/partner/MARRIED/ex
-      affinity: int | None = None                # 0-100
+      affinity: int | None = None                # -100..100
       is_pregnant: bool = False
       children: list[str] = []                   # names
       parents: list[str] = []                    # names

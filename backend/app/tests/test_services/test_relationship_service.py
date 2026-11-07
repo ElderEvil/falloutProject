@@ -24,6 +24,7 @@ from app.models.dweller import Dweller
 from app.models.relationship import Relationship
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
+from app.services.bio_service import bio_service
 from app.services.relationship_service import RelationshipService, affinity_change, affinity_chemistry
 from app.utils.exceptions import ValidationException
 
@@ -761,6 +762,44 @@ async def test_decrease_affinity_records_rival_bios(
     second = await crud.dweller.get(async_session, dweller_2.id)
     assert any(entry["text"].startswith("Can't stand") for entry in first.bio_entries)
     assert any(entry["text"].startswith("Can't stand") for entry in second.bio_entries)
+
+
+@pytest.mark.asyncio
+async def test_rival_bio_failure_rolls_back_relationship_and_bios(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
+    relationship.relationship_type = RelationshipTypeEnum.ACQUAINTANCE
+    relationship.affinity = 0
+    await async_session.commit()
+    relationship_id = relationship.id
+    first_id, second_id = dweller.id, dweller_2.id
+
+    original = bio_service.add_entry
+    calls = {"n": 0}
+
+    def flaky_add_entry(*args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise RuntimeError("bio write failed")
+        original(*args, **kwargs)
+
+    monkeypatch.setattr(bio_service, "add_entry", flaky_add_entry)
+
+    with pytest.raises(RuntimeError, match="bio write failed"):
+        await RelationshipService.decrease_affinity(async_session, first_id, second_id, 1)
+
+    await async_session.rollback()
+    reloaded = await relationship_crud.get(async_session, relationship_id)
+    assert reloaded.relationship_type == RelationshipTypeEnum.ACQUAINTANCE
+    assert reloaded.affinity == 0
+    first = await crud.dweller.get(async_session, first_id)
+    second = await crud.dweller.get(async_session, second_id)
+    assert not any(entry["text"].startswith("Can't stand") for entry in first.bio_entries)
+    assert not any(entry["text"].startswith("Can't stand") for entry in second.bio_entries)
 
 
 @pytest.mark.asyncio

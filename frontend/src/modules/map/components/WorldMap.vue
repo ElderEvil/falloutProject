@@ -14,7 +14,11 @@ import type {
   WastelandLocationWithDwellers,
   VaultMarkerRead,
 } from '../models/map'
-import { EXPEDITION_SITE_ICON, locationMarkerIcon } from '../models/markerTypeMeta'
+import {
+  EXPEDITION_SITE_ICON,
+  PLACE_MARKER_GLYPH_SCALE,
+  locationMarkerIcon,
+} from '../models/markerTypeMeta'
 import { groupColor } from '../models/groupColors'
 import MapClusterMarker from './MapClusterMarker.vue'
 import MapMarker from './MapMarker.vue'
@@ -556,6 +560,7 @@ function handleTouchEnd(event: TouchEvent) {
              cluster are rendered as the badge below instead) -->
         <MapMarker
           :scale="markerScale"
+          :icon-scale="PLACE_MARKER_GLYPH_SCALE"
           v-for="loc in renderedLocationsIndividual"
           :key="`loc-${loc.id}`"
           :x="loc.coord_x"

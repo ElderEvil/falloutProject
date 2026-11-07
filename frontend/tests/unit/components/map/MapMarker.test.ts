@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import { Icon } from '@iconify/vue'
 import MapMarker from '@/modules/map/components/MapMarker.vue'
+import { MARKER_GLYPH_SIZE, PLACE_MARKER_GLYPH_SCALE } from '@/modules/map/models/markerTypeMeta'
 
 /**
  * Regression tests for invisible markers on the World Map.
@@ -36,6 +37,26 @@ describe('MapMarker', () => {
     const glyph = g.find('g.marker-glyph')
     expect(glyph.exists()).toBe(true)
     expect(glyph.findComponent(Icon).exists()).toBe(true)
+  })
+
+  it('shrinks only the glyph when iconScale is set', () => {
+    const wrapper = mount(MapMarker, {
+      props: {
+        x: 10,
+        y: 20,
+        name: 'Gas Station',
+        type: 'visited',
+        iconScale: PLACE_MARKER_GLYPH_SCALE,
+      },
+      global: {
+        stubs: { Icon: true },
+      },
+    })
+
+    const icon = wrapper.findComponent(Icon)
+    expect(icon.props('width')).toBe(`${MARKER_GLYPH_SIZE * PLACE_MARKER_GLYPH_SCALE}px`)
+    expect(wrapper.find('circle.marker-hit-area').attributes('r')).toBe('6')
+    expect(wrapper.find('circle.marker-backing').attributes('r')).toBe('4.2')
   })
 
   it('renders an enlarged transparent hit area beneath the icon', () => {

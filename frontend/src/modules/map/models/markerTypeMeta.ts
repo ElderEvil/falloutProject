@@ -16,6 +16,12 @@ export interface MarkerTypeMeta {
 // render the same star marker regardless of the site's name.
 export const EXPEDITION_SITE_ICON = 'mdi:map-marker-star'
 
+/** Base glyph size in marker user units (vault signals, parties, explorers). */
+export const MARKER_GLYPH_SIZE = 5.4
+
+/** Place markers render ~15% smaller now that roads share the atlas. */
+export const PLACE_MARKER_GLYPH_SCALE = 0.85
+
 export const MARKER_TYPES: readonly MarkerTypeMeta[] = [
   { type: 'home_vault', icon: 'mdi:home-city', label: 'Home Vault' },
   { type: 'origin', icon: 'mdi:flag', label: 'Origin' },
@@ -39,7 +45,7 @@ export function markerTypeMeta(type: string): MarkerTypeMeta {
 export function locationMarkerIcon(
   type: string,
   groupKey: string | null | undefined,
-  groupIconByKey: ReadonlyMap<string, string>,
+  groupIconByKey: ReadonlyMap<string, string>
 ): string {
   if (groupKey) {
     const groupIcon = groupIconByKey.get(groupKey)

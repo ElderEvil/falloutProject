@@ -9,6 +9,7 @@ import {
   AUTH_SESSION_EXPIRED_EVENT,
   type RefreshedAuthTokens,
 } from '@/core/utils/authSessionEvents'
+import { ApiError } from '@/core/utils/api'
 import { authService } from '../services/authService'
 import type { User } from '../types/user'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -55,12 +56,15 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
+  let sessionGeneration = 0
+
   // Getters
   const isAuthenticated = computed(() => !!token.value)
   const isSuperuser = computed(() => user.value?.is_superuser ?? false)
 
   // Invalidate account-owned state before replacing credentials or user identity.
   function clearSession(): void {
+    sessionGeneration++
     useVaultStore().clearSession()
     useStorageStore().reset()
     useProfileStore().clearProfile()
@@ -139,16 +143,24 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function fetchUser(): Promise<void> {
     if (!token.value) return
+    const generation = sessionGeneration
 
     try {
       const response = await authService.getCurrentUser()
+      if (generation !== sessionGeneration) return
       if (user.value?.id && user.value.id !== response.data.id) {
         clearSession()
       }
       user.value = response.data
     } catch (error) {
+      if (generation !== sessionGeneration) return
       handleStoreError(error, 'Failed to fetch user')
-      await logout()
+      if (error instanceof ApiError && error.status === 401) {
+        clearSession()
+        token.value = null
+        refreshToken.value = null
+        user.value = null
+      }
     }
   }
 
@@ -213,6 +225,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout(): Promise<void> {
+    const generation = ++sessionGeneration
     try {
       if (token.value) {
         await authService.logout()
@@ -220,19 +233,21 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (error) {
       handleStoreError(error, 'Logout failed')
     } finally {
-      // Clear all stored data (VueUse handles localStorage automatically)
-      clearSession()
-      token.value = null
-      refreshToken.value = null
-      user.value = null
+      // A newer login owns its credentials even if this logout finishes later.
+      if (generation === sessionGeneration) {
+        clearSession()
+        token.value = null
+        refreshToken.value = null
+        user.value = null
+      }
     }
   }
 
-  // Initialize: fetch user if we have a token but no user data
-  if (token.value && !user.value) {
-    clearSession()
-    void fetchUser()
-  }
+  // Initialize: the server owns the user record (roles, quota, verification),
+  // so refresh it on every boot instead of trusting the persisted copy. Without
+  // this, a role change only appears after an explicit logout/login.
+  if (token.value && !user.value) clearSession()
+  const initialization = token.value ? fetchUser() : Promise.resolve()
 
   return {
     // State
@@ -247,6 +262,7 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     loginWithTokens,
     fetchUser,
+    initialization,
     refreshAccessToken,
     updateAccount,
     verifyEmail,

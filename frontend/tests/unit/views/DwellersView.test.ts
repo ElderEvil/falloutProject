@@ -14,6 +14,21 @@ import type { Room } from '@/modules/rooms/models/room'
 
 vi.mock('@/core/plugins/axios')
 
+// The auth store refreshes the cached user on boot; resolve it from the seeded
+// session so this view test never falls back to a real network call.
+vi.mock('@/modules/auth/services/authService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/modules/auth/services/authService')>()
+  return {
+    ...actual,
+    authService: {
+      ...actual.authService,
+      getCurrentUser: vi.fn(async () => ({
+        data: JSON.parse(localStorage.getItem('user') ?? '{}'),
+      })),
+    },
+  }
+})
+
 describe('DwellersView', () => {
   let router: any
   let _authStore: any

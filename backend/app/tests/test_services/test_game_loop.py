@@ -790,12 +790,93 @@ class TestRelationshipHelpers:
         d2.id = "d-2"
         d2.charisma = 5
         rel_map = {("d-1", "d-2"): mr, ("d-2", "d-1"): mr}
-        with patch(
-            "app.services.relationship_service.relationship_service.increase_affinity", new_callable=AsyncMock
-        ) as mi:
+        with (
+            patch("app.services.relationship_service.affinity_change", return_value=2),
+            patch(
+                "app.services.relationship_service.relationship_service.increase_affinity", new_callable=AsyncMock
+            ) as mi,
+        ):
             result = await game_loop_service._update_pair_affinity(async_session, d1, d2, rel_map, [])
-        mi.assert_called_once()
+        mi.assert_awaited_once()
         assert result == 1
+
+    @pytest.mark.asyncio
+    async def test_update_pair_affinity_dispatches_decrease(self, async_session: AsyncSession):
+        mr = MagicMock()
+        mr.dweller_1_id = "d-1"
+        mr.dweller_2_id = "d-2"
+        d1 = MagicMock()
+        d1.id = "d-1"
+        d2 = MagicMock()
+        d2.id = "d-2"
+        rel_map = {("d-1", "d-2"): mr, ("d-2", "d-1"): mr}
+        with (
+            patch("app.services.relationship_service.affinity_change", return_value=-2),
+            patch(
+                "app.services.relationship_service.relationship_service.decrease_affinity", new_callable=AsyncMock
+            ) as md,
+        ):
+            result = await game_loop_service._update_pair_affinity(async_session, d1, d2, rel_map, [])
+        md.assert_awaited_once()
+        assert md.await_args.args[3] == 2
+        assert result == 1
+
+    @pytest.mark.asyncio
+    async def test_rolls_back_staged_demotion_on_commit_failure(self, async_session: AsyncSession, vault: Vault):
+        from sqlalchemy.exc import SQLAlchemyError
+        from sqlmodel import select
+
+        from app import crud
+        from app.core.enums import RelationshipTypeEnum, RoomTypeEnum
+        from app.crud.relationship import relationship_crud
+        from app.models.notification import Notification
+        from app.schemas.dweller import DwellerCreate
+        from app.schemas.room import RoomCreate
+        from app.services.relationship_service import relationship_service
+        from app.tests.factory.dwellers import create_fake_dweller
+        from app.tests.factory.rooms import create_fake_room
+
+        room_data = create_fake_room()
+        room_data["name"] = "Living Quarters"
+        room_data["category"] = RoomTypeEnum.CAPACITY
+        room = await crud.room.create(async_session, RoomCreate(**room_data, vault_id=vault.id))
+        dwellers = []
+        for index in range(2):
+            dweller_data = create_fake_dweller()
+            dweller_data.update({"first_name": f"Drift{index}", "happiness": 50, "charisma": 5})
+            member = await crud.dweller.create(async_session, DwellerCreate(**dweller_data, vault_id=vault.id))
+            member.room_id = room.id
+            async_session.add(member)
+            dwellers.append(member)
+        await async_session.commit()
+
+        relationship = await relationship_service.get_or_create_relationship(
+            async_session, dwellers[0].id, dwellers[1].id
+        )
+        relationship_id = relationship.id
+        relationship.relationship_type = RelationshipTypeEnum.ROMANTIC
+        relationship.affinity = game_config.relationship.romantic_demotion_threshold
+        await async_session.commit()
+
+        with (
+            patch("app.services.relationship_service.affinity_change", return_value=-1),
+            patch.object(
+                async_session,
+                "commit",
+                new_callable=AsyncMock,
+                side_effect=SQLAlchemyError("late failure"),
+            ),
+        ):
+            await game_loop_service._update_room_relationships(async_session, vault.id)
+
+        reloaded = await relationship_crud.get(async_session, relationship_id)
+        assert reloaded.relationship_type == RelationshipTypeEnum.ROMANTIC
+        assert reloaded.affinity == game_config.relationship.romantic_demotion_threshold
+        notifications = (await async_session.execute(select(Notification))).scalars().all()
+        assert not [
+            row for row in notifications if row.meta_data and row.meta_data.get("event") == "relationship_demoted"
+        ]
+        assert async_session.info.get("deferred_notification_deliveries") is None
 
     @pytest.mark.asyncio
     async def test_update_pair_affinity_new_in_list_skipped(self, async_session: AsyncSession):

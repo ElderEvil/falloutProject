@@ -245,6 +245,31 @@ Deaths, injuries, critical resource/power alerts, exit requests, combat events, 
 and hazard-team confirmations are always enabled. Every `NotificationType` must be deliberately mapped in
 `app.core.notification_preferences`; unknown future types default to enabled.
 
+## Relationship affinity
+
+Affinity moves in both directions while a pair shares Living Quarters. Each tick computes one signed change
+per pair from three inputs:
+
+- **Charisma** — the pair's averaged *effective* Charisma (racial, outfit and pet modifiers included). A pair
+  at 5 is the 1.0x baseline; each point shifts the rate by `charisma_affinity_rate` (8%), clamped to
+  `[charisma_affinity_min_multiplier, charisma_affinity_max_multiplier]` (0.5x–1.6x).
+- **Race** — a shared race multiplies by `same_race_affinity_multiplier` (1.25x); mixed races use
+  `cross_race_affinity_multiplier` (0.75x). A dweller without a race counts as human.
+- **Chemistry** — the compatibility score (SPECIAL similarity, happiness, level, proximity) plus
+  `race_chemistry_bonus` (±0.05) and `charisma_chemistry_weight` (0.03/point). At or above
+  `affinity_drift_threshold` (0.5) the pair gains; below it the pair drifts apart.
+
+Loss is capped by `affinity_max_loss_per_tick` (2), and affinity stays within 0–100. Pairs that do not share a
+room do not change. Non-committed stages demote with hysteresis: romantic→friend below
+`romantic_demotion_threshold` (60), friend→acquaintance below `friend_demotion_threshold` (45). PARTNER and
+MARRIED links only end through `break_up`. A demotion creates the existing `RELATIONSHIP_FORMED` notification
+with `meta_data.event = "relationship_demoted"`, surfaces as a toast plus bell entry, and is delivered after the
+family tick commits. Negative affinity (rival/enemy bonds) is not modeled yet; the floor remains 0.
+
+The vault relationships API returns `bond_change_per_tick` (signed), `same_race`, `average_charisma` and
+`can_make_partners` so the UI can explain why a bond is growing or drifting and disable the Partner action when
+either dweller is already committed.
+
 ## Exit requests (Someone Wants Out)
 
 A dweller in despair eventually asks to leave. The rules are deliberately slow and costly so the decision

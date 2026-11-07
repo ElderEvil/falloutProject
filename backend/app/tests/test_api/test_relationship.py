@@ -136,7 +136,14 @@ async def test_get_vault_relationships_includes_bond_progress(
     vault_id = uuid4()
     relationship = VaultRelationshipRead.model_validate(
         _make_mock_relationship(),
-        update={"bond_growth_per_tick": 3, "bond_tick_seconds": 60, "conception_potential": "possible"},
+        update={
+            "bond_change_per_tick": 3,
+            "bond_tick_seconds": 60,
+            "conception_potential": "possible",
+            "same_race": True,
+            "average_charisma": 8,
+            "can_make_partners": False,
+        },
     )
     with (
         patch("app.api.v1.endpoints.relationship.get_user_vault_or_403", AsyncMock()),
@@ -148,9 +155,12 @@ async def test_get_vault_relationships_includes_bond_progress(
         response = await async_client.get(f"/relationships/vault/{vault_id}", headers=superuser_token_headers)
 
     assert response.status_code == 200
-    assert response.json()[0]["bond_growth_per_tick"] == 3
+    assert response.json()[0]["bond_change_per_tick"] == 3
     assert response.json()[0]["bond_tick_seconds"] == 60
     assert response.json()[0]["conception_potential"] == "possible"
+    assert response.json()[0]["same_race"] is True
+    assert response.json()[0]["average_charisma"] == 8
+    assert response.json()[0]["can_make_partners"] is False
 
 
 # --- GET /relationships/{relationship_id} ----------------------------------

@@ -37,22 +37,46 @@
         </div>
         <Progress :model-value="relationship.affinity" class="mt-2 h-2" />
         <div
-          v-if="relationship.bond_growth_per_tick !== undefined"
+          v-if="relationship.bond_change_per_tick !== undefined"
           class="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs"
         >
-          <span v-if="relationship.affinity >= 100" class="text-theme-primary/70"
+          <span
+            v-if="relationship.bond_change_per_tick > 0"
+            class="flex items-center gap-1 text-theme-primary/80"
+          >
+            <Icon icon="mdi:heart-pulse" class="h-3.5 w-3.5" :ariaHidden="true" />
+            Growing closer
+          </span>
+          <span
+            v-else-if="relationship.bond_change_per_tick < 0"
+            class="flex items-center gap-1 text-warning"
+          >
+            <Icon icon="mdi:heart-broken" class="h-3.5 w-3.5" :ariaHidden="true" />
+            Drifting apart
+          </span>
+          <span v-else-if="relationship.affinity >= 100" class="text-theme-primary/70"
             >Bond at full strength</span
           >
-          <template v-else-if="relationship.bond_growth_per_tick > 0">
-            <span class="flex items-center gap-1 text-theme-primary/80">
-              <Icon icon="mdi:heart-pulse" class="h-3.5 w-3.5" :ariaHidden="true" />
-              Growing closer
-            </span>
-            <span v-if="bondCadence" class="font-bold text-theme-primary"
-              >+{{ relationship.bond_growth_per_tick }} hearts every {{ bondCadence }}</span
-            >
-          </template>
           <span v-else class="text-theme-primary/60">Bond resting · meet in Living Quarters</span>
+          <span
+            v-if="bondChangeLabel"
+            class="font-bold"
+            :class="relationship.bond_change_per_tick < 0 ? 'text-warning' : 'text-theme-primary'"
+          >
+            {{ bondChangeLabel }}
+          </span>
+        </div>
+        <div
+          v-if="bondFactors.length"
+          class="mt-2 flex flex-wrap items-center gap-1.5 text-[0.65rem] font-bold uppercase tracking-[0.08em] text-theme-primary/55"
+        >
+          <span
+            v-for="factor in bondFactors"
+            :key="factor"
+            class="rounded border border-theme-primary/20 px-1.5 py-0.5"
+          >
+            {{ factor }}
+          </span>
         </div>
         <p v-if="nextMilestone" class="mt-2 text-xs leading-4 text-theme-primary/60">
           {{ nextMilestone }}
@@ -140,6 +164,12 @@
         variant="default"
         size="sm"
         class="border-2 border-theme-primary hover:shadow-glow-md"
+        :disabled="relationship.can_make_partners === false"
+        :title="
+          relationship.can_make_partners === false
+            ? 'Already committed to another dweller'
+            : undefined
+        "
         @click="$emit('make-partners')"
       >
         Partner
@@ -274,5 +304,23 @@ const bondCadence = computed(() => {
   if (seconds === 60) return 'minute'
   if (seconds % 60 === 0) return `${seconds / 60} minutes`
   return `${seconds} seconds`
+})
+
+const bondChangeLabel = computed(() => {
+  const change = props.relationship.bond_change_per_tick
+  if (!change || !bondCadence.value) return null
+  const sign = change > 0 ? '+' : '−'
+  return `${sign}${Math.abs(change)} hearts every ${bondCadence.value}`
+})
+
+/** Why the bond is moving: race match and the pair's effective Charisma. */
+const bondFactors = computed(() => {
+  const factors: string[] = []
+  if (props.relationship.same_race === true) factors.push('Same race')
+  else if (props.relationship.same_race === false) factors.push('Mixed races')
+  if (typeof props.relationship.average_charisma === 'number') {
+    factors.push(`Charisma ${props.relationship.average_charisma}`)
+  }
+  return factors
 })
 </script>

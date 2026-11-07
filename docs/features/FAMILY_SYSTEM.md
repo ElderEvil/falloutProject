@@ -37,7 +37,10 @@ All stored on `Dweller` (one row per dweller) + two child tables.
 ## 3. Relationship Lifecycle (backend service: `relationship_service.py`)
 
 **What exists (keep):**
-- Affinity auto-growth per game tick (+2 when in the same room).
+- Affinity moves per game tick while a pair shares Living Quarters: same-race pairs and higher effective
+  Charisma gain faster, incompatible pairs can drift apart, and non-committed stages demote with hysteresis
+  (romantic→friend below 60, friend→acquaintance below 45). PARTNER/MARRIED links only end through `break_up`.
+  Negative affinity (rival/enemy bonds) is a future update; the floor stays at 0.
 - Auto-upgrade on affinity: `acquaintance→friend→romantic` at 70, `→partner` at 70, `partner→MARRIED` at 85 (defaults: romance 70, partnership 70, marriage 85).
 - `initiate_romance` / `make_partners` / `marry` / `break_up` endpoints + service methods.
 - `marry` grants **each** dweller a one-time cumulative **+25** happiness bonus (+10 for becoming partners, +15 for becoming married) and fires a `RELATIONSHIP_FORMED` notification.
@@ -115,7 +118,7 @@ All stored on `Dweller` (one row per dweller) + two child tables.
 
 **What exists (keep):**
 - `/vault/:id/relationships` view — 4 tabs: **Forming**, **Partners**, **Pregnancies**, **Children** + stat cards.
-- `RelationshipCard` actions gated by stage/affinity: Romance (acquaintance ≥70), Partner (romantic), Marry (partner ≥85), Break Up (committed types).
+- `RelationshipCard` actions gated by stage/affinity: Romance (acquaintance ≥70), Partner (romantic; disabled when either dweller is already committed to someone else), Marry (partner ≥85), Break Up (committed types).
 - `PregnancyTracker` with manual deliver.
 - Dweller detail **Family tab** → `FamilyTreePanel` (parents / self+partners / children / generation, clickable nodes navigating to dweller).
 - Pregnancy, relationship, and family stores + services.
@@ -137,7 +140,8 @@ All stored on `Dweller` (one row per dweller) + two child tables.
 See `../AGENTS.md` "Bug Fix Workflow" + this doc. Key manual checks:
 
 **Relationships**
-- [ ] Affinity auto-growth for co-located dwellers (+2/tick).
+- [ ] Co-located dwellers change affinity each tick (signed; same-race and high-Charisma pairs gain faster, incompatible pairs lose up to 2).
+- [ ] Romantic pairs below 60 demote to friend; friend pairs below 45 demote to acquaintance; PARTNER/MARRIED never demote.
 - [ ] Stage progression at 70 / 70 / 85 thresholds.
 - [ ] Romance / Partner / Marry buttons appear exactly when allowed.
 - [ ] Marry: happiness bonus +25, `RELATIONSHIP_FORMED` notification, badge shows `MARRIED`.

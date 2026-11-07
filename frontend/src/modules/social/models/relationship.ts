@@ -52,9 +52,12 @@ export interface Relationship {
   dweller_2_id: string
   relationship_type: RelationshipType
   affinity: number // 0-100
-  bond_growth_per_tick?: number
+  bond_change_per_tick?: number
   bond_tick_seconds?: number
   conception_potential?: 'possible' | 'race' | 'age' | 'gender'
+  same_race?: boolean
+  average_charisma?: number
+  can_make_partners?: boolean
   created_at?: string
   updated_at?: string
 }

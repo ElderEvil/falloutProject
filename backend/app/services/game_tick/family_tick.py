@@ -155,7 +155,7 @@ async def update_pair_affinity(
     new_relationships: list[tuple[Relationship, int]],
 ) -> int:
     """Update affinity for a pair of dwellers, creating relationship if needed."""
-    from app.services.relationship_service import affinity_gain, relationship_service
+    from app.services.relationship_service import affinity_change, relationship_service
 
     key = (dweller1.id, dweller2.id)
     relationship = relationships_map.get(key)
@@ -168,22 +168,33 @@ async def update_pair_affinity(
             relationship_type=RelationshipTypeEnum.ACQUAINTANCE,
             affinity=0,
         )
-        new_relationships.append((relationship, affinity_gain(dweller1, dweller2)))
+        new_relationships.append((relationship, affinity_change(dweller1, dweller2)))
         relationships_map[key] = relationship
         relationships_map[(dweller2.id, dweller1.id)] = relationship
         return 0
 
-    if not any(new_relationship is relationship for new_relationship, _ in new_relationships):
+    if any(new_relationship is relationship for new_relationship, _ in new_relationships):
+        return 0
+    change = affinity_change(dweller1, dweller2)
+    if change > 0:
         await relationship_service.increase_affinity(
             db_session,
             relationship.dweller_1_id,
             relationship.dweller_2_id,
-            affinity_gain(dweller1, dweller2),
+            change,
             relationship=relationship,
             commit=False,
         )
-        return 1
-    return 0
+    elif change < 0:
+        await relationship_service.decrease_affinity(
+            db_session,
+            relationship.dweller_1_id,
+            relationship.dweller_2_id,
+            -change,
+            relationship=relationship,
+            commit=False,
+        )
+    return 1
 
 
 async def create_new_relationships(db_session: AsyncSession, new_relationships: list[tuple[Relationship, int]]) -> int:
@@ -196,15 +207,25 @@ async def create_new_relationships(db_session: AsyncSession, new_relationships: 
     db_session.add_all([relationship for relationship, _ in new_relationships])
     await db_session.flush()
 
-    for relationship, gain in new_relationships:
-        await relationship_service.increase_affinity(
-            db_session,
-            relationship.dweller_1_id,
-            relationship.dweller_2_id,
-            gain,
-            relationship=relationship,
-            commit=False,
-        )
+    for relationship, change in new_relationships:
+        if change > 0:
+            await relationship_service.increase_affinity(
+                db_session,
+                relationship.dweller_1_id,
+                relationship.dweller_2_id,
+                change,
+                relationship=relationship,
+                commit=False,
+            )
+        elif change < 0:
+            await relationship_service.decrease_affinity(
+                db_session,
+                relationship.dweller_1_id,
+                relationship.dweller_2_id,
+                -change,
+                relationship=relationship,
+                commit=False,
+            )
     return len(new_relationships)
 
 
@@ -247,6 +268,9 @@ async def update_room_relationships(
         stats["relationships_updated"] += await service._create_new_relationships(db_session, new_relationships)
         if stats["relationships_updated"]:
             await db_session.commit()
+            from app.services.notification_service import NotificationService
+
+            await NotificationService.deliver_deferred_notifications(db_session)
 
     except SQLAlchemyError as e:
         await recover_session(db_session)

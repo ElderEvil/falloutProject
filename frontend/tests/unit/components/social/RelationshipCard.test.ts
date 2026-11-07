@@ -4,9 +4,7 @@ import { mount } from '@vue/test-utils'
 import RelationshipCard from '@/modules/social/components/relationships/RelationshipCard.vue'
 
 // Mock Iconify
-vi.mock('@iconify/vue', () =>
-  createIconifyMock()
-)
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 const dweller1 = {
   id: 'd1',
@@ -97,14 +95,38 @@ describe('RelationshipCard', () => {
       dweller_2_id: 'd2',
       relationship_type: 'friend',
       affinity: 50,
-      bond_growth_per_tick: 3,
+      bond_change_per_tick: 3,
       bond_tick_seconds: 60,
+      same_race: true,
+      average_charisma: 8,
     })
 
     expect(wrapper.text()).toContain('C 10')
     expect(wrapper.text()).toContain('Growing closer')
     expect(wrapper.text()).toContain('+3 hearts every minute')
+    expect(wrapper.text()).toContain('Same race')
+    expect(wrapper.text()).toContain('Charisma 8')
     expect(wrapper.text()).toContain('20 hearts until romance')
+  })
+
+  it('shows a drifting bond with its race and Charisma factors', () => {
+    const wrapper = createWrapper({
+      id: '1',
+      dweller_1_id: 'd1',
+      dweller_2_id: 'd2',
+      relationship_type: 'friend',
+      affinity: 55,
+      bond_change_per_tick: -2,
+      bond_tick_seconds: 60,
+      same_race: false,
+      average_charisma: 3,
+    })
+
+    expect(wrapper.text()).toContain('Drifting apart')
+    expect(wrapper.text()).toContain('−2 hearts every minute')
+    expect(wrapper.text()).toContain('Mixed races')
+    expect(wrapper.text()).toContain('Charisma 3')
+    expect(wrapper.text()).not.toContain('Growing closer')
   })
 
   it('shows a resting bond when the pair is apart', () => {
@@ -114,7 +136,7 @@ describe('RelationshipCard', () => {
       dweller_2_id: 'd2',
       relationship_type: 'partner',
       affinity: 80,
-      bond_growth_per_tick: 0,
+      bond_change_per_tick: 0,
       bond_tick_seconds: 60,
     })
 
@@ -165,7 +187,7 @@ describe('RelationshipCard', () => {
       dweller_2_id: 'd2',
       relationship_type: 'MARRIED',
       affinity: 100,
-      bond_growth_per_tick: 0,
+      bond_change_per_tick: 0,
       bond_tick_seconds: 60,
     })
 
@@ -309,6 +331,40 @@ describe('RelationshipCard', () => {
       })
 
       expect(wrapper.text()).not.toContain('Marry')
+    })
+
+    it('disables the Partner action when a dweller is already committed', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'romantic',
+        affinity: 75,
+        can_make_partners: false,
+      })
+
+      const partnerButton = wrapper
+        .findAll('button')
+        .find((button) => button.text().trim() === 'Partner')
+      expect(partnerButton).toBeDefined()
+      expect(partnerButton?.attributes('disabled')).toBeDefined()
+      expect(partnerButton?.attributes('title')).toContain('Already committed')
+    })
+
+    it('enables the Partner action when both dwellers are free', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'romantic',
+        affinity: 75,
+        can_make_partners: true,
+      })
+
+      const partnerButton = wrapper
+        .findAll('button')
+        .find((button) => button.text().trim() === 'Partner')
+      expect(partnerButton?.attributes('disabled')).toBeUndefined()
     })
 
     it('shows a Break Up button for married relationships', () => {

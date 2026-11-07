@@ -130,6 +130,27 @@ describe('Room Store', () => {
       expect(store.roomsLoadedVaultId).toBe('vault-1')
     })
 
+    it.each([false, true])(
+      'invalidates a failed refresh cache (throwOnError=%s)',
+      async (throwOnError) => {
+        const store = useRoomStore()
+        vi.mocked(axios.get).mockResolvedValueOnce({ data: [makeRoom()] })
+        await store.fetchRooms('vault-1')
+        expect(store.roomsLoadedVaultId).toBe('vault-1')
+
+        vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
+        const refresh = store.fetchRooms('vault-1', throwOnError)
+        if (throwOnError) await expect(refresh).rejects.toThrow('Network error')
+        else expect(await refresh).toBe('failed')
+        expect(store.rooms).toEqual([])
+        expect(store.roomsLoadedVaultId).toBeNull()
+
+        vi.mocked(axios.get).mockResolvedValueOnce({ data: [makeRoom()] })
+        expect(await store.fetchRooms('vault-1')).toBe('loaded')
+        expect(store.roomsLoadedVaultId).toBe('vault-1')
+      }
+    )
+
     it('should handle errors gracefully', async () => {
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
 
@@ -189,6 +210,7 @@ describe('Room Store', () => {
       rejectFirst(new Error('Network error'))
       expect(await firstRequest).toBe('superseded')
       expect(store.rooms).toEqual(freshRooms)
+      expect(store.roomsLoadedVaultId).toBe('vault-1')
     })
   })
 

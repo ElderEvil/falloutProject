@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.294.0 (2026-11-07)
+
+### Features
+
+* relationship rivalry and race discomfort ([#1356](https://github.com/ElderEvil/falloutProject/issues/1356)) 8e1f5cc
+
 ## 2.293.0 (2026-11-07)
 
 ### Features

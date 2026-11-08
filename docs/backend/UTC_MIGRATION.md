@@ -75,7 +75,7 @@ Paths in this section are relative to the repository root.
 | ORM clocks | `backend/app/models/base.py` uses `app.utils.time.utcnow()` for creation/update/deletion. All naive-UTC producers go through `app/utils/time.py` (`utcnow`, `as_utc`, `as_naive_utc`); direct `datetime.utcnow` and naive `.replace(tzinfo=None)` are banned by `tests/test_architecture/test_clock_perimeter_guard.py`. | Move persisted datetime fields and their defaults/onupdate hooks to aware UTC together with SQLModel/SQLAlchemy types. Keep the API and worker engines in `backend/app/db/session.py` pinned to UTC. |
 | Deadlines and elapsed time | `models/{exploration,training,crafting_order,pregnancy,incident,vault_quest,game_state}.py` compare stored dates with naive current time. CRUD queries use matching naive bounds. | Audit both Python and SQL operands: completion thresholds, returns, pause/resume, offline ticks, breeding/cooldowns, age/death, retention and room/weapon cooldowns. Replacing defaults alone leaves mixed arithmetic. |
 | Offset stripping | `Pregnancy.is_due` and arena event snapshots normalize through `app.utils.time.as_utc()`; offset stripping outside `app/utils/time.py` is guarded. | Review each occurrence for its input contract. Convert an aware instant with `astimezone(UTC)`; only label a naive value UTC when the legacy contract establishes UTC. |
-| Exploration JSON | `models/exploration.py` emits bare ISO strings in `events[].timestamp` and `loot_collected[].found_at`. `services/exploration_service.py` and `exploration/expedition_scenario_service.py` write `trail[].t` and scenario event timestamps. | **Decision: stored JSON stays bare naive UTC.** Keep historical text byte-stable; new writers keep the bare format via `serialize_naive_utc_datetime`; readers accept bare and explicit offsets. `exploration/event_generator.py` keeps normalizing aware input to naive UTC for its clock comparison. |
+| Exploration JSON | `models/exploration.py` emits bare ISO strings in `events[].timestamp` and `loot_collected[].found_at`. `services/exploration_service.py` and `exploration/expedition_scenario_service.py` write `trail[].t` and scenario event timestamps. | **Decision: stored JSON stays bare naive UTC.** Keep historical text byte-stable; new writers keep the bare format via `serialize_naive_utc_datetime`; readers accept bare and explicit offsets. `exploration/event_generator.py` normalizes parsed history with `as_utc` for its clock comparison, so legacy naive text and an aware clock compare safely; stored text stays untouched. |
 | Other JSON and delivery | `dweller.bio_entries[].created_at` comes from `services/bio_service.py`; notification metadata is extensible JSON. `game_loop_service.py` derives delivery `event_id` text from `last_tick_time`; `gamestate.recent_tick_ids` stores opaque identifiers. | **Decision: stored JSON stays bare naive UTC; identity stays byte-stable.** `bio_entries[].created_at`, notification metadata `created_at`, `event_id` and `recent_tick_ids` keep their current bare/opaque form. Do not rewrite history or recompute identity from aware values. |
 | Canonical API output | `schemas/training.py` uses `utils/serialize.py` to emit UTC `Z` strings for naive and aware inputs, including nullable completion. | **Decision: every API datetime field emits UTC `Z`.** Training is the reference; add the same field serializers to the remaining schemas. The round-trip tests cover naive UTC, UTC, positive/fractional and negative offsets, and present/absent values. |
 | Other API output | Exploration and broadcast schemas rely on ordinary datetime serialization. Game-control, quest-member, incident and notification delivery paths also call `isoformat()` directly. `system/info` already emits an aware value. | **Decision: no bare or `+00:00` API output.** Route every datetime field through `serialize_utc_datetime`/`serialize_optional_utc_datetime` (including `system/info.build_date`, which changes from `+00:00` to `Z`). Regenerate frontend types when the API changes. |
@@ -175,14 +175,15 @@ These decisions are the contract; do not re-open them per site during B4.
 | Boundary | Current behaviour | Decision |
 | --- | --- | --- |
 | Exploration JSON (stored) | `events[].timestamp`, `loot_collected[].found_at` via `serialize_naive_utc_datetime`; `trail[].t` via the helper in `expedition_scenario_service.py` and raw `isoformat()` in `exploration_service.py` | **Bare naive UTC, forever.** Never rewrite stored text; new writers use `serialize_naive_utc_datetime`, including the `exploration_service` trail. |
-| Exploration JSON reader | `event_generator.py` parses `events[].timestamp` and normalizes via `as_naive_utc` | **Accept bare and explicit offsets.** Never modify stored text. |
+| Exploration JSON reader | `event_generator.py` parses `events[].timestamp` and normalizes via `as_utc` | **Accept bare and explicit offsets.** Never modify stored text. |
 | Bio entries | `bio_entries[].created_at` legacy naive | **Bare naive UTC** (stored JSON policy). |
 | SSE: exploration | `coordinator.py` return deadlines | **UTC `Z`** via `serialize_utc_datetime`. |
 | SSE: incidents | `incident_service.py` start/end `isoformat()` | **UTC `Z`**; optional values stay `null`. |
 | SSE: arena | `arena_service._event_snapshot` emits `+00:00` | **UTC `Z`** (changes from `+00:00`). |
 | SSE: exploration members | `exploration_service.py` created/updated `isoformat()` | **UTC `Z`**. |
 | Notification metadata | `notification_service.py` `created_at.isoformat()` | **Bare naive UTC** in stored metadata; API `notification.created_at` is **UTC `Z`**. |
-| Tick frame | `event_id = last_tick_time.isoformat()`; `recent_tick_ids` opaque | **Bare naive UTC for `event_id` and `last_tick_time`.** Identity must not change; keep the tick payload on the legacy format. |
+| Tick frame | `event_id = last_tick_time.isoformat()`; `recent_tick_ids` opaque | **SSE tick payload stays bare naive UTC** for `event_id` and its `last_tick_time`; identity must not change. |
+| Game-state API | `get_vault_status` returns `last_tick_time` | **UTC `Z`** — this is an API timestamp, not the SSE identity; keep it separate from `event_id`. |
 | API canonical | `schemas/training.py` emits `Z` | **UTC `Z`**; use it as the template for every schema. |
 | API default | Most schemas rely on Pydantic default serialization | **UTC `Z`** via explicit field serializers; no bare or `+00:00` output. |
 | API `system/info` | `build_date` aware `+00:00` | **UTC `Z`** (changes from `+00:00`). |
@@ -251,9 +252,10 @@ compatible **readers** only. After that, B4 ships in one maintenance window with
    Q bound to aware UTC. No mixed pair may run in production.
 6. **Writers/serializers:** apply the output decisions above; keep JSON history and identity strings
    byte-stable.
-7. **Verify, then reopen:** check revision/schema/instants, a real tick, deadlines, SSE replay and
-   desktop/phone timestamps; then start the matching API and worker and reopen play.
-8. **Rollback:** keep the pinned v2 image and pre-migration snapshot. Rolling back after new progress
+7. **Start under maintenance:** start the matching API and worker with play still closed, then verify
+   revision/schema/instants, a real tick, deadlines, SSE replay and desktop/phone timestamps.
+8. **Reopen:** open play only after those live checks pass.
+9. **Rollback:** keep the pinned v2 image and pre-migration snapshot. Rolling back after new progress
    restores the snapshot and discards post-window activity — state that explicitly in the release notes.
 
 Acceptance gates for the B4 PR:

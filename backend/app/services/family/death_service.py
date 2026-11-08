@@ -1,7 +1,7 @@
 """Death service for handling dweller death, revival, and life/death statistics."""
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -25,6 +25,7 @@ from app.utils.exceptions import (
     ResourceNotFoundException,
     VaultOperationException,
 )
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,7 @@ class DeathService:
         # Update dweller death state
         # NOTE: Using naive datetime to match database TIMESTAMP WITHOUT TIME ZONE
         # This is a temporary fix - should migrate to timezone-aware in future
-        now_naive = datetime.now(UTC).replace(tzinfo=None)
+        now_naive = utcnow()
         bio_entries = bio_service.with_entry(
             dweller,
             "family",
@@ -293,7 +294,7 @@ class DeathService:
             return None
 
         permanent_date = dweller.death_timestamp + timedelta(days=game_config.death.permanent_death_days)
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = utcnow()
 
         if now >= permanent_date:
             return 0
@@ -310,7 +311,7 @@ class DeathService:
         :returns: Number of dwellers marked as permanently dead
         :rtype: int
         """
-        cutoff_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=game_config.death.permanent_death_days)
+        cutoff_date = utcnow() - timedelta(days=game_config.death.permanent_death_days)
 
         # Find dead dwellers past the threshold
         dwellers_to_mark = await dweller_crud.get_permanently_dead_before(db_session, cutoff_date)

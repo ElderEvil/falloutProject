@@ -6,7 +6,7 @@ modifiers, breeding eligibility).
 """
 
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
@@ -16,6 +16,7 @@ from app.core.enums import (
     SuperMutantMutationEnum,
     SynthTypeEnum,
 )
+from app.utils.time import as_naive_utc, utcnow
 
 RaceOption = RaceEnum
 
@@ -143,10 +144,10 @@ def chronological_years(birth_date: datetime | None, now: datetime | None = None
     """
     if birth_date is None:
         return None
-    ref = now if now is not None else datetime.now(UTC)
+    ref = now if now is not None else utcnow()
     # Persisted dates are naive UTC; explicit aware dates are normalized to the same convention.
-    birth_utc = birth_date.astimezone(UTC).replace(tzinfo=None) if birth_date.tzinfo else birth_date
-    ref_utc = ref.astimezone(UTC).replace(tzinfo=None) if ref.tzinfo else ref
+    birth_utc = as_naive_utc(birth_date)
+    ref_utc = as_naive_utc(ref)
     return max(0.0, (ref_utc - birth_utc).total_seconds() / 31_556_952.0)
 
 

@@ -7,7 +7,7 @@ shared pool, so nothing is written to the death fields and no revival window app
 """
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -22,6 +22,7 @@ from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.services.notification_service import notification_service
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,7 @@ class ExitRequestService:
         if reason:
             raise VaultOperationException(detail=reason)
 
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = utcnow()
         if not await self._lock_exit_requests(db_session, vault_id):
             raise VaultOperationException(detail="Another exit request is already being handled")
 
@@ -102,7 +103,7 @@ class ExitRequestService:
             member.happiness = max(10, member.happiness - vault_penalty)
 
         dweller.exit_requested_at = None
-        vault.last_exit_request_at = datetime.now(UTC).replace(tzinfo=None)
+        vault.last_exit_request_at = utcnow()
         db_session.add(vault)
         db_session.add(dweller)
         await db_session.commit()
@@ -130,7 +131,7 @@ class ExitRequestService:
         from app.services.combat.arena_service import arena_service
 
         await arena_service.clear_fighter_slots_for_dweller(db_session, dweller_id, commit=False)
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = utcnow()
         await self._stop_training(db_session, dweller_id, now)
         dweller.exit_requested_at = None
         dweller.despair_since = None
@@ -156,7 +157,7 @@ class ExitRequestService:
     async def sync_despair_requests(self, db_session: AsyncSession, vault_id: UUID4) -> list[Dweller]:
         """Raise requests for dwellers in despair, and withdraw requests from dwellers who recovered."""
         threshold = game_config.exit_request.despair_happiness
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = utcnow()
 
         asked = await self._ask_the_despairing(db_session, vault_id, threshold, now)
         await self._withdraw_recovered(db_session, vault_id, threshold)

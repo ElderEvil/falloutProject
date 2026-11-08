@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 import random
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
@@ -42,6 +42,7 @@ from app.core.game_config import game_config
 from app.crud.relationship import relationship_crud
 from app.services.family.breeding_service import breeding_service
 from app.utils.exceptions import ResourceNotFoundException
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -286,7 +287,7 @@ class FamilyScenarioService:
             raise ValueError(f"Couple '{couple.label}' has no female member — cannot create a pregnancy")
 
         pregnancy = await breeding_service.create_pregnancy(db_session, mother.id, father.id)
-        pregnancy.due_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=due_in_minutes)
+        pregnancy.due_at = utcnow() + timedelta(minutes=due_in_minutes)
         db_session.add(pregnancy)
         await db_session.commit()
         await db_session.refresh(pregnancy)
@@ -312,7 +313,7 @@ class FamilyScenarioService:
         if mother is None or father is None:
             raise ValueError(f"Couple '{couple.label}' has no female member — cannot create a delivery")
 
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = utcnow()
         pregnancy = Pregnancy(
             mother_id=mother.id,
             father_id=father.id,
@@ -351,7 +352,7 @@ class FamilyScenarioService:
             enforce_capacity=False,  # QA scenario flow, not a live arrival
         )
         child.age_group = AgeGroupEnum.CHILD
-        child.birth_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=age_hours)
+        child.birth_date = utcnow() - timedelta(hours=age_hours)
         child.parent_1_id = couple.dweller_1.id
         child.parent_2_id = couple.dweller_2.id
         db_session.add(child)
@@ -419,7 +420,7 @@ class FamilyScenarioService:
             mother = await _name(preg.mother_id)
             father = await _name(preg.father_id)
             if preg.status == PregnancyStatusEnum.PREGNANT:
-                due_in = preg.due_at - datetime.now(UTC).replace(tzinfo=None)
+                due_in = preg.due_at - utcnow()
                 countdown = f"due in {_fmt_delta(due_in)}"
                 rows.append(
                     TimelineRow(kind="pregnancy", label=f"{mother} ⚧ {father}", detail="pregnant", countdown=countdown)
@@ -428,7 +429,7 @@ class FamilyScenarioService:
                 cooldown_ends = (preg.updated_at or preg.due_at) + timedelta(
                     hours=game_config.breeding.birth_cooldown_hours
                 )
-                remaining = cooldown_ends - datetime.now(UTC).replace(tzinfo=None)
+                remaining = cooldown_ends - utcnow()
                 if remaining > timedelta(0):
                     countdown = f"cooldown ends in {_fmt_delta(remaining)}"
                 else:
@@ -445,7 +446,7 @@ class FamilyScenarioService:
             if child.birth_date is None:
                 continue
             grows_at = child.birth_date + timedelta(hours=game_config.breeding.child_growth_duration_hours)
-            remaining = grows_at - datetime.now(UTC).replace(tzinfo=None)
+            remaining = grows_at - utcnow()
             if remaining > timedelta(0):
                 countdown = f"grows up in {_fmt_delta(remaining)}"
             else:

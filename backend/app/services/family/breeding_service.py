@@ -3,7 +3,7 @@
 import logging
 import random
 from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import Any, Literal
 
 from pydantic import UUID4
@@ -35,6 +35,7 @@ from app.services.notification_service import notification_service
 from app.utils.bios import render_newborn_bio
 from app.utils.dwellers import elder_birth_threshold
 from app.utils.exceptions import NoLivingSpaceError
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -273,7 +274,7 @@ class BreedingService:
             raise ValueError("Only humans can conceive; non-human races enter the vault by other means")
 
         # NOTE: Using naive datetime to match database TIMESTAMP WITHOUT TIME ZONE
-        conceived_at = datetime.now(UTC).replace(tzinfo=None)
+        conceived_at = utcnow()
         due_at = conceived_at + timedelta(hours=game_config.breeding.pregnancy_duration_hours)
 
         pregnancy = Pregnancy(
@@ -371,7 +372,7 @@ class BreedingService:
             "gender": child_gender,
             "rarity": child_rarity,
             "age_group": AgeGroupEnum.CHILD,
-            "birth_date": datetime.now(UTC).replace(tzinfo=None),
+            "birth_date": utcnow(),
             "level": 1,
             "experience": 0,
             "max_health": 100,
@@ -499,7 +500,7 @@ class BreedingService:
                 await BreedingService._create_newborn(db_session, mother, father, commit=False) for _ in range(count)
             ]
             pregnancy.status = PregnancyStatusEnum.DELIVERED
-            pregnancy.updated_at = datetime.now(UTC).replace(tzinfo=None)
+            pregnancy.updated_at = utcnow()
             await db_session.commit()
         except Exception:
             await db_session.rollback()
@@ -609,7 +610,7 @@ class BreedingService:
         untouched even with an ancient ``birth_date``. Youth maturation still
         runs for every race so a newborn can reach adulthood.
         """
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = utcnow()
         maturity_hours = game_config.breeding.child_growth_duration_hours
         teen_threshold = now - timedelta(hours=maturity_hours // 2)
         adult_threshold = now - timedelta(hours=maturity_hours)
@@ -713,8 +714,8 @@ class BreedingService:
             msg = "Pregnancy is not active"
             raise ValueError(msg)
 
-        pregnancy.due_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=1)
-        pregnancy.updated_at = datetime.now(UTC).replace(tzinfo=None)
+        pregnancy.due_at = utcnow() - timedelta(seconds=1)
+        pregnancy.updated_at = utcnow()
 
         await db_session.commit()
         await db_session.refresh(pregnancy)

@@ -3,7 +3,6 @@
 import logging
 import random
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import UUID4
@@ -378,8 +377,7 @@ class DwellerService:
             elif updated.age_group in (AgeGroupEnum.ADULT, AgeGroupEnum.ELDER):
                 updated.age_group = (
                     AgeGroupEnum.ELDER
-                    if updated.birth_date is not None
-                    and updated.birth_date <= elder_birth_threshold(datetime.now(UTC).replace(tzinfo=None))
+                    if updated.birth_date is not None and updated.birth_date <= elder_birth_threshold(utcnow())
                     else AgeGroupEnum.ADULT
                 )
             db_session.add(updated)

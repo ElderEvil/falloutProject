@@ -1,7 +1,7 @@
 """Service for authentication operations: login, token refresh, password management."""
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from uuid import UUID
 
 from pydantic import EmailStr
@@ -18,6 +18,7 @@ from app.utils.exceptions import (
     ResourceNotFoundException,
     ValidationException,
 )
+from app.utils.time import as_utc, utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +155,7 @@ class AuthService:
 
         # Store token and expiry in database
         user.password_reset_token = token
-        user.password_reset_expires = datetime.now(tz=UTC).replace(tzinfo=None) + timedelta(hours=1)
+        user.password_reset_expires = utcnow() + timedelta(hours=1)
         await db_session.commit()
 
         # Send password reset email
@@ -202,14 +203,8 @@ class AuthService:
         if user.password_reset_token != token:
             raise ValidationException(detail="Invalid token")
 
-        if user.password_reset_expires:
-            # Handle both timezone-aware and naive datetimes
-            now = datetime.now(tz=UTC)
-            expires = user.password_reset_expires
-            if expires.tzinfo is None:
-                now = now.replace(tzinfo=None)
-            if expires < now:
-                raise ValidationException(detail="Token has expired")
+        if user.password_reset_expires and as_utc(user.password_reset_expires) < as_utc(utcnow()):
+            raise ValidationException(detail="Token has expired")
 
         # Update password
         user.hashed_password = security.get_password_hash(new_password)

@@ -1,6 +1,6 @@
 """One persisted UTC refresh policy shared by vault ticks and scheduled sweeps."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -10,11 +10,12 @@ from app.crud.game_state import game_state_crud
 from app.crud.objective import objective_crud
 from app.crud.vault import vault as vault_crud
 from app.services.progression.objectives.assignment import ObjectiveAssignmentService
+from app.utils.time import as_naive_utc, utcnow
 
 
 def objective_periods(now: datetime) -> tuple[datetime, datetime]:
     """Naive UTC daily midnight and Monday midnight for the supplied instant."""
-    utc = now.astimezone(UTC).replace(tzinfo=None) if now.tzinfo else now
+    utc = as_naive_utc(now)
     daily = utc.replace(hour=0, minute=0, second=0, microsecond=0)
     return daily, daily - timedelta(days=daily.weekday())
 
@@ -28,7 +29,7 @@ async def ensure_current_objectives(db: AsyncSession, vault_id: UUID4, *, now: d
     await vault_crud.lock_for_update(db, vault_id)
     state = await game_state_crud.get_or_create(db, vault_id, commit=False)
     await db.refresh(state)
-    daily, weekly = objective_periods(now or datetime.now(UTC))
+    daily, weekly = objective_periods(now or utcnow())
     if (
         state.achievement_tracks_initialized
         and state.daily_objectives_period == daily

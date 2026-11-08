@@ -46,6 +46,8 @@ def parse_changelog(changelog_path: Path) -> list[dict]:
     import re
     from datetime import datetime
 
+    from app.utils.time import utcnow
+
     if not changelog_path.exists():
         return []
 
@@ -81,7 +83,7 @@ def parse_changelog(changelog_path: Path) -> list[dict]:
         try:
             date_obj = datetime.strptime(date_str, "%Y-%m-%d")
         except ValueError:
-            date_obj = datetime.now()
+            date_obj = utcnow()
 
         versions.append(
             {"version": version, "date": date_obj.isoformat(), "date_display": date_str, "changes": changes}

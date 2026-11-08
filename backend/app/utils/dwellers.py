@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from faker import Faker
@@ -25,6 +25,7 @@ from app.utils.appearance_roll import (
 )
 from app.utils.bios import maybe_zone_rumor, render_bio
 from app.utils.leveling import calculate_xp_required
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -273,7 +274,7 @@ def create_random_common_dweller(
 
     gender = gender or rng.choice(list(GenderEnum))
     stats = get_stats_by_rarity(rarity, rng)
-    now = datetime.now(UTC).replace(tzinfo=None) if seed is None else datetime(2000, 1, 1)
+    now = utcnow() if seed is None else datetime(2000, 1, 1)
     birth_date = roll_spawn_birth_date(now, rng)
     identity = _roll_identity(rng)
     # Non-humans never senesce: visual freezes at adult while birth_date keeps
@@ -354,7 +355,7 @@ def create_dweller_from_template(
     elif va is not None and hasattr(va, "model_dump"):
         data["visual_attributes"] = va.model_dump(exclude_none=False)  # type: ignore[union-attr]
     rng = random.Random(seed) if seed is not None else random
-    now = datetime.now(UTC).replace(tzinfo=None) if seed is None else datetime(2000, 1, 1)
+    now = utcnow() if seed is None else datetime(2000, 1, 1)
     if data.get("birth_date") is None:
         data["birth_date"] = roll_spawn_birth_date(now, rng)
     data.setdefault("age_group", AgeGroupEnum.ADULT)

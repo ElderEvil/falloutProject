@@ -1,6 +1,6 @@
 import random
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from pydantic import UUID4
@@ -51,6 +51,7 @@ from app.utils.dwellers import (
 )
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 from app.utils.static_data import game_data_store
+from app.utils.time import utcnow
 
 #: Eager-load weapon/outfit — the shared baseline; callers that need pets add selectinload(Dweller.pet).
 _WEAPON_OUTFIT_LOADS = (
@@ -995,7 +996,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         """Living departures eligible for the shared pool, newest departures first."""
         query = (
             select(self.model)
-            .where(*pool_eligible_conditions(datetime.now(UTC).replace(tzinfo=None)))
+            .where(*pool_eligible_conditions(utcnow()))
             .order_by(self.model.departed_at.desc())
             .options(*_WEAPON_OUTFIT_LOADS, selectinload(Dweller.pet))
         )

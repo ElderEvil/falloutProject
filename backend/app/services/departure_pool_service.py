@@ -8,7 +8,6 @@ concurrent double claim cannot create two owners. Equipment is left with the sou
 """
 
 import logging
-from datetime import UTC, datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -21,6 +20,7 @@ from app.models.vault import Vault
 from app.services.trading_post_service import trade_value
 from app.services.vault_service import vault_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class DeparturePoolService:
         if dweller.previous_vault_id == vault.id:
             raise VaultOperationException(detail="You cannot recruit your own departure")
 
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = utcnow()
         if dweller.departure_eligible_at is None or dweller.departure_eligible_at > now:
             raise ResourceConflictException(detail="Dweller is not yet eligible for recruitment")
         if not _consent_ok(dweller):

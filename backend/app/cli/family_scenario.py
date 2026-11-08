@@ -14,7 +14,6 @@ Usage (from backend/):
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -23,6 +22,7 @@ import typer
 from app.cli.scenario_common import run_scenario_command
 from app.services.family.family_scenario_service import family_scenario_service
 from app.utils.exceptions import ResourceNotFoundException
+from app.utils.time import utcnow
 
 app = typer.Typer(
     name="family-scenario",
@@ -185,12 +185,12 @@ def setup(
                     f"{couple.relationship.affinity}{room_str}"
                 )
             for preg in result.pregnancies:
-                due_in = max(0, (preg.due_at - datetime.now(UTC).replace(tzinfo=None)).total_seconds() / 60)
+                due_in = max(0, (preg.due_at - utcnow()).total_seconds() / 60)
                 typer.echo(f"  Pregnancy: due in {due_in:.0f} min")
             for preg in result.postpartum:
                 if preg.updated_at is None:
                     continue
-                hours_ago = max(0, (datetime.now(UTC).replace(tzinfo=None) - preg.updated_at).total_seconds() / 3600)
+                hours_ago = max(0, (utcnow() - preg.updated_at).total_seconds() / 3600)
                 typer.echo(f"  Postpartum: delivered {hours_ago:.1f} h ago")
             for child in result.children:
                 typer.echo(f"  Child: {child.first_name} {child.last_name or ''}".rstrip())

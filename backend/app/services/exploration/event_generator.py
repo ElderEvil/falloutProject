@@ -1,7 +1,7 @@
 """Event generation for wasteland exploration."""
 
 import random
-from datetime import UTC, datetime
+from datetime import datetime
 
 from app.core.game_config import game_config
 from app.models.exploration import Exploration
@@ -18,7 +18,7 @@ from app.services import catalog_service as data_loader
 from app.services.exploration.combat_calculator import combat_calculator
 from app.services.exploration.loot_calculator import loot_calculator
 from app.utils.combat import ExpeditionCombatProfile
-from app.utils.time import utcnow
+from app.utils.time import as_naive_utc, utcnow
 
 
 def generate_discovery_name() -> str:
@@ -58,7 +58,7 @@ class EventGenerator:
             last_event_time = datetime.fromisoformat(last_event["timestamp"])
             if last_event_time.tzinfo is not None:
                 # Keep the legacy naive-UTC clock contract, preserving aware history's instant.
-                last_event_time = last_event_time.astimezone(UTC).replace(tzinfo=None)
+                last_event_time = as_naive_utc(last_event_time)
 
         if not last_event_time:
             # First event - check if initial delay has passed

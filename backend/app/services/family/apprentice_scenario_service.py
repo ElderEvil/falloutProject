@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
@@ -14,6 +14,7 @@ from app.models.base import SPECIALModel
 from app.schemas.dweller import DwellerCreate
 from app.services.dweller_service import dweller_service
 from app.services.training_service import TrainingService
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
 
 def _now() -> datetime:
     """Return a naive UTC timestamp consistent with persisted game timestamps."""
-    return datetime.now(UTC).replace(tzinfo=None)
+    return utcnow()
 
 
 @dataclass

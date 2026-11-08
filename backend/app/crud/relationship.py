@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import or_, tuple_
@@ -13,6 +12,7 @@ from app.core.enums import PARTNER_LINKED_STAGES
 from app.crud.base import CRUDBase
 from app.models.relationship import Relationship
 from app.schemas.relationship import RelationshipCreate, RelationshipUpdate
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from pydantic import UUID4
@@ -111,7 +111,7 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         the transition (and so should apply the one-time bonus/notification),
         False if the relationship was already not PARTNER (another request won).
         """
-        values: dict = {"relationship_type": "MARRIED", "updated_at": datetime.now(UTC).replace(tzinfo=None)}
+        values: dict = {"relationship_type": "MARRIED", "updated_at": utcnow()}
         if affinity is not None:
             values["affinity"] = affinity
         query = (

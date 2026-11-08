@@ -131,14 +131,7 @@ async def test_fresh_starter_rewards_reach_office_without_loot(async_session, su
                     assert missing == len(couples)
                     clock = Mock(wraps=datetime)
                     clock.now.return_value = datetime.now(UTC)
-                    clock.utcnow.side_effect = lambda clock=clock: clock.now.return_value.replace(tzinfo=None)
-                    for module in (
-                        "app.services.family.breeding_service",
-                        "app.crud.pregnancy",
-                        "app.models.pregnancy",
-                        "app.utils.time",
-                    ):
-                        monkeypatch.setattr(import_module(module), "datetime", clock)
+                    monkeypatch.setattr(import_module("app.utils.time"), "datetime", clock)
                     pregnancies = [
                         await breeding_service.create_pregnancy(async_session, mother.id, father.id)
                         for mother, father in couples

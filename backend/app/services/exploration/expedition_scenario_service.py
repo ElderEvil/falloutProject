@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
@@ -31,6 +31,7 @@ from app.services.exploration_service import exploration_service
 from app.services.leveling_service import leveling_service
 from app.services.vault_service import vault_service
 from app.utils.serialize import serialize_naive_utc_datetime
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
@@ -39,11 +40,6 @@ if TYPE_CHECKING:
     from app.models.exploration import Exploration
     from app.models.vault import Vault
     from app.schemas.expedition import AvailableSiteView, SiteDefinition
-
-
-def _now() -> datetime:
-    """Return a naive UTC timestamp consistent with persisted game timestamps."""
-    return datetime.now(UTC).replace(tzinfo=None)
 
 
 @dataclass
@@ -404,7 +400,7 @@ class ExpeditionScenarioService:
         spatial fields makes ``list_available_sites`` use the legacy catalog, so
         one Scout can enter every eligible site one by one.
         """
-        now = _now()
+        now = utcnow()
         exploration.heading_degrees = None
         exploration.world_version = None
         exploration.origin_x = None
@@ -446,7 +442,7 @@ class ExpeditionScenarioService:
         origin_x, origin_y = exploration.origin_x, exploration.origin_y
         if origin_x is None or origin_y is None:
             raise ValueError("A discovered-site scenario requires a vault map placement")
-        now = _now()
+        now = utcnow()
         travel_hours = math.dist((origin_x, origin_y), (site.coord_x, site.coord_y)) * (
             game_config.exploration.dispatch.travel_hours_per_unit
         )
@@ -510,7 +506,7 @@ class ExpeditionScenarioService:
                 gender=gender,
                 rarity=RarityEnum.COMMON,
                 age_group=AgeGroupEnum.ADULT,
-                birth_date=_now(),
+                birth_date=utcnow(),
                 vault_id=vault.id,
                 strength=strength,
                 perception=perception,
@@ -573,7 +569,7 @@ class ExpeditionScenarioService:
             site_id=preclear_site_id,
         )
         run.status = ExpeditionRunStatus.CLEARED
-        run.finished_at = _now()
+        run.finished_at = utcnow()
         db_session.add(run)
         await db_session.commit()
         return preclear_site_id

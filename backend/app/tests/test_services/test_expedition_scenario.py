@@ -18,6 +18,7 @@ from app.services.exploration_service import exploration_service
 from app.services.vault.scenario_service import vault_scenario_service
 from app.services.vault_service import vault_service
 from app.utils.exceptions import ResourceNotFoundException
+from app.utils.time import utcnow
 
 
 @pytest.mark.asyncio
@@ -123,7 +124,7 @@ async def test_all_sites_scout_pauses_legacy_journey_clock_on_site_entry(
         async_session, vault_id=vault.id, dweller_level=10, duration_hours=8, all_sites=True
     )
     exploration = result.exploration
-    original_start = datetime.utcnow() - timedelta(hours=5)
+    original_start = utcnow() - timedelta(hours=5)
     exploration.start_time = original_start
     async_session.add(exploration)
     await async_session.commit()
@@ -165,7 +166,7 @@ async def test_all_sites_scenario_bypasses_prior_vault_cooldowns_but_not_open_ru
         site_id="super_duper_mart",
     )
     cleared.status = ExpeditionRunStatus.CLEARED
-    cleared.finished_at = datetime.utcnow()
+    cleared.finished_at = utcnow()
     async_session.add(cleared)
     await crud.expedition_run.create_run(
         async_session,
@@ -209,7 +210,7 @@ async def test_all_sites_scenario_can_pay_the_finale_despite_vault_cooldown(
         site_id="super_duper_mart",
     )
     cleared.status = ExpeditionRunStatus.CLEARED
-    cleared.finished_at = datetime.utcnow()
+    cleared.finished_at = utcnow()
     async_session.add(cleared)
     await async_session.commit()
 

@@ -14,6 +14,7 @@ from app.models.team import Team, TeamMember
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.tests.factory.rooms import create_overseers_office
 from app.tests.test_alembic import test_data_migrations as legacy
+from app.utils.time import utcnow
 
 harness = legacy.harness
 REVISION = "d9e2f4a6b801"
@@ -26,7 +27,7 @@ def test_recovers_orphaned_questing_dwellers_and_preserves_active_parties(harnes
     vault_id = UUID(legacy._seed_vault(harness, number=929))
     office = create_overseers_office()
     room_id = str(uuid4())
-    now = datetime.utcnow()
+    now = utcnow()
     harness.execute(
         "INSERT INTO room (id, vault_id, name, category, ability, base_cost, tier, size_min, size_max, size, "
         "speedup_multiplier, created_at, updated_at) "
@@ -93,10 +94,8 @@ def test_recovers_orphaned_questing_dwellers_and_preserves_active_parties(harnes
                             VaultQuestCompletionLink(
                                 vault_id=vault_id,
                                 quest_id=quest.id,
-                                started_at=None if state == "unstarted" else datetime.utcnow() - timedelta(hours=1),
-                                return_completes_at=datetime.utcnow() + timedelta(minutes=10)
-                                if state == "returning"
-                                else None,
+                                started_at=None if state == "unstarted" else utcnow() - timedelta(hours=1),
+                                return_completes_at=utcnow() + timedelta(minutes=10) if state == "returning" else None,
                                 is_reward_ready=state == "ready",
                                 is_completed=state == "completed",
                             )

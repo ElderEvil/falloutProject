@@ -16,6 +16,7 @@ from app.models.vault import Vault
 from app.schemas.room import RoomCreate
 from app.services.training_service import TrainingService
 from app.utils.exceptions import VaultOperationException
+from app.utils.time import utcnow
 
 
 @pytest.fixture
@@ -311,7 +312,7 @@ async def test_continuous_training_starts_next_round_atomically(
     from datetime import datetime, timedelta
 
     training, room = continuous_trainee
-    training.estimated_completion_at = datetime.utcnow() - timedelta(seconds=1)
+    training.estimated_completion_at = utcnow() - timedelta(seconds=1)
     async_session.add(training)
     await async_session.commit()
     original_commit = async_session.commit

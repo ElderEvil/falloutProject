@@ -31,6 +31,7 @@ from app.models.weapon import Weapon
 from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration_service import exploration_service
 from app.tests.factory.items import create_fake_outfit, create_fake_weapon
+from app.utils.time import utcnow
 
 
 async def _ensure_vault_storage(async_session: AsyncSession, vault_id) -> Storage:
@@ -59,7 +60,7 @@ async def make_vault_storage(async_session: AsyncSession, vault: Vault) -> Calla
 
 async def _expired_exploration(async_session: AsyncSession, vault: Vault, dweller: Dweller, duration: int = 4):
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=duration)
-    exploration.start_time = datetime.utcnow() - timedelta(hours=duration)
+    exploration.start_time = utcnow() - timedelta(hours=duration)
     async_session.add(exploration)
     await async_session.commit()
     await async_session.refresh(exploration)
@@ -73,7 +74,7 @@ async def _returning_exploration(
     exploration = await _expired_exploration(async_session, vault, dweller, duration=duration)
     await exploration_coordinator.start_return(async_session, exploration.id, recalled=recalled)
     await async_session.refresh(exploration)
-    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    exploration.return_completes_at = utcnow() - timedelta(seconds=1)
     async_session.add(exploration)
     await async_session.commit()
     await async_session.refresh(exploration)

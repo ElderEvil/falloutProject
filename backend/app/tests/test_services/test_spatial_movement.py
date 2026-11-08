@@ -16,6 +16,7 @@ from app.models.vault_slot import VaultSlot
 from app.services.exploration_service import exploration_service
 from app.services.world_snapshot_service import world_snapshot_service
 from app.utils.exceptions import ValidationException
+from app.utils.time import utcnow
 from app.utils.vault_slots import slot_coords
 
 SPEED = 1 / game_config.exploration.dispatch.travel_hours_per_unit
@@ -243,9 +244,7 @@ async def test_no_slot_send_stays_legacy(async_session: AsyncSession, vault: Vau
     assert exploration.heading_degrees is None
     assert exploration.pos_x is None
 
-    advanced = await exploration_service.advance(
-        async_session, exploration.id, now=datetime.utcnow() + timedelta(hours=1)
-    )
+    advanced = await exploration_service.advance(async_session, exploration.id, now=utcnow() + timedelta(hours=1))
 
     assert advanced.status == ExplorationStatus.ACTIVE
     assert advanced.pos_x is None
@@ -262,7 +261,7 @@ async def test_tick_advances_spatial_run(async_session: AsyncSession, vault: Vau
     origin = slot_coords(slot_index)
 
     exploration = await _spatial_depart(async_session, vault, dweller, heading=0, duration=4)
-    exploration.start_time = datetime.utcnow() - timedelta(hours=1)
+    exploration.start_time = utcnow() - timedelta(hours=1)
     await async_session.commit()
 
     stats = await process_explorations(async_session, vault.id)

@@ -19,11 +19,12 @@ from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
 from app.services.game_tick.dwellers_tick import process_explorations
 from app.utils.exceptions import ValidationException
+from app.utils.time import utcnow
 
 
 async def _expired_exploration(async_session: AsyncSession, vault: Vault, dweller: Dweller, duration: int = 4):
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=duration)
-    exploration.start_time = datetime.utcnow() - timedelta(hours=duration)
+    exploration.start_time = utcnow() - timedelta(hours=duration)
     async_session.add(exploration)
     await async_session.commit()
     await async_session.refresh(exploration)
@@ -57,7 +58,7 @@ async def test_recall_return_leg_is_half_the_elapsed_time(
 ):
     """An early recall returns in half the time actually spent exploring, not half the plan."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=10)
-    exploration.start_time = datetime.utcnow() - timedelta(hours=2)
+    exploration.start_time = utcnow() - timedelta(hours=2)
     async_session.add(exploration)
     await async_session.commit()
     await async_session.refresh(exploration)
@@ -137,7 +138,7 @@ async def test_finalize_return_restores_dweller_and_completes(
 
     await exploration_coordinator.start_return(async_session, exploration.id)
     await async_session.refresh(exploration)
-    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    exploration.return_completes_at = utcnow() - timedelta(seconds=1)
     async_session.add(exploration)
     await async_session.commit()
     await exploration_coordinator.finalize_return(async_session, exploration.id)
@@ -165,7 +166,7 @@ async def test_tick_sends_dweller_home_then_finalizes(
     await async_session.refresh(exploration)
     assert exploration.status == ExplorationStatus.RETURNING
 
-    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    exploration.return_completes_at = utcnow() - timedelta(seconds=1)
     async_session.add(exploration)
     await async_session.commit()
 
@@ -191,7 +192,7 @@ async def test_finalize_return_rolls_back_terminal_transition_when_rewards_fail(
 
     await exploration_coordinator.start_return(async_session, exploration.id)
     await async_session.refresh(exploration)
-    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    exploration.return_completes_at = utcnow() - timedelta(seconds=1)
     exploration.total_caps_found = 250
     vault.bottle_caps = 0
     async_session.add_all([exploration, vault])
@@ -251,7 +252,7 @@ async def test_finalize_return_claims_vault_before_exploration(
     exploration = await _expired_exploration(async_session, vault, dweller)
     await exploration_coordinator.start_return(async_session, exploration.id)
     await async_session.refresh(exploration)
-    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    exploration.return_completes_at = utcnow() - timedelta(seconds=1)
     async_session.add(exploration)
     await async_session.commit()
 
@@ -305,7 +306,7 @@ async def test_party_finalize_grants_xp_when_caps_are_deposited(
 
     await exploration_coordinator.start_return(async_session, exploration.id)
     await async_session.refresh(exploration)
-    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    exploration.return_completes_at = utcnow() - timedelta(seconds=1)
     exploration.total_caps_found = 250
     exploration.total_distance = 10
     vault.bottle_caps = 0

@@ -18,6 +18,7 @@ from app.services.progression.quests.service import quest_service
 from app.services.team_service import team_service
 from app.tests.factory.dwellers import create_fake_dweller
 from app.tests.factory.rooms import create_overseers_office
+from app.utils.time import utcnow
 
 
 async def _expired_quest(
@@ -58,7 +59,7 @@ async def _expired_quest(
     await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
     await quest_service.start_quest(async_session, quest.id, vault.id)
     await async_session.refresh(link)
-    link.started_at = datetime.utcnow() - timedelta(minutes=duration_minutes + 1)
+    link.started_at = utcnow() - timedelta(minutes=duration_minutes + 1)
     link.duration_minutes = duration_minutes
     await async_session.commit()
     return quest, link, dweller
@@ -68,7 +69,7 @@ async def _ready_to_claim(async_session: AsyncSession, quest: Quest, link: Vault
     """Drive a quest through its return leg until its rewards are claimable."""
     await quest_service.start_quest_return(async_session, quest.id, link.vault_id)
     await async_session.refresh(link)
-    link.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    link.return_completes_at = utcnow() - timedelta(seconds=1)
     await async_session.commit()
     await quest_service.mark_quest_ready_to_claim(async_session, quest.id, link.vault_id)
     await async_session.refresh(link)

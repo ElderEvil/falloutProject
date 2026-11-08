@@ -17,6 +17,7 @@ from app.schemas.vault import VaultCreateWithUserID
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
+from app.utils.time import utcnow
 
 
 async def _add_office(async_session: AsyncSession, vault_id: UUID) -> None:
@@ -263,7 +264,7 @@ async def test_get_multi_for_vault_serializes_completion_details(async_session: 
     )
     completed_link = await crud.quest_crud.get_link(async_session, quest_id=completed_quest.id, vault_id=vault.id)
     completed_link.is_completed = True
-    completed_link.completed_at = datetime.utcnow()
+    completed_link.completed_at = utcnow()
     completed_link.granted_rewards = [{"reward_type": "caps", "amount": 50}]
     await async_session.commit()
 
@@ -545,7 +546,7 @@ async def test_check_and_complete_quests_for_vault(async_session: AsyncSession) 
     async_session.add(link)
     await async_session.commit()
 
-    past_time = datetime.utcnow() - timedelta(minutes=120)
+    past_time = utcnow() - timedelta(minutes=120)
     link.started_at = past_time
     link.duration_minutes = 60
     await async_session.commit()
@@ -558,7 +559,7 @@ async def test_check_and_complete_quests_for_vault(async_session: AsyncSession) 
     assert link.return_completes_at is not None
     assert link.is_reward_ready is False
 
-    link.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    link.return_completes_at = utcnow() - timedelta(seconds=1)
     await async_session.commit()
 
     completed = await quest_service.check_and_complete_quests(async_session, vault_id=vault.id)
@@ -619,7 +620,7 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     await async_session.commit()
     await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
 
-    link.started_at = datetime.utcnow() - timedelta(minutes=61)
+    link.started_at = utcnow() - timedelta(minutes=61)
     link.duration_minutes = 60
     await async_session.commit()
 
@@ -629,7 +630,7 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     assert link.return_completes_at is not None
     assert link.is_reward_ready is False
 
-    link.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    link.return_completes_at = utcnow() - timedelta(seconds=1)
     await async_session.commit()
 
     assert await quest_service.check_and_complete_quests(async_session) == 1
@@ -842,7 +843,7 @@ async def test_get_expired_party_links_excludes_returning(async_session: AsyncSe
         )
         await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
         link = await crud.quest_crud.get_link(async_session, quest_id=quest.id, vault_id=vault.id)
-        link.started_at = datetime.utcnow() - timedelta(minutes=120)
+        link.started_at = utcnow() - timedelta(minutes=120)
         link.duration_minutes = 60
         if returning:
             link.start_return(30)
@@ -852,7 +853,7 @@ async def test_get_expired_party_links_excludes_returning(async_session: AsyncSe
     expired = await _expired_link("Expired Party", returning=False)
     returning = await _expired_link("Returning Party", returning=True)
 
-    now = datetime.utcnow()
+    now = utcnow()
     duration_minutes = func.coalesce(VaultQuestCompletionLink.duration_minutes, Quest.duration_minutes)
     expires_at = func.datetime(VaultQuestCompletionLink.started_at, func.printf("+%s minutes", duration_minutes))
 
@@ -888,9 +889,9 @@ async def test_get_arrived_party_links(async_session: AsyncSession) -> None:
             vault_id=vault.id,
             quest_id=quest.id,
             is_visible=True,
-            started_at=datetime.utcnow() - timedelta(minutes=120),
+            started_at=utcnow() - timedelta(minutes=120),
             duration_minutes=60,
-            return_started_at=datetime.utcnow() - timedelta(minutes=30),
+            return_started_at=utcnow() - timedelta(minutes=30),
             return_completes_at=return_completes_at,
             is_reward_ready=is_reward_ready,
             is_completed=is_completed,
@@ -899,7 +900,7 @@ async def test_get_arrived_party_links(async_session: AsyncSession) -> None:
         await async_session.commit()
         return link
 
-    now = datetime.utcnow()
+    now = utcnow()
     arrived = await _link("Arrived Party", return_completes_at=now - timedelta(minutes=1))
     travelling = await _link("Travelling Party", return_completes_at=now + timedelta(minutes=30))
     ready = await _link("Ready Party", return_completes_at=now - timedelta(minutes=1), is_reward_ready=True)

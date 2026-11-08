@@ -28,6 +28,7 @@ from app.tests.factory.dwellers import create_fake_adult_dweller
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.exceptions import ResourceConflictException, ValidationException
+from app.utils.time import utcnow
 
 
 async def test_site_combat_includes_pet_without_adding_a_fighter(async_session):
@@ -181,7 +182,6 @@ async def test_enter_different_site_conflicts(async_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_enter_after_recent_clear_conflicts(async_session: AsyncSession):
-    from datetime import datetime
 
     vault, dweller, exploration = await _make_exploration(async_session)
     prior = await _second_exploration(async_session, vault)
@@ -192,7 +192,7 @@ async def test_enter_after_recent_clear_conflicts(async_session: AsyncSession):
         site_id="red_rocket",
     )
     run.status = ExpeditionRunStatus.CLEARED
-    run.finished_at = datetime.utcnow()
+    run.finished_at = utcnow()
     async_session.add(run)
     await async_session.commit()
     with pytest.raises(ResourceConflictException, match="quiet"):
@@ -226,7 +226,7 @@ async def test_second_exploration_same_site_blocked(async_session: AsyncSession)
 
 @pytest.mark.asyncio
 async def test_site_available_again_after_cooldown_window(async_session: AsyncSession):
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     vault, dweller, exploration = await _make_exploration(async_session)
     prior = await _second_exploration(async_session, vault)
@@ -237,7 +237,7 @@ async def test_site_available_again_after_cooldown_window(async_session: AsyncSe
         site_id="red_rocket",
     )
     run.status = ExpeditionRunStatus.RETREATED
-    run.finished_at = datetime.utcnow() - timedelta(days=8)
+    run.finished_at = utcnow() - timedelta(days=8)
     async_session.add(run)
     await async_session.commit()
 
@@ -400,8 +400,8 @@ async def test_return_leg_allows_listing_and_retreating(async_session: AsyncSess
     _, _, exploration = await _make_exploration(async_session)
     await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
     exploration.status = ExplorationStatus.RETURNING
-    exploration.return_started_at = datetime.utcnow()
-    exploration.return_completes_at = datetime.utcnow() + timedelta(minutes=1)
+    exploration.return_started_at = utcnow()
+    exploration.return_completes_at = utcnow() + timedelta(minutes=1)
     async_session.add(exploration)
     await async_session.commit()
 
@@ -427,7 +427,6 @@ async def test_retreat_after_exploration_completed_raises(async_session: AsyncSe
 @pytest.mark.asyncio
 async def test_finale_payout_blocked_by_recent_terminal(async_session: AsyncSession):
     """A site in cooldown cannot pay its finale, even for an already-open run."""
-    from datetime import datetime
 
     random.seed(42)
     vault, dweller, exploration = await _make_exploration(async_session)
@@ -441,7 +440,7 @@ async def test_finale_payout_blocked_by_recent_terminal(async_session: AsyncSess
         vault_id=vault.id,
         site_id="red_rocket",
         status=ExpeditionRunStatus.CLEARED,
-        finished_at=datetime.utcnow(),
+        finished_at=utcnow(),
     )
     async_session.add(terminal)
     await async_session.commit()

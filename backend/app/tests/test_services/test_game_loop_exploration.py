@@ -17,6 +17,7 @@ from app.services.exploration.event_generator import event_generator
 from app.services.exploration_service import exploration_service
 from app.services.game_loop_service import game_loop_service
 from app.tests.factory.dwellers import create_fake_adult_dweller, create_fake_dweller
+from app.utils.time import utcnow
 
 # Note: Event persistence tested separately
 
@@ -39,8 +40,8 @@ async def test_process_explorations_error_handling(
     exploration2 = await exploration_service.send_dweller(async_session, vault.id, dweller2.id, duration=4)
 
     # Make both ready for events
-    exploration1.start_time = datetime.utcnow() - timedelta(minutes=10)
-    exploration2.start_time = datetime.utcnow() - timedelta(minutes=10)
+    exploration1.start_time = utcnow() - timedelta(minutes=10)
+    exploration2.start_time = utcnow() - timedelta(minutes=10)
     await async_session.commit()
 
     # Mock to cause error on first, success on second
@@ -75,7 +76,7 @@ async def test_vault_tick_processes_explorations(
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=1)
 
     # Set to expire
-    exploration.start_time = datetime.utcnow() - timedelta(hours=2)
+    exploration.start_time = utcnow() - timedelta(hours=2)
     await async_session.commit()
 
     # First tick: exploring ends, dweller heads home — no rewards yet.
@@ -89,7 +90,7 @@ async def test_vault_tick_processes_explorations(
     assert exploration.status == ExplorationStatus.RETURNING
 
     # Second tick, with the return leg elapsed: the run finalizes.
-    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    exploration.return_completes_at = utcnow() - timedelta(seconds=1)
     async_session.add(exploration)
     await async_session.commit()
 
@@ -129,8 +130,8 @@ async def test_process_explorations_caps_accumulate(
     )
 
     # Make both expire
-    exploration1.start_time = datetime.utcnow() - timedelta(hours=2)
-    exploration2.start_time = datetime.utcnow() - timedelta(hours=2)
+    exploration1.start_time = utcnow() - timedelta(hours=2)
+    exploration2.start_time = utcnow() - timedelta(hours=2)
     await async_session.commit()
 
     initial_caps = vault.bottle_caps
@@ -141,7 +142,7 @@ async def test_process_explorations_caps_accumulate(
 
     for exploration in (exploration1, exploration2):
         await async_session.refresh(exploration)
-        exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+        exploration.return_completes_at = utcnow() - timedelta(seconds=1)
         async_session.add(exploration)
     await async_session.commit()
 
@@ -166,7 +167,7 @@ async def test_process_explorations_danger_event_updates_enemies(
     """Test that danger events increment enemy counter."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
-    exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
+    exploration.start_time = utcnow() - timedelta(minutes=10)
     await async_session.commit()
 
     # Mock combat event (combat events increment enemy counter)

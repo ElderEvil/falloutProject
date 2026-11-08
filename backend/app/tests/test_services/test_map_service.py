@@ -17,6 +17,7 @@ from app.models.vault import Vault
 from app.models.world_location import DwellerLocation, VaultLocationState, WorldLocation
 from app.services.map_service import map_service
 from app.utils.places import WORLD_SCALE, normalize_place_name
+from app.utils.time import utcnow
 
 # ---------------------------------------------------------------------------
 # register_bio_places
@@ -383,7 +384,7 @@ async def test_get_vault_map_clear_state_cleared_pending_reclear(
             .where(VaultLocationState.vault_id == vault.id, WorldLocation.name == "Red Rocket")
         )
     ).scalar_one()
-    state.reclear_available_at = datetime.utcnow() + timedelta(hours=1)
+    state.reclear_available_at = utcnow() + timedelta(hours=1)
     state.clear_count = 5
     await async_session.commit()
 
@@ -533,7 +534,7 @@ async def test_sweep_reclears_nulls_elapsed_and_notifies_once(
 ) -> None:
     """An elapsed reclear is nulled and emits exactly one LOCATION_READY; a second sweep is a no-op."""
     state = await _red_rocket_state(async_session, vault, dweller)
-    state.reclear_available_at = datetime.utcnow() - timedelta(hours=1)
+    state.reclear_available_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
 
     assert await map_service.sweep_reclears(async_session) == 1
@@ -577,7 +578,7 @@ async def test_sweep_reclears_skips_not_yet_elapsed(
 ) -> None:
     """A reclear window still in the future is untouched: neither nulled nor notified."""
     state = await _red_rocket_state(async_session, vault, dweller)
-    state.reclear_available_at = datetime.utcnow() + timedelta(hours=1)
+    state.reclear_available_at = utcnow() + timedelta(hours=1)
     await async_session.commit()
 
     assert await map_service.sweep_reclears(async_session) == 0
@@ -594,7 +595,7 @@ async def test_sweep_reclears_skips_missing_vault_owner(
 ) -> None:
     """A vault whose owner row is missing is skipped without aborting the sweep."""
     state = await _red_rocket_state(async_session, vault, dweller)
-    state.reclear_available_at = datetime.utcnow() - timedelta(hours=1)
+    state.reclear_available_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
 
     with patch("app.services.map.discovery.vault_crud.get_or_none", new=AsyncMock(return_value=None)):
@@ -710,7 +711,7 @@ async def test_get_vault_map_expedition_sites_cooldown(async_session: AsyncSessi
             vault_id=vault.id,
             site_id="red_rocket",
             status=ExpeditionRunStatus.CLEARED,
-            finished_at=datetime.utcnow() - timedelta(days=1),
+            finished_at=utcnow() - timedelta(days=1),
         )
     )
     await async_session.commit()
@@ -739,7 +740,7 @@ async def test_get_vault_map_expedition_sites_cooldown_not_cleared(
             vault_id=vault.id,
             site_id="red_rocket",
             status=status,
-            finished_at=datetime.utcnow() - timedelta(days=1),
+            finished_at=utcnow() - timedelta(days=1),
         )
     )
     await async_session.commit()
@@ -773,7 +774,7 @@ async def _spatial_journey_near_red_rocket(async_session: AsyncSession, vault: V
         async_session, vault.id, dweller.id, duration=24, heading_degrees=90
     )
     exploration.pos_x, exploration.pos_y = 30.0, 25.0
-    exploration.trail = [*exploration.trail, {"x": 30.0, "y": 25.0, "t": datetime.utcnow().isoformat()}]
+    exploration.trail = [*exploration.trail, {"x": 30.0, "y": 25.0, "t": utcnow().isoformat()}]
     async_session.add(exploration)
     await async_session.commit()
     await async_session.refresh(exploration)
@@ -800,7 +801,7 @@ async def test_get_vault_map_spatial_journey_exposes_only_offered_sites(
         async_session, exploration_id=exploration.id, vault_id=vault.id, site_id="red_rocket"
     )
     run.status = ExpeditionRunStatus.CLEARED
-    run.finished_at = datetime.utcnow()
+    run.finished_at = utcnow()
     async_session.add(run)
     await async_session.commit()
 
@@ -840,7 +841,7 @@ async def test_get_vault_map_unions_offers_across_journeys(
     await world_snapshot_service.get_or_generate(async_session)
     second = await exploration_service.send_dweller(async_session, vault.id, other.id, duration=24, heading_degrees=90)
     second.pos_x, second.pos_y = 72.0, 68.0
-    second.trail = [*second.trail, {"x": 72.0, "y": 68.0, "t": datetime.utcnow().isoformat()}]
+    second.trail = [*second.trail, {"x": 72.0, "y": 68.0, "t": utcnow().isoformat()}]
     async_session.add(second)
     await async_session.commit()
 

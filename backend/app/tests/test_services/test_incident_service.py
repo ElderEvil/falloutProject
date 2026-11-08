@@ -42,6 +42,7 @@ from app.tests.factory.rooms import create_fake_room
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
+from app.utils.time import utcnow
 
 
 @pytest_asyncio.fixture(name="room")
@@ -295,7 +296,7 @@ async def test_incident_read_returns_the_latest_journal_entries(async_session: A
         incident_type=IncidentType.RAIDER_ATTACK,
         difficulty=3,
     )
-    started = datetime.utcnow()
+    started = utcnow()
     for index in range(45):
         async_session.add(
             IncidentEvent(
@@ -1152,7 +1153,7 @@ class TestProcessVaultIncidents:
 
     @pytest.mark.asyncio
     async def test_offline_vault_does_not_process_existing_incidents(self, async_session: AsyncSession, vault: Vault):
-        game_state = GameState(vault_id=vault.id, last_activity_time=datetime.utcnow() - timedelta(minutes=11))
+        game_state = GameState(vault_id=vault.id, last_activity_time=utcnow() - timedelta(minutes=11))
         with (
             patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock) as mock_spawn,
             patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,

@@ -19,6 +19,7 @@ from app.core.config import settings
 from app.schemas.user import UserCreate
 from app.tests.factory.users import create_fake_user
 from app.tests.test_api.test_user import create_isolated_user_with_token
+from app.utils.time import utcnow
 
 pytestmark = pytest.mark.asyncio(scope="module")
 
@@ -271,7 +272,7 @@ async def test_email_change_allowed_after_cooldown(
 ) -> None:
     token_headers, user_data = await create_isolated_user_with_token(async_client, async_session)
     user = await _stored_user(async_session, user_data["email"])
-    user.email_changed_at = datetime.utcnow() - timedelta(days=settings.EMAIL_CHANGE_COOLDOWN_DAYS + 1)
+    user.email_changed_at = utcnow() - timedelta(days=settings.EMAIL_CHANGE_COOLDOWN_DAYS + 1)
     await async_session.commit()
 
     with patch("app.services.user_service.send_verification_email", new_callable=AsyncMock):

@@ -2,9 +2,9 @@
 
 import logging
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/vault/{vault_id}/recipes/{item_type}", response_model=CraftingRecipesRead)
 async def list_crafting_recipes(
-    vault_id: UUID4,
+    vault_id: UUID,
     item_type: str,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
@@ -46,7 +46,7 @@ async def list_crafting_recipes(
 
 @router.get("/vault/{vault_id}/orders", response_model=CraftingOrdersRead)
 async def list_crafting_orders(
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ) -> CraftingOrdersRead:
@@ -65,7 +65,7 @@ async def list_crafting_orders(
 
 @router.post("/vault/{vault_id}/orders", response_model=CraftingOrderRead, status_code=201)
 async def start_crafting_order(
-    vault_id: UUID4,
+    vault_id: UUID,
     request: CraftRequest,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
@@ -85,8 +85,8 @@ async def start_crafting_order(
 
 @router.post("/vault/{vault_id}/orders/{order_id}/cancel", response_model=CraftingOrderRead)
 async def cancel_crafting_order(
-    vault_id: UUID4,
-    order_id: UUID4,
+    vault_id: UUID,
+    order_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ) -> CraftingOrder:
@@ -104,8 +104,8 @@ async def cancel_crafting_order(
 
 @router.post("/vault/{vault_id}/orders/{order_id}/collect", response_model=CraftResultRead)
 async def collect_crafting_order(
-    vault_id: UUID4,
-    order_id: UUID4,
+    vault_id: UUID,
+    order_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ) -> CraftResultRead:

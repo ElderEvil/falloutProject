@@ -1,8 +1,8 @@
 """CRUD operations for Incident model."""
 
 from datetime import datetime
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -19,8 +19,8 @@ class CRUDIncident:
     async def create(
         db_session: AsyncSession,
         *,
-        vault_id: UUID4,
-        room_id: UUID4,
+        vault_id: UUID,
+        room_id: UUID,
         incident_type: IncidentType,
         difficulty: int,
         duration: int = 60,
@@ -44,14 +44,14 @@ class CRUDIncident:
         return incident
 
     @staticmethod
-    async def get(db_session: AsyncSession, incident_id: UUID4) -> Incident | None:
+    async def get(db_session: AsyncSession, incident_id: UUID) -> Incident | None:
         """Get incident by ID."""
         query = select(Incident).where(Incident.id == incident_id)
         result = await db_session.execute(query)
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def get_for_update(db_session: AsyncSession, incident_id: UUID4) -> Incident | None:
+    async def get_for_update(db_session: AsyncSession, incident_id: UUID) -> Incident | None:
         """One incident locked FOR UPDATE (overflow claiming serialization).
 
         ``populate_existing`` forces a refresh even when the row is already in the
@@ -68,7 +68,7 @@ class CRUDIncident:
 
     @staticmethod
     async def get_active_by_vault(
-        db_session: AsyncSession, vault_id: UUID4, *, started_only: bool = False
+        db_session: AsyncSession, vault_id: UUID, *, started_only: bool = False
     ) -> list[Incident]:
         """Get all active incidents for a vault."""
         query = select(Incident).where(
@@ -85,7 +85,7 @@ class CRUDIncident:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_pending_responder_returns(db_session: AsyncSession, vault_id: UUID4) -> list[Incident]:
+    async def get_pending_responder_returns(db_session: AsyncSession, vault_id: UUID) -> list[Incident]:
         """Finished incidents whose manual or automatic responders still need to return."""
         statement = (
             select(Incident)
@@ -101,7 +101,7 @@ class CRUDIncident:
         return list((await db_session.execute(statement)).scalars().all())
 
     @staticmethod
-    async def get_resolved_by_vault(db_session: AsyncSession, vault_id: UUID4) -> list[Incident]:
+    async def get_resolved_by_vault(db_session: AsyncSession, vault_id: UUID) -> list[Incident]:
         """Resolved incidents for a vault, most recent first."""
         query = (
             select(Incident)
@@ -113,7 +113,7 @@ class CRUDIncident:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_by_room(db_session: AsyncSession, room_id: UUID4) -> list[Incident]:
+    async def get_by_room(db_session: AsyncSession, room_id: UUID) -> list[Incident]:
         """Get active incidents in a specific room."""
         query = select(Incident).where(
             (Incident.room_id == room_id) & (Incident.status.in_([IncidentStatus.ACTIVE, IncidentStatus.SPREADING]))
@@ -122,7 +122,7 @@ class CRUDIncident:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_rooms_with_active_incidents(db_session: AsyncSession, vault_id: UUID4) -> set[UUID4]:
+    async def get_rooms_with_active_incidents(db_session: AsyncSession, vault_id: UUID) -> set[UUID]:
         """Get set of room IDs that have active incidents."""
         query = select(Incident.room_id).where(
             (Incident.vault_id == vault_id) & (Incident.status.in_([IncidentStatus.ACTIVE, IncidentStatus.SPREADING]))
@@ -131,7 +131,7 @@ class CRUDIncident:
         return set(result.scalars().all())
 
     @staticmethod
-    async def resolve(db_session: AsyncSession, incident_id: UUID4, success: bool = True) -> Incident | None:
+    async def resolve(db_session: AsyncSession, incident_id: UUID, success: bool = True) -> Incident | None:
         """Resolve an incident."""
         incident = await CRUDIncident.get(db_session, incident_id)
         if incident:
@@ -142,7 +142,7 @@ class CRUDIncident:
         return incident
 
     @staticmethod
-    async def spread_to_room(db_session: AsyncSession, incident_id: UUID4, new_room_id: UUID4) -> Incident | None:
+    async def spread_to_room(db_session: AsyncSession, incident_id: UUID, new_room_id: UUID) -> Incident | None:
         """Mark incident as spreading to a new room."""
         incident = await CRUDIncident.get(db_session, incident_id)
         if incident:
@@ -153,7 +153,7 @@ class CRUDIncident:
         return incident
 
     @staticmethod
-    async def remove(db_session: AsyncSession, incident_id: UUID4) -> bool:
+    async def remove(db_session: AsyncSession, incident_id: UUID) -> bool:
         """Delete an incident."""
         incident = await CRUDIncident.get(db_session, incident_id)
         if incident:
@@ -182,7 +182,7 @@ class CRUDIncident:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_recent_events(db_session: AsyncSession, incident_id: UUID4, limit: int = 40) -> list[IncidentEvent]:
+    async def get_recent_events(db_session: AsyncSession, incident_id: UUID, limit: int = 40) -> list[IncidentEvent]:
         """Recent events of an incident, newest first."""
         query = (
             select(IncidentEvent)
@@ -194,7 +194,7 @@ class CRUDIncident:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_pending_event(db_session: AsyncSession, incident_id: UUID4) -> IncidentEvent | None:
+    async def get_pending_event(db_session: AsyncSession, incident_id: UUID) -> IncidentEvent | None:
         """The incident's reserved-activation event, if it has not been published yet."""
         query = (
             select(IncidentEvent)
@@ -206,7 +206,7 @@ class CRUDIncident:
         return result.scalars().first()
 
     @staticmethod
-    async def remove_all_by_vault(db_session: AsyncSession, vault_id: UUID4) -> int:
+    async def remove_all_by_vault(db_session: AsyncSession, vault_id: UUID) -> int:
         """Delete all incidents for a vault."""
         query = select(Incident).where(Incident.vault_id == vault_id)
         result = await db_session.execute(query)

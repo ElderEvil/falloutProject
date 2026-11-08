@@ -21,7 +21,8 @@ from app.schemas.jev import JevDecision, OutputT
 from app.utils.exceptions import FeatureDisabledException
 
 if TYPE_CHECKING:
-    from pydantic import UUID4
+    from uuid import UUID
+
     from sqlmodel.ext.asyncio.session import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -100,7 +101,7 @@ class JevService:
     @staticmethod
     async def record_usage(
         db_session: "AsyncSession",
-        user_id: "UUID4",
+        user_id: "UUID",
         decision: JevDecision,
         *,
         output_type_name: str,

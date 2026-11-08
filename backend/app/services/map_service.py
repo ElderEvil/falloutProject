@@ -13,8 +13,7 @@ load-bearing because bio generation must not fail on map bookkeeping.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-
-from pydantic import UUID4
+from uuid import UUID
 
 from app.services.map import bio_registration, discovery, reads
 
@@ -69,9 +68,9 @@ class MapService:
     async def register_discovery(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
-        exploration_id: UUID4,
-        dweller_id: UUID4,
+        vault_id: UUID,
+        exploration_id: UUID,
+        dweller_id: UUID,
         location_name: str,
     ) -> WorldLocation | None:
         """Upsert a DISCOVERY state and unlock the place for the exploring dweller (best-effort)."""
@@ -80,9 +79,9 @@ class MapService:
     async def register_spatial_discovery(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
-        exploration_id: UUID4,
-        dweller_id: UUID4,
+        vault_id: UUID,
+        exploration_id: UUID,
+        dweller_id: UUID,
         location_name: str,
         position: tuple[float, float],
         world_version: int | None,
@@ -100,7 +99,7 @@ class MapService:
         self,
         db_session: AsyncSession,
         vault: Vault,
-        location_id: UUID4,
+        location_id: UUID,
     ) -> WastelandLocationWithDwellers:
         """Return a single location with its linked dweller references."""
         return await reads.get_location_detail(db_session, vault, location_id)

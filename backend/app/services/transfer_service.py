@@ -1,11 +1,11 @@
 """Service for safely transferring dwellers between vaults."""
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import PARTNER_LINKED_STAGES
+from app.core.enums import PARTNER_LINKED_STAGES, DwellerStatusEnum
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.pregnancy import pregnancy as pregnancy_crud
 from app.crud.relationship import relationship_crud
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class TransferService:
     @staticmethod
-    async def _break_partner_link(db_session: AsyncSession, dweller: Dweller, partner_id: UUID4) -> None:
+    async def _break_partner_link(db_session: AsyncSession, dweller: Dweller, partner_id: UUID) -> None:
         if dweller.partner_id == partner_id:
             dweller.partner_id = None
         try:
@@ -31,7 +31,7 @@ class TransferService:
 
     @staticmethod
     async def _delete_relationship_with_unlink(
-        db_session: AsyncSession, rel: Relationship, dweller: Dweller, other_id: UUID4
+        db_session: AsyncSession, rel: Relationship, dweller: Dweller, other_id: UUID
     ) -> None:
         if rel.relationship_type in PARTNER_LINKED_STAGES:
             await TransferService._break_partner_link(db_session, dweller, other_id)
@@ -39,7 +39,7 @@ class TransferService:
 
     @staticmethod
     async def _cancel_pregnancies_for_transfer(
-        db_session: AsyncSession, dweller: Dweller, transferring_ids: set[UUID4]
+        db_session: AsyncSession, dweller: Dweller, transferring_ids: set[UUID]
     ) -> None:
         pregnancies = await pregnancy_crud.get_active_involving(db_session, dweller.id)
         for preg in pregnancies:
@@ -49,9 +49,9 @@ class TransferService:
                 logger.info("Cancelled cross-vault pregnancy %s due to transfer of %s", preg.id, dweller.id)
 
     @staticmethod
-    def _reset_for_transfer(dweller: Dweller, dest_vault_id: UUID4) -> None:
+    def _reset_for_transfer(dweller: Dweller, dest_vault_id: UUID) -> None:
         dweller.room_id = None
-        dweller.status = "idle"
+        dweller.status = DwellerStatusEnum.IDLE
         dweller.apprentice_stat = None
         dweller.apprentice_started_at = None
         dweller.apprentice_stat_gains = {}
@@ -60,8 +60,8 @@ class TransferService:
     @staticmethod
     async def transfer_dwellers(
         db_session: AsyncSession,
-        dweller_ids: list[UUID4],
-        dest_vault_id: UUID4,
+        dweller_ids: list[UUID],
+        dest_vault_id: UUID,
     ) -> list[Dweller]:
         """Move dwellers to another vault, cleaning up cross-vault state."""
         from app.crud.vault import vault as vault_crud
@@ -108,7 +108,7 @@ class TransferService:
         return dwellers
 
     @staticmethod
-    async def cleanup_cross_vault_relationships(db_session: AsyncSession, vault_id: UUID4) -> int:
+    async def cleanup_cross_vault_relationships(db_session: AsyncSession, vault_id: UUID) -> int:
         """Delete relationships where dwellers belong to different vaults."""
         orphans = await relationship_crud.get_cross_vault_orphans(db_session, vault_id)
         count = 0

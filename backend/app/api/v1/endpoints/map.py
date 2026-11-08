@@ -1,9 +1,9 @@
 """API endpoints for the world map."""
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
@@ -48,7 +48,7 @@ async def get_vault_map(
 @router.get("/vault/{vault_id}/locations/{location_id}", response_model=WastelandLocationWithDwellers)
 async def get_location_detail(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    location_id: UUID4,
+    location_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> WastelandLocationWithDwellers:
     """Return a single location with its linked dweller references."""

@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from typing import Any
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import Row, RowMapping
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import SQLModel, col, func, select
@@ -20,7 +20,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
     def __init__(self, model: type[ModelType]):
         self.model = model
 
-    async def get(self, db_session: AsyncSession, id: int | UUID4, include_deleted: bool = False) -> ModelType:
+    async def get(self, db_session: AsyncSession, id: int | UUID, include_deleted: bool = False) -> ModelType:
         """
         Gets a single item of the specified model type by ID.
 
@@ -43,7 +43,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         return db_obj
 
     async def get_or_none(
-        self, db_session: AsyncSession, id: int | UUID4, include_deleted: bool = False
+        self, db_session: AsyncSession, id: int | UUID, include_deleted: bool = False
     ) -> ModelType | None:
         """Same as get() but returns None instead of raising when the row is absent."""
         query = select(self.model).where(self.model.id == id)
@@ -55,7 +55,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         return response.scalar_one_or_none()
 
     async def get_by_ids(
-        self, list_ids: Sequence[UUID4 | str], db_session: AsyncSession, include_deleted: bool = False
+        self, list_ids: Sequence[UUID | str], db_session: AsyncSession, include_deleted: bool = False
     ) -> Sequence[ModelType]:
         """
         Gets a list of items of the specified model type by a list of IDs.
@@ -143,7 +143,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
     async def update(
         self,
         db_session: AsyncSession,
-        id: int | UUID4,
+        id: int | UUID,
         obj_in: UpdateSchemaType | dict[str, Any],
         *,
         commit: bool = True,
@@ -175,7 +175,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         return db_obj
 
     async def upsert(
-        self, db_session: AsyncSession, obj_in: CreateSchemaType | UpdateSchemaType, id: int | UUID4 = None
+        self, db_session: AsyncSession, obj_in: CreateSchemaType | UpdateSchemaType, id: int | UUID | None = None
     ) -> ModelType:
         """
         Inserts a new item or updates an existing one based on its ID.
@@ -216,7 +216,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         return result.scalar() > 0
 
     async def delete(
-        self, db_session: AsyncSession, id: int | UUID4, soft: bool = True, *, commit: bool = True
+        self, db_session: AsyncSession, id: int | UUID, soft: bool = True, *, commit: bool = True
     ) -> ModelType:
         """
         Remove a database object with the given ID.
@@ -255,7 +255,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
 
         return obj
 
-    async def soft_delete(self, db_session: AsyncSession, id: int | UUID4) -> ModelType:
+    async def soft_delete(self, db_session: AsyncSession, id: int | UUID) -> ModelType:
         """
         Soft delete a database object with the given ID.
 
@@ -276,7 +276,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         await db_session.refresh(obj)
         return obj
 
-    async def restore(self, db_session: AsyncSession, id: int | UUID4) -> ModelType:
+    async def restore(self, db_session: AsyncSession, id: int | UUID) -> ModelType:
         """
         Restore a soft-deleted database object with the given ID.
 

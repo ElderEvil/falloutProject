@@ -2,8 +2,8 @@
 
 import logging
 from dataclasses import dataclass
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core import db_locks
@@ -54,7 +54,7 @@ TEAM_OUTFIT_NAMES: dict[HazardTeam, str] = {
 }
 
 
-def roster_lock_key(vault_id: UUID4, team: HazardTeam) -> str:
+def roster_lock_key(vault_id: UUID, team: HazardTeam) -> str:
     """Advisory-lock key guarding one vault's hazard roster against concurrent mutation."""
     return f"hazard-team:{vault_id}:{team.value}"
 
@@ -73,7 +73,7 @@ class HazardTeamRoundResult:
 
     new_places: list[TeamMember]
     active_gainers: list[Dweller]
-    active_ids: frozenset[UUID4] = frozenset()
+    active_ids: frozenset[UUID] = frozenset()
 
 
 class HazardTeamService:
@@ -133,14 +133,14 @@ class HazardTeamService:
         )
         return HazardTeamRoundResult(new_places=new_places, active_gainers=active_gainers, active_ids=active_ids)
 
-    async def _has_response_station(self, db_session: AsyncSession, vault_id: UUID4) -> bool:
+    async def _has_response_station(self, db_session: AsyncSession, vault_id: UUID) -> bool:
         """Whether the vault has built its Response Station — the gate on team formation."""
         return bool(await crud_room.get_by_category(db_session, vault_id, RoomTypeEnum.RESPONSE))
 
-    async def _active_responders(self, db_session: AsyncSession, vault_id: UUID4) -> int:
+    async def _active_responders(self, db_session: AsyncSession, vault_id: UUID) -> int:
         return sum([await team_crud.count_active_hazard(db_session, vault_id, team) for team in HazardTeam])
 
-    async def _has_response_capacity(self, db_session: AsyncSession, vault_id: UUID4) -> bool:
+    async def _has_response_capacity(self, db_session: AsyncSession, vault_id: UUID) -> bool:
         stations = await crud_room.get_by_category(db_session, vault_id, RoomTypeEnum.RESPONSE)
         if not stations:
             return False
@@ -149,7 +149,7 @@ class HazardTeamService:
         return await self._active_responders(db_session, vault_id) < capacity
 
     async def _join_if_qualified(
-        self, db_session: AsyncSession, vault_id: UUID4, dweller: Dweller, team: HazardTeam
+        self, db_session: AsyncSession, vault_id: UUID, dweller: Dweller, team: HazardTeam
     ) -> TeamMember | None:
         # Formation gating: no station, no team to join. The participation credit already
         # stands, so a place is earned on a later callout once the station is built.
@@ -173,7 +173,7 @@ class HazardTeamService:
         logger.info(f"{dweller.first_name} {dweller.last_name} joined the {TEAM_LABELS[team]} as {status}")
         return place
 
-    async def _next_free_slot(self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam) -> int | None:
+    async def _next_free_slot(self, db_session: AsyncSession, vault_id: UUID, team: HazardTeam) -> int | None:
         """The lowest unheld slot number (1-3) on the team, or None when full."""
         await team_crud.free_dead_hazard_slots(db_session, vault_id, team)
         active = await team_crud.get_hazard_team(db_session, vault_id, team)
@@ -195,9 +195,9 @@ class HazardTeamService:
     async def _promote_bench(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         team: HazardTeam,
-        dwellers_by_id: dict[UUID4, Dweller],
+        dwellers_by_id: dict[UUID, Dweller],
     ) -> list[tuple[TeamMember, Dweller]]:
         """Step the most senior bench members into any places a loss freed."""
         if not await self._has_response_station(db_session, vault_id):
@@ -213,7 +213,7 @@ class HazardTeamService:
             await db_session.flush()
             promoted.append(place)
             vacancies -= 1
-        missing_ids: list[UUID4 | str] = [
+        missing_ids: list[UUID | str] = [
             place.dweller_id for place in promoted if place.dweller_id not in dwellers_by_id
         ]
         if missing_ids:
@@ -229,11 +229,11 @@ class HazardTeamService:
     async def _announce_places(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         team: HazardTeam,
         new_places: list[TeamMember],
-        promoted_ids: set[UUID4],
-        dwellers_by_id: dict[UUID4, Dweller],
+        promoted_ids: set[UUID],
+        dwellers_by_id: dict[UUID, Dweller],
     ) -> None:
         """Tell the owner about every place earned this round, deferred to the round's commit."""
         for place in new_places:
@@ -268,7 +268,7 @@ class HazardTeamService:
     async def equip_hazard_outfits(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         active_gainers: list[Dweller],
         team: HazardTeam,
     ) -> None:
@@ -299,7 +299,7 @@ class HazardTeamService:
                 await db_session.rollback()
                 logger.exception("Failed to auto-equip %s on dweller %s", target_name, dweller_id)
 
-    async def dispatch_to_incident(self, db_session: AsyncSession, incident: Incident) -> list[UUID4]:
+    async def dispatch_to_incident(self, db_session: AsyncSession, incident: Incident) -> list[UUID]:
         """Auto-dispatch the vault's standing hazard team to a matching incident.
 
         Called right after a hazard incident spawns: active members of the team
@@ -359,7 +359,7 @@ class HazardTeamService:
 
             from app.services.dweller_service import dweller_service
 
-            dispatched: list[UUID4] = []
+            dispatched: list[UUID] = []
             for dweller in candidates:
                 try:
                     await dweller_service.update_dweller(db_session, dweller.id, {"room_id": incident.room_id})
@@ -453,7 +453,7 @@ class HazardTeamService:
         else:
             return returned
 
-    async def get_roster(self, db_session: AsyncSession, vault_id: UUID4) -> ContaminationTeamRead:
+    async def get_roster(self, db_session: AsyncSession, vault_id: UUID) -> ContaminationTeamRead:
         """Every team's roster for a vault, active places and bench included.
 
         Service counts come from one grouped participation query per hazard, never
@@ -481,9 +481,9 @@ class HazardTeamService:
     async def set_place(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         team: HazardTeam,
-        dweller_id: UUID4,
+        dweller_id: UUID,
         *,
         active: bool,
     ) -> ContaminationTeamRead:

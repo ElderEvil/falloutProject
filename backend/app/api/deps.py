@@ -6,7 +6,6 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt import InvalidTokenError as JWTError
-from pydantic import UUID4
 from redis.asyncio import Redis
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -135,7 +134,7 @@ CurrentSuperuser = Annotated[User, Depends(get_current_active_superuser)]
 
 
 async def get_user_vault_or_403(
-    vault_id: UUID4 | None,
+    vault_id: UUID | None,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Vault:
@@ -144,7 +143,7 @@ async def get_user_vault_or_403(
 
 
 async def verify_dweller_access(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> None:
@@ -153,7 +152,7 @@ async def verify_dweller_access(
 
 
 async def verify_room_access(
-    room_id: UUID4,
+    room_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> tuple[Room, Vault]:
@@ -172,7 +171,7 @@ async def verify_room_access(
 
 
 async def verify_item_access(
-    item_id: UUID4,
+    item_id: UUID,
     model: type[Weapon | Outfit | Junk],
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -200,7 +199,7 @@ async def verify_item_access(
 
 
 async def verify_exploration_access(
-    exploration_id: UUID4,
+    exploration_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> None:

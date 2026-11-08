@@ -1,8 +1,8 @@
 """Item service: canonical sell flow for weapons, outfits, and junk."""
 
 import contextlib
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -30,7 +30,7 @@ class ItemService:
     """Item lifecycle operations that span items and vault resources."""
 
     async def equip_item[ItemT: (Weapon, Outfit)](
-        self, db_session: AsyncSession, *, item_id: UUID4, dweller_id: UUID4, model: type[ItemT]
+        self, db_session: AsyncSession, *, item_id: UUID, dweller_id: UUID, model: type[ItemT]
     ) -> ItemT:
         """Equip through the shared CRUD path, then publish the committed action."""
         from app.core.event_bus import GameEvent, event_bus
@@ -47,7 +47,7 @@ class ItemService:
             )
         return item
 
-    async def sell_item(self, db_session: AsyncSession, *, item_id: UUID4, model: ItemModel) -> None:
+    async def sell_item(self, db_session: AsyncSession, *, item_id: UUID, model: ItemModel) -> None:
         """Sell an item for caps: credit the owning vault, then delete the item in a single commit."""
         item = await _crud_for(model).get_or_none(db_session, item_id)
         if not item:
@@ -73,7 +73,7 @@ class ItemService:
 
         await event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault_id, {"resource_type": "caps", "amount": credited})
 
-    async def scrap_item(self, db_session: AsyncSession, *, item_id: UUID4, model: ItemModel) -> list[Junk]:
+    async def scrap_item(self, db_session: AsyncSession, *, item_id: UUID, model: ItemModel) -> list[Junk]:
         """Scrap an item into junk, then publish ITEM_SCRAPPED once it has committed."""
         item = await _crud_for(model).get_or_none(db_session, item_id)
         if not item:
@@ -98,7 +98,7 @@ class ItemService:
             )
         return junk_list
 
-    async def _credit_caps(self, db_session: AsyncSession, vault_id: UUID4, value: int) -> int:
+    async def _credit_caps(self, db_session: AsyncSession, vault_id: UUID, value: int) -> int:
         """Credit the sale value to the vault via VaultService without committing or emitting.
 
         Returns the amount actually credited (part of the sell transaction).

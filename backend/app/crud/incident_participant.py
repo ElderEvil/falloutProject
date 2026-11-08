@@ -1,6 +1,7 @@
 """Participation ledger for incidents: who fought, recorded once per incident."""
 
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -11,12 +12,12 @@ from app.models.incident import Incident, IncidentParticipant
 
 
 class CRUDIncidentParticipant(CRUDBase[IncidentParticipant, None, None]):
-    async def get_credited_dweller_ids(self, db_session: AsyncSession, incident_id: UUID4) -> set[UUID4]:
+    async def get_credited_dweller_ids(self, db_session: AsyncSession, incident_id: UUID) -> set[UUID]:
         """Dwellers already credited for this incident."""
         query = select(IncidentParticipant.dweller_id).where(IncidentParticipant.incident_id == incident_id)
         return set((await db_session.execute(query)).scalars().all())
 
-    async def record(self, db_session: AsyncSession, incident_id: UUID4, dweller_ids: list[UUID4]) -> list[UUID4]:
+    async def record(self, db_session: AsyncSession, incident_id: UUID, dweller_ids: list[UUID]) -> list[UUID]:
         """Credit each dweller for this incident once, returning the newly credited ids.
 
         Flushes without committing so the rows belong to the caller's transaction:
@@ -32,7 +33,7 @@ class CRUDIncidentParticipant(CRUDBase[IncidentParticipant, None, None]):
         return new_ids
 
     async def count_incidents(
-        self, db_session: AsyncSession, dweller_id: UUID4, incident_types: frozenset[IncidentType]
+        self, db_session: AsyncSession, dweller_id: UUID, incident_types: frozenset[IncidentType]
     ) -> int:
         """How many distinct incidents of these types the dweller has fought."""
         query = (
@@ -45,8 +46,8 @@ class CRUDIncidentParticipant(CRUDBase[IncidentParticipant, None, None]):
         return (await db_session.execute(query)).scalar_one_or_none() or 0
 
     async def count_incidents_by_dweller(
-        self, db_session: AsyncSession, dweller_ids: list[UUID4], incident_types: frozenset[IncidentType]
-    ) -> dict[UUID4, int]:
+        self, db_session: AsyncSession, dweller_ids: list[UUID], incident_types: frozenset[IncidentType]
+    ) -> dict[UUID, int]:
         """Distinct incidents of these types each dweller has fought, in one grouped query.
 
         Members with no matching incident are absent from the map; callers default

@@ -10,7 +10,6 @@ from urllib.parse import urlencode
 from uuid import UUID
 
 import httpx
-from pydantic import UUID4
 from redis.asyncio import Redis
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -123,7 +122,7 @@ class OAuthService:
     async def start_link(
         self,
         provider_name: str,
-        user_id: UUID4,
+        user_id: UUID,
         browser_token: str | None,
         db_session: AsyncSession,
         redis_client: Redis,
@@ -150,7 +149,7 @@ class OAuthService:
         redis_client: Redis,
         *,
         purpose: str = "login",
-        link_user_id: UUID4 | None = None,
+        link_user_id: UUID | None = None,
     ) -> tuple[str, str]:
         provider = self._parse_provider(provider_name)
         if not self.is_enabled(provider):
@@ -240,11 +239,11 @@ class OAuthService:
         if state:
             await redis_client.getdel(_state_key(state))
 
-    async def list_linked_accounts(self, db_session: AsyncSession, user_id: UUID4) -> list[str]:
+    async def list_linked_accounts(self, db_session: AsyncSession, user_id: UUID) -> list[str]:
         links = await crud.oauth_account.list_by_user(db_session, user_id)
         return [link.provider for link in links]
 
-    async def unlink_provider(self, db_session: AsyncSession, user_id: UUID4, provider_name: str) -> list[str]:
+    async def unlink_provider(self, db_session: AsyncSession, user_id: UUID, provider_name: str) -> list[str]:
         """Remove a provider link, refusing to remove the last way to sign in."""
         provider = self._parse_provider(provider_name)
         locked = await crud.user.get_for_update(db_session, user_id)
@@ -265,7 +264,7 @@ class OAuthService:
             raise
         return [link.provider for link in links if link.provider != provider.value]
 
-    async def create_handoff(self, user_id: UUID4, browser_token: str, redis_client: Redis) -> str:
+    async def create_handoff(self, user_id: UUID, browser_token: str, redis_client: Redis) -> str:
         code = secrets.token_urlsafe(32)
         record = {"user_id": str(user_id), "browser_hash": hash_browser_token(browser_token)}
         await redis_client.setex(_handoff_key(code), HANDOFF_TTL_SECONDS, json.dumps(record))

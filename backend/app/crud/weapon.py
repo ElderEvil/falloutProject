@@ -1,8 +1,8 @@
 """Weapon-specific queries; compatible with raw SQLAlchemy task sessions."""
 
 from datetime import datetime, timedelta
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import func, update
 from sqlmodel import col, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -15,7 +15,7 @@ from app.schemas.weapon import WeaponCreate, WeaponUpdate
 
 class CRUDWeapon(CRUDItem[Weapon, WeaponCreate, WeaponUpdate]):
     async def list_due_for_trial(
-        self, db: AsyncSession, storage_id: UUID4, cutoff: datetime, names: tuple[str, ...]
+        self, db: AsyncSession, storage_id: UUID, cutoff: datetime, names: tuple[str, ...]
     ) -> list[Weapon]:
         result = await db.execute(
             select(Weapon)
@@ -32,12 +32,12 @@ class CRUDWeapon(CRUDItem[Weapon, WeaponCreate, WeaponUpdate]):
         )
         return list(result.scalars().all())
 
-    async def advance_trial_clock(self, db: AsyncSession, ids: list[UUID4], now: datetime) -> None:
+    async def advance_trial_clock(self, db: AsyncSession, ids: list[UUID], now: datetime) -> None:
         """Consume locked offline trials without rolling or loading workers."""
         if ids:
             await db.execute(update(Weapon).where(col(Weapon.id).in_(ids)).values(last_maintenance_trial_at=now))
 
-    async def shift_trial_clocks(self, db: AsyncSession, vault_id: UUID4, paused: timedelta, now: datetime) -> None:
+    async def shift_trial_clocks(self, db: AsyncSession, vault_id: UUID, paused: timedelta, now: datetime) -> None:
         result = await db.execute(
             select(Weapon)
             .join(Storage)

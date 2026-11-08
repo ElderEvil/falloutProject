@@ -10,7 +10,8 @@ from app.crud.exploration import exploration as exploration_crud
 from app.crud.world_location import world_location as wl_crud
 
 if TYPE_CHECKING:
-    from pydantic import UUID4
+    from uuid import UUID
+
     from sqlmodel.ext.asyncio.session import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ class DiscoveryBackfillService:
     async def unlock_discoveries_for_vault(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
     ) -> int:
         """Link every discovery location to the dweller who found it."""
         fixed = 0
@@ -55,7 +56,7 @@ class DiscoveryBackfillService:
         db_session: AsyncSession,
         *,
         max_vaults: int | None = None,
-    ) -> dict[UUID4, int]:
+    ) -> dict[UUID, int]:
         """Unlock discoveries in active vaults, ordered by creation date."""
         from app.crud.vault import vault as vault_crud
 

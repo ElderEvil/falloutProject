@@ -1,9 +1,9 @@
 """Notification endpoints."""
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, NotificationPaginationParams
@@ -22,7 +22,7 @@ async def get_notifications(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     pagination: NotificationPaginationParams,
     unread_only: bool = False,
-    vault_id: UUID4 | None = None,
+    vault_id: UUID | None = None,
     is_read: bool | None = None,
 ) -> list[Notification]:
     """Get notifications for the current user.
@@ -57,7 +57,7 @@ async def get_unread_count(
 
 @router.patch("/{notification_id}/read", response_model=NotificationRead)
 async def mark_notification_as_read(
-    notification_id: UUID4,
+    notification_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Notification:
@@ -79,7 +79,7 @@ async def mark_notification_as_read(
 async def mark_all_notifications_as_read(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    vault_id: UUID4 | None = None,
+    vault_id: UUID | None = None,
 ) -> MarkReadResponse:
     """Mark all notifications as read for the current user.
 
@@ -92,7 +92,7 @@ async def mark_all_notifications_as_read(
 
 @router.delete("/{notification_id}", response_model=NotificationRead)
 async def dismiss_notification(
-    notification_id: UUID4,
+    notification_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Notification:

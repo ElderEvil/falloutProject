@@ -26,7 +26,8 @@ from app.utils.dwellers import get_race_based_name
 from app.utils.static_data import game_data_store
 
 if TYPE_CHECKING:
-    from pydantic import UUID4
+    from uuid import UUID
+
     from sqlmodel.ext.asyncio.session import AsyncSession
 
     from app.models.dweller import Dweller
@@ -61,7 +62,7 @@ def _already_uses_race_name(dweller: Dweller, race: RaceOption, state: str | Non
 class ActiveVaultBackfillResult:
     """Per-vault summaries plus the number of active vaults a cap left unprocessed."""
 
-    summaries: dict[UUID4, dict[str, Any]]
+    summaries: dict[UUID, dict[str, Any]]
     omitted: int
 
 
@@ -84,7 +85,7 @@ class DwellerNameBackfillService:
     async def backfill_names_for_vault(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         *,
         dry_run: bool = True,
         sample_limit: int = 10,

@@ -7,8 +7,8 @@ Template entries render first, later life events follow chronologically.
 
 import logging
 from typing import Any, Protocol
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -126,7 +126,7 @@ class BioService:
         return cap_entries([make_entry(source, text), *rest])
 
     @staticmethod
-    async def _persist(db_session: AsyncSession, dweller_id: UUID4, entries: list[dict[str, Any]]) -> Dweller:
+    async def _persist(db_session: AsyncSession, dweller_id: UUID, entries: list[dict[str, Any]]) -> Dweller:
         return await crud.dweller.update(
             db_session, dweller_id, DwellerUpdate(bio=compile_bio(entries), bio_entries=entries)
         )
@@ -134,7 +134,7 @@ class BioService:
     async def append_entry(
         self,
         db_session: AsyncSession,
-        dweller_id: UUID4,
+        dweller_id: UUID,
         source: str,
         text: str,
         ref: dict[str, Any] | None = None,
@@ -183,7 +183,7 @@ class BioService:
             for entry in dweller.bio_entries or []
         )
 
-    async def record_visit(self, db_session: AsyncSession, dweller_id: UUID4, place_name: str) -> Dweller:
+    async def record_visit(self, db_session: AsyncSession, dweller_id: UUID, place_name: str) -> Dweller:
         """Record a first visit to a place; repeat visits are a no-op."""
         dweller = await crud.dweller.get(db_session, dweller_id)
         for entry in dweller.bio_entries or []:

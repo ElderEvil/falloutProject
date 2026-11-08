@@ -2,9 +2,9 @@
 
 from collections.abc import Sequence
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import UUID4
 
 from app import crud
 from app.api.deps import (
@@ -44,7 +44,7 @@ async def create_weapon(
 
 @router.get("/", response_model=list[WeaponRead])
 async def read_weapon_list(
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
     pagination: PaginationParams,
@@ -67,7 +67,7 @@ async def read_weapon_list(
 
 @router.get("/{weapon_id}", response_model=WeaponRead)
 async def read_weapon(
-    weapon_id: UUID4,
+    weapon_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Weapon:
@@ -85,7 +85,7 @@ async def read_weapon(
 
 @router.put("/{weapon_id}", response_model=WeaponRead)
 async def update_weapon(
-    weapon_id: UUID4,
+    weapon_id: UUID,
     weapon_data: WeaponUpdate,
     db_session: DBSession,
     _: CurrentSuperuser,
@@ -100,7 +100,7 @@ async def update_weapon(
 
 @router.delete("/{weapon_id}", status_code=204)
 async def delete_weapon(
-    weapon_id: UUID4,
+    weapon_id: UUID,
     db_session: DBSession,
     _: CurrentSuperuser,
 ) -> None:
@@ -110,8 +110,8 @@ async def delete_weapon(
 
 @router.post("/{dweller_id}/equip/{weapon_id}", response_model=WeaponRead)
 async def equip_weapon(
-    dweller_id: UUID4,
-    weapon_id: UUID4,
+    dweller_id: UUID,
+    weapon_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Weapon:
@@ -130,7 +130,7 @@ async def equip_weapon(
 
 @router.post("/{weapon_id}/unequip/", status_code=200, response_model=None)
 async def unequip_weapon(
-    weapon_id: UUID4,
+    weapon_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> None:
@@ -145,7 +145,7 @@ async def unequip_weapon(
 
 @router.post("/{weapon_id}/scrap/", response_model=JunkListResponse)
 async def scrap_weapon(
-    weapon_id: UUID4,
+    weapon_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> JunkListResponse:
@@ -164,7 +164,7 @@ async def scrap_weapon(
 
 @router.post("/{weapon_id}/sell/", status_code=200, response_model=None)
 async def sell_weapon(
-    weapon_id: UUID4,
+    weapon_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> None:

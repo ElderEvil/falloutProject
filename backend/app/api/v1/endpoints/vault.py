@@ -2,9 +2,9 @@
 
 from collections.abc import Sequence
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -98,7 +98,7 @@ async def list_scenario_options(
 @router.get("/{vault_id}", response_model=VaultReadWithNumbers)
 async def read_vault(
     *,
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: Annotated[Vault, Depends(get_user_vault_or_403)],
 ) -> VaultReadWithNumbers:
@@ -113,7 +113,7 @@ async def read_vault(
 @router.put("/{vault_id}", response_model=VaultReadWithUser)
 async def update_vault(
     *,
-    vault_id: UUID4,
+    vault_id: UUID,
     vault_data: VaultUpdate,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: Annotated[Vault, Depends(get_user_vault_or_403)],
@@ -129,7 +129,7 @@ async def update_vault(
 @router.delete("/{vault_id}", status_code=204)
 async def delete_vault(
     *,
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: Annotated[Vault, Depends(get_user_vault_or_403)],
     hard_delete: Annotated[bool, Query(description="If True, permanently delete. Otherwise soft delete.")] = False,
@@ -180,7 +180,7 @@ async def start_vault(
 @router.post("/update_resources", status_code=200)
 async def update_vault_resources(
     *,
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
 ):

@@ -20,7 +20,6 @@ if TYPE_CHECKING:
     from datetime import datetime
     from uuid import UUID
 
-    from pydantic import UUID4
     from sqlmodel.ext.asyncio.session import AsyncSession
 
     from app.models.vault import Vault
@@ -42,7 +41,7 @@ class CRUDWorldLocation:
         )
         return list(result.scalars().all())
 
-    async def get_registry(self, db_session: AsyncSession, location_id: UUID4) -> WorldLocation | None:
+    async def get_registry(self, db_session: AsyncSession, location_id: UUID) -> WorldLocation | None:
         """Return a canonical registry row by id, or None."""
         result = await db_session.execute(select(WorldLocation).where(WorldLocation.id == location_id))
         return result.scalar_one_or_none()
@@ -257,9 +256,7 @@ class CRUDWorldLocation:
 
     # -- VaultLocationState --------------------------------------------------------
 
-    async def get_state(
-        self, db_session: AsyncSession, vault_id: UUID4, location_id: UUID4
-    ) -> VaultLocationState | None:
+    async def get_state(self, db_session: AsyncSession, vault_id: UUID, location_id: UUID) -> VaultLocationState | None:
         """A vault's fog entry over a location, or None."""
         result = await db_session.execute(
             select(VaultLocationState).where(
@@ -269,7 +266,7 @@ class CRUDWorldLocation:
         )
         return result.scalar_one_or_none()
 
-    async def is_location_unlocked(self, db_session: AsyncSession, vault_id: UUID4, location_id: UUID4) -> bool:
+    async def is_location_unlocked(self, db_session: AsyncSession, vault_id: UUID, location_id: UUID) -> bool:
         """True when a dweller in the vault has unlocked this location.
 
         Mirrors the map's visibility rule: a place is known to the vault only once a
@@ -288,7 +285,7 @@ class CRUDWorldLocation:
         return result.first() is not None
 
     async def get_state_with_location(
-        self, db_session: AsyncSession, vault_id: UUID4, location_id: UUID4
+        self, db_session: AsyncSession, vault_id: UUID, location_id: UUID
     ) -> tuple[WorldLocation, VaultLocationState] | None:
         """The registry row joined with a vault's state over it, or None."""
         result = await db_session.execute(
@@ -303,7 +300,7 @@ class CRUDWorldLocation:
         return (row[0], row[1]) if row else None
 
     async def get_states_by_vault(
-        self, db_session: AsyncSession, vault_id: UUID4
+        self, db_session: AsyncSession, vault_id: UUID
     ) -> list[tuple[WorldLocation, VaultLocationState]]:
         """Every registry row paired with this vault's state over it."""
         result = await db_session.execute(
@@ -339,7 +336,7 @@ class CRUDWorldLocation:
         ]
 
     async def get_discovery_states(
-        self, db_session: AsyncSession, vault_id: UUID4
+        self, db_session: AsyncSession, vault_id: UUID
     ) -> list[tuple[WorldLocation, VaultLocationState]]:
         """Discovery states with a linked exploration, for backfill passes."""
         result = await db_session.execute(
@@ -356,12 +353,12 @@ class CRUDWorldLocation:
     async def get_or_create_state(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
-        location_id: UUID4,
+        vault_id: UUID,
+        location_id: UUID,
         type: LocationTypeEnum,
         *,
         description: str | None = None,
-        exploration_id: UUID4 | None = None,
+        exploration_id: UUID | None = None,
         commit: bool = True,
     ) -> VaultLocationState:
         """Get or create a vault's fog entry; ``type`` is first-write-wins.
@@ -411,8 +408,8 @@ class CRUDWorldLocation:
     async def ensure_home_state(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
-        location_id: UUID4,
+        vault_id: UUID,
+        location_id: UUID,
         description: str | None = None,
     ) -> VaultLocationState:
         """Get or create the vault's HOME_VAULT fog entry, promoting any other type.
@@ -436,8 +433,8 @@ class CRUDWorldLocation:
     async def get_dweller_link(
         self,
         db_session: AsyncSession,
-        dweller_id: UUID4,
-        location_id: UUID4,
+        dweller_id: UUID,
+        location_id: UUID,
         relation: DwellerLocationRelationEnum,
     ) -> DwellerLocation | None:
         """An existing dweller-location link of the given relation, or None."""
@@ -449,7 +446,7 @@ class CRUDWorldLocation:
         result = await db_session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_visited_counts(self, db_session: AsyncSession, dweller_ids: list[UUID4]) -> dict[UUID4, int]:
+    async def get_visited_counts(self, db_session: AsyncSession, dweller_ids: list[UUID]) -> dict[UUID, int]:
         """Count VISITED locations per dweller in one grouped query."""
         if not dweller_ids:
             return {}
@@ -465,8 +462,8 @@ class CRUDWorldLocation:
     async def link_dweller(
         self,
         db_session: AsyncSession,
-        dweller_id: UUID4,
-        location_id: UUID4,
+        dweller_id: UUID,
+        location_id: UUID,
         relation: DwellerLocationRelationEnum,
         is_unlocked: bool = False,
         commit: bool = True,
@@ -535,8 +532,8 @@ class CRUDWorldLocation:
             return link
 
     async def get_dweller_refs(
-        self, db_session: AsyncSession, vault_id: UUID4, location_ids: list[UUID4]
-    ) -> dict[UUID4, list[dict]]:
+        self, db_session: AsyncSession, vault_id: UUID, location_ids: list[UUID]
+    ) -> dict[UUID, list[dict]]:
         """Batch-load dweller references for a list of location ids.
 
         Only dwellers belonging to ``vault_id`` are returned: registry rows are
@@ -564,7 +561,7 @@ class CRUDWorldLocation:
         result = await db_session.execute(stmt)
         rows = result.all()
 
-        mapping: dict[UUID4, list[dict]] = {lid: [] for lid in location_ids}
+        mapping: dict[UUID, list[dict]] = {lid: [] for lid in location_ids}
         for row in rows:
             mapping[row.location_id].append(
                 {

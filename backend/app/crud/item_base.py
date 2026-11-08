@@ -1,8 +1,8 @@
 import random
 from collections.abc import Sequence
 from typing import Any, TypeVar
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import update
 from sqlalchemy.orm import aliased
 from sqlmodel import SQLModel, select
@@ -30,7 +30,7 @@ ItemT = TypeVar("ItemT", Weapon, Outfit, Pet)
 async def get_items_by_vault(
     db_session: AsyncSession,
     model: type[ItemT],
-    vault_id: UUID4,
+    vault_id: UUID,
     skip: int = 0,
     limit: int = 100,
 ) -> Sequence[ItemT]:
@@ -67,7 +67,7 @@ async def get_items_by_vault(
     return list(result.scalars().all())
 
 
-async def get_item_vault_id(db_session: AsyncSession, item: Weapon | Outfit | Junk | Pet) -> UUID4 | None:
+async def get_item_vault_id(db_session: AsyncSession, item: Weapon | Outfit | Junk | Pet) -> UUID | None:
     """Resolve the vault owning an item via its storage or equipping dweller, without lazy loads."""
     if item.storage_id:
         result = await db_session.execute(select(Storage.vault_id).where(Storage.id == item.storage_id))
@@ -81,7 +81,7 @@ async def get_item_vault_id(db_session: AsyncSession, item: Weapon | Outfit | Ju
 class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, UpdateSchemaType: SQLModel](
     CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]
 ):
-    async def count_in_storage_by_name(self, db_session: AsyncSession, storage_id: UUID4, name: str) -> int:
+    async def count_in_storage_by_name(self, db_session: AsyncSession, storage_id: UUID, name: str) -> int:
         """Count items of this type in one storage matching the name case-insensitively."""
         from sqlalchemy import func
 
@@ -91,7 +91,7 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         )
         return int((await db_session.execute(query)).scalar_one())
 
-    async def count_equipped(self, db_session: AsyncSession, vault_id: UUID4, name: str | None = None) -> int:
+    async def count_equipped(self, db_session: AsyncSession, vault_id: UUID, name: str | None = None) -> int:
         """Count equipped items on living vault residents, optionally matching a name."""
         from sqlalchemy import func
 
@@ -105,13 +105,13 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
             query = query.where(func.lower(self.model.name) == name.lower())
         return int((await db_session.execute(query)).scalar_one())
 
-    async def get_equipped(self, db_session: AsyncSession, dweller_id: UUID4) -> ModelType | None:
+    async def get_equipped(self, db_session: AsyncSession, dweller_id: UUID) -> ModelType | None:
         """The item of this type currently equipped by the dweller, if any."""
         result = await db_session.execute(select(self.model).where(self.model.dweller_id == dweller_id))
         return result.scalar_one_or_none()
 
     async def get_unassigned_in_storage_by_name(
-        self, db_session: AsyncSession, storage_id: UUID4, name: str
+        self, db_session: AsyncSession, storage_id: UUID, name: str
     ) -> ModelType | None:
         """An unassigned item of this type in one storage matching the name exactly."""
         query = select(self.model).where(
@@ -141,7 +141,7 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
     async def update(
         self,
         db_session: AsyncSession,
-        id: int | UUID4,
+        id: int | UUID,
         obj_in: UpdateSchemaType | dict[str, Any],
     ) -> ModelType:
         if obj_in.storage_id and obj_in.dweller_id:
@@ -152,9 +152,9 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         self,
         *,
         db_session: AsyncSession,
-        item_id: UUID4,
-        dweller_id: UUID4,
-        held_exploration_id: UUID4 | None = None,
+        item_id: UUID,
+        dweller_id: UUID,
+        held_exploration_id: UUID | None = None,
         commit: bool = True,
     ) -> ModelType:
         from sqlalchemy.orm import selectinload
@@ -226,12 +226,12 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         db_session.expire(dweller, [item_attr])
         return item
 
-    async def get_held_for_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> Sequence[ModelType]:
+    async def get_held_for_exploration(self, db_session: AsyncSession, exploration_id: UUID) -> Sequence[ModelType]:
         """All items of this type held by an exploration (equipped mid-run)."""
         result = await db_session.execute(select(self.model).where(self.model.exploration_id == exploration_id))
         return list(result.scalars().all())
 
-    async def delete_held_for_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> int:
+    async def delete_held_for_exploration(self, db_session: AsyncSession, exploration_id: UUID) -> int:
         """Delete all items of this type held by an exploration; returns the deleted count.
 
         Does not commit — the caller owns the transaction.
@@ -243,8 +243,8 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
 
     @staticmethod
     async def _fetch_unequip_data(
-        db_session: AsyncSession, item_id: UUID4
-    ) -> tuple[Dweller, UUID4, str] | tuple[None, None, None]:
+        db_session: AsyncSession, item_id: UUID
+    ) -> tuple[Dweller, UUID, str] | tuple[None, None, None]:
         weapon_alias, outfit_alias, pet_alias = aliased(Weapon), aliased(Outfit), aliased(Pet)
 
         query = (
@@ -294,7 +294,7 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
 
     @staticmethod
     async def _update_item(
-        db_session: AsyncSession, item_model: type[Weapon | Outfit | Pet], item_id: UUID4, storage_id: UUID4
+        db_session: AsyncSession, item_model: type[Weapon | Outfit | Pet], item_id: UUID, storage_id: UUID
     ) -> None:
         values: dict[str, Any] = {"dweller_id": None, "storage_id": storage_id}
         if item_model is Weapon:
@@ -306,7 +306,7 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         setattr(dweller, item_type, None)
         db_session.add(dweller)
 
-    async def unequip(self, *, db_session: AsyncSession, item_id: UUID4) -> None:
+    async def unequip(self, *, db_session: AsyncSession, item_id: UUID) -> None:
         dweller, storage_id, item_type = await self._fetch_unequip_data(db_session, item_id)
 
         if not dweller:
@@ -384,7 +384,7 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
 
         return junk_results
 
-    async def scrap(self, *, db_session: AsyncSession, item_id: UUID4) -> list[Junk]:
+    async def scrap(self, *, db_session: AsyncSession, item_id: UUID) -> list[Junk]:
         item = await db_session.get(self.model, item_id)
         if not item:
             raise ResourceNotFoundException(self.model, identifier=item_id)

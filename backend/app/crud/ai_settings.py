@@ -9,8 +9,8 @@ from app.models.ai_settings import AISettings
 
 # Single-row table: all settings live in one well-known row so concurrent
 # upserts cannot create duplicates. A fixed PK makes the upsert effectively
-# atomic (the INSERT is idempotent on conflict). The value is a valid UUID v4
-# (version nibble 4, variant nibble 8) so it passes the UUID4 schema field.
+# atomic (the INSERT is idempotent on conflict). The value is a valid UUID;
+# the schema field accepts any UUID version.
 SINGLETON_ROW_ID = uuid.UUID("f1a2b3c4-d5e6-4000-8000-000000000001")
 
 

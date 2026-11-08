@@ -2,10 +2,10 @@
 
 from typing import Annotated
 from urllib.parse import quote
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Query, UploadFile
 from fastapi.responses import Response
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, OffsetPaginationParams
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 
 @router.post("/{dweller_id}", response_model=DwellerChatResponse)
 async def chat_with_dweller(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     message: ChatMessage,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -49,7 +49,7 @@ async def chat_with_dweller(
 
 @router.get("/history/{dweller_id}", response_model=list[ChatMessageRead])
 async def get_chat_history(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     pagination: OffsetPaginationParams,
@@ -64,7 +64,7 @@ async def get_chat_history(
     responses={400: {"description": "Empty audio file"}},
 )
 async def voice_chat_with_dweller(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     audio_file: Annotated[UploadFile, File()],

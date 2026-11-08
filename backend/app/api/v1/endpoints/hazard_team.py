@@ -1,9 +1,9 @@
 """Hazard team roster endpoints."""
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/contamination-team", tags=["Contamination Team"])
 
 @router.get("/vault/{vault_id}/roster", response_model=ContaminationTeamRead)
 async def get_hazard_team_roster(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ContaminationTeamRead:
@@ -29,9 +29,9 @@ async def get_hazard_team_roster(
 
 @router.put("/vault/{vault_id}/{team}/{dweller_id}", response_model=ContaminationTeamRead)
 async def set_hazard_team_place(
-    vault_id: UUID4,
+    vault_id: UUID,
     team: HazardTeam,
-    dweller_id: UUID4,
+    dweller_id: UUID,
     payload: HazardTeamPlaceUpdate,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],

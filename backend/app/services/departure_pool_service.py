@@ -8,8 +8,8 @@ concurrent double claim cannot create two owners. Equipment is left with the sou
 """
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import AvailabilityEnum, ContentProvenanceEnum, DwellerStatusEnum, LifecycleEnum
@@ -45,7 +45,7 @@ class DeparturePoolService:
         """Departures eligible for a vault to recruit, excluding its own departures."""
         return list(await dweller_crud.get_pool_eligible(db_session, exclude_vault_id=vault.id, limit=POOL_SIZE))
 
-    async def claim(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID4) -> Dweller:
+    async def claim(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID) -> Dweller:
         """Recruit a departure into ``vault``, preserving identity and stats.
 
         Atomic: the row is locked FOR UPDATE, so two concurrent claims — or a claim

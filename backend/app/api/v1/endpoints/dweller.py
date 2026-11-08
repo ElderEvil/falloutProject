@@ -2,9 +2,9 @@
 
 from collections.abc import Sequence
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -74,7 +74,7 @@ async def create_dweller(
 
 @router.get("/", response_model=list[DwellerReadLess])
 async def read_dweller_list(
-    # vault_id: UUID4,
+    # vault_id: UUID,
     _: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     pagination: PaginationParams,
@@ -101,7 +101,7 @@ async def read_appearance_options(_: CurrentActiveUser) -> DwellerAppearanceOpti
 
 @router.get("/{dweller_id}", response_model=DwellerReadFull)
 async def read_dweller(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Dweller:
@@ -116,7 +116,7 @@ async def read_dweller(
 
 @router.get("/{dweller_id}/lineage", response_model=LineageResponse)
 async def get_dweller_lineage(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> LineageResponse:
@@ -138,7 +138,7 @@ async def get_dweller_lineage(
 
 @router.put("/{dweller_id}", response_model=DwellerRead)
 async def update_dweller(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     dweller_data: DwellerUpdateRequest,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -164,7 +164,7 @@ async def update_dweller(
 
 @router.patch("/{dweller_id}/rename", response_model=DwellerRead)
 async def rename_dweller(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     rename: DwellerRename,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -184,7 +184,7 @@ async def rename_dweller(
 
 @router.delete("/{dweller_id}", status_code=204)
 async def delete_dweller(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     hard_delete: Annotated[bool, Query(description="If True, permanently delete. Otherwise soft delete.")] = False,
@@ -200,7 +200,7 @@ async def delete_dweller(
 
 @router.get("/vault/{vault_id}/", response_model=list[DwellerReadLess])
 async def read_dwellers_by_vault(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     pagination: PaginationParams,
@@ -223,8 +223,8 @@ async def read_dwellers_by_vault(
 
 @router.post("/{dweller_id}/move_to/{room_id}", response_model=DwellerReadWithRoomID)
 async def move_dweller_to_room(
-    dweller_id: UUID4,
-    room_id: UUID4,
+    dweller_id: UUID,
+    room_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerReadWithRoomID:
@@ -242,7 +242,7 @@ async def move_dweller_to_room(
 
 @router.post("/create_random/", response_model=DwellerRead)
 async def create_random_common_dweller(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     dweller_override: DwellerCreateCommonOverride | None = None,
@@ -258,7 +258,7 @@ async def create_random_common_dweller(
 
 @router.post("/{dweller_id}/generate_backstory/", response_model=DwellerReadFull)
 async def generate_backstory(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerReadFull:
@@ -272,7 +272,7 @@ async def generate_backstory(
 
 @router.post("/{dweller_id}/extend_bio/", response_model=DwellerReadFull)
 async def extend_bio(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerReadFull:
@@ -282,7 +282,7 @@ async def extend_bio(
 
 @router.post("/{dweller_id}/bio/addendum/", response_model=DwellerReadFull)
 async def add_bio_addendum(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     request: BioAddendumRequest,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -295,7 +295,7 @@ async def add_bio_addendum(
 
 @router.post("/{dweller_id}/generate_visual_attributes/", response_model=DwellerReadFull)
 async def generate_visual_attributes(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerReadFull:
@@ -311,7 +311,7 @@ async def generate_visual_attributes(
 
 @router.post("/{dweller_id}/generate_photo/", response_model=DwellerReadFull)
 async def generate_photo(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     force: Annotated[bool, Query(description="Regenerate even if a photo already exists")] = False,
@@ -328,7 +328,7 @@ async def generate_photo(
 
 @router.post("/{dweller_id}/generate_audio/", response_model=DwellerReadFull)
 async def generate_audio(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     text: str,
     user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -343,7 +343,7 @@ async def generate_audio(
 
 @router.post("/{dweller_id}/generate_with_ai/", response_model=DwellerReadFull)
 async def generate_data_with_ai(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentVerifiedUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     origin: str | None = None,
@@ -362,7 +362,7 @@ async def generate_data_with_ai(
 
 @router.post("/{dweller_id}/generate_avatar", response_model=DwellerReadFull)
 async def generate_dweller_avatar(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     dweller_first_name: str,
     dweller_last_name: str,
     visual_attributes_input: DwellerVisualAttributes,
@@ -405,7 +405,7 @@ async def read_dwellers_data(
 
 @router.post("/{dweller_id}/use_stimpack", response_model=DwellerRead)
 async def use_stimpack(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Dweller:
@@ -420,7 +420,7 @@ async def use_stimpack(
 
 @router.post("/{dweller_id}/use_radaway", response_model=DwellerRead)
 async def use_radaway(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Dweller:
@@ -435,7 +435,7 @@ async def use_radaway(
 
 @router.get("/{dweller_id}/happiness_modifiers", response_model=HappinessModifiersResponse)
 async def get_happiness_modifiers(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> HappinessModifiersResponse:
@@ -451,7 +451,7 @@ async def get_happiness_modifiers(
 
 @router.post("/{dweller_id}/auto_assign", response_model=DwellerReadWithRoomID)
 async def auto_assign_to_room(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerReadWithRoomID:
@@ -474,7 +474,7 @@ async def auto_assign_to_room(
 
 @router.get("/vault/{vault_id}/dead", response_model=list[DwellerDeadRead])
 async def get_dead_dwellers(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     pagination: PaginationParams,
@@ -501,7 +501,7 @@ async def get_dead_dwellers(
 
 @router.get("/vault/{vault_id}/graveyard", response_model=list[DwellerDeadRead])
 async def get_graveyard(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     pagination: PaginationParams,
@@ -518,7 +518,7 @@ async def get_graveyard(
 
 @router.get("/{dweller_id}/revival_cost", response_model=RevivalCostResponse)
 async def get_revival_cost(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RevivalCostResponse:
@@ -536,7 +536,7 @@ async def get_revival_cost(
 
 @router.post("/{dweller_id}/revive", response_model=DwellerReviveResponse)
 async def revive_dweller(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerReviveResponse:
@@ -556,7 +556,7 @@ async def revive_dweller(
 
 @router.post("/{dweller_id}/soft-delete", response_model=DwellerRead)
 async def soft_delete_dweller(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Dweller:
@@ -571,7 +571,7 @@ async def soft_delete_dweller(
 
 @router.post("/{dweller_id}/restore", response_model=DwellerRead)
 async def restore_dweller(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Dweller:
@@ -588,7 +588,7 @@ async def restore_dweller(
 
 @router.get("/vault/{vault_id}/deleted", response_model=list[DwellerReadLess])
 async def read_deleted_dwellers_by_vault(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     pagination: PaginationParams,
@@ -623,7 +623,7 @@ def _to_exit_request_read(dweller: Dweller) -> ExitRequestRead:
 
 @router.get("/vault/{vault_id}/exit-requests", response_model=list[ExitRequestRead])
 async def list_exit_requests(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[ExitRequestRead]:
@@ -639,7 +639,7 @@ async def list_exit_requests(
 
 @router.post("/{dweller_id}/grant-exit", response_model=ExitDecisionResponse)
 async def grant_exit_request(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ExitDecisionResponse:
@@ -662,7 +662,7 @@ async def grant_exit_request(
 
 @router.post("/{dweller_id}/refuse-exit", response_model=ExitDecisionResponse)
 async def refuse_exit_request(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ExitDecisionResponse:

@@ -2,8 +2,8 @@
 
 import logging
 from datetime import timedelta
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import DwellerStatusEnum, RoomTypeEnum, TrainingStatus
@@ -128,8 +128,8 @@ class TrainingService:
     async def start_training(
         self,
         db_session: AsyncSession,
-        dweller_id: UUID4,
-        room_id: UUID4,
+        dweller_id: UUID,
+        room_id: UUID,
     ) -> Training:
         """Start training a dweller in a training room.
 
@@ -209,7 +209,7 @@ class TrainingService:
         )
 
     async def _lock_active_training(
-        self, db_session: AsyncSession, training_id: UUID4, operation: str
+        self, db_session: AsyncSession, training_id: UUID, operation: str
     ) -> tuple[Training, Dweller]:
         """Lock the dweller before the session, matching assignment write order."""
         training = await training_crud.training.get(db_session, training_id)
@@ -241,7 +241,7 @@ class TrainingService:
         dweller = await dweller_crud.get(db_session, dweller.id)
         return self._new_training(dweller, room, training.goal_stat_value)
 
-    async def set_training_goal(self, db_session: AsyncSession, training_id: UUID4, goal: int) -> Training:
+    async def set_training_goal(self, db_session: AsyncSession, training_id: UUID, goal: int) -> Training:
         """Serialize goal edits with completion so a successor inherits the saved goal."""
         training, _ = await self._lock_active_training(db_session, training_id, "change goal")
         if not training.target_stat_value <= goal <= game_config.training.special_stat_max:
@@ -298,7 +298,7 @@ class TrainingService:
     async def complete_training(
         self,
         db_session: AsyncSession,
-        training_id: UUID4,
+        training_id: UUID,
         dweller: Dweller | None = None,
     ) -> Training:
         """Complete a training session and increase the dweller's SPECIAL stat.
@@ -401,7 +401,7 @@ class TrainingService:
     async def cancel_training(
         self,
         db_session: AsyncSession,
-        training_id: UUID4,
+        training_id: UUID,
         dweller: Dweller | None = None,
         *,
         commit: bool = True,

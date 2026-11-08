@@ -2,8 +2,8 @@
 
 import logging
 from dataclasses import dataclass
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import PARTNER_LINKED_STAGES, SPECIAL_STATS, NotificationType, RelationshipTypeEnum
@@ -128,7 +128,7 @@ class RelationshipService:
 
     @staticmethod
     async def get_vault_relationships_with_progress(
-        db_session: AsyncSession, vault_id: UUID4
+        db_session: AsyncSession, vault_id: UUID
     ) -> list[VaultRelationshipRead]:
         """Describe bond growth using the same room and rate rules as the game tick."""
         relationships = await relationship_crud.get_by_vault(db_session, vault_id)
@@ -199,8 +199,8 @@ class RelationshipService:
     @staticmethod
     async def get_relationship(
         db_session: AsyncSession,
-        dweller_1_id: UUID4,
-        dweller_2_id: UUID4,
+        dweller_1_id: UUID,
+        dweller_2_id: UUID,
     ) -> Relationship | None:
         """Get existing relationship between two dwellers.
 
@@ -217,8 +217,8 @@ class RelationshipService:
     @staticmethod
     async def get_or_create_relationship(
         db_session: AsyncSession,
-        dweller_1_id: UUID4,
-        dweller_2_id: UUID4,
+        dweller_1_id: UUID,
+        dweller_2_id: UUID,
     ) -> Relationship:
         """Create a new relationship or get existing one.
 
@@ -252,8 +252,8 @@ class RelationshipService:
     @staticmethod
     async def increase_affinity(
         db_session: AsyncSession,
-        dweller_1_id: UUID4,
-        dweller_2_id: UUID4,
+        dweller_1_id: UUID,
+        dweller_2_id: UUID,
         amount: int = 1,
         *,
         relationship: Relationship | None = None,
@@ -383,8 +383,8 @@ class RelationshipService:
     @staticmethod
     async def decrease_affinity(
         db_session: AsyncSession,
-        dweller_1_id: UUID4,
-        dweller_2_id: UUID4,
+        dweller_1_id: UUID,
+        dweller_2_id: UUID,
         amount: int,
         *,
         relationship: Relationship | None = None,
@@ -454,7 +454,7 @@ class RelationshipService:
         bio_service.add_entry(second, "family", f"Can't stand {name_1}.", ref={"rival_id": str(first.id)})
 
     @staticmethod
-    async def _require_social_action(db_session: AsyncSession, dweller_ids: tuple[UUID4, UUID4]) -> None:
+    async def _require_social_action(db_session: AsyncSession, dweller_ids: tuple[UUID, UUID]) -> None:
         """Reject romance/partnership when either dweller cannot take purposeful social action."""
         for dweller_id in dweller_ids:
             dweller = await dweller_crud.get(db_session, dweller_id)
@@ -464,8 +464,8 @@ class RelationshipService:
     @staticmethod
     async def initiate_romance(
         db_session: AsyncSession,
-        dweller_1_id: UUID4,
-        dweller_2_id: UUID4,
+        dweller_1_id: UUID,
+        dweller_2_id: UUID,
     ) -> Relationship:
         """Initiate romantic relationship between two dwellers.
 
@@ -504,8 +504,8 @@ class RelationshipService:
     @staticmethod
     async def make_partners(
         db_session: AsyncSession,
-        dweller_1_id: UUID4,
-        dweller_2_id: UUID4,
+        dweller_1_id: UUID,
+        dweller_2_id: UUID,
     ) -> Relationship:
         """Make two dwellers partners (committed relationship).
 
@@ -558,8 +558,8 @@ class RelationshipService:
     @staticmethod
     async def _set_partner_ids(
         db_session: AsyncSession,
-        dweller_1_id: UUID4,
-        dweller_2_id: UUID4,
+        dweller_1_id: UUID,
+        dweller_2_id: UUID,
     ) -> None:
         """Stage reciprocal partner_ids on both dwellers.
 
@@ -576,7 +576,7 @@ class RelationshipService:
         db_session.add(dweller_2)
 
     @staticmethod
-    async def _lock_dwellers(db_session: AsyncSession, id_a: UUID4, id_b: UUID4) -> None:
+    async def _lock_dwellers(db_session: AsyncSession, id_a: UUID, id_b: UUID) -> None:
         """Lock both dweller rows FOR UPDATE in deterministic id order.
 
         Serializes concurrent commitment transitions (make_partners / marry /
@@ -591,8 +591,8 @@ class RelationshipService:
     @staticmethod
     async def _committed_partner_elsewhere(
         db_session: AsyncSession,
-        dweller_id: UUID4,
-        except_ids: set[UUID4],
+        dweller_id: UUID,
+        except_ids: set[UUID],
     ) -> Relationship | None:
         """Return the first committed relationship whose other side is not in except_ids.
 
@@ -610,8 +610,8 @@ class RelationshipService:
     @staticmethod
     async def _apply_marriage_bonus(
         db_session: AsyncSession,
-        dweller_1_id: UUID4,
-        dweller_2_id: UUID4,
+        dweller_1_id: UUID,
+        dweller_2_id: UUID,
         *,
         commit: bool = True,
     ) -> None:
@@ -633,7 +633,7 @@ class RelationshipService:
             await db_session.commit()
 
     @staticmethod
-    async def marry(db_session: AsyncSession, relationship_id: UUID4) -> Relationship:
+    async def marry(db_session: AsyncSession, relationship_id: UUID) -> Relationship:
         """Marry two partners with affinity at or above the marriage threshold.
 
         Raises:
@@ -739,7 +739,7 @@ class RelationshipService:
     @staticmethod
     async def break_up(
         db_session: AsyncSession,
-        relationship_id: UUID4,
+        relationship_id: UUID,
     ) -> None:
         """Break up a relationship.
 
@@ -798,8 +798,8 @@ class RelationshipService:
     @staticmethod
     async def calculate_compatibility_score(
         db_session: AsyncSession,
-        dweller_1_id: UUID4,
-        dweller_2_id: UUID4,
+        dweller_1_id: UUID,
+        dweller_2_id: UUID,
     ) -> CompatibilityScore:
         """Calculate compatibility score between two dwellers.
 

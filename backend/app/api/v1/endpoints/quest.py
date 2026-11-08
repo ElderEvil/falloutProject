@@ -2,9 +2,9 @@
 
 from collections.abc import Sequence
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -28,7 +28,7 @@ from app.utils.exceptions import ResourceNotFoundException, ValidationException
 router = APIRouter(prefix="/quests", tags=["Quest"])
 
 
-def _to_party_member_read(member: TeamMember, quest_id: UUID4, vault_id: UUID4) -> QuestPartyMemberRead:
+def _to_party_member_read(member: TeamMember, quest_id: UUID, vault_id: UUID) -> QuestPartyMemberRead:
     """Map a team member into the quest wire contract (quest/vault come from the team)."""
     slot_number = member.slot_number
     if slot_number is None:
@@ -75,7 +75,7 @@ async def create_quest(
 
 @router.get("/{vault_id}/", response_model=list[QuestRead])
 async def read_vault_quests(
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
     pagination: PaginationParams,
@@ -92,7 +92,7 @@ async def read_vault_quests(
 
 @router.get("/{vault_id}/available", response_model=list[QuestRead])
 async def get_available_quests(
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
     pagination: PaginationParams,
@@ -110,9 +110,9 @@ async def get_available_quests(
 
 @router.get("/{vault_id}/{quest_id}", response_model=QuestRead)
 async def read_quest(
-    quest_id: UUID4,
+    quest_id: UUID,
     user: CurrentActiveUser,
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Quest:
     """Retrieve a quest by ID within a vault.
@@ -134,9 +134,9 @@ async def read_quest(
 
 @router.put("/{vault_id}/{quest_id}", response_model=QuestRead)
 async def update_quest(
-    quest_id: UUID4,
+    quest_id: UUID,
     quest_data: QuestUpdate,
-    _vault_id: UUID4,
+    _vault_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
 ) -> Quest:
@@ -153,8 +153,8 @@ async def update_quest(
 
 @router.delete("/{vault_id}/{quest_id}", status_code=204)
 async def delete_quest(
-    quest_id: UUID4,
-    _vault_id: UUID4,
+    quest_id: UUID,
+    _vault_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
 ) -> None:
@@ -167,8 +167,8 @@ async def delete_quest(
 
 @router.post("/{vault_id}/{quest_id}/assign", status_code=201)
 async def assign_quest_to_vault(
-    vault_id: UUID4,
-    quest_id: UUID4,
+    vault_id: UUID,
+    quest_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     *,
@@ -187,8 +187,8 @@ async def assign_quest_to_vault(
 
 @router.post("/{vault_id}/{quest_id}/claim-rewards", response_model=QuestCompleteResponse, status_code=200)
 async def claim_quest_rewards(
-    vault_id: UUID4,
-    quest_id: UUID4,
+    vault_id: UUID,
+    quest_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> QuestCompleteResponse:
@@ -209,8 +209,8 @@ async def claim_quest_rewards(
 
 @router.get("/{vault_id}/{quest_id}/party", response_model=list[QuestPartyMemberRead])
 async def get_quest_party(
-    vault_id: UUID4,
-    quest_id: UUID4,
+    vault_id: UUID,
+    quest_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[QuestPartyMemberRead]:
@@ -226,8 +226,8 @@ async def get_quest_party(
 
 @router.post("/{vault_id}/{quest_id}/start", response_model=QuestRead, status_code=200)
 async def start_quest(
-    vault_id: UUID4,
-    quest_id: UUID4,
+    vault_id: UUID,
+    quest_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     party_data: QuestPartyAssign | None = None,
@@ -252,8 +252,8 @@ async def start_quest(
 
 @router.get("/{vault_id}/{quest_id}/eligible-dwellers", response_model=list[EligibleDwellerRead])
 async def get_eligible_dwellers(
-    vault_id: UUID4,
-    quest_id: UUID4,
+    vault_id: UUID,
+    quest_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[EligibleDwellerRead]:

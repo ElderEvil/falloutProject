@@ -2,9 +2,9 @@
 
 import logging
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/vault/{vault_id}/space")
 async def get_storage_space(
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: CurrentActiveUser,
 ) -> StorageSpaceResponse:
@@ -72,7 +72,7 @@ async def get_storage_space(
 
 @router.get("/vault/{vault_id}/items")
 async def get_storage_items(
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: CurrentActiveUser,
 ) -> StorageItemsResponse:
@@ -91,7 +91,7 @@ async def get_storage_items(
 
 @router.post("/vault/{vault_id}/medical/transfer")
 async def transfer_medical_supplies(
-    vault_id: UUID4,
+    vault_id: UUID,
     request: MedicalTransferRequest,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: CurrentActiveUser,
@@ -122,7 +122,7 @@ async def transfer_medical_supplies(
 
 @router.post("/vault/{vault_id}/medical/distribute-recovery-supplies", response_model=MedicalDistributionResponse)
 async def distribute_recovery_supplies(
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: CurrentActiveUser,
 ) -> MedicalDistributionResponse:
@@ -140,7 +140,7 @@ async def distribute_recovery_supplies(
 
 @router.post("/vault/{vault_id}/lunchbox/open", response_model=LunchboxOpened)
 async def open_lunchbox(
-    vault_id: UUID4,
+    vault_id: UUID,
     request: LunchboxOpenRequest,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: CurrentActiveUser,
@@ -165,7 +165,7 @@ async def open_lunchbox(
 
 @router.post("/vault/{vault_id}/pet-carrier/open", response_model=PetCarrierOpened)
 async def open_pet_carrier(
-    vault_id: UUID4,
+    vault_id: UUID,
     request: PetCarrierOpenRequest,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: CurrentActiveUser,
@@ -189,7 +189,7 @@ async def open_pet_carrier(
 
 @router.get("/vault/{vault_id}/maintenance")
 async def get_storage_maintenance(
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: CurrentActiveUser,
 ) -> StorageMaintenanceRead:

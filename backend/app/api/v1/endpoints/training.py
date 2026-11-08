@@ -1,9 +1,9 @@
 """Training endpoints."""
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
@@ -19,8 +19,8 @@ router = APIRouter(prefix="/training", tags=["Training"])
 
 @router.post("/start", response_model=TrainingRead, status_code=201)
 async def start_training(
-    dweller_id: Annotated[UUID4, Query()],
-    room_id: Annotated[UUID4, Query()],
+    dweller_id: Annotated[UUID, Query()],
+    room_id: Annotated[UUID, Query()],
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Training:
@@ -53,7 +53,7 @@ async def start_training(
 
 @router.get("/dweller/{dweller_id}", response_model=TrainingRead | None)
 async def get_dweller_training(
-    dweller_id: UUID4,
+    dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Training | None:
@@ -72,7 +72,7 @@ async def get_dweller_training(
 
 @router.get("/vault/{vault_id}", response_model=list[TrainingRead])
 async def list_vault_training(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[Training]:
@@ -88,7 +88,7 @@ async def list_vault_training(
 
 @router.get("/{training_id}", response_model=TrainingProgress)
 async def get_training(
-    training_id: UUID4,
+    training_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> TrainingProgress:
@@ -120,7 +120,7 @@ async def get_training(
 
 @router.post("/{training_id}/complete", response_model=TrainingRead)
 async def complete_training(
-    training_id: UUID4,
+    training_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Training:
@@ -150,7 +150,7 @@ async def complete_training(
 
 @router.post("/{training_id}/cancel", response_model=TrainingRead)
 async def cancel_training(
-    training_id: UUID4,
+    training_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Training:
@@ -180,7 +180,7 @@ async def cancel_training(
 
 @router.get("/room/{room_id}", response_model=list[TrainingRead])
 async def list_room_training(
-    room_id: UUID4,
+    room_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[Training]:
@@ -200,7 +200,7 @@ async def list_room_training(
 
 @router.patch("/{training_id}/goal", response_model=TrainingRead)
 async def set_training_goal(
-    training_id: UUID4,
+    training_id: UUID,
     goal: TrainingGoalUpdate,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],

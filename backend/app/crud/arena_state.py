@@ -1,6 +1,7 @@
 """CRUD operations for arena match state (ArenaState)."""
 
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -12,19 +13,19 @@ class CRUDArenaState:
     """Persistence for the per-room arena selection and match flags."""
 
     @staticmethod
-    async def get(db_session: AsyncSession, room_id: UUID4) -> ArenaState | None:
+    async def get(db_session: AsyncSession, room_id: UUID) -> ArenaState | None:
         result = await db_session.execute(select(ArenaState).where(ArenaState.room_id == room_id))
         return result.scalars().first()
 
     @staticmethod
-    async def get_for_update(db_session: AsyncSession, room_id: UUID4) -> ArenaState | None:
+    async def get_for_update(db_session: AsyncSession, room_id: UUID) -> ArenaState | None:
         """Serialize selection/start/resolve, even before an ArenaState exists."""
         await db_session.execute(select(Room.id).where(Room.id == room_id).with_for_update())
         query = select(ArenaState).where(ArenaState.room_id == room_id).with_for_update()
         return (await db_session.execute(query.execution_options(populate_existing=True))).scalars().first()
 
     @staticmethod
-    async def get_or_create(db_session: AsyncSession, room_id: UUID4) -> ArenaState:
+    async def get_or_create(db_session: AsyncSession, room_id: UUID) -> ArenaState:
         """Get or create state, race-safe against concurrent creation.
 
         The insert is issued as ``INSERT ... ON CONFLICT DO NOTHING`` so the
@@ -41,7 +42,7 @@ class CRUDArenaState:
         return state
 
     @staticmethod
-    async def get_by_fighter(db_session: AsyncSession, dweller_id: UUID4) -> list[ArenaState]:
+    async def get_by_fighter(db_session: AsyncSession, dweller_id: UUID) -> list[ArenaState]:
         """Arena state rows where the dweller occupies any fighter slot."""
         query = select(ArenaState).where(
             (ArenaState.fighter_a_id == dweller_id)

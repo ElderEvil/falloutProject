@@ -1,8 +1,8 @@
 from collections.abc import Sequence
 from logging import getLogger
 from typing import cast
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import CursorResult, Row, and_, func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import col, select, update
@@ -31,7 +31,7 @@ def _validate_vault_number(number: int) -> None:
 
 class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     async def get_by_user_id(
-        self, *, db_session: AsyncSession, user_id: UUID4, include_deleted: bool = False
+        self, *, db_session: AsyncSession, user_id: UUID, include_deleted: bool = False
     ) -> Sequence[Vault]:
         query = select(self.model).where(self.model.user_id == user_id)
         if not include_deleted:
@@ -39,7 +39,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         response = await db_session.execute(query)
         return response.scalars().all()
 
-    async def count_by_user(self, db_session: AsyncSession, user_id: UUID4, *, include_deleted: bool = True) -> int:
+    async def count_by_user(self, db_session: AsyncSession, user_id: UUID, *, include_deleted: bool = True) -> int:
         """Count a user's vaults; merges must include soft-deleted vaults."""
         query = select(func.count()).select_from(self.model).where(self.model.user_id == user_id)
         if not include_deleted:
@@ -47,7 +47,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return int((await db_session.execute(query)).scalar_one())
 
     async def list_numbers_by_user(
-        self, db_session: AsyncSession, user_id: UUID4, *, include_deleted: bool = True
+        self, db_session: AsyncSession, user_id: UUID, *, include_deleted: bool = True
     ) -> list[int]:
         """Vault numbers for the merge dry-run preview, cheapest first."""
         query = select(self.model.number).where(self.model.user_id == user_id).order_by(self.model.number)
@@ -56,7 +56,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return list((await db_session.execute(query)).scalars().all())
 
     async def reassign_user(
-        self, db_session: AsyncSession, source_user_id: UUID4, target_user_id: UUID4, *, commit: bool = True
+        self, db_session: AsyncSession, source_user_id: UUID, target_user_id: UUID, *, commit: bool = True
     ) -> int:
         """Move every source vault, including soft-deleted vaults, to the target."""
         result = await db_session.execute(
@@ -71,10 +71,10 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             await db_session.flush()
         return cast("CursorResult", result).rowcount or 0
 
-    async def get_non_deleted_ids(self, db_session: AsyncSession) -> list[UUID4]:
+    async def get_non_deleted_ids(self, db_session: AsyncSession) -> list[UUID]:
         return list((await db_session.execute(select(self.model.id).where(self.model.deleted_at.is_(None)))).scalars())
 
-    async def lock_for_update(self, db_session: AsyncSession, vault_id: UUID4) -> Vault:
+    async def lock_for_update(self, db_session: AsyncSession, vault_id: UUID) -> Vault:
         """Lock a vault row and return its current committed state.
 
         Spending services (crafting) serialize on this row so two concurrent
@@ -88,7 +88,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         )
         return result.scalars().one()
 
-    async def get_for_update(self, db_session: AsyncSession, vault_id: UUID4) -> Vault | None:
+    async def get_for_update(self, db_session: AsyncSession, vault_id: UUID) -> Vault | None:
         """One vault row locked FOR UPDATE, or None when missing.
 
         The shared vault/site claim for expedition sites: entry, terminal
@@ -106,7 +106,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def get_population(*, db_session: AsyncSession, vault_id: UUID4) -> int:
+    async def get_population(*, db_session: AsyncSession, vault_id: UUID) -> int:
         """Current living population (dead and soft-deleted dwellers excluded).
 
         The one population definition shared by breeding, transfers, objectives and
@@ -135,7 +135,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             return None
         return max(0, population_max - population - reserved)
 
-    async def lock_population_for_update(self, db_session: AsyncSession, vault_id: UUID4) -> tuple[Vault, int]:
+    async def lock_population_for_update(self, db_session: AsyncSession, vault_id: UUID) -> tuple[Vault, int]:
         """Lock the vault row and return ``(vault, living population)``.
 
         One atomic read for every capacity-sensitive mutation — recruitment, reward
@@ -154,7 +154,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             query = query.limit(limit)
         return (await db_session.execute(query)).scalars().all()
 
-    async def get_population_space(self, *, db_session: AsyncSession, vault_id: UUID4) -> tuple[int | None, int]:
+    async def get_population_space(self, *, db_session: AsyncSession, vault_id: UUID) -> tuple[int | None, int]:
         """Population cap with total living-dweller count; (None, 0) when the vault is missing.
 
         Counts every living dweller, assigned or not — an unassigned dweller
@@ -185,7 +185,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             .join(Storage, Storage.vault_id == self.model.id, isouter=True)
         )
 
-    async def get_vault_count_rows(self, *, db_session: AsyncSession, user_id: UUID4) -> Sequence[Row]:
+    async def get_vault_count_rows(self, *, db_session: AsyncSession, user_id: UUID) -> Sequence[Row]:
         """Raw aggregate rows (vault, room_count, dweller_count, stimpack, radaway) for a user's vaults."""
         result = await db_session.execute(
             self._vault_count_select()
@@ -195,13 +195,13 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         )
         return result.all()
 
-    async def get_vault_count_row(self, *, db_session: AsyncSession, vault_id: UUID4) -> Row:
+    async def get_vault_count_row(self, *, db_session: AsyncSession, vault_id: UUID) -> Row:
         """Raw aggregate row (vault, room_count, dweller_count, stimpack, radaway) for a single vault."""
         result = await db_session.execute(self._vault_count_select().where(Vault.id == vault_id).group_by(Vault.id))
         return result.one()
 
     @staticmethod
-    async def create_storage(*, db_session: AsyncSession, vault_id: UUID4) -> Storage:
+    async def create_storage(*, db_session: AsyncSession, vault_id: UUID) -> Storage:
         """Create the storage row for a vault (delegates to storage CRUD)."""
         from app.crud.storage import storage as storage_crud
 
@@ -212,7 +212,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return await super().create(db_session, obj_in)
 
     async def create_with_user_id(
-        self, *, db_session: AsyncSession, obj_in: VaultCreate | VaultNumber | dict, user_id: UUID4
+        self, *, db_session: AsyncSession, obj_in: VaultCreate | VaultNumber | dict, user_id: UUID
     ) -> Vault:
         """Create a vault and claim its atlas slot in one transaction.
 
@@ -243,7 +243,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         await db_session.refresh(vault)
         return vault
 
-    async def delete(self, db_session: AsyncSession, id: UUID4, soft: bool = True) -> Vault:
+    async def delete(self, db_session: AsyncSession, id: UUID, soft: bool = True) -> Vault:
         """Delete vault and its associated gamestate.
 
         On soft delete the vault's map slot is released in the same transaction,
@@ -277,7 +277,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         await db_session.refresh(obj)
         return obj
 
-    async def restore(self, db_session: AsyncSession, id: UUID4) -> Vault:
+    async def restore(self, db_session: AsyncSession, id: UUID) -> Vault:
         """Restore a soft-deleted vault, claiming a fresh map slot first.
 
         The claim happens before ``is_deleted`` is cleared and commits with it,
@@ -305,7 +305,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return list(result.scalars().all())
 
     async def set_incidents_disabled(
-        self, db_session: AsyncSession, *, disabled: bool, vault_ids: list[UUID4] | None
+        self, db_session: AsyncSession, *, disabled: bool, vault_ids: list[UUID] | None
     ) -> int:
         statement = update(Vault).where(~col(Vault.is_deleted)).values(incidents_disabled=disabled)
         if vault_ids is not None:

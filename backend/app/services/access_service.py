@@ -1,6 +1,7 @@
 """Shared vault ownership policy for API dependencies and domain services."""
 
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -19,7 +20,7 @@ def assert_vault_owner(vault: Vault, user: User) -> None:
         raise AccessDeniedException("The user doesn't have enough privileges")
 
 
-async def get_accessible_vault(vault_id: UUID4 | None, user: User, db_session: AsyncSession) -> Vault:
+async def get_accessible_vault(vault_id: UUID | None, user: User, db_session: AsyncSession) -> Vault:
     if vault_id is None:
         raise ResourceNotFoundException(Vault, identifier="unassigned")
     vault = await crud.vault.get(db_session, vault_id)
@@ -27,12 +28,12 @@ async def get_accessible_vault(vault_id: UUID4 | None, user: User, db_session: A
     return vault
 
 
-async def verify_dweller_access(dweller_id: UUID4, user: User, db_session: AsyncSession) -> Dweller:
+async def verify_dweller_access(dweller_id: UUID, user: User, db_session: AsyncSession) -> Dweller:
     dweller = await crud.dweller.get(db_session, dweller_id)
     await get_accessible_vault(dweller.vault_id, user, db_session)
     return dweller
 
 
-async def get_accessible_dweller(dweller_id: UUID4, user: User, db_session: AsyncSession) -> DwellerReadFull:
+async def get_accessible_dweller(dweller_id: UUID, user: User, db_session: AsyncSession) -> DwellerReadFull:
     dweller = await verify_dweller_access(dweller_id, user, db_session)
     return DwellerReadFull.model_validate(dweller)

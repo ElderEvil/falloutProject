@@ -2,9 +2,9 @@
 
 from collections.abc import Sequence
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, PetPaginationParams, get_current_active_user
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/pets", tags=["Pet"], dependencies=[Depends(get_curre
 
 @router.get("/", response_model=list[PetRead])
 async def read_pet_list(
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
     pagination: PetPaginationParams,
@@ -40,7 +40,7 @@ async def read_pet_list(
 
 @router.get("/{pet_id}", response_model=PetRead)
 async def read_pet(
-    pet_id: UUID4,
+    pet_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ) -> Pet:
@@ -57,8 +57,8 @@ async def read_pet(
 
 @router.post("/{dweller_id}/equip/{pet_id}", response_model=PetRead)
 async def equip_pet(
-    dweller_id: UUID4,
-    pet_id: UUID4,
+    dweller_id: UUID,
+    pet_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ) -> Pet:
@@ -75,7 +75,7 @@ async def equip_pet(
 
 @router.post("/{pet_id}/unequip/", status_code=200, response_model=None)
 async def unequip_pet(
-    pet_id: UUID4,
+    pet_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ) -> None:

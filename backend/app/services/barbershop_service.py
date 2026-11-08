@@ -27,7 +27,8 @@ from app.utils.exceptions import (
 )
 
 if TYPE_CHECKING:
-    from pydantic import UUID4
+    from uuid import UUID
+
     from sqlmodel.ext.asyncio.session import AsyncSession
 
     from app.models.room import Room
@@ -42,7 +43,7 @@ class BarbershopService:
     def _is_barbershop(room: Room) -> bool:
         return room.name.casefold() == BARBERSHOP_ROOM_NAME.casefold()
 
-    async def _barbershop_rooms(self, db_session: AsyncSession, vault_id: UUID4) -> list[Room]:
+    async def _barbershop_rooms(self, db_session: AsyncSession, vault_id: UUID) -> list[Room]:
         rooms = await crud.room.get_all_by_vault(db_session, vault_id)
         return [room for room in rooms if self._is_barbershop(room)]
 
@@ -50,7 +51,7 @@ class BarbershopService:
         return room is not None and await crud.dweller.count_in_room(db_session, room.id) > 0
 
     async def get_status(
-        self, db_session: AsyncSession, vault_id: UUID4, *, room: Room | None = None
+        self, db_session: AsyncSession, vault_id: UUID, *, room: Room | None = None
     ) -> BarbershopStatus:
         """Return availability, fee, caps, and the preset swatches for a vault."""
         vault = await crud.vault.get(db_session, vault_id)
@@ -86,7 +87,7 @@ class BarbershopService:
             raise ValidationException(detail="This room is not a Barbershop.")
         return await self.get_status(db_session, room.vault_id, room=room)
 
-    async def require_available(self, db_session: AsyncSession, vault_id: UUID4) -> Room:
+    async def require_available(self, db_session: AsyncSession, vault_id: UUID) -> Room:
         """Require at least one built and staffed Barbershop in the vault."""
         rooms = await self._barbershop_rooms(db_session, vault_id)
         if not rooms:
@@ -98,7 +99,7 @@ class BarbershopService:
                 return candidate
         raise BarbershopRequiredException(detail="Assign at least one dweller to the Barbershop first.")
 
-    async def require_available_for_dweller(self, db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
+    async def require_available_for_dweller(self, db_session: AsyncSession, dweller_id: UUID) -> Dweller:
         """Require a staffed Barbershop in the dweller's vault."""
         dweller = await crud.dweller.get(db_session, dweller_id)
         if dweller is None or dweller.vault_id is None:
@@ -125,7 +126,7 @@ class BarbershopService:
         return any(current.get(key) != value for key, value in incoming.items())
 
     async def ensure_can_edit_appearance(
-        self, db_session: AsyncSession, dweller_id: UUID4, data: dict[str, Any]
+        self, db_session: AsyncSession, dweller_id: UUID, data: dict[str, Any]
     ) -> None:
         """Gate a generic dweller update only when it changes appearance or portrait fields."""
         dweller = await crud.dweller.get(db_session, dweller_id)
@@ -147,7 +148,7 @@ class BarbershopService:
         db_session: AsyncSession,
         *,
         room: Room,
-        dweller_id: UUID4,
+        dweller_id: UUID,
         request: BarbershopChangeRequest,
     ) -> BarbershopChangeResponse:
         """Apply a preset skin/hair change, deducting the fee in one transaction."""

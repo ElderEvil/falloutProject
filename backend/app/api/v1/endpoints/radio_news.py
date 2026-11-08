@@ -1,9 +1,9 @@
 """Vault Radio Hour — broadcast news endpoints."""
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
@@ -16,7 +16,7 @@ router = APIRouter(tags=["Vault Radio Hour"])
 
 @router.get("/vaults/{vault_id}/radio-news", response_model=BroadcastRead)
 async def get_vault_radio_news(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> BroadcastRead:
@@ -27,7 +27,7 @@ async def get_vault_radio_news(
 
 @router.post("/vaults/{vault_id}/radio-news/regenerate", response_model=BroadcastRead)
 async def regenerate_vault_radio_news(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> BroadcastRead:

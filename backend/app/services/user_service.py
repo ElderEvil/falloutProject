@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Literal
 from uuid import UUID
 
-from pydantic import UUID4, EmailStr
+from pydantic import EmailStr
 from redis.asyncio import Redis
 from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -144,7 +144,7 @@ class UserService:
         if next_allowed is not None:
             raise AccountChangeCooldownException(detail=f"Email can be changed again on {next_allowed:%Y-%m-%d}.")
 
-    async def _assert_email_available(self, db_session: AsyncSession, user_id: UUID4, new_email: EmailStr) -> None:
+    async def _assert_email_available(self, db_session: AsyncSession, user_id: UUID, new_email: EmailStr) -> None:
         existing = await crud.user.get_by_email(db_session, email=new_email, include_deleted=True)
         if existing is not None and existing.id != user_id:
             raise ResourceConflictException(detail="This email address is already in use.")
@@ -220,7 +220,7 @@ class UserService:
     async def record_vault_statistic(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         statistic: ProfileStatistic,
         amount: int = 1,
         *,

@@ -1,8 +1,8 @@
 """Service for managing dweller happiness system."""
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import RelationshipTypeEnum
@@ -30,7 +30,7 @@ class HappinessService:
     @staticmethod
     async def update_vault_happiness(
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         seconds_passed: int = 60,
     ) -> dict:
         """Update happiness for all dwellers in a vault based on conditions.
@@ -73,11 +73,11 @@ class HappinessService:
             if partner_ids
             else {}
         )
-        dwellers_by_room: dict[UUID4, list[Dweller]] = {}
+        dwellers_by_room: dict[UUID, list[Dweller]] = {}
         for dweller in dwellers:
             if dweller.room_id is not None:
                 dwellers_by_room.setdefault(dweller.room_id, []).append(dweller)
-        rivals_by_dweller: dict[UUID4, set[UUID4]] = {}
+        rivals_by_dweller: dict[UUID, set[UUID]] = {}
         for relationship in await relationship_crud.get_involving_any(db_session, {dweller.id for dweller in dwellers}):
             if relationship.relationship_type != RelationshipTypeEnum.RIVAL:
                 continue
@@ -198,10 +198,10 @@ class HappinessService:
         vault_factors: dict,
         seconds_passed: int,
         *,
-        rooms_by_id: dict[UUID4, Room] | None = None,
-        partners_by_id: dict[UUID4, Dweller] | None = None,
-        dwellers_by_room: dict[UUID4, list[Dweller]] | None = None,
-        rivals_by_dweller: dict[UUID4, set[UUID4]] | None = None,
+        rooms_by_id: dict[UUID, Room] | None = None,
+        partners_by_id: dict[UUID, Dweller] | None = None,
+        dwellers_by_room: dict[UUID, list[Dweller]] | None = None,
+        rivals_by_dweller: dict[UUID, set[UUID]] | None = None,
     ) -> float:
         """Calculate happiness change for a single dweller.
 
@@ -350,7 +350,7 @@ class HappinessService:
     @staticmethod
     async def get_happiness_modifiers(
         db_session: AsyncSession,
-        dweller_id: UUID4,
+        dweller_id: UUID,
     ) -> dict:
         """Get detailed breakdown of happiness modifiers for a dweller.
 

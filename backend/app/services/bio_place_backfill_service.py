@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from app.crud.dweller import dweller as dweller_crud
 from app.services.map_service import map_service
@@ -17,9 +17,12 @@ from app.services.place_seed_service import get_origin_places, get_visited_place
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from uuid import UUID
 
-    from pydantic import UUID4
     from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.models.dweller import Dweller
+    from app.services.map.bio_registration import _MapDwellerLike
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +90,7 @@ class BioPlaceBackfillService:
     async def backfill_bio_places_for_vault(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         max_dwellers: int | None = None,
     ) -> int:
         """Register bio places for dwellers in *vault_id* that have no map links yet.
@@ -106,7 +109,7 @@ class BioPlaceBackfillService:
 
             registered = await map_service.register_bio_places(
                 db_session,
-                dweller,
+                cast("_MapDwellerLike", dweller),
                 origin_place=origin or "",
                 visited_places=visited,
             )
@@ -139,7 +142,7 @@ class BioPlaceBackfillService:
         *,
         max_dwellers_per_vault: int | None = None,
         max_vaults: int | None = None,
-    ) -> dict[UUID4, int]:
+    ) -> dict[UUID, int]:
         """Backfill bio places across all active (non-deleted) vaults.
 
         Returns a mapping of ``vault_id`` → number of dwellers processed.
@@ -149,7 +152,7 @@ class BioPlaceBackfillService:
 
         vaults = await vault_crud.get_active_ordered(db_session, max_vaults)
 
-        counts: dict[UUID4, int] = {}
+        counts: dict[UUID, int] = {}
         for vault in vaults:
             processed = await self.backfill_bio_places_for_vault(
                 db_session,
@@ -163,7 +166,7 @@ class BioPlaceBackfillService:
     async def _get_dwellers_missing_locations(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         max_dwellers: int | None,
     ) -> Sequence[Dweller]:
         """Return dwellers with a bio but no ``DwellerLocation`` links."""

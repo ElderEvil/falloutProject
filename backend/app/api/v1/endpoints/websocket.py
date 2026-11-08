@@ -3,10 +3,10 @@
 import json
 import logging
 from typing import TYPE_CHECKING, cast
+from uuid import UUID
 
 from fastapi import APIRouter, WebSocket
 from jwt import InvalidTokenError as JWTError
-from pydantic import UUID4
 
 if TYPE_CHECKING:
     from contextlib import AbstractAsyncContextManager
@@ -30,7 +30,7 @@ def _decode_ws_token(token: str) -> str | None:
         return None
 
 
-async def _handle_chat_message(websocket: WebSocket, data: str, user_id: UUID4, dweller_id: UUID4) -> None:
+async def _handle_chat_message(websocket: WebSocket, data: str, user_id: UUID, dweller_id: UUID) -> None:
     """Parse and dispatch a single chat WebSocket message."""
     try:
         message = json.loads(data)
@@ -79,7 +79,7 @@ async def _handle_chat_message(websocket: WebSocket, data: str, user_id: UUID4, 
 
 
 @router.websocket("/ws/chat/{user_id}/{dweller_id}")
-async def chat_websocket_endpoint(websocket: WebSocket, user_id: UUID4, dweller_id: UUID4):
+async def chat_websocket_endpoint(websocket: WebSocket, user_id: UUID, dweller_id: UUID):
     """Handle an authenticated dweller-chat WebSocket connection."""
     # WS Auth: verify token matches user_id BEFORE accepting/registering the connection.
     # Closing before accept() causes Starlette to reject the WebSocket handshake (HTTP 403),

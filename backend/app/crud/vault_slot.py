@@ -1,6 +1,6 @@
 from collections.abc import Sequence
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import insert
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
@@ -13,7 +13,7 @@ from app.utils.exceptions import ResourceConflictException
 
 
 class CRUDVaultSlot:
-    async def claim_next(self, *, db_session: AsyncSession, vault_id: UUID4) -> VaultSlot:
+    async def claim_next(self, *, db_session: AsyncSession, vault_id: UUID) -> VaultSlot:
         """Claim the lowest free slot for a vault, atomically.
 
         Candidate indices come from a single snapshot query, then each is inserted
@@ -38,7 +38,7 @@ class CRUDVaultSlot:
             return slot
         raise ResourceConflictException("No vault slots are available.")
 
-    async def claim_for_new_vault(self, *, db_session: AsyncSession, vault_id: UUID4) -> int:
+    async def claim_for_new_vault(self, *, db_session: AsyncSession, vault_id: UUID) -> int:
         """Claim a slot without committing, for an enclosing vault transaction.
 
         Insert-only (no pre-read snapshot): each candidate is inserted under a
@@ -55,10 +55,10 @@ class CRUDVaultSlot:
             return slot_index
         raise ResourceConflictException("No vault slots are available.")
 
-    async def get_by_vault(self, db_session: AsyncSession, vault_id: UUID4) -> VaultSlot | None:
+    async def get_by_vault(self, db_session: AsyncSession, vault_id: UUID) -> VaultSlot | None:
         return (await db_session.execute(select(VaultSlot).where(VaultSlot.vault_id == vault_id))).scalar_one_or_none()
 
-    async def list_markers(self, db_session: AsyncSession) -> Sequence[tuple[int, UUID4, int, UUID4]]:
+    async def list_markers(self, db_session: AsyncSession) -> Sequence[tuple[int, UUID, int, UUID]]:
         """(slot_index, vault_id, vault number, owner user_id) for every live vault."""
         result = await db_session.execute(
             select(VaultSlot.slot_index, VaultSlot.vault_id, Vault.number, Vault.user_id)

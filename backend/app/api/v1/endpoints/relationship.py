@@ -1,9 +1,9 @@
 """Relationship endpoints."""
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403, verify_dweller_access
@@ -25,7 +25,7 @@ router = APIRouter(prefix="/relationships", tags=["Relationship"])
 
 @router.get("/vault/{vault_id}", response_model=list[VaultRelationshipRead])
 async def get_vault_relationships(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[VaultRelationshipRead]:
@@ -40,7 +40,7 @@ async def get_vault_relationships(
 
 @router.get("/{relationship_id}", response_model=RelationshipRead)
 async def get_relationship(
-    relationship_id: UUID4,
+    relationship_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Relationship:
@@ -84,7 +84,7 @@ async def create_relationship(
 
 @router.put("/{relationship_id}/romance", response_model=RelationshipRead)
 async def initiate_romance(
-    relationship_id: UUID4,
+    relationship_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Relationship:
@@ -116,7 +116,7 @@ async def initiate_romance(
 
 @router.put("/{relationship_id}/partner", response_model=RelationshipRead)
 async def make_partners(
-    relationship_id: UUID4,
+    relationship_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Relationship:
@@ -148,7 +148,7 @@ async def make_partners(
 
 @router.put("/{relationship_id}/marry", response_model=RelationshipRead)
 async def marry(
-    relationship_id: UUID4,
+    relationship_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Relationship:
@@ -174,7 +174,7 @@ async def marry(
 
 @router.delete("/{relationship_id}", response_model=RelationshipActionResponse)
 async def break_up_relationship(
-    relationship_id: UUID4,
+    relationship_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RelationshipActionResponse:
@@ -203,8 +203,8 @@ async def break_up_relationship(
 
 @router.get("/compatibility/{dweller_1_id}/{dweller_2_id}", response_model=CompatibilityScore)
 async def calculate_compatibility(
-    dweller_1_id: UUID4,
-    dweller_2_id: UUID4,
+    dweller_1_id: UUID,
+    dweller_2_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> CompatibilityScore:
@@ -225,7 +225,7 @@ async def calculate_compatibility(
 
 @router.post("/vault/{vault_id}/process", response_model=BreedStatsResponse)
 async def process_vault_breeding(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> BreedStatsResponse:

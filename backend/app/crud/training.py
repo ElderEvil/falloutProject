@@ -1,6 +1,7 @@
 """CRUD operations for training."""
 
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlalchemy import select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -14,7 +15,7 @@ from app.schemas.training import TrainingCreate, TrainingUpdate
 class CRUDTraining(CRUDBase[Training, TrainingCreate, TrainingUpdate]):
     """CRUD operations for Training model."""
 
-    async def get_for_update(self, db_session: AsyncSession, training_id: UUID4) -> Training | None:
+    async def get_for_update(self, db_session: AsyncSession, training_id: UUID) -> Training | None:
         """Serialize completion/cancellation and refresh cached session status."""
         result = await db_session.execute(
             select(Training)
@@ -24,14 +25,14 @@ class CRUDTraining(CRUDBase[Training, TrainingCreate, TrainingUpdate]):
         )
         return result.scalar_one_or_none()
 
-    async def detach_room_history(self, db_session: AsyncSession, room_id: UUID4) -> None:
+    async def detach_room_history(self, db_session: AsyncSession, room_id: UUID) -> None:
         """Keep training records when their former room is demolished; caller commits."""
         await db_session.execute(update(Training).where(Training.room_id == room_id).values(room_id=None))
 
     async def get_active_by_dweller(
         self,
         db_session: AsyncSession,
-        dweller_id: UUID4,
+        dweller_id: UUID,
     ) -> Training | None:
         """Get the active training session for a dweller."""
         result = await db_session.execute(
@@ -42,7 +43,7 @@ class CRUDTraining(CRUDBase[Training, TrainingCreate, TrainingUpdate]):
     async def get_active_by_vault(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
     ) -> list[Training]:
         """Get all active training sessions in a vault."""
         result = await db_session.execute(
@@ -53,7 +54,7 @@ class CRUDTraining(CRUDBase[Training, TrainingCreate, TrainingUpdate]):
     async def get_active_by_room(
         self,
         db_session: AsyncSession,
-        room_id: UUID4,
+        room_id: UUID,
     ) -> list[Training]:
         """Get all active training sessions in a room."""
         result = await db_session.execute(
@@ -64,7 +65,7 @@ class CRUDTraining(CRUDBase[Training, TrainingCreate, TrainingUpdate]):
     async def get_by_vault(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         status: TrainingStatus | None = None,
     ) -> list[Training]:
         """
@@ -87,9 +88,9 @@ class CRUDTraining(CRUDBase[Training, TrainingCreate, TrainingUpdate]):
         self,
         db_session: AsyncSession,
         *,
-        vault_id: UUID4,
-        from_room_ids: list[UUID4],
-        to_room_id: UUID4,
+        vault_id: UUID,
+        from_room_ids: list[UUID],
+        to_room_id: UUID,
     ) -> int:
         """Move every training session of the source rooms into the destination room."""
         if not from_room_ids:
@@ -107,7 +108,7 @@ class CRUDTraining(CRUDBase[Training, TrainingCreate, TrainingUpdate]):
         self,
         db_session: AsyncSession,
         training_sessions: list[Training],
-    ) -> dict[UUID4, Dweller]:
+    ) -> dict[UUID, Dweller]:
         """
         Batch-fetch dwellers for multiple training sessions.
 

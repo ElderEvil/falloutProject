@@ -1,8 +1,8 @@
 """CRUD for the reusable team roster primitive."""
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import func, update
 from sqlalchemy.orm import InstrumentedAttribute, selectinload
 from sqlmodel import select
@@ -21,8 +21,8 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         self,
         db_session: AsyncSession,
         purpose: InstrumentedAttribute,
-        value: UUID4 | HazardTeam,
-        vault_id: UUID4,
+        value: UUID | HazardTeam,
+        vault_id: UUID,
         *,
         refresh: bool = False,
     ) -> Team | None:
@@ -50,17 +50,15 @@ class CRUDTeam(CRUDBase[Team, None, None]):
             return []
         return sorted(team.members, key=lambda member: (member.slot_number is not None, member.slot_number))
 
-    async def get_quest_team_row(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> Team | None:
+    async def get_quest_team_row(self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID) -> Team | None:
         """The vault's team row for a quest, members and dwellers eager-loaded, or None."""
         return await self._team_row(db_session, Team.quest_id, quest_id, vault_id)
 
-    async def get_quest_team(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> list[TeamMember]:
+    async def get_quest_team(self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID) -> list[TeamMember]:
         """All members of the vault's team for a quest, dweller eager-loaded, slot-ordered."""
         return self._members(await self.get_quest_team_row(db_session, quest_id, vault_id))
 
-    async def get_quest_team_dwellers(
-        self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4
-    ) -> list[Dweller]:
+    async def get_quest_team_dwellers(self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID) -> list[Dweller]:
         """The quest party's Dweller rows, weapon/outfit eager-loaded, in slot order."""
         team = await self.get_quest_team_row(db_session, quest_id, vault_id)
         members = self._members(team)
@@ -74,7 +72,7 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         by_id = {dweller.id: dweller for dweller in result.scalars().all()}
         return [by_id[member.dweller_id] for member in members if member.dweller_id in by_id]
 
-    async def get_exploration_team(self, db_session: AsyncSession, exploration_id: UUID4) -> Team | None:
+    async def get_exploration_team(self, db_session: AsyncSession, exploration_id: UUID) -> Team | None:
         """The team row for an exploration dispatch, members and dwellers eager-loaded, or None."""
         statement = (
             select(Team)
@@ -84,11 +82,11 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         result = await db_session.execute(statement)
         return result.scalars().one_or_none()
 
-    async def get_exploration_team_members(self, db_session: AsyncSession, exploration_id: UUID4) -> list[TeamMember]:
+    async def get_exploration_team_members(self, db_session: AsyncSession, exploration_id: UUID) -> list[TeamMember]:
         """All members of an exploration dispatch party, dweller eager-loaded, slot-ordered."""
         return self._members(await self.get_exploration_team(db_session, exploration_id))
 
-    async def get_exploration_team_dwellers(self, db_session: AsyncSession, exploration_id: UUID4) -> list[Dweller]:
+    async def get_exploration_team_dwellers(self, db_session: AsyncSession, exploration_id: UUID) -> list[Dweller]:
         """The dispatch party's Dweller rows, weapon/outfit eager-loaded, in slot order."""
         team = await self.get_exploration_team(db_session, exploration_id)
         members = self._members(team)
@@ -102,7 +100,7 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         by_id = {dweller.id: dweller for dweller in result.scalars().all()}
         return [by_id[member.dweller_id] for member in members if member.dweller_id in by_id]
 
-    async def get_or_create_quest_team(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> Team:
+    async def get_or_create_quest_team(self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID) -> Team:
         """The vault's quest team, created on first assignment (flushed so the id is usable)."""
         team = await self.get_quest_team_row(db_session, quest_id, vault_id)
         if team is not None:
@@ -113,23 +111,21 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         await db_session.flush()
         return team
 
-    async def delete_quest_team(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> None:
+    async def delete_quest_team(self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID) -> None:
         """Remove the vault's quest team; members cascade via delete-orphan."""
         team = await self.get_quest_team_row(db_session, quest_id, vault_id)
         if team is not None:
             await db_session.delete(team)
 
-    async def get_incident_team_row(self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4) -> Team | None:
+    async def get_incident_team_row(self, db_session: AsyncSession, incident_id: UUID, vault_id: UUID) -> Team | None:
         """The vault's team row for an incident, members and dwellers eager-loaded, or None."""
         return await self._team_row(db_session, Team.incident_id, incident_id, vault_id, refresh=True)
 
-    async def get_incident_team(
-        self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4
-    ) -> list[TeamMember]:
+    async def get_incident_team(self, db_session: AsyncSession, incident_id: UUID, vault_id: UUID) -> list[TeamMember]:
         """All members of the vault's team for an incident, dweller eager-loaded."""
         return self._members(await self.get_incident_team_row(db_session, incident_id, vault_id))
 
-    async def get_or_create_incident_team(self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4) -> Team:
+    async def get_or_create_incident_team(self, db_session: AsyncSession, incident_id: UUID, vault_id: UUID) -> Team:
         """The vault's incident team, created on first assignment (flushed so the id is usable)."""
         team = await self.get_incident_team_row(db_session, incident_id, vault_id)
         if team is not None:
@@ -143,9 +139,9 @@ class CRUDTeam(CRUDBase[Team, None, None]):
     async def add_incident_team_members(
         self,
         db_session: AsyncSession,
-        incident_id: UUID4,
-        vault_id: UUID4,
-        dweller_ids: list[UUID4],
+        incident_id: UUID,
+        vault_id: UUID,
+        dweller_ids: list[UUID],
         status: str = "assigned",
     ) -> list[TeamMember]:
         """Append dwellers to the vault's incident roster; never removes members.
@@ -167,7 +163,7 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         await db_session.flush()
         return members
 
-    def _hazard_members_query(self, vault_id: UUID4, team: HazardTeam, *, status: str | None = None):
+    def _hazard_members_query(self, vault_id: UUID, team: HazardTeam, *, status: str | None = None):
         """Living members of a vault's hazard team, scoped by the team's purpose column.
 
         A fallen or removed member must not occupy a place, or the team keeps a
@@ -189,29 +185,29 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         return query
 
     async def _hazard_members(
-        self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam, *, status: str | None = None
+        self, db_session: AsyncSession, vault_id: UUID, team: HazardTeam, *, status: str | None = None
     ) -> list[TeamMember]:
         """Living hazard-team members, most senior first, dweller and current outfit eager-loaded."""
         query = self._hazard_members_query(vault_id, team, status=status).order_by(TeamMember.created_at)
         query = query.options(selectinload(TeamMember.dweller).selectinload(Dweller.outfit))
         return list((await db_session.execute(query)).scalars().all())
 
-    async def get_hazard_team(self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam) -> list[TeamMember]:
+    async def get_hazard_team(self, db_session: AsyncSession, vault_id: UUID, team: HazardTeam) -> list[TeamMember]:
         """Every place a living dweller holds on one hazard team, most senior first."""
         return await self._hazard_members(db_session, vault_id, team)
 
-    async def get_hazard_reserve(self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam) -> list[TeamMember]:
+    async def get_hazard_reserve(self, db_session: AsyncSession, vault_id: UUID, team: HazardTeam) -> list[TeamMember]:
         """Bench places held by a living dweller, most senior first."""
         return await self._hazard_members(db_session, vault_id, team, status=RESERVE_STATUS)
 
-    async def count_active_hazard(self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam) -> int:
+    async def count_active_hazard(self, db_session: AsyncSession, vault_id: UUID, team: HazardTeam) -> int:
         """How many of the team's places are held by a living dweller."""
         query = self._hazard_members_query(vault_id, team, status=ACTIVE_STATUS).with_only_columns(func.count())
         return (await db_session.execute(query)).scalar_one_or_none() or 0
 
     async def get_active_hazard_member_ids(
-        self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam, dweller_ids: list[UUID4]
-    ) -> set[UUID4]:
+        self, db_session: AsyncSession, vault_id: UUID, team: HazardTeam, dweller_ids: list[UUID]
+    ) -> set[UUID]:
         """Ids among ``dweller_ids`` who hold a living active place on the team."""
         if not dweller_ids:
             return set()
@@ -223,7 +219,7 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         return set((await db_session.execute(query)).scalars().all())
 
     async def get_hazard_member(
-        self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam, dweller_id: UUID4
+        self, db_session: AsyncSession, vault_id: UUID, team: HazardTeam, dweller_id: UUID
     ) -> TeamMember | None:
         """The dweller's place on this hazard team, if they hold one."""
         query = (
@@ -237,7 +233,7 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         )
         return (await db_session.execute(query)).scalar_one_or_none()
 
-    async def get_or_create_hazard_team(self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam) -> Team:
+    async def get_or_create_hazard_team(self, db_session: AsyncSession, vault_id: UUID, team: HazardTeam) -> Team:
         """The vault's hazard team, created on first qualification (flushed so the id is usable).
 
         Deliberately reads without ``populate_existing``: this runs inside the
@@ -253,7 +249,7 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         await db_session.flush()
         return row
 
-    async def free_dead_hazard_slots(self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam) -> None:
+    async def free_dead_hazard_slots(self, db_session: AsyncSession, vault_id: UUID, team: HazardTeam) -> None:
         """Bench the fallen members of a hazard team so their place can be refilled.
 
         A dead member's row persists, but its slot must be freed or the unique slot

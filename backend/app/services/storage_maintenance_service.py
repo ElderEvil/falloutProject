@@ -2,8 +2,8 @@
 
 from collections import defaultdict
 from functools import lru_cache
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -79,7 +79,7 @@ def roll_allowed(weapon: Weapon, target: LadderEntry, direction: int) -> bool:
     return direction < 0 or (config.allow_upgrade and (config.allow_rarity_upgrade or target.rarity == weapon.rarity))
 
 
-async def summary(db: AsyncSession, vault_id: UUID4) -> StorageMaintenanceRead:
+async def summary(db: AsyncSession, vault_id: UUID) -> StorageMaintenanceRead:
     workers = await crud.dweller.list_storage_workers(db, vault_id)
     total = worker_endurance(workers)
     direction, chance = trial_odds(total)

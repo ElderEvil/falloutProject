@@ -1,6 +1,7 @@
 """CRUD operations for per-vault crafting-recipe unlock progress."""
 
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -13,7 +14,7 @@ class CRUDVaultRecipeUnlock(CRUDBase[VaultRecipeUnlock, None, None]):
     """Queries and progress writes for gated recipes."""
 
     async def get_for_vault(
-        self, db_session: AsyncSession, vault_id: UUID4, item_type: str, recipe_name: str
+        self, db_session: AsyncSession, vault_id: UUID, item_type: str, recipe_name: str
     ) -> VaultRecipeUnlock | None:
         result = await db_session.execute(
             select(VaultRecipeUnlock).where(
@@ -24,7 +25,7 @@ class CRUDVaultRecipeUnlock(CRUDBase[VaultRecipeUnlock, None, None]):
         )
         return result.scalars().first()
 
-    async def unlocked_names(self, db_session: AsyncSession, vault_id: UUID4, item_type: str) -> set[str]:
+    async def unlocked_names(self, db_session: AsyncSession, vault_id: UUID, item_type: str) -> set[str]:
         """Names of the vault's unlocked recipes of one workshop type."""
         result = await db_session.execute(
             select(VaultRecipeUnlock.recipe_name).where(
@@ -39,7 +40,7 @@ class CRUDVaultRecipeUnlock(CRUDBase[VaultRecipeUnlock, None, None]):
         self,
         db_session: AsyncSession,
         *,
-        vault_id: UUID4,
+        vault_id: UUID,
         item_type: str,
         recipe_name: str,
         threshold: int,

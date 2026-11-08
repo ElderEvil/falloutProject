@@ -1,9 +1,9 @@
 """Game control endpoints."""
 
 from typing import Annotated, Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -196,7 +196,7 @@ async def list_pending_incident_overflow(
 async def get_incident(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    incident_id: UUID4,
+    incident_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> IncidentRead:
     """Get details of a specific incident.
@@ -238,7 +238,7 @@ async def manual_tick(
 async def assign_incident_responders(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    incident_id: UUID4,
+    incident_id: UUID,
     responders: IncidentRespondersRequest,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> IncidentRespondersResponse:
@@ -257,7 +257,7 @@ async def assign_incident_responders(
 async def get_incident_team(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    incident_id: UUID4,
+    incident_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[IncidentResponderRead]:
     """Get the designated responder team for an incident."""
@@ -271,7 +271,7 @@ async def get_incident_team(
 async def take_incident_overflow_item(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    incident_id: UUID4,
+    incident_id: UUID,
     request: OverflowActionRequest,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> OverflowActionResponse:
@@ -284,7 +284,7 @@ async def take_incident_overflow_item(
 async def sell_incident_overflow_item(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    incident_id: UUID4,
+    incident_id: UUID,
     request: OverflowActionRequest,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> OverflowActionResponse:
@@ -359,7 +359,7 @@ async def delete_all_incidents(
 async def delete_incident(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    incident_id: UUID4,
+    incident_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _user: CurrentSuperuser,
 ) -> DeleteIncidentsResponse:

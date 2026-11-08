@@ -1,12 +1,13 @@
 """Service for applying immediate happiness changes from chat interactions."""
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import dweller as dweller_crud
 from app.crud.vault import vault as vault_crud
+from app.utils.exceptions import VaultOperationException
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +20,15 @@ VAULT_HAPPINESS_MAX = 100
 
 async def apply_chat_happiness(
     db_session: AsyncSession,
-    dweller_id: UUID4,
+    dweller_id: UUID,
     delta: int,
 ) -> tuple[int, int]:
     """Stage clamped dweller/vault happiness changes in the caller's chat transaction."""
     dweller = await dweller_crud.get(db_session, dweller_id)
-    vault = await vault_crud.get(db_session, dweller.vault_id)
+    vault_id = dweller.vault_id
+    if vault_id is None:
+        raise VaultOperationException(detail="Dweller is not assigned to a vault")
+    vault = await vault_crud.get(db_session, vault_id)
 
     # Apply delta with clamping (10..100 for dwellers)
     old_happiness = dweller.happiness

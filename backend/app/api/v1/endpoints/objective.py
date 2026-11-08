@@ -2,9 +2,9 @@
 
 from collections.abc import Sequence
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -32,7 +32,7 @@ router = APIRouter(prefix="/objectives", tags=["Objective"], dependencies=[Depen
 @router.post("/{vault_id}/", response_model=Objective)
 async def create_objective(
     objective_data: ObjectiveCreate,
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
 ) -> Objective:
@@ -47,7 +47,7 @@ async def create_objective(
 @router.get("/{vault_id}/", response_model=list[ObjectiveRead])
 async def read_objective_list(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     pagination: PaginationParams,
 ) -> Sequence[ObjectiveRead]:
@@ -65,7 +65,7 @@ async def read_objective_list(
 
 @router.get("/{objective_id}", response_model=ObjectiveRead)
 async def read_objective(
-    objective_id: UUID4,
+    objective_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _user: CurrentActiveUser,
 ) -> Objective:
@@ -82,8 +82,8 @@ async def read_objective(
 
 @router.post("/{vault_id}/{objective_id}/claim", response_model=VaultObjectiveProgressLink)
 async def claim_objective_reward(
-    vault_id: UUID4,
-    objective_id: UUID4,
+    vault_id: UUID,
+    objective_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ) -> VaultObjectiveProgressLink:
@@ -94,8 +94,8 @@ async def claim_objective_reward(
 
 @router.post("/{vault_id}/{objective_id}/complete", response_model=Objective)
 async def complete_objective(
-    vault_id: UUID4,
-    objective_id: UUID4,
+    vault_id: UUID,
+    objective_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
 ) -> Objective:
@@ -109,8 +109,8 @@ async def complete_objective(
 
 @router.post("/{vault_id}/{objective_id}/progress")
 async def update_objective_progress(
-    vault_id: UUID4,
-    objective_id: UUID4,
+    vault_id: UUID,
+    objective_id: UUID,
     progress: int,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
@@ -125,7 +125,7 @@ async def update_objective_progress(
 
 @router.post("/{vault_id}/assign-random")
 async def assign_random_objectives(
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
     count: int = 5,

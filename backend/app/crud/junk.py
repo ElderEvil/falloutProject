@@ -1,8 +1,8 @@
 """Junk (crafting material) CRUD."""
 
 from collections.abc import Sequence
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -15,13 +15,13 @@ from app.schemas.junk import JunkCreate, JunkUpdate
 class CRUDJunk(CRUDBase[Junk, JunkCreate, JunkUpdate]):
     """Junk always lives in storage; crafting consumes it from there."""
 
-    async def get_in_storage(self, db_session: AsyncSession, storage_id: UUID4) -> list[Junk]:
+    async def get_in_storage(self, db_session: AsyncSession, storage_id: UUID) -> list[Junk]:
         """Every junk row held by one storage."""
         result = await db_session.execute(select(Junk).where(Junk.storage_id == storage_id))
         return list(result.scalars().all())
 
     async def get_multi_for_vault(
-        self, db_session: AsyncSession, vault_id: UUID4, skip: int = 0, limit: int = 100
+        self, db_session: AsyncSession, vault_id: UUID, skip: int = 0, limit: int = 100
     ) -> Sequence[Junk]:
         """A vault's junk inventory: rows held by any storage belonging to that vault."""
         query = (

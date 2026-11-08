@@ -1,9 +1,9 @@
 """Exploration endpoints."""
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -39,7 +39,7 @@ router = APIRouter(prefix="/explorations", tags=["Exploration"])
 @router.post("/send", response_model=ExplorationRead)
 async def send_dweller_to_wasteland(
     request: ExplorationSendRequest,
-    vault_id: Annotated[UUID4, Query()],
+    vault_id: Annotated[UUID, Query()],
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Exploration:
@@ -69,7 +69,7 @@ async def send_dweller_to_wasteland(
 @router.post("/dispatch", response_model=ExplorationRead)
 async def dispatch_dweller(
     request: ExpeditionDispatchRequest,
-    vault_id: Annotated[UUID4, Query()],
+    vault_id: Annotated[UUID, Query()],
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Exploration:
@@ -95,7 +95,7 @@ async def dispatch_dweller(
 
 @router.get("/suggest-heading", response_model=HeadingSuggestion)
 async def suggest_heading(
-    vault_id: Annotated[UUID4, Query()],
+    vault_id: Annotated[UUID, Query()],
     seed: Annotated[str, Query(min_length=1)],
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -109,7 +109,7 @@ async def suggest_heading(
 
 @router.get("/vault/{vault_id}", response_model=list[ExplorationReadShort])
 async def list_explorations_by_vault(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     active_only: bool = True,
@@ -129,8 +129,8 @@ async def list_explorations_by_vault(
 
 @router.get("/vault/{vault_id}/{exploration_id}/party", response_model=list[ExplorationPartyMemberRead])
 async def get_exploration_party(
-    vault_id: UUID4,
-    exploration_id: UUID4,
+    vault_id: UUID,
+    exploration_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[ExplorationPartyMemberRead]:
@@ -148,7 +148,7 @@ async def get_exploration_party(
 
 @router.get("/vault/{vault_id}/pending-overflow", response_model=list[PendingOverflowRead])
 async def list_pending_overflow(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[PendingOverflowRead]:
@@ -159,7 +159,7 @@ async def list_pending_overflow(
 
 @router.get("/{exploration_id}", response_model=ExplorationRead)
 async def get_exploration(
-    exploration_id: UUID4,
+    exploration_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Exploration:
@@ -174,7 +174,7 @@ async def get_exploration(
 
 @router.get("/{exploration_id}/progress", response_model=ExplorationProgress)
 async def get_exploration_progress(
-    exploration_id: UUID4,
+    exploration_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ExplorationProgress:
@@ -189,7 +189,7 @@ async def get_exploration_progress(
 
 @router.post("/{exploration_id}/recall", response_model=ExplorationCompleteResponse)
 async def recall_dweller(
-    exploration_id: UUID4,
+    exploration_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ExplorationCompleteResponse:
@@ -214,7 +214,7 @@ async def recall_dweller(
 
 @router.post("/{exploration_id}/complete", response_model=ExplorationCompleteResponse)
 async def complete_exploration(
-    exploration_id: UUID4,
+    exploration_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ExplorationCompleteResponse:
@@ -239,7 +239,7 @@ async def complete_exploration(
 
 @router.post("/{exploration_id}/overflow/take", response_model=OverflowActionResponse)
 async def take_overflow_item(
-    exploration_id: UUID4,
+    exploration_id: UUID,
     request: OverflowActionRequest,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -252,7 +252,7 @@ async def take_overflow_item(
 
 @router.post("/{exploration_id}/overflow/sell", response_model=OverflowActionResponse)
 async def sell_overflow_item(
-    exploration_id: UUID4,
+    exploration_id: UUID,
     request: OverflowActionRequest,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -265,7 +265,7 @@ async def sell_overflow_item(
 
 @router.post("/{exploration_id}/generate_event", response_model=ExplorationRead)
 async def generate_event(
-    exploration_id: UUID4,
+    exploration_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Exploration:
@@ -286,7 +286,7 @@ async def generate_event(
 
 @router.post("/{exploration_id}/site/enter", response_model=SiteRoomView)
 async def enter_expedition_site(
-    exploration_id: UUID4,
+    exploration_id: UUID,
     request: ExpeditionEnterRequest,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -302,7 +302,7 @@ async def enter_expedition_site(
 
 @router.get("/{exploration_id}/site/available", response_model=list[AvailableSiteView])
 async def list_available_expedition_sites(
-    exploration_id: UUID4,
+    exploration_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[AvailableSiteView]:
@@ -313,7 +313,7 @@ async def list_available_expedition_sites(
 
 @router.get("/{exploration_id}/site", response_model=SiteRoomView | None)
 async def get_expedition_site(
-    exploration_id: UUID4,
+    exploration_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> SiteRoomView | None:
@@ -324,7 +324,7 @@ async def get_expedition_site(
 
 @router.post("/{exploration_id}/site/resolve", response_model=SiteRoomView)
 async def resolve_expedition_node(
-    exploration_id: UUID4,
+    exploration_id: UUID,
     request: ExpeditionResolveRequest,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -340,7 +340,7 @@ async def resolve_expedition_node(
 
 @router.post("/{exploration_id}/site/retreat", response_model=SiteRoomView)
 async def retreat_expedition_site(
-    exploration_id: UUID4,
+    exploration_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> SiteRoomView:

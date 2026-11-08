@@ -2,8 +2,8 @@
 
 import logging
 from collections.abc import AsyncGenerator
+from uuid import UUID
 
-from pydantic import UUID4
 from pydantic_ai.exceptions import ModelHTTPError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -91,7 +91,7 @@ class ChatService:
         self,
         db_session: AsyncSession,
         user: User,
-        dweller_id: UUID4,
+        dweller_id: UUID,
         message_text: str,
         *,
         debug: bool = False,
@@ -165,7 +165,7 @@ class ChatService:
         self,
         db_session: AsyncSession,
         user: User,
-        dweller_id: UUID4,
+        dweller_id: UUID,
         message_text: str,
         *,
         debug: bool = False,
@@ -253,9 +253,9 @@ class ChatService:
 
     async def send_chat_notification(
         self,
-        user_id: UUID4,
-        dweller_id: UUID4,
-        dweller_message_id: UUID4,
+        user_id: UUID,
+        dweller_id: UUID,
+        dweller_message_id: UUID,
         happiness_impact: HappinessImpact | None,
         action_suggestion: ActionSuggestion | None,
     ) -> None:
@@ -278,7 +278,7 @@ class ChatService:
         self,
         db_session: AsyncSession,
         user: User,
-        dweller_id: UUID4,
+        dweller_id: UUID,
         limit: int = 100,
         offset: int = 0,
     ) -> list[ChatMessage]:

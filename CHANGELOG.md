@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.295.2 (2026-11-08)
+
+### Bug Fixes
+
+* **tests:** pin synth radaway below the carry cap a20e4eb
+
+### Documentation
+
+* **plan:** 3.0 platform boundary ([#1359](https://github.com/ElderEvil/falloutProject/issues/1359)) 514456c, closes #1360
+
 ## 2.295.1 (2026-11-08)
 
 ### Bug Fixes

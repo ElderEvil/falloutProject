@@ -12,8 +12,8 @@ stock and population capacity are handled on the same paths as the original
 import logging
 import random
 from typing import Any
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import ContentProvenanceEnum, RarityEnum, RewardType
@@ -42,7 +42,7 @@ def _parse_quantity(data: dict[str, Any]) -> int:
     return max(1, qty)
 
 
-async def _ensure_storage(db_session: AsyncSession, vault_id: UUID4, quantity: int):
+async def _ensure_storage(db_session: AsyncSession, vault_id: UUID, quantity: int):
     storage_obj = await storage_crud.get_by_vault(db_session, vault_id)
     if not storage_obj:
         raise ResourceNotFoundException(Storage, vault_id, identifier_type="vault_id")
@@ -52,7 +52,7 @@ async def _ensure_storage(db_session: AsyncSession, vault_id: UUID4, quantity: i
     return storage_obj
 
 
-async def _pick_legendary_template_id(db_session: AsyncSession, vault_id: UUID4) -> str | None:
+async def _pick_legendary_template_id(db_session: AsyncSession, vault_id: UUID) -> str | None:
     """Pick an unused legendary template id; None when the vault exhausted them."""
     from app.crud.dweller import dweller as dweller_crud
     from app.utils.static_data import game_data_store
@@ -82,7 +82,7 @@ def _fallback_legendary_identity() -> dict[str, Any]:
 
 
 async def _grant_as_dweller(
-    db_session: AsyncSession, vault_id: UUID4, item_name: str, rarity: str, quantity: int
+    db_session: AsyncSession, vault_id: UUID, item_name: str, rarity: str, quantity: int
 ) -> dict[str, Any]:
     first_name, _, last_name = item_name.strip().partition(" ")
     dweller_template = {
@@ -116,7 +116,7 @@ async def _grant_as_dweller(
     }
 
 
-def _build_weapon(name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
+def _build_weapon(name: str, rarity: str, data: dict[str, Any], storage_id: UUID):
     """Prefer the catalog weapon so stats and metadata are canonical."""
     from app.services import catalog_service as data_loader
     from app.utils.item_factory import build_catalog_item
@@ -130,7 +130,7 @@ def _build_weapon(name: str, rarity: str, data: dict[str, Any], storage_id: UUID
     return build_weapon(data | {"name": name}, rarity, storage_id)
 
 
-def _build_outfit(name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
+def _build_outfit(name: str, rarity: str, data: dict[str, Any], storage_id: UUID):
     """Prefer the catalog outfit so SPECIAL bonuses and metadata are kept."""
     from app.services import catalog_service as data_loader
     from app.utils.item_factory import build_catalog_item
@@ -144,7 +144,7 @@ def _build_outfit(name: str, rarity: str, data: dict[str, Any], storage_id: UUID
     return build_outfit(data | {"name": name}, rarity, storage_id)
 
 
-def _build_junk(name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
+def _build_junk(name: str, rarity: str, data: dict[str, Any], storage_id: UUID):
     from app.core.enums import JunkTypeEnum
     from app.utils.item_factory import build_junk
     from app.utils.junk_assets import get_junk_image_url
@@ -160,7 +160,7 @@ def _build_junk(name: str, rarity: str, data: dict[str, Any], storage_id: UUID4)
     )
 
 
-def _build_pet(name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
+def _build_pet(name: str, rarity: str, data: dict[str, Any], storage_id: UUID):
     """Build a Pet; bonuses resolve by name at read time, so only identity/art are persisted."""
     from app.utils.item_factory import build_pet
 
@@ -168,7 +168,7 @@ def _build_pet(name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
 
 
 async def grant_item(
-    db_session: AsyncSession, vault_id: UUID4, item_data: dict[str, Any], *, emit_event: bool = True
+    db_session: AsyncSession, vault_id: UUID, item_data: dict[str, Any], *, emit_event: bool = True
 ) -> dict[str, Any]:
     from app.schemas.quest import infer_item_type
 
@@ -233,7 +233,7 @@ async def grant_item(
     }
 
 
-async def grant_dweller(db_session: AsyncSession, vault_id: UUID4, dweller_template: dict[str, Any]) -> dict[str, Any]:
+async def grant_dweller(db_session: AsyncSession, vault_id: UUID, dweller_template: dict[str, Any]) -> dict[str, Any]:
     from app.crud.vault import vault as vault_crud
     from app.schemas.dweller import STATS_RANGE_BY_RARITY
     from app.utils.static_data import game_data_store

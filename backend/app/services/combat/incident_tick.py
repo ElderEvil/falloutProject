@@ -19,7 +19,8 @@ from app.utils.exceptions import ResourceNotFoundException
 from app.utils.time import utcnow
 
 if TYPE_CHECKING:
-    from pydantic import UUID4
+    from uuid import UUID
+
     from sqlmodel.ext.asyncio.session import AsyncSession
 
     from app.models.game_state import GameState
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 async def process_vault_incidents(
     service: IncidentService,
     db_session: AsyncSession,
-    vault_id: UUID4,
+    vault_id: UUID,
     seconds_passed: int,
     game_state: GameState | None = None,
 ) -> dict:

@@ -9,10 +9,10 @@ import asyncio
 import random
 import uuid
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 import pytest
 import pytest_asyncio
-from pydantic import UUID4
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
@@ -57,7 +57,7 @@ async def live_pg_engine() -> AsyncEngine:
 
 
 @pytest_asyncio.fixture
-async def two_buyers(live_pg_engine: AsyncEngine) -> tuple[UUID4, UUID4, UUID4]:
+async def two_buyers(live_pg_engine: AsyncEngine) -> tuple[UUID, UUID, UUID]:
     """Two funded vaults and a pool-eligible departure from a third; removed on teardown."""
     maker = async_sessionmaker(live_pg_engine, class_=AsyncSession, expire_on_commit=False)
     tag = uuid.uuid4().hex[:12]
@@ -114,12 +114,12 @@ async def two_buyers(live_pg_engine: AsyncEngine) -> tuple[UUID4, UUID4, UUID4]:
 
 @pytest.mark.asyncio
 async def test_two_vaults_cannot_claim_the_same_departure(
-    live_pg_engine: AsyncEngine, two_buyers: tuple[UUID4, UUID4, UUID4]
+    live_pg_engine: AsyncEngine, two_buyers: tuple[UUID, UUID, UUID]
 ) -> None:
     dweller_id, buyer_a, buyer_b = two_buyers
     maker = async_sessionmaker(live_pg_engine, class_=AsyncSession, expire_on_commit=False)
 
-    async def _claim(vault_id: UUID4) -> str:
+    async def _claim(vault_id: UUID) -> str:
         async with maker() as session:
             vault = await session.get(Vault, vault_id)
             try:

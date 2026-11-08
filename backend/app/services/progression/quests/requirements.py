@@ -11,7 +11,6 @@ from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -25,7 +24,7 @@ from app.utils.objective_constants import normalize_room_type
 logger = logging.getLogger(__name__)
 
 
-async def vault_requirement_states(db_session: AsyncSession, vault_id: UUID4, quest: Quest) -> dict[UUID4, bool]:
+async def vault_requirement_states(db_session: AsyncSession, vault_id: UUID, quest: Quest) -> dict[UUID, bool]:
     """Per-requirement vault-scoped verdicts keyed by requirement id.
 
     The read path's honest per-row gate display: every requirement (mandatory or
@@ -33,13 +32,13 @@ async def vault_requirement_states(db_session: AsyncSession, vault_id: UUID4, qu
     dispatch the availability gate uses, so the UI shows *which* requirement
     blocks a quest instead of inferring it from the lock verdict.
     """
-    states: dict[UUID4, bool] = {}
+    states: dict[UUID, bool] = {}
     for req in quest.quest_requirements:
         states[req.id] = await _check_requirement(db_session, vault_id, req)
     return states
 
 
-async def vault_missing_requirements(db_session: AsyncSession, vault_id: UUID4, quest: Quest) -> list[str]:
+async def vault_missing_requirements(db_session: AsyncSession, vault_id: UUID, quest: Quest) -> list[str]:
     """Vault-level requirement gates for a quest, as human-readable reasons.
 
     Only mandatory requirements gate a quest; an unmet *optional* one is
@@ -73,7 +72,7 @@ async def vault_missing_requirements(db_session: AsyncSession, vault_id: UUID4, 
 
 
 async def validate_level_requirement(
-    db_session: AsyncSession, vault_id: UUID4, requirement_data: dict[str, Any]
+    db_session: AsyncSession, vault_id: UUID, requirement_data: dict[str, Any]
 ) -> bool:
     required_level = requirement_data.get("level", 1)
     required_count = requirement_data.get("count", 1)
@@ -82,9 +81,7 @@ async def validate_level_requirement(
     return matching_count >= required_count
 
 
-async def validate_item_requirement(
-    db_session: AsyncSession, vault_id: UUID4, requirement_data: dict[str, Any]
-) -> bool:
+async def validate_item_requirement(db_session: AsyncSession, vault_id: UUID, requirement_data: dict[str, Any]) -> bool:
     item_name = requirement_data.get("item_name", "")
     required_count = requirement_data.get("count", 1)
 
@@ -101,7 +98,7 @@ async def validate_item_requirement(
 
 
 async def validate_attack_requirement(
-    db_session: AsyncSession, vault_id: UUID4, requirement_data: dict[str, Any]
+    db_session: AsyncSession, vault_id: UUID, requirement_data: dict[str, Any]
 ) -> bool:
     required_attack = requirement_data.get("attack", 0)
     required_count = requirement_data.get("count", 1)
@@ -110,9 +107,7 @@ async def validate_attack_requirement(
     return matching_count >= required_count
 
 
-async def validate_stat_requirement(
-    db_session: AsyncSession, vault_id: UUID4, requirement_data: dict[str, Any]
-) -> bool:
+async def validate_stat_requirement(db_session: AsyncSession, vault_id: UUID, requirement_data: dict[str, Any]) -> bool:
     stat = requirement_data.get("stat")
     if stat not in SPECIAL_STATS:
         return False
@@ -123,9 +118,7 @@ async def validate_stat_requirement(
     return matching_count >= required_count
 
 
-async def validate_room_requirement(
-    db_session: AsyncSession, vault_id: UUID4, requirement_data: dict[str, Any]
-) -> bool:
+async def validate_room_requirement(db_session: AsyncSession, vault_id: UUID, requirement_data: dict[str, Any]) -> bool:
     room_type = normalize_room_type(requirement_data.get("room_type"))
     required_count = requirement_data.get("count", 1)
     if room_type is None:
@@ -136,7 +129,7 @@ async def validate_room_requirement(
 
 
 async def validate_dweller_count_requirement(
-    db_session: AsyncSession, vault_id: UUID4, requirement_data: dict[str, Any]
+    db_session: AsyncSession, vault_id: UUID, requirement_data: dict[str, Any]
 ) -> bool:
     required_count = requirement_data.get("count", 0)
 
@@ -145,7 +138,7 @@ async def validate_dweller_count_requirement(
 
 
 async def validate_quest_completed_requirement(
-    db_session: AsyncSession, vault_id: UUID4, requirement_data: dict[str, Any]
+    db_session: AsyncSession, vault_id: UUID, requirement_data: dict[str, Any]
 ) -> bool:
     quest_id = requirement_data.get("quest_id")
     if not quest_id:
@@ -162,7 +155,7 @@ async def validate_quest_completed_requirement(
     return link is not None and link.is_completed
 
 
-async def _check_requirement(db_session: AsyncSession, vault_id: UUID4, requirement: QuestRequirement) -> bool:
+async def _check_requirement(db_session: AsyncSession, vault_id: UUID, requirement: QuestRequirement) -> bool:
     """Dispatch to the correct validation function based on requirement type."""
     validators = {
         RequirementType.LEVEL: validate_level_requirement,
@@ -186,7 +179,7 @@ async def _check_requirement(db_session: AsyncSession, vault_id: UUID4, requirem
         return False
 
 
-async def vault_missing_item_requirements(db_session: AsyncSession, vault_id: UUID4, quest: Quest) -> list[str]:
+async def vault_missing_item_requirements(db_session: AsyncSession, vault_id: UUID, quest: Quest) -> list[str]:
     """Unmet mandatory ITEM gates, as human-readable reasons.
 
     ITEM is vault-scoped, not a party burden: an item counts when it is in storage or

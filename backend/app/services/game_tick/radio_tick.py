@@ -3,8 +3,8 @@
 import logging
 import random
 from types import ModuleType
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -16,7 +16,7 @@ from app.utils.exceptions import ResourceNotFoundException, VaultOperationExcept
 logger = logging.getLogger(__name__)
 
 
-async def process_radio(db_session: AsyncSession, vault_id: UUID4, *, rng: ModuleType = random) -> RadioStats:
+async def process_radio(db_session: AsyncSession, vault_id: UUID, *, rng: ModuleType = random) -> RadioStats:
     """Roll the radio's passive recruitment for one vault.
 
     The service owns the gates — recruitment mode and an operating radio room —

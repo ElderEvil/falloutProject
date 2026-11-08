@@ -7,7 +7,6 @@ import logging
 from typing import Any
 from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.event_bus import GameEvent, event_bus
@@ -19,7 +18,7 @@ from app.utils.exceptions import ResourceNotFoundException
 logger = logging.getLogger(__name__)
 
 
-async def _get_objective(db_session: AsyncSession, objective_id: UUID4) -> Objective | None:
+async def _get_objective(db_session: AsyncSession, objective_id: UUID) -> Objective | None:
     """Get objective by ID."""
     from app.crud.objective import objective_crud
 
@@ -29,7 +28,7 @@ async def _get_objective(db_session: AsyncSession, objective_id: UUID4) -> Objec
         return None
 
 
-async def handle_objective_completed(_event_type: str, vault_id: UUID4, data: dict[str, Any]) -> None:
+async def handle_objective_completed(_event_type: str, vault_id: UUID, data: dict[str, Any]) -> None:
     """Handle OBJECTIVE_COMPLETED event - send notification to vault owner."""
     objective_id = data.get("objective_id")
     challenge = data.get("challenge", "Unknown objective")
@@ -82,7 +81,7 @@ def register_objective_event_handlers() -> None:
     logger.info("Registered handler for OBJECTIVE_COMPLETED event")
 
 
-async def notify_objectives_refreshed(db_session: AsyncSession, vault_id: UUID4, categories: list[str]) -> None:
+async def notify_objectives_refreshed(db_session: AsyncSession, vault_id: UUID, categories: list[str]) -> None:
     """Persist and publish the fresh-task announcement beyond the notification bell."""
     from app.core.enums import NotificationType
 

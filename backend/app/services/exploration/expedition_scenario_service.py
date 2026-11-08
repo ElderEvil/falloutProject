@@ -7,8 +7,7 @@ import random
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING
-
-from pydantic import UUID4
+from uuid import UUID
 
 from app import crud
 from app.core.config import settings
@@ -61,7 +60,7 @@ class ExpeditionScenarioResult:
 class ExpeditionScenarioExplorationStatus:
     """One in-progress exploration in a scenario vault."""
 
-    exploration_id: UUID4
+    exploration_id: UUID
     dweller_name: str
     dweller_level: int
     status: str
@@ -131,14 +130,14 @@ class ExpeditionScenarioService:
         self,
         db_session: AsyncSession,
         *,
-        vault_id: UUID4 | None = None,
+        vault_id: UUID | None = None,
         user_email: str | None = None,
         dweller_level: int = 5,
         duration_hours: int = 1,
         preclear_site_id: str | None = None,
         special: int = 5,
         discovered_site_id: str | None = None,
-        dweller_id: UUID4 | None = None,
+        dweller_id: UUID | None = None,
         vault_number: int | None = None,
         all_sites: bool = False,
         single_scene_only: bool = True,
@@ -235,7 +234,7 @@ class ExpeditionScenarioService:
         self,
         db_session: AsyncSession,
         *,
-        vault_id: UUID4 | None = None,
+        vault_id: UUID | None = None,
         vault_number: int = 1,
         user_email: str | None = None,
         dwellers: int | None = None,
@@ -466,7 +465,7 @@ class ExpeditionScenarioService:
     async def _resolve_vault(
         db_session: AsyncSession,
         *,
-        vault_id: UUID4 | None,
+        vault_id: UUID | None,
         user_email: str | None,
         vault_number: int | None = None,
     ) -> tuple[Vault, bool, str | None]:
@@ -574,7 +573,7 @@ class ExpeditionScenarioService:
         await db_session.commit()
         return preclear_site_id
 
-    async def get_status(self, db_session: AsyncSession, vault_id: UUID4) -> ExpeditionScenarioStatus | None:
+    async def get_status(self, db_session: AsyncSession, vault_id: UUID) -> ExpeditionScenarioStatus | None:
         """Return a read-only snapshot of the vault's in-progress explorations."""
         explorations = await crud.exploration.get_by_vault(db_session, vault_id=vault_id, active_only=True)
         if not explorations:

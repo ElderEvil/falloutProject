@@ -1,8 +1,8 @@
 import logging
 import random
 from typing import Any
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import ObjectiveCategoryEnum
@@ -28,13 +28,13 @@ class ObjectiveAssignmentService:
         self._db_session = db_session
         self._pending_completions: list[dict[str, Any]] = []
 
-    async def assign_daily_objectives(self, vault_id: UUID4) -> list[Objective]:
+    async def assign_daily_objectives(self, vault_id: UUID) -> list[Objective]:
         return await self._assign_category_objectives(vault_id, ObjectiveCategoryEnum.DAILY, self.DAILY_COUNT)
 
-    async def assign_weekly_objectives(self, vault_id: UUID4) -> list[Objective]:
+    async def assign_weekly_objectives(self, vault_id: UUID) -> list[Objective]:
         return await self._assign_category_objectives(vault_id, ObjectiveCategoryEnum.WEEKLY, self.WEEKLY_COUNT)
 
-    async def assign_achievement_objectives(self, vault_id: UUID4, *, auto_commit: bool = True) -> list[Objective]:
+    async def assign_achievement_objectives(self, vault_id: UUID, *, auto_commit: bool = True) -> list[Objective]:
         """Assign first stages and reconcile legacy links, preserving earned rewards."""
         db = self._db_session
         self._pending_completions = []
@@ -82,7 +82,7 @@ class ObjectiveAssignmentService:
         return assigned
 
     async def prepare_completion(
-        self, vault_id: UUID4, objective: Objective, link: VaultObjectiveProgressLink
+        self, vault_id: UUID, objective: Objective, link: VaultObjectiveProgressLink
     ) -> dict[str, Any]:
         """Freeze the reward and unlock a stage in the caller's transaction."""
         link.progress = objective.target_amount
@@ -94,13 +94,13 @@ class ObjectiveAssignmentService:
             "ready_to_claim": True,
         }
 
-    async def notify_completions(self, vault_id: UUID4) -> None:
+    async def notify_completions(self, vault_id: UUID) -> None:
         """Publish initial-assignment completions only after the caller commits."""
         completions, self._pending_completions = self._pending_completions, []
         for data in completions:
             await event_bus.emit(GameEvent.OBJECTIVE_COMPLETED, vault_id, data)
 
-    async def unlock_next_achievement(self, vault_id: UUID4, completed: Objective) -> Objective | None:
+    async def unlock_next_achievement(self, vault_id: UUID, completed: Objective) -> Objective | None:
         """Unlock the next unfinished stage at zero in the completion transaction."""
         db = self._db_session
         if not completed.track_key:
@@ -135,7 +135,7 @@ class ObjectiveAssignmentService:
             return objective
         return None
 
-    async def assign_all_objectives(self, vault_id: UUID4) -> dict[str, list[Objective]]:
+    async def assign_all_objectives(self, vault_id: UUID) -> dict[str, list[Objective]]:
         daily = await self.assign_daily_objectives(vault_id)
         weekly = await self.assign_weekly_objectives(vault_id)
         achievements = await self.assign_achievement_objectives(vault_id)
@@ -146,24 +146,24 @@ class ObjectiveAssignmentService:
             "achievements": achievements,
         }
 
-    async def clear_daily_objectives(self, vault_id: UUID4) -> int:
+    async def clear_daily_objectives(self, vault_id: UUID) -> int:
         return await self._clear_category_objectives(vault_id, ObjectiveCategoryEnum.DAILY)
 
-    async def clear_weekly_objectives(self, vault_id: UUID4) -> int:
+    async def clear_weekly_objectives(self, vault_id: UUID) -> int:
         return await self._clear_category_objectives(vault_id, ObjectiveCategoryEnum.WEEKLY)
 
-    async def refresh_daily_objectives(self, vault_id: UUID4, *, auto_commit: bool = True) -> list[Objective]:
+    async def refresh_daily_objectives(self, vault_id: UUID, *, auto_commit: bool = True) -> list[Objective]:
         return await self._refresh_category_objectives(
             vault_id, ObjectiveCategoryEnum.DAILY, self.DAILY_COUNT, auto_commit
         )
 
-    async def refresh_weekly_objectives(self, vault_id: UUID4, *, auto_commit: bool = True) -> list[Objective]:
+    async def refresh_weekly_objectives(self, vault_id: UUID, *, auto_commit: bool = True) -> list[Objective]:
         return await self._refresh_category_objectives(
             vault_id, ObjectiveCategoryEnum.WEEKLY, self.WEEKLY_COUNT, auto_commit
         )
 
     async def _refresh_category_objectives(
-        self, vault_id: UUID4, category: ObjectiveCategoryEnum, count: int, auto_commit: bool
+        self, vault_id: UUID, category: ObjectiveCategoryEnum, count: int, auto_commit: bool
     ) -> list[Objective]:
         await self._clear_category_objectives(vault_id, category, auto_commit=False)
         await self._db_session.flush()
@@ -173,7 +173,7 @@ class ObjectiveAssignmentService:
         return assigned
 
     async def _assign_category_objectives(
-        self, vault_id: UUID4, category: ObjectiveCategoryEnum, count: int, auto_commit: bool = True
+        self, vault_id: UUID, category: ObjectiveCategoryEnum, count: int, auto_commit: bool = True
     ) -> list[Objective]:
         all_objectives = await objective_crud.get_by_category(self._db_session, category)
 
@@ -205,7 +205,7 @@ class ObjectiveAssignmentService:
         return assigned
 
     async def _clear_category_objectives(
-        self, vault_id: UUID4, category: ObjectiveCategoryEnum, auto_commit: bool = True
+        self, vault_id: UUID, category: ObjectiveCategoryEnum, auto_commit: bool = True
     ) -> int:
         category_objective_ids = {o.id for o in await objective_crud.get_by_category(self._db_session, category)}
         links = [
@@ -222,7 +222,7 @@ class ObjectiveAssignmentService:
 
         return len(links)
 
-    async def assign_random_objectives(self, vault_id: UUID4, count: int = 5) -> list[Objective]:
+    async def assign_random_objectives(self, vault_id: UUID, count: int = 5) -> list[Objective]:
         """Assign random unassigned objectives to a vault (testing/debugging)."""
         # Get all objective IDs already assigned to this vault
         assigned_ids = await objective_crud.get_assigned_objective_ids(self._db_session, vault_id)

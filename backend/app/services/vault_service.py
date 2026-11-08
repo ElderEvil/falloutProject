@@ -7,8 +7,8 @@ public singleton surface stable for existing callers.
 """
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
@@ -33,7 +33,7 @@ class VaultService:
         self,
         db_session: AsyncSession,
         obj_in: VaultNumber,
-        user_id: UUID4,
+        user_id: UUID,
         is_boosted: bool = False,
         scenario_start: bool = False,
     ) -> Vault:
@@ -142,7 +142,7 @@ class VaultService:
 
         return vault_db_obj
 
-    async def delete_vault(self, db_session: AsyncSession, vault_id: UUID4, *, soft: bool = True) -> Vault:
+    async def delete_vault(self, db_session: AsyncSession, vault_id: UUID, *, soft: bool = True) -> Vault:
         """Delete a vault; hard deletion also removes its stored broadcast audio."""
         audio_keys = [] if soft else await get_audio_keys_for_vault(db_session, vault_id)
         vault = await vault_crud.delete(db_session, vault_id, soft=soft)
@@ -150,7 +150,7 @@ class VaultService:
             await delete_audio_keys(audio_keys)
         return vault
 
-    async def update_vault_resources(self, db_session: AsyncSession, vault_id: UUID4) -> Vault:
+    async def update_vault_resources(self, db_session: AsyncSession, vault_id: UUID) -> Vault:
         """Update vault resources based on resource manager processing."""
         return await economy.update_vault_resources(db_session, vault_id)
 
@@ -158,7 +158,7 @@ class VaultService:
         self,
         db_session: AsyncSession,
         vault: Vault,
-        dweller_id: UUID4,
+        dweller_id: UUID,
         stimpaks: int,
         radaways: int,
     ) -> MedicalTransferResponse:
@@ -189,7 +189,7 @@ class VaultService:
         )
 
     async def is_enough_dwellers(
-        self, *, db_session: AsyncSession, vault_id: UUID4, population_required: int | None
+        self, *, db_session: AsyncSession, vault_id: UUID, population_required: int | None
     ) -> bool:
         """Check if the vault has enough dwellers to perform an operation."""
         return await economy.is_enough_dwellers(
@@ -197,7 +197,7 @@ class VaultService:
         )
 
     @staticmethod
-    async def is_enough_population_space(*, db_session: AsyncSession, vault_id: UUID4, space_required: int) -> bool:
+    async def is_enough_population_space(*, db_session: AsyncSession, vault_id: UUID, space_required: int) -> bool:
         """Check if the vault has enough space to perform an operation.
 
         Only counts dwellers that are assigned to rooms (have room_id).
@@ -238,13 +238,13 @@ class VaultService:
         return await economy.withdraw_caps(db_session=db_session, vault_obj=vault_obj, amount=amount, commit=commit)
 
     async def get_vaults_with_room_and_dweller_count(
-        self, *, db_session: AsyncSession, user_id: UUID4
+        self, *, db_session: AsyncSession, user_id: UUID
     ) -> list[VaultReadWithNumbers]:
         """List the user's non-deleted vaults with room/dweller counts and resource warnings."""
         return await reads.get_vaults_with_room_and_dweller_count(db_session=db_session, user_id=user_id)
 
     async def get_vault_with_room_and_dweller_count(
-        self, *, db_session: AsyncSession, vault_id: UUID4
+        self, *, db_session: AsyncSession, vault_id: UUID
     ) -> VaultReadWithNumbers:
         """Fetch a single vault with room/dweller counts and resource warnings."""
         return await reads.get_vault_with_room_and_dweller_count(db_session=db_session, vault_id=vault_id)

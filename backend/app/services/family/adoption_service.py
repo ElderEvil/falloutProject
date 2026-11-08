@@ -2,8 +2,8 @@
 
 import logging
 import random
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import AgeGroupEnum, GenderEnum, NotificationType
@@ -37,7 +37,7 @@ class AdoptionService:
     """Pair orphaned youth with committed, living couples during the family tick."""
 
     async def process_adoptions(
-        self, db_session: AsyncSession, vault_id: UUID4, *, seconds_passed: int = 0
+        self, db_session: AsyncSession, vault_id: UUID, *, seconds_passed: int = 0
     ) -> list[Dweller]:
         if seconds_passed <= 0 or game_config.breeding.adoption_chance_per_hour <= 0:
             return []
@@ -75,7 +75,7 @@ class AdoptionService:
             return []
         parent_ids = {parent.id for couple in couples for parent in couple}
         children = await crud_dweller.get_children_of(db_session, vault_id=vault_id, parent_ids=list(parent_ids))
-        youth_by_parent: dict[UUID4, set[UUID4]] = {parent_id: set() for parent_id in parent_ids}
+        youth_by_parent: dict[UUID, set[UUID]] = {parent_id: set() for parent_id in parent_ids}
         for child in children:
             if child.age_group in (AgeGroupEnum.CHILD, AgeGroupEnum.TEEN):
                 for parent_id in (child.parent_1_id, child.parent_2_id):

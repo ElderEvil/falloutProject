@@ -2,8 +2,8 @@
 
 import logging
 from typing import Any, TypedDict
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.event_bus import GameEvent, event_bus
@@ -38,14 +38,14 @@ class TransferResult(TypedDict):
 
     transferred: list[dict]
     overflow: list[dict]
-    storage_id: UUID4 | None
+    storage_id: UUID | None
 
 
 class RewardsService:
     """Applies exploration rewards to vault and dweller."""
 
     @staticmethod
-    def _queue_event(db_session: AsyncSession, event: GameEvent, vault_id: UUID4, payload: dict[str, Any]) -> None:
+    def _queue_event(db_session: AsyncSession, event: GameEvent, vault_id: UUID, payload: dict[str, Any]) -> None:
         """Park a reward event until the finalization transaction commits."""
         db_session.info.setdefault(_PENDING_REWARD_EVENTS, []).append((event, vault_id, payload))
 
@@ -96,7 +96,7 @@ class RewardsService:
         candidates = list(loot_entries)
         candidates.extend(self._held_spec(row, "weapon") for row in held_weapon_rows)
         candidates.extend(self._held_spec(row, "outfit") for row in held_outfit_rows)
-        held_rows: dict[UUID4, Weapon | Outfit] = {row.id: row for row in (*held_weapon_rows, *held_outfit_rows)}
+        held_rows: dict[UUID, Weapon | Outfit] = {row.id: row for row in (*held_weapon_rows, *held_outfit_rows)}
 
         vault = await crud_vault.get(db_session, exploration.vault_id)
         storage = await crud_storage.get_storage_by_vault(db_session, vault.id)
@@ -215,13 +215,13 @@ class RewardsService:
             "storage_id": storage_id,
         }
 
-    async def _load_unclaimed(self, db_session: AsyncSession, exploration_id: UUID4) -> tuple[Exploration, list[dict]]:
+    async def _load_unclaimed(self, db_session: AsyncSession, exploration_id: UUID) -> tuple[Exploration, list[dict]]:
         exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
         if exploration.is_in_progress():
             raise ValidationException("Exploration is still in progress")
         return exploration, list(exploration.unclaimed_loot or [])
 
-    async def get_pending_overflow(self, db_session: AsyncSession, vault_id: UUID4) -> list[PendingOverflowRead]:
+    async def get_pending_overflow(self, db_session: AsyncSession, vault_id: UUID) -> list[PendingOverflowRead]:
         """Return every completed exploration with loot still awaiting a player decision."""
         explorations = await crud_exploration.get_by_vault(db_session, vault_id=vault_id)
         return [
@@ -234,7 +234,7 @@ class RewardsService:
             if not exploration.is_in_progress() and exploration.unclaimed_loot
         ]
 
-    async def take_unclaimed_item(self, db_session: AsyncSession, exploration_id: UUID4, index: int) -> list[dict]:
+    async def take_unclaimed_item(self, db_session: AsyncSession, exploration_id: UUID, index: int) -> list[dict]:
         """Store one overflow item. 409 when storage is still full."""
         exploration, unclaimed = await self._load_unclaimed(db_session, exploration_id)
         taken, unclaimed = await loot_overflow_service.settle_take_decision(
@@ -254,7 +254,7 @@ class RewardsService:
         return unclaimed
 
     async def sell_unclaimed_item(
-        self, db_session: AsyncSession, exploration_id: UUID4, index: int
+        self, db_session: AsyncSession, exploration_id: UUID, index: int
     ) -> tuple[int, list[dict]]:
         """Sell one overflow item for caps. Needs no storage space."""
         exploration, unclaimed = await self._load_unclaimed(db_session, exploration_id)

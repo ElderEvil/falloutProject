@@ -1,8 +1,8 @@
 """Shared lock order for exploration and vault/site mutations."""
 
 from typing import Literal, overload
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import exploration as crud_exploration
@@ -13,18 +13,18 @@ from app.utils.exceptions import ResourceNotFoundException
 
 @overload
 async def lock_exploration_with_vault_claim(
-    db_session: AsyncSession, exploration_id: UUID4, *, missing_ok: Literal[False] = False
+    db_session: AsyncSession, exploration_id: UUID, *, missing_ok: Literal[False] = False
 ) -> Exploration: ...
 
 
 @overload
 async def lock_exploration_with_vault_claim(
-    db_session: AsyncSession, exploration_id: UUID4, *, missing_ok: Literal[True]
+    db_session: AsyncSession, exploration_id: UUID, *, missing_ok: Literal[True]
 ) -> Exploration | None: ...
 
 
 async def lock_exploration_with_vault_claim(
-    db_session: AsyncSession, exploration_id: UUID4, *, missing_ok: bool = False
+    db_session: AsyncSession, exploration_id: UUID, *, missing_ok: bool = False
 ) -> Exploration | None:
     """Claim the vault before locking its exploration; callers may then lock a run."""
     preview = await crud_exploration.get(db_session, exploration_id)

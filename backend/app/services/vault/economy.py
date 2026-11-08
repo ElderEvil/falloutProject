@@ -6,8 +6,8 @@ module (or defers it, where noted, for a caller-owned commit).
 """
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import RoomActionEnum, RoomTypeEnum, SPECIALEnum
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 resource_manager = ResourceManager()
 
 
-async def update_vault_resources(db_session: AsyncSession, vault_id: UUID4) -> Vault:
+async def update_vault_resources(db_session: AsyncSession, vault_id: UUID) -> Vault:
     """Update vault resources based on resource manager processing."""
     updated_resources, events = await resource_manager.process_vault_resources(
         db_session=db_session, vault_id=vault_id, seconds_passed=60
@@ -43,7 +43,7 @@ async def update_vault_resources(db_session: AsyncSession, vault_id: UUID4) -> V
 async def stage_medical_supply_transfer(
     db_session: AsyncSession,
     vault: Vault,
-    dweller_id: UUID4,
+    dweller_id: UUID,
     stimpaks: int,
     radaways: int,
 ) -> MedicalTransferResponse:
@@ -109,7 +109,7 @@ async def stage_medical_supply_transfer(
 async def transfer_medical_supplies(
     db_session: AsyncSession,
     vault: Vault,
-    dweller_id: UUID4,
+    dweller_id: UUID,
     stimpaks: int,
     radaways: int,
 ) -> MedicalTransferResponse:
@@ -240,7 +240,7 @@ async def handle_capacity_room(
         await storage_crud.set_max_space(db_session, vault_obj.id, new_storage_space_max, commit=commit)
 
 
-async def is_enough_dwellers(*, db_session: AsyncSession, vault_id: UUID4, population_required: int | None) -> bool:
+async def is_enough_dwellers(*, db_session: AsyncSession, vault_id: UUID, population_required: int | None) -> bool:
     """Check if the vault has enough dwellers to perform an operation."""
     if population_required is None:
         return True
@@ -248,7 +248,7 @@ async def is_enough_dwellers(*, db_session: AsyncSession, vault_id: UUID4, popul
     return dwellers_count >= population_required
 
 
-async def is_enough_population_space(*, db_session: AsyncSession, vault_id: UUID4, space_required: int) -> bool:
+async def is_enough_population_space(*, db_session: AsyncSession, vault_id: UUID, space_required: int) -> bool:
     """Check if the vault has enough space to perform an operation.
 
     Counts every living dweller in the vault — assigned or not. An

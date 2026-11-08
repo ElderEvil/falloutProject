@@ -1,8 +1,8 @@
 """One persisted UTC refresh policy shared by vault ticks and scheduled sweeps."""
 
 from datetime import datetime, timedelta
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import ObjectiveCategoryEnum
@@ -20,7 +20,7 @@ def objective_periods(now: datetime) -> tuple[datetime, datetime]:
     return daily, daily - timedelta(days=daily.weekday())
 
 
-async def ensure_current_objectives(db: AsyncSession, vault_id: UUID4, *, now: datetime | None = None) -> list[str]:
+async def ensure_current_objectives(db: AsyncSession, vault_id: UUID, *, now: datetime | None = None) -> list[str]:
     """Commit assignments and successful periods atomically; failures leave them due.
 
     Existing links with an unknown period are adopted for the current period,

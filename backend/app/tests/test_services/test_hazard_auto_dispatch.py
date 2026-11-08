@@ -1,9 +1,9 @@
 """Hazard auto-dispatch: standing teams respond to matching incidents and return to work."""
 
 from unittest.mock import patch
+from uuid import UUID
 
 import pytest
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -20,7 +20,7 @@ from app.services.room_service import room_service
 from app.tests.test_services._hazard_team_helpers import make_member
 
 
-def _work_room(vault_id: UUID4, name: str, ability, x: int, y: int) -> RoomCreate:
+def _work_room(vault_id: UUID, name: str, ability, x: int, y: int) -> RoomCreate:
     """A production room with capacity, so auto-assign can land a dweller there."""
     return RoomCreate(
         name=name,
@@ -253,7 +253,7 @@ async def test_dispatch_skips_responder_committed_to_another_incident(
     assert dispatch_event.data == {"skipped": [committed.first_name]}
 
 
-def _response_station(vault_id: UUID4, *, x: int = 20, size: int = 3) -> RoomCreate:
+def _response_station(vault_id: UUID, *, x: int = 20, size: int = 3) -> RoomCreate:
     """The unique Response Station catalog payload (null incremental cost, 3..9 footprint)."""
     return RoomCreate(
         name="Response Station",

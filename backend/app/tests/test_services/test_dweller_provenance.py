@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -18,7 +17,7 @@ from app.services.rewards.settlement import _parse_objective_reward
 from app.utils.static_data import game_data_store
 
 
-def _create_payload(vault_id: UUID4, first_name: str, gender: GenderEnum) -> DwellerCreate:
+def _create_payload(vault_id: UUID, first_name: str, gender: GenderEnum) -> DwellerCreate:
     return DwellerCreate(
         first_name=first_name,
         last_name="Tester",

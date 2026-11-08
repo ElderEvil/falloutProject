@@ -3,8 +3,8 @@
 import logging
 import random
 from datetime import timedelta
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core import db_locks
@@ -40,7 +40,7 @@ def is_spawning_disabled(vault: Vault | None) -> bool:
 
 
 async def should_spawn_incident(
-    db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
+    db_session: AsyncSession, vault_id: UUID, seconds_passed: int, game_state: GameState | None = None
 ) -> bool:
     """Determine if an incident should spawn based on vault state and time.
 
@@ -108,10 +108,10 @@ def roll_incident_type(population: int, mode: str) -> IncidentType:
 
 async def spawn_incident(
     db_session: AsyncSession,
-    vault_id: UUID4,
+    vault_id: UUID,
     incident_type: IncidentType | None = None,
     *,
-    target_room_id: UUID4 | None = None,
+    target_room_id: UUID | None = None,
     difficulty_bonus: int = 0,
     start_delay_seconds: float = 0,
 ) -> Incident | None:
@@ -255,7 +255,7 @@ async def activate_incident(
 
 
 async def select_spawn_room(
-    db_session: AsyncSession, vault_id: UUID4, incident_type: IncidentType, rooms_with_incidents: set[UUID4]
+    db_session: AsyncSession, vault_id: UUID, incident_type: IncidentType, rooms_with_incidents: set[UUID]
 ) -> Room | None:
     """Pick the spawn room for an incident type; None when no suitable room exists."""
     # Determine where to spawn based on incident type

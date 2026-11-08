@@ -29,6 +29,7 @@ class ConnectionManager:
         self.active_connections: dict[UUID, list[WebSocket]] = {}
         self.chat_connections: dict[tuple[UUID, UUID], list[WebSocket]] = {}
         self.redis: Redis | None = None
+        # Ephemeral process identifier; not a persisted row.
         self.instance_id = str(uuid4())
         self.listener_task: asyncio.Task | None = None
         self.redis_channel = "ws_broadcast"

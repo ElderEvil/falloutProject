@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import re
+from uuid import UUID
 
 import pytest
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -131,7 +131,7 @@ async def test_curated_template_and_starter_names_are_skipped(async_session: Asy
     assert juno.display_name == "Juno Pike"
 
 
-async def _find_by_name(async_session: AsyncSession, vault_id: UUID4, first_name: str) -> Dweller:
+async def _find_by_name(async_session: AsyncSession, vault_id: UUID, first_name: str) -> Dweller:
     dwellers = await crud.dweller.get_multi_by_vault(async_session, vault_id, limit=100)
     return next(dweller for dweller in dwellers if dweller.first_name == first_name)
 

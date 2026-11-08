@@ -11,8 +11,8 @@ facade in ``app.services.reward_service``.
 import logging
 import random
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import ContentProvenanceEnum, ObjectiveCategoryEnum, RarityEnum, RewardType
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def process_quest_rewards(db_session: AsyncSession, vault_id: UUID4, quest: Quest) -> list[dict[str, Any]]:
+async def process_quest_rewards(db_session: AsyncSession, vault_id: UUID, quest: Quest) -> list[dict[str, Any]]:
     granted_rewards: list[dict[str, Any]] = []
 
     rewards: list[QuestReward] = quest.quest_rewards
@@ -54,7 +54,7 @@ async def process_quest_rewards(db_session: AsyncSession, vault_id: UUID4, quest
 
 
 async def process_objective_reward(
-    db_session: AsyncSession, vault_id: UUID4, objective: VaultObjectiveProgressLink
+    db_session: AsyncSession, vault_id: UUID, objective: VaultObjectiveProgressLink
 ) -> dict[str, Any]:
     objective_obj = await objective_crud.get(db_session, id=objective.objective_id)
     reward_str = objective.reward_snapshot or objective_obj.reward
@@ -66,7 +66,7 @@ async def process_objective_reward(
 
 
 async def claim_objective_reward(
-    db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4
+    db_session: AsyncSession, objective_id: UUID, vault_id: UUID
 ) -> VaultObjectiveProgressLink:
     """Claim an assigned, earned reward atomically and reject repeat claims."""
     await vault_crud.lock_for_update(db_session, vault_id)
@@ -96,7 +96,7 @@ async def claim_objective_reward(
     return link
 
 
-async def settle_objective_completion(db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4) -> Objective:
+async def settle_objective_completion(db_session: AsyncSession, objective_id: UUID, vault_id: UUID) -> Objective:
     """Mark an objective complete for a vault and deliver its reward in one transaction."""
     await vault_crud.lock_for_update(db_session, vault_id)
     objective = await objective_crud.get(db_session, objective_id)
@@ -113,7 +113,7 @@ async def settle_objective_completion(db_session: AsyncSession, objective_id: UU
 
 
 async def settle_objective_progress(
-    db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4, progress: int
+    db_session: AsyncSession, objective_id: UUID, vault_id: UUID, progress: int
 ) -> VaultObjectiveProgressLink:
     """Update earned progress without paying the reward; owners claim separately."""
     link = await objective_crud.get_link_for_update(db_session, objective_id, vault_id)
@@ -138,7 +138,7 @@ async def settle_objective_progress(
     return link
 
 
-async def _settle_objective_link(db_session: AsyncSession, vault_id: UUID4, link: VaultObjectiveProgressLink) -> None:
+async def _settle_objective_link(db_session: AsyncSession, vault_id: UUID, link: VaultObjectiveProgressLink) -> None:
     """Complete the link and deliver its reward inside a single deferred transaction."""
     link.is_completed = True
     async with defer_reward_delivery(db_session):
@@ -148,7 +148,7 @@ async def _settle_objective_link(db_session: AsyncSession, vault_id: UUID4, link
 
 async def _process_single_reward(
     db_session: AsyncSession,
-    vault_id: UUID4,
+    vault_id: UUID,
     reward_type: RewardType | str,
     reward_data: dict[str, Any],
     *,

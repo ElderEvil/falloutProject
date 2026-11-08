@@ -10,8 +10,8 @@ existing ``GameLoopService`` test patches keep intercepting.
 import logging
 from types import ModuleType
 from typing import TYPE_CHECKING
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 async def process_events(
     db_session: AsyncSession,
-    vault_id: UUID4,
+    vault_id: UUID,
     seconds_passed: int,
     game_state: GameState | None = None,
     *,
@@ -132,12 +132,12 @@ async def process_events(
     return stats
 
 
-async def fetch_existing_relationships(db_session: AsyncSession, dweller_ids: set[UUID4]) -> list[Relationship]:
+async def fetch_existing_relationships(db_session: AsyncSession, dweller_ids: set[UUID]) -> list[Relationship]:
     """Batch fetch all relationships for a set of dweller IDs."""
     return await crud_relationship.get_involving_any(db_session, dweller_ids)
 
 
-def build_relationships_map(relationships: list[Relationship]) -> dict[tuple[UUID4, UUID4], Relationship]:
+def build_relationships_map(relationships: list[Relationship]) -> dict[tuple[UUID, UUID], Relationship]:
     """Build a bidirectional lookup map for relationships."""
     relationships_map = {}
     for rel in relationships:
@@ -152,7 +152,7 @@ async def update_pair_affinity(
     db_session: AsyncSession,
     dweller1: Dweller,
     dweller2: Dweller,
-    relationships_map: dict[tuple[UUID4, UUID4], Relationship],
+    relationships_map: dict[tuple[UUID, UUID], Relationship],
     new_relationships: list[tuple[Relationship, int]],
 ) -> int:
     """Update affinity for a pair of dwellers, creating relationship if needed."""
@@ -237,7 +237,7 @@ async def create_new_relationships(db_session: AsyncSession, new_relationships: 
 
 
 async def update_room_relationships(
-    service: "GameLoopService", db_session: AsyncSession, vault_id: UUID4
+    service: "GameLoopService", db_session: AsyncSession, vault_id: UUID
 ) -> RelationshipsStats:
     """Update relationship affinity for dwellers sharing living quarters.
 
@@ -288,7 +288,7 @@ async def update_room_relationships(
     return stats
 
 
-async def _deliver_due_baby(db_session: AsyncSession, vault_id: UUID4, pregnancy_id: UUID4) -> bool:
+async def _deliver_due_baby(db_session: AsyncSession, vault_id: UUID, pregnancy_id: UUID) -> bool:
     """Deliver one due pregnancy; per-delivery errors are logged, not raised."""
     from app.services.family.breeding_service import breeding_service
 
@@ -307,7 +307,7 @@ async def _deliver_due_baby(db_session: AsyncSession, vault_id: UUID4, pregnancy
     return bool(babies)
 
 
-async def process_pregnancies_and_births(db_session: AsyncSession, vault_id: UUID4) -> PregnancyStats:
+async def process_pregnancies_and_births(db_session: AsyncSession, vault_id: UUID) -> PregnancyStats:
     """Check for conception and process due pregnancies."""
     from app.services.family.breeding_service import breeding_service
 
@@ -340,7 +340,7 @@ async def process_pregnancies_and_births(db_session: AsyncSession, vault_id: UUI
     return stats
 
 
-async def age_children(db_session: AsyncSession, vault_id: UUID4) -> AgeStats:
+async def age_children(db_session: AsyncSession, vault_id: UUID) -> AgeStats:
     """Age children to adults if they're ready."""
     from app.services.family.breeding_service import breeding_service
 
@@ -361,7 +361,7 @@ async def age_children(db_session: AsyncSession, vault_id: UUID4) -> AgeStats:
 
 
 async def process_breeding(
-    service: "GameLoopService", db_session: AsyncSession, vault_id: UUID4, *, seconds_passed: int = 0
+    service: "GameLoopService", db_session: AsyncSession, vault_id: UUID, *, seconds_passed: int = 0
 ) -> BreedingStats:
     """Process relationships and breeding for a vault.
 

@@ -2,8 +2,8 @@
 
 import logging
 from datetime import timedelta
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import AvailabilityEnum, DeathCauseEnum, DwellerStatusEnum, LifecycleEnum, VaultModeEnum
@@ -138,7 +138,7 @@ class DeathService:
     async def revive_dweller(
         self,
         db_session: AsyncSession,
-        dweller_id: UUID4,
+        dweller_id: UUID,
         user: User,
     ) -> DwellerReviveResponse:
         """Revive a dead dweller by paying the revival cost.
@@ -220,7 +220,7 @@ class DeathService:
     async def build_revival_quote(
         self,
         db_session: AsyncSession,
-        dweller_id: UUID4,
+        dweller_id: UUID,
         user: User,
     ) -> RevivalCostResponse:
         """Quote the revival cost for a dead dweller, reusing the single cost path.
@@ -261,7 +261,7 @@ class DeathService:
             raise ContentNoChangeException(detail="Dweller is permanently dead and cannot be revived")
 
     @staticmethod
-    def _require_vault_id(dweller: Dweller) -> UUID4:
+    def _require_vault_id(dweller: Dweller) -> UUID:
         """The dweller's active vault, required by death and revival; a departure never reaches here."""
         if dweller.vault_id is None:
             raise VaultOperationException(detail="Dweller is no longer in this vault")
@@ -337,13 +337,13 @@ class DeathService:
 
         return count
 
-    async def get_death_statistics(self, db_session: AsyncSession, user_id: UUID4) -> dict:
+    async def get_death_statistics(self, db_session: AsyncSession, user_id: UUID) -> dict:
         """Get life/death statistics for a user.
 
         :param db_session: Database session
         :type db_session: AsyncSession
         :param user_id: User ID
-        :type user_id: UUID4
+        :type user_id: UUID
         :returns: Dictionary with death statistics
         :rtype: dict
         """
@@ -380,7 +380,7 @@ class DeathService:
             "permanently_dead_count": permanent_count,
         }
 
-    async def _get_dead_dweller_counts(self, db_session: AsyncSession, user_id: UUID4) -> tuple[int, int]:
+    async def _get_dead_dweller_counts(self, db_session: AsyncSession, user_id: UUID) -> tuple[int, int]:
         """Get counts of revivable and permanently dead dwellers for a user."""
         vaults = await vault_crud.get_by_user_id(db_session=db_session, user_id=user_id)
         vault_ids = [vault.id for vault in vaults]

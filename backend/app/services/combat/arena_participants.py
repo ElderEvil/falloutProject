@@ -8,8 +8,7 @@ orchestrating service keeps pure flow.
 
 from collections import Counter
 from dataclasses import dataclass
-
-from pydantic import UUID4
+from uuid import UUID
 
 from app.models.arena_state import ArenaState
 from app.models.dweller import Dweller
@@ -54,7 +53,7 @@ def participant_from_dweller(dweller: Dweller) -> ArenaParticipant:
     )
 
 
-def dweller_participants(slots: list[UUID4 | None], by_id: dict[str, Dweller]) -> list[ArenaParticipant]:
+def dweller_participants(slots: list[UUID | None], by_id: dict[str, Dweller]) -> list[ArenaParticipant]:
     """Participants for the filled slots; empty when any slot's dweller is gone."""
     participants = []
     for slot in slots:

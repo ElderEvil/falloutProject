@@ -1,8 +1,8 @@
 """Chat side-effects: WebSocket notifications and post-conversation place unlocks."""
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.websocket_manager import manager
@@ -14,9 +14,9 @@ logger = logging.getLogger(__name__)
 
 
 async def send_chat_notification(
-    user_id: UUID4,
-    dweller_id: UUID4,
-    dweller_message_id: UUID4,
+    user_id: UUID,
+    dweller_id: UUID,
+    dweller_message_id: UUID,
     happiness_impact: HappinessImpact | None,
     action_suggestion: ActionSuggestion | None,
 ) -> None:

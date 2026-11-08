@@ -2,8 +2,8 @@
 
 from collections.abc import Sequence
 from datetime import UTC, timedelta
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import TrainingStatus
@@ -22,7 +22,7 @@ from app.utils.objective_constants import normalize_room_type
 from app.utils.time import utcnow
 
 
-async def current_state_progress(db_session: AsyncSession, vault_id: UUID4, objective: ObjectiveBase) -> int:
+async def current_state_progress(db_session: AsyncSession, vault_id: UUID, objective: ObjectiveBase) -> int:
     """Credit existing state milestones without replaying events or writing on GET."""
     target = objective.target_entity or {}
     if objective.objective_type == "equip":
@@ -69,7 +69,7 @@ async def current_state_progress(db_session: AsyncSession, vault_id: UUID4, obje
 
 
 async def read_objectives(
-    db_session: AsyncSession, vault_id: UUID4, *, skip: int = 0, limit: int = 100
+    db_session: AsyncSession, vault_id: UUID, *, skip: int = 0, limit: int = 100
 ) -> Sequence[ObjectiveRead]:
     """Read progress, deriving already-met state only for the current guided step."""
     objectives = await objective_crud.get_multi_for_vault(db_session, vault_id, skip=skip, limit=limit)

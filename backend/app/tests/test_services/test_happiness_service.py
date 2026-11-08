@@ -2,11 +2,10 @@
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
-from pydantic import UUID4
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -332,7 +331,7 @@ class TestHappinessService:
         async_session: AsyncSession,
     ):
         """Test happiness update with invalid vault ID."""
-        fake_vault_id = UUID4("00000000-0000-0000-0000-000000000000")
+        fake_vault_id = UUID("00000000-0000-0000-0000-000000000000")
 
         result = await happiness_service.update_vault_happiness(
             async_session,
@@ -405,7 +404,7 @@ class TestHappinessService:
         async_session: AsyncSession,
     ):
         """Test getting modifiers for non-existent dweller."""
-        fake_dweller_id = UUID4("00000000-0000-0000-0000-000000000000")
+        fake_dweller_id = UUID("00000000-0000-0000-0000-000000000000")
 
         modifiers = await happiness_service.get_happiness_modifiers(
             async_session,

@@ -3,8 +3,8 @@
 import asyncio
 import logging
 import random
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import inspect
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -91,7 +91,7 @@ class GameLoopService:
 
         semaphore = asyncio.Semaphore(max(1, max_concurrency))
 
-        async def _process_vault(vault_id: UUID4) -> bool:
+        async def _process_vault(vault_id: UUID) -> bool:
             async with semaphore, session_maker() as db_session:
                 try:
                     await self.process_vault_tick(db_session, vault_id)
@@ -102,7 +102,7 @@ class GameLoopService:
                 return True
 
         outcomes = await asyncio.gather(*(_process_vault(vault_id) for vault_id in vault_ids), return_exceptions=True)
-        unexpected: list[tuple[UUID4, BaseException]] = []
+        unexpected: list[tuple[UUID, BaseException]] = []
         for vault_id, outcome in zip(vault_ids, outcomes, strict=True):
             if isinstance(outcome, BaseException):
                 unexpected.append((vault_id, outcome))
@@ -125,7 +125,7 @@ class GameLoopService:
         return stats
 
     async def process_vault_tick(
-        self, db_session: AsyncSession, vault_id: UUID4, tick_id: str | None = None
+        self, db_session: AsyncSession, vault_id: UUID, tick_id: str | None = None
     ) -> VaultTickResult:
         """Process a single tick for a specific vault.
 
@@ -325,19 +325,19 @@ class GameLoopService:
 
         return results
 
-    async def pause_vault(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
+    async def pause_vault(self, db_session: AsyncSession, vault_id: UUID) -> GameState:
         """Pause game loop for a specific vault."""
         game_state = await game_state_crud.pause(db_session, vault_id)
         self.logger.info(f"Vault {vault_id} paused")
         return game_state
 
-    async def record_presence(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
+    async def record_presence(self, db_session: AsyncSession, vault_id: UUID) -> GameState:
         """Stamp a visibility-gated vault-view heartbeat for spawn gating."""
         game_state = await game_state_crud.record_presence(db_session, vault_id)
         self.logger.debug(f"Vault {vault_id} presence ping")
         return game_state
 
-    async def resume_vault(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
+    async def resume_vault(self, db_session: AsyncSession, vault_id: UUID) -> GameState:
         """Resume game loop for a specific vault."""
         game_state = await game_state_crud.get_or_create(db_session, vault_id)
         from app import crud
@@ -357,7 +357,7 @@ class GameLoopService:
         self.logger.info(f"Vault {vault_id} resumed")
         return game_state
 
-    async def get_vault_status(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
+    async def get_vault_status(self, db_session: AsyncSession, vault_id: UUID) -> dict:
         """Get current game loop status for a vault."""
         game_state = await self._get_or_create_game_state(db_session, vault_id)
         game_state.update_activity()
@@ -384,15 +384,15 @@ class GameLoopService:
         vault_ids = [gs.vault_id for gs in active_game_states]
         return list(await vault_crud.get_by_ids(vault_ids, db_session))
 
-    async def get_active_vault_ids(self, db_session: AsyncSession) -> list[UUID4]:
+    async def get_active_vault_ids(self, db_session: AsyncSession) -> list[UUID]:
         """Return the IDs of vaults with an active, unpaused game state."""
         return [vault.id for vault in await self._get_active_vaults(db_session)]
 
-    async def _get_or_create_game_state(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
+    async def _get_or_create_game_state(self, db_session: AsyncSession, vault_id: UUID) -> GameState:
         """Get existing game state or create a new one."""
         return await game_state_crud.get_or_create(db_session, vault_id)
 
-    async def _refresh_objectives(self, db_session: AsyncSession, vault_id: UUID4, game_state: GameState) -> None:
+    async def _refresh_objectives(self, db_session: AsyncSession, vault_id: UUID, game_state: GameState) -> None:
         from app.services.progression.objectives.refresh_service import ensure_current_objectives
 
         try:
@@ -402,26 +402,26 @@ class GameLoopService:
             self.logger.exception("Objective refresh failed for vault %s; will retry next tick", vault_id)
             await db_session.refresh(game_state)
 
-    async def _process_explorations(self, db_session: AsyncSession, vault_id: UUID4) -> ExplorationStats:
+    async def _process_explorations(self, db_session: AsyncSession, vault_id: UUID) -> ExplorationStats:
         """Process all active explorations for a vault."""
         return await dwellers_tick.process_explorations(db_session, vault_id)
 
     async def _process_dwellers(
-        self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int | None = None
+        self, db_session: AsyncSession, vault_id: UUID, seconds_passed: int | None = None
     ) -> DwellersStats:
         """Process dweller updates for a vault."""
         return await dwellers_tick.process_dwellers(db_session, vault_id, seconds_passed)
 
-    async def _process_apprenticeships(self, db_session: AsyncSession, vault_id: UUID4) -> ApprenticeStats:
+    async def _process_apprenticeships(self, db_session: AsyncSession, vault_id: UUID) -> ApprenticeStats:
         """Advance eligible youth apprentices by at most one SPECIAL point per tick."""
         return await dwellers_tick.process_apprenticeships(db_session, vault_id)
 
-    async def _process_training(self, db_session: AsyncSession, vault_id: UUID4) -> TrainingStats:
+    async def _process_training(self, db_session: AsyncSession, vault_id: UUID) -> TrainingStats:
         """Process all active training sessions for a vault."""
         return await dwellers_tick.process_training(db_session, vault_id)
 
     async def _process_crafting(
-        self, db_session: AsyncSession, vault_id: UUID4, game_state: GameState, seconds_passed: int
+        self, db_session: AsyncSession, vault_id: UUID, game_state: GameState, seconds_passed: int
     ) -> CraftingStats:
         """Check the workshop crafting queue when the authoritative tick cadence is due."""
         return await crafting_tick.process_crafting(
@@ -431,27 +431,27 @@ class GameLoopService:
             seconds_passed=seconds_passed,
         )
 
-    async def _process_happiness(self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> dict:
+    async def _process_happiness(self, db_session: AsyncSession, vault_id: UUID, seconds_passed: int) -> dict:
         """Process happiness updates for all dwellers in a vault."""
         return await dwellers_tick.process_happiness(db_session, vault_id, seconds_passed)
 
-    async def _process_radio(self, db_session: AsyncSession, vault_id: UUID4) -> RadioStats:
+    async def _process_radio(self, db_session: AsyncSession, vault_id: UUID) -> RadioStats:
         """Roll the radio's passive recruitment for a vault."""
         return await radio_tick.process_radio(db_session, vault_id)
 
     async def _process_events(
-        self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
+        self, db_session: AsyncSession, vault_id: UUID, seconds_passed: int, game_state: GameState | None = None
     ) -> EventsStats:
         """Fire weighted random vault events (raider scout, resource cache, wanderer)."""
         return await family_tick.process_events(db_session, vault_id, seconds_passed, game_state, rng=random)
 
     async def _fetch_existing_relationships(
-        self, db_session: AsyncSession, dweller_ids: set[UUID4]
+        self, db_session: AsyncSession, dweller_ids: set[UUID]
     ) -> list[Relationship]:
         """Batch fetch all relationships for a set of dweller IDs."""
         return await family_tick.fetch_existing_relationships(db_session, dweller_ids)
 
-    def _build_relationships_map(self, relationships: list[Relationship]) -> dict[tuple[UUID4, UUID4], Relationship]:
+    def _build_relationships_map(self, relationships: list[Relationship]) -> dict[tuple[UUID, UUID], Relationship]:
         """Build a bidirectional lookup map for relationships."""
         return family_tick.build_relationships_map(relationships)
 
@@ -460,7 +460,7 @@ class GameLoopService:
         db_session: AsyncSession,
         dweller1: Dweller,
         dweller2: Dweller,
-        relationships_map: dict[tuple[UUID4, UUID4], Relationship],
+        relationships_map: dict[tuple[UUID, UUID], Relationship],
         new_relationships: list[tuple[Relationship, int]],
     ) -> int:
         """Update affinity for a pair of dwellers, creating relationship if needed."""
@@ -474,25 +474,25 @@ class GameLoopService:
         """Bulk create new relationships and update their affinity."""
         return await family_tick.create_new_relationships(db_session, new_relationships)
 
-    async def _update_room_relationships(self, db_session: AsyncSession, vault_id: UUID4) -> RelationshipsStats:
+    async def _update_room_relationships(self, db_session: AsyncSession, vault_id: UUID) -> RelationshipsStats:
         """Update relationship affinity for dwellers sharing living quarters."""
         return await family_tick.update_room_relationships(self, db_session, vault_id)
 
-    async def _process_pregnancies_and_births(self, db_session: AsyncSession, vault_id: UUID4) -> PregnancyStats:
+    async def _process_pregnancies_and_births(self, db_session: AsyncSession, vault_id: UUID) -> PregnancyStats:
         """Check for conception and process due pregnancies."""
         return await family_tick.process_pregnancies_and_births(db_session, vault_id)
 
-    async def _age_children(self, db_session: AsyncSession, vault_id: UUID4) -> AgeStats:
+    async def _age_children(self, db_session: AsyncSession, vault_id: UUID) -> AgeStats:
         """Age children to adults if they're ready."""
         return await family_tick.age_children(db_session, vault_id)
 
     async def _process_breeding(
-        self, db_session: AsyncSession, vault_id: UUID4, *, seconds_passed: int = 0
+        self, db_session: AsyncSession, vault_id: UUID, *, seconds_passed: int = 0
     ) -> BreedingStats:
         """Process relationships and breeding for a vault."""
         return await family_tick.process_breeding(self, db_session, vault_id, seconds_passed=seconds_passed)
 
-    async def process_vault_breeding(self, db_session: AsyncSession, vault_id: UUID4) -> BreedingStats:
+    async def process_vault_breeding(self, db_session: AsyncSession, vault_id: UUID) -> BreedingStats:
         """Process relationships and breeding for one vault on demand.
 
         Public entry point for callers outside the tick (e.g. the breeding

@@ -8,10 +8,10 @@ vault, and dweller rows and removes them afterwards.
 import asyncio
 import random
 import uuid
+from uuid import UUID
 
 import pytest
 import pytest_asyncio
-from pydantic import UUID4
 from sqlalchemy import delete, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
@@ -49,7 +49,7 @@ async def live_pg_engine() -> AsyncEngine:
 
 
 @pytest_asyncio.fixture
-async def radiated_dweller(live_pg_engine: AsyncEngine) -> tuple[UUID4, int]:
+async def radiated_dweller(live_pg_engine: AsyncEngine) -> tuple[UUID, int]:
     """A vault dweller one stimpack below the radiation ceiling, removed on teardown."""
     maker = async_sessionmaker(live_pg_engine, class_=AsyncSession, expire_on_commit=False)
     tag = uuid.uuid4().hex[:12]
@@ -88,13 +88,13 @@ def _sessions(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
 
 
 @pytest.mark.asyncio
-async def test_concurrent_spend_is_rejected(live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID4, int]) -> None:
+async def test_concurrent_spend_is_rejected(live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID, int]) -> None:
     """A use racing an uncommitted spend of the last supply must be rejected, not double-spend.
 
     Without row locking the racing read validates against the pre-image and
     heals anyway (the UPDATE then merely blocks behind the open transaction).
     """
-    dweller_id: UUID4 = radiated_dweller[0]
+    dweller_id: UUID = radiated_dweller[0]
     maker = _sessions(live_pg_engine)
     async with maker() as holder, maker() as actor:
         async with holder.begin():
@@ -111,12 +111,12 @@ async def test_concurrent_spend_is_rejected(live_pg_engine: AsyncEngine, radiate
 
 @pytest.mark.asyncio
 async def test_concurrent_use_stimpack_spends_once(
-    live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID4, int]
+    live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID, int]
 ) -> None:
     """Two simultaneous uses with one stimpack: exactly one heals, the other is rejected."""
     from app.core.game_config import game_config
 
-    dweller_id: UUID4 = radiated_dweller[0]
+    dweller_id: UUID = radiated_dweller[0]
     ceiling: int = radiated_dweller[1]
     maker = _sessions(live_pg_engine)
     async with maker() as first, maker() as second:
@@ -136,12 +136,12 @@ async def test_concurrent_use_stimpack_spends_once(
 
 @pytest.mark.asyncio
 async def test_concurrent_use_radaway_spends_once(
-    live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID4, int]
+    live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID, int]
 ) -> None:
     """Two simultaneous uses with one RadAway: exactly one treats, the other is rejected."""
     from app.utils.radiation import radiation_removal_amount
 
-    dweller_id: UUID4 = radiated_dweller[0]
+    dweller_id: UUID = radiated_dweller[0]
     maker = _sessions(live_pg_engine)
     async with maker() as first, maker() as second:
         results = await asyncio.gather(
@@ -159,7 +159,7 @@ async def test_concurrent_use_radaway_spends_once(
 
 
 @pytest_asyncio.fixture
-async def vault_stimpack_stock(live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID4, int]):
+async def vault_stimpack_stock(live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID, int]):
     """Two injured dwellers sharing the last vault stimpack."""
     from app.models.storage import Storage
     from app.tests.factory.dwellers import create_random_common_dweller

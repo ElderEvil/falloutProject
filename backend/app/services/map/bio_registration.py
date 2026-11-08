@@ -11,8 +11,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
-
-from pydantic import UUID4
+from uuid import UUID
 
 from app.core.enums import (
     DwellerLocationRelationEnum,
@@ -42,8 +41,8 @@ logger = logging.getLogger(__name__)
 class _MapDwellerLike(Protocol):
     """Structural protocol for dweller objects used by map registration methods."""
 
-    id: UUID4
-    vault_id: UUID4
+    id: UUID
+    vault_id: UUID
     rarity: RarityEnum
 
 
@@ -51,8 +50,8 @@ class _MapDwellerLike(Protocol):
 class _MapDwellerSnapshot:
     """Map registration values preserved across a session rollback."""
 
-    id: UUID4
-    vault_id: UUID4
+    id: UUID
+    vault_id: UUID
     rarity: RarityEnum
 
 

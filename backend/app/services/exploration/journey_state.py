@@ -1,8 +1,8 @@
 """Journey-level state transitions shared by recall, retreat and dweller deletion."""
 
 from datetime import datetime
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import DwellerStatusEnum, ExpeditionRunStatus
@@ -18,7 +18,7 @@ from app.utils.time import utcnow
 
 async def close_open_site_run(
     db_session: AsyncSession,
-    exploration_id: UUID4,
+    exploration_id: UUID,
     *,
     now: datetime | None = None,
 ) -> ExpeditionRun | None:
@@ -33,7 +33,7 @@ async def close_open_site_run(
     return run
 
 
-async def restore_dweller_status(db_session: AsyncSession, dweller_id: UUID4) -> None:
+async def restore_dweller_status(db_session: AsyncSession, dweller_id: UUID) -> None:
     """Restore one dweller's room-appropriate status after a journey; the caller commits."""
     dweller_obj = await dweller_crud.get(db_session, dweller_id)
     if dweller_obj.is_dead:

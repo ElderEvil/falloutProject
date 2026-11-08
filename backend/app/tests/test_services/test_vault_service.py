@@ -4,10 +4,10 @@ from itertools import pairwise
 from operator import itemgetter
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
-from pydantic import UUID4, ValidationError
+from pydantic import ValidationError
 
 from app import crud
 from app.core.enums import (
@@ -45,15 +45,15 @@ from app.utils.exceptions import ResourceConflictException, ResourceNotFoundExce
 from app.utils.room_assets import get_room_image_url
 
 # Valid UUIDv4 constants for use in mocked objects
-VAULT_ID = UUID4("12345678-1234-4abc-9def-1234567890ab")
-VAULT_ID_B = UUID4("87654321-4321-4def-9abc-2109876543ba")
-USER_ID = UUID4("22345678-1234-4abc-9def-2234567890ab")
-DWELLER_ID = UUID4("32345678-1234-4abc-9def-3234567890ab")
-ROOM_ID_1 = UUID4("42345678-1234-4abc-9def-4234567890ab")
-ROOM_ID_2 = UUID4("52345678-1234-4abc-9def-5234567890ab")
-ROOM_ID_3 = UUID4("62345678-1234-4abc-9def-6234567890ab")
-STORAGE_ID = UUID4("72345678-1234-4abc-9def-7234567890ab")
-OTHER_DWELLER_ID = UUID4("82345678-1234-4abc-9def-8234567890ab")
+VAULT_ID = UUID("12345678-1234-4abc-9def-1234567890ab")
+VAULT_ID_B = UUID("87654321-4321-4def-9abc-2109876543ba")
+USER_ID = UUID("22345678-1234-4abc-9def-2234567890ab")
+DWELLER_ID = UUID("32345678-1234-4abc-9def-3234567890ab")
+ROOM_ID_1 = UUID("42345678-1234-4abc-9def-4234567890ab")
+ROOM_ID_2 = UUID("52345678-1234-4abc-9def-5234567890ab")
+ROOM_ID_3 = UUID("62345678-1234-4abc-9def-6234567890ab")
+STORAGE_ID = UUID("72345678-1234-4abc-9def-7234567890ab")
+OTHER_DWELLER_ID = UUID("82345678-1234-4abc-9def-8234567890ab")
 
 
 # ---------------------------------------------------------------------------

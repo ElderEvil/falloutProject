@@ -8,8 +8,7 @@ contract, and site markers project the expedition catalog onto the map.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-
-from pydantic import UUID4
+from uuid import UUID
 
 from app.core.enums import LocationTypeEnum
 from app.core.game_config import game_config
@@ -92,7 +91,7 @@ def _group_key_for(location: WorldLocation) -> str | None:
 async def get_location_detail(
     db_session: AsyncSession,
     vault: Vault,
-    location_id: UUID4,
+    location_id: UUID,
 ) -> WastelandLocationWithDwellers:
     """Return a single location with its linked dweller references."""
     from app.utils.exceptions import ResourceNotFoundException
@@ -228,7 +227,7 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
 def _site_marker(
     site: SiteDefinition,
     block: SiteBlockState,
-    exploration_id: UUID4 | None = None,
+    exploration_id: UUID | None = None,
     *,
     spatial: bool = False,
 ) -> ExpeditionSiteMarkerRead:

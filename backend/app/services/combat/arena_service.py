@@ -15,8 +15,8 @@ import logging
 import random
 from collections.abc import Sequence
 from datetime import timedelta
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core import db_locks
@@ -111,14 +111,14 @@ class ArenaService:
         if room.tier < required_tier:
             raise ValidationException(detail=f"{mode.value.capitalize()} requires Arena tier {required_tier}")
 
-    async def _get_arena_room(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
+    async def _get_arena_room(self, db_session: AsyncSession, room_id: UUID, vault_id: UUID | None = None) -> Room:
         rooms = await room_crud.get_arena_rooms(db_session, room_id=room_id, vault_id=vault_id)
         if not rooms:
             raise ValidationException(detail="Arena room not found")
         return rooms[0]
 
     @staticmethod
-    def _team_slot_ids(state: ArenaState) -> tuple[list[UUID4 | None], list[UUID4 | None]]:
+    def _team_slot_ids(state: ArenaState) -> tuple[list[UUID | None], list[UUID | None]]:
         """Slot ids for (team A, team B); a/b are each side's lead across modes.
 
         Hunt keeps dwellers on team A (a, optional c) and has no dweller slots on
@@ -161,14 +161,14 @@ class ArenaService:
     async def set_fighters(
         self,
         db_session: AsyncSession,
-        room_id: UUID4,
-        fighter_a_id: UUID4 | None,
-        fighter_b_id: UUID4 | None,
-        vault_id: UUID4 | None = None,
+        room_id: UUID,
+        fighter_a_id: UUID | None,
+        fighter_b_id: UUID | None,
+        vault_id: UUID | None = None,
         *,
         mode: ArenaMode = ArenaMode.DUEL,
-        fighter_c_id: UUID4 | None = None,
-        fighter_d_id: UUID4 | None = None,
+        fighter_c_id: UUID | None = None,
+        fighter_d_id: UUID | None = None,
         opponent_keys: list[str] | None = None,
         team_a_bot_key: str | None = None,
         team_b_bot_key: str | None = None,
@@ -356,7 +356,7 @@ class ArenaService:
             "created_at": as_utc(event.created_at).isoformat() if event.created_at else None,
         }
 
-    async def get_tick_snapshot(self, db_session: AsyncSession, vault_id: UUID4) -> ArenaStats:
+    async def get_tick_snapshot(self, db_session: AsyncSession, vault_id: UUID) -> ArenaStats:
         """Repeatable, bounded journal snapshot; only the arena actor advances matches."""
         rooms: dict[str, ArenaRoomStats] = {}
         for room_id, started_at, finished_at, event in await arena_match_event_crud.get_vault_snapshot(
@@ -374,7 +374,7 @@ class ArenaService:
                 rooms[key]["events"].append(self._event_snapshot(event))
         return {"rooms": list(rooms.values())}
 
-    async def get_arena_state(self, db_session: AsyncSession, vault_id: UUID4) -> ArenaStateOut:
+    async def get_arena_state(self, db_session: AsyncSession, vault_id: UUID) -> ArenaStateOut:
         """Build the full arena state for a vault: fighters, roster, flags, journal."""
         rooms = await room_crud.get_arena_rooms(db_session, vault_id=vault_id)
         candidates = (
@@ -462,7 +462,7 @@ class ArenaService:
             events=events,
         )
 
-    async def clear_journal(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> int:
+    async def clear_journal(self, db_session: AsyncSession, room_id: UUID, vault_id: UUID | None = None) -> int:
         """Delete all journal events for an arena room. Returns how many were removed."""
         room = await self._get_arena_room(db_session, room_id, vault_id)
         count = await arena_match_event_crud.delete_for_room(db_session, room.id)
@@ -470,7 +470,7 @@ class ArenaService:
         return count
 
     @staticmethod
-    def _fighter_ids(state: ArenaState) -> list[UUID4]:
+    def _fighter_ids(state: ArenaState) -> list[UUID]:
         return [fid for field in FIGHTER_SLOT_FIELDS if (fid := getattr(state, field))]
 
     async def _release_fighters(self, db_session: AsyncSession, state: ArenaState) -> None:
@@ -479,7 +479,7 @@ class ArenaService:
         )
 
     async def clear_fighter_slots_for_dweller(
-        self, db_session: AsyncSession, dweller_id: UUID4, *, commit: bool = True
+        self, db_session: AsyncSession, dweller_id: UUID, *, commit: bool = True
     ) -> None:
         """Null any arena fighter slot that still references a dweller who left the room.
 
@@ -505,7 +505,7 @@ class ArenaService:
             if commit:
                 await db_session.commit()
 
-    async def stop_fight(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
+    async def stop_fight(self, db_session: AsyncSession, room_id: UUID, vault_id: UUID | None = None) -> Room:
         """Cancel an active match without rewards; fighters keep their current health."""
         room = await self._get_arena_room(db_session, room_id, vault_id)
         state = await arena_state_crud.get_for_update(db_session, room.id)
@@ -522,8 +522,8 @@ class ArenaService:
     async def start_fight(
         self,
         db_session: AsyncSession,
-        room_id: UUID4,
-        vault_id: UUID4 | None = None,
+        room_id: UUID,
+        vault_id: UUID | None = None,
         *,
         selection: ArenaFightersRequest | None = None,
     ) -> Room:
@@ -629,7 +629,7 @@ class ArenaService:
                 await dweller_service.publish_room_assignment(fighter, room)
         return room
 
-    async def queue_skill(self, db_session: AsyncSession, room_id: UUID4, fighter_id: UUID4, vault_id: UUID4) -> None:
+    async def queue_skill(self, db_session: AsyncSession, room_id: UUID, fighter_id: UUID, vault_id: UUID) -> None:
         """Reserve a charged attack for the fighter's next team turn under the room lock."""
         room = await self._get_arena_room(db_session, room_id, vault_id)
         state = await arena_state_crud.get_for_update(db_session, room.id)

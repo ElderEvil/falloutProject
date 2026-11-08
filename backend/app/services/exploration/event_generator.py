@@ -18,7 +18,7 @@ from app.services import catalog_service as data_loader
 from app.services.exploration.combat_calculator import combat_calculator
 from app.services.exploration.loot_calculator import loot_calculator
 from app.utils.combat import ExpeditionCombatProfile
-from app.utils.time import as_naive_utc, utcnow
+from app.utils.time import as_utc, utcnow
 
 
 def generate_discovery_name() -> str:
@@ -56,9 +56,6 @@ class EventGenerator:
         if exploration.events:
             last_event = exploration.events[-1]
             last_event_time = datetime.fromisoformat(last_event["timestamp"])
-            if last_event_time.tzinfo is not None:
-                # Keep the legacy naive-UTC clock contract, preserving aware history's instant.
-                last_event_time = as_naive_utc(last_event_time)
 
         if not last_event_time:
             # First event - check if initial delay has passed
@@ -66,7 +63,7 @@ class EventGenerator:
 
         # Check if interval has passed since last event
         now = utcnow()
-        time_since_last_event = (now - last_event_time).total_seconds()
+        time_since_last_event = (as_utc(now) - as_utc(last_event_time)).total_seconds()
         return time_since_last_event >= cfg.event_interval_seconds
 
     def generate_event(

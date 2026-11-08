@@ -75,17 +75,194 @@ Paths in this section are relative to the repository root.
 | ORM clocks | `backend/app/models/base.py` uses `app.utils.time.utcnow()` for creation/update/deletion. All naive-UTC producers go through `app/utils/time.py` (`utcnow`, `as_utc`, `as_naive_utc`); direct `datetime.utcnow` and naive `.replace(tzinfo=None)` are banned by `tests/test_architecture/test_clock_perimeter_guard.py`. | Move persisted datetime fields and their defaults/onupdate hooks to aware UTC together with SQLModel/SQLAlchemy types. Keep the API and worker engines in `backend/app/db/session.py` pinned to UTC. |
 | Deadlines and elapsed time | `models/{exploration,training,crafting_order,pregnancy,incident,vault_quest,game_state}.py` compare stored dates with naive current time. CRUD queries use matching naive bounds. | Audit both Python and SQL operands: completion thresholds, returns, pause/resume, offline ticks, breeding/cooldowns, age/death, retention and room/weapon cooldowns. Replacing defaults alone leaves mixed arithmetic. |
 | Offset stripping | `Pregnancy.is_due` and arena event snapshots normalize through `app.utils.time.as_utc()`; offset stripping outside `app/utils/time.py` is guarded. | Review each occurrence for its input contract. Convert an aware instant with `astimezone(UTC)`; only label a naive value UTC when the legacy contract establishes UTC. |
-| Exploration JSON | `models/exploration.py` emits bare ISO strings in `events[].timestamp` and `loot_collected[].found_at`. `services/exploration_service.py` and `exploration/expedition_scenario_service.py` write `trail[].t` and scenario event timestamps. | Keep historical payload text intact for this cutover; make readers accept legacy naive UTC and explicit offsets before new writers emit aware values. `exploration/event_generator.py` accepts legacy naive UTC and normalizes aware event timestamps to naive UTC for its current clock comparison without modifying history. Preserve that compatibility during the coordinated clock cutover. |
-| Other JSON and delivery | `dweller.bio_entries[].created_at` comes from `services/bio_service.py`; notification metadata is extensible JSON. `game_loop_service.py` derives delivery `event_id` text from `last_tick_time`; `gamestate.recent_tick_ids` stores opaque identifiers. | Inventory real metadata keys on the clone. Do not blanket-rewrite JSON strings, user text, event IDs or deduplication keys. Preserve replay/reconnect identity and normalize only known temporal fields when reading them. |
-| Canonical API output | `schemas/training.py` uses `utils/serialize.py` to emit UTC `Z` strings for naive and aware inputs, including nullable completion. | Preserve this contract. The new schema round-trip tests cover naive UTC, UTC, positive/fractional and negative offsets, and present/absent completion values. |
-| Other API output | Exploration and broadcast schemas rely on ordinary datetime serialization. Game-control, quest-member, incident and notification delivery paths also call `isoformat()` directly. `system/info` already emits an aware value. | Specify which outputs become UTC `Z` or explicit `+00:00`; preserve instants, optional values and consumers of old cached payloads. Regenerate frontend API types when the API changes, even if datetime still maps to string. |
+| Exploration JSON | `models/exploration.py` emits bare ISO strings in `events[].timestamp` and `loot_collected[].found_at`. `services/exploration_service.py` and `exploration/expedition_scenario_service.py` write `trail[].t` and scenario event timestamps. | **Decision: stored JSON stays bare naive UTC.** Keep historical text byte-stable; new writers keep the bare format via `serialize_naive_utc_datetime`; readers accept bare and explicit offsets. `exploration/event_generator.py` keeps normalizing aware input to naive UTC for its clock comparison. |
+| Other JSON and delivery | `dweller.bio_entries[].created_at` comes from `services/bio_service.py`; notification metadata is extensible JSON. `game_loop_service.py` derives delivery `event_id` text from `last_tick_time`; `gamestate.recent_tick_ids` stores opaque identifiers. | **Decision: stored JSON stays bare naive UTC; identity stays byte-stable.** `bio_entries[].created_at`, notification metadata `created_at`, `event_id` and `recent_tick_ids` keep their current bare/opaque form. Do not rewrite history or recompute identity from aware values. |
+| Canonical API output | `schemas/training.py` uses `utils/serialize.py` to emit UTC `Z` strings for naive and aware inputs, including nullable completion. | **Decision: every API datetime field emits UTC `Z`.** Training is the reference; add the same field serializers to the remaining schemas. The round-trip tests cover naive UTC, UTC, positive/fractional and negative offsets, and present/absent values. |
+| Other API output | Exploration and broadcast schemas rely on ordinary datetime serialization. Game-control, quest-member, incident and notification delivery paths also call `isoformat()` directly. `system/info` already emits an aware value. | **Decision: no bare or `+00:00` API output.** Route every datetime field through `serialize_utc_datetime`/`serialize_optional_utc_datetime` (including `system/info.build_date`, which changes from `+00:00` to `Z`). Regenerate frontend types when the API changes. |
 | Browser parsing | `frontend/src/core/utils/time.ts:parseUtcMs` and radio parsing accept naive UTC and explicit offsets. Training consumes its already-normalized API output. `CraftingPanel.vue` now reuses `parseUtcMs` for both progress endpoints and its countdown; some other views still use `new Date(value)` directly. | Land compatible readers first: avoid double suffixes and local-time interpretation. Reuse `parseUtcMs`; cover old and new strings, offsets, phone/browser timezone differences and reload. Crafting regressions cover legacy/aware strings, live progress and reload; the wider browser-reader audit remains open. |
-| Calendar periods and credentials | `services/progression/objectives/refresh_service.py` computes UTC daily/weekly boundaries. JWT helpers turn datetime expirations into numeric claims; Redis uses TTL/opaque keys as well as date-based caches. | Retain UTC day/week/reset semantics. Do not reinterpret epoch numbers, elapsed durations, TTLs or opaque IDs as naive datetime strings. Review password-reset DB deadlines with the rest of `user`. |
+| Calendar periods and credentials | `services/progression/objectives/refresh_service.py` computes UTC daily/weekly boundaries. JWT helpers turn datetime expirations into numeric claims; Redis uses TTL/opaque keys as well as date-based caches. | **Decision: calendar keys and credentials are not instants.** Keep UTC day/week/reset semantics, numeric JWT `exp`, `%Y-%m` month keys and TTLs unchanged; do not convert them to datetime strings. Review password-reset DB deadlines with the rest of `user`. |
 
 This is a source audit, not proof that every historic JSON payload has the same shape. On the clone,
 sample known event/loot/trail/bio fields and notification payload producers by version. Malformed,
 unknown or explicitly offset values need an explicit policy; never infer a timezone from a plausible
 wall clock. Correct any demonstrably non-UTC legacy cohorts in a separate, identified data repair.
+
+## Comparison and query-bound inventory
+
+Audited 2026-11-08 at `2bf102dc`. **Snapshot, not proof of completeness**: re-run the inventory on the
+cutover commit. This is the per-site checklist B4 executes and does not change runtime behaviour. The
+producer side is automated (`app/utils/time.py`, guarded by
+`tests/test_architecture/test_clock_perimeter_guard.py`); the consumer inventory below is grep-derived and
+must be revalidated, not assumed exhaustive. Every entry is one of:
+
+- **C** — Python consumer: compares or subtracts a stored datetime and the clock.
+- **Q** — SQL bound: a datetime parameter passed into a `WHERE`/`UPDATE`.
+- **J** — serialized boundary: JSON payload, SSE frame, or identity/dedup string.
+- **A** — API output.
+
+Today every stored value and every clock read is naive UTC, so C and Q are naive-vs-naive. B4 changes the
+columns to `timestamptz`; the DB then returns aware values and an aware clock can meet them. Never leave a
+mixed pair.
+
+### C — model deadline and elapsed-time properties
+
+| Site | Today | B4 action |
+| --- | --- | --- |
+| `Exploration.elapsed_time_seconds`, `time_remaining_seconds`, `return_time_remaining_seconds`, `should_generate_event` | stored fields minus `utcnow()` | both operands aware; keep `as_utc` only for legacy/SQLite input |
+| `Training.time_remaining_seconds`, `is_ready_to_complete` | `estimated_completion_at` vs clock | both aware |
+| `CraftingOrder.time_remaining_seconds` | `estimated_completion_at` vs clock | both aware |
+| `VaultQuestCompletionLink.return_time_remaining_seconds`, `start_return` | `return_completes_at` vs clock | both aware |
+| `Incident.elapsed_time`, `should_spread` | `start_time` vs clock | both aware |
+| `GameState.calculate_offline_time`, `is_user_online`, `pause`, `resume`, `update_tick` | `paused_since`, `resumed_at` vs clock | one clock; both aware |
+| `Pregnancy.is_due`, `progress_percentage`, `time_remaining_seconds` | already normalized with `as_utc` | reference implementation; keep |
+| `WorldLocation.is_cleared`, `time_remaining_seconds`, `is_dispatchable` | `now` parameter from caller | caller passes `utcnow()`; both aware |
+| age helpers in `app/utils/dwellers.py` and `app/options/races.py` | `as_naive_utc` on both sides | keep; finalize awareness after the `UTCDateTime` decision below |
+| `Weapon.last_maintenance_trial_at` shifts (`crud/weapon.shift_trial_clocks`) | `min(stored + paused, now)` | both operands same type |
+
+### Q — SQL query bounds
+
+| Site | Bound | B4 action |
+| --- | --- | --- |
+| `Pregnancy.get_unavailable_mother_ids` | `updated_at >= utcnow() - cooldown` | aware UTC parameter |
+| `Pregnancy.get_due_by_vault` | `due_at <= utcnow()` | aware UTC parameter |
+| `ExpeditionRun.get_recent_terminal` | `finished_at >= since` (anti-farm `utcnow() - 7d`) | aware UTC parameter |
+| `LLMInteraction.total_tokens_since`, `aggregate_tokens`, `aggregate_by_operation` | `created_at >= since` (month start) | aware UTC month start |
+| `Incident.get_resolved_before` | `end_time <= cutoff` | aware UTC cutoff |
+| `Dweller.get_aging_youth` | `birth_date <= born_before` | aware UTC threshold |
+| `Dweller.get_permanently_dead_before` | `death_timestamp <= cutoff` | aware UTC cutoff |
+| `Dweller.get_soft_deleted_before`, `count_soft_deleted`, pool eligibility | `deleted_at` / pool clock | aware UTC parameter |
+| `Notification.get_expired_batch` | `created_at <= read/unread cutoff` | aware UTC cutoffs |
+| `QuestCRUD.get_expired_party_links` | `expires_at <= now` | aware UTC parameter |
+| `QuestCRUD.get_arrived_party_links` | `return_completes_at <= now` | aware UTC parameter |
+| `WorldLocation.get_elapsed_reclears` | `reclear_available_at <= now` + Python recheck after lock | aware UTC parameter |
+| `Broadcast.get_today_broadcast`, `count_trigger_on_date`, `get_audio_keys_before` | `created_at` day range / `< before` | aware UTC bounds |
+| `Weapon.list_due_for_trial` | `last_maintenance_trial_at <= cutoff` | aware UTC cutoff |
+| `utils/dweller_lifecycle` eligibility | `departure_eligible_at <= now` | aware UTC parameter |
+
+A bound must match the column type. After B4 the column is `timestamptz`, so pass aware UTC. Before B4 the
+column is naive, so pass naive UTC. PostgreSQL casts a mismatched parameter through the session timezone;
+the contract test must keep proving the conversion under a non-UTC session.
+
+### C — service, tick and background comparisons
+
+| Area | Sites | B4 action |
+| --- | --- | --- |
+| Exploration return | `exploration/expedition.py` (`return_completes_at <= utcnow()`) | both aware |
+| Spatial movement | `exploration_service._settle_movement`, `_advance_return`, `_forward_position`, `resume_from_encounter`, `advance`, `pause_for_encounter` (`now`, `position_as_of`, `start_time`) | one clock; both aware |
+| Quests | `progression/quests/service.py` (`started_at + duration`, `return_completes_at`) | both aware |
+| Incidents | `combat/incident_round.py`, `incident_service.py`, `incident_spawning.py`, `incident_tick.py` (`start_time`, presence window) | both aware |
+| Arena | `combat/arena_service.py` (`fight_started_at`, `arena_morale_awarded_at`) | both aware |
+| Dweller ticks | `game_tick/dwellers_tick.py` (`water_empty_since`, `apprentice_started_at`, exploration deadlines) | both aware |
+| Storage tick | `game_tick/storage_tick.py` (`now - latest` maintenance cooldown) | both aware |
+| Game loop | `game_loop_service.py` (`resumed_at > paused_since`, tick windows), `resource_manager_service.py` tick/activity arithmetic | one clock; both aware |
+| Crafting / training | `crafting_service.py`, `training_service.py` (`estimated_completion_at`) | both aware |
+| Room rush | `room_rush_service.py` (`last_rush_at`, rush deadline, `_effective_stacks`) | both aware |
+| Exit requests | `exit_request_service.py` (`despair_since` grace, daily cap, `last_exit_request_at`) | both aware |
+| Departures | `departure_pool_service.py` (`departure_eligible_at`) | both aware |
+| Age / lifecycle | `dweller_service.py`, `family/breeding_service.py`, `family/death_service.py`, `utils/dwellers.py` | aware thresholds |
+| Scenarios / CLI | `family/apprentice_scenario_service.py`, `family/family_scenario_service.py`, `cli/family_scenario.py`, `cli/simulate_exploration.py` | one clock |
+| Map | `map/discovery.py` (`get_elapsed_reclears(utcnow())`), `map/reads.py` | aware UTC |
+| Objectives | `progression/objectives/refresh_service.objective_periods` (returns naive midnights), `guidance.py` | **Decision: return aware UTC midnights** at B4; keep UTC day/week semantics and update callers that compare with stored periods |
+| Quota / usage | `quota_service.py` month start, `ai_usage_service.py` month string | month boundary is a UTC date, not an instant; keep semantics |
+| Users | `user_service.py` cooldown, `auth_service.py` password reset expiry | both aware; password reset already `as_utc` |
+| Broadcast | `broadcast_service.py` day bounds and date seed | UTC date semantics; seed format must stay stable |
+| Cleanup / retention | `cleanup_service.py`, `dweller_recycling_service.py` | aware UTC cutoffs |
+
+### J / A — serialized and identity boundaries
+
+These decisions are the contract; do not re-open them per site during B4.
+
+| Boundary | Current behaviour | Decision |
+| --- | --- | --- |
+| Exploration JSON (stored) | `events[].timestamp`, `loot_collected[].found_at` via `serialize_naive_utc_datetime`; `trail[].t` via the helper in `expedition_scenario_service.py` and raw `isoformat()` in `exploration_service.py` | **Bare naive UTC, forever.** Never rewrite stored text; new writers use `serialize_naive_utc_datetime`, including the `exploration_service` trail. |
+| Exploration JSON reader | `event_generator.py` parses `events[].timestamp` and normalizes via `as_naive_utc` | **Accept bare and explicit offsets.** Never modify stored text. |
+| Bio entries | `bio_entries[].created_at` legacy naive | **Bare naive UTC** (stored JSON policy). |
+| SSE: exploration | `coordinator.py` return deadlines | **UTC `Z`** via `serialize_utc_datetime`. |
+| SSE: incidents | `incident_service.py` start/end `isoformat()` | **UTC `Z`**; optional values stay `null`. |
+| SSE: arena | `arena_service._event_snapshot` emits `+00:00` | **UTC `Z`** (changes from `+00:00`). |
+| SSE: exploration members | `exploration_service.py` created/updated `isoformat()` | **UTC `Z`**. |
+| Notification metadata | `notification_service.py` `created_at.isoformat()` | **Bare naive UTC** in stored metadata; API `notification.created_at` is **UTC `Z`**. |
+| Tick frame | `event_id = last_tick_time.isoformat()`; `recent_tick_ids` opaque | **Bare naive UTC for `event_id` and `last_tick_time`.** Identity must not change; keep the tick payload on the legacy format. |
+| API canonical | `schemas/training.py` emits `Z` | **UTC `Z`**; use it as the template for every schema. |
+| API default | Most schemas rely on Pydantic default serialization | **UTC `Z`** via explicit field serializers; no bare or `+00:00` output. |
+| API `system/info` | `build_date` aware `+00:00` | **UTC `Z`** (changes from `+00:00`). |
+| Credentials / calendar keys | JWT `exp` numeric; `%Y-%m` month keys; TTLs | **Unchanged**; not instants. |
+| Frontend | `parseUtcMs` accepts naive and offsets; some views call `new Date(value)` | **Accept all three forms** (bare, `Z`, offset); migrate remaining `new Date` call sites before B4. |
+
+### SQLite-backed domain tests
+
+SQLite has no timezone storage: `DateTime(timezone=True)` still returns naive values there, so naive/aware
+comparisons would fail after reload even when PostgreSQL is correct. Do not leave that to per-site
+normalizers.
+
+**Chosen contract: one `UTCDateTime` `TypeDecorator`** (implemented in `app/utils/types.py`) wraps every
+timestamp column at B4:
+
+- `impl = DateTime(timezone=True)` keeps PostgreSQL DDL as `timestamptz` and Alembic's view of the type
+  unchanged; set `cache_ok = True`.
+- `process_bind_param`: convert with `as_utc()`; on SQLite strip `tzinfo` after conversion so the stored
+  text stays naive UTC and lexicographic range comparisons keep working; on PostgreSQL bind the aware value.
+- `process_result_value`: re-attach UTC on SQLite (`value.replace(tzinfo=UTC)`); on PostgreSQL return the
+  driver's aware value.
+
+Domain code, fixtures and tests therefore always see aware UTC datetimes on both backends. That is what
+lets the full SQLite suite stay green without dialect branches in services; `as_utc`/`as_naive_utc` remain
+only at true boundaries (legacy JSON strings, config values, raw-SQL fixtures). Raw SQL that bypasses the
+ORM is still responsible for its own UTC handling.
+
+Validate the decorator before converting columns: a round-trip test on both backends that binds an aware
+`+02:00` value, reads it back and asserts the instant, plus a range query against a 15-minute threshold.
+
+### Mixed-type traps
+
+1. Do not flip `utcnow()` to aware before the columns are `timestamptz`: an aware clock against a naive
+   DB value raises `TypeError`.
+2. `objective_periods()` returns naive midnights. At B4 it returns aware UTC midnights; persisting a naive
+   midnight into a `timestamptz` column would reinterpret it through the session timezone.
+3. `shift_trial_clocks()` uses `min(stored + paused, now)`; both operands must have the same awareness.
+4. `GameState.resume()` and `resource_manager_service` compare `resumed_at` / `last_tick_time` against
+   other stored values; one clock and one awareness per comparison.
+5. `event_id` and `recent_tick_ids` are identity, not human timestamps. A format change breaks SSE replay.
+6. `Notification.get_expired_batch` receives cutoffs computed by `cleanup_service`; after B4 the cutoffs
+   and `created_at` must both be aware.
+7. `WorldLocation.get_elapsed_reclears` rechecks eligibility in Python after the `FOR UPDATE`; keep the
+   SQL bound and the Python recheck on the same type.
+8. `Pregnancy.is_due` is the reference for a correct awareness-safe comparison; use the same shape rather
+   than reintroducing `replace(tzinfo=None)` at call sites.
+9. SQLite cannot prove production behavior on its own: `DateTime(timezone=True)` still returns naive
+   values there. Prove the ORM contract with the `UTCDateTime` round-trip test above, and prove the SQL
+   conversion with the PostgreSQL contract test under a non-UTC session timezone.
+10. `system/info` is the only production clock read that intentionally keeps an aware value
+    (`datetime.now(UTC)`); do not "normalize" it away.
+
+### B4 is one coordinated deployment
+
+These are internal implementation steps, not separately deployable increments. A 2.x release may ship
+compatible **readers** only. After that, B4 ships in one maintenance window with every writer stopped.
+
+1. **Pre-deploy (2.x, readers only):** land frontend `parseUtcMs` usage, JSON/SSE readers that accept bare
+   and offset values, and the API field serializers in read-only form. Do not change writers or the clock.
+2. **Quiesce:** enter `maintenance_mode=true`; stop API, worker, scheduler and any other writer; verify no
+   other Jobs, CLI or cron writers are active.
+3. **Back up:** take and verify the pre-migration snapshot while writers are stopped.
+4. **Schema + models, one change:** convert the 122 columns with `USING <col> AT TIME ZONE 'UTC'` and switch
+   model declarations to `UTCDateTime` in the same deployment.
+5. **Clock + consumers, same deployment:** flip `utcnow()` to aware UTC and update every C comparison and
+   Q bound to aware UTC. No mixed pair may run in production.
+6. **Writers/serializers:** apply the output decisions above; keep JSON history and identity strings
+   byte-stable.
+7. **Verify, then reopen:** check revision/schema/instants, a real tick, deadlines, SSE replay and
+   desktop/phone timestamps; then start the matching API and worker and reopen play.
+8. **Rollback:** keep the pinned v2 image and pre-migration snapshot. Rolling back after new progress
+   restores the snapshot and discards post-window activity — state that explicitly in the release notes.
+
+Acceptance gates for the B4 PR:
+
+- `alembic check` clean after the model type change; `test_enum_drift.py` green.
+- `tests/test_db/test_utc_migration_contract.py` passes under a non-UTC session timezone.
+- JSON readers accept legacy bare strings and explicit offsets; stored history is unchanged.
+- Tick `event_id` and `recent_tick_ids` formats are unchanged.
+- Full suite green on 3.13 and 3.14, plus the production-clone rehearsal evidence.
 
 ## Conversion contract
 

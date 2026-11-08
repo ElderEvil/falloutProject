@@ -78,6 +78,7 @@ from app.utils.exceptions import (
     VaultOperationException,
 )
 from app.utils.reward_delivery import persist_reward_change
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from app.services.map.bio_registration import _MapDwellerLike
@@ -414,7 +415,7 @@ class DwellerService:
         new_status = determine_status_for_room(room_obj.category, room_obj.name)
 
         apprenticeship_update = (
-            {"apprentice_stat": room_obj.ability, "apprentice_started_at": datetime.utcnow()}
+            {"apprentice_stat": room_obj.ability, "apprentice_started_at": utcnow()}
             if not dweller_obj.is_mature
             else {"apprentice_stat": None, "apprentice_started_at": None, "apprentice_stat_gains": {}}
         )

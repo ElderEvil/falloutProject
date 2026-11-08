@@ -11,6 +11,7 @@ from app.core.enums import WeaponSubtypeEnum, WeaponTypeEnum
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.models.dweller import Dweller
 from app.models.item import ItemBase
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from app.models.storage import Storage
@@ -72,4 +73,4 @@ def _reset_storage_trial_clock(_mapper: Mapper[Weapon], _connection: Connection,
     """Every ORM return to storage starts a fresh hour, including collected held loot."""
     state = inspect(weapon)
     if weapon.storage_id is not None and state is not None and state.attrs.storage_id.history.has_changes():
-        weapon.last_maintenance_trial_at = datetime.utcnow()
+        weapon.last_maintenance_trial_at = utcnow()

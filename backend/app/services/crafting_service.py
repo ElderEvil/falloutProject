@@ -12,7 +12,7 @@ to ``vault_theme`` and the theme becomes selectable on eligible rooms.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 from pydantic import UUID4
@@ -38,6 +38,7 @@ from app.utils.exceptions import (
 )
 from app.utils.item_factory import build_junk, build_outfit, build_weapon
 from app.utils.static_data import game_data_store
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -340,7 +341,7 @@ class CraftingService:
         workers = await crud.dweller.get_by_room(db_session, room.id)
         required_stat = self._required_stat(entry)
         ability_sum = sum(int(getattr(dweller, required_stat, 0) or 0) for dweller in workers)
-        now = datetime.utcnow()
+        now = utcnow()
         order = CraftingOrder(
             vault_id=vault_id,
             room_id=room.id,
@@ -408,7 +409,7 @@ class CraftingService:
                 )
 
         order.status = CraftingOrderStatus.CANCELLED
-        order.cancelled_at = datetime.utcnow()
+        order.cancelled_at = utcnow()
         order.progress = 0.0
         db_session.add(order)
         await db_session.commit()
@@ -422,7 +423,7 @@ class CraftingService:
         if not orders:
             return 0
 
-        now = datetime.utcnow()
+        now = utcnow()
         completed = 0
         for order in orders:
             total = (order.estimated_completion_at - order.started_at).total_seconds()

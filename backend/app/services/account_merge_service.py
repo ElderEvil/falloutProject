@@ -7,7 +7,6 @@ External refresh-token invalidation happens after commit.
 
 import logging
 from dataclasses import dataclass, replace
-from datetime import datetime
 from uuid import UUID
 
 from redis.asyncio import Redis
@@ -26,6 +25,7 @@ from app.utils.exceptions import (
     ResourceNotFoundException,
     ValidationException,
 )
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +150,7 @@ async def _build_preview(
     target_links = await crud.oauth_account.list_by_user(db_session, target.id)
     source_providers = {link.provider for link in source_links}
     target_providers = {link.provider for link in target_links}
-    month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_start = utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     moved_counts = {
         "vaults": source_vaults,

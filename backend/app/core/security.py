@@ -3,7 +3,7 @@ import hashlib
 import logging
 import math
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
@@ -12,6 +12,7 @@ from passlib.context import CryptContext
 from redis.asyncio import Redis
 
 from app.core.config import settings
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +27,9 @@ def create_access_token(
     expires_delta: timedelta | None = None,
 ) -> str:
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(
+        expire = utcnow() + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
         )
     to_encode = {"exp": expire, "sub": str(subject), "type": "access"}
@@ -93,9 +94,9 @@ async def create_refresh_token(
     expires_delta: timedelta | None = None,
 ) -> str:
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+        expire = utcnow() + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
 
     to_encode = {"exp": expire, "sub": str(subject), "type": "refresh"}
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
@@ -131,7 +132,7 @@ def create_email_verification_token(subject: str | Any) -> str:
     """
     Create a token for email verification (7 day expiry).
     """
-    expire = datetime.utcnow() + timedelta(days=7)
+    expire = utcnow() + timedelta(days=7)
     to_encode = {"exp": expire, "sub": str(subject), "type": "email_verification", "jti": uuid4().hex}
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
@@ -150,7 +151,7 @@ def create_password_reset_token(subject: str | Any) -> str:
     """
     Create a token for password reset (1 hour expiry).
     """
-    expire = datetime.utcnow() + timedelta(hours=1)
+    expire = utcnow() + timedelta(hours=1)
     to_encode = {"exp": expire, "sub": str(subject), "type": "password_reset"}
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 

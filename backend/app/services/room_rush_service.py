@@ -41,6 +41,7 @@ from app.utils.exceptions import (
     ValidationException,
 )
 from app.utils.reward_delivery import defer_reward_delivery
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +140,7 @@ class RoomRushService:
     async def quote(self, db_session: AsyncSession, room: Room, vault: Vault) -> RoomRushQuote:
         workers = await self._living_workers(db_session, room.id)
         active_incidents = await incident_crud.get_active_by_vault(db_session, vault.id)
-        now = datetime.utcnow()
+        now = utcnow()
         stacks = _effective_stacks(room, now)
         avg_ability, avg_luck = _averages(room, workers)
         fail_chance = _fail_chance(avg_ability, avg_luck, stacks)
@@ -178,7 +179,7 @@ class RoomRushService:
         if blocked_reason is not None:
             raise self._blocked_exception(blocked_reason)
 
-        now = datetime.utcnow()
+        now = utcnow()
         stacks_before = _effective_stacks(room, now)
         avg_ability, avg_luck = _averages(room, workers)
         fail_chance = _fail_chance(avg_ability, avg_luck, stacks_before)

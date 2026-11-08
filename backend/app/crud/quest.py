@@ -1,6 +1,5 @@
 from collections import defaultdict
 from collections.abc import Sequence
-from datetime import datetime
 from typing import Any
 
 from pydantic import UUID4
@@ -22,6 +21,7 @@ from app.schemas.quest import QuestCreate, QuestRead, QuestRequirementRead, Ques
 from app.utils.dweller_availability import DwellerAction, available_dweller_conditions, purposeful_action_error
 from app.utils.exceptions import ResourceNotFoundException
 from app.utils.quest_duration import STATE_QUEST_CATEGORIES, effective_quest_duration_minutes
+from app.utils.time import utcnow
 
 
 def _previous_quest_id(quest: Quest, requirements: list[QuestRequirement]) -> UUID4 | str | None:
@@ -249,7 +249,7 @@ class CRUDQuest(
     ) -> VaultQuestCompletionLink:
         """Lock and claim a quest link before its rewards settle (persistence only)."""
         link = await self._mark_as_complete(db_session=db_session, vault_id=vault_id, quest_entity_id=quest_id)
-        link.completed_at = datetime.utcnow()
+        link.completed_at = utcnow()
         return link
 
     async def get_started_state_objective_links(self, db_session: AsyncSession) -> list[VaultQuestCompletionLink]:

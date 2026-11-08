@@ -1,6 +1,5 @@
 import random
 from collections.abc import Sequence
-from datetime import datetime
 from typing import Any, TypeVar
 
 from pydantic import UUID4
@@ -23,6 +22,7 @@ from app.utils.exceptions import (
     ValidationException,
 )
 from app.utils.item_factory import build_junk
+from app.utils.time import utcnow
 
 ItemT = TypeVar("ItemT", Weapon, Outfit, Pet)
 
@@ -298,7 +298,7 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
     ) -> None:
         values: dict[str, Any] = {"dweller_id": None, "storage_id": storage_id}
         if item_model is Weapon:
-            values["last_maintenance_trial_at"] = datetime.utcnow()
+            values["last_maintenance_trial_at"] = utcnow()
         await db_session.execute(update(item_model).where(item_model.id == item_id).values(**values))
 
     @staticmethod

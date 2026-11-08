@@ -11,6 +11,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import DamageChannel, HazardTeam, IncidentFamily, IncidentObjective, IncidentStatus, IncidentType
 from app.models.base import BaseUUIDModel, TimeStampMixin
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from app.models.team import Team
@@ -103,7 +104,7 @@ class IncidentBase(SQLModel):
     type: IncidentType = Field(index=True)
     status: IncidentStatus = Field(default=IncidentStatus.ACTIVE, index=True)
     difficulty: int = Field(ge=1, le=10, description="Difficulty level of the incident")
-    start_time: datetime = Field(default_factory=datetime.utcnow)
+    start_time: datetime = Field(default_factory=utcnow)
     end_time: datetime | None = Field(default=None)
     duration: int = Field(default=60, ge=10, description="Duration in seconds before auto-spreading")
 
@@ -147,7 +148,7 @@ class Incident(BaseUUIDModel, IncidentBase, TimeStampMixin, table=True):
 
     def elapsed_time(self) -> int:
         """Calculate elapsed time since incident started."""
-        return int((datetime.utcnow() - self.start_time).total_seconds())
+        return int((utcnow() - self.start_time).total_seconds())
 
     def should_spread(self) -> bool:
         """Check if incident should spread to adjacent rooms."""
@@ -156,7 +157,7 @@ class Incident(BaseUUIDModel, IncidentBase, TimeStampMixin, table=True):
     def resolve(self, success: bool = True) -> None:
         """Resolve the incident."""
         self.status = IncidentStatus.RESOLVED if success else IncidentStatus.FAILED
-        self.end_time = datetime.utcnow()
+        self.end_time = utcnow()
 
     def spread_to_room(self, room_id: str) -> None:
         """Mark incident as spreading to a new room."""

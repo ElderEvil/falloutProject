@@ -57,6 +57,7 @@ from app.services.leveling_service import leveling_service
 from app.services.notification_service import NotificationService
 from app.utils.dweller_availability import DwellerAction, purposeful_action_error
 from app.utils.exceptions import ValidationException
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -399,7 +400,7 @@ class ArenaService:
         started = state.fight_started_at is not None
         countdown_remaining = 0
         if started and not match_done:
-            elapsed = (datetime.utcnow() - state.fight_started_at).total_seconds()
+            elapsed = (utcnow() - state.fight_started_at).total_seconds()
             countdown_remaining = max(0, int(game_config.game_loop.arena_countdown_seconds - elapsed))
 
         events = [
@@ -615,7 +616,7 @@ class ArenaService:
 
         state = await arena_state_crud.get_or_create(db_session, room.id)
         state.next_attack_team = "A"
-        state.fight_started_at = datetime.utcnow()
+        state.fight_started_at = utcnow()
         db_session.add(state)
         await crud_dweller.set_arena_status(
             db_session, room.id, DwellerStatusEnum.FIGHTING, ids=self._fighter_ids(state)
@@ -635,7 +636,7 @@ class ArenaService:
         if state is None or state.fight_started_at is None or state.last_fight_at is not None:
             raise ValidationException(detail="Skills require an active match")
         self._validate_mode_tier(room, state.mode or ArenaMode.DUEL)
-        elapsed = (datetime.utcnow() - state.fight_started_at).total_seconds()
+        elapsed = (utcnow() - state.fight_started_at).total_seconds()
         if elapsed < game_config.game_loop.arena_countdown_seconds:
             raise ValidationException(detail="Wait for the countdown to finish")
         teams = await self._teams_from_state(db_session, room, state)
@@ -715,7 +716,7 @@ class ArenaService:
         seconds_passed: int,
     ) -> dict:
         rounds = []
-        now = datetime.utcnow()
+        now = utcnow()
         for room in rooms:
             state = await arena_state_crud.get_for_update(db_session, room.id) or ArenaState(room_id=room.id)
             if state.last_fight_at is not None or state.fight_started_at is None:
@@ -841,7 +842,7 @@ class ArenaService:
         loser_label = labels[0 if loser_team is team_a else 1] if labels else loser.short_name
         state.skill_charge = None
         state.queued_skill_ids = None
-        state.last_fight_at = datetime.utcnow()
+        state.last_fight_at = utcnow()
         state.knocked_out_ids = None
         await self._release_fighters(db_session, state)
         db_session.add(state)

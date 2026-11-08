@@ -6,7 +6,6 @@ Template entries render first, later life events follow chronologically.
 """
 
 import logging
-from datetime import datetime
 from typing import Any, Protocol
 
 from pydantic import UUID4
@@ -16,6 +15,7 @@ from app import crud
 from app.models.dweller import BIO_MAX_CHARS, Dweller
 from app.schemas.dweller import DwellerUpdate
 from app.utils.exceptions import ContentNoChangeException, ValidationException
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ def make_entry(source: str, text: str, ref: dict[str, Any] | None = None) -> dic
         "source": source,
         "text": text,
         "ref": ref or {},
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": utcnow().isoformat(),
     }
 
 

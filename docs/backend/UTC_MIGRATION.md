@@ -206,10 +206,10 @@ timestamp column at B4:
 - `process_result_value`: re-attach UTC on SQLite (`value.replace(tzinfo=UTC)`); on PostgreSQL return the
   driver's aware value.
 
-Domain code, fixtures and tests therefore always see aware UTC datetimes on both backends. That is what
-lets the full SQLite suite stay green without dialect branches in services; `as_utc`/`as_naive_utc` remain
-only at true boundaries (legacy JSON strings, config values, raw-SQL fixtures). Raw SQL that bypasses the
-ORM is still responsible for its own UTC handling.
+Database results are aware UTC on both backends, but assigned in-memory values are **not** normalized by
+the decorator. At B4, normalize legacy naive UTC values at assignment or comparison boundaries. Test model
+objects before flush, after flush and after reload. Keep `as_utc`/`as_naive_utc` where those boundaries
+require them. Raw SQL that bypasses the ORM is still responsible for its own UTC handling.
 
 Validate the decorator before converting columns: a round-trip test on both backends that binds an aware
 `+02:00` value, reads it back and asserts the instant, plus a range query against a 15-minute threshold.
@@ -241,22 +241,31 @@ Validate the decorator before converting columns: a round-trip test on both back
 These are internal implementation steps, not separately deployable increments. A 2.x release may ship
 compatible **readers** only. After that, B4 ships in one maintenance window with every writer stopped.
 
+**Prerequisite — public traffic gate.** `deploy-hetzner.yml` currently scales only the backend and worker
+to zero during `maintenance_mode`; the frontend and ingress keep serving, and the workflow's final step
+restores the backend replicas before anyone inspects the result. That is not a verification window. Add an
+explicit gate that blocks public traffic for the whole cutover (scale the frontend to zero and/or deny the
+ingress route) and expose an operator-only path (port-forward, internal service or VPN) for the checks.
+
 1. **Pre-deploy (2.x, readers only):** land frontend `parseUtcMs` usage, JSON/SSE readers that accept bare
    and offset values, and the API field serializers in read-only form. Do not change writers or the clock.
-2. **Quiesce:** enter `maintenance_mode=true`; stop API, worker, scheduler and any other writer; verify no
-   other Jobs, CLI or cron writers are active.
-3. **Back up:** take and verify the pre-migration snapshot while writers are stopped.
-4. **Schema + models, one change:** convert the 122 columns with `USING <col> AT TIME ZONE 'UTC'` and switch
+2. **Close public traffic:** close the frontend/ingress gate and confirm no public request can reach the
+   API. Keep it closed until step 9. Do not rely on `maintenance_mode` alone.
+3. **Quiesce:** run the gated maintenance flow (`maintenance_mode=true`) or stop API, worker, scheduler and
+   any other writer manually; verify no other Jobs, CLI or cron writers are active.
+4. **Back up:** take and verify the pre-migration snapshot while writers are stopped.
+5. **Schema + models, one change:** convert the 122 columns with `USING <col> AT TIME ZONE 'UTC'` and switch
    model declarations to `UTCDateTime` in the same deployment.
-5. **Clock + consumers, same deployment:** flip `utcnow()` to aware UTC and update every C comparison and
+6. **Clock + consumers, same deployment:** flip `utcnow()` to aware UTC and update every C comparison and
    Q bound to aware UTC. No mixed pair may run in production.
-6. **Writers/serializers:** apply the output decisions above; keep JSON history and identity strings
+7. **Writers/serializers:** apply the output decisions above; keep JSON history and identity strings
    byte-stable.
-7. **Start under maintenance:** start the matching API and worker with play still closed, then verify
-   revision/schema/instants, a real tick, deadlines, SSE replay and desktop/phone timestamps.
-8. **Reopen:** open play only after those live checks pass.
-9. **Rollback:** keep the pinned v2 image and pre-migration snapshot. Rolling back after new progress
-   restores the snapshot and discards post-window activity — state that explicitly in the release notes.
+8. **Start under maintenance and verify:** start the matching API and worker behind the closed gate; use
+   the operator-only path to check revision/schema/instants, a real tick, deadlines, SSE replay and
+   desktop/phone timestamps.
+9. **Open traffic:** restore the frontend/ingress and reopen play only after those checks pass.
+10. **Rollback:** keep the pinned v2 image and pre-migration snapshot. Rolling back after new progress
+    restores the snapshot and discards post-window activity — state that explicitly in the release notes.
 
 Acceptance gates for the B4 PR:
 
@@ -264,6 +273,8 @@ Acceptance gates for the B4 PR:
 - `tests/test_db/test_utc_migration_contract.py` passes under a non-UTC session timezone.
 - JSON readers accept legacy bare strings and explicit offsets; stored history is unchanged.
 - Tick `event_id` and `recent_tick_ids` formats are unchanged.
+- `UTCDateTime` covers aware/naive values before flush, after flush and after reload.
+- The traffic gate is rehearsed on the clone: public traffic stays blocked until the live checks pass.
 - Full suite green on 3.13 and 3.14, plus the production-clone rehearsal evidence.
 
 ## Conversion contract

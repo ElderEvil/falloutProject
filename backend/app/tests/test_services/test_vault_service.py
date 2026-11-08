@@ -753,6 +753,8 @@ class TestCreateBoostedLegendaryDwellers:
 @pytest.mark.asyncio
 async def test_transfer_allows_radaway_for_gen_3_synth(async_session, vault: Vault, dweller: Dweller) -> None:
     dweller.visual_attributes = {"race": "synth", "state_of_being": "gen_3"}
+    # dweller_data randomizes radaway up to the 15 cap; start below it so the transfer is deterministic.
+    dweller.radaway = 0
     before = dweller.radaway
     async_session.add_all([dweller, Storage(vault_id=vault.id, stimpack=5, radaway=5)])
     await async_session.commit()

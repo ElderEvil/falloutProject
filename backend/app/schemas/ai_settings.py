@@ -1,13 +1,14 @@
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
-from pydantic import UUID4, BaseModel, Field
+from pydantic import BaseModel, Field
 
 ALLOWED_AI_PROVIDERS = {"openai", "ollama", "lmstudio"}
 
 
 class AISettingsProfile(BaseModel):
-    id: UUID4
+    id: UUID
     provider: str | None = None
     model: str | None = None
     base_url: str | None = None

@@ -1,8 +1,8 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import UUID4
 from sqlalchemy import event, inspect
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
@@ -156,12 +156,12 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
         ),
     )
 
-    vault_id: UUID4 | None = Field(default=None, foreign_key="vault.id", ondelete="CASCADE", index=True)
+    vault_id: UUID | None = Field(default=None, foreign_key="vault.id", ondelete="CASCADE", index=True)
     vault: "Vault" = Relationship(
         back_populates="dwellers", sa_relationship_kwargs={"foreign_keys": "Dweller.vault_id"}
     )
 
-    room_id: UUID4 | None = Field(default=None, foreign_key="room.id", nullable=True, ondelete="SET NULL", index=True)
+    room_id: UUID | None = Field(default=None, foreign_key="room.id", nullable=True, ondelete="SET NULL", index=True)
     room: "Room" = Relationship(
         back_populates="dwellers",
         sa_relationship_kwargs={"foreign_keys": "Dweller.room_id"},
@@ -184,7 +184,7 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
     availability: AvailabilityEnum | None = Field(default=None, index=True)
 
     # Provenance stays separate from the active vault_id (the single membership authority).
-    previous_vault_id: UUID4 | None = Field(
+    previous_vault_id: UUID | None = Field(
         default=None,
         sa_column=sa.Column(sa.UUID, sa.ForeignKey("vault.id", ondelete="SET NULL"), nullable=True),
     )
@@ -203,15 +203,15 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
         self.is_traded = False
 
     # Relationships and Family
-    partner_id: UUID4 | None = Field(
+    partner_id: UUID | None = Field(
         default=None,
         sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="SET NULL"), nullable=True),
     )
-    parent_1_id: UUID4 | None = Field(
+    parent_1_id: UUID | None = Field(
         default=None,
         sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="SET NULL"), nullable=True),
     )
-    parent_2_id: UUID4 | None = Field(
+    parent_2_id: UUID | None = Field(
         default=None,
         sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="SET NULL"), nullable=True),
     )

@@ -1,6 +1,7 @@
 from datetime import datetime
+from uuid import UUID
 
-from pydantic import UUID4, Field, model_validator
+from pydantic import Field, model_validator
 
 from app.models.objective import ObjectiveBase
 from app.utils.partial import optional
@@ -18,7 +19,7 @@ class ObjectiveCreate(ObjectiveBase):
 
 class ObjectiveRead(ObjectiveBase):
     template_key: str | None = Field(default=None, max_length=160)
-    id: UUID4
+    id: UUID
     resets_at: datetime | None = None
     next_stage_challenge: str | None = None
     progress: int

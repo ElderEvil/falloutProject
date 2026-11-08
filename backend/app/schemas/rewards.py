@@ -7,8 +7,9 @@ responses, notifications, and frontend presentation.
 """
 
 from typing import Annotated, Literal
+from uuid import UUID
 
-from pydantic import UUID4, Field, TypeAdapter
+from pydantic import Field, TypeAdapter
 from sqlmodel import SQLModel
 
 from app.core.enums import RarityEnum
@@ -90,7 +91,7 @@ class LunchboxOpened(SQLModel):
 
 
 class LunchboxOpenRequest(SQLModel):
-    item_id: UUID4
+    item_id: UUID
 
 
 class PetCarrierOpened(SQLModel):
@@ -101,7 +102,7 @@ class PetCarrierOpened(SQLModel):
 
 
 class PetCarrierOpenRequest(SQLModel):
-    item_id: UUID4
+    item_id: UUID
 
 
 def format_reward_summary(granted: GrantedReward | list[GrantedReward]) -> str:

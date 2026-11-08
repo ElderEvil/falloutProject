@@ -2,12 +2,13 @@
 
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
-from pydantic import UUID4, BaseModel
+from pydantic import BaseModel
 
 
 class BroadcastRead(BaseModel):
-    id: UUID4
+    id: UUID
     title: str
     script: str
     audio_url: str | None

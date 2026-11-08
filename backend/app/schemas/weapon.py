@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-
-from pydantic import UUID4
+from uuid import UUID
 
 from app.core.enums import RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
 from app.models.weapon import WeaponBase
@@ -24,20 +23,20 @@ class LadderEntry:
 
 class WeaponCreate(WeaponBase):
     # Optional fields - can be omitted, but if provided must be valid UUID
-    storage_id: UUID4 | None = None
+    storage_id: UUID | None = None
 
 
 class WeaponRead(WeaponBase):
-    id: UUID4
+    id: UUID
     created_at: datetime
     updated_at: datetime
-    dweller_id: UUID4 | None = None
-    storage_id: UUID4 | None = None
+    dweller_id: UUID | None = None
+    storage_id: UUID | None = None
     # Read-time workshop summary; weapons carry no flavor-text column.
     description: str | None = None
 
 
 @optional()
 class WeaponUpdate(WeaponBase):
-    dweller_id: UUID4 | None = None
-    storage_id: UUID4 | None = None
+    dweller_id: UUID | None = None
+    storage_id: UUID | None = None

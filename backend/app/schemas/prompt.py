@@ -1,4 +1,4 @@
-from pydantic import UUID4
+from uuid import UUID
 
 from app.models.prompt import PromptBase
 from app.utils.partial import optional
@@ -9,7 +9,7 @@ class PromptCreate(PromptBase):
 
 
 class PromptRead(PromptBase):
-    id: UUID4
+    id: UUID
 
 
 @optional()

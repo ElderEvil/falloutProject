@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Any
+from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import UUID4
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
@@ -10,8 +10,8 @@ from app.utils.time import utcnow
 
 
 class VaultQuestCompletionLink(SQLModel, table=True):
-    vault_id: UUID4 = Field(foreign_key="vault.id", primary_key=True)
-    quest_id: UUID4 = Field(foreign_key="quest.id", primary_key=True)
+    vault_id: UUID = Field(foreign_key="vault.id", primary_key=True)
+    quest_id: UUID = Field(foreign_key="quest.id", primary_key=True)
     is_completed: bool = Field(default=False)
     is_reward_ready: bool = Field(default=False)
     is_visible: bool = Field(default=False)

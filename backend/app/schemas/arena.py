@@ -2,8 +2,9 @@
 
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
-from pydantic import UUID4, BaseModel, Field
+from pydantic import BaseModel, Field
 
 from app.core.enums import ArenaMode
 from app.schemas.combat import CombatAction, CombatPet, CombatSkillIcon
@@ -13,10 +14,10 @@ class ArenaFightersRequest(BaseModel):
     """Fighter slot selection payload."""
 
     mode: ArenaMode = ArenaMode.DUEL
-    fighter_a_id: UUID4 | None = None
-    fighter_b_id: UUID4 | None = None
-    fighter_c_id: UUID4 | None = None
-    fighter_d_id: UUID4 | None = None
+    fighter_a_id: UUID | None = None
+    fighter_b_id: UUID | None = None
+    fighter_c_id: UUID | None = None
+    fighter_d_id: UUID | None = None
     opponent_keys: list[str] = Field(default_factory=list)
     team_a_bot_key: str | None = None
     team_b_bot_key: str | None = None
@@ -45,7 +46,7 @@ class ArenaActiveSkill(BaseModel):
 class ArenaSkillRequest(BaseModel):
     """Select a participating dweller to use their active skill."""
 
-    fighter_id: UUID4
+    fighter_id: UUID
 
 
 class ArenaSkillQueued(BaseModel):

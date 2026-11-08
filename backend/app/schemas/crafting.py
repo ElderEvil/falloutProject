@@ -2,8 +2,9 @@
 
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
-from pydantic import UUID4, Field
+from pydantic import Field
 from sqlmodel import SQLModel
 
 from app.core.enums import CraftingOrderStatus, RarityEnum
@@ -55,7 +56,7 @@ class CraftResultRead(SQLModel):
     """
 
     item_type: str
-    item_id: UUID4 | None = None
+    item_id: UUID | None = None
     name: str
     rarity: RarityEnum
     junk_spent: int
@@ -71,8 +72,8 @@ class CraftingRecipesRead(SQLModel):
 class CraftingOrderCreate(SQLModel):
     """Internal create shape for a queued workshop order."""
 
-    vault_id: UUID4
-    room_id: UUID4
+    vault_id: UUID
+    room_id: UUID
     item_name: str = Field(min_length=3, max_length=64)
     item_type: str = Field(max_length=16)
     rarity: RarityEnum
@@ -95,8 +96,8 @@ class CraftingOrderUpdate(SQLModel):
 class CraftingOrderRead(SQLModel):
     """One queued or finished workshop order."""
 
-    id: UUID4
-    room_id: UUID4
+    id: UUID
+    room_id: UUID
     item_name: str
     item_type: str
     rarity: RarityEnum

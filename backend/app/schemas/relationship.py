@@ -1,8 +1,8 @@
 """Pydantic schemas for relationship management."""
 
 from typing import Literal
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel import SQLModel
 from sqlmodel.main import SQLModelConfig
 
@@ -13,8 +13,8 @@ from app.models.relationship import RelationshipBase
 class RelationshipCreate(SQLModel):
     """Schema for creating a new relationship."""
 
-    dweller_1_id: UUID4
-    dweller_2_id: UUID4
+    dweller_1_id: UUID
+    dweller_2_id: UUID
 
 
 class RelationshipUpdate(SQLModel):
@@ -29,7 +29,7 @@ class RelationshipUpdate(SQLModel):
 class RelationshipRead(RelationshipBase):
     """Schema for reading a relationship."""
 
-    id: UUID4
+    id: UUID
 
     model_config = SQLModelConfig(from_attributes=True, use_enum_values=True)
 
@@ -50,8 +50,8 @@ class VaultRelationshipRead(RelationshipRead):
 class CompatibilityScore(SQLModel):
     """Compatibility score between two dwellers."""
 
-    dweller_1_id: UUID4
-    dweller_2_id: UUID4
+    dweller_1_id: UUID
+    dweller_2_id: UUID
     score: float  # 0.0 - 1.0
     special_score: float
     happiness_score: float

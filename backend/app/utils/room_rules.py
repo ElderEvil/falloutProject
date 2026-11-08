@@ -13,7 +13,8 @@ Raised exceptions match the pre-existing contract: build violations raise
 ``ValueError`` (``room_service.destroy_room`` maps it to 400).
 """
 
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlalchemy import and_
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -32,7 +33,7 @@ def is_elevator(room_name: str | None) -> bool:
 
 async def validate_build_placement(
     db_session: AsyncSession,
-    vault_id: UUID4,
+    vault_id: UUID,
     room_name: str,
     coordinate_x: int,
     coordinate_y: int,
@@ -94,7 +95,7 @@ def _room_span(room: Room) -> tuple[int, int]:
 
 async def _validate_footprint(
     db_session: AsyncSession,
-    vault_id: UUID4,
+    vault_id: UUID,
     room_name: str,
     coordinate_x: int,
     coordinate_y: int,

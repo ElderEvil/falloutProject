@@ -1,6 +1,8 @@
 """Schemas for the Trading Post (PoC: trading soft-deleted dwellers)."""
 
-from pydantic import UUID4, BaseModel
+from uuid import UUID
+
+from pydantic import BaseModel
 
 from app.schemas.dweller import DwellerReadLess
 
@@ -25,6 +27,6 @@ class TradeMarketResponse(BaseModel):
 class TradeResultResponse(BaseModel):
     """Result of a sell/buy trade."""
 
-    dweller_id: UUID4
+    dweller_id: UUID
     price: int
     bottle_caps: int

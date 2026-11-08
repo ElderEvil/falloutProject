@@ -1,5 +1,6 @@
+from uuid import UUID
+
 import sqlalchemy as sa
-from pydantic import UUID4
 from sqlmodel import Field, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
@@ -9,7 +10,7 @@ class VaultSlotBase(SQLModel):
     """A vault's persisted map placement."""
 
     slot_index: int = Field(ge=0)
-    vault_id: UUID4 = Field(foreign_key="vault.id", ondelete="CASCADE")
+    vault_id: UUID = Field(foreign_key="vault.id", ondelete="CASCADE")
 
 
 class VaultSlot(BaseUUIDModel, VaultSlotBase, TimeStampMixin, table=True):

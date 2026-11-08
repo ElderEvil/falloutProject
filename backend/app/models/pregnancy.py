@@ -1,8 +1,8 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import PregnancyStatusEnum
@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 
 
 class PregnancyBase(SQLModel):
-    mother_id: UUID4 = Field(sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE"), index=True))
-    father_id: UUID4 = Field(sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE"), index=True))
+    mother_id: UUID = Field(sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE"), index=True))
+    father_id: UUID = Field(sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE"), index=True))
     conceived_at: datetime = Field(default_factory=utcnow)
     due_at: datetime = Field()
     status: PregnancyStatusEnum = Field(default=PregnancyStatusEnum.PREGNANT)

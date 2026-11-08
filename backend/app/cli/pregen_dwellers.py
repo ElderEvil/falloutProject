@@ -15,9 +15,9 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Coroutine
 from typing import TYPE_CHECKING, Annotated, Any
+from uuid import UUID
 
 import typer
-from pydantic import UUID4
 
 from app.crud.world_location import world_location
 from app.services.pregen_service import pregen_service
@@ -34,7 +34,7 @@ SessionRunner = Callable[["AsyncSession"], Awaitable[list["PregenResult"]]]
 
 
 async def _run_pregen(
-    vault_id: UUID4,
+    vault_id: UUID,
     run: SessionRunner,
     headline: str,
     empty_hint: str | None = None,
@@ -77,7 +77,7 @@ def _execute(command: str, run: Callable[[], Coroutine[Any, Any, None]]) -> None
 
 
 def pregen_dwellers(
-    vault_id: Annotated[UUID4, typer.Option("--vault-id", help="Target vault UUID")],
+    vault_id: Annotated[UUID, typer.Option("--vault-id", help="Target vault UUID")],
     count: Annotated[int, typer.Option("--count", "-c", min=1, max=50, help="Dwellers to generate (1-50)")] = 5,
     seed: Annotated[int | None, typer.Option("--seed", "-s", help="Deterministic RNG seed")] = None,
     origin: Annotated[str | None, typer.Option("--origin", "-o", help="Override origin for all dwellers")] = None,
@@ -109,7 +109,7 @@ def pregen_dwellers(
 
 
 def dweller_bios(
-    vault_id: Annotated[UUID4, typer.Option("--vault-id", help="Target vault UUID")],
+    vault_id: Annotated[UUID, typer.Option("--vault-id", help="Target vault UUID")],
     count: Annotated[
         int,
         typer.Option("--count", "-c", min=0, help="Dwellers to fill (0 = all eligible)"),

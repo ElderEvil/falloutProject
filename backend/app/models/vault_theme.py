@@ -7,8 +7,8 @@ with every theme already crafted.
 """
 
 from datetime import datetime
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel import Field, SQLModel
 
 
@@ -17,7 +17,7 @@ class VaultTheme(SQLModel, table=True):
 
     __tablename__ = "vault_theme"
 
-    vault_id: UUID4 = Field(foreign_key="vault.id", primary_key=True, ondelete="CASCADE")
+    vault_id: UUID = Field(foreign_key="vault.id", primary_key=True, ondelete="CASCADE")
     style: str = Field(primary_key=True, max_length=16)
     crafted_at: datetime | None = Field(default=None)
     source: str = Field(default="craft", max_length=16)

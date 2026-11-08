@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional
+from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import UUID4
 from sqlmodel import Field, Relationship
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
@@ -26,10 +26,10 @@ class Pet(BaseUUIDModel, ItemBase, TimeStampMixin, table=True):
         ),
     )
 
-    dweller_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="dweller.id", index=True)
+    dweller_id: UUID | None = Field(default=None, nullable=True, foreign_key="dweller.id", index=True)
     dweller: Optional["Dweller"] = Relationship(back_populates="pet")
-    storage_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="storage.id", index=True)
-    legacy_item_id: UUID4 | None = Field(default=None, nullable=True, index=True, unique=True)
+    storage_id: UUID | None = Field(default=None, nullable=True, foreign_key="storage.id", index=True)
+    legacy_item_id: UUID | None = Field(default=None, nullable=True, index=True, unique=True)
 
     def __str__(self):
         return f"{self.name}"

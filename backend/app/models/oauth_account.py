@@ -1,4 +1,5 @@
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field
 
@@ -20,4 +21,4 @@ class OAuthAccount(BaseUUIDModel, TimeStampMixin, table=True):
 
     provider: str = Field(max_length=16, index=True)
     provider_user_id: str = Field(max_length=64, index=True)
-    user_id: UUID4 = Field(foreign_key="user.id", ondelete="CASCADE", index=True)
+    user_id: UUID = Field(foreign_key="user.id", ondelete="CASCADE", index=True)

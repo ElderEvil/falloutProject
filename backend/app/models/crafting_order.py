@@ -2,9 +2,9 @@
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import UUID4
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -18,8 +18,8 @@ if TYPE_CHECKING:
 
 
 class CraftingOrderBase(SQLModel):
-    vault_id: UUID4 = Field(foreign_key="vault.id", index=True)
-    room_id: UUID4 = Field(foreign_key="room.id", index=True)
+    vault_id: UUID = Field(foreign_key="vault.id", index=True)
+    room_id: UUID = Field(foreign_key="room.id", index=True)
 
     item_name: str = Field(min_length=3, max_length=64)
     # Catalog category ("weapon" | "outfit"); validated by the service so the

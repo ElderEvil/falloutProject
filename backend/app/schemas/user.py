@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
-from pydantic import UUID4, BaseModel, Field
+from pydantic import BaseModel, Field
 
 from app.models.user import UserBase
 from app.utils.partial import optional
@@ -36,7 +37,7 @@ class UserCreate(UserBase):
 
 
 class UserRead(UserBase):
-    id: UUID4
+    id: UUID
     created_at: datetime
     updated_at: datetime
     email_verified: bool

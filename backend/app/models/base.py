@@ -1,7 +1,6 @@
 from datetime import datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from pydantic import UUID4
 from sqlmodel import Field, SQLModel
 
 from app.utils.time import utcnow
@@ -21,7 +20,7 @@ class TimeStampMixin(SQLModel):
 
 
 class BaseUUIDModel(SQLModel):
-    id: UUID4 = Field(
+    id: UUID = Field(
         default_factory=uuid4,
         primary_key=True,
         index=True,

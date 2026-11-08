@@ -2,8 +2,9 @@
 
 from dataclasses import dataclass
 from typing import Literal
+from uuid import UUID
 
-from pydantic import UUID4, BaseModel, Field
+from pydantic import BaseModel, Field
 from pydantic_ai.exceptions import ModelRetry
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -63,14 +64,14 @@ class DwellerChatOutput(BaseModel):
     sentiment_score: int = Field(ge=-5, le=5, description="Conversation sentiment from -5 to 5")
     reason_text: str = Field(max_length=200, description="Brief sentiment explanation")
     action_type: ACTION_TYPES = Field(description="Suggested action type")
-    action_room_id: UUID4 | None = Field(None, description="Room ID for an assignment")
+    action_room_id: UUID | None = Field(None, description="Room ID for an assignment")
     action_room_name: str | None = Field(None, description="Room name for an assignment")
     action_stat: SPECIALEnum | None = Field(None, description="Stat for training")
     action_reason: str | None = Field(None, max_length=200, description="Suggested action rationale")
     action_duration_hours: int | None = Field(None, ge=1, le=24, description="Exploration duration")
     action_stimpaks: int | None = Field(None, ge=0, le=25, description="Exploration stimpaks")
     action_radaways: int | None = Field(None, ge=0, le=25, description="Exploration radaways")
-    action_exploration_id: UUID4 | None = Field(None, description="Exploration ID for recall")
+    action_exploration_id: UUID | None = Field(None, description="Exploration ID for recall")
     action_bio_text: str | None = Field(
         None,
         max_length=240,
@@ -82,7 +83,7 @@ class DwellerChatOutput(BaseModel):
 class DwellerChatDeps:
     db_session: AsyncSession
     dweller: DwellerReadFull
-    vault_id: UUID4
+    vault_id: UUID
 
 
 class RoomInfo(BaseModel):

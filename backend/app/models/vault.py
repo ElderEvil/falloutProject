@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import Column, String
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -65,7 +65,7 @@ class VaultBase(SQLModel):
 
 
 class Vault(BaseUUIDModel, VaultBase, TimeStampMixin, SoftDeleteMixin, table=True):
-    user_id: UUID4 = Field(default=None, foreign_key="user.id", index=True)
+    user_id: UUID = Field(default=None, foreign_key="user.id", index=True)
     last_exit_request_at: datetime | None = Field(default=None)
     arena_morale_awarded_at: datetime | None = Field(default=None)
     user: "User" = Relationship(back_populates="vaults")

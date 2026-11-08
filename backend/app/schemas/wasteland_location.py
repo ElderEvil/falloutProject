@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel import SQLModel
 
 from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
@@ -29,7 +29,7 @@ class LocationClearStateRead(SQLModel):
 class WastelandLocationRead(SQLModel):
     """All row fields for a WastelandLocation, serialized for the API."""
 
-    id: UUID4
+    id: UUID
     name: str
     normalized_name: str
     type: LocationTypeEnum
@@ -37,8 +37,8 @@ class WastelandLocationRead(SQLModel):
     coord_y: float
     description: str | None
     group_key: str | None = None
-    vault_id: UUID4
-    exploration_id: UUID4 | None
+    vault_id: UUID
+    exploration_id: UUID | None
     created_at: datetime | None
     clear_state: LocationClearStateRead | None = None
 
@@ -60,7 +60,7 @@ class PlaceGroupRead(SQLModel):
 class DwellerRef(SQLModel):
     """Lightweight dweller reference for a location's dweller list."""
 
-    dweller_id: UUID4
+    dweller_id: UUID
     first_name: str
     last_name: str | None
     relation: DwellerLocationRelationEnum
@@ -87,7 +87,7 @@ class VaultMarkerRead(SQLModel):
 class PlayerVaultMarkerRead(SQLModel):
     """A real player vault placed on the shared atlas, discoverable by other users."""
 
-    vault_id: UUID4
+    vault_id: UUID
     number: int
     coord_x: float
     coord_y: float
@@ -101,7 +101,7 @@ class DiscoveryRoutePoint(SQLModel):
     runs contribute their movement trail, whose points have no single location.
     """
 
-    location_id: UUID4 | None = None
+    location_id: UUID | None = None
     coord_x: float
     coord_y: float
     timestamp: str
@@ -114,7 +114,7 @@ class DiscoveryRouteRead(SQLModel):
     corridor is derived from every route), but only active ones draw a trail.
     """
 
-    exploration_id: UUID4
+    exploration_id: UUID
     points: list[DiscoveryRoutePoint]
     is_active: bool
 
@@ -138,7 +138,7 @@ class ExpeditionSiteMarkerRead(SQLModel):
     cooldown_remaining_seconds: int
     block_reason: Literal["open", "cooldown"] | None = None
     # Journey identity for temporary encounter offers; None for catalog/legacy markers.
-    exploration_id: UUID4 | None = None
+    exploration_id: UUID | None = None
 
 
 class VaultMapResponse(SQLModel):

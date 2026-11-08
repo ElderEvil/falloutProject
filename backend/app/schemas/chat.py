@@ -1,8 +1,9 @@
 """Pydantic schemas for dweller chat requests and responses."""
 
 from typing import Annotated, Literal
+from uuid import UUID
 
-from pydantic import UUID4, BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic_ai import BoolCriteria
 
 from app.core.enums import SPECIALEnum
@@ -22,7 +23,7 @@ class AssignToRoomAction(BaseModel):
     """Suggestion to assign dweller to a specific room."""
 
     action_type: Literal["assign_to_room"] = "assign_to_room"
-    room_id: UUID4 = Field(..., description="ID of the room to assign the dweller to")
+    room_id: UUID = Field(..., description="ID of the room to assign the dweller to")
     room_name: str = Field(..., max_length=100, description="Name of the room for display")
     reason: str = Field(..., max_length=200, description="Why this room is suggested")
 
@@ -49,7 +50,7 @@ class RecallExplorationAction(BaseModel):
     """Suggestion to recall dweller from wasteland exploration."""
 
     action_type: Literal["recall_exploration"] = "recall_exploration"
-    exploration_id: UUID4 = Field(..., description="ID of the active exploration to recall from")
+    exploration_id: UUID = Field(..., description="ID of the active exploration to recall from")
     reason: str = Field(..., max_length=200, description="Why recall is suggested")
 
 
@@ -127,7 +128,7 @@ ActionSuggestion = Annotated[
 class UnlockedPlace(BaseModel):
     """A map location newly revealed by a conversation."""
 
-    location_id: UUID4 = Field(..., description="ID used to open the location on the vault map")
+    location_id: UUID = Field(..., description="ID used to open the location on the vault map")
     name: str = Field(..., description="Display name of the revealed location")
 
 
@@ -215,7 +216,7 @@ class DwellerChatResponse(BaseModel):
     """
 
     response: str = Field(..., description="The dweller's chat response text")
-    dweller_message_id: UUID4 = Field(..., description="ID of the dweller's chat message in database")
+    dweller_message_id: UUID = Field(..., description="ID of the dweller's chat message in database")
     happiness_impact: HappinessImpact | None = Field(
         None,
         description="Happiness impact from this interaction (None if not analyzed)",
@@ -246,7 +247,7 @@ class ChatStreamDone(BaseModel):
     """The persisted result of a completed streamed dweller response."""
 
     type: Literal["done"] = "done"
-    dweller_message_id: UUID4
+    dweller_message_id: UUID
     response_text: str
     happiness_impact: HappinessImpact | None = None
     action_suggestion: ActionSuggestion | None = None
@@ -277,7 +278,7 @@ class DwellerVoiceChatResponse(BaseModel):
     user_audio_url: str | None = Field(None, description="URL to stored user audio")
     dweller_response: str = Field(..., description="The dweller's text response")
     dweller_audio_url: str | None = Field(None, description="URL to dweller's audio response")
-    dweller_message_id: UUID4 = Field(..., description="ID of the dweller's chat message in database")
+    dweller_message_id: UUID = Field(..., description="ID of the dweller's chat message in database")
     happiness_impact: HappinessImpact | None = Field(
         None,
         description="Happiness impact from this interaction",

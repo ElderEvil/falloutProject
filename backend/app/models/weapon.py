@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
-from pydantic import UUID4, field_validator
+from pydantic import field_validator
 from sqlalchemy import Index, event, inspect
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Mapper
@@ -59,11 +60,11 @@ class WeaponBase(ItemBase):
 class Weapon(BaseUUIDModel, WeaponBase, TimeStampMixin, table=True):
     __table_args__ = (Index("ix_weapon_storage_trial", "storage_id", "last_maintenance_trial_at"),)
     last_maintenance_trial_at: datetime | None = Field(default=None)
-    dweller_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="dweller.id", index=True)
+    dweller_id: UUID | None = Field(default=None, nullable=True, foreign_key="dweller.id", index=True)
     dweller: "Dweller" = Relationship(back_populates="weapon")
-    storage_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="storage.id")
+    storage_id: UUID | None = Field(default=None, nullable=True, foreign_key="storage.id")
     storage: "Storage" = Relationship(back_populates="weapons")
-    exploration_id: UUID4 | None = Field(
+    exploration_id: UUID | None = Field(
         default=None, nullable=True, foreign_key="exploration.id", index=True, ondelete="CASCADE"
     )
 

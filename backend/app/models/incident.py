@@ -3,9 +3,9 @@
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import UUID4
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -133,8 +133,8 @@ class IncidentBase(SQLModel):
 class Incident(BaseUUIDModel, IncidentBase, TimeStampMixin, table=True):
     """Incident model with relationships."""
 
-    vault_id: UUID4 = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
-    room_id: UUID4 = Field(foreign_key="room.id", index=True, ondelete="CASCADE")
+    vault_id: UUID = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
+    room_id: UUID = Field(foreign_key="room.id", index=True, ondelete="CASCADE")
 
     # Relationships
     teams: list["Team"] = Relationship(
@@ -179,7 +179,7 @@ class IncidentParticipant(BaseUUIDModel, TimeStampMixin, table=True):
 
     __tablename__ = "incident_participant"
 
-    incident_id: UUID4 = Field(foreign_key="incident.id", index=True, ondelete="CASCADE")
-    dweller_id: UUID4 = Field(foreign_key="dweller.id", index=True, ondelete="CASCADE")
+    incident_id: UUID = Field(foreign_key="incident.id", index=True, ondelete="CASCADE")
+    dweller_id: UUID = Field(foreign_key="dweller.id", index=True, ondelete="CASCADE")
 
     __table_args__ = (sa.UniqueConstraint("incident_id", "dweller_id", name="uq_incident_participant"),)

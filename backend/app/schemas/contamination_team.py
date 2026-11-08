@@ -1,13 +1,14 @@
 """Contamination team roster schemas."""
 
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlmodel import Field, SQLModel
 
 from app.core.enums import HazardTeam
 
 
 class HazardTeamMemberRead(SQLModel):
-    dweller_id: UUID4
+    dweller_id: UUID
     status: str
     name: str
     level: int
@@ -37,5 +38,5 @@ class HazardTeamPlaceUpdate(SQLModel):
 
 
 class ContaminationTeamRead(SQLModel):
-    vault_id: UUID4
+    vault_id: UUID
     teams: list[HazardTeamRosterRead]

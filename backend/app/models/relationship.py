@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import RelationshipTypeEnum
@@ -12,10 +12,10 @@ if TYPE_CHECKING:
 
 
 class RelationshipBase(SQLModel):
-    dweller_1_id: UUID4 = Field(
+    dweller_1_id: UUID = Field(
         sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE"), index=True),
     )
-    dweller_2_id: UUID4 = Field(
+    dweller_2_id: UUID = Field(
         sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE"), index=True),
     )
     relationship_type: RelationshipTypeEnum = Field(default=RelationshipTypeEnum.ACQUAINTANCE)

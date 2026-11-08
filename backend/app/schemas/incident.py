@@ -1,6 +1,8 @@
 """Incident schemas for API responses."""
 
-from pydantic import UUID4, BaseModel, Field
+from uuid import UUID
+
+from pydantic import BaseModel, Field
 
 from app.core.enums import IncidentFamily, IncidentObjective, IncidentStatus, IncidentType
 from app.schemas.combat import CombatAction
@@ -33,9 +35,9 @@ class IncidentEventRead(BaseModel):
 class IncidentRead(BaseModel):
     """Full incident details."""
 
-    id: UUID4
-    vault_id: UUID4
-    room_id: UUID4
+    id: UUID
+    vault_id: UUID
+    room_id: UUID
     room_name: str | None = None
     type: IncidentType
     status: IncidentStatus
@@ -84,8 +86,8 @@ class IncidentListResponse(BaseModel):
 class PendingIncidentOverflowRead(BaseModel):
     """Resolved incident still holding loot for a take or sell decision."""
 
-    incident_id: UUID4
-    room_id: UUID4
+    incident_id: UUID
+    room_id: UUID
     type: IncidentType
     unclaimed_loot: list[dict]
 
@@ -133,15 +135,15 @@ class ManualTickResponse(BaseModel):
 class IncidentRespondersRequest(BaseModel):
     """Dwellers ordered to defend an active incident."""
 
-    dweller_ids: list[UUID4] = Field(min_length=1, max_length=6)
+    dweller_ids: list[UUID] = Field(min_length=1, max_length=6)
 
 
 class IncidentRespondersResponse(BaseModel):
     """Response after assigning defenders to an incident room."""
 
-    incident_id: UUID4
-    room_id: UUID4
-    assigned_dweller_ids: list[UUID4]
+    incident_id: UUID
+    room_id: UUID
+    assigned_dweller_ids: list[UUID]
 
 
 class IncidentRoundResult(BaseModel):
@@ -160,4 +162,4 @@ class IncidentRoundResult(BaseModel):
 class IncidentResponderRead(TeamMemberRead):
     """An arriving helper and the posting restored after the incident."""
 
-    origin_room_id: UUID4 | None = None
+    origin_room_id: UUID | None = None

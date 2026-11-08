@@ -34,7 +34,7 @@ class ItemBase(SQLModel):
                 if isinstance(rarity, str):
                     try:
                         rarity = RarityEnum(rarity)
-                    except (ValueError, KeyError):
+                    except ValueError, KeyError:
                         # Fall back to default if conversion fails
                         data["value"] = 10
                         return data

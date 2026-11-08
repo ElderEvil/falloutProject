@@ -440,7 +440,7 @@ class RoomService:
                 output_formula=room_template.output_formula,
             )
             room, created = await self._build(db_session=db_session, obj_in=room_data)
-        except (InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException):
+        except InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException:
             raise
         except ValueError as e:
             raise VaultOperationException(detail=str(e)) from e

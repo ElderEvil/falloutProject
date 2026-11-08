@@ -30,7 +30,7 @@ class ChangelogService:
             try:
                 since_tuple = version_tuple(since)
                 versions = [v for v in versions if version_tuple(v["version"]) > since_tuple]
-            except (ValueError, AttributeError):
+            except ValueError, AttributeError:
                 pass
 
         versions.sort(key=lambda x: version_tuple(x["version"]), reverse=True)

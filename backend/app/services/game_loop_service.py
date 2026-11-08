@@ -233,7 +233,7 @@ class GameLoopService:
         try:
             with tick_phase("storage"):
                 results["updates"]["storage"] = await storage_tick.process_storage_maintenance(db_session, vault_id)
-        except (SQLAlchemyError, ResourceNotFoundException):
+        except SQLAlchemyError, ResourceNotFoundException:
             await recover_session(db_session)
             self.logger.exception("Storage maintenance failed for vault %s", vault_id)
             results["updates"]["storage"] = {"checked": 0, "changed": 0}

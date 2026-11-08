@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
+from pydantic import UUID4
 
 from app import crud
 from app.core.config import settings

@@ -37,7 +37,7 @@ def _parse_quantity(data: dict[str, Any]) -> int:
     raw = data.get("quantity", data.get("amount", 1))
     try:
         qty = int(raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         qty = 1
     return max(1, qty)
 

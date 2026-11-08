@@ -317,7 +317,7 @@ class LevelUpEvaluator(ObjectiveEvaluator):
         raw_min_level = target.get("min_level", 1)
         try:
             min_level = int(raw_min_level)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             min_level = 1
 
         new_level = data.get("new_level", data.get("level", 1))

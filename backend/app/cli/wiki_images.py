@@ -66,7 +66,7 @@ def _is_safe_destination(destination: Path, allowed_parent: Path) -> bool:
     """Return True if destination resolves inside allowed_parent (no path traversal)."""
     try:
         return destination.resolve().is_relative_to(allowed_parent.resolve())
-    except (ValueError, OSError):
+    except ValueError, OSError:
         return False
 
 
@@ -197,6 +197,8 @@ def _legendary_dwellers(client: httpx.Client) -> list[dict]:
         raise RuntimeError("Could not find legendary dweller heading on wiki page")
 
     table = heading.find_next("table")
+    if table is None:
+        raise RuntimeError("Could not find the legendary dweller table on the wiki page")
     dwellers: list[dict] = []
     for row in table.find_all("tr")[1:]:  # skip header
         cells = row.find_all(["td", "th"])
@@ -209,7 +211,7 @@ def _legendary_dwellers(client: httpx.Client) -> list[dict]:
         if img_tag:
             # Fandom lazy-loads images; the real URL is usually in data-src.
             src = img_tag.get("data-src") or img_tag.get("src")
-            if src and not src.startswith("data:"):
+            if isinstance(src, str) and not src.startswith("data:"):
                 match = re.search(r"/images/[^/]+/[^/]+/([^/]+)\.(?:png|jpg|jpeg)", src, re.IGNORECASE)
                 if match:
                     image_title = f"File:{match.group(1)}.{match.group(0).split('.')[-1]}"

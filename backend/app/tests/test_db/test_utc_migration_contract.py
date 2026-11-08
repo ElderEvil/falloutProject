@@ -48,7 +48,7 @@ async def utc_connection() -> AsyncGenerator[AsyncConnection]:
     engine = create_async_engine(uri, poolclass=NullPool, connect_args={"timeout": 5})
     try:
         connection = await engine.connect()
-    except (OSError, SQLAlchemyError):
+    except OSError, SQLAlchemyError:
         await engine.dispose()
         unavailable("PostgreSQL unavailable for UTC migration rehearsal")
 

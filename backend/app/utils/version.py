@@ -22,7 +22,7 @@ def get_app_version() -> str:
         with pyproject_path.open("rb") as f:
             data = tomllib.load(f)
             return data["project"]["version"]
-    except (FileNotFoundError, KeyError):
+    except FileNotFoundError, KeyError:
         return "unknown"
 
 

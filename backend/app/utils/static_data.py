@@ -188,7 +188,7 @@ class StaticGameData:
             with file_path.open("r") as file:
                 data_list = json.load(file)
                 return [model.model_validate(item) for item in data_list]
-        except (json.JSONDecodeError, FileNotFoundError):
+        except json.JSONDecodeError, FileNotFoundError:
             logger.exception("Failed to load data", extra={"file_path": file_path})
             return []
 

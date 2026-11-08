@@ -1,5 +1,5 @@
 ARG PYTHON_VERSION
-FROM python:${PYTHON_VERSION:-3.13}-slim-bookworm AS builder
+FROM python:${PYTHON_VERSION:-3.14}-slim-bookworm AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ libffi-dev libpq-dev \
@@ -19,7 +19,7 @@ COPY backend/ /app/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-default-groups
 
-FROM python:${PYTHON_VERSION:-3.13}-slim-bookworm
+FROM python:${PYTHON_VERSION:-3.14}-slim-bookworm
 COPY --from=builder /bin/uv /bin/uv
 # Vault Radio Hour post-processes TTS audio through ffmpeg; without the binary
 # broadcasts silently degrade to raw WAV.

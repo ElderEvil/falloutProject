@@ -173,7 +173,7 @@ async def verify_room_access(
 
 async def verify_item_access(
     item_id: UUID4,
-    model: type[Weapon] | type[Outfit] | type[Junk],
+    model: type[Weapon | Outfit | Junk],
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> None:

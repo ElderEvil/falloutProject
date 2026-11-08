@@ -154,7 +154,7 @@ async def validate_quest_completed_requirement(
 
     try:
         quest_id = UUID(str(quest_id))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         logger.warning(f"quest_completed requirement has invalid quest_id: {quest_id}")
         return False
 

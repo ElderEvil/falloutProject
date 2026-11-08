@@ -21,6 +21,7 @@ from app.services.map import discovery
 from app.services.map_service import map_service
 from app.services.world_snapshot_service import world_snapshot_service
 from app.utils import world_terrain
+from app.utils.time import utcnow
 from app.utils.vault_slots import slot_coords
 
 
@@ -37,7 +38,7 @@ async def _depart(
 
 
 async def _discover(async_session: AsyncSession, exploration, name: str):
-    exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
+    exploration.start_time = utcnow() - timedelta(minutes=10)
     await async_session.commit()
     event = DiscoveryEventSchema(location_name=name, description=f"Discovered {name}.")
     with patch.object(event_generator, "generate_event", return_value=event):

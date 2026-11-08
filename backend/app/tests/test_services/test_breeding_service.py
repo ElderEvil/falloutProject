@@ -28,6 +28,7 @@ from app.services.family.breeding_service import BreedingService, conception_pot
 from app.services.notification_service import NotificationService, notification_service
 from app.utils.dwellers import elder_birth_threshold
 from app.utils.exceptions import NoLivingSpaceError, ResourceNotFoundException
+from app.utils.time import utcnow
 
 
 @pytest.mark.parametrize(
@@ -193,7 +194,7 @@ async def test_create_pregnancy_mother_not_adult(
         gender=GenderEnum.FEMALE,
         rarity=RarityEnum.COMMON,
         age_group=AgeGroupEnum.CHILD,
-        birth_date=datetime.utcnow(),
+        birth_date=utcnow(),
         vault_id=vault.id,
     )
     child = await crud.dweller.create(db_session=async_session, obj_in=child_in)
@@ -214,7 +215,7 @@ async def test_create_pregnancy_father_not_adult(
         gender=GenderEnum.MALE,
         rarity=RarityEnum.COMMON,
         age_group=AgeGroupEnum.CHILD,
-        birth_date=datetime.utcnow(),
+        birth_date=utcnow(),
         vault_id=vault.id,
     )
     child = await crud.dweller.create(db_session=async_session, obj_in=child_in)
@@ -255,7 +256,7 @@ async def test_create_pregnancy_rejects_non_human_parent(
         gender=GenderEnum.FEMALE,
         rarity=RarityEnum.COMMON,
         age_group=AgeGroupEnum.ADULT,
-        birth_date=datetime.utcnow(),
+        birth_date=utcnow(),
         vault_id=vault.id,
         visual_attributes={"race": "ghoul", "faction": "vault_dweller"},
     )
@@ -482,7 +483,7 @@ async def test_check_for_conception_postpartum_cooldown(
         female_dweller.id,
         male_dweller.id,
     )
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
     await BreedingService.deliver_baby(async_session, pregnancy.id)
 
@@ -518,11 +519,11 @@ async def test_check_for_conception_after_cooldown_expires(
         female_dweller.id,
         male_dweller.id,
     )
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
     await BreedingService.deliver_baby(async_session, pregnancy.id)
 
-    pregnancy.updated_at = datetime.utcnow() - timedelta(hours=game_config.breeding.birth_cooldown_hours + 1)
+    pregnancy.updated_at = utcnow() - timedelta(hours=game_config.breeding.birth_cooldown_hours + 1)
     await async_session.commit()
 
     with patch("random.random", return_value=0.0):
@@ -775,7 +776,7 @@ async def test_deliver_baby_random_gender(
         male_dweller.id,
     )
 
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
 
     child = (await BreedingService.deliver_baby(async_session, pregnancy.id))[0]
@@ -795,7 +796,7 @@ async def test_deliver_baby_twins_when_chance_hit(
     monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
 
     with patch.object(NotificationService, "_deliver", new_callable=AsyncMock) as deliver:
@@ -834,7 +835,7 @@ async def test_deliver_baby_no_twins_when_chance_missed(
     """A missed twin roll delivers exactly one newborn."""
     monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
 
     children = await BreedingService.deliver_baby(async_session, pregnancy.id)
@@ -853,7 +854,7 @@ async def test_deliver_baby_triplets_when_chance_hit(
     monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 1.0)
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
 
     with patch.object(NotificationService, "_deliver", new_callable=AsyncMock) as deliver:
@@ -880,7 +881,7 @@ async def test_deliver_baby_triplets_require_twin_roll(
     monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 1.0)
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
 
     children = await BreedingService.deliver_baby(async_session, pregnancy.id)
@@ -906,7 +907,7 @@ async def test_deliver_baby_mothers_twins_chance_pet_raises_the_roll(
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     await _equip_pet(async_session, female_dweller, "Shakespeare")  # twin_chance_pct 0.75
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
 
     with patch("random.random", return_value=0.5):
@@ -927,7 +928,7 @@ async def test_deliver_baby_fathers_twins_chance_pet_is_ignored(
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     await _equip_pet(async_session, male_dweller, "Shakespeare")  # twin_chance_pct 0.75
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
 
     with patch("random.random", return_value=0.5):
@@ -948,7 +949,7 @@ async def test_deliver_baby_twins_chance_sums_base_and_pet(
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     await _equip_pet(async_session, female_dweller, "Shakespeare")  # twin_chance_pct 0.75
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
 
     with patch("random.random", return_value=0.99):
@@ -969,7 +970,7 @@ async def test_deliver_baby_twins_chance_is_clamped_to_one(
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     await _equip_pet(async_session, female_dweller, "Shakespeare")  # 1.25 unclamped
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
 
     with patch("random.random", return_value=1.05):
@@ -990,7 +991,7 @@ async def test_deliver_baby_caps_twins_to_available_population_slots(
     monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
 
     population = await crud.vault.get_population(db_session=async_session, vault_id=vault.id)
     vault.population_max = population + 1
@@ -1017,7 +1018,7 @@ async def test_deliver_baby_defers_delivery_when_no_living_space(
     monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
 
     population = await crud.vault.get_population(db_session=async_session, vault_id=vault.id)
     vault.population_max = population
@@ -1054,7 +1055,7 @@ async def test_deliver_baby_rolls_back_partial_delivery(
     monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
     vault_id, mother_id, father_id, pregnancy_id = (
         vault.id,
@@ -1095,7 +1096,7 @@ async def test_age_children_progress_through_teen_to_adult(
     vault: Vault,
 ):
     """Test that children become teens halfway through the total maturity duration."""
-    birth_date = datetime.utcnow() - timedelta(hours=game_config.breeding.child_growth_duration_hours // 2 + 1)
+    birth_date = utcnow() - timedelta(hours=game_config.breeding.child_growth_duration_hours // 2 + 1)
 
     child_data = {
         "first_name": "Baby",
@@ -1134,7 +1135,7 @@ async def test_age_children_progress_through_teen_to_adult(
     assert child.strength == 3
     assert child.charisma == 3
 
-    child.birth_date = datetime.utcnow() - timedelta(hours=game_config.breeding.child_growth_duration_hours + 1)
+    child.birth_date = utcnow() - timedelta(hours=game_config.breeding.child_growth_duration_hours + 1)
     await async_session.commit()
 
     aged = await BreedingService.age_children(async_session, vault.id)
@@ -1161,7 +1162,7 @@ async def test_age_children_promotes_only_old_adults_to_elders(
         "gender": GenderEnum.MALE,
         "rarity": RarityEnum.COMMON,
         "age_group": AgeGroupEnum.ADULT,
-        "birth_date": elder_birth_threshold(datetime.utcnow()) - timedelta(days=1),
+        "birth_date": elder_birth_threshold(utcnow()) - timedelta(days=1),
         "level": 1,
         "experience": 0,
         "max_health": 100,
@@ -1173,7 +1174,7 @@ async def test_age_children_promotes_only_old_adults_to_elders(
     young_adult_data = {
         **elder_adult_data,
         "first_name": "Young",
-        "birth_date": datetime.utcnow() - timedelta(days=365 * 25),
+        "birth_date": utcnow() - timedelta(days=365 * 25),
     }
     old_adult = await crud.dweller.create(
         db_session=async_session, obj_in=DwellerCreate(**elder_adult_data, vault_id=vault.id)
@@ -1198,7 +1199,7 @@ async def test_age_children_leaves_ageless_adults_as_adults(
 ):
     """Fallout rule: ghouls, super mutants and synths never senesce into elders."""
     base_stats = dict.fromkeys(SPECIAL_STATS, 3)
-    ancient_birth = elder_birth_threshold(datetime.utcnow()) - timedelta(days=365 * 10)
+    ancient_birth = elder_birth_threshold(utcnow()) - timedelta(days=365 * 10)
     for race, faction in [
         ("ghoul", "vault_dweller"),
         ("super_mutant", "super_mutant_tribe"),
@@ -1246,7 +1247,7 @@ async def test_deliver_baby_records_family_entries(
         female_dweller.id,
         male_dweller.id,
     )
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
 
     child = (await BreedingService.deliver_baby(async_session, pregnancy.id))[0]
@@ -1358,7 +1359,7 @@ async def test_multiple_births_send_one_summary_for_all_crossed_room_thresholds(
     monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", float(birth_count == 3))
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
 
     children = await BreedingService.deliver_baby(async_session, pregnancy.id)

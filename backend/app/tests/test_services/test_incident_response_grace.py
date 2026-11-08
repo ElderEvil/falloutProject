@@ -16,6 +16,7 @@ from app.models.vault import Vault
 from app.services.combat.incident_service import incident_service
 from app.services.combat.incident_sim import resolve_incident
 from app.tests.test_services._hazard_team_helpers import empty_room, raise_incident
+from app.utils.time import utcnow
 
 
 @pytest.mark.asyncio
@@ -35,7 +36,7 @@ async def test_undefended_incident_fails_after_grace(async_session: AsyncSession
     """Once the grace window passes, an still-undefended incident fails as before."""
     room = await empty_room(async_session, vault.id)
     incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
-    incident.start_time = datetime.utcnow() - timedelta(hours=1)
+    incident.start_time = utcnow() - timedelta(hours=1)
 
     result = await incident_service.process_incident(async_session, incident, 2)
 

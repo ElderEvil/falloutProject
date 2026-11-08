@@ -14,6 +14,7 @@ from app.models.team import Team, TeamMember
 from app.models.vault import Vault
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.services.quest_state_objective_backfill_service import quest_state_objective_backfill_service
+from app.utils.time import utcnow
 
 
 @pytest.mark.asyncio
@@ -42,7 +43,7 @@ async def test_backfill_retires_legacy_state_objective_party(
 
     link = await async_session.get(VaultQuestCompletionLink, (vault.id, quest.id))
     assert link is not None
-    link.started_at = datetime.utcnow()
+    link.started_at = utcnow()
     link.duration_minutes = 60
     await async_session.commit()
 

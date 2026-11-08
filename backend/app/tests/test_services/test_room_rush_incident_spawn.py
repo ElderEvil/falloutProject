@@ -16,6 +16,7 @@ from app.services.combat.incident_spawning import spawn_incident
 from app.tests.factory.dwellers import create_rush_dweller_payload
 from app.tests.factory.rooms import create_rush_room_payload
 from app.utils.exceptions import ValidationException
+from app.utils.time import utcnow
 
 
 async def _room(async_session: AsyncSession, vault_id: Any, name: str, x: int) -> Room:
@@ -105,7 +106,7 @@ async def test_delayed_incident_activates_after_a_newer_event(
     incident_publishing.record_event(async_session, incident, "responders_assigned", "Responders assigned.")
     await async_session.commit()
 
-    incident.start_time = datetime.utcnow() - timedelta(seconds=1)
+    incident.start_time = utcnow() - timedelta(seconds=1)
     async_session.add(incident)
     await async_session.commit()
 

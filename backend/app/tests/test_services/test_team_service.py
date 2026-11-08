@@ -24,6 +24,7 @@ from app.tests.factory.rooms import create_overseers_office
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
+from app.utils.time import utcnow
 
 
 async def _make_quest_vault(
@@ -386,7 +387,7 @@ async def test_quest_return_restores_idle_without_room(async_session: AsyncSessi
     await quest_service.start_quest(async_session, quest.id, vault.id)
     link = await crud.quest_crud.get_link(async_session, quest_id=quest.id, vault_id=vault.id)
     assert link is not None
-    link.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    link.return_completes_at = utcnow() - timedelta(seconds=1)
     await async_session.commit()
 
     await quest_service.mark_quest_ready_to_claim(async_session, quest.id, vault.id)
@@ -481,7 +482,7 @@ async def test_quest_round_trip_assign_start_ready_claim(async_session: AsyncSes
     await async_session.refresh(link)
     assert link.started_at is not None
 
-    link.started_at = datetime.utcnow() - timedelta(minutes=61)
+    link.started_at = utcnow() - timedelta(minutes=61)
     link.duration_minutes = 60
     await async_session.commit()
 
@@ -492,7 +493,7 @@ async def test_quest_round_trip_assign_start_ready_claim(async_session: AsyncSes
     assert link.is_reward_ready is False
     assert dweller.status == DwellerStatusEnum.QUESTING
 
-    link.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    link.return_completes_at = utcnow() - timedelta(seconds=1)
     await async_session.commit()
 
     await quest_service.mark_quest_ready_to_claim(async_session, quest.id, vault.id)
@@ -589,10 +590,10 @@ async def test_finished_quest_history_does_not_block_another_departure(async_ses
 
     link = await crud.quest_crud.get_link(async_session, quest_id=first_quest.id, vault_id=vault.id)
     assert link is not None
-    link.started_at = datetime.utcnow() - timedelta(minutes=link.duration_minutes + 1)
+    link.started_at = utcnow() - timedelta(minutes=link.duration_minutes + 1)
     await async_session.commit()
     await quest_service.start_quest_return(async_session, first_quest.id, vault.id)
-    link.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    link.return_completes_at = utcnow() - timedelta(seconds=1)
     await async_session.commit()
     await quest_service.mark_quest_ready_to_claim(async_session, first_quest.id, vault.id)
     await async_session.refresh(dweller)

@@ -20,6 +20,7 @@ from app.services.game_tick.dwellers_tick import process_explorations
 from app.services.world_snapshot_service import world_snapshot_service
 from app.tests.factory.dwellers import create_fake_adult_dweller
 from app.utils.exceptions import ResourceConflictException, ValidationException
+from app.utils.time import utcnow
 
 SITE_ID = "red_rocket"
 
@@ -49,7 +50,7 @@ async def _spatial_run_at_site(async_session: AsyncSession, vault: Vault, dwelle
     site = next(site for site in data_loader.load_expedition_sites() if site.id == site_id)
     near = (site.coord_x - 2.0, site.coord_y)
     exploration.pos_x, exploration.pos_y = near
-    exploration.trail = [*exploration.trail, {"x": near[0], "y": near[1], "t": datetime.utcnow().isoformat()}]
+    exploration.trail = [*exploration.trail, {"x": near[0], "y": near[1], "t": utcnow().isoformat()}]
     async_session.add(exploration)
     await async_session.commit()
     await async_session.refresh(exploration)
@@ -92,7 +93,7 @@ async def test_cleared_site_rejects_reentry_in_same_journey(
         site_id=SITE_ID,
     )
     run.status = ExpeditionRunStatus.CLEARED
-    run.finished_at = datetime.utcnow()
+    run.finished_at = utcnow()
     async_session.add(run)
     await async_session.commit()
 
@@ -129,8 +130,8 @@ async def test_tick_defers_finalize_while_encounter_open(
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
     exploration.status = ExplorationStatus.RETURNING
-    exploration.return_started_at = datetime.utcnow() - timedelta(hours=2)
-    exploration.return_completes_at = datetime.utcnow() - timedelta(minutes=1)
+    exploration.return_started_at = utcnow() - timedelta(hours=2)
+    exploration.return_completes_at = utcnow() - timedelta(minutes=1)
     async_session.add(exploration)
     await async_session.commit()
 
@@ -146,7 +147,7 @@ async def _extend_trail_near_site(async_session, exploration, site_id: str = SIT
     """Append a near-site breadcrumb without moving (travel covered by movement tests)."""
     site = next(site for site in data_loader.load_expedition_sites() if site.id == site_id)
     near = (site.coord_x - 2.0, site.coord_y)
-    exploration.trail = [*exploration.trail, {"x": near[0], "y": near[1], "t": datetime.utcnow().isoformat()}]
+    exploration.trail = [*exploration.trail, {"x": near[0], "y": near[1], "t": utcnow().isoformat()}]
     async_session.add(exploration)
     await async_session.commit()
     await async_session.refresh(exploration)
@@ -211,8 +212,8 @@ async def test_return_clock_shifts_on_encounter_exit(
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
     exploration.status = ExplorationStatus.RETURNING
-    completes_at = datetime.utcnow() + timedelta(hours=1)
-    exploration.return_started_at = datetime.utcnow() - timedelta(hours=1)
+    completes_at = utcnow() + timedelta(hours=1)
+    exploration.return_started_at = utcnow() - timedelta(hours=1)
     exploration.return_completes_at = completes_at
     async_session.add(exploration)
     await async_session.commit()
@@ -231,9 +232,9 @@ async def test_return_leg_entry_pauses_the_return(async_session: AsyncSession, v
     """An in-progress return leg may enter a site, which pauses the return clock."""
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     exploration.status = ExplorationStatus.RETURNING
-    exploration.return_started_at = datetime.utcnow() - timedelta(hours=1)
-    exploration.return_started_at = datetime.utcnow()
-    exploration.return_completes_at = datetime.utcnow() + timedelta(hours=1)
+    exploration.return_started_at = utcnow() - timedelta(hours=1)
+    exploration.return_started_at = utcnow()
+    exploration.return_completes_at = utcnow() + timedelta(hours=1)
     async_session.add(exploration)
     await async_session.commit()
 
@@ -310,7 +311,7 @@ async def test_tick_does_not_expire_a_paused_journey(
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
     # Past its planned duration, as a long site visit would leave it.
-    exploration.start_time = datetime.utcnow() - timedelta(hours=25)
+    exploration.start_time = utcnow() - timedelta(hours=25)
     async_session.add(exploration)
     await async_session.commit()
 
@@ -336,8 +337,8 @@ async def test_site_discovery_is_durable_and_not_repeated_on_return(async_sessio
     assert len(reports) == len(discoveries)
     assert {n.meta_data["site_id"] for n in reports} == {event["site_id"] for event in discoveries}
     exploration.status = ExplorationStatus.RETURNING
-    exploration.return_started_at = datetime.utcnow()
-    exploration.return_completes_at = datetime.utcnow() + timedelta(hours=1)
+    exploration.return_started_at = utcnow()
+    exploration.return_completes_at = utcnow() + timedelta(hours=1)
     async_session.add(exploration)
     await async_session.commit()
 
@@ -355,7 +356,7 @@ async def test_site_discovery_is_durable_and_not_repeated_on_return(async_sessio
 async def test_expired_return_rejects_new_site_before_tick_finalizes(async_session, vault, dweller):
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     exploration.status = ExplorationStatus.RETURNING
-    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    exploration.return_completes_at = utcnow() - timedelta(seconds=1)
     async_session.add(exploration)
     await async_session.commit()
     with pytest.raises(ValidationException, match="arrived home"):
@@ -421,11 +422,11 @@ async def test_ineligible_discoveries_leave_no_reports(async_session, vault, dwe
         dweller.is_dead = True
     elif rejection == "expired":
         exploration.status = ExplorationStatus.RETURNING
-        exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+        exploration.return_completes_at = utcnow() - timedelta(seconds=1)
     elif rejection == "legacy":
         exploration.heading_degrees = None
     else:
-        exploration.trail = [{"x": 100000, "y": 100000, "t": datetime.utcnow().isoformat()}]
+        exploration.trail = [{"x": 100000, "y": 100000, "t": utcnow().isoformat()}]
     async_session.add(dweller)
     async_session.add(exploration)
     await async_session.commit()
@@ -441,8 +442,8 @@ async def test_ineligible_discoveries_leave_no_reports(async_session, vault, dwe
 async def test_tick_discovers_sites_on_return_leg(async_session, vault, dweller):
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     exploration.status = ExplorationStatus.RETURNING
-    exploration.return_started_at = datetime.utcnow()
-    exploration.return_completes_at = datetime.utcnow() + timedelta(hours=1)
+    exploration.return_started_at = utcnow()
+    exploration.return_completes_at = utcnow() + timedelta(hours=1)
     async_session.add(exploration)
     await async_session.commit()
     await process_explorations(async_session, vault.id)
@@ -470,12 +471,12 @@ async def test_discovery_respects_site_level_gate(async_session, vault, dweller)
 async def test_open_site_reconnect_survives_original_return_deadline(async_session, vault, dweller):
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     exploration.status = ExplorationStatus.RETURNING
-    exploration.return_started_at = datetime.utcnow()
-    exploration.return_completes_at = datetime.utcnow() + timedelta(hours=1)
+    exploration.return_started_at = utcnow()
+    exploration.return_completes_at = utcnow() + timedelta(hours=1)
     async_session.add(exploration)
     await async_session.commit()
     view = await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
-    exploration.return_completes_at = datetime.utcnow() - timedelta(minutes=10)
+    exploration.return_completes_at = utcnow() - timedelta(minutes=10)
     async_session.add(exploration)
     await async_session.commit()
     reconnected = await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)

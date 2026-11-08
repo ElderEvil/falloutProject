@@ -12,6 +12,7 @@ from app.crud.objective import objective_crud
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.services.progression.objectives.refresh_service import ensure_current_objectives, objective_periods
+from app.utils.time import utcnow
 
 
 def test_periods_are_utc_calendar_days_and_mondays():
@@ -70,7 +71,7 @@ async def test_refresh_failure_preserves_period_and_tick_state_then_retries(asyn
     vault_id = vault.id
     await calendar_catalog(async_session, vault_id)
     state = await game_state_crud.get_or_create(async_session, vault_id)
-    old_period = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=14)
+    old_period = utcnow().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=14)
     state.daily_objectives_period = old_period
     state.weekly_objectives_period = old_period
     await async_session.commit()

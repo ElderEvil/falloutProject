@@ -14,6 +14,7 @@ from app.services.exploration.coordinator import ExplorationCoordinator
 from app.services.exploration_service import exploration_service
 from app.services.notification_service import NotificationService
 from app.services.radio_service import RadioService
+from app.utils.time import utcnow
 
 
 class TestObjectiveProgressNotifications:
@@ -184,7 +185,7 @@ class TestIncidentNotifications:
             incident_type=IncidentType.FIRE,
             difficulty=1,
         )
-        incident.start_time = datetime.utcnow() - timedelta(
+        incident.start_time = utcnow() - timedelta(
             seconds=incident.duration + game_config.incident.response_grace_seconds + 1
         )
         async_session.add(incident)

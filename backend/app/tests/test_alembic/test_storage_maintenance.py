@@ -16,6 +16,7 @@ from app.services.notification_service import notification_service
 from app.tests.test_alembic import test_data_migrations as legacy
 from app.tests.test_alembic.test_data_migrations import _seed_vault
 from app.utils.item_factory import build_weapon
+from app.utils.time import utcnow
 
 pytestmark = pytest.mark.integration
 harness = legacy.harness
@@ -47,7 +48,7 @@ def test_two_sessions_trial_one_weapon_once(harness, monkeypatch):
                 storage = Storage(vault_id=UUID(vault_id))
                 entry = next(e for e in load_weapons() if e["name"] == "Gauss pistol")
                 weapon = build_weapon(entry, entry["rarity"], storage.id)
-                weapon.last_maintenance_trial_at = datetime.utcnow() - timedelta(hours=2)
+                weapon.last_maintenance_trial_at = utcnow() - timedelta(hours=2)
                 db.add_all([storage, weapon, GameState(vault_id=UUID(vault_id))])
                 await db.commit()
 

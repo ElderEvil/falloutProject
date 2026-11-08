@@ -17,6 +17,7 @@ from app.models.storage import Storage
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.crafting_service import crafting_service
 from app.tests.factory.vaults import create_fake_vault
+from app.utils.time import utcnow
 
 pytestmark = pytest.mark.asyncio(scope="module")
 
@@ -82,7 +83,7 @@ async def _seed_crafting(
 async def _finish_queue(async_session: AsyncSession, vault_id) -> None:
     """Force active orders past completion and run the tick so collect can succeed."""
     for order in await crud.crafting_order.get_active_by_vault(async_session, vault_id):
-        order.estimated_completion_at = datetime.utcnow() - timedelta(seconds=1)
+        order.estimated_completion_at = utcnow() - timedelta(seconds=1)
         async_session.add(order)
     await async_session.commit()
     await crafting_service.advance_orders(async_session, vault_id)

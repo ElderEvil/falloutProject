@@ -23,6 +23,7 @@ from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
 from app.services.loot_overflow_service import loot_overflow_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
+from app.utils.time import utcnow
 
 
 async def _ensure_vault_storage(async_session: AsyncSession, vault_id) -> Storage:
@@ -52,7 +53,7 @@ async def make_vault_storage(async_session: AsyncSession, vault: Vault) -> Calla
 async def _completed_with_overflow(async_session, vault, dweller, loots=None):
     """Complete an exploration that overflows; returns (exploration, rewards)."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
+    exploration.start_time = utcnow() - timedelta(hours=exploration.duration)
     for loot in loots or []:
         exploration.add_loot(**loot)
     async_session.add(exploration)
@@ -60,7 +61,7 @@ async def _completed_with_overflow(async_session, vault, dweller, loots=None):
     await async_session.refresh(exploration)
     await exploration_coordinator.start_return(async_session, exploration.id)
     await async_session.refresh(exploration)
-    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    exploration.return_completes_at = utcnow() - timedelta(seconds=1)
     async_session.add(exploration)
     await async_session.commit()
     rewards = await exploration_coordinator.finalize_return(async_session, exploration.id)

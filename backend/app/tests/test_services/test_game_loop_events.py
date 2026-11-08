@@ -15,6 +15,7 @@ from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
 from app.services.game_loop_service import game_loop_service
 from app.tests.factory.dwellers import create_fake_dweller
+from app.utils.time import utcnow
 
 
 async def _create_dwellers(async_session: AsyncSession, vault: Vault, count: int = 3) -> list[Dweller]:
@@ -30,7 +31,7 @@ async def _create_dwellers(async_session: AsyncSession, vault: Vault, count: int
 @pytest.mark.asyncio
 async def test_process_events_offline_vault_returns_empty(async_session: AsyncSession, vault: Vault):
     """Events must not trigger while the user is away from the vault."""
-    game_state = GameState(vault_id=vault.id, last_activity_time=datetime.utcnow() - timedelta(minutes=11))
+    game_state = GameState(vault_id=vault.id, last_activity_time=utcnow() - timedelta(minutes=11))
 
     result = await game_loop_service._process_events(async_session, vault.id, 3600, game_state)
 

@@ -57,7 +57,7 @@ from app.services.leveling_service import leveling_service
 from app.services.notification_service import NotificationService
 from app.utils.dweller_availability import DwellerAction, purposeful_action_error
 from app.utils.exceptions import ValidationException
-from app.utils.time import utcnow
+from app.utils.time import as_utc, utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -353,7 +353,7 @@ class ArenaService:
             "actor_id": event.actor_id,
             "action": event.action,
             "message": event.message,
-            "created_at": event.created_at.replace(tzinfo=UTC).isoformat() if event.created_at else None,
+            "created_at": as_utc(event.created_at).isoformat() if event.created_at else None,
         }
 
     async def get_tick_snapshot(self, db_session: AsyncSession, vault_id: UUID4) -> ArenaStats:

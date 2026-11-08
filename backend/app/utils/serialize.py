@@ -1,13 +1,11 @@
-from datetime import UTC, datetime
+from datetime import datetime
+
+from app.utils.time import as_utc
 
 
 def _format_utc_datetime(value: datetime) -> str:
     """Format a single datetime as a UTC ``Z``-suffixed ISO-8601 string."""
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=UTC)
-    else:
-        value = value.astimezone(UTC)
-    return value.isoformat().replace("+00:00", "Z")
+    return as_utc(value).isoformat().replace("+00:00", "Z")
 
 
 def serialize_utc_datetime(value: datetime) -> str:
@@ -25,3 +23,12 @@ def serialize_optional_utc_datetime(value: datetime | None) -> str | None:
     if value is None:
         return None
     return _format_utc_datetime(value)
+
+
+def serialize_naive_utc_datetime(value: datetime) -> str:
+    """Serialize a datetime as a bare ISO-8601 string in naive UTC.
+
+    Preserves the legacy JSON payload format while converting an aware value to
+    the UTC instant before dropping ``tzinfo``.
+    """
+    return as_utc(value).replace(tzinfo=None).isoformat()

@@ -15,6 +15,7 @@ from app import crud
 from app.models.dweller import BIO_MAX_CHARS, Dweller
 from app.schemas.dweller import DwellerUpdate
 from app.utils.exceptions import ContentNoChangeException, ValidationException
+from app.utils.serialize import serialize_naive_utc_datetime
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ def make_entry(source: str, text: str, ref: dict[str, Any] | None = None) -> dic
         "source": source,
         "text": text,
         "ref": ref or {},
-        "created_at": utcnow().isoformat(),
+        "created_at": serialize_naive_utc_datetime(utcnow()),
     }
 
 

@@ -30,6 +30,7 @@ from app.services.exploration.expedition import ALL_SITES_SCENARIO_EVENT, expedi
 from app.services.exploration_service import exploration_service
 from app.services.leveling_service import leveling_service
 from app.services.vault_service import vault_service
+from app.utils.serialize import serialize_naive_utc_datetime
 
 if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
@@ -427,7 +428,7 @@ class ExpeditionScenarioService:
                 "single_scene_only": single_scene_only,
                 "scenario_site_id": scenario_site_id,
                 "choice_only": choice_only,
-                "timestamp": now.isoformat(),
+                "timestamp": serialize_naive_utc_datetime(now),
             },
         ]
         db_session.add(exploration)
@@ -454,8 +455,8 @@ class ExpeditionScenarioService:
         exploration.pos_x, exploration.pos_y = site.coord_x, site.coord_y
         exploration.position_as_of = now
         exploration.trail = [
-            {"x": origin_x, "y": origin_y, "t": exploration.start_time.isoformat()},
-            {"x": site.coord_x, "y": site.coord_y, "t": now.isoformat()},
+            {"x": origin_x, "y": origin_y, "t": serialize_naive_utc_datetime(exploration.start_time)},
+            {"x": site.coord_x, "y": site.coord_y, "t": serialize_naive_utc_datetime(now)},
         ]
         return travel_hours
 

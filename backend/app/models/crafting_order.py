@@ -10,6 +10,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import CraftingOrderStatus, RarityEnum
 from app.models.base import BaseUUIDModel, TimeStampMixin
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from app.models.room import Room
@@ -61,7 +62,7 @@ class CraftingOrderBase(SQLModel):
         """Seconds until completion, or 0 once it is no longer active."""
         if not self.is_active():
             return 0
-        return max(0, int((self.estimated_completion_at - datetime.utcnow()).total_seconds()))
+        return max(0, int((self.estimated_completion_at - utcnow()).total_seconds()))
 
 
 class CraftingOrder(BaseUUIDModel, CraftingOrderBase, TimeStampMixin, table=True):

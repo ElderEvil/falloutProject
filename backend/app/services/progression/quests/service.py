@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Callable, Sequence
 from contextlib import suppress
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
 from uuid import UUID
 
@@ -34,6 +34,7 @@ from app.utils.quest_duration import (
     quest_return_leg_minutes,
 )
 from app.utils.reward_delivery import defer_reward_delivery
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ class QuestService:
 
         Returns the number of quests finalized (made ready to claim) this run.
         """
-        now = datetime.utcnow()
+        now = utcnow()
         duration_minutes = func.coalesce(VaultQuestCompletionLink.duration_minutes, Quest.duration_minutes)
         if db_session.bind and db_session.bind.dialect.name == "sqlite":
             expires_at = func.datetime(
@@ -102,7 +103,7 @@ class QuestService:
         if quest is None:
             raise ResourceNotFoundException(Quest, identifier=quest_id)
         duration = link.duration_minutes if link.duration_minutes is not None else quest.duration_minutes
-        if datetime.utcnow() < link.started_at + timedelta(minutes=duration):
+        if utcnow() < link.started_at + timedelta(minutes=duration):
             raise ValidationException("Quest is still in progress")
 
         link.start_return(quest_return_leg_minutes(duration))
@@ -188,7 +189,7 @@ class QuestService:
             dweller.status = DwellerStatusEnum.QUESTING
             dweller.room_id = None
 
-        link.started_at = datetime.utcnow()
+        link.started_at = utcnow()
         link.is_reward_ready = False
         link.duration_minutes = effective_quest_duration_minutes(quest.duration_minutes, office_tier=office_tier)
 
@@ -279,7 +280,7 @@ class QuestService:
             return quest
         if link.return_completes_at is None:
             raise ValidationException("Party has not been sent home")
-        if datetime.utcnow() < link.return_completes_at:
+        if utcnow() < link.return_completes_at:
             raise ValidationException("Party is still travelling home")
 
         members = await crud.team_crud.get_quest_team(db_session, quest_id, vault_id)

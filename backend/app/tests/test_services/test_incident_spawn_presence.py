@@ -17,6 +17,7 @@ from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
 from app.services.combat.incident_service import incident_service
 from app.tests.factory.dwellers import create_random_common_dweller
+from app.utils.time import utcnow
 
 
 async def _populated_vault(session: AsyncSession, vault: Vault, *, dwellers: int = 5) -> None:
@@ -30,7 +31,7 @@ async def _online_game_state(session: AsyncSession, vault: Vault):
     from app.crud import game_state_crud
 
     state = await game_state_crud.get_or_create(session, vault.id)
-    state.last_activity_time = datetime.utcnow()
+    state.last_activity_time = utcnow()
     return state
 
 
@@ -49,7 +50,7 @@ async def test_spawn_allowed_with_fresh_presence(async_session: AsyncSession, va
     """A watching player (heartbeat inside the window) keeps the full spawn chance."""
     await _populated_vault(async_session, vault)
     state = await _online_game_state(async_session, vault)
-    state.last_presence_at = datetime.utcnow()
+    state.last_presence_at = utcnow()
 
     assert await incident_service.should_spawn_incident(async_session, vault.id, 3600, state) is True
 
@@ -59,7 +60,7 @@ async def test_spawn_suppressed_with_stale_presence(async_session: AsyncSession,
     """A tab left open but unseen lapses out of the window and spawns nothing."""
     await _populated_vault(async_session, vault)
     state = await _online_game_state(async_session, vault)
-    state.last_presence_at = datetime.utcnow() - timedelta(minutes=10)
+    state.last_presence_at = utcnow() - timedelta(minutes=10)
 
     assert await incident_service.should_spawn_incident(async_session, vault.id, 3600, state) is False
 
@@ -85,7 +86,7 @@ async def test_developed_vault_spawns_where_a_starter_vault_does_not(
 
     await _populated_vault(async_session, vault)
     state = await _online_game_state(async_session, vault)
-    state.last_presence_at = datetime.utcnow()
+    state.last_presence_at = utcnow()
     monkeypatch.setattr("random.random", lambda: 0.75)
 
     monkeypatch.setattr(room_crud, "count_by_vault", AsyncMock(return_value=12))
@@ -101,7 +102,7 @@ async def test_dead_and_archived_dwellers_do_not_satisfy_the_population_gate(
 ) -> None:
     """Only living dwellers count: dead/archived rows cannot unlock incidents."""
     state = await _online_game_state(async_session, vault)
-    state.last_presence_at = datetime.utcnow()
+    state.last_presence_at = utcnow()
     monkeypatch.setattr("random.random", lambda: 0.0)
 
     dwellers = [

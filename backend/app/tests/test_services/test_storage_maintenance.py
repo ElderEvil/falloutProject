@@ -21,6 +21,7 @@ from app.services.game_tick.storage_tick import process_storage_maintenance
 from app.tests.factory.dwellers import create_random_common_dweller
 from app.tests.factory.rooms import create_fake_room
 from app.utils.item_factory import build_weapon
+from app.utils.time import utcnow
 
 
 @pytest.fixture(autouse=True)
@@ -30,10 +31,10 @@ def enabled(monkeypatch):
 
 async def setup_inventory(db, vault, *, name="Gauss pistol", due=True, online=True):
     storage = Storage(vault_id=vault.id, max_space=100)
-    state = GameState(vault_id=vault.id, last_activity_time=datetime.utcnow() - timedelta(hours=0 if online else 24))
+    state = GameState(vault_id=vault.id, last_activity_time=utcnow() - timedelta(hours=0 if online else 24))
     entry = next(e for e in load_weapons() if e["name"].casefold() == name.casefold())
     weapon = build_weapon(entry, entry["rarity"], storage.id)
-    weapon.last_maintenance_trial_at = datetime.utcnow() - timedelta(days=7) if due else None
+    weapon.last_maintenance_trial_at = utcnow() - timedelta(days=7) if due else None
     db.add_all([storage, state, weapon])
     await db.commit()
     return storage, state, weapon
@@ -102,7 +103,7 @@ async def test_grace_disabled_paused_and_failed_roll(async_session, vault, monke
     monkeypatch.setattr(game_config.storage, "maintenance_enabled", True)
     await process_storage_maintenance(async_session, vault.id, rng)
     rng.assert_not_called()
-    weapon.last_maintenance_trial_at = datetime.utcnow() - timedelta(hours=2)
+    weapon.last_maintenance_trial_at = utcnow() - timedelta(hours=2)
     state.is_paused = True
     await async_session.commit()
     cursor = weapon.last_maintenance_trial_at
@@ -195,17 +196,17 @@ async def test_persistent_cooldown_and_storage_return_clock(async_session, vault
     assert len(notifications) == 1
     assert notifications[0].notification_type == NotificationType.STORAGE_ITEM_DEGRADED
     weapon.name = "Gauss pistol"
-    weapon.last_maintenance_trial_at = datetime.utcnow() - timedelta(hours=2)
+    weapon.last_maintenance_trial_at = utcnow() - timedelta(hours=2)
     await async_session.commit()
     await process_storage_maintenance(async_session, vault.id, lambda: 0)
     result = await async_session.execute(select(Notification).where(Notification.vault_id == vault.id))
     assert len(result.scalars().all()) == 1
     weapon.storage_id = None
     await async_session.commit()
-    weapon.last_maintenance_trial_at = datetime.utcnow() - timedelta(days=7)
+    weapon.last_maintenance_trial_at = utcnow() - timedelta(days=7)
     weapon.storage_id = storage.id
     await async_session.commit()
-    assert datetime.utcnow() - weapon.last_maintenance_trial_at < timedelta(seconds=5)
+    assert utcnow() - weapon.last_maintenance_trial_at < timedelta(seconds=5)
     rng = Mock()
     await process_storage_maintenance(async_session, vault.id, rng)
     rng.assert_not_called()
@@ -215,9 +216,7 @@ async def test_due_query_works_with_raw_sqlalchemy_session(async_session, vault)
     storage, _, weapon = await setup_inventory(async_session, vault)
     connection = await async_session.connection()
     async with RawSession(bind=connection, join_transaction_mode="create_savepoint", expire_on_commit=False) as raw:
-        due = await crud.weapon.list_due_for_trial(
-            raw, storage.id, datetime.utcnow(), maintenance.eligible_weapon_names()
-        )
+        due = await crud.weapon.list_due_for_trial(raw, storage.id, utcnow(), maintenance.eligible_weapon_names())
         assert [w.id for w in due] == [weapon.id]
         assert await crud.dweller.list_storage_workers(raw, vault.id) == []
 
@@ -226,14 +225,14 @@ async def test_pause_resume_shifts_clock_preserving_remainder(async_session, vau
     from app.services.game_loop_service import game_loop_service
 
     _, state, weapon = await setup_inventory(async_session, vault)
-    now = datetime.utcnow()
+    now = utcnow()
     state.is_paused = True
     state.paused_at = now - timedelta(hours=4)
     state.last_tick_time = state.paused_at
     weapon.last_maintenance_trial_at = state.paused_at - timedelta(minutes=20)
     await async_session.commit()
     await game_loop_service.resume_vault(async_session, vault.id)
-    assert timedelta(minutes=19) < datetime.utcnow() - weapon.last_maintenance_trial_at < timedelta(minutes=21)
+    assert timedelta(minutes=19) < utcnow() - weapon.last_maintenance_trial_at < timedelta(minutes=21)
 
 
 @pytest.mark.parametrize(
@@ -257,9 +256,7 @@ async def test_inert_and_unknown_are_not_due(async_session, vault, name):
     async_session.add_all([storage, weapon])
     await async_session.commit()
     assert (
-        await crud.weapon.list_due_for_trial(
-            async_session, storage.id, datetime.utcnow(), maintenance.eligible_weapon_names()
-        )
+        await crud.weapon.list_due_for_trial(async_session, storage.id, utcnow(), maintenance.eligible_weapon_names())
         == []
     )
 
@@ -291,7 +288,7 @@ async def test_blocked_upgrade_consumes_trial_and_notifies_once_after_allowed(as
     monkeypatch.setattr(game_config.storage, "allow_rarity_upgrade", True)
     await process_storage_maintenance(async_session, vault.id, rng)
     rng.assert_not_called()
-    weapon.last_maintenance_trial_at = datetime.utcnow() - timedelta(hours=2)
+    weapon.last_maintenance_trial_at = utcnow() - timedelta(hours=2)
     await async_session.commit()
     await process_storage_maintenance(async_session, vault.id, rng)
     assert weapon.name == "Plasma rifle"

@@ -24,6 +24,7 @@ from app.schemas.dweller import DwellerCreate
 from app.services.family.death_service import death_service
 from app.tests.factory.dwellers import create_fake_dweller
 from app.utils import dweller_lifecycle
+from app.utils.time import utcnow
 
 
 async def _dweller(async_session: AsyncSession, vault: Vault, **overrides: object) -> Dweller:
@@ -187,7 +188,7 @@ async def test_permanent_death_expiry_updates_canonical_state_and_graveyard(
         is_dead=True,
         is_permanently_dead=False,
         death_cause=DeathCauseEnum.EXPLORATION,
-        death_timestamp=datetime.utcnow() - timedelta(days=10),
+        death_timestamp=utcnow() - timedelta(days=10),
     )
 
     count = await death_service.check_and_mark_permanent_deaths(async_session)
@@ -209,7 +210,7 @@ async def test_revival_restores_canonical_lifecycle(async_session: AsyncSession,
         is_dead=True,
         is_permanently_dead=False,
         death_cause=DeathCauseEnum.HEALTH,
-        death_timestamp=datetime.utcnow() - timedelta(days=1),
+        death_timestamp=utcnow() - timedelta(days=1),
         health=0,
     )
     vault.bottle_caps = 10_000
@@ -234,11 +235,11 @@ async def test_memorial_is_excluded_from_recycling_and_purge(async_session: Asyn
         availability=AvailabilityEnum.ARCHIVE,
         is_permanently_dead=True,
         is_deleted=True,
-        deleted_at=datetime.utcnow(),
+        deleted_at=utcnow(),
     )
 
     recyclable = await crud.dweller.get_recyclable(async_session, limit=10)
-    purgeable = await crud.dweller.get_soft_deleted_before(async_session, datetime.utcnow(), limit=10)
+    purgeable = await crud.dweller.get_soft_deleted_before(async_session, utcnow(), limit=10)
 
     assert memorial.id not in {row.id for row in recyclable}
     assert memorial.id not in {row.id for row in purgeable}

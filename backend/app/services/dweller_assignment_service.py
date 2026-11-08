@@ -1,7 +1,6 @@
 """Service for intelligent dweller assignment to rooms."""
 
 from collections.abc import Sequence
-from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -21,6 +20,7 @@ from app.services.room_assignment_policy import (
 from app.services.training_service import training_service
 from app.utils.dweller_availability import DwellerAction, purposeful_action_error
 from app.utils.exceptions import ResourceConflictException
+from app.utils.time import utcnow
 
 PRODUCTION_ABILITIES = [
     SPECIALEnum.STRENGTH,
@@ -322,7 +322,7 @@ class DwellerAssignmentService:
                     "room_id": room.id,
                     "status": determine_status_for_room(room.category, room.name),
                     "apprentice_stat": room.ability,
-                    "apprentice_started_at": datetime.utcnow(),
+                    "apprentice_started_at": utcnow(),
                 },
                 commit=False,
             )

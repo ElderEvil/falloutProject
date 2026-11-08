@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 import sqlalchemy as sa
 from alembic import op
+from app.utils.time import utcnow
 
 revision = "a8c41e06d925"
 down_revision = "e6b91c48a732"
@@ -16,7 +17,7 @@ def upgrade() -> None:
     op.add_column("gamestate", sa.Column("daily_objectives_period", sa.DateTime(), nullable=True))
     op.add_column("gamestate", sa.Column("weekly_objectives_period", sa.DateTime(), nullable=True))
     # NULL is reserved for state created later without an adopted refresh window.
-    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     state = sa.table(
         "gamestate",
         sa.column("daily_objectives_period", sa.DateTime()),

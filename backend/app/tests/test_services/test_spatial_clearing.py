@@ -18,6 +18,7 @@ from app.services.game_tick.dwellers_tick import process_explorations
 from app.services.map_service import map_service
 from app.services.world_snapshot_service import world_snapshot_service
 from app.utils import world_terrain
+from app.utils.time import utcnow
 from app.utils.vault_slots import slot_coords
 
 STRONG_STATS = {
@@ -101,7 +102,7 @@ async def test_arrival_resolves_positionally_before_timer_expiry(
     await _boost_dweller(async_session, dweller)
     exploration = await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
     distance = math.dist(origin, (location.coord_x, location.coord_y))
-    exploration.start_time = datetime.utcnow() - timedelta(hours=distance / 10 + 0.05)
+    exploration.start_time = utcnow() - timedelta(hours=distance / 10 + 0.05)
     async_session.add(exploration)
     await async_session.commit()
 
@@ -122,7 +123,7 @@ async def test_fresh_clear_cools_down_168h_while_inflight_expiry_survives(
     location, state = (await _nearby_clearable(async_session, vault, dweller))[:2]
     other, other_state = (await _nearby_clearable(async_session, vault, dweller, dx=12.0, name="Slice3a Hold"))[:2]
     await _boost_dweller(async_session, dweller)
-    frozen_expiry = datetime.utcnow() + timedelta(hours=3)
+    frozen_expiry = utcnow() + timedelta(hours=3)
     other_state.reclear_available_at = frozen_expiry
     async_session.add(other_state)
     await async_session.commit()
@@ -133,7 +134,7 @@ async def test_fresh_clear_cools_down_168h_while_inflight_expiry_survives(
     await async_session.refresh(state)
     await async_session.refresh(other_state)
     assert state.reclear_available_at is not None
-    wait_hours = (state.reclear_available_at - datetime.utcnow()).total_seconds() / 3600
+    wait_hours = (state.reclear_available_at - utcnow()).total_seconds() / 3600
     assert 167 < wait_hours <= 168
     assert other_state.reclear_available_at == frozen_expiry
 

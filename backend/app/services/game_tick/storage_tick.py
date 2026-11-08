@@ -2,7 +2,7 @@
 
 import random
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -14,6 +14,7 @@ from app.crud.notification import notification as notification_crud
 from app.services import storage_maintenance_service as maintenance
 from app.services.notification_service import notification_service
 from app.utils.item_factory import apply_weapon_catalog
+from app.utils.time import utcnow
 
 
 async def process_storage_maintenance(
@@ -30,7 +31,7 @@ async def process_storage_maintenance(
     if storage is None:
         return stats
     # Read the clock after acquiring the lock, including if another pass just finished.
-    now = datetime.utcnow()
+    now = utcnow()
     due = await crud.weapon.list_due_for_trial(
         db, storage.id, now - timedelta(seconds=config.trial_interval_seconds), maintenance.eligible_weapon_names()
     )

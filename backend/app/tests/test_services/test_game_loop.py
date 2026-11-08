@@ -32,6 +32,7 @@ from app.services.dweller_service import dweller_service
 from app.services.game_loop_service import game_loop_service
 from app.services.game_tick.family_tick import _deliver_due_baby
 from app.utils.exceptions import NoLivingSpaceError, VaultOperationException
+from app.utils.time import utcnow
 
 # ═════════════════════════════════════════════════════════════════════
 # pause_vault / resume_vault / get_vault_status / _get_or_create
@@ -216,7 +217,7 @@ class TestProcessVaultTick:
     @pytest.mark.asyncio
     async def test_caps_offline_time(self, async_session: AsyncSession, vault: Vault):
         gs = await game_loop_service._get_or_create_game_state(async_session, vault.id)
-        gs.last_tick_time = datetime.utcnow() - timedelta(hours=2)
+        gs.last_tick_time = utcnow() - timedelta(hours=2)
         async_session.add(gs)
         await async_session.commit()
         result = await self._patched_tick(async_session, vault)
@@ -378,7 +379,7 @@ class TestDehydrationRadiation:
         await self._prepare(async_session, vault, dweller, water=0)
         dweller.radiation = 99
         async_session.add(dweller)
-        async_session.add(GameState(vault_id=vault.id, water_empty_since=datetime.utcnow() - timedelta(minutes=10)))
+        async_session.add(GameState(vault_id=vault.id, water_empty_since=utcnow() - timedelta(minutes=10)))
         await async_session.commit()
 
         await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
@@ -391,7 +392,7 @@ class TestDehydrationRadiation:
         await self._prepare(async_session, vault, dweller, water=0)
         dweller.max_health = 200
         async_session.add(dweller)
-        async_session.add(GameState(vault_id=vault.id, water_empty_since=datetime.utcnow() - timedelta(minutes=10)))
+        async_session.add(GameState(vault_id=vault.id, water_empty_since=utcnow() - timedelta(minutes=10)))
         await async_session.commit()
 
         result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=120)
@@ -402,7 +403,7 @@ class TestDehydrationRadiation:
     @pytest.mark.asyncio
     async def test_grace_period_applies_no_radiation(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
         await self._prepare(async_session, vault, dweller, water=0)
-        async_session.add(GameState(vault_id=vault.id, water_empty_since=datetime.utcnow()))
+        async_session.add(GameState(vault_id=vault.id, water_empty_since=utcnow()))
         await async_session.commit()
 
         result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=120)
@@ -418,7 +419,7 @@ class TestDehydrationRadiation:
         from app.models.outfit import Outfit
 
         await self._prepare(async_session, vault, dweller, water=0)
-        async_session.add(GameState(vault_id=vault.id, water_empty_since=datetime.utcnow() - timedelta(minutes=10)))
+        async_session.add(GameState(vault_id=vault.id, water_empty_since=utcnow() - timedelta(minutes=10)))
         async_session.add(
             Outfit(
                 name="T-51d power armor",
@@ -442,7 +443,7 @@ class TestDehydrationRadiation:
         from app.models.outfit import Outfit
 
         await self._prepare(async_session, vault, dweller, water=0)
-        async_session.add(GameState(vault_id=vault.id, water_empty_since=datetime.utcnow() - timedelta(minutes=10)))
+        async_session.add(GameState(vault_id=vault.id, water_empty_since=utcnow() - timedelta(minutes=10)))
         async_session.add(
             Outfit(
                 name="Hazmat suit",
@@ -513,7 +514,7 @@ class TestProcessTraining:
         )
         room = await crud.room.create(async_session, RoomCreate(**room_data, vault_id=vault.id))
 
-        now = datetime.utcnow()
+        now = utcnow()
         trainings = []
         for index in range(count):
             dweller_data = create_fake_dweller()
@@ -1154,7 +1155,7 @@ async def test_resume_preserves_incident_response_time_and_does_not_shift_twice(
         difficulty=1,
     )
     state = await game_loop_service.pause_vault(async_session, room_in_vault.vault_id)
-    state.paused_at = datetime.utcnow() - timedelta(minutes=10)
+    state.paused_at = utcnow() - timedelta(minutes=10)
     incident.start_time = state.paused_at + timedelta(seconds=start_offset)
     await async_session.commit()
     await game_loop_service.pause_vault(async_session, room_in_vault.vault_id)
@@ -1170,7 +1171,7 @@ async def test_resume_preserves_incident_response_time_and_does_not_shift_twice(
 async def test_resume_excludes_paused_time_without_counting_it_twice(async_session, vault, tick_offset):
     """Resume preserves only the unprocessed active time, even if a paused tick ran."""
     state = await game_loop_service.pause_vault(async_session, vault.id)
-    paused_at = datetime.utcnow() - timedelta(minutes=10)
+    paused_at = utcnow() - timedelta(minutes=10)
     state.paused_at = paused_at
     state.last_tick_time = paused_at + timedelta(seconds=tick_offset)
     await async_session.commit()

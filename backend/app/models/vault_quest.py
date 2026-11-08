@@ -6,6 +6,8 @@ from pydantic import UUID4
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
+from app.utils.time import utcnow
+
 
 class VaultQuestCompletionLink(SQLModel, table=True):
     vault_id: UUID4 = Field(foreign_key="vault.id", primary_key=True)
@@ -34,10 +36,10 @@ class VaultQuestCompletionLink(SQLModel, table=True):
         """Seconds until the party arrives home; 0 unless travelling."""
         if not self.is_returning() or self.return_completes_at is None:
             return 0
-        return max(0, int((self.return_completes_at - datetime.utcnow()).total_seconds()))
+        return max(0, int((self.return_completes_at - utcnow()).total_seconds()))
 
     def start_return(self, return_minutes: int) -> None:
         """Begin the trip home, arriving in ``return_minutes``."""
-        now = datetime.utcnow()
+        now = utcnow()
         self.return_started_at = now
         self.return_completes_at = now + timedelta(minutes=return_minutes)

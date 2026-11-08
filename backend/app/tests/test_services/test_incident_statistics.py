@@ -11,6 +11,7 @@ from app.crud.user_profile import profile_crud
 from app.services.combat import incident_round
 from app.services.combat.incident_service import incident_service
 from app.tests.test_services._hazard_team_helpers import empty_room, raise_incident
+from app.utils.time import utcnow
 
 
 async def _profile(session: AsyncSession, vault):
@@ -63,7 +64,7 @@ async def test_undefended_failure_counts_a_lost_incident(async_session: AsyncSes
     room = await empty_room(async_session, vault.id)
     await _profile(async_session, vault)
     incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
-    incident.start_time = datetime.utcnow() - timedelta(hours=1)
+    incident.start_time = utcnow() - timedelta(hours=1)
 
     await incident_service.process_incident(async_session, incident, 2)
 
@@ -85,7 +86,7 @@ async def test_spread_counts_a_happened_incident(
     neighbor = await empty_room(async_session, vault.id, name="Neighbor", x=9)
     await _profile(async_session, vault)
     incident = await raise_incident(async_session, source, IncidentType.RADROACH_INFESTATION)
-    incident.start_time = datetime.utcnow() - timedelta(hours=1)
+    incident.start_time = utcnow() - timedelta(hours=1)
 
     await incident_service.process_incident(async_session, incident, 2)
 

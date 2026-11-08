@@ -22,6 +22,7 @@ from app.schemas.dweller import DwellerCreate
 from app.services.departure_pool_service import departure_pool_service
 from app.services.trading_post_service import trade_value
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
+from app.utils.time import utcnow
 
 
 def _dweller_data(**overrides: object) -> dict:
@@ -31,7 +32,7 @@ def _dweller_data(**overrides: object) -> dict:
         "gender": GenderEnum.FEMALE,
         "rarity": RarityEnum.COMMON,
         "age_group": AgeGroupEnum.ADULT,
-        "birth_date": datetime.utcnow() - timedelta(days=365 * 30),
+        "birth_date": utcnow() - timedelta(days=365 * 30),
         "level": 7,
         "experience": 420,
         "max_health": 120,

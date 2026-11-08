@@ -16,6 +16,7 @@ from app.models.vault import Vault
 from app.schemas.expedition import TriviaQuestion
 from app.services import catalog_service as data_loader
 from app.services.exploration_service import exploration_service
+from app.utils.time import utcnow
 
 
 async def _enter_raider_tollbooth(
@@ -252,7 +253,7 @@ async def test_site_available_anti_farm_excludes_recent_clear(
         site_id="red_rocket",
     )
     run.status = ExpeditionRunStatus.CLEARED
-    run.finished_at = datetime.utcnow()
+    run.finished_at = utcnow()
     async_session.add(run)
     await async_session.commit()
 

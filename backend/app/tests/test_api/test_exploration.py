@@ -22,6 +22,7 @@ from app.schemas.vault import VaultCreateWithUserID
 from app.services.exploration_service import exploration_service
 from app.services.map_service import map_service
 from app.tests.factory.dwellers import create_fake_dweller
+from app.utils.time import utcnow
 
 
 async def _claim_slot(async_session: AsyncSession, vault: Vault) -> None:
@@ -293,7 +294,7 @@ async def test_list_explorations_includes_paused_at(
     dweller: Dweller,
 ) -> None:
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    exploration.paused_at = datetime.utcnow()
+    exploration.paused_at = utcnow()
     async_session.add(exploration)
     await async_session.commit()
 
@@ -416,7 +417,7 @@ async def test_recall_dweller_success(
 
     # Arrival finalizes the run with reduced (recalled) rewards.
     await async_session.refresh(exploration)
-    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    exploration.return_completes_at = utcnow() - timedelta(seconds=1)
     async_session.add(exploration)
     await async_session.commit()
 
@@ -472,7 +473,7 @@ async def test_complete_exploration_success(
 
     # The CRUD methods already commit and refresh, so data should be persisted
 
-    exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
+    exploration.start_time = utcnow() - timedelta(hours=exploration.duration)
     async_session.add(exploration)
     await async_session.commit()
 
@@ -495,7 +496,7 @@ async def test_complete_exploration_success(
 
     # Arrival finalizes the run and grants full rewards.
     await async_session.refresh(exploration)
-    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    exploration.return_completes_at = utcnow() - timedelta(seconds=1)
     async_session.add(exploration)
     await async_session.commit()
 

@@ -5,7 +5,7 @@ AI-generated content (names, bios, visual attributes) to be reused in new vaults
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -16,6 +16,7 @@ from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ class DwellerRecyclingService:
         Returns:
             List of recyclable soft-deleted dwellers
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=min_age_days)
+        cutoff_date = utcnow() - timedelta(days=min_age_days)
 
         return list(
             await crud.dweller.get_recyclable(

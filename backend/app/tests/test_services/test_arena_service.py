@@ -31,6 +31,7 @@ from app.services.combat.attack_service import resolve_attacks
 from app.services.dweller_service import dweller_service
 from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
+from app.utils.time import utcnow
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -568,7 +569,7 @@ class TestArenaService:
             arena_room,
             fighter_a_id=fighter_a.id,
             fighter_b_id=fighter_b.id,
-            fight_started_at=datetime.utcnow() - timedelta(seconds=10),
+            fight_started_at=utcnow() - timedelta(seconds=10),
         )
         await async_session.refresh(fighter_a, ["weapon", "outfit"])
         await async_session.refresh(fighter_b, ["weapon", "outfit"])
@@ -594,7 +595,7 @@ class TestArenaService:
             arena_room,
             fighter_a_id=fighter_a.id,
             fighter_b_id=fighter_b.id,
-            fight_started_at=datetime.utcnow() - timedelta(seconds=1),
+            fight_started_at=utcnow() - timedelta(seconds=1),
         )
         await async_session.refresh(fighter_a, ["weapon", "outfit"])
         await async_session.refresh(fighter_b, ["weapon", "outfit"])
@@ -649,9 +650,7 @@ class TestArenaService:
 
         fighter_a.room_id = arena_room.id
         fighter_b.room_id = arena_room.id
-        await configure_arena(
-            async_session, arena_room, last_fight_at=datetime.utcnow(), fight_started_at=datetime.utcnow()
-        )
+        await configure_arena(async_session, arena_room, last_fight_at=utcnow(), fight_started_at=utcnow())
         fighter_a.health = 40
         fighter_b.health = 1
         # Irradiate both fighters so effective_max_health differs from base max_health
@@ -790,7 +789,7 @@ class TestArenaService:
             arena_room,
             fighter_a_id=fighter_a.id,
             fighter_b_id=fighter_b.id,
-            fight_started_at=datetime.utcnow(),
+            fight_started_at=utcnow(),
         )
         await async_session.refresh(fighter_a, ["weapon", "outfit"])
         await async_session.refresh(fighter_b, ["weapon", "outfit"])
@@ -943,7 +942,7 @@ class TestArenaService:
         fighter_c.health = 1000
         fighter_b.health = 1
         fighter_d.health = 1000
-        await configure_arena(async_session, arena_room, fight_started_at=datetime.utcnow() - timedelta(seconds=10))
+        await configure_arena(async_session, arena_room, fight_started_at=utcnow() - timedelta(seconds=10))
 
         await service.process_arena_ticks(async_session, 1)
         await async_session.refresh(fighter_b)
@@ -1247,7 +1246,7 @@ class TestArenaService:
         fighter_c.health = 1000
         fighter_b.health = 1
         fighter_d.health = 1
-        await configure_arena(async_session, arena_room, fight_started_at=datetime.utcnow() - timedelta(seconds=10))
+        await configure_arena(async_session, arena_room, fight_started_at=utcnow() - timedelta(seconds=10))
 
         result = await service.process_arena_ticks(async_session, 5)
 
@@ -1320,7 +1319,7 @@ class TestArenaService:
             opponent_keys=["radroach-swarm"],
         )
         fighter_a.health = 100000
-        await configure_arena(async_session, arena_room, fight_started_at=datetime.utcnow() - timedelta(seconds=10))
+        await configure_arena(async_session, arena_room, fight_started_at=utcnow() - timedelta(seconds=10))
 
         result = await service.process_arena_ticks(async_session, 3600)
 
@@ -1349,7 +1348,7 @@ class TestArenaService:
             opponent_keys=["deathclaw"],
         )
         fighter_a.health = 1
-        await configure_arena(async_session, arena_room, fight_started_at=datetime.utcnow() - timedelta(seconds=10))
+        await configure_arena(async_session, arena_room, fight_started_at=utcnow() - timedelta(seconds=10))
 
         first = await service.process_arena_ticks(async_session, 2)
         assert first["arena"]["rounds"][0]["status"] == "ongoing"
@@ -1379,7 +1378,7 @@ class TestArenaService:
             opponent_keys=["radroach-swarm", "radroach-swarm"],
         )
         fighter_a.health = 100000
-        await configure_arena(async_session, arena_room, fight_started_at=datetime.utcnow() - timedelta(seconds=10))
+        await configure_arena(async_session, arena_room, fight_started_at=utcnow() - timedelta(seconds=10))
 
         await service.process_arena_ticks(async_session, 1)
         arena_state = await arena_state_crud.get(async_session, arena_room.id)
@@ -1422,7 +1421,7 @@ class TestArenaService:
             opponent_keys=opponent_keys,
         )
         fighter_a.health = 100000
-        await configure_arena(async_session, arena_room, fight_started_at=datetime.utcnow() - timedelta(seconds=10))
+        await configure_arena(async_session, arena_room, fight_started_at=utcnow() - timedelta(seconds=10))
 
         for _ in range(3):
             result = await service.process_arena_ticks(async_session, 3600)
@@ -1564,7 +1563,7 @@ class TestArenaMoraleBonus:
             arena_room,
             fighter_a_id=fighter_a.id,
             fighter_b_id=fighter_b.id,
-            fight_started_at=datetime.utcnow() - timedelta(seconds=10),
+            fight_started_at=utcnow() - timedelta(seconds=10),
         )
         await async_session.refresh(fighter_a, ["weapon", "outfit"])
         await async_session.refresh(fighter_b, ["weapon", "outfit"])
@@ -1633,7 +1632,7 @@ class TestArenaBotSupport:
             team_b_bot_key="training-protectron",
         )
         await service.start_fight(async_session, arena_room.id)
-        state.fight_started_at = datetime.utcnow() - timedelta(seconds=20)
+        state.fight_started_at = utcnow() - timedelta(seconds=20)
         await async_session.commit()
         await service.process_arena_ticks(async_session, 2)
         _, team_b = await service.get_teams(async_session, arena_room)
@@ -1833,7 +1832,7 @@ async def test_match_finish_releases_only_participants(
         await async_session.refresh(fighter)
         assert fighter.status == (DwellerStatusEnum.FIGHTING if fighter.id in selected else DwellerStatusEnum.IDLE)
     assert exit_request_service._eligibility_reason(fighter_a) == "Dweller is busy in an arena match"
-    state.fight_started_at = datetime.utcnow() - timedelta(seconds=60)
+    state.fight_started_at = utcnow() - timedelta(seconds=60)
     await async_session.commit()
     ongoing = await service.process_arena_ticks(async_session, 1)
     assert ongoing["arena"]["rounds"][0]["status"] == "ongoing"
@@ -1926,7 +1925,7 @@ async def test_stale_cleanup_preserves_moved_and_dead_dwellers(
         fighter_a_id=fighter_a.id,
         fighter_b_id=fighter_b.id,
         fighter_c_id=fighter_c.id,
-        last_fight_at=datetime.utcnow() if completed else None,
+        last_fight_at=utcnow() if completed else None,
     )
     for _ in range(2):
         await ArenaService().process_arena_ticks(async_session, 1)
@@ -1977,8 +1976,8 @@ async def test_snapshot_bounds_and_clears_journal_without_mutation(
         arena_room,
         fighter_a_id=fighter_a.id,
         fighter_b_id=fighter_b.id,
-        fight_started_at=datetime.utcnow(),
-        last_fight_at=datetime.utcnow() if finished else None,
+        fight_started_at=utcnow(),
+        last_fight_at=utcnow() if finished else None,
     )
     events = [
         ArenaMatchEvent(
@@ -1986,7 +1985,7 @@ async def test_snapshot_bounds_and_clears_journal_without_mutation(
             round_seq=i,
             kind="hit",
             message=str(i),
-            created_at=datetime.utcnow() + timedelta(seconds=i),
+            created_at=utcnow() + timedelta(seconds=i),
         )
         for i in range(45)
     ]
@@ -2128,7 +2127,7 @@ async def test_skill_charge_persists_and_queued_attack_resolves_once(async_sessi
     service = ArenaService()
     state = await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
     await service.start_fight(async_session, arena_room.id)
-    state.fight_started_at = datetime.utcnow() - timedelta(seconds=60)
+    state.fight_started_at = utcnow() - timedelta(seconds=60)
     await async_session.commit()
     for _ in range(13):
         await service.process_arena_ticks(async_session, 2)
@@ -2180,15 +2179,15 @@ async def test_active_skill_rejects_invalid_actions(async_session, arena_room, f
     state = await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
     state.skill_charge = {str(fighter_a.id): 100}
     if blocked != "idle":
-        state.fight_started_at = datetime.utcnow() - timedelta(seconds=60)
+        state.fight_started_at = utcnow() - timedelta(seconds=60)
     if blocked == "countdown":
-        state.fight_started_at = datetime.utcnow()
+        state.fight_started_at = utcnow()
     if blocked == "uncharged":
         state.skill_charge = None
     if blocked == "knocked_out":
         state.knocked_out_ids = [str(fighter_a.id)]
     if blocked == "finished":
-        state.last_fight_at = datetime.utcnow()
+        state.last_fight_at = utcnow()
     await async_session.commit()
     with pytest.raises(ValidationException):
         await service.queue_skill(
@@ -2225,7 +2224,7 @@ async def test_active_skill_targeting_and_nonlethal_finish(
         team_b_bot_key="training-protectron",
     )
     state.skill_charge = {str(fighter_a.id): 100}
-    state.fight_started_at = datetime.utcnow() - timedelta(seconds=60)
+    state.fight_started_at = utcnow() - timedelta(seconds=60)
     await async_session.commit()
     await service.queue_skill(async_session, arena_room.id, fighter_a.id, arena_room.vault_id)
     team_a, team_b = await service.get_teams(async_session, arena_room)
@@ -2266,7 +2265,7 @@ async def test_skill_endpoint_authorizes_vault_and_queues_once(
     await async_session.commit()
     service = ArenaService()
     state = await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
-    state.fight_started_at = datetime.utcnow() - timedelta(seconds=60)
+    state.fight_started_at = utcnow() - timedelta(seconds=60)
     state.skill_charge = {str(fighter_a.id): 100}
     await async_session.commit()
     url = f"/arena/vault/{arena_room.vault_id}/rooms/{arena_room.id}/skill"
@@ -2292,7 +2291,7 @@ async def test_both_queued_skills_resolve_once_on_their_own_team_turn(async_sess
     service = ArenaService()
     state = await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
     await service.start_fight(async_session, arena_room.id)
-    state.fight_started_at = datetime.utcnow() - timedelta(seconds=60)
+    state.fight_started_at = utcnow() - timedelta(seconds=60)
     state.skill_charge = {str(fighter_a.id): 100, str(fighter_b.id): 100}
     await async_session.commit()
     for fighter in (fighter_a, fighter_b):
@@ -2350,7 +2349,7 @@ async def test_stop_fight_cancels_without_reward(async_session, arena_room, figh
     await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
     await service.start_fight(async_session, arena_room.id)
     state = await arena_state_crud.get(async_session, arena_room.id)
-    state.fight_started_at = datetime.utcnow() - timedelta(seconds=10)
+    state.fight_started_at = utcnow() - timedelta(seconds=10)
     state.skill_charge = {str(fighter_a.id): 50}
     await async_session.commit()
 
@@ -2390,7 +2389,7 @@ async def test_attack_events_include_actor_id(async_session, arena_room, fighter
     await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
     await service.start_fight(async_session, arena_room.id)
     state = await arena_state_crud.get(async_session, arena_room.id)
-    state.fight_started_at = datetime.utcnow() - timedelta(seconds=10)
+    state.fight_started_at = utcnow() - timedelta(seconds=10)
     await async_session.commit()
 
     await service.process_arena_ticks(async_session, 2)
@@ -2423,7 +2422,7 @@ async def test_arena_tick_failure_rolls_back_actions_damage_and_skill(
     await async_session.commit()
     service = ArenaService()
     state = await service.set_fighters(async_session, arena_room.id, fighter_a.id, fighter_b.id)
-    state.fight_started_at = datetime.utcnow() - timedelta(seconds=60)
+    state.fight_started_at = utcnow() - timedelta(seconds=60)
     state.skill_charge = {str(fighter_a.id): 100}
     await async_session.commit()
     await service.queue_skill(async_session, arena_room.id, fighter_a.id, arena_room.vault_id)

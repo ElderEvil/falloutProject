@@ -35,6 +35,7 @@ from app.services.family.death_service import death_service
 from app.services.hazard_team_service import hazard_team_service
 from app.services.training_service import training_service
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
+from app.utils.time import utcnow
 
 
 def _dweller_data(**overrides: object) -> dict:
@@ -44,7 +45,7 @@ def _dweller_data(**overrides: object) -> dict:
         "gender": GenderEnum.FEMALE,
         "rarity": RarityEnum.COMMON,
         "age_group": AgeGroupEnum.ADULT,
-        "birth_date": datetime.utcnow() - timedelta(days=365 * 30),
+        "birth_date": utcnow() - timedelta(days=365 * 30),
         "level": 5,
         "experience": 0,
         "max_health": 100,
@@ -362,7 +363,7 @@ async def test_despair_makes_dwellers_ask(async_session: AsyncSession, vault: Va
     await crud.dweller.update(
         async_session,
         sad.id,
-        {"despair_since": datetime.utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)},
+        {"despair_since": utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)},
     )
 
     asked = await exit_request_service.sync_despair_requests(async_session, vault.id)
@@ -383,7 +384,7 @@ async def test_despair_needs_the_grace_period_before_asking(async_session: Async
     await crud.dweller.update(
         async_session,
         sad.id,
-        {"despair_since": datetime.utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)},
+        {"despair_since": utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)},
     )
     asked = await exit_request_service.sync_despair_requests(async_session, vault.id)
 
@@ -394,7 +395,7 @@ async def test_despair_needs_the_grace_period_before_asking(async_session: Async
 async def test_the_vault_asks_at_most_once_a_day(async_session: AsyncSession, vault: Vault) -> None:
     """The daily cap holds even with several dwellers ready to ask."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
-    overdue = datetime.utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)
+    overdue = utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)
     for dweller in dwellers:
         await crud.dweller.update(
             async_session,
@@ -413,7 +414,7 @@ async def test_the_vault_asks_at_most_once_a_day(async_session: AsyncSession, va
 async def test_answering_an_ask_consumes_the_day(async_session: AsyncSession, vault: Vault) -> None:
     """A refused dweller still in despair cannot immediately ask again — the answer uses the day."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
-    overdue = datetime.utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)
+    overdue = utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)
     await crud.dweller.update(async_session, dwellers[0].id, {"despair_since": overdue})
     await exit_request_service.request_exit(async_session, dwellers[0].id)
     vault.last_exit_request_at = None
@@ -430,7 +431,7 @@ async def test_answering_an_ask_consumes_the_day(async_session: AsyncSession, va
 async def test_despair_tracking_survives_a_blocked_ask(async_session: AsyncSession, vault: Vault) -> None:
     """A dweller who falls into despair while the daily cap is spent still starts their clock."""
     await _with_room_for_one_exit(async_session, vault)
-    vault.last_exit_request_at = datetime.utcnow()
+    vault.last_exit_request_at = utcnow()
     async_session.add(vault)
     await async_session.commit()
     sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)
@@ -540,8 +541,8 @@ async def test_grant_exit_clears_idle_arena_selection(
     await async_session.commit()
     state = await arena_service.set_fighters(async_session, arena.id, departing.id, teammate.id)
     if completed:
-        state.fight_started_at = datetime.utcnow() - timedelta(minutes=1)
-        state.last_fight_at = datetime.utcnow()
+        state.fight_started_at = utcnow() - timedelta(minutes=1)
+        state.last_fight_at = utcnow()
     async_session.add(ArenaMatchEvent(room_id=arena.id, round_seq=1, kind="hit", message="Previous match"))
     await async_session.commit()
     await exit_request_service.request_exit(async_session, departing.id)

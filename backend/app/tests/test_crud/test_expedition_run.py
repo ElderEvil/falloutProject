@@ -13,6 +13,7 @@ from app.tests.factory.dwellers import create_fake_adult_dweller
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+from app.utils.time import utcnow
 
 
 async def _make_exploration(async_session: AsyncSession):
@@ -79,18 +80,18 @@ async def test_recent_terminal_found_for_cooldown(async_session: AsyncSession):
         site_id="red_rocket",
     )
     run.status = ExpeditionRunStatus.CLEARED
-    run.finished_at = datetime.utcnow()
+    run.finished_at = utcnow()
     async_session.add(run)
     await async_session.commit()
 
     found = await crud.expedition_run.get_recent_terminal(
-        async_session, vault_id=vault.id, site_id="red_rocket", since=datetime.utcnow() - timedelta(days=7)
+        async_session, vault_id=vault.id, site_id="red_rocket", since=utcnow() - timedelta(days=7)
     )
     assert found is not None
     assert found.id == run.id
 
     old = await crud.expedition_run.get_recent_terminal(
-        async_session, vault_id=vault.id, site_id="red_rocket", since=datetime.utcnow() + timedelta(days=1)
+        async_session, vault_id=vault.id, site_id="red_rocket", since=utcnow() + timedelta(days=1)
     )
     assert old is None
 
@@ -108,12 +109,12 @@ async def test_recent_terminal_matches_retreat_and_death(async_session: AsyncSes
         site_id="red_rocket",
     )
     run.status = status
-    run.finished_at = datetime.utcnow()
+    run.finished_at = utcnow()
     async_session.add(run)
     await async_session.commit()
 
     found = await crud.expedition_run.get_recent_terminal(
-        async_session, vault_id=vault.id, site_id="red_rocket", since=datetime.utcnow() - timedelta(days=7)
+        async_session, vault_id=vault.id, site_id="red_rocket", since=utcnow() - timedelta(days=7)
     )
     assert found is not None
     assert found.id == run.id

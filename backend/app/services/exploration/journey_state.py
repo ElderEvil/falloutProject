@@ -13,6 +13,7 @@ from app.crud.room import room as room_crud
 from app.crud.team import team_crud
 from app.models.exploration import ExpeditionRun, Exploration
 from app.schemas.dweller import DwellerUpdate
+from app.utils.time import utcnow
 
 
 async def close_open_site_run(
@@ -26,7 +27,7 @@ async def close_open_site_run(
     if run is None:
         return None
     run.status = ExpeditionRunStatus.RETREATED
-    run.finished_at = now or datetime.utcnow()
+    run.finished_at = now or utcnow()
     db_session.add(run)
     await db_session.flush()
     return run

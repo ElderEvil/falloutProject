@@ -17,6 +17,7 @@ from app.core.config import settings
 from app.schemas.user import UserCreate
 from app.tests.factory.users import create_fake_user
 from app.tests.test_api.test_user import create_isolated_user_with_token
+from app.utils.time import utcnow
 
 pytestmark = pytest.mark.asyncio(scope="module")
 
@@ -120,7 +121,7 @@ async def test_username_change_allowed_after_cooldown(
     token_headers, user_data = await create_isolated_user_with_token(async_client, async_session)
     user = await crud.user.get_by_email(db_session=async_session, email=user_data["email"])
     assert user is not None
-    user.username_changed_at = datetime.utcnow() - timedelta(days=settings.USERNAME_CHANGE_COOLDOWN_DAYS + 1)
+    user.username_changed_at = utcnow() - timedelta(days=settings.USERNAME_CHANGE_COOLDOWN_DAYS + 1)
     await async_session.commit()
 
     response = await async_client.put(

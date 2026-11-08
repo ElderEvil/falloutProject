@@ -3,7 +3,6 @@
 import asyncio
 import logging
 import random
-from datetime import datetime
 
 from pydantic import UUID4
 from sqlalchemy import inspect
@@ -43,6 +42,7 @@ from app.services.game_tick.tick_results import (
 )
 from app.services.resource_manager_service import ResourceManager
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ class GameLoopService:
             "total_time": 0,
         }
 
-        start_time = datetime.utcnow()
+        start_time = utcnow()
 
         # Read plain IDs before spawning: recovering a failed vault expires every
         # loaded ORM instance, so touching vault attributes afterwards would lazy-load.
@@ -115,7 +115,7 @@ class GameLoopService:
             for vault_id, exc in unexpected[1:]:
                 self.logger.error("Unexpected error processing vault %s", vault_id, exc_info=exc)
             raise unexpected[0][1]
-        stats["total_time"] = (datetime.utcnow() - start_time).total_seconds()
+        stats["total_time"] = (utcnow() - start_time).total_seconds()
 
         self.logger.info(
             f"Game tick completed: {stats['vaults_processed']} processed, "
@@ -186,7 +186,7 @@ class GameLoopService:
                     game_state.update_tick(seconds_passed)
                     if resource_update.water is not None:
                         if resource_update.water <= 0 and game_state.water_empty_since is None:
-                            game_state.water_empty_since = datetime.utcnow()
+                            game_state.water_empty_since = utcnow()
                         elif resource_update.water > 0:
                             game_state.water_empty_since = None
                     db_session.add(game_state)
@@ -346,7 +346,7 @@ class GameLoopService:
         await crud.storage.get_storage_by_vault_for_update(db_session, vault_id)
         await db_session.refresh(game_state, with_for_update=True)
         if game_state.is_paused and game_state.paused_at:
-            resumed_at = datetime.utcnow()
+            resumed_at = utcnow()
             await crud.weapon.shift_trial_clocks(db_session, vault_id, resumed_at - game_state.paused_at, resumed_at)
             for incident in await incident_crud.get_active_by_vault(db_session, vault_id):
                 paused_since = max(game_state.paused_at, incident.start_time)

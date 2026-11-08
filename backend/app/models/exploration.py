@@ -11,6 +11,7 @@ from sqlmodel import Field, SQLModel
 
 from app.core.enums import ExpeditionRunStatus, ExplorationStatus
 from app.models.base import BaseUUIDModel, TimeStampMixin
+from app.utils.serialize import serialize_naive_utc_datetime
 from app.utils.time import utcnow
 
 # The trip home takes half the time the dweller spent exploring.
@@ -253,7 +254,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         event = {
             "type": event_type,
             "description": description,
-            "timestamp": utcnow().isoformat(),
+            "timestamp": serialize_naive_utc_datetime(utcnow()),
             "time_elapsed_hours": round(self.elapsed_time_seconds() / 3600, 2),
         }
         if loot:
@@ -287,7 +288,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
                 "quantity": quantity,
                 "rarity": rarity,
                 "item_type": item_type,
-                "found_at": utcnow().isoformat(),
+                "found_at": serialize_naive_utc_datetime(utcnow()),
             }
         )
         # Flag the field as modified so SQLAlchemy tracks the change

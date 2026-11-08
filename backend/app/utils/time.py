@@ -17,3 +17,12 @@ from datetime import UTC, datetime
 def utcnow() -> datetime:
     """Return the current UTC time as a naive datetime (legacy storage contract)."""
     return datetime.now(UTC).replace(tzinfo=None)
+
+
+def as_utc(value: datetime) -> datetime:
+    """Return ``value`` as a timezone-aware UTC datetime.
+
+    Naive values follow the legacy storage contract and are interpreted as UTC;
+    aware values are converted to UTC rather than relabelled.
+    """
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)

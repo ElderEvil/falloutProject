@@ -241,30 +241,34 @@ Validate the decorator before converting columns: a round-trip test on both back
 These are internal implementation steps, not separately deployable increments. A 2.x release may ship
 compatible **readers** only. After that, B4 ships in one maintenance window with every writer stopped.
 
-**Prerequisite — public traffic gate.** `deploy-hetzner.yml` currently scales only the backend and worker
-to zero during `maintenance_mode`; the frontend and ingress keep serving, and the workflow's final step
-restores the backend replicas before anyone inspects the result. That is not a verification window. Add an
-explicit gate that blocks public traffic for the whole cutover (scale the frontend to zero and/or deny the
-ingress route) and expose an operator-only path (port-forward, internal service or VPN) for the checks.
+**Public traffic gate.** `deploy-hetzner.yml` accepts `public_traffic_gate=true`, which requires
+`maintenance_mode=true` and `run_migrations=true`. The run stops writers, verifies the backup, then deletes
+`fallout-ingress`. It leaves the ingress deleted after its automated checks, so both public hosts stay
+unreachable until an operator runs the separate **Open public traffic** workflow (`confirm=open`) after the
+manual checks below. Use `kubectl exec` or `kubectl port-forward` against the backend for operator-only
+checks. After any failure, check the ingress state; if it is deleted, reopen it only after diagnosis
+(`kubectl apply -f deployment/k3s/ingress.yaml` or the Open workflow).
 
 1. **Pre-deploy (2.x, readers only):** land frontend `parseUtcMs` usage, JSON/SSE readers that accept bare
    and offset values, and the API field serializers in read-only form. Do not change writers or the clock.
-2. **Close public traffic:** close the frontend/ingress gate and confirm no public request can reach the
-   API. Keep it closed until step 9. Do not rely on `maintenance_mode` alone.
-3. **Quiesce:** run the gated maintenance flow (`maintenance_mode=true`) or stop API, worker, scheduler and
-   any other writer manually; verify no other Jobs, CLI or cron writers are active.
-4. **Back up:** take and verify the pre-migration snapshot while writers are stopped.
+2. **Quiesce:** dispatch `maintenance_mode=true -f public_traffic_gate=true`; the workflow records replica
+   counts and stops the API, worker and scheduler. Verify no other Jobs, CLI or cron writers are active.
+3. **Back up:** the same run creates and verifies the pre-migration snapshot while writers are stopped.
+4. **Close public traffic:** the same run deletes `fallout-ingress` after the verified backup. Confirm no
+   public request reaches either host and keep the ingress closed until step 10.
 5. **Schema + models, one change:** convert the 122 columns with `USING <col> AT TIME ZONE 'UTC'` and switch
    model declarations to `UTCDateTime` in the same deployment.
 6. **Clock + consumers, same deployment:** flip `utcnow()` to aware UTC and update every C comparison and
    Q bound to aware UTC. No mixed pair may run in production.
 7. **Writers/serializers:** apply the output decisions above; keep JSON history and identity strings
    byte-stable.
-8. **Start under maintenance and verify:** start the matching API and worker behind the closed gate; use
-   the operator-only path to check revision/schema/instants, a real tick, deadlines, SSE replay and
-   desktop/phone timestamps.
-9. **Open traffic:** restore the frontend/ingress and reopen play only after those checks pass.
-10. **Rollback:** keep the pinned v2 image and pre-migration snapshot. Rolling back after new progress
+8. **Automated verification:** the workflow starts the matching API and worker behind the closed gate and
+   checks environment, health, logs and AI Gateway.
+9. **Operator verification:** via `kubectl exec`/`port-forward`, check revision/schema/instants, a real tick,
+   deadlines, SSE replay and desktop/phone timestamps.
+10. **Open traffic:** only after step 9 passes, run the **Open public traffic** workflow with `confirm=open`.
+    After any failed run, inspect the ingress state before reopening.
+11. **Rollback:** keep the pinned v2 image and pre-migration snapshot. Rolling back after new progress
     restores the snapshot and discards post-window activity — state that explicitly in the release notes.
 
 Acceptance gates for the B4 PR:
@@ -274,7 +278,8 @@ Acceptance gates for the B4 PR:
 - JSON readers accept legacy bare strings and explicit offsets; stored history is unchanged.
 - Tick `event_id` and `recent_tick_ids` formats are unchanged.
 - `UTCDateTime` covers aware/naive values before flush, after flush and after reload.
-- The traffic gate is rehearsed on the clone: public traffic stays blocked until the live checks pass.
+- The traffic gate is rehearsed on the clone: public traffic stays blocked until automated and operator
+  checks pass and the **Open public traffic** workflow is run.
 - Full suite green on 3.13 and 3.14, plus the production-clone rehearsal evidence.
 
 ## Conversion contract

@@ -18,6 +18,12 @@ on:
         type: boolean
         default: false
 
+      public_traffic_gate:
+        description: 'Block the public ingress for the whole maintenance cutover; reopen with the Open public traffic workflow'
+        required: false
+        type: boolean
+        default: false
+
       preflight_only:
         description: 'Read production schema/capacity without modifying production'
         required: false
@@ -40,6 +46,16 @@ jobs:
     steps:
       - name: Check out deployment manifests
         uses: actions/checkout@v7
+
+      - name: Validate maintenance and traffic-gate inputs
+        if: ${{ inputs.public_traffic_gate }}
+        run: |
+          if [ "${{ inputs.maintenance_mode }}" != "true" ] \
+            || [ "${{ inputs.run_migrations }}" != "true" ] \
+            || [ "${{ inputs.preflight_only }}" = "true" ]; then
+            echo "::error::public_traffic_gate requires maintenance_mode=true, run_migrations=true and preflight_only=false"
+            exit 1
+          fi
 
       - name: Setup SSH key
         run: |
@@ -270,6 +286,9 @@ jobs:
             ' backup "$database" > "$backup.partial"
             test -s "$backup.partial"
             mv "$backup.partial" "$backup"
+            if [ "${{ inputs.public_traffic_gate }}" = "true" ]; then
+              kubectl -n fallout delete ingress fallout-ingress --ignore-not-found
+            fi
             trap - ERR
             echo "Database backup verified: $backup"
           SHELL
@@ -312,10 +331,15 @@ jobs:
           IMAGE_TAG: ${{ inputs.image_tag }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           MAINTENANCE_MODE: ${{ inputs.maintenance_mode }}
+          PUBLIC_TRAFFIC_GATE: ${{ inputs.public_traffic_gate }}
         run: |
           set -euo pipefail
           # Postgres tuning is applied deliberately, not on every release.
           for manifest in backend-deployment.yaml dramatiq-worker-deployment.yaml frontend-deployment.yaml services.yaml ingress.yaml; do
+            if [ "$PUBLIC_TRAFFIC_GATE" = true ] && [ "$manifest" = "ingress.yaml" ]; then
+              echo "Public traffic gate active: deferring deployment/k3s/ingress.yaml until verification passes"
+              continue
+            fi
             render=cat
             case "$manifest" in
               backend-deployment.yaml|dramatiq-worker-deployment.yaml|frontend-deployment.yaml)
@@ -450,6 +474,11 @@ jobs:
 
             kubectl exec deployment/backend -n fallout -- python3 -c 'import asyncio; from app.core.config import settings; from app.core.logfire_config import configure_logfire, is_logfire_enabled; from app.services.ai_service import get_ai_service; assert settings.ai_provider_mode == "gateway", "AI Gateway is not configured"; assert settings.logfire_enabled, "LOGFIRE_TOKEN is not configured"; configure_logfire(); service = get_ai_service(); assert service.using_gateway and service.is_available(), "AI Gateway model is unavailable"; result = asyncio.run(service.chat_completion_with_usage([{"role": "user", "content": "Reply with exactly: gateway-production-check"}])); assert result.text, "Gateway returned an empty response"; assert is_logfire_enabled(), "Logfire instrumentation did not initialize"; print("Gateway and Logfire verification request completed")'
           SHELL
+
+      - name: Keep public traffic closed
+        if: ${{ inputs.public_traffic_gate && !inputs.preflight_only }}
+        run: |
+          echo "::notice::Public traffic remains closed. After automated and operator verification, run the 'Open public traffic' workflow with confirm=open."
 
       - name: Clean up old images
         if: ${{ !inputs.preflight_only }}

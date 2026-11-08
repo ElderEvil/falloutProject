@@ -143,6 +143,9 @@ dump must pass the isolated drill before it is treated as a recovery asset.
 With `maintenance_mode: true`, `.github/workflows/deploy-hetzner.yml` stops the API/worker
 and backs up the database before migration and rollout. Maintenance mode defaults to
 `false`: normal deployments leave writers running and do not create that backup.
+`public_traffic_gate: true` (requires maintenance mode and migrations) additionally deletes the public
+ingress for the cutover and leaves it closed. Run the **Open public traffic** workflow (`confirm=open`)
+after verification to re-apply it.
 
 With `run_migrations: true` (the default), a release-image migration Job runs
 `alembic current`, `upgrade head` and `current --check-heads` before application rollout.

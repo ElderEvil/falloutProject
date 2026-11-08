@@ -1,0 +1,45 @@
+name: Open public traffic
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "open" after operator verification to re-apply fallout-ingress'
+        required: true
+
+concurrency:
+  group: fallout-production-deployment
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  open:
+    name: Re-apply the public ingress
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Validate confirmation
+        run: |
+          if [ "${{ inputs.confirm }}" != "open" ]; then
+            echo "::error::Set confirm=open to re-apply the public ingress"
+            exit 1
+          fi
+
+      - name: Check out deployment manifests
+        uses: actions/checkout@v7
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/hetzner_key
+          chmod 600 ~/.ssh/hetzner_key
+          ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Apply the public ingress
+        run: |
+          set -euo pipefail
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
+            "set -euo pipefail; kubectl apply -n fallout -f -; kubectl -n fallout get ingress fallout-ingress" < deployment/k3s/ingress.yaml

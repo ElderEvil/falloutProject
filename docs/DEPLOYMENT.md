@@ -192,6 +192,12 @@ uv run fo-cli ops check-ai --api-url https://fallout-api.evillab.tech --skip-cha
    and transfer succeed. A backup error or timeout restores the recorded API/worker replica counts and aborts before
    migration; retain any `.partial` file for diagnosis, but do not use it as a verified backup. Archive listing checks
    readability, not full restoreability; a separate isolated restore drill is still required.
+   Add `public_traffic_gate=true` (requires `maintenance_mode=true` and `run_migrations=true`) for a schema
+   cutover: the workflow deletes the `fallout-ingress` after the verified backup, so both public hosts stay
+   unreachable while the new API/worker are verified, and leaves it deleted after its automated checks. Run
+   the separate **Open public traffic** workflow (`confirm=open`) only after operator verification; use
+   `kubectl exec` or `port-forward` in the meantime. After any failure, check the ingress state and reopen
+   only after diagnosing (`kubectl apply -f deployment/k3s/ingress.yaml` or the Open workflow).
    Plan a brief API maintenance window. Migration failure keeps writers stopped for inspection; retain the backup
    and restore the previous schema/image together rather than restarting old code against a changed schema.
 6. Confirm rollout, image tag, schema, and health after deployment:

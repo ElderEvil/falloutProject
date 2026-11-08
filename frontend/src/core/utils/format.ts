@@ -4,6 +4,8 @@
  * or date format here never changes a rendered value.
  */
 
+import { parseUtcMs } from './time'
+
 /** Title-case every underscore-separated word, lowercasing the rest ("rare_outfit" → "Rare Outfit"). */
 export function humanize(value: string | null | undefined): string {
   if (!value) return ''
@@ -35,7 +37,8 @@ export function threatName(type: string): string {
 type DateInput = string | number | Date
 
 function toDate(value: DateInput): Date {
-  return value instanceof Date ? value : new Date(value)
+  if (value instanceof Date) return value
+  return new Date(typeof value === 'number' ? value : parseUtcMs(value))
 }
 
 /** Runtime-locale date and time, mirroring `.toLocaleString()`. */

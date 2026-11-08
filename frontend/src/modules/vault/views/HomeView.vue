@@ -14,6 +14,7 @@ import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import type { VaultNumberData } from '../schemas/vault'
 import { formatDateTime } from '@/core/utils/format'
+import { parseUtcMs } from '@/core/utils/time'
 import { useOnboardingState } from '@/core/composables/useOnboardingState'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { isSetupComplete } from '@/modules/profile/models/setup'
@@ -46,9 +47,7 @@ const loadingVaults = ref(true)
 const vaultsReady = ref(false)
 
 const sortedVaults = computed(() =>
-  [...vaultStore.vaults].sort(
-    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-  )
+  [...vaultStore.vaults].sort((a, b) => parseUtcMs(b.updated_at) - parseUtcMs(a.updated_at))
 )
 const canCreateVault = computed(
   () => vaultsReady.value && sortedVaults.value.length < MAX_USER_VAULTS

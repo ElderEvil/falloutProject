@@ -12,7 +12,7 @@ from sqlmodel import Field, SQLModel
 from app.core.enums import ExpeditionRunStatus, ExplorationStatus
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.utils.serialize import serialize_naive_utc_datetime
-from app.utils.time import utcnow
+from app.utils.time import as_utc, utcnow
 
 # The trip home takes half the time the dweller spent exploring.
 RETURN_LEG_FRACTION = 0.5
@@ -211,8 +211,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
             # First event should happen after 5-10 minutes
             return self.elapsed_time_seconds() >= 300
 
-        now = utcnow()
-        time_since_last_event = (now - last_event_time).total_seconds()
+        time_since_last_event = (as_utc(utcnow()) - as_utc(last_event_time)).total_seconds()
         return time_since_last_event >= 600  # 10 minutes
 
     def complete(self) -> None:

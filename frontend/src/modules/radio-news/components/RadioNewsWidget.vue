@@ -1,312 +1,269 @@
 <script setup lang="ts">
-import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  ref,
-  shallowRef,
-  watch,
-} from "vue";
-import { Icon } from "@iconify/vue";
-import { onClickOutside, useLocalStorage } from "@vueuse/core";
-import { Badge } from "@/core/components/ui/badge";
-import { Button } from "@/core/components/ui/button";
-import { Slider } from "@/core/components/ui/slider";
-import { useToast } from "@/core/composables/useToast";
-import {
-  fetchRadioNews,
-  regenerateRadioNews,
-  type RadioNewsBroadcast,
-} from "../api/radioNews";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { Icon } from '@iconify/vue'
+import { onClickOutside, useLocalStorage } from '@vueuse/core'
+import { Badge } from '@/core/components/ui/badge'
+import { Button } from '@/core/components/ui/button'
+import { Slider } from '@/core/components/ui/slider'
+import { useToast } from '@/core/composables/useToast'
+import { parseUtcMs } from '@/core/utils/time'
+import { fetchRadioNews, regenerateRadioNews, type RadioNewsBroadcast } from '../api/radioNews'
 
-const props = defineProps<{ vaultId: string; inline?: boolean }>();
-const isInline = computed(() => props.inline ?? false);
-const emit = defineEmits<{ newBroadcast: [broadcast: RadioNewsBroadcast] }>();
-const toast = useToast();
-const broadcast = ref<RadioNewsBroadcast | null>(null);
-const isLoading = ref(true);
-const error = ref<string | null>(null);
-const isPlaying = ref(false);
-const audioEl = shallowRef<HTMLAudioElement | null>(null);
-const volume = useLocalStorage("radio_news_volume", 75, {
+const props = defineProps<{ vaultId: string; inline?: boolean }>()
+const isInline = computed(() => props.inline ?? false)
+const emit = defineEmits<{ newBroadcast: [broadcast: RadioNewsBroadcast] }>()
+const toast = useToast()
+const broadcast = ref<RadioNewsBroadcast | null>(null)
+const isLoading = ref(true)
+const error = ref<string | null>(null)
+const isPlaying = ref(false)
+const audioEl = shallowRef<HTMLAudioElement | null>(null)
+const volume = useLocalStorage('radio_news_volume', 75, {
   serializer: {
     read: (value) => {
-      const percent = Number.parseFloat(value);
-      return Number.isFinite(percent)
-        ? Math.min(100, Math.max(0, percent))
-        : 75;
+      const percent = Number.parseFloat(value)
+      return Number.isFinite(percent) ? Math.min(100, Math.max(0, percent)) : 75
     },
     write: String,
   },
-});
-const lastAudibleVolume = ref(volume.value || 75);
-const isPaused = computed(() => audioEl.value !== null && !isPlaying.value);
-const playLabel = computed(() =>
-  isPlaying.value ? "Pause" : isPaused.value ? "Resume" : "Play",
-);
-const hasPlayed = ref(false);
-const isRegenerating = ref(false);
-const isOpen = ref(false);
-const rootRef = ref<HTMLElement | null>(null);
-const triggerRef = ref<InstanceType<typeof Button> | null>(null);
-const panelRef = ref<HTMLElement | null>(null);
-let loadVersion = 0;
-let regenerateVersion = 0;
-let playbackVersion = 0;
+})
+const lastAudibleVolume = ref(volume.value || 75)
+const isPaused = computed(() => audioEl.value !== null && !isPlaying.value)
+const playLabel = computed(() => (isPlaying.value ? 'Pause' : isPaused.value ? 'Resume' : 'Play'))
+const hasPlayed = ref(false)
+const isRegenerating = ref(false)
+const isOpen = ref(false)
+const rootRef = ref<HTMLElement | null>(null)
+const triggerRef = ref<InstanceType<typeof Button> | null>(null)
+const panelRef = ref<HTMLElement | null>(null)
+let loadVersion = 0
+let regenerateVersion = 0
+let playbackVersion = 0
 
-const DIAL_TICKS = Array.from({ length: 25 }, (_, index) => index + 1);
+const DIAL_TICKS = Array.from({ length: 25 }, (_, index) => index + 1)
 // Floating mode docks the tuner at the bottom-right; inline mode renders a
 // compact trigger that lives inside the bottom control bar, next to the clock.
 const FLOATING_TOGGLE_CLASS =
-  "fixed bottom-24 right-4 z-50 flex h-auto w-[min(26rem,calc(100vw-2rem))] items-center justify-between gap-2 rounded-lg border-2 border-theme-primary/40 bg-surface-warm/95 px-3 py-2 text-theme-primary shadow-lg transition-colors hover:border-theme-primary hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-theme-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-warm sm:right-6";
+  'fixed bottom-24 right-4 z-50 flex h-auto w-[min(26rem,calc(100vw-2rem))] items-center justify-between gap-2 rounded-lg border-2 border-theme-primary/40 bg-surface-warm/95 px-3 py-2 text-theme-primary shadow-lg transition-colors hover:border-theme-primary hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-theme-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-warm sm:right-6'
 const INLINE_TOGGLE_CLASS =
-  "flex h-auto shrink-0 items-center gap-2 rounded border border-theme-primary/30 px-3 py-1 text-theme-primary transition-colors hover:border-theme-primary/60 hover:bg-theme-primary/10";
+  'flex h-auto shrink-0 items-center gap-2 rounded border border-theme-primary/30 px-3 py-1 text-theme-primary transition-colors hover:border-theme-primary/60 hover:bg-theme-primary/10'
 const FLOATING_PANEL_CLASS =
-  "fixed bottom-40 right-4 z-50 max-h-[calc(100vh-11rem)] w-[min(26rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border-2 border-theme-primary/40 bg-surface-warm/95 shadow-2xl focus:outline-none motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 sm:right-6";
+  'fixed bottom-40 right-4 z-50 max-h-[calc(100vh-11rem)] w-[min(26rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border-2 border-theme-primary/40 bg-surface-warm/95 shadow-2xl focus:outline-none motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 sm:right-6'
 // Inline mode has no floating trigger, so the console sits just above the control bar.
 const INLINE_PANEL_CLASS =
-  "fixed bottom-24 right-4 z-50 max-h-[calc(100vh-8rem)] w-[min(26rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border-2 border-theme-primary/40 bg-surface-warm/95 shadow-2xl focus:outline-none motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 sm:right-6";
+  'fixed bottom-24 right-4 z-50 max-h-[calc(100vh-8rem)] w-[min(26rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border-2 border-theme-primary/40 bg-surface-warm/95 shadow-2xl focus:outline-none motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 sm:right-6'
 const SIGNAL_BARS = [
-  { key: "one", height: "h-1" },
-  { key: "two", height: "h-1.5" },
-  { key: "three", height: "h-2" },
-  { key: "four", height: "h-2.5" },
-] as const;
+  { key: 'one', height: 'h-1' },
+  { key: 'two', height: 'h-1.5' },
+  { key: 'three', height: 'h-2' },
+  { key: 'four', height: 'h-2.5' },
+] as const
 
 const utcDayStart = () => {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
-};
-const parseUtcTimestamp = (value: string) =>
-  new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(value) ? value : `${value}Z`);
-const today = ref(utcDayStart());
+  const now = new Date()
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+}
+
+const today = ref(utcDayStart())
 
 function isPlayedToday(broadcastId: string): boolean {
   try {
-    return !!JSON.parse(localStorage.getItem("radio_news_played") || "{}")[
-      broadcastId
-    ];
+    return !!JSON.parse(localStorage.getItem('radio_news_played') || '{}')[broadcastId]
   } catch {
-    return false;
+    return false
   }
 }
 
 function markPlayed(broadcastId: string): void {
-  hasPlayed.value = true;
+  hasPlayed.value = true
   try {
-    const played = JSON.parse(
-      localStorage.getItem("radio_news_played") || "{}",
-    );
-    played[broadcastId] = Date.now();
-    localStorage.setItem("radio_news_played", JSON.stringify(played));
+    const played = JSON.parse(localStorage.getItem('radio_news_played') || '{}')
+    played[broadcastId] = Date.now()
+    localStorage.setItem('radio_news_played', JSON.stringify(played))
   } catch {
     // localStorage may be unavailable; ignore
   }
 }
 
 const isToday = computed(() => {
-  if (!broadcast.value?.created_at) return false;
-  const created = parseUtcTimestamp(broadcast.value.created_at);
+  if (!broadcast.value?.created_at) return false
+  const created = new Date(parseUtcMs(broadcast.value.created_at))
   return (
-    Date.UTC(
-      created.getUTCFullYear(),
-      created.getUTCMonth(),
-      created.getUTCDate(),
-    ) === today.value.getTime()
-  );
-});
-const isNew = computed(() => isToday.value && !hasPlayed.value);
-const isAudioAvailable = computed(() => !!broadcast.value?.audio_url);
-const hasScript = computed(() => !!broadcast.value?.script);
-const showTextBroadcast = computed(
-  () => !isAudioAvailable.value && hasScript.value,
-);
-const title = computed(
-  () => broadcast.value?.title?.trim() || "Vault Radio Hour",
-);
+    Date.UTC(created.getUTCFullYear(), created.getUTCMonth(), created.getUTCDate()) ===
+    today.value.getTime()
+  )
+})
+const isNew = computed(() => isToday.value && !hasPlayed.value)
+const isAudioAvailable = computed(() => !!broadcast.value?.audio_url)
+const hasScript = computed(() => !!broadcast.value?.script)
+const showTextBroadcast = computed(() => !isAudioAvailable.value && hasScript.value)
+const title = computed(() => broadcast.value?.title?.trim() || 'Vault Radio Hour')
 const broadcastDate = computed(() => {
-  const createdAt = broadcast.value?.created_at;
-  if (!createdAt) return "Awaiting transmission";
-  return parseUtcTimestamp(createdAt).toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-});
+  const createdAt = broadcast.value?.created_at
+  if (!createdAt) return 'Awaiting transmission'
+  return new Date(parseUtcMs(createdAt)).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
+})
 const toggleLabel = computed(() =>
-  isOpen.value ? "Close the vault radio" : "Open the vault radio",
-);
+  isOpen.value ? 'Close the vault radio' : 'Open the vault radio'
+)
 
 const loadBroadcast = async () => {
-  const requestVersion = ++loadVersion;
-  const requestedVaultId = props.vaultId;
-  isLoading.value = true;
-  error.value = null;
-  today.value = utcDayStart();
+  const requestVersion = ++loadVersion
+  const requestedVaultId = props.vaultId
+  isLoading.value = true
+  error.value = null
+  today.value = utcDayStart()
   try {
-    const data = await fetchRadioNews(requestedVaultId);
-    if (requestVersion !== loadVersion) return;
-    if (broadcast.value?.id !== data.id) stopAudio();
-    broadcast.value = data;
-    hasPlayed.value = data.id ? isPlayedToday(data.id) : false;
-    emit("newBroadcast", data);
+    const data = await fetchRadioNews(requestedVaultId)
+    if (requestVersion !== loadVersion) return
+    if (broadcast.value?.id !== data.id) stopAudio()
+    broadcast.value = data
+    hasPlayed.value = data.id ? isPlayedToday(data.id) : false
+    emit('newBroadcast', data)
   } catch (err) {
-    if (requestVersion !== loadVersion) return;
-    toast.warning("Broadcast unavailable");
-    error.value =
-      err instanceof Error ? err.message : "Failed to load broadcast";
+    if (requestVersion !== loadVersion) return
+    toast.warning('Broadcast unavailable')
+    error.value = err instanceof Error ? err.message : 'Failed to load broadcast'
   } finally {
-    if (requestVersion === loadVersion) isLoading.value = false;
+    if (requestVersion === loadVersion) isLoading.value = false
   }
-};
+}
 
 function stopAudio(): void {
-  playbackVersion += 1;
+  playbackVersion += 1
   if (audioEl.value) {
-    audioEl.value.onended = null;
-    audioEl.value.onerror = null;
-    audioEl.value.pause();
+    audioEl.value.onended = null
+    audioEl.value.onerror = null
+    audioEl.value.pause()
   }
-  audioEl.value = null;
-  isPlaying.value = false;
+  audioEl.value = null
+  isPlaying.value = false
 }
 
 function startAudio(url: string): HTMLAudioElement {
-  stopAudio();
-  const audio = new Audio(url);
-  audio.volume = playbackGain.value;
-  audioEl.value = audio;
-  isPlaying.value = true;
-  audio.onended = stopAudio;
+  stopAudio()
+  const audio = new Audio(url)
+  audio.volume = playbackGain.value
+  audioEl.value = audio
+  isPlaying.value = true
+  audio.onended = stopAudio
   audio.onerror = () => {
-    stopAudio();
-    toast.error("Unable to play audio");
-  };
-  return audio;
+    stopAudio()
+    toast.error('Unable to play audio')
+  }
+  return audio
 }
 
 async function playAudio(url: string): Promise<boolean> {
-  const audio = audioEl.value ?? startAudio(url);
-  const requestVersion = ++playbackVersion;
-  isPlaying.value = true;
+  const audio = audioEl.value ?? startAudio(url)
+  const requestVersion = ++playbackVersion
+  isPlaying.value = true
   try {
-    await audio.play();
-    return (
-      requestVersion === playbackVersion &&
-      audioEl.value === audio &&
-      isPlaying.value
-    );
+    await audio.play()
+    return requestVersion === playbackVersion && audioEl.value === audio && isPlaying.value
   } catch {
-    if (
-      requestVersion === playbackVersion &&
-      audioEl.value === audio &&
-      isPlaying.value
-    ) {
-      stopAudio();
-      toast.error("Unable to play audio");
+    if (requestVersion === playbackVersion && audioEl.value === audio && isPlaying.value) {
+      stopAudio()
+      toast.error('Unable to play audio')
     }
-    return false;
+    return false
   }
 }
 
 const onTogglePlay = async () => {
-  const current = broadcast.value;
-  if (!current?.audio_url) return;
+  const current = broadcast.value
+  if (!current?.audio_url) return
   if (isPlaying.value) {
-    playbackVersion += 1;
-    audioEl.value?.pause();
-    isPlaying.value = false;
+    playbackVersion += 1
+    audioEl.value?.pause()
+    isPlaying.value = false
   } else if ((await playAudio(current.audio_url)) && current.id) {
-    markPlayed(current.id);
+    markPlayed(current.id)
   }
-};
+}
 
 function replayAudio(): void {
-  if (!audioEl.value) return;
-  audioEl.value.currentTime = 0;
-  if (!isPlaying.value) void onTogglePlay();
+  if (!audioEl.value) return
+  audioEl.value.currentTime = 0
+  if (!isPlaying.value) void onTogglePlay()
 }
 
 // Same perceptual (squared) curve as the audio manager's buses
 // (audioManager.playbackVolume), so the slider feels consistent everywhere.
-const playbackGain = computed(() => (volume.value / 100) ** 2);
+const playbackGain = computed(() => (volume.value / 100) ** 2)
 
 function setVolume(values: number[] | undefined): void {
-  if (values?.[0] !== undefined) volume.value = values[0];
+  if (values?.[0] !== undefined) volume.value = values[0]
 }
 
 watch(
   volume,
   (value, previous) => {
-    if (previous > 0) lastAudibleVolume.value = previous;
-    if (audioEl.value) audioEl.value.volume = (value / 100) ** 2;
+    if (previous > 0) lastAudibleVolume.value = previous
+    if (audioEl.value) audioEl.value.volume = (value / 100) ** 2
   },
-  { flush: "sync" },
-);
+  { flush: 'sync' }
+)
 
 function toggleMute(): void {
-  volume.value = volume.value > 0 ? 0 : lastAudibleVolume.value;
+  volume.value = volume.value > 0 ? 0 : lastAudibleVolume.value
 }
 
 const onRegenerate = async () => {
-  const current = broadcast.value;
-  if (!current || isRegenerating.value) return;
-  const requestVersion = ++regenerateVersion;
-  const requestedVaultId = props.vaultId;
-  isRegenerating.value = true;
-  stopAudio();
+  const current = broadcast.value
+  if (!current || isRegenerating.value) return
+  const requestVersion = ++regenerateVersion
+  const requestedVaultId = props.vaultId
+  isRegenerating.value = true
+  stopAudio()
   try {
-    const data = await regenerateRadioNews(requestedVaultId);
-    if (requestVersion !== regenerateVersion) return;
-    broadcast.value = data;
-    hasPlayed.value = data.id ? isPlayedToday(data.id) : false;
-    emit("newBroadcast", data);
-    toast.success("Broadcast regenerated");
+    const data = await regenerateRadioNews(requestedVaultId)
+    if (requestVersion !== regenerateVersion) return
+    broadcast.value = data
+    hasPlayed.value = data.id ? isPlayedToday(data.id) : false
+    emit('newBroadcast', data)
+    toast.success('Broadcast regenerated')
   } catch (err) {
     if (requestVersion === regenerateVersion) {
-      toast.error(
-        err instanceof Error ? err.message : "Unable to regenerate broadcast",
-      );
+      toast.error(err instanceof Error ? err.message : 'Unable to regenerate broadcast')
     }
   } finally {
-    if (requestVersion === regenerateVersion) isRegenerating.value = false;
+    if (requestVersion === regenerateVersion) isRegenerating.value = false
   }
-};
+}
 
 function openPanel(): void {
-  isOpen.value = true;
-  void nextTick(() => panelRef.value?.focus());
+  isOpen.value = true
+  void nextTick(() => panelRef.value?.focus())
 }
 
 function closePanel(returnFocus = true): void {
-  if (!isOpen.value) return;
-  isOpen.value = false;
-  if (returnFocus)
-    void nextTick(() =>
-      (triggerRef.value?.$el as HTMLElement | undefined)?.focus(),
-    );
+  if (!isOpen.value) return
+  isOpen.value = false
+  if (returnFocus) void nextTick(() => (triggerRef.value?.$el as HTMLElement | undefined)?.focus())
 }
 
 const togglePanel = () => {
-  if (isOpen.value) closePanel();
-  else openPanel();
-};
+  if (isOpen.value) closePanel()
+  else openPanel()
+}
 
 // The panel is non-modal, so Escape and a click outside both dismiss it.
 const onKeydown = (event: KeyboardEvent) => {
-  if (event.key === "Escape" && isOpen.value) closePanel();
-};
+  if (event.key === 'Escape' && isOpen.value) closePanel()
+}
 
 onClickOutside(
   rootRef,
   () => {
-    if (isOpen.value) closePanel(false);
+    if (isOpen.value) closePanel(false)
   },
-  { ignore: [panelRef] },
-);
+  { ignore: [panelRef] }
+)
 
 // A transcript-only broadcast has nothing to play, so an open console counts it
 // as read. Watch the broadcast too: it can arrive or change while the panel is open.
@@ -319,53 +276,49 @@ watch([isOpen, broadcast], ([open, current]) => {
     !current.audio_url &&
     current.script
   ) {
-    markPlayed(current.id);
+    markPlayed(current.id)
   }
-});
+})
 
-let midnightTimer: ReturnType<typeof setTimeout> | null = null;
+let midnightTimer: ReturnType<typeof setTimeout> | null = null
 
 const scheduleNextMidnight = () => {
-  if (midnightTimer) clearTimeout(midnightTimer);
-  const now = new Date();
-  const nextUtcMidnight = Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate() + 1,
-  );
+  if (midnightTimer) clearTimeout(midnightTimer)
+  const now = new Date()
+  const nextUtcMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
   midnightTimer = setTimeout(
     () => {
-      today.value = utcDayStart();
-      void loadBroadcast();
-      scheduleNextMidnight();
+      today.value = utcDayStart()
+      void loadBroadcast()
+      scheduleNextMidnight()
     },
-    Math.max(0, nextUtcMidnight - now.getTime()),
-  );
-};
+    Math.max(0, nextUtcMidnight - now.getTime())
+  )
+}
 
 watch(
   () => props.vaultId,
   () => {
-    regenerateVersion += 1;
-    isRegenerating.value = false;
-    stopAudio();
-    broadcast.value = null;
-    error.value = null;
-    void loadBroadcast();
-  },
-);
+    regenerateVersion += 1
+    isRegenerating.value = false
+    stopAudio()
+    broadcast.value = null
+    error.value = null
+    void loadBroadcast()
+  }
+)
 
 onMounted(() => {
-  document.addEventListener("keydown", onKeydown);
-  void loadBroadcast();
-  scheduleNextMidnight();
-});
+  document.addEventListener('keydown', onKeydown)
+  void loadBroadcast()
+  scheduleNextMidnight()
+})
 
 onBeforeUnmount(() => {
-  document.removeEventListener("keydown", onKeydown);
-  stopAudio();
-  if (midnightTimer) clearTimeout(midnightTimer);
-});
+  document.removeEventListener('keydown', onKeydown)
+  stopAudio()
+  if (midnightTimer) clearTimeout(midnightTimer)
+})
 </script>
 
 <template>
@@ -394,25 +347,16 @@ onBeforeUnmount(() => {
           <span
             v-if="isPlaying || isNew"
             class="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full motion-reduce:animate-none"
-            :class="
-              isPlaying
-                ? 'bg-danger animate-pulse'
-                : 'bg-theme-primary animate-pulse'
-            "
+            :class="isPlaying ? 'bg-danger animate-pulse' : 'bg-theme-primary animate-pulse'"
             aria-hidden="true"
           />
         </span>
 
-        <span
-          v-if="isLoading"
-          class="radio-news-widget__loading flex items-center gap-2"
-        >
+        <span v-if="isLoading" class="radio-news-widget__loading flex items-center gap-2">
           <span
             class="h-2 w-12 animate-pulse rounded-full bg-theme-primary/30 motion-reduce:animate-none"
           />
-          <span
-            class="text-[0.6rem] font-bold uppercase tracking-[0.2em] text-theme-primary/70"
-          >
+          <span class="text-[0.6rem] font-bold uppercase tracking-[0.2em] text-theme-primary/70">
             Tuning
           </span>
         </span>
@@ -424,22 +368,19 @@ onBeforeUnmount(() => {
           <Icon icon="mdi:alert-circle-outline" class="h-4 w-4 shrink-0" />
           <span class="truncate">{{ error }}</span>
         </span>
-        <span
-          v-else
-          class="radio-news-widget__badge flex flex-col items-start leading-none"
-        >
+        <span v-else class="radio-news-widget__badge flex flex-col items-start leading-none">
           <span
             class="text-[0.55rem] font-bold uppercase tracking-[0.22em]"
             :class="isNew ? 'text-theme-primary' : 'text-theme-primary/60'"
           >
-            {{ isNew ? "New Broadcast" : "Radio" }}
+            {{ isNew ? 'New Broadcast' : 'Radio' }}
           </span>
         </span>
         <span
           v-if="!isLoading && broadcast && !isInline"
           class="hidden max-w-[11rem] truncate text-[0.65rem] font-semibold sm:block"
         >
-          {{ isPlaying ? "On air" : isPaused ? "Paused" : title }}
+          {{ isPlaying ? 'On air' : isPaused ? 'Paused' : title }}
         </span>
       </span>
 
@@ -478,10 +419,7 @@ onBeforeUnmount(() => {
               "
               aria-hidden="true"
             />
-            <Icon
-              icon="mdi:radio-tower"
-              class="h-4 w-4 shrink-0 text-theme-primary"
-            />
+            <Icon icon="mdi:radio-tower" class="h-4 w-4 shrink-0 text-theme-primary" />
             <span
               class="truncate text-[0.6rem] font-bold uppercase tracking-[0.3em] text-theme-primary"
             >
@@ -496,16 +434,12 @@ onBeforeUnmount(() => {
                 class="w-0.5 rounded-sm transition-colors"
                 :class="[
                   bar.height,
-                  isPlaying || index < 2
-                    ? 'bg-theme-primary/70'
-                    : 'bg-theme-primary/20',
+                  isPlaying || index < 2 ? 'bg-theme-primary/70' : 'bg-theme-primary/20',
                 ]"
               />
             </div>
-            <span
-              class="text-[0.55rem] uppercase tracking-widest text-theme-primary/50"
-            >
-              {{ isPlaying ? "On air" : isPaused ? "Paused" : "Standby" }}
+            <span class="text-[0.55rem] uppercase tracking-widest text-theme-primary/50">
+              {{ isPlaying ? 'On air' : isPaused ? 'Paused' : 'Standby' }}
             </span>
             <Button
               type="button"
@@ -529,9 +463,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-else-if="error && !broadcast" class="space-y-3 px-4 py-5">
-          <p
-            class="radio-news-widget__error-text m-0 text-xs leading-relaxed text-danger"
-          >
+          <p class="radio-news-widget__error-text m-0 text-xs leading-relaxed text-danger">
             {{ error }}
           </p>
           <Button
@@ -555,9 +487,7 @@ onBeforeUnmount(() => {
                 >
                   {{ title }}
                 </h3>
-                <p
-                  class="m-0 mt-0.5 text-[0.6rem] uppercase tracking-widest text-theme-primary/50"
-                >
+                <p class="m-0 mt-0.5 text-[0.6rem] uppercase tracking-widest text-theme-primary/50">
                   {{ broadcastDate }}
                 </p>
               </div>
@@ -646,9 +576,7 @@ onBeforeUnmount(() => {
                   class="h-4 w-4"
                   :class="{ 'animate-spin': isRegenerating }"
                 />
-                <span class="hidden text-xs font-semibold sm:inline"
-                  >Regenerate</span
-                >
+                <span class="hidden text-xs font-semibold sm:inline">Regenerate</span>
               </Button>
             </div>
 
@@ -660,9 +588,7 @@ onBeforeUnmount(() => {
                 variant="ghost"
                 size="icon-sm"
                 class="shrink-0 text-theme-primary/70 hover:text-theme-primary"
-                :aria-label="
-                  volume === 0 ? 'Unmute broadcast' : 'Mute broadcast'
-                "
+                :aria-label="volume === 0 ? 'Unmute broadcast' : 'Mute broadcast'"
                 :aria-pressed="volume === 0"
                 :title="volume === 0 ? 'Unmute broadcast' : 'Mute broadcast'"
                 @click="toggleMute"

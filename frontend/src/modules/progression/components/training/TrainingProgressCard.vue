@@ -4,7 +4,7 @@ import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import LearningProgressCard from './LearningProgressCard.vue'
 import { useNow } from '@/core/composables/useNow'
-import { formatDuration } from '@/core/utils/time'
+import { formatDuration, parseUtcMs } from '@/core/utils/time'
 import type { components } from '@/core/types/api.generated'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
 
@@ -60,7 +60,7 @@ const timeRemaining = computed(() => {
     return props.training.status === 'completed' ? 'Completed' : 'Cancelled'
   }
 
-  const completionTime = new Date(props.training.estimated_completion_at).getTime()
+  const completionTime = parseUtcMs(props.training.estimated_completion_at)
   const remaining = completionTime - now.value
 
   if (remaining <= 0) {
@@ -72,7 +72,7 @@ const timeRemaining = computed(() => {
 
 const isReadyToComplete = computed(() => {
   if (props.training.status !== 'active') return false
-  const completionTime = new Date(props.training.estimated_completion_at).getTime()
+  const completionTime = parseUtcMs(props.training.estimated_completion_at)
   return completionTime <= now.value
 })
 

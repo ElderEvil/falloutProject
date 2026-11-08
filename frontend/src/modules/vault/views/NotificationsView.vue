@@ -19,7 +19,7 @@ import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import { formatRelativeTime } from '@/core/utils/time'
+import { formatRelativeTime, parseUtcMs } from '@/core/utils/time'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useNotificationInboxStore } from '@/modules/vault/stores/notificationInbox'
@@ -217,7 +217,7 @@ onMounted(() => {
                 }}</span>
                 <time
                   :datetime="notification.created_at"
-                  :title="new Date(notification.created_at).toLocaleString()"
+                  :title="new Date(parseUtcMs(notification.created_at)).toLocaleString()"
                   class="text-xs text-muted-foreground"
                   >{{ formatRelativeTime(notification.created_at) }}</time
                 >

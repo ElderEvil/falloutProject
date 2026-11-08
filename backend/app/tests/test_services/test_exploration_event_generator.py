@@ -53,3 +53,25 @@ def test_event_interval_accepts_legacy_and_offset_history(offset_minutes: int | 
         exploration.status = ExplorationStatus.ACTIVE
 
     assert exploration.model_dump() == original
+
+
+def test_event_interval_compares_an_aware_clock_with_legacy_history() -> None:
+    now = datetime(2026, 11, 6, 12, tzinfo=UTC)
+    interval = timedelta(seconds=game_config.exploration.event_interval_seconds)
+    exploration = Exploration(
+        vault_id=uuid4(),
+        dweller_id=uuid4(),
+        duration=4,
+        start_time=now - timedelta(hours=1),
+        events=[{"timestamp": (now - interval).replace(tzinfo=None).isoformat()}],
+        dweller_strength=5,
+        dweller_perception=5,
+        dweller_endurance=5,
+        dweller_charisma=5,
+        dweller_intelligence=5,
+        dweller_agility=5,
+        dweller_luck=5,
+    )
+
+    with patch("app.services.exploration.event_generator.utcnow", return_value=now):
+        assert event_generator.can_generate_event(exploration) is True

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.295.1 (2026-11-08)
+
+### Bug Fixes
+
+* **dwellers:** enforce state-of-being policy and Gen-3 consistency ([#1358](https://github.com/ElderEvil/falloutProject/issues/1358)) c4a9fc4
+
 ## 2.295.0 (2026-11-07)
 
 ### Features

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.295.4 (2026-11-08)
+
+### Bug Fixes
+
+* **time:** correct offset handling at UTC boundaries ee5bb4e
+
 ## 2.295.3 (2026-11-08)
 
 ### Bug Fixes

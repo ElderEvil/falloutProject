@@ -11,6 +11,7 @@ from sqlmodel import Field, SQLModel
 
 from app.core.enums import ExpeditionRunStatus, ExplorationStatus
 from app.models.base import BaseUUIDModel, TimeStampMixin
+from app.utils.time import utcnow
 
 # The trip home takes half the time the dweller spent exploring.
 RETURN_LEG_FRACTION = 0.5
@@ -18,7 +19,7 @@ RETURN_LEG_FRACTION = 0.5
 
 def get_utc_now() -> datetime:
     """Get current UTC time."""
-    return datetime.utcnow()
+    return utcnow()
 
 
 # Statuses that still occupy the dweller; the run is not finished until it leaves this set.
@@ -122,12 +123,12 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
 
     def elapsed_time_seconds(self) -> int:
         """Calculate elapsed time in seconds, frozen while an encounter pauses the journey."""
-        now = self.paused_at or datetime.utcnow()
+        now = self.paused_at or utcnow()
         return int((now - self.start_time).total_seconds())
 
     def exploring_seconds(self) -> int:
         """Seconds actually spent exploring, capped at the planned duration."""
-        end = self.return_started_at or datetime.utcnow()
+        end = self.return_started_at or utcnow()
         cap = self.duration * 3600
         if self.heading_degrees is not None:
             # Spatial runs explore for the outbound half of the plan; the return
@@ -170,7 +171,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
 
     def start_return(self, *, recalled: bool = False) -> None:
         """Begin the trip home, lasting half the time spent exploring."""
-        now = datetime.utcnow()
+        now = utcnow()
         exploring_seconds = self.exploring_seconds()
         self.return_started_at = now
         if self.heading_degrees is not None:
@@ -190,7 +191,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         """Seconds until the dweller arrives home; 0 unless returning."""
         if not self.is_returning() or self.return_completes_at is None:
             return 0
-        now = self.paused_at or datetime.utcnow()
+        now = self.paused_at or utcnow()
         return max(0, int((self.return_completes_at - now).total_seconds()))
 
     def finalize_return(self) -> None:
@@ -209,19 +210,19 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
             # First event should happen after 5-10 minutes
             return self.elapsed_time_seconds() >= 300
 
-        now = datetime.utcnow()
+        now = utcnow()
         time_since_last_event = (now - last_event_time).total_seconds()
         return time_since_last_event >= 600  # 10 minutes
 
     def complete(self) -> None:
         """Mark exploration as completed."""
         self.status = ExplorationStatus.COMPLETED
-        self.end_time = datetime.utcnow()
+        self.end_time = utcnow()
 
     def recall(self) -> None:
         """Mark exploration as recalled (early return)."""
         self.status = ExplorationStatus.RECALLED
-        self.end_time = datetime.utcnow()
+        self.end_time = utcnow()
 
     def abandon(self) -> None:
         """End the journey for good: its dweller is gone, so there is no return leg or payout."""
@@ -252,7 +253,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         event = {
             "type": event_type,
             "description": description,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": utcnow().isoformat(),
             "time_elapsed_hours": round(self.elapsed_time_seconds() / 3600, 2),
         }
         if loot:
@@ -286,7 +287,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
                 "quantity": quantity,
                 "rarity": rarity,
                 "item_type": item_type,
-                "found_at": datetime.utcnow().isoformat(),
+                "found_at": utcnow().isoformat(),
             }
         )
         # Flag the field as modified so SQLAlchemy tracks the change

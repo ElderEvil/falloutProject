@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -17,6 +16,7 @@ from app.crud.vault import vault as vault_crud
 from app.services.combat import incident_spawning
 from app.services.notification_service import notification_service
 from app.utils.exceptions import ResourceNotFoundException
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from pydantic import UUID4
@@ -61,7 +61,7 @@ async def process_vault_incidents(
             return stats
 
         for reserved in active_incidents:
-            if reserved.combat_progress or reserved.start_time > datetime.utcnow():
+            if reserved.combat_progress or reserved.start_time > utcnow():
                 continue
             pending_event = await incident_crud.get_pending_event(db_session, reserved.id)
             if pending_event is not None:

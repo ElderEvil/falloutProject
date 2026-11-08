@@ -10,7 +10,6 @@ exploration event log; run state lives in ``expedition_run`` rows.
 import logging
 import random
 from dataclasses import dataclass, field
-from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -65,6 +64,7 @@ from app.services.exploration.trivia import (
 from app.services.notification_service import notification_service
 from app.utils import world_terrain
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -320,7 +320,7 @@ def _arrived_home(exploration: Exploration) -> bool:
         exploration.is_returning()
         and exploration.paused_at is None
         and exploration.return_completes_at is not None
-        and exploration.return_completes_at <= datetime.utcnow()
+        and exploration.return_completes_at <= utcnow()
     )
 
 
@@ -608,7 +608,7 @@ class ExpeditionService:
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
         if dweller_obj.is_dead:
             run.status = ExpeditionRunStatus.DIED
-            run.finished_at = datetime.utcnow()
+            run.finished_at = utcnow()
             await _refresh_run(db_session, run)
             await db_session.commit()
             raise ValidationException("The exploring dweller is dead")
@@ -684,10 +684,10 @@ class ExpeditionService:
         )
         if result.dweller_died:
             run.status = ExpeditionRunStatus.DIED
-            run.finished_at = datetime.utcnow()
+            run.finished_at = utcnow()
         elif finale_paid:
             run.status = ExpeditionRunStatus.CLEARED
-            run.finished_at = datetime.utcnow()
+            run.finished_at = utcnow()
         elif result.defeated:
             # Defeat stops the pack: stay in the room, offer push-on/retreat.
             run.status = ExpeditionRunStatus.IN_ROOM
@@ -696,7 +696,7 @@ class ExpeditionService:
             run.flags = flags
         elif scene_cleared:
             run.status = ExpeditionRunStatus.CLEARED
-            run.finished_at = datetime.utcnow()
+            run.finished_at = utcnow()
         else:
             run.status = ExpeditionRunStatus.IN_ROOM
             run.room_cursor = min(run.room_cursor + 1, len(rooms) - 1)
@@ -766,7 +766,7 @@ class ExpeditionService:
             if cleared:
                 await _pay_reward_vault(exploration, site, full=True, result=result)
                 run.status = ExpeditionRunStatus.CLEARED
-                run.finished_at = datetime.utcnow()
+                run.finished_at = utcnow()
                 from app.services.exploration_service import exploration_service
 
                 exploration_service.resume_from_encounter(exploration)
@@ -854,7 +854,7 @@ class ExpeditionService:
         run.flags = {**run.flags, "combat": state}
         db_session.add(dweller)
         if won or lost:
-            run.finished_at = datetime.utcnow()
+            run.finished_at = utcnow()
             from app.services.exploration_service import exploration_service
 
             exploration_service.resume_from_encounter(exploration)

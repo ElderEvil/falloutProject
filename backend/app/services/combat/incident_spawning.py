@@ -2,7 +2,7 @@
 
 import logging
 import random
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -24,6 +24,7 @@ from app.models.vault import Vault
 from app.services.combat import incident_publishing
 from app.services.combat.incident_publishing import INCIDENT_NAMES
 from app.utils.reward_delivery import persist_reward_change
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ async def should_spawn_incident(
     if (
         game_state is None
         or game_state.last_presence_at is None
-        or (datetime.utcnow() - game_state.last_presence_at).total_seconds() > presence_window
+        or (utcnow() - game_state.last_presence_at).total_seconds() > presence_window
     ):
         logger.debug(f"Vault {vault_id} has no fresh presence heartbeat, suppressing incident spawn")
         return False
@@ -85,7 +86,7 @@ async def should_spawn_incident(
     # Check cooldown period (if there are any incidents, check the most recent one)
     if active_incidents:
         most_recent = max(active_incidents, key=lambda i: i.start_time)
-        seconds_since_last = (datetime.utcnow() - most_recent.start_time).total_seconds()
+        seconds_since_last = (utcnow() - most_recent.start_time).total_seconds()
         if seconds_since_last < game_config.incident.spawn_cooldown_seconds:
             return False
 
@@ -199,7 +200,7 @@ async def spawn_incident(
         commit=False,
     )
     if start_delay_seconds > 0:
-        incident.start_time = datetime.utcnow() + timedelta(seconds=start_delay_seconds)
+        incident.start_time = utcnow() + timedelta(seconds=start_delay_seconds)
         incident_publishing.record_event(db_session, incident, "pending", "Rush failure animation in progress.")
         await persist_reward_change(db_session, incident)
     else:

@@ -7,7 +7,6 @@ contract, and site markers project the expedition catalog onto the map.
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
@@ -39,6 +38,7 @@ from app.services.exploration.site_offers import (
 from app.services.map import bio_registration, discovery
 from app.utils.place_groups import effective_place_group, load_place_groups
 from app.utils.places import WORLD_SCALE
+from app.utils.time import utcnow
 from app.utils.vault_slots import slot_coords
 
 if TYPE_CHECKING:
@@ -67,7 +67,7 @@ def _clear_state_for(state: VaultLocationState, location: WorldLocation) -> Loca
     group = effective_place_group(location.group_key, location.kind)
     if group is None or not group.get("clearable"):
         return None
-    now = datetime.utcnow()
+    now = utcnow()
     return LocationClearStateRead(
         clearable=True,
         cleared=state.is_cleared(now),

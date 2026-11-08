@@ -5,6 +5,7 @@ from pydantic import UUID4
 from sqlmodel import Field
 
 from app.models.base import BaseUUIDModel
+from app.utils.time import utcnow
 
 
 class AccountMerge(BaseUUIDModel, table=True):
@@ -29,4 +30,4 @@ class AccountMerge(BaseUUIDModel, table=True):
 
     # Portable JSON (not JSONB): the audit payload must work on SQLite tests too.
     moved_counts: dict[str, int] = Field(sa_column=sa.Column(sa.JSON, nullable=False))
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True)

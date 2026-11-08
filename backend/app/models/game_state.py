@@ -7,13 +7,14 @@ from sqlalchemy import JSON, Boolean, Column, false
 from sqlmodel import Field, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
+from app.utils.time import utcnow
 
 
 class GameStateBase(SQLModel):
     """Base model for game state tracking."""
 
-    last_tick_time: datetime = Field(default_factory=datetime.utcnow)
-    last_activity_time: datetime = Field(default_factory=datetime.utcnow, description="Last user activity timestamp")
+    last_tick_time: datetime = Field(default_factory=utcnow)
+    last_activity_time: datetime = Field(default_factory=utcnow, description="Last user activity timestamp")
     last_presence_at: datetime | None = Field(
         default=None, description="Last visibility-gated vault-view heartbeat; spawn gating only"
     )
@@ -44,17 +45,17 @@ class GameState(BaseUUIDModel, GameStateBase, TimeStampMixin, table=True):
 
     def calculate_offline_time(self) -> int:
         """Calculate seconds since last tick."""
-        return int((datetime.utcnow() - self.last_tick_time).total_seconds())
+        return int((utcnow() - self.last_tick_time).total_seconds())
 
     def pause(self) -> None:
         """Pause the game state."""
         if not self.is_paused:
             self.is_paused = True
-            self.paused_at = datetime.utcnow()
+            self.paused_at = utcnow()
 
     def resume(self) -> None:
         """Resume the game state."""
-        resumed_at = datetime.utcnow()
+        resumed_at = utcnow()
         if self.is_paused and self.paused_at:
             paused_since = max(self.paused_at, self.last_tick_time)
             if resumed_at > paused_since:
@@ -64,13 +65,13 @@ class GameState(BaseUUIDModel, GameStateBase, TimeStampMixin, table=True):
 
     def update_tick(self, seconds_passed: int) -> None:
         """Update the game state after a tick."""
-        self.last_tick_time = datetime.utcnow()
+        self.last_tick_time = utcnow()
         self.total_game_time += seconds_passed
 
     def update_activity(self) -> None:
         """Update the last activity timestamp to now."""
-        self.last_activity_time = datetime.utcnow()
+        self.last_activity_time = utcnow()
 
     def is_user_online(self, timeout_seconds: int = 600) -> bool:
         """Check if user has been active within the timeout window (default 10 minutes)."""
-        return (datetime.utcnow() - self.last_activity_time).total_seconds() <= timeout_seconds
+        return (utcnow() - self.last_activity_time).total_seconds() <= timeout_seconds

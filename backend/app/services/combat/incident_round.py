@@ -1,7 +1,6 @@
 """Incident round engine: defender-less outcomes, damage, victory, and XP."""
 
 import logging
-from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -23,6 +22,7 @@ from app.services.notification_service import notification_service
 from app.utils.combat import combat_power
 from app.utils.damage_reductions import damage_reductions
 from app.utils.radiation import apply_radiation_gain
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -208,7 +208,7 @@ async def resolve_victory(db_session: AsyncSession, incident: Incident, dwellers
 
 async def process_incident(db_session: AsyncSession, incident: Incident, seconds_passed: int) -> IncidentRoundResult:
     """Process one round of an active incident (apply damage, check victory)."""
-    if datetime.utcnow() < incident.start_time or incident.status not in [
+    if utcnow() < incident.start_time or incident.status not in [
         IncidentStatus.ACTIVE,
         IncidentStatus.SPREADING,
     ]:

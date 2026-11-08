@@ -7,6 +7,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import NotificationPriority, NotificationType
 from app.models.base import BaseUUIDModel
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
@@ -39,7 +40,7 @@ class Notification(BaseUUIDModel, NotificationBase, table=True):
     # Renamed from 'metadata' to avoid SQLAlchemy reserved name
     meta_data: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
 
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
     read_at: datetime | None = None
 
     # Relationships

@@ -8,7 +8,7 @@ part of that operation.
 
 import logging
 import random
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -69,6 +69,7 @@ from app.utils.exceptions import ResourceConflictException, ResourceNotFoundExce
 from app.utils.item_factory import build_catalog_item, build_junk, build_outfit, build_pet, build_weapon
 from app.utils.junk_assets import get_junk_image_url
 from app.utils.room_assets import get_room_image_url
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -461,11 +462,11 @@ async def seed_youth_apprentice(db_session: AsyncSession, youth_id: UUID4, room:
         youth_id,
         {
             "age_group": AgeGroupEnum.TEEN,
-            "birth_date": datetime.utcnow() - timedelta(hours=YOUTH_APPRENTICE_BIRTH_AGE_HOURS),
+            "birth_date": utcnow() - timedelta(hours=YOUTH_APPRENTICE_BIRTH_AGE_HOURS),
             "room_id": room.id,
             "status": DwellerStatusEnum.WORKING,
             "apprentice_stat": room.ability,
-            "apprentice_started_at": datetime.utcnow(),
+            "apprentice_started_at": utcnow(),
         },
     )
 
@@ -535,7 +536,7 @@ async def seed_family_child(
             "parent_2_id": father.id,
             "last_name": surname,
             "age_group": AgeGroupEnum.TEEN if room else AgeGroupEnum.CHILD,
-            "birth_date": datetime.utcnow()
+            "birth_date": utcnow()
             - timedelta(hours=YOUTH_APPRENTICE_BIRTH_AGE_HOURS if room else SEEDED_CHILD_AGE_HOURS),
             "bio": origin,
             "bio_entries": [

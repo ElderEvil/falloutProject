@@ -8,7 +8,7 @@ carries it home.
 
 import logging
 import random
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -31,6 +31,7 @@ from app.services.exploration.party_resolution import (
 from app.services.notification_service import notification_service
 from app.utils.place_groups import effective_place_group
 from app.utils.place_loot import loot_table
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
     if group is None or not group.get("clearable"):
         await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
         return
-    now = datetime.utcnow()
+    now = utcnow()
     if not state.is_dispatchable(now):
         await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
         return

@@ -28,6 +28,7 @@ from app.utils.exceptions import (
     ResourceNotFoundException,
     ValidationException,
 )
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ def _cooldown_until(last_change: datetime | None, cooldown_days: int) -> datetim
     if last_change is None:
         return None
     next_allowed = last_change + timedelta(days=cooldown_days)
-    return next_allowed if next_allowed > datetime.utcnow() else None
+    return next_allowed if next_allowed > utcnow() else None
 
 
 class UserService:
@@ -81,7 +82,7 @@ class UserService:
             self._assert_email_change_allowed(locked_user)
             await self._assert_email_available(db_session, locked_user.id, email_change)
 
-        changed_at = datetime.utcnow()
+        changed_at = utcnow()
         verification_token: str | None = None
         if username_change is not None:
             locked_user.username = username_change

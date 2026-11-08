@@ -1,7 +1,6 @@
 """Incident service for managing combat events and vault disasters."""
 
 import logging
-from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -32,6 +31,7 @@ from app.services.combat import incident_publishing, incident_round, incident_sp
 from app.services.loot_overflow_service import loot_overflow_service
 from app.utils.dweller_availability import is_incident_responder_available
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -298,7 +298,7 @@ class IncidentService:
         incident = locked_incident
         if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
             raise ValidationException("Incident is no longer active")
-        if incident.start_time > datetime.utcnow():
+        if incident.start_time > utcnow():
             raise ValidationException("Incident has not started yet")
 
         unique_ids = list(dict.fromkeys(dweller_ids))

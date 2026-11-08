@@ -1,13 +1,12 @@
 """CRUD operations for per-vault room-theme ownership."""
 
-from datetime import datetime
-
 from pydantic import UUID4
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.models.vault_theme import VaultTheme
+from app.utils.time import utcnow
 
 
 class CRUDVaultTheme(CRUDBase[VaultTheme, None, None]):
@@ -47,12 +46,12 @@ class CRUDVaultTheme(CRUDBase[VaultTheme, None, None]):
             row = VaultTheme(
                 vault_id=vault_id,
                 style=style,
-                crafted_at=datetime.utcnow(),
+                crafted_at=utcnow(),
                 source=source,
             )
             db_session.add(row)
         elif row.crafted_at is None:
-            row.crafted_at = datetime.utcnow()
+            row.crafted_at = utcnow()
             row.source = source
             db_session.add(row)
         return row

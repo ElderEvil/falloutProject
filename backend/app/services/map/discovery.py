@@ -9,7 +9,6 @@ without a map link.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
@@ -24,6 +23,7 @@ from app.services.map.world_generation import WORLD_ID
 from app.services.notification_service import notification_service
 from app.utils import world_terrain
 from app.utils.places import WORLD_SCALE
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
@@ -238,7 +238,7 @@ async def sweep_reclears(db_session: AsyncSession) -> int:
     The null is the idempotency guard: a second sweep finds nothing. A vault
     whose owner row is missing is skipped without aborting the sweep.
     """
-    pairs = await wl_crud.get_elapsed_reclears(db_session, datetime.utcnow())
+    pairs = await wl_crud.get_elapsed_reclears(db_session, utcnow())
     for location, state in pairs:
         state.reclear_available_at = None
         db_session.add(state)

@@ -136,6 +136,7 @@ async def test_fresh_starter_rewards_reach_office_without_loot(async_session, su
                         "app.services.family.breeding_service",
                         "app.crud.pregnancy",
                         "app.models.pregnancy",
+                        "app.utils.time",
                     ):
                         monkeypatch.setattr(import_module(module), "datetime", clock)
                     pregnancies = [

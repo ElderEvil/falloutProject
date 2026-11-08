@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlmodel import Field, SQLModel
+from sqlmodel.main import SQLModelConfig
 
 from app.utils.time import utcnow
 
@@ -52,7 +53,7 @@ class SPECIALModel(SQLModel):
     agility: int = Field(default=1, ge=1, le=10, alias="A")
     luck: int = Field(default=1, ge=1, le=10, alias="L")
 
-    model_config = {"populate_by_name": True}
+    model_config = SQLModelConfig(populate_by_name=True)
 
     @classmethod
     def format_special_stats(cls, dweller: "SPECIALModel") -> str:

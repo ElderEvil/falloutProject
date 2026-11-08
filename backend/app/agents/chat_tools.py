@@ -109,6 +109,8 @@ async def build_dweller_activity_briefing(deps: DwellerChatDeps) -> DwellerActiv
         active_trainings = await training_crud.training.get_active_by_vault(deps.db_session, deps.vault_id)
         active_by_room: dict[UUID, int] = {}
         for training in active_trainings:
+            if training.room_id is None:
+                continue
             active_by_room[training.room_id] = active_by_room.get(training.room_id, 0) + 1
 
         for room in rooms:

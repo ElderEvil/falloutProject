@@ -3,8 +3,8 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import ConfigDict
 from sqlmodel import SQLModel
+from sqlmodel.main import SQLModelConfig
 
 from app.core.enums import PregnancyStatusEnum
 from app.models.pregnancy import PregnancyBase
@@ -32,7 +32,7 @@ class PregnancyRead(PregnancyBase):
     time_remaining_seconds: int
     is_due: bool
 
-    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+    model_config = SQLModelConfig(from_attributes=True, use_enum_values=True)
 
 
 class PregnancyProgress(SQLModel):
@@ -48,7 +48,7 @@ class PregnancyProgress(SQLModel):
     time_remaining_seconds: int
     is_due: bool
 
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = SQLModelConfig(use_enum_values=True)
 
 
 class DeliveredChild(SQLModel):

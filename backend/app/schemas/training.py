@@ -46,7 +46,7 @@ class TrainingStartRequest(TrainingBase):
     """Request to start training a dweller."""
 
     dweller_id: UUID
-    room_id: UUID
+    room_id: UUID  # ty: ignore[invalid-mutable-override]  # request requires a room; stored column is nullable
 
 
 class TrainingProgress(TrainingBase):

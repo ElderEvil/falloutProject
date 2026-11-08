@@ -11,7 +11,7 @@ from app.utils.partial import optional
 
 
 class VaultCreate(VaultBase):
-    vault_mode: VaultModeEnum = VaultModeEnum.STANDARD
+    vault_mode: VaultModeEnum = VaultModeEnum.STANDARD  # ty: ignore[invalid-mutable-override]  # API narrows stored str
 
 
 class VaultCreateWithUserID(VaultBase):

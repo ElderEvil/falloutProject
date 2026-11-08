@@ -8,9 +8,13 @@ from __future__ import annotations
 
 import hashlib
 import re
-from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from app.core.enums import NotificationType
+from app.utils.time import utcnow
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 # Action alerts belong in the live bell, not a retrospective news broadcast.
 _NON_HEADLINE_TYPES = {NotificationType.COMBAT_STARTED.value}
@@ -254,7 +258,7 @@ def build_daily_script(
     Returns:
         (title, script) tuple. Script is ~120-180 words.
     """
-    now = _now or datetime.now(UTC)
+    now = _now or utcnow()
     # The vault day rolls over at UTC midnight, but listeners play the broadcast
     # at every local hour, so the greeting stays time-of-day neutral.
     day_str = f"{now.strftime('%B')} {now.day}, {now.year}"

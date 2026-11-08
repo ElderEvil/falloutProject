@@ -14,7 +14,7 @@ This is an experimental feature on branch `experiment/arena`.
 import logging
 import random
 from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -941,7 +941,7 @@ class ArenaService:
             return False
         if not await db_locks.try_advisory_xact_lock(db_session, f"arena-morale:{vault.id}"):
             return False
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = utcnow()
         cooldown = timedelta(seconds=game_config.combat.arena_morale_cooldown_seconds)
         if vault.arena_morale_awarded_at is not None and now - vault.arena_morale_awarded_at < cooldown:
             return False

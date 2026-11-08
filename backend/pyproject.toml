@@ -143,6 +143,7 @@ lint.select = [
     "S",
     "D",
     "T10",
+    "call-datetime-utcnow",
 ]
 
 lint.preview = true

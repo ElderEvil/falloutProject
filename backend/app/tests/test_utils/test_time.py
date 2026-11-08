@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta, timezone
 
-from app.utils.time import as_utc, utcnow
+from app.utils.time import as_naive_utc, as_utc, utcnow
 
 
 class TestAsUtc:
@@ -11,6 +11,16 @@ class TestAsUtc:
         offset_value = datetime(2026, 1, 1, 14, 0, tzinfo=timezone(timedelta(hours=2)))
 
         assert as_utc(offset_value) == datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+
+
+class TestAsNaiveUtc:
+    def test_naive_values_are_unchanged(self):
+        assert as_naive_utc(datetime(2026, 1, 1, 12, 0)) == datetime(2026, 1, 1, 12, 0)
+
+    def test_aware_values_are_converted_before_dropping_tzinfo(self):
+        offset_value = datetime(2026, 1, 1, 14, 0, tzinfo=timezone(timedelta(hours=2)))
+
+        assert as_naive_utc(offset_value) == datetime(2026, 1, 1, 12, 0)
 
 
 class TestUtcNow:

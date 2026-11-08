@@ -26,3 +26,8 @@ def as_utc(value: datetime) -> datetime:
     aware values are converted to UTC rather than relabelled.
     """
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
+def as_naive_utc(value: datetime) -> datetime:
+    """Return ``value`` as a naive UTC datetime (legacy storage contract)."""
+    return as_utc(value).replace(tzinfo=None)

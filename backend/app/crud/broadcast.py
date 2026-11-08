@@ -1,6 +1,6 @@
 """Broadcast CRUD — date-range queries for the Vault Radio Hour broadcast model."""
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import func, update
@@ -8,6 +8,7 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.broadcast import Broadcast
+from app.utils.time import utcnow
 
 
 def _day_bounds(day: date) -> tuple[datetime, datetime]:
@@ -20,7 +21,7 @@ async def get_today_broadcast(db: AsyncSession, vault_id: UUID) -> Broadcast | N
 
     Returns the existing broadcast row or None.
     """
-    today_start, tomorrow_start = _day_bounds(datetime.now(UTC).date())
+    today_start, tomorrow_start = _day_bounds(utcnow().date())
 
     query = (
         select(Broadcast)

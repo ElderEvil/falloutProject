@@ -2,7 +2,7 @@
 
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from uuid import UUID
 
 from redis.asyncio import Redis
@@ -16,6 +16,7 @@ from app.crud.user import user as user_crud
 from app.models.user import User
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.utils.exceptions import QuotaExceededException, ResourceNotFoundException
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,7 @@ class QuotaService:
 
         quota_limit = user.monthly_token_limit if user.monthly_token_limit is not None else DEFAULT_QUOTA_LIMIT
 
-        now = datetime.now(UTC)
+        now = utcnow()
         current_month_start = datetime(now.year, now.month, 1)
 
         quota_used = await llm_interaction_crud.total_tokens_since(db_session, user_id, current_month_start)

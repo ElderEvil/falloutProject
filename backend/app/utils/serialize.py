@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from app.utils.time import as_utc
+from app.utils.time import as_naive_utc, as_utc
 
 
 def _format_utc_datetime(value: datetime) -> str:
@@ -31,4 +31,4 @@ def serialize_naive_utc_datetime(value: datetime) -> str:
     Preserves the legacy JSON payload format while converting an aware value to
     the UTC instant before dropping ``tzinfo``.
     """
-    return as_utc(value).replace(tzinfo=None).isoformat()
+    return as_naive_utc(value).isoformat()

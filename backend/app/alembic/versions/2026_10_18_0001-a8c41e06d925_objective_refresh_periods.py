@@ -1,11 +1,9 @@
 """Persist successful UTC objective refresh periods without resetting current work."""
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import sqlalchemy as sa
 from alembic import op
-
-from app.utils.time import utcnow
 
 revision = "a8c41e06d925"
 down_revision = "e6b91c48a732"
@@ -18,7 +16,8 @@ def upgrade() -> None:
     op.add_column("gamestate", sa.Column("daily_objectives_period", sa.DateTime(), nullable=True))
     op.add_column("gamestate", sa.Column("weekly_objectives_period", sa.DateTime(), nullable=True))
     # NULL is reserved for state created later without an adopted refresh window.
-    today = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    # Pinned to naive UTC: a historical migration must not follow later helper changes.
+    today = datetime.now(UTC).replace(tzinfo=None).replace(hour=0, minute=0, second=0, microsecond=0)
     state = sa.table(
         "gamestate",
         sa.column("daily_objectives_period", sa.DateTime()),

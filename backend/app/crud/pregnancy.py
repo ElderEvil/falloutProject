@@ -1,6 +1,6 @@
 """CRUD operations for Pregnancy model."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from pydantic import UUID4
 from sqlmodel import select
@@ -12,6 +12,7 @@ from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
 from app.schemas.pregnancy import PregnancyCreate, PregnancyUpdate
 from app.utils.exceptions import ResourceNotFoundException
+from app.utils.time import utcnow
 
 
 class CRUDPregnancy(CRUDBase[Pregnancy, PregnancyCreate, PregnancyUpdate]):
@@ -47,7 +48,7 @@ class CRUDPregnancy(CRUDBase[Pregnancy, PregnancyCreate, PregnancyUpdate]):
     ) -> set[UUID4]:
         """Mothers who cannot conceive now: currently pregnant, or delivered
         within the post-birth cooldown window."""
-        cooldown_start = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=cooldown_hours)
+        cooldown_start = utcnow() - timedelta(hours=cooldown_hours)
 
         pregnant_query = (
             select(Pregnancy.mother_id)
@@ -76,7 +77,7 @@ class CRUDPregnancy(CRUDBase[Pregnancy, PregnancyCreate, PregnancyUpdate]):
             .join(Dweller, Pregnancy.mother_id == Dweller.id)
             .where(Dweller.vault_id == vault_id)
             .where(Pregnancy.status == PregnancyStatusEnum.PREGNANT)
-            .where(Pregnancy.due_at <= datetime.now(UTC).replace(tzinfo=None))
+            .where(Pregnancy.due_at <= utcnow())
         )
         return list((await db_session.execute(query)).scalars().all())
 

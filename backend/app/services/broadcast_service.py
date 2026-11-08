@@ -4,7 +4,7 @@ import asyncio
 import logging
 import shutil
 import subprocess
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -30,6 +30,7 @@ from app.utils.exceptions import (
     TTSProviderException,
     ValidationException,
 )
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ BROADCAST_AUDIO_BUCKET = "dweller-audio"
 
 
 def _utc_today() -> date:
-    return datetime.now(UTC).date()
+    return utcnow().date()
 
 
 def vault_stats_from_db(vault: Vault) -> dict[str, Any]:

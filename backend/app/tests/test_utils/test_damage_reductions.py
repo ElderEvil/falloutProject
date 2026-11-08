@@ -152,12 +152,24 @@ class TestCombinedShareMath:
 
 
 class TestImmunity:
-    @pytest.mark.parametrize("race", ["ghoul", "super_mutant", "synth"])
-    def test_immune_returns_zero(self, race: str) -> None:
+    @pytest.mark.parametrize(
+        ("race", "state"),
+        [("ghoul", None), ("super_mutant", None), ("synth", "gen_1"), ("synth", "gen_2")],
+    )
+    def test_immune_returns_zero(self, race: str, state: str | None) -> None:
         dweller = _dweller(race=race)
+        if state is not None:
+            dweller.visual_attributes["state_of_being"] = state
         reductions = damage_reductions(dweller, DamageChannel.RADIATION)
         assert reductions.immune is True
         assert reductions.apply(100) == 0
+
+    def test_gen_3_synth_radiation_is_not_immune(self) -> None:
+        dweller = _dweller(race="synth")
+        dweller.visual_attributes["state_of_being"] = "gen_3"
+        reductions = damage_reductions(dweller, DamageChannel.RADIATION)
+        assert reductions.immune is False
+        assert reductions.apply(100) == 100
 
     def test_immunity_is_radiation_only(self) -> None:
         ghoul = _dweller(race="ghoul")

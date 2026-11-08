@@ -19,7 +19,7 @@ from app.models.quest_requirement import QuestRequirement
 from app.models.quest_reward import QuestReward
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate, QuestRead, QuestRequirementRead, QuestRewardRead, QuestUpdate
-from app.utils.dweller_availability import available_dweller_conditions
+from app.utils.dweller_availability import DwellerAction, available_dweller_conditions, purposeful_action_error
 from app.utils.exceptions import ResourceNotFoundException
 from app.utils.quest_duration import STATE_QUEST_CATEGORIES, effective_quest_duration_minutes
 
@@ -392,7 +392,11 @@ class CRUDQuest(
             .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit), selectinload(Dweller.pet))
             .where(Dweller.vault_id == vault_id, *available_dweller_conditions())
         )
-        return list(result.scalars().all())
+        return [
+            dweller
+            for dweller in result.scalars().all()
+            if purposeful_action_error(dweller, DwellerAction.EXPLORE) is None
+        ]
 
     async def assign_to_vault(
         self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, *, is_visible: bool = True

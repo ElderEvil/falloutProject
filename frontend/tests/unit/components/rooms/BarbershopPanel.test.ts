@@ -400,6 +400,29 @@ describe('BarbershopPanel', () => {
     expect(barberIds).not.toContain(DEAD_ID)
   })
 
+  it('allows a Gen-3 synth into a customer chair', async () => {
+    const synthId = '66666666-6666-4666-8666-666666666666'
+    const waitingSynthId = '77777777-7777-4777-8777-777777777777'
+    const wrapper = mountPanel([
+      dweller({
+        id: synthId,
+        first_name: 'Synth',
+        visual_attributes: { race: 'synth', state_of_being: 'gen_3', skin_tone: 'Pale', hair_color: 'Blonde' },
+      }),
+      dweller({
+        id: waitingSynthId,
+        first_name: 'Waiting Synth',
+        visual_attributes: { race: 'synth', state_of_being: 'gen_3', skin_tone: 'Pale', hair_color: 'Blonde' },
+      }),
+    ])
+    await flushPromises()
+
+    const waitingIds = wrapper
+      .findAll('[data-testid="barbershop-waiting-row"]')
+      .map((row) => row.attributes('data-dweller-id'))
+    expect(waitingIds).toContain(waitingSynthId)
+  })
+
   it('keeps saving disabled until an appearance value actually changes', async () => {
     const wrapper = mountPanel()
     await flushPromises()

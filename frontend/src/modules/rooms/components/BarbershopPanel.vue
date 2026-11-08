@@ -18,6 +18,7 @@ import {
   getDwellerDisplayName,
   isMature,
   isAvailableUnassignedDweller,
+  passesAsHuman,
   type DwellerShort,
 } from '@/modules/dwellers/models/dweller'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -106,7 +107,7 @@ const clientCandidates = computed(() =>
     (dweller) =>
       isMature(dweller) &&
       dweller.status !== 'dead' &&
-      (dweller.visual_attributes?.race ?? 'human') === 'human'
+      passesAsHuman(dweller)
   )
 )
 
@@ -364,8 +365,7 @@ const slotOptions = computed(() => {
     (entry) =>
       isMature(entry) &&
       entry.status !== 'dead' &&
-      (activeSlot.value === 'worker' ||
-        ((entry.visual_attributes?.race ?? 'human') === 'human' && entry.id !== barberId.value)) &&
+      (activeSlot.value === 'worker' || (passesAsHuman(entry) && entry.id !== barberId.value)) &&
       getDwellerDisplayName(entry).toLowerCase().includes(search.value.trim().toLowerCase())
   )
 })
@@ -569,7 +569,7 @@ async function handleRegenerate(): Promise<void> {
       <p class="text-xs text-muted-foreground">
         {{
           activeSlot === 'client'
-            ? 'Human adults and elders. The worker cannot be the client.'
+            ? 'Human or Gen-3 synth adults and elders. The worker cannot be the client.'
             : 'Any adult or elder can work here.'
         }}
       </p>
@@ -636,7 +636,7 @@ async function handleRegenerate(): Promise<void> {
           </Badge>
         </div>
         <p class="text-xs leading-snug text-theme-primary/65">
-          Pick a worker and a human client in the preview. Only appearance changes are charged.
+          Pick a worker and a human-presenting client in the preview. Only appearance changes are charged.
         </p>
         <dl class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
           <div class="flex items-baseline gap-1">
@@ -733,7 +733,7 @@ async function handleRegenerate(): Promise<void> {
           class="rounded border border-theme-primary/20 bg-surface-sunken px-3 py-2 text-xs text-theme-primary/60"
           data-testid="barbershop-empty-client"
         >
-          Assign a human customer to the Barbershop to complete the pair.
+          Assign a human-presenting customer to the Barbershop to complete the pair.
         </p>
 
         <div

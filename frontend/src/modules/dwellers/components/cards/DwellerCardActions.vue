@@ -57,8 +57,8 @@ const exploreTooltip = computed(() =>
 <template>
   <div class="actions-container">
     <Button variant="default" class="w-full" @click="emit('chat')">
-      <Icon icon="mdi:message-text" class="h-5 w-5 mr-2" />
-      Chat
+      <Icon :icon="dweller.is_dead ? 'mdi:history' : 'mdi:message-text'" class="h-5 w-5 mr-2" />
+      {{ dweller.is_dead ? 'Chat history' : 'Chat' }}
     </Button>
 
     <TooltipProvider :delay-duration="200">

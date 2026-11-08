@@ -157,6 +157,23 @@ async def test_moving_between_rooms_frees_and_uses_slots(async_session: AsyncSes
 
 
 @pytest.mark.asyncio
+async def test_manual_assignment_rejects_feral_ghoul_worker(async_session: AsyncSession, vault: Vault) -> None:
+    """Feral ghouls may defend but cannot take a production-room posting."""
+    room = await _create_room(async_session, vault.id, name="Power Generator", x=11)
+    feral = await _create_adult(async_session, vault.id, "Feral")
+    feral.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
+    async_session.add(feral)
+    await async_session.commit()
+    await async_session.refresh(feral)
+
+    with pytest.raises(ValidationException, match="purposeful"):
+        await dweller_service.move_to_room(async_session, feral.id, room.id)
+
+    await async_session.refresh(feral)
+    assert feral.room_id is None
+
+
+@pytest.mark.asyncio
 async def test_junior_slot_sits_outside_full_worker_capacity(async_session: AsyncSession, vault: Vault) -> None:
     """A youth joins a worker-full production room as apprentice; a second youth is refused."""
     room = await _create_room(async_session, vault.id, name="Power Generator", x=10)

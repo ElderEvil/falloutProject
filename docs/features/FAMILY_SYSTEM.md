@@ -67,6 +67,9 @@ All stored on `Dweller` (one row per dweller) + two child tables.
 
 **What exists (keep):**
 - Conception roll for adult partners **in living quarters** (chance = affinity / 100, fallback base).
+- **Gen-3 synths are explicitly non-breeding**: they pass as human socially and visually, but `can_breed()`
+  keeps every synth generation synthetic for reproduction. Feral ghouls and behemoths also cannot initiate
+  romance or gain social affinity.
 - Pregnancy duration (default 3h real time), `deliver_baby`, manual delivery endpoint.
 - Child trait inheritance: SPECIAL = avg(parents) ±2 × 0.5 child multiplier; rarity ≥ highest parent with upgrade chance; random gender.
 - **Last-name inheritance:** father's last name by default, 20% mother's (`maternal_last_name_chance`).

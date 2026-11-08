@@ -91,16 +91,32 @@ describe('DwellerDetailPane header lockup', () => {
     expect(identity.text()).toContain('Raiders')
   })
 
-  it.each(['ghoul', 'super_mutant', 'synth'])(
-    'identifies %s as ageless and radiation immune',
-    (race) => {
-      const wrapper = mountPane({ ...dweller, visual_attributes: { race } } as Dweller)
+  it.each([
+    ['ghoul', undefined],
+    ['super_mutant', undefined],
+    ['synth', 'gen_1'],
+    ['synth', 'gen_2'],
+  ])('identifies %s/%s as ageless and radiation immune', (race, state_of_being) => {
+    const wrapper = mountPane({
+      ...dweller,
+      visual_attributes: { race, state_of_being },
+    } as Dweller)
 
-      expect(wrapper.find('[aria-label="Race traits: Ageless · Radiation Immune"]').exists()).toBe(
-        true
-      )
-    }
-  )
+    expect(wrapper.find('[aria-label="Race traits: Ageless · Radiation Immune"]').exists()).toBe(
+      true
+    )
+  })
+
+  it('does not mark an organic Gen-3 synth as radiation immune', () => {
+    const wrapper = mountPane({
+      ...dweller,
+      visual_attributes: { race: 'synth', state_of_being: 'gen_3' },
+    } as Dweller)
+
+    expect(wrapper.find('[aria-label="Race traits: Ageless · Radiation Immune"]').exists()).toBe(
+      false
+    )
+  })
 
   it('does not show nonhuman traits for a human', () => {
     const wrapper = mountPane({ ...dweller, visual_attributes: { race: 'human' } } as Dweller)

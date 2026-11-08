@@ -19,6 +19,7 @@ from app.services.room_assignment_policy import (
     validate_room_worker_capacity,
 )
 from app.services.training_service import training_service
+from app.utils.dweller_availability import DwellerAction, purposeful_action_error
 from app.utils.exceptions import ResourceConflictException
 
 PRODUCTION_ABILITIES = [
@@ -75,6 +76,11 @@ class DwellerAssignmentService:
             DwellerUpdate(room_id=room.id, status=determine_status_for_room(room.category, room.name)),
         )
         return True
+
+    @staticmethod
+    def _workers_only(dwellers: Sequence[Dweller]) -> list[Dweller]:
+        """Drop dwellers whose age or state bars work postings."""
+        return [d for d in dwellers if purposeful_action_error(d, DwellerAction.WORK) is None]
 
     @staticmethod
     def _sort_by_ability(
@@ -368,7 +374,9 @@ class DwellerAssignmentService:
             if room.ability in PRODUCTION_ABILITIES
         ]
 
-        unassigned_dwellers = await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
+        unassigned_dwellers = self._workers_only(
+            await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
+        )
 
         assignments: list[dict[str, str]] = []
         assigned_dweller_ids: set = set()
@@ -411,7 +419,9 @@ class DwellerAssignmentService:
     ) -> dict[str, int | list[dict[str, str]]]:
         """Assign idle dwellers to training rooms, prioritizing their lowest eligible SPECIAL stat."""
         training_rooms = await crud.room.get_by_category(db_session, vault_id, RoomTypeEnum.TRAINING)
-        unassigned_dwellers = await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
+        unassigned_dwellers = self._workers_only(
+            await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
+        )
         assignments: list[dict[str, str]] = []
 
         await self._assign_to_rooms_proportional(
@@ -433,7 +443,9 @@ class DwellerAssignmentService:
     ) -> dict[str, int | list[dict[str, str]]]:
         """Fill crafting rooms with unassigned adults ranked by total SPECIAL (highest first)."""
         crafting_rooms = await crud.room.get_by_category(db_session, vault_id, RoomTypeEnum.CRAFTING)
-        unassigned_dwellers = await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
+        unassigned_dwellers = self._workers_only(
+            await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
+        )
         assignments: list[dict[str, str]] = []
 
         await self._assign_crafting_rooms(db_session, crafting_rooms, unassigned_dwellers, assignments, set())
@@ -462,7 +474,9 @@ class DwellerAssignmentService:
         training_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.TRAINING]
         crafting_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.CRAFTING]
 
-        unassigned_dwellers = await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
+        unassigned_dwellers = self._workers_only(
+            await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
+        )
 
         assignments: list[dict[str, str]] = []
         assigned_dweller_ids: set = set()

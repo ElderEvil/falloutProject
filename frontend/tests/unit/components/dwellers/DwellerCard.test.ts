@@ -334,15 +334,34 @@ describe('DwellerCard', () => {
     })
   })
   describe('Inventory Display', () => {
-    it('does not offer RadAway to a non-human dweller', () => {
+    it('does not offer RadAway to a visible synth', () => {
       const wrapper = mount(DwellerCard, {
         props: {
-          dweller: { ...mockDweller, visual_attributes: { race: 'synth' }, radiation: 30 },
+          dweller: {
+            ...mockDweller,
+            visual_attributes: { race: 'synth', state_of_being: 'gen_2' },
+            radiation: 30,
+          },
           availableRadaways: 5,
         },
       })
 
       expect(wrapper.find('.supply-radaway').exists()).toBe(false)
+    })
+
+    it('offers RadAway to an organic Gen-3 synth', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: {
+            ...mockDweller,
+            visual_attributes: { race: 'synth', state_of_being: 'gen_3' },
+            radiation: 30,
+          },
+          availableRadaways: 5,
+        },
+      })
+
+      expect(wrapper.find('.supply-radaway').exists()).toBe(true)
     })
     it('shows the vault count inline on the single Heal button', () => {
       const wrapper = mount(DwellerCard, {

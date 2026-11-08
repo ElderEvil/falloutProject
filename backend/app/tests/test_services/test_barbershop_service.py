@@ -226,6 +226,33 @@ async def test_change_appearance_rejects_non_human(async_session: AsyncSession, 
         )
 
 
+async def test_change_appearance_allows_gen_3_synth(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Gen-3 synths pass as human and can use the human-only Barbershop."""
+    room = await _make_barbershop(async_session, vault)
+    await _staff(async_session, room, dweller)
+    dweller.visual_attributes = {
+        "race": "synth",
+        "state_of_being": "gen_3",
+        "skin_tone": "Pale",
+        "hair_color": "blonde",
+    }
+    vault.bottle_caps = 500
+    async_session.add_all([dweller, vault])
+    await async_session.commit()
+
+    response = await barbershop_service.change_appearance(
+        async_session,
+        room=room,
+        dweller_id=dweller.id,
+        request=BarbershopChangeRequest(skin_tone="Tan", hair_color="black"),
+    )
+
+    assert response.dweller.visual_attributes["skin_tone"] == "Tan"
+    assert response.dweller.visual_attributes["hair_color"] == "black"
+
+
 async def test_change_appearance_rejects_child(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     room = await _make_barbershop(async_session, vault)
     await _staff(async_session, room, dweller)

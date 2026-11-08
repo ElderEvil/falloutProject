@@ -19,6 +19,7 @@ from app.schemas.relationship import CompatibilityScore, VaultRelationshipRead
 from app.services.bio_service import bio_service
 from app.services.family.breeding_service import conception_potential
 from app.services.notification_service import NotificationService
+from app.utils.dweller_availability import DwellerAction, purposeful_action_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
@@ -102,6 +103,11 @@ def affinity_change(dweller1: Dweller, dweller2: Dweller) -> int:
     Shared race and Charisma raise the gain; poor chemistry (low compatibility,
     low Charisma, mixed races) tips the same pair into a slow loss instead.
     """
+    if (
+        purposeful_action_error(dweller1, DwellerAction.SOCIAL) is not None
+        or purposeful_action_error(dweller2, DwellerAction.SOCIAL) is not None
+    ):
+        return 0
     config = game_config.relationship
     average_charisma = (effective_charisma(dweller1) + effective_charisma(dweller2)) / 2
     charisma_factor = _charisma_affinity_multiplier(average_charisma)
@@ -174,10 +180,15 @@ class RelationshipService:
                         "average_charisma": int((effective_charisma(first) + effective_charisma(second)) / 2 + 0.5),
                         "discomfort_severity": discomfort.severity.value if discomfort else None,
                         "discomfort_source": discomfort.source.value if discomfort else None,
-                        "can_make_partners": not (
-                            relationship.relationship_type == RelationshipTypeEnum.ROMANTIC
-                            and (
-                                relationship.dweller_1_id in committed_ids or relationship.dweller_2_id in committed_ids
+                        "can_make_partners": (
+                            purposeful_action_error(first, DwellerAction.SOCIAL) is None
+                            and purposeful_action_error(second, DwellerAction.SOCIAL) is None
+                            and not (
+                                relationship.relationship_type == RelationshipTypeEnum.ROMANTIC
+                                and (
+                                    relationship.dweller_1_id in committed_ids
+                                    or relationship.dweller_2_id in committed_ids
+                                )
                             )
                         ),
                     },
@@ -443,6 +454,14 @@ class RelationshipService:
         bio_service.add_entry(second, "family", f"Can't stand {name_1}.", ref={"rival_id": str(first.id)})
 
     @staticmethod
+    async def _require_social_action(db_session: AsyncSession, dweller_ids: tuple[UUID4, UUID4]) -> None:
+        """Reject romance/partnership when either dweller cannot take purposeful social action."""
+        for dweller_id in dweller_ids:
+            dweller = await dweller_crud.get(db_session, dweller_id)
+            if error := purposeful_action_error(dweller, DwellerAction.SOCIAL):
+                raise ValidationException(detail=f"Dweller {dweller_id} {error}")
+
+    @staticmethod
     async def initiate_romance(
         db_session: AsyncSession,
         dweller_1_id: UUID4,
@@ -465,6 +484,8 @@ class RelationshipService:
         if not relationship:
             msg = "Relationship not found between dwellers"
             raise ValueError(msg)
+
+        await RelationshipService._require_social_action(db_session, (dweller_1_id, dweller_2_id))
 
         if relationship.affinity < game_config.relationship.romance_threshold:
             msg = (
@@ -503,6 +524,8 @@ class RelationshipService:
         if not relationship:
             msg = "Relationship not found between dwellers"
             raise ValueError(msg)
+
+        await RelationshipService._require_social_action(db_session, (dweller_1_id, dweller_2_id))
 
         if relationship.affinity < game_config.relationship.romance_threshold:
             threshold = game_config.relationship.romance_threshold
@@ -631,6 +654,10 @@ class RelationshipService:
             threshold = game_config.relationship.marriage_threshold
             msg = f"Affinity too low for marriage ({relationship.affinity} < {threshold})"
             raise ValidationException(msg)
+
+        await RelationshipService._require_social_action(
+            db_session, (relationship.dweller_1_id, relationship.dweller_2_id)
+        )
 
         # Serialize concurrent commitment transitions: lock both dweller rows
         # before the guard so a racing make_partners/affinity promotion cannot

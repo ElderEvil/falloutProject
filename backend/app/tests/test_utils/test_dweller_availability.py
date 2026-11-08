@@ -6,9 +6,12 @@ from app.core.enums import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEn
 from app.models.dweller import Dweller
 from app.utils.dweller_availability import (
     UNAVAILABLE_STATUSES,
+    DwellerAction,
     availability_error,
     available_dweller_conditions,
     is_available,
+    is_incident_responder_available,
+    purposeful_action_error,
 )
 
 
@@ -24,6 +27,7 @@ def _make_dweller(**overrides) -> Dweller:
         "is_dead": False,
         "is_deleted": False,
         "status": DwellerStatusEnum.IDLE,
+        "visual_attributes": {"race": "human"},
     }
     defaults.update(overrides)
     return Dweller(**defaults)
@@ -80,7 +84,44 @@ def test_is_available_mirrors_availability_error(overrides: dict, require_health
     )
 
 
+@pytest.mark.parametrize(
+    "action",
+    [DwellerAction.WORK, DwellerAction.TRAIN, DwellerAction.EXPLORE, DwellerAction.SOCIAL],
+)
+def test_feral_ghouls_cannot_take_reasoning_actions(action: DwellerAction) -> None:
+    feral = _make_dweller(visual_attributes={"race": "ghoul", "state_of_being": "feral"})
+    assert purposeful_action_error(feral, action) == "dweller cannot take purposeful actions"
+
+
+def test_behemoths_cannot_take_reasoning_actions() -> None:
+    behemoth = _make_dweller(visual_attributes={"race": "super_mutant", "state_of_being": "behemoth"})
+    assert purposeful_action_error(behemoth, DwellerAction.WORK) == "dweller cannot take purposeful actions"
+
+
+def test_feral_ghouls_and_behemoths_may_fight() -> None:
+    feral = _make_dweller(visual_attributes={"race": "ghoul", "state_of_being": "feral"})
+    behemoth = _make_dweller(visual_attributes={"race": "super_mutant", "state_of_being": "behemoth"})
+    assert purposeful_action_error(feral, DwellerAction.FIGHT) is None
+    assert purposeful_action_error(behemoth, DwellerAction.FIGHT) is None
+    assert availability_error(feral, action=DwellerAction.FIGHT, require_healthy=True) is None
+    assert is_incident_responder_available(feral) is True
+    assert is_incident_responder_available(behemoth) is True
+
+
+def test_feral_ghouls_are_not_available_for_work_or_exploration() -> None:
+    feral = _make_dweller(visual_attributes={"race": "ghoul", "state_of_being": "feral"})
+    assert availability_error(feral) == "dweller cannot take purposeful actions"
+    assert availability_error(feral, action=DwellerAction.EXPLORE) == "dweller cannot take purposeful actions"
+
+
+@pytest.mark.parametrize("action", [DwellerAction.TRAIN, DwellerAction.FIGHT, DwellerAction.SOCIAL])
+def test_children_remain_age_blocked(action: DwellerAction) -> None:
+    child = _make_dweller(age_group=AgeGroupEnum.CHILD)
+    assert purposeful_action_error(child, action) == "dweller is not an adult"
+
+
 def test_available_dweller_conditions_counts() -> None:
+
     assert len(available_dweller_conditions()) == 4
     assert len(available_dweller_conditions(require_healthy=True)) == 5
 

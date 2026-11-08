@@ -55,6 +55,7 @@ from app.services.combat.weapon_skill import MAX_CHARGE
 from app.services.game_tick.tick_results import ArenaEventStats, ArenaRoomStats, ArenaStats
 from app.services.leveling_service import leveling_service
 from app.services.notification_service import NotificationService
+from app.utils.dweller_availability import DwellerAction, purposeful_action_error
 from app.utils.exceptions import ValidationException
 
 logger = logging.getLogger(__name__)
@@ -222,7 +223,9 @@ class ArenaService:
 
         if selected_ids:
             fighters = list(await crud_dweller.get_arena_fighters(db_session, room.id, ids=selected_ids))
-            if len(fighters) != len(selected_ids):
+            if len(fighters) != len(selected_ids) or any(
+                purposeful_action_error(fighter, DwellerAction.FIGHT) is not None for fighter in fighters
+            ):
                 raise ValidationException(detail="Every fighter must be an adult dweller assigned to the Arena")
 
         state = await arena_state_crud.get_or_create(db_session, room.id)
@@ -570,7 +573,7 @@ class ArenaService:
             fighters = await crud_dweller.get_many_for_update(db_session, ids)
             if len(fighters) != expected or any(
                 fighter.vault_id != room.vault_id
-                or not fighter.is_mature
+                or purposeful_action_error(fighter, DwellerAction.FIGHT) is not None
                 or fighter.is_dead
                 or fighter.health <= 0
                 or fighter.status

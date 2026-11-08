@@ -6,7 +6,7 @@ vault thriving. Built with modern Python tooling.
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/charliermarsh/ruff)
 [![Backend Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2FElderEvil%2F7cc382e5dbf89fbe5bc026b6d8a0ab88%2Fraw%2Fcoverage-badge.json)](https://github.com/ElderEvil/falloutProject/actions/workflows/backend-coverage.yml)
 [![Frontend Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2FElderEvil%2F7cc382e5dbf89fbe5bc026b6d8a0ab88%2Fraw%2Fcoverage-badge-fe.json)](https://github.com/ElderEvil/falloutProject/actions/workflows/frontend-coverage.yml)
-[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/)
 [![PostgreSQL 18](https://img.shields.io/badge/postgresql-18-blue.svg)](https://www.postgresql.org/)
 [![Vue 3.5](https://img.shields.io/badge/vue-3.5-00ff00.svg)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-6.0-00ff00.svg)](https://www.typescriptlang.org/)
@@ -33,16 +33,14 @@ See [docs/ROADMAP.md](./docs/ROADMAP.md) for recent updates and upcoming feature
 ## 📋 Prerequisites
 
 **Required:**
-- [Python 3.13](https://www.python.org/downloads/)
+- [Python 3.14](https://www.python.org/downloads/)
 - [Node.js 26](https://nodejs.org/) (recommended; Node 22.22.2+ still works during the transition)
 - [Podman](https://podman.io/) with Compose support (primary; use `podman compose`)
 - [Docker Compose](https://docs.docker.com/compose/install/) (alternative; v2 - use `docker compose`, not `docker-compose`)
 
-Python 3.14 is also checked by backend test and production-image CI as preparation for 3.0.
-The default development and release runtime remains pinned to 3.13 until the
-[3.0 release gates](docs/ROADMAP.md#30-platform-release-plan) are satisfied. To check 3.14
-locally, run `uv sync --python 3.14 --locked` and `uv run --python 3.14 pytest app/tests`
-from `backend/`; return to the default with `uv sync --python 3.13 --locked`.
+Python 3.14 is the development and release runtime for the 3.0 platform boundary.
+Run `uv sync --python 3.14 --locked` from `backend/`; backend test and production-image CI
+run on 3.14 only.
 
 **Installation:**
 - **uv** (Python package manager):

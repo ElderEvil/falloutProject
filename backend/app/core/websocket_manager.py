@@ -46,7 +46,7 @@ class ConnectionManager:
                 "Distributed WebSocket manager started (ID: %s)",
                 self.instance_id,
             )
-        except (RedisError, RedisConnectionError, OSError):
+        except RedisError, RedisConnectionError, OSError:
             logger.exception("Failed to init Redis for WS manager. Running local-only")
             self.redis = None
 
@@ -93,7 +93,7 @@ class ConnectionManager:
             async for message in pubsub.listen():
                 try:
                     await self._process_redis_message(message)
-                except (json.JSONDecodeError, KeyError, ValueError):
+                except json.JSONDecodeError, KeyError, ValueError:
                     logger.exception("Error processing Redis broadcast")
         finally:
             await pubsub.unsubscribe(self.redis_channel)
@@ -110,9 +110,9 @@ class ConnectionManager:
         data["sender_instance"] = self.instance_id
         try:
             await self.redis.publish(self.redis_channel, json.dumps(jsonable_encoder(data)))
-        except (RedisError, RedisConnectionError):
+        except RedisError, RedisConnectionError:
             logger.exception("Failed to publish WS message to Redis")
-        except (RuntimeError, AttributeError):
+        except RuntimeError, AttributeError:
             # Event loop closed during tests or shutdown - suppress
             logger.debug("Redis publish skipped (event loop closed)")
 

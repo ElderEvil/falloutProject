@@ -12,7 +12,7 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
-from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
+from pydantic import UUID4
 
 from app.core.enums import (
     DwellerLocationRelationEnum,

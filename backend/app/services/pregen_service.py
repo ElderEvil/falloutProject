@@ -13,7 +13,7 @@ import random as std_random
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
-from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
+from pydantic import UUID4
 
 from app import crud
 from app.schemas.dweller import DwellerUpdate

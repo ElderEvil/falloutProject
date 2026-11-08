@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
+from pydantic import UUID4
 
 from app.core.enums import LocationTypeEnum
 from app.core.game_config import game_config

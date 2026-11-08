@@ -46,6 +46,7 @@ def test_maintenance_backup_verification_and_failure_recovery(tmp_path: Path, sc
     for expression, value in {
         "inputs.run_migrations": "true",
         "inputs.image_tag": "v1.2.3",
+        "inputs.public_traffic_gate": "false",
         "github.run_id": "885",
         "github.run_attempt": "1",
     }.items():
@@ -214,6 +215,7 @@ def test_manifest_apply_pins_images_and_keeps_maintenance_writers_stopped(
     for expression, value in {
         "inputs.image_tag": "v2.289.1",
         "inputs.maintenance_mode": str(maintenance).lower(),
+        "inputs.public_traffic_gate": "false",
         "secrets.DOCKER_USERNAME": "test-registry",
         "secrets.HETZNER_USER": "test-user",
         "secrets.HETZNER_HOST": "test-host",
@@ -263,6 +265,7 @@ def test_manifest_apply_pins_images_and_keeps_maintenance_writers_stopped(
         "IMAGE_TAG": "v2.289.1",
         "DOCKER_USERNAME": "test-registry",
         "MAINTENANCE_MODE": str(maintenance).lower(),
+        "PUBLIC_TRAFFIC_GATE": "false",
     }
     result = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - checked-in workflow, isolated tool fakes
         [shutil.which("bash") or "bash", "-c", script],

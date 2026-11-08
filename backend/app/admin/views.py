@@ -261,7 +261,7 @@ class UserProfileAdmin(AdminModelView, model=UserProfile):
         try:
             async with self.session_maker() as session:
                 await authorize_profile_edit(session, model.user_id, actor_id=str(request.session["user_id"]))
-        except (AccessDeniedException, ResourceNotFoundException):
+        except AccessDeniedException, ResourceNotFoundException:
             return False
         return True
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
+from pydantic import UUID4
 
 from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, NotificationPriority, NotificationType
 from app.crud.exploration import exploration as exploration_crud

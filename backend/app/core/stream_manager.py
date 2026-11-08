@@ -106,7 +106,7 @@ class SSEManager:
                     user_id,
                     data.get("event_id", "?"),
                 )
-            except (RuntimeError, AttributeError):
+            except RuntimeError, AttributeError:
                 # Event loop closing during shutdown
                 dead.append(queue)
 

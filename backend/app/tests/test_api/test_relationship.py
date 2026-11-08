@@ -60,12 +60,12 @@ async def test_initiate_romance(
     dweller1 = await dweller_service.create_random_dweller(
         async_session,
         vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="male"),
+        obj_in=DwellerCreateCommonOverride(gender="male", visual_attributes={"race": "human"}),
     )
     dweller2 = await dweller_service.create_random_dweller(
         async_session,
         vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="female"),
+        obj_in=DwellerCreateCommonOverride(gender="female", visual_attributes={"race": "human"}),
     )
 
     create_response = await async_client.post(
@@ -377,12 +377,12 @@ async def test_marry(
     dweller1 = await dweller_service.create_random_dweller(
         async_session,
         vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="male"),
+        obj_in=DwellerCreateCommonOverride(gender="male", visual_attributes={"race": "human"}),
     )
     dweller2 = await dweller_service.create_random_dweller(
         async_session,
         vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="female"),
+        obj_in=DwellerCreateCommonOverride(gender="female", visual_attributes={"race": "human"}),
     )
 
     from app.services.relationship_service import relationship_service

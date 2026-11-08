@@ -5,6 +5,7 @@ import * as trainingService from '../services/trainingService'
 import { useToast } from '@/core/composables/useToast'
 import { notifyErrorOnce, getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
+import { parseUtcMs } from '@/core/utils/time'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
@@ -60,7 +61,7 @@ export const useTrainingStore = defineStore('training', () => {
 
     return Array.from(activeTrainings.value.values()).filter((training) => {
       if (training.status !== 'active') return false
-      const completionTime = new Date(training.estimated_completion_at).getTime()
+      const completionTime = parseUtcMs(training.estimated_completion_at)
       return completionTime - now <= tenMinutes && completionTime > now
     })
   })

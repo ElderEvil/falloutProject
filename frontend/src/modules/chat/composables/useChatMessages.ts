@@ -4,6 +4,7 @@ import type { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { getStaticImageUrl } from '@/core/utils/image'
 import { useSound } from '@/core/composables/useSound'
+import { parseUtcMs } from '@/core/utils/time'
 import type { ChatMessageDisplay, ChatDebug, MapDiscovery } from '@/modules/chat/models/chat'
 import { chatApi, type ChatActionSuggestion } from '../api/chat'
 
@@ -132,7 +133,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
         type: msg.from_user_id ? 'user' : 'dweller',
         content: msg.message_text,
         messageId: msg.id || undefined,
-        timestamp: new Date(msg.created_at),
+        timestamp: new Date(parseUtcMs(msg.created_at)),
         audioUrl: msg.audio_url || undefined,
         transcription: msg.transcription || undefined,
         happinessImpact:

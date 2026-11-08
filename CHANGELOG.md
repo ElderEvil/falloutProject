@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.295.3 (2026-11-08)
+
+### Bug Fixes
+
+* **tests:** pin synth radaway below the carry cap e57880e
+
 ## 2.295.2 (2026-11-08)
 
 ### Bug Fixes

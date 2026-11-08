@@ -2,7 +2,6 @@
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -21,6 +20,7 @@ from app.services.family.breeding_service import conception_potential
 from app.services.notification_service import NotificationService
 from app.utils.dweller_availability import DwellerAction, purposeful_action_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -279,7 +279,7 @@ class RelationshipService:
             raise ValueError(msg)
 
         new_affinity = min(100, relationship.affinity + amount)
-        update_data = {"affinity": new_affinity, "updated_at": datetime.utcnow()}
+        update_data = {"affinity": new_affinity, "updated_at": utcnow()}
         old_type = relationship.relationship_type
         current_type = old_type
 
@@ -411,7 +411,7 @@ class RelationshipService:
         demoted_from = relationship.relationship_type
         demoted_to = RelationshipService._demotion_for(demoted_from, new_affinity)
 
-        update_data = {"affinity": new_affinity, "updated_at": datetime.utcnow()}
+        update_data = {"affinity": new_affinity, "updated_at": utcnow()}
         if demoted_to is not None:
             update_data["relationship_type"] = demoted_to
         RelationshipService._stage_update(db_session, relationship, update_data)
@@ -493,7 +493,7 @@ class RelationshipService:
             )
             raise ValueError(msg)
 
-        update_data = {"relationship_type": RelationshipTypeEnum.ROMANTIC, "updated_at": datetime.utcnow()}
+        update_data = {"relationship_type": RelationshipTypeEnum.ROMANTIC, "updated_at": utcnow()}
 
         # Update via CRUD
         relationship = await relationship_crud.update(db_session, relationship.id, update_data)
@@ -545,7 +545,7 @@ class RelationshipService:
                 msg = f"Dweller {dweller_id} is already {committed.relationship_type.value} to another dweller"
                 raise ValidationException(msg)
 
-        update_data = {"relationship_type": RelationshipTypeEnum.PARTNER, "updated_at": datetime.utcnow()}
+        update_data = {"relationship_type": RelationshipTypeEnum.PARTNER, "updated_at": utcnow()}
 
         # Update relationship and both dwellers' partner_ids in ONE transaction.
         relationship = await relationship_crud.update(db_session, relationship.id, update_data, commit=False)
@@ -781,7 +781,7 @@ class RelationshipService:
         update_data = {
             "relationship_type": RelationshipTypeEnum.EX,
             "affinity": max(0, relationship.affinity - 30),  # Penalty for breakup
-            "updated_at": datetime.utcnow(),
+            "updated_at": utcnow(),
         }
         await relationship_crud.update(db_session, relationship.id, update_data, commit=False)
 

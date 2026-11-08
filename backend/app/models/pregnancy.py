@@ -7,6 +7,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import PregnancyStatusEnum
 from app.models.base import BaseUUIDModel, TimeStampMixin
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 class PregnancyBase(SQLModel):
     mother_id: UUID4 = Field(sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE"), index=True))
     father_id: UUID4 = Field(sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE"), index=True))
-    conceived_at: datetime = Field(default_factory=datetime.utcnow)
+    conceived_at: datetime = Field(default_factory=utcnow)
     due_at: datetime = Field()
     status: PregnancyStatusEnum = Field(default=PregnancyStatusEnum.PREGNANT)
 
@@ -43,7 +44,7 @@ class Pregnancy(BaseUUIDModel, PregnancyBase, TimeStampMixin, table=True):
     def is_due(self) -> bool:
         """Check if the pregnancy is due for delivery."""
         due_at = self.due_at.replace(tzinfo=None) if self.due_at.tzinfo else self.due_at
-        return datetime.utcnow() >= due_at and self.status == PregnancyStatusEnum.PREGNANT
+        return utcnow() >= due_at and self.status == PregnancyStatusEnum.PREGNANT
 
     @property
     def progress_percentage(self) -> float:
@@ -52,7 +53,7 @@ class Pregnancy(BaseUUIDModel, PregnancyBase, TimeStampMixin, table=True):
             return 100.0
 
         total_duration = (self.due_at - self.conceived_at).total_seconds()
-        elapsed = (datetime.utcnow() - self.conceived_at).total_seconds()
+        elapsed = (utcnow() - self.conceived_at).total_seconds()
 
         if total_duration <= 0:
             return 100.0
@@ -65,5 +66,5 @@ class Pregnancy(BaseUUIDModel, PregnancyBase, TimeStampMixin, table=True):
         if self.status != PregnancyStatusEnum.PREGNANT:
             return 0
 
-        remaining = (self.due_at - datetime.utcnow()).total_seconds()
+        remaining = (self.due_at - utcnow()).total_seconds()
         return max(0, int(remaining))

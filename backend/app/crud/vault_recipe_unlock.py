@@ -1,13 +1,12 @@
 """CRUD operations for per-vault crafting-recipe unlock progress."""
 
-from datetime import datetime
-
 from pydantic import UUID4
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.models.vault_recipe_unlock import VaultRecipeUnlock
+from app.utils.time import utcnow
 
 
 class CRUDVaultRecipeUnlock(CRUDBase[VaultRecipeUnlock, None, None]):
@@ -70,7 +69,7 @@ class CRUDVaultRecipeUnlock(CRUDBase[VaultRecipeUnlock, None, None]):
         row.progress += 1
         newly_unlocked = row.progress >= threshold
         if newly_unlocked:
-            row.unlocked_at = datetime.utcnow()
+            row.unlocked_at = utcnow()
         db_session.add(row)
         return newly_unlocked
 

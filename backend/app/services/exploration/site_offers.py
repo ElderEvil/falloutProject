@@ -1,7 +1,7 @@
 """Trail-relative site offers and the per-vault/site expedition gate."""
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Literal
 
 from pydantic import UUID4
@@ -14,6 +14,7 @@ from app.models.exploration import Exploration
 from app.schemas.expedition import SiteDefinition
 from app.services.map.world_generation import WORLD_ID
 from app.utils import world_terrain
+from app.utils.time import utcnow
 
 ANTI_FARM_DAYS = 7
 
@@ -81,7 +82,7 @@ async def site_block_state(
         db_session,
         vault_id=vault_id,
         site_id=site_id,
-        since=datetime.utcnow() - timedelta(days=ANTI_FARM_DAYS),
+        since=utcnow() - timedelta(days=ANTI_FARM_DAYS),
     )
     if recent is None:
         return SiteBlockState()
@@ -89,7 +90,7 @@ async def site_block_state(
     if recent.finished_at is None:
         return SiteBlockState(reason="cooldown", cleared=cleared)
     window_end = recent.finished_at + timedelta(days=ANTI_FARM_DAYS)
-    remaining = max(0, int((window_end - datetime.utcnow()).total_seconds()))
+    remaining = max(0, int((window_end - utcnow()).total_seconds()))
     return SiteBlockState(reason="cooldown", cooldown_remaining_seconds=remaining, cleared=cleared)
 
 

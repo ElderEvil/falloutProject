@@ -1,7 +1,7 @@
 """Incident event reporting: lifecycle journal, SSE pushes, and owner notifications."""
 
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -11,6 +11,7 @@ from app.models.incident import Incident, get_incident_definition
 from app.models.incident_event import IncidentEvent
 from app.schemas.incident_sse import IncidentSseEvent
 from app.services.notification_service import notification_service
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ def record_events(db_session: AsyncSession, incident: Incident, entries: list[tu
     The journal is read back by `created_at`, and a round's rows are inserted in
     the same microsecond, so each line gets a distinct timestamp.
     """
-    base = datetime.utcnow()
+    base = utcnow()
     for index, (kind, message, data) in enumerate(entries):
         db_session.add(
             IncidentEvent(

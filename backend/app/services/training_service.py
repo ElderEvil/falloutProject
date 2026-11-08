@@ -1,7 +1,7 @@
 """Training service for managing dweller SPECIAL stat training."""
 
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -22,6 +22,7 @@ from app.services.notification_service import notification_service
 from app.services.room_assignment_policy import calculate_room_capacity
 from app.utils.dweller_availability import DwellerAction, purposeful_action_error
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
+from app.utils.time import utcnow
 
 
 class TrainingService:
@@ -194,7 +195,7 @@ class TrainingService:
         current_stat = SPECIALModel.get_stat(dweller, room.ability)
         speed_bonus = min(pet_modifiers_for(dweller).training_speed_pct, MAX_PCT_BONUS)
         duration = int(self.calculate_training_duration(current_stat, room.tier) * (1 - speed_bonus))
-        now = datetime.utcnow()
+        now = utcnow()
         return Training(
             dweller_id=dweller.id,
             room_id=room.id,
@@ -274,7 +275,7 @@ class TrainingService:
         if not training.is_active():
             return training
 
-        now = datetime.utcnow()
+        now = utcnow()
 
         # Check if training is complete
         if now >= training.estimated_completion_at:
@@ -333,7 +334,7 @@ class TrainingService:
 
         # Update training status
         training.status = TrainingStatus.COMPLETED
-        training.completed_at = datetime.utcnow()
+        training.completed_at = utcnow()
         training.progress = 1.0
         db_session.add(training)
 
@@ -425,7 +426,7 @@ class TrainingService:
 
         # Update training status
         training.status = TrainingStatus.CANCELLED
-        training.completed_at = datetime.utcnow()
+        training.completed_at = utcnow()
         db_session.add(training)
 
         # Update dweller status back to IDLE and remove from room

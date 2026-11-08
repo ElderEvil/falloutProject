@@ -6,7 +6,6 @@ sessions, and happiness. ``GameLoopService`` keeps same-named thin delegates.
 """
 
 import logging
-from datetime import datetime
 from functools import partial
 
 from pydantic import UUID4
@@ -35,6 +34,7 @@ from app.services.game_tick.tick_results import (
 from app.services.happiness_service import happiness_service
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 from app.utils.radiation import apply_radiation_gain, dehydration_rads
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ async def _drought_ticks(db_session: AsyncSession, vault_id: UUID4) -> int:
     state = await game_state_crud.get_by_vault_id(db_session, vault_id)
     if state is None or state.water_empty_since is None:
         return 0
-    elapsed = (datetime.utcnow() - state.water_empty_since).total_seconds()
+    elapsed = (utcnow() - state.water_empty_since).total_seconds()
     return max(0, int(elapsed) // game_config.game_loop.tick_interval)
 
 
@@ -328,7 +328,7 @@ async def process_apprenticeships(db_session: AsyncSession, vault_id: UUID4) -> 
         rooms = await crud_room.get_by_ids(list(room_ids), db_session)
         rooms_by_id = {room.id: room for room in rooms}
 
-    now = datetime.utcnow()
+    now = utcnow()
     for apprentice in apprentices:
         room = rooms_by_id.get(apprentice.room_id)
         if (

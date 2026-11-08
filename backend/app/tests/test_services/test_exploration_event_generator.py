@@ -46,8 +46,7 @@ def test_event_interval_accepts_legacy_and_offset_history(offset_minutes: int | 
     )
     original = deepcopy(exploration.model_dump())
 
-    with patch("app.services.exploration.event_generator.datetime", wraps=datetime) as clock:
-        clock.utcnow.return_value = now
+    with patch("app.services.exploration.event_generator.utcnow", return_value=now) as clock:
         assert event_generator.can_generate_event(exploration) is (boundary_us <= 0)
         exploration.status = ExplorationStatus.RETURNING
         assert event_generator.can_generate_event(exploration) is False

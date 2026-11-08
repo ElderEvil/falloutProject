@@ -8,6 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.models.notification import Notification, NotificationCreate, NotificationUpdate
+from app.utils.time import utcnow
 
 
 class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUpdate]):
@@ -110,7 +111,7 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         notification = await self.get(db, id=notification_id)
         if notification and notification.user_id == user_id:
             notification.is_read = True
-            notification.read_at = datetime.utcnow()
+            notification.read_at = utcnow()
             db.add(notification)
             await db.commit()
             await db.refresh(notification)
@@ -124,7 +125,7 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
             .where(col(Notification.user_id) == user_id)
             .where(~col(Notification.is_read))
             .where(~col(Notification.is_dismissed))
-            .values(is_read=True, read_at=datetime.utcnow())
+            .values(is_read=True, read_at=utcnow())
         )
         if vault_id is not None:
             query = query.where(col(Notification.vault_id) == vault_id)

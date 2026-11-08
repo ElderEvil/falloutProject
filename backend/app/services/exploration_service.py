@@ -45,6 +45,7 @@ from app.utils import world_terrain
 from app.utils.dweller_availability import DwellerAction, availability_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 from app.utils.place_groups import effective_place_group
+from app.utils.time import utcnow
 from app.utils.vault_slots import slot_coords
 
 logger = logging.getLogger(__name__)
@@ -237,7 +238,7 @@ class ExplorationService:
         active_training = await training_crud.training.get_active_by_dweller(db_session, dweller_id)
         if active_training is not None:
             active_training.status = TrainingStatus.CANCELLED
-            active_training.completed_at = datetime.utcnow()
+            active_training.completed_at = utcnow()
             db_session.add(active_training)
 
         # Calculate how much to take from vault vs dweller
@@ -261,7 +262,7 @@ class ExplorationService:
                 commit=False,
             )
 
-        start_time = datetime.utcnow()
+        start_time = utcnow()
         exploration = Exploration(
             id=exploration_id,
             vault_id=vault_id,
@@ -472,7 +473,7 @@ class ExplorationService:
         if not await crud_world_location.is_location_unlocked(db_session, vault_id, location_id):
             raise ValidationException("This location is not known to the vault")
 
-        if not state.is_dispatchable(datetime.utcnow()):
+        if not state.is_dispatchable(utcnow()):
             raise ValidationException("This location is currently cleared")
 
         origin = await self._vault_origin(db_session, vault_id)
@@ -509,7 +510,7 @@ class ExplorationService:
             radaways=radaways,
             target_location_id=location_id,
             clear_tier=tier,
-            start_time=datetime.utcnow(),
+            start_time=utcnow(),
             status=ExplorationStatus.ACTIVE,
         )
         self._stage_special_snapshot(exploration, anchor)
@@ -876,7 +877,7 @@ class ExplorationService:
         via ``position_as_of``. The tick owns this transaction, so it commits.
         """
         exploration = await crud_exploration.get(db_session, exploration_id)
-        now = now or datetime.utcnow()
+        now = now or utcnow()
         await self._settle_movement(db_session, exploration, now)
         db_session.add(exploration)
         await db_session.commit()
@@ -892,7 +893,7 @@ class ExplorationService:
         marked. ``advance`` burns intervals while paused and the clock shift happens
         in ``resume_from_encounter``, so entry/exit need no ticks in between.
         """
-        now = now or datetime.utcnow()
+        now = now or utcnow()
         await self._settle_movement(db_session, exploration, now)
         if exploration.paused_at is None:
             exploration.paused_at = now
@@ -903,7 +904,7 @@ class ExplorationService:
 
     def resume_from_encounter(self, exploration: Exploration, *, now: datetime | None = None) -> Exploration:
         """Stage the clock shift past a pause (caller commits)."""
-        now = now or datetime.utcnow()
+        now = now or utcnow()
         paused_at = exploration.paused_at
         if paused_at is None:
             return exploration

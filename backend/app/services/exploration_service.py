@@ -45,6 +45,7 @@ from app.utils import world_terrain
 from app.utils.dweller_availability import DwellerAction, availability_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 from app.utils.place_groups import effective_place_group
+from app.utils.serialize import serialize_naive_utc_datetime
 from app.utils.time import utcnow
 from app.utils.vault_slots import slot_coords
 
@@ -308,7 +309,9 @@ class ExplorationService:
         exploration.heading_degrees = heading_degrees
         exploration.pos_x = origin[0] if origin else None
         exploration.pos_y = origin[1] if origin else None
-        exploration.trail = [{"x": origin[0], "y": origin[1], "t": start_time.isoformat()}] if origin else []
+        exploration.trail = (
+            [{"x": origin[0], "y": origin[1], "t": serialize_naive_utc_datetime(start_time)}] if origin else []
+        )
         exploration.position_as_of = start_time if origin else None
 
     @staticmethod
@@ -701,7 +704,7 @@ class ExplorationService:
 
     @staticmethod
     def _append_trail(exploration: Exploration, x: float, y: float, t: datetime) -> None:
-        exploration.trail.append({"x": round(x, 4), "y": round(y, 4), "t": t.isoformat()})
+        exploration.trail.append({"x": round(x, 4), "y": round(y, 4), "t": serialize_naive_utc_datetime(t)})
         orm.attributes.flag_modified(exploration, "trail")
 
     @staticmethod

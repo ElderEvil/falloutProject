@@ -42,7 +42,7 @@ from app.services.game_tick.tick_results import (
 )
 from app.services.resource_manager_service import ResourceManager
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
-from app.utils.time import utcnow
+from app.utils.time import as_naive_utc, utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -308,7 +308,7 @@ class GameLoopService:
                         vault_id,
                         "game_ticks",
                         {
-                            "event_id": str(game_state.last_tick_time.isoformat()),
+                            "event_id": as_naive_utc(game_state.last_tick_time).isoformat(),
                             "type": "game_tick",
                             "vault_id": str(vault_id),
                             "results": results,
@@ -369,7 +369,7 @@ class GameLoopService:
             "is_active": game_state.is_active,
             "is_paused": game_state.is_paused,
             "total_game_time": game_state.total_game_time,
-            "last_tick_time": game_state.last_tick_time.isoformat(),
+            "last_tick_time": as_naive_utc(game_state.last_tick_time).isoformat(),
             "offline_time": game_state.calculate_offline_time(),
         }
 

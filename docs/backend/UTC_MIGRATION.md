@@ -241,18 +241,21 @@ Validate the decorator before converting columns: a round-trip test on both back
 These are internal implementation steps, not separately deployable increments. A 2.x release may ship
 compatible **readers** only. After that, B4 ships in one maintenance window with every writer stopped.
 
-**Prerequisite — public traffic gate.** `deploy-hetzner.yml` currently scales only the backend and worker
-to zero during `maintenance_mode`; the frontend and ingress keep serving, and the workflow's final step
-restores the backend replicas before anyone inspects the result. That is not a verification window. Add an
-explicit gate that blocks public traffic for the whole cutover (scale the frontend to zero and/or deny the
-ingress route) and expose an operator-only path (port-forward, internal service or VPN) for the checks.
+**Public traffic gate.** `deploy-hetzner.yml` accepts `public_traffic_gate=true`, which requires
+`maintenance_mode=true` and `run_migrations=true`. After the verified backup the workflow deletes the
+`fallout-ingress`, so both public hosts are unreachable for the whole cutover. It defers re-applying the
+ingress until every environment, health, log and AI check has passed, then restores it. Use `kubectl exec`
+or `kubectl port-forward` against the backend for operator-only checks. A failed run leaves the ingress
+deleted; reopen it explicitly with `kubectl apply -f deployment/k3s/ingress.yaml` only after the failure is
+understood.
 
 1. **Pre-deploy (2.x, readers only):** land frontend `parseUtcMs` usage, JSON/SSE readers that accept bare
    and offset values, and the API field serializers in read-only form. Do not change writers or the clock.
-2. **Close public traffic:** close the frontend/ingress gate and confirm no public request can reach the
-   API. Keep it closed until step 9. Do not rely on `maintenance_mode` alone.
-3. **Quiesce:** run the gated maintenance flow (`maintenance_mode=true`) or stop API, worker, scheduler and
-   any other writer manually; verify no other Jobs, CLI or cron writers are active.
+2. **Close public traffic:** dispatch with `maintenance_mode=true -f public_traffic_gate=true`; the workflow
+   deletes `fallout-ingress` after the verified backup and keeps it closed until step 9. Confirm no public
+   request reaches either host.
+3. **Quiesce:** the same dispatch stops the API, worker and scheduler; verify no other Jobs, CLI or cron
+   writers are active.
 4. **Back up:** take and verify the pre-migration snapshot while writers are stopped.
 5. **Schema + models, one change:** convert the 122 columns with `USING <col> AT TIME ZONE 'UTC'` and switch
    model declarations to `UTCDateTime` in the same deployment.
@@ -263,7 +266,8 @@ ingress route) and expose an operator-only path (port-forward, internal service 
 8. **Start under maintenance and verify:** start the matching API and worker behind the closed gate; use
    the operator-only path to check revision/schema/instants, a real tick, deadlines, SSE replay and
    desktop/phone timestamps.
-9. **Open traffic:** restore the frontend/ingress and reopen play only after those checks pass.
+9. **Open traffic:** the workflow re-applies `deployment/k3s/ingress.yaml` only after those checks pass. If
+   the run failed, reopen manually only after diagnosis.
 10. **Rollback:** keep the pinned v2 image and pre-migration snapshot. Rolling back after new progress
     restores the snapshot and discards post-window activity — state that explicitly in the release notes.
 

@@ -29,6 +29,7 @@ from app.utils.exceptions import (
     UniqueRoomViolationException,
     VaultOperationException,
 )
+from app.utils.time import utcnow
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -536,8 +537,8 @@ async def test_build_merge_reassigns_training(async_session: AsyncSession, rich_
         stat_being_trained=SPECIALEnum.STRENGTH,
         current_stat_value=5,
         target_stat_value=6,
-        started_at=datetime.utcnow(),
-        estimated_completion_at=datetime.utcnow(),
+        started_at=utcnow(),
+        estimated_completion_at=utcnow(),
     )
     async_session.add(training)
     await async_session.commit()
@@ -1080,8 +1081,8 @@ async def test_remodel_training_and_incident_references_follow_survivor(async_se
             current_stat_value=5,
             target_stat_value=6,
             progress=0.45,
-            started_at=datetime.utcnow(),
-            estimated_completion_at=datetime.utcnow(),
+            started_at=utcnow(),
+            estimated_completion_at=utcnow(),
         )
         for d in dwellers
     ]

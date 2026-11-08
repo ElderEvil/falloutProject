@@ -14,6 +14,7 @@ from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.tests.factory.vaults import create_fake_vault
+from app.utils.time import utcnow
 
 pytestmark = pytest.mark.asyncio(scope="module")
 
@@ -54,7 +55,7 @@ async def _vault_with_population(async_session: AsyncSession, superuser) -> Vaul
 
 
 async def _ask(async_session: AsyncSession, dweller) -> None:
-    await crud.dweller.update(async_session, dweller.id, {"exit_requested_at": datetime.utcnow()})
+    await crud.dweller.update(async_session, dweller.id, {"exit_requested_at": utcnow()})
 
 
 async def test_list_exit_requests_returns_only_pending(

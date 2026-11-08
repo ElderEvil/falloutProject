@@ -28,6 +28,7 @@ from app.utils.exceptions import (
     ResourceNotFoundException,
     ValidationException,
 )
+from app.utils.time import utcnow
 
 COMMON_WEAPON = "Pipe pistol"
 RARE_WEAPON = "Baseball bat"
@@ -155,7 +156,7 @@ async def _junk_rarities(async_session: AsyncSession) -> list[RarityEnum]:
 async def _finish_queue(async_session: AsyncSession, vault_id) -> None:
     """Force every active order past its completion time and run the tick."""
     for order in await crud.crafting_order.get_active_by_vault(async_session, vault_id):
-        order.estimated_completion_at = datetime.utcnow() - timedelta(seconds=1)
+        order.estimated_completion_at = utcnow() - timedelta(seconds=1)
         async_session.add(order)
     await async_session.commit()
     await crafting_service.advance_orders(async_session, vault_id)
@@ -553,7 +554,7 @@ async def test_crafting_tick_notifies_owner_when_order_completes(async_session: 
     order = await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
 
     # Make the order due without pre-completing it, so the tick does the work.
-    order.estimated_completion_at = datetime.utcnow() - timedelta(seconds=1)
+    order.estimated_completion_at = utcnow() - timedelta(seconds=1)
     async_session.add(order)
     await async_session.commit()
 
@@ -576,7 +577,7 @@ async def test_crafting_tick_detects_completion_only_on_a_cadence_boundary(
     await _add_workshop(async_session, vault, "Weapon workshop")
     await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON))
     order = await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
-    order.estimated_completion_at = datetime.utcnow() - timedelta(seconds=1)
+    order.estimated_completion_at = utcnow() - timedelta(seconds=1)
     async_session.add(order)
     await async_session.commit()
     completion_at = order.estimated_completion_at
@@ -805,7 +806,7 @@ async def test_crafting_tick_does_not_revive_a_cancelled_order(async_session: As
     order = await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
     await crafting_service.cancel_order(async_session, vault.id, order.id)
 
-    order.estimated_completion_at = datetime.utcnow() - timedelta(seconds=1)
+    order.estimated_completion_at = utcnow() - timedelta(seconds=1)
     async_session.add(order)
     await async_session.commit()
 

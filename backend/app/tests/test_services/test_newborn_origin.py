@@ -19,6 +19,7 @@ from app.models.vault import Vault
 from app.models.world_location import DwellerLocation
 from app.schemas.dweller import DwellerCreate
 from app.services.family.breeding_service import BreedingService
+from app.utils.time import utcnow
 
 
 @pytest_asyncio.fixture(name="male_dweller")
@@ -79,7 +80,7 @@ async def _create_due_pregnancy(
     father_id: UUID4,
 ) -> Pregnancy:
     pregnancy = await BreedingService.create_pregnancy(async_session, mother_id, father_id)
-    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    pregnancy.due_at = utcnow() - timedelta(hours=1)
     await async_session.commit()
     return pregnancy
 

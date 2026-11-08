@@ -21,6 +21,7 @@ from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.tests.utils.user import user_authentication_headers
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
+from app.utils.time import utcnow
 
 
 @pytest.mark.asyncio
@@ -198,10 +199,10 @@ async def test_vault_quest_list_serializes_return_leg_fields(
             vault_id=vault.id,
             quest_id=quest.id,
             is_visible=True,
-            started_at=datetime.utcnow() - timedelta(minutes=120),
+            started_at=utcnow() - timedelta(minutes=120),
             duration_minutes=60,
-            return_started_at=datetime.utcnow() - timedelta(minutes=10),
-            return_completes_at=datetime.utcnow() + timedelta(minutes=20),
+            return_started_at=utcnow() - timedelta(minutes=10),
+            return_completes_at=utcnow() + timedelta(minutes=20),
         )
     )
     await async_session.commit()
@@ -244,7 +245,7 @@ async def test_vault_quest_list_serializes_completion_details(
             quest_id=quest.id,
             is_visible=True,
             is_completed=True,
-            completed_at=datetime.utcnow(),
+            completed_at=utcnow(),
             granted_rewards=[{"reward_type": "caps", "amount": 50}],
         )
     )

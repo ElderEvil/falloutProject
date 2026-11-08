@@ -14,6 +14,7 @@ from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
 from app.services.family.death_service import death_service
 from app.tests.factory.dwellers import create_fake_dweller
+from app.utils.time import utcnow
 
 
 @pytest_asyncio.fixture(name="alive_dweller")
@@ -53,7 +54,7 @@ async def dead_dweller_fixture(
             "status": DwellerStatusEnum.DEAD.value,
             "is_dead": True,
             "is_permanently_dead": False,
-            "death_timestamp": datetime.utcnow() - timedelta(days=2),
+            "death_timestamp": utcnow() - timedelta(days=2),
             "death_cause": DeathCauseEnum.HEALTH.value,
             "epitaph": "Test epitaph",
             "health": 0,
@@ -79,7 +80,7 @@ async def permanently_dead_dweller_fixture(
             "status": DwellerStatusEnum.DEAD.value,
             "is_dead": True,
             "is_permanently_dead": True,
-            "death_timestamp": datetime.utcnow() - timedelta(days=10),
+            "death_timestamp": utcnow() - timedelta(days=10),
             "death_cause": DeathCauseEnum.COMBAT.value,
             "epitaph": "Gone forever",
             "health": 0,
@@ -350,7 +351,7 @@ class TestDeathService:
                 "last_name": "Death",
                 "is_dead": True,
                 "is_permanently_dead": False,
-                "death_timestamp": datetime.utcnow() - timedelta(days=2),
+                "death_timestamp": utcnow() - timedelta(days=2),
                 "death_cause": DeathCauseEnum.HEALTH.value,
                 "health": 0,
                 "max_health": 100,
@@ -377,7 +378,7 @@ class TestDeathService:
                 "last_name": "Death",
                 "is_dead": True,
                 "is_permanently_dead": False,
-                "death_timestamp": datetime.utcnow() - timedelta(days=10),
+                "death_timestamp": utcnow() - timedelta(days=10),
                 "death_cause": DeathCauseEnum.EXPLORATION.value,
                 "health": 0,
                 "max_health": 100,
@@ -394,7 +395,7 @@ class TestDeathService:
                 "last_name": "Death",
                 "is_dead": True,
                 "is_permanently_dead": False,
-                "death_timestamp": datetime.utcnow() - timedelta(days=2),
+                "death_timestamp": utcnow() - timedelta(days=2),
                 "death_cause": DeathCauseEnum.INCIDENT.value,
                 "health": 0,
                 "max_health": 100,

@@ -20,6 +20,7 @@ from app.services.family.breeding_service import BreedingService
 from app.services.game_loop_service import game_loop_service
 from app.services.training_service import TrainingService
 from app.utils.exceptions import ValidationException
+from app.utils.time import utcnow
 
 
 async def _create_youth(async_session: AsyncSession, vault: Vault, first_name: str) -> Dweller:
@@ -31,7 +32,7 @@ async def _create_youth(async_session: AsyncSession, vault: Vault, first_name: s
             gender=GenderEnum.FEMALE,
             rarity=RarityEnum.COMMON,
             age_group=AgeGroupEnum.TEEN,
-            birth_date=datetime.utcnow(),
+            birth_date=utcnow(),
             vault_id=vault.id,
         ),
     )
@@ -77,7 +78,7 @@ async def test_deleted_apprentice_frees_slot_and_does_not_progress(async_session
     room = await _create_production_room(async_session, vault)
     await dweller_service.move_to_room(async_session, deleted_youth.id, room.id)
     deleted_youth.strength = 2
-    deleted_youth.apprentice_started_at = datetime.utcnow() - timedelta(days=1)
+    deleted_youth.apprentice_started_at = utcnow() - timedelta(days=1)
     deleted_youth.soft_delete()
     await async_session.commit()
 
@@ -98,7 +99,7 @@ async def test_overdue_apprenticeship_awards_once_and_resets_started_at(
     await dweller_service.move_to_room(async_session, youth.id, room.id)
     youth.strength = 2
     duration = TrainingService.calculate_training_duration(youth.strength, room.tier)
-    youth.apprentice_started_at = datetime.utcnow() - timedelta(seconds=duration * 2)
+    youth.apprentice_started_at = utcnow() - timedelta(seconds=duration * 2)
     await async_session.commit()
 
     result = await game_loop_service._process_apprenticeships(async_session, vault.id)
@@ -107,7 +108,7 @@ async def test_overdue_apprenticeship_awards_once_and_resets_started_at(
     assert result["stats_awarded"] == 1
     assert youth.strength == 3
     assert youth.apprentice_stat_gains == {"strength": 1}
-    assert youth.apprentice_started_at > datetime.utcnow() - timedelta(seconds=5)
+    assert youth.apprentice_started_at > utcnow() - timedelta(seconds=5)
 
 
 @pytest.mark.asyncio
@@ -146,7 +147,7 @@ async def test_apprentice_scenario_ready_backdates_once_and_reports_status(
     assert result.ready is True
     assert status is not None
     assert status.ready is True
-    assert datetime.utcnow() - started_at > timedelta(seconds=result.training_duration_seconds)
+    assert utcnow() - started_at > timedelta(seconds=result.training_duration_seconds)
     assert repeated.apprentice.apprentice_started_at == started_at
 
 

@@ -25,6 +25,7 @@ from app.services.notification_service import notification_service
 from app.tests.factory.dwellers import create_random_common_dweller
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import random_vault_number
+from app.utils.time import utcnow
 
 pytestmark = pytest.mark.asyncio
 
@@ -74,7 +75,7 @@ async def _orphan(async_session, vault_id, parent_alive: bool = False):
         parent.is_dead = True
         async_session.add(parent)
         await async_session.commit()
-    child = await _dweller(async_session, vault_id, age_group=AgeGroupEnum.CHILD, birth_date=datetime.utcnow())
+    child = await _dweller(async_session, vault_id, age_group=AgeGroupEnum.CHILD, birth_date=utcnow())
     child.parent_1_id = parent.id
     async_session.add(child)
     await async_session.commit()

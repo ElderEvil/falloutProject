@@ -9,12 +9,13 @@ from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.models import Dweller, Room, Vault
 from app.models.game_state import GameState
 from app.services.resource_manager_service import ResourceManager
+from app.utils.time import utcnow
 
 
 @pytest.mark.parametrize(("initial", "expected"), [(50, 25), (10, 10), (0, 0)])
 async def test_offline_reserve_never_grants_stock(initial, expected):
     vault = Vault(power=initial, food=initial, water=initial, power_max=100, food_max=100, water_max=100)
-    state = GameState(vault_id=uuid4(), last_activity_time=datetime.utcnow() - timedelta(hours=2))
+    state = GameState(vault_id=uuid4(), last_activity_time=utcnow() - timedelta(hours=2))
     room = Room(size=30, tier=1)
     update, _ = ResourceManager().calculate_resource_window(vault, [room], 100, [], 3600, state=state)
     assert (update.power, update.food, update.water) == (expected, expected, expected)

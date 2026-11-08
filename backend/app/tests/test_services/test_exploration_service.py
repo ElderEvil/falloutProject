@@ -37,13 +37,14 @@ from app.services.exploration_service import exploration_service
 from app.services.training_service import training_service
 from app.tests.factory.dwellers import create_fake_adult_dweller
 from app.tests.factory.vaults import create_fake_vault
+from app.utils.time import utcnow
 
 # Note: Detailed SPECIAL stat calculation tests removed for simplicity
 # These are tested implicitly through integration tests
 
 
 async def _finish_exploration(async_session: AsyncSession, exploration) -> None:
-    exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
+    exploration.start_time = utcnow() - timedelta(hours=exploration.duration)
     async_session.add(exploration)
     await async_session.commit()
     await async_session.refresh(exploration)
@@ -54,7 +55,7 @@ async def _complete_exploration(async_session: AsyncSession, exploration):
     await _finish_exploration(async_session, exploration)
     await exploration_service.start_return(async_session, exploration.id)
     await async_session.refresh(exploration)
-    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    exploration.return_completes_at = utcnow() - timedelta(seconds=1)
     async_session.add(exploration)
     await async_session.commit()
     return await exploration_service.finalize_return(async_session, exploration.id)
@@ -243,7 +244,7 @@ async def test_process_event_for_paused_exploration(
     dweller: Dweller,
 ):
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    exploration.paused_at = datetime.utcnow()
+    exploration.paused_at = utcnow()
     async_session.add(exploration)
     await async_session.commit()
 
@@ -261,7 +262,7 @@ async def test_generate_event_with_loot(
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Manipulate start time to allow event generation
-    exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
+    exploration.start_time = utcnow() - timedelta(minutes=10)
     await async_session.commit()
     await async_session.refresh(exploration)
 
@@ -279,7 +280,7 @@ async def test_generate_event_with_loot(
             )
             # Move time forward to allow next event
             if exploration.events:
-                exploration.events[-1]["timestamp"] = (datetime.utcnow() - timedelta(minutes=11)).isoformat()
+                exploration.events[-1]["timestamp"] = (utcnow() - timedelta(minutes=11)).isoformat()
 
     # Should have generated some events
     assert len(events_generated) > 0
@@ -591,7 +592,7 @@ async def test_process_danger_radiation_applies_to_dweller(
     """A radiation danger event raises dweller.radiation and logs it on the journey."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
-    exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
+    exploration.start_time = utcnow() - timedelta(minutes=10)
     # Pin radiation: the fixture rolls a random start, and a value near the cap would break the +11 delta.
     dweller.radiation = 0
     async_session.add(dweller)
@@ -628,7 +629,7 @@ async def test_rest_event_logs_actual_healing_after_radiation_cap(
     await async_session.commit()
 
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
+    exploration.start_time = utcnow() - timedelta(minutes=10)
     await async_session.commit()
     await async_session.refresh(exploration)
 
@@ -670,7 +671,7 @@ async def test_auto_stimpak_logs_actual_healing_after_radiation_cap(
     await async_session.commit()
 
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
+    exploration.start_time = utcnow() - timedelta(minutes=10)
     exploration.stimpaks = 1
     await async_session.commit()
     await async_session.refresh(exploration)
@@ -709,7 +710,7 @@ async def test_auto_radaway_logs_structured_radiation_removed(
     await async_session.commit()
 
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
+    exploration.start_time = utcnow() - timedelta(minutes=10)
     exploration.radaways = 1
     await async_session.commit()
     await async_session.refresh(exploration)

@@ -21,11 +21,12 @@ from app.schemas.exploration_event import DiscoveryEventSchema, ExplorationEvent
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration_service import exploration_service
 from app.services.map_service import map_service
+from app.utils.time import utcnow
 
 
 def _make_expired_exploration(exploration: Exploration) -> None:
     """Set exploration start_time far enough in the past to allow event generation."""
-    exploration.start_time = datetime.utcnow() - timedelta(minutes=15)
+    exploration.start_time = utcnow() - timedelta(minutes=15)
 
 
 @pytest.mark.asyncio

@@ -40,6 +40,7 @@ from app.models.user import User
 from app.models.vault import Vault
 from app.schemas.user import UserCreate
 from app.tests.factory.vaults import random_vault_number
+from app.utils.time import utcnow
 from main import admin, app
 
 _CSRF_TOKEN_RE = re.compile(r'name="csrf_token" value="([^"]+)"')
@@ -603,8 +604,8 @@ async def test_crafting_progress_is_readable_without_rounding_stored_value(
         item_type="weapon",
         rarity=RarityEnum.COMMON,
         progress=progress,
-        started_at=datetime.utcnow(),
-        estimated_completion_at=datetime.utcnow() + timedelta(hours=1),
+        started_at=utcnow(),
+        estimated_completion_at=utcnow() + timedelta(hours=1),
         required_stat="strength",
     )
     async_session.add(order)

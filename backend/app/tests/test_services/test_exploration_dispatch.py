@@ -30,6 +30,7 @@ from app.services.map_service import map_service
 from app.services.notification_service import NotificationService
 from app.services.world_snapshot_service import world_snapshot_service
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
+from app.utils.time import utcnow
 
 STRONG_STATS = {
     "strength": 10,
@@ -90,7 +91,7 @@ async def _register_clearable(
 async def _expired_dispatch(async_session: AsyncSession, vault: Vault, dweller: Dweller, location_id):
     """Create a dispatch run whose travel time has already elapsed."""
     exploration = await exploration_service.dispatch(async_session, vault.id, [dweller.id], location_id)
-    exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
+    exploration.start_time = utcnow() - timedelta(hours=exploration.duration)
     async_session.add(exploration)
     await async_session.commit()
     return exploration
@@ -101,7 +102,7 @@ async def _expired_party_dispatch(async_session: AsyncSession, vault: Vault, dwe
     exploration = await exploration_service.dispatch(
         async_session, vault.id, [dweller.id for dweller in dwellers], location_id
     )
-    exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
+    exploration.start_time = utcnow() - timedelta(hours=exploration.duration)
     async_session.add(exploration)
     await async_session.commit()
     return exploration
@@ -226,7 +227,7 @@ async def test_dispatch_rejects_currently_cleared_point(
 ) -> None:
     """A point inside its reclear window cannot be dispatched to."""
     location, state = await _register_clearable(async_session, vault, dweller)
-    state.reclear_available_at = datetime.utcnow() + timedelta(hours=1)
+    state.reclear_available_at = utcnow() + timedelta(hours=1)
     async_session.add(state)
     await async_session.commit()
 
@@ -778,8 +779,8 @@ async def test_finalize_wipe_restores_no_one(
     assert dweller.is_dead
     assert partner.is_dead
 
-    exploration.return_started_at = datetime.utcnow() - timedelta(hours=10)
-    exploration.return_completes_at = datetime.utcnow() - timedelta(hours=1)
+    exploration.return_started_at = utcnow() - timedelta(hours=10)
+    exploration.return_completes_at = utcnow() - timedelta(hours=1)
     async_session.add(exploration)
     await async_session.commit()
     await exploration_service.finalize_return(async_session, exploration.id)
@@ -803,8 +804,8 @@ async def test_dispatch_arrival_skips_point_cleared_by_competitor(
     exploration = await _expired_party_dispatch(async_session, vault, [dweller, partner], location.id)
 
     await async_session.refresh(state)
-    state.cleared_at = datetime.utcnow()
-    state.reclear_available_at = datetime.utcnow() + timedelta(hours=1)
+    state.cleared_at = utcnow()
+    state.reclear_available_at = utcnow() + timedelta(hours=1)
     state.clear_count = 1
     async_session.add(state)
     await async_session.commit()
@@ -837,8 +838,8 @@ async def test_finalize_restores_party_and_deletes_team(
     await async_session.refresh(vault)
     caps_before = vault.bottle_caps
 
-    exploration.return_started_at = datetime.utcnow() - timedelta(hours=10)
-    exploration.return_completes_at = datetime.utcnow() - timedelta(hours=1)
+    exploration.return_started_at = utcnow() - timedelta(hours=10)
+    exploration.return_completes_at = utcnow() - timedelta(hours=1)
     async_session.add(exploration)
     await async_session.commit()
     await exploration_service.finalize_return(async_session, exploration.id)

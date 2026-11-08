@@ -14,6 +14,7 @@ from app.services.progression.quests.service import quest_service
 from app.tests.factory.rooms import create_overseers_office
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
+from app.utils.time import utcnow
 
 
 async def _vault_with_office(async_session: AsyncSession, tier: int = 1):
@@ -1029,7 +1030,7 @@ async def test_timed_quest_limit_counts_outbound_and_returning_only(async_sessio
 
     vault = await _vault_with_office(async_session, tier=3)
     other_vault = await _vault_with_office(async_session, tier=3)
-    now = datetime.utcnow()
+    now = utcnow()
     for index in range(running_count + 3):
         quest = await _create_quest(async_session, title=f"Existing {index}")
         if index == 0:

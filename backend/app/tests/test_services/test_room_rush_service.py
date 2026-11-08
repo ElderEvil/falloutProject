@@ -29,6 +29,7 @@ from app.tests.factory.dwellers import create_rush_dweller_payload
 from app.tests.factory.rooms import create_rush_room_payload
 from app.utils.exceptions import ResourceConflictException, ValidationException
 from app.utils.item_factory import build_outfit
+from app.utils.time import utcnow
 
 
 class _Rng:
@@ -280,7 +281,7 @@ async def test_rush_failure_with_incidents_disabled_still_penalises(
     ],
 )
 def test_effective_stacks_decay_and_cap(stacks: int, age: timedelta | None, expected: int) -> None:
-    now = datetime.utcnow()
+    now = utcnow()
     room = Room.model_construct(rush_stacks=stacks, last_rush_at=None if age is None else now - age)
     assert _effective_stacks(room, now) == expected
 
@@ -559,7 +560,7 @@ async def test_failed_rush_waits_before_incident_ui_and_combat(
     from app.services.combat.incident_service import incident_service
 
     vault, room, worker = rush_setup["vault"], rush_setup["room"], rush_setup["worker"]
-    before = datetime.utcnow()
+    before = utcnow()
     result = await RoomRushService().rush(async_session, room, vault, rng=_Rng(0.0))
     incident = await incident_crud.get(async_session, result.incident_id)
 
@@ -575,7 +576,7 @@ async def test_failed_rush_waits_before_incident_ui_and_combat(
     notifications = await notification_crud.get_user_notifications(async_session, vault.user_id)
     assert all(notification.notification_type != NotificationType.COMBAT_STARTED for notification in notifications)
 
-    incident.start_time = datetime.utcnow() - timedelta(seconds=1)
+    incident.start_time = utcnow() - timedelta(seconds=1)
     async_session.add(incident)
     await async_session.commit()
     await incident_service.process_vault_incidents(async_session, vault.id, 2)

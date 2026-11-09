@@ -1,3 +1,4 @@
+import bcrypt
 import pytest
 from fastapi.encoders import jsonable_encoder
 from sqlmodel import col, select
@@ -89,4 +90,36 @@ def test_build_user_model_supports_passwordless_accounts() -> None:
     without_password = build_user_model(username="bob", email="bob@example.com")
 
     assert with_password.hashed_password is not None
+    assert with_password.hashed_password.startswith("$argon2")
     assert without_password.hashed_password is None
+
+
+@pytest.mark.asyncio
+async def test_authenticate_rehashes_legacy_bcrypt_password(async_session: AsyncSession) -> None:
+    data = create_fake_user()
+    password = data["password"]
+    legacy = bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=4)).decode()
+    user = User(username=data["username"], email=data["email"], hashed_password=legacy)
+    async_session.add(user)
+    await async_session.commit()
+
+    authenticated = await crud.user.authenticate(async_session, email=user.email, password=password)
+
+    assert authenticated is not None
+    await async_session.refresh(user)
+    assert user.hashed_password.startswith("$argon2")
+    assert verify_password(password, user.hashed_password)
+
+
+@pytest.mark.asyncio
+async def test_authenticate_wrong_password_does_not_rehash(async_session: AsyncSession) -> None:
+    data = create_fake_user()
+    legacy = bcrypt.hashpw(data["password"].encode(), bcrypt.gensalt(rounds=4)).decode()
+    user = User(username=data["username"], email=data["email"], hashed_password=legacy)
+    async_session.add(user)
+    await async_session.commit()
+
+    assert await crud.user.authenticate(async_session, email=user.email, password="wrong") is None
+
+    await async_session.refresh(user)
+    assert user.hashed_password == legacy

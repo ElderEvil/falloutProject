@@ -7,7 +7,9 @@ from unittest.mock import MagicMock
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from passlib.context import CryptContext
+from pwdlib import PasswordHash
+from pwdlib.hashers.argon2 import Argon2Hasher
+from pwdlib.hashers.bcrypt import BcryptHasher
 from sqlalchemy import JSON, event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import make_url
@@ -55,12 +57,15 @@ from app.tests.utils.user import authentication_token_from_email
 from app.tests.utils.utils import get_superuser_token_headers
 from main import app
 
-# Cheap password hashing for the test session only. passlib's default bcrypt work
-# factor costs ~180 ms per hash *and* per verify, paid on every fixture-created user
-# and every fixture login. Lowering the work factor keeps the real bcrypt hash/verify
-# code path under test while removing that per-test cost; production hashing settings
-# are untouched (app.core.security is only patched for this test session).
-_security.pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=4)
+# Cheap password hashing for the test session only. Argon2's production cost is
+# deliberately high and is paid on every fixture-created user and login; lower
+# it while keeping the real Argon2/bcrypt verification paths under test.
+_security.password_hash = PasswordHash(
+    (
+        Argon2Hasher(time_cost=1, memory_cost=1024, parallelism=1),
+        BcryptHasher(rounds=4),
+    )
+)
 
 
 @pytest_asyncio.fixture

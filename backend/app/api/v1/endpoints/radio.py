@@ -1,9 +1,9 @@
 """Radio endpoints."""
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/radio", tags=["Radio"])
 
 @router.get("/vault/{vault_id}/stats", response_model=RadioStatsRead)
 async def get_radio_stats(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RadioStatsRead:
@@ -37,7 +37,7 @@ async def get_radio_stats(
 
 @router.post("/vault/{vault_id}/recruit", response_model=RecruitmentResponse)
 async def manual_recruit_dweller(
-    vault_id: UUID4,
+    vault_id: UUID,
     recruit_request: ManualRecruitRequest,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -75,7 +75,7 @@ async def manual_recruit_dweller(
 
 @router.put("/vault/{vault_id}/mode", response_model=RadioModeResponse)
 async def set_radio_mode(
-    vault_id: UUID4,
+    vault_id: UUID,
     mode: RadioModeEnum,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],

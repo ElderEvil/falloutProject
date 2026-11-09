@@ -4,7 +4,6 @@ from math import ceil
 from typing import Any
 from uuid import UUID
 
-from pydantic import UUID4
 from pydantic_ai.exceptions import ModelHTTPError, UnexpectedModelBehavior
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -54,7 +53,7 @@ def _require_image_bytes(data: bytes | str) -> bytes:
 async def _resolve_dweller(
     db_session: AsyncSession,
     dweller_info: DwellerReadFull | None,
-    dweller_id: UUID4 | None,
+    dweller_id: UUID | None,
 ) -> DwellerReadFull:
     """Return the supplied dweller, or load the full read model by id."""
     if dweller_info is not None:
@@ -168,7 +167,7 @@ class DwellerAIService:
         user: User,
         db_session: AsyncSession,
         *,
-        dweller_id: UUID4 | None = None,
+        dweller_id: UUID | None = None,
         dweller_info: DwellerReadFull | None = None,
         origin: str | None = None,
     ) -> DwellerReadFull:
@@ -243,7 +242,7 @@ class DwellerAIService:
 
         return dweller_obj
 
-    async def extend_bio(self, db_session: AsyncSession, dweller_id: UUID4, user: User) -> DwellerReadFull:
+    async def extend_bio(self, db_session: AsyncSession, dweller_id: UUID, user: User) -> DwellerReadFull:
         """Extend existing dweller bio using PydanticAI agent."""
         # Check quota before making LLM call
         quota_result = await quota_service.check_quota(user.id, db_session)
@@ -317,7 +316,7 @@ class DwellerAIService:
         user: User,
         db_session: AsyncSession,
         *,
-        dweller_id: UUID4 | None = None,
+        dweller_id: UUID | None = None,
         dweller_info: DwellerReadFull | None = None,
     ) -> DwellerReadFull:
         """Generate visual attributes for a dweller using PydanticAI agent."""
@@ -413,7 +412,7 @@ class DwellerAIService:
         user: User,
         db_session: AsyncSession,
         *,
-        dweller_id: UUID4 | None = None,
+        dweller_id: UUID | None = None,
         dweller_info: DwellerReadFull | None = None,
         force: bool = False,
     ) -> DwellerReadFull:
@@ -482,7 +481,7 @@ class DwellerAIService:
         user: User,
         db_session: AsyncSession,
         *,
-        dweller_id: UUID4 | None = None,
+        dweller_id: UUID | None = None,
         dweller_info: DwellerReadFull | None = None,
         voice_type: str = "echo",
     ) -> DwellerReadFull:
@@ -599,7 +598,7 @@ class DwellerAIService:
     async def _log_audio_result(
         self,
         db_session: AsyncSession,
-        user_id: UUID4,
+        user_id: UUID,
         text: str,
         voice_type: str,
         audio_url: str,
@@ -627,7 +626,7 @@ class DwellerAIService:
 
     async def generate_dweller_avatar(
         self,
-        dweller_id: UUID4,
+        dweller_id: UUID,
         dweller_first_name: str,
         dweller_last_name: str,
         visual_attributes_input: DwellerVisualAttributes,
@@ -666,7 +665,7 @@ class DwellerAIService:
     async def dweller_generate_pipeline(
         self,
         db_session: AsyncSession,
-        dweller_id: UUID4,
+        dweller_id: UUID,
         user: User,
         origin: str | None = None,
     ) -> DwellerReadFull:

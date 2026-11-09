@@ -2,9 +2,9 @@
 
 from collections.abc import Sequence
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -52,7 +52,7 @@ async def read_room_list(
 @router.get("/vault/{vault_id}/", response_model=list[RoomRead])
 async def read_rooms_by_vault(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     pagination: PaginationParams,
 ) -> Sequence[Room]:
@@ -69,7 +69,7 @@ async def read_rooms_by_vault(
 
 @router.get("/{room_id}", response_model=RoomRead)
 async def read_room(
-    room_id: UUID4, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+    room_id: UUID, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
 ) -> Room:
     """Retrieve a room by ID.
 
@@ -82,7 +82,7 @@ async def read_room(
 
 @router.get("/{room_id}/rush", response_model=RoomRushQuote)
 async def read_room_rush_quote(
-    room_id: UUID4,
+    room_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RoomRushQuote:
@@ -93,7 +93,7 @@ async def read_room_rush_quote(
 
 @router.post("/{room_id}/rush", response_model=RoomRushResult)
 async def rush_room(
-    room_id: UUID4,
+    room_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> RoomRushResult:
@@ -104,7 +104,7 @@ async def rush_room(
 
 @router.get("/{room_id}/barbershop", response_model=BarbershopStatus)
 async def read_barbershop_status(
-    room_id: UUID4,
+    room_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> BarbershopStatus:
@@ -116,8 +116,8 @@ async def read_barbershop_status(
 
 @router.post("/{room_id}/barbershop/dwellers/{dweller_id}", response_model=BarbershopChangeResponse)
 async def change_dweller_appearance(
-    room_id: UUID4,
-    dweller_id: UUID4,
+    room_id: UUID,
+    dweller_id: UUID,
     request: BarbershopChangeRequest,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -135,7 +135,7 @@ async def change_dweller_appearance(
 
 @router.get("/buildable/{vault_id}/", response_model=list[RoomCreateWithoutVaultID])
 async def get_buildable_rooms(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[RoomCreateWithoutVaultID]:
@@ -169,7 +169,7 @@ async def build_room(
 
 @router.delete("/destroy/{room_id}", status_code=204)
 async def destroy_room(
-    room_id: UUID4,
+    room_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> None:
@@ -180,7 +180,7 @@ async def destroy_room(
 
 @router.post("/upgrade/{room_id}", response_model=RoomRead)
 async def upgrade_room(
-    room_id: UUID4,
+    room_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Room:
@@ -195,7 +195,7 @@ async def upgrade_room(
 
 @router.post("/style/{room_id}", response_model=RoomRead)
 async def apply_room_style(
-    room_id: UUID4,
+    room_id: UUID,
     request: RoomStyleUpdate,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -207,7 +207,7 @@ async def apply_room_style(
 
 @router.post("/split/{room_id}", response_model=list[RoomRead])
 async def split_room(
-    room_id: UUID4,
+    room_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[Room]:
@@ -218,7 +218,7 @@ async def split_room(
 
 @router.post("/merge/{room_id}", response_model=RoomRead)
 async def merge_rooms(
-    room_id: UUID4,
+    room_id: UUID,
     request: RoomMerge,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],

@@ -1,6 +1,7 @@
 """Free room layout changes that preserve resources and resident assignments."""
 
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -29,7 +30,7 @@ def _share(total: int | None, count: int, index: int) -> int | None:
     return quotient + (index < remainder)
 
 
-async def remodel_room(db_session: AsyncSession, room_id: UUID4, other_room_id: UUID4 | None = None) -> list[Room]:
+async def remodel_room(db_session: AsyncSession, room_id: UUID, other_room_id: UUID | None = None) -> list[Room]:
     """Split into base segments, or merge exactly two explicitly selected neighbors."""
     source = await crud.room.get(db_session, room_id)
     async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(source.vault_id)) as acquired:

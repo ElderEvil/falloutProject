@@ -3,8 +3,8 @@
 import logging
 import random
 from types import ModuleType
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -51,7 +51,7 @@ class RadioService:
     @staticmethod
     async def get_radio_rooms(
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
     ) -> list[Room]:
         """Get all radio studio rooms for a vault.
 
@@ -90,7 +90,7 @@ class RadioService:
 
         # Prefetch every radio room's assigned dwellers in one query. The radio
         # tick runs for every vault, so a per-room query is a per-vault N+1.
-        dwellers_by_room: dict[UUID4, list[Dweller]] = {}
+        dwellers_by_room: dict[UUID, list[Dweller]] = {}
         room_dwellers = await crud.dweller.get_by_room_ids(db_session, vault.id, [room.id for room in radio_rooms])
         for dweller in room_dwellers:
             if dweller.room_id is None:
@@ -116,7 +116,7 @@ class RadioService:
     @staticmethod
     async def check_for_recruitment(
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         *,
         rng: ModuleType = random,
     ) -> Dweller | None:
@@ -177,7 +177,7 @@ class RadioService:
     @staticmethod
     async def recruit_dweller(
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         override: DwellerCreateCommonOverride | None = None,
     ) -> tuple[Dweller, bool]:
         """Recruit a new dweller to the vault.
@@ -205,7 +205,7 @@ class RadioService:
     @staticmethod
     async def _recruit_dweller(
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         override: DwellerCreateCommonOverride | None = None,
     ) -> tuple[Dweller, bool]:
         """Create or recycle a recruit after the caller has locked and checked capacity."""
@@ -288,7 +288,7 @@ class RadioService:
     @staticmethod
     async def manual_recruit(
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         caps_cost: int | None = None,
         override: DwellerCreateCommonOverride | None = None,
     ) -> tuple[Dweller, bool]:
@@ -358,7 +358,7 @@ class RadioService:
     @staticmethod
     async def get_recruitment_stats(
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
     ) -> dict:
         """Get recruitment statistics for a vault.
 

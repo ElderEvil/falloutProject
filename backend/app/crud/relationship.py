@@ -15,7 +15,8 @@ from app.schemas.relationship import RelationshipCreate, RelationshipUpdate
 from app.utils.time import utcnow
 
 if TYPE_CHECKING:
-    from pydantic import UUID4
+    from uuid import UUID
+
     from sqlmodel.ext.asyncio.session import AsyncSession
 
     from app.models.dweller import Dweller
@@ -25,7 +26,7 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
     """CRUD operations for relationships."""
 
     async def get_committed_both_alive(
-        self, db: AsyncSession, vault_id: UUID4, *, minimum_affinity: int = 0
+        self, db: AsyncSession, vault_id: UUID, *, minimum_affinity: int = 0
     ) -> list[tuple[Dweller, Dweller]]:
         from sqlalchemy.orm import aliased
 
@@ -62,8 +63,8 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
     async def get_by_dweller_pair(
         self,
         db: AsyncSession,
-        dweller_1_id: UUID4,
-        dweller_2_id: UUID4,
+        dweller_1_id: UUID,
+        dweller_2_id: UUID,
     ) -> Relationship | None:
         """
         Get relationship between two dwellers (order doesn't matter).
@@ -87,7 +88,7 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
     async def get_by_pairs(
         self,
         db: AsyncSession,
-        pairs: list[tuple[UUID4, UUID4]],
+        pairs: list[tuple[UUID, UUID]],
     ) -> list[Relationship]:
         """Relationships for the given unordered pairs, ordered by id."""
         if not pairs:
@@ -101,7 +102,7 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
     async def transition_partner_to_married(
         self,
         db: AsyncSession,
-        relationship_id: UUID4,
+        relationship_id: UUID,
         affinity: int | None = None,
     ) -> bool:
         """Atomically transition a PARTNER relationship to MARRIED.
@@ -125,7 +126,7 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
     async def get_by_dweller(
         self,
         db: AsyncSession,
-        dweller_id: UUID4,
+        dweller_id: UUID,
     ) -> list[Relationship]:
         """
         Get all relationships for a specific dweller.
@@ -146,7 +147,7 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
     async def get_by_vault(
         self,
         db: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
     ) -> list[Relationship]:
         """
         Get all relationships for dwellers in a vault.
@@ -176,14 +177,14 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         result = await db.execute(query)
         return list(result.scalars().all())
 
-    async def get_involving_any(self, db: AsyncSession, dweller_ids: set[UUID4] | list[UUID4]) -> list[Relationship]:
+    async def get_involving_any(self, db: AsyncSession, dweller_ids: set[UUID] | list[UUID]) -> list[Relationship]:
         """Relationships where either side is one of the given dwellers."""
         query = select(Relationship).where(
             (Relationship.dweller_1_id.in_(dweller_ids)) | (Relationship.dweller_2_id.in_(dweller_ids))
         )
         return list((await db.execute(query)).scalars().all())
 
-    async def get_partner_links_involving(self, db: AsyncSession, dweller_id: UUID4) -> list[Relationship]:
+    async def get_partner_links_involving(self, db: AsyncSession, dweller_id: UUID) -> list[Relationship]:
         """PARTNER/MARRIED-stage relationships where the dweller is either side."""
         query = (
             select(Relationship)
@@ -196,7 +197,7 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
     async def get_cross_vault_orphans(
         self,
         db: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
     ) -> list[Relationship]:
         """Relationships touching a vault whose two dwellers live in different vaults."""
         from sqlalchemy.orm import aliased
@@ -218,8 +219,8 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
     async def create_with_defaults(
         self,
         db: AsyncSession,
-        dweller_1_id: UUID4,
-        dweller_2_id: UUID4,
+        dweller_1_id: UUID,
+        dweller_2_id: UUID,
         relationship_type: str = "acquaintance",
         affinity: int = 0,
     ) -> Relationship:

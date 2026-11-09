@@ -1,7 +1,7 @@
 from contextlib import suppress
 from typing import Any, TypeVar
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel import SQLModel, and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -14,7 +14,7 @@ ModelType = TypeVar("ModelType", bound=SQLModel)
 class CompletionMixin[LinkModelType]:
     link_model: type[LinkModelType]
 
-    async def get_link(self, *, db_session: AsyncSession, vault_id: UUID4, quest_entity_id: UUID4) -> LinkModelType:
+    async def get_link(self, *, db_session: AsyncSession, vault_id: UUID, quest_entity_id: UUID) -> LinkModelType:
         query = select(self.link_model).where(
             and_(self.link_model.vault_id == vault_id, self.link_model.quest_id == quest_entity_id)
         )
@@ -29,7 +29,7 @@ class CompletionMixin[LinkModelType]:
         return quest_completion_link
 
     async def _mark_as_complete(
-        self, *, db_session: AsyncSession, quest_entity_id: UUID4, vault_id: UUID4
+        self, *, db_session: AsyncSession, quest_entity_id: UUID, vault_id: UUID
     ) -> LinkModelType:
         """Lock and claim a completion link before any rewards are delivered."""
         query = (
@@ -53,7 +53,7 @@ class CompletionMixin[LinkModelType]:
         *,
         db_session: AsyncSession,
         db_obj: LinkModelType,
-        vault_id: UUID4,
+        vault_id: UUID,
     ) -> list[dict[str, Any]]:
         msg = "Subclasses must implement this method"
         raise NotImplementedError(msg)
@@ -63,13 +63,13 @@ class CompletionMixin[LinkModelType]:
         *,
         db_session: AsyncSession,
         db_obj: LinkModelType,
-        vault_id: UUID4,
+        vault_id: UUID,
         granted_rewards: list[dict[str, Any]],
     ) -> None:
         """Run completion side effects only after the completion is durable."""
 
     async def complete(
-        self, *, db_session: AsyncSession, quest_entity_id: UUID4, vault_id: UUID4
+        self, *, db_session: AsyncSession, quest_entity_id: UUID, vault_id: UUID
     ) -> tuple[Any, list[dict[str, Any]]]:
         db_obj = None
         try:

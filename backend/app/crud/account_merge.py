@@ -1,4 +1,5 @@
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -7,7 +8,7 @@ from app.models.account_merge import AccountMerge
 
 
 class CRUDAccountMerge(CRUDBase[AccountMerge, None, None]):
-    async def get_by_source(self, db_session: AsyncSession, source_user_id: UUID4) -> AccountMerge | None:
+    async def get_by_source(self, db_session: AsyncSession, source_user_id: UUID) -> AccountMerge | None:
         result = await db_session.execute(select(AccountMerge).where(AccountMerge.source_user_id == source_user_id))
         return result.scalar_one_or_none()
 
@@ -35,9 +36,9 @@ class CRUDAccountMerge(CRUDBase[AccountMerge, None, None]):
         self,
         db_session: AsyncSession,
         *,
-        source_user_id: UUID4,
-        target_user_id: UUID4,
-        actor_user_id: UUID4,
+        source_user_id: UUID,
+        target_user_id: UUID,
+        actor_user_id: UUID,
         source_username: str,
         source_email: str | None,
         target_username: str,

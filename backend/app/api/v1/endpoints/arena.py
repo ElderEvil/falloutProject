@@ -1,9 +1,9 @@
 """Arena endpoints — experimental battle playground."""
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
@@ -26,7 +26,7 @@ router = APIRouter(prefix="/arena", tags=["Arena"])
 
 @router.get("/vault/{vault_id}/state", response_model=ArenaState)
 async def get_arena_state(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ArenaState:
@@ -37,7 +37,7 @@ async def get_arena_state(
 
 @router.get("/vault/{vault_id}/creatures", response_model=list[ArenaCreature])
 async def list_arena_creatures(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[ArenaCreature]:
@@ -48,8 +48,8 @@ async def list_arena_creatures(
 
 @router.post("/vault/{vault_id}/rooms/{room_id}/fighters", response_model=ArenaFightersResponse)
 async def set_arena_fighters(
-    vault_id: UUID4,
-    room_id: UUID4,
+    vault_id: UUID,
+    room_id: UUID,
     payload: ArenaFightersRequest,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -78,8 +78,8 @@ async def set_arena_fighters(
 
 @router.delete("/vault/{vault_id}/rooms/{room_id}/events", response_model=ArenaEventsCleared)
 async def clear_arena_events(
-    vault_id: UUID4,
-    room_id: UUID4,
+    vault_id: UUID,
+    room_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ArenaEventsCleared:
@@ -91,8 +91,8 @@ async def clear_arena_events(
 
 @router.post("/vault/{vault_id}/rooms/{room_id}/start", response_model=ArenaFightStarted)
 async def start_arena_fight(
-    vault_id: UUID4,
-    room_id: UUID4,
+    vault_id: UUID,
+    room_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     payload: ArenaFightersRequest | None = None,
@@ -110,8 +110,8 @@ async def start_arena_fight(
 
 @router.post("/vault/{vault_id}/rooms/{room_id}/stop", response_model=ArenaFightStopped)
 async def stop_arena_fight(
-    vault_id: UUID4,
-    room_id: UUID4,
+    vault_id: UUID,
+    room_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> ArenaFightStopped:
@@ -123,8 +123,8 @@ async def stop_arena_fight(
 
 @router.post("/vault/{vault_id}/rooms/{room_id}/skill", response_model=ArenaSkillQueued)
 async def queue_arena_skill(
-    vault_id: UUID4,
-    room_id: UUID4,
+    vault_id: UUID,
+    room_id: UUID,
     payload: ArenaSkillRequest,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],

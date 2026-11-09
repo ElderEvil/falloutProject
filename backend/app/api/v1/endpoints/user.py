@@ -3,9 +3,9 @@
 import logging
 from collections.abc import Sequence
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends
-from pydantic import UUID4
 from pydantic.networks import EmailStr
 from redis.asyncio import Redis
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -121,7 +121,7 @@ async def create_user_open(
 @router.get("/{user_id}", response_model=UserRead)
 async def read_user_by_id(
     *,
-    user_id: UUID4,
+    user_id: UUID,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
 ) -> User:
@@ -144,7 +144,7 @@ async def read_user_by_id(
 async def update_user(
     *,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    user_id: UUID4,
+    user_id: UUID,
     user_in: UserUpdate,
     actor: CurrentSuperuser,
 ) -> User:

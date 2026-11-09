@@ -2,9 +2,9 @@
 
 from collections.abc import Sequence
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import UUID4
 
 from app import crud
 from app.api.deps import (
@@ -44,7 +44,7 @@ async def create_outfit(
 
 @router.get("/", response_model=list[OutfitRead])
 async def read_outfit_list(
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
     pagination: PaginationParams,
@@ -67,7 +67,7 @@ async def read_outfit_list(
 
 @router.get("/{outfit_id}", response_model=OutfitRead)
 async def read_outfit(
-    outfit_id: UUID4,
+    outfit_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Outfit:
@@ -85,7 +85,7 @@ async def read_outfit(
 
 @router.put("/{outfit_id}", response_model=OutfitRead)
 async def update_outfit(
-    outfit_id: UUID4,
+    outfit_id: UUID,
     outfit_data: OutfitUpdate,
     db_session: DBSession,
     _: CurrentSuperuser,
@@ -100,7 +100,7 @@ async def update_outfit(
 
 @router.delete("/{outfit_id}", status_code=204)
 async def delete_outfit(
-    outfit_id: UUID4,
+    outfit_id: UUID,
     db_session: DBSession,
     _: CurrentSuperuser,
 ) -> None:
@@ -110,8 +110,8 @@ async def delete_outfit(
 
 @router.post("/{dweller_id}/equip/{outfit_id}", response_model=OutfitRead)
 async def equip_outfit(
-    dweller_id: UUID4,
-    outfit_id: UUID4,
+    dweller_id: UUID,
+    outfit_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Outfit:
@@ -130,7 +130,7 @@ async def equip_outfit(
 
 @router.post("/{outfit_id}/unequip/", status_code=200, response_model=None)
 async def unequip_outfit(
-    outfit_id: UUID4,
+    outfit_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> None:
@@ -145,7 +145,7 @@ async def unequip_outfit(
 
 @router.post("/{outfit_id}/scrap/", response_model=JunkListResponse)
 async def scrap_outfit(
-    outfit_id: UUID4,
+    outfit_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> JunkListResponse:
@@ -164,7 +164,7 @@ async def scrap_outfit(
 
 @router.post("/{outfit_id}/sell/", status_code=200, response_model=None)
 async def sell_outfit(
-    outfit_id: UUID4,
+    outfit_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> None:

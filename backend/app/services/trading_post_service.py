@@ -7,8 +7,8 @@ cleared) so traded dwellers arrive as fresh recruits.
 """
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import RarityEnum
@@ -48,12 +48,12 @@ def _to_offer(dweller: Dweller, places_visited: int) -> TradeOffer:
     )
 
 
-async def _visited_counts(db_session: AsyncSession, dweller_ids: list[UUID4]) -> dict[UUID4, int]:
+async def _visited_counts(db_session: AsyncSession, dweller_ids: list[UUID]) -> dict[UUID, int]:
     """Count VISITED wasteland locations per dweller in one query."""
     return await wl_crud.get_visited_counts(db_session, dweller_ids)
 
 
-async def _get_tradable(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
+async def _get_tradable(db_session: AsyncSession, dweller_id: UUID) -> Dweller:
     """Fetch a soft-deleted, non-dead dweller by id."""
     dweller = await dweller_crud.get_tradable_by_id(db_session, dweller_id)
     if not dweller:
@@ -78,7 +78,7 @@ class TradingPostService:
             bottle_caps=vault.bottle_caps,
         )
 
-    async def sell_dweller(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID4) -> TradeResultResponse:
+    async def sell_dweller(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID) -> TradeResultResponse:
         """Sell one of the vault's soft-deleted dwellers for caps.
 
         A sale is single-use: the dweller is marked ``is_traded`` so repeated
@@ -100,7 +100,7 @@ class TradingPostService:
         logger.info("Trading Post: vault %s sold dweller %s for %d caps", vault.id, dweller_id, price)
         return TradeResultResponse(dweller_id=dweller_id, price=price, bottle_caps=vault.bottle_caps)
 
-    async def buy_dweller(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID4) -> TradeResultResponse:
+    async def buy_dweller(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID) -> TradeResultResponse:
         """Buy a soft-deleted dweller from another vault.
 
         Caps go to the seller vault unless the dweller was already sold once
@@ -112,6 +112,8 @@ class TradingPostService:
             raise VaultOperationException(detail="Dweller is already owned by this vault")
 
         price = trade_value(dweller)
+        if dweller.vault_id is None:
+            raise ResourceNotFoundException(Vault, identifier=dweller_id)
         seller_vault = await vault_crud.get(db_session, dweller.vault_id)
         if not seller_vault:
             raise ResourceNotFoundException(Vault, identifier=dweller.vault_id)

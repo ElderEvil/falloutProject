@@ -1,8 +1,8 @@
 """Service for intelligent dweller assignment to rooms."""
 
 from collections.abc import Sequence
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -51,7 +51,7 @@ class DwellerAssignmentService:
     def _record_assignment(
         assignments: list[dict[str, str]],
         assigned_dweller_ids: set,
-        dweller_id: UUID4,
+        dweller_id: UUID,
         room: Room,
     ) -> None:
         """Append one assignment row and mark the dweller as placed."""
@@ -66,7 +66,7 @@ class DwellerAssignmentService:
             return False
         return True
 
-    async def _persist_room_assignment(self, db_session: AsyncSession, dweller_id: UUID4, room: Room) -> bool:
+    async def _persist_room_assignment(self, db_session: AsyncSession, dweller_id: UUID, room: Room) -> bool:
         """Persist a standard worker placement (room + derived status); False leaves it unassigned."""
         if not await self._try_claim_worker_slot(db_session, room):
             return False
@@ -270,7 +270,7 @@ class DwellerAssignmentService:
     async def _assign_room_apprentices(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         rooms: list[Room],
         assignments: list[dict[str, str]],
         assigned_dweller_ids: set,
@@ -334,7 +334,7 @@ class DwellerAssignmentService:
     async def unassign_all_dwellers(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
     ) -> dict[str, int]:
         """Unassign all dwellers from their rooms in the specified vault."""
         dwellers = await crud.dweller.get_multi_by_vault(db_session, vault_id=vault_id, limit=10000)
@@ -362,7 +362,7 @@ class DwellerAssignmentService:
     async def auto_assign_production_rooms(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         age_group: AgeGroupEnum | None = None,
     ) -> dict[str, int | list[dict[str, str]]]:
         """Intelligently assign unassigned dwellers to production rooms based on SPECIAL stats.
@@ -414,7 +414,7 @@ class DwellerAssignmentService:
     async def auto_assign_training_rooms(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         age_group: AgeGroupEnum | None = None,
     ) -> dict[str, int | list[dict[str, str]]]:
         """Assign idle dwellers to training rooms, prioritizing their lowest eligible SPECIAL stat."""
@@ -438,7 +438,7 @@ class DwellerAssignmentService:
     async def auto_assign_crafting_rooms(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         age_group: AgeGroupEnum | None = None,
     ) -> dict[str, int | list[dict[str, str]]]:
         """Fill crafting rooms with unassigned adults ranked by total SPECIAL (highest first)."""
@@ -454,7 +454,7 @@ class DwellerAssignmentService:
     async def auto_assign_all_rooms(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         age_group: AgeGroupEnum | None = None,
     ) -> dict[str, int | list[dict[str, str]]]:
         """Intelligently assign unassigned dwellers to ALL room types based on SPECIAL stats.

@@ -1,6 +1,7 @@
 """CRUD operations for per-vault room-theme ownership."""
 
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -12,13 +13,13 @@ from app.utils.time import utcnow
 class CRUDVaultTheme(CRUDBase[VaultTheme, None, None]):
     """Queries and ownership writes for themes."""
 
-    async def get_for_vault(self, db_session: AsyncSession, vault_id: UUID4, style: str) -> VaultTheme | None:
+    async def get_for_vault(self, db_session: AsyncSession, vault_id: UUID, style: str) -> VaultTheme | None:
         result = await db_session.execute(
             select(VaultTheme).where(VaultTheme.vault_id == vault_id, VaultTheme.style == style)
         )
         return result.scalars().first()
 
-    async def crafted_styles(self, db_session: AsyncSession, vault_id: UUID4) -> set[str]:
+    async def crafted_styles(self, db_session: AsyncSession, vault_id: UUID) -> set[str]:
         """Styles the vault has crafted, and may therefore apply."""
         result = await db_session.execute(
             select(VaultTheme.style).where(
@@ -28,7 +29,7 @@ class CRUDVaultTheme(CRUDBase[VaultTheme, None, None]):
         )
         return set(result.scalars().all())
 
-    async def is_crafted(self, db_session: AsyncSession, vault_id: UUID4, style: str) -> bool:
+    async def is_crafted(self, db_session: AsyncSession, vault_id: UUID, style: str) -> bool:
         row = await self.get_for_vault(db_session, vault_id, style)
         return row is not None and row.crafted_at is not None
 
@@ -36,7 +37,7 @@ class CRUDVaultTheme(CRUDBase[VaultTheme, None, None]):
         self,
         db_session: AsyncSession,
         *,
-        vault_id: UUID4,
+        vault_id: UUID,
         style: str,
         source: str = "craft",
     ) -> VaultTheme:

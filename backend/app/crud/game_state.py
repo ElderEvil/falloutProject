@@ -1,8 +1,8 @@
 """CRUD operations for GameState model."""
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -16,14 +16,14 @@ class CRUDGameState:
     """CRUD operations for game state management."""
 
     @staticmethod
-    async def get_by_vault_id(db_session: AsyncSession, vault_id: UUID4) -> GameState | None:
+    async def get_by_vault_id(db_session: AsyncSession, vault_id: UUID) -> GameState | None:
         """Get game state by vault ID."""
         query = select(GameState).where(GameState.vault_id == vault_id)
         result = await db_session.execute(query)
         return result.scalars().first()
 
     @staticmethod
-    async def get_or_create(db_session: AsyncSession, vault_id: UUID4, *, commit: bool = True) -> GameState:
+    async def get_or_create(db_session: AsyncSession, vault_id: UUID, *, commit: bool = True) -> GameState:
         """Get or create state, race-safe against concurrent first ticks.
 
         Concurrent first ticks can both see "no row" and both INSERT; the loser
@@ -52,7 +52,7 @@ class CRUDGameState:
         return game_state
 
     @staticmethod
-    async def pause(db_session: AsyncSession, vault_id: UUID4) -> GameState:
+    async def pause(db_session: AsyncSession, vault_id: UUID) -> GameState:
         """Pause game state for a vault."""
         game_state = await CRUDGameState.get_or_create(db_session, vault_id)
         game_state.pause()
@@ -62,7 +62,7 @@ class CRUDGameState:
         return game_state
 
     @staticmethod
-    async def pause_many(db_session: AsyncSession, vault_ids: list[UUID4]) -> None:
+    async def pause_many(db_session: AsyncSession, vault_ids: list[UUID]) -> None:
         """Stage pauses without committing; an account operation owns the transaction."""
         for vault_id in vault_ids:
             game_state = await CRUDGameState.get_or_create(db_session, vault_id, commit=False)
@@ -70,7 +70,7 @@ class CRUDGameState:
             db_session.add(game_state)
 
     @staticmethod
-    async def record_presence(db_session: AsyncSession, vault_id: UUID4) -> GameState:
+    async def record_presence(db_session: AsyncSession, vault_id: UUID) -> GameState:
         """Stamp a visibility-gated vault-view heartbeat for spawn gating."""
         game_state = await CRUDGameState.get_or_create(db_session, vault_id)
         game_state.last_presence_at = utcnow()
@@ -80,7 +80,7 @@ class CRUDGameState:
         return game_state
 
     @staticmethod
-    async def resume(db_session: AsyncSession, vault_id: UUID4) -> GameState:
+    async def resume(db_session: AsyncSession, vault_id: UUID) -> GameState:
         """Resume game state for a vault."""
         game_state = await CRUDGameState.get_or_create(db_session, vault_id)
         game_state.resume()
@@ -90,7 +90,7 @@ class CRUDGameState:
         return game_state
 
     @staticmethod
-    async def update_tick(db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> GameState:
+    async def update_tick(db_session: AsyncSession, vault_id: UUID, seconds_passed: int) -> GameState:
         """Update game state after a tick."""
         game_state = await CRUDGameState.get_or_create(db_session, vault_id)
         game_state.update_tick(seconds_passed)

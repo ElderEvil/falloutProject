@@ -6,8 +6,8 @@ AI-generated content (names, bios, visual attributes) to be reused in new vaults
 
 import logging
 from datetime import timedelta
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -59,8 +59,8 @@ class DwellerRecyclingService:
     @staticmethod
     async def recycle_dweller_for_vault(
         db_session: AsyncSession,
-        dweller_id: UUID4,
-        target_vault_id: UUID4,
+        dweller_id: UUID,
+        target_vault_id: UUID,
         reset_stats: bool = True,
     ) -> Dweller:
         """Restore a soft-deleted dweller to a new vault.

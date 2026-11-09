@@ -1,6 +1,7 @@
 """Business rules for dweller medical recommendations and supply usage."""
 
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import DwellerStatusEnum
@@ -25,7 +26,7 @@ MAX_CARRY = 15
 async def get_available_medical_supplies(
     db_session: AsyncSession,
     dweller: DwellerReadFull,
-    vault_id: UUID4,
+    vault_id: UUID,
 ) -> tuple[int, int]:
     """Return the dweller's carried and vault-stored medical supplies."""
     storage = await storage_crud.get_by_vault(db_session, vault_id)
@@ -38,7 +39,7 @@ async def get_available_medical_supplies(
 async def get_dweller_medical_status(
     db_session: AsyncSession,
     dweller: DwellerReadFull,
-    vault_id: UUID4,
+    vault_id: UUID,
 ) -> MedicalAidStatus:
     """Read live health, radiation, and supply state for a dweller."""
     available_stimpaks, available_radaways = await get_available_medical_supplies(db_session, dweller, vault_id)
@@ -62,7 +63,7 @@ async def get_dweller_medical_status(
     )
 
 
-async def use_stimpack(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
+async def use_stimpack(db_session: AsyncSession, dweller_id: UUID) -> Dweller:
     """Heal using a carried stimpack, falling back to vault stock for in-vault dwellers."""
     current = await dweller_crud.get(db_session, dweller_id)
     vault_id = current.vault_id
@@ -96,7 +97,7 @@ async def use_stimpack(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
     )
 
 
-async def use_radaway(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
+async def use_radaway(db_session: AsyncSession, dweller_id: UUID) -> Dweller:
     """Spend one carried RadAway and remove a configured share of the dweller's radiation."""
     dweller_obj = await dweller_crud.get_for_update(db_session, dweller_id)
     if dweller_obj is None:
@@ -121,7 +122,7 @@ async def use_radaway(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
     )
 
 
-async def distribute_recovery_supplies(db_session: AsyncSession, vault_id: UUID4) -> MedicalDistributionResponse:
+async def distribute_recovery_supplies(db_session: AsyncSession, vault_id: UUID) -> MedicalDistributionResponse:
     """Treat every irradiated in-vault dweller with RadAway then a Stimpack from vault storage.
 
     One-shot player action (no automatic trigger). Order matters: RadAway raises the

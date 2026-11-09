@@ -1,8 +1,8 @@
 from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy.orm import selectinload
 from sqlmodel import and_, func, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -24,7 +24,7 @@ from app.utils.quest_duration import STATE_QUEST_CATEGORIES, effective_quest_dur
 from app.utils.time import utcnow
 
 
-def _previous_quest_id(quest: Quest, requirements: list[QuestRequirement]) -> UUID4 | str | None:
+def _previous_quest_id(quest: Quest, requirements: list[QuestRequirement]) -> UUID | str | None:
     """Return a quest's explicit or requirement-derived chain predecessor."""
     if quest.previous_quest_id:
         return quest.previous_quest_id
@@ -42,17 +42,17 @@ def _previous_quest_id(quest: Quest, requirements: list[QuestRequirement]) -> UU
 
 async def _batch_load_quest_details(
     db_session: AsyncSession,
-    quest_ids: list[UUID4],
-) -> tuple[dict[UUID4, list[QuestRequirement]], dict[UUID4, list[QuestReward]]]:
+    quest_ids: list[UUID],
+) -> tuple[dict[UUID, list[QuestRequirement]], dict[UUID, list[QuestReward]]]:
     """Batch load requirements and rewards for multiple quests in 2 queries."""
-    reqs_by_quest: dict[UUID4, list[QuestRequirement]] = defaultdict(list)
+    reqs_by_quest: dict[UUID, list[QuestRequirement]] = defaultdict(list)
     if quest_ids:
         req_stmt = select(QuestRequirement).where(QuestRequirement.quest_id.in_(quest_ids))
         req_result = await db_session.execute(req_stmt)
         for req in req_result.scalars().all():
             reqs_by_quest[req.quest_id].append(req)
 
-    rewards_by_quest: dict[UUID4, list[QuestReward]] = defaultdict(list)
+    rewards_by_quest: dict[UUID, list[QuestReward]] = defaultdict(list)
     if quest_ids:
         rew_stmt = select(QuestReward).where(QuestReward.quest_id.in_(quest_ids))
         rew_result = await db_session.execute(rew_stmt)
@@ -139,7 +139,7 @@ class CRUDQuest(
         return result_items
 
     async def get_multi_for_vault(
-        self, *, db_session: AsyncSession, skip: int, limit: int, vault_id: UUID4, office_tier: int | None = None
+        self, *, db_session: AsyncSession, skip: int, limit: int, vault_id: UUID, office_tier: int | None = None
     ) -> Sequence[QuestRead]:
         existing_link_query = select(self.link_model.quest_id).where(self.link_model.vault_id == vault_id)
 
@@ -162,7 +162,7 @@ class CRUDQuest(
         quest_ids = [q.id for q in quests]
         reqs_by_quest, rewards_by_quest = await _batch_load_quest_details(db_session, quest_ids)
 
-        links_by_quest: dict[UUID4, VaultQuestCompletionLink] = {}
+        links_by_quest: dict[UUID, VaultQuestCompletionLink] = {}
         if quest_ids:
             link_stmt = select(self.link_model).where(
                 self.link_model.quest_id.in_(quest_ids),
@@ -245,7 +245,7 @@ class CRUDQuest(
         return quest
 
     async def mark_completed(
-        self, db_session: AsyncSession, *, quest_id: UUID4, vault_id: UUID4
+        self, db_session: AsyncSession, *, quest_id: UUID, vault_id: UUID
     ) -> VaultQuestCompletionLink:
         """Lock and claim a quest link before its rewards settle (persistence only)."""
         link = await self._mark_as_complete(db_session=db_session, vault_id=vault_id, quest_entity_id=quest_id)
@@ -272,7 +272,7 @@ class CRUDQuest(
         *,
         now: Any,
         expires_at: Any,
-        vault_id: UUID4 | None = None,
+        vault_id: UUID | None = None,
     ) -> list[VaultQuestCompletionLink]:
         """Started, unfinished links whose quest duration has elapsed, optionally per vault.
 
@@ -297,7 +297,7 @@ class CRUDQuest(
         db_session: AsyncSession,
         *,
         now: Any,
-        vault_id: UUID4 | None = None,
+        vault_id: UUID | None = None,
     ) -> list[VaultQuestCompletionLink]:
         """Returning links whose party has arrived home and is still unclaimed."""
         conditions = [
@@ -310,7 +310,7 @@ class CRUDQuest(
             conditions.append(VaultQuestCompletionLink.vault_id == vault_id)
         return list((await db_session.execute(select(VaultQuestCompletionLink).where(*conditions))).scalars().all())
 
-    async def count_active_timed_quests(self, db_session: AsyncSession, vault_id: UUID4) -> int:
+    async def count_active_timed_quests(self, db_session: AsyncSession, vault_id: UUID) -> int:
         """Timed missions occupy a slot until the returning party is ready to claim."""
         result = await db_session.execute(
             select(func.count())
@@ -328,7 +328,7 @@ class CRUDQuest(
         return result.scalar_one()
 
     async def get_link_for_update(
-        self, db_session: AsyncSession, *, quest_id: UUID4, vault_id: UUID4
+        self, db_session: AsyncSession, *, quest_id: UUID, vault_id: UUID
     ) -> VaultQuestCompletionLink | None:
         """One quest link locked FOR UPDATE (return/finalize serialization).
 
@@ -346,7 +346,7 @@ class CRUDQuest(
         )
         return result.scalars().one_or_none()
 
-    async def get_completed_quest_ids(self, db_session: AsyncSession, vault_id: UUID4) -> set[UUID4]:
+    async def get_completed_quest_ids(self, db_session: AsyncSession, vault_id: UUID) -> set[UUID]:
         """IDs of quests the vault has completed."""
         result = await db_session.execute(
             select(VaultQuestCompletionLink.quest_id).where(
@@ -356,7 +356,7 @@ class CRUDQuest(
         )
         return set(result.scalars().all())
 
-    async def get_multi_by_ids(self, db_session: AsyncSession, quest_ids: list[UUID4]) -> list[Quest]:
+    async def get_multi_by_ids(self, db_session: AsyncSession, quest_ids: list[UUID]) -> list[Quest]:
         """Quests by ids with requirements/rewards eager-loaded."""
         if not quest_ids:
             return []
@@ -368,7 +368,7 @@ class CRUDQuest(
         return list(result.scalars().all())
 
     async def get_link(
-        self, db_session: AsyncSession, *, quest_id: UUID4, vault_id: UUID4
+        self, db_session: AsyncSession, *, quest_id: UUID, vault_id: UUID
     ) -> VaultQuestCompletionLink | None:
         """The vault's completion link for a quest, or None."""
         result = await db_session.execute(
@@ -379,7 +379,7 @@ class CRUDQuest(
         )
         return result.scalars().one_or_none()
 
-    async def get_quest_eligible_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> list[Dweller]:
+    async def get_quest_eligible_dwellers(self, db_session: AsyncSession, vault_id: UUID) -> list[Dweller]:
         """Adult, unassigned dwellers of a vault eligible for quest assignment.
 
         Weapon/outfit are eager-loaded so the party-eligibility policy can evaluate
@@ -399,7 +399,7 @@ class CRUDQuest(
         ]
 
     async def assign_to_vault(
-        self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, *, is_visible: bool = True
+        self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID, *, is_visible: bool = True
     ) -> VaultQuestCompletionLink:
         """
         Assign a quest to a vault, making it available for completion.

@@ -1,9 +1,9 @@
 """Trading Post endpoints (PoC): trade soft-deleted dwellers for caps."""
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import get_user_vault_or_403
@@ -28,7 +28,7 @@ async def get_trading_market(
 async def sell_dweller(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    dweller_id: UUID4,
+    dweller_id: UUID,
 ) -> TradeResultResponse:
     """Sell one of this vault's soft-deleted dwellers for caps."""
     return await trading_post_service.sell_dweller(db_session, vault, dweller_id)
@@ -38,7 +38,7 @@ async def sell_dweller(
 async def buy_dweller(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    dweller_id: UUID4,
+    dweller_id: UUID,
 ) -> TradeResultResponse:
     """Buy a soft-deleted dweller listed by another vault; caps go to the seller."""
     return await trading_post_service.buy_dweller(db_session, vault, dweller_id)

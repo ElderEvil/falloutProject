@@ -1,8 +1,8 @@
 """Storage CRUD operations for managing vault storage space."""
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import or_
 from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -33,7 +33,7 @@ def _storage_counted_items():
 class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
     """CRUD operations for Storage with utility methods."""
 
-    async def count_items(self, db_session: AsyncSession, storage_id: UUID4) -> int:
+    async def count_items(self, db_session: AsyncSession, storage_id: UUID) -> int:
         """Count total items in storage."""
         # Count weapons
         weapons_result = await db_session.execute(
@@ -80,12 +80,12 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
 
         return total
 
-    async def get_by_vault(self, db_session: AsyncSession, vault_id: UUID4) -> Storage | None:
+    async def get_by_vault(self, db_session: AsyncSession, vault_id: UUID) -> Storage | None:
         """Get storage by vault ID."""
         result = await db_session.execute(select(self.model).where(self.model.vault_id == vault_id))
         return result.scalar_one_or_none()
 
-    async def get_by_vault_for_update(self, db_session: AsyncSession, vault_id: UUID4) -> Storage | None:
+    async def get_by_vault_for_update(self, db_session: AsyncSession, vault_id: UUID) -> Storage | None:
         """Load fresh vault storage state locked FOR UPDATE."""
         result = await db_session.execute(
             select(self.model)
@@ -96,7 +96,7 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def create_for_vault(*, db_session: AsyncSession, vault_id: UUID4, commit: bool = True) -> Storage:
+    async def create_for_vault(*, db_session: AsyncSession, vault_id: UUID, commit: bool = True) -> Storage:
         """Create the storage row for a vault."""
         storage = Storage(vault_id=vault_id)
         db_session.add(storage)
@@ -106,13 +106,13 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
             await db_session.flush()
         return storage
 
-    async def get_max_space(self, db_session: AsyncSession, vault_id: UUID4) -> int:
+    async def get_max_space(self, db_session: AsyncSession, vault_id: UUID) -> int:
         """Get a vault's storage max space (0 when no storage row exists)."""
         result = await db_session.execute(select(self.model.max_space).where(self.model.vault_id == vault_id))
         return result.scalar_one_or_none() or 0
 
     async def set_max_space(
-        self, db_session: AsyncSession, vault_id: UUID4, new_space_max: int, *, commit: bool = True
+        self, db_session: AsyncSession, vault_id: UUID, new_space_max: int, *, commit: bool = True
     ) -> Storage:
         """Set a vault's storage max space.
 
@@ -130,12 +130,12 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
             await db_session.flush()
         return storage_obj
 
-    async def adjust_max_space(self, db_session: AsyncSession, vault_id: UUID4, delta: int) -> Storage:
+    async def adjust_max_space(self, db_session: AsyncSession, vault_id: UUID, delta: int) -> Storage:
         """Shift a vault's storage max space by a room capacity delta."""
         return await self.set_max_space(db_session, vault_id, await self.get_max_space(db_session, vault_id) + delta)
 
     async def set_medical_supplies(
-        self, db_session: AsyncSession, vault_id: UUID4, stimpack: int, radaway: int
+        self, db_session: AsyncSession, vault_id: UUID, stimpack: int, radaway: int
     ) -> Storage | None:
         """Set stimpack/radaway counts; returns None when no storage row exists."""
         storage_obj = await self.get_by_vault(db_session, vault_id)
@@ -148,7 +148,7 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         await db_session.refresh(storage_obj)
         return storage_obj
 
-    async def get_available_space(self, db_session: AsyncSession, storage_id: UUID4) -> int:
+    async def get_available_space(self, db_session: AsyncSession, storage_id: UUID) -> int:
         """Get available storage space."""
         try:
             storage = await self.get(db_session, id=storage_id)
@@ -171,7 +171,7 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
 
         return available
 
-    async def update_used_space(self, db_session: AsyncSession, storage_id: UUID4) -> Storage:
+    async def update_used_space(self, db_session: AsyncSession, storage_id: UUID) -> Storage:
         """Update used_space field based on actual item count."""
         try:
             storage = await self.get(db_session, id=storage_id)
@@ -195,7 +195,7 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
 
         return storage
 
-    async def get_info(self, db_session: AsyncSession, storage_id: UUID4) -> dict:
+    async def get_info(self, db_session: AsyncSession, storage_id: UUID) -> dict:
         """Get comprehensive storage information."""
         try:
             storage = await self.get(db_session, id=storage_id)
@@ -221,7 +221,7 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         }
 
     async def get_all_items(
-        self, db_session: AsyncSession, storage_id: UUID4
+        self, db_session: AsyncSession, storage_id: UUID
     ) -> dict[str, list[Weapon] | list[Outfit] | list[Junk] | list[Item] | list[Pet]]:
         """Get all items in storage."""
         weapons_result = await db_session.execute(select(Weapon).where(Weapon.storage_id == storage_id))
@@ -238,12 +238,12 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
             "pets": list(pets_result.scalars().all()),
         }
 
-    async def get_unopened_lunchbox(self, db_session: AsyncSession, item_id: UUID4, vault_id: UUID4) -> Item | None:
+    async def get_unopened_lunchbox(self, db_session: AsyncSession, item_id: UUID, vault_id: UUID) -> Item | None:
         """Fetch one unopened lunchbox Item scoped to a vault."""
         return await self.get_unopened_container(db_session, item_id, vault_id, item_type="lunchbox")
 
     async def get_unopened_container(
-        self, db_session: AsyncSession, item_id: UUID4, vault_id: UUID4, *, item_type: str
+        self, db_session: AsyncSession, item_id: UUID, vault_id: UUID, *, item_type: str
     ) -> Item | None:
         """Fetch one unopened container Item of ``item_type`` scoped to a vault.
 

@@ -9,8 +9,8 @@ becomes a storage row.
 
 import logging
 from typing import Any
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -81,7 +81,7 @@ class LootOverflowService:
         return self.unit_value_of(loot_item) * (loot_item.get("quantity", 1) or 1)
 
     def build_storage_row(
-        self, loot_item: dict, storage_id: UUID4, *, junk_description: str
+        self, loot_item: dict, storage_id: UUID, *, junk_description: str
     ) -> Weapon | Outfit | Junk | None:
         """Materialize one held entry as a storage row, priced as its sale would be.
 
@@ -176,12 +176,12 @@ class LootOverflowService:
         return unclaimed.pop(index)
 
     @staticmethod
-    async def storage_for(db_session: AsyncSession, vault_id: UUID4) -> Storage | None:
+    async def storage_for(db_session: AsyncSession, vault_id: UUID) -> Storage | None:
         """The vault's storage row, when it has one."""
         return await crud_storage.get_storage_by_vault(db_session, vault_id)
 
     @staticmethod
-    async def require_space(db_session: AsyncSession, vault_id: UUID4, quantity: int) -> Storage:
+    async def require_space(db_session: AsyncSession, vault_id: UUID, quantity: int) -> Storage:
         """The vault's storage row when it has ``quantity`` free slots, else 409.
 
         The row is locked until the caller commits, so two claims cannot both
@@ -200,7 +200,7 @@ class LootOverflowService:
         *,
         owner: type[SQLModel],
         owner_id: Any,
-        vault_id: UUID4,
+        vault_id: UUID,
         junk_description: str,
     ) -> tuple[dict, list[dict]]:
         """Shared take flow: pop, reject medical, require space, build rows, stage.
@@ -239,7 +239,7 @@ class LootOverflowService:
         *,
         owner: type[SQLModel],
         owner_id: Any,
-        vault_id: UUID4,
+        vault_id: UUID,
     ) -> tuple[int, list[dict]]:
         """Shared sell flow: pop, reject medical, credit caps without committing.
 

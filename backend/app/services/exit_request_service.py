@@ -8,8 +8,8 @@ shared pool, so nothing is written to the death fields and no revival window app
 
 import logging
 from datetime import datetime, timedelta
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db_locks import try_advisory_xact_lock
@@ -35,7 +35,7 @@ _AWAY_STATUSES = {
 class ExitRequestService:
     """A dweller who asks to leave is let go: the vault cannot keep them and they do not return."""
 
-    async def list_pending(self, db_session: AsyncSession, vault_id: UUID4) -> list[Dweller]:
+    async def list_pending(self, db_session: AsyncSession, vault_id: UUID) -> list[Dweller]:
         """Dwellers of a vault who have asked to leave and are still waiting."""
         return list(await dweller_crud.get_pending_exit_requests(db_session, vault_id))
 
@@ -53,7 +53,7 @@ class ExitRequestService:
             return "Dweller is away from the vault"
         return None
 
-    async def request_exit(self, db_session: AsyncSession, dweller_id: UUID4, *, commit: bool = True) -> Dweller:
+    async def request_exit(self, db_session: AsyncSession, dweller_id: UUID, *, commit: bool = True) -> Dweller:
         """Record that the dweller has asked to leave, without removing them yet.
 
         ``commit=False`` lets the chat flow fold the ask into its own transaction.
@@ -92,7 +92,7 @@ class ExitRequestService:
         logger.info("Dweller %s asked to leave vault %s", dweller_id, vault_id)
         return dweller
 
-    async def refuse_exit(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID4) -> Dweller:
+    async def refuse_exit(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID) -> Dweller:
         """Decline the ask: the request is answered, and the whole vault pays for it."""
         if not await self._lock_exit_requests(db_session, vault.id):
             raise VaultOperationException(detail="Another exit request is already being handled")
@@ -112,7 +112,7 @@ class ExitRequestService:
         logger.info("Vault %s refused %s's exit request; morale -%d", vault.id, dweller_id, vault_penalty)
         return dweller
 
-    async def grant_exit(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID4) -> Dweller:
+    async def grant_exit(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID) -> Dweller:
         """Let the dweller go: a living departure, not a death."""
         if not await self._lock_exit_requests(db_session, vault.id):
             raise VaultOperationException(detail="Another exit request is already being handled")
@@ -154,7 +154,7 @@ class ExitRequestService:
         logger.info("Dweller %s left vault %s as a living departure", dweller_id, vault.id)
         return dweller
 
-    async def sync_despair_requests(self, db_session: AsyncSession, vault_id: UUID4) -> list[Dweller]:
+    async def sync_despair_requests(self, db_session: AsyncSession, vault_id: UUID) -> list[Dweller]:
         """Raise requests for dwellers in despair, and withdraw requests from dwellers who recovered."""
         threshold = game_config.exit_request.despair_happiness
         now = utcnow()
@@ -169,11 +169,11 @@ class ExitRequestService:
             logger.info("%d dweller(s) in vault %s asked to leave", len(asked), vault_id)
         return asked
 
-    async def _lock_exit_requests(self, db_session: AsyncSession, vault_id: UUID4) -> bool:
+    async def _lock_exit_requests(self, db_session: AsyncSession, vault_id: UUID) -> bool:
         """Serialize the cap check-and-stamp per vault (a no-op outside PostgreSQL)."""
         return await try_advisory_xact_lock(db_session, f"exit-request:{vault_id}")
 
-    async def _stop_training(self, db_session: AsyncSession, dweller_id: UUID4, now: datetime) -> None:
+    async def _stop_training(self, db_session: AsyncSession, dweller_id: UUID, now: datetime) -> None:
         """Cancel the departing person's active training in the departure transaction.
 
         A departure clears the operational row so the source vault's training tick, which
@@ -187,7 +187,7 @@ class ExitRequestService:
         db_session.add(active_training)
 
     @staticmethod
-    def _require_vault_id(dweller: Dweller) -> UUID4:
+    def _require_vault_id(dweller: Dweller) -> UUID:
         """A dweller in the exit flow is a vault member; a departure must not reach here."""
         if dweller.vault_id is None:
             raise VaultOperationException(detail="Dweller is no longer in this vault")
@@ -204,7 +204,7 @@ class ExitRequestService:
         return None
 
     async def _ask_the_despairing(
-        self, db_session: AsyncSession, vault_id: UUID4, threshold: int, now: datetime
+        self, db_session: AsyncSession, vault_id: UUID, threshold: int, now: datetime
     ) -> list[Dweller]:
         vault = await vault_crud.get(db_session, vault_id)
         if vault is None:
@@ -244,7 +244,7 @@ class ExitRequestService:
             db_session.add(vault)
         return asked
 
-    async def _withdraw_recovered(self, db_session: AsyncSession, vault_id: UUID4, threshold: int) -> list[Dweller]:
+    async def _withdraw_recovered(self, db_session: AsyncSession, vault_id: UUID, threshold: int) -> list[Dweller]:
         withdrawn: list[Dweller] = []
         for dweller in await dweller_crud.get_exit_requests_above_happiness(db_session, vault_id, threshold):
             dweller.exit_requested_at = None
@@ -255,7 +255,7 @@ class ExitRequestService:
         return withdrawn
 
     async def _announce_request(
-        self, db_session: AsyncSession, dweller: Dweller, *, vault_id: UUID4, commit: bool
+        self, db_session: AsyncSession, dweller: Dweller, *, vault_id: UUID, commit: bool
     ) -> None:
         """Tell the owner a dweller has asked to leave, so the ask is never silent."""
         await notification_service.notify_owner(
@@ -273,19 +273,19 @@ class ExitRequestService:
             ),
         )
 
-    async def _population_block(self, db_session: AsyncSession, vault_id: UUID4) -> str | None:
+    async def _population_block(self, db_session: AsyncSession, vault_id: UUID) -> str | None:
         living = await dweller_crud.count_living_in_vault(db_session, vault_id)
         if living <= game_config.exit_request.min_population:
             return "The vault must keep more than its minimum population"
         return None
 
-    async def _get_dweller(self, db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
+    async def _get_dweller(self, db_session: AsyncSession, dweller_id: UUID) -> Dweller:
         dweller = await dweller_crud.get(db_session, dweller_id)
         if dweller is None:
             raise ResourceNotFoundException(Dweller, identifier=dweller_id)
         return dweller
 
-    async def _get_pending(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID4) -> Dweller:
+    async def _get_pending(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID) -> Dweller:
         dweller = await dweller_crud.get(db_session, dweller_id, include_deleted=True)
         if dweller.vault_id != vault.id:
             raise VaultOperationException(detail="Dweller does not belong to this vault")

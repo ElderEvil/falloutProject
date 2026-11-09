@@ -3,7 +3,6 @@ import logging
 from collections.abc import Sequence
 from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, func, or_, select
@@ -24,7 +23,7 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         super().__init__(model)
         self.link_model = link_model
 
-    async def create_for_vault(self, db_session: AsyncSession, vault_id: UUID4, obj_in: ObjectiveCreate) -> Objective:
+    async def create_for_vault(self, db_session: AsyncSession, vault_id: UUID, obj_in: ObjectiveCreate) -> Objective:
         """Create an objective together with its initial vault progress link."""
         db_obj = self.model(**obj_in.model_dump())
         db_session.add(db_obj)
@@ -41,7 +40,7 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
 
         return db_obj
 
-    async def count_claimable_for_vault(self, db_session: AsyncSession, vault_id: UUID4) -> int:
+    async def count_claimable_for_vault(self, db_session: AsyncSession, vault_id: UUID) -> int:
         """Count unlocked vault objectives whose reward is ready but unclaimed.
 
         Mirrors the frontend's claimable rule: progress met, not yet marked
@@ -60,7 +59,7 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         return int((await db_session.execute(query)).scalar_one())
 
     async def get_multi_for_vault(
-        self, db_session: AsyncSession, vault_id: UUID4, skip: int = 0, limit: int = 100
+        self, db_session: AsyncSession, vault_id: UUID, skip: int = 0, limit: int = 100
     ) -> Sequence[ObjectiveRead]:
         """Return a vault's objectives with their persisted progress state."""
         query = (
@@ -141,14 +140,14 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         """Every objective."""
         return list((await db_session.execute(select(self.model))).scalars().all())
 
-    async def get_assigned_objective_ids(self, db_session: AsyncSession, vault_id: UUID4) -> set[UUID4]:
+    async def get_assigned_objective_ids(self, db_session: AsyncSession, vault_id: UUID) -> set[UUID]:
         """IDs of objectives already linked to the vault."""
         result = await db_session.execute(
             select(self.link_model.objective_id).where(self.link_model.vault_id == vault_id)
         )
         return {row[0] for row in result.all()}
 
-    async def get_links_for_vault(self, db_session: AsyncSession, vault_id: UUID4) -> list[VaultObjectiveProgressLink]:
+    async def get_links_for_vault(self, db_session: AsyncSession, vault_id: UUID) -> list[VaultObjectiveProgressLink]:
         """Lock and reload progress before deciding which links a reset may remove."""
         query = (
             select(self.link_model)
@@ -163,7 +162,7 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         for link in links:
             await db_session.delete(link)
 
-    def _current_starter_query(self, vault_id: UUID4) -> SelectOfScalar[UUID]:
+    def _current_starter_query(self, vault_id: UUID) -> SelectOfScalar[UUID]:
         """Select the earliest unclaimed guided step independently of pagination."""
         return (
             select(self.model.id)
@@ -178,12 +177,12 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
             .limit(1)
         )
 
-    async def get_current_starter_id(self, db_session: AsyncSession, vault_id: UUID4) -> UUID | None:
+    async def get_current_starter_id(self, db_session: AsyncSession, vault_id: UUID) -> UUID | None:
         """Identify the current guided objective without loading every progress row."""
         return (await db_session.execute(self._current_starter_query(vault_id))).scalar_one_or_none()
 
     async def get_active_with_links(
-        self, db_session: AsyncSession, vault_id: UUID4, objective_type: str
+        self, db_session: AsyncSession, vault_id: UUID, objective_type: str
     ) -> list[tuple[Objective, VaultObjectiveProgressLink]]:
         """Unfinished assigned objectives, including later starter steps.
 
@@ -203,7 +202,7 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         query = query.with_for_update(of=self.link_model).execution_options(populate_existing=True)
         return [(objective, link) for objective, link in (await db_session.execute(query)).all()]
 
-    async def assign_initial(self, db_session: AsyncSession, vault_id: UUID4, *, is_boosted: bool) -> int:
+    async def assign_initial(self, db_session: AsyncSession, vault_id: UUID, *, is_boosted: bool) -> int:
         """Assign the deterministic starter objective set for a new vault.
 
         Standard vaults get the full ``starter`` arc (ordered by ``sequence``)
@@ -281,7 +280,7 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
             return 0
 
     async def get_link_for_update(
-        self, db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4
+        self, db_session: AsyncSession, objective_id: UUID, vault_id: UUID
     ) -> VaultObjectiveProgressLink | None:
         """Lock an objective link before deciding whether it can be completed."""
         result = await db_session.execute(

@@ -2,9 +2,9 @@
 
 from collections.abc import Sequence
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import UUID4
 
 from app import crud
 from app.api.deps import (
@@ -41,7 +41,7 @@ async def create_junk(
 
 @router.get("/", response_model=list[JunkRead])
 async def read_junk_list(
-    vault_id: UUID4,
+    vault_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
     pagination: PaginationParams,
@@ -64,7 +64,7 @@ async def read_junk_list(
 
 @router.get("/{junk_id}", response_model=JunkRead)
 async def read_junk(
-    junk_id: UUID4,
+    junk_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Junk:
@@ -82,7 +82,7 @@ async def read_junk(
 
 @router.put("/{junk_id}", response_model=JunkRead)
 async def update_junk(
-    junk_id: UUID4,
+    junk_id: UUID,
     junk_data: JunkUpdate,
     db_session: DBSession,
     _: CurrentSuperuser,
@@ -97,7 +97,7 @@ async def update_junk(
 
 @router.delete("/{junk_id}", status_code=204)
 async def delete_junk(
-    junk_id: UUID4,
+    junk_id: UUID,
     db_session: DBSession,
     _: CurrentSuperuser,
 ) -> None:
@@ -117,7 +117,7 @@ async def read_junk_data(data_store: Annotated[StaticGameData, Depends(get_stati
 
 @router.post("/{junk_id}/sell/", status_code=200, response_model=None)
 async def sell_junk(
-    junk_id: UUID4,
+    junk_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> None:

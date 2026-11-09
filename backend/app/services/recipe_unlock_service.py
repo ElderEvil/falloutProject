@@ -8,8 +8,8 @@ RewardType or PG-enum change.
 
 import logging
 from typing import Any
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -84,7 +84,7 @@ class RecipeUnlockService:
     """Reads and advances per-vault recipe unlock progress."""
 
     async def is_unlocked(
-        self, db_session: AsyncSession, *, vault_id: UUID4, item_type: str, entry: dict[str, Any]
+        self, db_session: AsyncSession, *, vault_id: UUID, item_type: str, entry: dict[str, Any]
     ) -> bool:
         """True when the recipe is ungated or the vault has already unlocked it.
 
@@ -97,7 +97,7 @@ class RecipeUnlockService:
         return row is not None and row.unlocked_at is not None
 
     async def record_scrap(
-        self, db_session: AsyncSession, *, vault_id: UUID4, item_type: str, item_name: str
+        self, db_session: AsyncSession, *, vault_id: UUID, item_type: str, item_name: str
     ) -> dict[str, Any] | None:
         """Advance unlock progress for a scrapped item.
 
@@ -129,7 +129,7 @@ class RecipeUnlockService:
 recipe_unlock_service = RecipeUnlockService()
 
 
-async def _notify_unlock(db_session: AsyncSession, vault_id: UUID4, unlocked: dict[str, Any]) -> None:
+async def _notify_unlock(db_session: AsyncSession, vault_id: UUID, unlocked: dict[str, Any]) -> None:
     """Tell the vault owner they just learned a recipe."""
     from app.crud.vault import vault as vault_crud
     from app.services.notification_service import notification_service
@@ -146,7 +146,7 @@ async def _notify_unlock(db_session: AsyncSession, vault_id: UUID4, unlocked: di
     )
 
 
-async def _on_item_scrapped(_event_type: str, vault_id: UUID4, data: dict[str, Any]) -> None:
+async def _on_item_scrapped(_event_type: str, vault_id: UUID, data: dict[str, Any]) -> None:
     """Learn a gated recipe once its item has been scrapped enough times."""
     item_type = data.get("item_type")
     item_name = data.get("item_name")

@@ -1,6 +1,7 @@
 """CRUD operations for the arena match journal (ArenaMatchEvent)."""
 
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlalchemy.orm import aliased
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -15,7 +16,7 @@ class CRUDArenaMatchEvent:
     """CRUD operations for arena journal rows."""
 
     @staticmethod
-    async def get_by_room(db_session: AsyncSession, room_id: UUID4) -> list[ArenaMatchEvent]:
+    async def get_by_room(db_session: AsyncSession, room_id: UUID) -> list[ArenaMatchEvent]:
         """All journal events of a room, oldest first."""
         result = await db_session.execute(
             select(ArenaMatchEvent).where(ArenaMatchEvent.room_id == room_id).order_by(ArenaMatchEvent.created_at)
@@ -23,7 +24,7 @@ class CRUDArenaMatchEvent:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_recent_by_room(db_session: AsyncSession, room_id: UUID4, limit: int = 40) -> list[ArenaMatchEvent]:
+    async def get_recent_by_room(db_session: AsyncSession, room_id: UUID, limit: int = 40) -> list[ArenaMatchEvent]:
         """Recent journal events of a room, newest first."""
         result = await db_session.execute(
             select(ArenaMatchEvent)
@@ -34,7 +35,7 @@ class CRUDArenaMatchEvent:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_vault_snapshot(db_session: AsyncSession, vault_id: UUID4):
+    async def get_vault_snapshot(db_session: AsyncSession, vault_id: UUID):
         """One statement observes match flags and the latest 40 events coherently.
 
         Rank only this vault's journal; no roster loads, row creation or combat locks.
@@ -64,7 +65,7 @@ class CRUDArenaMatchEvent:
         return (await db_session.execute(query)).all()
 
     @staticmethod
-    async def delete_for_room(db_session: AsyncSession, room_id: UUID4) -> int:
+    async def delete_for_room(db_session: AsyncSession, room_id: UUID) -> int:
         """Delete all journal events of a room (no commit — caller owns the transaction)."""
         events = await CRUDArenaMatchEvent.get_by_room(db_session, room_id)
         for event in events:

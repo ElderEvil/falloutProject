@@ -1,8 +1,8 @@
 import logging
 from collections.abc import Iterable
 from typing import cast
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import CursorResult, delete, update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import col, select
@@ -16,12 +16,12 @@ logger = logging.getLogger(__name__)
 
 
 class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
-    async def get_by_user_id(self, db_session: AsyncSession, user_id: UUID4) -> UserProfile | None:
+    async def get_by_user_id(self, db_session: AsyncSession, user_id: UUID) -> UserProfile | None:
         """Get profile by user ID."""
         response = await db_session.execute(select(self.model).where(self.model.user_id == user_id))
         return response.scalar_one_or_none()
 
-    async def create_for_user(self, db_session: AsyncSession, user_id: UUID4) -> UserProfile:
+    async def create_for_user(self, db_session: AsyncSession, user_id: UUID) -> UserProfile:
         """
         Create a new profile for a user with race condition handling.
 
@@ -32,7 +32,7 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
         :param db_session: Database session
         :type db_session: AsyncSession
         :param user_id: User ID to create profile for
-        :type user_id: UUID4
+        :type user_id: UUID
         :returns: The created or existing profile
         :rtype: UserProfile
         """
@@ -54,7 +54,7 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
         else:
             return db_obj
 
-    async def lock_by_user_ids(self, db_session: AsyncSession, user_ids: Iterable[UUID4]) -> list[UserProfile]:
+    async def lock_by_user_ids(self, db_session: AsyncSession, user_ids: Iterable[UUID]) -> list[UserProfile]:
         """Lock the participants' profiles in profile-id order for a merge."""
         result = await db_session.execute(
             select(self.model)
@@ -65,7 +65,7 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
         )
         return list(result.scalars().all())
 
-    async def create_staged(self, db_session: AsyncSession, user_id: UUID4) -> UserProfile:
+    async def create_staged(self, db_session: AsyncSession, user_id: UUID) -> UserProfile:
         """Add a profile and flush it without committing; the caller owns the transaction."""
         db_obj = UserProfile(user_id=user_id)
         db_session.add(db_obj)
@@ -73,7 +73,7 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
         return db_obj
 
     async def reassign_user(
-        self, db_session: AsyncSession, source_user_id: UUID4, target_user_id: UUID4, *, commit: bool = True
+        self, db_session: AsyncSession, source_user_id: UUID, target_user_id: UUID, *, commit: bool = True
     ) -> int:
         """Move the source profile to the target when the target has none."""
         result = await db_session.execute(
@@ -88,7 +88,7 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
             await db_session.flush()
         return cast("CursorResult", result).rowcount or 0
 
-    async def delete_for_user(self, db_session: AsyncSession, user_id: UUID4, *, commit: bool = True) -> int:
+    async def delete_for_user(self, db_session: AsyncSession, user_id: UUID, *, commit: bool = True) -> int:
         """Delete a profile whose counters were merged into the surviving profile."""
         result = await db_session.execute(
             delete(self.model).where(col(self.model.user_id) == user_id).execution_options(synchronize_session=False)
@@ -102,7 +102,7 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
     async def increment_statistic(
         self,
         db_session: AsyncSession,
-        user_id: UUID4,
+        user_id: UUID,
         stat_name: str,
         amount: int = 1,
         *,

@@ -3,7 +3,8 @@
 # TODO: relocate this room-assignment kernel outside services so CRUD can share it
 # (dweller availability now lives in app/utils/dweller_availability.py).
 
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlmodel import col
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -18,7 +19,7 @@ from app.utils.exceptions import ResourceConflictException, ValidationException
 ABILITY_TO_STAT_MAP = STAT_BY_SPECIAL
 
 
-def room_occupancy_lock_key(room_id: UUID4) -> str:
+def room_occupancy_lock_key(room_id: UUID) -> str:
     """Advisory-lock key guarding one room's occupant count.
 
     Assignment mutates the room's occupant count, so every manual and automatic
@@ -29,7 +30,7 @@ def room_occupancy_lock_key(room_id: UUID4) -> str:
     return f"room-occupancy:{room_id}"
 
 
-def vault_placement_lock_key(vault_id: UUID4) -> str:
+def vault_placement_lock_key(vault_id: UUID) -> str:
     """Advisory-lock key guarding every placement change in one vault's grid.
 
     Construction, demolition, upgrade merging and the vault-wide merge backfill rewrite

@@ -1,8 +1,8 @@
 """CRUD operations for expedition runs."""
 
 from datetime import datetime
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -27,8 +27,8 @@ class CRUDExpeditionRun(CRUDBase[ExpeditionRun, ExpeditionRun, ExpeditionRun]):
         self,
         db_session: AsyncSession,
         *,
-        exploration_id: UUID4,
-        vault_id: UUID4,
+        exploration_id: UUID,
+        vault_id: UUID,
         site_id: str,
     ) -> ExpeditionRun:
         """Insert one run row for a fresh site entry."""
@@ -48,7 +48,7 @@ class CRUDExpeditionRun(CRUDBase[ExpeditionRun, ExpeditionRun, ExpeditionRun]):
         await db_session.refresh(run)
         return run
 
-    async def get_open_for_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> ExpeditionRun | None:
+    async def get_open_for_exploration(self, db_session: AsyncSession, exploration_id: UUID) -> ExpeditionRun | None:
         """Return the still-open run for an exploration, if any."""
         result = await db_session.execute(
             select(ExpeditionRun)
@@ -58,7 +58,7 @@ class CRUDExpeditionRun(CRUDBase[ExpeditionRun, ExpeditionRun, ExpeditionRun]):
         return result.scalars().first()
 
     async def get_open_for_exploration_for_update(
-        self, db_session: AsyncSession, exploration_id: UUID4
+        self, db_session: AsyncSession, exploration_id: UUID
     ) -> ExpeditionRun | None:
         """Return the open run locked FOR UPDATE so concurrent resolutions serialize."""
         result = await db_session.execute(
@@ -70,7 +70,7 @@ class CRUDExpeditionRun(CRUDBase[ExpeditionRun, ExpeditionRun, ExpeditionRun]):
         return result.scalars().first()
 
     async def get_open_for_vault_site(
-        self, db_session: AsyncSession, *, vault_id: UUID4, site_id: str
+        self, db_session: AsyncSession, *, vault_id: UUID, site_id: str
     ) -> ExpeditionRun | None:
         """Return the still-open run for a vault+site, if any (exclusivity)."""
         result = await db_session.execute(
@@ -82,7 +82,7 @@ class CRUDExpeditionRun(CRUDBase[ExpeditionRun, ExpeditionRun, ExpeditionRun]):
         return result.scalars().first()
 
     async def get_recent_terminal(
-        self, db_session: AsyncSession, *, vault_id: UUID4, site_id: str, since: datetime
+        self, db_session: AsyncSession, *, vault_id: UUID, site_id: str, since: datetime
     ) -> ExpeditionRun | None:
         """Return a terminal run (CLEARED/RETREATED/DIED) of this site by this vault since the given timestamp."""
         result = await db_session.execute(
@@ -96,7 +96,7 @@ class CRUDExpeditionRun(CRUDBase[ExpeditionRun, ExpeditionRun, ExpeditionRun]):
         return result.scalars().first()
 
     async def get_consumed_for_exploration_site(
-        self, db_session: AsyncSession, *, exploration_id: UUID4, site_id: str
+        self, db_session: AsyncSession, *, exploration_id: UUID, site_id: str
     ) -> ExpeditionRun | None:
         """Return a consumed (CLEARED/DIED) run of this site in this journey, if any."""
         result = await db_session.execute(
@@ -109,7 +109,7 @@ class CRUDExpeditionRun(CRUDBase[ExpeditionRun, ExpeditionRun, ExpeditionRun]):
         return result.scalars().first()
 
     async def get_consumed_site_ids_for_exploration(
-        self, db_session: AsyncSession, *, exploration_id: UUID4
+        self, db_session: AsyncSession, *, exploration_id: UUID
     ) -> set[str]:
         """Site ids consumed (CLEARED/DIED) so far in this journey."""
         result = await db_session.execute(
@@ -120,7 +120,7 @@ class CRUDExpeditionRun(CRUDBase[ExpeditionRun, ExpeditionRun, ExpeditionRun]):
         return set(result.scalars().all())
 
     async def get_latest_for_exploration_site(
-        self, db_session: AsyncSession, *, exploration_id: UUID4, site_id: str
+        self, db_session: AsyncSession, *, exploration_id: UUID, site_id: str
     ) -> ExpeditionRun | None:
         """Return the most recent run of this site in this journey, whatever its status."""
         result = await db_session.execute(

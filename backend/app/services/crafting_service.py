@@ -14,8 +14,8 @@ to ``vault_theme`` and the theme becomes selectable on eligible rooms.
 import logging
 from datetime import timedelta
 from typing import Any
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -187,7 +187,7 @@ class CraftingService:
             raise ValidationException(f"{entry['name']} cannot be crafted")
         return entry
 
-    async def list_recipes(self, db_session: AsyncSession, vault_id: UUID4, item_type: str) -> list[CraftingRecipeRead]:
+    async def list_recipes(self, db_session: AsyncSession, vault_id: UUID, item_type: str) -> list[CraftingRecipeRead]:
         """Craftable entries for one item type, with costs and current affordability."""
         if item_type not in CRAFTABLE_ITEM_TYPES:
             raise ValidationException(f"Unknown craftable item type: {item_type}")
@@ -279,12 +279,12 @@ class CraftingService:
         return max(floor, int(base / (1 + speedup)))
 
     @staticmethod
-    async def _workshop_room(db_session: AsyncSession, vault_id: UUID4, workshop: str) -> Room | None:
+    async def _workshop_room(db_session: AsyncSession, vault_id: UUID, workshop: str) -> Room | None:
         rooms = await crud.room.get_by_name_pattern(db_session, vault_id, f"%{workshop}%")
         return rooms[0] if rooms else None
 
     async def start_order(
-        self, db_session: AsyncSession, vault_id: UUID4, item_name: str, item_type: str
+        self, db_session: AsyncSession, vault_id: UUID, item_name: str, item_type: str
     ) -> CraftingOrder:
         """Queue a craft and consume its materials up front.
 
@@ -366,11 +366,11 @@ class CraftingService:
         )
         return order
 
-    async def list_orders(self, db_session: AsyncSession, vault_id: UUID4) -> list[CraftingOrder]:
+    async def list_orders(self, db_session: AsyncSession, vault_id: UUID) -> list[CraftingOrder]:
         """Every order for a vault, newest first."""
         return await crud.crafting_order.get_by_vault(db_session, vault_id)
 
-    async def cancel_order(self, db_session: AsyncSession, vault_id: UUID4, order_id: UUID4) -> CraftingOrder:
+    async def cancel_order(self, db_session: AsyncSession, vault_id: UUID, order_id: UUID) -> CraftingOrder:
         """Cancel an active order and refund the caps and junk it consumed.
 
         Completed orders must be collected; collected and cancelled orders cannot
@@ -417,7 +417,7 @@ class CraftingService:
         logger.info(f"Cancelled {order.item_type} '{order.item_name}' for vault {vault_id}")
         return order
 
-    async def advance_orders(self, db_session: AsyncSession, vault_id: UUID4) -> int:
+    async def advance_orders(self, db_session: AsyncSession, vault_id: UUID) -> int:
         """Advance the queue one tick; returns how many orders just completed."""
         orders = await crud.crafting_order.get_active_by_vault_for_update(db_session, vault_id)
         if not orders:
@@ -439,7 +439,7 @@ class CraftingService:
         await db_session.flush()
         return completed
 
-    async def collect_order(self, db_session: AsyncSession, vault_id: UUID4, order_id: UUID4) -> CraftResultRead:
+    async def collect_order(self, db_session: AsyncSession, vault_id: UUID, order_id: UUID) -> CraftResultRead:
         """Move a finished order's item into storage.
 
         Raises:

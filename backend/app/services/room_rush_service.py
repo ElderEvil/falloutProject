@@ -5,8 +5,8 @@ import math
 import random
 from datetime import datetime
 from types import ModuleType
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core import db_locks
@@ -341,7 +341,7 @@ class RoomRushService:
         )
         return RoomRushResourceGain(**applied)
 
-    async def _living_workers(self, db_session: AsyncSession, room_id: UUID4) -> list[Dweller]:
+    async def _living_workers(self, db_session: AsyncSession, room_id: UUID) -> list[Dweller]:
         assigned = await crud_dweller.get_by_room(db_session, room_id, with_equipment=True)
         return [worker for worker in assigned if not worker.is_dead and worker.status not in _NON_WORKING_STATUSES]
 

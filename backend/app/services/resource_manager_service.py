@@ -4,8 +4,8 @@ import logging
 import math
 from collections.abc import Mapping, Sequence
 from datetime import timedelta
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import RelationshipTypeEnum, RoomTypeEnum, SPECIALEnum
@@ -35,7 +35,7 @@ MEDICAL_ROOM_PRODUCTION: dict[str, str] = {
 }
 
 
-async def load_rival_pairs(db_session: AsyncSession, dweller_ids: set[UUID4] | list[UUID4]) -> set[frozenset[UUID4]]:
+async def load_rival_pairs(db_session: AsyncSession, dweller_ids: set[UUID] | list[UUID]) -> set[frozenset[UUID]]:
     """Rival pairs among the given dwellers, shared by tick and rush production."""
     if not dweller_ids:
         return set()
@@ -63,7 +63,7 @@ class ResourceManager:
         self.logger = logging.getLogger(__name__)
 
     async def process_vault_resources(
-        self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int
+        self, db_session: AsyncSession, vault_id: UUID, seconds_passed: int
     ) -> tuple[VaultUpdate, ResourceTickEvents]:
         """Process resource changes for a vault over the given time period.
 
@@ -132,7 +132,7 @@ class ResourceManager:
         seconds_passed: int,
         *,
         state: GameState | None = None,
-        rival_pairs: set[frozenset[UUID4]] | None = None,
+        rival_pairs: set[frozenset[UUID]] | None = None,
     ) -> tuple[VaultUpdate, ResourceTickEvents]:
         """Calculate net resource change considering production, consumption, and efficiency.
 
@@ -214,7 +214,7 @@ class ResourceManager:
         dwellers: list[Dweller],
         seconds_passed: int,
         *,
-        rival_pairs: set[frozenset[UUID4]] | None = None,
+        rival_pairs: set[frozenset[UUID]] | None = None,
     ) -> dict[str, float]:
         """Return this room's raw production split across resource keys."""
         totals = dict.fromkeys(("power", "food", "water", "stimpack", "radaway"), 0.0)
@@ -272,7 +272,7 @@ class ResourceManager:
         seconds_passed: int,
         current_power: float,
         *,
-        rival_pairs: set[frozenset[UUID4]] | None = None,
+        rival_pairs: set[frozenset[UUID]] | None = None,
     ) -> dict[str, float]:
         """Calculate resource production from all production rooms."""
         production_totals = {"power": 0.0, "food": 0.0, "water": 0.0, "stimpack": 0.0, "radaway": 0.0}
@@ -333,7 +333,7 @@ class ResourceManager:
         return production
 
     @staticmethod
-    def _friction_multiplier(dwellers: list[Dweller], rival_pairs: set[frozenset[UUID4]] | None) -> float:
+    def _friction_multiplier(dwellers: list[Dweller], rival_pairs: set[frozenset[UUID]] | None) -> float:
         """Room output multiplier from coworker discomfort and rival pairs."""
         multiplier = 1.0
         discomforts = [
@@ -389,7 +389,7 @@ class ResourceManager:
         )
 
     @staticmethod
-    async def emit_production_events(vault_id: UUID4, events: ResourceTickEvents) -> None:
+    async def emit_production_events(vault_id: UUID, events: ResourceTickEvents) -> None:
         """Emit one batched objective event after the resource transaction has committed.
 
         One event per vault (not per resource) removes one handler session, vault

@@ -12,8 +12,7 @@ import logging
 import random as std_random
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
-
-from pydantic import UUID4
+from uuid import UUID
 
 from app import crud
 from app.schemas.dweller import DwellerUpdate
@@ -51,7 +50,7 @@ NAME_MAX_LEN = 64
 class PregenResult:
     """Per-dweller outcome of a pre-generation run (for CLI reporting)."""
 
-    dweller_id: UUID4
+    dweller_id: UUID
     first_name: str
     last_name: str | None
     origin_place: str
@@ -111,7 +110,7 @@ class PregenService:
     """Deterministic dweller + bio + world-map seeding workflows."""
 
     @staticmethod
-    async def _ensure_vault_exists(db_session: AsyncSession, vault_id: UUID4) -> None:
+    async def _ensure_vault_exists(db_session: AsyncSession, vault_id: UUID) -> None:
         """Raise ResourceNotFoundException if the vault does not exist."""
         await crud.vault.get(db_session, id=vault_id)
 
@@ -158,7 +157,7 @@ class PregenService:
     async def pregen_dwellers(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         count: int,
         seed: int | None = None,
         origin: str | None = None,
@@ -205,7 +204,7 @@ class PregenService:
     async def fill_missing_bios(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         *,
         count: int = 0,
         seed: int | None = None,

@@ -2,9 +2,9 @@
 
 import logging
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/vault/{vault_id}", response_model=list[PregnancyRead])
 async def get_vault_pregnancies(
-    vault_id: UUID4,
+    vault_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> list[PregnancyRead]:
@@ -41,7 +41,7 @@ async def get_vault_pregnancies(
 
 @router.get("/{pregnancy_id}", response_model=PregnancyRead)
 async def get_pregnancy(
-    pregnancy_id: UUID4,
+    pregnancy_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> PregnancyRead:
@@ -64,7 +64,7 @@ async def get_pregnancy(
 
 @router.post("/{pregnancy_id}/deliver", response_model=DeliveryResult)
 async def deliver_baby(
-    pregnancy_id: UUID4,
+    pregnancy_id: UUID,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DeliveryResult:
@@ -111,8 +111,8 @@ async def deliver_baby(
 
 @router.post("/debug/force-conception", response_model=PregnancyRead)
 async def force_conception(
-    mother_id: UUID4,
-    father_id: UUID4,
+    mother_id: UUID,
+    father_id: UUID,
     user: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> PregnancyRead:
@@ -144,7 +144,7 @@ async def force_conception(
 
 @router.post("/{pregnancy_id}/debug/accelerate", response_model=PregnancyRead)
 async def accelerate_pregnancy(
-    pregnancy_id: UUID4,
+    pregnancy_id: UUID,
     user: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> PregnancyRead:

@@ -2,7 +2,6 @@ from collections.abc import Iterable
 from typing import Any
 from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession as SAAsyncSession
@@ -35,13 +34,13 @@ def build_user_model(
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
-    async def get_for_update(self, db_session: SAAsyncSession, user_id: UUID4) -> User | None:
+    async def get_for_update(self, db_session: SAAsyncSession, user_id: UUID) -> User | None:
         result = await db_session.execute(
             select(User).where(col(User.id) == user_id).with_for_update().execution_options(populate_existing=True)
         )
         return result.scalar_one_or_none()
 
-    async def get_by_ids_for_update(self, db_session: SAAsyncSession, user_ids: list[UUID4]) -> list[User]:
+    async def get_by_ids_for_update(self, db_session: SAAsyncSession, user_ids: list[UUID]) -> list[User]:
         """Lock actor and target in the same order, refreshing any cached identities."""
         result = await db_session.execute(
             select(User)
@@ -102,7 +101,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         )
         return list(result.scalars().all())
 
-    async def lock_users_for_merge(self, db_session: SAAsyncSession, user_ids: Iterable[UUID4]) -> dict[UUID4, User]:
+    async def lock_users_for_merge(self, db_session: SAAsyncSession, user_ids: Iterable[UUID]) -> dict[UUID, User]:
         """Lock merge participants one at a time in ascending UUID order.
 
         Sequential ``FOR UPDATE`` locks keep concurrent merges sharing accounts
@@ -110,7 +109,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         does not filter ``is_deleted``, so a previously tombstoned source row is
         still locked and revalidated by the caller.
         """
-        locked: dict[UUID4, User] = {}
+        locked: dict[UUID, User] = {}
         for user_id in sorted(set(user_ids)):
             user = await self.get_for_update(db_session, user_id)
             if user is not None:
@@ -166,7 +165,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     async def update(
         self,
         db_session: AsyncSession,
-        id: int | UUID4,
+        id: int | UUID,
         obj_in: UserUpdate | dict[str, Any],
     ) -> User:
         update_data = obj_in if isinstance(obj_in, dict) else obj_in.model_dump(exclude_unset=True)

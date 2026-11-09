@@ -1,6 +1,7 @@
 """CRUD operations for explorations."""
 
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlalchemy import func, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -17,7 +18,7 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         self,
         db_session: AsyncSession,
         *,
-        vault_id: UUID4,
+        vault_id: UUID,
         active_only: bool = False,
     ) -> list[Exploration]:
         """Get all explorations for a vault, optionally filtering to ongoing only.
@@ -34,14 +35,14 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         result = await db_session.execute(query)
         return list(result.scalars().all())
 
-    async def count_by_vault(self, db_session: AsyncSession, *, vault_id: UUID4) -> int:
+    async def count_by_vault(self, db_session: AsyncSession, *, vault_id: UUID) -> int:
         """Count every exploration for a vault, past runs included."""
         result = await db_session.execute(
             select(func.count()).select_from(Exploration).where(Exploration.vault_id == vault_id)
         )
         return int(result.scalar_one())
 
-    async def get_for_update(self, db_session: AsyncSession, exploration_id: UUID4) -> Exploration | None:
+    async def get_for_update(self, db_session: AsyncSession, exploration_id: UUID) -> Exploration | None:
         """One exploration locked FOR UPDATE (reward claiming serialization).
 
         ``populate_existing`` refreshes the instance even when the row is already in
@@ -60,7 +61,7 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         self,
         db_session: AsyncSession,
         *,
-        dweller_id: UUID4,
+        dweller_id: UUID,
     ) -> Exploration | None:
         """Get the in-progress exploration for a dweller (exploring or returning)."""
         result = await db_session.execute(
@@ -73,7 +74,7 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
     async def get_in_progress_for_dwellers(
         self,
         db_session: AsyncSession,
-        dweller_ids: list[UUID4],
+        dweller_ids: list[UUID],
     ) -> list[Exploration]:
         """Any open (exploring or returning) run for any of the given dwellers.
 
@@ -103,7 +104,7 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         self,
         db_session: AsyncSession,
         *,
-        exploration_id: UUID4,
+        exploration_id: UUID,
         recalled: bool = False,
     ) -> Exploration:
         """Move an exploration onto its return leg; the caller owns the commit."""
@@ -118,7 +119,7 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         self,
         db_session: AsyncSession,
         *,
-        exploration_id: UUID4,
+        exploration_id: UUID,
     ) -> Exploration:
         """Stage an arrived exploration's terminal outcome for the caller's transaction."""
         exploration = await self.get(db_session, exploration_id)
@@ -131,7 +132,7 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         self,
         db_session: AsyncSession,
         *,
-        exploration_id: UUID4,
+        exploration_id: UUID,
         event_type: str,
         description: str,
         loot: dict | None = None,
@@ -148,7 +149,7 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         self,
         db_session: AsyncSession,
         *,
-        exploration_id: UUID4,
+        exploration_id: UUID,
         item_name: str,
         quantity: int = 1,
         rarity: str = "common",
@@ -165,7 +166,7 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         self,
         db_session: AsyncSession,
         *,
-        exploration_id: UUID4,
+        exploration_id: UUID,
         distance: int | None = None,
         caps: int | None = None,
         enemies: int | None = None,

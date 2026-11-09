@@ -1,8 +1,8 @@
 """CRUD operations for Pregnancy model."""
 
 from datetime import timedelta
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -21,7 +21,7 @@ class CRUDPregnancy(CRUDBase[Pregnancy, PregnancyCreate, PregnancyUpdate]):
     async def get_with_mother(
         self,
         db_session: AsyncSession,
-        pregnancy_id: UUID4,
+        pregnancy_id: UUID,
     ) -> tuple[Pregnancy, Dweller]:
         """Get a pregnancy and its mother; callers own any access verification.
 
@@ -43,9 +43,9 @@ class CRUDPregnancy(CRUDBase[Pregnancy, PregnancyCreate, PregnancyUpdate]):
     async def get_unavailable_mother_ids(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         cooldown_hours: int,
-    ) -> set[UUID4]:
+    ) -> set[UUID]:
         """Mothers who cannot conceive now: currently pregnant, or delivered
         within the post-birth cooldown window."""
         cooldown_start = utcnow() - timedelta(hours=cooldown_hours)
@@ -70,7 +70,7 @@ class CRUDPregnancy(CRUDBase[Pregnancy, PregnancyCreate, PregnancyUpdate]):
 
         return pregnant_ids | postpartum_ids
 
-    async def get_due_by_vault(self, db_session: AsyncSession, vault_id: UUID4) -> list[Pregnancy]:
+    async def get_due_by_vault(self, db_session: AsyncSession, vault_id: UUID) -> list[Pregnancy]:
         """Pregnancies in a vault whose due date has passed."""
         query = (
             select(Pregnancy)
@@ -81,7 +81,7 @@ class CRUDPregnancy(CRUDBase[Pregnancy, PregnancyCreate, PregnancyUpdate]):
         )
         return list((await db_session.execute(query)).scalars().all())
 
-    async def get_active_by_vault(self, db_session: AsyncSession, vault_id: UUID4) -> list[Pregnancy]:
+    async def get_active_by_vault(self, db_session: AsyncSession, vault_id: UUID) -> list[Pregnancy]:
         """Active pregnancies for a vault."""
         query = (
             select(Pregnancy)
@@ -91,7 +91,7 @@ class CRUDPregnancy(CRUDBase[Pregnancy, PregnancyCreate, PregnancyUpdate]):
         )
         return list((await db_session.execute(query)).scalars().all())
 
-    async def get_active_by_mother(self, db_session: AsyncSession, mother_id: UUID4) -> Pregnancy | None:
+    async def get_active_by_mother(self, db_session: AsyncSession, mother_id: UUID) -> Pregnancy | None:
         """Active pregnancy of a specific mother, if any."""
         query = select(Pregnancy).where(
             Pregnancy.mother_id == mother_id,
@@ -99,12 +99,12 @@ class CRUDPregnancy(CRUDBase[Pregnancy, PregnancyCreate, PregnancyUpdate]):
         )
         return (await db_session.execute(query)).scalars().first()
 
-    async def get_all_by_mother_vault(self, db_session: AsyncSession, vault_id: UUID4) -> list[Pregnancy]:
+    async def get_all_by_mother_vault(self, db_session: AsyncSession, vault_id: UUID) -> list[Pregnancy]:
         """All pregnancies (any status) whose mother lives in the vault."""
         query = select(Pregnancy).join(Dweller, Pregnancy.mother_id == Dweller.id).where(Dweller.vault_id == vault_id)
         return list((await db_session.execute(query)).scalars().all())
 
-    async def get_active_involving(self, db_session: AsyncSession, dweller_id: UUID4) -> list[Pregnancy]:
+    async def get_active_involving(self, db_session: AsyncSession, dweller_id: UUID) -> list[Pregnancy]:
         """Active pregnancies where the dweller is the mother or the father."""
         query = select(Pregnancy).where(
             (Pregnancy.mother_id == dweller_id) | (Pregnancy.father_id == dweller_id),

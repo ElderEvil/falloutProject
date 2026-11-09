@@ -11,8 +11,9 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from difflib import get_close_matches
 from typing import Any
+from uuid import UUID
 
-from pydantic import UUID4, BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -44,7 +45,7 @@ async def _vault_list(session: AsyncSession) -> ConsoleResult:
     return ConsoleResult(lines=[f"Vault {vault.number}: {vault.id}" for vault in vaults] or ["No vaults."])
 
 
-async def _vault_state(session: AsyncSession, vault_id: UUID4) -> ConsoleResult:
+async def _vault_state(session: AsyncSession, vault_id: UUID) -> ConsoleResult:
     vault = await crud.vault.get(session, vault_id)
     return ConsoleResult(
         lines=[
@@ -58,7 +59,7 @@ async def _vault_state(session: AsyncSession, vault_id: UUID4) -> ConsoleResult:
     )
 
 
-async def _dweller_list(session: AsyncSession, vault_id: UUID4) -> ConsoleResult:
+async def _dweller_list(session: AsyncSession, vault_id: UUID) -> ConsoleResult:
     await crud.vault.get(session, vault_id)
     dwellers = await crud.dweller.get_multi_by_vault(session, vault_id, limit=200)
     return ConsoleResult(
@@ -66,7 +67,7 @@ async def _dweller_list(session: AsyncSession, vault_id: UUID4) -> ConsoleResult
     )
 
 
-async def _expedition_status(session: AsyncSession, vault_id: UUID4) -> ConsoleResult:
+async def _expedition_status(session: AsyncSession, vault_id: UUID) -> ConsoleResult:
     await crud.vault.get(session, vault_id)
     status = await expedition_scenario_service.get_status(session, vault_id)
     if status is None:
@@ -85,7 +86,7 @@ async def _expedition_status(session: AsyncSession, vault_id: UUID4) -> ConsoleR
 
 
 async def _expedition_setup(
-    session: AsyncSession, vault_id: UUID4, dweller_id: UUID4, site_id: str, duration_hours: int
+    session: AsyncSession, vault_id: UUID, dweller_id: UUID, site_id: str, duration_hours: int
 ) -> ConsoleResult:
     result = await expedition_scenario_service.setup(
         session,
@@ -105,14 +106,14 @@ async def _expedition_setup(
     )
 
 
-async def _cheat_vault(session: AsyncSession, vault_id: UUID4) -> Vault:
+async def _cheat_vault(session: AsyncSession, vault_id: UUID) -> Vault:
     vault = await crud.vault.get_for_update(session, vault_id)
     if vault is None or vault.is_deleted:
         raise ResourceNotFoundException(Vault, identifier=vault_id)
     return vault
 
 
-async def _greedisgood_transaction(session: AsyncSession, vault_id: UUID4, amount: int) -> ConsoleResult:
+async def _greedisgood_transaction(session: AsyncSession, vault_id: UUID, amount: int) -> ConsoleResult:
     vault = await _cheat_vault(session, vault_id)
     credited = await vault_service.deposit_caps(
         db_session=session, vault_obj=vault, amount=amount, commit=False, emit_event=False, track_earnings=False
@@ -121,7 +122,7 @@ async def _greedisgood_transaction(session: AsyncSession, vault_id: UUID4, amoun
     return ConsoleResult(lines=[f"Greed is good! +{credited} caps. Vault {vault.number} balance: {vault.bottle_caps}."])
 
 
-async def _thereisnospoon_transaction(session: AsyncSession, vault_id: UUID4) -> ConsoleResult:
+async def _thereisnospoon_transaction(session: AsyncSession, vault_id: UUID) -> ConsoleResult:
     vault = await _cheat_vault(session, vault_id)
     await crud.vault.update(
         session, vault_id, VaultUpdate(power=vault.power_max, food=vault.food_max, water=vault.water_max), commit=False
@@ -206,7 +207,7 @@ def console_manifest() -> ConsoleManifest:
     )
 
 
-async def execute_console(session: AsyncSession, actor_id: UUID4, request: ConsoleRequest) -> ConsoleResult:
+async def execute_console(session: AsyncSession, actor_id: UUID, request: ConsoleRequest) -> ConsoleResult:
     """Validate, dispatch and audit every invocation at the operation boundary."""
     audit: dict[str, Any] = {"actor_id": str(actor_id), "command": request.command, "args": request.args}
     logger.info("Admin console invoked: %s", json.dumps(audit), extra={"console": audit})

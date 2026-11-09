@@ -2,8 +2,8 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import and_
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -32,7 +32,7 @@ class VaultResourceData:
 class CRUDResource:
     """Database access used by the resource service."""
 
-    async def get_vault_resource_data(self, db_session: AsyncSession, vault_id: UUID4) -> VaultResourceData:
+    async def get_vault_resource_data(self, db_session: AsyncSession, vault_id: UUID) -> VaultResourceData:
         with (
             tick_phase("resources.load.vault"),
             tick_phase("resources.load.vault.execute"),
@@ -86,7 +86,7 @@ class CRUDResource:
                 dweller_rows = dweller_result.all()
 
         dweller_count = 0.0
-        grouped_dwellers: dict[UUID4, tuple[Room, list[Dweller]]] = {}
+        grouped_dwellers: dict[UUID, tuple[Room, list[Dweller]]] = {}
         for dweller, room in dweller_rows:
             dweller_count += (
                 game_config.breeding.child_consumption_multiplier

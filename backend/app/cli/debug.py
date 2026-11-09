@@ -11,9 +11,9 @@ from __future__ import annotations
 import asyncio
 import json
 from typing import Annotated, Any
+from uuid import UUID
 
 import typer
-from pydantic import UUID4
 from sqlmodel import select
 
 from app.core.event_bus import GameEvent, event_bus
@@ -80,7 +80,7 @@ def _handler_map() -> dict[str, list[str]]:
     }
 
 
-def _vault_objective_rows(vault_id: UUID4, objective_type: str | None = None):
+def _vault_objective_rows(vault_id: UUID, objective_type: str | None = None):
     stmt = (
         select(Objective, VaultObjectiveProgressLink)
         .join(VaultObjectiveProgressLink)
@@ -110,7 +110,7 @@ def _room_view(room) -> dict[str, Any]:
 
 @app.command()
 def emit(
-    vault_id: Annotated[UUID4, typer.Argument(help="Target vault UUID")],
+    vault_id: Annotated[UUID, typer.Argument(help="Target vault UUID")],
     event_type: Annotated[GameEvent, typer.Argument(help="Game event to emit")],
     data: Annotated[str | None, typer.Option(help="JSON object merged over per-event defaults")] = None,
 ) -> None:
@@ -148,7 +148,7 @@ def evaluators() -> None:
 
 
 @app.command()
-def objectives(vault_id: Annotated[UUID4, typer.Argument(help="Target vault UUID")]) -> None:
+def objectives(vault_id: Annotated[UUID, typer.Argument(help="Target vault UUID")]) -> None:
     """Inspect seeded objectives and a vault's progress."""
 
     async def body(session):
@@ -191,7 +191,7 @@ def objectives(vault_id: Annotated[UUID4, typer.Argument(help="Target vault UUID
 
 @app.command()
 def collect(
-    vault_id: Annotated[UUID4, typer.Argument(help="Target vault UUID")],
+    vault_id: Annotated[UUID, typer.Argument(help="Target vault UUID")],
     resource_type: Annotated[str, typer.Option(help="Resource collected")] = "caps",
     amount: Annotated[int, typer.Option(help="Amount collected")] = 10,
 ) -> None:
@@ -219,7 +219,7 @@ def collect(
 
 
 @app.command(name="build-living-room")
-def build_living_room(vault_id: Annotated[UUID4, typer.Argument(help="Target vault UUID")]) -> None:
+def build_living_room(vault_id: Annotated[UUID, typer.Argument(help="Target vault UUID")]) -> None:
     """Build a living room via the room service and report population_max before/after."""
 
     async def body(session):

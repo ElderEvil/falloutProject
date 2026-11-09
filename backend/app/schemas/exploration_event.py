@@ -2,8 +2,9 @@
 
 from enum import StrEnum
 from typing import Literal
+from uuid import UUID
 
-from pydantic import UUID4, BaseModel, Field
+from pydantic import BaseModel, Field
 
 
 class ExplorationEventType(StrEnum):
@@ -113,7 +114,7 @@ class CombatOutcomeSchema(BaseModel):
 class RewardsSchema(BaseModel):
     """Schema for exploration completion rewards."""
 
-    exploration_id: UUID4 | None = Field(None, description="Exploration these rewards came from")
+    exploration_id: UUID | None = Field(None, description="Exploration these rewards came from")
     caps: int = Field(..., ge=0, description="Total caps earned")
     caps_credited: int = Field(default=0, ge=0, description="Caps actually added to the vault wallet after its cap")
     items: list[dict] = Field(default_factory=list, description="Items collected and transferred to storage")

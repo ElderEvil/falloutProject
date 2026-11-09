@@ -1,8 +1,9 @@
 """Exploration schemas for wasteland expeditions."""
 
 from datetime import datetime
+from uuid import UUID
 
-from pydantic import UUID4, Field, model_validator
+from pydantic import Field, model_validator
 from sqlmodel import SQLModel
 
 from app.core.enums import ExplorationStatus
@@ -17,8 +18,8 @@ class ExplorationBase(SQLModel):
 class ExplorationCreate(ExplorationBase):
     """Schema for creating a new exploration."""
 
-    dweller_id: UUID4
-    vault_id: UUID4
+    dweller_id: UUID
+    vault_id: UUID
     duration: int = Field(default=4, ge=1, le=24)
     stimpaks: int = Field(default=0, ge=0)
     radaways: int = Field(default=0, ge=0)
@@ -37,12 +38,12 @@ class ExplorationUpdate(SQLModel):
 class ExplorationRead(ExplorationBase):
     """Schema for reading exploration data."""
 
-    id: UUID4
-    vault_id: UUID4
-    dweller_id: UUID4
+    id: UUID
+    vault_id: UUID
+    dweller_id: UUID
     # Targeted dispatch (issue 772): the map point this run was sent to clear,
     # or None for free-roam runs.
-    target_location_id: UUID4 | None = None
+    target_location_id: UUID | None = None
     status: ExplorationStatus
     start_time: datetime
     end_time: datetime | None
@@ -85,10 +86,10 @@ class ExplorationRead(ExplorationBase):
 class ExplorationReadShort(SQLModel):
     """Schema for reading exploration data (short version for lists)."""
 
-    id: UUID4
-    vault_id: UUID4
-    dweller_id: UUID4
-    target_location_id: UUID4 | None = None
+    id: UUID
+    vault_id: UUID
+    dweller_id: UUID
+    target_location_id: UUID | None = None
     status: ExplorationStatus
     start_time: datetime
     paused_at: datetime | None = None
@@ -109,10 +110,10 @@ class ExplorationReadShort(SQLModel):
 class ExplorationPartyMemberRead(SQLModel):
     """Exploration dispatch party member read schema (mirrors QuestPartyMemberRead)."""
 
-    id: UUID4
-    exploration_id: UUID4
-    vault_id: UUID4
-    dweller_id: UUID4
+    id: UUID
+    exploration_id: UUID
+    vault_id: UUID
+    dweller_id: UUID
     slot_number: int
     status: str
     created_at: str | None = None
@@ -122,7 +123,7 @@ class ExplorationPartyMemberRead(SQLModel):
 class ExplorationProgress(SQLModel):
     """Schema for exploration progress updates."""
 
-    id: UUID4
+    id: UUID
     status: ExplorationStatus
     progress_percentage: float = Field(ge=0, le=100)
     time_remaining_seconds: int
@@ -153,11 +154,11 @@ class ExplorationSendRequest(SQLModel):
     known place (clear), absent means roam. Roaming sends exactly one dweller.
     """
 
-    dweller_id: UUID4 | None = Field(default=None, description="Single dweller (legacy/roam)")
-    dweller_ids: list[UUID4] | None = Field(
+    dweller_id: UUID | None = Field(default=None, description="Single dweller (legacy/roam)")
+    dweller_ids: list[UUID] | None = Field(
         default=None, min_length=1, description="Roster; up to the party limit when clearing"
     )
-    target_location_id: UUID4 | None = Field(
+    target_location_id: UUID | None = Field(
         default=None, description="Known place to travel to and clear; omit to roam"
     )
     heading_degrees: float | None = Field(
@@ -178,8 +179,8 @@ class ExplorationSendRequest(SQLModel):
 class ExpeditionDispatchRequest(SQLModel):
     """Schema for dispatching a party to clear a specific map point."""
 
-    dweller_ids: list[UUID4] = Field(min_length=1, description="Party of 1-3 dwellers, no leader")
-    location_id: UUID4
+    dweller_ids: list[UUID] = Field(min_length=1, description="Party of 1-3 dwellers, no leader")
+    location_id: UUID
     stimpaks: int = Field(default=0, ge=0, le=25, description="Number of Stimpaks to bring")
     radaways: int = Field(default=0, ge=0, le=25, description="Number of Radaways to bring")
 
@@ -187,7 +188,7 @@ class ExpeditionDispatchRequest(SQLModel):
 class ExplorationRecallRequest(SQLModel):
     """Schema for recalling a dweller from wasteland."""
 
-    exploration_id: UUID4
+    exploration_id: UUID
 
 
 class ExplorationCompleteResponse(SQLModel):
@@ -202,8 +203,8 @@ class ExplorationCompleteResponse(SQLModel):
 class PendingOverflowRead(SQLModel):
     """Unresolved exploration loot that should be shown on the return screen."""
 
-    exploration_id: UUID4
-    dweller_id: UUID4
+    exploration_id: UUID
+    dweller_id: UUID
     unclaimed_loot: list[dict]
 
 

@@ -6,8 +6,7 @@ They live here because a module inside ``app/services`` may not own contracts.
 """
 
 from dataclasses import dataclass, field
-
-from pydantic import UUID4
+from uuid import UUID
 
 from app.schemas.chat import ActionSuggestion
 from app.schemas.happiness import HappinessImpact
@@ -38,7 +37,7 @@ class StreamBundle:
     total_tokens: int | None = None
     provider: str | None = None
     model: str | None = None
-    prompt_id: UUID4 | None = None
+    prompt_id: UUID | None = None
     instructions_hash: str | None = None
     instructions_snapshot: str | None = None
     jev_decisions: dict[str, dict[str, float]] = field(default_factory=dict)
@@ -60,6 +59,6 @@ class VoiceMessagePayload:
     total_tokens: int | None = None
     provider: str | None = None
     model: str | None = None
-    prompt_id: UUID4 | None = None
+    prompt_id: UUID | None = None
     instructions_hash: str | None = None
     instructions_snapshot: str | None = None

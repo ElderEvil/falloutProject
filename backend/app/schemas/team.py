@@ -6,17 +6,17 @@ back to the API layer.
 """
 
 from datetime import datetime
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel import SQLModel
 
 
 class TeamMemberRead(SQLModel):
     """A team member as returned by team services."""
 
-    id: UUID4
-    team_id: UUID4
-    dweller_id: UUID4
+    id: UUID
+    team_id: UUID
+    dweller_id: UUID
     slot_number: int | None = None
     status: str
     created_at: datetime | None = None

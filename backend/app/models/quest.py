@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import QuestType
@@ -32,11 +32,11 @@ class QuestBase(SQLModel):
 
 
 class Quest(BaseUUIDModel, QuestBase, TimeStampMixin, table=True):
-    previous_quest_id: UUID4 | None = Field(
+    previous_quest_id: UUID | None = Field(
         default=None,
         sa_column=sa.Column(sa.UUID, sa.ForeignKey("quest.id", ondelete="SET NULL"), nullable=True),
     )
-    next_quest_id: UUID4 | None = Field(
+    next_quest_id: UUID | None = Field(
         default=None,
         sa_column=sa.Column(sa.UUID, sa.ForeignKey("quest.id", ondelete="SET NULL"), nullable=True),
     )

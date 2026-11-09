@@ -1,7 +1,7 @@
 from datetime import datetime
+from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import UUID4
 from sqlmodel import Field
 
 from app.models.base import BaseUUIDModel
@@ -18,9 +18,9 @@ class AccountMerge(BaseUUIDModel, table=True):
 
     __tablename__ = "account_merge"
 
-    source_user_id: UUID4 = Field(foreign_key="user.id", unique=True, ondelete="RESTRICT")
-    target_user_id: UUID4 = Field(foreign_key="user.id", index=True, ondelete="RESTRICT")
-    actor_user_id: UUID4 = Field(foreign_key="user.id", index=True, ondelete="RESTRICT")
+    source_user_id: UUID = Field(foreign_key="user.id", unique=True, ondelete="RESTRICT")
+    target_user_id: UUID = Field(foreign_key="user.id", index=True, ondelete="RESTRICT")
+    actor_user_id: UUID = Field(foreign_key="user.id", index=True, ondelete="RESTRICT")
 
     source_username: str = Field(max_length=32)
     target_username: str = Field(max_length=32)

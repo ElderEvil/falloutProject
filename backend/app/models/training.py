@@ -2,8 +2,8 @@
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import SPECIALEnum, TrainingStatus
@@ -19,9 +19,9 @@ if TYPE_CHECKING:
 class TrainingBase(SQLModel):
     """Base model for training sessions."""
 
-    dweller_id: UUID4 = Field(foreign_key="dweller.id", index=True)
-    room_id: UUID4 | None = Field(default=None, foreign_key="room.id", index=True, ondelete="SET NULL")
-    vault_id: UUID4 = Field(foreign_key="vault.id", index=True)
+    dweller_id: UUID = Field(foreign_key="dweller.id", index=True)
+    room_id: UUID | None = Field(default=None, foreign_key="room.id", index=True, ondelete="SET NULL")
+    vault_id: UUID = Field(foreign_key="vault.id", index=True)
 
     stat_being_trained: SPECIALEnum
     current_stat_value: int = Field(ge=1, le=10)  # Snapshot at start

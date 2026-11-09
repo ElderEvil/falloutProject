@@ -1,8 +1,8 @@
 """Game state model for tracking vault game loop sessions."""
 
 from datetime import datetime
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import JSON, Boolean, Column, false
 from sqlmodel import Field, SQLModel
 
@@ -41,7 +41,7 @@ class GameState(BaseUUIDModel, GameStateBase, TimeStampMixin, table=True):
         default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]")
     )
 
-    vault_id: UUID4 = Field(foreign_key="vault.id", unique=True, index=True, ondelete="CASCADE")
+    vault_id: UUID = Field(foreign_key="vault.id", unique=True, index=True, ondelete="CASCADE")
 
     def calculate_offline_time(self) -> int:
         """Calculate seconds since last tick."""

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from typing import Annotated, Literal
+from uuid import UUID
 
-from pydantic import UUID4, Field
+from pydantic import Field
 from sqlmodel import SQLModel
 
 RoadCoordinate = Annotated[float, Field(ge=0, le=100, allow_inf_nan=False)]
@@ -14,7 +15,7 @@ class WorldRoadRead(SQLModel):
     """Backend-validated centerline in registry coordinates, including rounded bends."""
 
     id: str
-    location_id: UUID4 | None = None
+    location_id: UUID | None = None
     kind: Literal["highway", "country", "railroad"]
     points: Annotated[list[tuple[RoadCoordinate, RoadCoordinate]], Field(min_length=2)]
 

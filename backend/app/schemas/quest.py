@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Any, Literal, cast
+from uuid import UUID
 
-from pydantic import UUID4, AliasChoices, Field, model_validator
+from pydantic import AliasChoices, Field, model_validator
 from sqlmodel import SQLModel
 
 from app.models.quest import QuestBase
@@ -18,7 +19,7 @@ class QuestCreate(QuestBase):
 
 
 class QuestRequirementRead(SQLModel):
-    id: UUID4
+    id: UUID
     requirement_type: str
     requirement_data: dict[str, Any]
     is_mandatory: bool
@@ -26,7 +27,7 @@ class QuestRequirementRead(SQLModel):
 
 
 class QuestRewardRead(SQLModel):
-    id: UUID4
+    id: UUID
     reward_type: str
     reward_data: dict[str, Any]
     reward_chance: float
@@ -34,9 +35,9 @@ class QuestRewardRead(SQLModel):
 
 
 class QuestRead(QuestBase):
-    id: UUID4
-    previous_quest_id: UUID4 | None = None
-    next_quest_id: UUID4 | None = None
+    id: UUID
+    previous_quest_id: UUID | None = None
+    next_quest_id: UUID | None = None
     is_visible: bool = True
     is_locked: bool = False
     lock_reason: str | None = None
@@ -54,14 +55,14 @@ class QuestRead(QuestBase):
 class QuestCompleteResponse(SQLModel):
     """Response schema for quest completion with granted rewards."""
 
-    quest_id: UUID4
+    quest_id: UUID
     quest_title: str
     is_completed: bool = True
     granted_rewards: list[GrantedReward] = []
 
 
 class QuestReadShort(SQLModel):
-    id: UUID4
+    id: UUID
     title: str
     short_description: str
 
@@ -69,10 +70,10 @@ class QuestReadShort(SQLModel):
 class QuestPartyMemberRead(SQLModel):
     """Quest party member read schema."""
 
-    id: UUID4
-    quest_id: UUID4
-    vault_id: UUID4
-    dweller_id: UUID4
+    id: UUID
+    quest_id: UUID
+    vault_id: UUID
+    dweller_id: UUID
     slot_number: int
     status: str
     created_at: str | None = None
@@ -82,7 +83,7 @@ class QuestPartyMemberRead(SQLModel):
 class EligibleDwellerRead(SQLModel):
     """Eligible dweller for a quest."""
 
-    id: UUID4
+    id: UUID
     first_name: str
     last_name: str | None = None
     level: int
@@ -90,7 +91,7 @@ class EligibleDwellerRead(SQLModel):
 
 
 class QuestPartyAssign(SQLModel):
-    dweller_ids: list[UUID4]
+    dweller_ids: list[UUID]
 
 
 @optional()

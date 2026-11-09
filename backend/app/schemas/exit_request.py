@@ -1,14 +1,15 @@
 """Schemas for dwellers who ask to leave the vault."""
 
 from datetime import datetime
+from uuid import UUID
 
-from pydantic import UUID4, BaseModel
+from pydantic import BaseModel
 
 
 class ExitRequestRead(BaseModel):
     """A dweller waiting on the vault's answer."""
 
-    dweller_id: UUID4
+    dweller_id: UUID
     dweller_name: str
     thumbnail_url: str | None = None
     level: int
@@ -20,7 +21,7 @@ class ExitRequestRead(BaseModel):
 class ExitDecisionResponse(BaseModel):
     """Outcome of granting or refusing one exit request."""
 
-    dweller_id: UUID4
+    dweller_id: UUID
     dweller_name: str
     granted: bool
     happiness: int

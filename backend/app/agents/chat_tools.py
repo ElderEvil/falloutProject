@@ -1,8 +1,8 @@
 """Tool implementations and action-suggestion policy for the dweller chat agent."""
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import or_
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 async def get_available_rooms(
     db_session: AsyncSession,
-    vault_id: UUID4,
+    vault_id: UUID,
     category: RoomTypeEnum | None = None,
 ) -> list[RoomInfo]:
     query = select(Room).where(Room.vault_id == vault_id)
@@ -107,8 +107,10 @@ async def build_dweller_activity_briefing(deps: DwellerChatDeps) -> DwellerActiv
         )
         rooms = rooms_result.scalars().all()
         active_trainings = await training_crud.training.get_active_by_vault(deps.db_session, deps.vault_id)
-        active_by_room: dict[UUID4, int] = {}
+        active_by_room: dict[UUID, int] = {}
         for training in active_trainings:
+            if training.room_id is None:
+                continue
             active_by_room[training.room_id] = active_by_room.get(training.room_id, 0) + 1
 
         for room in rooms:
@@ -179,7 +181,7 @@ async def build_dweller_social_context(deps: DwellerChatDeps) -> dict:
     )
     relatives = {relative.id: relative for relative in relatives_result.scalars().all()}
 
-    def name(member_id: UUID4) -> str:
+    def name(member_id: UUID) -> str:
         member = relatives.get(member_id)
         return f"{member.first_name} {member.last_name or ''}".strip() if member else "Unknown dweller"
 
@@ -231,7 +233,7 @@ async def load_family_members(db_session: AsyncSession, dweller: DwellerReadFull
     result = await db_session.execute(select(Dweller).where(or_(*conditions)))
     relatives = {relative.id: relative for relative in result.scalars().all()}
 
-    def name(member_id: UUID4) -> str:
+    def name(member_id: UUID) -> str:
         member = relatives.get(member_id)
         return f"{member.first_name} {member.last_name or ''}".strip() if member else ""
 

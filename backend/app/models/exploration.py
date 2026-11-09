@@ -2,9 +2,9 @@
 
 import math
 from datetime import datetime, timedelta
+from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import UUID4
 from sqlalchemy import orm
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
@@ -87,12 +87,12 @@ class ExplorationBase(SQLModel):
 class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
     """Exploration model with relationships."""
 
-    vault_id: UUID4 = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
-    dweller_id: UUID4 = Field(foreign_key="dweller.id", index=True, ondelete="CASCADE")
+    vault_id: UUID = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
+    dweller_id: UUID = Field(foreign_key="dweller.id", index=True, ondelete="CASCADE")
     # Targeted dispatch (issue 772): set only on a run sent to clear a known map
     # point; null keeps today's free-roam behaviour. SET NULL so retiring a
     # location never deletes the run's history.
-    target_location_id: UUID4 | None = Field(
+    target_location_id: UUID | None = Field(
         default=None, foreign_key="worldlocation.id", nullable=True, ondelete="SET NULL"
     )
     # Escalation tier this run faced, snapshotted for deterministic rewards/display.
@@ -100,7 +100,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
     # Party dispatch (issue 772): set when this run was sent as a team; null
     # keeps today's solo free-roam behaviour. SET NULL so deleting the team at
     # finalize never orphans the run's history.
-    team_id: UUID4 | None = Field(default=None, foreign_key="team.id", nullable=True, ondelete="SET NULL", index=True)
+    team_id: UUID | None = Field(default=None, foreign_key="team.id", nullable=True, ondelete="SET NULL", index=True)
 
     def is_active(self) -> bool:
         """Check if exploration is still active."""
@@ -238,7 +238,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         description: str,
         loot: dict | None = None,
         location_name: str | None = None,
-        location_id: UUID4 | None = None,
+        location_id: UUID | None = None,
         coord_x: float | None = None,
         coord_y: float | None = None,
         health_loss: int | None = None,
@@ -336,8 +336,8 @@ class ExpeditionRun(BaseUUIDModel, TimeStampMixin, table=True):
         ),
     )
 
-    exploration_id: UUID4 = Field(foreign_key="exploration.id", index=True, ondelete="CASCADE")
-    vault_id: UUID4 = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
+    exploration_id: UUID = Field(foreign_key="exploration.id", index=True, ondelete="CASCADE")
+    vault_id: UUID = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
     site_id: str = Field(max_length=64, index=True)
     room_cursor: int = Field(default=0, ge=0)
     status: ExpeditionRunStatus = Field(default=ExpeditionRunStatus.IN_ROOM, index=True)

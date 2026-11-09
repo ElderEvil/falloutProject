@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Annotated, Literal
+from uuid import UUID
 
-from pydantic import UUID4, BaseModel, Field, computed_field, model_validator
+from pydantic import BaseModel, Field, computed_field, model_validator
 from sqlmodel import SQLModel
 from sqlmodel.main import SQLModelConfig
 
@@ -73,7 +74,7 @@ class DwellerCreateWithoutVaultID(DwellerBase):
 
 
 class DwellerCreate(DwellerCreateWithoutVaultID):
-    vault_id: UUID4
+    vault_id: UUID
 
 
 class DwellerVisualAttributes(BaseModel):
@@ -271,7 +272,7 @@ class BioAddendumRequest(SQLModel):
 
 
 class DwellerReadLess(SQLModel):
-    id: UUID4
+    id: UUID
     first_name: str
     last_name: str | None
     thumbnail_url: str | None
@@ -280,7 +281,7 @@ class DwellerReadLess(SQLModel):
     max_health: int
     radiation: int
     happiness: int
-    room_id: UUID4 | None = None
+    room_id: UUID | None = None
     status: DwellerStatusEnum
     age_group: AgeGroupEnum
     gender: GenderEnum
@@ -303,9 +304,9 @@ class DwellerReadLess(SQLModel):
     weapon_type: WeaponTypeEnum | None = None
     combat_power: float | None = None
     pet: PetRead | None = Field(default=None, validation_alias="pet_loaded")
-    partner_id: UUID4 | None = None
-    parent_1_id: UUID4 | None = None
-    parent_2_id: UUID4 | None = None
+    partner_id: UUID | None = None
+    parent_1_id: UUID | None = None
+    parent_2_id: UUID | None = None
 
     model_config = SQLModelConfig(from_attributes=True)
 
@@ -344,7 +345,7 @@ class IdentityModifiersRead(BaseModel):
 
 
 class DwellerRead(DwellerBase):
-    id: UUID4
+    id: UUID
     created_at: datetime
     updated_at: datetime
     visual_attributes: dict | None = Field(default=None)
@@ -371,17 +372,17 @@ class DwellerRead(DwellerBase):
 
 
 class DwellerReadWithVaultID(DwellerRead):
-    vault_id: UUID4
+    vault_id: UUID
 
 
 class DwellerReadWithRoomID(DwellerRead):
-    room_id: UUID4
+    room_id: UUID
 
     model_config = SQLModelConfig(from_attributes=True)
 
 
 class DwellerReadFull(DwellerRead):
-    vault_id: UUID4
+    vault_id: UUID
     vault: VaultRead
     room: RoomRead | None
     weapon: WeaponRead | None
@@ -398,7 +399,7 @@ class DwellerReadFull(DwellerRead):
 
 @optional()
 class DwellerUpdate(DwellerBase):
-    room_id: UUID4 | None = None
+    room_id: UUID | None = None
     visual_attributes: DwellerVisualAttributesInput | None = Field(default=None)
     # Canonical state is written by system transitions (death, expiry, revival); it is
     # deliberately absent from DwellerUpdateRequest so players cannot set it.
@@ -436,7 +437,7 @@ class DwellerUpdateRequest(SQLModel):
 class DwellerDeadRead(SQLModel):
     """Schema for dead dweller list items."""
 
-    id: UUID4
+    id: UUID
     first_name: str
     last_name: str | None
     level: int
@@ -461,7 +462,7 @@ class DwellerReviveResponse(SQLModel):
 class RevivalCostResponse(SQLModel):
     """Response schema for revival cost check."""
 
-    dweller_id: UUID4
+    dweller_id: UUID
     dweller_name: str
     level: int
     revival_cost: int
@@ -473,7 +474,7 @@ class RevivalCostResponse(SQLModel):
 class LineageMember(SQLModel):
     """A single dweller in a lineage response."""
 
-    id: UUID4
+    id: UUID
     first_name: str
     last_name: str | None
     generation: int
@@ -487,7 +488,7 @@ class LineageMember(SQLModel):
 class LineageResponse(SQLModel):
     """Response schema for a dweller's computed family lineage."""
 
-    dweller_id: UUID4
+    dweller_id: UUID
     generation: int
     parents: list[LineageMember]
     children: list[LineageMember]

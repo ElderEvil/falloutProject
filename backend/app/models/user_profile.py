@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import UUID4
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -35,7 +35,7 @@ class UserProfileBase(SQLModel):
 
 
 class UserProfile(BaseUUIDModel, UserProfileBase, TimeStampMixin, table=True):
-    user_id: UUID4 = Field(foreign_key="user.id", unique=True, index=True, ondelete="CASCADE")
+    user_id: UUID = Field(foreign_key="user.id", unique=True, index=True, ondelete="CASCADE")
     user: "User" = Relationship(back_populates="profile")
 
     def __str__(self):

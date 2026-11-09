@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel import Field, Relationship
 
 from app.core.enums import JunkTypeEnum
@@ -17,7 +17,7 @@ class JunkBase(ItemBase):
 
 
 class Junk(BaseUUIDModel, JunkBase, TimeStampMixin, table=True):
-    storage_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="storage.id")
+    storage_id: UUID | None = Field(default=None, nullable=True, foreign_key="storage.id")
     storage: "Storage" = Relationship(back_populates="junk_items")
 
     def __str__(self):

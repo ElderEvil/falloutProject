@@ -1,6 +1,8 @@
 """Barbershop appearance-change schemas."""
 
-from pydantic import UUID4, Field
+from uuid import UUID
+
+from pydantic import Field
 from sqlmodel import SQLModel
 from sqlmodel.main import SQLModelConfig
 
@@ -10,7 +12,7 @@ from app.schemas.dweller import DwellerReadFull
 class BarbershopStatus(SQLModel):
     """Availability, fee, and preset swatches for a vault's Barbershop."""
 
-    room_id: UUID4 | None = None
+    room_id: UUID | None = None
     built: bool
     staffed: bool
     fee: int

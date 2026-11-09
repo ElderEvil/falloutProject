@@ -1,8 +1,9 @@
 """Training schemas for API requests and responses."""
 
 from datetime import datetime
+from uuid import UUID
 
-from pydantic import UUID4, BaseModel, Field, field_serializer
+from pydantic import BaseModel, Field, field_serializer
 
 from app.models.training import TrainingBase
 from app.utils.serialize import serialize_optional_utc_datetime, serialize_utc_datetime
@@ -19,7 +20,7 @@ class TrainingUpdate(TrainingBase):
 class TrainingRead(TrainingBase):
     """Schema for reading a training session."""
 
-    id: UUID4
+    id: UUID
     created_at: datetime
     updated_at: datetime
 
@@ -44,14 +45,14 @@ class TrainingRead(TrainingBase):
 class TrainingStartRequest(TrainingBase):
     """Request to start training a dweller."""
 
-    dweller_id: UUID4
-    room_id: UUID4
+    dweller_id: UUID
+    room_id: UUID  # ty: ignore[invalid-mutable-override]  # request requires a room; stored column is nullable
 
 
 class TrainingProgress(TrainingBase):
     """Detailed training progress information."""
 
-    id: UUID4
+    id: UUID
     progress_percentage: float
     time_remaining_seconds: int
     is_ready_to_complete: bool

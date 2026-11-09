@@ -1,7 +1,8 @@
 from typing import TYPE_CHECKING, ClassVar
+from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import UUID4, model_validator
+from pydantic import model_validator
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import ItemTypeEnum, RarityEnum
@@ -57,7 +58,7 @@ class Item(BaseUUIDModel, ItemBase, table=True):
         default=ItemTypeEnum.MISC,
         sa_column=sa.Column(sa.String(length=32), nullable=False),
     )
-    storage_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="storage.id")
+    storage_id: UUID | None = Field(default=None, nullable=True, foreign_key="storage.id")
     storage: "Storage" = Relationship(back_populates="items")
 
     def __str__(self):

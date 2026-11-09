@@ -10,9 +10,9 @@ teams are one per ``(vault_id, exploration_id)`` (``uq_team_vault_exploration``)
 """
 
 from typing import TYPE_CHECKING, Optional
+from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import UUID4
 from sqlmodel import Field, Relationship
 
 from app.core.enums import HazardTeam
@@ -41,20 +41,20 @@ class Team(BaseUUIDModel, TimeStampMixin, table=True):
 
     __tablename__ = "team"
 
-    vault_id: UUID4 = Field(
+    vault_id: UUID = Field(
         foreign_key="vault.id",
         index=True,
         ondelete="CASCADE",
         description="Vault the team belongs to",
     )
-    quest_id: UUID4 | None = Field(
+    quest_id: UUID | None = Field(
         default=None,
         foreign_key="quest.id",
         index=True,
         ondelete="CASCADE",
         description="Quest this team is assigned to, when quest-purposed",
     )
-    incident_id: UUID4 | None = Field(
+    incident_id: UUID | None = Field(
         default=None,
         foreign_key="incident.id",
         index=True,
@@ -78,7 +78,7 @@ class Team(BaseUUIDModel, TimeStampMixin, table=True):
     # on SQLite (the test suite's schema builder). Integrity is app-enforced —
     # the team is created with the exploration in one transaction and deleted at
     # finalize — plus the uq_team_vault_exploration unique constraint.
-    exploration_id: UUID4 | None = Field(
+    exploration_id: UUID | None = Field(
         default=None,
         index=True,
         description="Exploration this team is dispatched on, when exploration-purposed",
@@ -138,13 +138,13 @@ class TeamMember(BaseUUIDModel, TimeStampMixin, table=True):
 
     __tablename__ = "team_member"
 
-    team_id: UUID4 = Field(
+    team_id: UUID = Field(
         foreign_key="team.id",
         index=True,
         ondelete="CASCADE",
         description="Team this member belongs to",
     )
-    dweller_id: UUID4 = Field(
+    dweller_id: UUID = Field(
         foreign_key="dweller.id",
         index=True,
         ondelete="CASCADE",
@@ -159,7 +159,7 @@ class TeamMember(BaseUUIDModel, TimeStampMixin, table=True):
     # being moved into the incident room, for both manual and automatic dispatch.
     # NULL for previously unassigned responders and non-incident rosters; deletion clears it
     # (SET NULL), which correctly means "no posting to restore".
-    origin_room_id: UUID4 | None = Field(
+    origin_room_id: UUID | None = Field(
         default=None,
         foreign_key="room.id",
         nullable=True,

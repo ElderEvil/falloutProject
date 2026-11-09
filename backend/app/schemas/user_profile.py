@@ -1,6 +1,7 @@
 from datetime import datetime
+from uuid import UUID
 
-from pydantic import UUID4, field_validator
+from pydantic import field_validator
 from sqlmodel import SQLModel
 
 from app.core.profile_preferences import validate_profile_preferences
@@ -9,8 +10,8 @@ from app.utils.partial import optional
 
 
 class ProfileRead(UserProfileBase):
-    id: UUID4
-    user_id: UUID4
+    id: UUID
+    user_id: UUID
     created_at: datetime
     updated_at: datetime
 

@@ -1,6 +1,5 @@
 from datetime import datetime
-
-from pydantic import UUID4
+from uuid import UUID
 
 from app.models.llm_interaction import LLMInteractionBase
 
@@ -10,6 +9,6 @@ class LLMInteractionCreate(LLMInteractionBase):
 
 
 class LLMInteractionRead(LLMInteractionBase):
-    id: UUID4
+    id: UUID
     created_at: datetime
     updated_at: datetime

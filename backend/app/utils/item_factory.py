@@ -18,8 +18,7 @@ raw catalog string.
 
 from dataclasses import asdict
 from typing import Any
-
-from pydantic import UUID4
+from uuid import UUID
 
 from app.core.enums import (
     GenderEnum,
@@ -41,7 +40,7 @@ from app.utils.pet_assets import get_pet_image_url
 from app.utils.weapon_assets import get_weapon_image_url
 
 
-def build_weapon(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUID4 | None = None) -> Weapon:
+def build_weapon(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUID | None = None) -> Weapon:
     """Build a Weapon from a catalog dict, tolerating omitted stat fields."""
     name = str(data["name"])
     return Weapon(
@@ -77,7 +76,7 @@ def apply_weapon_catalog(weapon: Weapon, entry: LadderEntry | dict[str, Any]) ->
         setattr(weapon, field, getattr(replacement, field))
 
 
-def build_outfit(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUID4 | None = None) -> Outfit:
+def build_outfit(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUID | None = None) -> Outfit:
     """Build an Outfit from a catalog dict; SPECIAL bonuses map to their columns."""
     name = str(data["name"])
     gender = data.get("gender")
@@ -105,7 +104,7 @@ def build_outfit(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUI
 def build_junk(
     name: str,
     rarity: RarityEnum | str,
-    storage_id: UUID4 | None = None,
+    storage_id: UUID | None = None,
     *,
     value: int | None,
     description: str,
@@ -124,7 +123,7 @@ def build_junk(
     )
 
 
-def build_pet(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUID4 | None = None) -> Pet:
+def build_pet(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUID | None = None) -> Pet:
     """Build a Pet from reward data; art resolves from the pet name.
 
     Pets persist identity and ownership only — no effect columns — so the only
@@ -145,7 +144,7 @@ def build_item(
     name: str,
     item_type: str,
     rarity: RarityEnum | str,
-    storage_id: UUID4 | None = None,
+    storage_id: UUID | None = None,
     *,
     value: int | None = None,
     image_url: str | None = None,
@@ -171,7 +170,7 @@ def build_catalog_item(
     item_type: str,
     name: str,
     rarity: RarityEnum | str,
-    storage_id: UUID4 | None = None,
+    storage_id: UUID | None = None,
     *,
     weapons_data: list[dict],
     outfits_data: list[dict],

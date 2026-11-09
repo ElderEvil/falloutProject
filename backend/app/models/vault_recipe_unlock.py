@@ -1,6 +1,6 @@
 from datetime import datetime
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel import Field, SQLModel
 
 
@@ -14,7 +14,7 @@ class VaultRecipeUnlock(SQLModel, table=True):
 
     __tablename__ = "vault_recipe_unlock"
 
-    vault_id: UUID4 = Field(foreign_key="vault.id", primary_key=True, ondelete="CASCADE")
+    vault_id: UUID = Field(foreign_key="vault.id", primary_key=True, ondelete="CASCADE")
     item_type: str = Field(primary_key=True, max_length=16)
     recipe_name: str = Field(primary_key=True, max_length=128)
     progress: int = Field(default=0, ge=0)

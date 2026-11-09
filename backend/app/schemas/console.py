@@ -1,8 +1,9 @@
 """Typed contracts for the superuser console and its allowlisted commands."""
 
 from typing import Any
+from uuid import UUID
 
-from pydantic import UUID4, BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ConsoleArgs(BaseModel):
@@ -14,11 +15,11 @@ class HelpArgs(ConsoleArgs):
 
 
 class VaultArgs(ConsoleArgs):
-    vault_id: UUID4
+    vault_id: UUID
 
 
 class ExpeditionSetupArgs(VaultArgs):
-    dweller_id: UUID4
+    dweller_id: UUID
     site_id: str = Field(min_length=1, max_length=64)
     duration_hours: int = Field(default=8, ge=1, le=24)
 

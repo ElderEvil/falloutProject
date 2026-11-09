@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel import Field, SQLModel
 from sqlmodel._compat import SQLModelConfig
 
@@ -16,7 +16,7 @@ class RoomCreateWithoutVaultID(RoomBase):
 
 
 class RoomCreate(RoomCreateWithoutVaultID):
-    vault_id: UUID4
+    vault_id: UUID
 
 
 class RoomBuild(SQLModel):
@@ -24,7 +24,7 @@ class RoomBuild(SQLModel):
 
     model_config = SQLModelConfig(extra="forbid")
 
-    vault_id: UUID4
+    vault_id: UUID
     room_name: str = Field(min_length=3, max_length=32)
     coordinate_x: int = Field(ge=GRID_X_MIN, le=GRID_BUILD_X_MAX)
     coordinate_y: int = Field(ge=GRID_Y_MIN, le=GRID_BUILD_Y_MAX)
@@ -48,7 +48,7 @@ class RoomStyleUpdate(SQLModel):
 
 
 class RoomRead(RoomBase):
-    id: UUID4
+    id: UUID
     created_at: datetime
     updated_at: datetime
 
@@ -61,4 +61,4 @@ class RoomUpdate(RoomBase):
 class RoomMerge(SQLModel):
     model_config = SQLModelConfig(extra="forbid")
 
-    other_room_id: UUID4
+    other_room_id: UUID

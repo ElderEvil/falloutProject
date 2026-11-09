@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Self
+from uuid import UUID
 
-from pydantic import UUID4, BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 from sqlmodel import SQLModel
 
 from app.core.enums import VaultModeEnum
@@ -10,11 +11,11 @@ from app.utils.partial import optional
 
 
 class VaultCreate(VaultBase):
-    vault_mode: VaultModeEnum = VaultModeEnum.STANDARD
+    vault_mode: VaultModeEnum = VaultModeEnum.STANDARD  # ty: ignore[invalid-mutable-override]  # API narrows stored str
 
 
 class VaultCreateWithUserID(VaultBase):
-    user_id: UUID4
+    user_id: UUID
 
 
 class VaultNumber(SQLModel):
@@ -73,7 +74,7 @@ class ResourceTickEvents(SQLModel):
 
 
 class VaultRead(VaultBase):
-    id: UUID4
+    id: UUID
     created_at: datetime
     updated_at: datetime
     resource_warnings: list[ResourceLevelWarning] = Field(default_factory=list)
@@ -103,7 +104,7 @@ class AutoAssignResponse(BaseModel):
 class MedicalTransferRequest(BaseModel):
     """Request schema for medical supply transfer."""
 
-    dweller_id: UUID4
+    dweller_id: UUID
     stimpaks: int = Field(default=0, ge=0, le=15)
     radaways: int = Field(default=0, ge=0, le=15)
 
@@ -134,7 +135,7 @@ class MedicalDistributionResponse(BaseModel):
 
 
 class VaultReadWithUser(VaultRead):
-    user_id: UUID4
+    user_id: UUID
 
 
 class VaultReadWithNumbers(VaultRead):

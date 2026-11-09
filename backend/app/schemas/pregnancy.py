@@ -1,9 +1,10 @@
 """Pydantic schemas for pregnancy management."""
 
 from datetime import datetime
+from uuid import UUID
 
-from pydantic import UUID4, ConfigDict
 from sqlmodel import SQLModel
+from sqlmodel.main import SQLModelConfig
 
 from app.core.enums import PregnancyStatusEnum
 from app.models.pregnancy import PregnancyBase
@@ -12,8 +13,8 @@ from app.models.pregnancy import PregnancyBase
 class PregnancyCreate(SQLModel):
     """Schema for creating a new pregnancy."""
 
-    mother_id: UUID4
-    father_id: UUID4
+    mother_id: UUID
+    father_id: UUID
 
 
 class PregnancyUpdate(SQLModel):
@@ -26,20 +27,20 @@ class PregnancyUpdate(SQLModel):
 class PregnancyRead(PregnancyBase):
     """Schema for reading a pregnancy."""
 
-    id: UUID4
+    id: UUID
     progress_percentage: float
     time_remaining_seconds: int
     is_due: bool
 
-    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+    model_config = SQLModelConfig(from_attributes=True, use_enum_values=True)
 
 
 class PregnancyProgress(SQLModel):
     """Pregnancy progress information."""
 
-    id: UUID4
-    mother_id: UUID4
-    father_id: UUID4
+    id: UUID
+    mother_id: UUID
+    father_id: UUID
     status: PregnancyStatusEnum
     conceived_at: datetime
     due_at: datetime
@@ -47,13 +48,13 @@ class PregnancyProgress(SQLModel):
     time_remaining_seconds: int
     is_due: bool
 
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = SQLModelConfig(use_enum_values=True)
 
 
 class DeliveredChild(SQLModel):
     """A newborn born during delivery."""
 
-    id: UUID4
+    id: UUID
     first_name: str
     last_name: str | None
 
@@ -61,6 +62,6 @@ class DeliveredChild(SQLModel):
 class DeliveryResult(SQLModel):
     """Result of a pregnancy delivery."""
 
-    pregnancy_id: UUID4
+    pregnancy_id: UUID
     children: list[DeliveredChild]
     message: str

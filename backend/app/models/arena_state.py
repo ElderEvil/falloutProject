@@ -6,9 +6,9 @@ arena-only fields. One row per arena room that has been configured for a match;
 """
 
 from datetime import datetime
+from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import UUID4
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field
 
@@ -19,13 +19,13 @@ from app.models.base import TimeStampMixin
 class ArenaState(TimeStampMixin, table=True):
     __tablename__ = "arena_state"
 
-    room_id: UUID4 = Field(foreign_key="room.id", primary_key=True, ondelete="CASCADE")
+    room_id: UUID = Field(foreign_key="room.id", primary_key=True, ondelete="CASCADE")
     mode: ArenaMode | None = Field(default=None)
     next_attack_team: str = Field(default="A", sa_column=sa.Column(sa.String(1), nullable=False, server_default="A"))
-    fighter_a_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
-    fighter_b_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
-    fighter_c_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
-    fighter_d_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
+    fighter_a_id: UUID | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
+    fighter_b_id: UUID | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
+    fighter_c_id: UUID | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
+    fighter_d_id: UUID | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
     opponents: list[dict] | None = Field(default=None, sa_column=sa.Column(JSONB))
     support_bots: dict[str, dict] | None = Field(default=None, sa_column=sa.Column(JSONB))
     # Fractional charge accumulates between ticks (seconds * perception-scaled

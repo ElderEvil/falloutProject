@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import RoomTypeEnum, SPECIALEnum
@@ -58,7 +58,7 @@ class Room(BaseUUIDModel, RoomBase, TimeStampMixin, table=True):
     # 0 means "never rushed"; existing rows need no backfill.
     rush_stacks: int = Field(default=0, ge=0, le=6)
     last_rush_at: datetime | None = Field(default=None)
-    vault_id: UUID4 = Field(default=None, foreign_key="vault.id", index=True)
+    vault_id: UUID = Field(default=None, foreign_key="vault.id", index=True)
     vault: "Vault" = Relationship(back_populates="rooms")
 
     dwellers: list["Dweller"] = Relationship(

@@ -10,12 +10,11 @@ from collections import defaultdict
 from collections.abc import Callable, Coroutine
 from enum import StrEnum
 from typing import Any
-
-from pydantic import UUID4
+from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
-EventHandler = Callable[[str, UUID4, dict[str, Any]], Coroutine[Any, Any, None]]
+EventHandler = Callable[[str, UUID, dict[str, Any]], Coroutine[Any, Any, None]]
 
 
 def _handler_name(handler: EventHandler) -> str:
@@ -58,14 +57,14 @@ class EventBus:
 
     def __init__(self) -> None:
         self._handlers: dict[GameEvent, list[EventHandler]] = defaultdict(list)
-        self._emit_locks: dict[tuple[GameEvent, UUID4, int], asyncio.Lock] = {}
+        self._emit_locks: dict[tuple[GameEvent, UUID, int], asyncio.Lock] = {}
 
     def subscribe(self, event_type: GameEvent, handler: EventHandler) -> None:
         if handler not in self._handlers[event_type]:
             self._handlers[event_type].append(handler)
             logger.debug(f"Handler '{_handler_name(handler)}' subscribed to {event_type}")
 
-    async def emit(self, event_type: GameEvent, vault_id: UUID4, data: dict[str, Any]) -> None:
+    async def emit(self, event_type: GameEvent, vault_id: UUID, data: dict[str, Any]) -> None:
         """Deliver one vault's event without overlapping the same event delivery.
 
         Game-loop jobs for a vault can overlap. Serializing matching event
@@ -112,7 +111,7 @@ class EventBus:
                 self._emit_locks.pop(key, None)
 
     @staticmethod
-    async def _safe_call(handler: EventHandler, event_type: GameEvent, vault_id: UUID4, data: dict[str, Any]) -> None:
+    async def _safe_call(handler: EventHandler, event_type: GameEvent, vault_id: UUID, data: dict[str, Any]) -> None:
         await handler(event_type, vault_id, data)
 
 

@@ -9,9 +9,9 @@ layer is rewired onto these in phase 2.
 from __future__ import annotations
 
 from datetime import datetime
+from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import UUID4
 from sqlmodel import Field, SQLModel
 
 from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, PlaceKindEnum
@@ -78,9 +78,9 @@ class VaultLocationState(BaseUUIDModel, VaultLocationStateBase, TimeStampMixin, 
 
     __tablename__ = "vaultlocationstate"
 
-    vault_id: UUID4 = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
-    location_id: UUID4 = Field(foreign_key="worldlocation.id", index=True, ondelete="CASCADE")
-    exploration_id: UUID4 | None = Field(default=None, foreign_key="exploration.id", nullable=True, ondelete="SET NULL")
+    vault_id: UUID = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
+    location_id: UUID = Field(foreign_key="worldlocation.id", index=True, ondelete="CASCADE")
+    exploration_id: UUID | None = Field(default=None, foreign_key="exploration.id", nullable=True, ondelete="SET NULL")
 
     # Map-point clear state (issue 772). NULL / 0 is the "never cleared" state;
     # reclear_available_at is cleared_at + the place group's reclear_hours.
@@ -121,8 +121,8 @@ class DwellerLocation(BaseUUIDModel, DwellerLocationBase, TimeStampMixin, table=
 
     __tablename__ = "dwellerlocation"
 
-    dweller_id: UUID4 = Field(foreign_key="dweller.id", index=True, ondelete="CASCADE")
-    location_id: UUID4 = Field(foreign_key="worldlocation.id", index=True, ondelete="CASCADE")
+    dweller_id: UUID = Field(foreign_key="dweller.id", index=True, ondelete="CASCADE")
+    location_id: UUID = Field(foreign_key="worldlocation.id", index=True, ondelete="CASCADE")
 
     __table_args__ = (
         sa.UniqueConstraint("dweller_id", "location_id", "relation", name="uq_dweller_location_relation"),

@@ -1,6 +1,7 @@
 from datetime import datetime
+from uuid import UUID
 
-from pydantic import UUID4, computed_field
+from pydantic import computed_field
 
 from app.models.item import ItemBase
 from app.options.pet_modifiers import PetEffect, pet_description_for_name, pet_effect_for_name
@@ -9,7 +10,7 @@ from app.utils.partial import optional
 
 class PetCreate(ItemBase):
     # Optional fields - can be omitted, but if provided must be valid UUID
-    storage_id: UUID4 | None = None
+    storage_id: UUID | None = None
 
 
 class PetEffectRead(PetEffect):
@@ -22,11 +23,11 @@ class PetEffectRead(PetEffect):
 
 
 class PetRead(ItemBase):
-    id: UUID4
+    id: UUID
     created_at: datetime
     updated_at: datetime
-    dweller_id: UUID4 | None = None
-    storage_id: UUID4 | None = None
+    dweller_id: UUID | None = None
+    storage_id: UUID | None = None
 
     @computed_field
     @property
@@ -43,5 +44,5 @@ class PetRead(ItemBase):
 
 @optional()
 class PetUpdate(ItemBase):
-    dweller_id: UUID4 | None = None
-    storage_id: UUID4 | None = None
+    dweller_id: UUID | None = None
+    storage_id: UUID | None = None

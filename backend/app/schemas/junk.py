@@ -1,6 +1,5 @@
 from datetime import datetime
-
-from pydantic import UUID4
+from uuid import UUID
 
 from app.models.junk import JunkBase
 from app.schemas.item import ItemUpdate
@@ -8,16 +7,16 @@ from app.utils.partial import optional
 
 
 class JunkCreate(JunkBase):
-    storage_id: UUID4 | None = None
+    storage_id: UUID | None = None
 
 
 class JunkRead(JunkBase):
-    id: UUID4
+    id: UUID
     created_at: datetime
     updated_at: datetime
-    storage_id: UUID4 | None = None
+    storage_id: UUID | None = None
 
 
 @optional()
 class JunkUpdate(ItemUpdate, JunkBase):
-    storage_id: UUID4 | None = None
+    storage_id: UUID | None = None

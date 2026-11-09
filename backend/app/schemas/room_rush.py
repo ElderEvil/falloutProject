@@ -1,8 +1,9 @@
 """Room Rush quote and result contracts."""
 
 from typing import Literal
+from uuid import UUID
 
-from pydantic import UUID4, BaseModel
+from pydantic import BaseModel
 
 RushBlockedReason = Literal["not_production", "no_workers", "active_incident", "no_power", "room_busy"]
 
@@ -47,7 +48,7 @@ class RoomRushResult(BaseModel):
     caps: int
     xp_per_worker: int
     happiness_delta: int
-    incident_id: UUID4 | None
+    incident_id: UUID | None
     incident_type: str | None
     stacks_after: int
     next_fail_chance: float

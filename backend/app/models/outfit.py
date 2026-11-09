@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel import Column, Enum, Field, Relationship
 
 from app.core.enums import GenderEnum, OutfitTypeEnum
@@ -38,10 +38,10 @@ class OutfitBase(ItemBase):
 
 
 class Outfit(BaseUUIDModel, OutfitBase, TimeStampMixin, table=True):
-    dweller_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="dweller.id", index=True)
+    dweller_id: UUID | None = Field(default=None, nullable=True, foreign_key="dweller.id", index=True)
     dweller: Optional["Dweller"] = Relationship(back_populates="outfit")
-    storage_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="storage.id")
+    storage_id: UUID | None = Field(default=None, nullable=True, foreign_key="storage.id")
     storage: "Storage" = Relationship(back_populates="outfits")
-    exploration_id: UUID4 | None = Field(
+    exploration_id: UUID | None = Field(
         default=None, nullable=True, foreign_key="exploration.id", index=True, ondelete="CASCADE"
     )

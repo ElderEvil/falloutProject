@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.298.1 (2026-11-09)
+
+### Bug Fixes
+
+* **infra:** stop trusting client forwarded headers c619add
+
+### Documentation
+
+* **release:** add 3.0.0 runbook 948eca2
+
 ## 2.298.0 (2026-11-09)
 
 ### Features

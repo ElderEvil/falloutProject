@@ -24,11 +24,11 @@
     "perf:ui": "pnpm run perf:ui:check && pnpm run build && node scripts/run-ui-performance.mjs"
   },
   "dependencies": {
-    "@iconify/vue": "5.0.4",
-    "@lucide/vue": "1.61.0",
+    "@iconify/vue": "5.0.5",
+    "@lucide/vue": "1.66.0",
     "@vue/devtools-api": "^8.2.1",
     "@vueuse/core": "15.0.0",
-    "axios": "1.20.0",
+    "axios": "1.21.0",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "dompurify": "3.4.17",
@@ -45,7 +45,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tsconfig/node22": "^22.0.6",
     "@types/jsdom": "30.0.0",
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "@vitejs/plugin-vue": "^6.0.10",
     "@vitest/coverage-v8": "catalog:",
     "@vitest/ui": "catalog:",
@@ -60,7 +60,7 @@
     "typescript": "^6.0.3",
     "vite": "catalog:",
     "vite-plus": "catalog:",
-    "vue-tsc": "^3.3.13"
+    "vue-tsc": "^3.3.14"
   },
   "engines": {
     "node": ">=22",

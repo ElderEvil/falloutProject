@@ -198,31 +198,31 @@ async def test_claim_unlock_failure_rolls_back_the_claim(async_session, vault, w
 
 
 async def test_existing_vault_initializes_tracks_without_waiting_for_a_calendar_reset(async_session, vault):
-    from datetime import datetime
+    from datetime import UTC, datetime
 
     from app.crud.game_state import game_state_crud
     from app.services.progression.objectives.refresh_service import ensure_current_objectives
 
     stages = await water_stages(async_session)
     state = await game_state_crud.get_or_create(async_session, vault.id)
-    state.daily_objectives_period = datetime(2026, 10, 19)
-    state.weekly_objectives_period = datetime(2026, 10, 19)
+    state.daily_objectives_period = datetime(2026, 10, 19, tzinfo=UTC)
+    state.weekly_objectives_period = datetime(2026, 10, 19, tzinfo=UTC)
     await async_session.commit()
-    assert await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 19)) == []
+    assert await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 19, tzinfo=UTC)) == []
     assert state.achievement_tracks_initialized
     links = await objective_crud.get_links_for_vault(async_session, vault.id)
     assert [(link.objective_id, link.progress) for link in links] == [(stages[0].id, 0)]
 
 
 async def test_renewal_discovers_new_families_without_resetting_current_progress(async_session, vault):
-    from datetime import datetime
+    from datetime import UTC, datetime
 
     from app.services.progression.objectives.refresh_service import ensure_current_objectives
 
     stages = await water_stages(async_session)
     async_session.add(Objective(challenge="Daily water", category="daily", reward="10 caps", objective_type="collect"))
     await async_session.commit()
-    await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 19))
+    await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 19, tzinfo=UTC))
     current = await objective_crud.get_link_for_update(async_session, stages[0].id, vault.id)
     current.progress = 42
     added = Objective(
@@ -237,7 +237,7 @@ async def test_renewal_discovers_new_families_without_resetting_current_progress
     )
     async_session.add(added)
     await async_session.commit()
-    assert await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 20)) == ["daily"]
+    assert await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 20, tzinfo=UTC)) == ["daily"]
     links = {link.objective_id: link for link in await objective_crud.get_links_for_vault(async_session, vault.id)}
     assert links[stages[0].id].progress == 42
     assert links[added.id].progress == 0

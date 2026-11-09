@@ -23,6 +23,7 @@ from app.core.enums import (
 from app.models.base import BaseUUIDModel, SoftDeleteMixin, SPECIALModel, TimeStampMixin
 from app.options.pet_modifiers import pet_modifiers_for
 from app.utils.dweller_assets import is_default_dweller_image, resolve_dweller_image_urls
+from app.utils.types import UTCDateTime
 
 BIO_MAX_CHARS = 2_048
 
@@ -42,7 +43,7 @@ class DwellerBaseWithoutStats(SQLModel):
     first_name: str = Field(min_length=2, max_length=32)
     last_name: str | None = Field(default=None, max_length=32)
     age_group: AgeGroupEnum = Field(default=AgeGroupEnum.ADULT)
-    birth_date: datetime | None = Field(default=None)
+    birth_date: datetime | None = Field(sa_type=UTCDateTime, default=None)
     gender: GenderEnum = Field()
     rarity: RarityEnum = Field()
 
@@ -93,12 +94,12 @@ class DwellerBaseWithoutStats(SQLModel):
 
     # Exit requests: a dweller in despair asks to leave once they have been unhappy long enough;
     # the ask is resolved by granting or refusing it, or withdrawn when their mood recovers.
-    exit_requested_at: datetime | None = Field(default=None)
-    despair_since: datetime | None = Field(default=None)
+    exit_requested_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
+    despair_since: datetime | None = Field(sa_type=UTCDateTime, default=None)
 
     # Death system
     is_dead: bool = Field(default=False)
-    death_timestamp: datetime | None = Field(default=None)
+    death_timestamp: datetime | None = Field(sa_type=UTCDateTime, default=None)
     death_cause: DeathCauseEnum | None = Field(default=None)
     is_permanently_dead: bool = Field(default=False)
     epitaph: str | None = Field(default=None, max_length=255)
@@ -173,7 +174,7 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
 
     # Youth apprenticeship in a production room.
     apprentice_stat: SPECIALEnum | None = Field(default=None)
-    apprentice_started_at: datetime | None = Field(default=None)
+    apprentice_started_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     apprentice_stat_gains: dict[str, int] = Field(
         default_factory=dict,
         sa_column=sa.Column(sa.JSON, nullable=False, server_default=sa.text("'{}'")),
@@ -194,8 +195,8 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
     )
     sharing_consent: bool | None = Field(default=None)
 
-    departed_at: datetime | None = Field(default=None)
-    departure_eligible_at: datetime | None = Field(default=None)
+    departed_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
+    departure_eligible_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
 
     def restore(self):
         """Restore the dweller and clear any trade state."""

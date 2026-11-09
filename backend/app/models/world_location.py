@@ -16,6 +16,7 @@ from sqlmodel import Field, SQLModel
 
 from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, PlaceKindEnum
 from app.models.base import BaseUUIDModel, TimeStampMixin
+from app.utils.types import UTCDateTime
 
 
 class WorldLocationBase(SQLModel):
@@ -84,8 +85,8 @@ class VaultLocationState(BaseUUIDModel, VaultLocationStateBase, TimeStampMixin, 
 
     # Map-point clear state (issue 772). NULL / 0 is the "never cleared" state;
     # reclear_available_at is cleared_at + the place group's reclear_hours.
-    cleared_at: datetime | None = Field(default=None)
-    reclear_available_at: datetime | None = Field(default=None)
+    cleared_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
+    reclear_available_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     clear_count: int = Field(default=0, ge=0, description="Successful clears; drives escalation tier")
 
     __table_args__ = (sa.UniqueConstraint("vault_id", "location_id", name="uq_vault_location_state"),)

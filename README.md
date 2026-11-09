@@ -232,7 +232,7 @@ uv run ruff check . && uv run ruff format .  # Lint & format
 uv run alembic upgrade head     # Migrations
 ```
 
-**Timestamp convention:** store and compare timestamps as naive UTC via `app.utils.time.utcnow()`, with the DB connection pinned to UTC.
+**Timestamp convention:** store and compare timestamps as timezone-aware UTC via `app.utils.time.utcnow()`; PostgreSQL uses `timestamptz` and `UTCDateTime` normalizes SQLite.
 
 **AI prompt updates:** Prompt instructions are immutable versions. From `backend/`, create and activate a replacement with
 `uv run fo-cli version-prompt <name> --template-file <path>`; do not edit `Prompt` rows directly.

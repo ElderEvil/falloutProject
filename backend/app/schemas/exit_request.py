@@ -1,9 +1,10 @@
 """Schemas for dwellers who ask to leave the vault."""
 
-from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
+
+from app.utils.serialize_types import OptionalUTCDateTimeJSON
 
 
 class ExitRequestRead(BaseModel):
@@ -14,7 +15,7 @@ class ExitRequestRead(BaseModel):
     thumbnail_url: str | None = None
     level: int
     happiness: int
-    requested_at: datetime | None = None
+    requested_at: OptionalUTCDateTimeJSON = None
     refusal_happiness_penalty: int
 
 

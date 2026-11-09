@@ -16,6 +16,7 @@ from app.models.vault_slot import VaultSlot
 from app.services.exploration_service import exploration_service
 from app.services.world_snapshot_service import world_snapshot_service
 from app.utils.exceptions import ValidationException
+from app.utils.serialize import serialize_naive_utc_datetime
 from app.utils.time import utcnow
 from app.utils.vault_slots import slot_coords
 
@@ -108,7 +109,9 @@ async def test_heading_depart_persists_movement_fields(
     assert (exploration.origin_x, exploration.origin_y) == origin
     assert (exploration.pos_x, exploration.pos_y) == origin
     assert exploration.position_as_of is not None
-    assert exploration.trail == [{"x": origin[0], "y": origin[1], "t": exploration.start_time.isoformat()}]
+    assert exploration.trail == [
+        {"x": origin[0], "y": origin[1], "t": serialize_naive_utc_datetime(exploration.start_time)}
+    ]
 
 
 @pytest.mark.asyncio

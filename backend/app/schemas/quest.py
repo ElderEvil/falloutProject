@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Any, Literal, cast
 from uuid import UUID
 
@@ -11,6 +10,7 @@ from app.utils.junk_assets import get_junk_image_url
 from app.utils.outfit_assets import get_outfit_image_url
 from app.utils.partial import optional
 from app.utils.pet_assets import PET_NAME_TO_IMAGE_FILE, get_pet_image_url
+from app.utils.serialize_types import OptionalUTCDateTimeJSON
 from app.utils.weapon_assets import get_weapon_image_url
 
 
@@ -43,10 +43,10 @@ class QuestRead(QuestBase):
     lock_reason: str | None = None
     is_completed: bool = False
     is_reward_ready: bool = False
-    started_at: datetime | None = None
-    return_started_at: datetime | None = None
-    return_completes_at: datetime | None = None
-    completed_at: datetime | None = None
+    started_at: OptionalUTCDateTimeJSON = None
+    return_started_at: OptionalUTCDateTimeJSON = None
+    return_completes_at: OptionalUTCDateTimeJSON = None
+    completed_at: OptionalUTCDateTimeJSON = None
     granted_rewards: list[GrantedReward] | None = None
     quest_requirements: list[QuestRequirementRead] | None = None
     quest_rewards: list[QuestRewardRead] | None = None

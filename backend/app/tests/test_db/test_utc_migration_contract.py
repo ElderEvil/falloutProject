@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import DateTime, text
+from sqlalchemy import Column, Integer, MetaData, Table, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
@@ -24,6 +24,7 @@ from sqlmodel import SQLModel
 from app.core.config import settings
 from app.core.enums import SPECIALEnum
 from app.schemas.training import TrainingRead
+from app.utils.types import UTCDateTime
 
 INSTANTS = (
     datetime(2026, 1, 15, 12, 34, 56, 123456),
@@ -83,11 +84,13 @@ async def seed_sample(connection: AsyncConnection, instant: datetime) -> dict[st
 @pytest.mark.integration
 async def test_timestamp_inventory_matches_migrated_schema(utc_connection: AsyncConnection) -> None:
     expected = {
-        (table.name, column.name): column.type.timezone
+        (table.name, column.name): True
         for table in SQLModel.metadata.tables.values()
         for column in table.c
-        if isinstance(column.type, DateTime)
+        if isinstance(column.type, UTCDateTime)
     }
+    assert len(expected) == 122
+    assert len({table for table, _ in expected}) == 39
     rows = await utc_connection.execute(
         text(
             "SELECT table_name, column_name, data_type FROM information_schema.columns "
@@ -229,3 +232,27 @@ def test_training_wire_contract_keeps_utc_instant_and_nullable_completion(
     restored = TrainingRead.model_validate_json(schema.model_dump_json())
     assert restored.started_at == instant
     assert restored.completed_at == (instant + timedelta(hours=1) if completed else None)
+
+
+@pytest.mark.integration
+async def test_utc_datetime_type_round_trips_on_postgres(utc_connection: AsyncConnection) -> None:
+    """UTCDateTime binds explicit offsets and reads back the same UTC instant on PostgreSQL."""
+    metadata = MetaData()
+    table = Table(
+        "utc_type_round_trip",
+        metadata,
+        Column("id", Integer, primary_key=True),
+        Column("ts", UTCDateTime, nullable=False),
+        prefixes=["TEMPORARY"],
+    )
+    await utc_connection.run_sync(metadata.create_all)
+    instant = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+    offset_value = instant.astimezone(timezone(timedelta(hours=5, minutes=45)))
+    await utc_connection.execute(table.insert().values(id=1, ts=offset_value))
+
+    row = (await utc_connection.execute(table.select())).one()
+    assert row.ts == instant
+    assert row.ts.utcoffset() == timedelta(0)
+
+    result = await utc_connection.execute(table.select().where(table.c.ts <= instant + timedelta(minutes=15)))
+    assert result.one().id == 1

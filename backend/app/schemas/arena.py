@@ -1,6 +1,5 @@
 """Arena request/response schemas."""
 
-from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -8,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.core.enums import ArenaMode
 from app.schemas.combat import CombatAction, CombatPet, CombatSkillIcon
+from app.utils.serialize_types import OptionalUTCDateTimeJSON
 
 
 class ArenaFightersRequest(BaseModel):
@@ -101,7 +101,7 @@ class ArenaMatchEventOut(BaseModel):
     message: str
     actor_id: str | None = None
     action: CombatAction | None = None
-    created_at: datetime | None = None
+    created_at: OptionalUTCDateTimeJSON = None
 
 
 class ArenaRoomState(BaseModel):

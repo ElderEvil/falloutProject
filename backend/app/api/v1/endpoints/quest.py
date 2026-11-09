@@ -24,6 +24,7 @@ from app.schemas.quest import (
 from app.schemas.rewards import granted_reward_adapter
 from app.services.progression.quests.service import quest_service
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
+from app.utils.serialize import serialize_optional_utc_datetime
 
 router = APIRouter(prefix="/quests", tags=["Quest"])
 
@@ -40,8 +41,8 @@ def _to_party_member_read(member: TeamMember, quest_id: UUID, vault_id: UUID) ->
         dweller_id=member.dweller_id,
         slot_number=slot_number,
         status=member.status,
-        created_at=member.created_at.isoformat() if member.created_at else None,
-        updated_at=member.updated_at.isoformat() if member.updated_at else None,
+        created_at=serialize_optional_utc_datetime(member.created_at),
+        updated_at=serialize_optional_utc_datetime(member.updated_at),
     )
 
 

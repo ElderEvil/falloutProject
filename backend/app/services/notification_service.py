@@ -15,6 +15,7 @@ from app.crud.notification import notification as notification_crud
 from app.crud.room import room as room_crud
 from app.crud.user_profile import profile_crud
 from app.models.notification import Notification, NotificationCreate
+from app.utils.serialize import serialize_naive_utc_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,7 @@ class NotificationService:
                 "vault_id": str(notification.vault_id) if notification.vault_id else None,
                 "from_dweller_id": str(notification.from_dweller_id) if notification.from_dweller_id else None,
                 "meta_data": notification.meta_data,
-                "created_at": notification.created_at.isoformat(),
+                "created_at": serialize_naive_utc_datetime(notification.created_at),
             },
         }
 

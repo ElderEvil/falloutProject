@@ -57,6 +57,7 @@ from app.services.leveling_service import leveling_service
 from app.services.notification_service import NotificationService
 from app.utils.dweller_availability import DwellerAction, purposeful_action_error
 from app.utils.exceptions import ValidationException
+from app.utils.serialize import serialize_optional_utc_datetime
 from app.utils.time import as_utc, utcnow
 
 logger = logging.getLogger(__name__)
@@ -353,7 +354,7 @@ class ArenaService:
             "actor_id": event.actor_id,
             "action": event.action,
             "message": event.message,
-            "created_at": as_utc(event.created_at).isoformat() if event.created_at else None,
+            "created_at": serialize_optional_utc_datetime(event.created_at),
         }
 
     async def get_tick_snapshot(self, db_session: AsyncSession, vault_id: UUID) -> ArenaStats:
@@ -943,7 +944,7 @@ class ArenaService:
             return False
         now = utcnow()
         cooldown = timedelta(seconds=game_config.combat.arena_morale_cooldown_seconds)
-        if vault.arena_morale_awarded_at is not None and now - vault.arena_morale_awarded_at < cooldown:
+        if vault.arena_morale_awarded_at is not None and now - as_utc(vault.arena_morale_awarded_at) < cooldown:
             return False
         for member in await crud_dweller.get_living_in_vault(db_session, vault.id):
             member.happiness = min(100, member.happiness + bonus)

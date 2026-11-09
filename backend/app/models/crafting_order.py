@@ -11,6 +11,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from app.core.enums import CraftingOrderStatus, RarityEnum
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.utils.time import utcnow
+from app.utils.types import UTCDateTime
 
 if TYPE_CHECKING:
     from app.models.room import Room
@@ -30,10 +31,10 @@ class CraftingOrderBase(SQLModel):
     status: CraftingOrderStatus = Field(default=CraftingOrderStatus.ACTIVE, index=True)
     progress: float = Field(default=0.0, ge=0.0, le=1.0)
 
-    started_at: datetime
-    estimated_completion_at: datetime
-    completed_at: datetime | None = Field(default=None)
-    cancelled_at: datetime | None = Field(default=None)
+    started_at: datetime = Field(sa_type=UTCDateTime)
+    estimated_completion_at: datetime = Field(sa_type=UTCDateTime)
+    completed_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
+    cancelled_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
 
     # Materials the order already consumed, kept for display and auditing.
     junk_spent: int = Field(default=0, ge=0)

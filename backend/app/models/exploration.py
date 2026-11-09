@@ -13,6 +13,7 @@ from app.core.enums import ExpeditionRunStatus, ExplorationStatus
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.utils.serialize import serialize_naive_utc_datetime
 from app.utils.time import as_utc, utcnow
+from app.utils.types import UTCDateTime
 
 # The trip home takes half the time the dweller spent exploring.
 RETURN_LEG_FRACTION = 0.5
@@ -31,13 +32,13 @@ class ExplorationBase(SQLModel):
     """Base model for explorations."""
 
     duration: int = Field(ge=1, le=24, description="Duration in hours")
-    start_time: datetime = Field(default_factory=get_utc_now)
-    end_time: datetime | None = Field(default=None)
+    start_time: datetime = Field(sa_type=UTCDateTime, default_factory=get_utc_now)
+    end_time: datetime | None = Field(sa_type=UTCDateTime, default=None)
     status: ExplorationStatus = Field(default=ExplorationStatus.ACTIVE, index=True)
 
     # Return leg: set when exploring ends, cleared into the terminal outcome on arrival.
-    return_started_at: datetime | None = Field(default=None)
-    return_completes_at: datetime | None = Field(default=None)
+    return_started_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
+    return_completes_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     recalled_early: bool = Field(default=False)
 
     # Spatial movement (slice 1): nullable columns; a run with heading_degrees set
@@ -50,11 +51,15 @@ class ExplorationBase(SQLModel):
     pos_x: float | None = Field(default=None, description="Authoritative position, registry x")
     pos_y: float | None = Field(default=None, description="Authoritative position, registry y")
     trail: list[dict] = Field(default_factory=list, sa_column=sa.Column(JSONB))
-    position_as_of: datetime | None = Field(default=None, description="Last processed movement timestamp")
+    position_as_of: datetime | None = Field(
+        sa_type=UTCDateTime, default=None, description="Last processed movement timestamp"
+    )
     # Encounter pause (slice 3b): set while the dweller is inside a site run.
     # The journey clock is settled at the entry/exit boundaries, so a pause with
     # no tick in between still discounts exactly the paused interval.
-    paused_at: datetime | None = Field(default=None, description="When the encounter pause started; NULL when moving")
+    paused_at: datetime | None = Field(
+        sa_type=UTCDateTime, default=None, description="When the encounter pause started; NULL when moving"
+    )
 
     # Journey log and events
     events: list[dict] = Field(default_factory=list, sa_column=sa.Column(JSONB))
@@ -344,7 +349,7 @@ class ExpeditionRun(BaseUUIDModel, TimeStampMixin, table=True):
     flags: dict = Field(default_factory=dict, sa_column=sa.Column(JSONB))
     # Terminal timestamp: set when the run reaches any terminal state
     # (CLEARED/RETREATED/DIED) and backs the 7-day per-vault+site cooldown.
-    finished_at: datetime | None = Field(default=None)
+    finished_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
 
     def is_open(self) -> bool:
         """Return whether the run still accepts room resolutions."""

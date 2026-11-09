@@ -1,6 +1,5 @@
 """Schemas for workshop crafting — recipes, orders, and collection."""
 
-from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -8,6 +7,7 @@ from pydantic import Field
 from sqlmodel import SQLModel
 
 from app.core.enums import CraftingOrderStatus, RarityEnum
+from app.utils.serialize_types import OptionalUTCDateTimeJSON, UTCDateTimeJSON
 
 CraftableItemType = Literal["weapon", "outfit", "theme"]
 
@@ -77,8 +77,8 @@ class CraftingOrderCreate(SQLModel):
     item_name: str = Field(min_length=3, max_length=64)
     item_type: str = Field(max_length=16)
     rarity: RarityEnum
-    started_at: datetime
-    estimated_completion_at: datetime
+    started_at: UTCDateTimeJSON
+    estimated_completion_at: UTCDateTimeJSON
     junk_spent: int = Field(default=0, ge=0)
     caps_spent: int = Field(default=0, ge=0)
     required_stat: str = Field(max_length=16)
@@ -90,7 +90,7 @@ class CraftingOrderUpdate(SQLModel):
 
     status: CraftingOrderStatus | None = None
     progress: float | None = Field(default=None, ge=0.0, le=1.0)
-    completed_at: datetime | None = None
+    completed_at: OptionalUTCDateTimeJSON = None
 
 
 class CraftingOrderRead(SQLModel):
@@ -103,10 +103,10 @@ class CraftingOrderRead(SQLModel):
     rarity: RarityEnum
     status: CraftingOrderStatus
     progress: float
-    started_at: datetime
-    estimated_completion_at: datetime
-    completed_at: datetime | None = None
-    cancelled_at: datetime | None = None
+    started_at: UTCDateTimeJSON
+    estimated_completion_at: UTCDateTimeJSON
+    completed_at: OptionalUTCDateTimeJSON = None
+    cancelled_at: OptionalUTCDateTimeJSON = None
     junk_spent: int
     caps_spent: int
     required_stat: str

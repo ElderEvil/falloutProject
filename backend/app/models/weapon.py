@@ -13,6 +13,7 @@ from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.models.dweller import Dweller
 from app.models.item import ItemBase
 from app.utils.time import utcnow
+from app.utils.types import UTCDateTime
 
 if TYPE_CHECKING:
     from app.models.storage import Storage
@@ -59,7 +60,7 @@ class WeaponBase(ItemBase):
 
 class Weapon(BaseUUIDModel, WeaponBase, TimeStampMixin, table=True):
     __table_args__ = (Index("ix_weapon_storage_trial", "storage_id", "last_maintenance_trial_at"),)
-    last_maintenance_trial_at: datetime | None = Field(default=None)
+    last_maintenance_trial_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     dweller_id: UUID | None = Field(default=None, nullable=True, foreign_key="dweller.id", index=True)
     dweller: "Dweller" = Relationship(back_populates="weapon")
     storage_id: UUID | None = Field(default=None, nullable=True, foreign_key="storage.id")

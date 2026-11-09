@@ -7,6 +7,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.core.grid_config import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
 from app.models.base import BaseUUIDModel, TimeStampMixin
+from app.utils.types import UTCDateTime
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
@@ -57,7 +58,7 @@ class Room(BaseUUIDModel, RoomBase, TimeStampMixin, table=True):
     refund_caps: int | None = Field(default=None, ge=0)
     # 0 means "never rushed"; existing rows need no backfill.
     rush_stacks: int = Field(default=0, ge=0, le=6)
-    last_rush_at: datetime | None = Field(default=None)
+    last_rush_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     vault_id: UUID = Field(default=None, foreign_key="vault.id", index=True)
     vault: "Vault" = Relationship(back_populates="rooms")
 

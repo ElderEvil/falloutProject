@@ -31,6 +31,7 @@ from app.services.combat import incident_publishing, incident_round, incident_sp
 from app.services.loot_overflow_service import loot_overflow_service
 from app.utils.dweller_availability import is_incident_responder_available
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
+from app.utils.serialize import serialize_optional_utc_datetime, serialize_utc_datetime
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -97,7 +98,7 @@ class IncidentService:
                     room_id=str(incident.room_id),
                     room_name=room_names.get(incident.room_id),
                     difficulty=incident.difficulty,
-                    start_time=incident.start_time.isoformat(),
+                    start_time=serialize_utc_datetime(incident.start_time),
                     elapsed_time=incident.elapsed_time(),
                     damage_dealt=incident.damage_dealt,
                     enemies_defeated=incident.enemies_defeated,
@@ -153,8 +154,8 @@ class IncidentService:
             type=incident.type,
             status=incident.status,
             difficulty=incident.difficulty,
-            start_time=incident.start_time.isoformat(),
-            end_time=incident.end_time.isoformat() if incident.end_time else None,
+            start_time=serialize_utc_datetime(incident.start_time),
+            end_time=serialize_optional_utc_datetime(incident.end_time),
             elapsed_time=incident.elapsed_time(),
             duration=incident.duration,
             damage_dealt=incident.damage_dealt,

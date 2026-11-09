@@ -1,10 +1,10 @@
 from dataclasses import dataclass
-from datetime import datetime
 from uuid import UUID
 
 from app.core.enums import RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
 from app.models.weapon import WeaponBase
 from app.utils.partial import optional
+from app.utils.serialize_types import UTCDateTimeJSON
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,8 +28,8 @@ class WeaponCreate(WeaponBase):
 
 class WeaponRead(WeaponBase):
     id: UUID
-    created_at: datetime
-    updated_at: datetime
+    created_at: UTCDateTimeJSON
+    updated_at: UTCDateTimeJSON
     dweller_id: UUID | None = None
     storage_id: UUID | None = None
     # Read-time workshop summary; weapons carry no flavor-text column.

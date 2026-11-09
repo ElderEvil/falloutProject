@@ -8,6 +8,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from app.core.enums import PregnancyStatusEnum
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.utils.time import as_utc, utcnow
+from app.utils.types import UTCDateTime
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
@@ -16,8 +17,8 @@ if TYPE_CHECKING:
 class PregnancyBase(SQLModel):
     mother_id: UUID = Field(sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE"), index=True))
     father_id: UUID = Field(sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="CASCADE"), index=True))
-    conceived_at: datetime = Field(default_factory=utcnow)
-    due_at: datetime = Field()
+    conceived_at: datetime = Field(sa_type=UTCDateTime, default_factory=utcnow)
+    due_at: datetime = Field(sa_type=UTCDateTime)
     status: PregnancyStatusEnum = Field(default=PregnancyStatusEnum.PREGNANT)
 
 

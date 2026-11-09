@@ -10,12 +10,12 @@ from app.crud.game_state import game_state_crud
 from app.crud.objective import objective_crud
 from app.crud.vault import vault as vault_crud
 from app.services.progression.objectives.assignment import ObjectiveAssignmentService
-from app.utils.time import as_naive_utc, utcnow
+from app.utils.time import as_utc, utcnow
 
 
 def objective_periods(now: datetime) -> tuple[datetime, datetime]:
-    """Naive UTC daily midnight and Monday midnight for the supplied instant."""
-    utc = as_naive_utc(now)
+    """Aware UTC daily midnight and Monday midnight for the supplied instant."""
+    utc = as_utc(now)
     daily = utc.replace(hour=0, minute=0, second=0, microsecond=0)
     return daily, daily - timedelta(days=daily.weekday())
 

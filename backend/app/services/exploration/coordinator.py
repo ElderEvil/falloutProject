@@ -19,7 +19,7 @@ from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.rewards_service import rewards_service
 from app.services.leveling_service import leveling_service
 from app.services.notification_service import notification_service
-from app.utils.serialize import serialize_naive_utc_datetime
+from app.utils.serialize import serialize_optional_utc_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -68,12 +68,8 @@ class ExplorationCoordinator:
             exploration,
             "exploration_returning",
             recalled=recalled,
-            return_started_at=serialize_naive_utc_datetime(exploration.return_started_at)
-            if exploration.return_started_at
-            else None,
-            return_completes_at=serialize_naive_utc_datetime(exploration.return_completes_at)
-            if exploration.return_completes_at
-            else None,
+            return_started_at=serialize_optional_utc_datetime(exploration.return_started_at),
+            return_completes_at=serialize_optional_utc_datetime(exploration.return_completes_at),
         )
 
         return exploration

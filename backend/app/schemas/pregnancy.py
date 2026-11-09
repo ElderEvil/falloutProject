@@ -1,6 +1,5 @@
 """Pydantic schemas for pregnancy management."""
 
-from datetime import datetime
 from uuid import UUID
 
 from sqlmodel import SQLModel
@@ -8,6 +7,7 @@ from sqlmodel.main import SQLModelConfig
 
 from app.core.enums import PregnancyStatusEnum
 from app.models.pregnancy import PregnancyBase
+from app.utils.serialize_types import OptionalUTCDateTimeJSON, UTCDateTimeJSON
 
 
 class PregnancyCreate(SQLModel):
@@ -21,7 +21,7 @@ class PregnancyUpdate(SQLModel):
     """Schema for updating a pregnancy."""
 
     status: PregnancyStatusEnum | None = None
-    due_at: datetime | None = None
+    due_at: OptionalUTCDateTimeJSON = None
 
 
 class PregnancyRead(PregnancyBase):
@@ -42,8 +42,8 @@ class PregnancyProgress(SQLModel):
     mother_id: UUID
     father_id: UUID
     status: PregnancyStatusEnum
-    conceived_at: datetime
-    due_at: datetime
+    conceived_at: UTCDateTimeJSON
+    due_at: UTCDateTimeJSON
     progress_percentage: float
     time_remaining_seconds: int
     is_due: bool

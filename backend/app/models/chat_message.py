@@ -5,7 +5,9 @@ from uuid import UUID
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel
+from app.utils.serialize_types import UTCDateTimeJSON
 from app.utils.time import utcnow
+from app.utils.types import UTCDateTime
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
@@ -41,7 +43,7 @@ class ChatMessageBase(SQLModel):
 
 
 class ChatMessage(BaseUUIDModel, ChatMessageBase, table=True):
-    created_at: datetime = Field(default_factory=utcnow, index=True)
+    created_at: datetime = Field(sa_type=UTCDateTime, default_factory=utcnow, index=True)
 
     # Relationships
     vault: "Vault" = Relationship()
@@ -78,4 +80,4 @@ class ChatMessageCreate(ChatMessageBase):
 
 class ChatMessageRead(ChatMessageBase):
     id: UUID
-    created_at: datetime
+    created_at: UTCDateTimeJSON

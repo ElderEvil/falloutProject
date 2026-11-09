@@ -14,6 +14,7 @@ from sqlmodel import Field
 
 from app.core.enums import ArenaMode
 from app.models.base import TimeStampMixin
+from app.utils.types import UTCDateTime
 
 
 class ArenaState(TimeStampMixin, table=True):
@@ -32,6 +33,6 @@ class ArenaState(TimeStampMixin, table=True):
     # rate); readers round to int when they surface the charge to clients.
     skill_charge: dict[str, float] | None = Field(default=None, sa_column=sa.Column(JSONB))
     queued_skill_ids: list[str] | None = Field(default=None, sa_column=sa.Column(JSONB))
-    last_fight_at: datetime | None = Field(default=None)
-    fight_started_at: datetime | None = Field(default=None)
+    last_fight_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
+    fight_started_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     knocked_out_ids: list[str] | None = Field(default=None, sa_column=sa.Column(JSONB))

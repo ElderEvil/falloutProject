@@ -16,6 +16,7 @@ from app.schemas.pagination import PageLimit
 from app.schemas.system import ChangelogEntry, FeaturesResponse, InfoResponse
 from app.services.changelog_service import changelog_service
 from app.services.console_service import console_manifest, execute_console
+from app.utils.serialize import serialize_utc_datetime
 from app.utils.version import get_app_version, get_python_version
 
 logger = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ async def get_info() -> InfoResponse:
         api_version=settings.API_VERSION,
         environment=settings.ENVIRONMENT,
         python_version=get_python_version(),
-        build_date=datetime.now(UTC).isoformat(),
+        build_date=serialize_utc_datetime(datetime.now(UTC)),
     )
 
 

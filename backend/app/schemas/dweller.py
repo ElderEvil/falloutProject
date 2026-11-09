@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -36,6 +35,7 @@ from app.schemas.weapon import WeaponRead
 from app.utils.dweller_assets import is_default_dweller_image
 from app.utils.partial import optional
 from app.utils.places import normalize_place_name
+from app.utils.serialize_types import OptionalUTCDateTimeJSON, UTCDateTimeJSON
 
 LETTER_TO_STAT = STAT_BY_LETTER
 
@@ -286,9 +286,9 @@ class DwellerReadLess(SQLModel):
     age_group: AgeGroupEnum
     gender: GenderEnum
     rarity: RarityEnum
-    birth_date: datetime | None = None
+    birth_date: OptionalUTCDateTimeJSON = None
     apprentice_stat: SPECIALEnum | None = None
-    apprentice_started_at: datetime | None = None
+    apprentice_started_at: OptionalUTCDateTimeJSON = None
     visual_attributes: DwellerVisualAttributes | None = None
 
     # SPECIAL stats
@@ -346,8 +346,8 @@ class IdentityModifiersRead(BaseModel):
 
 class DwellerRead(DwellerBase):
     id: UUID
-    created_at: datetime
-    updated_at: datetime
+    created_at: UTCDateTimeJSON
+    updated_at: UTCDateTimeJSON
     visual_attributes: dict | None = Field(default=None)
     pet: PetRead | None = Field(default=None, validation_alias="pet_loaded")
 
@@ -442,7 +442,7 @@ class DwellerDeadRead(SQLModel):
     last_name: str | None
     level: int
     thumbnail_url: str | None
-    death_timestamp: datetime | None
+    death_timestamp: OptionalUTCDateTimeJSON
     death_cause: DeathCauseEnum | None
     is_permanently_dead: bool
     epitaph: str | None

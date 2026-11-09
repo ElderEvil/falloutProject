@@ -44,7 +44,7 @@ from app.utils import world_terrain
 from app.utils.dweller_availability import DwellerAction, availability_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 from app.utils.place_groups import effective_place_group
-from app.utils.serialize import serialize_naive_utc_datetime
+from app.utils.serialize import serialize_naive_utc_datetime, serialize_optional_utc_datetime
 from app.utils.time import utcnow
 from app.utils.vault_slots import slot_coords
 
@@ -76,8 +76,8 @@ def _to_exploration_party_member_read(
         dweller_id=member.dweller_id,
         slot_number=slot_number,
         status=member.status,
-        created_at=member.created_at.isoformat() if member.created_at else None,
-        updated_at=member.updated_at.isoformat() if member.updated_at else None,
+        created_at=serialize_optional_utc_datetime(member.created_at),
+        updated_at=serialize_optional_utc_datetime(member.updated_at),
     )
 
 

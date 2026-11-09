@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+from pydantic import field_serializer
 from sqlalchemy import Column, String
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -12,6 +13,8 @@ from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.vault_quest import (
     VaultQuestCompletionLink,
 )
+from app.utils.serialize import serialize_optional_utc_datetime
+from app.utils.types import UTCDateTime
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
@@ -66,8 +69,21 @@ class VaultBase(SQLModel):
 
 class Vault(BaseUUIDModel, VaultBase, TimeStampMixin, SoftDeleteMixin, table=True):
     user_id: UUID = Field(default=None, foreign_key="user.id", index=True)
-    last_exit_request_at: datetime | None = Field(default=None)
-    arena_morale_awarded_at: datetime | None = Field(default=None)
+    last_exit_request_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
+    arena_morale_awarded_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
+
+    @field_serializer(
+        "created_at",
+        "updated_at",
+        "deleted_at",
+        "last_exit_request_at",
+        "arena_morale_awarded_at",
+        when_used="json",
+        check_fields=False,
+    )
+    def _serialize_datetimes(self, value: datetime | None) -> str | None:
+        return serialize_optional_utc_datetime(value)
+
     user: "User" = Relationship(back_populates="vaults")
 
     dwellers: list["Dweller"] = Relationship(

@@ -1,9 +1,9 @@
-from datetime import datetime
 from uuid import UUID
 
 from app.models.junk import JunkBase
 from app.schemas.item import ItemUpdate
 from app.utils.partial import optional
+from app.utils.serialize_types import UTCDateTimeJSON
 
 
 class JunkCreate(JunkBase):
@@ -12,8 +12,8 @@ class JunkCreate(JunkBase):
 
 class JunkRead(JunkBase):
     id: UUID
-    created_at: datetime
-    updated_at: datetime
+    created_at: UTCDateTimeJSON
+    updated_at: UTCDateTimeJSON
     storage_id: UUID | None = None
 
 

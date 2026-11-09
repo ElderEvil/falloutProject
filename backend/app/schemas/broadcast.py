@@ -1,10 +1,11 @@
 """Wire contracts for Vault Radio Hour broadcasts."""
 
-from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel
+
+from app.utils.serialize_types import UTCDateTimeJSON
 
 
 class BroadcastRead(BaseModel):
@@ -13,4 +14,4 @@ class BroadcastRead(BaseModel):
     script: str
     audio_url: str | None
     trigger: Literal["daily", "manual"]
-    created_at: datetime
+    created_at: UTCDateTimeJSON

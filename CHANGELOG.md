@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.298.0 (2026-11-09)
+
+### Features
+
+* **auth:** replace passlib with pwdlib and rehash on login cb933c2
+
 ## 2.297.0 (2026-11-09)
 
 ### Features

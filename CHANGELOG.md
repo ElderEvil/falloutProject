@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.297.0 (2026-11-09)
+
+### Features
+
+* **time:** switch persistence to aware UTC 8aa6e81
+
+### Bug Fixes
+
+* **notifications:** serialize live payload timestamps as UTC Z 5085b57
+
+### Documentation
+
+* **deploy:** record B6 aware-UTC restore rehearsal 024dfe9
+
 ## 2.296.0 (2026-11-09)
 
 ### Features

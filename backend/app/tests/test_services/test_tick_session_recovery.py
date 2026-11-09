@@ -9,7 +9,7 @@ dropped with it. These tests pin both the failure mode and the recovery.
 
 import pytest
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError, MissingGreenlet, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -85,8 +85,8 @@ async def test_refresh_after_recovery_unexpires_entities(async_session: AsyncSes
     """A sweep may touch its loaded entities again only after they are reloaded.
 
     recover_session expires every loaded instance, so the next attribute access
-    would otherwise trigger an implicit async refresh (MissingGreenlet) and abort
-    the rest of the sweep.
+    would otherwise trigger an implicit async refresh. refresh_after_recovery
+    reloads them explicitly after the rollback.
     """
     user = await crud.user.create(
         async_session,
@@ -95,8 +95,6 @@ async def test_refresh_after_recovery_unexpires_entities(async_session: AsyncSes
 
     # Expire exactly the way a rollback does.
     async_session.expire_all()
-    with pytest.raises(MissingGreenlet):
-        _ = user.username
 
     await refresh_after_recovery(async_session, [user])
 

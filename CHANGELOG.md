@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.295.5 (2026-11-09)
+
+### Bug Fixes
+
+* **types:** clear ty diagnostics in widened schema annotations 931b802
+
+### Code Refactoring
+
+* **types:** widen UUID annotations for UUIDv7 compatibility bffed6a
+* **types:** widen UUID annotations in API, CRUD, and services f129511
+
 ## 2.295.4 (2026-11-08)
 
 ### Bug Fixes

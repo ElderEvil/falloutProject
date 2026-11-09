@@ -1,9 +1,10 @@
 # Aware-UTC migration preparation
 
 Baseline: v2.287.1 (`d842b2c7`), Alembic `c8f2a1b3d4e5`, audited 2026-11-06.
-This is the local schema inventory, conversion contract and cutover plan. **B4 is now implemented**
-(migration `4b3cbd7b15ff`, `UTCDateTime` on all 122 columns, aware `utcnow`); B5/B6 evidence remains.
-The compatible-reader decisions below are the contract. This document does not claim a production-clone rehearsal.
+This is the local schema inventory, conversion contract and cutover plan. **B4/B5 are implemented**
+(migration `4b3cbd7b15ff`, `UTCDateTime` on all 122 columns, aware `utcnow`, SQLAlchemy 2.1 /
+SQLModel 0.0.48); local B6 evidence is recorded in [B6_REHEARSAL.md](B6_REHEARSAL.md).
+Production-clone and pinned-image rollback evidence remains outstanding.
 The release gates remain in [the roadmap](../ROADMAP.md#30-platform-release-plan).
 
 ## Current schema

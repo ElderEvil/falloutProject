@@ -136,7 +136,11 @@ Redis outage and can remove the backend from service.
 The Traefik Service must preserve the public client address. `deployment/k3s/traefik-config.yaml`
 sets `externalTrafficPolicy: Local` through the K3s `HelmChartConfig`, and the deploy workflow applies
 it; without that setting, Kubernetes SNAT makes every client appear as the node address and all users
-share one bucket. The backend trusts only the Kubernetes pod network for `X-Forwarded-For`:
+share one bucket. Traefik is the public edge in this single-node deployment: there is no upstream
+load balancer, so the chart trusts no forwarded-header source (`forwardedHeaders.trustedIPs: []`)
+and does not enable PROXY protocol. Traefik therefore discards client-supplied `X-Forwarded-*`
+values and writes the observed peer address. The backend trusts only the Kubernetes pod network for
+`X-Forwarded-For`:
 
 ```text
 SECURITY_TRUSTED_PROXIES=["10.42.0.0/16"]

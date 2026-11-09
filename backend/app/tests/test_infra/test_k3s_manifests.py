@@ -129,13 +129,14 @@ def test_image_cleanup_job_is_privileged_and_keeps_two_releases() -> None:
     assert "--prune" not in script
 
 
-def test_traefik_preserves_client_ip_and_existing_chart_settings() -> None:
+def test_traefik_preserves_client_ip_without_trusting_forwarded_headers() -> None:
     config = _load("traefik-config.yaml")
     values = yaml.safe_load(config["spec"]["valuesContent"])
+    websecure = values["entryPoints"]["websecure"]
 
     assert values["service"]["spec"]["externalTrafficPolicy"] == "Local"
-    assert values["entryPoints"]["websecure"]["forwardedHeaders"]["trustedIPs"] == ["0.0.0.0/0"]
-    assert values["entryPoints"]["websecure"]["proxyProtocol"]["trustedIPs"] == ["0.0.0.0/0"]
+    assert websecure["forwardedHeaders"]["trustedIPs"] == []
+    assert "proxyProtocol" not in websecure
 
 
 def test_service_manifest_matches_live_names_and_ingress() -> None:

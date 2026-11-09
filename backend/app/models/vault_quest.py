@@ -7,6 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
 from app.utils.time import utcnow
+from app.utils.types import UTCDateTime
 
 
 class VaultQuestCompletionLink(SQLModel, table=True):
@@ -15,17 +16,17 @@ class VaultQuestCompletionLink(SQLModel, table=True):
     is_completed: bool = Field(default=False)
     is_reward_ready: bool = Field(default=False)
     is_visible: bool = Field(default=False)
-    started_at: datetime | None = Field(default=None)
+    started_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     duration_minutes: int | None = Field(default=None)
 
     # Return leg: set when the finished party starts travelling home; NULL means
     # the party is not travelling (either still questing or already home).
-    return_started_at: datetime | None = Field(default=None)
-    return_completes_at: datetime | None = Field(default=None)
+    return_started_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
+    return_completes_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
 
     # Completion details: stamped when the player claims the rewards. NULL means
     # the quest has not been claimed yet; granted_rewards records what was settled.
-    completed_at: datetime | None = Field(default=None)
+    completed_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     granted_rewards: list[dict[str, Any]] | None = Field(default=None, sa_column=sa.Column(JSONB, nullable=True))
 
     def is_returning(self) -> bool:

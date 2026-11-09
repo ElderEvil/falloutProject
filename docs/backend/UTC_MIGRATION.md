@@ -1,15 +1,15 @@
 # Aware-UTC migration preparation
 
 Baseline: v2.287.1 (`d842b2c7`), Alembic `c8f2a1b3d4e5`, audited 2026-11-06.
-This is a local schema inventory, conversion contract and cutover plan, with compatible-reader
-follow-up recorded below. It adds no migration, keeps the naive-UTC storage/clock contract, and
-does not claim a production-clone rehearsal.
+This is the local schema inventory, conversion contract and cutover plan. **B4 is now implemented**
+(migration `4b3cbd7b15ff`, `UTCDateTime` on all 122 columns, aware `utcnow`); B5/B6 evidence remains.
+The compatible-reader decisions below are the contract. This document does not claim a production-clone rehearsal.
 The release gates remain in [the roadmap](../ROADMAP.md#30-platform-release-plan).
 
 ## Current schema
 
-A fresh PostgreSQL 18 database upgraded through the existing revisions contains **122 timestamp
-columns in 39 tables**, all `timestamp without time zone`. None has a SQL-side default; writers use
+At the pre-B4 baseline, a fresh PostgreSQL 18 database upgraded through the existing revisions
+contained **122 timestamp columns in 39 tables**, all `timestamp without time zone`. None has a SQL-side default; writers use
 Python defaults or explicit values. `?` below means nullable. Recount on the actual clone before
 writing the migration: this snapshot does not establish the quality of historical production data.
 
@@ -181,7 +181,7 @@ These decisions are the contract; do not re-open them per site during B4.
 | SSE: incidents | `incident_service.py` start/end `isoformat()` | **UTC `Z`**; optional values stay `null`. |
 | SSE: arena | `arena_service._event_snapshot` emits `+00:00` | **UTC `Z`** (changes from `+00:00`). |
 | SSE: exploration members | `exploration_service.py` created/updated `isoformat()` | **UTC `Z`**. |
-| Notification metadata | `notification_service.py` `created_at.isoformat()` | **Bare naive UTC** in stored metadata; API `notification.created_at` is **UTC `Z`**. |
+| Notification delivery | `notification_service.py` live payload `created_at` | **UTC `Z`** via `serialize_utc_datetime`; stored `meta_data` JSON stays bare naive UTC and API `notification.created_at` is **UTC `Z`**. |
 | Tick frame | `event_id = last_tick_time.isoformat()`; `recent_tick_ids` opaque | **SSE tick payload stays bare naive UTC** for `event_id` and its `last_tick_time`; identity must not change. |
 | Game-state API | `get_vault_status` returns `last_tick_time` | **UTC `Z`** — this is an API timestamp, not the SSE identity; keep it separate from `event_id`. |
 | API canonical | `schemas/training.py` emits `Z` | **UTC `Z`**; use it as the template for every schema. |

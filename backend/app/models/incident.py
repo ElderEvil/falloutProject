@@ -12,6 +12,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from app.core.enums import DamageChannel, HazardTeam, IncidentFamily, IncidentObjective, IncidentStatus, IncidentType
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.utils.time import utcnow
+from app.utils.types import UTCDateTime
 
 if TYPE_CHECKING:
     from app.models.team import Team
@@ -104,8 +105,8 @@ class IncidentBase(SQLModel):
     type: IncidentType = Field(index=True)
     status: IncidentStatus = Field(default=IncidentStatus.ACTIVE, index=True)
     difficulty: int = Field(ge=1, le=10, description="Difficulty level of the incident")
-    start_time: datetime = Field(default_factory=utcnow)
-    end_time: datetime | None = Field(default=None)
+    start_time: datetime = Field(sa_type=UTCDateTime, default_factory=utcnow)
+    end_time: datetime | None = Field(sa_type=UTCDateTime, default=None)
     duration: int = Field(default=60, ge=10, description="Duration in seconds before auto-spreading")
 
     # Damage tracking

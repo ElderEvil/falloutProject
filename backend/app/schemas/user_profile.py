@@ -1,4 +1,3 @@
-from datetime import datetime
 from uuid import UUID
 
 from pydantic import field_validator
@@ -7,13 +6,14 @@ from sqlmodel import SQLModel
 from app.core.profile_preferences import validate_profile_preferences
 from app.models.user_profile import UserProfileBase
 from app.utils.partial import optional
+from app.utils.serialize_types import UTCDateTimeJSON
 
 
 class ProfileRead(UserProfileBase):
     id: UUID
     user_id: UUID
-    created_at: datetime
-    updated_at: datetime
+    created_at: UTCDateTimeJSON
+    updated_at: UTCDateTimeJSON
 
 
 class ProfileUpdate(SQLModel):

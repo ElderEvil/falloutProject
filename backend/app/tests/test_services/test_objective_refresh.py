@@ -19,8 +19,8 @@ def test_periods_are_utc_calendar_days_and_mondays():
     from datetime import timezone
 
     daily, weekly = objective_periods(datetime(2026, 10, 20, 1, tzinfo=timezone(timedelta(hours=3))))
-    assert daily == datetime(2026, 10, 19)
-    assert weekly == datetime(2026, 10, 19)
+    assert daily == datetime(2026, 10, 19, tzinfo=UTC)
+    assert weekly == datetime(2026, 10, 19, tzinfo=UTC)
 
 
 async def calendar_catalog(db, vault_id):
@@ -47,8 +47,8 @@ async def calendar_catalog(db, vault_id):
 async def test_calendar_refresh_is_idempotent_with_raw_worker_session(async_session, vault):
     await calendar_catalog(async_session, vault.id)
     state = await game_state_crud.get_or_create(async_session, vault.id)
-    state.daily_objectives_period = datetime(2026, 10, 19)
-    state.weekly_objectives_period = datetime(2026, 10, 19)
+    state.daily_objectives_period = datetime(2026, 10, 19, tzinfo=UTC)
+    state.weekly_objectives_period = datetime(2026, 10, 19, tzinfo=UTC)
     await async_session.commit()
     async with RawAsyncSession(
         bind=await async_session.connection(), expire_on_commit=False, join_transaction_mode="create_savepoint"
@@ -110,11 +110,15 @@ async def test_refresh_keeps_earned_reward_snapshots_and_weekly_has_its_own_peri
         )
         async_session.add(earned)
         state = await game_state_crud.get_or_create(async_session, vault.id)
-        state.daily_objectives_period = datetime(2026, 10, 20)
-        state.weekly_objectives_period = datetime(2026, 10, 12)
+        state.daily_objectives_period = datetime(2026, 10, 20, tzinfo=UTC)
+        state.weekly_objectives_period = datetime(2026, 10, 12, tzinfo=UTC)
         await async_session.commit()
-        assert await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 20)) == ["weekly"]
-        assert await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 21)) == ["daily"]
+        assert await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 20, tzinfo=UTC)) == [
+            "weekly"
+        ]
+        assert await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 21, tzinfo=UTC)) == [
+            "daily"
+        ]
         await async_session.refresh(earned)
         assert earned.progress == 100
         assert not earned.is_completed
@@ -169,15 +173,15 @@ async def test_concurrent_postgres_refresh_runs_only_once():
             db.add(
                 GameState(
                     vault_id=vault.id,
-                    daily_objectives_period=datetime(2026, 10, 19),
-                    weekly_objectives_period=datetime(2026, 10, 19),
+                    daily_objectives_period=datetime(2026, 10, 19, tzinfo=UTC),
+                    weekly_objectives_period=datetime(2026, 10, 19, tzinfo=UTC),
                 )
             )
             await db.commit()
 
         async def refresh():
             async with maker() as db:
-                return await ensure_current_objectives(db, vault.id, now=datetime(2026, 10, 20))
+                return await ensure_current_objectives(db, vault.id, now=datetime(2026, 10, 20, tzinfo=UTC))
 
         results = await asyncio.gather(refresh(), refresh())
         assert sorted(results, key=len) == [[], ["daily"]]

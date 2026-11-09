@@ -8,29 +8,34 @@ from sqlmodel import Field, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.utils.time import utcnow
+from app.utils.types import UTCDateTime
 
 
 class GameStateBase(SQLModel):
     """Base model for game state tracking."""
 
-    last_tick_time: datetime = Field(default_factory=utcnow)
-    last_activity_time: datetime = Field(default_factory=utcnow, description="Last user activity timestamp")
+    last_tick_time: datetime = Field(sa_type=UTCDateTime, default_factory=utcnow)
+    last_activity_time: datetime = Field(
+        sa_type=UTCDateTime, default_factory=utcnow, description="Last user activity timestamp"
+    )
     last_presence_at: datetime | None = Field(
-        default=None, description="Last visibility-gated vault-view heartbeat; spawn gating only"
+        sa_type=UTCDateTime, default=None, description="Last visibility-gated vault-view heartbeat; spawn gating only"
     )
     is_active: bool = Field(default=True, description="Whether the vault game loop is active")
     is_paused: bool = Field(default=False, description="Whether the vault is manually paused by player")
     achievement_tracks_initialized: bool = Field(
         default=False, sa_column=Column(Boolean, nullable=False, server_default=false())
     )
-    daily_objectives_period: datetime | None = Field(default=None)
-    weekly_objectives_period: datetime | None = Field(default=None)
+    daily_objectives_period: datetime | None = Field(sa_type=UTCDateTime, default=None)
+    weekly_objectives_period: datetime | None = Field(sa_type=UTCDateTime, default=None)
     total_game_time: int = Field(default=0, ge=0, description="Total seconds the vault has been active")
     water_empty_since: datetime | None = Field(
-        default=None, description="When vault water last hit zero; None while water is available"
+        sa_type=UTCDateTime, default=None, description="When vault water last hit zero; None while water is available"
     )
-    paused_at: datetime | None = Field(default=None, description="When the vault was last paused")
-    resumed_at: datetime | None = Field(default=None, description="When the vault was last resumed")
+    paused_at: datetime | None = Field(sa_type=UTCDateTime, default=None, description="When the vault was last paused")
+    resumed_at: datetime | None = Field(
+        sa_type=UTCDateTime, default=None, description="When the vault was last resumed"
+    )
 
 
 class GameState(BaseUUIDModel, GameStateBase, TimeStampMixin, table=True):

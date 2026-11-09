@@ -9,6 +9,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.utils.time import utcnow
+from app.utils.types import UTCDateTime
 
 if TYPE_CHECKING:
     from app.models.vault import Vault
@@ -30,7 +31,7 @@ class Broadcast(BaseUUIDModel, BroadcastBase, TimeStampMixin, table=True):
     __table_args__ = (Index("ix_broadcast_vault_id_created_at", "vault_id", "created_at"),)
 
     # Override TimeStampMixin.created_at to be non-nullable (matches migration).
-    created_at: datetime = Field(default_factory=utcnow)  # ty: ignore[invalid-mutable-override]
+    created_at: datetime = Field(sa_type=UTCDateTime, default_factory=utcnow)  # ty: ignore[invalid-mutable-override]
 
     vault: "Vault" = Relationship(back_populates="broadcasts")
 

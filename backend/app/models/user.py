@@ -6,6 +6,7 @@ from sqlalchemy import Index, text
 from sqlmodel import AutoString, Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel, SoftDeleteMixin, TimeStampMixin
+from app.utils.types import UTCDateTime
 
 if TYPE_CHECKING:
     from app.models.llm_interaction import LLMInteraction
@@ -38,9 +39,9 @@ class User(BaseUUIDModel, UserBase, TimeStampMixin, SoftDeleteMixin, table=True)
     email_verified: bool = Field(default=False)
     email_verification_token: str | None = Field(default=None, index=True)
     password_reset_token: str | None = Field(default=None, index=True)
-    password_reset_expires: datetime | None = Field(default=None)
-    username_changed_at: datetime | None = Field(default=None)
-    email_changed_at: datetime | None = Field(default=None)
+    password_reset_expires: datetime | None = Field(sa_type=UTCDateTime, default=None)
+    username_changed_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
+    email_changed_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
 
     profile: "UserProfile" = Relationship(
         back_populates="user", cascade_delete=True, sa_relationship_kwargs={"uselist": False}

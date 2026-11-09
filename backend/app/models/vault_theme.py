@@ -11,6 +11,8 @@ from uuid import UUID
 
 from sqlmodel import Field, SQLModel
 
+from app.utils.types import UTCDateTime
+
 
 class VaultTheme(SQLModel, table=True):
     """One vault's ownership of a single room theme."""
@@ -19,7 +21,7 @@ class VaultTheme(SQLModel, table=True):
 
     vault_id: UUID = Field(foreign_key="vault.id", primary_key=True, ondelete="CASCADE")
     style: str = Field(primary_key=True, max_length=16)
-    crafted_at: datetime | None = Field(default=None)
+    crafted_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     source: str = Field(default="craft", max_length=16)
 
     def is_crafted(self) -> bool:

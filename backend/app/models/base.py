@@ -5,16 +5,19 @@ from sqlmodel import Field, SQLModel
 from sqlmodel.main import SQLModelConfig
 
 from app.utils.time import utcnow
+from app.utils.types import UTCDateTime
 
 
 class TimeStampMixin(SQLModel):
-    """Store timestamps as naive UTC (no tzinfo).
+    """Store timestamps as timezone-aware UTC.
 
-    The database connection is pinned to UTC, so naive datetimes are treated as UTC.
+    PostgreSQL uses ``timestamptz``; SQLite stores naive UTC text and
+    :class:`UTCDateTime` re-attaches UTC on read.
     """
 
-    created_at: datetime | None = Field(default_factory=utcnow)
+    created_at: datetime | None = Field(sa_type=UTCDateTime, default_factory=utcnow)
     updated_at: datetime | None = Field(
+        sa_type=UTCDateTime,
         default_factory=utcnow,
         sa_column_kwargs={"onupdate": utcnow},
     )
@@ -31,7 +34,7 @@ class BaseUUIDModel(SQLModel):
 
 class SoftDeleteMixin(SQLModel):
     is_deleted: bool = Field(default=False, index=True)
-    deleted_at: datetime | None = Field(default=None)
+    deleted_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
 
     def soft_delete(self):
         """Marks the object as deleted."""

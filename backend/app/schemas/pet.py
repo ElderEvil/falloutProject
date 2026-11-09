@@ -1,4 +1,3 @@
-from datetime import datetime
 from uuid import UUID
 
 from pydantic import computed_field
@@ -6,6 +5,7 @@ from pydantic import computed_field
 from app.models.item import ItemBase
 from app.options.pet_modifiers import PetEffect, pet_description_for_name, pet_effect_for_name
 from app.utils.partial import optional
+from app.utils.serialize_types import UTCDateTimeJSON
 
 
 class PetCreate(ItemBase):
@@ -24,8 +24,8 @@ class PetEffectRead(PetEffect):
 
 class PetRead(ItemBase):
     id: UUID
-    created_at: datetime
-    updated_at: datetime
+    created_at: UTCDateTimeJSON
+    updated_at: UTCDateTimeJSON
     dweller_id: UUID | None = None
     storage_id: UUID | None = None
 

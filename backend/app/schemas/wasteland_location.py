@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
 from sqlmodel import SQLModel
 
 from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
+from app.utils.serialize_types import OptionalUTCDateTimeJSON
 
 
 class LocationClearStateRead(SQLModel):
@@ -39,7 +39,7 @@ class WastelandLocationRead(SQLModel):
     group_key: str | None = None
     vault_id: UUID
     exploration_id: UUID | None
-    created_at: datetime | None
+    created_at: OptionalUTCDateTimeJSON
     clear_state: LocationClearStateRead | None = None
 
 

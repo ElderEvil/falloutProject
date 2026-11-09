@@ -34,6 +34,7 @@ from app.utils.exceptions import (
     ValidationException,
     VaultOperationException,
 )
+from app.utils.serialize import serialize_optional_utc_datetime
 
 router = APIRouter(prefix="/game", tags=["Game"])
 
@@ -103,7 +104,7 @@ async def pause_vault(
         message="Vault paused successfully",
         vault_id=str(vault.id),
         is_paused=game_state.is_paused,
-        paused_at=game_state.paused_at.isoformat() if game_state.paused_at else None,
+        paused_at=serialize_optional_utc_datetime(game_state.paused_at),
     )
 
 
@@ -124,7 +125,7 @@ async def resume_vault(
         message="Vault resumed successfully",
         vault_id=str(vault.id),
         is_paused=game_state.is_paused,
-        resumed_at=game_state.resumed_at.isoformat() if game_state.resumed_at else None,
+        resumed_at=serialize_optional_utc_datetime(game_state.resumed_at),
     )
 
 
@@ -146,7 +147,7 @@ async def record_presence(
 
     return PresenceResponse(
         vault_id=str(vault.id),
-        last_presence_at=game_state.last_presence_at.isoformat() if game_state.last_presence_at else None,
+        last_presence_at=serialize_optional_utc_datetime(game_state.last_presence_at),
     )
 
 

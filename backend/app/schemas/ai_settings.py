@@ -1,8 +1,9 @@
-from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
+from app.utils.serialize_types import OptionalUTCDateTimeJSON
 
 ALLOWED_AI_PROVIDERS = {"openai", "ollama", "lmstudio"}
 
@@ -13,7 +14,7 @@ class AISettingsProfile(BaseModel):
     model: str | None = None
     base_url: str | None = None
     gateway_route: str | None = None
-    updated_at: datetime | None = None
+    updated_at: OptionalUTCDateTimeJSON = None
 
 
 class AISettingsEffective(BaseModel):

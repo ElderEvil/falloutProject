@@ -3,6 +3,8 @@ from uuid import UUID
 
 from sqlmodel import Field, SQLModel
 
+from app.utils.types import UTCDateTime
+
 
 class VaultRecipeUnlock(SQLModel, table=True):
     """Per-vault unlock progress for a gated crafting recipe.
@@ -18,5 +20,5 @@ class VaultRecipeUnlock(SQLModel, table=True):
     item_type: str = Field(primary_key=True, max_length=16)
     recipe_name: str = Field(primary_key=True, max_length=128)
     progress: int = Field(default=0, ge=0)
-    unlocked_at: datetime | None = Field(default=None)
+    unlocked_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     source: str = Field(default="scrap", max_length=16)

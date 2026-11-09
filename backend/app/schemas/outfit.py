@@ -1,9 +1,9 @@
-from datetime import datetime
 from uuid import UUID
 
 from app.models.outfit import OutfitBase
 from app.schemas.item import ItemUpdate
 from app.utils.partial import optional
+from app.utils.serialize_types import UTCDateTimeJSON
 
 
 class OutfitCreate(OutfitBase):
@@ -13,8 +13,8 @@ class OutfitCreate(OutfitBase):
 
 class OutfitRead(OutfitBase):
     id: UUID
-    created_at: datetime
-    updated_at: datetime
+    created_at: UTCDateTimeJSON
+    updated_at: UTCDateTimeJSON
     dweller_id: UUID | None = None
     storage_id: UUID | None = None
     # Read-time workshop summary; outfits carry no flavor-text column.

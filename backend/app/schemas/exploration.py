@@ -1,12 +1,12 @@
 """Exploration schemas for wasteland expeditions."""
 
-from datetime import datetime
 from uuid import UUID
 
 from pydantic import Field, model_validator
 from sqlmodel import SQLModel
 
 from app.core.enums import ExplorationStatus
+from app.utils.serialize_types import OptionalUTCDateTimeJSON, UTCDateTimeJSON
 
 
 class ExplorationBase(SQLModel):
@@ -29,7 +29,7 @@ class ExplorationUpdate(SQLModel):
     """Schema for updating an exploration."""
 
     status: ExplorationStatus | None = None
-    end_time: datetime | None = None
+    end_time: OptionalUTCDateTimeJSON = None
     total_distance: int | None = None
     total_caps_found: int | None = None
     enemies_encountered: int | None = None
@@ -45,18 +45,18 @@ class ExplorationRead(ExplorationBase):
     # or None for free-roam runs.
     target_location_id: UUID | None = None
     status: ExplorationStatus
-    start_time: datetime
-    end_time: datetime | None
-    return_started_at: datetime | None
-    return_completes_at: datetime | None
+    start_time: UTCDateTimeJSON
+    end_time: OptionalUTCDateTimeJSON
+    return_started_at: OptionalUTCDateTimeJSON
+    return_completes_at: OptionalUTCDateTimeJSON
     recalled_early: bool
     events: list[dict]
     loot_collected: list[dict]
     total_distance: int
     total_caps_found: int
     enemies_encountered: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: UTCDateTimeJSON
+    updated_at: UTCDateTimeJSON
 
     # SPECIAL stats at start
     dweller_strength: int
@@ -77,10 +77,10 @@ class ExplorationRead(ExplorationBase):
     pos_x: float | None = None
     pos_y: float | None = None
     trail: list[dict] = Field(default_factory=list)
-    position_as_of: datetime | None = None
+    position_as_of: OptionalUTCDateTimeJSON = None
 
     # Encounter pause timestamp; NULL while the journey clock is running.
-    paused_at: datetime | None = None
+    paused_at: OptionalUTCDateTimeJSON = None
 
 
 class ExplorationReadShort(SQLModel):
@@ -91,11 +91,11 @@ class ExplorationReadShort(SQLModel):
     dweller_id: UUID
     target_location_id: UUID | None = None
     status: ExplorationStatus
-    start_time: datetime
-    paused_at: datetime | None = None
-    end_time: datetime | None
-    return_started_at: datetime | None
-    return_completes_at: datetime | None
+    start_time: UTCDateTimeJSON
+    paused_at: OptionalUTCDateTimeJSON = None
+    end_time: OptionalUTCDateTimeJSON
+    return_started_at: OptionalUTCDateTimeJSON
+    return_completes_at: OptionalUTCDateTimeJSON
     duration: int
     total_distance: int
     total_caps_found: int
@@ -128,7 +128,7 @@ class ExplorationProgress(SQLModel):
     progress_percentage: float = Field(ge=0, le=100)
     time_remaining_seconds: int
     elapsed_time_seconds: int
-    return_completes_at: datetime | None = None
+    return_completes_at: OptionalUTCDateTimeJSON = None
     return_time_remaining_seconds: int = 0
     events: list[dict]
     loot_collected: list[dict]

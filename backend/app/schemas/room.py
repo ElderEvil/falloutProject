@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -8,6 +7,7 @@ from sqlmodel._compat import SQLModelConfig
 from app.core.grid_config import GRID_BUILD_X_MAX, GRID_BUILD_Y_MAX, GRID_X_MIN, GRID_Y_MIN
 from app.models.room import RoomBase
 from app.utils.partial import optional
+from app.utils.serialize_types import UTCDateTimeJSON
 
 
 class RoomCreateWithoutVaultID(RoomBase):
@@ -49,8 +49,8 @@ class RoomStyleUpdate(SQLModel):
 
 class RoomRead(RoomBase):
     id: UUID
-    created_at: datetime
-    updated_at: datetime
+    created_at: UTCDateTimeJSON
+    updated_at: UTCDateTimeJSON
 
 
 @optional()

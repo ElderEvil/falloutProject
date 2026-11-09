@@ -1,10 +1,10 @@
-from datetime import datetime
 from uuid import UUID
 
 from pydantic import Field, model_validator
 
 from app.models.objective import ObjectiveBase
 from app.utils.partial import optional
+from app.utils.serialize_types import OptionalUTCDateTimeJSON
 
 
 class ObjectiveCreate(ObjectiveBase):
@@ -20,7 +20,7 @@ class ObjectiveCreate(ObjectiveBase):
 class ObjectiveRead(ObjectiveBase):
     template_key: str | None = Field(default=None, max_length=160)
     id: UUID
-    resets_at: datetime | None = None
+    resets_at: OptionalUTCDateTimeJSON = None
     next_stage_challenge: str | None = None
     progress: int
     total: int

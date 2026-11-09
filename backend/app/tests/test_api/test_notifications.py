@@ -21,6 +21,7 @@ from app.crud.notification import notification as notification_crud
 from app.models.notification import NotificationCreate
 from app.schemas.user import UserCreate
 from app.services.notification_service import NotificationService
+from app.utils.serialize import serialize_utc_datetime
 
 
 def _notification_payload(user_id) -> dict:
@@ -184,14 +185,14 @@ async def test_create_and_send_is_the_permitted_path(async_session: AsyncSession
 async def test_live_notification_payload_includes_routing_context(
     async_session: AsyncSession, user_with_vault: tuple, dweller_in_vault
 ) -> None:
-    """SSE clients receive the vault and source dweller needed for a contextual click target."""
+    """SSE clients receive routing context and a UTC ``Z`` timestamp."""
     user, vault = user_with_vault
 
     with (
         patch("app.services.notification_service.manager") as mock_ws,
         patch("app.services.notification_service.sse_manager") as mock_sse,
     ):
-        await NotificationService.create_and_send(
+        notification = await NotificationService.create_and_send(
             async_session,
             user_id=user.id,
             vault_id=vault.id,
@@ -206,6 +207,8 @@ async def test_live_notification_payload_includes_routing_context(
     for payload in (ws_payload, sse_payload):
         assert payload["notification"]["vault_id"] == str(vault.id)
         assert payload["notification"]["from_dweller_id"] == str(dweller_in_vault.id)
+        assert payload["notification"]["created_at"] == serialize_utc_datetime(notification.created_at)
+        assert payload["notification"]["created_at"].endswith("Z")
 
 
 # =============================================================================

@@ -31,6 +31,7 @@ from app.services.combat.attack_service import resolve_attacks
 from app.services.dweller_service import dweller_service
 from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
+from app.utils.serialize import serialize_utc_datetime
 from app.utils.time import utcnow
 
 # ---------------------------------------------------------------------------
@@ -1498,7 +1499,7 @@ class TestArenaMoraleBonus:
         """A completion inside the vault-wide window keeps the ±10 swing but skips the +1."""
         from datetime import UTC, datetime
 
-        vault.arena_morale_awarded_at = datetime.now(UTC).replace(tzinfo=None)
+        vault.arena_morale_awarded_at = datetime.now(UTC)
         async_session.add(vault)
         for fighter in (fighter_a, fighter_b):
             fighter.room_id = arena_room.id
@@ -2005,7 +2006,7 @@ async def test_snapshot_bounds_and_clears_journal_without_mutation(
     assert [event["round_seq"] for event in room["events"]] == list(range(5, 45))
     from datetime import UTC
 
-    assert room["events"][0]["created_at"] == events[5].created_at.replace(tzinfo=UTC).isoformat()
+    assert room["events"][0]["created_at"] == serialize_utc_datetime(events[5].created_at)
     api_room = (await service.get_arena_state(async_session, vault.id)).rooms[0]
     assert api_room.events[0].created_at == events[5].created_at.replace(tzinfo=UTC)
     assert await service.get_tick_snapshot(async_session, uuid4()) == {"rooms": []}

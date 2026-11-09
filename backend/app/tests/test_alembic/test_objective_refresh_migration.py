@@ -8,7 +8,7 @@ import sqlalchemy as sa
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
-from app.utils.time import utcnow
+from app.utils.time import as_naive_utc, utcnow
 
 
 def test_refresh_migration_adopts_periods_and_downgrades(monkeypatch):
@@ -21,7 +21,7 @@ def test_refresh_migration_adopts_periods_and_downgrades(monkeypatch):
         db.exec_driver_sql("CREATE TABLE gamestate (id INTEGER PRIMARY KEY)")
         db.exec_driver_sql("INSERT INTO gamestate VALUES (1)")
         monkeypatch.setattr(migration, "op", Operations(MigrationContext.configure(db)))
-        before = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        before = as_naive_utc(utcnow()).replace(hour=0, minute=0, second=0, microsecond=0)
         migration.upgrade()
         daily, weekly = db.exec_driver_sql(
             "SELECT daily_objectives_period,weekly_objectives_period FROM gamestate"

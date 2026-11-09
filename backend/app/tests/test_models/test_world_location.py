@@ -1,10 +1,11 @@
 """Tests for WorldLocation, VaultLocationState and DwellerLocation models."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
 from sqlalchemy.exc import IntegrityError
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, PlaceKindEnum
@@ -164,6 +165,36 @@ class TestWorldLocationModel:
         async_session.add(location)
         with pytest.raises(IntegrityError):
             await async_session.commit()
+
+    async def test_utc_datetime_round_trip_preserves_instant(self, async_session: AsyncSession) -> None:
+        """UTCDateTime binds aware offsets and returns the same UTC instant after reload."""
+        instant = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+        offset_value = instant.astimezone(timezone(timedelta(hours=5, minutes=45)))
+        location = WorldLocation(
+            name="Timezone Round Trip",
+            normalized_name=f"timezone-round-trip-{uuid4().hex}",
+            coord_x=10.0,
+            coord_y=20.0,
+            created_at=offset_value,
+            updated_at=offset_value,
+        )
+        assert location.created_at == offset_value
+        async_session.add(location)
+        await async_session.flush()
+        assert location.created_at == offset_value
+        await async_session.commit()
+        location_id = location.id
+        async_session.expunge_all()
+
+        reloaded = await async_session.get(WorldLocation, location_id)
+        assert reloaded is not None
+        assert reloaded.created_at == instant
+        assert reloaded.created_at.utcoffset() == timedelta(0)
+
+        result = await async_session.exec(
+            select(WorldLocation).where(WorldLocation.created_at <= instant + timedelta(minutes=15))
+        )
+        assert result.first() is not None
 
 
 class TestVaultLocationStateModel:

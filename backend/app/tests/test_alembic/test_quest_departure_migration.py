@@ -14,7 +14,8 @@ from app.models.team import Team, TeamMember
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.tests.factory.rooms import create_overseers_office
 from app.tests.test_alembic import test_data_migrations as legacy
-from app.utils.time import utcnow
+from app.utils.time import as_naive_utc, utcnow
+from app.utils.types import UTCDateTime
 
 harness = legacy.harness
 REVISION = "d9e2f4a6b801"
@@ -22,12 +23,16 @@ PARENT = "b6d8f0a2c913"
 
 
 @pytest.mark.integration
-def test_recovers_orphaned_questing_dwellers_and_preserves_active_parties(harness):
+def test_recovers_orphaned_questing_dwellers_and_preserves_active_parties(harness, monkeypatch):
+    def legacy_bind(self, value, dialect):
+        return None if value is None else as_naive_utc(value)
+
+    monkeypatch.setattr(UTCDateTime, "process_bind_param", legacy_bind)
     harness.upgrade(PARENT)
     vault_id = UUID(legacy._seed_vault(harness, number=929))
     office = create_overseers_office()
     room_id = str(uuid4())
-    now = utcnow()
+    now = as_naive_utc(utcnow())
     harness.execute(
         "INSERT INTO room (id, vault_id, name, category, ability, base_cost, tier, size_min, size_max, size, "
         "speedup_multiplier, created_at, updated_at) "

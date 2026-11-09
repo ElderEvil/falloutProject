@@ -24,11 +24,11 @@ class TestAsNaiveUtc:
 
 
 class TestUtcNow:
-    def test_returns_naive_datetime_for_the_legacy_storage_contract(self):
-        assert utcnow().tzinfo is None
+    def test_returns_aware_utc_datetime(self):
+        assert utcnow().tzinfo is UTC
 
     def test_wall_clock_is_utc_not_local(self):
-        reference = datetime.now(UTC).replace(tzinfo=None)
+        reference = datetime.now(UTC)
         assert abs((utcnow() - reference).total_seconds()) < 5
 
     def test_is_monotonic_enough_for_deadlines(self):

@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Self
 from uuid import UUID
 
@@ -8,6 +7,7 @@ from sqlmodel import SQLModel
 from app.core.enums import VaultModeEnum
 from app.models.vault import VaultBase
 from app.utils.partial import optional
+from app.utils.serialize_types import UTCDateTimeJSON
 
 
 class VaultCreate(VaultBase):
@@ -75,8 +75,8 @@ class ResourceTickEvents(SQLModel):
 
 class VaultRead(VaultBase):
     id: UUID
-    created_at: datetime
-    updated_at: datetime
+    created_at: UTCDateTimeJSON
+    updated_at: UTCDateTimeJSON
     resource_warnings: list[ResourceLevelWarning] = Field(default_factory=list)
 
 

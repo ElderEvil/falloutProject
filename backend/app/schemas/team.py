@@ -5,10 +5,11 @@ module holds the internal read shape used when a service hands a ``TeamMember``
 back to the API layer.
 """
 
-from datetime import datetime
 from uuid import UUID
 
 from sqlmodel import SQLModel
+
+from app.utils.serialize_types import OptionalUTCDateTimeJSON
 
 
 class TeamMemberRead(SQLModel):
@@ -19,5 +20,5 @@ class TeamMemberRead(SQLModel):
     dweller_id: UUID
     slot_number: int | None = None
     status: str
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
+    created_at: OptionalUTCDateTimeJSON = None
+    updated_at: OptionalUTCDateTimeJSON = None

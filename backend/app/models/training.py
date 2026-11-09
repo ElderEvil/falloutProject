@@ -9,6 +9,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from app.core.enums import SPECIALEnum, TrainingStatus
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.utils.time import utcnow
+from app.utils.types import UTCDateTime
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
@@ -31,9 +32,9 @@ class TrainingBase(SQLModel):
 
     progress: float = Field(default=0.0, ge=0.0, le=1.0)  # 0.0 to 1.0
 
-    started_at: datetime
-    estimated_completion_at: datetime
-    completed_at: datetime | None = None
+    started_at: datetime = Field(sa_type=UTCDateTime)
+    estimated_completion_at: datetime = Field(sa_type=UTCDateTime)
+    completed_at: datetime | None = Field(default=None, sa_type=UTCDateTime)
 
     status: TrainingStatus = Field(default=TrainingStatus.ACTIVE, index=True)
 

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.296.0 (2026-11-09)
+
+### Features
+
+* **ids:** generate UUIDv7 for new rows f87c3eb
+
 ## 2.295.5 (2026-11-09)
 
 ### Bug Fixes

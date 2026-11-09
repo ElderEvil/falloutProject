@@ -1,8 +1,8 @@
 """Incident round engine: defender-less outcomes, damage, victory, and XP."""
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import HazardTeam, IncidentObjective, IncidentStatus, IncidentType
@@ -88,7 +88,7 @@ async def apply_damage(
     incident: Incident,
     dwellers: list[Dweller],
     damage_to_dwellers: float,
-    active_member_ids: frozenset[UUID4] = frozenset(),
+    active_member_ids: frozenset[UUID] = frozenset(),
     *,
     hits: list[tuple[str, CombatImpact]] | None = None,
 ) -> tuple[int, int, int]:

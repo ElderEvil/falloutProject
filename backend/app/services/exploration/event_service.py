@@ -4,8 +4,8 @@ import asyncio
 import logging
 import random
 from typing import Any
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import orm
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -87,7 +87,7 @@ async def apply_exploration_damage(
     exploration: Exploration,
     damage: int,
     *,
-    dweller_id: UUID4 | None = None,
+    dweller_id: UUID | None = None,
     lethal: bool = True,
     delete_held: bool = True,
 ) -> None:
@@ -497,7 +497,7 @@ class EventService:
         if not equipped:
             return
 
-        async def send(user_id: UUID4) -> None:
+        async def send(user_id: UUID) -> None:
             dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
             dweller_name = f"{dweller_obj.first_name} {dweller_obj.last_name or ''}".strip()
             for item_type, item_name in equipped:

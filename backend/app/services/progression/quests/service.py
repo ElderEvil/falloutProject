@@ -5,7 +5,6 @@ from datetime import timedelta
 from typing import Any
 from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import func, inspect
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -40,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 
 class QuestService:
-    async def check_and_complete_quests(self, db_session: AsyncSession, vault_id: UUID4 | None = None) -> int:
+    async def check_and_complete_quests(self, db_session: AsyncSession, vault_id: UUID | None = None) -> int:
         """Start return legs for elapsed quests and finalize parties that arrived home.
 
         Returns the number of quests finalized (made ready to claim) this run.
@@ -82,7 +81,7 @@ class QuestService:
         return completed_count
 
     async def start_quest_return(
-        self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4
+        self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID
     ) -> VaultQuestCompletionLink:
         """Send a finished quest party home; rewards wait until they arrive."""
         from app.utils.exceptions import ResourceNotFoundException, ValidationException
@@ -114,7 +113,7 @@ class QuestService:
         return link
 
     async def start_quest(
-        self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, *, dweller_ids: list[UUID4] | None = None
+        self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID, *, dweller_ids: list[UUID] | None = None
     ) -> VaultQuestCompletionLink:
         """Start a quest or ready a state objective."""
         from app.utils.exceptions import (
@@ -200,7 +199,7 @@ class QuestService:
         return link
 
     async def start_quest_for_vault(
-        self, db_session: AsyncSession, vault_id: UUID4, quest_id: UUID4, *, dweller_ids: list[UUID4] | None = None
+        self, db_session: AsyncSession, vault_id: UUID, quest_id: UUID, *, dweller_ids: list[UUID] | None = None
     ) -> Quest:
         """Start a quest for a vault, checking availability first.
 
@@ -233,12 +232,12 @@ class QuestService:
     async def get_quest_availability(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         quest: Quest,
         *,
         has_office: bool | None = None,
-        completed_quest_ids: set[UUID4] | None = None,
-        resolve_quest: Callable[[UUID4], Quest | None] | None = None,
+        completed_quest_ids: set[UUID] | None = None,
+        resolve_quest: Callable[[UUID], Quest | None] | None = None,
     ) -> QuestAvailability:
         """Whether a vault can start a quest; delegates to the availability policy."""
         return await availability.quest_availability(
@@ -253,7 +252,7 @@ class QuestService:
     async def get_quests_for_vault(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         skip: int = 0,
         limit: int = 100,
         available_only: bool = False,
@@ -261,7 +260,7 @@ class QuestService:
         """Vault quest read; delegates to the availability policy."""
         return await availability.get_quests_for_vault(db_session, vault_id, skip, limit, available_only)
 
-    async def mark_quest_ready_to_claim(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> Quest:
+    async def mark_quest_ready_to_claim(self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID) -> Quest:
         """Return a finished party and make its rewards available to claim."""
         from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
@@ -297,7 +296,7 @@ class QuestService:
         await self._announce_quest_arrival(db_session, quest, vault_id)
         return quest
 
-    async def _announce_quest_arrival(self, db_session: AsyncSession, quest: Quest, vault_id: UUID4) -> None:
+    async def _announce_quest_arrival(self, db_session: AsyncSession, quest: Quest, vault_id: UUID) -> None:
         """Best-effort arrival notification when a quest party returns home."""
         try:
             vault = await crud.vault.get_or_none(db_session, vault_id, include_deleted=True)
@@ -313,7 +312,7 @@ class QuestService:
             logger.exception(f"Failed to send quest arrival notification for '{quest.title}'")
 
     async def claim_quest_rewards(
-        self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4
+        self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID
     ) -> tuple[Quest, list[Any]]:
         """Atomically deliver rewards that a returning party has made claimable."""
         from app.utils.exceptions import ResourceNotFoundException, ValidationException
@@ -346,7 +345,7 @@ class QuestService:
         return quest, granted_rewards
 
     async def _settle_quest_rewards(
-        self, db_session: AsyncSession, quest: Quest, vault_id: UUID4
+        self, db_session: AsyncSession, quest: Quest, vault_id: UUID
     ) -> list[dict[str, Any]]:
         """Grant every quest reward within the completion transaction."""
         async with defer_reward_delivery(db_session):
@@ -367,7 +366,7 @@ class QuestService:
         return granted_rewards
 
     async def _announce_quest_completion(
-        self, db_session: AsyncSession, quest: Quest, vault_id: UUID4, granted_rewards: list[dict[str, Any]]
+        self, db_session: AsyncSession, quest: Quest, vault_id: UUID, granted_rewards: list[dict[str, Any]]
     ) -> None:
         """Publish reward and completion feedback after successful settlement."""
 
@@ -421,7 +420,7 @@ class QuestService:
             logger.exception(f"Failed to send quest completion notification for '{quest.title}'")
 
     async def get_eligible_dwellers(
-        self, db_session: AsyncSession, vault_id: UUID4, quest_id: UUID4
+        self, db_session: AsyncSession, vault_id: UUID, quest_id: UUID
     ) -> list[EligibleDwellerRead]:
         """Dwellers who individually satisfy the quest's party-level requirement gates.
 

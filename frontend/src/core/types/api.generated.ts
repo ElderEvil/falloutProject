@@ -5508,7 +5508,7 @@ export interface components {
         AISettingsProfile: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /** Provider */
@@ -5872,7 +5872,7 @@ export interface components {
         ArenaSkillRequest: {
             /**
              * Fighter Id
-             * Format: uuid4
+             * Format: uuid
              */
             fighter_id: string;
         };
@@ -5896,7 +5896,7 @@ export interface components {
             action_type: "assign_to_room";
             /**
              * Room Id
-             * Format: uuid4
+             * Format: uuid
              * @description ID of the room to assign the dweller to
              */
             room_id: string;
@@ -6116,7 +6116,7 @@ export interface components {
         BroadcastRead: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /** Title */
@@ -6408,12 +6408,12 @@ export interface components {
         CompatibilityScore: {
             /**
              * Dweller 1 Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_1_id: string;
             /**
              * Dweller 2 Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_2_id: string;
             /** Score */
@@ -6491,7 +6491,7 @@ export interface components {
         ContaminationTeamRead: {
             /**
              * Vault Id
-             * Format: uuid4
+             * Format: uuid
              */
             vault_id: string;
             /** Teams */
@@ -6545,12 +6545,12 @@ export interface components {
         CraftingOrderRead: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
              * Room Id
-             * Format: uuid4
+             * Format: uuid
              */
             room_id: string;
             /** Item Name */
@@ -6772,7 +6772,7 @@ export interface components {
         DeliveredChild: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /** First Name */
@@ -6787,7 +6787,7 @@ export interface components {
         DeliveryResult: {
             /**
              * Pregnancy Id
-             * Format: uuid4
+             * Format: uuid
              */
             pregnancy_id: string;
             /** Children */
@@ -6822,7 +6822,7 @@ export interface components {
         DiscoveryRouteRead: {
             /**
              * Exploration Id
-             * Format: uuid4
+             * Format: uuid
              */
             exploration_id: string;
             /** Points */
@@ -6891,7 +6891,7 @@ export interface components {
             response: string;
             /**
              * Dweller Message Id
-             * Format: uuid4
+             * Format: uuid
              * @description ID of the dweller's chat message in database
              */
             dweller_message_id: string;
@@ -7043,7 +7043,7 @@ export interface components {
             } | null;
             /**
              * Vault Id
-             * Format: uuid4
+             * Format: uuid
              */
             vault_id: string;
         };
@@ -7199,7 +7199,7 @@ export interface components {
         DwellerDeadRead: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /** First Name */
@@ -7379,7 +7379,7 @@ export interface components {
             epitaph?: string | null;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
@@ -7532,7 +7532,7 @@ export interface components {
             epitaph?: string | null;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
@@ -7552,7 +7552,7 @@ export interface components {
             pet?: components["schemas"]["PetRead"] | null;
             /**
              * Vault Id
-             * Format: uuid4
+             * Format: uuid
              */
             vault_id: string;
             vault: components["schemas"]["VaultRead"];
@@ -7573,7 +7573,7 @@ export interface components {
         DwellerReadLess: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /** First Name */
@@ -7761,7 +7761,7 @@ export interface components {
             epitaph?: string | null;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
@@ -7781,7 +7781,7 @@ export interface components {
             pet?: components["schemas"]["PetRead"] | null;
             /**
              * Room Id
-             * Format: uuid4
+             * Format: uuid
              */
             room_id: string;
             /** Is Default Portrait */
@@ -7801,7 +7801,7 @@ export interface components {
         DwellerRef: {
             /**
              * Dweller Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_id: string;
             /** First Name */
@@ -8000,7 +8000,7 @@ export interface components {
             dweller_audio_url?: string | null;
             /**
              * Dweller Message Id
-             * Format: uuid4
+             * Format: uuid
              * @description ID of the dweller's chat message in database
              */
             dweller_message_id: string;
@@ -8024,7 +8024,7 @@ export interface components {
         EligibleDwellerRead: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /** First Name */
@@ -8043,7 +8043,7 @@ export interface components {
         ExitDecisionResponse: {
             /**
              * Dweller Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_id: string;
             /** Dweller Name */
@@ -8062,7 +8062,7 @@ export interface components {
         ExitRequestRead: {
             /**
              * Dweller Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_id: string;
             /** Dweller Name */
@@ -8090,7 +8090,7 @@ export interface components {
             dweller_ids: string[];
             /**
              * Location Id
-             * Format: uuid4
+             * Format: uuid
              */
             location_id: string;
             /**
@@ -8205,22 +8205,22 @@ export interface components {
         ExplorationPartyMemberRead: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
              * Exploration Id
-             * Format: uuid4
+             * Format: uuid
              */
             exploration_id: string;
             /**
              * Vault Id
-             * Format: uuid4
+             * Format: uuid
              */
             vault_id: string;
             /**
              * Dweller Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_id: string;
             /** Slot Number */
@@ -8239,7 +8239,7 @@ export interface components {
         ExplorationProgress: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             status: components["schemas"]["ExplorationStatus"];
@@ -8281,17 +8281,17 @@ export interface components {
             duration: number;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
              * Vault Id
-             * Format: uuid4
+             * Format: uuid
              */
             vault_id: string;
             /**
              * Dweller Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_id: string;
             /** Target Location Id */
@@ -8380,17 +8380,17 @@ export interface components {
         ExplorationReadShort: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
              * Vault Id
-             * Format: uuid4
+             * Format: uuid
              */
             vault_id: string;
             /**
              * Dweller Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_id: string;
             /** Target Location Id */
@@ -8663,7 +8663,7 @@ export interface components {
         HazardTeamMemberRead: {
             /**
              * Dweller Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_id: string;
             /** Status */
@@ -8869,17 +8869,17 @@ export interface components {
         IncidentRead: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
              * Vault Id
-             * Format: uuid4
+             * Format: uuid
              */
             vault_id: string;
             /**
              * Room Id
-             * Format: uuid4
+             * Format: uuid
              */
             room_id: string;
             /** Room Name */
@@ -8927,17 +8927,17 @@ export interface components {
         IncidentResponderRead: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
              * Team Id
-             * Format: uuid4
+             * Format: uuid
              */
             team_id: string;
             /**
              * Dweller Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_id: string;
             /** Slot Number */
@@ -8966,12 +8966,12 @@ export interface components {
         IncidentRespondersResponse: {
             /**
              * Incident Id
-             * Format: uuid4
+             * Format: uuid
              */
             incident_id: string;
             /**
              * Room Id
-             * Format: uuid4
+             * Format: uuid
              */
             room_id: string;
             /** Assigned Dweller Ids */
@@ -9071,7 +9071,7 @@ export interface components {
             image_url?: string | null;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             item_type: components["schemas"]["ItemTypeEnum"];
@@ -9134,7 +9134,7 @@ export interface components {
             description: string;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
@@ -9177,7 +9177,7 @@ export interface components {
         LineageMember: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /** First Name */
@@ -9204,7 +9204,7 @@ export interface components {
         LineageResponse: {
             /**
              * Dweller Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_id: string;
             /** Generation */
@@ -9249,7 +9249,7 @@ export interface components {
         LunchboxOpenRequest: {
             /**
              * Item Id
-             * Format: uuid4
+             * Format: uuid
              */
             item_id: string;
         };
@@ -9336,7 +9336,7 @@ export interface components {
         MedicalTransferRequest: {
             /**
              * Dweller Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_id: string;
             /**
@@ -9563,7 +9563,7 @@ export interface components {
             description?: string | null;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id?: string;
             /** Template Key */
@@ -9669,7 +9669,7 @@ export interface components {
             template_key?: string | null;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /** Resets At */
@@ -9802,7 +9802,7 @@ export interface components {
             luck: number;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
@@ -9920,12 +9920,12 @@ export interface components {
         PendingIncidentOverflowRead: {
             /**
              * Incident Id
-             * Format: uuid4
+             * Format: uuid
              */
             incident_id: string;
             /**
              * Room Id
-             * Format: uuid4
+             * Format: uuid
              */
             room_id: string;
             type: components["schemas"]["IncidentType"];
@@ -9941,12 +9941,12 @@ export interface components {
         PendingOverflowRead: {
             /**
              * Exploration Id
-             * Format: uuid4
+             * Format: uuid
              */
             exploration_id: string;
             /**
              * Dweller Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_id: string;
             /** Unclaimed Loot */
@@ -9958,7 +9958,7 @@ export interface components {
         PetCarrierOpenRequest: {
             /**
              * Item Id
-             * Format: uuid4
+             * Format: uuid
              */
             item_id: string;
         };
@@ -10076,7 +10076,7 @@ export interface components {
             image_url?: string | null;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
@@ -10135,7 +10135,7 @@ export interface components {
         PlayerVaultMarkerRead: {
             /**
              * Vault Id
-             * Format: uuid4
+             * Format: uuid
              */
             vault_id: string;
             /** Number */
@@ -10157,12 +10157,12 @@ export interface components {
         PregnancyRead: {
             /**
              * Mother Id
-             * Format: uuid4
+             * Format: uuid
              */
             mother_id: string;
             /**
              * Father Id
-             * Format: uuid4
+             * Format: uuid
              */
             father_id: string;
             /**
@@ -10179,7 +10179,7 @@ export interface components {
             status: components["schemas"]["PregnancyStatusEnum"];
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /** Progress Percentage */
@@ -10296,12 +10296,12 @@ export interface components {
             deaths_by_combat: number;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
              * User Id
-             * Format: uuid4
+             * Format: uuid
              */
             user_id: string;
             /**
@@ -10333,7 +10333,7 @@ export interface components {
         QuestCompleteResponse: {
             /**
              * Quest Id
-             * Format: uuid4
+             * Format: uuid
              */
             quest_id: string;
             /** Quest Title */
@@ -10391,22 +10391,22 @@ export interface components {
         QuestPartyMemberRead: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
              * Quest Id
-             * Format: uuid4
+             * Format: uuid
              */
             quest_id: string;
             /**
              * Vault Id
-             * Format: uuid4
+             * Format: uuid
              */
             vault_id: string;
             /**
              * Dweller Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_id: string;
             /** Slot Number */
@@ -10449,7 +10449,7 @@ export interface components {
             chain_order: number;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /** Previous Quest Id */
@@ -10497,7 +10497,7 @@ export interface components {
         QuestRequirementRead: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /** Requirement Type */
@@ -10515,7 +10515,7 @@ export interface components {
         QuestRewardRead: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /** Reward Type */
@@ -10661,7 +10661,7 @@ export interface components {
             action_type: "recall_exploration";
             /**
              * Exploration Id
-             * Format: uuid4
+             * Format: uuid
              * @description ID of the active exploration to recall from
              */
             exploration_id: string;
@@ -10706,12 +10706,12 @@ export interface components {
         RelationshipCreate: {
             /**
              * Dweller 1 Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_1_id: string;
             /**
              * Dweller 2 Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_2_id: string;
         };
@@ -10722,12 +10722,12 @@ export interface components {
         RelationshipRead: {
             /**
              * Dweller 1 Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_1_id: string;
             /**
              * Dweller 2 Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_2_id: string;
             /** @default acquaintance */
@@ -10739,7 +10739,7 @@ export interface components {
             affinity: number;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
         };
@@ -10828,7 +10828,7 @@ export interface components {
         RevivalCostResponse: {
             /**
              * Dweller Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_id: string;
             /** Dweller Name */
@@ -10851,7 +10851,7 @@ export interface components {
         RoomBuild: {
             /**
              * Vault Id
-             * Format: uuid4
+             * Format: uuid
              */
             vault_id: string;
             /** Room Name */
@@ -10912,7 +10912,7 @@ export interface components {
         RoomMerge: {
             /**
              * Other Room Id
-             * Format: uuid4
+             * Format: uuid
              */
             other_room_id: string;
         };
@@ -10960,7 +10960,7 @@ export interface components {
             room_style: string;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
@@ -11427,7 +11427,7 @@ export interface components {
         TradeResultResponse: {
             /**
              * Dweller Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_id: string;
             /** Price */
@@ -11450,14 +11450,14 @@ export interface components {
         TrainingProgress: {
             /**
              * Dweller Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_id: string;
             /** Room Id */
             room_id?: string | null;
             /**
              * Vault Id
-             * Format: uuid4
+             * Format: uuid
              */
             vault_id: string;
             stat_being_trained: components["schemas"]["SPECIALEnum"];
@@ -11485,7 +11485,7 @@ export interface components {
             status: components["schemas"]["TrainingStatus"];
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /** Progress Percentage */
@@ -11502,14 +11502,14 @@ export interface components {
         TrainingRead: {
             /**
              * Dweller Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_id: string;
             /** Room Id */
             room_id?: string | null;
             /**
              * Vault Id
-             * Format: uuid4
+             * Format: uuid
              */
             vault_id: string;
             stat_being_trained: components["schemas"]["SPECIALEnum"];
@@ -11537,7 +11537,7 @@ export interface components {
             status: components["schemas"]["TrainingStatus"];
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /** Created At */
@@ -11566,7 +11566,7 @@ export interface components {
         UnlockedPlace: {
             /**
              * Location Id
-             * Format: uuid4
+             * Format: uuid
              * @description ID used to open the location on the vault map
              */
             location_id: string;
@@ -11619,7 +11619,7 @@ export interface components {
             is_superuser: boolean;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
@@ -11671,7 +11671,7 @@ export interface components {
             is_superuser: boolean;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
@@ -11793,12 +11793,12 @@ export interface components {
             continuous_training: boolean;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id?: string;
             /**
              * User Id
-             * Format: uuid4
+             * Format: uuid
              */
             user_id?: string;
             /** Last Exit Request At */
@@ -11952,12 +11952,12 @@ export interface components {
         VaultObjectiveProgressLink: {
             /**
              * Vault Id
-             * Format: uuid4
+             * Format: uuid
              */
             vault_id: string;
             /**
              * Objective Id
-             * Format: uuid4
+             * Format: uuid
              */
             objective_id: string;
             /**
@@ -12059,7 +12059,7 @@ export interface components {
             continuous_training: boolean;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
@@ -12149,7 +12149,7 @@ export interface components {
             continuous_training: boolean;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
@@ -12247,7 +12247,7 @@ export interface components {
             continuous_training: boolean;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**
@@ -12264,7 +12264,7 @@ export interface components {
             resource_warnings?: components["schemas"]["ResourceLevelWarning"][];
             /**
              * User Id
-             * Format: uuid4
+             * Format: uuid
              */
             user_id: string;
         };
@@ -12275,12 +12275,12 @@ export interface components {
         VaultRelationshipRead: {
             /**
              * Dweller 1 Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_1_id: string;
             /**
              * Dweller 2 Id
-             * Format: uuid4
+             * Format: uuid
              */
             dweller_2_id: string;
             /** @default acquaintance */
@@ -12292,7 +12292,7 @@ export interface components {
             affinity: number;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /** Bond Change Per Tick */
@@ -12381,7 +12381,7 @@ export interface components {
         WastelandLocationWithDwellers: {
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /** Name */
@@ -12399,7 +12399,7 @@ export interface components {
             group_key?: string | null;
             /**
              * Vault Id
-             * Format: uuid4
+             * Format: uuid
              */
             vault_id: string;
             /** Exploration Id */
@@ -12454,7 +12454,7 @@ export interface components {
             damage_max: number;
             /**
              * Id
-             * Format: uuid4
+             * Format: uuid
              */
             id: string;
             /**

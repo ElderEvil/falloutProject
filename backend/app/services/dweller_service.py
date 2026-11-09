@@ -4,8 +4,8 @@ import logging
 import random
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, cast
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -89,12 +89,12 @@ class DwellerService:
     """Service for general dweller operations that span multiple CRUD modules."""
 
     @staticmethod
-    def _require_vault_id(dweller: Dweller) -> UUID4:
+    def _require_vault_id(dweller: Dweller) -> UUID:
         if dweller.vault_id is None:
             raise VaultOperationException(detail="Dweller is no longer in this vault")
         return dweller.vault_id
 
-    async def _require_population_slot(self, db_session: AsyncSession, vault_id: UUID4) -> None:
+    async def _require_population_slot(self, db_session: AsyncSession, vault_id: UUID) -> None:
         """Atomically verify a free population slot (row-locks the vault).
 
         A plain read-then-insert race lets two concurrent creations both pass
@@ -106,7 +106,7 @@ class DwellerService:
         if crud.vault.population_limit_reached(vault.population_max, population):
             raise NoLivingSpaceError(f"Vault population capacity reached ({population}/{vault.population_max})")
 
-    async def delete_dweller(self, db_session: AsyncSession, dweller_id: UUID4, *, soft: bool = True) -> None:
+    async def delete_dweller(self, db_session: AsyncSession, dweller_id: UUID, *, soft: bool = True) -> None:
         """Delete a dweller and close any in-progress journey in one transaction.
 
         A deleted dweller cannot keep exploring; leaving the journey active would
@@ -204,7 +204,7 @@ class DwellerService:
     async def create_random_dweller(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         obj_in: DwellerCreateCommonOverride | None = None,
         seed: int | None = None,
         rarity: RarityEnum = RarityEnum.COMMON,
@@ -225,7 +225,7 @@ class DwellerService:
     async def create_dweller_from_template(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         template_id: str,
         overrides: Mapping[str, Any] | None = None,
         enforce_capacity: bool = True,
@@ -243,7 +243,7 @@ class DwellerService:
     async def _persist_registered_dweller(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         payload: dict[str, Any],
         register_bio_places: bool,
     ) -> Dweller:
@@ -284,7 +284,7 @@ class DwellerService:
     async def list_vault_dwellers(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         *,
         skip: int = 0,
         limit: int = 100,
@@ -318,7 +318,7 @@ class DwellerService:
     async def update_dweller(
         self,
         db_session: AsyncSession,
-        dweller_id: UUID4,
+        dweller_id: UUID,
         dweller_data: DwellerUpdate | DwellerUpdateRequest | dict[str, Any],
     ) -> Any:
         """Update a dweller, computing room-based status automatically.
@@ -386,7 +386,7 @@ class DwellerService:
         return updated
 
     async def move_to_room(
-        self, db_session: AsyncSession, dweller_id: UUID4, room_id: UUID4, *, commit: bool = True
+        self, db_session: AsyncSession, dweller_id: UUID, room_id: UUID, *, commit: bool = True
     ) -> DwellerReadWithRoomID:
         """Move dweller to a different room."""
         dweller_obj = await crud.dweller.get(db_session, dweller_id)
@@ -451,7 +451,7 @@ class DwellerService:
                 {"dweller_id": str(dweller_obj.id), "room_type": room_obj.name, "is_correct": True},
             )
 
-    async def auto_assign_to_best_room(self, db_session: AsyncSession, dweller_id: UUID4) -> DwellerReadWithRoomID:
+    async def auto_assign_to_best_room(self, db_session: AsyncSession, dweller_id: UUID) -> DwellerReadWithRoomID:
         """Auto-assign dweller to the best matching production room based on their highest SPECIAL stat."""
         dweller_obj = await crud.dweller.get(db_session, dweller_id)
         validate_automatic_assignment(dweller_obj)

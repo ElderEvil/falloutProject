@@ -3,8 +3,8 @@
 import random
 from collections.abc import Callable
 from datetime import timedelta
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -19,7 +19,7 @@ from app.utils.time import utcnow
 
 async def process_storage_maintenance(
     db: AsyncSession,
-    vault_id: UUID4,
+    vault_id: UUID,
     rng: Callable[[], float] = random.random,
 ) -> dict[str, int]:
     """Consume due trials and persist notifications before publishing after commit."""

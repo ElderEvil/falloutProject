@@ -12,7 +12,6 @@ import random
 from typing import Any
 from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import RewardType
@@ -27,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 async def grant_caps(
-    db_session: AsyncSession, vault_id: UUID4, amount: int, *, emit_event: bool = True
+    db_session: AsyncSession, vault_id: UUID, amount: int, *, emit_event: bool = True
 ) -> dict[str, Any]:
     from app.crud.vault import vault as vault_crud
     from app.services.vault_service import vault_service
@@ -47,7 +46,7 @@ async def grant_caps(
     return {"reward_type": RewardType.CAPS, "amount": amount}
 
 
-async def grant_resource(db_session: AsyncSession, vault_id: UUID4, resource_type: str, amount: int) -> dict[str, Any]:
+async def grant_resource(db_session: AsyncSession, vault_id: UUID, resource_type: str, amount: int) -> dict[str, Any]:
     from app.crud.vault import vault as vault_crud
 
     vault_obj = await vault_crud.get(db_session, id=vault_id)
@@ -77,7 +76,7 @@ async def grant_resource(db_session: AsyncSession, vault_id: UUID4, resource_typ
     return {"reward_type": RewardType.RESOURCE, "resource_type": resource_type, "amount": amount}
 
 
-async def grant_experience(db_session: AsyncSession, dweller_ids: list[UUID4], amount: int) -> dict[str, Any]:
+async def grant_experience(db_session: AsyncSession, dweller_ids: list[UUID], amount: int) -> dict[str, Any]:
     from app.crud.dweller import dweller as dweller_crud
     from app.services.dweller_service import dweller_service
 
@@ -105,14 +104,14 @@ async def grant_experience(db_session: AsyncSession, dweller_ids: list[UUID4], a
 
 
 async def grant_stimpak(
-    db_session: AsyncSession, vault_id: UUID4, amount: int, *, emit_event: bool = True
+    db_session: AsyncSession, vault_id: UUID, amount: int, *, emit_event: bool = True
 ) -> dict[str, Any]:
     """Grant stimpaks to random dweller in vault."""
     return await _grant_medication(db_session, vault_id, amount, RewardType.STIMPAK, "stimpack", emit_event=emit_event)
 
 
 async def grant_radaway(
-    db_session: AsyncSession, vault_id: UUID4, amount: int, *, emit_event: bool = False
+    db_session: AsyncSession, vault_id: UUID, amount: int, *, emit_event: bool = False
 ) -> dict[str, Any]:
     """Grant radaways to random dweller in vault."""
     return await _grant_medication(db_session, vault_id, amount, RewardType.RADAWAY, "radaway", emit_event=emit_event)
@@ -120,7 +119,7 @@ async def grant_radaway(
 
 async def _grant_medication(
     db_session: AsyncSession,
-    vault_id: UUID4,
+    vault_id: UUID,
     amount: int,
     reward_type: RewardType,
     stock_field: str,

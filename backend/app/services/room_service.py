@@ -3,9 +3,8 @@
 import logging
 from dataclasses import dataclass
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid7
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -40,7 +39,7 @@ class MergeResult:
     """Result of an attempted adjacent-room merge."""
 
     room: Room | None
-    absorbed_ids: list[UUID4]
+    absorbed_ids: list[UUID]
     merged: bool
     created: bool = False
     # Capacity the vault already counts for the rooms this merge absorbs, so the
@@ -51,7 +50,7 @@ class MergeResult:
 def _survivor_field_values(
     source: RoomCreate | Room,
     *,
-    vault_id: UUID4,
+    vault_id: UUID,
     name: str,
     tier: int,
     coordinate_y: int,
@@ -86,7 +85,7 @@ def _survivor_field_values(
 
 async def _apply_merged_size(
     db_session: AsyncSession,
-    room_id: UUID4,
+    room_id: UUID,
     *,
     size: int,
     capacity: int | None,
@@ -237,7 +236,7 @@ class RoomService:
         )
 
         if dry_run:
-            preview_id = candidate_id or uuid4()
+            preview_id = candidate_id or uuid7()
             preview = Room.model_construct(
                 id=preview_id,
                 coordinate_x=coordinate_x if survivor_is_candidate else leftmost_existing_x,
@@ -322,7 +321,7 @@ class RoomService:
     async def backfill_merge_rooms_for_vault(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         *,
         dry_run: bool = True,
     ) -> dict[str, int]:
@@ -345,14 +344,14 @@ class RoomService:
     async def _merge_adjacent_vault_rooms(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         *,
         dry_run: bool,
     ) -> dict[str, int]:
         """Run the vault-wide adjacent-room merge scan; caller owns the placement lock."""
         rooms = await crud.room.get_all_by_vault(db_session, vault_id)
         vault = await crud.vault.get(db_session, id=vault_id)
-        absorbed_ids: set[UUID4] = set()
+        absorbed_ids: set[UUID] = set()
         merged_count = 0
 
         positioned = [room for room in rooms if room.coordinate_x is not None and room.coordinate_y is not None]
@@ -575,7 +574,7 @@ class RoomService:
     async def destroy_room(
         self,
         db_session: AsyncSession,
-        room_id: UUID4,
+        room_id: UUID,
     ) -> Room:
         """Destroy a room and refund a portion of its cost.
 
@@ -601,7 +600,7 @@ class RoomService:
         except ValueError as e:
             raise VaultOperationException(detail=str(e)) from e
 
-    async def _destroy_transaction(self, db_session: AsyncSession, room_id: UUID4) -> Room:
+    async def _destroy_transaction(self, db_session: AsyncSession, room_id: UUID) -> Room:
         room = await crud.room.get(db_session, room_id)
         vault = await crud.vault.get(db_session, id=room.vault_id)
 
@@ -639,7 +638,7 @@ class RoomService:
     async def upgrade_room(
         self,
         db_session: AsyncSession,
-        room_id: UUID4,
+        room_id: UUID,
     ) -> Room:
         """Upgrade a room to the next tier.
 
@@ -660,7 +659,7 @@ class RoomService:
         except ValueError as e:
             raise VaultOperationException(detail=str(e)) from e
 
-    async def _upgrade(self, db_session: AsyncSession, room_id: UUID4) -> Room:
+    async def _upgrade(self, db_session: AsyncSession, room_id: UUID) -> Room:
         """Upgrade a room under the vault's placement lock, merging into an adjacent identical room."""
         room = await crud.room.get(db_session, room_id)
         async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(room.vault_id)) as acquired:
@@ -669,7 +668,7 @@ class RoomService:
             await db_session.refresh(room)
             return await self._upgrade_locked_transaction(db_session, room)
 
-    async def apply_room_style(self, db_session: AsyncSession, room_id: UUID4, style: str) -> Room:
+    async def apply_room_style(self, db_session: AsyncSession, room_id: UUID, style: str) -> Room:
         """Apply a cosmetic room-wide style, updating the stored sprite URL."""
         room = await crud.room.get(db_session, room_id)
         async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(room.vault_id)) as acquired:
@@ -790,7 +789,7 @@ class RoomService:
     async def get_buildable_rooms(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
     ) -> list:
         """Get list of rooms that can be built in a vault.
 
@@ -814,7 +813,7 @@ class RoomService:
     async def get_rooms_by_name_pattern(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         pattern: str,
     ) -> "list[Room]":
         """Rooms of a vault whose name matches a LIKE pattern (e.g. ``%radio%``)."""

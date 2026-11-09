@@ -3,9 +3,8 @@
 import asyncio
 import logging
 import random
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import GenderEnum
@@ -48,13 +47,14 @@ class ConversationService:
         return "alloy"
 
     async def _transcribe_audio(
-        self, audio_bytes: bytes, user_id: UUID4, dweller_id: UUID4, audio_filename: str
+        self, audio_bytes: bytes, user_id: UUID, dweller_id: UUID, audio_filename: str
     ) -> tuple[str, str | None, float | None]:
         transcribed_text = await self.ai_service.transcribe_audio(audio_bytes, filename=audio_filename)
         logger.debug("Audio transcription completed")
 
         user_audio_url = None
         if self.storage_service is not None:
+            # Opaque object key; v4 keeps stored paths unguessable.
             user_audio_filename = (
                 f"chat/{user_id}/{dweller_id}/user_{uuid4()}.{audio_filename.rsplit('.', maxsplit=1)[-1]}"
             )
@@ -74,13 +74,14 @@ class ConversationService:
         return await run_chat_agent(db_session, dweller, transcribed_text, instructions, for_audio=True)
 
     async def _generate_tts_audio(
-        self, text: str, gender: GenderEnum | None, user_id: UUID4, dweller_id: UUID4
+        self, text: str, gender: GenderEnum | None, user_id: UUID, dweller_id: UUID
     ) -> tuple[bytes, str | None]:
         voice = self._select_voice_for_gender(gender)
         logger.info("Generating TTS audio")
         audio_bytes = await self.ai_service.generate_audio(text=text, voice=voice, model="tts-1")
         audio_url = None
         if self.storage_service is not None:
+            # Opaque object key; v4 keeps stored paths unguessable.
             audio_filename = f"chat/{user_id}/{dweller_id}/dweller_{uuid4()}.mp3"
             audio_url = await asyncio.to_thread(
                 self.storage_service.upload_file,
@@ -97,7 +98,7 @@ class ConversationService:
         user: User,
         dweller,
         payload: VoiceMessagePayload,
-    ) -> UUID4:
+    ) -> UUID:
         llm_int_create = LLMInteractionCreate(
             parameters=payload.transcribed_text,
             response=payload.dweller_response_text,
@@ -143,7 +144,7 @@ class ConversationService:
         self,
         db_session: AsyncSession,
         user: User,
-        dweller_id: UUID4,
+        dweller_id: UUID,
         audio_bytes: bytes,
         audio_filename: str = "audio.webm",
     ) -> VoiceChatResult:

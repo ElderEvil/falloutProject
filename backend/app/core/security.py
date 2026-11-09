@@ -133,6 +133,7 @@ def create_email_verification_token(subject: str | Any) -> str:
     Create a token for email verification (7 day expiry).
     """
     expire = utcnow() + timedelta(days=7)
+    # Opaque JWT id: v4 keeps the token free of an ordering/time signal.
     to_encode = {"exp": expire, "sub": str(subject), "type": "email_verification", "jti": uuid4().hex}
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 

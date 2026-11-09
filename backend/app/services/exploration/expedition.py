@@ -10,8 +10,8 @@ exploration event log; run state lives in ``expedition_run`` rows.
 import logging
 import random
 from dataclasses import dataclass, field
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -97,14 +97,14 @@ class BranchResult:
         )
 
 
-async def _get_exploration(db_session: AsyncSession, exploration_id: UUID4) -> Exploration:
+async def _get_exploration(db_session: AsyncSession, exploration_id: UUID) -> Exploration:
     exploration = await crud.exploration.get(db_session, exploration_id)
     if exploration is None:
         raise ResourceNotFoundException(Exploration, identifier=exploration_id)
     return exploration
 
 
-async def _get_open_run(db_session: AsyncSession, exploration_id: UUID4) -> ExpeditionRun:
+async def _get_open_run(db_session: AsyncSession, exploration_id: UUID) -> ExpeditionRun:
     run = await crud.expedition_run.get_open_for_exploration_for_update(db_session, exploration_id)
     if run is None:
         raise ValidationException("No open expedition run for this exploration")
@@ -353,7 +353,7 @@ def _scenario_choice_only(exploration: Exploration) -> bool:
 class ExpeditionService:
     """Enter, resolve, retreat, and inspect expedition site runs."""
 
-    async def discover_sites(self, db_session: AsyncSession, exploration_id: UUID4) -> None:
+    async def discover_sites(self, db_session: AsyncSession, exploration_id: UUID) -> None:
         """Persist trail discoveries and their inbox reports atomically, once per journey/site.
 
         Movement commits before this operation. This method owns the discovery
@@ -422,7 +422,7 @@ class ExpeditionService:
         ):
             raise ValidationException(f"{site.name} is not on this journey's traveled path")
 
-    async def enter_run(self, db_session: AsyncSession, exploration_id: UUID4, site_id: str) -> SiteRoomView:
+    async def enter_run(self, db_session: AsyncSession, exploration_id: UUID, site_id: str) -> SiteRoomView:
         """Start (or resume) a site run on an in-progress exploration.
 
         Re-entering the same open site is an idempotent reconnect; re-entering a
@@ -510,7 +510,7 @@ class ExpeditionService:
         await db_session.commit()
         return build_view(exploration_id, site, run, exploration, dweller=dweller_obj)
 
-    async def list_available_sites(self, db_session: AsyncSession, exploration_id: UUID4) -> list[AvailableSiteView]:
+    async def list_available_sites(self, db_session: AsyncSession, exploration_id: UUID) -> list[AvailableSiteView]:
         """List expedition sites the dweller may currently enter.
 
         Spatial runs are offered the catalog sites near their traveled trail
@@ -584,7 +584,7 @@ class ExpeditionService:
             available.append(site)
         return available
 
-    async def current_view(self, db_session: AsyncSession, exploration_id: UUID4) -> SiteRoomView | None:
+    async def current_view(self, db_session: AsyncSession, exploration_id: UUID) -> SiteRoomView | None:
         """Return the open run view for reconnects, or None when there is none."""
         exploration = await _get_exploration(db_session, exploration_id)
         run = await crud.expedition_run.get_open_for_exploration(db_session, exploration_id)
@@ -597,7 +597,7 @@ class ExpeditionService:
         return build_view(exploration_id, site, run, exploration, dweller=dweller_obj)
 
     async def resolve_node(
-        self, db_session: AsyncSession, exploration_id: UUID4, request: ExpeditionResolveRequest
+        self, db_session: AsyncSession, exploration_id: UUID, request: ExpeditionResolveRequest
     ) -> SiteRoomView:
         """Resolve the current room node and advance the cursor (or finish the run)."""
         db_session.info.pop("deferred_notification_deliveries", None)
@@ -889,7 +889,7 @@ class ExpeditionService:
             dweller=dweller,
         )
 
-    async def retreat_run(self, db_session: AsyncSession, exploration_id: UUID4) -> SiteRoomView:
+    async def retreat_run(self, db_session: AsyncSession, exploration_id: UUID) -> SiteRoomView:
         """Abandon the run at a room boundary: room loot kept, finale forfeited."""
         exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
         if not exploration.is_in_progress():

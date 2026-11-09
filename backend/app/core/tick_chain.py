@@ -42,6 +42,7 @@ async def claim_tick_chain(redis: Redis, key: str, token: str | None) -> str | N
     the key is absent, and takes over a stale lease whose heartbeat has expired
     so a dead chain recovers within the heartbeat TTL instead of the lease TTL.
     """
+    # Opaque lease token; only uniqueness matters.
     candidate = token or uuid4().hex
     heartbeat_key = f"{key}:heartbeat"
     if token is None:

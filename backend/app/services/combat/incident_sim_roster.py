@@ -13,8 +13,8 @@ Outfits use the validated catalog schemas (resists + SPECIAL), not ORM rows.
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, cast
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import DamageChannel, HazardTeam
@@ -137,7 +137,7 @@ def synthetic_defenders(
     return profiles
 
 
-async def snapshot_vault_defenders(db_session: AsyncSession, vault_id: UUID4) -> list[DefenderProfile]:
+async def snapshot_vault_defenders(db_session: AsyncSession, vault_id: UUID) -> list[DefenderProfile]:
     """Load a vault's healthy adults as defender profiles (weapon/outfit/pet eager-loaded)."""
     from app.crud.dweller import dweller as crud_dweller
     from app.crud.team import team_crud
@@ -146,7 +146,7 @@ async def snapshot_vault_defenders(db_session: AsyncSession, vault_id: UUID4) ->
     await vault_crud.get(db_session, vault_id)
     dwellers = await crud_dweller.get_healthy_adults_by_vault(db_session, vault_id)
     dweller_ids = [dweller.id for dweller in dwellers]
-    active_teams: dict[UUID4, set[HazardTeam]] = {dweller_id: set() for dweller_id in dweller_ids}
+    active_teams: dict[UUID, set[HazardTeam]] = {dweller_id: set() for dweller_id in dweller_ids}
     for team in HazardTeam:
         for dweller_id in await team_crud.get_active_hazard_member_ids(db_session, vault_id, team, dweller_ids):
             active_teams[dweller_id].add(team)

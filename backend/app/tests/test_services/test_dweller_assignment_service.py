@@ -2,9 +2,9 @@
 
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import UUID
 
 import pytest
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
@@ -50,7 +50,7 @@ _R_CRAFT = uuid.UUID("5f2a1c3e-9b4d-4e6f-8a1b-2c3d4e5f6a7b")
 
 
 def _make_dweller(
-    _id: UUID4 = _D1,
+    _id: UUID = _D1,
     *,
     strength: int = 5,
     perception: int = 5,
@@ -59,8 +59,8 @@ def _make_dweller(
     intelligence: int = 5,
     agility: int = 5,
     luck: int = 5,
-    room_id: UUID4 | None = None,
-    vault_id: UUID4 | None = None,
+    room_id: UUID | None = None,
+    vault_id: UUID | None = None,
     is_deleted: bool = False,
     is_dead: bool = False,
 ) -> MagicMock:
@@ -82,7 +82,7 @@ def _make_dweller(
 
 
 def _make_room(
-    _id: UUID4 = _R1,
+    _id: UUID = _R1,
     *,
     name: str = "Test Room",
     category: RoomTypeEnum = RoomTypeEnum.PRODUCTION,
@@ -90,7 +90,7 @@ def _make_room(
     size: int | None = 3,
     size_min: int = 3,
     size_max: int = 6,
-    vault_id: UUID4 | None = None,
+    vault_id: UUID | None = None,
 ) -> MagicMock:
     """Create a MagicMock room."""
     r = MagicMock(spec=Room)

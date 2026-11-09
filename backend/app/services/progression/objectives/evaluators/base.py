@@ -16,8 +16,8 @@ import abc
 import contextvars
 import logging
 from typing import Any
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.event_bus import EventBus, GameEvent
@@ -79,7 +79,7 @@ class ObjectiveEvaluator(abc.ABC):
         for event_type in self.subscribed_events:
             self._event_bus.unsubscribe(event_type, self._handle_event)
 
-    async def _handle_event(self, event_type: str, vault_id: UUID4, data: dict[str, Any]) -> None:
+    async def _handle_event(self, event_type: str, vault_id: UUID, data: dict[str, Any]) -> None:
         logger.debug(f"[DEBUG] {self.__class__.__name__} received {event_type} for vault {vault_id} with data: {data}")
         payloads = _expand_payloads(data) if event_type == GameEvent.RESOURCE_COLLECTED else [data]
         maker = current_session_maker.get() or async_session_maker
@@ -114,7 +114,7 @@ class ObjectiveEvaluator(abc.ABC):
                         await self._get_active_objectives(db_session, vault_id)
 
     async def _get_active_objectives(
-        self, db_session: AsyncSession, vault_id: UUID4
+        self, db_session: AsyncSession, vault_id: UUID
     ) -> list[tuple[Objective, VaultObjectiveProgressLink]]:
         from app.crud.objective import objective_crud
 
@@ -133,7 +133,7 @@ class ObjectiveEvaluator(abc.ABC):
     async def _credit_event(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         objective: Objective,
         link: VaultObjectiveProgressLink,
         data: dict[str, Any],
@@ -169,7 +169,7 @@ class ObjectiveEvaluator(abc.ABC):
     async def _update_progress(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         objective: Objective,
         link: VaultObjectiveProgressLink,
         amount: int,
@@ -189,7 +189,7 @@ class ObjectiveEvaluator(abc.ABC):
     async def _persist_progress_transaction(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         objective: Objective,
         link: VaultObjectiveProgressLink,
         *,
@@ -217,7 +217,7 @@ class ObjectiveEvaluator(abc.ABC):
     async def _mark_ready(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         objective: Objective,
         link: VaultObjectiveProgressLink,
     ) -> None:

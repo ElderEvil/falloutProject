@@ -9,8 +9,8 @@ carries it home.
 import logging
 import random
 from datetime import timedelta
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import NotificationPriority, NotificationType
@@ -36,7 +36,7 @@ from app.utils.time import utcnow
 logger = logging.getLogger(__name__)
 
 
-async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUID4, *, arrived: bool = False) -> None:
+async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUID, *, arrived: bool = False) -> None:
     """Resolve a targeted run's arrival: party fight, loot, clear state, then return leg."""
     exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
     if exploration is None or not exploration.is_dispatch_run() or not exploration.is_active():

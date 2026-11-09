@@ -9,9 +9,8 @@ import math
 import random
 from collections.abc import Sequence
 from datetime import datetime, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid7
 
-from pydantic import UUID4
 from sqlalchemy import orm
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -64,7 +63,7 @@ def dispatch_travel_hours(distance: float) -> int:
 
 
 def _to_exploration_party_member_read(
-    member: TeamMember, exploration_id: UUID4, vault_id: UUID4
+    member: TeamMember, exploration_id: UUID, vault_id: UUID
 ) -> ExplorationPartyMemberRead:
     """Map a dispatch team member into the exploration wire contract (exploration/vault come from the run)."""
     slot_number = member.slot_number
@@ -100,7 +99,7 @@ class ExplorationService:
         return event_generator.generate_event(exploration)
 
     async def get_party(
-        self, db_session: AsyncSession, vault_id: UUID4, exploration_id: UUID4
+        self, db_session: AsyncSession, vault_id: UUID, exploration_id: UUID
     ) -> list[ExplorationPartyMemberRead]:
         """Read the slot-ordered party for a run belonging to the requested vault."""
         exploration = await crud_exploration.get(db_session, exploration_id)
@@ -122,14 +121,14 @@ class ExplorationService:
         return await event_service.process_event(db_session, exploration)
 
     async def start_return(
-        self, db_session: AsyncSession, exploration_id: UUID4, *, recalled: bool = False
+        self, db_session: AsyncSession, exploration_id: UUID, *, recalled: bool = False
     ) -> Exploration:
         """Send a dweller home; rewards and loot wait until the return leg finishes.
 
         :param db_session: Database session
         :type db_session: AsyncSession
         :param exploration_id: Exploration ID
-        :type exploration_id: UUID4
+        :type exploration_id: UUID
         :param recalled: True for a player-initiated early recall, defaults to False
         :type recalled: bool
         :return: The exploration now in RETURNING state
@@ -137,13 +136,13 @@ class ExplorationService:
         """
         return await exploration_coordinator.start_return(db_session, exploration_id, recalled=recalled)
 
-    async def finalize_return(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
+    async def finalize_return(self, db_session: AsyncSession, exploration_id: UUID) -> RewardsSchema:
         """Finalize an exploration whose dweller has arrived home.
 
         :param db_session: Database session
         :type db_session: AsyncSession
         :param exploration_id: Exploration ID
-        :type exploration_id: UUID4
+        :type exploration_id: UUID
         :return: Rewards summary
         :rtype: RewardsSchema
         """
@@ -152,8 +151,8 @@ class ExplorationService:
     async def send_dweller(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
-        dweller_id: UUID4,
+        vault_id: UUID,
+        dweller_id: UUID,
         duration: int,
         stimpaks: int = 0,
         radaways: int = 0,
@@ -164,9 +163,9 @@ class ExplorationService:
         :param db_session: Database session
         :type db_session: AsyncSession
         :param vault_id: Vault ID
-        :type vault_id: UUID4
+        :type vault_id: UUID
         :param dweller_id: Dweller ID
-        :type dweller_id: UUID4
+        :type dweller_id: UUID
         :param duration: Exploration duration in hours
         :type duration: int
         :param stimpaks: Number of Stimpaks to bring, defaults to 0
@@ -195,7 +194,7 @@ class ExplorationService:
 
         # Resolve origin/world before staging: snapshot generation commits, so
         # resolving later would split the departure transaction.
-        exploration_id = uuid4()
+        exploration_id = uuid7()
         origin: tuple[float, float] | None = await self._vault_origin(db_session, vault_id)
         world_version: int | None = None
         if heading_degrees is not None and not 0 <= heading_degrees < 360:
@@ -327,7 +326,7 @@ class ExplorationService:
         self,
         db_session: AsyncSession,
         *,
-        vault_id: UUID4,
+        vault_id: UUID,
         dwellers: Sequence[Dweller],
         exploration: Exploration,
     ) -> Exploration:
@@ -360,7 +359,7 @@ class ExplorationService:
         )
         return exploration
 
-    async def _vault_origin(self, db_session: AsyncSession, vault_id: UUID4) -> tuple[float, float] | None:
+    async def _vault_origin(self, db_session: AsyncSession, vault_id: UUID) -> tuple[float, float] | None:
         """Travel origin: the vault's slot placement, or None when the vault has no slot.
 
         No production fallback to the map centre: vaults without a slot are
@@ -373,9 +372,9 @@ class ExplorationService:
     async def depart(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
-        dweller_ids: list[UUID4],
-        target_location_id: UUID4 | None = None,
+        vault_id: UUID,
+        dweller_ids: list[UUID],
+        target_location_id: UUID | None = None,
         duration: int = 4,
         stimpaks: int = 0,
         radaways: int = 0,
@@ -415,9 +414,9 @@ class ExplorationService:
     async def dispatch(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
-        dweller_ids: list[UUID4],
-        location_id: UUID4,
+        vault_id: UUID,
+        dweller_ids: list[UUID],
+        location_id: UUID,
         stimpaks: int = 0,
         radaways: int = 0,
     ) -> Exploration:
@@ -432,11 +431,11 @@ class ExplorationService:
         :param db_session: Database session
         :type db_session: AsyncSession
         :param vault_id: Vault ID
-        :type vault_id: UUID4
+        :type vault_id: UUID
         :param dweller_ids: Party of 1 to ``max_party_size`` dweller IDs
-        :type dweller_ids: list[UUID4]
+        :type dweller_ids: list[UUID]
         :param location_id: Target world-location ID
-        :type location_id: UUID4
+        :type location_id: UUID
         :return: Created exploration
         :rtype: Exploration
         :raises ResourceNotFoundException: If a dweller or the location is unknown
@@ -591,9 +590,7 @@ class ExplorationService:
         last = self._last_valid_point(snapshot, origin[0], origin[1], end[0], end[1])
         return math.dist(origin, last)
 
-    async def suggest_heading(
-        self, db_session: AsyncSession, vault_id: UUID4, duration: int, seed: str
-    ) -> float | None:
+    async def suggest_heading(self, db_session: AsyncSession, vault_id: UUID, duration: int, seed: str) -> float | None:
         """Suggest a deterministic, terrain-aware heading; null when the vault has no placement."""
         origin = await self._vault_origin(db_session, vault_id)
         if origin is None:
@@ -868,7 +865,7 @@ class ExplorationService:
         exploration.position_as_of = now
 
     async def advance(
-        self, db_session: AsyncSession, exploration_id: UUID4, *, now: datetime | None = None
+        self, db_session: AsyncSession, exploration_id: UUID, *, now: datetime | None = None
     ) -> Exploration:
         """Advance a spatial exploration's position by elapsed time (slice 1 movement).
 
@@ -926,13 +923,13 @@ class ExplorationService:
             exploration.position_as_of = max(exploration.position_as_of, now)
         return exploration
 
-    async def get_exploration_progress(self, db_session: AsyncSession, exploration_id: UUID4) -> ExplorationProgress:
+    async def get_exploration_progress(self, db_session: AsyncSession, exploration_id: UUID) -> ExplorationProgress:
         """Get current progress of an exploration.
 
         :param db_session: Database session
         :type db_session: AsyncSession
         :param exploration_id: Exploration ID
-        :type exploration_id: UUID4
+        :type exploration_id: UUID
         :return: Exploration progress data
         :rtype: ExplorationProgress
         """
@@ -953,14 +950,14 @@ class ExplorationService:
         )
 
     async def complete_exploration_with_data(
-        self, db_session: AsyncSession, exploration_id: UUID4
+        self, db_session: AsyncSession, exploration_id: UUID
     ) -> tuple[Exploration, RewardsSchema | None]:
         """Advance a finished exploration: start the return leg, or finalize once home.
 
         :param db_session: Database session
         :type db_session: AsyncSession
         :param exploration_id: Exploration ID
-        :type exploration_id: UUID4
+        :type exploration_id: UUID
         :return: Tuple of (exploration, rewards); rewards are None while the dweller is still returning
         :rtype: tuple[Exploration, RewardsSchema | None]
         :raises ValueError: If exploration cannot be advanced
@@ -979,14 +976,14 @@ class ExplorationService:
         raise ValueError(ERROR_NOT_ACTIVE)
 
     async def recall_exploration_with_data(
-        self, db_session: AsyncSession, exploration_id: UUID4
+        self, db_session: AsyncSession, exploration_id: UUID
     ) -> tuple[Exploration, RewardsSchema | None]:
         """Recall dweller early: the run enters its return leg, rewards wait for arrival.
 
         :param db_session: Database session
         :type db_session: AsyncSession
         :param exploration_id: Exploration ID
-        :type exploration_id: UUID4
+        :type exploration_id: UUID
         :return: Tuple of (exploration, None); rewards arrive when the dweller gets home
         :rtype: tuple[Exploration, RewardsSchema | None]
         :raises ValueError: If exploration cannot be recalled
@@ -994,13 +991,13 @@ class ExplorationService:
         exploration = await exploration_coordinator.start_return(db_session, exploration_id, recalled=True)
         return exploration, None
 
-    async def process_event_for_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> Exploration:
+    async def process_event_for_exploration(self, db_session: AsyncSession, exploration_id: UUID) -> Exploration:
         """Generate and process an event for an exploration.
 
         :param db_session: Database session
         :type db_session: AsyncSession
         :param exploration_id: Exploration ID
-        :type exploration_id: UUID4
+        :type exploration_id: UUID
         :return: Updated exploration
         :rtype: Exploration
         :raises ValueError: If exploration is not active or paused for an encounter

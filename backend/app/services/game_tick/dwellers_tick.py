@@ -7,8 +7,8 @@ sessions, and happiness. ``GameLoopService`` keeps same-named thin delegates.
 
 import logging
 from functools import partial
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -39,7 +39,7 @@ from app.utils.time import utcnow
 logger = logging.getLogger(__name__)
 
 
-async def _drought_ticks(db_session: AsyncSession, vault_id: UUID4) -> int:
+async def _drought_ticks(db_session: AsyncSession, vault_id: UUID) -> int:
     """Whole ticks since vault water hit zero; 0 when the clock is missing (fresh drought)."""
     from app.crud.game_state import game_state_crud
 
@@ -50,7 +50,7 @@ async def _drought_ticks(db_session: AsyncSession, vault_id: UUID4) -> int:
     return max(0, int(elapsed) // game_config.game_loop.tick_interval)
 
 
-async def process_explorations(db_session: AsyncSession, vault_id: UUID4) -> ExplorationStats:
+async def process_explorations(db_session: AsyncSession, vault_id: UUID) -> ExplorationStats:
     """Process all in-progress explorations for a vault.
 
     - Generate events for explorations that are due
@@ -226,7 +226,7 @@ async def award_work_xp(db_session: AsyncSession, dweller, room) -> WorkXpStats:
 
 
 async def process_dwellers(
-    db_session: AsyncSession, vault_id: UUID4, seconds_passed: int | None = None
+    db_session: AsyncSession, vault_id: UUID, seconds_passed: int | None = None
 ) -> DwellersStats:
     """Process dweller updates for a vault.
 
@@ -311,7 +311,7 @@ async def process_dwellers(
     return stats
 
 
-async def process_apprenticeships(db_session: AsyncSession, vault_id: UUID4) -> ApprenticeStats:
+async def process_apprenticeships(db_session: AsyncSession, vault_id: UUID) -> ApprenticeStats:
     """Advance eligible youth apprentices by at most one SPECIAL point per tick."""
     from app.models.base import SPECIALModel
     from app.services.training_service import TrainingService
@@ -361,7 +361,7 @@ async def process_apprenticeships(db_session: AsyncSession, vault_id: UUID4) -> 
     return stats
 
 
-async def process_training(db_session: AsyncSession, vault_id: UUID4) -> TrainingStats:
+async def process_training(db_session: AsyncSession, vault_id: UUID) -> TrainingStats:
     """Process all active training sessions for a vault.
 
     - Update training progress
@@ -461,7 +461,7 @@ async def _process_single_training(
         )
 
 
-async def process_happiness(db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> dict:
+async def process_happiness(db_session: AsyncSession, vault_id: UUID, seconds_passed: int) -> dict:
     """Process happiness updates for all dwellers in a vault.
 
     - Calculate happiness changes based on vault conditions

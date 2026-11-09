@@ -6,8 +6,8 @@ can never disagree. Quest lifecycle — start, claim, complete — lives in ``se
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlalchemy import inspect
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -49,8 +49,8 @@ def _highest_mandatory_level_requirement(quest_read: QuestRead) -> int:
 
 async def _chain_lock_reason(
     db_session: AsyncSession,
-    previous_quest_id: UUID4,
-    resolve_quest: Callable[[UUID4], Quest | None] | None,
+    previous_quest_id: UUID,
+    resolve_quest: Callable[[UUID], Quest | None] | None,
 ) -> str:
     """Requirement-driven unlock feedback: name the predecessor, else the generic reason.
 
@@ -68,12 +68,12 @@ async def _chain_lock_reason(
 
 async def quest_availability(
     db_session: AsyncSession,
-    vault_id: UUID4,
+    vault_id: UUID,
     quest: Quest,
     *,
     has_office: bool | None = None,
-    completed_quest_ids: set[UUID4] | None = None,
-    resolve_quest: Callable[[UUID4], Quest | None] | None = None,
+    completed_quest_ids: set[UUID] | None = None,
+    resolve_quest: Callable[[UUID], Quest | None] | None = None,
 ) -> QuestAvailability:
     """Whether a vault can start a quest: Office rule, chain predecessor, then mandatory requirements.
 
@@ -104,7 +104,7 @@ async def quest_availability(
 
 async def get_quests_for_vault(
     db_session: AsyncSession,
-    vault_id: UUID4,
+    vault_id: UUID,
     skip: int = 0,
     limit: int = 100,
     available_only: bool = False,

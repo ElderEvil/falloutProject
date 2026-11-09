@@ -1,8 +1,8 @@
 """Incident service for managing combat events and vault disasters."""
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import IncidentObjective, IncidentStatus, IncidentType
@@ -40,8 +40,8 @@ MAX_INCIDENT_RESPONDERS = 6
 
 
 async def committed_responder_ids(
-    db_session: AsyncSession, vault_id: UUID4, *, exclude_incident_id: UUID4 | None = None
-) -> set[UUID4]:
+    db_session: AsyncSession, vault_id: UUID, *, exclude_incident_id: UUID | None = None
+) -> set[UUID]:
     """Dweller ids rostered on another ACTIVE incident and therefore unavailable.
 
     Room residents defend automatically and cannot be pulled to another incident.
@@ -49,7 +49,7 @@ async def committed_responder_ids(
     other than ``exclude_incident_id`` is already committed to that response and
     must not be drafted again; ``completed`` members are free.
     """
-    committed: set[UUID4] = set()
+    committed: set[UUID] = set()
     for incident in await incident_crud.get_active_by_vault(db_session, vault_id):
         if exclude_incident_id is not None and incident.id == exclude_incident_id:
             continue
@@ -74,14 +74,14 @@ class IncidentService:
         """Append a meaningful lifecycle event; callers commit with their state change."""
         incident_publishing.record_event(db_session, incident, kind=kind, message=message, data=data)
 
-    async def _room_name(self, db_session: AsyncSession, room_id: UUID4 | None) -> str | None:
+    async def _room_name(self, db_session: AsyncSession, room_id: UUID | None) -> str | None:
         """Resolve a room's display name; None when the room is gone."""
         if room_id is None:
             return None
         names = await room_crud.get_names_by_ids(db_session, [room_id])
         return names.get(room_id)
 
-    async def get_active_incident_list(self, db_session: AsyncSession, vault_id: UUID4) -> IncidentListResponse:
+    async def get_active_incident_list(self, db_session: AsyncSession, vault_id: UUID) -> IncidentListResponse:
         """Build the active-incident list contract for a vault."""
         incidents = await incident_crud.get_active_by_vault(db_session, vault_id, started_only=True)
         room_names = await room_crud.get_names_by_ids(db_session, [incident.room_id for incident in incidents])
@@ -107,7 +107,7 @@ class IncidentService:
         )
 
     async def get_incident_read_for_vault(
-        self, db_session: AsyncSession, vault_id: UUID4, incident_id: UUID4
+        self, db_session: AsyncSession, vault_id: UUID, incident_id: UUID
     ) -> IncidentRead:
         """Get an incident's read contract, scoped to the vault that owns it.
 
@@ -172,13 +172,13 @@ class IncidentService:
         )
 
     async def should_spawn_incident(
-        self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
+        self, db_session: AsyncSession, vault_id: UUID, seconds_passed: int, game_state: GameState | None = None
     ) -> bool:
         """Spawn gating — see incident_spawning."""
         return await incident_spawning.should_spawn_incident(db_session, vault_id, seconds_passed, game_state)
 
     async def spawn_incident(
-        self, db_session: AsyncSession, vault_id: UUID4, incident_type: IncidentType | None = None
+        self, db_session: AsyncSession, vault_id: UUID, incident_type: IncidentType | None = None
     ) -> Incident | None:
         """Spawn orchestration — see incident_spawning."""
         return await incident_spawning.spawn_incident(db_session, vault_id, incident_type)
@@ -192,7 +192,7 @@ class IncidentService:
     async def process_vault_incidents(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         seconds_passed: int,
         game_state: GameState | None = None,
     ) -> dict:
@@ -204,7 +204,7 @@ class IncidentService:
         return await incident_tick.process_all_vaults_incidents(self, db_session, seconds_passed)
 
     async def get_incident_for_vault(
-        self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4, *, for_update: bool = False
+        self, db_session: AsyncSession, incident_id: UUID, vault_id: UUID, *, for_update: bool = False
     ) -> Incident:
         incident = (
             await incident_crud.get_for_update(db_session, incident_id)
@@ -217,9 +217,7 @@ class IncidentService:
             raise AccessDeniedException("Incident does not belong to this vault")
         return incident
 
-    async def get_pending_overflow(
-        self, db_session: AsyncSession, vault_id: UUID4
-    ) -> list[PendingIncidentOverflowRead]:
+    async def get_pending_overflow(self, db_session: AsyncSession, vault_id: UUID) -> list[PendingIncidentOverflowRead]:
         """Resolved incidents still holding loot for a take or sell decision."""
         incidents = await incident_crud.get_resolved_by_vault(db_session, vault_id)
         return [
@@ -234,7 +232,7 @@ class IncidentService:
         ]
 
     async def take_unclaimed_item(
-        self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4, index: int
+        self, db_session: AsyncSession, incident_id: UUID, vault_id: UUID, index: int
     ) -> list[dict]:
         """Store one held incident item. 409 when storage is still full."""
         incident = await self.get_incident_for_vault(db_session, incident_id, vault_id, for_update=True)
@@ -256,7 +254,7 @@ class IncidentService:
         return unclaimed
 
     async def sell_unclaimed_item(
-        self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4, index: int
+        self, db_session: AsyncSession, incident_id: UUID, vault_id: UUID, index: int
     ) -> tuple[int, list[dict]]:
         """Sell one held incident item for caps. Needs no storage space."""
         incident = await self.get_incident_for_vault(db_session, incident_id, vault_id, for_update=True)
@@ -274,8 +272,8 @@ class IncidentService:
         return value, unclaimed
 
     async def assign_responders(
-        self, db_session: AsyncSession, incident: Incident, dweller_ids: list[UUID4]
-    ) -> list[UUID4]:
+        self, db_session: AsyncSession, incident: Incident, dweller_ids: list[UUID]
+    ) -> list[UUID]:
         """Move eligible dwellers into an active incident room before its next round.
 
         Records the incident's designated responder team; room presence continues
@@ -360,7 +358,7 @@ class IncidentService:
         return eligible_ids
 
     async def get_incident_team_read(
-        self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4
+        self, db_session: AsyncSession, incident_id: UUID, vault_id: UUID
     ) -> list[IncidentResponderRead]:
         """The vault's designated responder roster for an incident, as read shapes."""
         incident = await self.get_incident_for_vault(db_session, incident_id, vault_id)

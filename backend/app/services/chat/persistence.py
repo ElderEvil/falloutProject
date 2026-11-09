@@ -1,8 +1,8 @@
 """Persistence for chat interactions: LLM usage rows, chat messages, and place unlocks."""
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.chat_message import chat_message as chat_message_crud
@@ -25,7 +25,7 @@ async def persist_chat(
     dweller: DwellerReadFull,
     message_text: str,
     bundle: StreamBundle,
-) -> tuple[UUID4, list[UnlockedPlace]]:
+) -> tuple[UUID, list[UnlockedPlace]]:
     """Persist the LLM interaction and chat messages for a completed response."""
     llm_int_create = LLMInteractionCreate(
         parameters=message_text,

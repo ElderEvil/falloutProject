@@ -8,8 +8,8 @@ storage slot and the pet takes one, so a full vault never blocks the reveal.
 import logging
 import random
 from typing import Any
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import RarityEnum
@@ -44,7 +44,7 @@ def _roll_pet() -> dict:
     raise ValidationException("No pets are available in the carrier pool")
 
 
-async def grant_pet_carrier(db_session: AsyncSession, vault_id: UUID4, amount: int = 1) -> dict[str, Any]:
+async def grant_pet_carrier(db_session: AsyncSession, vault_id: UUID, amount: int = 1) -> dict[str, Any]:
     """Mint unopened pet carriers; the pet rolls only when the player opens one."""
     return await items.grant_item(
         db_session,
@@ -53,7 +53,7 @@ async def grant_pet_carrier(db_session: AsyncSession, vault_id: UUID4, amount: i
     )
 
 
-async def open_pet_carrier(db_session: AsyncSession, vault_id: UUID4, item_id: UUID4) -> dict[str, Any]:
+async def open_pet_carrier(db_session: AsyncSession, vault_id: UUID, item_id: UUID) -> dict[str, Any]:
     """Consume one pet carrier and add its rolled pet to storage."""
     from app.crud.storage import get_unopened_container
 

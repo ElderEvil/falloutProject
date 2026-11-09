@@ -40,6 +40,7 @@ class RequestIdMiddleware:
                 break
 
         # Generate new ID if not present
+        # Per-request correlation id; ordering is irrelevant.
         if not request_id:
             request_id = str(uuid.uuid4())
 

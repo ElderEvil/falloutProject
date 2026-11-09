@@ -1,6 +1,7 @@
 """Shared helpers for the hazard-team service tests."""
 
-from pydantic import UUID4
+from uuid import UUID
+
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -17,7 +18,7 @@ async def raise_incident(session: AsyncSession, room, incident_type: IncidentTyp
     )
 
 
-async def empty_room(session: AsyncSession, vault_id: UUID4, *, name: str = "Diner", x: int = 7) -> Room:
+async def empty_room(session: AsyncSession, vault_id: UUID, *, name: str = "Diner", x: int = 7) -> Room:
     """A room with no dwellers in it — nobody to respond to an incident there."""
     return await crud.room.create(
         session,
@@ -40,7 +41,7 @@ async def empty_room(session: AsyncSession, vault_id: UUID4, *, name: str = "Din
     )
 
 
-async def ensure_station(session: AsyncSession, vault_id: UUID4) -> Room:
+async def ensure_station(session: AsyncSession, vault_id: UUID) -> Room:
     """Give the vault a Response Station — the precondition for any hazard-team place.
 
     Idempotent: a station already standing is returned as-is, so a test that builds

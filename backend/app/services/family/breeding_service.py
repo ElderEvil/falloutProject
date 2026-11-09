@@ -5,8 +5,8 @@ import random
 from collections.abc import Sequence
 from datetime import timedelta
 from typing import Any, Literal
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import (
@@ -62,7 +62,7 @@ class BreedingService:
     @staticmethod
     def _is_pair_eligible(
         dweller: Dweller,
-        unavailable_mother_ids: set[UUID4],
+        unavailable_mother_ids: set[UUID],
         checked_pairs: set[tuple[str, str]],
     ) -> bool:
         """Check if a dweller-partner pair is eligible for a conception roll."""
@@ -78,7 +78,7 @@ class BreedingService:
         dweller: Dweller,
         partner: Dweller,
         *,
-        relationships: dict[tuple[UUID4, UUID4], Relationship] | None = None,
+        relationships: dict[tuple[UUID, UUID], Relationship] | None = None,
     ) -> float:
         """Get relationship affinity and calculate conception chance.
 
@@ -89,7 +89,7 @@ class BreedingService:
         :param partner: Partner dweller
         :type partner: Dweller
         :param relationships: Prefetched relationships keyed in both directions
-        :type relationships: dict[tuple[UUID4, UUID4], Relationship] | None
+        :type relationships: dict[tuple[UUID, UUID], Relationship] | None
         :returns: Conception chance as decimal (0.0 to 1.0)
         :rtype: float
         """
@@ -146,7 +146,7 @@ class BreedingService:
     @staticmethod
     async def check_for_conception(
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
     ) -> list[Pregnancy]:
         """Check all partner pairs in living quarters and roll for conception.
 
@@ -182,14 +182,14 @@ class BreedingService:
             if partner_ids
             else {}
         )
-        requested_pairs: set[tuple[UUID4, UUID4]] = set()
+        requested_pairs: set[tuple[UUID, UUID]] = set()
         for dweller in dwellers:
             if dweller.partner_id is None:
                 continue
             first, second = sorted((dweller.id, dweller.partner_id), key=str)
             requested_pairs.add((first, second))
 
-        relationships_by_pair: dict[tuple[UUID4, UUID4], Relationship] = {}
+        relationships_by_pair: dict[tuple[UUID, UUID], Relationship] = {}
         if requested_pairs:
             for relationship in await relationship_crud.get_by_pairs(db_session, list(requested_pairs)):
                 relationships_by_pair.setdefault((relationship.dweller_1_id, relationship.dweller_2_id), relationship)
@@ -237,8 +237,8 @@ class BreedingService:
     @staticmethod
     async def create_pregnancy(
         db_session: AsyncSession,
-        mother_id: UUID4,
-        father_id: UUID4,
+        mother_id: UUID,
+        father_id: UUID,
         *,
         commit: bool = True,
     ) -> Pregnancy:
@@ -299,13 +299,13 @@ class BreedingService:
     @staticmethod
     async def check_due_pregnancies(
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
     ) -> list[Pregnancy]:
         """Find all pregnancies that are due for delivery."""
         return await pregnancy_crud.get_due_by_vault(db_session, vault_id)
 
     @staticmethod
-    async def _link_newborn_to_home(db_session: AsyncSession, child: Dweller, vault_id: UUID4) -> None:
+    async def _link_newborn_to_home(db_session: AsyncSession, child: Dweller, vault_id: UUID) -> None:
         """Best-effort: link newborn to home-vault marker on the world map."""
         try:
             from app.crud.vault import vault as vault_crud
@@ -319,7 +319,7 @@ class BreedingService:
 
     @staticmethod
     async def _increment_birth_statistics(
-        db_session: AsyncSession, mother: Dweller, child: Dweller, vault_id: UUID4
+        db_session: AsyncSession, mother: Dweller, child: Dweller, vault_id: UUID
     ) -> None:
         """Best-effort: increment birth statistics for the vault owner."""
         try:
@@ -440,7 +440,7 @@ class BreedingService:
     @staticmethod
     async def deliver_baby(
         db_session: AsyncSession,
-        pregnancy_id: UUID4,
+        pregnancy_id: UUID,
     ) -> list[Dweller]:
         """Deliver a pregnancy.
 
@@ -601,7 +601,7 @@ class BreedingService:
     @staticmethod
     async def age_children(
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
     ) -> list[Dweller]:
         """Advance children to teens halfway through maturity, teens to adults at completion,
         and human adults past the elder threshold to elders.
@@ -666,7 +666,7 @@ class BreedingService:
     @staticmethod
     async def get_active_pregnancies(
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
     ) -> list[Pregnancy]:
         """Get all active pregnancies for a vault."""
         return await pregnancy_crud.get_active_by_vault(db_session, vault_id)
@@ -674,8 +674,8 @@ class BreedingService:
     @staticmethod
     async def force_conception(
         db_session: AsyncSession,
-        mother_id: UUID4,
-        father_id: UUID4,
+        mother_id: UUID,
+        father_id: UUID,
     ) -> Pregnancy:
         mother = await dweller_crud.get(db_session, mother_id)
 
@@ -706,7 +706,7 @@ class BreedingService:
     @staticmethod
     async def accelerate_pregnancy(
         db_session: AsyncSession,
-        pregnancy_id: UUID4,
+        pregnancy_id: UUID,
     ) -> Pregnancy:
         pregnancy = await pregnancy_crud.get(db_session, pregnancy_id)
 

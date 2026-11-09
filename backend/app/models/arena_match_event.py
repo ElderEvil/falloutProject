@@ -1,6 +1,6 @@
 """Arena match event model - battle journal entries for arena fights."""
 
-from uuid import UUID, uuid4
+from uuid import UUID, uuid7
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
@@ -14,7 +14,7 @@ class ArenaMatchEvent(TimeStampMixin, table=True):
 
     __tablename__ = "arena_match_event"
 
-    id: UUID = Field(default_factory=uuid4, primary_key=True, nullable=False)
+    id: UUID = Field(default_factory=uuid7, primary_key=True, nullable=False)
     room_id: UUID = Field(foreign_key="room.id", index=True, ondelete="CASCADE")
     round_seq: int = Field(default=1, ge=1)
     kind: str = Field(index=True, description="'hit' | 'finish' | 'reward'")

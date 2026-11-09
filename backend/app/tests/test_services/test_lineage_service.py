@@ -1,7 +1,8 @@
 """Tests for the LineageService (family relations & generation computation)."""
 
+from uuid import UUID
+
 import pytest
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -18,9 +19,9 @@ async def _make_dweller(
     *,
     first_name: str = "Test",
     gender: GenderEnum = GenderEnum.MALE,
-    parent_1_id: UUID4 | None = None,
-    parent_2_id: UUID4 | None = None,
-    partner_id: UUID4 | None = None,
+    parent_1_id: UUID | None = None,
+    parent_2_id: UUID | None = None,
+    partner_id: UUID | None = None,
 ) -> Dweller:
     """Create a dweller with explicit lineage links for testing.
 

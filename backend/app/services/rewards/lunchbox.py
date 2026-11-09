@@ -12,7 +12,6 @@ import random
 from typing import Any
 from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import ContentProvenanceEnum, GenderEnum, RarityEnum, RewardType
@@ -52,7 +51,7 @@ def _lunchbox_common_dweller_data(level: int, rarity: RarityEnum) -> dict[str, A
     }
 
 
-async def grant_lunchbox(db_session: AsyncSession, vault_id: UUID4, amount: int = 1) -> dict[str, Any]:
+async def grant_lunchbox(db_session: AsyncSession, vault_id: UUID, amount: int = 1) -> dict[str, Any]:
     """Mint unopened lunchbox Items; contents roll when the player opens each one."""
     return await items.grant_item(
         db_session,
@@ -61,7 +60,7 @@ async def grant_lunchbox(db_session: AsyncSession, vault_id: UUID4, amount: int 
     )
 
 
-async def open_lunchbox(db_session: AsyncSession, vault_id: UUID4, item_id: UUID4) -> dict[str, Any]:
+async def open_lunchbox(db_session: AsyncSession, vault_id: UUID, item_id: UUID) -> dict[str, Any]:
     """Consume one unopened lunchbox and roll its contents.
 
     Space for the rolled items is verified before the lunchbox row is
@@ -94,7 +93,7 @@ async def open_lunchbox(db_session: AsyncSession, vault_id: UUID4, item_id: UUID
 
 
 async def _roll_lunchbox_contents(
-    db_session: AsyncSession, vault_id: UUID4, storage_id: UUID4
+    db_session: AsyncSession, vault_id: UUID, storage_id: UUID
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Roll 3 random items and 1 dweller into storage for a lunchbox opening."""
     from app.crud.dweller import dweller as dweller_crud

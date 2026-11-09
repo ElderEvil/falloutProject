@@ -92,6 +92,7 @@ def game_tick():
     """Dispatch one vault tick per active vault. Scheduled every 60 seconds."""
     start = time.perf_counter()
     message = CurrentMessage.get_current_message()
+    # Celery message id fallback; not a database row.
     tick_id = message.message_id if message is not None else uuid4().hex
     try:
         logger.info("Dispatching game tick")
@@ -163,6 +164,7 @@ def incident_tick(chain_token: str | None = None):
 
 
 async def _acquire_vault_tick_lock(redis: Redis, vault_id: str) -> str | None:
+    # Opaque lock-ownership token; ordering is irrelevant.
     token = uuid4().hex
     acquired = await redis.set(f"{VAULT_TICK_LOCK_PREFIX}{vault_id}", token, nx=True, ex=VAULT_TICK_LOCK_TTL_SECONDS)
     return token if acquired else None

@@ -15,11 +15,11 @@ import asyncio
 import logging
 import threading
 from typing import Any, ClassVar
+from uuid import UUID
 
 import asyncpg
 import pytest
 import pytest_asyncio
-from pydantic import UUID4
 from sqlalchemy import JSON, event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
@@ -161,13 +161,13 @@ def test_cross_thread_ticks_do_not_collide_on_shared_objective_connection(
 
     bus = EventBus()
     vaults = [
-        UUID4("00000000-0000-0000-0000-000000000002"),
-        UUID4("00000000-0000-0000-0000-000000000003"),
+        UUID("00000000-0000-0000-0000-000000000002"),
+        UUID("00000000-0000-0000-0000-000000000003"),
     ]
     barrier = threading.Barrier(2)
     errors: list[BaseException] = []
 
-    def _worker_thread(vault_id: UUID4) -> threading.Thread:
+    def _worker_thread(vault_id: UUID) -> threading.Thread:
         def _run() -> None:
             async def _main() -> None:
                 setter = getattr(objective_evaluators, "set_current_session_maker", None)

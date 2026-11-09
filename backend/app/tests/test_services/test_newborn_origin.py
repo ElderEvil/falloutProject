@@ -2,10 +2,10 @@
 
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
+from uuid import UUID
 
 import pytest
 import pytest_asyncio
-from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -76,8 +76,8 @@ async def female_dweller_fixture(async_session: AsyncSession, vault: Vault) -> D
 
 async def _create_due_pregnancy(
     async_session: AsyncSession,
-    mother_id: UUID4,
-    father_id: UUID4,
+    mother_id: UUID,
+    father_id: UUID,
 ) -> Pregnancy:
     pregnancy = await BreedingService.create_pregnancy(async_session, mother_id, father_id)
     pregnancy.due_at = utcnow() - timedelta(hours=1)

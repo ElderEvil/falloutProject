@@ -288,6 +288,7 @@ async def _render_audio(script: str, today: date) -> tuple[str | None, str | Non
         logger.info("Storage not enabled, returning script-only")
         return None, None
 
+    # Opaque object key; v4 keeps stored paths unguessable.
     key = f"broadcasts/{today:%Y/%m/%d}/{uuid4()}.{extension}"
     try:
         url = await asyncio.to_thread(

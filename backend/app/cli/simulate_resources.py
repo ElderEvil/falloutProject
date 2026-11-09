@@ -12,7 +12,7 @@ import dataclasses
 from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from typing import Annotated
-from uuid import uuid4
+from uuid import uuid7
 
 import typer
 
@@ -142,7 +142,7 @@ def simulate(config: ResourceEconomyConfig) -> ResourceEconomyResult:
         raise ValueError("duration_minutes must be an exact multiple of tick_interval")
     ticks = duration_seconds // config.tick_interval
 
-    state = GameState(vault_id=uuid4())
+    state = GameState(vault_id=uuid7())
     initial_rates: dict[str, float] = {}
     with _production_rate_override(config.base_production_rate):
         for tick in range(ticks):

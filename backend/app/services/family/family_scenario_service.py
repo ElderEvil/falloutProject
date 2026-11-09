@@ -26,8 +26,7 @@ import random
 from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import TYPE_CHECKING
-
-from pydantic import UUID4
+from uuid import UUID
 
 from app import crud
 from app.core.enums import (
@@ -128,7 +127,7 @@ class FamilyScenarioService:
     # ------------------------------------------------------------------
 
     @staticmethod
-    async def list_adults(db_session: AsyncSession, vault_id: UUID4) -> list[Dweller]:
+    async def list_adults(db_session: AsyncSession, vault_id: UUID) -> list[Dweller]:
         """List alive adult dwellers in a vault (excluding the dead)."""
         adults = await crud.dweller.get_multi_by_vault(
             db_session, vault_id=vault_id, age_group=AgeGroupEnum.ADULT, limit=1000
@@ -136,20 +135,20 @@ class FamilyScenarioService:
         return [d for d in adults if not d.is_dead and not d.is_deleted]
 
     @staticmethod
-    async def find_living_quarters(db_session: AsyncSession, vault_id: UUID4) -> Room | None:
+    async def find_living_quarters(db_session: AsyncSession, vault_id: UUID) -> Room | None:
         """Return the first living-quarters (capacity) room in the vault, if any."""
         rooms = await crud.room.get_living_quarters(db_session, vault_id)
         return rooms[0] if rooms else None
 
     @staticmethod
-    async def _get_dweller(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
+    async def _get_dweller(db_session: AsyncSession, dweller_id: UUID) -> Dweller:
         try:
             return await crud.dweller.get(db_session, dweller_id)
         except ResourceNotFoundException as exc:
             raise ValueError(f"Dweller not found (id={dweller_id})") from exc
 
     @staticmethod
-    async def _get_room(db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
+    async def _get_room(db_session: AsyncSession, room_id: UUID, vault_id: UUID | None = None) -> Room:
         try:
             room = await crud.room.get(db_session, room_id)
         except ResourceNotFoundException as exc:
@@ -168,7 +167,7 @@ class FamilyScenarioService:
     async def auto_pair(
         cls,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         count: int,
         seed: int | None,
     ) -> list[tuple[Dweller, Dweller]]:
@@ -193,7 +192,7 @@ class FamilyScenarioService:
         females = [d for d in adults if d.gender == GenderEnum.FEMALE]
 
         pairs: list[tuple[Dweller, Dweller]] = []
-        used: set[UUID4] = set()
+        used: set[UUID] = set()
         for _ in range(count):
             male = next((m for m in males if m.id not in used), None)
             female = next((f for f in females if f.id not in used), None)
@@ -211,12 +210,12 @@ class FamilyScenarioService:
     async def pair(
         cls,
         db_session: AsyncSession,
-        vault_id: UUID4,
-        dweller_1_id: UUID4,
-        dweller_2_id: UUID4,
+        vault_id: UUID,
+        dweller_1_id: UUID,
+        dweller_2_id: UUID,
         stage: str,
         affinity: int | None,
-        room_id: UUID4 | None = None,
+        room_id: UUID | None = None,
     ) -> Couple:
         """Create a relationship between two dwellers at a fixed stage/affinity.
 
@@ -331,7 +330,7 @@ class FamilyScenarioService:
     async def create_child(
         cls,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         couple: Couple,
         age_hours: float,
         seed: int | None,
@@ -365,12 +364,12 @@ class FamilyScenarioService:
     # ------------------------------------------------------------------
 
     @staticmethod
-    async def get_status(db_session: AsyncSession, vault_id: UUID4) -> list[TimelineRow]:
+    async def get_status(db_session: AsyncSession, vault_id: UUID) -> list[TimelineRow]:
         """Build a timeline report of every relationship/pregnancy/child in the vault."""
         rows: list[TimelineRow] = []
-        dwellers_by_id: dict[UUID4, Dweller] = {}
+        dwellers_by_id: dict[UUID, Dweller] = {}
 
-        async def _name(dweller_id: UUID4) -> str:
+        async def _name(dweller_id: UUID) -> str:
             if dweller_id not in dwellers_by_id:
                 try:
                     dwellers_by_id[dweller_id] = await crud.dweller.get(db_session, dweller_id)
@@ -465,7 +464,7 @@ class FamilyScenarioService:
     @staticmethod
     async def reset(
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         *,
         include_children: bool = False,
     ) -> dict[str, int]:
@@ -509,13 +508,13 @@ class FamilyScenarioService:
     async def setup(
         cls,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         *,
         count: int = 1,
-        pairs: list[tuple[UUID4, UUID4]] | None = None,
+        pairs: list[tuple[UUID, UUID]] | None = None,
         stage: str = "partner",
         affinity: int | None = None,
-        room_id: UUID4 | None = None,
+        room_id: UUID | None = None,
         pregnancy_due_minutes: list[int] | None = None,
         postpartum_hours: list[float] | None = None,
         child_ages_hours: list[float] | None = None,

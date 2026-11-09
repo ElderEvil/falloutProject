@@ -1,8 +1,8 @@
 """Exploration coordinator - orchestrates exploration completion and recall."""
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import dweller as dweller_crud
@@ -33,7 +33,7 @@ class ExplorationCoordinator:
     """Coordinates exploration completion and recall; events and rewards live in their own services."""
 
     async def start_return(
-        self, db_session: AsyncSession, exploration_id: UUID4, *, recalled: bool = False, arrived: bool = False
+        self, db_session: AsyncSession, exploration_id: UUID, *, recalled: bool = False, arrived: bool = False
     ) -> Exploration:
         """Send a dweller home; rewards and loot wait until the return leg finishes.
 
@@ -78,7 +78,7 @@ class ExplorationCoordinator:
 
         return exploration
 
-    async def finalize_return(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
+    async def finalize_return(self, db_session: AsyncSession, exploration_id: UUID) -> RewardsSchema:
         """Finalize an arrived exploration: restore the dweller, release loot, grant rewards.
 
         The terminal transition, the dweller restore and the reward settlement commit
@@ -134,7 +134,7 @@ class ExplorationCoordinator:
     async def _notify_arrival(self, db_session: AsyncSession, exploration: Exploration, rewards: RewardsSchema) -> None:
         """Send the arrival notification; best-effort, never breaks finalization."""
 
-        async def send(user_id: UUID4) -> None:
+        async def send(user_id: UUID) -> None:
             dweller = await dweller_crud.get(db_session, exploration.dweller_id)
             dweller_name = f"{dweller.first_name} {dweller.last_name or ''}".strip()
             await notification_service.notify_exploration_complete(

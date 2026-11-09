@@ -6,8 +6,8 @@ matches an objective's ``target_entity``.
 """
 
 from typing import Any
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.event_bus import GameEvent
@@ -241,7 +241,7 @@ class ReachEvaluator(ObjectiveEvaluator):
     async def _update_progress(
         self,
         db_session: AsyncSession,
-        vault_id: UUID4,
+        vault_id: UUID,
         objective: Objective,
         link: VaultObjectiveProgressLink,
         amount: int,
@@ -273,7 +273,7 @@ class ReachEvaluator(ObjectiveEvaluator):
         return data.get("current_value", data.get("level", data.get("amount", 1)))
 
     @staticmethod
-    async def _get_dweller_count(db_session: AsyncSession, vault_id: UUID4) -> int:
+    async def _get_dweller_count(db_session: AsyncSession, vault_id: UUID) -> int:
         """Get count of dwellers in vault using COUNT query (no materialization)."""
         from app.crud.vault import vault as vault_crud
 

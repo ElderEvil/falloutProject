@@ -7,8 +7,8 @@ used by generated family bios, which the biography renderer already sanitizes.
 
 import html
 from dataclasses import dataclass
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -61,7 +61,7 @@ def _find_dweller(dwellers: list[Dweller], template: DwellerTemplate) -> Dweller
     return matches[0] if matches else None
 
 
-def _linked_bio(text: str | None, parent: Dweller, aliases: tuple[str, ...], vault_id: UUID4) -> str | None:
+def _linked_bio(text: str | None, parent: Dweller, aliases: tuple[str, ...], vault_id: UUID) -> str | None:
     if not text:
         return text
     href = f"/vault/{vault_id}/dwellers/{parent.id}"
@@ -74,7 +74,7 @@ def _linked_bio(text: str | None, parent: Dweller, aliases: tuple[str, ...], vau
     return text
 
 
-def _link_bio_entries(child: Dweller, parent: Dweller, aliases: tuple[str, ...], vault_id: UUID4) -> bool:
+def _link_bio_entries(child: Dweller, parent: Dweller, aliases: tuple[str, ...], vault_id: UUID) -> bool:
     changed = False
     linked_bio = _linked_bio(child.bio, parent, aliases, vault_id)
     if linked_bio != child.bio:
@@ -96,7 +96,7 @@ def _link_bio_entries(child: Dweller, parent: Dweller, aliases: tuple[str, ...],
 
 async def reconcile_known_parent_links(
     db_session: AsyncSession,
-    vault_id: UUID4,
+    vault_id: UUID,
     template_id: str,
 ) -> None:
     """Link Lucy/Hank or Sarah/Elder Lyons when both templates are in one vault."""

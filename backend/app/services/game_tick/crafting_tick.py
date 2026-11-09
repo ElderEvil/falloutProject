@@ -1,8 +1,8 @@
 """Game tick phase for the workshop crafting queue."""
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
@@ -28,7 +28,7 @@ def crafting_advance_due(*, total_game_time: int, seconds_passed: int) -> bool:
 
 async def process_crafting(
     db_session: AsyncSession,
-    vault_id: UUID4,
+    vault_id: UUID,
     *,
     total_game_time: int,
     seconds_passed: int,

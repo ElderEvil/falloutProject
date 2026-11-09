@@ -3,8 +3,8 @@
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Literal
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -69,7 +69,7 @@ def uses_single_scene(site: SiteDefinition, *, spatial: bool) -> bool:
 
 
 async def site_block_state(
-    db_session: AsyncSession, vault_id: UUID4, site_id: str, *, include_open: bool = True
+    db_session: AsyncSession, vault_id: UUID, site_id: str, *, include_open: bool = True
 ) -> SiteBlockState:
     """Return the vault/site expedition gate with the remaining anti-farm window."""
     if (
@@ -95,7 +95,7 @@ async def site_block_state(
 
 
 async def site_block_reason(
-    db_session: AsyncSession, vault_id: UUID4, site_id: str, *, include_open: bool = True
+    db_session: AsyncSession, vault_id: UUID, site_id: str, *, include_open: bool = True
 ) -> Literal["open", "cooldown"] | None:
     """Return the vault/site gate that prevents a new entry or finale payout."""
     return (await site_block_state(db_session, vault_id, site_id, include_open=include_open)).reason

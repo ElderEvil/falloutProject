@@ -12,8 +12,8 @@ them. See the Jev docs on adversarial text before widening its remit.
 
 import logging
 from dataclasses import dataclass, field
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
@@ -44,7 +44,7 @@ async def screen_message(
     message_text: str,
     *,
     db_session: AsyncSession | None = None,
-    user_id: UUID4 | None = None,
+    user_id: UUID | None = None,
 ) -> GuardrailVerdict:
     """Screen one player message; allow on low confidence or any Jev failure.
 

@@ -2,8 +2,8 @@
 
 import logging
 from collections.abc import Mapping, Sequence
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import RelationshipTypeEnum
@@ -11,6 +11,7 @@ from app.crud import dweller as dweller_crud
 from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
 from app.schemas.dweller import LineageMember, LineageResponse
+from app.utils.exceptions import ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ class LineageService:
     def _to_members(
         dwellers: Sequence[Dweller],
         generation: int,
-        partner_context: Mapping[UUID4, tuple[RelationshipTypeEnum, int]] | None = None,
+        partner_context: Mapping[UUID, tuple[RelationshipTypeEnum, int]] | None = None,
     ) -> list[LineageMember]:
         """Map dwellers to LineageMember records at the given generation.
 
@@ -50,7 +51,7 @@ class LineageService:
         ]
 
     @staticmethod
-    async def _find_children(db_session: AsyncSession, dweller_id: UUID4, vault_id: UUID4) -> list[Dweller]:
+    async def _find_children(db_session: AsyncSession, dweller_id: UUID, vault_id: UUID) -> list[Dweller]:
         """Find dwellers in the same vault whose parent is this dweller."""
         children = await dweller_crud.get_children_of(db_session, vault_id=vault_id, parent_ids=[dweller_id])
         return list(children)
@@ -60,7 +61,7 @@ class LineageService:
         db_session: AsyncSession,
         dweller: Dweller,
         parents: list[Dweller],
-        vault_id: UUID4,
+        vault_id: UUID,
     ) -> list[Dweller]:
         """Find other children of the same parents in the same vault."""
         parent_ids = [p.id for p in parents]
@@ -73,15 +74,15 @@ class LineageService:
 
     @staticmethod
     async def _find_partners(
-        db_session: AsyncSession, dweller_id: UUID4, vault_id: UUID4
-    ) -> tuple[list[Dweller], dict[UUID4, tuple[RelationshipTypeEnum, int]]]:
+        db_session: AsyncSession, dweller_id: UUID, vault_id: UUID
+    ) -> tuple[list[Dweller], dict[UUID, tuple[RelationshipTypeEnum, int]]]:
         """Find the dweller's partner(s): reciprocal partner_id plus MARRIED/PARTNER relationships.
 
         Returns:
             Tuple of partner dwellers and a mapping of partner_id to (relationship_type, affinity).
         """
         partner_ids = set()
-        context: dict[UUID4, tuple[RelationshipTypeEnum, int]] = {}
+        context: dict[UUID, tuple[RelationshipTypeEnum, int]] = {}
 
         dweller = await dweller_crud.get(db_session, dweller_id)
         if dweller and dweller.partner_id:
@@ -105,7 +106,7 @@ class LineageService:
         return partners, context
 
     @staticmethod
-    async def _compute_generation(db_session: AsyncSession, dweller_id: UUID4, vault_id: UUID4) -> int:
+    async def _compute_generation(db_session: AsyncSession, dweller_id: UUID, vault_id: UUID) -> int:
         """Walk parents upward to compute the generation number (0 for orphans).
 
         Only live, same-vault parents are followed, and a candidate is validated
@@ -113,11 +114,11 @@ class LineageService:
         dwellers, and cycles never add phantom generation levels.
         """
         generation = 0
-        seen: set[UUID4] = set()
+        seen: set[UUID] = set()
         frontier = [dweller_id]
 
         while frontier:
-            next_frontier: list[UUID4] = []
+            next_frontier: list[UUID] = []
             for current_id in frontier:
                 if current_id in seen:
                     continue
@@ -139,26 +140,29 @@ class LineageService:
         return generation
 
     @classmethod
-    async def get_lineage(cls, db_session: AsyncSession, dweller_id: UUID4) -> LineageResponse:
+    async def get_lineage(cls, db_session: AsyncSession, dweller_id: UUID) -> LineageResponse:
         """Compute the full lineage for a dweller.
 
         Raises:
             ResourceNotFoundException: If the dweller does not exist.
         """
         dweller = await dweller_crud.get(db_session, dweller_id)
+        vault_id = dweller.vault_id
+        if vault_id is None:
+            raise ResourceNotFoundException(Dweller, identifier=dweller_id)
 
-        generation = await cls._compute_generation(db_session, dweller_id, dweller.vault_id)
+        generation = await cls._compute_generation(db_session, dweller_id, vault_id)
 
         parent_ids = [p for p in (dweller.parent_1_id, dweller.parent_2_id) if p is not None]
         parents: list[Dweller] = []
         for parent_id in parent_ids:
             parent = await dweller_crud.get(db_session, parent_id, include_deleted=True)
-            if parent and parent.vault_id == dweller.vault_id and not parent.is_deleted:
+            if parent and parent.vault_id == vault_id and not parent.is_deleted:
                 parents.append(parent)
 
-        children = await cls._find_children(db_session, dweller_id, dweller.vault_id)
-        siblings = await cls._find_siblings(db_session, dweller, parents, dweller.vault_id)
-        partners, partner_context = await cls._find_partners(db_session, dweller_id, dweller.vault_id)
+        children = await cls._find_children(db_session, dweller_id, vault_id)
+        siblings = await cls._find_siblings(db_session, dweller, parents, vault_id)
+        partners, partner_context = await cls._find_partners(db_session, dweller_id, vault_id)
 
         return LineageResponse(
             dweller_id=dweller_id,

@@ -1,6 +1,6 @@
 """Durable, concise journal entries for vault incidents."""
 
-from uuid import UUID, uuid4
+from uuid import UUID, uuid7
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
@@ -14,7 +14,7 @@ class IncidentEvent(TimeStampMixin, table=True):
 
     __tablename__ = "incident_event"
 
-    id: UUID = Field(default_factory=uuid4, primary_key=True, nullable=False)
+    id: UUID = Field(default_factory=uuid7, primary_key=True, nullable=False)
     incident_id: UUID = Field(foreign_key="incident.id", index=True, ondelete="CASCADE")
     kind: str = Field(index=True, max_length=32)
     message: str = Field(max_length=200)

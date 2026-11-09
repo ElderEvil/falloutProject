@@ -8,10 +8,10 @@ vault, room, incident, and dweller rows and removes them afterwards.
 import asyncio
 import random
 import uuid
+from uuid import UUID
 
 import pytest
 import pytest_asyncio
-from pydantic import UUID4
 from sqlalchemy import delete, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
@@ -50,7 +50,7 @@ async def live_pg_engine() -> AsyncEngine:
 
 
 @pytest_asyncio.fixture
-async def incident_context(live_pg_engine: AsyncEngine) -> tuple[UUID4, UUID4, UUID4, list[UUID4]]:
+async def incident_context(live_pg_engine: AsyncEngine) -> tuple[UUID, UUID, UUID, list[UUID]]:
     """An active incident with eight healthy adult dwellers, removed on teardown."""
     maker = async_sessionmaker(live_pg_engine, class_=AsyncSession, expire_on_commit=False)
     tag = uuid.uuid4().hex[:12]
@@ -112,7 +112,7 @@ def _sessions(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
 
 @pytest.mark.asyncio
 async def test_assign_responders_blocks_on_incident_row_lock(
-    live_pg_engine: AsyncEngine, incident_context: tuple[UUID4, UUID4, UUID4, list[UUID4]]
+    live_pg_engine: AsyncEngine, incident_context: tuple[UUID, UUID, UUID, list[UUID]]
 ) -> None:
     """A concurrent assignment blocks on the incident row lock, then lands once it is released.
 
@@ -129,7 +129,7 @@ async def test_assign_responders_blocks_on_incident_row_lock(
             held = await holder.execute(select(Incident).where(Incident.id == incident_id).with_for_update())
             assert held.scalar_one_or_none() is not None
 
-            async def assign() -> list[UUID4]:
+            async def assign() -> list[UUID]:
                 incident = await actor.get(Incident, incident_id)
                 assert incident is not None
                 return await incident_service.assign_responders(actor, incident, dweller_ids[:4])

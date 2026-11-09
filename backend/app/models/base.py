@@ -1,5 +1,5 @@
 from datetime import datetime
-from uuid import UUID, uuid4
+from uuid import UUID, uuid7
 
 from sqlmodel import Field, SQLModel
 from sqlmodel.main import SQLModelConfig
@@ -22,7 +22,7 @@ class TimeStampMixin(SQLModel):
 
 class BaseUUIDModel(SQLModel):
     id: UUID = Field(
-        default_factory=uuid4,
+        default_factory=uuid7,
         primary_key=True,
         index=True,
         nullable=False,

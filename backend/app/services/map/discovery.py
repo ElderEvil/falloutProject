@@ -10,8 +10,7 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
-
-from pydantic import UUID4
+from uuid import UUID
 
 from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, NotificationPriority, NotificationType
 from app.crud.exploration import exploration as exploration_crud
@@ -35,9 +34,9 @@ logger = logging.getLogger(__name__)
 
 async def _link_discovery(
     db_session: AsyncSession,
-    vault_id: UUID4,
-    exploration_id: UUID4,
-    dweller_id: UUID4,
+    vault_id: UUID,
+    exploration_id: UUID,
+    dweller_id: UUID,
     location: WorldLocation,
 ) -> None:
     """Create the vault state + dweller link for a resolved discovery place."""
@@ -61,9 +60,9 @@ async def _link_discovery(
 
 async def register_discovery(
     db_session: AsyncSession,
-    vault_id: UUID4,
-    exploration_id: UUID4,
-    dweller_id: UUID4,
+    vault_id: UUID,
+    exploration_id: UUID,
+    dweller_id: UUID,
     location_name: str,
 ) -> WorldLocation | None:
     """Upsert a DISCOVERY state and unlock the place for the exploring dweller (best-effort)."""
@@ -92,7 +91,7 @@ async def register_discovery(
 
 async def _create_journey_place(
     db_session: AsyncSession,
-    exploration_id: UUID4,
+    exploration_id: UUID,
     location_name: str,
     coord_x: float,
     coord_y: float,
@@ -115,9 +114,9 @@ async def _create_journey_place(
 
 async def register_spatial_discovery(
     db_session: AsyncSession,
-    vault_id: UUID4,
-    exploration_id: UUID4,
-    dweller_id: UUID4,
+    vault_id: UUID,
+    exploration_id: UUID,
+    dweller_id: UUID,
     location_name: str,
     position: tuple[float, float],
     world_version: int | None,
@@ -161,7 +160,7 @@ async def register_spatial_discovery(
         return location
 
 
-async def get_discovery_routes(db_session: AsyncSession, vault_id: UUID4) -> list[DiscoveryRouteRead]:
+async def get_discovery_routes(db_session: AsyncSession, vault_id: UUID) -> list[DiscoveryRouteRead]:
     """Project a journey into ordered map coordinates.
 
     Spatial runs use their persisted movement trail: the durable path

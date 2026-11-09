@@ -5,8 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
-
-from pydantic import UUID4
+from uuid import UUID
 
 from app import crud
 from app.core.enums import AgeGroupEnum, ContentProvenanceEnum, GenderEnum, RarityEnum
@@ -51,7 +50,7 @@ class ApprenticeScenarioService:
     """Opt-in, idempotent builder for testing youth apprenticeship ticks."""
 
     @staticmethod
-    async def find_production_room(db_session: Any, vault_id: UUID4) -> Room:
+    async def find_production_room(db_session: Any, vault_id: UUID) -> Room:
         """Return a vault production room that trains a SPECIAL ability."""
         room = await crud.room.get_production_with_ability(db_session, vault_id)
         if room is None:
@@ -59,7 +58,7 @@ class ApprenticeScenarioService:
         return room
 
     @staticmethod
-    async def find_active_apprentice(db_session: Any, vault_id: UUID4) -> Dweller | None:
+    async def find_active_apprentice(db_session: Any, vault_id: UUID) -> Dweller | None:
         """Return the existing active apprentice, if the vault already has one."""
         return await crud.dweller.get_first_active_apprentice(db_session, vault_id)
 
@@ -78,7 +77,7 @@ class ApprenticeScenarioService:
         ready = _now() - apprentice.apprentice_started_at >= timedelta(seconds=duration)
         return ApprenticeScenarioStatus(apprentice, room, duration, ready)
 
-    async def setup(self, db_session: Any, vault_id: UUID4, *, ready: bool = False) -> ApprenticeScenarioResult:
+    async def setup(self, db_session: Any, vault_id: UUID, *, ready: bool = False) -> ApprenticeScenarioResult:
         """Reuse an active apprentice or create and assign a teen through real CRUD.
 
         A production room must already exist; this command never builds rooms or
@@ -124,7 +123,7 @@ class ApprenticeScenarioService:
             training_duration_seconds=status.training_duration_seconds,
         )
 
-    async def get_status(self, db_session: Any, vault_id: UUID4) -> ApprenticeScenarioStatus | None:
+    async def get_status(self, db_session: Any, vault_id: UUID) -> ApprenticeScenarioStatus | None:
         """Return the current active apprentice status for a vault, if one exists."""
         apprentice = await self.find_active_apprentice(db_session, vault_id)
         return None if apprentice is None else await self._status_for_apprentice(db_session, apprentice)

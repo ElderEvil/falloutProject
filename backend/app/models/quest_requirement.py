@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING, Any
-from uuid import UUID, uuid4
+from uuid import UUID, uuid7
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
@@ -18,7 +18,7 @@ class QuestRequirementBase(SQLModel):
 
 
 class QuestRequirement(QuestRequirementBase, table=True):
-    id: UUID = Field(default_factory=uuid4, primary_key=True, index=True, nullable=False)
+    id: UUID = Field(default_factory=uuid7, primary_key=True, index=True, nullable=False)
     quest_id: UUID = Field(foreign_key="quest.id", index=True, ondelete="CASCADE")
 
     quest: "Quest" = Relationship(back_populates="quest_requirements")

@@ -1,8 +1,8 @@
 """Vault reads: vault-with-counts assembly for the vault list and detail contracts."""
 
 from itertools import starmap
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.vault import vault as vault_crud
@@ -32,7 +32,7 @@ def vault_with_numbers(
 
 
 async def get_vaults_with_room_and_dweller_count(
-    *, db_session: AsyncSession, user_id: UUID4
+    *, db_session: AsyncSession, user_id: UUID
 ) -> list[VaultReadWithNumbers]:
     """List the user's non-deleted vaults with room/dweller counts and resource warnings."""
     return list(
@@ -40,7 +40,7 @@ async def get_vaults_with_room_and_dweller_count(
     )
 
 
-async def get_vault_with_room_and_dweller_count(*, db_session: AsyncSession, vault_id: UUID4) -> VaultReadWithNumbers:
+async def get_vault_with_room_and_dweller_count(*, db_session: AsyncSession, vault_id: UUID) -> VaultReadWithNumbers:
     """Fetch a single vault with room/dweller counts and resource warnings."""
     vault_obj, room_count, dweller_count, stimpack, radaway = await vault_crud.get_vault_count_row(
         db_session=db_session, vault_id=vault_id

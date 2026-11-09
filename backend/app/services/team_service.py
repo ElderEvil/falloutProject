@@ -6,8 +6,8 @@ The caller owns the transaction.
 """
 
 import logging
+from uuid import UUID
 
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 class TeamService:
     async def assign_quest_team(
-        self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, dweller_ids: list[UUID4]
+        self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID, dweller_ids: list[UUID]
     ) -> list[TeamMember]:
         """Assign dwellers to a quest team, replacing any existing roster.
 

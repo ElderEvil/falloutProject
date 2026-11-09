@@ -1,7 +1,8 @@
 """Tests for chat happiness service."""
 
+from uuid import UUID
+
 import pytest
-from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.services.chat_happiness_service import (
@@ -24,7 +25,7 @@ class TestApplyChatHappiness:
         async_session: AsyncSession,
     ):
         """Test that ResourceNotFoundException is raised for invalid dweller."""
-        fake_dweller_id = UUID4("00000000-0000-0000-0000-000000000000")
+        fake_dweller_id = UUID("00000000-0000-0000-0000-000000000000")
 
         with pytest.raises(ResourceNotFoundException):
             await apply_chat_happiness(

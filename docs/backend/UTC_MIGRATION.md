@@ -181,7 +181,7 @@ These decisions are the contract; do not re-open them per site during B4.
 | SSE: incidents | `incident_service.py` start/end `isoformat()` | **UTC `Z`**; optional values stay `null`. |
 | SSE: arena | `arena_service._event_snapshot` emits `+00:00` | **UTC `Z`** (changes from `+00:00`). |
 | SSE: exploration members | `exploration_service.py` created/updated `isoformat()` | **UTC `Z`**. |
-| Notification metadata | `notification_service.py` `created_at.isoformat()` | **Bare naive UTC** in stored metadata; API `notification.created_at` is **UTC `Z`**. |
+| Notification delivery | `notification_service.py` live payload `created_at` | **UTC `Z`** via `serialize_utc_datetime`; stored `meta_data` JSON stays bare naive UTC and API `notification.created_at` is **UTC `Z`**. |
 | Tick frame | `event_id = last_tick_time.isoformat()`; `recent_tick_ids` opaque | **SSE tick payload stays bare naive UTC** for `event_id` and its `last_tick_time`; identity must not change. |
 | Game-state API | `get_vault_status` returns `last_tick_time` | **UTC `Z`** — this is an API timestamp, not the SSE identity; keep it separate from `event_id`. |
 | API canonical | `schemas/training.py` emits `Z` | **UTC `Z`**; use it as the template for every schema. |

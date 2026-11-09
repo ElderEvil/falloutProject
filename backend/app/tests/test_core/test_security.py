@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+import bcrypt
 import jwt
 import pytest
 
@@ -106,3 +107,23 @@ def test_existing_email_and_reset_links_keep_their_subjects():
     assert security.verify_password_reset_token(reset) == "player@example.com"
     assert security.verify_email_token(reset) is None
     assert security.verify_password_reset_token(email) is None
+
+
+def test_new_password_hashes_use_argon2id():
+    hashed = security.get_password_hash("Secret123!")
+
+    assert hashed.startswith("$argon2id$")
+    assert security.verify_password("Secret123!", hashed)
+    assert not security.verify_password("wrong", hashed)
+
+
+def test_legacy_bcrypt_hash_verifies_and_upgrades_to_argon2():
+    legacy = bcrypt.hashpw(b"Secret123!", bcrypt.gensalt(rounds=4)).decode()
+
+    verified, updated = security.verify_password_and_update("Secret123!", legacy)
+
+    assert verified is True
+    assert updated is not None
+    assert updated.startswith("$argon2")
+    assert security.verify_password("Secret123!", updated)
+    assert not security.verify_password("wrong", updated)

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession as SAAsyncSession
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.security import get_password_hash, verify_password
+from app.core.security import get_password_hash, verify_password_and_update
 from app.crud.base import CRUDBase
 from app.models.oauth_account import OAuthAccount
 from app.models.user import User
@@ -179,8 +179,14 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         user = await self.get_by_email(db_session, email=email, include_deleted=False)
         if not user or not user.hashed_password:
             return None
-        if not verify_password(password, user.hashed_password):
+        verified, updated_hash = verify_password_and_update(password, user.hashed_password)
+        if not verified:
             return None
+        if updated_hash is not None:
+            # Opportunistically upgrade a legacy bcrypt hash after a successful login.
+            user.hashed_password = updated_hash
+            db_session.add(user)
+            await db_session.commit()
         return user
 
     @staticmethod

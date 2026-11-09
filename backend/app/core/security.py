@@ -8,7 +8,9 @@ from typing import Any, Literal
 from uuid import UUID, uuid4
 
 import jwt
-from passlib.context import CryptContext
+from pwdlib import PasswordHash
+from pwdlib.hashers.argon2 import Argon2Hasher
+from pwdlib.hashers.bcrypt import BcryptHasher
 from redis.asyncio import Redis
 
 from app.core.config import settings
@@ -19,7 +21,7 @@ logger = logging.getLogger(__name__)
 JWTError = jwt.InvalidTokenError
 
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+password_hash = PasswordHash((Argon2Hasher(), BcryptHasher()))
 
 
 def create_access_token(
@@ -68,7 +70,12 @@ def decode_token_subject(
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return password_hash.verify(plain_password, hashed_password)
+
+
+def verify_password_and_update(plain_password: str, hashed_password: str) -> tuple[bool, str | None]:
+    """Verify a password and return a replacement Argon2 hash when a legacy hash is used."""
+    return password_hash.verify_and_update(plain_password, hashed_password)
 
 
 def generate_pkce_pair() -> tuple[str, str]:
@@ -85,7 +92,7 @@ def hash_browser_token(value: str) -> str:
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    return password_hash.hash(password)
 
 
 async def create_refresh_token(

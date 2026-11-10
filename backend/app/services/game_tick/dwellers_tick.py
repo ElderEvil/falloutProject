@@ -131,7 +131,10 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
         if exploration.paused_at is not None:
             return
     elif exploration.is_returning():
-        if exploration.return_time_remaining_seconds() <= 0 and await crud_expedition_run.get_open_for_exploration(db_session, exploration.id) is None:
+        if (
+            exploration.return_time_remaining_seconds() <= 0
+            and await crud_expedition_run.get_open_for_exploration(db_session, exploration.id) is None
+        ):
             await exploration_service.finalize_return(db_session, exploration.id)
             stats["completed"] += 1
             logger.info(f"Finalized returning exploration {exploration.id} for dweller {exploration.dweller_id}")

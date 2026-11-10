@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.0.1 (2026-11-10)
+
+### Bug Fixes
+
+* **death:** commit death and statistics atomically 31623d1
+* **game-tick:** remove per-exploration query fan-out a4759fa
+
+### Code Refactoring
+
+* **game-tick:** simplify open-run lookup and tighten rollback test 575be2f
+
 ## 3.0.0 (2026-11-10)
 
 ### ⚠ BREAKING CHANGES

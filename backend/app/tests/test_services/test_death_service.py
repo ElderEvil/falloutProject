@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 
 import pytest
 import pytest_asyncio
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -125,6 +127,31 @@ class TestDeathService:
         death_entry = next(entry for entry in updated.bio_entries if entry["source"] == "family")
         assert "died" in death_entry["text"].lower()
         assert death_entry["ref"] == {"cause": DeathCauseEnum.COMBAT.value}
+
+    async def test_mark_as_dead_rolls_back_when_stat_write_fails(
+        self,
+        async_session: AsyncSession,
+        db_connection: AsyncConnection,
+        alive_dweller: Dweller,
+    ):
+        """A failed counter write must not leave a durable death behind."""
+
+        def fail_profile_write(_connection, _cursor, statement, _parameters, _context, _executemany):
+            if statement.startswith("UPDATE userprofile "):
+                raise RuntimeError("stat write failed")
+
+        dweller_id = alive_dweller.id
+        event.listen(db_connection.sync_connection, "before_cursor_execute", fail_profile_write)
+        try:
+            with pytest.raises(RuntimeError, match="stat write failed"):
+                await death_service.mark_as_dead(async_session, alive_dweller, DeathCauseEnum.COMBAT)
+        finally:
+            event.remove(db_connection.sync_connection, "before_cursor_execute", fail_profile_write)
+
+        reloaded = await crud.dweller.get(async_session, dweller_id)
+        assert reloaded.is_dead is False
+        assert reloaded.status != DwellerStatusEnum.DEAD
+        assert not async_session.info.get("deferred_notification_deliveries")
 
     async def test_revive_dweller_success(
         self,

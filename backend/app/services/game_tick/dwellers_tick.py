@@ -99,7 +99,9 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
     # Re-read under the shared vault claim (claim -> exploration) so the site-run
     # check below cannot race a concurrent site entry; the bulk-loaded instance
     # may be stale.
-    locked = await lock_exploration_with_vault_claim(db_session, exploration.id, missing_ok=True)
+    locked = await lock_exploration_with_vault_claim(
+        db_session, exploration.id, missing_ok=True, vault_id=exploration.vault_id
+    )
     if locked is None:
         return
     exploration = locked
@@ -109,8 +111,7 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
     # during the forward phase (with name-derived registry placement suppressed).
     if exploration.heading_degrees is not None:
         was_active = exploration.is_active()
-        await exploration_service.advance(db_session, exploration.id)
-        await db_session.refresh(exploration)
+        exploration = await exploration_service.advance(db_session, exploration.id, exploration=exploration)
         if was_active and exploration.is_returning():
             stats["returning"] += 1
         if exploration.is_returning() and exploration.return_time_remaining_seconds() <= 0:

@@ -33,10 +33,12 @@ from app.schemas.exploration_event import (
 )
 from app.schemas.room import RoomCreate
 from app.services.exploration.event_generator import event_generator
+from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration_service import exploration_service
 from app.services.training_service import training_service
 from app.tests.factory.dwellers import create_fake_adult_dweller
 from app.tests.factory.vaults import create_fake_vault
+from app.tests.utils.query_counter import count_sql_statements
 from app.utils.time import utcnow
 
 # Note: Detailed SPECIAL stat calculation tests removed for simplicity
@@ -89,6 +91,26 @@ def _stimpak_collect_events(emit: AsyncMock) -> list[dict]:
         for call in emit.await_args_list
         if call.args[0] == GameEvent.ITEM_COLLECTED and call.args[2].get("item_type") == "stimpak"
     ]
+
+
+@pytest.mark.asyncio
+async def test_lock_exploration_skips_preview_when_vault_id_supplied(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """A caller that already loaded the run must not pay for a preview SELECT."""
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=1)
+    async_session.expunge_all()
+
+    with count_sql_statements(async_session) as without_vault:
+        await lock_exploration_with_vault_claim(async_session, exploration.id)
+    async_session.expunge_all()
+
+    with count_sql_statements(async_session) as with_vault:
+        await lock_exploration_with_vault_claim(async_session, exploration.id, vault_id=vault.id)
+
+    assert with_vault.value == without_vault.value - 1
 
 
 @pytest.mark.asyncio

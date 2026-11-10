@@ -84,29 +84,55 @@ class DeathService:
             {"cause": cause.value},
         )
 
-        updated_dweller = await dweller_crud.update(
-            db_session,
-            dweller.id,
-            DwellerUpdate(
-                is_dead=True,
-                death_timestamp=now_naive,
-                death_cause=cause,
-                epitaph=epitaph,
-                status=DwellerStatusEnum.DEAD,
-                health=0,
-                happiness=0,
-                bio=compile_bio(bio_entries),
-                bio_entries=bio_entries,
-                room_id=None,  # Remove from room
-                is_permanently_dead=permanent,
-                lifecycle=LifecycleEnum.DEAD_PERMANENT if permanent else LifecycleEnum.DEAD_REVIVABLE,
-                availability=AvailabilityEnum.ARCHIVE if permanent else AvailabilityEnum.VAULT,
-            ),
-            commit=commit,
-        )
+        try:
+            updated_dweller = await dweller_crud.update(
+                db_session,
+                dweller.id,
+                DwellerUpdate(
+                    is_dead=True,
+                    death_timestamp=now_naive,
+                    death_cause=cause,
+                    epitaph=epitaph,
+                    status=DwellerStatusEnum.DEAD,
+                    health=0,
+                    happiness=0,
+                    bio=compile_bio(bio_entries),
+                    bio_entries=bio_entries,
+                    room_id=None,  # Remove from room
+                    is_permanently_dead=permanent,
+                    lifecycle=LifecycleEnum.DEAD_PERMANENT if permanent else LifecycleEnum.DEAD_REVIVABLE,
+                    availability=AvailabilityEnum.ARCHIVE if permanent else AvailabilityEnum.VAULT,
+                ),
+                commit=False,
+            )
 
-        # Increment death statistics (deferred with the caller's commit)
-        await self._increment_death_stats(db_session, vault, cause, commit=commit)
+            # Death, both counters and the notification row share one transaction.
+            await self._increment_death_stats(db_session, vault, cause, commit=False)
+            await notification_service.notify_owner(
+                db_session,
+                vault_id,
+                context=f"dweller_died vault={vault_id} dweller={dweller.id} cause={cause.value}",
+                sender=lambda user_id: notification_service.notify_dweller_died(
+                    db_session,
+                    user_id=user_id,
+                    vault_id=vault_id,
+                    dweller_id=dweller.id,
+                    dweller_name=dweller.display_name,
+                    cause=cause.value,
+                    meta_data={"cause": cause.value, "vault_id": str(vault_id)},
+                    commit=False,
+                ),
+            )
+            if commit:
+                await db_session.commit()
+        except Exception:
+            if commit:
+                await db_session.rollback()
+                notification_service.discard_deferred_notifications(db_session)
+            raise
+
+        if commit:
+            await notification_service.deliver_deferred_notifications(db_session)
 
         logger.info(
             "Dweller %s (%s) died of %s in vault %s",
@@ -114,23 +140,6 @@ class DeathService:
             dweller.last_name or "",
             cause.value,
             vault_id,
-        )
-
-        # Broadcast WebSocket event (best-effort, don't fail death flow)
-        await notification_service.notify_owner(
-            db_session,
-            vault_id,
-            context=f"dweller_died vault={vault_id} dweller={dweller.id} cause={cause.value}",
-            sender=lambda user_id: notification_service.notify_dweller_died(
-                db_session,
-                user_id=user_id,
-                vault_id=vault_id,
-                dweller_id=dweller.id,
-                dweller_name=dweller.display_name,
-                cause=cause.value,
-                meta_data={"cause": cause.value, "vault_id": str(vault_id)},
-                commit=commit,
-            ),
         )
 
         return updated_dweller

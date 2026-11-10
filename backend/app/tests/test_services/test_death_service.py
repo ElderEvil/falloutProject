@@ -148,10 +148,10 @@ class TestDeathService:
         finally:
             event.remove(db_connection.sync_connection, "before_cursor_execute", fail_profile_write)
 
-        await async_session.rollback()
         reloaded = await crud.dweller.get(async_session, dweller_id)
         assert reloaded.is_dead is False
         assert reloaded.status != DwellerStatusEnum.DEAD
+        assert not async_session.info.get("deferred_notification_deliveries")
 
     async def test_revive_dweller_success(
         self,

@@ -1,6 +1,6 @@
 import random
 from collections.abc import Sequence
-from typing import Any, TypeVar
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import update
@@ -24,10 +24,8 @@ from app.utils.exceptions import (
 from app.utils.item_factory import build_junk
 from app.utils.time import utcnow
 
-ItemT = TypeVar("ItemT", Weapon, Outfit, Pet)
 
-
-async def get_items_by_vault(
+async def get_items_by_vault[ItemT: (Weapon, Outfit, Pet)](
     db_session: AsyncSession,
     model: type[ItemT],
     vault_id: UUID,

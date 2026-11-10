@@ -123,7 +123,7 @@ async def test_heartbeat_yields_none_on_timeout():
     results: list[int | None] = []
     call_count = 0
 
-    async def _fake_wait(tasks, timeout=None):
+    async def _fake_wait(tasks, **kwargs):
         nonlocal call_count
         call_count += 1
         if call_count == 1:

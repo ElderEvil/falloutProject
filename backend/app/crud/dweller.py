@@ -252,10 +252,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
                 query = query.order_by(self.model.first_name.desc(), self.model.last_name.desc())
         elif hasattr(self.model, sort_by):
             sort_column = getattr(self.model, sort_by)
-            if order.lower() == "asc":
-                query = query.order_by(sort_column.asc())
-            else:
-                query = query.order_by(sort_column.desc())
+            query = query.order_by(sort_column.asc()) if order.lower() == "asc" else query.order_by(sort_column.desc())
 
         query = query.offset(skip).limit(limit).options(*_WEAPON_OUTFIT_LOADS, selectinload(Dweller.pet))
         response = await db_session.execute(query)

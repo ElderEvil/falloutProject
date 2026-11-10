@@ -770,10 +770,10 @@ class TestRelationshipHelpers:
         r2.dweller_1_id = "d3"
         r2.dweller_2_id = "d4"
         result = game_loop_service._build_relationships_map([r1, r2])
-        assert result[("d1", "d2")] == r1
-        assert result[("d2", "d1")] == r1
-        assert result[("d3", "d4")] == r2
-        assert result[("d4", "d3")] == r2
+        assert result["d1", "d2"] == r1
+        assert result["d2", "d1"] == r1
+        assert result["d3", "d4"] == r2
+        assert result["d4", "d3"] == r2
 
     @pytest.mark.usefixtures("vault")
     @pytest.mark.asyncio

@@ -388,7 +388,7 @@ async def test_upgrade_room_no_t2_cost(
 
     # Attempt to upgrade room with no upgrade cost
     response = await async_client.post(f"/rooms/upgrade/{room.id}", headers=superuser_token_headers)
-    assert response.status_code == 422 or response.status_code == 400
+    assert response.status_code in {422, 400}
 
 
 @pytest.mark.asyncio

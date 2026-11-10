@@ -60,7 +60,7 @@ def _found_constructions() -> dict[tuple[str, str], int]:
     for path in _guarded_modules():
         relative = path.relative_to(APP_DIR).as_posix()
         for model, count in _direct_constructions(path.read_text(encoding="utf-8")).items():
-            found[(relative, model)] = count
+            found[relative, model] = count
     return found
 
 

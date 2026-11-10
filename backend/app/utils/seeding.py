@@ -4,7 +4,6 @@ import json
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import TypeVar
 
 import anyio
 from pydantic import BaseModel, ValidationError
@@ -13,11 +12,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar("T", bound=BaseModel)
-M = TypeVar("M")
 
-
-async def _load_json_files(directory: Path, file_pattern: str, schema_class: type[T]) -> list[T]:
+async def _load_json_files[T: BaseModel](directory: Path, file_pattern: str, schema_class: type[T]) -> list[T]:
     """Load and validate data from JSON files."""
     all_data: list[T] = []
     anyio_path = anyio.Path(directory)
@@ -48,13 +44,13 @@ async def _load_json_files(directory: Path, file_pattern: str, schema_class: typ
     return all_data
 
 
-async def _get_existing_values(db_session: AsyncSession, model_class: type[M], unique_field: str) -> set:
+async def _get_existing_values[M](db_session: AsyncSession, model_class: type[M], unique_field: str) -> set:
     """Get existing unique field values from database."""
     result = await db_session.execute(select(getattr(model_class, unique_field)))
     return set(result.scalars().all())
 
 
-def _seed_records[T, M](
+def _seed_records[T: BaseModel, M](
     db_session: AsyncSession,
     all_data: list[T],
     existing_values: set,
@@ -93,7 +89,7 @@ def _seed_records[T, M](
     return seeded_count
 
 
-async def seed_from_json[T, M](
+async def seed_from_json[T: BaseModel, M](
     db_session: AsyncSession,
     model_class: type[M],
     schema_class: type[T],

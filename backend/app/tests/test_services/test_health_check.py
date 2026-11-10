@@ -475,19 +475,19 @@ async def test_check_all_services_with_local_ai() -> None:
     async def fake_local_ai(provider: Literal["ollama", "lmstudio"]) -> HealthCheckResult:
         return _ok_result(provider)
 
-    _pg = staticmethod(AsyncMock(return_value=_ok_result("postgresql")))
-    _rd = staticmethod(AsyncMock(return_value=_ok_result("redis")))
-    _rf = staticmethod(lambda: _ok_result("rustfs"))
-    _dq = staticmethod(lambda: _ok_result("dramatiq"))
-    _sm = staticmethod(AsyncMock(return_value=_ok_result("smtp")))
-    _ai = staticmethod(fake_local_ai)
+    pg = staticmethod(AsyncMock(return_value=_ok_result("postgresql")))
+    rd = staticmethod(AsyncMock(return_value=_ok_result("redis")))
+    rf = staticmethod(lambda: _ok_result("rustfs"))
+    dq = staticmethod(lambda: _ok_result("dramatiq"))
+    sm = staticmethod(AsyncMock(return_value=_ok_result("smtp")))
+    ai = staticmethod(fake_local_ai)
     with (
-        patch.object(HealthCheckService, "check_postgres", _pg),
-        patch.object(HealthCheckService, "check_redis", _rd),
-        patch.object(HealthCheckService, "check_rustfs", _rf),
-        patch.object(HealthCheckService, "check_dramatiq", _dq),
-        patch.object(HealthCheckService, "check_smtp", _sm),
-        patch.object(HealthCheckService, "check_local_ai", _ai),
+        patch.object(HealthCheckService, "check_postgres", pg),
+        patch.object(HealthCheckService, "check_redis", rd),
+        patch.object(HealthCheckService, "check_rustfs", rf),
+        patch.object(HealthCheckService, "check_dramatiq", dq),
+        patch.object(HealthCheckService, "check_smtp", sm),
+        patch.object(HealthCheckService, "check_local_ai", ai),
         patch.object(settings, "AI_PROVIDER", "ollama"),
     ):
         engine = cast("AsyncEngine", object())

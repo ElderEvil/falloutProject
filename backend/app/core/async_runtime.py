@@ -13,14 +13,12 @@ own loop and engine.
 import asyncio
 import threading
 from collections.abc import Coroutine
-from typing import Any, TypeVar
-
-_T = TypeVar("_T")
+from typing import Any
 
 _thread_local = threading.local()
 
 
-def run_async(coro: Coroutine[Any, Any, _T]) -> _T:
+def run_async[T](coro: Coroutine[Any, Any, T]) -> T:
     """Run ``coro`` on the calling thread's persistent event loop."""
     loop = getattr(_thread_local, "loop", None)
     if loop is None or loop.is_closed():

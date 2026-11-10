@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.0.0 (2026-11-10)
+
+### ⚠ BREAKING CHANGES
+
+* **release:** Python 3.14 is required; persisted timestamps use timezone-aware timestamptz; SQLModel 0.0.48 / SQLAlchemy 2.1; passlib is replaced by pwdlib/Argon2 with bcrypt rehash-on-login; new rows use UUIDv7 while existing UUIDv4 rows remain supported.
+
+### Features
+
+* **release:** ship the 3.0 platform boundary 97eb1bc
+
+### Bug Fixes
+
+* **deploy:** gate migration behind backup rehearsal b4940f6
+* **deploy:** keep ingress closed after migration failure 6e90a17
+
 ## 2.298.1 (2026-11-09)
 
 ### Bug Fixes

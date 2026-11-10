@@ -99,23 +99,34 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
     # Re-read under the shared vault claim (claim -> exploration) so the site-run
     # check below cannot race a concurrent site entry; the bulk-loaded instance
     # may be stale.
-    locked = await lock_exploration_with_vault_claim(db_session, exploration.id, missing_ok=True)
+    locked = await lock_exploration_with_vault_claim(
+        db_session, exploration.id, missing_ok=True, vault_id=exploration.vault_id
+    )
     if locked is None:
         return
     exploration = locked
+
+    open_run_loaded = False
+    open_run = None
+
+    async def get_open_run():
+        nonlocal open_run, open_run_loaded
+        if not open_run_loaded:
+            open_run = await crud_expedition_run.get_open_for_exploration(db_session, exploration.id)
+            open_run_loaded = True
+        return open_run
 
     # Spatial runs move through the world; advance() owns their movement clock,
     # the forward->return transition, and arrival detection. Events still fire
     # during the forward phase (with name-derived registry placement suppressed).
     if exploration.heading_degrees is not None:
         was_active = exploration.is_active()
-        await exploration_service.advance(db_session, exploration.id)
-        await db_session.refresh(exploration)
+        exploration = await exploration_service.advance(db_session, exploration.id, exploration=exploration)
         if was_active and exploration.is_returning():
             stats["returning"] += 1
         if exploration.is_returning() and exploration.return_time_remaining_seconds() <= 0:
             # An open site encounter defers arrival: the dweller is inside, not home.
-            if await crud_expedition_run.get_open_for_exploration(db_session, exploration.id) is None:
+            if await get_open_run() is None:
                 await exploration_service.finalize_return(db_session, exploration.id)
                 stats["completed"] += 1
                 logger.info(f"Finalized returning exploration {exploration.id} for dweller {exploration.dweller_id}")
@@ -130,10 +141,7 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
         if exploration.paused_at is not None:
             return
     elif exploration.is_returning():
-        if (
-            exploration.return_time_remaining_seconds() <= 0
-            and await crud_expedition_run.get_open_for_exploration(db_session, exploration.id) is None
-        ):
+        if exploration.return_time_remaining_seconds() <= 0 and await get_open_run() is None:
             await exploration_service.finalize_return(db_session, exploration.id)
             stats["completed"] += 1
             logger.info(f"Finalized returning exploration {exploration.id} for dweller {exploration.dweller_id}")
@@ -147,7 +155,7 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
         and exploration.target_location_id is not None
         and exploration.is_active()
         and await exploration_service.has_arrived(db_session, exploration)
-        and await crud_expedition_run.get_open_for_exploration(db_session, exploration.id) is None
+        and await get_open_run() is None
     ):
         await resolve_dispatch_arrival(db_session, exploration.id, arrived=True)
         stats["returning"] += 1
@@ -170,7 +178,7 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
 
     # While a site run is open, random events pause and `paused_at` freezes the
     # journey clock, so the expiry branch above cannot fire mid-run.
-    if await crud_expedition_run.get_open_for_exploration(db_session, exploration.id) is not None:
+    if await get_open_run() is not None:
         return
 
     # Try to generate an event

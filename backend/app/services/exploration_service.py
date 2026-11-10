@@ -865,7 +865,12 @@ class ExplorationService:
         exploration.position_as_of = now
 
     async def advance(
-        self, db_session: AsyncSession, exploration_id: UUID, *, now: datetime | None = None
+        self,
+        db_session: AsyncSession,
+        exploration_id: UUID,
+        *,
+        now: datetime | None = None,
+        exploration: Exploration | None = None,
     ) -> Exploration:
         """Advance a spatial exploration's position by elapsed time (slice 1 movement).
 
@@ -875,8 +880,12 @@ class ExplorationService:
         path home at the same speed. Water and map bounds block forward movement and
         trigger an early return. Reprocessing an already-processed interval is a no-op
         via ``position_as_of``. The tick owns this transaction, so it commits.
+
+        Pass ``exploration`` when the caller already holds the locked row; this
+        avoids re-reading it merely to start the same tick's movement.
         """
-        exploration = await crud_exploration.get(db_session, exploration_id)
+        if exploration is None:
+            exploration = await crud_exploration.get(db_session, exploration_id)
         now = now or utcnow()
         await self._settle_movement(db_session, exploration, now)
         db_session.add(exploration)

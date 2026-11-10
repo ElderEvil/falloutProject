@@ -9,6 +9,7 @@ import textwrap
 from pathlib import Path
 
 import pytest
+import yaml
 
 WORKFLOW = Path(__file__).resolve().parents[4] / ".github/workflows/deploy-hetzner.yml"
 
@@ -25,6 +26,68 @@ def test_maintenance_stops_writers_before_migration() -> None:
     workflow = WORKFLOW.read_text()
     assert "maintenance_mode" in workflow
     assert workflow.index("--replicas=0") < workflow.index("uv run alembic")
+
+
+def test_maintenance_migration_waits_for_protected_environment() -> None:
+    jobs = yaml.safe_load(WORKFLOW.read_text())["jobs"]
+
+    assert jobs["migrate"]["needs"] == "prepare"
+    assert jobs["migrate"]["environment"]["name"] == (
+        "${{ inputs.maintenance_mode && 'production-migration' || 'production-deploy' }}"
+    )
+    assert jobs["deploy"]["needs"] == ["prepare", "migrate"]
+    assert "needs.migrate.result == 'success'" in jobs["deploy"]["if"]
+    assert jobs["cleanup"]["needs"] == ["prepare", "migrate"]
+    assert "needs.migrate.result == 'failure'" in jobs["cleanup"]["if"]
+    assert "needs.migrate.result == 'skipped'" in jobs["cleanup"]["if"]
+    assert "migration-started" in jobs["cleanup"]["steps"][-1]["run"]
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="Requires bash")
+def test_cleanup_keeps_ingress_closed_after_migration_started(tmp_path: Path) -> None:
+    jobs = yaml.safe_load(WORKFLOW.read_text())["jobs"]
+    step = next(step for step in jobs["cleanup"]["steps"] if step["name"] == "Restore writers and public ingress")
+    script = step["run"]
+    for expression, value in {
+        "secrets.HETZNER_USER": "test-user",
+        "secrets.HETZNER_HOST": "test-host",
+        "github.run_id": "885",
+        "github.run_attempt": "1",
+        "inputs.public_traffic_gate": "true",
+    }.items():
+        script = script.replace("${{ " + expression + " }}", value)
+
+    tools = tmp_path / "bin"
+    tools.mkdir()
+    log = tmp_path / "ssh.log"
+    ssh = tools / "ssh"
+    ssh.write_text(
+        f"#!{sys.executable}\n"
+        "import os, sys\n"
+        "from pathlib import Path\n"
+        'Path(os.environ["SSH_TEST_LOG"]).open("a").write(" ".join(sys.argv[1:]) + "\\n")\n'
+        "sys.exit(0)\n"
+    )
+    ssh.chmod(0o755)
+
+    result = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - checked-in workflow
+        [shutil.which("bash") or "bash", "-s"],
+        input=script,
+        text=True,
+        capture_output=True,
+        timeout=5,
+        check=False,
+        env=os.environ
+        | {
+            "PATH": f"{tools}{os.pathsep}{os.environ['PATH']}",
+            "SSH_TEST_LOG": str(log),
+        },
+    )
+
+    assert result.returncode == 0, result.stderr
+    calls = log.read_text()
+    assert "test -e" in calls
+    assert "kubectl apply" not in calls
 
 
 @pytest.mark.skipif(not shutil.which("bash") or not shutil.which("timeout"), reason="Requires bash and GNU timeout")

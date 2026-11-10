@@ -189,7 +189,8 @@ uv run fo-cli ops check-ai --api-url https://fallout-api.evillab.tech --skip-cha
    Migrations run in a dedicated Job using the target image before application images change. A failed Job aborts rollout.
    Enable `maintenance_mode` for incompatible schema changes, including the upgrade from v2.165.1 that drops
    `dweller.is_adult`: the workflow records API/worker replica counts, stops both writers, creates and verifies a
-   PostgreSQL dump under the server user's `~/fallout-backups/`, migrates, then restores the replicas on the new image.
+   PostgreSQL dump under the server user's `~/fallout-backups/`, pauses on the protected `production-migration`
+   environment for the exact-dump rehearsal, then migrates and restores the replicas on the new image.
    Backup creation, archive listing, and transfer share a 120-second deadline (with a 10-second termination grace).
    The archive is listed inside the PostgreSQL pod from a temporary file, without streaming it back into an
    interactive `kubectl exec`. The server receives a `.partial` file and renames it to `.dump` only after verification
@@ -202,8 +203,11 @@ uv run fo-cli ops check-ai --api-url https://fallout-api.evillab.tech --skip-cha
    the separate **Open public traffic** workflow (`confirm=open`) only after operator verification; use
    `kubectl exec` or `port-forward` in the meantime. After any failure, check the ingress state and reopen
    only after diagnosing (`kubectl apply -f deployment/k3s/ingress.yaml` or the Open workflow).
-   Plan a brief API maintenance window. Migration failure keeps writers stopped for inspection; retain the backup
-   and restore the previous schema/image together rather than restarting old code against a changed schema.
+   The `production-migration` environment requires a reviewer and a wait timer. Approve it only after restoring the
+   generated dump into isolated infrastructure and rehearsing the migration/rollback there. Rejecting the gate runs
+   the cleanup job, which restores the recorded replica counts and re-applies the ingress. Migration failure keeps
+   writers stopped for inspection; retain the backup and restore the previous schema/image together rather than
+   restarting old code against a changed schema.
 6. Confirm rollout, image tag, schema, and health after deployment:
 
    ```bash
@@ -770,8 +774,9 @@ writes it on the server host as:
 ```
 
 The workflow does not copy that file off-host, rotate it, or restore it. A `.dump` that only
-passed `pg_restore --list` is readable, not proven restorable. Copy the most recent production
-dump to an isolated workstation and run the drill below.
+passed `pg_restore --list` is readable, not proven restorable. Copy the generated dump to an
+isolated workstation, run the drill below, and only then approve the `production-migration`
+environment.
 
 ### Isolated restore drill
 

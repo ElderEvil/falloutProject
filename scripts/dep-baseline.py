@@ -195,7 +195,9 @@ def main() -> None:
     """Parse args, capture the baseline report, and print/write it as JSON."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, help="write the JSON report here")
-    parser.add_argument("--repeat", type=int, default=5, help="samples per isolated probe")
+    parser.add_argument(
+        "--repeat", type=int, default=5, help="samples per isolated probe"
+    )
     args = parser.parse_args()
 
     env = {**os.environ, **SMOKE_ENV}

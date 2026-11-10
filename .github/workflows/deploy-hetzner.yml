@@ -38,8 +38,8 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
-    name: Deploy to Hetzner k3s
+  prepare:
+    name: Prepare production cutover
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -48,13 +48,20 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Validate maintenance and traffic-gate inputs
-        if: ${{ inputs.public_traffic_gate }}
+        if: ${{ inputs.public_traffic_gate || inputs.maintenance_mode }}
         run: |
-          if [ "${{ inputs.maintenance_mode }}" != "true" ] \
-            || [ "${{ inputs.run_migrations }}" != "true" ] \
-            || [ "${{ inputs.preflight_only }}" = "true" ]; then
-            echo "::error::public_traffic_gate requires maintenance_mode=true, run_migrations=true and preflight_only=false"
+          if [ "${{ inputs.maintenance_mode }}" = "true" ] \
+            && [ "${{ inputs.run_migrations }}" != "true" ]; then
+            echo "::error::maintenance_mode requires run_migrations=true"
             exit 1
+          fi
+          if [ "${{ inputs.public_traffic_gate }}" = "true" ]; then
+            if [ "${{ inputs.maintenance_mode }}" != "true" ] \
+              || [ "${{ inputs.run_migrations }}" != "true" ] \
+              || [ "${{ inputs.preflight_only }}" = "true" ]; then
+              echo "::error::public_traffic_gate requires maintenance_mode=true, run_migrations=true and preflight_only=false"
+              exit 1
+            fi
           fi
 
       - name: Setup SSH key
@@ -293,11 +300,44 @@ jobs:
             echo "Database backup verified: $backup"
           SHELL
 
+  migrate:
+    name: Migrate production database
+    needs: prepare
+    if: ${{ !inputs.preflight_only && inputs.run_migrations }}
+    environment:
+      name: "${{ inputs.maintenance_mode && 'production-migration' || 'production-deploy' }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/hetzner_key
+          chmod 600 ~/.ssh/hetzner_key
+          ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Probe SSH connectivity
+        env:
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3; do
+            if ssh -o ConnectTimeout=15 -o BatchMode=yes -i ~/.ssh/hetzner_key "${DEPLOY_USER}@${DEPLOY_HOST}" 'echo ssh-reachable'; then
+              exit 0
+            fi
+            echo "Attempt $attempt/3 failed; retrying in 10s"
+            sleep 10
+          done
+          echo "::error::GitHub runners cannot reach the production host over SSH"
+          exit 1
+
       - name: Run migrations with the target image before rollout
-        if: ${{ inputs.run_migrations && !inputs.preflight_only }}
         run: |
           ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
             set -euo pipefail
+            touch "/tmp/fallout-deploy-${{ github.run_id }}-${{ github.run_attempt }}.migration-started"
             job="fallout-migrate-${{ github.run_id }}-${{ github.run_attempt }}"
             kubectl -n fallout get deployment backend -o json \
               | python3 -c '
@@ -324,6 +364,40 @@ jobs:
             kubectl -n fallout logs "job/$job"
             kubectl -n fallout delete job "$job"
           SHELL
+
+  deploy:
+    name: Deploy to Hetzner k3s
+    needs: [prepare, migrate]
+    if: ${{ always() && needs.prepare.result == 'success' && !inputs.preflight_only && (inputs.run_migrations == false || needs.migrate.result == 'success') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out deployment manifests
+        uses: actions/checkout@v7
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/hetzner_key
+          chmod 600 ~/.ssh/hetzner_key
+          ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Probe SSH connectivity
+        env:
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3; do
+            if ssh -o ConnectTimeout=15 -o BatchMode=yes -i ~/.ssh/hetzner_key "${DEPLOY_USER}@${DEPLOY_HOST}" 'echo ssh-reachable'; then
+              exit 0
+            fi
+            echo "Attempt $attempt/3 failed; retrying in 10s"
+            sleep 10
+          done
+          echo "::error::GitHub runners cannot reach the production host over SSH"
+          exit 1
 
       - name: Apply deployment manifests
         if: ${{ !inputs.preflight_only }}
@@ -498,3 +572,57 @@ jobs:
 
           $SSH "$TARGET" 'kubectl -n fallout logs job/image-cleanup --tail=200'
           $SSH "$TARGET" 'kubectl -n fallout delete job image-cleanup --ignore-not-found'
+
+  cleanup:
+    name: Restore writers after declined migration gate
+    needs: [prepare, migrate]
+    if: ${{ always() && inputs.maintenance_mode && !inputs.preflight_only && needs.prepare.result == 'success' && (needs.migrate.result == 'failure' || needs.migrate.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out deployment manifests
+        uses: actions/checkout@v7
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/hetzner_key
+          chmod 600 ~/.ssh/hetzner_key
+          ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Probe SSH connectivity
+        env:
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3; do
+            if ssh -o ConnectTimeout=15 -o BatchMode=yes -i ~/.ssh/hetzner_key "${DEPLOY_USER}@${DEPLOY_HOST}" 'echo ssh-reachable'; then
+              exit 0
+            fi
+            echo "Attempt $attempt/3 failed; retrying in 10s"
+            sleep 10
+          done
+          echo "::error::GitHub runners cannot reach the production host over SSH"
+          exit 1
+
+      - name: Restore writers and public ingress
+        run: |
+          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+            set -euo pipefail
+            marker="/tmp/fallout-deploy-${{ github.run_id }}-${{ github.run_attempt }}.migration-started"
+            if [ -e "$marker" ]; then
+              echo "Migration started; leaving writers stopped for manual recovery"
+              exit 0
+            fi
+            state="/tmp/fallout-deploy-${{ github.run_id }}-${{ github.run_attempt }}.replicas"
+            test -s "$state"
+            while read -r workload replicas; do
+              kubectl -n fallout scale "deployment/$workload" --replicas="$replicas"
+            done < "$state"
+          SHELL
+          if [ "${{ inputs.public_traffic_gate }}" = "true" ]; then
+            ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
+              'kubectl apply -n fallout -f -' < deployment/k3s/ingress.yaml
+          fi

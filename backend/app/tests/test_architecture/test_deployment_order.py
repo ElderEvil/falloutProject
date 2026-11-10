@@ -9,6 +9,7 @@ import textwrap
 from pathlib import Path
 
 import pytest
+import yaml
 
 WORKFLOW = Path(__file__).resolve().parents[4] / ".github/workflows/deploy-hetzner.yml"
 
@@ -25,6 +26,21 @@ def test_maintenance_stops_writers_before_migration() -> None:
     workflow = WORKFLOW.read_text()
     assert "maintenance_mode" in workflow
     assert workflow.index("--replicas=0") < workflow.index("uv run alembic")
+
+
+def test_maintenance_migration_waits_for_protected_environment() -> None:
+    jobs = yaml.safe_load(WORKFLOW.read_text())["jobs"]
+
+    assert jobs["migrate"]["needs"] == "prepare"
+    assert jobs["migrate"]["environment"]["name"] == (
+        "${{ inputs.maintenance_mode && 'production-migration' || 'production-deploy' }}"
+    )
+    assert jobs["deploy"]["needs"] == ["prepare", "migrate"]
+    assert "needs.migrate.result == 'success'" in jobs["deploy"]["if"]
+    assert jobs["cleanup"]["needs"] == ["prepare", "migrate"]
+    assert "needs.migrate.result == 'failure'" in jobs["cleanup"]["if"]
+    assert "needs.migrate.result == 'skipped'" in jobs["cleanup"]["if"]
+    assert "migration-started" in jobs["cleanup"]["steps"][-1]["run"]
 
 
 @pytest.mark.skipif(not shutil.which("bash") or not shutil.which("timeout"), reason="Requires bash and GNU timeout")

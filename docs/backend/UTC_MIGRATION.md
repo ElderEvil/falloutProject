@@ -1,11 +1,15 @@
 # Aware-UTC migration preparation
 
 Baseline: v2.287.1 (`d842b2c7`), Alembic `c8f2a1b3d4e5`, audited 2026-11-06.
-This is the local schema inventory, conversion contract and cutover plan. **B4/B5 are implemented**
-(migration `4b3cbd7b15ff`, `UTCDateTime` on all 122 columns, aware `utcnow`, SQLAlchemy 2.1 /
-SQLModel 0.0.48); local B6 evidence is recorded in [B6_REHEARSAL.md](B6_REHEARSAL.md).
-Production-clone and pinned-image rollback evidence remains outstanding.
-The release gates remain in [the roadmap](../ROADMAP.md#30-platform-release-plan).
+This is the local schema inventory, conversion contract and cutover plan, kept as the shipped 3.0
+record. B4/B5 shipped in v3.0.0 (migration `4b3cbd7b15ff`, `UTCDateTime` on all 122 columns, aware
+`utcnow`, SQLAlchemy 2.1 / SQLModel 0.0.48); local B6 evidence is in
+[B6_REHEARSAL.md](B6_REHEARSAL.md) and the production-clone rehearsal, including downgrade and
+re-upgrade against the pinned v2.295.1 image, is recorded in
+[the 3.0.0 runbook](../releases/3.0.0.md#4-production-clone-rehearsal).
+Remaining: regenerate the Alembic fresh-install baseline after the schema settles.
+Status and follow-ups live in
+[the roadmap](../ROADMAP.md#platform-boundary-30-shipped-31-gated).
 
 ## Current schema
 
@@ -281,7 +285,8 @@ Acceptance gates for the B4 PR:
 - `UTCDateTime` covers aware/naive values before flush, after flush and after reload.
 - The traffic gate is rehearsed on the clone: public traffic stays blocked until automated and operator
   checks pass and the **Open public traffic** workflow is run.
-- Full suite green on 3.13 and 3.14, plus the production-clone rehearsal evidence.
+- Full suite green on every CI runtime at the time (3.13 and 3.14 while both legs existed; 3.14 only
+  after the baseline switch), plus the production-clone rehearsal evidence.
 
 ## Conversion contract
 
@@ -331,15 +336,16 @@ uv run alembic upgrade head
 UTC_MIGRATION_REQUIRE_POSTGRES=1 uv run pytest app/tests/test_db/test_utc_migration_contract.py -n 0 -ra
 ```
 
-CI requires PostgreSQL for these cases on both Python 3.13 and 3.14; an unavailable or non-PostgreSQL
-connection fails rather than silently skipping. Ordinary local runs can skip the integration cases
-when PostgreSQL is unavailable; the API-schema round-trip cases still run. Temporary tables are
-transaction-scoped and connection-local, so parallel test workers do not share rehearsal rows.
+CI runs these cases against PostgreSQL on the supported runtime (Python 3.14); an unavailable or
+non-PostgreSQL connection fails rather than silently skipping. Ordinary local runs can skip the
+integration cases when PostgreSQL is unavailable; the API-schema round-trip cases still run.
+Temporary tables are transaction-scoped and connection-local, so parallel test workers do not share
+rehearsal rows.
 
-These are SQL conversion and API contracts against the current pinned dependencies, not tests of an
-Alembic revision that has not been written. When the real revision exists, invoke that revision in the
-migration regressions and exercise real domain rows, API/worker deadlines and JSON readers under the
-new ORM versions. Do not remove this distinction from the release evidence.
+These began as SQL conversion and API contracts against pinned dependencies, written before the
+revision existed. The revision is now `4b3cbd7b15ff`, so a future change should invoke it directly
+alongside these contracts and keep exercising real domain rows, API/worker deadlines and JSON readers
+under SQLAlchemy 2.1 / SQLModel 0.0.48.
 
 ## Compatible-reader follow-up
 

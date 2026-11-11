@@ -1,6 +1,7 @@
 """Clock perimeter guard: naive-UTC producers live only in ``app.utils.time``.
 
-The storage contract is naive UTC (README timestamp convention). ``datetime.utcnow`` is
+The durable contract is aware UTC on PostgreSQL; SQLite storage is normalized by
+``app.utils.types.UTCDateTime``. ``datetime.utcnow`` is
 deprecated and a bare ``datetime.now()`` reads local time, so both are banned. Stripping
 ``tzinfo`` is only correct in the clock module, where interpreting naive values as UTC is
 the documented contract; elsewhere an offset must be converted first with ``as_utc`` or

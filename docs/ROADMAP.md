@@ -1,11 +1,13 @@
 # Fallout Shelter — Development Roadmap
 
-_Last updated: 2026-11-05_
+_Last updated: 2026-11-11_
 
 ## Current direction
 
-Connect existing gameplay before adding new systems. The next release theme is **The Continuity Update**;
-Semantic Release chooses the version. Existing mechanics should lead naturally into useful next decisions.
+Connect existing gameplay before adding new systems. The next gameplay release theme is **The Continuity
+Update**; Semantic Release chooses the version. Existing mechanics should lead naturally into useful next
+decisions. The 3.0 platform boundary has shipped ([details](#platform-boundary-30-shipped-31-gated)); the
+remaining platform work (3.1) waits on upstream support.
 
 The [integration plan](features/INTEGRATION_PLAN.md) defines scope, evidence, constraints and recovery.
 Keep **one gameplay journey in implementation at a time**, with necessary maintenance alongside it.
@@ -52,78 +54,61 @@ No PR is approved for merge by this roadmap.
   [`deployment/k3s/README.md`](../deployment/k3s/README.md#issue-885-closure-evidence).
 - Fix demonstrated correctness/security blockers promptly. Avoid unrelated rewrites or library migrations.
 
-## 3.0 platform release plan
+## Platform boundary: 3.0 shipped, 3.1 gated
 
-3.0 is a deliberate, reversible runtime and database boundary, not a routine version bump. The boundary
-is split so the app major does not wait on upstream dependency schedules.
+**v3.0 shipped on 2026-11-10** as v3.0.0; v3.0.1 followed with atomic dweller-death and game-tick
+fixes. It is a runtime and database boundary, not a feature release:
 
-**v3.0 — runtime and database boundary** ([tracker #1259](https://github.com/ElderEvil/falloutProject/issues/1259);
-target: late 2026 / early 2027)
+- Python 3.14 only — `requires-python = ">=3.14,<3.15"`, `.python-version`, both Docker stages,
+  Ruff/ty targets and a single CI leg.
+- SQLModel 0.0.48 / SQLAlchemy 2.1 with aware UTC — migration `4b3cbd7b15ff` converted the 122
+  application timestamp columns to `timestamptz`; `app/utils/time.py` is the single clock source and
+  `UTCDateTime` normalizes SQLite storage.
+- UUIDv7 for new rows; existing UUIDv4 rows stay valid and resolvable.
+- pwdlib/Argon2 replaces passlib, with bcrypt rehash-on-login.
 
-- Python 3.14 baseline: `requires-python`, CI, container images and development tasks.
-- SQLModel 0.0.48 + SQLAlchemy 2.1 with the aware-UTC migration (`timestamp → timestamptz` + backfill).
-- Alembic baseline regeneration and a production-clone migration/rollback rehearsal.
-- One maintenance window, a rollback pin, and a `BREAKING CHANGE:` commit so Semantic Release produces 3.0.0.
-- Starts only after journeys [#1034](https://github.com/ElderEvil/falloutProject/issues/1034) and
-  [#1112](https://github.com/ElderEvil/falloutProject/issues/1112) are verified/closed; #928 is closed.
+Evidence: the production-clone rehearsal (restore → migrate → tick → downgrade → pinned v2.295.1) is
+recorded in the [3.0.0 runbook](releases/3.0.0.md#4-production-clone-rehearsal); the conversion
+contract lives in the [UTC migration preparation](backend/UTC_MIGRATION.md).
 
-**v3.1 — dependency majors** ([milestone](https://github.com/ElderEvil/falloutProject/milestone/2); 2027,
-gated on upstream support)
+**Deviation kept visible:** the boundary shipped ahead of journeys
+[#1034](https://github.com/ElderEvil/falloutProject/issues/1034) and
+[#1112](https://github.com/ElderEvil/falloutProject/issues/1112); only #928 was closed. A maintainer
+playtest on current master (2026-11-11) reported the game working, which is a smoke check, not the
+recorded journey evidence the journeys still require. Journeys stay the active work; the
+[implementation plan](plans/2026-11-08-3.0-platform-boundary.md) records the shipped phases.
 
-- [Pydantic v3 #1258](https://github.com/ElderEvil/falloutProject/issues/1258), TypeScript 7, HTTPX 2,
-  UUIDv7 and the remaining tooling items.
-- Each waits for its ecosystem: SQLModel/PydanticAI/FastAPI for Pydantic v3, Volar/`vue-tsc` for TypeScript 7.
-- Evaluate [zuvloop](https://github.com/Kludex/zuvloop) after the Python 3.14 baseline. It requires Python
-  3.14+, is a young native Zig/libuv loop, and would replace uvloop on the API plus the worker loop factory.
-  Benchmark FastAPI/Uvicorn, Dramatiq, asyncpg/Redis compatibility, image size and connection footprint before
-  deciding; do not add it during the 3.0 boundary.
+Remaining 3.0 follow-ups:
 
-No v3.0 date is announced until the tracker's gates are green. Keep the Dependabot pre-3.0 ignores
-(`sqlmodel >=0.0.45`, `sqlalchemy >=2.1`, `typescript >=7`) until each boundary opens.
+- Regenerate the Alembic fresh-install baseline once the schema settles; a baseline stamp alone does
+  not prove legacy rows were converted.
+- Keep the rollback pin (v2.295.1 images plus the pre-migration dump) current until post-release
+  confidence is recorded through the runbook's operator checks.
+- Resolve the post-deploy edge findings in
+  [#1390](https://github.com/ElderEvil/falloutProject/issues/1390) and
+  [#1388](https://github.com/ElderEvil/falloutProject/issues/1388).
 
-### Preparation and remaining gates
+### 3.1 — dependency majors
 
-The [UTC migration preparation](backend/UTC_MIGRATION.md) records the column/JSON/API inventory,
-isolated PostgreSQL conversion contracts and the ordered migration/recovery plan. Production-clone
-and application-domain cutover evidence remains outstanding.
+Milestone [3.1](https://github.com/ElderEvil/falloutProject/milestone/2), gated on upstream support:
 
-Tracker #1259 was closed on 2026-10-31 with its release checklist still unchecked. Its closed state
-does not establish that the boundary shipped. Use the evidence below when reassessing release readiness.
-Compatibility preparation may proceed alongside the selected gameplay journey; switching the baseline
-and migrating persisted timestamps remain gated on the journeys above.
-
-| Gate | Current state | Required next evidence |
-| --- | --- | --- |
-| Python 3.14 compatibility | `requires-python` admits 3.13 and 3.14; backend tests, Alembic checks and image smoke run for both. Package versions stay pinned in the shared lockfile. | Both CI runtimes stay green; the final baseline PR changes `.python-version`, Docker defaults, Ruff/ty targets, hook runtime and setup documentation together. |
-| Production runtime | `.python-version`, release-image selection and Docker defaults remain 3.13. | An explicit baseline switch after gameplay verification; compatibility CI alone does not complete this gate. |
-| Gameplay | #1034 and #1112 remain open; #928 is closed. | Authenticated standard-vault desktop/phone playthroughs, recovery boundaries and recorded remaining friction. |
-| ORM and aware UTC | SQLModel `<0.0.45`, SQLAlchemy `<2.1`; naive UTC remains the documented contract. | Inventory schema and serialized timestamps, then test conversion, comparisons, API round trips and background ticks against PostgreSQL before changing the bounds. |
-| Migration and recovery | `scripts/restore-drill.sh` provides an isolated restore foundation. | Run the final migrations on a production clone, prove enum/schema consistency and application readiness, and rehearse recovery with the pinned v2 image and matching database snapshot. Regenerate the Alembic baseline only after the final schema change. |
-| Release | No 3.0 cutover is established by this preparation. | Schedule the maintenance window, pin rollback artifacts and use a reviewed `BREAKING CHANGE:` release commit. |
-
-The next database slice starts with `TimeStampMixin`/`SoftDeleteMixin` in `app/models/base.py`,
-the UTC-pinned API and task engines in `app/db/session.py`, and deadlines in exploration, training,
-pregnancy, crafting, incidents and quest returns. Include timestamps embedded in exploration JSON,
-not just typed SQL columns. Explicitly interpret existing naive values as UTC during backfill; changing
-column types or replacing `datetime.utcnow()` alone does not establish correct elapsed-time behavior.
-PostgreSQL checks must cover preserved instants under a non-UTC session timezone, nullable timestamps,
-deadline boundaries, enum labels and API offset handling. Do not mix this with the runtime preparation PR.
-
-A fresh PostgreSQL 18 database migrated to `c8f2a1b3d4e5` on 2026-11-05 contains **122 timestamp
-columns across 39 tables**, all `timestamp without time zone`. This is a schema inventory, not a
-production-data audit or migration rehearsal. Reproduce the inventory before designing the conversion:
-
-```sql
-SELECT table_name, column_name, data_type
-FROM information_schema.columns
-WHERE table_schema = 'public' AND data_type LIKE 'timestamp%'
-ORDER BY table_name, column_name;
-```
+- [Pydantic v3 #1258](https://github.com/ElderEvil/falloutProject/issues/1258), TypeScript 7, HTTPX 2
+  and the remaining tooling items.
+- Each waits for its ecosystem: SQLModel/PydanticAI/FastAPI for Pydantic v3, Volar/`vue-tsc` for
+  TypeScript 7. The TypeScript `>=7` Dependabot ignore is the only Dependabot hold left, and uv still
+  constrains `logfire`/`logfire-api` to `<5`. The `sqlmodel`/`sqlalchemy` bounds moved with the 3.0 ORM
+  bump; the `multidict`, `soupsieve` and `websockets` holds were lifted in #1393.
+- Upgrade on measured evidence: the
+  [3.1 baseline contract](plans/2026-11-11-3.1-dependency-baseline.md) freezes the before-snapshot
+  (app import, RSS, validation, typecheck) and `scripts/dep-baseline.py` reproduces it per candidate
+  upgrade.
+- zuvloop was benchmarked on 2026-11-11 and not adopted (~13% slower p50/p95 than uvloop on the API
+  workload); re-check on a later release.
 
 ## Deferred direction and retained research
 
 [Deferred register #1113](https://github.com/ElderEvil/falloutProject/issues/1113) indexes world/NPC/travel,
-visual experiments, difficulty/Survival, multiplayer, Jev, youth/lore, console, Vue Query and 3.0 platform
+visual experiments, difficulty/Survival, multiplayer, Jev, youth/lore, console, Vue Query and 3.1 platform
 research with reopening conditions. Earlier priority labels are historical during this integration phase.
 Closing a deferred source does **not** mean it shipped or its findings were rejected.
 

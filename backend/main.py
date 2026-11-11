@@ -138,14 +138,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     register_objective_event_handlers()
     register_recipe_unlock_handlers()
 
-    yield
+    try:
+        yield
+    finally:
+        # Shutdown objective evaluators
+        evaluator_manager.shutdown()
 
-    # Shutdown objective evaluators
-    evaluator_manager.shutdown()
-
-    # Shutdown
-    logger.info("Shutting down Fallout Shelter API...")
-    await manager.stop_redis()
+        # Shutdown
+        logger.info("Shutting down Fallout Shelter API...")
+        await manager.stop_redis()
 
 
 app = FastAPI(

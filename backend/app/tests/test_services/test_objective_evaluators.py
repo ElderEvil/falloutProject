@@ -639,7 +639,7 @@ async def test_collect_evaluator_keeps_objective_active_when_reward_fails(
     assert link.progress == 1
     from app.services.reward_service import reward_service
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Cannot parse objective reward string"):
         await reward_service.claim_objective_reward(async_session, objective.id, vault.id)
     await async_session.refresh(link)
     assert link.progress == 1

@@ -129,6 +129,6 @@ async def test_caller_owned_connection_in_a_transaction_is_rejected(live_pg_engi
         session = AsyncSession(bind=conn)
         await conn.execute(text("SELECT 1"))
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="autocommit connection"):
             async with db_locks.hold_advisory_lock(session, "test-688-ownconn"):
                 pass

@@ -355,13 +355,13 @@ class CRUDWorldLocation:
         db_session: AsyncSession,
         vault_id: UUID,
         location_id: UUID,
-        type: LocationTypeEnum,
+        location_type: LocationTypeEnum,
         *,
         description: str | None = None,
         exploration_id: UUID | None = None,
         commit: bool = True,
     ) -> VaultLocationState:
-        """Get or create a vault's fog entry; ``type`` is first-write-wins.
+        """Get or create a vault's fog entry; ``location_type`` is first-write-wins.
 
         An existing state is returned unchanged (matching the old per-vault
         ``get_or_create`` semantics). On IntegrityError (concurrent insert) we
@@ -376,7 +376,7 @@ class CRUDWorldLocation:
         obj = VaultLocationState(
             vault_id=vault_id,
             location_id=location_id,
-            type=type,
+            type=location_type,
             description=description,
             exploration_id=exploration_id,
         )

@@ -197,7 +197,7 @@ async def build_dweller_social_context(deps: DwellerChatDeps) -> dict:
     family.extend(
         {"name": name(child.id), "relation": "child"}
         for child in relatives.values()
-        if child.parent_1_id == dweller.id or child.parent_2_id == dweller.id
+        if dweller.id in (child.parent_1_id, child.parent_2_id)
     )
     return {
         "status": "Socializing" if dweller.status == DwellerStatusEnum.RESTING else dweller.status.value.title(),
@@ -249,7 +249,7 @@ async def load_family_members(db_session: AsyncSession, dweller: DwellerReadFull
     family.extend(
         {"name": name(child.id), "relation": "child"}
         for child in relatives.values()
-        if child.parent_1_id == record.id or child.parent_2_id == record.id
+        if record.id in (child.parent_1_id, child.parent_2_id)
     )
     return [entry for entry in family if entry["name"]]
 

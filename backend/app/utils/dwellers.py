@@ -149,10 +149,7 @@ def elder_birth_threshold(now: datetime) -> datetime:
 def roll_spawn_birth_date(now: datetime, rng: random.Random | ModuleType) -> datetime:
     """Birth date for a new arrival. Arrivals lean young: most spawn under 30,
     a minority anywhere up to 80, so elders stay rare without disappearing."""
-    if rng.random() < 0.7:
-        years = rng.randint(18, 30)
-    else:
-        years = rng.randint(31, 80)
+    years = rng.randint(18, 30) if rng.random() < 0.7 else rng.randint(31, 80)
     return _calendar_years_ago(now, years) + timedelta(days=rng.randint(0, 364))
 
 

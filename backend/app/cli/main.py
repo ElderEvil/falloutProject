@@ -210,7 +210,7 @@ def version_prompt(
 
     from app.services.prompt_service import create_prompt_version
 
-    template = Path(template_file).read_text()
+    template = Path(template_file).read_text(encoding="utf-8")
 
     async def _version() -> int:
         async with async_session_maker() as session:

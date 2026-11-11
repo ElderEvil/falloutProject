@@ -185,7 +185,7 @@ class StaticGameData:
     @staticmethod
     def load_data[SchemaType: SQLModel](file_path: Path, model: type[SchemaType]) -> list[SchemaType]:
         try:
-            with file_path.open("r") as file:
+            with file_path.open("r", encoding="utf-8") as file:
                 data_list = json.load(file)
                 return [model.model_validate(item) for item in data_list]
         except json.JSONDecodeError, FileNotFoundError:

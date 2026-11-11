@@ -23,9 +23,6 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-# Global engine reference for database cleanup across fixtures
-_test_async_engine = None
-
 from app.core.config import settings
 
 # Disable rate limiting for tests before importing main
@@ -92,8 +89,7 @@ async def _flush_fake_redis(_shared_fake_redis: Any) -> AsyncGenerator[Any]:
 
 @pytest_asyncio.fixture(scope="session")
 async def db_connection() -> AsyncConnection:
-    global _test_async_engine
-    _test_async_engine = create_async_engine(
+    test_async_engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:", echo=False, future=True, poolclass=StaticPool
     )
 
@@ -104,7 +100,7 @@ async def db_connection() -> AsyncConnection:
                 if isinstance(column.type, JSONB):
                     column.type = JSON()
 
-    async with _test_async_engine.connect() as conn:
+    async with test_async_engine.connect() as conn:
         await conn.run_sync(SQLModel.metadata.drop_all)
         await conn.run_sync(SQLModel.metadata.create_all)
         await conn.commit()
@@ -113,7 +109,7 @@ async def db_connection() -> AsyncConnection:
         await conn.run_sync(SQLModel.metadata.drop_all)
         await conn.commit()
 
-    await _test_async_engine.dispose()
+    await test_async_engine.dispose()
 
 
 @pytest_asyncio.fixture

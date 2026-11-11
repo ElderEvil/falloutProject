@@ -27,7 +27,7 @@ pytestmark = [
 
 def get_rss_mb() -> float:
     """Return RSS in MB from /proc/self/status."""
-    with Path("/proc/self/status").open() as f:
+    with Path("/proc/self/status").open(encoding="utf-8") as f:
         for line in f:
             if line.startswith("VmRSS:"):
                 return int(line.split()[1]) / 1024  # kB → MB

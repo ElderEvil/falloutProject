@@ -24,7 +24,7 @@ def test_setup_preference_accepts_a_record_without_skipped() -> None:
     ],
 )
 def test_setup_preference_rejects_malformed_records(setup: object) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Setup"):
         validate_profile_preferences({"setup": setup})
 
 

@@ -82,7 +82,7 @@ def _build_human_variants() -> dict[tuple[str, str, str, str], tuple[str, str]]:
                     else:
                         subdir = AGE_VARIANT_SUBDIRS[age]
                         filename = f"FOS_Dw_Default_Human_{age.title()}_{gender.title()}_Skin{skin}_Hair{hair}.webp"
-                    variants[(age, gender, skin.casefold(), hair.casefold())] = (subdir, filename)
+                    variants[age, gender, skin.casefold(), hair.casefold()] = (subdir, filename)
     return variants
 
 

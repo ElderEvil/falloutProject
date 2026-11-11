@@ -535,10 +535,7 @@ class FamilyScenarioService:
         - ``co_locate``: move every couple into a living-quarters room so the
           game loop can tick affinity/conception on them (default True).
         """
-        if pairs:
-            raw_pairs = pairs
-        else:
-            raw_pairs = [(a.id, b.id) for a, b in await cls.auto_pair(db_session, vault_id, count, seed)]
+        raw_pairs = pairs or [(a.id, b.id) for a, b in await cls.auto_pair(db_session, vault_id, count, seed)]
 
         # Resolve and validate the co-location room before creating any couples,
         # so an invalid or cross-vault room is rejected up front.

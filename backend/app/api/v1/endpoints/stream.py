@@ -66,17 +66,16 @@ async def _with_heartbeat(
     Yields:
         Event data dicts from the stream, or None sentinel for heartbeat intervals.
     """
-    it = stream.__aiter__()
+    it = aiter(stream)
     task: asyncio.Future | None = None
     try:
         while True:
             if task is None:
-                task = asyncio.ensure_future(it.__anext__())
+                task = asyncio.ensure_future(anext(it))
             done, _pending = await asyncio.wait([task], timeout=interval)
             if done:
                 try:
-                    data = task.result()
-                    yield data
+                    yield task.result()
                     task = None
                 except StopAsyncIteration:
                     return

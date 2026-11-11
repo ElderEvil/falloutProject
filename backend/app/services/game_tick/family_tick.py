@@ -177,7 +177,7 @@ async def update_pair_affinity(
         )
         new_relationships.append((relationship, affinity_change(dweller1, dweller2)))
         relationships_map[key] = relationship
-        relationships_map[(dweller2.id, dweller1.id)] = relationship
+        relationships_map[dweller2.id, dweller1.id] = relationship
         return 0
 
     if any(new_relationship is relationship for new_relationship, _ in new_relationships):

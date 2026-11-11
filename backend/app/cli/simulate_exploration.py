@@ -17,6 +17,7 @@ Output:
 from __future__ import annotations
 
 import dataclasses
+import math
 import random
 from typing import Annotated, Any
 
@@ -414,7 +415,7 @@ class VaultSimulator:
         mean = self.cfg.avg_visited_places
         count = 0
         p = 1.0
-        threshold = 2.718281828459045 ** (-mean)
+        threshold = math.e ** (-mean)
         while True:
             p *= random.random()
             if p < threshold:

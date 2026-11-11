@@ -93,59 +93,60 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
     Performs health checks on startup and cleanup on shutdown.
     """
-    # Startup: Check service health
-    logger.info(
-        "Starting Fallout Shelter API",
-        extra={
-            "environment": settings.ENVIRONMENT,
-            "api_version": settings.API_VERSION,
-            "log_level": settings.LOG_LEVEL,
-            "json_logging": settings.LOG_JSON_FORMAT,
-        },
-    )
+    try:
+        # Startup: Check service health
+        logger.info(
+            "Starting Fallout Shelter API",
+            extra={
+                "environment": settings.ENVIRONMENT,
+                "api_version": settings.API_VERSION,
+                "log_level": settings.LOG_LEVEL,
+                "json_logging": settings.LOG_JSON_FORMAT,
+            },
+        )
 
-    health_check_service = HealthCheckService()
-    # RustFS is valuable for media features but optional; never wait for an unavailable homelab S3 endpoint at startup.
-    results = await health_check_service.check_all_services(async_engine, include_rustfs=False)
-    health_check_service.log_health_check_results(results)
+        health_check_service = HealthCheckService()
+        # RustFS is valuable for media features but optional; never wait for an unavailable homelab S3 endpoint at startup.
+        results = await health_check_service.check_all_services(async_engine, include_rustfs=False)
+        health_check_service.log_health_check_results(results)
 
-    # Seed quests and objectives from JSON files
-    async for session in get_async_session():
-        quest_count = await seed_quests_from_json(session)
-        objective_count = await seed_objectives_from_json(session)
-        place_count = await seed_places_from_json(session)
+        # Seed quests and objectives from JSON files
+        async for session in get_async_session():
+            quest_count = await seed_quests_from_json(session)
+            objective_count = await seed_objectives_from_json(session)
+            place_count = await seed_places_from_json(session)
 
-        # Re-apply the DB AI-provider profile so the chat agent uses the
-        # configured provider across restarts (a profile only takes effect
-        # on save otherwise, and a fresh process falls back to env defaults).
-        await ai_settings_service.apply(session)
+            # Re-apply the DB AI-provider profile so the chat agent uses the
+            # configured provider across restarts (a profile only takes effect
+            # on save otherwise, and a fresh process falls back to env defaults).
+            await ai_settings_service.apply(session)
 
-        if quest_count > 0:
-            logger.info("Quest seeding complete: %d quests added", quest_count)
-        if objective_count > 0:
-            logger.info("Objective seeding complete: %d objectives added", objective_count)
-        if place_count > 0:
-            logger.info("Place seeding complete: %d places added", place_count)
-        break
+            if quest_count > 0:
+                logger.info("Quest seeding complete: %d quests added", quest_count)
+            if objective_count > 0:
+                logger.info("Objective seeding complete: %d objectives added", objective_count)
+            if place_count > 0:
+                logger.info("Place seeding complete: %d places added", place_count)
+            break
 
-    logger.info("Fallout Shelter API startup complete")
+        logger.info("Fallout Shelter API startup complete")
 
-    # Initialize logfire observability (before evaluators)
-    configure_logfire()
+        # Initialize logfire observability (before evaluators)
+        configure_logfire()
 
-    # Initialize objective evaluators
-    evaluator_manager.initialize()
-    register_objective_event_handlers()
-    register_recipe_unlock_handlers()
+        # Initialize objective evaluators
+        evaluator_manager.initialize()
+        register_objective_event_handlers()
+        register_recipe_unlock_handlers()
 
-    yield
+        yield
+    finally:
+        # Shutdown objective evaluators
+        evaluator_manager.shutdown()
 
-    # Shutdown objective evaluators
-    evaluator_manager.shutdown()
-
-    # Shutdown
-    logger.info("Shutting down Fallout Shelter API...")
-    await manager.stop_redis()
+        # Shutdown
+        logger.info("Shutting down Fallout Shelter API...")
+        await manager.stop_redis()
 
 
 app = FastAPI(

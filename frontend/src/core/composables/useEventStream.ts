@@ -117,6 +117,7 @@ function useSseBase(
   options?: {
     method?: 'GET' | 'POST'
     headers?: Record<string, string> | (() => Record<string, string>)
+    keepAliveWhenHidden?: boolean
   }
 ) {
   const backgroundStream = options?.method !== 'POST'
@@ -184,7 +185,9 @@ function useSseBase(
     requested = true
     if (!fromReconnect && !authRetried) blocked = false
     if (backgroundStream && !stopActivityWatch) {
-      activity = useBackgroundActivity(!!options?.headers)
+      activity = useBackgroundActivity(!!options?.headers, {
+        allowHidden: options?.keepAliveWhenHidden,
+      })
       stopActivityWatch = watch(activity.canRun, (active) => {
         if (!active) close(false)
         else if (requested && !blocked) void connect(undefined, true)
@@ -309,7 +312,10 @@ export interface UseSseReturn {
 
 export function useSse(
   url: string,
-  options?: { headers?: Record<string, string> | (() => Record<string, string>) }
+  options?: {
+    headers?: Record<string, string> | (() => Record<string, string>)
+    keepAliveWhenHidden?: boolean
+  }
 ): UseSseReturn {
   const { event, status, error, reconnected, connect, close, stopReconnect } = useSseBase(url, {
     ...options,

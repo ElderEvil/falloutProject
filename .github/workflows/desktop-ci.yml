@@ -1,0 +1,102 @@
+name: Desktop CI
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/desktop-ci.yml'
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/desktop-ci.yml'
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux x86_64 packages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      # Never bake a developer's local API override into downloadable packages.
+      VITE_API_BASE_URL: https://fallout-api.evillab.tech
+      # linuxdeploy and its AppImage plugin must also work without a FUSE mount.
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential curl wget libwebkit2gtk-4.1-dev libssl-dev libgtk-3-dev libxdo-dev \
+            libayatana-appindicator3-dev librsvg2-dev patchelf file \
+            desktop-file-utils xdg-utils
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@f53f5227a9e83886ab598c617f3c170fab62f0d3 # v6
+        with:
+          version: 11.9.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '26'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: '1.99.1'
+          components: rustfmt
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@e9d7b9f1e587218970671bac74e5511ed9506e6a # v2
+        with:
+          workspaces: frontend/src-tauri -> target
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+
+      - name: Build Linux packages
+        run: pnpm run desktop:build --ci --bundles deb,appimage -- --locked
+
+      - name: Validate packages and record checksums
+        working-directory: frontend/src-tauri/target/release/bundle
+        run: |
+          dpkg-deb --info deb/*.deb
+          desktop-file-validate deb/*/data/usr/share/applications/*.desktop
+          sha256sum deb/*.deb appimage/*.AppImage > SHA256SUMS
+
+      - name: Upload Linux packages
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fallout-desktop-linux-x86_64-${{ github.sha }}
+          path: |
+            frontend/src-tauri/target/release/bundle/deb/*.deb
+            frontend/src-tauri/target/release/bundle/appimage/*.AppImage
+            frontend/src-tauri/target/release/bundle/SHA256SUMS
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14

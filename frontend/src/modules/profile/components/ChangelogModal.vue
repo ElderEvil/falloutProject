@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { notifyErrorOnce } from '@/core/utils/errorHandler'
+import { openExternalUrl } from '@/core/utils/desktop'
 
 /**
  * ChangelogModal - Displays version updates and changelog information
@@ -81,7 +82,7 @@ const fetchChangelog = async () => {
 }
 
 const handleViewAllChangelog = () => {
-  window.open('https://github.com/ElderEvil/falloutProject/blob/master/CHANGELOG.md', '_blank')
+  void openExternalUrl('https://github.com/ElderEvil/falloutProject/blob/master/CHANGELOG.md')
 }
 
 const handleEscape = (event: KeyboardEvent) => event.key === 'Escape' && show && emit('close')

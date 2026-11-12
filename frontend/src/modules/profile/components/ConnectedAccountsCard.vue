@@ -5,6 +5,7 @@ import { Button } from '@/core/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/core/components/ui/card'
 import { useToast } from '@/core/composables/useToast'
 import { getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
+import { isDesktop } from '@/core/utils/desktop'
 import {
   oauthService,
   type OAuthLinkedAccounts,
@@ -178,7 +179,7 @@ onMounted(load)
               </Button>
             </template>
             <Button
-              v-else
+              v-else-if="!isDesktop()"
               size="xs"
               variant="outline"
               :disabled="!isEnabled(provider) || busyProvider === provider"

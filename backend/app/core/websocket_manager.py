@@ -14,6 +14,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import RedisError
 
 from app.core.config import settings
+from app.core.stream_manager import sse_manager
 
 logger = logging.getLogger(__name__)
 
@@ -32,35 +33,41 @@ class ConnectionManager:
         # Ephemeral process identifier; not a persisted row.
         self.instance_id = str(uuid4())
         self.listener_task: asyncio.Task | None = None
+        self._redis_ready: asyncio.Event | None = None
         self.redis_channel = "ws_broadcast"
 
     async def start_redis(self):
         """Initialize Redis connection and start listener task."""
-        if self.redis:
-            return
-
-        try:
-            self.redis = Redis.from_url(settings.redis_url, decode_responses=True)
-            await self.redis.ping()
+        if self.redis is None:
+            self.redis = Redis.from_url(settings.redis_url, decode_responses=True, socket_connect_timeout=5)
+            self._redis_ready = asyncio.Event()
             self.listener_task = asyncio.create_task(self._redis_listener())
-            logger.info(
-                "Distributed WebSocket manager started (ID: %s)",
-                self.instance_id,
-            )
-        except RedisError, RedisConnectionError, OSError:
-            logger.exception("Failed to init Redis for WS manager. Running local-only")
-            self.redis = None
+        ready = self._redis_ready
+        if ready is not None:
+            try:
+                await asyncio.wait_for(ready.wait(), timeout=5)
+            except TimeoutError:
+                # A late subscription must also close streams which connected
+                # after startup timed out, so they reload notifications missed here.
+                ready.set()
+                logger.warning("Redis subscription is not ready; listener will continue connecting")
+        logger.info("Redis notification listener started (ID: %s)", self.instance_id)
 
     async def stop_redis(self):
         """Close Redis connection and cancel listener."""
-        if self.listener_task:
-            self.listener_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self.listener_task
-
-        if self.redis:
-            await self.redis.close()
-            self.redis = None
+        listener, self.listener_task = self.listener_task, None
+        client, self.redis = self.redis, None
+        if self._redis_ready:
+            self._redis_ready.set()
+        self._redis_ready = None
+        try:
+            if listener:
+                listener.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await listener
+        finally:
+            if client:
+                await client.aclose()
 
     async def _process_redis_message(self, message: dict):
         """Process a single Redis message."""
@@ -68,49 +75,79 @@ class ConnectionManager:
             return
 
         data = json.loads(message["data"])
+        if not isinstance(data, dict):
+            raise TypeError("Redis broadcast must be an object")
         if data.get("sender_instance") == self.instance_id:
             return
 
         msg_type = data.get("msg_type")
         payload = data.get("payload")
+        if not isinstance(payload, dict):
+            raise TypeError("Redis broadcast payload must be an object")
 
         if msg_type == "personal":
             user_id = UUID(data["user_id"])
             await self._send_personal_local(payload, user_id)
+            if payload.get("type") == "notification":
+                await sse_manager.publish(user_id, "notifications", payload)
         elif msg_type == "chat":
             user_id = UUID(data["user_id"])
             dweller_id = UUID(data["dweller_id"])
             await self._send_chat_local(payload, user_id, dweller_id)
 
-    async def _redis_listener(self):
-        """Listen for broadcast messages from other instances."""
-        if not self.redis:
-            return
-
-        pubsub = self.redis.pubsub()
-        await pubsub.subscribe(self.redis_channel)
-
+    async def _handle_redis_message(self, message: dict) -> None:
         try:
-            async for message in pubsub.listen():
+            await self._process_redis_message(message)
+        except KeyError, ValueError, TypeError:
+            logger.exception("Invalid Redis broadcast")
+
+    async def _consume_redis(self, client: Redis, ready: asyncio.Event) -> None:
+        async with client.pubsub() as pubsub:
+            await pubsub.subscribe(self.redis_channel)
+            try:
+                async for message in pubsub.listen():
+                    if message["type"] == "subscribe":
+                        # redis-py can reconnect/resubscribe internally. Force SSE clients
+                        # to catch up from persisted notifications after any gap.
+                        if ready.is_set():
+                            await sse_manager.close(topic="notifications")
+                        ready.set()
+                    else:
+                        await self._handle_redis_message(message)
+            finally:
+                # A disconnected socket is already unsubscribed on the server.
+                with contextlib.suppress(RedisError, OSError):
+                    await pubsub.unsubscribe(self.redis_channel)
+
+    async def _redis_listener(self) -> None:
+        """Reconnect the API's Redis subscriber and invalidate streams across gaps."""
+        client, ready = self.redis, self._redis_ready
+        if client is None or ready is None:
+            return
+        try:
+            while True:
                 try:
-                    await self._process_redis_message(message)
-                except json.JSONDecodeError, KeyError, ValueError:
-                    logger.exception("Error processing Redis broadcast")
+                    await self._consume_redis(client, ready)
+                except RedisError, OSError:
+                    logger.exception("Redis notification listener disconnected; retrying")
+                ready.set()
+                await sse_manager.close(topic="notifications")
+                await asyncio.sleep(1)
         finally:
-            await pubsub.unsubscribe(self.redis_channel)
-            await pubsub.close()
+            ready.set()
 
     async def _publish(self, data: dict[str, Any]):
         """Publish message to Redis for other instances."""
-        if not self.redis:
-            await self.start_redis()
-
-        if not self.redis:
-            return
-
         data["sender_instance"] = self.instance_id
+        encoded = json.dumps(jsonable_encoder(data))
         try:
-            await self.redis.publish(self.redis_channel, json.dumps(jsonable_encoder(data)))
+            if self.redis is not None:
+                await self.redis.publish(self.redis_channel, encoded)
+            else:
+                # Worker threads use different event loops. A publisher-only client
+                # belongs to this call, rather than a process-global listener loop.
+                async with Redis.from_url(settings.redis_url, decode_responses=True) as publisher:
+                    await publisher.publish(self.redis_channel, encoded)
         except RedisError, RedisConnectionError:
             logger.exception("Failed to publish WS message to Redis")
         except RuntimeError, AttributeError:

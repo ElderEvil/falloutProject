@@ -3,6 +3,9 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ConnectedAccountsCard from '@/modules/profile/components/ConnectedAccountsCard.vue'
 import { oauthService } from '@/modules/auth/services/oauthService'
+import { isTauri } from '@tauri-apps/api/core'
+
+vi.mock('@tauri-apps/api/core', () => ({ isTauri: vi.fn(() => false) }))
 
 vi.mock('@/modules/auth/services/oauthService', () => ({
   oauthService: {
@@ -34,6 +37,7 @@ const row = (wrapper: ReturnType<typeof mount>, provider: 'google' | 'github') =
 
 describe('ConnectedAccountsCard', () => {
   beforeEach(() => {
+    vi.mocked(isTauri).mockReturnValue(false)
     setActivePinia(createPinia())
     vi.mocked(oauthService.getProviders).mockResolvedValue({ google: true, github: true })
     vi.mocked(oauthService.getLinkedAccounts).mockResolvedValue({
@@ -44,6 +48,16 @@ describe('ConnectedAccountsCard', () => {
     vi.mocked(oauthService.unlinkProvider).mockReset()
     toast.success.mockReset()
     toast.error.mockReset()
+  })
+
+  it('hides desktop provider linking while preserving connected account management', async () => {
+    vi.mocked(isTauri).mockReturnValue(true)
+    const wrapper = await mountCard()
+
+    expect(row(wrapper, 'github').findAll('button')).toHaveLength(0)
+    expect(row(wrapper, 'google').text()).toContain('DISCONNECT')
+    expect(oauthService.linkProvider).not.toHaveBeenCalled()
+    wrapper.unmount()
   })
 
   it('shows linked and unlinked providers and protects the only sign-in method', async () => {

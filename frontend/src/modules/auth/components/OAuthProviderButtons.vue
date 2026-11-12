@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { Button } from '@/core/components/ui/button'
 import { handleStoreError } from '@/core/utils/errorHandler'
+import { isDesktop } from '@/core/utils/desktop'
 import { oauthService, type OAuthProvider } from '../services/oauthService'
 import { getLastAuthMethod, type AuthMethod } from '../utils/lastAuthMethod'
 
@@ -14,6 +15,7 @@ const enabledProviders = computed<OAuthProvider[]>(() =>
 )
 
 onMounted(async () => {
+  if (isDesktop()) return
   try {
     providers.value = await oauthService.getProviders()
   } catch (error) {
@@ -28,8 +30,13 @@ const startOAuth = (provider: OAuthProvider) => {
 </script>
 
 <template>
-  <div v-if="enabledProviders.length" class="mt-5 flex flex-col gap-3 border-t border-theme-primary/30 pt-5">
-    <p class="text-center font-mono text-xs tracking-widest text-theme-primary/60">— {{ label }} —</p>
+  <div
+    v-if="enabledProviders.length"
+    class="mt-5 flex flex-col gap-3 border-t border-theme-primary/30 pt-5"
+  >
+    <p class="text-center font-mono text-xs tracking-widest text-theme-primary/60">
+      — {{ label }} —
+    </p>
     <Button
       v-for="provider in enabledProviders"
       :key="provider"

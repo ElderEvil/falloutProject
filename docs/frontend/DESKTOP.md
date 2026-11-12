@@ -30,8 +30,10 @@ Semantic Release owns the version in `frontend/package.json`; the Cargo crate's
 
 Desktop development uses strict port 5173, ignores native build files, and skips
 automatic OpenAPI generation. Run `pnpm run types:generate` after API schema changes.
-`.env.desktop` selects production; use an ignored `.env.desktop.local` or
-`VITE_API_BASE_URL=http://localhost:8000 pnpm run desktop:dev` for a local backend.
+The `desktop-dev` mode defaults to the local API at `http://localhost:8000` and
+serves the webview at `http://127.0.0.1:5173` on both sides. Use an ignored
+`.env.desktop-dev.local` or an explicit `VITE_API_BASE_URL` to override development.
+Packaged `desktop` mode uses `.env.desktop` and the production API.
 Production CSP permits the production API; development CSP also permits local API
 and HMR connections. Custom API/media hosts require corresponding CSP changes.
 
@@ -56,8 +58,9 @@ Alerts require the app process to remain running, including hidden to the tray.
 
 The API starts the existing Redis broadcast listener even without a WebSocket.
 Workers use per-call publisher clients to avoid sharing pools between event loops.
-Sender-instance filtering prevents echoes; reconnect/resubscription closes only
-notification SSE streams so clients reload the persisted recent inbox. Pub/Sub is
+Sender-instance filtering prevents echoes. Failed Redis retries leave SSE open
+and back off from 1 to 30 seconds; resubscription closes notification streams once
+so clients reload the persisted recent inbox. Pub/Sub is
 best-effort, not durable. Commit/deferred-delivery ownership is unchanged; see
 [SERVICE_LAYER.md](../backend/SERVICE_LAYER.md).
 
@@ -77,8 +80,9 @@ regeneration may require recompression. Notification delivery resolves a bundled
 
 [Desktop CI](../../.github/workflows/desktop-ci.yml) builds on Ubuntu 24.04 for
 frontend PRs, `master` pushes, manual runs, and reusable workflow calls. It pins
-Rust/pnpm, uses frozen/locked dependencies, checks Rust formatting, validates Debian
-metadata/desktop entries, and uploads packages plus `SHA256SUMS` for 14 days.
+Rust/pnpm, uses frozen/locked dependencies, and checks Rust formatting and Clippy.
+PRs build the desktop frontend and check native code. Other runs build packages,
+validate Debian metadata/desktop entries, and upload packages plus `SHA256SUMS` for 14 days.
 Only `master` saves Rust caches; linuxdeploy uses extraction instead of FUSE.
 Existing frontend CI owns lint, typechecking, and unit tests. Desktop CI has
 read-only permissions and does not publish releases, change versions, or use
@@ -121,6 +125,8 @@ and the k3s manifest now preserve the website origin and allow `tauri://localhos
 `http://tauri.localhost`, and `https://tauri.localhost`; that manifest still needs
 rollout. Explicit environment overrides replace defaults. HTTP CORS covers SSE,
 not WebSocket handshakes.
+These origins are not an application identity: other local Tauri apps can claim
+them. Preserve Bearer authentication and cookie restrictions when adding OAuth.
 
 Before release, verify packaged production password login/refresh/sign-out/expiry,
 vault/media/chat/SSE/reconnect, the updated notification icon, external links,

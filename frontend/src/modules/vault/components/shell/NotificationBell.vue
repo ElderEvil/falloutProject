@@ -113,17 +113,17 @@ function isAdoptionNotification(notification: InboxNotification): boolean {
 function processNotification(notificationData: InboxNotification) {
   if (seenNotificationIds.has(notificationData.id)) return
   seenNotificationIds.add(notificationData.id)
-  const session = inboxStore.sessionKey
+  const sessionKey = inboxStore.sessionKey
   const token = authStore.token
-  const vaultId = vaultStore.currentVaultId
-  if (!notificationData.vault_id || notificationData.vault_id === vaultId) {
+  const currentVaultId = vaultStore.currentVaultId
+  if (!notificationData.vault_id || notificationData.vault_id === currentVaultId) {
     void notifyDesktop(
       notificationData,
       () =>
-        !!session &&
-        inboxStore.sessionKey === session &&
+        !!sessionKey &&
+        inboxStore.sessionKey === sessionKey &&
         authStore.token === token &&
-        vaultStore.currentVaultId === vaultId
+        vaultStore.currentVaultId === currentVaultId
     )
   }
   const newNotif: InboxNotification = {

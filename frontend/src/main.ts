@@ -12,7 +12,7 @@ app.use(createPinia())
 app.use(router)
 
 app.mount('#app')
-if (import.meta.env.MODE === 'desktop') {
+if (import.meta.env.MODE === 'desktop' || import.meta.env.MODE === 'desktop-dev') {
   void import('@/core/utils/desktop')
     .then(({ initializeDesktop }) => initializeDesktop())
     .catch((error) => console.error('Unable to initialize desktop integration', error))

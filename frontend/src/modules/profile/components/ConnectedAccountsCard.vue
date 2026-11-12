@@ -41,7 +41,8 @@ const confirmingProvider = ref<OAuthProvider | null>(null)
 
 const allProviders = computed<OAuthProvider[]>(() =>
   (['google', 'github'] as OAuthProvider[]).filter(
-    (provider) => providers.value[provider] || linkedProviders.value.includes(provider)
+    (provider) =>
+      linkedProviders.value.includes(provider) || (!isDesktop() && providers.value[provider])
   )
 )
 const canUnlink = computed(() => hasPassword.value || linkedProviders.value.length > 1)
@@ -118,8 +119,12 @@ onMounted(load)
     </CardHeader>
     <CardContent class="pt-0">
       <p class="text-xs leading-5 text-theme-primary/60">
-        Connect a provider to sign in with it. Linking never moves vaults or progress; ask an
-        administrator to merge duplicate accounts.
+        {{
+          isDesktop()
+            ? 'Connect new providers through the web app.'
+            : 'Connect a provider to sign in with it.'
+        }}
+        Linking never moves vaults or progress; ask an administrator to merge duplicate accounts.
       </p>
 
       <div v-if="loading" class="py-6 text-center text-sm text-theme-primary/60">
@@ -127,7 +132,11 @@ onMounted(load)
       </div>
       <p v-else-if="loadError" class="mt-4 text-sm text-danger">{{ loadError }}</p>
       <p v-else-if="!allProviders.length" class="mt-4 text-sm text-theme-primary/60">
-        No provider sign-in is configured for this deployment.
+        {{
+          isDesktop()
+            ? 'No connected providers.'
+            : 'No provider sign-in is configured for this deployment.'
+        }}
       </p>
       <div v-else class="mt-3 grid gap-2 sm:grid-cols-2">
         <div
@@ -179,7 +188,7 @@ onMounted(load)
               </Button>
             </template>
             <Button
-              v-else-if="!isDesktop()"
+              v-else
               size="xs"
               variant="outline"
               :disabled="!isEnabled(provider) || busyProvider === provider"

@@ -54,7 +54,7 @@ describe('ConnectedAccountsCard', () => {
     vi.mocked(isTauri).mockReturnValue(true)
     const wrapper = await mountCard()
 
-    expect(row(wrapper, 'github').findAll('button')).toHaveLength(0)
+    expect(wrapper.find('[data-testid="connected-github"]').exists()).toBe(false)
     expect(row(wrapper, 'google').text()).toContain('DISCONNECT')
     expect(oauthService.linkProvider).not.toHaveBeenCalled()
     wrapper.unmount()

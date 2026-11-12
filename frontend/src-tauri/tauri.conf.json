@@ -5,7 +5,7 @@
   "identifier": "tech.evillab.fallout",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:5173",
+    "devUrl": "http://127.0.0.1:5173",
     "beforeDevCommand": "pnpm run desktop:serve",
     "beforeBuildCommand": "pnpm run desktop:bundle"
   },

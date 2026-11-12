@@ -8,7 +8,7 @@ import {
 } from '@tauri-apps/plugin-notification'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { handleStoreError } from '@/core/utils/errorHandler'
-import { notifyDesktop, openExternalUrl } from '@/core/utils/desktop'
+import { initializeDesktop, notifyDesktop, openExternalUrl } from '@/core/utils/desktop'
 
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: vi.fn() }))
 vi.mock('@tauri-apps/api/path', () => ({ resolveResource: vi.fn() }))
@@ -90,5 +90,31 @@ describe('desktop operating-system boundary', () => {
     await openExternalUrl('file:///etc/passwd')
     await openExternalUrl('javascript:alert(1)')
     expect(openUrl).toHaveBeenCalledExactlyOnceWith('https://github.com/ElderEvil/falloutProject')
+  })
+
+  it('handles malformed links without an unhandled rejection', async () => {
+    await expect(openExternalUrl('not a URL')).resolves.toBeUndefined()
+    expect(openUrl).not.toHaveBeenCalled()
+    expect(handleStoreError).toHaveBeenCalled()
+  })
+
+  it('opens middle-clicked external links in the system browser', async () => {
+    const listeners = vi.spyOn(document, 'addEventListener')
+    const anchor = document.createElement('a')
+    anchor.href = 'https://github.com/ElderEvil/falloutProject'
+    document.body.append(anchor)
+    try {
+      await initializeDesktop()
+      const event = new MouseEvent('auxclick', { button: 1, bubbles: true, cancelable: true })
+      anchor.dispatchEvent(event)
+      expect(event.defaultPrevented).toBe(true)
+      await vi.waitFor(() => expect(openUrl).toHaveBeenCalledExactlyOnceWith(anchor.href))
+    } finally {
+      anchor.remove()
+      for (const [type, listener, options] of listeners.mock.calls) {
+        if (type === 'click' || type === 'auxclick')
+          document.removeEventListener(type, listener, options)
+      }
+    }
   })
 })

@@ -34,6 +34,7 @@ class ConnectionManager:
         self.instance_id = str(uuid4())
         self.listener_task: asyncio.Task | None = None
         self._redis_ready: asyncio.Event | None = None
+        self._redis_retry_delay = 1
         self.redis_channel = "ws_broadcast"
 
     async def start_redis(self):
@@ -42,6 +43,7 @@ class ConnectionManager:
             self.redis = Redis.from_url(settings.redis_url, decode_responses=True, socket_connect_timeout=5)
             self._redis_ready = asyncio.Event()
             self.listener_task = asyncio.create_task(self._redis_listener())
+            logger.info("Redis notification listener task created (ID: %s)", self.instance_id)
         ready = self._redis_ready
         if ready is not None:
             try:
@@ -51,7 +53,6 @@ class ConnectionManager:
                 # after startup timed out, so they reload notifications missed here.
                 ready.set()
                 logger.warning("Redis subscription is not ready; listener will continue connecting")
-        logger.info("Redis notification listener started (ID: %s)", self.instance_id)
 
     async def stop_redis(self):
         """Close Redis connection and cancel listener."""
@@ -111,6 +112,7 @@ class ConnectionManager:
                         # to catch up from persisted notifications after any gap.
                         if ready.is_set():
                             await sse_manager.close(topic="notifications")
+                        self._redis_retry_delay = 1
                         ready.set()
                     else:
                         await self._handle_redis_message(message)
@@ -124,15 +126,19 @@ class ConnectionManager:
         client, ready = self.redis, self._redis_ready
         if client is None or ready is None:
             return
+        self._redis_retry_delay = 1
         try:
             while True:
                 try:
                     await self._consume_redis(client, ready)
-                except RedisError, OSError:
-                    logger.exception("Redis notification listener disconnected; retrying")
+                except (RedisError, OSError) as error:
+                    logger.warning(
+                        "Redis notification listener unavailable; retrying in %ss: %s", self._redis_retry_delay, error
+                    )
                 ready.set()
-                await sse_manager.close(topic="notifications")
-                await asyncio.sleep(1)
+                # Keep local SSE alive during outages; resubscription triggers catch-up once.
+                await asyncio.sleep(self._redis_retry_delay)
+                self._redis_retry_delay = min(self._redis_retry_delay * 2, 30)
         finally:
             ready.set()
 

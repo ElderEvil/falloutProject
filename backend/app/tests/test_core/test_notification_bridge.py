@@ -130,12 +130,12 @@ async def test_disconnect_closes_only_notification_streams_then_recovers(redis_s
         await api.start_redis()
         fail_next.set()
         await worker.send_personal_message({"type": "notification"}, user_id)
-        with pytest.raises(StopAsyncIteration):
-            await asyncio.wait_for(pending, 1)
         assert not tick_pending.done()
         await sse_manager.publish(user_id, "game_ticks", {"tick": 1})
         assert await asyncio.wait_for(tick_pending, 1) == {"tick": 1}
         await asyncio.wait_for(recovered.wait(), 3)
+        with pytest.raises(StopAsyncIteration):
+            await asyncio.wait_for(pending, 1)
         next_stream = sse_manager.subscribe(user_id, "notifications")
         pending = asyncio.create_task(anext(next_stream))
         event = {"type": "notification", "notification": {"id": str(uuid4())}}
@@ -155,5 +155,64 @@ async def test_disconnect_closes_only_notification_streams_then_recovers(redis_s
         assert api.redis is None
         async with fakeredis.aioredis.FakeRedis(server=redis_server) as redis:
             assert (await redis.pubsub_numsub(api.redis_channel))[0][1] == 0
+        await worker.stop_redis()
+        await sse_manager.close()
+
+
+async def test_sustained_outage_keeps_sse_open_and_backs_off_until_recovery(redis_server, monkeypatch) -> None:
+    original_listen, original_subscribe, original_sleep = PubSub.listen, PubSub.subscribe, asyncio.sleep
+    outage = asyncio.Event()
+    delays, resume = asyncio.Queue(), asyncio.Queue()
+
+    async def interrupted_listen(pubsub):
+        async for message in original_listen(pubsub):
+            if message["type"] == "message":
+                outage.set()
+                raise RedisConnectionError("injected outage")
+            yield message
+
+    async def subscribe(pubsub, *args, **kwargs):
+        if outage.is_set():
+            raise RedisConnectionError("still unavailable")
+        return await original_subscribe(pubsub, *args, **kwargs)
+
+    async def pause_retry(delay):
+        if delay >= 1:
+            await delays.put(delay)
+            await resume.get()
+        else:
+            await original_sleep(delay)
+
+    monkeypatch.setattr(PubSub, "listen", interrupted_listen)
+    monkeypatch.setattr(PubSub, "subscribe", subscribe)
+    monkeypatch.setattr(asyncio, "sleep", pause_retry)
+    api, worker = ConnectionManager(), ConnectionManager()
+    user_id = uuid4()
+    stream = sse_manager.subscribe(user_id, "notifications")
+    pending = asyncio.create_task(anext(stream))
+    try:
+        await api.start_redis()
+        await worker.send_personal_message({"type": "notification"}, user_id)
+        backoff = (1, 2, 4, 8, 16, 30, 30)
+        for attempt, expected_delay in enumerate(backoff):
+            assert await asyncio.wait_for(delays.get(), 1) == expected_delay
+            assert not pending.done(), "Redis retries must not repeatedly disconnect notification SSE"
+            if attempt < len(backoff) - 1:
+                await resume.put(None)
+        outage.clear()
+        await resume.put(None)
+        with pytest.raises(StopAsyncIteration):
+            await asyncio.wait_for(pending, 1)
+        await stream.aclose()
+        stream = sse_manager.subscribe(user_id, "notifications")
+        pending = asyncio.create_task(anext(stream))
+        await worker.send_personal_message({"type": "notification"}, user_id)
+        assert await asyncio.wait_for(delays.get(), 1) == 1, "Successful subscription must reset backoff"
+        assert not pending.done(), "A later outage must keep the recovered SSE stream open"
+    finally:
+        pending.cancel()
+        await asyncio.gather(pending, return_exceptions=True)
+        await stream.aclose()
+        await api.stop_redis()
         await worker.stop_redis()
         await sse_manager.close()

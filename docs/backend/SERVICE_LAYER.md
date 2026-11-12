@@ -131,8 +131,9 @@ lifespan owns its listener and shutdown; remote personal notifications also fan 
 to process-local SSE queues. Publishers without a listener use a client owned by
 that call, so worker threads do not share an async connection across event loops.
 The sender-instance marker suppresses local Redis echoes: `NotificationService`
-still owns local SSE delivery after commit. Redis gaps close only notification
-subscriptions, triggering clients' existing persisted-inbox catch-up. Pub/Sub does
+still owns local SSE delivery after commit. Redis retry failures leave SSE open;
+resubscription closes only notification streams once for persisted-inbox catch-up.
+Retries back off from 1 to 30 seconds, resetting on subscription. Pub/Sub does
 not replace persisted notification rows or provide durable event replay.
 
 ## Known deferrals

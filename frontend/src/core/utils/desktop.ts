@@ -4,8 +4,8 @@ import { handleStoreError } from '@/core/utils/errorHandler'
 export const isDesktop = () => isTauri()
 
 export async function openExternalUrl(url: string): Promise<void> {
-  if (!['http:', 'https:'].includes(new URL(url).protocol)) return
   try {
+    if (!['http:', 'https:'].includes(new URL(url).protocol)) return
     if (isDesktop()) {
       const { openUrl } = await import('@tauri-apps/plugin-opener')
       await openUrl(url)
@@ -38,15 +38,22 @@ export async function notifyDesktop(
 
 export async function initializeDesktop(): Promise<void> {
   if (!isDesktop()) return
-  document.addEventListener('click', (event) => {
-    if (event.defaultPrevented || event.button !== 0 || !(event.target instanceof Element)) return
+  const openExternalLink = (event: MouseEvent) => {
+    if (
+      event.defaultPrevented ||
+      ![0, 1].includes(event.button) ||
+      !(event.target instanceof Element)
+    )
+      return
     const anchor = event.target.closest('a[href]')
     if (!(anchor instanceof HTMLAnchorElement) || anchor.hasAttribute('download')) return
     const url = new URL(anchor.href)
     if (!['http:', 'https:'].includes(url.protocol) || url.origin === window.location.origin) return
     event.preventDefault()
     void openExternalUrl(url.href)
-  })
+  }
+  document.addEventListener('click', openExternalLink)
+  document.addEventListener('auxclick', openExternalLink)
   try {
     const { isPermissionGranted, requestPermission } =
       await import('@tauri-apps/plugin-notification')

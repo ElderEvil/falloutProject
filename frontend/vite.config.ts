@@ -74,7 +74,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    target: mode === 'desktop' ? 'safari15' : 'esnext',
+    target: mode.startsWith('desktop') ? 'safari15' : 'esnext',
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {

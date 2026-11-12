@@ -5,7 +5,6 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
-import { initializeDesktop } from '@/core/utils/desktop'
 
 const app = createApp(App)
 
@@ -13,4 +12,8 @@ app.use(createPinia())
 app.use(router)
 
 app.mount('#app')
-void initializeDesktop()
+if (import.meta.env.MODE === 'desktop') {
+  void import('@/core/utils/desktop')
+    .then(({ initializeDesktop }) => initializeDesktop())
+    .catch((error) => console.error('Unable to initialize desktop integration', error))
+}

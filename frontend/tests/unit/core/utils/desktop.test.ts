@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { isTauri } from '@tauri-apps/api/core'
 import { resolveResource } from '@tauri-apps/api/path'
 import {
@@ -19,6 +20,12 @@ vi.mock('@tauri-apps/plugin-notification', () => ({
 }))
 vi.mock('@tauri-apps/plugin-opener', () => ({ openUrl: vi.fn() }))
 vi.mock('@/core/utils/errorHandler', () => ({ handleStoreError: vi.fn() }))
+
+it.each(['csp', 'devCsp'])('allows Iconify requests through the desktop %s', (policy) => {
+  const config = JSON.parse(readFileSync('src-tauri/tauri.conf.json', 'utf8'))
+  const sources = config.app.security[policy]['connect-src'].split(' ')
+  expect(sources).toContain('https://api.iconify.design')
+})
 
 describe('desktop operating-system boundary', () => {
   const notification = { title: 'Training complete', message: 'Strength increased' }

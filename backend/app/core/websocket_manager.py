@@ -12,11 +12,13 @@ from fastapi.encoders import jsonable_encoder
 from redis.asyncio import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import RedisError
+from starlette.websockets import WebSocketDisconnect
 
 from app.core.config import settings
 from app.core.stream_manager import sse_manager
 
 logger = logging.getLogger(__name__)
+WEBSOCKET_SEND_TIMEOUT = 5
 
 
 class ConnectionManager:
@@ -88,9 +90,9 @@ class ConnectionManager:
 
         if msg_type == "personal":
             user_id = UUID(data["user_id"])
-            await self._send_personal_local(payload, user_id)
             if payload.get("type") == "notification":
                 await sse_manager.publish(user_id, "notifications", payload)
+            await self._send_personal_local(payload, user_id)
         elif msg_type == "chat":
             user_id = UUID(data["user_id"])
             dweller_id = UUID(data["dweller_id"])
@@ -209,18 +211,22 @@ class ConnectionManager:
 
     async def _send_personal_local(self, message: dict[str, Any], user_id: UUID):
         """Send message to locally connected sockets only."""
-        connections = self.active_connections.get(user_id, [])
-        disconnected = []
+        connections = tuple(self.active_connections.get(user_id, []))
+        sent = await asyncio.gather(*(self._send_connection(conn, message) for conn in connections))
+        for conn, success in zip(connections, sent, strict=True):
+            if not success:
+                self.disconnect(conn, user_id)
 
-        for conn in connections:
-            try:
+    @staticmethod
+    async def _send_connection(conn: WebSocket, message: dict[str, Any]) -> bool:
+        """Bound ASGI backpressure and isolate disconnected/slow peers."""
+        try:
+            async with asyncio.timeout(WEBSOCKET_SEND_TIMEOUT):
                 await conn.send_json(message)
-            except (RuntimeError, ConnectionError) as e:
-                logger.debug("Connection closed for user %s: %s", user_id, e)
-                disconnected.append(conn)
-
-        for conn in disconnected:
-            self.disconnect(conn, user_id)
+        except (RuntimeError, ConnectionError, WebSocketDisconnect, TimeoutError) as error:
+            logger.debug("WebSocket send failed: %s", error)
+            return False
+        return True
 
     async def broadcast_to_vault(
         self,
@@ -298,23 +304,11 @@ class ConnectionManager:
     async def _send_chat_local(self, message: dict[str, Any], user_id: UUID, dweller_id: UUID):
         """Send message to locally connected chat sockets only."""
         chat_key = (user_id, dweller_id)
-        connections = self.chat_connections.get(chat_key, [])
-        disconnected = []
-
-        for conn in connections:
-            try:
-                await conn.send_json(message)
-            except (RuntimeError, ConnectionError) as e:
-                logger.debug(
-                    "Connection closed for chat %s-%s: %s",
-                    user_id,
-                    dweller_id,
-                    e,
-                )
-                disconnected.append(conn)
-
-        for conn in disconnected:
-            self.disconnect_chat(conn, user_id, dweller_id)
+        connections = tuple(self.chat_connections.get(chat_key, []))
+        sent = await asyncio.gather(*(self._send_connection(conn, message) for conn in connections))
+        for conn, success in zip(connections, sent, strict=True):
+            if not success:
+                self.disconnect_chat(conn, user_id, dweller_id)
 
     async def send_typing_indicator(
         self,

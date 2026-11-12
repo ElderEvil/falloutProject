@@ -976,6 +976,7 @@ dependencies = [
  "tauri-plugin-notification",
  "tauri-plugin-opener",
  "tauri-plugin-window-state",
+ "zbus 5.19.0",
 ]
 
 [[package]]

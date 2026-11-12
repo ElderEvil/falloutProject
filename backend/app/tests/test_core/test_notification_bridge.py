@@ -8,6 +8,7 @@ import fakeredis.aioredis
 import pytest
 from redis.asyncio.client import PubSub
 from redis.exceptions import ConnectionError as RedisConnectionError
+from starlette.websockets import WebSocket
 
 from app.core.stream_manager import sse_manager
 from app.core.websocket_manager import ConnectionManager
@@ -21,6 +22,68 @@ def redis_server(monkeypatch: pytest.MonkeyPatch):
         lambda *_args, **_kwargs: fakeredis.aioredis.FakeRedis(server=server, decode_responses=True),
     )
     return server
+
+
+def transport_socket(send) -> WebSocket:
+    async def receive():
+        return {"type": "websocket.connect"}
+
+    return WebSocket({"type": "websocket", "path": "/", "headers": []}, receive, send)
+
+
+@pytest.mark.parametrize("kind", ["personal", "chat"])
+@pytest.mark.parametrize("failure", ["disconnect", "stall"])
+async def test_failed_socket_does_not_block_other_connections_or_redis_events(
+    redis_server, monkeypatch, kind: str, failure: str
+) -> None:
+    monkeypatch.setattr("app.core.websocket_manager.WEBSOCKET_SEND_TIMEOUT", 0.02, raising=False)
+    delivered = asyncio.Event()
+    messages = []
+
+    async def failed_send(message):
+        if message["type"] == "websocket.send":
+            if failure == "disconnect":
+                raise OSError("transport disconnected")
+            await asyncio.Event().wait()
+
+    async def healthy_send(message):
+        if message["type"] == "websocket.send":
+            messages.append(json.loads(message["text"]))
+            delivered.set()
+
+    api, worker = ConnectionManager(), ConnectionManager()
+    failed, healthy = transport_socket(failed_send), transport_socket(healthy_send)
+    user_id, other_id, dweller_id = uuid4(), uuid4(), uuid4()
+    stream = sse_manager.subscribe(other_id, "notifications")
+    pending = asyncio.create_task(anext(stream))
+    event = {"type": "notification", "notification": {"id": str(uuid4())}}
+    try:
+        if kind == "personal":
+            await api.connect(failed, user_id)
+            await api.connect(healthy, user_id)
+            await worker.send_personal_message(event, user_id)
+        else:
+            await api.connect_chat(failed, user_id, dweller_id)
+            await api.connect_chat(healthy, user_id, dweller_id)
+            await worker.send_chat_message(event, user_id, dweller_id)
+        await asyncio.wait_for(delivered.wait(), 0.5)
+        await worker.send_personal_message(event, other_id)
+        assert await asyncio.wait_for(pending, 0.5) == event
+        assert messages == [event]
+        connections = (
+            api.active_connections[user_id] if kind == "personal" else api.chat_connections[user_id, dweller_id]
+        )
+        assert failed not in connections
+        assert healthy in connections
+        assert api.listener_task is not None
+        assert not api.listener_task.done()
+    finally:
+        pending.cancel()
+        await asyncio.gather(pending, return_exceptions=True)
+        await stream.aclose()
+        await api.stop_redis()
+        await worker.stop_redis()
+        await sse_manager.close()
 
 
 async def test_worker_notification_reaches_api_sse_without_a_websocket(redis_server) -> None:

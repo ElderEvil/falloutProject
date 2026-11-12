@@ -24,7 +24,7 @@
     "security": {
       "csp": {
         "default-src": "'self'",
-        "connect-src": "'self' ipc: http://ipc.localhost https://fallout-api.evillab.tech wss://fallout-api.evillab.tech",
+        "connect-src": "'self' ipc: http://ipc.localhost https://api.iconify.design https://fallout-api.evillab.tech wss://fallout-api.evillab.tech",
         "img-src": "'self' asset: blob: data: https://fallout-api.evillab.tech",
         "style-src": "'self' 'unsafe-inline'",
         "font-src": "'self' data:",
@@ -33,7 +33,7 @@
       },
       "devCsp": {
         "default-src": "'self'",
-        "connect-src": "'self' ipc: http://ipc.localhost http://localhost:5173 http://127.0.0.1:5173 ws://localhost:5173 ws://127.0.0.1:5173 http://localhost:8000 ws://localhost:8000 https://fallout-api.evillab.tech wss://fallout-api.evillab.tech",
+        "connect-src": "'self' ipc: http://ipc.localhost http://localhost:5173 http://127.0.0.1:5173 ws://localhost:5173 ws://127.0.0.1:5173 http://localhost:8000 ws://localhost:8000 https://api.iconify.design https://fallout-api.evillab.tech wss://fallout-api.evillab.tech",
         "img-src": "'self' asset: blob: data: http://localhost:8000 https://fallout-api.evillab.tech",
         "style-src": "'self' 'unsafe-inline'",
         "font-src": "'self' data:",

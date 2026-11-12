@@ -45,8 +45,9 @@ app and WebKit renderer; live CPU/memory samples were not a controlled benchmark
 ## Native behavior
 
 Closing the window hides it after successful tray creation. **Show Fallout
-Shelter** restores/focuses it; **Quit** exits. If tray creation or hiding fails,
-closing quits normally. Size, position where supported, and maximized state are
+Shelter** restores/focuses it; **Quit** exits. Linux checks the registered tray host
+on each close; without a host, or if tray creation/hiding fails, closing quits
+normally. Size, position where supported, and maximized state are
 saved; hidden/minimized state is excluded so the next launch opens visibly.
 
 The bell owns notification deduplication and native delivery. Only its SSE stream
@@ -63,6 +64,8 @@ and back off from 1 to 30 seconds; resubscription closes notification streams on
 so clients reload the persisted recent inbox. Pub/Sub is
 best-effort, not durable. Commit/deferred-delivery ownership is unchanged; see
 [SERVICE_LAYER.md](../backend/SERVICE_LAYER.md).
+Remote notifications reach SSE before WebSocket fan-out. Socket sends run
+concurrently with a five-second per-peer deadline; failed peers are removed.
 
 HTTP(S) anchors and the changelog link use the system browser. Provider sign-in on
 login/registration and provider linking in settings are hidden on desktop until
@@ -87,6 +90,8 @@ Only `master` saves Rust caches; linuxdeploy uses extraction instead of FUSE.
 Existing frontend CI owns lint, typechecking, and unit tests. Desktop CI has
 read-only permissions and does not publish releases, change versions, or use
 signing/deployment secrets. Artifacts are unsigned test packages.
+Native Rust tests exercise the tray-host protocol on a private D-Bus daemon,
+including missing/unregistered hosts. Actual GUI/tray behavior remains a manual check.
 
 Download `fallout-desktop-linux-x86_64-<commit SHA>` from the run's **Artifacts**
 section, extract it, then:
@@ -133,3 +138,5 @@ vault/media/chat/SSE/reconnect, the updated notification icon, external links,
 and Debian installation. Confirm actual media hosts against CSP. Production has
 not been changed as part of this PR. OAuth return handling, signed updates,
 release publishing, and other platforms remain follow-up work.
+Desktop CSP permits the Iconify API for named icons. A no-tray-host regression was
+reproduced and verified after the fix using Xvfb/Openbox and an isolated D-Bus session.

@@ -135,6 +135,9 @@ still owns local SSE delivery after commit. Redis retry failures leave SSE open;
 resubscription closes only notification streams once for persisted-inbox catch-up.
 Retries back off from 1 to 30 seconds, resetting on subscription. Pub/Sub does
 not replace persisted notification rows or provide durable event replay.
+Remote notification SSE publication precedes local WebSocket sends. Sends are
+concurrent and bounded to five seconds per peer; timeouts and ASGI disconnects
+remove only failed peers, preserving later Redis delivery.
 
 ## Known deferrals
 

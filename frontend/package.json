@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build",
+    "desktop:serve": "vp dev --mode desktop-dev --host 127.0.0.1 --port 5173 --strictPort",
+    "desktop:bundle": "vp build --mode desktop",
     "types:generate": "openapi-typescript http://localhost:8000/api/v1/openapi.json -o src/core/types/api.generated.ts",
     "dev": "pnpm types:generate && vp dev",
     "build": "vp build",
@@ -26,6 +30,9 @@
   "dependencies": {
     "@iconify/vue": "5.0.4",
     "@lucide/vue": "1.61.0",
+    "@tauri-apps/api": "2.12.4",
+    "@tauri-apps/plugin-notification": "2.8.0",
+    "@tauri-apps/plugin-opener": "2.7.2",
     "@vue/devtools-api": "^8.2.1",
     "@vueuse/core": "15.0.0",
     "axios": "1.20.0",
@@ -43,6 +50,7 @@
   "devDependencies": {
     "@playwright/test": "1.64.1",
     "@tailwindcss/vite": "^4.3.3",
+    "@tauri-apps/cli": "2.12.4",
     "@tsconfig/node22": "^22.0.6",
     "@types/jsdom": "30.0.0",
     "@types/node": "^26.6.5",

@@ -1,0 +1,60 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Fallout Shelter",
+  "version": "../package.json",
+  "identifier": "tech.evillab.fallout",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeDevCommand": "pnpm run desktop:serve",
+    "beforeBuildCommand": "pnpm run desktop:bundle"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Fallout Shelter",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "connect-src": "'self' ipc: http://ipc.localhost https://api.iconify.design https://fallout-api.evillab.tech wss://fallout-api.evillab.tech",
+        "img-src": "'self' asset: blob: data: https://fallout-api.evillab.tech",
+        "style-src": "'self' 'unsafe-inline'",
+        "font-src": "'self' data:",
+        "media-src": "'self' blob: data: https://fallout-api.evillab.tech",
+        "object-src": "'none'"
+      },
+      "devCsp": {
+        "default-src": "'self'",
+        "connect-src": "'self' ipc: http://ipc.localhost http://localhost:5173 http://127.0.0.1:5173 ws://localhost:5173 ws://127.0.0.1:5173 http://localhost:8000 ws://localhost:8000 https://api.iconify.design https://fallout-api.evillab.tech wss://fallout-api.evillab.tech",
+        "img-src": "'self' asset: blob: data: http://localhost:8000 https://fallout-api.evillab.tech",
+        "style-src": "'self' 'unsafe-inline'",
+        "font-src": "'self' data:",
+        "media-src": "'self' blob: data: http://localhost:8000 https://fallout-api.evillab.tech",
+        "object-src": "'none'"
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "appimage"],
+    "resources": { "icons/128x128.png": "notification-icon.png" },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "android": {
+      "debugApplicationIdSuffix": ".debug"
+    }
+  }
+}

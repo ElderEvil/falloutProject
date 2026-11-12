@@ -54,6 +54,9 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       protocol: 'ws',
     },
+    watch: {
+      ignored: ['**/src-tauri/**'],
+    },
     proxy: {
       // SQLAdmin is served by FastAPI; AI settings remains a Vue route.
       '^/admin(?:$|/(?!ai-settings))': {
@@ -71,7 +74,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    target: 'esnext',
+    target: mode.startsWith('desktop') ? 'safari15' : 'esnext',
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {

@@ -3,7 +3,7 @@ import { useDocumentVisibility, useEventListener, useLocalStorage, useOnline } f
 import { AUTH_SESSION_EXPIRED_EVENT } from '@/core/utils/authSessionEvents'
 
 /** Own listeners explicitly: store actions can create subscriptions outside a component scope. */
-export function useBackgroundActivity(authenticated = true) {
+export function useBackgroundActivity(authenticated = true, options?: { allowHidden?: boolean }) {
   const scope = effectScope()
   const canRun = scope.run(() => {
     const visibility = useDocumentVisibility()
@@ -13,7 +13,10 @@ export function useBackgroundActivity(authenticated = true) {
       token.value = null
     })
     return computed(
-      () => visibility.value === 'visible' && online.value && (!authenticated || !!token.value)
+      () =>
+        (options?.allowHidden || visibility.value === 'visible') &&
+        online.value &&
+        (!authenticated || !!token.value)
     )
   })!
   return { canRun, stop: () => scope.stop() }

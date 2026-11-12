@@ -130,9 +130,11 @@ class SSEManager:
         """
         await asyncio.gather(*[self.publish(uid, topic, data) for uid in user_ids])
 
-    async def close(self) -> None:
+    async def close(self, *, topic: str | None = None) -> None:
         """Shut down all subscribers by sending None sentinels."""
-        for _topic, user_map in list(self._subscribers.items()):
+        topics = [topic] if topic is not None else list(self._subscribers)
+        for name in topics:
+            user_map = self._subscribers.pop(name, {})
             for _user_id, queues in list(user_map.items()):
                 for queue in list(queues):
                     # Drain one item at a time to make room for the sentinel,
@@ -146,8 +148,7 @@ class SSEManager:
                                 queue.get_nowait()
                 queues.clear()
             user_map.clear()
-        self._subscribers.clear()
-        logger.info("SSE manager shut down, all subscribers cleared")
+        logger.info("SSE subscriptions closed (topic=%s)", topic or "all")
 
 
 # Global singleton — mirrors websocket_manager.manager

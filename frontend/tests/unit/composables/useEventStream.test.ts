@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { effectScope } from 'vue'
 import rawAxios from 'axios'
 import { useSse, usePostEventStream } from '@/core/composables/useEventStream'
+import { AUTH_SESSION_EXPIRED_EVENT } from '@/core/utils/authSessionEvents'
 
 /**
  * SSE Auto-Reconnect Bug Regression Tests
@@ -108,6 +109,54 @@ describe('useEventStream auto-reconnect', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
     sse.close()
     scope.stop()
+  })
+
+  it('keeps an opted-in notification stream alive while hidden but stops it offline', async () => {
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+    fetchMock.mockResolvedValue(createMockResponse([], { hang: true }))
+    const scope = effectScope()
+    const sse = scope.run(() => useSse('/notifications', { keepAliveWhenHidden: true }))!
+    void sse.start()
+    await vi.advanceTimersByTimeAsync(0)
+    const signal = fetchMock.mock.calls[0][1].signal as AbortSignal
+    visibility.mockReturnValue('hidden')
+    document.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(signal.aborted).toBe(false)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    window.dispatchEvent(new Event('offline'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(signal.aborted).toBe(true)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    sse.close()
+    scope.stop()
+  })
+
+  it('closes a hidden authenticated notification stream when the session expires', async () => {
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+    localStorage.setItem('token', 'test-token')
+    fetchMock.mockResolvedValue(createMockResponse([], { hang: true }))
+    const scope = effectScope()
+    const sse = scope.run(() =>
+      useSse('/notifications', {
+        keepAliveWhenHidden: true,
+        headers: { Authorization: 'Bearer test-token' },
+      })
+    )!
+    void sse.start()
+    await vi.advanceTimersByTimeAsync(0)
+    const signal = fetchMock.mock.calls[0][1].signal as AbortSignal
+    window.dispatchEvent(new Event(AUTH_SESSION_EXPIRED_EVENT))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(signal.aborted).toBe(true)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    sse.close()
+    scope.stop()
+    localStorage.removeItem('token')
   })
 
   it('uses the current token when reconnecting a previously configured stream', async () => {

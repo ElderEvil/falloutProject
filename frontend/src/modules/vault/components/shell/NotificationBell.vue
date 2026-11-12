@@ -30,6 +30,7 @@ import { Button } from '@/core/components/ui/button'
 import { useNotificationInboxStore } from '@/modules/vault/stores/notificationInbox'
 import type { InboxNotification } from '@/modules/vault/services/notificationService'
 import { useStorageStore } from '@/modules/storage/stores/storage'
+import { isDesktop, notifyDesktop } from '@/core/utils/desktop'
 
 const inboxStore = useNotificationInboxStore()
 const authStore = useAuthStore()
@@ -73,6 +74,7 @@ const startSse = () => {
   }
   const instance = useSse(`${apiBase}/api/v1/stream/notifications`, {
     headers: () => ({ Authorization: `Bearer ${authStore.token}` }),
+    keepAliveWhenHidden: isDesktop(),
   })
   sse.value = instance
   instance.start()
@@ -111,6 +113,19 @@ function isAdoptionNotification(notification: InboxNotification): boolean {
 function processNotification(notificationData: InboxNotification) {
   if (seenNotificationIds.has(notificationData.id)) return
   seenNotificationIds.add(notificationData.id)
+  const sessionKey = inboxStore.sessionKey
+  const token = authStore.token
+  const currentVaultId = vaultStore.currentVaultId
+  if (!notificationData.vault_id || notificationData.vault_id === currentVaultId) {
+    void notifyDesktop(
+      notificationData,
+      () =>
+        !!sessionKey &&
+        inboxStore.sessionKey === sessionKey &&
+        authStore.token === token &&
+        vaultStore.currentVaultId === currentVaultId
+    )
+  }
   const newNotif: InboxNotification = {
     ...notificationData,
     vault_id: notificationData.vault_id ?? null,

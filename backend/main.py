@@ -56,6 +56,7 @@ from app.core.health_check import HealthCheckService, ServiceStatus
 from app.core.logfire_config import configure_logfire
 from app.core.logging import setup_logging
 from app.core.static_files import CachedStaticFiles
+from app.core.stream_manager import sse_manager
 from app.core.websocket_manager import manager
 from app.db.session import async_engine, get_async_session
 from app.middleware.request_id import RequestIdMiddleware
@@ -139,6 +140,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         register_objective_event_handlers()
         register_recipe_unlock_handlers()
 
+        # SSE clients need the cross-process listener even without any WebSocket.
+        await manager.start_redis()
+
         yield
     finally:
         # Shutdown objective evaluators
@@ -146,7 +150,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
         # Shutdown
         logger.info("Shutting down Fallout Shelter API...")
-        await manager.stop_redis()
+        try:
+            await manager.stop_redis()
+        finally:
+            await sse_manager.close()
 
 
 app = FastAPI(

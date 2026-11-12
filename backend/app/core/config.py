@@ -24,6 +24,9 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://localhost:5173",
         "https://fallout.evillab.tech",
+        "tauri://localhost",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
     ]
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30

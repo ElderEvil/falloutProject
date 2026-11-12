@@ -9,6 +9,8 @@ import { useVaultBoyFeedback } from '@/core/composables/useVaultBoyFeedback'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
 import { audioManager } from '@/core/audio/audioManager'
+import { isTauri } from '@tauri-apps/api/core'
+import { sendNotification } from '@tauri-apps/plugin-notification'
 import {
   removePendingReport,
   usePendingReports,
@@ -47,6 +49,14 @@ vi.mock('@iconify/vue', () =>
 
 // Mock the axios plugin: NotificationBell only needs resolved API responses
 vi.mock('@/core/plugins/axios', () => createAxiosMock())
+vi.mock('@tauri-apps/api/core', () => ({ isTauri: vi.fn(() => false) }))
+vi.mock('@tauri-apps/api/path', () => ({
+  resolveResource: vi.fn(async () => '/resources/notification-icon.png'),
+}))
+vi.mock('@tauri-apps/plugin-notification', () => ({
+  isPermissionGranted: vi.fn(async () => true),
+  sendNotification: vi.fn(),
+}))
 
 // Mock the router so actionable notification clicks can assert navigation.
 const { mockPush } = vi.hoisted(() => ({ mockPush: vi.fn() }))
@@ -121,6 +131,8 @@ describe('NotificationBell SSE watcher null-safety', () => {
     window.localStorage.clear()
     setActivePinia(createPinia())
     useVaultBoyFeedback().clear()
+    vi.mocked(isTauri).mockReturnValue(false)
+    vi.mocked(sendNotification).mockClear()
 
     // API mocks fall back to empty/valid responses
     ;(axios.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [] })
@@ -148,6 +160,53 @@ describe('NotificationBell SSE watcher null-safety', () => {
     vi.restoreAllMocks()
     errorSpy.mockRestore()
   })
+
+  it.each(['vault-1', 'other-vault'])(
+    'deduplicates native hidden-window alerts and restricts them to the active vault (%s)',
+    async (vaultId) => {
+      vi.mocked(isTauri).mockReturnValue(true)
+      vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+      useAuthStore().token = 'test-token'
+      useVaultStore().activeVaultId = 'vault-1'
+      const notification = { ...JSON.parse(notifData).notification, vault_id: vaultId }
+      const chunk = encodeSse(JSON.stringify({ notification }), 'notification')
+      fetchMock.mockResolvedValue(createMockResponse([chunk, chunk], { hang: true }))
+      const wrapper = mount(NotificationBell)
+      await vi.advanceTimersByTimeAsync(0)
+      await flushPromises()
+      expect(sendNotification).toHaveBeenCalledTimes(vaultId === 'vault-1' ? 1 : 0)
+      if (vaultId === 'vault-1')
+        expect(sendNotification).toHaveBeenCalledWith({
+          title: notification.title,
+          body: notification.message,
+          icon: '/resources/notification-icon.png',
+        })
+      wrapper.unmount()
+    }
+  )
+
+  it.each(['vault-1', 'other-vault'])(
+    'uses the persisted vault selection for a hidden-window alert before hydration (%s)',
+    async (vaultId) => {
+      vi.mocked(isTauri).mockReturnValue(true)
+      vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+      useAuthStore().token = 'test-token'
+      const vault = useVaultStore()
+      vault.activeVaultId = null
+      vault.selectedVaultId = 'vault-1'
+      const notification = { ...JSON.parse(notifData).notification, vault_id: vaultId }
+      fetchMock.mockResolvedValue(
+        createMockResponse([encodeSse(JSON.stringify({ notification }), 'notification')], {
+          hang: true,
+        })
+      )
+      const wrapper = mount(NotificationBell)
+      await vi.advanceTimersByTimeAsync(0)
+      await flushPromises()
+      expect(sendNotification).toHaveBeenCalledTimes(vaultId === 'vault-1' ? 1 : 0)
+      wrapper.unmount()
+    }
+  )
 
   it.each(['vault-1', 'other-vault'])(
     'animates a birth only for the active vault (%s)',

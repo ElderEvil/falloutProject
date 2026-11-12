@@ -126,6 +126,19 @@ transport managers, the Redis tick-chain claim, AI usage constants and the start
 probes all import downward from there. Value objects used while seeding a vault stay beside their
 domain in `services/vault/seed_types.py` rather than at the service root.
 
+Notification transport reuses the WebSocket manager's Redis broadcast channel. API
+lifespan owns its listener and shutdown; remote personal notifications also fan out
+to process-local SSE queues. Publishers without a listener use a client owned by
+that call, so worker threads do not share an async connection across event loops.
+The sender-instance marker suppresses local Redis echoes: `NotificationService`
+still owns local SSE delivery after commit. Redis retry failures leave SSE open;
+resubscription closes only notification streams once for persisted-inbox catch-up.
+Retries back off from 1 to 30 seconds, resetting on subscription. Pub/Sub does
+not replace persisted notification rows or provide durable event replay.
+Remote notification SSE publication precedes local WebSocket sends. Sends are
+concurrent and bounded to five seconds per peer; timeouts and ASGI disconnects
+remove only failed peers, preserving later Redis delivery.
+
 ## Known deferrals
 
 - Chat quota validation is shared by text, streaming, and audio through `QuotaCheckResult.ensure_allowed()`.

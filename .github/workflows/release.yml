@@ -6,14 +6,14 @@ on:
   workflow_dispatch:
     inputs:
       release_as:
-        description: 'Force a version bump (patch/minor/major). Leave empty for automatic analysis.'
+        description: 'Force a version bump (patch/minor/major), or use automatic analysis.'
         type: choice
         options:
-          - ''
+          - auto
           - patch
           - minor
           - major
-        default: ''
+        default: auto
 
 jobs:
   baseline:
@@ -115,7 +115,7 @@ jobs:
           RELEASE_AS: ${{ inputs.release_as }}
         run: |
           ARGS=()
-          if [ -n "$RELEASE_AS" ]; then
+          if [ -n "$RELEASE_AS" ] && [ "$RELEASE_AS" != auto ]; then
             ARGS+=(--analyze-commits ./scripts/manual-release.cjs)
           fi
           npx --no -- semantic-release "${ARGS[@]}"

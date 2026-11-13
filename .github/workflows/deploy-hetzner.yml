@@ -414,7 +414,7 @@ jobs:
               echo "Public traffic gate active: deferring deployment/k3s/ingress.yaml until verification passes"
               continue
             fi
-            render=cat
+            render='cat'
             case "$manifest" in
               backend-deployment.yaml|dramatiq-worker-deployment.yaml|frontend-deployment.yaml)
                 container="${manifest%-deployment.yaml}"

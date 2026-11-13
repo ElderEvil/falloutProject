@@ -7,11 +7,13 @@ on:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
       - 'scripts/pre-push'
+      - '.pre-commit-config.yaml'
   pull_request:
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
       - 'scripts/pre-push'
+      - '.pre-commit-config.yaml'
 
 jobs:
   backend-ci:
@@ -56,6 +58,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
@@ -89,7 +92,12 @@ jobs:
 
       - name: Run linter (prek)
         working-directory: backend
-        run: uv run prek run
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_REF: ${{ github.sha }}
+          # Frontend CI owns its checks; Repository Checks owns actionlint and Gitleaks.
+          SKIP: frontend-lint-format,frontend-hardcoded-colors,actionlint,gitleaks
+        run: uv run prek run --from-ref "$BASE_REF" --to-ref "$HEAD_REF"
 
       - name: Run tests
         working-directory: backend

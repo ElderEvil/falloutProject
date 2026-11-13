@@ -165,3 +165,8 @@ def test_freeze_records_reference_without_overwriting(harness: MigrationHarness,
     assert runner.invoke(baseline_tools.app, arguments).exit_code == 1
     assert json.loads(output.read_text()) == frozen
     assert harness.scalar("SELECT version_num FROM alembic_version") == LEGACY_HEAD
+
+
+def test_baseline_graph_matches_models(harness: MigrationHarness) -> None:
+    command.upgrade(_config(), "head")
+    command.check(_config())

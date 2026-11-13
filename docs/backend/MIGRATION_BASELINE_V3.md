@@ -11,6 +11,12 @@ revision `squash_4b3cbd7b15ff`, 46 application tables (47 with `alembic_version`
 106 objective seeds and four immutable v1 prompt seeds. A maintained database newer
 than the pinned legacy head is rejected; the tool never guesses that it is compatible.
 
+> **Regeneration rule.** Until this baseline is promoted, every schema migration added
+> to the legacy graph must be followed by a baseline regeneration and a commit of the
+> regenerated SQL, revision and manifest together. After promotion, new migrations
+> descend from the baseline and the legacy graph is kept only for databases that still
+> need adoption.
+
 ## Machinery shipping ahead of the cutover
 
 | Artifact | Purpose |
@@ -20,6 +26,7 @@ than the pinned legacy head is rejected; the tool never guesses that it is compa
 | `app/alembic/baseline_versions/*.sql` | Frozen schema and migration-owned content from a clean legacy replay |
 | `app/alembic/baseline_versions/*.json` | Reviewed schema manifest, PostgreSQL major and exact revision pair |
 | `app/alembic/baseline_tools.py` | Operator-only check, freeze and transactional adoption commands |
+| `scripts/build_alembic_baseline.py` | Replays the legacy graph into a scratch database and rewrites the SQL, revision, manifest, manifest path and regression-test constants |
 
 The command does not import the API, start workers, perform player backfills or
 load content from current game catalogs. It uses the usual backend database
@@ -100,6 +107,30 @@ POSTGRES_DB=baseline_release_reference ASYNC_DATABASE_URI= \
   --database baseline_release_reference --output /private/release-baseline.json
 ```
 
+## Regenerating the artifacts
+
+From the repository root, with a PostgreSQL server reachable through `backend/.env`
+(and either `psql`/`pg_dump` on `PATH` or a running PostgreSQL container):
+
+```bash
+python3 scripts/build_alembic_baseline.py
+```
+
+The script drops and recreates the scratch database (`--database`, default
+`fallout_baseline_ref`), replays the legacy graph, dumps the schema and the
+objective/prompt seeds, and rewrites `baseline_<head>.sql`, the baseline revision,
+`baseline_<head>.json`, the `MANIFEST` path and the regression-test constants. It
+refuses a multi-head legacy graph, never touches another database, and does not
+commit. `--keep` retains the scratch database; `--skip-migrations` reuses one that is
+already at the legacy head. Objective IDs come from the legacy migrations' `uuid4()`
+calls, so a regeneration changes them; the regression test compares seed content
+without those IDs.
+
+**Manifest scope.** `schema_state` covers columns, constraints, indexes and enum labels.
+The current schema has no views, functions, triggers, policies or extensions. If one is
+added, extend `schema_state` or adopt `alembic_utils` before regenerating; otherwise the
+manifest will not detect drift in it.
+
 ## Regenerated artifacts (2026-11-13)
 
 Reference: an empty PostgreSQL 18.6 database replayed through `4b3cbd7b15ff`.
@@ -111,7 +142,7 @@ Reference: an empty PostgreSQL 18.6 database replayed through `4b3cbd7b15ff`.
 | Schema | 46 application tables, 31 enums, 167 indexes |
 | Seeds | 106 objective rows, 4 prompt rows, bootstrap admin/test user, demo vault and slot |
 | Fresh install | `uv run alembic -c alembic-squash.ini upgrade head` |
-| Validation | normalized schema equal to the legacy replay; objective/prompt rows equal; bootstrap identity rows equal; 8 integration tests pass |
+| Validation | normalized schema equal to the legacy replay; objective/prompt rows equal; bootstrap identity rows equal; 9 integration tests pass, including `alembic check` on the baseline graph |
 
 The SQL retains the original `item_type IN (...)` check instead of pg_dump's
 equivalent array cast, so replay stores the same expression as the legacy chain.

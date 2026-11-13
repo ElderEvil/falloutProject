@@ -829,8 +829,9 @@ also run `uv sync --dev` in `backend/` first; the host application connects thro
    removed on exit; pass `--keep` only to inspect a failure.
 
 Record the dump name, size/hash, expected revision, schema counts, readiness line, host and date.
-Do not mark the drill passed unless it actually ran. This drill does not test the k3s datastore,
-object-storage assets, or an external managed PostgreSQL instance.
+Do not mark the drill passed unless it actually ran. This drill does not test the k3s datastore
+(see [k3s datastore and token drill](#k3s-datastore-and-token-drill)), object-storage assets
+(deliberately deferred; generated-only), or an external managed PostgreSQL instance.
 
 #### Drill evidence (2026-11-01, production data)
 A read-only production `pg_dump -Fc` stream was restored locally with the same script:
@@ -842,8 +843,9 @@ result:    archive entries=435; restore ok; tables=46; vaults=80; users=38; dwel
 readiness: HTTP 200 status=ready postgres=healthy redis=healthy
 RESULT:    PASS
 ```
-This proves the production schema and a real production dump restore. Production cluster state,
-Redis and RustFS/S3 assets remain outside this drill.
+This proves the production schema and a real production dump restore. Production cluster state
+is covered by the [k3s datastore and token drill](#k3s-datastore-and-token-drill); Redis and
+RustFS/S3 assets remain outside this drill (asset backup is deliberately deferred).
 #### Drill evidence (2026-11-01, local isolation)
 
 A local drill ran on branch `chore/k3s-recovery-885` (based on `origin/master` at `4892faae`)
@@ -865,6 +867,58 @@ RESULT:    PASS
 This proves the script, the custom-format restore path, schema assertions and API readiness
 against a current-schema dump. The dump is **not** production data; a drill with the latest
 production dump and production release image remains for the maintainer.
+
+### k3s datastore and token drill
+
+The PostgreSQL drill does not cover the cluster's own state. `scripts/k3s-datastore-drill.sh`
+classifies the datastore, snapshots it with the server token, and rehearses the restore in an
+isolated container. The application database cannot reconstruct cluster state, so this is the
+only backup path for it.
+
+Run `detect` first, read-only, to identify the datastore and the exact k3s version:
+
+```bash
+scripts/k3s-datastore-drill.sh detect
+```
+
+`detect` reports `sqlite` (`server/db/state.db`), `etcd` (`server/db/etcd/member/wal`), or
+`unknown`, plus the k3s version, node name, token presence, and any `--cluster-init` /
+`--datastore-endpoint` in the systemd unit. It never prints the token.
+
+Take the snapshot on the k3s host as root. For SQLite the default path stops k3s briefly for a
+consistent copy; `--no-stop` uses `sqlite3 .backup` when available and records the consistency
+caveat instead:
+
+```bash
+sudo scripts/k3s-datastore-drill.sh snapshot \
+  --out /var/backups/fallout-k3s --confirm-downtime
+```
+
+For etcd the script runs `k3s etcd-snapshot save` without stopping the service. A snapshot
+directory contains `snapshot.meta.json`, `sqlite-db.tar.gz` or `etcd-snapshot.db`, and
+`server-token` (mode 0600). The metadata records the datastore, k3s version, node name, artifact
+hashes, the token hash only, and the three marker UIDs.
+
+Rehearse on a machine that has the image pre-pulled. The image is derived from the recorded k3s
+version (`v1.29.6+k3s2` -> `rancher/k3s:v1.29.6-k3s2`); `--image` overrides it. The rehearsal
+runs on an internal network with `--disable-agent`, so restored workloads cannot start, and it
+never reads a kubeconfig:
+
+```bash
+scripts/k3s-datastore-drill.sh rehearse \
+  --snapshot /var/backups/fallout-k3s
+```
+
+A passing rehearsal restores the datastore, starts the server without an agent, waits for
+`/readyz`, and asserts the restored datastore type, the three marker UIDs, and the absence of
+token/decryption failures in the startup log. Node readiness is deliberately not asserted: a
+restored datastore carries the old node identity. `--keep` retains the containers, volume and
+network for inspection.
+
+Record the snapshot hashes, datastore type, k3s version, marker UIDs, image tag and rehearsal
+output in [`docs/planning/ISSUE_885_EVIDENCE.md`](planning/ISSUE_885_EVIDENCE.md). Off-host
+retention is an operational decision this repository does not make for you; keep the snapshot
+outside the node before treating it as a recovery asset.
 
 ## Troubleshooting
 

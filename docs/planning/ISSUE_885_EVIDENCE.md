@@ -15,7 +15,7 @@ The restore runbook lives in [`docs/DEPLOYMENT.md`](../DEPLOYMENT.md#isolated-re
 | Separate readiness from liveness; dependency failure removes API without restart storms | Done | `deployment/k3s/backend-deployment.yaml`; `backend/main.py` |
 | Verify scheduler ownership and safe API/worker scaling | **Done — one live Periodiq process, one worker pod, `Recreate`** | [scheduler ownership][k3s-sched]; `test_k3s_manifests.py` |
 | Confirm worker/other workload requests and limits against measured usage | Partial | [closure table][k3s-close]; frontend and Postgres have no budgets |
-| Document backups and demonstrate recovery in isolation | **PostgreSQL production dump + application readiness demonstrated; cluster state and assets pending** | [restore drill][drill]; evidence below |
+| Document backups and demonstrate recovery in isolation | **PostgreSQL production dump + application readiness demonstrated; k3s datastore/token drill implemented, live rehearsal pending; asset backup deliberately deferred** | [restore drill][drill]; [k3s drill][k3s-drill]; evidence below |
 
 [k3s-inventory]: ../../deployment/k3s/README.md#workload-inventory-git-baseline
 [k3s-live]: ../../deployment/k3s/README.md#live-state-versus-the-git-baseline
@@ -24,6 +24,7 @@ The restore runbook lives in [`docs/DEPLOYMENT.md`](../DEPLOYMENT.md#isolated-re
 [k3s-sched]: ../../deployment/k3s/README.md#worker-and-scheduler-ownership
 [k3s-close]: ../../deployment/k3s/README.md#issue-885-closure-evidence
 [drill]: ../DEPLOYMENT.md#isolated-restore-drill
+[k3s-drill]: ../DEPLOYMENT.md#k3s-datastore-and-token-drill
 
 ## Isolated restore drill evidence
 
@@ -45,6 +46,32 @@ RESULT:    PASS
 The script rejects invalid archives before starting a database, rejects a revision mismatch, and
 cleans up its containers, network and host process on exit. No production database, cluster or
 image was touched.
+
+## k3s datastore and token drill (implemented; live evidence pending)
+
+`scripts/k3s-datastore-drill.sh` provides `detect`, `snapshot` and `rehearse`. The repository
+does not yet contain a live snapshot/rehearsal result; record one here before treating cluster
+state recovery as demonstrated. Minimum fields:
+
+```text
+host/date:
+detect:      datastore=<sqlite|etcd> k3s_version=<vX.Y.Z+k3sN> node=<name> token_present=<bool>
+snapshot:    path=<dir> created_at=<UTC> artifacts=<name:sha256,...>
+markers:     default=<uid> kube-system=<uid> kube-root-ca.crt=<uid>
+rehearse:    image=rancher/k3s:<version> readyz=OK datastore=<type> markers=match logs=clean
+RESULT:      PASS
+```
+
+Off-host retention remains open until the snapshot location and retention are confirmed.
+
+## Object-storage assets: deliberately deferred
+
+The four runtime buckets (`dweller-images`, `dweller-thumbnails`, `dweller-audio`,
+`chat-audio`) hold service-generated content only: AI dweller portraits and TTS audio. There is
+no user-upload path, and default portraits are served from the repository's `/static` mount. A
+bucket loss therefore costs regeneration time, not irreplaceable player data. No asset backup
+drill is scheduled; revisit this decision if a user-upload path or regeneration cost makes the
+loss material.
 
 ## Live production snapshot (2026-11-01)
 

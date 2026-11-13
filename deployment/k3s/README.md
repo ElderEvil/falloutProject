@@ -130,8 +130,8 @@ kubeconfig.
 | `postgres-pvc` | Not a backup; no volume snapshot is defined here. | Depends on the cluster's PV/storage provider. |
 | `backend-logs-pvc` | Logs only; 14-day rotation. Not application data. | Not restored. |
 | Redis | No backup. | Rebuilt empty; queued work and leases are lost. |
-| Object storage (RustFS/S3) | Not covered by this repository. | Provider/bucket policy only; verify separately. |
-| k3s datastore and server token | Not covered by this repository. | Follow [k3s datastore backup/restore](https://docs.k3s.io/datastore/backup-restore). |
+| Object storage (RustFS/S3) | **Deliberately deferred.** Buckets hold service-generated dweller portraits/audio and broadcast/chat TTS; there is no user-upload path, and default portraits live in the repository's `/static` mount. Loss is regenerable at AI/TTS cost. | No drill. Revisit if regeneration cost or a user-upload path makes the loss material. |
+| k3s datastore and server token | Snapshot and isolated rehearsal drill: [`scripts/k3s-datastore-drill.sh`](../../scripts/k3s-datastore-drill.sh) (`detect`, `snapshot`, `rehearse`). Off-host retention is not automated. | Run the drill and record evidence; never restore over production. |
 | Container images | Release images remain in the registry; the cleanup Job keeps two release tags locally. | Re-pull from the registry. |
 
 The deploy workflow's archive listing checks readability, not full restoreability. A production
@@ -251,14 +251,16 @@ same checklist with the recorded drill output is
 | Separate readiness from liveness; dependency failure removes API without restart storms | **Done** | `backend-deployment.yaml` uses `/healthcheck` for liveness and `/readiness` for readiness; `/readiness` returns 503 for PostgreSQL/Redis failure and excludes optional integrations (`backend/main.py`); guarded by `test_k3s_manifests.py`. |
 | Verify scheduler ownership and safe API/worker scaling independently | **Done — one live scheduler process and one worker pod** | Exactly one checked-in `periodiq` invoker, `replicas: 1`, `Recreate`; manifest test enforces it. The live `/proc` scan confirmed one long-lived scheduler. |
 | Confirm worker and other workload requests/limits against measured usage | **Partial** | Backend and worker have requests/limits; image-cleanup requests 10m/16Mi with 100m/64Mi limits; frontend and postgres have none. Actual live usage was not measured for this evidence, so frontend/postgres budgets remain open. |
-| Document backups and demonstrate recovery of cluster state, PostgreSQL and assets in isolation | **Production PostgreSQL dump + application readiness demonstrated; cluster state and assets pending** | Production `pg_dump -Fc` restored locally and API readiness passed ([Production drill](../../docs/DEPLOYMENT.md#drill-evidence-2026-11-01-production-data)). k3s datastore/server-token and RustFS/S3 restore were not demonstrated; this repository has no backup automation for them. |
+| Document backups and demonstrate recovery of cluster state, PostgreSQL and assets in isolation | **PostgreSQL production dump + application readiness demonstrated; k3s datastore/token drill implemented, live rehearsal pending; asset backup deliberately deferred** | Production `pg_dump -Fc` restored locally and API readiness passed ([Production drill](../../docs/DEPLOYMENT.md#drill-evidence-2026-11-01-production-data)). Cluster state: [`scripts/k3s-datastore-drill.sh`](../../scripts/k3s-datastore-drill.sh) (`detect`/`snapshot`/`rehearse`); a live snapshot and rehearsal are still outstanding. Assets: generated-only and regenerable, so no drill is scheduled. |
 
 Remaining before closing #885:
 
 1. Record the read-only live inventory (replicas, image tags/digests, PVC binding/storage class,
    Redis and object-storage providers, node topology).
-2. Confirm off-host retention for the k3s datastore and server token, PostgreSQL dumps, and
-   object storage, then rehearse the k3s datastore and asset restore in isolation.
+2. Confirm off-host retention for the k3s datastore, server token and PostgreSQL dumps. Run
+   `scripts/k3s-datastore-drill.sh snapshot` on the host and `rehearse` against the recorded
+   snapshot, then record the evidence. Object-storage assets are deliberately deferred: the
+   buckets hold generated art/audio only and can be regenerated.
 3. Re-run `scripts/restore-drill.sh` with the latest **production** dump and the matching
    release image. The recorded local drill used a current-schema synthetic dump, not production
    data.

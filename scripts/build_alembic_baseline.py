@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
 
@@ -241,6 +242,102 @@ def _existing_revision() -> tuple[Path, str]:
     return path, match.group(1)
 
 
+def _validate_target(database: str, app_database: str) -> None:
+    if not re.fullmatch(r"[A-Za-z0-9_]+", database):
+        _die(f"invalid database name: {database!r}")
+    if database == app_database:
+        _die(
+            f"refusing to use the configured application database ({app_database!r}) "
+            "as the scratch target; pass a different --database"
+        )
+    if database in {"postgres", "template0", "template1"}:
+        _die(f"refusing to use the system database {database!r} as the scratch target")
+
+
+def _snapshot(paths: set[Path]) -> dict[Path, bytes | None]:
+    return {path: path.read_bytes() if path.exists() else None for path in paths}
+
+
+def _restore(snapshot: dict[Path, bytes | None]) -> None:
+    for path, content in snapshot.items():
+        if content is None:
+            path.unlink(missing_ok=True)
+        else:
+            path.write_bytes(content)
+
+
+def _prepare_target(
+    client: _Client,
+    database: str,
+    *,
+    skip_migrations: bool,
+    migration_env: dict[str, str],
+) -> None:
+    if skip_migrations:
+        if not client._database_exists(database):
+            _die(
+                f"database {database!r} does not exist; omit --skip-migrations to create it"
+            )
+        return
+    client._psql(
+        f'DROP DATABASE IF EXISTS "{database}" WITH (FORCE)', database="postgres"
+    )
+    client._psql(
+        f'CREATE DATABASE "{database}" OWNER "{client.user}"', database="postgres"
+    )
+    _run(["uv", "run", "alembic", "upgrade", "head"], cwd=BACKEND, env=migration_env)
+
+
+def _publish(
+    *,
+    target_sql: Path,
+    target_manifest: Path,
+    target_revision: Path,
+    revision_path: Path,
+    old_head: str,
+    head: str,
+    sql: str,
+    revision_text: str,
+    tools_text: str,
+    test_text: str,
+    freeze: Callable[[], str],
+    tools_path: Path = TOOLS,
+    test_path: Path = TEST,
+    versions_dir: Path = VERSIONS,
+) -> None:
+    affected = {
+        target_sql,
+        target_manifest,
+        target_revision,
+        revision_path,
+        tools_path,
+        test_path,
+    }
+    if old_head != head:
+        affected |= {
+            versions_dir / f"baseline_{old_head}.sql",
+            versions_dir / f"baseline_{old_head}.json",
+        }
+    snapshot = _snapshot(affected)
+    try:
+        target_sql.write_text(sql, encoding="utf-8")
+        target_revision.write_text(revision_text, encoding="utf-8")
+        if old_head != head and revision_path != target_revision:
+            revision_path.unlink()
+        target_manifest.write_text(freeze(), encoding="utf-8")
+        tools_path.write_text(tools_text, encoding="utf-8")
+        test_path.write_text(test_text, encoding="utf-8")
+        if old_head != head:
+            for stale in (
+                versions_dir / f"baseline_{old_head}.sql",
+                versions_dir / f"baseline_{old_head}.json",
+            ):
+                stale.unlink(missing_ok=True)
+    except BaseException:
+        _restore(snapshot)
+        raise
+
+
 def _main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -269,9 +366,8 @@ def _main() -> None:
             if shutil.which("docker")
             else None
         )
-    env_file = BACKEND / ".env"
     env = {
-        **_load_env_file(env_file),
+        **_load_env_file(BACKEND / ".env"),
         **{k: v for k, v in os.environ.items() if k.startswith("POSTGRES_")},
     }
     client = _Client(engine=engine, container=args.container, env=env)
@@ -283,29 +379,16 @@ def _main() -> None:
         "ASYNC_DATABASE_URI": "",
     }
 
-    if not re.fullmatch(r"[A-Za-z0-9_]+", database):
-        _die(f"invalid database name: {database!r}")
+    _validate_target(database, client.database)
     created = not args.skip_migrations
     revision_path, old_head = _existing_revision()
     try:
-        if created:
-            client._psql(
-                f'DROP DATABASE IF EXISTS "{database}" WITH (FORCE)',
-                database="postgres",
-            )
-            client._psql(
-                f'CREATE DATABASE "{database}" OWNER "{client.user}"',
-                database="postgres",
-            )
-            _run(
-                ["uv", "run", "alembic", "upgrade", "head"],
-                cwd=BACKEND,
-                env=migration_env,
-            )
-        elif not client._database_exists(database):
-            _die(
-                f"database {database!r} does not exist; omit --skip-migrations to create it"
-            )
+        _prepare_target(
+            client,
+            database,
+            skip_migrations=args.skip_migrations,
+            migration_env=migration_env,
+        )
         head = client._psql(
             "SELECT version_num FROM alembic_version", database=database
         ).strip()
@@ -376,12 +459,8 @@ def _main() -> None:
 
         target_sql = VERSIONS / f"baseline_{head}.sql"
         target_manifest = VERSIONS / f"baseline_{head}.json"
-        old_revision_text = revision_path.read_text(encoding="utf-8")
-        try:
-            target_sql.write_text(sql, encoding="utf-8")
-            target_revision.write_text(revision_text, encoding="utf-8")
-            if old_head != head and revision_path != target_revision:
-                revision_path.unlink()
+
+        def freeze() -> str:
             with tempfile.TemporaryDirectory() as tmp:
                 temp_manifest = Path(tmp) / "manifest.json"
                 _run(
@@ -400,22 +479,21 @@ def _main() -> None:
                     cwd=BACKEND,
                     env=migration_env,
                 )
-                manifest_text = temp_manifest.read_text(encoding="utf-8")
-            target_manifest.write_text(manifest_text, encoding="utf-8")
-            TOOLS.write_text(tools_text, encoding="utf-8")
-            TEST.write_text(test_text, encoding="utf-8")
-            if old_head != head:
-                for stale in (
-                    VERSIONS / f"baseline_{old_head}.sql",
-                    VERSIONS / f"baseline_{old_head}.json",
-                ):
-                    stale.unlink(missing_ok=True)
-        except BaseException:
-            target_revision.unlink(missing_ok=True)
-            revision_path.write_text(old_revision_text, encoding="utf-8")
-            if target_sql != VERSIONS / f"baseline_{old_head}.sql":
-                target_sql.unlink(missing_ok=True)
-            raise
+                return temp_manifest.read_text(encoding="utf-8")
+
+        _publish(
+            target_sql=target_sql,
+            target_manifest=target_manifest,
+            target_revision=target_revision,
+            revision_path=revision_path,
+            old_head=old_head,
+            head=head,
+            sql=sql,
+            revision_text=revision_text,
+            tools_text=tools_text,
+            test_text=test_text,
+            freeze=freeze,
+        )
 
         tables = sum(1 for line in schema if line.startswith("CREATE TABLE"))
         enums = sum(1 for line in schema if line.startswith("CREATE TYPE"))

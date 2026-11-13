@@ -230,3 +230,55 @@ def test_publish_removes_new_artifacts_when_freezing_fails(tmp_path: Path) -> No
     assert not target_sql.exists()
     assert not target_manifest.exists()
     assert revision_path.read_text() == "old revision"
+
+
+def test_publish_restores_after_manifest_and_tools_were_written(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target_sql = tmp_path / "baseline_same.sql"
+    target_sql.write_text("old sql")
+    target_manifest = tmp_path / "baseline_same.json"
+    target_manifest.write_text("old manifest")
+    revision_path = tmp_path / "revision.py"
+    revision_path.write_text("old revision")
+    tools = tmp_path / "tools.py"
+    tools.write_text("old tools")
+    test_path = tmp_path / "test.py"
+    test_path.write_text("old test")
+    original = Path.write_text
+
+    def fail_on_test(
+        self: Path,
+        data: str,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> int:
+        if self == test_path:
+            raise RuntimeError("test write failed")
+        return original(self, data, encoding=encoding, errors=errors, newline=newline)
+
+    monkeypatch.setattr(Path, "write_text", fail_on_test)
+
+    with pytest.raises(RuntimeError, match="test write failed"):
+        GENERATOR._publish(
+            target_sql=target_sql,
+            target_manifest=target_manifest,
+            target_revision=revision_path,
+            revision_path=revision_path,
+            old_head="same",
+            head="same",
+            sql="new sql",
+            revision_text="new revision",
+            tools_text="new tools",
+            test_text="new test",
+            freeze=lambda: '{"ok": true}',
+            tools_path=tools,
+            test_path=test_path,
+            versions_dir=tmp_path,
+        )
+    assert target_sql.read_text() == "old sql"
+    assert target_manifest.read_text() == "old manifest"
+    assert revision_path.read_text() == "old revision"
+    assert tools.read_text() == "old tools"
+    assert test_path.read_text() == "old test"

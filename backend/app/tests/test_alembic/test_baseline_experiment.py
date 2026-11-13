@@ -2,7 +2,10 @@
 
 import asyncio
 import json
+import os
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -169,4 +172,15 @@ def test_freeze_records_reference_without_overwriting(harness: MigrationHarness,
 
 def test_baseline_graph_matches_models(harness: MigrationHarness) -> None:
     command.upgrade(_config(), "head")
-    command.check(_config())
+    database = baseline_tools.make_url(harness.url).database
+    # Run in a fresh interpreter: the session-scoped SQLite fixture rewrites JSONB
+    # columns to JSON in the in-process metadata, which would make this check lie.
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "-c", "alembic-squash.ini", "check"],
+        cwd=BACKEND,
+        env={**os.environ, "ASYNC_DATABASE_URI": harness.url, "POSTGRES_DB": database},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr

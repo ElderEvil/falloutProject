@@ -12,9 +12,14 @@ on:
       - '.github/workflows/desktop-ci.yml'
   workflow_dispatch:
   workflow_call:
+    inputs:
+      release_tag:
+        description: 'GitHub release tag to attach desktop packages to (from release.yml).'
+        type: string
+        required: false
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: desktop-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -112,3 +117,12 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
+
+      - name: Attach packages to release
+        if: inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: frontend/src-tauri/target/release/bundle
+        run: |
+          gh release upload "${{ inputs.release_tag }}" deb/*.deb appimage/*.AppImage SHA256SUMS
+          gh release view "${{ inputs.release_tag }}" --json assets --jq '.assets[] | "\(.name) \(.size) bytes"'

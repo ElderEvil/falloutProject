@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.0.2 (2026-11-13)
+
+### Bug Fixes
+
+* **release:** support manual semantic release selection ([#1401](https://github.com/ElderEvil/falloutProject/issues/1401)) 3db8547
+
+### Continuous Integration
+
+* **release:** attach desktop packages to releases and add manual release trigger fcf4b45
+
 ## 3.0.1 (2026-11-10)
 
 ### Bug Fixes

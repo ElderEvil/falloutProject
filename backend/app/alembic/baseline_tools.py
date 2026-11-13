@@ -111,18 +111,18 @@ async def inspect_database(
             major = int(await connection.scalar(text("SHOW server_version_num")) or 0) // 10000
             schema = await connection.run_sync(schema_state)
             if freeze:
-                legacy = _head_for(_config("alembic.ini"))
+                legacy = _head_for(_config("alembic-legacy.ini"))
                 if revisions != [legacy]:
                     raise RuntimeError("Reference database must be at the single current legacy head.")
                 return {
                     "legacy_revision": legacy,
-                    "baseline_revision": _base_for(baseline_config or _config("alembic-squash.ini")),
+                    "baseline_revision": _base_for(baseline_config or _config("alembic.ini")),
                     "postgres_major": major,
                     "schema": schema,
                 }
             manifest = json.loads(MANIFEST.read_text())
             baseline = manifest["baseline_revision"]
-            if baseline != _base_for(baseline_config or _config("alembic-squash.ini")):
+            if baseline != _base_for(baseline_config or _config("alembic.ini")):
                 raise RuntimeError(
                     "Manifest and baseline graph base differ; regenerate and rehearse the release artifacts."
                 )
@@ -149,8 +149,42 @@ async def inspect_database(
         await engine.dispose()
 
 
-def _run(database: str, *, apply: bool = False, freeze: bool = False) -> dict[str, Any]:
+async def _version_marker(url: str) -> tuple[bool, list[str]]:
+    engine = create_async_engine(url)
     try:
+        async with engine.connect() as connection:
+            exists = await connection.scalar(text("SELECT to_regclass('public.alembic_version') IS NOT NULL"))
+            if not exists:
+                return False, []
+            return True, list(await connection.scalars(text("SELECT version_num FROM public.alembic_version")))
+    finally:
+        await engine.dispose()
+
+
+async def prepare_database(database: str, *, apply: bool = False) -> dict[str, Any]:
+    """Adopt a legacy database, or confirm a fresh/already-baseline one, before upgrade."""
+    url = make_url(str(settings.ASYNC_DATABASE_URI))
+    if url.database != database:
+        raise RuntimeError("Configured database does not match --database; check POSTGRES_DB and ASYNC_DATABASE_URI.")
+    exists, revisions = await _version_marker(url)
+    if not exists:
+        return {"database": database, "state": "fresh"}
+    baseline = _base_for(_config("alembic.ini"))
+    if revisions == [baseline]:
+        return {**(await inspect_database(database)), "state": "baseline"}
+    if revisions != [_head_for(_config("alembic-legacy.ini"))]:
+        raise RuntimeError("Database is not at the frozen legacy head or baseline; finish legacy upgrades first.")
+    if not apply:
+        raise RuntimeError("Legacy database adoption requires --apply inside the maintenance cutover.")
+    return {**(await inspect_database(database, apply=True)), "state": "adopted"}
+
+
+def _run(
+    database: str, *, apply: bool = False, freeze: bool = False, prepare: bool = False
+) -> dict[str, Any]:
+    try:
+        if prepare:
+            return asyncio.run(prepare_database(database, apply=apply))
         return asyncio.run(inspect_database(database, apply=apply, freeze=freeze))
     except (RuntimeError, SQLAlchemyError) as exc:
         if isinstance(exc, SQLAlchemyError):
@@ -175,6 +209,15 @@ def adopt(
 ) -> None:
     """Check by default; --apply changes only the version marker in one transaction."""
     typer.echo(json.dumps(_run(database, apply=apply), indent=2))
+
+
+@app.command()
+def prepare(
+    database: Annotated[str, typer.Option(help="Must match the configured database name")],
+    apply: Annotated[bool, typer.Option(help="Adopt a legacy database; requires stopped writers")] = False,
+) -> None:
+    """Adopt a legacy database or confirm fresh/baseline state before upgrade head."""
+    typer.echo(json.dumps(_run(database, apply=apply, prepare=True), indent=2))
 
 
 @app.command()

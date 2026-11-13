@@ -80,6 +80,18 @@ cp ../.env .env
 uv sync --dev
 uv run alembic upgrade head
 uv run fastapi dev main.py
+```
+
+`alembic upgrade head` applies the single squashed baseline revision. A database created
+before the squash must first reach the frozen legacy head and be adopted once (writers
+stopped), then upgraded:
+
+```bash
+uv run alembic -c alembic-legacy.ini upgrade head
+uv run python -m app.alembic.baseline_tools check --database fallout_db
+uv run python -m app.alembic.baseline_tools adopt --database fallout_db --apply
+uv run alembic upgrade head
+```
 
 # 4. Setup and run frontend (http://localhost:5173)
 # ⚠️ IMPORTANT: Backend API must be accessible at http://localhost:8000

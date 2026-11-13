@@ -1,8 +1,9 @@
 """Frozen PostgreSQL baseline through 4b3cbd7b15ff.
 
-Opt in with alembic-squash.ini. Existing databases must finish the legacy
-history before an explicitly verified stamp; this is not an upgrade from an
-arbitrary historical revision. The SQL snapshot contains no local player data.
+This is the default graph in alembic.ini. Existing databases must finish the
+legacy history (alembic-legacy.ini) and pass the guarded adoption check before
+this revision is recorded; this is not an upgrade from an arbitrary historical
+revision. The SQL snapshot contains no local player data.
 """
 
 from pathlib import Path

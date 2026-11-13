@@ -80,9 +80,10 @@ recorded journey evidence the journeys still require. Journeys stay the active w
 
 Remaining 3.0 follow-ups:
 
-- The opt-in Alembic fresh-install baseline is regenerated at `4b3cbd7b15ff`
-  (`alembic-squash.ini`, `squash_4b3cbd7b15ff`). Production-clone adoption and the decision to
-  promote it remain outstanding; a baseline stamp alone does not prove legacy rows were converted.
+- The Alembic baseline is promoted: `alembic.ini` runs the single revision
+  `squash_4b3cbd7b15ff` and the legacy history stays in `alembic-legacy.ini` for adoption
+  and rollback. Production adoption runs in the maintenance deploy (`baseline_tools prepare`);
+  a baseline stamp alone does not prove legacy rows were converted.
 - Keep the rollback pin (v2.295.1 images plus the pre-migration dump) current until post-release
   confidence is recorded through the runbook's operator checks.
 - Resolve the post-deploy edge findings in

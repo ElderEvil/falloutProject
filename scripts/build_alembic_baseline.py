@@ -258,7 +258,11 @@ def _prepare_target(
     client._psql(
         f'CREATE DATABASE "{database}" OWNER "{client.user}"', database="postgres"
     )
-    _run(["uv", "run", "alembic", "upgrade", "head"], cwd=BACKEND, env=migration_env)
+    _run(
+        ["uv", "run", "alembic", "-c", "alembic-legacy.ini", "upgrade", "head"],
+        cwd=BACKEND,
+        env=migration_env,
+    )
 
 
 def _publish(
@@ -368,7 +372,9 @@ def _main() -> None:
         if not re.fullmatch(r"[0-9a-f]{6,}", head):
             _die(f"unexpected legacy head: {head!r}")
         heads = _capture(
-            ["uv", "run", "alembic", "heads"], cwd=BACKEND, env=migration_env
+            ["uv", "run", "alembic", "-c", "alembic-legacy.ini", "heads"],
+            cwd=BACKEND,
+            env=migration_env,
         ).strip()
         if heads.count("(head)") != 1 or head not in heads:
             _die(f"legacy graph does not have a single applied head: {heads!r}")

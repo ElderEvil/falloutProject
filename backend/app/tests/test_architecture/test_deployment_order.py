@@ -22,6 +22,16 @@ def test_migration_job_finishes_before_application_images_change() -> None:
     assert "--for=condition=complete" in workflow[migration:image_update]
 
 
+def test_migration_job_adopts_legacy_database_only_in_maintenance() -> None:
+    workflow = WORKFLOW.read_text()
+    migration = workflow[workflow.index('container["command"]') : workflow.index('for key in ("args"')]
+    assert "prepare --database" in migration
+    assert "inputs.maintenance_mode" in migration
+    assert "ADOPT=" in migration
+    assert "--apply" in migration
+    assert workflow.index("baseline_tools prepare") < workflow.index("uv run alembic upgrade head")
+
+
 def test_maintenance_stops_writers_before_migration() -> None:
     workflow = WORKFLOW.read_text()
     assert "maintenance_mode" in workflow

@@ -1,8 +1,10 @@
 # Migration baseline (post-3.0 schema)
 
-**Status: regenerated at the post-3.0 head `4b3cbd7b15ff`; opt-in, not promoted.**
-Shipping these files does not stamp any database, change the default migration
-graph, or alter deployment/startup commands. No version is bumped manually.
+**Status: promoted on 2026-11-14; `alembic.ini` now runs one baseline revision.**
+Fresh databases apply `squash_4b3cbd7b15ff` and nothing else. Existing databases finish
+the legacy graph, pass the guarded adoption check and are stamped to the baseline by the
+maintenance deploy. The legacy history remains in `alembic-legacy.ini` for adoption and
+rollback. No version is bumped manually.
 
 The [October experiment](MIGRATION_SQUASH_EXPERIMENT.md) proved the machinery through
 `b7e3d9c1a5f2`. The artifacts were regenerated on 2026-11-13 from an empty PostgreSQL
@@ -11,18 +13,17 @@ revision `squash_4b3cbd7b15ff`, 46 application tables (47 with `alembic_version`
 106 objective seeds and four immutable v1 prompt seeds. A maintained database newer
 than the pinned legacy head is rejected; the tool never guesses that it is compatible.
 
-> **Regeneration rule.** Until this baseline is promoted, every schema migration added
-> to the legacy graph must be followed by a baseline regeneration and a commit of the
-> regenerated SQL, revision and manifest together. After promotion, new migrations
-> descend from the baseline and the legacy graph is kept only for databases that still
-> need adoption.
+> **Regeneration rule.** After promotion, new schema migrations descend from the
+> baseline; do not add revisions to `app/alembic/versions/`. Regenerate the SQL,
+> revision and manifest together with `scripts/build_alembic_baseline.py` only when
+> re-founding the baseline; the legacy graph stays frozen at `4b3cbd7b15ff`.
 
-## Machinery shipping ahead of the cutover
+## Machinery
 
 | Artifact | Purpose |
 |---|---|
-| `backend/alembic.ini` and `app/alembic/versions/` | Unchanged default legacy graph, including historical backfills and regression tests |
-| `backend/alembic-squash.ini` | Opt-in graph with one frozen baseline |
+| `backend/alembic.ini` and `app/alembic/baseline_versions/` | Default graph: one frozen baseline revision |
+| `backend/alembic-legacy.ini` and `app/alembic/versions/` | Frozen legacy graph retained for adoption and rollback |
 | `app/alembic/baseline_versions/*.sql` | Frozen schema and migration-owned content from a clean legacy replay |
 | `app/alembic/baseline_versions/*.json` | Reviewed schema manifest, PostgreSQL major and exact revision pair |
 | `app/alembic/baseline_tools.py` | Operator-only check, freeze and transactional adoption commands |
@@ -94,10 +95,10 @@ on a disposable copy; do not copy that manual stamp into a deployment Job.
   drift guard and container smoke tests on the final runtime/dependency versions.
   The October rehearsal used Python 3.13/PostgreSQL 18 and is not evidence for the
   planned 3.0 Python/SQLAlchemy runtime.
-- [ ] Package both graphs, SQL and manifest in the release image. Update the deploy
-  Job, API init container, worker/CLI migration paths, development tasks and docs
-  together so every post-cutover entry point uses the baseline graph. The current
-  default remains legacy until that release change is reviewed.
+- [x] Package both graphs, SQL and manifest in the release image, and point the
+  deploy Job, init containers, worker/CLI paths, development tasks and docs at the
+  baseline graph. The deploy migration Job now runs `baseline_tools prepare` before
+  `alembic upgrade head`; adoption is gated on `maintenance_mode=true`.
 
 Example manifest generation after replaying the final legacy head, from `backend/`:
 
@@ -141,7 +142,7 @@ Reference: an empty PostgreSQL 18.6 database replayed through `4b3cbd7b15ff`.
 | Baseline revision | `squash_4b3cbd7b15ff` |
 | Schema | 46 application tables, 31 enums, 167 indexes |
 | Seeds | 106 objective rows, 4 prompt rows, bootstrap admin/test user, demo vault and slot |
-| Fresh install | `uv run alembic -c alembic-squash.ini upgrade head` |
+| Fresh install | `uv run alembic upgrade head` |
 | Validation | normalized schema equal to the legacy replay; objective/prompt rows equal; bootstrap identity rows equal; 9 integration tests pass, including `alembic check` on the baseline graph |
 
 The SQL retains the original `item_type IN (...)` check instead of pg_dump's
@@ -178,31 +179,31 @@ requires one, and verify its database agrees with `--database`.
 The operator commands, once the preceding gates have passed:
 
 ```bash
-uv run alembic -c alembic.ini upgrade head
-uv run alembic -c alembic.ini current --check-heads
+uv run alembic -c alembic-legacy.ini upgrade head
+uv run alembic -c alembic-legacy.ini current --check-heads
 uv run python -m app.alembic.baseline_tools check --database "$POSTGRES_DB"
 uv run python -m app.alembic.baseline_tools adopt --database "$POSTGRES_DB" --apply
 uv run python -m app.alembic.baseline_tools check --database "$POSTGRES_DB"
-uv run alembic -c alembic-squash.ini current --check-heads
+uv run alembic current --check-heads
 ```
 
-These commands refer to the current explicit config names. If the release promotes
-the baseline to `alembic.ini`, retain an explicit legacy config and update the
-sequence and all entry points in the same release PR. Do not run the current
-deployment workflow unchanged: it assumes one graph and cannot cross this boundary.
+The deploy workflow performs the same sequence in its migration Job: `baseline_tools
+prepare` classifies the database and, only under `maintenance_mode=true`, adopts the
+legacy head; `alembic upgrade head` then runs against the baseline graph. A legacy
+database without maintenance mode fails instead of stamping under live writers.
 
 ## Fresh installs and recovery
 
-A new empty database uses `alembic -c alembic-squash.ini upgrade head`, without
-adoption. Future migrations descend from the baseline, not the archived graph.
+A new empty database uses `alembic upgrade head` (default `alembic.ini`), without
+adoption. Future migrations descend from the baseline, not the legacy graph.
 Both graphs remain packaged until upgrade support is intentionally retired.
 
 If adoption fails before commit, the legacy marker is unchanged. Inspect the
 failure with writers stopped. If only the marker changed successfully and no
 subsequent schema/data changes occurred, restoring the recorded legacy marker
-with `alembic -c alembic.ini stamp --purge LEGACY_REVISION` reverses that marker
-operation; first revalidate the recorded schema. This does not undo the legacy
-upgrades from step 2 or any 3.0 data changes.
+with `alembic -c alembic-legacy.ini stamp --purge LEGACY_REVISION` reverses that
+marker operation; first revalidate the recorded schema. This does not undo the
+legacy upgrades from step 2 or any 3.0 data changes.
 
 After schema/data changes or resumed player writes, use the rehearsed recovery
 procedure with a compatible schema and application image. A backup restore may

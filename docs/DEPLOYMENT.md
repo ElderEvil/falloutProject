@@ -187,7 +187,10 @@ uv run fo-cli ops check-ai --api-url https://fallout-api.evillab.tech --skip-cha
    workflow has pushed both backend and frontend images**. A tag without images is not a deployable release;
    the workflow's image-existence check intentionally rejects it.
    Migrations run in a dedicated Job using the target image before application images change. A failed Job aborts rollout.
-   Enable `maintenance_mode` for incompatible schema changes, including the upgrade from v2.165.1 that drops
+   The Job runs `baseline_tools prepare` first: a fresh database is initialized with the single baseline revision,
+   an already-adopted database is a no-op, and a legacy database is verified and stamped only when
+   `maintenance_mode=true`. Enable `maintenance_mode` for the baseline cutover and for incompatible schema changes,
+   including the upgrade from v2.165.1 that drops
    `dweller.is_adult`: the workflow records API/worker replica counts, stops both writers, creates and verifies a
    PostgreSQL dump under the server user's `~/fallout-backups/`, pauses on the protected `production-migration`
    environment for the exact-dump rehearsal, then migrates and restores the replicas on the new image.

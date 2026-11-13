@@ -1,7 +1,8 @@
 > **2026-11-13 addendum:** the artifacts were regenerated at the post-3.0 head
-> `4b3cbd7b15ff` (`squash_4b3cbd7b15ff`). See
-> [MIGRATION_BASELINE_V3.md](MIGRATION_BASELINE_V3.md). The October details below
-> are preserved as history.
+> `4b3cbd7b15ff` (`squash_4b3cbd7b15ff`). **2026-11-14:** the baseline was promoted to
+> the default `backend/alembic.ini`; the legacy graph moved to
+> `backend/alembic-legacy.ini`. See [MIGRATION_BASELINE_V3.md](MIGRATION_BASELINE_V3.md).
+> The October commands below are preserved as history and no longer match the configs.
 
 # Alembic baseline experiment — 2026-10-20
 

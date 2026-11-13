@@ -68,8 +68,9 @@ one scheduler process plus its wrapper.
 
 `backend`, `dramatiq-worker`, `frontend` and `postgres` have no `namespace` in their files and
 are applied to `fallout`. The migration Job is not checked in; the deploy workflow creates it
-from the backend pod template with the target release image (`alembic current`, `upgrade head`,
-`current --check-heads`, `ttlSecondsAfterFinished: 86400`). A live `backend` Deployment may also
+from the backend pod template with the target release image (`baseline_tools prepare`, `alembic
+upgrade head`, `current --check-heads`, `ttlSecondsAfterFinished: 86400`). Adoption is passed
+only under `maintenance_mode`. A live `backend` Deployment may also
 carry a `run-migrations` init container set by an older workflow version.
 
 The deploy workflow's `kubectl set image` replaces the baseline tags with `vX.Y.Z` release tags;
@@ -148,7 +149,9 @@ ingress for the cutover and leaves it closed. Run the **Open public traffic** wo
 after verification to re-apply it.
 
 With `run_migrations: true` (the default), a release-image migration Job runs
-`alembic current`, `upgrade head` and `current --check-heads` before application rollout.
+`baseline_tools prepare`, `upgrade head` and `current --check-heads` before application rollout.
+`prepare` adopts a legacy database only when `maintenance_mode: true`; it refuses to stamp
+under live writers.
 Disabling `run_migrations` skips this job. Use maintenance mode for changes that require
 quiesced writers; normal deployments require migrations compatible with the running
 release. An application rollback does not revert a migration.
@@ -247,7 +250,7 @@ same checklist with the recorded drill output is
 | --- | --- | --- |
 | Inventory live workloads, image versions, dependencies, storage, probes and node topology | **Done — live snapshot recorded 2026-11-01** | Live snapshot above plus the workload/service/PVC/probe tables. |
 | Check in worker configuration and align manifests/image selection with the release workflow; document external dependencies | **Done** | Checked-in `dramatiq-worker-deployment.yaml`; baseline images are `fo-shelter-be` / `fo-shelter-fe`; deploy workflow sets versioned tags; Redis, optional S3/SMTP and possible external PostgreSQL are documented above. |
-| Release-image migration Job and explicit migration/rollout/rollback sequence; migration failure prevents rollout | **Done** | `.github/workflows/deploy-hetzner.yml` runs the target image in a dedicated Job (`alembic current`, `upgrade head`, `current --check-heads`) before application rollout and aborts on failure; `docs/DEPLOYMENT.md` documents the maintenance/backup/rollback sequence. |
+| Release-image migration Job and explicit migration/rollout/rollback sequence; migration failure prevents rollout | **Done** | `.github/workflows/deploy-hetzner.yml` runs the target image in a dedicated Job (`baseline_tools prepare`, `upgrade head`, `current --check-heads`) before application rollout and aborts on failure; `docs/DEPLOYMENT.md` documents the maintenance/backup/rollback sequence. |
 | Separate readiness from liveness; dependency failure removes API without restart storms | **Done** | `backend-deployment.yaml` uses `/healthcheck` for liveness and `/readiness` for readiness; `/readiness` returns 503 for PostgreSQL/Redis failure and excludes optional integrations (`backend/main.py`); guarded by `test_k3s_manifests.py`. |
 | Verify scheduler ownership and safe API/worker scaling independently | **Done — one live scheduler process and one worker pod** | Exactly one checked-in `periodiq` invoker, `replicas: 1`, `Recreate`; manifest test enforces it. The live `/proc` scan confirmed one long-lived scheduler. |
 | Confirm worker and other workload requests/limits against measured usage | **Partial** | Backend and worker have requests/limits; image-cleanup requests 10m/16Mi with 100m/64Mi limits; frontend and postgres have none. Actual live usage was not measured for this evidence, so frontend/postgres budgets remain open. |

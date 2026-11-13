@@ -25,6 +25,7 @@ for name in ("app/tests", "tests", ".env", ".env.local", ".env.production"):
     assert not Path("/app", name).exists(), f"Non-runtime file shipped: {name}"
 assert Path("/app/app/data").is_dir()
 assert Path("/app/alembic.ini").is_file()
+assert Path("/app/alembic-legacy.ini").is_file()
 assert Path("/CHANGELOG.md").is_file()
 
 # Vault Radio Hour degrades to raw WAV without this binary, so the production

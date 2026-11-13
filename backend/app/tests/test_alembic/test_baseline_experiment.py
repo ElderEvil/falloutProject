@@ -1,4 +1,4 @@
-"""Exercise the opt-in squash against PostgreSQL, using scratch databases only."""
+"""Exercise the squashed baseline against PostgreSQL, using scratch databases only."""
 
 import asyncio
 import json
@@ -36,7 +36,7 @@ SEED_EXCLUSIONS = {
 
 
 def _config() -> Config:
-    return Config(str(BACKEND / "alembic-squash.ini"))
+    return Config(str(BACKEND / "alembic.ini"))
 
 
 def schema_state(db: MigrationHarness) -> dict:
@@ -130,6 +130,31 @@ def test_guarded_adoption_preserves_rows_and_is_idempotent(harness: MigrationHar
         assert _rows(harness, "objective") == expected
 
 
+def test_prepare_classifies_fresh_database(harness: MigrationHarness) -> None:
+    database = baseline_tools.make_url(harness.url).database
+    assert asyncio.run(baseline_tools.prepare_database(database))["state"] == "fresh"
+
+
+def test_prepare_requires_maintenance_then_adopts_legacy_database(harness: MigrationHarness) -> None:
+    harness.upgrade(LEGACY_HEAD)
+    database = baseline_tools.make_url(harness.url).database
+    with pytest.raises(RuntimeError, match="requires --apply"):
+        asyncio.run(baseline_tools.prepare_database(database))
+    assert harness.scalar("SELECT version_num FROM alembic_version") == LEGACY_HEAD
+    assert asyncio.run(baseline_tools.prepare_database(database, apply=True))["state"] == "adopted"
+    assert harness.scalar("SELECT version_num FROM alembic_version") == BASELINE
+    assert asyncio.run(baseline_tools.prepare_database(database))["state"] == "baseline"
+
+
+def test_prepare_refuses_unknown_revision_without_stamping(harness: MigrationHarness) -> None:
+    harness.upgrade(LEGACY_HEAD)
+    harness.execute("UPDATE alembic_version SET version_num = 'unsupported_revision'")
+    database = baseline_tools.make_url(harness.url).database
+    with pytest.raises(RuntimeError, match="not at the frozen legacy head or baseline"):
+        asyncio.run(baseline_tools.prepare_database(database, apply=True))
+    assert harness.scalar("SELECT version_num FROM alembic_version") == "unsupported_revision"
+
+
 @pytest.mark.parametrize("failure", ["schema", "revision"])
 def test_guard_refuses_drift_without_stamping(harness: MigrationHarness, failure: str) -> None:
     harness.upgrade(LEGACY_HEAD)
@@ -176,7 +201,7 @@ def test_baseline_graph_matches_models(harness: MigrationHarness) -> None:
     # Run in a fresh interpreter: the session-scoped SQLite fixture rewrites JSONB
     # columns to JSON in the in-process metadata, which would make this check lie.
     result = subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", "alembic-squash.ini", "check"],
+        [sys.executable, "-m", "alembic", "-c", "alembic.ini", "check"],
         cwd=BACKEND,
         env={**os.environ, "ASYNC_DATABASE_URI": harness.url, "POSTGRES_DB": database},
         capture_output=True,

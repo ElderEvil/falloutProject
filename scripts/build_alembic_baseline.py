@@ -3,8 +3,8 @@
 
 Replays the legacy graph into a scratch PostgreSQL database, dumps the schema and
 migration-owned seeds, rewrites the baseline SQL/revision/manifest, and updates the
-manifest path and regression-test constants. It never commits and never touches a
-database other than the scratch one it creates.
+manifest path and regression-test constants. It never commits and only touches the
+scratch database it creates or explicitly reuses.
 """
 
 from __future__ import annotations
@@ -24,11 +24,6 @@ BACKEND = REPO / "backend"
 VERSIONS = BACKEND / "app/alembic/baseline_versions"
 TOOLS = BACKEND / "app/alembic/baseline_tools.py"
 TEST = BACKEND / "app/tests/test_alembic/test_baseline_experiment.py"
-ITEM_CHECK = (
-    "    CONSTRAINT ck_item_item_type CHECK "
-    "(item_type IN ('misc', 'weapon', 'outfit', 'junk', 'consumable', 'lunchbox', "
-    "'pet_carrier', 'pet', 'dweller'))"
-)
 
 
 def _die(message: str) -> None:
@@ -140,6 +135,14 @@ class _Client:
         ]
         return _capture(command)
 
+    def _database_exists(self, name: str) -> bool:
+        return (
+            name
+            in self._psql(
+                "SELECT datname FROM pg_database", database="postgres"
+            ).splitlines()
+        )
+
     def _dump(self, args: list[str], *, database: str) -> bytes:
         if self.direct:
             command = [
@@ -175,7 +178,7 @@ class _Client:
         return result.stdout
 
 
-def _clean_dump(lines: list[str]) -> list[str]:
+def _clean_dump(lines: list[str], item_check: str | None) -> list[str]:
     out: list[str] = []
     skip_table = False
     for line in lines:
@@ -199,11 +202,26 @@ def _clean_dump(lines: list[str]) -> list[str]:
             continue
         if stripped.strip() == "CREATE SCHEMA public;":
             continue
-        if stripped.startswith("    CONSTRAINT ck_item_item_type CHECK ("):
-            out.append(ITEM_CHECK)
+        if item_check and stripped.startswith(
+            "    CONSTRAINT ck_item_item_type CHECK ("
+        ):
+            out.append(item_check)
             continue
         out.append(stripped)
     return out
+
+
+def _item_type_check(client: _Client, database: str) -> str | None:
+    definition = client._psql(
+        "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+        "WHERE conname = 'ck_item_item_type' AND conrelid = 'public.item'::regclass",
+        database=database,
+    ).strip()
+    values = re.findall(r"'([^']+)'::character varying", definition)
+    if not values:
+        return None
+    joined = ", ".join(f"'{value}'" for value in values)
+    return f"    CONSTRAINT ck_item_item_type CHECK (item_type IN ({joined}))"
 
 
 def _existing_revision() -> tuple[Path, str]:
@@ -238,7 +256,7 @@ def _main() -> None:
     parser.add_argument(
         "--skip-migrations",
         action="store_true",
-        help="assume the scratch database is current",
+        help="reuse an existing scratch database at the legacy head",
     )
     args = parser.parse_args()
 
@@ -265,21 +283,32 @@ def _main() -> None:
         "ASYNC_DATABASE_URI": "",
     }
 
+    if not re.fullmatch(r"[A-Za-z0-9_]+", database):
+        _die(f"invalid database name: {database!r}")
+    created = not args.skip_migrations
     revision_path, old_head = _existing_revision()
     try:
-        client._psql(
-            f'DROP DATABASE IF EXISTS "{database}" WITH (FORCE)', database="postgres"
-        )
-        client._psql(
-            f'CREATE DATABASE "{database}" OWNER "{client.user}"', database="postgres"
-        )
-        if not args.skip_migrations:
+        if created:
+            client._psql(
+                f'DROP DATABASE IF EXISTS "{database}" WITH (FORCE)',
+                database="postgres",
+            )
+            client._psql(
+                f'CREATE DATABASE "{database}" OWNER "{client.user}"',
+                database="postgres",
+            )
             _run(
                 ["uv", "run", "alembic", "upgrade", "head"],
                 cwd=BACKEND,
                 env=migration_env,
             )
-        head = client._psql("SELECT version_num FROM alembic_version").strip()
+        elif not client._database_exists(database):
+            _die(
+                f"database {database!r} does not exist; omit --skip-migrations to create it"
+            )
+        head = client._psql(
+            "SELECT version_num FROM alembic_version", database=database
+        ).strip()
         if not re.fullmatch(r"[0-9a-f]{6,}", head):
             _die(f"unexpected legacy head: {head!r}")
         heads = _capture(
@@ -288,13 +317,17 @@ def _main() -> None:
         if heads.count("(head)") != 1 or head not in heads:
             _die(f"legacy graph does not have a single applied head: {heads!r}")
 
+        item_check = _item_type_check(client, database)
+        if item_check is None:
+            print("warning: ck_item_item_type not found; keeping the dumped definition")
         schema = _clean_dump(
             client._dump(
                 ["--schema-only", "--no-owner", "--no-privileges", "--schema=public"],
                 database=database,
             )
             .decode()
-            .splitlines()
+            .splitlines(),
+            item_check,
         )
         seeds = _clean_dump(
             client._dump(
@@ -309,7 +342,8 @@ def _main() -> None:
                 database=database,
             )
             .decode()
-            .splitlines()
+            .splitlines(),
+            None,
         )
         sql = "\n".join(schema + seeds) + "\n"
 
@@ -342,38 +376,46 @@ def _main() -> None:
 
         target_sql = VERSIONS / f"baseline_{head}.sql"
         target_manifest = VERSIONS / f"baseline_{head}.json"
-        with tempfile.TemporaryDirectory() as tmp:
-            temp_manifest = Path(tmp) / "manifest.json"
-            _run(
-                [
-                    "uv",
-                    "run",
-                    "python",
-                    "-m",
-                    "app.alembic.baseline_tools",
-                    "freeze",
-                    "--database",
-                    database,
-                    "--output",
-                    str(temp_manifest),
-                ],
-                cwd=BACKEND,
-                env=migration_env,
-            )
-            manifest_text = temp_manifest.read_text(encoding="utf-8")
-
-        target_sql.write_text(sql, encoding="utf-8")
-        target_manifest.write_text(manifest_text, encoding="utf-8")
-        target_revision.write_text(revision_text, encoding="utf-8")
-        TOOLS.write_text(tools_text, encoding="utf-8")
-        TEST.write_text(test_text, encoding="utf-8")
-        if old_head != head:
-            for stale in (
-                VERSIONS / f"baseline_{old_head}.sql",
-                VERSIONS / f"baseline_{old_head}.json",
-                revision_path,
-            ):
-                stale.unlink(missing_ok=True)
+        old_revision_text = revision_path.read_text(encoding="utf-8")
+        try:
+            target_sql.write_text(sql, encoding="utf-8")
+            target_revision.write_text(revision_text, encoding="utf-8")
+            if old_head != head and revision_path != target_revision:
+                revision_path.unlink()
+            with tempfile.TemporaryDirectory() as tmp:
+                temp_manifest = Path(tmp) / "manifest.json"
+                _run(
+                    [
+                        "uv",
+                        "run",
+                        "python",
+                        "-m",
+                        "app.alembic.baseline_tools",
+                        "freeze",
+                        "--database",
+                        database,
+                        "--output",
+                        str(temp_manifest),
+                    ],
+                    cwd=BACKEND,
+                    env=migration_env,
+                )
+                manifest_text = temp_manifest.read_text(encoding="utf-8")
+            target_manifest.write_text(manifest_text, encoding="utf-8")
+            TOOLS.write_text(tools_text, encoding="utf-8")
+            TEST.write_text(test_text, encoding="utf-8")
+            if old_head != head:
+                for stale in (
+                    VERSIONS / f"baseline_{old_head}.sql",
+                    VERSIONS / f"baseline_{old_head}.json",
+                ):
+                    stale.unlink(missing_ok=True)
+        except BaseException:
+            target_revision.unlink(missing_ok=True)
+            revision_path.write_text(old_revision_text, encoding="utf-8")
+            if target_sql != VERSIONS / f"baseline_{old_head}.sql":
+                target_sql.unlink(missing_ok=True)
+            raise
 
         tables = sum(1 for line in schema if line.startswith("CREATE TABLE"))
         enums = sum(1 for line in schema if line.startswith("CREATE TYPE"))
@@ -394,7 +436,9 @@ def _main() -> None:
             "next: run uv run pytest app/tests/test_alembic/test_baseline_experiment.py"
         )
     finally:
-        if not args.keep:
+        if not created:
+            print(f"reused database: {database}")
+        elif not args.keep:
             client._psql(
                 f'DROP DATABASE IF EXISTS "{database}" WITH (FORCE)',
                 database="postgres",

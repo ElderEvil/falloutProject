@@ -102,6 +102,9 @@ jobs:
         # commit-analyzer / release-notes-generator plugins.
         run: npm install --no-save --no-package-lock --no-audit --no-fund semantic-release@25.0.9 @semantic-release/changelog@7.0.0 @semantic-release/exec@7.1.0 @semantic-release/git@11.0.1 conventional-changelog-conventionalcommits@8.0.0
 
+      - name: Test release selection
+        run: node --test scripts/tests/manual-release.test.mjs
+
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -113,9 +116,9 @@ jobs:
         run: |
           ARGS=()
           if [ -n "$RELEASE_AS" ]; then
-            ARGS+=(--release-as "$RELEASE_AS")
+            ARGS+=(--analyze-commits ./scripts/manual-release.cjs)
           fi
-          npx --no semantic-release "${ARGS[@]}"
+          npx --no -- semantic-release "${ARGS[@]}"
 
       - name: Identify published release
         id: published-release

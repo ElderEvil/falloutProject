@@ -21,7 +21,7 @@ depends_on = None
 
 def upgrade() -> None:
     """Create the frozen schema and seeds for a new PostgreSQL database."""
-    snapshot = Path(__file__).with_name("baseline_4b3cbd7b15ff.sql").read_text()
+    snapshot = Path(__file__).with_name("baseline_4b3cbd7b15ff.sql").read_text(encoding="utf-8")
     op.execute(sa.DDL("DO $fallout_baseline$ BEGIN\n" + snapshot + "\nEND $fallout_baseline$;"))
     _seed_bootstrap_accounts()
 

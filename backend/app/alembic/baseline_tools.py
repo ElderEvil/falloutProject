@@ -53,16 +53,37 @@ def schema_state(connection: Connection) -> dict[str, list[list[Any]]]:
     return {name: [list(row) for row in connection.execute(text(query))] for name, query in queries.items()}
 
 
-def _head(config_name: str) -> str:
+def _config(config_name: str) -> Config:
     config = Config(str(BACKEND / config_name))
     config.set_main_option("script_location", str(BACKEND / "app/alembic"))
+    return config
+
+
+def _head_for(config: Config) -> str:
     revision = ScriptDirectory.from_config(config).get_current_head()
     if revision is None:
-        raise RuntimeError(f"No head in {config_name}")
+        raise RuntimeError("No head in the configured graph")
     return revision
 
 
-async def inspect_database(database: str, *, apply: bool = False, freeze: bool = False) -> dict[str, Any]:
+def _base_for(config: Config) -> str:
+    bases = ScriptDirectory.from_config(config).get_bases()
+    if len(bases) != 1:
+        raise RuntimeError(f"Expected one base revision, found {len(bases)}")
+    return bases[0]
+
+
+def _head(config_name: str) -> str:
+    return _head_for(_config(config_name))
+
+
+async def inspect_database(
+    database: str,
+    *,
+    apply: bool = False,
+    freeze: bool = False,
+    baseline_config: Config | None = None,
+) -> dict[str, Any]:
     """Check the named target, optionally recording its baseline marker atomically."""
     url = make_url(str(settings.ASYNC_DATABASE_URI))
     if url.database != database:
@@ -90,19 +111,21 @@ async def inspect_database(database: str, *, apply: bool = False, freeze: bool =
             major = int(await connection.scalar(text("SHOW server_version_num")) or 0) // 10000
             schema = await connection.run_sync(schema_state)
             if freeze:
-                legacy = _head("alembic.ini")
+                legacy = _head_for(_config("alembic.ini"))
                 if revisions != [legacy]:
                     raise RuntimeError("Reference database must be at the single current legacy head.")
                 return {
                     "legacy_revision": legacy,
-                    "baseline_revision": _head("alembic-squash.ini"),
+                    "baseline_revision": _base_for(baseline_config or _config("alembic-squash.ini")),
                     "postgres_major": major,
                     "schema": schema,
                 }
             manifest = json.loads(MANIFEST.read_text())
             baseline = manifest["baseline_revision"]
-            if baseline != _head("alembic-squash.ini"):
-                raise RuntimeError("Manifest and baseline head differ; regenerate and rehearse the release artifacts.")
+            if baseline != _base_for(baseline_config or _config("alembic-squash.ini")):
+                raise RuntimeError(
+                    "Manifest and baseline graph base differ; regenerate and rehearse the release artifacts."
+                )
             if major != manifest["postgres_major"]:
                 raise RuntimeError("PostgreSQL major differs from the rehearsed reference.")
             if revisions not in ([manifest["legacy_revision"]], [baseline]):

@@ -20,6 +20,7 @@ from collections.abc import Callable
 from datetime import date
 from pathlib import Path
 from typing import NoReturn
+from urllib.parse import quote, urlparse
 
 REPO = Path(__file__).resolve().parents[1]
 BACKEND = REPO / "backend"
@@ -82,7 +83,12 @@ class _Client:
     ) -> None:
         self.env = env
         self.user = env.get("POSTGRES_USER", "postgres")
-        self.database = env.get("POSTGRES_DB", "fallout_db")
+        uri = env.get("ASYNC_DATABASE_URI", "")
+        self.database = (
+            urlparse(uri).path.lstrip("/")
+            if uri
+            else env.get("POSTGRES_DB", "fallout_db")
+        )
         self.host = env.get("POSTGRES_SERVER", "localhost")
         self.port = env.get("POSTGRES_PORT", "5432")
         self.direct = (
@@ -200,6 +206,10 @@ def _existing_revision() -> tuple[Path, str]:
 def _validate_target(database: str, app_database: str) -> None:
     if not re.fullmatch(r"[A-Za-z0-9_]+", database):
         _die(f"invalid database name: {database!r}")
+    if len(database.encode("utf-8")) > 63:
+        _die(
+            f"database name exceeds PostgreSQL's 63-byte identifier limit: {database!r}"
+        )
     if database == app_database:
         _die(
             f"refusing to use the configured application database ({app_database!r}) "
@@ -207,6 +217,14 @@ def _validate_target(database: str, app_database: str) -> None:
         )
     if database in {"postgres", "template0", "template1"}:
         _die(f"refusing to use the system database {database!r} as the scratch target")
+
+
+def _scratch_uri(client: _Client, database: str) -> str:
+    password = client.env.get("POSTGRES_PASSWORD", "")
+    user = quote(client.user, safe="")
+    auth = f"{user}:{quote(password, safe='')}@" if password else f"{user}@"
+    port = f":{client.port}" if client.port else ""
+    return f"postgresql+asyncpg://{auth}{client.host}{port}/{database}"
 
 
 def _snapshot(paths: set[Path]) -> dict[Path, bytes | None]:
@@ -319,7 +337,11 @@ def _main() -> None:
         )
     env = {
         **_load_env_file(BACKEND / ".env"),
-        **{k: v for k, v in os.environ.items() if k.startswith("POSTGRES_")},
+        **{
+            k: v
+            for k, v in os.environ.items()
+            if k.startswith("POSTGRES_") or k == "ASYNC_DATABASE_URI"
+        },
     }
     client = _Client(engine=engine, container=args.container, env=env)
     database = args.database
@@ -327,7 +349,7 @@ def _main() -> None:
         **os.environ,
         **env,
         "POSTGRES_DB": database,
-        "ASYNC_DATABASE_URI": "",
+        "ASYNC_DATABASE_URI": _scratch_uri(client, database),
     }
 
     _validate_target(database, client.database)

@@ -321,3 +321,32 @@ def test_publish_restores_after_manifest_and_tools_were_written(
     assert revision_path.read_text() == "old revision"
     assert tools.read_text() == "old tools"
     assert test_path.read_text() == "old test"
+
+
+def test_client_uses_the_effective_application_uri_database() -> None:
+    client = GENERATOR._Client(
+        engine="podman",
+        container="postgres-test",
+        env={
+            "POSTGRES_DB": "fallout_db",
+            "ASYNC_DATABASE_URI": "postgresql+asyncpg://u:p@db.example:5433/live_db",
+        },
+    )
+    assert client.database == "live_db"
+    with pytest.raises(SystemExit):
+        GENERATOR._validate_target("live_db", client.database)
+
+
+def test_validate_target_rejects_an_overlong_database_name() -> None:
+    with pytest.raises(SystemExit):
+        GENERATOR._validate_target("a" * 64, "fallout_db")
+
+
+def test_scratch_uri_preserves_the_configured_port() -> None:
+    client = SimpleNamespace(
+        env={"POSTGRES_PASSWORD": "p@ss"},
+        user="postgres",
+        host="db.example",
+        port="5433",
+    )
+    assert GENERATOR._scratch_uri(client, "scratch") == ("postgresql+asyncpg://postgres:p%40ss@db.example:5433/scratch")

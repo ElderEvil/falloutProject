@@ -184,3 +184,23 @@ def test_baseline_graph_matches_models(harness: MigrationHarness) -> None:
         check=False,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_adoption_accepts_a_descendant_baseline_revision(harness: MigrationHarness, tmp_path: Path) -> None:
+    versions = tmp_path / "versions"
+    shutil.copytree(BACKEND / "app/alembic/baseline_versions", versions)
+    (versions / "followup.py").write_text(
+        "from alembic import op\nimport sqlalchemy as sa\n"
+        'revision = "squash_followup"\n'
+        f'down_revision = "{BASELINE}"\n'
+        'def upgrade():\n    op.create_table("squash_probe", sa.Column("id", sa.Integer(), primary_key=True))\n'
+        'def downgrade():\n    op.drop_table("squash_probe")\n'
+    )
+    config = Config()
+    config.set_main_option("script_location", str(BACKEND / "app/alembic"))
+    config.set_main_option("version_locations", str(versions))
+    harness.upgrade(LEGACY_HEAD)
+    database = baseline_tools.make_url(harness.url).database
+    result = asyncio.run(baseline_tools.inspect_database(database, apply=True, baseline_config=config))
+    assert result["applied"] is True
+    assert harness.scalar("SELECT version_num FROM alembic_version") == BASELINE

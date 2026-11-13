@@ -19,6 +19,7 @@ import tempfile
 from collections.abc import Callable
 from datetime import date
 from pathlib import Path
+from typing import NoReturn
 
 REPO = Path(__file__).resolve().parents[1]
 BACKEND = REPO / "backend"
@@ -27,7 +28,7 @@ TOOLS = BACKEND / "app/alembic/baseline_tools.py"
 TEST = BACKEND / "app/tests/test_alembic/test_baseline_experiment.py"
 
 
-def _die(message: str) -> None:
+def _die(message: str) -> NoReturn:
     print(f"error: {message}", file=sys.stderr)
     raise SystemExit(1)
 
@@ -101,40 +102,19 @@ class _Client:
             env["PGPASSWORD"] = password
         return env
 
-    def _psql(self, sql: str, *, database: str | None = None) -> str:
-        target = database or self.database
+    def _command(self, program: str, database: str) -> list[str]:
         if self.direct:
-            command = [
-                "psql",
-                "-h",
-                self.host,
-                "-p",
-                self.port,
-                "-U",
-                self.user,
-                "-d",
-                target,
-                "-v",
-                "ON_ERROR_STOP=1",
-                "-tAc",
-                sql,
-            ]
-            return _capture(command, env=self._pg_env())
-        command = [
-            self.engine or "podman",
-            "exec",
-            self.container or "",
-            "psql",
-            "-U",
-            self.user,
-            "-d",
-            target,
-            "-v",
-            "ON_ERROR_STOP=1",
-            "-tAc",
-            sql,
-        ]
-        return _capture(command)
+            command = [program, "-h", self.host, "-p", self.port]
+        else:
+            command = [self.engine or "podman", "exec", self.container or "", program]
+        return [*command, "-U", self.user, "-d", database]
+
+    def _psql(self, sql: str, *, database: str | None = None) -> str:
+        command = self._command("psql", database or self.database)
+        return _capture(
+            [*command, "-v", "ON_ERROR_STOP=1", "-tAc", sql],
+            env=self._pg_env() if self.direct else None,
+        )
 
     def _database_exists(self, name: str) -> bool:
         return (
@@ -145,36 +125,11 @@ class _Client:
         )
 
     def _dump(self, args: list[str], *, database: str) -> bytes:
-        if self.direct:
-            command = [
-                "pg_dump",
-                "-h",
-                self.host,
-                "-p",
-                self.port,
-                "-U",
-                self.user,
-                "-d",
-                database,
-                *args,
-            ]
-            result = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true]
-                command, env=self._pg_env(), capture_output=True, check=True
-            )
-            return result.stdout
-        command = [
-            self.engine or "podman",
-            "exec",
-            self.container or "",
-            "pg_dump",
-            "-U",
-            self.user,
-            "-d",
-            database,
-            *args,
-        ]
         result = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true]
-            command, capture_output=True, check=True
+            [*self._command("pg_dump", database), *args],
+            env=self._pg_env() if self.direct else None,
+            capture_output=True,
+            check=True,
         )
         return result.stdout
 
@@ -313,12 +268,12 @@ def _publish(
         tools_path,
         test_path,
     }
-    if old_head != head:
-        affected |= {
-            versions_dir / f"baseline_{old_head}.sql",
-            versions_dir / f"baseline_{old_head}.json",
-        }
-    snapshot = _snapshot(affected)
+    stale_paths = (
+        {versions_dir / f"baseline_{old_head}.{suffix}" for suffix in ("sql", "json")}
+        if old_head != head
+        else set()
+    )
+    snapshot = _snapshot(affected | stale_paths)
     try:
         target_sql.write_text(sql, encoding="utf-8")
         target_revision.write_text(revision_text, encoding="utf-8")
@@ -327,12 +282,8 @@ def _publish(
         target_manifest.write_text(freeze(), encoding="utf-8")
         tools_path.write_text(tools_text, encoding="utf-8")
         test_path.write_text(test_text, encoding="utf-8")
-        if old_head != head:
-            for stale in (
-                versions_dir / f"baseline_{old_head}.sql",
-                versions_dir / f"baseline_{old_head}.json",
-            ):
-                stale.unlink(missing_ok=True)
+        for stale in stale_paths:
+            stale.unlink(missing_ok=True)
     except BaseException:
         _restore(snapshot)
         raise

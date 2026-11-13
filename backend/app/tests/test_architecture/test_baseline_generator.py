@@ -15,6 +15,45 @@ GENERATOR = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(GENERATOR)
 
 
+@pytest.mark.parametrize("direct", [True, False])
+@pytest.mark.parametrize("program", ["psql", "pg_dump"])
+def test_client_preserves_connection_and_output_options(
+    monkeypatch: pytest.MonkeyPatch, direct: bool, program: str
+) -> None:
+    monkeypatch.setattr(GENERATOR.shutil, "which", lambda name: name if direct else None)
+    client = GENERATOR._Client(
+        engine="podman",
+        container="postgres-test",
+        env={
+            "POSTGRES_USER": "operator",
+            "POSTGRES_SERVER": "db.example",
+            "POSTGRES_PORT": "5433",
+            "POSTGRES_PASSWORD": "test-secret",
+        },
+    )
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append((command, kwargs))
+        return SimpleNamespace(stdout="result" if kwargs.get("text") else b"dump")
+
+    monkeypatch.setattr(GENERATOR.subprocess, "run", run)
+    result = (
+        client._psql("SELECT 1", database="scratch")
+        if program == "psql"
+        else client._dump(["--schema-only"], database="scratch")
+    )
+    command, options = calls[0]
+    prefix = [program, "-h", "db.example", "-p", "5433"] if direct else ["podman", "exec", "postgres-test", program]
+    suffix = ["-v", "ON_ERROR_STOP=1", "-tAc", "SELECT 1"] if program == "psql" else ["--schema-only"]
+    assert command == [*prefix, "-U", "operator", "-d", "scratch", *suffix]
+    assert options["check"]
+    assert options["capture_output"]
+    assert (options["env"]["PGPASSWORD"] if direct else options["env"]) == ("test-secret" if direct else None)
+    assert "test-secret" not in command
+    assert result == ("result" if program == "psql" else b"dump")
+
+
 def _fake_client(*, exists: bool = True, definition: str = "") -> SimpleNamespace:
     calls: list[tuple[str, str, str | None]] = []
 

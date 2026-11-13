@@ -15,9 +15,7 @@ defineProps<Props>()
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm flicker crt-screen">
           <div class="absolute inset-0 flex items-center justify-center">
             <div class="text-center space-y-8 animate-pulse">
-              <div
-                class="text-terminal-green text-9xl font-bold terminal-glow-strong font-mono"
-              >
+              <div class="text-terminal-green text-9xl font-bold terminal-glow-strong font-mono">
                 GARY
               </div>
               <div class="text-terminal-green-dark text-4xl font-mono terminal-glow">

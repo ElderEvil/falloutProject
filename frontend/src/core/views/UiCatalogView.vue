@@ -18,15 +18,32 @@ import { Alert, AlertDescription, AlertTitle } from '@/core/components/ui/alert'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/core/components/ui/card'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/core/components/ui/dialog'
 import { Input } from '@/core/components/ui/input'
 import { Label } from '@/core/components/ui/label'
 import { Progress } from '@/core/components/ui/progress'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/core/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/core/components/ui/select'
 import { Skeleton } from '@/core/components/ui/skeleton'
 import { Slider } from '@/core/components/ui/slider'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import { Toast, Toaster } from '@/core/components/ui/toast'
 import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 import SettingItem from '@/core/components/ui/SettingItem.vue'
@@ -81,12 +98,16 @@ const setSlider = (value: number[] | undefined) => {
     <h1 class="text-3xl font-bold terminal-glow text-theme-primary">UI Catalog</h1>
     <p class="mt-2 text-sm text-theme-primary/60">
       Dev-only regression catalog for the shadcn-vue primitives in
-      <code class="text-theme-primary">@/core/components/ui</code>, captured by the Playwright visual net.
+      <code class="text-theme-primary">@/core/components/ui</code>, captured by the Playwright
+      visual net.
     </p>
 
     <!-- ============ Button ============ -->
     <section class="mt-10" aria-labelledby="h-button">
-      <h2 id="h-button" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+      <h2
+        id="h-button"
+        class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary"
+      >
         Button
       </h2>
       <div class="flex flex-wrap items-center gap-3">
@@ -117,7 +138,10 @@ const setSlider = (value: number[] | undefined) => {
 
     <!-- ============ Input ============ -->
     <section class="mt-10" aria-labelledby="h-input">
-      <h2 id="h-input" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+      <h2
+        id="h-input"
+        class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary"
+      >
         Input
       </h2>
       <div class="grid max-w-2xl gap-4">
@@ -133,11 +157,16 @@ const setSlider = (value: number[] | undefined) => {
 
     <!-- ============ Badge ============ -->
     <section class="mt-10" aria-labelledby="h-badge">
-      <h2 id="h-badge" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+      <h2
+        id="h-badge"
+        class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary"
+      >
         Badge
       </h2>
       <div class="flex flex-wrap items-center gap-3">
-        <Badge v-for="variant in badgeVariants" :key="variant" :variant="variant">{{ variant }}</Badge>
+        <Badge v-for="variant in badgeVariants" :key="variant" :variant="variant">{{
+          variant
+        }}</Badge>
       </div>
       <div class="mt-4 flex flex-wrap items-center gap-3">
         <Badge variant="default">
@@ -153,7 +182,10 @@ const setSlider = (value: number[] | undefined) => {
 
     <!-- ============ Card ============ -->
     <section class="mt-10" aria-labelledby="h-card">
-      <h2 id="h-card" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+      <h2
+        id="h-card"
+        class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary"
+      >
         Card
       </h2>
       <div class="grid gap-4 md:grid-cols-3">
@@ -184,7 +216,10 @@ const setSlider = (value: number[] | undefined) => {
 
     <!-- ============ Alert ============ -->
     <section class="mt-10" aria-labelledby="h-alert">
-      <h2 id="h-alert" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+      <h2
+        id="h-alert"
+        class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary"
+      >
         Alert
       </h2>
       <div class="grid max-w-2xl gap-3">
@@ -201,7 +236,10 @@ const setSlider = (value: number[] | undefined) => {
 
     <!-- ============ Dialog ============ -->
     <section class="mt-10" aria-labelledby="h-dialog">
-      <h2 id="h-dialog" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+      <h2
+        id="h-dialog"
+        class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary"
+      >
         Dialog
       </h2>
       <p class="text-sm text-theme-primary/60">
@@ -225,7 +263,10 @@ const setSlider = (value: number[] | undefined) => {
 
     <!-- ============ Tabs ============ -->
     <section class="mt-10" aria-labelledby="h-tabs">
-      <h2 id="h-tabs" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+      <h2
+        id="h-tabs"
+        class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary"
+      >
         Tabs
       </h2>
       <Tabs :model-value="activeTab" @update:model-value="setActiveTab">
@@ -248,7 +289,10 @@ const setSlider = (value: number[] | undefined) => {
 
     <!-- ============ Select ============ -->
     <section class="mt-10" aria-labelledby="h-select">
-      <h2 id="h-select" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+      <h2
+        id="h-select"
+        class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary"
+      >
         Select
       </h2>
       <div class="grid max-w-2xl gap-4">
@@ -280,13 +324,20 @@ const setSlider = (value: number[] | undefined) => {
 
     <!-- ============ Slider ============ -->
     <section class="mt-10" aria-labelledby="h-slider">
-      <h2 id="h-slider" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+      <h2
+        id="h-slider"
+        class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary"
+      >
         Slider
       </h2>
       <div class="grid max-w-2xl gap-6">
         <div class="flex items-center gap-4">
           <span class="w-24 text-sm text-theme-primary/70">Value</span>
-          <Slider :model-value="[sliderValue]" aria-label="Slider value" @update:model-value="setSlider" />
+          <Slider
+            :model-value="[sliderValue]"
+            aria-label="Slider value"
+            @update:model-value="setSlider"
+          />
         </div>
         <div class="flex items-center gap-4">
           <span class="w-24 text-sm text-theme-primary/70">Fixed</span>
@@ -303,7 +354,10 @@ const setSlider = (value: number[] | undefined) => {
 
     <!-- ============ Progress ============ -->
     <section class="mt-10" aria-labelledby="h-progress">
-      <h2 id="h-progress" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+      <h2
+        id="h-progress"
+        class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary"
+      >
         Progress
       </h2>
       <div class="grid max-w-2xl gap-4">
@@ -377,7 +431,10 @@ const setSlider = (value: number[] | undefined) => {
 
     <!-- ============ Skeleton ============ -->
     <section class="mt-10" aria-labelledby="h-skeleton">
-      <h2 id="h-skeleton" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+      <h2
+        id="h-skeleton"
+        class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary"
+      >
         Skeleton
       </h2>
       <div class="flex flex-wrap items-center gap-3">
@@ -391,7 +448,10 @@ const setSlider = (value: number[] | undefined) => {
 
     <!-- ============ Tooltip ============ -->
     <section class="mt-10" aria-labelledby="h-tooltip">
-      <h2 id="h-tooltip" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+      <h2
+        id="h-tooltip"
+        class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary"
+      >
         Tooltip
       </h2>
       <p class="mb-4 text-sm text-theme-primary/60">
@@ -401,7 +461,10 @@ const setSlider = (value: number[] | undefined) => {
         <div class="flex flex-wrap items-center gap-3">
           <Tooltip :default-open="true">
             <TooltipTrigger as-child>
-              <button type="button" class="rounded border border-theme-primary px-3 py-1.5 text-sm text-theme-primary">
+              <button
+                type="button"
+                class="rounded border border-theme-primary px-3 py-1.5 text-sm text-theme-primary"
+              >
                 Tooltip top
               </button>
             </TooltipTrigger>
@@ -409,7 +472,10 @@ const setSlider = (value: number[] | undefined) => {
           </Tooltip>
           <Tooltip :default-open="true">
             <TooltipTrigger as-child>
-              <button type="button" class="rounded border border-theme-primary px-3 py-1.5 text-sm text-theme-primary">
+              <button
+                type="button"
+                class="rounded border border-theme-primary px-3 py-1.5 text-sm text-theme-primary"
+              >
                 Tooltip bottom
               </button>
             </TooltipTrigger>
@@ -417,7 +483,10 @@ const setSlider = (value: number[] | undefined) => {
           </Tooltip>
           <Tooltip :default-open="true">
             <TooltipTrigger as-child>
-              <button type="button" class="rounded border border-theme-primary px-3 py-1.5 text-sm text-theme-primary">
+              <button
+                type="button"
+                class="rounded border border-theme-primary px-3 py-1.5 text-sm text-theme-primary"
+              >
                 Tooltip left
               </button>
             </TooltipTrigger>
@@ -425,7 +494,10 @@ const setSlider = (value: number[] | undefined) => {
           </Tooltip>
           <Tooltip :default-open="true">
             <TooltipTrigger as-child>
-              <button type="button" class="rounded border border-theme-primary px-3 py-1.5 text-sm text-theme-primary">
+              <button
+                type="button"
+                class="rounded border border-theme-primary px-3 py-1.5 text-sm text-theme-primary"
+              >
                 Tooltip right
               </button>
             </TooltipTrigger>
@@ -437,11 +509,20 @@ const setSlider = (value: number[] | undefined) => {
 
     <!-- ============ Icon Button ============ -->
     <section class="mt-10" aria-labelledby="h-iconbutton">
-      <h2 id="h-iconbutton" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+      <h2
+        id="h-iconbutton"
+        class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary"
+      >
         Icon Button
       </h2>
       <div class="flex flex-wrap items-center gap-3">
-        <Button v-for="size in iconButtonSizes" :key="size" :size="size" variant="ghost" :aria-label="`Icon ${size}`">
+        <Button
+          v-for="size in iconButtonSizes"
+          :key="size"
+          :size="size"
+          variant="ghost"
+          :aria-label="`Icon ${size}`"
+        >
           <Icon icon="mdi:wrench" />
         </Button>
         <Button size="icon-sm" variant="ghost" aria-label="Delete" disabled>
@@ -452,7 +533,10 @@ const setSlider = (value: number[] | undefined) => {
 
     <!-- ============ Toast ============ -->
     <section class="mt-10" aria-labelledby="h-toast">
-      <h2 id="h-toast" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+      <h2
+        id="h-toast"
+        class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary"
+      >
         Toast
       </h2>
       <p class="mb-4 text-sm text-theme-primary/60">
@@ -465,17 +549,24 @@ const setSlider = (value: number[] | undefined) => {
 
     <!-- ============ Toaster ============ -->
     <section class="mt-10" aria-labelledby="h-toaster">
-      <h2 id="h-toaster" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+      <h2
+        id="h-toaster"
+        class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary"
+      >
         Toaster
       </h2>
       <p class="text-sm text-theme-primary/60">
-        Mounted globally in App.vue; seeded with four duration-0 toasts on mount (visible top-right).
+        Mounted globally in App.vue; seeded with four duration-0 toasts on mount (visible
+        top-right).
       </p>
     </section>
 
     <!-- ============ SettingItem ============ -->
     <section class="mt-10" aria-labelledby="h-settingitem">
-      <h2 id="h-settingitem" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+      <h2
+        id="h-settingitem"
+        class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary"
+      >
         SettingItem
       </h2>
       <div class="max-w-md rounded-lg border-2 border-theme-primary/20 bg-surface">

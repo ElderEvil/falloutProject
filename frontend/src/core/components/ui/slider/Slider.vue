@@ -5,7 +5,9 @@ import { reactiveOmit } from '@vueuse/core'
 import { SliderRange, SliderRoot, SliderThumb, SliderTrack, useForwardPropsEmits } from 'reka-ui'
 import { cn } from '@/core/utils/cn'
 
-const props = defineProps<SliderRootProps & { class?: HTMLAttributes['class'], 'aria-label'?: string }>()
+const props = defineProps<
+  SliderRootProps & { class?: HTMLAttributes['class']; 'aria-label'?: string }
+>()
 const emits = defineEmits<SliderRootEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class')
@@ -19,10 +21,12 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     v-slot="{ modelValue }"
     data-slot="slider"
     :data-vertical="props.orientation === 'vertical' ? '' : undefined"
-    :class="cn(
-      'data-vertical:min-h-40 relative flex w-full touch-none items-center select-none data-disabled:opacity-50 data-vertical:h-full data-vertical:w-auto data-vertical:flex-col',
-      props.class,
-    )"
+    :class="
+      cn(
+        'data-vertical:min-h-40 relative flex w-full touch-none items-center select-none data-disabled:opacity-50 data-vertical:h-full data-vertical:w-auto data-vertical:flex-col',
+        props.class
+      )
+    "
     v-bind="forwarded"
   >
     <!-- @vue-ignore -->

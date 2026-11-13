@@ -7,10 +7,7 @@ const props = defineProps<TooltipTriggerProps>()
 
 <template>
   <!-- @vue-ignore -->
-  <TooltipTrigger
-    data-slot="tooltip-trigger"
-    v-bind="props"
-  >
+  <TooltipTrigger data-slot="tooltip-trigger" v-bind="props">
     <slot />
   </TooltipTrigger>
 </template>

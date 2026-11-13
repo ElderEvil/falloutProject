@@ -52,7 +52,12 @@ export function getRoomImageUrl(imageUrl: string | null | undefined): string | n
  */
 export function getStaticImageUrl(imageUrl: string | null | undefined): string | null {
   if (!imageUrl) return null
-  if (imageUrl.startsWith('data:') || imageUrl.startsWith('blob:') || imageUrl.includes('://') || imageUrl.startsWith('//')) {
+  if (
+    imageUrl.startsWith('data:') ||
+    imageUrl.startsWith('blob:') ||
+    imageUrl.includes('://') ||
+    imageUrl.startsWith('//')
+  ) {
     return normalizeImageUrl(imageUrl)
   }
   return getRoomImageUrl(imageUrl)

@@ -7,10 +7,7 @@ const props = defineProps<DialogTriggerProps>()
 
 <template>
   <!-- @vue-ignore -->
-  <DialogTrigger
-    data-slot="dialog-trigger"
-    v-bind="props"
-  >
+  <DialogTrigger data-slot="dialog-trigger" v-bind="props">
     <slot />
   </DialogTrigger>
 </template>

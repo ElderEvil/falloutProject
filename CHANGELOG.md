@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.1.4 (2026-11-14)
+
+### Bug Fixes
+
+* **deps:** clear the dnspython and opentelemetry advisories 910b279
+* **deps:** clear the dnspython and opentelemetry advisories ([#1409](https://github.com/ElderEvil/falloutProject/issues/1409)) 3699aba
+
+### Documentation
+
+* **3.1:** mark the logfire upgrade as adopted bdcccb5
+
 ## 3.1.3 (2026-11-14)
 
 ### Bug Fixes

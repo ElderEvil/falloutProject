@@ -175,6 +175,72 @@ async def test_auto_assign_respects_age_group_filter(
 
 
 @pytest.mark.asyncio
+async def test_auto_assign_separates_eligible_pool_from_slot_cap(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    """The payload keeps the candidate pool apart from what free room slots allowed."""
+    from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
+    from app.schemas.dweller import DwellerCreate
+    from app.schemas.room import RoomCreate
+
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+    room = await crud.room.create(
+        async_session,
+        RoomCreate(
+            name="Power Generator",
+            vault_id=vault.id,
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.STRENGTH,
+            population_required=12,
+            base_cost=100,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            tier=1,
+            size=3,
+            size_min=3,
+            size_max=9,
+        ),
+    )
+
+    for index in range(3):
+        await crud.dweller.create(
+            async_session,
+            DwellerCreate(
+                first_name=f"Pool{index}",
+                last_name="Worker",
+                vault_id=vault.id,
+                gender="male",
+                rarity="common",
+                strength=5 - index,
+                perception=3,
+                endurance=3,
+                charisma=3,
+                intelligence=3,
+                agility=3,
+                luck=3,
+                status=DwellerStatusEnum.IDLE,
+            ),
+        )
+
+    response = await async_client.post(
+        f"/vaults/{vault.id}/dwellers/auto-assign-all",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    # size=3 holds two workers, so the third eligible adult has nowhere to go.
+    assert payload["assigned_count"] == 2
+    assert payload["eligible_count"] == 3
+    assert len(payload["assignments"]) == payload["assigned_count"]
+
+
+@pytest.mark.asyncio
 async def test_auto_assign_training_room_sets_training_status(
     async_client: AsyncClient,
     async_session: AsyncSession,

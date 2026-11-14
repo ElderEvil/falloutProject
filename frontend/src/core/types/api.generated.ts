@@ -5918,6 +5918,8 @@ export interface components {
         AutoAssignResponse: {
             /** Assigned Count */
             assigned_count: number;
+            /** Eligible Count */
+            eligible_count: number;
             /** Assignments */
             assignments: components["schemas"]["DwellerAssignmentItem"][];
         };

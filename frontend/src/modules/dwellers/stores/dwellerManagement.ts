@@ -390,7 +390,12 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       // Refetch dwellers to update UI
       await filterStore.fetchWithCurrentFilters(vaultId, token)
 
-      toast.success(`Assigned ${response.data.assigned_count} dwellers ${successSuffix}`)
+      const { assigned_count, eligible_count } = response.data
+      const summary =
+        eligible_count > assigned_count
+          ? `Assigned ${assigned_count} of ${eligible_count} eligible dwellers ${successSuffix}`
+          : `Assigned ${assigned_count} dwellers ${successSuffix}`
+      toast.success(summary)
       return response.data
     } catch (error) {
       handleStoreError(error, `${failureLabel} for vault ${vaultId}`)

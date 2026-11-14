@@ -97,9 +97,10 @@ Milestone [3.1](https://github.com/ElderEvil/falloutProject/milestone/2), gated 
 - [Pydantic v3 #1258](https://github.com/ElderEvil/falloutProject/issues/1258), TypeScript 7, HTTPX 2
   and the remaining tooling items.
 - Each waits for its ecosystem: SQLModel/PydanticAI/FastAPI for Pydantic v3, Volar/`vue-tsc` for
-  TypeScript 7. The TypeScript `>=7` Dependabot ignore is the only Dependabot hold left, and uv still
-  constrains `logfire`/`logfire-api` to `<5`. The `sqlmodel`/`sqlalchemy` bounds moved with the 3.0 ORM
-  bump; the `multidict`, `soupsieve` and `websockets` holds were lifted in #1393.
+  TypeScript 7. The TypeScript `>=7` Dependabot ignore is the only Dependabot hold left. The
+  `sqlmodel`/`sqlalchemy` bounds moved with the 3.0 ORM bump; the `multidict`, `soupsieve` and
+  `websockets` holds were lifted in #1393, and the `logfire`/`logfire-api` `<5` constraints were
+  lifted on 2026-11-14 when no consumer capped them below 5 (5.6.0, measured in the 3.1 baseline).
 - Upgrade on measured evidence: the
   [3.1 baseline contract](plans/2026-11-11-3.1-dependency-baseline.md) freezes the before-snapshot
   (app import, RSS, validation, typecheck) and `scripts/dep-baseline.py` reproduces it per candidate

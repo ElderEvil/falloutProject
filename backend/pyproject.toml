@@ -69,13 +69,6 @@ fo-cli = "app.cli.main:cli"
 
 [tool.uv]
 default-groups = ["test", "lint"]
-# Held majors awaiting upstream support: logfire/logfire-api stay pinned until the
-# Pydantic v3 pass. multidict, soupsieve and websockets were lifted by the 3.1 pass;
-# each consumer already allows the new major (aiohttp <8, bs4 uncapped, uvicorn >=13).
-constraint-dependencies = [
-    "logfire<5",
-    "logfire-api<5",
-]
 
 [build-system]
 requires = ["setuptools>=83.0.0"]

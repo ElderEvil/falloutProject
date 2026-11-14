@@ -171,7 +171,7 @@ test.describe('Login form interaction', () => {
   test('has working register link', async ({ page }) => {
     await page.goto('/login')
     await page.waitForLoadState('networkidle')
-    const registerLink = page.locator('nav a[aria-label="Go to registration page"]')
+    const registerLink = page.locator('nav[aria-label="Main navigation"] a[href="/register"]')
     await expect(registerLink).toBeVisible()
     const href = await registerLink.getAttribute('href')
     expect(href).toBe('/register')
@@ -195,7 +195,7 @@ test.describe('Register form interaction', () => {
   test('has working login link', async ({ page }) => {
     await page.goto('/register')
     await page.waitForLoadState('networkidle')
-    const loginLink = page.locator('nav a[aria-label="Go to login page"]')
+    const loginLink = page.locator('nav[aria-label="Main navigation"] a[href="/login"]')
     await expect(loginLink).toBeVisible()
     const href = await loginLink.getAttribute('href')
     expect(href).toBe('/login')

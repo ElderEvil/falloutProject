@@ -22,6 +22,7 @@
     "format:check": "vp fmt src --check",
     "typecheck": "vue-tsc --noEmit -p tsconfig.app.json",
     "e2e": "playwright install chromium && playwright test",
+    "e2e:a11y": "PW_SKIP_BACKEND=1 playwright test tests/e2e/accessibility.spec.ts",
     "e2e:ui": "playwright install chromium && playwright test --ui",
     "e2e:install": "playwright install chromium",
     "perf:ui:check": "vp lint playwright.perf.config.ts tests/performance scripts/run-ui-performance.mjs scripts/summarize-ui-performance.mjs && tsc --noEmit -p tsconfig.perf.json",
@@ -48,6 +49,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@playwright/test": "1.65.0",
     "@tailwindcss/vite": "^4.3.4",
     "@tauri-apps/cli": "2.12.4",

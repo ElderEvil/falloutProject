@@ -497,6 +497,8 @@ const apiUrl = import.meta.env.VITE_API_BASE_URL
 - **[ACCESSIBILITY.md](./ACCESSIBILITY.md)** - WCAG target, implementation policy, and verification plan
 - **[src/core/components/ui/README.md](./src/core/components/ui/README.md)** - UI component API
 - **[HTTP_CLIENT_MIGRATION.md](./HTTP_CLIENT_MIGRATION.md)** - Shared API boundary consolidation plan
+- **[DWELLER_ANIMATION_RESEARCH.md](./DWELLER_ANIMATION_RESEARCH.md)** - Skeletal animation research, tool comparison, and recommendation
+- **[DWELLER_MOTION_LAB.md](./DWELLER_MOTION_LAB.md)** - Rigby2D prototype architecture, assets, playback, validation, and limitations
 
 ## 🔧 Troubleshooting
 

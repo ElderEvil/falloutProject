@@ -7,11 +7,7 @@ import type { Exploration } from '@/modules/exploration/stores/exploration'
 export { formatRemaining, parseStartTimeMs }
 
 /** Clamped 0–100 elapsed fraction of a `[startedAtMs, endsAtMs]` window; a zero-length window reads as complete. */
-export function linearProgress(
-  startedAtMs: number,
-  endsAtMs: number,
-  nowMs = Date.now()
-): number {
+export function linearProgress(startedAtMs: number, endsAtMs: number, nowMs = Date.now()): number {
   const total = endsAtMs - startedAtMs
   if (total <= 0) return 100
   return Math.max(0, Math.min(100, ((nowMs - startedAtMs) / total) * 100))

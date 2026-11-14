@@ -1,11 +1,7 @@
 import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
-import type {
-  Dweller,
-  DwellerShort,
-  DwellerTickSnapshot,
-} from '@/modules/dwellers/models/dweller'
+import type { Dweller, DwellerShort, DwellerTickSnapshot } from '@/modules/dwellers/models/dweller'
 import {
   getEffectiveMaxHealth,
   hasLowHappiness,
@@ -687,11 +683,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
   }
 
-  function applyDwellerTick(
-    vaultId: string,
-    snapshot: DwellerTickSnapshot[],
-    token: string
-  ): void {
+  function applyDwellerTick(vaultId: string, snapshot: DwellerTickSnapshot[], token: string): void {
     const vaultStore = useVaultStore()
     if (vaultStore.activeVaultId && vaultStore.activeVaultId !== vaultId) return
 

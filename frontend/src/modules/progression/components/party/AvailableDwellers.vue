@@ -54,9 +54,7 @@ const getDwellerLevel = (dweller: DwellerShort) => dweller.level || 1
       >
         <div class="dweller-checkbox">
           <Icon
-            :icon="
-              isSelected(dweller.id) ? 'mdi:checkbox-marked' : 'mdi:checkbox-blank-outline'
-            "
+            :icon="isSelected(dweller.id) ? 'mdi:checkbox-marked' : 'mdi:checkbox-blank-outline'"
             class="checkbox-icon"
           />
         </div>

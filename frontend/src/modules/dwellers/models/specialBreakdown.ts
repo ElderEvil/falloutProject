@@ -2,7 +2,14 @@ import type { Dweller } from './dweller'
 
 export type SpecialLetter = 'S' | 'P' | 'E' | 'C' | 'I' | 'A' | 'L'
 
-type SpecialStat = 'strength' | 'perception' | 'endurance' | 'charisma' | 'intelligence' | 'agility' | 'luck'
+type SpecialStat =
+  | 'strength'
+  | 'perception'
+  | 'endurance'
+  | 'charisma'
+  | 'intelligence'
+  | 'agility'
+  | 'luck'
 
 export interface SpecialBreakdown {
   letter: SpecialLetter
@@ -33,7 +40,9 @@ type BreakdownInput = Pick<Dweller, SpecialLetter | 'outfit' | 'identity_modifie
  * ``options.identity_modifiers.effective_stat``: stored + identity + outfit + pet,
  * floored at 1, never capped, never persisted.
  */
-export function getSpecialBreakdown(dweller: BreakdownInput | null | undefined): SpecialBreakdown[] {
+export function getSpecialBreakdown(
+  dweller: BreakdownInput | null | undefined
+): SpecialBreakdown[] {
   if (!dweller) return []
   return LETTER_DEFS.map(({ letter, label, stat }) => {
     const base = dweller[letter] ?? 0

@@ -41,7 +41,13 @@ function reveal(mask: Uint8Array, tiles: number, cx: number, cy: number, radius:
 export function computeExploredMask(input: FogInput, tiles = ATLAS_TILES): Uint8Array {
   const mask = new Uint8Array(tiles * tiles)
   const revealAt = (point: FogPoint, radius: number): void =>
-    reveal(mask, tiles, registryToTile(point.coord_x, tiles), registryToTile(point.coord_y, tiles), radius)
+    reveal(
+      mask,
+      tiles,
+      registryToTile(point.coord_x, tiles),
+      registryToTile(point.coord_y, tiles),
+      radius
+    )
   const revealSegment = (from: FogPoint, to: FogPoint, radius: number): void => {
     const ax = registryToTile(from.coord_x, tiles)
     const ay = registryToTile(from.coord_y, tiles)
@@ -54,7 +60,7 @@ export function computeExploredMask(input: FogInput, tiles = ATLAS_TILES): Uint8
         tiles,
         Math.round(ax + ((bx - ax) * i) / steps),
         Math.round(ay + ((by - ay) * i) / steps),
-        radius,
+        radius
       )
     }
   }
@@ -67,7 +73,12 @@ export function computeExploredMask(input: FogInput, tiles = ATLAS_TILES): Uint8
   return mask
 }
 
-export function isExploredTile(mask: Uint8Array, x: number, y: number, tiles = ATLAS_TILES): boolean {
+export function isExploredTile(
+  mask: Uint8Array,
+  x: number,
+  y: number,
+  tiles = ATLAS_TILES
+): boolean {
   if (x < 0 || x >= tiles || y < 0 || y >= tiles) return false
   return mask[y * tiles + x] === 1
 }

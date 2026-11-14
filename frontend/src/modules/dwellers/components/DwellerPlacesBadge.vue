@@ -14,11 +14,7 @@ const tooltip = computed(
 </script>
 
 <template>
-  <span
-    v-if="count > 0"
-    class="flex items-center gap-1 text-sm font-semibold"
-    :title="tooltip"
-  >
+  <span v-if="count > 0" class="flex items-center gap-1 text-sm font-semibold" :title="tooltip">
     <Icon icon="mdi:map-outline" class="h-4 w-4 text-theme-primary/60" />
     {{ props.count }}
   </span>

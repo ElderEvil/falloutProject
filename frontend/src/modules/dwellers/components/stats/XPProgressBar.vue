@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Progress } from '@/core/components/ui/progress'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 
 interface Props {
   level: number
@@ -46,9 +51,7 @@ const barAnimation = computed(() => {
 })
 
 const tooltipText = computed(() =>
-  isMaxLevel.value
-    ? 'Maximum level reached'
-    : `${xpToNextLevel.value} XP to level ${level + 1}`
+  isMaxLevel.value ? 'Maximum level reached' : `${xpToNextLevel.value} XP to level ${level + 1}`
 )
 
 // Amber for the at-risk / max-level states, primary→accent gradient otherwise.

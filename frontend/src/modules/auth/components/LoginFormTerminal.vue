@@ -78,11 +78,19 @@ const handleSubmit = async () => {
     <template #links>
       <p>
         > NEW OVERSEER REGISTRATION:
-        <router-link to="/register" class="font-bold text-theme-primary underline underline-offset-4 hover:text-theme-primary/80">INITIATE PROTOCOL</router-link>
+        <router-link
+          to="/register"
+          class="font-bold text-theme-primary underline underline-offset-4 hover:text-theme-primary/80"
+          >INITIATE PROTOCOL</router-link
+        >
       </p>
       <p>
         > FORGOT PASSPHRASE:
-        <router-link to="/forgot-password" class="font-bold text-theme-primary underline underline-offset-4 hover:text-theme-primary/80">RESET ACCESS</router-link>
+        <router-link
+          to="/forgot-password"
+          class="font-bold text-theme-primary underline underline-offset-4 hover:text-theme-primary/80"
+          >RESET ACCESS</router-link
+        >
       </p>
     </template>
   </AuthTerminalFrame>

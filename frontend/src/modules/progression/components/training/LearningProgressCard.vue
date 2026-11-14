@@ -83,8 +83,13 @@ const fill = computed(() =>
           class="mt-1 flex flex-wrap items-center justify-between gap-2 font-mono text-xs text-theme-primary"
         >
           <span class="inline-flex min-w-0 items-center gap-1">
-            <Icon :icon="ability?.icon ?? 'mdi:star'" class="completion-stat-icon size-4 shrink-0" />
-            <span class="truncate">{{ ability?.label ?? stat }} {{ currentStat }} → {{ targetStat }}</span>
+            <Icon
+              :icon="ability?.icon ?? 'mdi:star'"
+              class="completion-stat-icon size-4 shrink-0"
+            />
+            <span class="truncate"
+              >{{ ability?.label ?? stat }} {{ currentStat }} → {{ targetStat }}</span
+            >
           </span>
           <slot name="goal" />
         </div>

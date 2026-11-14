@@ -173,19 +173,19 @@ const handleAssignAndStart = () => {
     body-class="flex-1 overflow-y-auto px-5 pt-5 pb-5"
     @update:open="emit('update:modelValue', $event)"
   >
-      <template #header-extra>
-        <Button
-          v-if="details"
-          variant="outline"
-          size="xs"
-          type="button"
-          class="ml-auto font-mono text-xs font-bold"
-          @click="emit('details')"
-        >
-          Details
-        </Button>
-      </template>
-      <template #subheader>
+    <template #header-extra>
+      <Button
+        v-if="details"
+        variant="outline"
+        size="xs"
+        type="button"
+        class="ml-auto font-mono text-xs font-bold"
+        @click="emit('details')"
+      >
+        Details
+      </Button>
+    </template>
+    <template #subheader>
       <div
         v-if="subtitle || subtitleStatus"
         class="flex flex-wrap items-center gap-2 border-b border-theme-primary/20 px-6 py-2 text-xs text-theme-primary/70"
@@ -207,7 +207,7 @@ const handleAssignAndStart = () => {
         </Badge>
         <span v-if="subtitle">{{ subtitle }}</span>
       </div>
-      </template>
+    </template>
 
     <div class="party-modal-content">
       <PartySlots
@@ -233,28 +233,28 @@ const handleAssignAndStart = () => {
       </div>
     </div>
 
-      <SupplySliders
-        v-if="showSupplies"
-        :selected-stimpaks="selectedStimpaks"
-        :selected-radaways="selectedRadaways"
-        :max-stimpaks="maxStimpaks"
-        :max-radaways="maxRadaways"
-        :stimpak-max="stimpakMax"
-        :radaway-max="radawayMax"
-        @update:stimpaks="setStimpaks"
-        @update:radaways="setRadaways"
-      />
+    <SupplySliders
+      v-if="showSupplies"
+      :selected-stimpaks="selectedStimpaks"
+      :selected-radaways="selectedRadaways"
+      :max-stimpaks="maxStimpaks"
+      :max-radaways="maxRadaways"
+      :stimpak-max="stimpakMax"
+      :radaway-max="radawayMax"
+      @update:stimpaks="setStimpaks"
+      @update:radaways="setRadaways"
+    />
 
-      <template #footer>
-        <TerminalModalActions
-          cancel-label="Cancel"
-          :confirm-label="quest ? 'Start Quest' : 'Dispatch'"
-          confirm-icon="mdi:check"
-          :confirm-disabled="!canSubmit"
-          @cancel="close"
-          @confirm="quest ? handleAssignAndStart() : handleAssign()"
-        />
-      </template>
+    <template #footer>
+      <TerminalModalActions
+        cancel-label="Cancel"
+        :confirm-label="quest ? 'Start Quest' : 'Dispatch'"
+        confirm-icon="mdi:check"
+        :confirm-disabled="!canSubmit"
+        @cancel="close"
+        @confirm="quest ? handleAssignAndStart() : handleAssign()"
+      />
+    </template>
   </TerminalModal>
 </template>
 

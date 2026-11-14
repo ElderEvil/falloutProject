@@ -3,10 +3,7 @@ import { Icon } from '@iconify/vue'
 import { formatQuestReward, questRewardIcon } from '../models/quest'
 import type { QuestReward } from '../models/quest'
 
-withDefaults(
-  defineProps<{ rewards: QuestReward[], fallbackText?: string }>(),
-  { fallbackText: '' }
-)
+withDefaults(defineProps<{ rewards: QuestReward[]; fallbackText?: string }>(), { fallbackText: '' })
 </script>
 
 <template>

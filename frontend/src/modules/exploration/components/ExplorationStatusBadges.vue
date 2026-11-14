@@ -2,7 +2,12 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Badge } from '@/core/components/ui/badge'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import { getStatusConfig } from '@/modules/dwellers/models/dweller'
 import type { DetailedDweller, Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
@@ -45,7 +50,11 @@ const timeRemaining = computed(() => getTimeRemaining(props.exploration))
 // Reuse the dweller status visuals for the persistent EXPLORING chip.
 const exploringConfig = getStatusConfig('exploring')
 // Every non-alert state shares one colour treatment so the chip reads consistently.
-const statusBadgeClass = [exploringConfig.color, exploringConfig.bgColor, exploringConfig.borderColor]
+const statusBadgeClass = [
+  exploringConfig.color,
+  exploringConfig.bgColor,
+  exploringConfig.borderColor,
+]
 // Compact chips drop the text label and tighten padding, like the small icon-only dweller badges.
 const compactClass = computed(() => (props.compact ? 'gap-0 px-1.5 py-0.5' : ''))
 

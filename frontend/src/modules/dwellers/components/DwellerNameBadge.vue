@@ -28,9 +28,7 @@ const healthTone = computed(() => {
 })
 const title = computed(() => {
   const name = props.fullName ?? props.name
-  return healthPercent.value === null
-    ? name
-    : `${name} · ${props.health}/${props.maxHealth} HP`
+  return healthPercent.value === null ? name : `${name} · ${props.health}/${props.maxHealth} HP`
 })
 </script>
 

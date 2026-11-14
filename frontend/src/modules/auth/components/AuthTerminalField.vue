@@ -2,19 +2,22 @@
 import { Input } from '@/core/components/ui/input'
 import { Label } from '@/core/components/ui/label'
 
-withDefaults(defineProps<{
-  id: string
-  label: string
-  type?: string
-  placeholder?: string
-  autocomplete?: string
-  required?: boolean
-  disabled?: boolean
-}>(), {
-  type: 'text',
-  required: false,
-  disabled: false,
-})
+withDefaults(
+  defineProps<{
+    id: string
+    label: string
+    type?: string
+    placeholder?: string
+    autocomplete?: string
+    required?: boolean
+    disabled?: boolean
+  }>(),
+  {
+    type: 'text',
+    required: false,
+    disabled: false,
+  }
+)
 
 const model = defineModel<string>({ required: true })
 </script>

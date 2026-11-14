@@ -50,7 +50,8 @@ const breakdownByKey = computed(() => {
   return map
 })
 
-const effectiveValue = (key: StatKey): number => breakdownByKey.value.get(key)?.effective ?? statValue(key)
+const effectiveValue = (key: StatKey): number =>
+  breakdownByKey.value.get(key)?.effective ?? statValue(key)
 
 const bonusSources = (key: StatKey): string[] => {
   const row = breakdownByKey.value.get(key)
@@ -77,7 +78,12 @@ const barModel = (key: StatKey): BarModel => {
   const base = row ? row.base : statValue(key)
   const bonus = row ? row.effective - row.base : 0
   if (bonus <= 0) {
-    return { base: Math.max(0, Math.min(10, base + bonus)) * 10, bonus: 0, overflow: false, negative: bonus < 0 }
+    return {
+      base: Math.max(0, Math.min(10, base + bonus)) * 10,
+      bonus: 0,
+      overflow: false,
+      negative: bonus < 0,
+    }
   }
   const baseWidth = Math.min(10, base) * 10
   return {
@@ -145,19 +151,35 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
   if (modifiers.radiation_immune) {
     rows.push({ label: 'Radiation', value: 'Immune', icon: 'mdi:radiation' })
   } else if (modifiers.radiation_resist_pct > 0) {
-    rows.push({ label: 'Radiation Resist', value: percent(modifiers.radiation_resist_pct), icon: 'mdi:radiation' })
+    rows.push({
+      label: 'Radiation Resist',
+      value: percent(modifiers.radiation_resist_pct),
+      icon: 'mdi:radiation',
+    })
   }
   if (modifiers.energy_weapon_damage_pct > 0) {
-    rows.push({ label: 'Energy Weapons', value: percent(modifiers.energy_weapon_damage_pct), icon: 'mdi:lightning-bolt' })
+    rows.push({
+      label: 'Energy Weapons',
+      value: percent(modifiers.energy_weapon_damage_pct),
+      icon: 'mdi:lightning-bolt',
+    })
   }
   if (modifiers.melee_damage_pct > 0) {
     rows.push({ label: 'Melee', value: percent(modifiers.melee_damage_pct), icon: 'mdi:sword' })
   }
   if (modifiers.incident_response_pct > 0) {
-    rows.push({ label: 'Incident Response', value: `-${percent(modifiers.incident_response_pct)} damage`, icon: 'mdi:shield-half-full' })
+    rows.push({
+      label: 'Incident Response',
+      value: `-${percent(modifiers.incident_response_pct)} damage`,
+      icon: 'mdi:shield-half-full',
+    })
   }
   if (modifiers.production_pct > 0) {
-    rows.push({ label: 'Production', value: percent(modifiers.production_pct), icon: 'mdi:factory' })
+    rows.push({
+      label: 'Production',
+      value: percent(modifiers.production_pct),
+      icon: 'mdi:factory',
+    })
   }
   return rows
 })
@@ -166,7 +188,12 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
 <template>
   <div class="dweller-stats">
     <div class="guide-header-row">
-      <Button variant="outline" size="sm" aria-label="Open SPECIAL field guide" @click="guideOpen = true">
+      <Button
+        variant="outline"
+        size="sm"
+        aria-label="Open SPECIAL field guide"
+        @click="guideOpen = true"
+      >
         <Icon icon="mdi:information-outline" class="guide-icon" />
       </Button>
     </div>
@@ -189,7 +216,9 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
         </div>
         <div
           class="stat-bar"
-          :class="{ 'stat-overflow-bar': barModel(stat.key).overflow && barModel(stat.key).bonus === 0 }"
+          :class="{
+            'stat-overflow-bar': barModel(stat.key).overflow && barModel(stat.key).bonus === 0,
+          }"
           role="img"
           :title="barTitle(stat.key)"
           :aria-label="`${stat.label}: ${barTitle(stat.key)}`"
@@ -210,7 +239,9 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
           ></div>
         </div>
         <p v-if="bonusSources(stat.key).length > 0" class="stat-breakdown">
-          {{ statValue(stat.key) }} → {{ effectiveValue(stat.key) }} ({{ bonusSources(stat.key).join(' · ') }})
+          {{ statValue(stat.key) }} → {{ effectiveValue(stat.key) }} ({{
+            bonusSources(stat.key).join(' · ')
+          }})
         </p>
         <span v-if="petSource(stat.key)" class="stat-pet-chip">
           <Icon icon="mdi:paw" class="stat-pet-icon" />

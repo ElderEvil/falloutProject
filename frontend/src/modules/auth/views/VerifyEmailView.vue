@@ -10,11 +10,7 @@ import { useEmailVerificationResend } from '../composables/useEmailVerificationR
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const {
-  status: resendStatus,
-  label: resendLabel,
-  resend,
-} = useEmailVerificationResend()
+const { status: resendStatus, label: resendLabel, resend } = useEmailVerificationResend()
 
 const token = ref('')
 const error = ref('')

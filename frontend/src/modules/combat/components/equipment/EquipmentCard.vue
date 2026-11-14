@@ -37,21 +37,11 @@ const emit = defineEmits<{
     >
       <template #actions>
         <div v-if="showActions" class="flex gap-2">
-          <Button
-            v-if="!equipped"
-            class="w-full"
-            variant="secondary"
-            @click="emit('equip')"
-          >
+          <Button v-if="!equipped" class="w-full" variant="secondary" @click="emit('equip')">
             <Icon icon="mdi:check" />
             Equip
           </Button>
-          <Button
-            v-else
-            class="w-full"
-            variant="destructive"
-            @click="emit('unequip')"
-          >
+          <Button v-else class="w-full" variant="destructive" @click="emit('unequip')">
             <Icon icon="mdi:close" />
             Unequip
           </Button>

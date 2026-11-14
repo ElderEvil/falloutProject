@@ -90,21 +90,42 @@ const hasActivity = computed(() => metrics.value.some((metric) => metric.value >
       </CardHeader>
 
       <CardContent>
-        <div v-if="hasActivity" class="grid gap-px overflow-hidden border border-theme-primary/25 bg-theme-primary/25 sm:grid-cols-2 xl:grid-cols-4">
-          <article v-for="metric in metrics" :key="metric.label" class="bg-surface-sunken p-4 transition-colors duration-200 hover:bg-surface-hover">
+        <div
+          v-if="hasActivity"
+          class="grid gap-px overflow-hidden border border-theme-primary/25 bg-theme-primary/25 sm:grid-cols-2 xl:grid-cols-4"
+        >
+          <article
+            v-for="metric in metrics"
+            :key="metric.label"
+            class="bg-surface-sunken p-4 transition-colors duration-200 hover:bg-surface-hover"
+          >
             <div class="flex items-start justify-between gap-3">
-              <p class="text-xs font-bold tracking-[0.14em] text-theme-primary/65">{{ metric.label }}</p>
+              <p class="text-xs font-bold tracking-[0.14em] text-theme-primary/65">
+                {{ metric.label }}
+              </p>
               <Icon :icon="metric.icon" class="h-5 w-5 shrink-0 text-theme-accent" />
             </div>
-            <p class="mt-5 font-mono text-4xl font-bold tracking-tight text-theme-primary">{{ metric.value.toLocaleString('en-US') }}</p>
+            <p class="mt-5 font-mono text-4xl font-bold tracking-tight text-theme-primary">
+              {{ metric.value.toLocaleString('en-US') }}
+            </p>
             <p class="mt-2 text-xs leading-5 text-theme-primary/55">{{ metric.detail }}</p>
           </article>
         </div>
 
-        <div v-else class="border border-dashed border-theme-primary/30 bg-surface-sunken px-5 py-8 text-center">
-          <Icon icon="mdi:chart-timeline-variant-shimmer" class="mx-auto h-9 w-9 text-theme-primary/45" />
-          <p class="mt-3 text-sm font-bold tracking-[0.08em] text-theme-primary/80">No vault activity reported yet.</p>
-          <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-theme-primary/55">Records accumulate as your vault operates.</p>
+        <div
+          v-else
+          class="border border-dashed border-theme-primary/30 bg-surface-sunken px-5 py-8 text-center"
+        >
+          <Icon
+            icon="mdi:chart-timeline-variant-shimmer"
+            class="mx-auto h-9 w-9 text-theme-primary/45"
+          />
+          <p class="mt-3 text-sm font-bold tracking-[0.08em] text-theme-primary/80">
+            No vault activity reported yet.
+          </p>
+          <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-theme-primary/55">
+            Records accumulate as your vault operates.
+          </p>
         </div>
       </CardContent>
     </Card>

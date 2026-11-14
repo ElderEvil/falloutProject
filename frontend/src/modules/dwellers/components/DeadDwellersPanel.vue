@@ -60,6 +60,16 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-.dead-dweller-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; width: 100%; }
-@media (max-width: 640px) { .dead-dweller-grid { grid-template-columns: 1fr; gap: 1rem; } }
+.dead-dweller-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+}
+@media (max-width: 640px) {
+  .dead-dweller-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
 </style>

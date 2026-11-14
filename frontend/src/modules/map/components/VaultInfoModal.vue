@@ -22,9 +22,7 @@ const open = defineModel<boolean>('open', { required: true })
 
 const modalTitle = computed(() => (props.vault ? `Vault ${props.vault.number}` : 'Vault Record'))
 
-const updatedAt = computed(() =>
-  props.vault ? formatDateTime(props.vault.updated_at) : ''
-)
+const updatedAt = computed(() => (props.vault ? formatDateTime(props.vault.updated_at) : ''))
 
 // Local descriptor list so the three resource rows share one template block.
 const RESOURCE_ROWS = [

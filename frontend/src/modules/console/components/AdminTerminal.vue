@@ -120,10 +120,11 @@ function onInputKey(event: KeyboardEvent): void {
     variant="outline"
     size="sm"
     class="fixed bottom-3 left-3 z-40 gap-2 bg-surface-canvas font-mono text-xs"
-    aria-label="Open admin terminal"
+    aria-label="Console — open the admin terminal"
     @click="toggle"
   >
-    <Icon icon="mdi:console" class="size-4" /> CONSOLE <kbd class="opacity-50">`</kbd>
+    <Icon icon="mdi:console" class="size-4" /> CONSOLE
+    <kbd aria-hidden="true" class="opacity-50">`</kbd>
   </Button>
   <Dialog v-model:open="terminal.open">
     <DialogContent

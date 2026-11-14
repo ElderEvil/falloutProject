@@ -417,7 +417,6 @@ onUnmounted(() => {
             to="/login"
             v-if="!isAuthenticated"
             class="text-theme-primary hover:underline focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
-            aria-label="Go to login page"
           >
             Login
           </router-link>
@@ -425,7 +424,6 @@ onUnmounted(() => {
             to="/register"
             v-if="!isAuthenticated"
             class="text-theme-primary hover:underline focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
-            aria-label="Go to registration page"
           >
             Register
           </router-link>

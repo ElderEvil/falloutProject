@@ -27,8 +27,8 @@ test.describe('NavBar structure', () => {
     await page.waitForLoadState('networkidle')
 
     // NavBar should show login/register links for unauthenticated users
-    const loginLink = page.locator('nav a[aria-label="Go to login page"]')
-    const registerLink = page.locator('nav a[aria-label="Go to registration page"]')
+    const loginLink = page.locator('nav[aria-label="Main navigation"] a[href="/login"]')
+    const registerLink = page.locator('nav[aria-label="Main navigation"] a[href="/register"]')
 
     await expect(loginLink).toBeVisible()
     await expect(registerLink).toBeVisible()

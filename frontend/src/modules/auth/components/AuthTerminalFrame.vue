@@ -68,7 +68,7 @@ const appVersion = __APP_VERSION__
         <nav class="flex flex-col gap-2 text-xs leading-5 text-theme-primary/80">
           <slot name="links" />
         </nav>
-        <p class="text-[0.65rem] uppercase tracking-[0.08em] text-theme-primary/50">
+        <p class="text-[0.65rem] uppercase tracking-[0.08em] text-theme-primary/60">
           VAULT-TEC © 2077 • PROTECTING AMERICA'S FUTURE
         </p>
       </CardFooter>

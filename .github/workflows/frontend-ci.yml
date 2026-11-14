@@ -115,3 +115,17 @@ jobs:
         if: steps.filter.outputs.src == 'true'
         working-directory: frontend
         run: node scripts/check-bundle-budget.mjs
+
+      - name: Install Playwright Chromium
+        if: steps.filter.outputs.src == 'true'
+        timeout-minutes: 5
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run accessibility checks
+        if: steps.filter.outputs.src == 'true'
+        timeout-minutes: 10
+        working-directory: frontend
+        env:
+          PW_SKIP_BACKEND: '1'
+        run: pnpm exec playwright test tests/e2e/accessibility.spec.ts --project=chromium

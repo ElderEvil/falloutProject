@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.2.0 (2026-11-14)
+
+### Features
+
+* **a11y:** gate the entry routes with axe in PR CI 4e6be09
+* **a11y:** gate the entry routes with axe in PR CI ([#1410](https://github.com/ElderEvil/falloutProject/issues/1410)) ed3bd41
+
+### Bug Fixes
+
+* **a11y:** scan the real home dashboard and align the console launcher name c3c8798
+
 ## 3.1.4 (2026-11-14)
 
 ### Bug Fixes

@@ -89,14 +89,35 @@ class DwellerAssignmentService:
         *,
         reverse: bool = True,
     ) -> list[Dweller]:
-        """Order dwellers by the SPECIAL stat backing an ability."""
+        """Order dwellers by the SPECIAL stat backing an ability, id breaking ties.
+
+        Without the id tiebreak, equal stats leave the winner to row order, so which
+        dweller takes a scarce slot changes between otherwise identical runs.
+        """
         stat_name = ABILITY_TO_STAT_MAP[ability]
-        return sorted(dwellers, key=lambda d: getattr(d, stat_name), reverse=reverse)
+        return sorted(
+            dwellers,
+            key=lambda d: (getattr(d, stat_name), str(d.id)),
+            reverse=reverse,
+        )
 
     @staticmethod
     def _total_special(dweller: Dweller) -> int:
         """Sum of all 7 SPECIAL stats (crafting rooms have no fixed ability)."""
         return sum(int(getattr(dweller, name) or 0) for name in ABILITY_TO_STAT_MAP.values())
+
+    @staticmethod
+    def _result(
+        assignments: list[dict[str, str]],
+        eligible_workers: int,
+        eligible_apprentices: int = 0,
+    ) -> dict[str, int | list[dict[str, str]]]:
+        """Build the auto-assign payload from the placements and the pool they drew on."""
+        return {
+            "assigned_count": len(assignments),
+            "eligible_count": eligible_workers + eligible_apprentices,
+            "assignments": assignments,
+        }
 
     async def _assign_dweller_to_room(
         self,
@@ -275,7 +296,7 @@ class DwellerAssignmentService:
         assignments: list[dict[str, str]],
         assigned_dweller_ids: set,
         age_group: AgeGroupEnum | None = None,
-    ) -> None:
+    ) -> int:
         """Fill one vacant apprentice slot per production room from unassigned youth.
 
         Apprentices sit outside worker capacity (see _get_available_slots), so this
@@ -289,9 +310,12 @@ class DwellerAssignmentService:
         commit at the end (see crud.dweller.lock_vault); the
         ``uq_dweller_active_apprentice_room`` index remains the integrity backstop
         for a manual assignment racing the same room.
+
+        Returns the number of unassigned youth this pass could draw from, so callers
+        can report the apprentice part of the eligible pool.
         """
         if age_group in ADULT_AGE_GROUPS:
-            return
+            return 0
 
         await crud.dweller.lock_vault(db_session, vault_id)
 
@@ -300,8 +324,9 @@ class DwellerAssignmentService:
             for d in await crud.dweller.get_unassigned_youth(db_session, vault_id)
             if d.id not in assigned_dweller_ids and not d.is_mature and (age_group is None or d.age_group == age_group)
         ]
+        eligible_apprentices = len(candidates)
         if not candidates:
-            return
+            return 0
 
         for room in rooms:
             if not candidates:
@@ -314,7 +339,7 @@ class DwellerAssignmentService:
                 continue
 
             stat_name = ABILITY_TO_STAT_MAP[room.ability]
-            youth = max(candidates, key=lambda d: getattr(d, stat_name))
+            youth = max(candidates, key=lambda d: (getattr(d, stat_name), str(d.id)))
             await crud.dweller.update(
                 db_session,
                 youth.id,
@@ -330,6 +355,7 @@ class DwellerAssignmentService:
             candidates.remove(youth)
 
         await db_session.commit()
+        return eligible_apprentices
 
     async def unassign_all_dwellers(
         self,
@@ -377,6 +403,7 @@ class DwellerAssignmentService:
         unassigned_dwellers = self._workers_only(
             await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
         )
+        eligible_workers = len(unassigned_dwellers)
 
         assignments: list[dict[str, str]] = []
         assigned_dweller_ids: set = set()
@@ -406,10 +433,10 @@ class DwellerAssignmentService:
 
             unassigned_dwellers = [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]
 
-        await self._assign_room_apprentices(
+        eligible_apprentices = await self._assign_room_apprentices(
             db_session, vault_id, all_production_rooms, assignments, assigned_dweller_ids, age_group
         )
-        return {"assigned_count": len(assignments), "assignments": assignments}
+        return self._result(assignments, eligible_workers, eligible_apprentices)
 
     async def auto_assign_training_rooms(
         self,
@@ -433,7 +460,7 @@ class DwellerAssignmentService:
             set(),
             prefer_lowest_stat=True,
         )
-        return {"assigned_count": len(assignments), "assignments": assignments}
+        return self._result(assignments, len(unassigned_dwellers))
 
     async def auto_assign_crafting_rooms(
         self,
@@ -449,7 +476,7 @@ class DwellerAssignmentService:
         assignments: list[dict[str, str]] = []
 
         await self._assign_crafting_rooms(db_session, crafting_rooms, unassigned_dwellers, assignments, set())
-        return {"assigned_count": len(assignments), "assignments": assignments}
+        return self._result(assignments, len(unassigned_dwellers))
 
     async def auto_assign_all_rooms(
         self,
@@ -477,6 +504,7 @@ class DwellerAssignmentService:
         unassigned_dwellers = self._workers_only(
             await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
         )
+        eligible_workers = len(unassigned_dwellers)
 
         assignments: list[dict[str, str]] = []
         assigned_dweller_ids: set = set()
@@ -501,10 +529,10 @@ class DwellerAssignmentService:
             db_session, crafting_rooms, unassigned_dwellers, assignments, assigned_dweller_ids
         )
 
-        await self._assign_room_apprentices(
+        eligible_apprentices = await self._assign_room_apprentices(
             db_session, vault_id, production_rooms, assignments, assigned_dweller_ids, age_group
         )
-        return {"assigned_count": len(assignments), "assignments": assignments}
+        return self._result(assignments, eligible_workers, eligible_apprentices)
 
 
 dweller_assignment_service = DwellerAssignmentService()

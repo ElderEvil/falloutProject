@@ -9,7 +9,7 @@ import {
   TooltipTrigger,
 } from '@/core/components/ui/tooltip'
 import { useDwellerStore } from '../stores/dweller'
-import { ADULT_AGE_GROUPS } from '../models/dweller'
+import { ADULT_AGE_GROUPS, type DwellerShort } from '../models/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { isCraftingRoom, isTrainingRoom } from '@/modules/rooms/models/roomParts'
@@ -30,16 +30,38 @@ const showConfirmDialog = ref(false)
 useBlockingOverlay(() => showConfirmDialog.value)
 
 /**
- * Idle adults without a room among the currently fetched (already filtered)
- * dwellers — the pool the backend will actually assign from.
+ * Counted from the unfiltered roster: the backend receives only the age filter, so a
+ * status/focus/rarity narrowing of the view must not shrink the number it assigns.
  */
-const eligibleCount = computed(
-  () =>
-    filterStore.dwellersWithStatus.filter(
-      (dweller) =>
-        dweller.status === 'idle' && !dweller.room_id && ADULT_AGE_GROUPS.has(dweller.age_group)
-    ).length
+const rosterForCounts = computed(() =>
+  filterStore.allDwellersLoadedVaultId === props.vaultId
+    ? filterStore.allDwellers
+    : filterStore.dwellers
 )
+
+const matchesAgeFilter = (dweller: DwellerShort) => {
+  const ageFilter = filterStore.filterAgeGroup
+  return ageFilter === 'all' || dweller.age_group === ageFilter
+}
+
+const idleInScope = computed(() =>
+  rosterForCounts.value.filter(
+    (dweller) => dweller.status === 'idle' && !dweller.room_id && matchesAgeFilter(dweller)
+  )
+)
+
+/** Training and crafting place workers only; the other runs also place youth apprentices. */
+const eligibleByTarget = computed(() => {
+  const workers = idleInScope.value.filter((dweller) =>
+    ADULT_AGE_GROUPS.has(dweller.age_group)
+  ).length
+  return {
+    all: idleInScope.value.length,
+    production: idleInScope.value.length,
+    training: workers,
+    crafting: workers,
+  }
+})
 
 const activeAgeFilter = computed(() =>
   filterStore.filterAgeGroup !== 'all' ? filterStore.filterAgeGroup : undefined
@@ -48,37 +70,38 @@ const activeAgeFilter = computed(() =>
 const hasTrainingRooms = computed(() => roomStore.rooms.some((room) => isTrainingRoom(room)))
 const hasCraftingRooms = computed(() => roomStore.rooms.some((room) => isCraftingRoom(room)))
 
-const emptyHint = 'No idle adult dwellers match the current filters'
+const emptyHint = 'No idle dwellers without a room match the current age filter'
 
-const filterNote = computed(() => {
-  const parts = [filterStore.filterAgeGroup, filterStore.filterStatus].filter((f) => f !== 'all')
-  return parts.length ? ` matching the current filters (${parts.join(', ')})` : ''
-})
+const filterNote = computed(() =>
+  filterStore.filterAgeGroup !== 'all'
+    ? ` matching the ${filterStore.filterAgeGroup} age filter`
+    : ''
+)
 
-const plural = computed(() => (eligibleCount.value === 1 ? '' : 's'))
+const pluralFor = (count: number) => (count === 1 ? '' : 's')
 
 const productionTooltip = computed(() =>
-  eligibleCount.value === 0
+  eligibleByTarget.value.production === 0
     ? emptyHint
-    : `Assign ${eligibleCount.value} idle dweller${plural.value}${filterNote.value} to production rooms by best SPECIAL. Rooms can fill up, so fewer may be assigned.`
+    : `Assign ${eligibleByTarget.value.production} idle dweller${pluralFor(eligibleByTarget.value.production)}${filterNote.value} to production rooms by best SPECIAL. Rooms can fill up, so fewer may be assigned.`
 )
 
 const allRoomsTooltip = computed(() =>
-  eligibleCount.value === 0
+  eligibleByTarget.value.all === 0
     ? emptyHint
-    : `Assign ${eligibleCount.value} idle dweller${plural.value}${filterNote.value} across all room types (production, med/science, radio, training, crafting) by best SPECIAL. Rooms can fill up, so fewer may be assigned.`
+    : `Assign ${eligibleByTarget.value.all} idle dweller${pluralFor(eligibleByTarget.value.all)}${filterNote.value} across all room types (production, med/science, radio, training, crafting) by best SPECIAL. Rooms can fill up, so fewer may be assigned.`
 )
 
 const trainingTooltip = computed(() =>
-  eligibleCount.value === 0
+  eligibleByTarget.value.training === 0
     ? emptyHint
-    : `Assign ${eligibleCount.value} idle dweller${plural.value}${filterNote.value} to training rooms, prioritizing each room's lowest eligible SPECIAL stat.`
+    : `Assign ${eligibleByTarget.value.training} idle dweller${pluralFor(eligibleByTarget.value.training)}${filterNote.value} to training rooms, prioritizing each room's lowest eligible SPECIAL stat.`
 )
 
 const craftingTooltip = computed(() =>
-  eligibleCount.value === 0
+  eligibleByTarget.value.crafting === 0
     ? emptyHint
-    : `Assign ${eligibleCount.value} idle dweller${plural.value}${filterNote.value} to crafting rooms, prioritizing the highest total SPECIAL.`
+    : `Assign ${eligibleByTarget.value.crafting} idle dweller${pluralFor(eligibleByTarget.value.crafting)}${filterNote.value} to crafting rooms, prioritizing the highest total SPECIAL.`
 )
 
 const handleUnassignAll = async () => {
@@ -124,7 +147,7 @@ const handleAutoAssign = async (target: keyof typeof bulkAssignActions) => {
             size="sm"
             class="border-2 border-theme-primary"
             @click="handleAutoAssign('all')"
-            :disabled="autoAssigning === 'all' || eligibleCount === 0"
+            :disabled="autoAssigning === 'all' || eligibleByTarget.all === 0"
           >
             <Icon
               :icon="autoAssigning === 'all' ? 'mdi:loading' : 'mdi:auto-mode'"
@@ -132,7 +155,7 @@ const handleAutoAssign = async (target: keyof typeof bulkAssignActions) => {
               :class="{ 'animate-spin': autoAssigning === 'all' }"
             />
             Assign All Rooms
-            <span class="action-count on-primary">{{ eligibleCount }}</span>
+            <span class="action-count on-primary">{{ eligibleByTarget.all }}</span>
           </Button>
         </TooltipTrigger>
         <TooltipContent>{{ allRoomsTooltip }}</TooltipContent>
@@ -145,7 +168,7 @@ const handleAutoAssign = async (target: keyof typeof bulkAssignActions) => {
             size="sm"
             class="border-2 border-theme-primary"
             @click="handleAutoAssign('production')"
-            :disabled="autoAssigning === 'production' || eligibleCount === 0"
+            :disabled="autoAssigning === 'production' || eligibleByTarget.production === 0"
           >
             <Icon
               :icon="autoAssigning === 'production' ? 'mdi:loading' : 'mdi:factory'"
@@ -153,7 +176,7 @@ const handleAutoAssign = async (target: keyof typeof bulkAssignActions) => {
               :class="{ 'animate-spin': autoAssigning === 'production' }"
             />
             Assign Production
-            <span class="action-count on-secondary">{{ eligibleCount }}</span>
+            <span class="action-count on-secondary">{{ eligibleByTarget.production }}</span>
           </Button>
         </TooltipTrigger>
         <TooltipContent>{{ productionTooltip }}</TooltipContent>
@@ -166,7 +189,7 @@ const handleAutoAssign = async (target: keyof typeof bulkAssignActions) => {
             size="sm"
             class="border-2 border-theme-primary"
             @click="handleAutoAssign('training')"
-            :disabled="autoAssigning === 'training' || eligibleCount === 0"
+            :disabled="autoAssigning === 'training' || eligibleByTarget.training === 0"
           >
             <Icon
               :icon="autoAssigning === 'training' ? 'mdi:loading' : 'mdi:dumbbell'"
@@ -174,7 +197,7 @@ const handleAutoAssign = async (target: keyof typeof bulkAssignActions) => {
               :class="{ 'animate-spin': autoAssigning === 'training' }"
             />
             Assign Training
-            <span class="action-count on-secondary">{{ eligibleCount }}</span>
+            <span class="action-count on-secondary">{{ eligibleByTarget.training }}</span>
           </Button>
         </TooltipTrigger>
         <TooltipContent>{{ trainingTooltip }}</TooltipContent>
@@ -187,7 +210,7 @@ const handleAutoAssign = async (target: keyof typeof bulkAssignActions) => {
             size="sm"
             class="border-2 border-theme-primary"
             @click="handleAutoAssign('crafting')"
-            :disabled="autoAssigning === 'crafting' || eligibleCount === 0"
+            :disabled="autoAssigning === 'crafting' || eligibleByTarget.crafting === 0"
           >
             <Icon
               :icon="autoAssigning === 'crafting' ? 'mdi:loading' : 'mdi:hammer-wrench'"
@@ -195,7 +218,7 @@ const handleAutoAssign = async (target: keyof typeof bulkAssignActions) => {
               :class="{ 'animate-spin': autoAssigning === 'crafting' }"
             />
             Assign Crafting
-            <span class="action-count on-secondary">{{ eligibleCount }}</span>
+            <span class="action-count on-secondary">{{ eligibleByTarget.crafting }}</span>
           </Button>
         </TooltipTrigger>
         <TooltipContent>{{ craftingTooltip }}</TooltipContent>

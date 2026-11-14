@@ -98,6 +98,7 @@ class AutoAssignResponse(BaseModel):
     """Response after auto-assigning dwellers to rooms."""
 
     assigned_count: int
+    eligible_count: int
     assignments: list[DwellerAssignmentItem]
 
 

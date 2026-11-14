@@ -32,7 +32,10 @@ export default defineConfig(({ mode }) => ({
     ignorePatterns: ['**/*.css', '**/*.generated.ts'],
   },
   staged: {
-    '*.{js,ts,tsx,vue}': ['vp lint --fix', 'vp fmt --no-error-on-unmatched-pattern'],
+    '*.{js,ts,tsx,vue}': [
+      'vp lint --fix --import-plugin --promise-plugin',
+      'vp fmt --no-error-on-unmatched-pattern',
+    ],
     '*.{json,md,css,html}': 'vp fmt --no-error-on-unmatched-pattern',
   },
   define: {

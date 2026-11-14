@@ -338,6 +338,35 @@ describe('ExpeditionSiteModal', () => {
     expect(wrapper.text()).toContain('75%')
   })
 
+  it('advertises site intel chips for checks and talk-downs', async () => {
+    mockList.mockResolvedValue([
+      {
+        ...sites[0],
+        intel: {
+          checks: [
+            { stat: 'charisma', difficulty: 3, label: 'Talk it out', bloodless: true },
+            { stat: 'intelligence', difficulty: 4, label: 'Terminal', bloodless: true },
+          ],
+          negotiable: true,
+        },
+      },
+    ])
+    const wrapper = mountModal()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('CHARISMA 3')
+    expect(wrapper.text()).toContain('INTELLIGENCE 4')
+    expect(wrapper.text()).toContain('Talks down')
+  })
+
+  it('shows no intel chips when the site has no check profile', async () => {
+    const wrapper = mountModal()
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Talks down')
+    expect(wrapper.text()).toContain('Red Rocket')
+  })
+
   it('describes a single site as already discovered by the explorer', async () => {
     const wrapper = mountModal('exp-1', 'Rachel Miller')
     await flushPromises()

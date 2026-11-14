@@ -21,7 +21,9 @@ interface Props {
 const props = defineProps<Props>()
 
 const clampedValue = computed(() => Math.min(100, Math.max(0, props.value)))
-const radiationWidth = computed(() => Math.min(clampedValue.value, Math.max(0, props.radiation ?? 0)))
+const radiationWidth = computed(() =>
+  Math.min(clampedValue.value, Math.max(0, props.radiation ?? 0))
+)
 const healthyWidth = computed(() => clampedValue.value - radiationWidth.value)
 
 // The frame owns the recessed inset; the glow adds the outer ring on top of it.

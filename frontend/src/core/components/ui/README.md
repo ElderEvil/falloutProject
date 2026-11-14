@@ -11,25 +11,25 @@ palette is owned by `core/composables/useTheme.ts`; shadcn's semantic CSS vars a
 
 ## Components
 
-| Folder | Exports |
-|---|---|
-| `alert/` | `Alert`, `AlertTitle`, `AlertDescription`, `AlertAction`, `alertVariants` |
-| `badge/` | `Badge`, `badgeVariants` |
-| `button/` | `Button`, `buttonVariants` |
-| `card/` | `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`, `CardAction` |
-| `dialog/` | `Dialog`, `DialogTrigger`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`, `DialogClose`, `DialogOverlay`, `DialogScrollContent` |
-| `input/` | `Input` |
-| `label/` | `Label` |
-| `progress/` | `Progress` |
-| `select/` | `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`, `SelectLabel`, `SelectGroup`, `SelectSeparator`, plus scroll buttons |
-| `skeleton/` | `Skeleton` |
-| `slider/` | `Slider` |
-| `switch/` | `Switch` |
-| `tabs/` | `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent`, `tabsListVariants` |
-| `toast/` | `Toast`, `Toaster` (the repo's bespoke terminal toast, driven by `useToast`) |
-| `toggle/` | `Toggle`, `toggleVariants` |
-| `toggle-group/` | `ToggleGroup`, `ToggleGroupItem` |
-| `tooltip/` | `Tooltip`, `TooltipProvider`, `TooltipTrigger`, `TooltipContent` |
+| Folder          | Exports                                                                                                                                                               |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `alert/`        | `Alert`, `AlertTitle`, `AlertDescription`, `AlertAction`, `alertVariants`                                                                                             |
+| `badge/`        | `Badge`, `badgeVariants`                                                                                                                                              |
+| `button/`       | `Button`, `buttonVariants`                                                                                                                                            |
+| `card/`         | `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`, `CardAction`                                                                       |
+| `dialog/`       | `Dialog`, `DialogTrigger`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`, `DialogClose`, `DialogOverlay`, `DialogScrollContent` |
+| `input/`        | `Input`                                                                                                                                                               |
+| `label/`        | `Label`                                                                                                                                                               |
+| `progress/`     | `Progress`                                                                                                                                                            |
+| `select/`       | `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`, `SelectLabel`, `SelectGroup`, `SelectSeparator`, plus scroll buttons                         |
+| `skeleton/`     | `Skeleton`                                                                                                                                                            |
+| `slider/`       | `Slider`                                                                                                                                                              |
+| `switch/`       | `Switch`                                                                                                                                                              |
+| `tabs/`         | `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent`, `tabsListVariants`                                                                                                  |
+| `toast/`        | `Toast`, `Toaster` (the repo's bespoke terminal toast, driven by `useToast`)                                                                                          |
+| `toggle/`       | `Toggle`, `toggleVariants`                                                                                                                                            |
+| `toggle-group/` | `ToggleGroup`, `ToggleGroupItem`                                                                                                                                      |
+| `tooltip/`      | `Tooltip`, `TooltipProvider`, `TooltipTrigger`, `TooltipContent`                                                                                                      |
 
 `SettingItem.vue` is a small bespoke display composite that lives here alongside the primitives.
 

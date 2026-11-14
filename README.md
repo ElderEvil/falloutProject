@@ -222,6 +222,13 @@ Keep existing hooks in that directory, and check for worktree-specific `core.hoo
 before relying on sharing. Review the installed copy when `scripts/pre-push` changes. This is
 separate from `prek install`, which manages the commit-time checks.
 
+Commit hooks include actionlint for changed GitHub Actions workflows and Gitleaks for staged secrets.
+Prek installs their pinned Go tools automatically; ShellCheck, when installed, also checks workflow
+shell snippets through actionlint (it is available on the GitHub-hosted Ubuntu runner).
+The Repository Checks workflow runs these hooks on PR/push commit ranges, including secrets added
+and later removed within the range. Backend CI also passes an explicit change range to prek, so
+a clean checkout cannot silently skip linting. Neither gate scans unrelated legacy files for style.
+
 The guard checks destination refs and blocks updates, force pushes and deletions targeting `master`,
 including `git push -u origin HEAD` while on `master` and `HEAD:master` from another branch. Feature
 branches and release tags are allowed. Publish work with an explicit feature-branch destination:

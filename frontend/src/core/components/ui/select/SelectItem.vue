@@ -4,12 +4,7 @@ import type { SelectItemProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
 import { Icon } from '@iconify/vue'
 import { reactiveOmit } from '@vueuse/core'
-import {
-  SelectItem,
-  SelectItemIndicator,
-  SelectItemText,
-  useForwardProps,
-} from 'reka-ui'
+import { SelectItem, SelectItemIndicator, SelectItemText, useForwardProps } from 'reka-ui'
 import { cn } from '@/core/utils/cn'
 
 const props = defineProps<SelectItemProps & { class?: HTMLAttributes['class'] }>()
@@ -27,7 +22,7 @@ const forwardedProps = useForwardProps(delegatedProps)
     :class="
       cn(
         'focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm [&_svg:not([class*=size-])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2 relative flex w-full cursor-default items-center outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0',
-        props.class,
+        props.class
       )
     "
   >

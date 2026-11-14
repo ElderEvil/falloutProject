@@ -46,10 +46,7 @@ onMounted(() => {
   switchEl = switchElement()
   applyAriaLabel()
 })
-watch(
-  () => props.ariaLabel,
-  applyAriaLabel,
-)
+watch(() => props.ariaLabel, applyAriaLabel)
 </script>
 
 <template>
@@ -58,17 +55,21 @@ watch(
     :id="id"
     :model-value="checked"
     :disabled="disabled"
-    :class="cn(
-      'inline-flex h-7 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 border-theme-primary bg-muted transition-colors duration-300 outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:border-ring disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-theme-primary',
-      props.class,
-    )"
+    :class="
+      cn(
+        'inline-flex h-7 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 border-theme-primary bg-muted transition-colors duration-300 outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:border-ring disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-theme-primary',
+        props.class
+      )
+    "
     @update:model-value="(value: boolean) => emit('update:checked', value)"
   >
     <SwitchThumb
       v-bind="thumbAttrs"
-      :class="cn(
-        'pointer-events-none block size-5 rounded-full bg-theme-primary transition-transform duration-300 data-[state=checked]:translate-x-7 data-[state=checked]:bg-background',
-      )"
+      :class="
+        cn(
+          'pointer-events-none block size-5 rounded-full bg-theme-primary transition-transform duration-300 data-[state=checked]:translate-x-7 data-[state=checked]:bg-background'
+        )
+      "
     />
   </SwitchRoot>
 </template>

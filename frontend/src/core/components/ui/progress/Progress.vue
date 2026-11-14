@@ -39,7 +39,7 @@ const props = withDefaults(
     size: 'sm',
     tone: 'default',
     segmented: false,
-  },
+  }
 )
 
 const delegatedProps = reactiveOmit(
@@ -50,7 +50,7 @@ const delegatedProps = reactiveOmit(
   'fill',
   'segmented',
   'label',
-  'valueText',
+  'valueText'
 )
 
 // Resolve through the theme tokens so a runtime palette swap re-resolves; an
@@ -79,7 +79,7 @@ const resolvedFill = computed(() => props.fill ?? TONE_FILL[props.tone])
         METER_TRACK_BASE,
         METER_SIZE_CLASS[props.size],
         props.segmented && METER_FRAME_TERMINAL,
-        props.class,
+        props.class
       )
     "
   >

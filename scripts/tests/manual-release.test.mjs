@@ -9,8 +9,9 @@ const workflow = readFileSync(new URL('../../.github/workflows/release.yml', imp
 const step = workflow.split('      - name: Run semantic-release\n')[1].split('\n      - name:')[0]
 const shell = step.split('        run: |\n')[1].split('\n').map(line => line.slice(10)).join('\n')
 
-for (const selection of ['', 'patch', 'minor', 'major']) {
-  test(`workflow passes ${selection || 'automatic'} analysis to semantic-release`, () => {
+for (const selection of ['', 'auto', 'patch', 'minor', 'major']) {
+  const automatic = selection === '' || selection === 'auto'
+  test(`workflow passes ${automatic ? 'automatic' : selection} analysis to semantic-release`, () => {
     const directory = mkdtempSync(join(tmpdir(), 'release-test-'))
     try {
       writeFileSync(join(directory, 'npx'), '#!/bin/sh\nprintf "%s\\n" "$@"\n', { mode: 0o755 })
@@ -20,7 +21,7 @@ for (const selection of ['', 'patch', 'minor', 'major']) {
       assert.equal(result.status, 0, result.stderr)
       assert.deepEqual(result.stdout.trim().split('\n'), [
         '--no', '--', 'semantic-release',
-        ...(selection ? ['--analyze-commits', './scripts/manual-release.cjs'] : []),
+        ...(automatic ? [] : ['--analyze-commits', './scripts/manual-release.cjs']),
       ])
     } finally {
       rmSync(directory, { recursive: true })

@@ -145,7 +145,8 @@ export function useOnboardingState() {
   const skipTour = (vaultId: string | null | undefined): void => patch(vaultId, { skipped: true })
 
   /** Clear whole-tour suppression only; individual skipped lessons stay skipped. */
-  const resumeGuide = (vaultId: string | null | undefined): void => patch(vaultId, { skipped: false })
+  const resumeGuide = (vaultId: string | null | undefined): void =>
+    patch(vaultId, { skipped: false })
 
   /** Clear orientation teaching statuses and re-arm the tour without touching server state. */
   const replayOrientation = (vaultId: string | null | undefined): void => {

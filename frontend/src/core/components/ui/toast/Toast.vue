@@ -49,7 +49,9 @@ const config = variantConfig[props.toast.variant]
     aria-live="polite"
   >
     <Icon :icon="config.icon" :class="['text-2xl', config.iconClass]" :ariaHidden="true" />
-    <p class="min-w-0 flex-1 break-words text-sm font-medium text-theme-primary/90">{{ toast.message }}</p>
+    <p class="min-w-0 flex-1 break-words text-sm font-medium text-theme-primary/90">
+      {{ toast.message }}
+    </p>
     <span
       v-if="toast.count && toast.count > 1"
       class="rounded-full bg-surface-hover px-2 py-0.5 text-xs font-bold text-theme-primary"

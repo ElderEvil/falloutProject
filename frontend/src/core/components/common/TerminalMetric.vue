@@ -37,7 +37,10 @@ const iconToneClasses = {
       >
         {{ label }}
       </p>
-      <p class="mt-0.5 font-bold tabular-nums text-theme-primary" :class="compact ? 'text-sm' : 'text-base'">
+      <p
+        class="mt-0.5 font-bold tabular-nums text-theme-primary"
+        :class="compact ? 'text-sm' : 'text-base'"
+      >
         {{ value }}
       </p>
     </div>

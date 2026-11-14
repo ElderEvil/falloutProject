@@ -27,10 +27,7 @@ export interface FormatDurationOptions {
  * - `includeSeconds`: truncated `Xh Ym` / `Ym Zs` / `Zs` (pregnancy/training)
  * - `rounding: 'round'`: rounded `Xh Ym` / `Xh` / `Ym` (crafting timers)
  */
-export function formatDuration(
-  totalSeconds: number,
-  opts: FormatDurationOptions = {}
-): string {
+export function formatDuration(totalSeconds: number, opts: FormatDurationOptions = {}): string {
   const { includeSeconds = false, omitZeroHours = false, rounding = 'floor', suffix } = opts
 
   let label: string

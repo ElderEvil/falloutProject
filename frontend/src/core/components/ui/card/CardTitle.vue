@@ -11,7 +11,12 @@ const props = defineProps<{
   <!-- @vue-ignore -->
   <div
     data-slot="card-title"
-    :class="cn('text-base leading-normal font-medium group-data-[size=sm]/card:text-sm cn-font-heading', props.class)"
+    :class="
+      cn(
+        'text-base leading-normal font-medium group-data-[size=sm]/card:text-sm cn-font-heading',
+        props.class
+      )
+    "
   >
     <slot />
   </div>

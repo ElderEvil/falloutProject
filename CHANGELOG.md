@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.1.3 (2026-11-14)
+
+### Bug Fixes
+
+* **api:** keep the date-time format on serialized UTC timestamps 6377334
+* **api:** keep the date-time format on serialized UTC timestamps ([#1407](https://github.com/ElderEvil/falloutProject/issues/1407)) f5b3f56
+
 ## 3.1.2 (2026-11-14)
 
 ### Bug Fixes

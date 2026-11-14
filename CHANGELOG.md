@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.1.2 (2026-11-14)
+
+### Bug Fixes
+
+* **dwellers:** report the eligible pool alongside auto-assign counts 0e48f0d
+* **dwellers:** report the eligible pool alongside auto-assign counts ([#1406](https://github.com/ElderEvil/falloutProject/issues/1406)) 8b8fd99
+
+### Documentation
+
+* **db:** freeze the legacy Alembic graph and schedule its removal ([#1405](https://github.com/ElderEvil/falloutProject/issues/1405)) d665b9c
+
 ## 3.1.1 (2026-11-14)
 
 ### Bug Fixes

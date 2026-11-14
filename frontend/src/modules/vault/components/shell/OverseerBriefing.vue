@@ -189,8 +189,6 @@ const attentionIconClass = (tone: BriefingItem['tone']) =>
         </router-link>
       </div>
     </div>
-    <p v-else class="mt-4 text-center text-xs tracking-wider text-terminal-green/80">
-      All clear.
-    </p>
+    <p v-else class="mt-4 text-center text-xs tracking-wider text-terminal-green/80">All clear.</p>
   </section>
 </template>

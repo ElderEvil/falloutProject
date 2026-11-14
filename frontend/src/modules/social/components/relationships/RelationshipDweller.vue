@@ -32,10 +32,7 @@ const fullName = computed(() =>
       />
     </span>
     <span class="flex min-w-0 flex-1 flex-col items-start gap-1">
-      <span
-        class="block w-full truncate text-sm font-bold text-theme-primary"
-        >{{ fullName }}</span
-      >
+      <span class="block w-full truncate text-sm font-bold text-theme-primary">{{ fullName }}</span>
       <span class="flex w-full flex-wrap items-center gap-1">
         <DwellerRaceBadge :race="dweller.visual_attributes?.race ?? 'human'" show-label size="sm" />
         <DwellerGenderBadge :gender="dweller.gender" size="sm" />

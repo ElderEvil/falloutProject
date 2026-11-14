@@ -94,10 +94,10 @@ const selfAge = computed(() => {
               >
                 <span class="member-info">
                   <span class="member-name">
-                <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
-                {{ getDwellerDisplayName(member) }}
-                <span v-if="isDead(member)" class="sr-only">(deceased)</span>
-              </span>
+                    <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
+                    {{ getDwellerDisplayName(member) }}
+                    <span v-if="isDead(member)" class="sr-only">(deceased)</span>
+                  </span>
                   <span class="member-age">{{ capitalize(member.age_group) }}</span>
                   <span class="member-relation">
                     {{ partnerStage(member) }}
@@ -125,10 +125,10 @@ const selfAge = computed(() => {
             >
               <span class="member-info">
                 <span class="member-name">
-                <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
-                {{ getDwellerDisplayName(member) }}
-                <span v-if="isDead(member)" class="sr-only">(deceased)</span>
-              </span>
+                  <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
+                  {{ getDwellerDisplayName(member) }}
+                  <span v-if="isDead(member)" class="sr-only">(deceased)</span>
+                </span>
                 <span class="member-age">{{ capitalize(member.age_group) }}</span>
               </span>
             </button>
@@ -327,7 +327,6 @@ const selfAge = computed(() => {
   background: color-mix(in srgb, var(--color-theme-accent) 14%, transparent);
   box-shadow: 0 0 10px var(--color-theme-glow);
 }
-
 
 .member-info {
   display: flex;

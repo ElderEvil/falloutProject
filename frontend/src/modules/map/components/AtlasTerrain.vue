@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { useMapStore } from '../stores/map'
-import {
-  ATLAS_TERRAIN_ORDER,
-  ATLAS_TERRAIN_VAR,
-  MAP_UNITS,
-} from '../utils/atlasProjection'
+import { ATLAS_TERRAIN_ORDER, ATLAS_TERRAIN_VAR, MAP_UNITS } from '../utils/atlasProjection'
 import type { TerrainType } from '../models/terrain'
 
 const store = useMapStore()

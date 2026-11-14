@@ -144,11 +144,7 @@
       v-else-if="familyPotentialLabel"
       class="mt-auto flex items-start gap-2 border-t border-theme-primary/15 pt-2 text-xs text-theme-primary/70"
     >
-      <Icon
-        :icon="familyPotentialIcon"
-        class="h-4 w-4 shrink-0"
-        :ariaHidden="true"
-      />
+      <Icon :icon="familyPotentialIcon" class="h-4 w-4 shrink-0" :ariaHidden="true" />
       <div>
         <p class="font-bold text-theme-primary/80">{{ familyPotentialLabel }}</p>
         <p

@@ -22,7 +22,11 @@ const alerts = computed<Alert[]>(() => {
   // base maximum, not the radiation-reduced ceiling: the ceiling shrinks as radiation
   // rises, so it would hide a damaged, heavily-irradiated dweller.
   if (d.health < d.max_health / 2) {
-    out.push({ icon: 'mdi:heart-pulse', text: `Injured — ${d.health}/${effectiveMax} HP`, tone: 'danger' })
+    out.push({
+      icon: 'mdi:heart-pulse',
+      text: `Injured — ${d.health}/${effectiveMax} HP`,
+      tone: 'danger',
+    })
   }
   if ((d.radiation ?? 0) > 0) {
     out.push({ icon: 'mdi:radiation', text: `Radiated — ${d.radiation}`, tone: 'warning' })

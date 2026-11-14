@@ -1,5 +1,9 @@
 import axios from '@/core/plugins/axios'
-import type { VaultMapResponse, WastelandLocationWithDwellers, WorldSnapshotRead } from '../models/map'
+import type {
+  VaultMapResponse,
+  WastelandLocationWithDwellers,
+  WorldSnapshotRead,
+} from '../models/map'
 
 export async function getWorldSnapshot(token: string): Promise<WorldSnapshotRead> {
   const response = await axios.get('/api/v1/map/world', {

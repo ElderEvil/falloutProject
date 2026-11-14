@@ -41,7 +41,10 @@ const labelClass = (index: number) => {
         <Icon v-if="isComplete(index)" icon="mdi:check" class="h-3.5 w-3.5" />
         <span v-else>{{ index + 1 }}</span>
       </span>
-      <span class="hidden max-w-28 truncate text-xs font-semibold sm:inline" :class="labelClass(index)">
+      <span
+        class="hidden max-w-28 truncate text-xs font-semibold sm:inline"
+        :class="labelClass(index)"
+      >
         {{ room }}
       </span>
       <span

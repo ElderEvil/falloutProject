@@ -30,9 +30,9 @@ function questRequirementName(requirementData: Record<string, unknown>): string 
     return requirementData.quest_name
   }
   if (typeof requirementData.quest_id === 'string') {
-    const found
-      = questStore.vaultQuests.find((q) => q.id === requirementData.quest_id)
-        ?? questStore.quests.find((q) => q.id === requirementData.quest_id)
+    const found =
+      questStore.vaultQuests.find((q) => q.id === requirementData.quest_id) ??
+      questStore.quests.find((q) => q.id === requirementData.quest_id)
     if (found?.title) return found.title
   }
   return 'Previous quest'
@@ -68,7 +68,12 @@ function requirementIcon(req: QuestRequirement): string {
             </span>
           </template>
           <template v-else-if="req.requirement_type === 'item' && req.requirement_data">
-            Requires {{ req.requirement_data.item_name || req.requirement_data.name || req.requirement_data.item_id }}
+            Requires
+            {{
+              req.requirement_data.item_name ||
+              req.requirement_data.name ||
+              req.requirement_data.item_id
+            }}
             <span v-if="getRequirementCount(req.requirement_data) > 1">
               (x{{ getRequirementCount(req.requirement_data) }})
             </span>
@@ -80,13 +85,15 @@ function requirementIcon(req: QuestRequirement): string {
             </span>
           </template>
           <template v-else-if="req.requirement_type === 'stat' && req.requirement_data">
-            Requires {{ req.requirement_data.value || 1 }}+ {{ humanizeSlug(req.requirement_data.stat) }}
+            Requires {{ req.requirement_data.value || 1 }}+
+            {{ humanizeSlug(req.requirement_data.stat) }}
             <span v-if="getRequirementCount(req.requirement_data) > 1">
               (x{{ getRequirementCount(req.requirement_data) }})
             </span>
           </template>
           <template v-else-if="req.requirement_type === 'room' && req.requirement_data">
-            Build {{ getRequirementCount(req.requirement_data) || 1 }} {{ roomDisplayName(req.requirement_data) }}
+            Build {{ getRequirementCount(req.requirement_data) || 1 }}
+            {{ roomDisplayName(req.requirement_data) }}
           </template>
           <template v-else-if="req.requirement_type === 'dweller_count' && req.requirement_data">
             Reach {{ getRequirementCount(req.requirement_data) }} dwellers

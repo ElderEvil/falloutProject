@@ -3,7 +3,12 @@ import { ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { onClickOutside } from '@vueuse/core'
 import { Button } from '@/core/components/ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import {
   happinessService,

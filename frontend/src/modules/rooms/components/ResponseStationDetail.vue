@@ -94,7 +94,9 @@ function handleSetPlace(team: HazardTeam, dwellerId: string, active: boolean): v
           <div
             class="flex flex-col gap-0.5 rounded border border-theme-primary/20 bg-terminal-background px-3 py-2"
           >
-            <dt class="text-[0.65rem] tracking-wider text-theme-primary/60 uppercase">Gear ready</dt>
+            <dt class="text-[0.65rem] tracking-wider text-theme-primary/60 uppercase">
+              Gear ready
+            </dt>
             <dd class="text-lg font-bold text-theme-primary">
               {{ gearReadyTotal }} / {{ activeTotal }}
             </dd>

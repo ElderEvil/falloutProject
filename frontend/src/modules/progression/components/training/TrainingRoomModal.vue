@@ -159,101 +159,104 @@ watch(
     max-height="80"
     @close="close"
   >
-      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
-
-    <div v-if="room" class="training-modal">
-      <!-- Room Info -->
-      <div class="room-info">
-        <div class="info-row">
-          <Icon icon="mdi:dumbbell" class="info-icon" />
-          <div class="info-content">
-            <span class="info-label">Trains</span>
-            <span class="info-value">{{ room.ability?.toUpperCase() }}</span>
-          </div>
-        </div>
-
-        <div class="info-row">
-          <Icon icon="mdi:account-group" class="info-icon" />
-          <div class="info-content">
-            <span class="info-label">Capacity</span>
-            <span class="info-value"> {{ activeTrainings.length }} / {{ room.capacity }} </span>
-          </div>
-        </div>
-
-        <div class="info-row">
-          <Icon icon="mdi:speedometer" class="info-icon" />
-          <div class="info-content">
-            <span class="info-label">Tier {{ room.tier }}</span>
-            <span class="info-value" v-if="speedBonus > 0">
-              {{ speedBonus }}% faster training
-            </span>
-            <span class="info-value" v-else>Normal speed</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Active Trainees -->
-      <div v-if="activeTrainings.length > 0" class="active-trainees">
-        <h4 class="section-title">
-          <Icon icon="mdi:account-clock" class="section-icon" />
-          Currently Training ({{ activeTrainings.length }})
-        </h4>
-        <div class="training-list">
-          <TrainingProgressCard
-            v-for="training in activeTrainings"
-            :key="training.id"
-            :training="training"
-            :dweller-name="getDwellerName(training.dweller_id)"
-            @cancel="handleCancelTraining"
-          />
-        </div>
-      </div>
-
-      <!-- Available Dwellers -->
-      <div v-if="canStartMore" class="available-dwellers">
-        <h4 class="section-title">
-          <Icon icon="mdi:account-plus" class="section-icon" />
-          Assign Dweller to Train
-        </h4>
-
-        <div v-if="availableDwellers.length === 0" class="empty-state">
-          <Icon icon="mdi:account-alert" class="empty-icon" />
-          <p>No eligible dwellers available</p>
-          <p class="empty-hint">
-            Assign dwellers to this room and ensure their {{ room.ability }} stat is not maxed
-          </p>
-        </div>
-
-        <div v-else class="dweller-list">
-          <button
-            v-for="dweller in availableDwellers"
-            :key="dweller.id"
-            @click="handleStartTraining(dweller.id)"
-            class="dweller-option"
-            :disabled="loading"
-          >
-            <div class="dweller-info">
-              <span class="dweller-name"> {{ getDwellerDisplayName(dweller) }} </span>
-              <span class="dweller-level">Lvl {{ dweller.level }}</span>
+    <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+      <div v-if="room" class="training-modal">
+        <!-- Room Info -->
+        <div class="room-info">
+          <div class="info-row">
+            <Icon icon="mdi:dumbbell" class="info-icon" />
+            <div class="info-content">
+              <span class="info-label">Trains</span>
+              <span class="info-value">{{ room.ability?.toUpperCase() }}</span>
             </div>
-            <div class="dweller-stat">
-              <span class="stat-label">{{ room.ability?.toUpperCase() }}</span>
-              <span class="stat-value">{{ getTrainingStatValue(dweller, room.ability) }}</span>
+          </div>
+
+          <div class="info-row">
+            <Icon icon="mdi:account-group" class="info-icon" />
+            <div class="info-content">
+              <span class="info-label">Capacity</span>
+              <span class="info-value"> {{ activeTrainings.length }} / {{ room.capacity }} </span>
             </div>
-          </button>
+          </div>
+
+          <div class="info-row">
+            <Icon icon="mdi:speedometer" class="info-icon" />
+            <div class="info-content">
+              <span class="info-label">Tier {{ room.tier }}</span>
+              <span class="info-value" v-if="speedBonus > 0">
+                {{ speedBonus }}% faster training
+              </span>
+              <span class="info-value" v-else>Normal speed</span>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <!-- Capacity Full Message -->
-      <Alert v-else variant="default" class="capacity-alert border-warning bg-warning/10 text-warning">
-        <Icon icon="mdi:alert" class="h-5 w-5" />
-        Training room at full capacity. Wait for current training to complete or cancel one.
-      </Alert>
+        <!-- Active Trainees -->
+        <div v-if="activeTrainings.length > 0" class="active-trainees">
+          <h4 class="section-title">
+            <Icon icon="mdi:account-clock" class="section-icon" />
+            Currently Training ({{ activeTrainings.length }})
+          </h4>
+          <div class="training-list">
+            <TrainingProgressCard
+              v-for="training in activeTrainings"
+              :key="training.id"
+              :training="training"
+              :dweller-name="getDwellerName(training.dweller_id)"
+              @cancel="handleCancelTraining"
+            />
+          </div>
+        </div>
 
-      <!-- Close Button -->
-      <div class="modal-actions">
-        <Button variant="secondary" class="w-full" @click="close"> Close </Button>
-      </div>
+        <!-- Available Dwellers -->
+        <div v-if="canStartMore" class="available-dwellers">
+          <h4 class="section-title">
+            <Icon icon="mdi:account-plus" class="section-icon" />
+            Assign Dweller to Train
+          </h4>
+
+          <div v-if="availableDwellers.length === 0" class="empty-state">
+            <Icon icon="mdi:account-alert" class="empty-icon" />
+            <p>No eligible dwellers available</p>
+            <p class="empty-hint">
+              Assign dwellers to this room and ensure their {{ room.ability }} stat is not maxed
+            </p>
+          </div>
+
+          <div v-else class="dweller-list">
+            <button
+              v-for="dweller in availableDwellers"
+              :key="dweller.id"
+              @click="handleStartTraining(dweller.id)"
+              class="dweller-option"
+              :disabled="loading"
+            >
+              <div class="dweller-info">
+                <span class="dweller-name"> {{ getDwellerDisplayName(dweller) }} </span>
+                <span class="dweller-level">Lvl {{ dweller.level }}</span>
+              </div>
+              <div class="dweller-stat">
+                <span class="stat-label">{{ room.ability?.toUpperCase() }}</span>
+                <span class="stat-value">{{ getTrainingStatValue(dweller, room.ability) }}</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Capacity Full Message -->
+        <Alert
+          v-else
+          variant="default"
+          class="capacity-alert border-warning bg-warning/10 text-warning"
+        >
+          <Icon icon="mdi:alert" class="h-5 w-5" />
+          Training room at full capacity. Wait for current training to complete or cancel one.
+        </Alert>
+
+        <!-- Close Button -->
+        <div class="modal-actions">
+          <Button variant="secondary" class="w-full" @click="close"> Close </Button>
+        </div>
       </div>
     </div>
   </TerminalModal>

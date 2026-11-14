@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/core/components/ui/tooltip'
 import { producesResources } from '@/modules/rooms/models/roomParts'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 import { ABILITY_CONFIG, getHighestSpecial, isMature } from '../models/dweller'
@@ -32,7 +37,10 @@ const tooltip = computed(() =>
     <Tooltip>
       <TooltipTrigger as-child>
         <span class="role-match" :class="matched ? 'role-match-ok' : 'role-match-off'">
-          <Icon :icon="matched ? 'mdi:check-circle-outline' : 'mdi:alert-circle-outline'" class="role-match-icon" />
+          <Icon
+            :icon="matched ? 'mdi:check-circle-outline' : 'mdi:alert-circle-outline'"
+            class="role-match-icon"
+          />
           {{ matched ? 'Matched' : 'Mismatch' }}
         </span>
       </TooltipTrigger>

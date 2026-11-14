@@ -10,7 +10,12 @@ const props = defineProps<{
 const vitals = computed(() => {
   const items = [
     { label: 'Health', value: props.exploration.health, icon: 'mdi:heart', color: 'text-success' },
-    { label: 'Radiation', value: props.exploration.radiation, icon: 'mdi:radioactive', color: 'text-warning' },
+    {
+      label: 'Radiation',
+      value: props.exploration.radiation,
+      icon: 'mdi:radioactive',
+      color: 'text-warning',
+    },
   ]
   return items.filter((v) => v.value != null)
 })
@@ -26,9 +31,7 @@ const vitals = computed(() => {
         class="mb-1 h-7 w-7 text-theme-primary [filter:drop-shadow(0_0_6px_var(--color-theme-glow))]"
       />
       <div class="text-center">
-        <div
-          class="text-xl font-bold text-theme-primary"
-        >
+        <div class="text-xl font-bold text-theme-primary">
           {{ exploration.total_distance }}
         </div>
         <div class="text-[0.625rem] uppercase tracking-[0.05em] text-theme-primary/70">Miles</div>
@@ -42,9 +45,7 @@ const vitals = computed(() => {
         class="mb-1 h-7 w-7 text-theme-primary [filter:drop-shadow(0_0_6px_var(--color-theme-glow))]"
       />
       <div class="text-center">
-        <div
-          class="text-xl font-bold text-theme-primary"
-        >
+        <div class="text-xl font-bold text-theme-primary">
           {{ exploration.loot_collected?.length || 0 }}
         </div>
         <div class="text-[0.625rem] uppercase tracking-[0.05em] text-theme-primary/70">Items</div>
@@ -58,9 +59,7 @@ const vitals = computed(() => {
         class="mb-1 h-7 w-7 text-theme-primary [filter:drop-shadow(0_0_6px_var(--color-theme-glow))]"
       />
       <div class="text-center">
-        <div
-          class="text-xl font-bold text-theme-primary"
-        >
+        <div class="text-xl font-bold text-theme-primary">
           {{ exploration.total_caps_found }}
         </div>
         <div class="text-[0.625rem] uppercase tracking-[0.05em] text-theme-primary/70">Caps</div>
@@ -74,9 +73,7 @@ const vitals = computed(() => {
         class="mb-1 h-7 w-7 text-success [filter:drop-shadow(0_0_6px_var(--color-theme-glow))]"
       />
       <div class="text-center">
-        <div
-          class="text-xl font-bold text-theme-primary"
-        >
+        <div class="text-xl font-bold text-theme-primary">
           {{ exploration.stimpaks || 0 }}
         </div>
         <div class="text-[0.625rem] uppercase tracking-[0.05em] text-theme-primary/70">
@@ -92,9 +89,7 @@ const vitals = computed(() => {
         class="mb-1 h-7 w-7 text-theme-primary [filter:drop-shadow(0_0_6px_var(--color-theme-glow))]"
       />
       <div class="text-center">
-        <div
-          class="text-xl font-bold text-theme-primary"
-        >
+        <div class="text-xl font-bold text-theme-primary">
           {{ exploration.radaways || 0 }}
         </div>
         <div class="text-[0.625rem] uppercase tracking-[0.05em] text-theme-primary/70">RadAway</div>
@@ -108,9 +103,7 @@ const vitals = computed(() => {
         class="mb-1 h-7 w-7 text-theme-primary [filter:drop-shadow(0_0_6px_var(--color-theme-glow))]"
       />
       <div class="text-center">
-        <div
-          class="text-xl font-bold text-theme-primary"
-        >
+        <div class="text-xl font-bold text-theme-primary">
           {{ exploration.enemies_encountered }}
         </div>
         <div class="text-[0.625rem] uppercase tracking-[0.05em] text-theme-primary/70">Enemies</div>
@@ -127,9 +120,7 @@ const vitals = computed(() => {
         :class="vital.color"
       />
       <div class="text-center">
-        <div
-          class="text-xl font-bold text-theme-primary"
-        >
+        <div class="text-xl font-bold text-theme-primary">
           {{ vital.value }}
         </div>
         <div class="text-[0.625rem] uppercase tracking-[0.05em] text-theme-primary/70">

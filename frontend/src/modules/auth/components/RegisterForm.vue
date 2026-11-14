@@ -140,7 +140,11 @@ const handleSubmit = async () => {
     <template #links>
       <p>
         > EXISTING OVERSEER LOGIN:
-        <router-link to="/login" class="font-bold text-theme-primary underline underline-offset-4 hover:text-theme-primary/80">ACCESS TERMINAL</router-link>
+        <router-link
+          to="/login"
+          class="font-bold text-theme-primary underline underline-offset-4 hover:text-theme-primary/80"
+          >ACCESS TERMINAL</router-link
+        >
       </p>
     </template>
   </AuthTerminalFrame>

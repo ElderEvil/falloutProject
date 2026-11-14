@@ -145,191 +145,202 @@ const messageContentSegments = (
       class="message-wrapper"
       :class="message.type"
     >
-    <div class="message-avatar">
-      <DwellerPortrait
-        v-if="message.type === 'dweller'"
-        :thumbnail-url="dwellerAvatarUrl"
-        :alt="dwellerName"
-        image-class="avatar-image"
-        fallback-class="avatar-icon"
-      />
-      <DwellerPortrait
-        v-else
-        :image-url="userAvatarUrl"
-        :alt="username"
-        image-class="avatar-image"
-        fallback-class="avatar-icon"
-        fallback-icon="mdi:account-circle"
-      />
-    </div>
-
-    <div class="message-bubble">
-      <div class="message-header">
-        <span class="message-sender">
-          <span class="terminal-prefix">{{ message.type === 'user' ? '>' : '<' }}</span>
-          {{ message.type === 'user' ? username : dwellerName }}
-        </span>
-        <div class="flex items-center gap-2">
-          <Tooltip
-            v-if="message.type === 'dweller' && message.happinessImpact"
-          >
-            <TooltipTrigger as-child>
-              <span
-                class="happiness-indicator"
-                :class="getHappinessColor(message.happinessImpact.delta)"
-              >
-                <Icon :icon="getHappinessIcon(message.happinessImpact.delta)" class="h-4 w-4" />
-                <span class="text-xs">
-                  {{ message.happinessImpact.delta > 0 ? '+' : '' }}{{ message.happinessImpact.delta }}
-                </span>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>{{ message.happinessImpact.reason_text }}</TooltipContent>
-          </Tooltip>
-          <DwellerPlacesBadge
-            v-if="message.type === 'dweller' && message.unlockedPlaces?.length"
-            class="map-discovery-indicator happiness-indicator text-theme-primary"
-            :count="message.unlockedPlaces.length"
-            :title="mapDiscoveryTitle(message.unlockedPlaces)"
-          />
-          <Tooltip v-if="message.audioUrl">
-            <TooltipTrigger as-child>
-              <Button
-                variant="ghost"
-                class="audio-replay-btn h-auto"
-                :class="{ 'is-playing': currentlyPlayingUrl === message.audioUrl }"
-                :aria-label="
-                  currentlyPlayingUrl === message.audioUrl
-                    ? 'Stop audio playback'
-                    : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`
-                "
-                @click="
-                  currentlyPlayingUrl === message.audioUrl
-                    ? emit('stopAudio')
-                    : emit('playAudio', message.audioUrl)
-                "
-              >
-                <Icon
-                  :icon="currentlyPlayingUrl === message.audioUrl ? 'mdi:stop' : 'mdi:volume-high'"
-                  class="h-4 w-4"
-                />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {{ currentlyPlayingUrl === message.audioUrl ? 'Stop audio' : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio` }}
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
-      <div class="message-content">
-        <template v-for="(segment, segmentIndex) in messageContentSegments(message.content, message.type, placeLinks)" :key="segmentIndex">
-          <a
-            v-if="segment.locationId && vaultId"
-            class="chat-place-link"
-            :href="mapPlaceHref(vaultId, segment.locationId)"
-          >{{ segment.text }}</a>
-          <span v-else>{{ segment.text }}</span>
-        </template>
+      <div class="message-avatar">
+        <DwellerPortrait
+          v-if="message.type === 'dweller'"
+          :thumbnail-url="dwellerAvatarUrl"
+          :alt="dwellerName"
+          image-class="avatar-image"
+          fallback-class="avatar-icon"
+        />
+        <DwellerPortrait
+          v-else
+          :image-url="userAvatarUrl"
+          :alt="username"
+          image-class="avatar-image"
+          fallback-class="avatar-icon"
+          fallback-icon="mdi:account-circle"
+        />
       </div>
 
-      <div
-        v-if="message.type === 'dweller' && message.unlockedPlaces?.length"
-        class="map-discovery-links"
-      >
-        <Icon icon="mdi:map-outline" class="h-4 w-4 shrink-0" />
-        <span class="map-discovery-label">Map intel:</span>
-        <template v-for="(place, placeIndex) in message.unlockedPlaces" :key="place.locationId">
-          <span v-if="placeIndex" aria-hidden="true">·</span>
-          <a
-            v-if="vaultId"
-            class="map-discovery-link"
-            :href="mapPlaceHref(vaultId, place.locationId)"
-          >{{ place.name }}</a>
-          <span v-else>{{ place.name }}</span>
-        </template>
-      </div>
-
-      <div v-if="message.error" class="message-error" role="alert" aria-live="polite">
-        <Icon icon="mdi:alert-circle-outline" class="message-error-icon" />
-        <span>{{ message.error }}</span>
-        <Button
-          v-if="message.type === 'user'"
-          variant="ghost"
-          size="xs"
-          class="h-auto text-theme-primary hover:text-theme-primary"
-          @click="emit('retryMessage', index)"
-        >
-          Retry
-        </Button>
-      </div>
-
-      <div
-        v-if="
-          message.type === 'dweller' &&
-          message.actionSuggestion &&
-          message.actionSuggestion.action_type !== 'no_action' &&
-          index === latestActionSuggestionIndex
-        "
-        class="action-suggestion-card"
-      >
-        <div class="action-suggestion-header">
-          <Icon
-            :icon="actionIcon(message.actionSuggestion)"
-            class="h-4 w-4"
-          />
-          <span class="text-xs font-bold uppercase tracking-wider">Suggested Action</span>
-        </div>
-        <div class="action-suggestion-body">
-          <p class="action-suggestion-text">
-            {{ actionLabel(message.actionSuggestion) }}
-          </p>
-          <p class="action-suggestion-reason">{{ actionDetail(message.actionSuggestion) }}</p>
-        </div>
-        <div class="action-suggestion-actions">
-          <span
-            v-if="isBlockedExploration(message.actionSuggestion)"
-            class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-theme-primary/50"
-          >
-            <Icon icon="mdi:account-lock-outline" class="h-4 w-4" />
-            Too young for the wasteland
+      <div class="message-bubble">
+        <div class="message-header">
+          <span class="message-sender">
+            <span class="terminal-prefix">{{ message.type === 'user' ? '>' : '<' }}</span>
+            {{ message.type === 'user' ? username : dwellerName }}
           </span>
-          <Button
-            v-else
-            variant="ghost"
-            class="action-confirm-btn h-auto"
-            :disabled="isPerformingAction"
-            @click="emit('confirmAction', message.actionSuggestion, index)"
+          <div class="flex items-center gap-2">
+            <Tooltip v-if="message.type === 'dweller' && message.happinessImpact">
+              <TooltipTrigger as-child>
+                <span
+                  class="happiness-indicator"
+                  :class="getHappinessColor(message.happinessImpact.delta)"
+                >
+                  <Icon :icon="getHappinessIcon(message.happinessImpact.delta)" class="h-4 w-4" />
+                  <span class="text-xs">
+                    {{ message.happinessImpact.delta > 0 ? '+' : ''
+                    }}{{ message.happinessImpact.delta }}
+                  </span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{{ message.happinessImpact.reason_text }}</TooltipContent>
+            </Tooltip>
+            <DwellerPlacesBadge
+              v-if="message.type === 'dweller' && message.unlockedPlaces?.length"
+              class="map-discovery-indicator happiness-indicator text-theme-primary"
+              :count="message.unlockedPlaces.length"
+              :title="mapDiscoveryTitle(message.unlockedPlaces)"
+            />
+            <Tooltip v-if="message.audioUrl">
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  class="audio-replay-btn h-auto"
+                  :class="{ 'is-playing': currentlyPlayingUrl === message.audioUrl }"
+                  :aria-label="
+                    currentlyPlayingUrl === message.audioUrl
+                      ? 'Stop audio playback'
+                      : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`
+                  "
+                  @click="
+                    currentlyPlayingUrl === message.audioUrl
+                      ? emit('stopAudio')
+                      : emit('playAudio', message.audioUrl)
+                  "
+                >
+                  <Icon
+                    :icon="
+                      currentlyPlayingUrl === message.audioUrl ? 'mdi:stop' : 'mdi:volume-high'
+                    "
+                    class="h-4 w-4"
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {{
+                  currentlyPlayingUrl === message.audioUrl
+                    ? 'Stop audio'
+                    : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`
+                }}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+        <div class="message-content">
+          <template
+            v-for="(segment, segmentIndex) in messageContentSegments(
+              message.content,
+              message.type,
+              placeLinks
+            )"
+            :key="segmentIndex"
           >
-            <Icon v-if="isPerformingAction" icon="mdi:loading" class="h-4 w-4 spinning" />
-            <Icon v-else icon="mdi:check" class="h-4 w-4" />
-            <span>{{ actionConfirmLabel(message.actionSuggestion, isPerformingAction) }}</span>
-          </Button>
+            <a
+              v-if="segment.locationId && vaultId"
+              class="chat-place-link"
+              :href="mapPlaceHref(vaultId, segment.locationId)"
+              >{{ segment.text }}</a
+            >
+            <span v-else>{{ segment.text }}</span>
+          </template>
+        </div>
+
+        <div
+          v-if="message.type === 'dweller' && message.unlockedPlaces?.length"
+          class="map-discovery-links"
+        >
+          <Icon icon="mdi:map-outline" class="h-4 w-4 shrink-0" />
+          <span class="map-discovery-label">Map intel:</span>
+          <template v-for="(place, placeIndex) in message.unlockedPlaces" :key="place.locationId">
+            <span v-if="placeIndex" aria-hidden="true">·</span>
+            <a
+              v-if="vaultId"
+              class="map-discovery-link"
+              :href="mapPlaceHref(vaultId, place.locationId)"
+              >{{ place.name }}</a
+            >
+            <span v-else>{{ place.name }}</span>
+          </template>
+        </div>
+
+        <div v-if="message.error" class="message-error" role="alert" aria-live="polite">
+          <Icon icon="mdi:alert-circle-outline" class="message-error-icon" />
+          <span>{{ message.error }}</span>
           <Button
+            v-if="message.type === 'user'"
             variant="ghost"
-            class="action-dismiss-btn h-auto"
-            aria-label="Dismiss suggested action"
-            @click="emit('dismissAction', index)"
+            size="xs"
+            class="h-auto text-theme-primary hover:text-theme-primary"
+            @click="emit('retryMessage', index)"
           >
-            <Icon icon="mdi:close" class="h-4 w-4" />
+            Retry
           </Button>
+        </div>
+
+        <div
+          v-if="
+            message.type === 'dweller' &&
+            message.actionSuggestion &&
+            message.actionSuggestion.action_type !== 'no_action' &&
+            index === latestActionSuggestionIndex
+          "
+          class="action-suggestion-card"
+        >
+          <div class="action-suggestion-header">
+            <Icon :icon="actionIcon(message.actionSuggestion)" class="h-4 w-4" />
+            <span class="text-xs font-bold uppercase tracking-wider">Suggested Action</span>
+          </div>
+          <div class="action-suggestion-body">
+            <p class="action-suggestion-text">
+              {{ actionLabel(message.actionSuggestion) }}
+            </p>
+            <p class="action-suggestion-reason">{{ actionDetail(message.actionSuggestion) }}</p>
+          </div>
+          <div class="action-suggestion-actions">
+            <span
+              v-if="isBlockedExploration(message.actionSuggestion)"
+              class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-theme-primary/50"
+            >
+              <Icon icon="mdi:account-lock-outline" class="h-4 w-4" />
+              Too young for the wasteland
+            </span>
+            <Button
+              v-else
+              variant="ghost"
+              class="action-confirm-btn h-auto"
+              :disabled="isPerformingAction"
+              @click="emit('confirmAction', message.actionSuggestion, index)"
+            >
+              <Icon v-if="isPerformingAction" icon="mdi:loading" class="h-4 w-4 spinning" />
+              <Icon v-else icon="mdi:check" class="h-4 w-4" />
+              <span>{{ actionConfirmLabel(message.actionSuggestion, isPerformingAction) }}</span>
+            </Button>
+            <Button
+              variant="ghost"
+              class="action-dismiss-btn h-auto"
+              aria-label="Dismiss suggested action"
+              @click="emit('dismissAction', index)"
+            >
+              <Icon icon="mdi:close" class="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <div v-if="isTyping" class="typing-wrapper dweller">
-    <div class="message-avatar">
-      <DwellerPortrait
-        :thumbnail-url="dwellerAvatarUrl"
-        :alt="dwellerName"
-        image-class="avatar-image"
-        fallback-class="avatar-icon"
-      />
+    <div v-if="isTyping" class="typing-wrapper dweller">
+      <div class="message-avatar">
+        <DwellerPortrait
+          :thumbnail-url="dwellerAvatarUrl"
+          :alt="dwellerName"
+          image-class="avatar-image"
+          fallback-class="avatar-icon"
+        />
+      </div>
+      <div class="typing-indicator">
+        <span class="terminal-cursor">_</span>
+        {{ dwellerName }} is typing...
+      </div>
     </div>
-    <div class="typing-indicator">
-      <span class="terminal-cursor">_</span>
-      {{ dwellerName }} is typing...
-    </div>
-  </div>
   </TooltipProvider>
 </template>

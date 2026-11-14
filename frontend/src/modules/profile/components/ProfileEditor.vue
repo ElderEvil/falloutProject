@@ -207,7 +207,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, toRef, watch, computed } from 'vue'
 import type { ProfileUpdate } from '@/modules/profile/models/profile'
 import { authService } from '@/modules/auth/services/authService'
 import { getErrorMessage } from '@/core/utils/errorHandler'
@@ -262,7 +262,10 @@ async function requestPasswordReset() {
   }
 }
 
-const { loading = false, error = null, initialData } = props
+// Keep props reactive in the template; destructuring copies the values once.
+const loading = toRef(props, 'loading')
+const error = toRef(props, 'error')
+const { initialData } = props
 
 const emit = defineEmits<{
   submit: [data: ProfileUpdate, username: string | null, email: string | null]

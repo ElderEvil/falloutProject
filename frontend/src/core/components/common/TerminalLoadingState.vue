@@ -12,7 +12,9 @@ withDefaults(defineProps<{ message: string; fullHeight?: boolean }>(), { fullHei
     class="flex items-center justify-center p-8"
     :class="{ 'min-h-[60vh]': fullHeight }"
   >
-    <Card class="gap-0 rounded-lg border-2 border-theme-primary/20 p-8 shadow-glow-md ring-0 crt-screen">
+    <Card
+      class="gap-0 rounded-lg border-2 border-theme-primary/20 p-8 shadow-glow-md ring-0 crt-screen"
+    >
       <div class="flex flex-col items-center gap-6">
         <Icon icon="mdi:loading" class="h-16 w-16 animate-spin text-theme-primary terminal-glow" />
         <p class="text-base text-theme-primary terminal-glow">{{ message }}</p>

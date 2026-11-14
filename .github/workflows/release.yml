@@ -3,6 +3,17 @@ name: Release
 on:
   push:
     branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      release_as:
+        description: 'Force a version bump (patch/minor/major), or use automatic analysis.'
+        type: choice
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+        default: auto
 
 jobs:
   baseline:
@@ -91,6 +102,9 @@ jobs:
         # commit-analyzer / release-notes-generator plugins.
         run: npm install --no-save --no-package-lock --no-audit --no-fund semantic-release@25.0.9 @semantic-release/changelog@7.0.0 @semantic-release/exec@7.1.0 @semantic-release/git@11.0.1 conventional-changelog-conventionalcommits@8.0.0
 
+      - name: Test release selection
+        run: node --test scripts/tests/manual-release.test.mjs
+
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -98,7 +112,13 @@ jobs:
           GIT_AUTHOR_EMAIL: semantic-release-bot@github.com
           GIT_COMMITTER_NAME: semantic-release-bot
           GIT_COMMITTER_EMAIL: semantic-release-bot@github.com
-        run: npx --no semantic-release
+          RELEASE_AS: ${{ inputs.release_as }}
+        run: |
+          ARGS=()
+          if [ -n "$RELEASE_AS" ] && [ "$RELEASE_AS" != auto ]; then
+            ARGS+=(--analyze-commits ./scripts/manual-release.cjs)
+          fi
+          npx --no -- semantic-release "${ARGS[@]}"
 
       - name: Identify published release
         id: published-release
@@ -125,3 +145,14 @@ jobs:
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
     permissions:
       contents: read
+
+  build-desktop:
+    name: Build and attach desktop packages
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    uses: ./.github/workflows/desktop-ci.yml
+    with:
+      release_tag: ${{ needs.release.outputs.release_tag }}
+    secrets: inherit
+    permissions:
+      contents: write

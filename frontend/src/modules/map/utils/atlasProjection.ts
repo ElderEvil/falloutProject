@@ -61,7 +61,7 @@ export function registryToTile(coord: number, tiles = ATLAS_TILES): number {
  * scaled/rounded, so this is an anchoring input, not exact registry coordinates.
  */
 export function anchorsFromVaultMarkers(
-  markers: ReadonlyArray<{ name: string; coord_x: number; coord_y: number }>,
+  markers: ReadonlyArray<{ name: string; coord_x: number; coord_y: number }>
 ): TerrainAnchor[] {
   return markers.map((marker, i) => ({
     id: `seed-vault-${i}`,
@@ -77,9 +77,9 @@ export function anchorsFromVaultMarkers(
  * passable land. Global placements, so geography stays shared across vaults.
  */
 export function anchorsFromPlayerVaults(
-  vaults: ReadonlyArray<{ vault_id: string; number: number; coord_x: number; coord_y: number }>,
+  vaults: ReadonlyArray<{ vault_id: string; number: number; coord_x: number; coord_y: number }>
 ): TerrainAnchor[] {
-  return vaults.map(vault => ({
+  return vaults.map((vault) => ({
     id: `player-vault-${vault.vault_id}`,
     name: `Vault ${vault.number}`,
     coord_x: wireToRegistry(vault.coord_x),

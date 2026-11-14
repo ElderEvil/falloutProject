@@ -33,10 +33,7 @@ export function childrenOfCouple(
  * in the list are ignored, results are memoized per walk, and parent cycles are
  * broken by treating the revisited dweller as a founder.
  */
-export function generationOf(
-  dwellers: readonly DwellerShort[],
-  dwellerId: string
-): number {
+export function generationOf(dwellers: readonly DwellerShort[], dwellerId: string): number {
   const byId = new Map(dwellers.map((d) => [d.id, d]))
   const memo = new Map<string, number>()
   const visiting = new Set<string>()

@@ -79,10 +79,7 @@ export const SPECIAL_GUIDE: SpecialGuideEntry[] = [
     letter: 'L',
     label: 'Luck',
     tagline: SPECIAL_TAGLINES.Luck,
-    effects: [
-      'Shifts loot rarity upward',
-      'More caps while exploring',
-    ],
+    effects: ['Shifts loot rarity upward', 'More caps while exploring'],
   },
 ]
 

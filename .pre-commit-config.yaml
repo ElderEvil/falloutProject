@@ -32,6 +32,19 @@ repos:
     hooks:
       - id: uv-lock
 
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+        entry: bash scripts/check-secrets.sh
+        # Scan the commit range even when its final tree has no changed files.
+        always_run: true
+
   - repo: local
     hooks:
       - id: ty
@@ -57,5 +70,6 @@ repos:
 # sets up .pre-commit-ci.yaml to ensure pre-commit dependencies stay up to date
 ci:
   autoupdate_schedule: weekly
-  skip: [ty, frontend-lint-format, frontend-hardcoded-colors]
+  # Go tool installation is owned by our GitHub Actions job, not pre-commit.ci.
+  skip: [ty, frontend-lint-format, frontend-hardcoded-colors, actionlint, gitleaks]
   submodules: false

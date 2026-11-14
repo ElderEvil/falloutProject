@@ -84,12 +84,17 @@ const welcomePending = computed(() => !!vaultState.value.created && !vaultState.
 const active = computed(
   () => !!vaultId.value && !vaultState.value.skipped && optedIn.value && !!currentLesson.value
 )
-const showHandoff = computed(() =>
-  !!vaultId.value && optedIn.value && !vaultState.value.skipped && !replayMode.value &&
-  !vaultState.value.handoffDismissed && !currentLesson.value &&
-  ORIENTATION_STEPS.some((lesson) =>
-    lesson.id === 'orientation.departure' && objectiveFor(lesson)?.is_completed
-  )
+const showHandoff = computed(
+  () =>
+    !!vaultId.value &&
+    optedIn.value &&
+    !vaultState.value.skipped &&
+    !replayMode.value &&
+    !vaultState.value.handoffDismissed &&
+    !currentLesson.value &&
+    ORIENTATION_STEPS.some(
+      (lesson) => lesson.id === 'orientation.departure' && objectiveFor(lesson)?.is_completed
+    )
 )
 const showWelcome = computed(() => active.value && welcomePending.value)
 const showLesson = computed(() => active.value && !showWelcome.value && !!currentLesson.value)
@@ -117,8 +122,7 @@ const snapshot = computed<TeachingSnapshot>(() => ({
   builtRooms: roomStore.rooms,
   roomsLoaded: !!vaultId.value && roomStore.roomsLoadedVaultId === vaultId.value,
   dwellers: dwellerStore.filter.allDwellers,
-  dwellersLoaded:
-    !!vaultId.value && dwellerStore.filter.allDwellersLoadedVaultId === vaultId.value,
+  dwellersLoaded: !!vaultId.value && dwellerStore.filter.allDwellersLoadedVaultId === vaultId.value,
   objectives: store.objectives,
 }))
 const lessonEligibility = computed<TeachingEligibility>(() => {
@@ -131,8 +135,12 @@ const blockedReason = computed(() => {
   return typeof eligibility === 'object' ? eligibility.blocked : undefined
 })
 
-const { claiming, error: claimError, claim, clearError: clearClaimError } =
-  useObjectiveClaim(vaultId)
+const {
+  claiming,
+  error: claimError,
+  claim,
+  clearError: clearClaimError,
+} = useObjectiveClaim(vaultId)
 
 watch([() => currentLesson.value?.id, vaultId], () => clearClaimError())
 
@@ -163,7 +171,9 @@ watch(
 const loadFailed = ref(false)
 const claimedObjective = ref<Objective | null>(null)
 const handoffCard = ref<InstanceType<typeof IntroHandoffCard> | null>(null)
-watch(vaultId, () => { claimedObjective.value = null })
+watch(vaultId, () => {
+  claimedObjective.value = null
+})
 const refresh = () => {
   if (!vaultId.value || vaultState.value.skipped) return
   void handoffCard.value?.refresh()
@@ -303,9 +313,7 @@ const navLabel = computed(() => currentLesson.value?.routeLabel ?? 'Open')
 // The control is on this page but out of view: scroll to it rather than pushing
 // the same route, which would navigate nowhere. Position for the anchor is
 // re-resolved after the scroll by the existing MutationObserver + layout watch.
-const showScrollToControl = computed(
-  () => !!presentAnchorEl.value && targetEl.value === null
-)
+const showScrollToControl = computed(() => !!presentAnchorEl.value && targetEl.value === null)
 const scrollToControl = () => {
   presentAnchorEl.value?.scrollIntoView({
     behavior: reducedMotion.value === 'reduce' ? 'auto' : 'smooth',
@@ -399,47 +407,58 @@ function onClaim() {
               {{ lessonObjective.progress }} / {{ lessonObjective.total }}
             </p>
             <div class="onboarding-actions">
-            <Button v-if="ready" size="sm" :disabled="claiming" @click="onClaim">
-              {{ claiming ? 'Claiming…' : `Claim ${lessonObjective?.reward}` }}
-            </Button>
-            <Button v-else-if="showContinue" size="sm" :disabled="claiming" @click="continueLesson">
-              Continue
-            </Button>
-            <Button
-              v-if="showScrollToControl"
-              size="sm"
-              variant="outline"
-              :disabled="claiming"
-              @click="scrollToControl"
-            >
-              Show control
-            </Button>
-            <Button
-              v-if="showNavigate"
-              size="sm"
-              variant="outline"
-              :disabled="claiming"
-              @click="navigateToLesson"
-            >
-              {{ navLabel }}
-            </Button>
-            <Button size="sm" variant="ghost" :disabled="claiming" @click="skipStepAction">
-              Skip step
-            </Button>
-            <Button size="sm" variant="ghost" :disabled="claiming" @click="skipTourAction">
-              Skip tour
-            </Button>
-            <Button v-if="loadFailed" size="sm" variant="outline" :disabled="claiming" @click="refresh">
-              Retry
-            </Button>
-          </div>
-          <Alert v-if="loadFailed" class="onboarding-note">
-            Could not refresh the guide. Retry.
-          </Alert>
-          <Alert v-if="blockedReason" class="onboarding-note">{{ blockedReason }}</Alert>
-          <Alert v-if="claimError" variant="destructive" class="onboarding-error">
-            {{ claimError }}
-          </Alert>
+              <Button v-if="ready" size="sm" :disabled="claiming" @click="onClaim">
+                {{ claiming ? 'Claiming…' : `Claim ${lessonObjective?.reward}` }}
+              </Button>
+              <Button
+                v-else-if="showContinue"
+                size="sm"
+                :disabled="claiming"
+                @click="continueLesson"
+              >
+                Continue
+              </Button>
+              <Button
+                v-if="showScrollToControl"
+                size="sm"
+                variant="outline"
+                :disabled="claiming"
+                @click="scrollToControl"
+              >
+                Show control
+              </Button>
+              <Button
+                v-if="showNavigate"
+                size="sm"
+                variant="outline"
+                :disabled="claiming"
+                @click="navigateToLesson"
+              >
+                {{ navLabel }}
+              </Button>
+              <Button size="sm" variant="ghost" :disabled="claiming" @click="skipStepAction">
+                Skip step
+              </Button>
+              <Button size="sm" variant="ghost" :disabled="claiming" @click="skipTourAction">
+                Skip tour
+              </Button>
+              <Button
+                v-if="loadFailed"
+                size="sm"
+                variant="outline"
+                :disabled="claiming"
+                @click="refresh"
+              >
+                Retry
+              </Button>
+            </div>
+            <Alert v-if="loadFailed" class="onboarding-note">
+              Could not refresh the guide. Retry.
+            </Alert>
+            <Alert v-if="blockedReason" class="onboarding-note">{{ blockedReason }}</Alert>
+            <Alert v-if="claimError" variant="destructive" class="onboarding-error">
+              {{ claimError }}
+            </Alert>
           </div>
         </template>
       </Card>

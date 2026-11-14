@@ -43,9 +43,9 @@ const equipmentSlots = computed(() => [
         class="h-8 w-8 shrink-0 text-theme-primary drop-shadow-[0_0_5px_var(--color-theme-glow)]"
       />
       <div class="flex min-w-0 flex-col">
-        <span class="text-[0.625rem] uppercase tracking-[0.05em] text-theme-primary/70"
-          >{{ slot.label }}</span
-        >
+        <span class="text-[0.625rem] uppercase tracking-[0.05em] text-theme-primary/70">{{
+          slot.label
+        }}</span>
         <span
           class="truncate text-sm font-bold text-theme-primary [text-shadow:0_0_5px_var(--color-theme-glow)]"
           >{{ slot.name }}</span

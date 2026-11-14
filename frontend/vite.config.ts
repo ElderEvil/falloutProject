@@ -22,6 +22,14 @@ export default defineConfig(({ mode }) => ({
     trailingComma: 'es5',
     bracketSpacing: true,
     arrowParens: 'always',
+    endOfLine: 'lf',
+    htmlWhitespaceSensitivity: 'css',
+    vueIndentScriptAndStyle: false,
+    sortImports: false,
+    sortTailwindcss: false,
+    sortPackageJson: false,
+    // Preserve hand-maintained design-system CSS and generator-owned API types.
+    ignorePatterns: ['**/*.css', '**/*.generated.ts'],
   },
   staged: {
     '*.{js,ts,tsx,vue}': ['vp lint --fix', 'vp fmt --no-error-on-unmatched-pattern'],

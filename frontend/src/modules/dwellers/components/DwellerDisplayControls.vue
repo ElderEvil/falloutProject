@@ -88,11 +88,7 @@ function applyPreset(presetId: string) {
   <div class="display-controls">
     <div v-if="showSort" class="display-group">
       <Select :model-value="sortByValue" @update:model-value="onSortByChange">
-        <SelectTrigger
-          size="sm"
-          class="min-w-[8rem]"
-          aria-label="Sort dwellers"
-        >
+        <SelectTrigger size="sm" class="min-w-[8rem]" aria-label="Sort dwellers">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

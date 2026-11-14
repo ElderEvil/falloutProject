@@ -6,24 +6,24 @@ import { Skeleton } from '@/core/components/ui/skeleton'
   <div class="dweller-grid-item-skeleton">
     <!-- Thumbnail area -->
     <div class="thumbnail-skeleton">
-      <Skeleton style="width: 100%; height: 100%;" />
+      <Skeleton style="width: 100%; height: 100%" />
     </div>
 
     <!-- Info section -->
     <div class="info-skeleton">
       <div class="header-skeleton">
-        <Skeleton style="width: 120px; height: 1rem;" />
-        <Skeleton class="rounded-full" style="width: 50px; height: 1.25rem;" />
+        <Skeleton style="width: 120px; height: 1rem" />
+        <Skeleton class="rounded-full" style="width: 50px; height: 1.25rem" />
       </div>
 
       <div class="stats-skeleton">
-        <Skeleton style="width: 60px; height: 0.875rem;" />
-        <Skeleton style="width: 70px; height: 0.875rem;" />
-        <Skeleton style="width: 80px; height: 0.875rem;" />
+        <Skeleton style="width: 60px; height: 0.875rem" />
+        <Skeleton style="width: 70px; height: 0.875rem" />
+        <Skeleton style="width: 80px; height: 0.875rem" />
       </div>
 
-      <Skeleton class="rounded-full" style="width: 100%; height: 0.5rem;" />
-      <Skeleton style="width: 100px; height: 0.875rem;" />
+      <Skeleton class="rounded-full" style="width: 100%; height: 0.5rem" />
+      <Skeleton style="width: 100px; height: 0.875rem" />
     </div>
   </div>
 </template>

@@ -348,7 +348,7 @@ jobs:
           pod["initContainers"] = [c for c in pod.get("initContainers", []) if c["name"] == "wait-for-db"]
           container = next(c for c in pod["containers"] if c["name"] == "backend")
           container["image"] = sys.argv[2]
-          container["command"] = ["sh", "-c", "uv run alembic current && uv run alembic upgrade head && uv run alembic current --check-heads"]
+          container["command"] = ["sh", "-c", "ADOPT=\"\"; if [ \"${{ inputs.maintenance_mode }}\" = \"true\" ]; then ADOPT=\"--apply\"; fi; uv run python -m app.alembic.baseline_tools prepare --database \"$POSTGRES_DB\" $ADOPT && uv run alembic upgrade head && uv run alembic current --check-heads"]
           for key in ("args", "ports", "livenessProbe", "readinessProbe", "startupProbe"):
               container.pop(key, None)
           pod["containers"] = [container]
@@ -414,7 +414,7 @@ jobs:
               echo "Public traffic gate active: deferring deployment/k3s/ingress.yaml until verification passes"
               continue
             fi
-            render=cat
+            render='cat'
             case "$manifest" in
               backend-deployment.yaml|dramatiq-worker-deployment.yaml|frontend-deployment.yaml)
                 container="${manifest%-deployment.yaml}"

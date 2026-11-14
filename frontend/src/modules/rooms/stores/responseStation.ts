@@ -5,10 +5,7 @@ import type {
   ContaminationTeamRead,
   HazardTeam,
 } from '@/modules/contamination-team/models/contaminationTeam'
-import {
-  fetchResponseRoster,
-  updateResponseTeamPlace,
-} from '../services/responseStationService'
+import { fetchResponseRoster, updateResponseTeamPlace } from '../services/responseStationService'
 
 export const useResponseStationStore = defineStore('responseStation', () => {
   const roster = ref<ContaminationTeamRead | null>(null)

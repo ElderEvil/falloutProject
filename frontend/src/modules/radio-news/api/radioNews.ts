@@ -17,5 +17,9 @@ export async function regenerateRadioNews(
   vaultId: string,
   options: ApiRequestOptions = {}
 ): Promise<RadioNewsBroadcast> {
-  return apiPost<RadioNewsBroadcast>(`/api/v1/vaults/${vaultId}/radio-news/regenerate`, undefined, options)
+  return apiPost<RadioNewsBroadcast>(
+    `/api/v1/vaults/${vaultId}/radio-news/regenerate`,
+    undefined,
+    options
+  )
 }

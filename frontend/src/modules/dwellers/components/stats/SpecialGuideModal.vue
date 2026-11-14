@@ -22,21 +22,21 @@ const close = () => emit('update:modelValue', false)
     @close="close"
   >
     <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
-    <div class="guide-list">
-      <div v-for="entry in SPECIAL_GUIDE" :key="entry.letter" class="guide-entry">
-        <div class="guide-header">
-          <span class="guide-letter">{{ entry.letter }}</span>
-          <div>
-            <p class="guide-label">{{ entry.label }}</p>
-            <p class="guide-tagline">{{ entry.tagline }}</p>
+      <div class="guide-list">
+        <div v-for="entry in SPECIAL_GUIDE" :key="entry.letter" class="guide-entry">
+          <div class="guide-header">
+            <span class="guide-letter">{{ entry.letter }}</span>
+            <div>
+              <p class="guide-label">{{ entry.label }}</p>
+              <p class="guide-tagline">{{ entry.tagline }}</p>
+            </div>
           </div>
+          <ul class="guide-effects">
+            <li v-for="effect in entry.effects" :key="effect">{{ effect }}</li>
+          </ul>
         </div>
-        <ul class="guide-effects">
-          <li v-for="effect in entry.effects" :key="effect">{{ effect }}</li>
-        </ul>
       </div>
-    </div>
-    <p class="guide-bars">{{ SPECIAL_BARS_GUIDE }}</p>
+      <p class="guide-bars">{{ SPECIAL_BARS_GUIDE }}</p>
     </div>
   </TerminalModal>
 </template>

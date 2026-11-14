@@ -67,7 +67,8 @@ const dismiss = () => incidentStore.clearAftermath(props.aftermath.roomId)
         <p class="flex items-center gap-1.5 text-xs text-terminal-green-dim">
           <Icon :icon="threatIcon" class="h-3.5 w-3.5 shrink-0" />
           <span class="truncate">
-            {{ threatLabel }}<template v-if="aftermath.roomName"> · {{ aftermath.roomName }}</template>
+            {{ threatLabel
+            }}<template v-if="aftermath.roomName"> · {{ aftermath.roomName }}</template>
           </span>
         </p>
       </div>
@@ -105,7 +106,9 @@ const dismiss = () => incidentStore.clearAftermath(props.aftermath.roomId)
       v-if="lootItems.length > 0"
       class="rounded-lg border-2 border-theme-primary/40 bg-surface-canvas p-3"
     >
-      <h4 class="mb-2 flex items-center text-xs font-bold uppercase tracking-wide text-terminal-green-dim">
+      <h4
+        class="mb-2 flex items-center text-xs font-bold uppercase tracking-wide text-terminal-green-dim"
+      >
         <Icon icon="mdi:package-variant-closed-check" class="mr-1.5 h-4 w-4" />
         Recovered ({{ lootItems.length }})
       </h4>
@@ -128,7 +131,10 @@ const dismiss = () => incidentStore.clearAftermath(props.aftermath.roomId)
       </ul>
     </div>
 
-    <div v-if="heldItems.length > 0" class="rounded-lg border-2 border-warning/50 bg-surface-canvas p-3">
+    <div
+      v-if="heldItems.length > 0"
+      class="rounded-lg border-2 border-warning/50 bg-surface-canvas p-3"
+    >
       <h4 class="mb-1 flex items-center text-xs font-bold uppercase tracking-wide text-warning">
         <Icon icon="mdi:package-variant-closed-remove" class="mr-1.5 h-4 w-4" />
         Held — Storage Full ({{ heldItems.length }})
@@ -149,15 +155,12 @@ const dismiss = () => incidentStore.clearAftermath(props.aftermath.roomId)
           >
             <Icon icon="mdi:package-variant-closed" class="h-4 w-4 shrink-0" />
             <span class="truncate">{{ item.name }}</span>
-            <span v-if="(item.quantity ?? 1) > 1" class="text-terminal-green-dim">x{{ item.quantity }}</span>
+            <span v-if="(item.quantity ?? 1) > 1" class="text-terminal-green-dim"
+              >x{{ item.quantity }}</span
+            >
           </span>
           <span class="flex shrink-0 gap-1">
-            <Button
-              variant="secondary"
-              size="sm"
-              :disabled="isActing"
-              @click="act(index, 'take')"
-            >
+            <Button variant="secondary" size="sm" :disabled="isActing" @click="act(index, 'take')">
               <Icon
                 v-if="acting?.index === index && acting?.action === 'take'"
                 icon="mdi:loading"
@@ -165,12 +168,7 @@ const dismiss = () => incidentStore.clearAftermath(props.aftermath.roomId)
               />
               Take
             </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              :disabled="isActing"
-              @click="act(index, 'sell')"
-            >
+            <Button variant="secondary" size="sm" :disabled="isActing" @click="act(index, 'sell')">
               <Icon
                 v-if="acting?.index === index && acting?.action === 'sell'"
                 icon="mdi:loading"

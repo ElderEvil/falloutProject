@@ -104,10 +104,7 @@ const barberCandidates = computed(() =>
 
 const clientCandidates = computed(() =>
   roster.value.filter(
-    (dweller) =>
-      isMature(dweller) &&
-      dweller.status !== 'dead' &&
-      passesAsHuman(dweller)
+    (dweller) => isMature(dweller) && dweller.status !== 'dead' && passesAsHuman(dweller)
   )
 )
 
@@ -636,7 +633,8 @@ async function handleRegenerate(): Promise<void> {
           </Badge>
         </div>
         <p class="text-xs leading-snug text-theme-primary/65">
-          Pick a worker and a human-presenting client in the preview. Only appearance changes are charged.
+          Pick a worker and a human-presenting client in the preview. Only appearance changes are
+          charged.
         </p>
         <dl class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
           <div class="flex items-baseline gap-1">

@@ -7,10 +7,7 @@ const props = defineProps<DialogCloseProps>()
 
 <template>
   <!-- @vue-ignore -->
-  <DialogClose
-    data-slot="dialog-close"
-    v-bind="props"
-  >
+  <DialogClose data-slot="dialog-close" v-bind="props">
     <slot />
   </DialogClose>
 </template>

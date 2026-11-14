@@ -9,10 +9,7 @@ const props = defineProps<{
 
 <template>
   <!-- @vue-ignore -->
-  <div
-    data-slot="alert-action"
-    :class="cn('absolute top-2.5 right-3', props.class)"
-  >
+  <div data-slot="alert-action" :class="cn('absolute top-2.5 right-3', props.class)">
     <slot />
   </div>
 </template>

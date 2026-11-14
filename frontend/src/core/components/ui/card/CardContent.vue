@@ -9,10 +9,7 @@ const props = defineProps<{
 
 <template>
   <!-- @vue-ignore -->
-  <div
-    data-slot="card-content"
-    :class="cn('px-6 group-data-[size=sm]/card:px-4', props.class)"
-  >
+  <div data-slot="card-content" :class="cn('px-6 group-data-[size=sm]/card:px-4', props.class)">
     <slot />
   </div>
 </template>

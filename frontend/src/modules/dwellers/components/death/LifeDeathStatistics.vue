@@ -15,7 +15,12 @@ interface Props {
 const { loading = false, statistics, totalDwellersCreated } = defineProps<Props>()
 
 const mortalityRate = computed(() => {
-  if (!statistics || totalDwellersCreated === 0 || totalDwellersCreated < statistics.total_dwellers_died) return null
+  if (
+    !statistics ||
+    totalDwellersCreated === 0 ||
+    totalDwellersCreated < statistics.total_dwellers_died
+  )
+    return null
   return ((statistics.total_dwellers_died / totalDwellersCreated) * 100).toFixed(1)
 })
 
@@ -68,9 +73,7 @@ const causeData = computed(() => {
 </script>
 
 <template>
-  <Card
-    class="life-death-stats gap-0 border-theme-primary/20 bg-surface p-6"
-  >
+  <Card class="life-death-stats gap-0 border-theme-primary/20 bg-surface p-6">
     <div class="mb-5">
       <h3 class="text-xl font-bold text-theme-primary">Vital statistics</h3>
     </div>
@@ -84,10 +87,7 @@ const causeData = computed(() => {
     </div>
 
     <div v-else-if="statistics" class="space-y-6">
-      <div
-        v-if="isEmpty"
-        class="text-center py-8 text-theme-primary/70 font-mono text-sm"
-      >
+      <div v-if="isEmpty" class="text-center py-8 text-theme-primary/70 font-mono text-sm">
         <Icon icon="mdi:clipboard-text-off-outline" class="h-10 w-10 mx-auto mb-3 opacity-50" />
         <p>No activity recorded yet.</p>
       </div>
@@ -130,7 +130,11 @@ const causeData = computed(() => {
               {{ mortalityRate === null ? '—' : `${mortalityRate}%` }}
             </div>
             <p class="mt-1 text-xs text-theme-primary/60">
-              {{ mortalityRate === null ? 'Lifetime data unavailable' : 'Deaths / all dwellers created' }}
+              {{
+                mortalityRate === null
+                  ? 'Lifetime data unavailable'
+                  : 'Deaths / all dwellers created'
+              }}
             </p>
           </div>
         </div>

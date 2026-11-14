@@ -10,11 +10,7 @@ const forwarded = useForwardPropsEmits(props, emits)
 
 <template>
   <!-- @vue-ignore -->
-  <SelectRoot
-    v-slot="slotProps"
-    data-slot="select"
-    v-bind="forwarded"
-  >
+  <SelectRoot v-slot="slotProps" data-slot="select" v-bind="forwarded">
     <slot v-bind="slotProps" />
   </SelectRoot>
 </template>

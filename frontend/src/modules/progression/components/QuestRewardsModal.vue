@@ -80,7 +80,7 @@ const inferItemCategory = (reward: QuestReward): string => {
   return explicit && QUEST_ITEM_LABELS[explicit] ? explicit : ''
 }
 
-const rewardMeta = (reward: QuestReward): { icon: string, label: string } => {
+const rewardMeta = (reward: QuestReward): { icon: string; label: string } => {
   const base = REWARD_TYPE_META[reward.reward_type] ?? { icon: 'mdi:gift', label: 'Reward' }
   const data = reward.reward_data
 
@@ -97,7 +97,8 @@ const rewardMeta = (reward: QuestReward): { icon: string, label: string } => {
   return base
 }
 
-const itemCardLabel = (reward: QuestReward): string => `${rewardMeta(reward).label}${chanceSuffix(reward)}`
+const itemCardLabel = (reward: QuestReward): string =>
+  `${rewardMeta(reward).label}${chanceSuffix(reward)}`
 
 const dwellerCardMeta = (reward: QuestReward): string =>
   chanceText(reward) || 'Joins your vault on claim'
@@ -113,67 +114,68 @@ const dwellerCardMeta = (reward: QuestReward): string =>
     header-class="quest-complete-header flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
     @close="emit('close')"
   >
-      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
-
-    <div v-if="quest" class="quest-return-banner mb-6 flex items-center gap-3 rounded-md border border-theme-primary/30 bg-theme-primary/10 p-4 text-lg text-theme-primary">
-      <Icon icon="mdi:flag-checkered" class="h-6 w-6 shrink-0 text-theme-accent" />
-      {{ quest.title }} has returned. Confirm delivery to your vault.
-    </div>
-
-    <div
-      v-if="rewards.length > 0"
-      class="grid grid-cols-1 gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 sm:grid-cols-2"
-      aria-live="polite"
-    >
-      <template v-for="reward in rewards" :key="reward.id">
-        <RewardItemCard
-          v-if="isDwellerReward(reward)"
-          :name="questDwellerName(reward)"
-          :rarity="dwellerRarity(reward)"
-          label="New Dweller"
-          :meta="dwellerCardMeta(reward)"
-          kind="dweller"
-          layout="row"
-          class="sm:col-span-2"
-        >
-          <template #media>
-            <DwellerPortrait
-              :alt="questDwellerName(reward)"
-              image-class="h-32 w-full object-cover object-top sm:h-36"
-              fallback-class="size-14 text-theme-primary/50"
-            />
-          </template>
-          <template #badge>
-            <DwellerRarityBadge :rarity="dwellerRarity(reward)" show-label size="sm" />
-          </template>
-        </RewardItemCard>
-
-        <RewardItemCard
-          v-else-if="isItemReward(reward)"
-          :name="itemName(reward)"
-          :rarity="itemRarity(reward)"
-          :label="itemCardLabel(reward)"
-          :quantity="itemQuantity(reward)"
-          :item-type="itemType(reward)"
-          :image-url="itemImage(reward)"
-        />
-
-        <RewardItemCard
-          v-else
-          kind="currency"
-          :icon="rewardMeta(reward).icon"
-          :label="rewardMeta(reward).label"
-          :name="numericRewardLabel(reward)"
-        />
-      </template>
-    </div>
-
-    <div v-else class="flex flex-col items-center gap-3 p-8 text-theme-primary/60">
-      <Icon icon="mdi:package-variant-closed" class="h-12 w-12" />
-      <p>No rewards listed for this quest</p>
-    </div>
-
+    <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+      <div
+        v-if="quest"
+        class="quest-return-banner mb-6 flex items-center gap-3 rounded-md border border-theme-primary/30 bg-theme-primary/10 p-4 text-lg text-theme-primary"
+      >
+        <Icon icon="mdi:flag-checkered" class="h-6 w-6 shrink-0 text-theme-accent" />
+        {{ quest.title }} has returned. Confirm delivery to your vault.
       </div>
+
+      <div
+        v-if="rewards.length > 0"
+        class="grid grid-cols-1 gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 sm:grid-cols-2"
+        aria-live="polite"
+      >
+        <template v-for="reward in rewards" :key="reward.id">
+          <RewardItemCard
+            v-if="isDwellerReward(reward)"
+            :name="questDwellerName(reward)"
+            :rarity="dwellerRarity(reward)"
+            label="New Dweller"
+            :meta="dwellerCardMeta(reward)"
+            kind="dweller"
+            layout="row"
+            class="sm:col-span-2"
+          >
+            <template #media>
+              <DwellerPortrait
+                :alt="questDwellerName(reward)"
+                image-class="h-32 w-full object-cover object-top sm:h-36"
+                fallback-class="size-14 text-theme-primary/50"
+              />
+            </template>
+            <template #badge>
+              <DwellerRarityBadge :rarity="dwellerRarity(reward)" show-label size="sm" />
+            </template>
+          </RewardItemCard>
+
+          <RewardItemCard
+            v-else-if="isItemReward(reward)"
+            :name="itemName(reward)"
+            :rarity="itemRarity(reward)"
+            :label="itemCardLabel(reward)"
+            :quantity="itemQuantity(reward)"
+            :item-type="itemType(reward)"
+            :image-url="itemImage(reward)"
+          />
+
+          <RewardItemCard
+            v-else
+            kind="currency"
+            :icon="rewardMeta(reward).icon"
+            :label="rewardMeta(reward).label"
+            :name="numericRewardLabel(reward)"
+          />
+        </template>
+      </div>
+
+      <div v-else class="flex flex-col items-center gap-3 p-8 text-theme-primary/60">
+        <Icon icon="mdi:package-variant-closed" class="h-12 w-12" />
+        <p>No rewards listed for this quest</p>
+      </div>
+    </div>
 
     <template #footer>
       <TerminalModalActions

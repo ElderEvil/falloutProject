@@ -80,6 +80,18 @@ cp ../.env .env
 uv sync --dev
 uv run alembic upgrade head
 uv run fastapi dev main.py
+```
+
+`alembic upgrade head` applies the single squashed baseline revision. A database created
+before the squash must first reach the frozen legacy head and be adopted once (writers
+stopped), then upgraded:
+
+```bash
+uv run alembic -c alembic-legacy.ini upgrade head
+uv run python -m app.alembic.baseline_tools check --database fallout_db
+uv run python -m app.alembic.baseline_tools adopt --database fallout_db --apply
+uv run alembic upgrade head
+```
 
 # 4. Setup and run frontend (http://localhost:5173)
 # ⚠️ IMPORTANT: Backend API must be accessible at http://localhost:8000
@@ -209,6 +221,13 @@ git config --local core.hooksPath "$(git rev-parse --path-format=absolute --git-
 Keep existing hooks in that directory, and check for worktree-specific `core.hooksPath` overrides
 before relying on sharing. Review the installed copy when `scripts/pre-push` changes. This is
 separate from `prek install`, which manages the commit-time checks.
+
+Commit hooks include actionlint for changed GitHub Actions workflows and Gitleaks for staged secrets.
+Prek installs their pinned Go tools automatically; ShellCheck, when installed, also checks workflow
+shell snippets through actionlint (it is available on the GitHub-hosted Ubuntu runner).
+The Repository Checks workflow runs these hooks on PR/push commit ranges, including secrets added
+and later removed within the range. Backend CI also passes an explicit change range to prek, so
+a clean checkout cannot silently skip linting. Neither gate scans unrelated legacy files for style.
 
 The guard checks destination refs and blocks updates, force pushes and deletions targeting `master`,
 including `git push -u origin HEAD` while on `master` and `HEAD:master` from another branch. Feature

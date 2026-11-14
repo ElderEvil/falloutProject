@@ -39,8 +39,9 @@ uv run alembic upgrade head  # apply migrations
 uv run fastapi dev main.py   # dev server :8000
 ```
 
-CI gate: `uv run prek run` — commit-time/staged-files only (pre-commit.ci enforces the same
-set on PR diffs; see `.github/workflows/backend-ci.yml`). Do NOT gate on `--all-files`:
+Local gate: `uv run prek run` checks staged files. Backend CI passes `--from-ref` / `--to-ref`
+to check the PR/push diff; pre-commit.ci also checks PR diffs (see `.github/workflows/backend-ci.yml`).
+Repository Checks runs actionlint and Gitleaks; frontend checks remain in Frontend CI. Do NOT gate on `--all-files`:
 legacy ty diagnostics outside `tests/`/`alembic/`/`crud/` keep it red, and clearing that
 debt is out of scope for feature PRs.
 

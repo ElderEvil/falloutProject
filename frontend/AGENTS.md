@@ -98,6 +98,22 @@ These commands map to their corresponding tools. For example, `vp dev --port 300
 
 <!--VITE PLUS END-->
 
+## Formatting
+
+- Use Oxfmt through `pnpm run format` and `pnpm run format:check` for `src/`.
+  The existing staged hook also formats other supported staged frontend files.
+  Install commit-time enforcement with `cd backend && uv run prek install` after cloning.
+  The `frontend-lint-format` prek hook runs `vp staged`, using the same `fmt` configuration;
+  it fixes formatting on staged files before a commit can complete.
+  Frontend CI runs `pnpm run format:check` over `src/`; check a partial batch with
+  `pnpm exec vp fmt <path> --check`.
+- Keep formatter settings in `vite.config.ts` (`fmt`): 100 columns, two spaces, single quotes,
+  no semicolons, ES5 trailing commas, parentheses around arrow parameters, and LF line endings.
+- Preserve whitespace-sensitive HTML/Vue layout and leave Vue script/style blocks unindented.
+  Import, Tailwind class, and package.json sorting are disabled; keep this pass about formatting.
+- `fmt.ignorePatterns` excludes standalone CSS and generated API types. Vue embedded styles are
+  still formatted. Do not reformat generator output or add a separate Prettier configuration.
+
 ## Application ownership
 
 - Components own presentation and local interaction state. HTTP calls belong in the existing module

@@ -108,6 +108,27 @@ POSTGRES_DB=baseline_release_reference ASYNC_DATABASE_URI= \
   --database baseline_release_reference --output /private/release-baseline.json
 ```
 
+## Legacy graph status (frozen 2026-11-14)
+
+Every maintained database is adopted: production at the v3.0.2 cutover and the local
+development database on 2026-11-14. No entry point runs `alembic-legacy.ini`; the deploy
+migration Job classifies the database with `baseline_tools prepare` and upgrades the
+baseline graph. The legacy files are therefore reference/test-only:
+
+- `alembic-legacy.ini` and `app/alembic/versions/` keep the historical replay used by
+  `app/tests/test_alembic/*` and `scripts/build_alembic_baseline.py`.
+- `baseline_tools` still accepts a database at `4b3cbd7b15ff` for one more release, so a
+  restored v3.0.x dump can be adopted rather than upgraded.
+
+Deletion checklist after the next release (target 3.2):
+
+- [ ] Confirm no maintained database reports `4b3cbd7b15ff` from `prepare`/`check`.
+- [ ] Delete `alembic-legacy.ini`, `app/alembic/versions/`, the generator, the `freeze`
+      command, and the legacy replay tests in the same PR; shrink the image check.
+- [ ] Keep the migration-on-test coverage that protects live behavior; retire only the
+      historical replay, recording the coverage delta per the test-pruning policy.
+- [ ] Release tags up to `v3.1.1` remain the recovery path for pre-squash dumps.
+
 ## Regenerating the artifacts
 
 From the repository root, with a PostgreSQL server reachable through `backend/.env`

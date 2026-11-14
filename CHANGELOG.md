@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.1.1 (2026-11-14)
+
+### Bug Fixes
+
+* **ci:** scope repository checks and standardize Oxfmt ([#1402](https://github.com/ElderEvil/falloutProject/issues/1402)) 81024b2
+
 ## 3.1.0 (2026-11-14)
 
 ### Features

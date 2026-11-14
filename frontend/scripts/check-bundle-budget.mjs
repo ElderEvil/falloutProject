@@ -16,8 +16,11 @@ const refs = [
     [...html.matchAll(/(?:modulepreload[^>]*href="|src="|href=")([^"]+\.(?:js|css))"/g)].map(
       (m) => m[1]
     )
+    // Absolute URLs (external analytics, CDNs, data: URIs) are not part of the
+    // bundle: they are not emitted to dist/, so they cannot be sized or gzipped
+    // here. Only same-origin paths count toward the initial payload.
   ),
-]
+].filter((r) => !/^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(r) && !r.startsWith('data:'))
 
 const missing = refs.filter((r) => !fs.existsSync(path.join(DIST, r.replace(/^\//, ''))))
 if (missing.length > 0) {

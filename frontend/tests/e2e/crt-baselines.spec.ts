@@ -155,7 +155,7 @@ async function expectCanonicalChrome(page: Page, superuser = false) {
   // so without this wait a fresh page can be captured icon-less (CI vs local drift).
   await expect(page.locator('svg.iconify path').first()).toBeVisible({ timeout: 20000 })
   if (superuser) {
-    const launcher = page.getByRole('button', { name: 'Open admin terminal' })
+    const launcher = page.getByRole('button', { name: /open the admin terminal/i })
     await expect(launcher).toBeVisible()
     await expect(launcher.locator('svg path').first()).toBeVisible()
   }

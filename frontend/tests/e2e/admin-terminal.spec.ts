@@ -92,7 +92,7 @@ for (const width of [390, 1440]) {
     })
     await input.press('Escape')
     await expect(dialog).toHaveCount(0)
-    await page.getByRole('button', { name: 'Open admin terminal' }).click()
+    await page.getByRole('button', { name: /open the admin terminal/i }).click()
     await expect(dialog).toBeVisible()
     expect(manifestRequests).toBe(1)
     const box = await dialog.boundingBox()

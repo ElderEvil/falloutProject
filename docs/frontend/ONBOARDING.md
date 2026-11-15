@@ -8,8 +8,9 @@
 
 A first-session guide that shows one useful action at a time, then hands off to the Briefing.
 
-- **Five authored orientation lessons** (`frontend/src/modules/progression/models/onboardingSteps.ts`):
-  power bar → generator → SPECIAL staffing → housing → departure. This definition list is the
+- **Four opening milestones with seven authored actions** (`frontend/src/modules/progression/models/onboardingSteps.ts`):
+  power bar → generator → SPECIAL staffing → housing → weapon → outfit → departure.
+  The field guide groups them as Take command → Welcome someone → Prepare equipment → First departure. This definition list is the
   only source of **teaching** order.
 - **Local teaching progress is separate from server reward progress.** Teaching state is a
   per-vault ledger in `core/composables/useOnboardingState.ts`; reward order, completion
@@ -18,8 +19,8 @@ A first-session guide that shows one useful action at a time, then hands off to 
   the server objective untouched; `skipTour` suppresses the whole orientation; `resumeGuide`
   clears only that suppression; `replayOrientation` clears orientation teaching statuses and
   re-arms the tour without paying again. Preferences exposes Resume and Replay.
-- **Server-authoritative claims.** A claim is offered only when the lesson's objective is the
-  lowest unclaimed starter step; otherwise the card shows a blocker with an Open Starter link.
+- **Server-authoritative claims.** A claim is offered when the lesson's assigned objective is earned and unclaimed,
+  including when an earlier starter reward is still unclaimed. The backend validates each claim.
   Replay reaches claimed explanations with Continue and no reward action.
 - **Eligibility checks** (`onboardingSteps.ts`). Housing prices the build as
   `base_cost + existing same-category rooms × incremental_cost` (matching backend
@@ -41,14 +42,65 @@ A first-session guide that shows one useful action at a time, then hands off to 
   `ChangelogModal` and `PageHelp` register their own non-`TerminalModal` dialogs.
 - **Responsive placement.** The card sits on the opposite side of the highlighted control so it
   never covers what it explains. When the control is below the fold the card moves above it and
-  collapses to its title (the lesson is preserved); a manual collapse/expand toggle wins until
-  the lesson changes, so a background poll never reopens the card, moves focus or re-announces
+  keeps its actions expanded. Explanatory text scrolls inside a bounded card, leaving the target and action buttons accessible. Only the manual collapse/expand toggle changes
+  that state until the lesson changes, so a background poll never reopens the card, moves focus or re-announces
   unchanged copy. When the control is on the current page but out of view, the guide offers an
   explicit **Show control** action that scrolls only when clicked; navigating to the route you
   are already on is not offered. Anchor selection and card placement re-resolve on scroll and
   resize — both read the same reactive element bounds — so scrolling a control into view restores
   the spotlight (`Show control` calls the refresh directly) and resizing that hides the control
   falls back to explicit navigation instead of leaving a detached highlight.
+
+## Field guide opening (first redesign slice)
+
+The opening uses the existing teaching ledger and claim flow. A four-milestone rail
+shows the journey through first departure; the current action displays its real
+server reward, progress, purpose and next action. Weapon and outfit preparation
+precede departure in teaching order. Earned equipment rewards can be claimed before
+the earlier departure objective, as the server already permits. The catalog order
+and recruitment/Office changes remain a later delivery slice.
+
+Completed introductions remain completed. Legacy cohorts without equipment
+objectives skip the new equipment lessons, while replay stays explanation-only.
+The guide does not offer navigation back to the route already open, and a manual
+collapse remains stable across background refreshes. Dialog suspension, claim
+celebrations and the existing post-departure handoff remain in place.
+
+### Opening verification, 2026-11-15
+
+An automated Chromium walkthrough used the changed frontend against isolated local
+PostgreSQL/Redis and the real API, starting from master `98c19d47`. The account was
+an ordinary user, verified as a fixture prerequisite; login and creation of a fresh,
+non-boosted Standard vault happened through the UI. No gameplay responses or clocks
+were mocked. The worker was not running, so this is not production-rate, offline,
+return-timing or economy verification.
+
+- Started with nine residents, capacity 26 and 1,000 caps. Inspecting the existing
+  staffing led to the real 50-cap claim and its celebration.
+- The API already reported housing earned before new construction. Its current
+  `baseline_size: 3` is below the seeded nine Living Quarters units. The guide honored
+  that server state: claiming welcomed Juno Pike and opened the actual roster.
+  Correcting the fresh-cohort housing baseline belongs with the next progression
+  change; construction is **not** verified by this walkthrough.
+- Opened Juno's Equipment tab, equipped a Hunting Rifle, claimed Wasteland gear,
+  equipped it, and claimed Mara Voss. Each equipment milestone became claimable
+  without a page reload. Already-earned rewards remained explicit claims.
+- From Juno's detail, selected a one-hour roam, manually picked east, and explicitly
+  sent her. The real API accepted dispatch and made the departure reward ready.
+- At 390px with touch emulation, claimed Elias Reed, closed the newcomer celebration,
+  and reached the existing “While they're away” handoff. Population reached twelve;
+  caps remained 1,050. No Office or quest-path completion is claimed here.
+
+The real layout exposed two frontend regressions covered before their fixes: the
+expanded housing card covered Build near the viewport midpoint, and preparation
+navigation failed to point to the Equipment tab on an already-open dweller detail.
+The guide now bounds its explanation, pins actions, and uses actual equipment and
+dispatch anchors before falling back to navigation.
+
+Validation: 4,233 frontend unit cases, 12 onboarding browser cases without retries,
+typecheck, lint, production build, module/color guards and bundle budget passed.
+The browser fixtures separately cover desktop/phone claims, refresh/resume, dialog
+suspension, keyboard access and viewport changes; their backend responses are mocked.
 
 ## Account first-run setup
 

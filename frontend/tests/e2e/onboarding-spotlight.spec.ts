@@ -395,3 +395,120 @@ test.describe('Spotlight guide — vault page', () => {
     await expect(handoff).toHaveCount(0)
   })
 })
+
+for (const width of [1280, 390]) {
+  test(`field guide claims equipment before departure at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await openVault(page, {
+      ...ORIENTATION_ACKNOWLEDGED,
+      lessons: {
+        ...ORIENTATION_ACKNOWLEDGED.lessons,
+        'orientation.staffing': 'acknowledged',
+        'orientation.housing': 'acknowledged',
+      },
+    })
+    const claimed = new Set<string>()
+    const rows = [
+      {
+        ...STAFFING_OBJECTIVE,
+        id: 'departure',
+        sequence: 2,
+        template_key: 'starter:send a dweller exploring',
+        objective_type: 'explore',
+        progress: 0,
+        total: 1,
+      },
+      {
+        ...STAFFING_OBJECTIVE,
+        id: 'weapon',
+        sequence: 3,
+        template_key: 'starter:equip a weapon',
+        objective_type: 'equip',
+        progress: 1,
+        total: 1,
+        reward: 'outfit:Wasteland gear',
+      },
+      {
+        ...STAFFING_OBJECTIVE,
+        id: 'outfit',
+        sequence: 4,
+        template_key: 'starter:equip an outfit',
+        objective_type: 'equip',
+        progress: 1,
+        total: 1,
+        reward: 'dweller:Mara Voss',
+      },
+    ]
+    await page.route('**/api/v1/objectives/vault-1/**', async (route) => {
+      const match = new URL(route.request().url()).pathname.match(/\/(weapon|outfit)\/claim$/)
+      if (match) {
+        claimed.add(match[1]!)
+        return route.fulfill({ json: { progress: 1, total: 1, is_completed: true } })
+      }
+      return route.fulfill({
+        json: rows.map((row) => ({ ...row, is_completed: claimed.has(row.id) })),
+      })
+    })
+    await page.reload()
+    const guide = page.getByRole('region', { name: 'Vault onboarding', exact: true })
+    await expect(guide.getByRole('list', { name: 'Introduction milestones' })).toBeVisible()
+    await expect(guide.getByRole('heading', { name: 'Arm your explorer' })).toBeVisible()
+    await expect(
+      guide.getByRole('button', { name: 'Claim Wasteland gear', exact: true })
+    ).toBeVisible()
+    await guide.getByRole('button', { name: 'Claim Wasteland gear', exact: true }).click()
+    const celebration = page.getByRole('dialog', { name: 'Objective Complete!' })
+    await expect(celebration).toContainText('Wasteland gear')
+    await celebration.getByRole('button', { name: 'Continue', exact: true }).click()
+    await expect(guide.getByRole('heading', { name: 'Dress for the wasteland' })).toBeVisible()
+    await guide.getByRole('button', { name: 'Claim Mara Voss', exact: true }).click()
+    await expect(celebration).toContainText('Mara Voss has joined your vault')
+    await celebration.getByRole('button', { name: 'Close', exact: true }).last().click()
+    await expect(guide.getByRole('heading', { name: 'Send a dweller exploring' })).toBeVisible()
+    expect([...claimed]).toEqual(['weapon', 'outfit'])
+    await page.reload()
+    await expect(guide.getByRole('heading', { name: 'Send a dweller exploring' })).toBeVisible()
+  })
+}
+
+test('expanded housing guidance leaves a middle-screen Build control clickable', async ({
+  page,
+}) => {
+  await openVault(page, {
+    ...ORIENTATION_ACKNOWLEDGED,
+    lessons: { ...ORIENTATION_ACKNOWLEDGED.lessons, 'orientation.staffing': 'acknowledged' },
+  })
+  await page.route('**/api/v1/objectives/vault-1/**', (route) =>
+    route.fulfill({
+      json: [
+        {
+          ...STAFFING_OBJECTIVE,
+          id: 'housing',
+          template_key: 'starter:build a living quarters',
+          objective_type: 'build',
+          progress: 1,
+          total: 1,
+          reward: 'dweller:Juno Pike',
+        },
+      ],
+    })
+  )
+  await page.reload()
+  // Real standard-vault layout placed Build just above the viewport midpoint.
+  await page.addStyleTag({
+    content:
+      '[data-onboarding="build"] { position: fixed !important; top: 44vh !important; right: 3rem !important; bottom: auto !important; }',
+  })
+  const guide = page.getByRole('region', { name: 'Vault onboarding', exact: true })
+  await expect(guide.getByRole('button', { name: 'Claim Juno Pike', exact: true })).toBeVisible()
+  const build = page.locator('[data-onboarding="build"]')
+  const target = (await build.boundingBox())!
+  await expect
+    .poll(async () => {
+      const card = (await guide.boundingBox())!
+      return card.y + card.height <= target.y || card.y >= target.y + target.height
+    })
+    .toBe(true)
+  await build.click()
+  await expect(page.getByRole('button', { name: /Cancel Building/ })).toBeVisible()
+})

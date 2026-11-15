@@ -24,7 +24,14 @@ const tabs = dwellerDetailSections.map(({ key, label }) => ({ key, label }))
   <div class="dweller-panel min-w-0">
     <Tabs :model-value="activeTab" @update:model-value="activeTab = String($event)">
       <TabsList class="w-full flex-wrap justify-start">
-        <TabsTrigger v-for="tab in tabs" :key="tab.key" :value="tab.key">
+        <TabsTrigger
+          v-for="tab in tabs"
+          :key="tab.key"
+          :value="tab.key"
+          v-bind="{
+            'data-onboarding': tab.key === 'equipment' ? 'dweller-equipment-tab' : undefined,
+          }"
+        >
           {{ tab.label }}
         </TabsTrigger>
       </TabsList>

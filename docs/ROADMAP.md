@@ -29,6 +29,10 @@ The existing [flow research](features/GAME_FLOW_CONTINUITY_RESEARCH.md),
 [tutorial reference](frontend/ONBOARDING.md) and [balance playtests](backend/BALANCE_PLAYTEST.md) provide
 starting evidence. Their dated findings and PR statuses need rechecking rather than automatic implementation.
 
+The [new-player journey proposal](features/FIRST_SESSION_PLAYER_JOURNEY.md) maps the redesigned opening,
+milestone rewards and Office handoff. Its direction is agreed; deliver the opening first, then the recruitment bridge and Office handoff
+with a verified budget and cohort protection. Current game rules apply until those changes ship.
+
 ## Existing PR queue
 
 - Plan [site discovery alerts and playable encounters #1193](https://github.com/ElderEvil/falloutProject/issues/1193).

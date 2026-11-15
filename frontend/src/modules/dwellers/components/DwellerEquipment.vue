@@ -156,7 +156,7 @@ const modalIcon = computed(() => {
       <div class="equipment-slot">
         <div class="slot-header">
           <Icon :icon="getItemIcon('weapon', equippedWeapon ?? {})" class="slot-icon" />
-          <h4 class="slot-title">Weapon</h4>
+          <h4 class="slot-title" v-bind="{ 'data-onboarding': 'dweller-weapon' }">Weapon</h4>
         </div>
 
         <EquipmentCard
@@ -184,7 +184,7 @@ const modalIcon = computed(() => {
       <div class="equipment-slot">
         <div class="slot-header">
           <Icon :icon="getItemIcon('outfit', equippedOutfit ?? {})" class="slot-icon" />
-          <h4 class="slot-title">Outfit</h4>
+          <h4 class="slot-title" v-bind="{ 'data-onboarding': 'dweller-outfit' }">Outfit</h4>
         </div>
 
         <EquipmentCard

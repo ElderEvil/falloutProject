@@ -1,5 +1,5 @@
-import { mount, flushPromises } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { enableAutoUnmount, mount, flushPromises } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createPinia, setActivePinia } from 'pinia'
 import { effectScope, reactive, ref } from 'vue'
 import OnboardingSpotlight from '@/modules/progression/components/OnboardingSpotlight.vue'
@@ -10,6 +10,8 @@ import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import type { Objective } from '@/modules/progression/models/objective'
 import type { components } from '@/core/types/api.generated'
 import axios from '@/core/plugins/axios'
+
+enableAutoUnmount(afterEach)
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), warning: vi.fn() }))
 vi.mock('@/core/composables/useToast', () => ({ useToast: () => toast }))
@@ -328,7 +330,7 @@ describe('OnboardingSpotlight', () => {
     await clickButton('Start')
     expect(findButton('Open Starter')).toBeUndefined()
     expect(document.body.textContent).not.toContain('Claim your earlier reward in Starter first.')
-    expect(findButton('Continue')).toBeDefined()
+    expect(findButton('Claim 25 caps')).toBeDefined()
     wrapper.unmount()
   })
 
@@ -346,7 +348,8 @@ describe('OnboardingSpotlight', () => {
     wrapper.unmount()
   })
 
-  it('offers a route back to construction for housing', async () => {
+  it('offers a route back to construction when housing is taught on another page', async () => {
+    route.path = '/vault/v1/dwellers'
     seedHousing(500)
     acknowledgeLessons('orientation.resources', 'orientation.generator', 'orientation.staffing')
     const wrapper = mountSpotlight()
@@ -673,14 +676,14 @@ describe('OnboardingSpotlight', () => {
       wrapper.unmount()
     })
 
-    it('moves the card above and collapses it when the control sits below the fold', async () => {
+    it('moves the card above and keeps its action visible when the control sits below the fold', async () => {
       anchored(600)
       const wrapper = mountSpotlight()
       await flushPromises()
       await clickButton('Start')
 
       expect(card()?.getAttribute('class')).toContain('onboarding-card--top')
-      expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('false')
+      expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('true')
       wrapper.unmount()
     })
 
@@ -857,7 +860,7 @@ describe('first-session continuity', () => {
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
-    await clickButton('Claim dweller:Wanderer')
+    await clickButton('Claim Wanderer')
     expect(document.body.textContent).toContain('Wanderer has joined your vault')
     const view = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
       (button) => button.textContent?.trim() === 'View dwellers'
@@ -866,6 +869,129 @@ describe('first-session continuity', () => {
     view!.click()
     await flushPromises()
     expect(router.push).toHaveBeenCalledWith('/vault/v1/dwellers')
+    wrapper.unmount()
+  })
+})
+
+describe('field guide milestones', () => {
+  it('prepares equipment before departure and claims an earned reward without an earlier claim gate', async () => {
+    acknowledgeLessons(
+      'orientation.resources',
+      'orientation.generator',
+      'orientation.staffing',
+      'orientation.housing'
+    )
+    useOnboardingState().patch('v1', { welcomed: true })
+    const store = useObjectivesStore()
+    const weapon = objective('weapon', {
+      templateKey: 'starter:equip a weapon',
+      sequence: 3,
+      progress: 1,
+      total: 1,
+    })
+    store.objectives = [objective('departure', { templateKey: DEPARTURE_KEY, sequence: 2 }), weapon]
+    const complete = vi
+      .spyOn(store, 'completeObjective')
+      .mockResolvedValue({ ...weapon, is_completed: true })
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    expect(document.body.textContent).toContain('Arm your explorer')
+    expect(document.body.textContent).toContain('Prepare equipment')
+    expect(findButton('Claim 25 caps')).toBeDefined()
+    await clickButton('Claim 25 caps')
+    expect(complete).toHaveBeenCalledWith('v1', 'weapon')
+    const dialog = document.querySelector('[role="dialog"]')
+    expect(dialog?.textContent).toContain('Objective Complete!')
+    const confirm = [...dialog!.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent?.trim() === 'Continue'
+    )
+    confirm?.click()
+    await flushPromises()
+    expect(document.body.textContent).toContain('Send a dweller exploring')
+    expect(useOnboardingState().teaching('v1').lessons['orientation.departure']).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('shows the milestone roadmap and a useful destination before equipment is earned', async () => {
+    acknowledgeLessons(
+      'orientation.resources',
+      'orientation.generator',
+      'orientation.staffing',
+      'orientation.housing'
+    )
+    useOnboardingState().patch('v1', { welcomed: true })
+    useObjectivesStore().objectives = [
+      objective('weapon', { templateKey: 'starter:equip a weapon' }),
+    ]
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    expect(document.body.textContent).toContain('VAULT FIELD GUIDE')
+    expect(document.querySelector('[aria-label="Introduction milestones"]')?.textContent).toContain(
+      'Welcome someone'
+    )
+    expect(findButton('Open Dwellers')).toBeDefined()
+    expect(findButton('Claim 25 caps')).toBeUndefined()
+    await clickButton('Open Dwellers')
+    expect(router.push).toHaveBeenCalledWith('/vault/v1/dwellers')
+    expect(useOnboardingState().teaching('v1').lessons['orientation.weapon']).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('does not reopen equipment teaching for a completed existing introduction', async () => {
+    acknowledgeLessons(...ALL_LESSONS)
+    useOnboardingState().patch('v1', { welcomed: true, handoffDismissed: true })
+    useObjectivesStore().objectives = [
+      objective('weapon', { templateKey: 'starter:equip a weapon' }),
+    ]
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    expect(document.querySelector('[aria-label="Vault onboarding"]')).toBeNull()
+    wrapper.unmount()
+  })
+})
+
+describe('equipment destination', () => {
+  it('highlights the Equipment tab on a dweller detail instead of sending the player back to the roster', async () => {
+    acknowledgeLessons(
+      'orientation.resources',
+      'orientation.generator',
+      'orientation.staffing',
+      'orientation.housing'
+    )
+    useOnboardingState().patch('v1', { welcomed: true })
+    route.path = '/vault/v1/dwellers/d1'
+    boundedAnchor('dweller-equipment-tab')
+    useObjectivesStore().objectives = [
+      objective('weapon', { templateKey: 'starter:equip a weapon' }),
+    ]
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    expect(document.querySelector('.onboarding-cutout')).not.toBeNull()
+    expect(findButton('Open Dwellers')).toBeUndefined()
+    wrapper.unmount()
+  })
+})
+
+describe('prepared explorer handoff', () => {
+  it('points to the prepared dweller’s dispatch action instead of leaving their detail', async () => {
+    acknowledgeLessons(
+      'orientation.resources',
+      'orientation.generator',
+      'orientation.staffing',
+      'orientation.housing'
+    )
+    useOnboardingState().patch('v1', { welcomed: true })
+    route.path = '/vault/v1/dwellers/d1'
+    boundedAnchor('dweller-departure')
+    stores.dweller.filter.allDwellers = [
+      { id: 'd1', age_group: 'adult', status: 'idle', health: 100 },
+    ]
+    stores.dweller.filter.allDwellersLoadedVaultId = 'v1'
+    useObjectivesStore().objectives = [objective('departure', { templateKey: DEPARTURE_KEY })]
+    const wrapper = mountSpotlight()
+    await flushPromises()
+    expect(document.querySelector('.onboarding-cutout')).not.toBeNull()
+    expect(findButton('Open Exploration')).toBeUndefined()
     wrapper.unmount()
   })
 })

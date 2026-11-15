@@ -41,12 +41,14 @@ const LIVING_ROOM = {
 const SEEDED_CAPACITY_ROOMS = [{ category: 'Capacity' }, { category: 'Capacity' }]
 
 describe('onboardingSteps', () => {
-  it('authors the five orientation lessons in order with stable ids', () => {
+  it('keeps stable teaching ids and prepares equipment before departure', () => {
     expect(ORIENTATION_STEPS.map((step) => step.id)).toEqual([
       'orientation.resources',
       'orientation.generator',
       'orientation.staffing',
       'orientation.housing',
+      'orientation.weapon',
+      'orientation.outfit',
       'orientation.departure',
     ])
   })

@@ -30,8 +30,10 @@ The existing [flow research](features/GAME_FLOW_CONTINUITY_RESEARCH.md),
 starting evidence. Their dated findings and PR statuses need rechecking rather than automatic implementation.
 
 The [new-player journey proposal](features/FIRST_SESSION_PLAYER_JOURNEY.md) maps the redesigned opening,
-milestone rewards and Office handoff. Its direction is agreed; deliver the opening first, then the recruitment bridge and Office handoff
-with a verified budget and cohort protection. Current game rules apply until those changes ship.
+milestone rewards and Office handoff. The opening (#1418) and separate recruitment/Office slice implement the approved direction:
+nine earned recruits, a bounded 900-cap reward budget, preserved legacy cohorts and an optional
+post-intro guide. Real-service evidence is in the tutorial reference; measured pacing, optional-spending
+recovery and the full return-to-useful-outcome walkthrough remain to verify before closing #1034.
 
 ## Existing PR queue
 

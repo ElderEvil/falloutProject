@@ -5,6 +5,7 @@ from pathlib import Path
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import ObjectiveCategoryEnum
 from app.crud.objective import objective_crud
 from app.models.objective import Objective
 from app.schemas.objective import ObjectiveCreate
@@ -19,6 +20,8 @@ def _transform_objective_create_to_model(objective_data: ObjectiveCreate) -> Obj
     """Transform ObjectiveCreate schema to Objective model."""
     return Objective(
         template_key=objective_data.template_key,
+        # Stage new starter rows inactive until the whole cohort switches atomically.
+        assignable=objective_data.category != ObjectiveCategoryEnum.STARTER,
         challenge=objective_data.challenge,
         reward=objective_data.reward,
         category=objective_data.category,

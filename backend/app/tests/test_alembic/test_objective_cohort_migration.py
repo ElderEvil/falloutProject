@@ -204,8 +204,8 @@ def test_migration_graph_has_one_upgrade_head():
     assert len(scripts.get_heads()) == 1, scripts.get_heads()
 
 
-def test_retired_radio_keeps_the_later_starter_sequence_positions():
-    starters = json.loads((VERSIONS.parents[1] / "data/objectives/starter.json").read_text())
+def test_retired_radio_keeps_legacy_starter_sequence_positions():
+    starters = json.loads((Path(__file__).parents[1] / "data/starter_pre_continuity.json").read_text())
     by_key = {step["template_key"]: step["sequence"] for step in starters}
     assert RADIO_STEP not in by_key
     # Existing vaults retain the radio at 12; catalog sync must not move other steps onto it.

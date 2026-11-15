@@ -27,7 +27,7 @@ import {
   type TeachingEligibility,
   type TeachingSnapshot,
 } from '../models'
-import { objectiveRewardDetails } from '../models/objective'
+import { currentObjective, isObjectiveClaimable, objectiveRewardDetails } from '../models/objective'
 import type { Objective } from '../models/objective'
 import ObjectiveCompleteModal from './ObjectiveCompleteModal.vue'
 import IntroHandoffCard from './IntroHandoffCard.vue'
@@ -101,17 +101,27 @@ const welcomePending = computed(() => !!vaultState.value.created && !vaultState.
 const active = computed(
   () => !!vaultId.value && !vaultState.value.skipped && optedIn.value && !!currentLesson.value
 )
-const showHandoff = computed(
+const starterObjectives = computed(() =>
+  store.objectives.filter(
+    (objective) => objective.vault_id === vaultId.value && objective.category === 'starter'
+  )
+)
+const guideObjective = computed(() => currentObjective(starterObjectives.value))
+const readyMilestones = computed(() => starterObjectives.value.filter(isObjectiveClaimable).length)
+const orientationComplete = computed(
   () =>
     !!vaultId.value &&
     optedIn.value &&
     !vaultState.value.skipped &&
     !replayMode.value &&
-    !vaultState.value.handoffDismissed &&
     !currentLesson.value &&
     ORIENTATION_STEPS.some(
       (lesson) => lesson.id === 'orientation.departure' && objectiveFor(lesson)?.is_completed
     )
+)
+const showHandoff = computed(() => orientationComplete.value && !vaultState.value.handoffDismissed)
+const showVaultGuide = computed(
+  () => orientationComplete.value && !!vaultState.value.handoffDismissed && !!guideObjective.value
 )
 const showWelcome = computed(() => active.value && welcomePending.value)
 const showLesson = computed(() => active.value && !showWelcome.value && !!currentLesson.value)
@@ -154,7 +164,9 @@ const {
   clearError: clearClaimError,
 } = useObjectiveClaim(vaultId)
 
-watch([() => currentLesson.value?.id, vaultId], () => clearClaimError())
+watch([() => currentLesson.value?.id, () => guideObjective.value?.id, vaultId], () =>
+  clearClaimError()
+)
 
 watch(
   [currentLesson, () => vaultId.value, () => auth.token],
@@ -355,6 +367,14 @@ const continueLesson = () => {
   if (lesson) acknowledgeLesson(vaultId.value, lesson.id)
 }
 
+function onGuideClaim() {
+  const objective = guideObjective.value
+  if (!objective || !isObjectiveClaimable(objective)) return
+  void claim(objective.id, (claimed) => {
+    claimedObjective.value = claimed
+  })
+}
+
 function onClaim() {
   const objective = lessonObjective.value
   const lesson = currentLesson.value
@@ -526,13 +546,20 @@ function onClaim() {
       </Card>
     </template>
     <IntroHandoffCard
-      v-if="showHandoff && vaultId"
+      v-if="(showHandoff || showVaultGuide) && vaultId"
       v-show="!blockedByOverlay"
       :key="vaultId"
       ref="handoffCard"
       :vault-id="vaultId"
+      :compact="!!vaultState.handoffDismissed"
+      :milestone="guideObjective"
+      :ready-count="readyMilestones"
+      :claiming="claiming"
+      :claim-error="claimError"
       :class="cardClass"
       @dismiss="patch(vaultId, { handoffDismissed: true })"
+      @claim="onGuideClaim"
+      @hide="skipTourAction"
     />
   </Teleport>
   <ObjectiveCompleteModal

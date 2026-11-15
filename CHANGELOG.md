@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.2.1 (2026-11-15)
+
+### Bug Fixes
+
+* **tests:** fund the vault before building a paid room ([#1411](https://github.com/ElderEvil/falloutProject/issues/1411)) 5fc9e73
+
 ## 3.2.0 (2026-11-14)
 
 ### Features

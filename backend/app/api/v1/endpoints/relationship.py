@@ -1,14 +1,11 @@
 """Relationship endpoints."""
 
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter, HTTPException
 
-from app.api.deps import CurrentActiveUser, get_user_vault_or_403, verify_dweller_access
+from app.api.deps import CurrentActiveUser, DBSession, get_user_vault_or_403, verify_dweller_access
 from app.crud.relationship import relationship_crud
-from app.db.session import get_async_session
 from app.models.relationship import Relationship
 from app.schemas.relationship import (
     CompatibilityScore,
@@ -27,7 +24,7 @@ router = APIRouter(prefix="/relationships", tags=["Relationship"])
 async def get_vault_relationships(
     vault_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> list[VaultRelationshipRead]:
     """Get all relationships in a vault.
 
@@ -42,7 +39,7 @@ async def get_vault_relationships(
 async def get_relationship(
     relationship_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Relationship:
     """Retrieve a relationship by ID.
 
@@ -65,7 +62,7 @@ async def get_relationship(
 async def create_relationship(
     relationship_data: RelationshipCreate,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Relationship:
     """Create or get a relationship between two dwellers.
 
@@ -86,7 +83,7 @@ async def create_relationship(
 async def initiate_romance(
     relationship_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Relationship:
     """Initiate romance between two dwellers in a relationship.
 
@@ -118,7 +115,7 @@ async def initiate_romance(
 async def make_partners(
     relationship_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Relationship:
     """Make two dwellers in a relationship romantic partners.
 
@@ -150,7 +147,7 @@ async def make_partners(
 async def marry(
     relationship_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Relationship:
     """Marry two partners in a relationship.
 
@@ -176,7 +173,7 @@ async def marry(
 async def break_up_relationship(
     relationship_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> RelationshipActionResponse:
     """Break up a relationship between two dwellers.
 
@@ -206,7 +203,7 @@ async def calculate_compatibility(
     dweller_1_id: UUID,
     dweller_2_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> CompatibilityScore:
     """Calculate compatibility score between two dwellers.
 
@@ -227,7 +224,7 @@ async def calculate_compatibility(
 async def process_vault_breeding(
     vault_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> BreedStatsResponse:
     """Process breeding and relationships for a vault.
 

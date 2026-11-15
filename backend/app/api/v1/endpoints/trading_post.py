@@ -4,10 +4,8 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.deps import get_user_vault_or_403
-from app.db.session import get_async_session
+from app.api.deps import DBSession, get_user_vault_or_403
 from app.models.vault import Vault
 from app.schemas.trading import TradeMarketResponse, TradeResultResponse
 from app.services.trading_post_service import trading_post_service
@@ -18,7 +16,7 @@ router = APIRouter(prefix="/vaults/{vault_id}/trading-post", tags=["trading-post
 @router.get("/market", response_model=TradeMarketResponse)
 async def get_trading_market(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> TradeMarketResponse:
     """List soft-deleted dwellers on the market plus this vault's own listings."""
     return await trading_post_service.get_market(db_session, vault)
@@ -27,7 +25,7 @@ async def get_trading_market(
 @router.post("/sell", response_model=TradeResultResponse)
 async def sell_dweller(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     dweller_id: UUID,
 ) -> TradeResultResponse:
     """Sell one of this vault's soft-deleted dwellers for caps."""
@@ -37,7 +35,7 @@ async def sell_dweller(
 @router.post("/buy", response_model=TradeResultResponse)
 async def buy_dweller(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     dweller_id: UUID,
 ) -> TradeResultResponse:
     """Buy a soft-deleted dweller listed by another vault; caps go to the seller."""

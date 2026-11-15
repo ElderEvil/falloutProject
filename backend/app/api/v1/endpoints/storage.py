@@ -1,15 +1,12 @@
 """Storage endpoints."""
 
 import logging
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter, HTTPException
 
-from app.api.deps import CurrentActiveUser, get_user_vault_or_403
+from app.api.deps import CurrentActiveUser, DBSession, get_user_vault_or_403
 from app.crud import storage as crud_storage
-from app.db.session import get_async_session
 from app.schemas.rewards import (
     LunchboxOpened,
     LunchboxOpenRequest,
@@ -27,7 +24,7 @@ logger = logging.getLogger(__name__)
 @router.get("/vault/{vault_id}/space")
 async def get_storage_space(
     vault_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     current_user: CurrentActiveUser,
 ) -> StorageSpaceResponse:
     """Get storage space information for a vault.
@@ -73,7 +70,7 @@ async def get_storage_space(
 @router.get("/vault/{vault_id}/items")
 async def get_storage_items(
     vault_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     current_user: CurrentActiveUser,
 ) -> StorageItemsResponse:
     """Get all items in a vault's storage.
@@ -93,7 +90,7 @@ async def get_storage_items(
 async def transfer_medical_supplies(
     vault_id: UUID,
     request: MedicalTransferRequest,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     current_user: CurrentActiveUser,
 ) -> MedicalTransferResponse:
     """Transfer medical supplies from vault storage to a dweller's inventory.
@@ -123,7 +120,7 @@ async def transfer_medical_supplies(
 @router.post("/vault/{vault_id}/medical/distribute-recovery-supplies", response_model=MedicalDistributionResponse)
 async def distribute_recovery_supplies(
     vault_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     current_user: CurrentActiveUser,
 ) -> MedicalDistributionResponse:
     """Treat every irradiated in-vault dweller with RadAway then a Stimpack from vault storage.
@@ -142,7 +139,7 @@ async def distribute_recovery_supplies(
 async def open_lunchbox(
     vault_id: UUID,
     request: LunchboxOpenRequest,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     current_user: CurrentActiveUser,
 ) -> LunchboxOpened:
     """Open one unopened lunchbox and roll its contents into the vault.
@@ -167,7 +164,7 @@ async def open_lunchbox(
 async def open_pet_carrier(
     vault_id: UUID,
     request: PetCarrierOpenRequest,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     current_user: CurrentActiveUser,
 ) -> PetCarrierOpened:
     """Open one pet carrier and add its rolled pet to storage.
@@ -190,7 +187,7 @@ async def open_pet_carrier(
 @router.get("/vault/{vault_id}/maintenance")
 async def get_storage_maintenance(
     vault_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     current_user: CurrentActiveUser,
 ) -> StorageMaintenanceRead:
     """Read the vault's storage protection without running trials."""

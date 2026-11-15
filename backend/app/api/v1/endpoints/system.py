@@ -2,15 +2,12 @@
 
 import logging
 from datetime import UTC, datetime
-from typing import Annotated
 
-from fastapi import APIRouter, Depends
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter
 
-from app.api.deps import CurrentSuperuser
+from app.api.deps import CurrentSuperuser, DBSession
 from app.core.config import settings
 from app.core.game_config import game_config
-from app.db.session import get_async_session
 from app.schemas.console import ConsoleManifest, ConsoleRequest, ConsoleResult
 from app.schemas.pagination import PageLimit
 from app.schemas.system import ChangelogEntry, FeaturesResponse, InfoResponse
@@ -30,9 +27,7 @@ async def get_console_manifest(_user: CurrentSuperuser) -> ConsoleManifest:
 
 
 @router.post("/console")
-async def run_console(
-    request: ConsoleRequest, user: CurrentSuperuser, session: Annotated[AsyncSession, Depends(get_async_session)]
-) -> ConsoleResult:
+async def run_console(request: ConsoleRequest, user: CurrentSuperuser, session: DBSession) -> ConsoleResult:
     """Execute one audited, structured admin command."""
     return await execute_console(session, user.id, request)
 

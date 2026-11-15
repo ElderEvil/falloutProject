@@ -1,15 +1,12 @@
 """Quest endpoints."""
 
 from collections.abc import Sequence
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser, PaginationParams, get_user_vault_or_403
-from app.db.session import get_async_session
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, DBSession, PaginationParams, get_user_vault_or_403
 from app.models.quest import Quest
 from app.models.team import TeamMember
 from app.schemas.quest import (
@@ -48,7 +45,7 @@ def _to_party_member_read(member: TeamMember, quest_id: UUID, vault_id: UUID) ->
 
 @router.get("/", response_model=list[QuestRead])
 async def read_all_quests(
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _user: CurrentActiveUser,
     pagination: PaginationParams,
 ) -> Sequence[QuestRead]:
@@ -60,10 +57,11 @@ async def read_all_quests(
     return await crud.quest_crud.get_multi(db_session, skip=pagination.skip, limit=pagination.limit)
 
 
-@router.post("/{vault_id}/", response_model=QuestRead)
+# Global quest templates retain legacy vault URLs; the vault segment is unused.
+@router.post("/{vault_id}/", response_model=QuestRead)  # ruff: ignore[fast-api-unused-path-parameter]
 async def create_quest(
     quest_data: QuestCreate,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Quest:
     """Create a new quest.
@@ -77,7 +75,7 @@ async def create_quest(
 @router.get("/{vault_id}/", response_model=list[QuestRead])
 async def read_vault_quests(
     vault_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
     pagination: PaginationParams,
 ) -> Sequence[QuestRead]:
@@ -94,7 +92,7 @@ async def read_vault_quests(
 @router.get("/{vault_id}/available", response_model=list[QuestRead])
 async def get_available_quests(
     vault_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
     pagination: PaginationParams,
 ) -> Sequence[QuestRead]:
@@ -114,7 +112,7 @@ async def read_quest(
     quest_id: UUID,
     user: CurrentActiveUser,
     vault_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Quest:
     """Retrieve a quest by ID within a vault.
 
@@ -133,12 +131,12 @@ async def read_quest(
     return await crud.quest_crud.get(db_session, quest_id)
 
 
-@router.put("/{vault_id}/{quest_id}", response_model=QuestRead)
+@router.put("/{vault_id}/{quest_id}", response_model=QuestRead)  # ruff: ignore[fast-api-unused-path-parameter] - global template, legacy vault URL
 async def update_quest(
     quest_id: UUID,
     quest_data: QuestUpdate,
     _vault_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Quest:
     """Update a quest definition (administrators only).
@@ -152,11 +150,11 @@ async def update_quest(
     return await crud.quest_crud.update(db_session, quest_id, quest_data)
 
 
-@router.delete("/{vault_id}/{quest_id}", status_code=204)
+@router.delete("/{vault_id}/{quest_id}", status_code=204)  # ruff: ignore[fast-api-unused-path-parameter] - global template, legacy vault URL
 async def delete_quest(
     quest_id: UUID,
     _vault_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
 ) -> None:
     """Delete a quest definition (administrators only).
@@ -171,7 +169,7 @@ async def assign_quest_to_vault(
     vault_id: UUID,
     quest_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     *,
     is_visible: bool = True,
 ):
@@ -191,7 +189,7 @@ async def claim_quest_rewards(
     vault_id: UUID,
     quest_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> QuestCompleteResponse:
     """Claim rewards from a returned quest party.
 
@@ -213,7 +211,7 @@ async def get_quest_party(
     vault_id: UUID,
     quest_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> list[QuestPartyMemberRead]:
     """Get party members assigned to a quest.
 
@@ -230,7 +228,7 @@ async def start_quest(
     vault_id: UUID,
     quest_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     party_data: QuestPartyAssign | None = None,
 ) -> Quest:
     """Start a quest, atomically assigning and departing the supplied party.
@@ -256,7 +254,7 @@ async def get_eligible_dwellers(
     vault_id: UUID,
     quest_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> list[EligibleDwellerRead]:
     """Get dwellers eligible for a quest based on requirements.
 

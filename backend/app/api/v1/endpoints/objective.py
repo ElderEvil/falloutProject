@@ -1,21 +1,19 @@
 """Objective endpoints."""
 
 from collections.abc import Sequence
-from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.deps import (
     CurrentActiveUser,
     CurrentSuperuser,
+    DBSession,
     PaginationParams,
     get_current_active_user,
     get_user_vault_or_403,
 )
-from app.db.session import get_async_session
 from app.models.objective import Objective
 from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
@@ -33,7 +31,7 @@ router = APIRouter(prefix="/objectives", tags=["Objective"], dependencies=[Depen
 async def create_objective(
     objective_data: ObjectiveCreate,
     vault_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Objective:
     """Create an objective for a vault (administrators only).
@@ -46,7 +44,7 @@ async def create_objective(
 
 @router.get("/{vault_id}/", response_model=list[ObjectiveRead])
 async def read_objective_list(
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     vault_id: UUID,
     user: CurrentActiveUser,
     pagination: PaginationParams,
@@ -66,7 +64,7 @@ async def read_objective_list(
 @router.get("/{objective_id}", response_model=ObjectiveRead)
 async def read_objective(
     objective_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _user: CurrentActiveUser,
 ) -> Objective:
     """Retrieve an objective template by ID.
@@ -84,7 +82,7 @@ async def read_objective(
 async def claim_objective_reward(
     vault_id: UUID,
     objective_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> VaultObjectiveProgressLink:
     """Let a vault owner claim a reward after its objective target is met."""
@@ -96,7 +94,7 @@ async def claim_objective_reward(
 async def complete_objective(
     vault_id: UUID,
     objective_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Objective:
     """Manually complete an objective for a vault (administrators only).
@@ -112,7 +110,7 @@ async def update_objective_progress(
     vault_id: UUID,
     objective_id: UUID,
     progress: int,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
 ):
     """Update the progress of an objective for a vault (administrators only).
@@ -126,7 +124,7 @@ async def update_objective_progress(
 @router.post("/{vault_id}/assign-random")
 async def assign_random_objectives(
     vault_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
     count: int = 5,
 ):

@@ -1,14 +1,11 @@
 """Pet item endpoints."""
 
 from collections.abc import Sequence
-from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.deps import CurrentActiveUser, PetPaginationParams, get_current_active_user
-from app.db.session import get_async_session
+from app.api.deps import CurrentActiveUser, DBSession, PetPaginationParams, get_current_active_user
 from app.models.pet import Pet
 from app.schemas.pet import PetRead
 from app.services.pet_service import pet_service
@@ -19,7 +16,7 @@ router = APIRouter(prefix="/pets", tags=["Pet"], dependencies=[Depends(get_curre
 @router.get("/", response_model=list[PetRead])
 async def read_pet_list(
     vault_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
     pagination: PetPaginationParams,
 ) -> Sequence[Pet]:
@@ -41,7 +38,7 @@ async def read_pet_list(
 @router.get("/{pet_id}", response_model=PetRead)
 async def read_pet(
     pet_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Pet:
     """Retrieve a pet by ID.
@@ -59,7 +56,7 @@ async def read_pet(
 async def equip_pet(
     dweller_id: UUID,
     pet_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Pet:
     """Equip a pet on a dweller.
@@ -76,7 +73,7 @@ async def equip_pet(
 @router.post("/{pet_id}/unequip/", status_code=200, response_model=None)
 async def unequip_pet(
     pet_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> None:
     """Unequip a pet from a dweller.

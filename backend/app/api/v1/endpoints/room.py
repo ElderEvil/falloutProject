@@ -1,21 +1,19 @@
 """Room endpoints."""
 
 from collections.abc import Sequence
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter
 
 from app import crud
 from app.api.deps import (
     CurrentActiveUser,
     CurrentSuperuser,
+    DBSession,
     PaginationParams,
     get_user_vault_or_403,
     verify_room_access,
 )
-from app.db.session import get_async_session
 from app.models.room import Room
 from app.schemas.barbershop import BarbershopChangeRequest, BarbershopChangeResponse, BarbershopStatus
 from app.schemas.grid import GridConfig, grid_config
@@ -37,7 +35,7 @@ async def read_grid_config(_: CurrentActiveUser) -> GridConfig:
 
 @router.get("/", response_model=list[RoomRead])
 async def read_room_list(
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
     pagination: PaginationParams,
 ) -> Sequence[Room]:
@@ -51,7 +49,7 @@ async def read_room_list(
 
 @router.get("/vault/{vault_id}/", response_model=list[RoomRead])
 async def read_rooms_by_vault(
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     vault_id: UUID,
     user: CurrentActiveUser,
     pagination: PaginationParams,
@@ -68,9 +66,7 @@ async def read_rooms_by_vault(
 
 
 @router.get("/{room_id}", response_model=RoomRead)
-async def read_room(
-    room_id: UUID, user: CurrentActiveUser, db_session: Annotated[AsyncSession, Depends(get_async_session)]
-) -> Room:
+async def read_room(room_id: UUID, user: CurrentActiveUser, db_session: DBSession) -> Room:
     """Retrieve a room by ID.
 
     Returns:
@@ -84,7 +80,7 @@ async def read_room(
 async def read_room_rush_quote(
     room_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> RoomRushQuote:
     """Return the server-computed risk and payout for a room rush."""
     room, vault = await verify_room_access(room_id, user, db_session)
@@ -95,7 +91,7 @@ async def read_room_rush_quote(
 async def rush_room(
     room_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> RoomRushResult:
     """Execute one server-resolved Room Rush."""
     room, vault = await verify_room_access(room_id, user, db_session)
@@ -106,7 +102,7 @@ async def rush_room(
 async def read_barbershop_status(
     room_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> BarbershopStatus:
     """Return the Barbershop's availability, fee, and preset swatches."""
     await verify_room_access(room_id, user, db_session)
@@ -120,7 +116,7 @@ async def change_dweller_appearance(
     dweller_id: UUID,
     request: BarbershopChangeRequest,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> BarbershopChangeResponse:
     """Change a human adult's skin tone and hair color for the Barbershop fee."""
     await verify_room_access(room_id, user, db_session)
@@ -137,7 +133,7 @@ async def change_dweller_appearance(
 async def get_buildable_rooms(
     vault_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> list[RoomCreateWithoutVaultID]:
     """Get list of rooms that can be built in a vault.
 
@@ -156,7 +152,7 @@ async def get_buildable_rooms(
 async def build_room(
     room_request: RoomBuild,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Room:
     """Build a new room in a vault.
 
@@ -171,7 +167,7 @@ async def build_room(
 async def destroy_room(
     room_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> None:
     """Destroy a room in a vault."""
     await verify_room_access(room_id, user, db_session)
@@ -182,7 +178,7 @@ async def destroy_room(
 async def upgrade_room(
     room_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Room:
     """Upgrade a room to the next level.
 
@@ -198,7 +194,7 @@ async def apply_room_style(
     room_id: UUID,
     request: RoomStyleUpdate,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Room:
     """Apply a cosmetic room style (for example, the Party theme)."""
     await verify_room_access(room_id, user, db_session)
@@ -209,7 +205,7 @@ async def apply_room_style(
 async def split_room(
     room_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> list[Room]:
     """Split a merged room into its base segments without charging caps."""
     await verify_room_access(room_id, user, db_session)
@@ -221,7 +217,7 @@ async def merge_rooms(
     room_id: UUID,
     request: RoomMerge,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Room:
     """Merge two explicitly chosen adjacent rooms."""
     await verify_room_access(room_id, user, db_session)

@@ -7,10 +7,8 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import EmailStr
 from redis.asyncio import Redis
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.deps import CurrentActiveUser, CurrentUser, get_redis_client
-from app.db.session import get_async_session
+from app.api.deps import CurrentActiveUser, CurrentUser, DBSession, get_redis_client
 from app.schemas.responses import MessageResponse
 from app.schemas.token import Token
 from app.services.auth_service import auth_service
@@ -23,7 +21,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/login", response_model=Token)
 async def login_access_token(
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     redis_client: Annotated[Redis, Depends(get_redis_client)],
 ) -> Token:
@@ -49,7 +47,7 @@ async def login_access_token(
 @router.post("/refresh", response_model=Token)
 async def refresh_access_token(
     refresh_token: Annotated[str, Body(embed=True)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     redis_client: Annotated[Redis, Depends(get_redis_client)],
 ) -> Token:
     """Refresh access token using refresh token.
@@ -82,14 +80,14 @@ async def logout(
     Returns:
         MessageResponse: Confirmation message.
     """
-    await auth_service.logout(redis_client=redis_client, user_id=current_user.id)
+    await auth_service.logout(redis_client=redis_client, user_id=str(current_user.id))
     return MessageResponse(msg="Successfully logged out")
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
 async def forgot_password(
     email: Annotated[EmailStr, Body(embed=True)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> MessageResponse:
     """Request password reset email.
 
@@ -104,7 +102,7 @@ async def forgot_password(
 async def reset_password(
     token: Annotated[str, Body()],
     new_password: Annotated[str, Body(min_length=8)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     redis_client: Annotated[Redis, Depends(get_redis_client)],
 ) -> MessageResponse:
     """Reset password using token from email.
@@ -134,7 +132,7 @@ async def change_password(
     current_password: Annotated[str, Body()],
     new_password: Annotated[str, Body(min_length=8)],
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     redis_client: Annotated[Redis, Depends(get_redis_client)],
 ) -> MessageResponse:
     """Change password for authenticated user.
@@ -161,7 +159,7 @@ async def change_password(
 @router.post("/verify-email", response_model=MessageResponse)
 async def verify_email(
     token: Annotated[str, Body(embed=True)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> MessageResponse:
     """Verify user email using token from email.
 
@@ -183,7 +181,7 @@ async def verify_email(
 @router.post("/resend-verification", response_model=MessageResponse)
 async def resend_verification_email(
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> MessageResponse:
     """Resend verification email to current user.
 

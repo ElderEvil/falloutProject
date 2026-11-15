@@ -1,13 +1,10 @@
 """Arena endpoints — experimental battle playground."""
 
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter
 
-from app.api.deps import CurrentActiveUser, get_user_vault_or_403
-from app.db.session import get_async_session
+from app.api.deps import CurrentActiveUser, DBSession, get_user_vault_or_403
 from app.schemas.arena import (
     ArenaCreature,
     ArenaEventsCleared,
@@ -28,7 +25,7 @@ router = APIRouter(prefix="/arena", tags=["Arena"])
 async def get_arena_state(
     vault_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> ArenaState:
     """Return arena rooms with their selected fighters, roster, match state, and journal."""
     await get_user_vault_or_403(vault_id, user, db_session)
@@ -39,7 +36,7 @@ async def get_arena_state(
 async def list_arena_creatures(
     vault_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> list[ArenaCreature]:
     """List the creatures selectable as hunt opponents."""
     await get_user_vault_or_403(vault_id, user, db_session)
@@ -52,7 +49,7 @@ async def set_arena_fighters(
     room_id: UUID,
     payload: ArenaFightersRequest,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> ArenaFightersResponse:
     """Pick which assigned dwellers fight. Changing the selection resets the match."""
     await get_user_vault_or_403(vault_id, user, db_session)
@@ -81,7 +78,7 @@ async def clear_arena_events(
     vault_id: UUID,
     room_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> ArenaEventsCleared:
     """Clear the battle journal for an arena room."""
     await get_user_vault_or_403(vault_id, user, db_session)
@@ -94,7 +91,7 @@ async def start_arena_fight(
     vault_id: UUID,
     room_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     payload: ArenaFightersRequest | None = None,
 ) -> ArenaFightStarted:
     """Arm an arena match: both fighter slots set, not already done/started."""
@@ -113,7 +110,7 @@ async def stop_arena_fight(
     vault_id: UUID,
     room_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> ArenaFightStopped:
     """Cancel an active arena match; fighters keep their current health."""
     await get_user_vault_or_403(vault_id, user, db_session)
@@ -127,7 +124,7 @@ async def queue_arena_skill(
     room_id: UUID,
     payload: ArenaSkillRequest,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> ArenaSkillQueued:
     """Queue a charged dweller skill for their team's next Arena turn."""
     await get_user_vault_or_403(vault_id, user, db_session)

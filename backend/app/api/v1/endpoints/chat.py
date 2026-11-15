@@ -4,12 +4,10 @@ from typing import Annotated
 from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, File, Query, UploadFile
 from fastapi.responses import Response
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.deps import CurrentActiveUser, OffsetPaginationParams
-from app.db.session import get_async_session
+from app.api.deps import CurrentActiveUser, DBSession, OffsetPaginationParams
 from app.models.chat_message import ChatMessage as ChatMessageRow
 from app.models.chat_message import ChatMessageRead
 from app.schemas.chat import ChatMessage, DwellerChatResponse, DwellerVoiceChatResponse
@@ -24,7 +22,7 @@ async def chat_with_dweller(
     dweller_id: UUID,
     user: CurrentActiveUser,
     message: ChatMessage,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     debug: Annotated[
         bool, Query(description="Include dev diagnostics (tokens, guardrail/Jev) in the response")
     ] = False,
@@ -51,7 +49,7 @@ async def chat_with_dweller(
 async def get_chat_history(
     dweller_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     pagination: OffsetPaginationParams,
 ) -> list[ChatMessageRow]:
     """Get the user's conversation with an accessible dweller."""
@@ -66,7 +64,7 @@ async def get_chat_history(
 async def voice_chat_with_dweller(
     dweller_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     audio_file: Annotated[UploadFile, File()],
     *,
     return_audio: bool = True,

@@ -1,14 +1,11 @@
 """Notification endpoints."""
 
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter, HTTPException
 
-from app.api.deps import CurrentActiveUser, NotificationPaginationParams
+from app.api.deps import CurrentActiveUser, DBSession, NotificationPaginationParams
 from app.crud.notification import notification as notification_crud
-from app.db.session import get_async_session
 from app.models.notification import Notification, NotificationRead
 from app.schemas.responses import CountResponse, MarkReadResponse
 from app.services.notification_service import NotificationService
@@ -19,7 +16,7 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
 @router.get("/", response_model=list[NotificationRead])
 async def get_notifications(
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     pagination: NotificationPaginationParams,
     unread_only: bool = False,
     vault_id: UUID | None = None,
@@ -44,7 +41,7 @@ async def get_notifications(
 @router.get("/unread-count", response_model=CountResponse)
 async def get_unread_count(
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> CountResponse:
     """Get count of unread notifications.
 
@@ -59,7 +56,7 @@ async def get_unread_count(
 async def mark_notification_as_read(
     notification_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Notification:
     """Mark a notification as read.
 
@@ -78,7 +75,7 @@ async def mark_notification_as_read(
 @router.post("/mark-all-read", response_model=MarkReadResponse)
 async def mark_all_notifications_as_read(
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     vault_id: UUID | None = None,
 ) -> MarkReadResponse:
     """Mark all notifications as read for the current user.
@@ -94,7 +91,7 @@ async def mark_all_notifications_as_read(
 async def dismiss_notification(
     notification_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Notification:
     """Dismiss (soft delete) a notification.
 

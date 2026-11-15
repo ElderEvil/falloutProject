@@ -7,11 +7,9 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import RedirectResponse
 from redis.asyncio import Redis
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.deps import CurrentActiveUser, get_redis_client
+from app.api.deps import CurrentActiveUser, DBSession, get_redis_client
 from app.core.config import settings
-from app.db.session import get_async_session
 from app.schemas.oauth import (
     OAuthHandoffRequest,
     OAuthLinkAuthorizeResponse,
@@ -30,7 +28,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth/oauth", tags=["Authentication"])
 
-DbSession = Annotated[AsyncSession, Depends(get_async_session)]
 RedisClient = Annotated[Redis, Depends(get_redis_client)]
 
 
@@ -52,7 +49,7 @@ async def list_oauth_providers(response: Response) -> OAuthProvidersResponse:
 @router.get("/accounts", response_model=OAuthLinkedAccountsResponse)
 async def list_linked_accounts(
     current_user: CurrentActiveUser,
-    db_session: DbSession,
+    db_session: DBSession,
     response: Response,
 ) -> OAuthLinkedAccountsResponse:
     """List the provider identities linked to the signed-in account."""
@@ -69,7 +66,7 @@ async def link_provider(
     provider: str,
     request: Request,
     current_user: CurrentActiveUser,
-    db_session: DbSession,
+    db_session: DBSession,
     redis_client: RedisClient,
     response: Response,
 ) -> OAuthLinkAuthorizeResponse:
@@ -98,7 +95,7 @@ async def link_provider(
 async def unlink_provider(
     provider: str,
     current_user: CurrentActiveUser,
-    db_session: DbSession,
+    db_session: DBSession,
 ) -> Response:
     """Remove a provider link, refusing to remove the last sign-in method."""
     await oauth_service.unlink_provider(db_session, current_user.id, provider)
@@ -128,7 +125,7 @@ async def authorize_provider(provider: str, request: Request, redis_client: Redi
 async def oauth_callback(
     provider: str,
     request: Request,
-    db_session: DbSession,
+    db_session: DBSession,
     redis_client: RedisClient,
     code: str | None = None,
     state: str | None = None,
@@ -166,7 +163,7 @@ async def redeem_handoff(
     payload: OAuthHandoffRequest,
     request: Request,
     response: Response,
-    db_session: DbSession,
+    db_session: DBSession,
     redis_client: RedisClient,
 ) -> Token:
     """Redeem a single-use handoff code for the token pair, bound to this browser."""

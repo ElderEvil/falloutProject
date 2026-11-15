@@ -75,6 +75,7 @@ async def _nearby_clearable(
     return location, state, origin
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_persists_movement_toward_its_target(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -93,6 +94,7 @@ async def test_dispatch_persists_movement_toward_its_target(
     assert len(exploration.trail) == 1
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_arrival_resolves_positionally_before_timer_expiry(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -115,6 +117,7 @@ async def test_arrival_resolves_positionally_before_timer_expiry(
     assert state.clear_count == 1
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_fresh_clear_cools_down_168h_while_inflight_expiry_survives(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -139,6 +142,7 @@ async def test_fresh_clear_cools_down_168h_while_inflight_expiry_survives(
     assert other_state.reclear_available_at == frozen_expiry
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_missing_target_returns_without_resolving(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -183,6 +187,7 @@ def test_path_clear_detects_water_walls() -> None:
     assert exploration_service._path_clear(snap, (10.0, 50.0), (30.0, 50.0)) is True
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_arrival_with_vanished_target_returns_instead_of_raising(
     async_session: AsyncSession, vault: Vault, dweller: Dweller

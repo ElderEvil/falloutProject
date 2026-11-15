@@ -57,6 +57,7 @@ async def _spatial_run_at_site(async_session: AsyncSession, vault: Vault, dwelle
     return exploration
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_retreat_allows_reentry_and_resumes_progress(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -80,6 +81,7 @@ async def test_retreat_allows_reentry_and_resumes_progress(
     assert view.room_index == 1
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_cleared_site_rejects_reentry_in_same_journey(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -104,6 +106,7 @@ async def test_cleared_site_rejects_reentry_in_same_journey(
     assert SITE_ID not in [site.id for site in available]
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_open_encounter_freezes_position_but_burns_clock(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -122,6 +125,7 @@ async def test_open_encounter_freezes_position_but_burns_clock(
     assert len(advanced.trail) == trail_len
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_tick_defers_finalize_while_encounter_open(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -154,6 +158,7 @@ async def _extend_trail_near_site(async_session, exploration, site_id: str = SIT
     return exploration
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_pause_resume_discounts_paused_interval(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -186,6 +191,7 @@ async def test_pause_resume_discounts_paused_interval(
     assert exploration.paused_at is None
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_enter_retreat_without_tick_does_not_move(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -204,6 +210,7 @@ async def test_enter_retreat_without_tick_does_not_move(
     assert (exploration.pos_x, exploration.pos_y) == entered
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_return_clock_shifts_on_encounter_exit(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -227,6 +234,7 @@ async def test_return_clock_shifts_on_encounter_exit(
     assert exploration.start_time == started_at + timedelta(hours=1)
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_return_leg_entry_pauses_the_return(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """An in-progress return leg may enter a site, which pauses the return clock."""
@@ -249,6 +257,7 @@ async def test_return_leg_entry_pauses_the_return(async_session: AsyncSession, v
     ]
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_spatial_offers_only_sites_near_the_trail(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -285,6 +294,7 @@ def test_offer_weight_widens_the_tollbooth_reveal_radius():
     assert not site_is_offered(tollbooth.model_copy(update={"offer_weight": 1.0}), context)
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_spatial_reentry_ignores_vault_cooldown(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -303,6 +313,7 @@ async def test_spatial_reentry_ignores_vault_cooldown(
     await expedition_module.expedition_service.enter_run(async_session, second.id, SITE_ID)
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_tick_does_not_expire_a_paused_journey(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -322,6 +333,7 @@ async def test_tick_does_not_expire_a_paused_journey(
     assert exploration.paused_at is not None
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_site_discovery_is_durable_and_not_repeated_on_return(async_session, vault, dweller):
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
@@ -352,6 +364,7 @@ async def test_site_discovery_is_durable_and_not_repeated_on_return(async_sessio
     assert view.site_id == SITE_ID
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_expired_return_rejects_new_site_before_tick_finalizes(async_session, vault, dweller):
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
@@ -365,6 +378,7 @@ async def test_expired_return_rejects_new_site_before_tick_finalizes(async_sessi
     assert await crud.expedition_run.get_open_for_exploration(async_session, exploration.id) is None
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 @pytest.mark.parametrize("failed_insert", [1, 2])
 async def test_discovery_notification_failure_rolls_back_report_and_emits_nothing(
@@ -412,6 +426,7 @@ async def test_discovery_notification_failure_rolls_back_report_and_emits_nothin
     websocket.assert_not_awaited()
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 @pytest.mark.parametrize("rejection", ["dead", "expired", "legacy", "off_trail"])
 async def test_ineligible_discoveries_leave_no_reports(async_session, vault, dweller, rejection):
@@ -438,6 +453,7 @@ async def test_ineligible_discoveries_leave_no_reports(async_session, vault, dwe
     assert not [n for n in notifications if (n.meta_data or {}).get("event") == "site_found"]
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_tick_discovers_sites_on_return_leg(async_session, vault, dweller):
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
@@ -454,6 +470,7 @@ async def test_tick_discovers_sites_on_return_leg(async_session, vault, dweller)
     assert exploration.paused_at is None
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_discovery_respects_site_level_gate(async_session, vault, dweller):
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
@@ -467,6 +484,7 @@ async def test_discovery_respects_site_level_gate(async_session, vault, dweller)
         await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_open_site_reconnect_survives_original_return_deadline(async_session, vault, dweller):
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
@@ -485,6 +503,7 @@ async def test_open_site_reconnect_survives_original_return_deadline(async_sessi
     assert exploration.paused_at is not None
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_discovery_accepts_production_raw_sqlalchemy_session(async_session, vault, dweller):
     from sqlalchemy.ext.asyncio import AsyncSession as RawAsyncSession
@@ -500,6 +519,7 @@ async def test_discovery_accepts_production_raw_sqlalchemy_session(async_session
     assert SITE_ID in {event.get("site_id") for event in exploration.events if event.get("event") == "site_found"}
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_new_spatial_site_is_one_interior_encounter(async_session, vault, dweller):
     import random
@@ -543,6 +563,7 @@ async def test_new_spatial_site_is_one_interior_encounter(async_session, vault, 
         )
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_preexisting_spatial_run_keeps_its_saved_rooms(async_session, vault, dweller):
     exploration = await _spatial_run_at_site(async_session, vault, dweller, "super_duper_mart")
@@ -558,6 +579,7 @@ async def test_preexisting_spatial_run_keeps_its_saved_rooms(async_session, vaul
     assert view.room_name == "Storage Room"
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_scene_briefing_uses_persisted_enemy_roster(async_session, vault, dweller):
     exploration = await _spatial_run_at_site(async_session, vault, dweller, "super_duper_mart")
@@ -575,6 +597,7 @@ async def test_scene_briefing_uses_persisted_enemy_roster(async_session, vault, 
     assert view.combat_state.round == 0
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_single_scene_defeat_is_nonlethal_consumed_and_resumes_travel(async_session, vault, dweller):
     from app.schemas.expedition import ExpeditionResolveRequest
@@ -611,6 +634,7 @@ async def test_single_scene_defeat_is_nonlethal_consumed_and_resumes_travel(asyn
         await expedition_module.expedition_service.enter_run(async_session, exploration.id, "super_duper_mart")
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_single_scene_resolution_late_failure_rolls_back_fight_and_haul(
     async_session, vault, dweller, monkeypatch
@@ -683,6 +707,7 @@ async def test_single_scene_resolution_late_failure_rolls_back_fight_and_haul(
     websocket.assert_not_awaited()
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_single_scene_invalid_choice_leaves_run_untouched(async_session, vault, dweller):
     from app.schemas.expedition import ExpeditionResolveRequest
@@ -704,6 +729,7 @@ async def test_single_scene_invalid_choice_leaves_run_untouched(async_session, v
     assert (await crud.expedition_run.get_open_for_exploration(async_session, exploration_id)).room_cursor == 0
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_scene_combat_reconnect_skill_and_stale_round_rejection(async_session, vault, dweller):
     from copy import deepcopy
@@ -741,6 +767,7 @@ async def test_scene_combat_reconnect_skill_and_stale_round_rejection(async_sess
     assert skilled.combat_state.fighters[0].active_skill.charge < 100
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_site_skill_hits_respect_the_25_percent_cap(async_session, vault, dweller):
     from app.schemas.expedition import ExpeditionResolveRequest
@@ -768,6 +795,7 @@ async def test_site_skill_hits_respect_the_25_percent_cap(async_session, vault, 
     assert max(skill_hits) <= math.ceil(enemy_max_health * 0.25)
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_scene_reward_notification_failure_rolls_back_final_turn(async_session, vault, dweller, monkeypatch):
     from copy import deepcopy

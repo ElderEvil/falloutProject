@@ -152,6 +152,7 @@ def test_dispatch_travel_hours_floor_and_cap() -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_creates_targeted_run(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """A dispatch creates a targeted run with the right duration, tier, and dweller state."""
@@ -221,6 +222,7 @@ async def test_dispatch_rejects_non_clearable_group(
         await exploration_service.dispatch(async_session, vault.id, [dweller.id], state.location_id)
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_rejects_currently_cleared_point(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -235,6 +237,7 @@ async def test_dispatch_rejects_currently_cleared_point(
         await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_rejects_dweller_already_exploring(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -247,6 +250,7 @@ async def test_dispatch_rejects_dweller_already_exploring(
         await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_rejects_dead_dweller(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """A dead dweller cannot be dispatched."""
@@ -264,6 +268,7 @@ async def test_dispatch_rejects_dead_dweller(async_session: AsyncSession, vault:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_arrival_win_clears_state_and_loot(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -287,6 +292,7 @@ async def test_dispatch_arrival_win_clears_state_and_loot(
     assert exploration.total_caps_found > 0
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_arrival_loss_no_clear_no_loot(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -315,6 +321,7 @@ async def test_dispatch_arrival_loss_no_clear_no_loot(
     assert dweller.health == 100 - expected_damage
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_arrival_win_notifies_location_cleared(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -345,6 +352,7 @@ async def test_dispatch_arrival_win_notifies_location_cleared(
     }
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_arrival_win_delivers_location_cleared_live(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -362,6 +370,7 @@ async def test_dispatch_arrival_win_delivers_location_cleared_live(
     assert payload["notification"]["notification_type"] == NotificationType.LOCATION_CLEARED
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_arrival_loss_no_notification(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -385,6 +394,7 @@ async def test_dispatch_arrival_loss_no_notification(
     assert notifications == []
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_escalation_tier_and_caps(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
@@ -426,6 +436,7 @@ async def test_dispatch_escalation_tier_and_caps(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_run_generates_no_random_events(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -447,6 +458,7 @@ async def test_dispatch_run_generates_no_random_events(
     assert exploration.events == []
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_tick_resolves_dispatch_arrival(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """The tick resolves an expired dispatch run instead of a plain return."""
@@ -468,6 +480,7 @@ async def test_tick_resolves_dispatch_arrival(async_session: AsyncSession, vault
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_arrival_uses_departure_tier_snapshot(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
@@ -509,6 +522,7 @@ async def test_dispatch_arrival_uses_departure_tier_snapshot(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_rejects_empty_party(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """An empty party is rejected."""
@@ -517,6 +531,7 @@ async def test_dispatch_rejects_empty_party(async_session: AsyncSession, vault: 
         await exploration_service.dispatch(async_session, vault.id, [], location.id)
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_rejects_oversize_party(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
@@ -530,6 +545,7 @@ async def test_dispatch_rejects_oversize_party(
         await exploration_service.dispatch(async_session, vault.id, ids, location.id)
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_rejects_duplicate_members(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """The same dweller twice is rejected."""
@@ -538,6 +554,7 @@ async def test_dispatch_rejects_duplicate_members(async_session: AsyncSession, v
         await exploration_service.dispatch(async_session, vault.id, [dweller.id, dweller.id], location.id)
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_rejects_foreign_member(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
@@ -576,6 +593,7 @@ async def test_dispatch_rejects_foreign_member(
     assert dweller.status.value != "exploring"
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_rejects_busy_member(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
@@ -594,6 +612,7 @@ async def test_dispatch_rejects_busy_member(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_creates_team(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
@@ -617,6 +636,7 @@ async def test_dispatch_creates_team(
     assert partner.room_id is None
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_party_win_scales_haul(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
@@ -641,6 +661,7 @@ async def test_dispatch_party_win_scales_haul(
     assert len(team.members) == 3
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_arrival_death_trims_haul(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
@@ -669,6 +690,7 @@ async def test_dispatch_arrival_death_trims_haul(
     assert len(exploration.loot_collected) == 1  # 3 entries trimmed to the survivor's share
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_arrival_party_wipe(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
@@ -697,6 +719,7 @@ async def test_dispatch_arrival_party_wipe(
     assert partner.is_dead
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_arrival_winning_party_wiped_leaves_point_uncleared(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
@@ -759,6 +782,7 @@ def test_distribute_damage_zero_total_is_all_zeros() -> None:
     assert distribute_damage(0, 3) == [0, 0, 0]
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_finalize_wipe_restores_no_one(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
@@ -793,6 +817,7 @@ async def test_finalize_wipe_restores_no_one(
     assert partner.status.value == "dead"
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_arrival_skips_point_cleared_by_competitor(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
@@ -825,6 +850,7 @@ async def test_dispatch_arrival_skips_point_cleared_by_competitor(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_finalize_restores_party_and_deletes_team(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
@@ -853,6 +879,7 @@ async def test_finalize_restores_party_and_deletes_team(
     assert await crud.team_crud.get_exploration_team(async_session, exploration.id) is None
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_party_run_rejects_site_entry(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """A party dispatch run cannot enter an expedition site."""
@@ -875,6 +902,7 @@ async def test_free_roam_creates_no_team(async_session: AsyncSession, vault: Vau
     assert dweller.status.value == "exploring"
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_carries_supplies_from_vault_storage(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -896,6 +924,7 @@ async def test_dispatch_carries_supplies_from_vault_storage(
     assert storage.radaway == 2
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_rejects_supplies_beyond_storage(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -909,6 +938,7 @@ async def test_dispatch_rejects_supplies_beyond_storage(
         await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id, stimpaks=5)
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.parametrize(
     ("stimpaks", "radaways"),
     [(-1, 0), (0, -1)],
@@ -930,6 +960,7 @@ async def test_dispatch_rejects_negative_supplies(
         )
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_dispatch_snapshots_anchor_stats(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """A dispatch stages the anchor dweller's SPECIAL values onto the run."""

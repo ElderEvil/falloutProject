@@ -5,7 +5,23 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.crud.world_snapshot import world_snapshot as snapshot_crud
 from app.db import session as session_module
+from app.models.world_snapshot import WorldSnapshot
+
+
+async def test_cached_world_payload_leaves_generation_paths_unseeded(
+    async_session: AsyncSession, default_world_snapshot_payload: str
+) -> None:
+    """Building the shared payload must not leave a world for unrelated tests."""
+    snapshot = WorldSnapshot.model_validate_json(default_world_snapshot_payload)
+
+    assert (
+        await snapshot_crud.get_version(
+            async_session, world_id=snapshot.world_id, generator_version=snapshot.generator_version
+        )
+        is None
+    )
 
 
 @pytest.mark.asyncio

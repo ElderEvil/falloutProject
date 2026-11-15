@@ -93,6 +93,7 @@ async def test_home_marker_agrees_with_the_slot(async_session: AsyncSession, vau
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_heading_depart_persists_movement_fields(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -114,6 +115,7 @@ async def test_heading_depart_persists_movement_fields(
     ]
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_position_advances_along_heading_by_elapsed_time(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -135,6 +137,7 @@ async def test_position_advances_along_heading_by_elapsed_time(
     assert len(advanced.trail) == 2
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_blocked_heading_returns_early(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """A heading that hits water stops forward movement and starts the return."""
@@ -154,6 +157,7 @@ async def test_blocked_heading_returns_early(async_session: AsyncSession, vault:
     assert advanced.pos_y > origin[1] - SPEED * 2
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_double_processing_is_noop(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """Reprocessing an already-processed interval changes nothing."""
@@ -172,6 +176,7 @@ async def test_double_processing_is_noop(async_session: AsyncSession, vault: Vau
     assert len(second.trail) == len(first.trail)
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_auto_heading_depart_is_spatial(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """A heading-less send with a placement auto-picks a heading and moves on the map."""
@@ -189,6 +194,7 @@ async def test_auto_heading_depart_is_spatial(async_session: AsyncSession, vault
     assert len(exploration.trail) == 1
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_choose_heading_is_deterministic(async_session: AsyncSession, vault: Vault) -> None:
     """The same seed always yields the same heading."""
@@ -203,6 +209,7 @@ async def test_choose_heading_is_deterministic(async_session: AsyncSession, vaul
     assert first == second
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_choose_heading_prefers_clear_ground(async_session: AsyncSession, vault: Vault) -> None:
     """The chosen heading is one of the candidates with the greatest clear distance."""
@@ -220,6 +227,7 @@ async def test_choose_heading_prefers_clear_ground(async_session: AsyncSession, 
     assert scores[chosen] == pytest.approx(max(scores.values()))
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_suggest_heading_returns_heading_with_slot(async_session: AsyncSession, vault: Vault) -> None:
     """The preview endpoint's service returns a valid heading for a placed vault."""
@@ -254,6 +262,7 @@ async def test_no_slot_send_stays_legacy(async_session: AsyncSession, vault: Vau
     assert advanced.position_as_of is None
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_tick_advances_spatial_run(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """The game tick drives a spatial run's position through advance()."""
@@ -275,6 +284,7 @@ async def test_tick_advances_spatial_run(async_session: AsyncSession, vault: Vau
     assert stats["active_count"] == 1
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_spatial_run_returns_home_and_finalizes(
     async_session: AsyncSession, vault: Vault, dweller: Dweller

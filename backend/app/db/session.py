@@ -15,6 +15,7 @@ async_engine = create_async_engine(
     future=True,
     pool_size=settings.API_DB_POOL_SIZE,
     max_overflow=settings.API_DB_MAX_OVERFLOW,
+    pool_timeout=settings.API_DB_POOL_TIMEOUT,
     # Force PostgreSQL connection to use UTC timezone
     # This ensures utcnow() values are correctly interpreted as UTC
     # Fixes 2-hour offset issue when system timezone differs from UTC

@@ -11,6 +11,8 @@ _BUDGET_FIELDS = (
     "WEB_CONCURRENCY",
     "API_DB_POOL_SIZE",
     "API_DB_MAX_OVERFLOW",
+    "API_DB_SESSION_CONCURRENCY",
+    "API_DB_POOL_TIMEOUT",
     "DRAMATIQ_PROCESSES",
     "DRAMATIQ_THREADS",
     "TASK_DB_POOL_SIZE",
@@ -87,3 +89,22 @@ def test_unread_notification_retention_cannot_be_shorter_than_read() -> None:
             NOTIFICATION_READ_RETENTION_DAYS=90,
             NOTIFICATION_UNREAD_RETENTION_DAYS=30,
         )
+
+
+@pytest.mark.parametrize("limit", [0, 15, 16])
+def test_api_session_cap_requires_pool_headroom(limit: int) -> None:
+    with pytest.raises(ValidationError):
+        _settings_with_documented_defaults(API_DB_SESSION_CONCURRENCY=limit)
+
+
+def test_api_session_cap_can_be_tuned_with_pool() -> None:
+    settings = _settings_with_documented_defaults(
+        API_DB_POOL_SIZE=3, API_DB_MAX_OVERFLOW=0, API_DB_SESSION_CONCURRENCY=2
+    )
+    assert settings.API_DB_SESSION_CONCURRENCY == 2
+
+
+@pytest.mark.parametrize("timeout", [0, -1, float("inf"), float("nan")])
+def test_api_pool_timeout_must_be_positive_and_finite(timeout: float) -> None:
+    with pytest.raises(ValidationError):
+        _settings_with_documented_defaults(API_DB_POOL_TIMEOUT=timeout)

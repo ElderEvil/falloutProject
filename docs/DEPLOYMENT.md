@@ -1127,6 +1127,22 @@ limit. The 50-connection headroom absorbs the migration Job, `psql`/admin sessio
 transient connection churn; the validator only counts the long-lived application pools.
 Capture the live peak during the next tick burst before raising any value.
 
+API requests share one `DBSession` concurrency gate per worker/event loop:
+`API_DB_SESSION_CONCURRENCY=10` must stay strictly below the API pool capacity
+(default 15). The five remaining slots provide headroom for SSE authentication,
+admin sessions and nested event handlers, which bypass this gate. SSE uses an
+uncapped dependency throughout authentication and vault access, then closes its
+session before streaming. Admin authentication shares the API engine/pool but
+has no API semaphore; Dramatiq uses separate task engines and pools.
+
+`API_DB_POOL_TIMEOUT=10` bounds pool checkout waiting in seconds. It does **not**
+bound waiting at the dependency gate, which queues until a permit becomes available
+or the request task is cancelled. Permits remain held through session cleanup;
+keep dependency caching enabled and never re-enter the limited provider with
+`use_cache=False`. This is backpressure, not a remedy for leaked transactions or
+a global database connection limit. Increasing replicas/workers multiplies both
+pools and gates; budget those connections separately.
+
 ### Notification retention
 
 `NOTIFICATION_READ_RETENTION_DAYS` (default **30**) applies to notifications that are

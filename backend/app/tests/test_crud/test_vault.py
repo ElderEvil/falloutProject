@@ -45,7 +45,7 @@ async def test_building_storage_room_updates_storage_capacity(async_session: Asy
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
     user = await crud.user.create(async_session, obj_in=user_in)
-    vault_data = create_fake_vault()
+    vault_data = create_fake_vault() | {"bottle_caps": 10_000}
     vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
@@ -219,7 +219,8 @@ async def test_upgrading_living_room_grows_population_capacity(async_session: As
     from app.models.room import Room
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    vault_data = create_fake_vault() | {"bottle_caps": 10_000}
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
     initial_population_max = vault.population_max or 0
 
     room_data = RoomCreate(

@@ -61,6 +61,8 @@ class Settings(BaseSettings):
     WEB_CONCURRENCY: int = Field(default=1, ge=1)
     API_DB_POOL_SIZE: int = Field(default=10, ge=1)
     API_DB_MAX_OVERFLOW: int = Field(default=5, ge=0)
+    API_DB_SESSION_CONCURRENCY: int = Field(default=10, ge=1)
+    API_DB_POOL_TIMEOUT: float = Field(default=10.0, gt=0, allow_inf_nan=False)
 
     # Dramatiq worker task engines. The worker manifest runs 2 processes with
     # Dramatiq's default 8 threads each; every thread keeps one event loop and
@@ -339,6 +341,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_connection_budget(self) -> "Settings":
+        if self.API_DB_SESSION_CONCURRENCY >= self.API_DB_POOL_SIZE + self.API_DB_MAX_OVERFLOW:
+            raise ValueError("API_DB_SESSION_CONCURRENCY must be below API pool capacity to leave headroom")
         if self.peak_database_connections >= self.POSTGRES_MAX_CONNECTIONS:
             raise ValueError(
                 "PostgreSQL connection budget leaves no headroom: "

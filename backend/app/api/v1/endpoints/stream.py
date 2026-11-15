@@ -11,7 +11,7 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from sqlalchemy.exc import InterfaceError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.deps import CurrentUser, DBSession, get_user_vault_or_403
+from app.api.deps import StreamDBSession, StreamUser, get_stream_user_vault_or_403
 from app.core.config import settings
 from app.core.game_config import game_config
 from app.core.stream_manager import sse_manager
@@ -90,9 +90,9 @@ async def _with_heartbeat(
 
 @router.get("/stream/notifications", response_class=EventSourceResponse)
 async def stream_notifications(
-    current_user: CurrentUser,
+    current_user: StreamUser,
     request: Request,
-    db_session: DBSession,
+    db_session: StreamDBSession,
 ) -> AsyncIterable[ServerSentEvent]:
     """SSE endpoint for real-time notification events.
 
@@ -111,9 +111,9 @@ async def stream_notifications(
 
 @router.get("/stream/game/{vault_id}/ticks", response_class=EventSourceResponse)
 async def stream_game_ticks(
-    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
+    vault: Annotated[Vault, Depends(get_stream_user_vault_or_403)],
     request: Request,
-    db_session: DBSession,
+    db_session: StreamDBSession,
 ) -> AsyncIterable[ServerSentEvent]:
     """SSE endpoint for real-time game tick events.
 
@@ -135,9 +135,9 @@ async def stream_game_ticks(
 
 @router.get("/stream/exploration/{vault_id}", response_class=EventSourceResponse)
 async def stream_exploration(
-    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
+    vault: Annotated[Vault, Depends(get_stream_user_vault_or_403)],
     request: Request,
-    db_session: DBSession,
+    db_session: StreamDBSession,
 ) -> AsyncIterable[ServerSentEvent]:
     """SSE endpoint for real-time exploration events.
 
@@ -156,9 +156,9 @@ async def stream_exploration(
 
 @router.get("/stream/incidents/{vault_id}", response_class=EventSourceResponse)
 async def stream_incidents(
-    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
+    vault: Annotated[Vault, Depends(get_stream_user_vault_or_403)],
     request: Request,
-    db_session: DBSession,
+    db_session: StreamDBSession,
 ) -> AsyncIterable[ServerSentEvent]:
     """SSE endpoint for real-time incident events.
 

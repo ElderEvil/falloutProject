@@ -27,7 +27,12 @@ reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login",
 )
 
-DBSession = Annotated[AsyncSession, Depends(get_async_session)]
+# Reuse this Depends object across routes and keep request caching enabled.
+# Re-entering the limited dependency with use_cache=False can deadlock a request.
+DBSession = Annotated[AsyncSession, Depends(get_async_session, max_concurrency=settings.API_DB_SESSION_CONCURRENCY)]
+# Streams must use this throughout their auth/access dependency tree: the normal
+# request-scoped permit would otherwise remain held for the lifetime of the stream.
+StreamDBSession = Annotated[AsyncSession, Depends(get_async_session)]
 
 # Model dependencies keep query fields flat alongside endpoint filters. Direct
 # Query() models cannot be combined with scalar query parameters in this FastAPI version.
@@ -80,6 +85,17 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+async def get_stream_user(
+    db_session: StreamDBSession,
+    token: Annotated[str, Depends(reusable_oauth2)],
+) -> User:
+    """Reuse token validation without holding an API permit for a stream."""
+    return await get_current_user(db_session, token)
+
+
+StreamUser = Annotated[User, Depends(get_stream_user)]
 
 
 async def get_current_active_user(current_user: CurrentUser) -> User:
@@ -140,6 +156,15 @@ async def get_user_vault_or_403(
 ) -> Vault:
     """Return the user's vault (or any vault for a superuser)."""
     return await access_service.get_accessible_vault(vault_id, user, db_session)
+
+
+async def get_stream_user_vault_or_403(
+    vault_id: UUID | None,
+    user: StreamUser,
+    db_session: StreamDBSession,
+) -> Vault:
+    """Apply the same active-user and vault policy with an uncapped session."""
+    return await get_user_vault_or_403(vault_id, await get_current_active_user(user), db_session)
 
 
 async def verify_dweller_access(

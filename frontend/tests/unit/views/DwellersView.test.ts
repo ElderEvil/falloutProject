@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test'
 import { ref } from 'vue'
-import { mount, flushPromises } from '@vue/test-utils'
-import { setActivePinia, createPinia } from 'pinia'
+import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
+import { setActivePinia, createPinia, disposePinia, getActivePinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import DwellersView from '@/modules/dwellers/views/DwellersView.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -13,6 +13,16 @@ import axios from '@/core/plugins/axios'
 import type { Room } from '@/modules/rooms/models/room'
 
 vi.mock('@/core/plugins/axios')
+
+enableAutoUnmount((unmount) => {
+  afterEach(async () => {
+    unmount()
+    await flushPromises()
+    const pinia = getActivePinia()
+    if (pinia) disposePinia(pinia)
+    vi.restoreAllMocks()
+  })
+})
 
 // The auth store refreshes the cached user on boot; resolve it from the seeded
 // session so this view test never falls back to a real network call.
@@ -61,7 +71,7 @@ describe('DwellersView', () => {
     expect(wrapper.text()).not.toContain('Filter by Age')
   })
 
-  beforeEach(() => {
+  beforeEach(async () => {
     pinia = createPinia()
     setActivePinia(pinia)
 
@@ -108,7 +118,7 @@ describe('DwellersView', () => {
       ],
     })
 
-    router.push('/vault/vault-1/dwellers')
+    await router.push('/vault/vault-1/dwellers')
 
     vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.clearAllMocks()

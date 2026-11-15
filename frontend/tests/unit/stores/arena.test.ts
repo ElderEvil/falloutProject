@@ -52,7 +52,7 @@ describe('Arena Store', () => {
 
   beforeEach(() => {
     setActivePinia(createPinia())
-    vi.clearAllMocks()
+    vi.resetAllMocks()
     vi.mocked(arenaApi.fetchState).mockResolvedValue(mockState)
   })
 

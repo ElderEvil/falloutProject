@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
-import { setActivePinia, createPinia } from 'pinia'
+import { setActivePinia, createPinia, disposePinia } from 'pinia'
 import { shallowMount } from '@vue/test-utils'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import router from '@/router'
@@ -28,10 +28,15 @@ vi.mock('vue-router', async () => {
 })
 
 describe('Map route', () => {
-  beforeEach(() => {
-    setActivePinia(createPinia())
+  beforeEach(async () => {
+    const navigationPinia = createPinia()
+    setActivePinia(navigationPinia)
     localStorage.clear()
     vi.clearAllMocks()
+    await router.push('/about')
+    // The guard creates an auth store; test bodies must read their own seeded token.
+    disposePinia(navigationPinia)
+    setActivePinia(createPinia())
   })
 
   describe('route resolution', () => {

@@ -60,6 +60,7 @@ def _place_at(name: str, x: float, y: float) -> WorldLocation:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_spatial_route_follows_the_movement_trail(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -76,6 +77,7 @@ async def test_spatial_route_follows_the_movement_trail(
     assert route.points[0].coord_x < route.points[1].coord_x  # heading east
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_route_is_active_only_while_the_run_is_in_progress(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -140,6 +142,7 @@ async def test_legacy_route_still_uses_discovery_events(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_spatial_discovery_reuses_a_nearby_place(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -160,6 +163,7 @@ async def test_spatial_discovery_reuses_a_nearby_place(
     assert (nearby.coord_x, nearby.coord_y) == original
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_spatial_discovery_places_a_new_place_near_the_position_on_land(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -178,6 +182,7 @@ async def test_spatial_discovery_places_a_new_place_near_the_position_on_land(
     assert distance <= radius
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_spatial_discovery_is_not_name_derived(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -193,6 +198,7 @@ async def test_spatial_discovery_is_not_name_derived(
     assert (created.coord_x, created.coord_y) != schematic_coords(normalize_place_name("Whispering Cave"))
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_spatial_discovery_ignores_a_distant_same_name_twin(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -222,6 +228,7 @@ async def test_spatial_discovery_ignores_a_distant_same_name_twin(
     assert (twin.coord_x, twin.coord_y) == twin_coords
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_same_name_twice_in_one_journey_makes_two_rows(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -244,6 +251,7 @@ async def test_same_name_twice_in_one_journey_makes_two_rows(
     assert first.normalized_name != second.normalized_name
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_same_position_twice_merges_into_one_row(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
@@ -263,6 +271,7 @@ async def test_same_position_twice_merges_into_one_row(
     assert first.id == second.id
 
 
+@pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_spatial_discovery_record_names_the_resolved_place(
     async_session: AsyncSession, vault: Vault, dweller: Dweller

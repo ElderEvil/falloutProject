@@ -47,6 +47,7 @@ from app import crud
 from app.api.deps import get_redis_client
 from app.core import security as _security
 from app.db.session import get_async_session
+from app.models.world_snapshot import WorldSnapshot
 from app.schemas.user import UserCreate
 from app.services.dweller_service import dweller_service
 from app.tests.factory.vaults import random_vault_number
@@ -146,6 +147,34 @@ async def session_factory(async_session: AsyncSession):
         yield async_session
 
     return _factory
+
+
+@pytest_asyncio.fixture(scope="session")
+async def default_world_snapshot_payload(db_connection: AsyncConnection) -> str:
+    """Generate once per worker; retain only immutable JSON, with no persisted row."""
+    from app.services.world_snapshot_service import world_snapshot_service
+
+    savepoint = await db_connection.begin_nested()
+    try:
+        async with AsyncSession(
+            bind=db_connection, expire_on_commit=False, join_transaction_mode="create_savepoint"
+        ) as session:
+            snapshot = await world_snapshot_service.get_or_generate(session)
+            return snapshot.model_dump_json(exclude={"id", "created_at", "updated_at"})
+    finally:
+        await savepoint.rollback()
+        await db_connection.rollback()
+
+
+@pytest_asyncio.fixture
+async def default_world_snapshot(async_session: AsyncSession, default_world_snapshot_payload: str) -> WorldSnapshot:
+    """Opt-in prerequisite: a fresh row and nested payload in this test's savepoint."""
+    from app.crud.world_snapshot import world_snapshot as snapshot_crud
+
+    snapshot = WorldSnapshot.model_validate_json(default_world_snapshot_payload)
+    await snapshot_crud.create(async_session, snapshot=snapshot)
+    await async_session.commit()
+    return snapshot
 
 
 @pytest_asyncio.fixture(name="superuser")

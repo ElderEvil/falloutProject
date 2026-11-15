@@ -401,10 +401,7 @@ function onClaim() {
       />
       <Card
         v-if="!blockedByOverlay"
-        :class="[
-          cardClass,
-          { 'max-h-[calc(50svh-6rem)] overflow-hidden': !showWelcome && targetEl },
-        ]"
+        :class="[cardClass, { 'max-h-[calc(50svh-6rem)]': !showWelcome && targetEl }]"
         v-bind="{ role: 'region', 'aria-live': 'polite', 'aria-label': 'Vault onboarding' }"
       >
         <CardHeader class="shrink-0 gap-2 p-0">

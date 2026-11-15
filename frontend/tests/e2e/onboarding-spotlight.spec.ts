@@ -595,3 +595,23 @@ for (const width of [1280, 390]) {
     await expect(guide).toHaveCount(0)
   })
 }
+
+test('short landscape windows let pointer users scroll to the guide actions', async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 })
+  await openVault(page)
+  await page.getByRole('button', { name: 'Start', exact: true }).click()
+  const guide = page.getByRole('region', { name: 'Vault onboarding', exact: true })
+  await expect(page.locator('.onboarding-cutout')).toBeAttached()
+  await guide.hover()
+  await page.mouse.wheel(0, 1000)
+  const skip = guide.getByRole('button', { name: 'Skip tour', exact: true })
+  await expect
+    .poll(async () => {
+      const card = (await guide.boundingBox())!
+      const button = (await skip.boundingBox())!
+      return button.y >= card.y && button.y + button.height <= card.y + card.height
+    })
+    .toBe(true)
+  await skip.click()
+  await expect(guide).toBeHidden()
+})

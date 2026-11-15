@@ -1,13 +1,10 @@
 """Vault Radio Hour — broadcast news endpoints."""
 
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter
 
-from app.api.deps import CurrentActiveUser, get_user_vault_or_403
-from app.db.session import get_async_session
+from app.api.deps import CurrentActiveUser, DBSession, get_user_vault_or_403
 from app.schemas.broadcast import BroadcastRead
 from app.services.broadcast_service import get_or_create_daily, regenerate, vault_stats_from_db
 
@@ -18,7 +15,7 @@ router = APIRouter(tags=["Vault Radio Hour"])
 async def get_vault_radio_news(
     vault_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> BroadcastRead:
     """Return today's broadcast, generating it once if none exists for the UTC day."""
     vault = await get_user_vault_or_403(vault_id, user, db_session)
@@ -29,7 +26,7 @@ async def get_vault_radio_news(
 async def regenerate_vault_radio_news(
     vault_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> BroadcastRead:
     """Render a new manual broadcast, rate-limited to three per UTC day."""
     vault = await get_user_vault_or_403(vault_id, user, db_session)

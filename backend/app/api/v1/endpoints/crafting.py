@@ -1,14 +1,11 @@
 """Crafting endpoints."""
 
 import logging
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter
 
-from app.api.deps import CurrentActiveUser, get_user_vault_or_403
-from app.db.session import get_async_session
+from app.api.deps import CurrentActiveUser, DBSession, get_user_vault_or_403
 from app.models.crafting_order import CraftingOrder
 from app.schemas.crafting import (
     CraftingOrderRead,
@@ -27,7 +24,7 @@ logger = logging.getLogger(__name__)
 async def list_crafting_recipes(
     vault_id: UUID,
     item_type: str,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> CraftingRecipesRead:
     """List craftable items of one type with their costs and affordability.
@@ -47,7 +44,7 @@ async def list_crafting_recipes(
 @router.get("/vault/{vault_id}/orders", response_model=CraftingOrdersRead)
 async def list_crafting_orders(
     vault_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> CraftingOrdersRead:
     """List every workshop order for a vault, newest first.
@@ -67,7 +64,7 @@ async def list_crafting_orders(
 async def start_crafting_order(
     vault_id: UUID,
     request: CraftRequest,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> CraftingOrderRead:
     """Queue a craft at its workshop, consuming materials immediately.
@@ -87,7 +84,7 @@ async def start_crafting_order(
 async def cancel_crafting_order(
     vault_id: UUID,
     order_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> CraftingOrder:
     """Cancel an active order, refunding its caps and junk.
@@ -106,7 +103,7 @@ async def cancel_crafting_order(
 async def collect_crafting_order(
     vault_id: UUID,
     order_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> CraftResultRead:
     """Move a finished order's item into storage.

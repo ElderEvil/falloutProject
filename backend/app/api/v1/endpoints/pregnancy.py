@@ -1,15 +1,12 @@
 """Pregnancy endpoints."""
 
 import logging
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter, HTTPException
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
-from app.db.session import get_async_session
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, DBSession, get_user_vault_or_403
 from app.schemas.pregnancy import DeliveredChild, DeliveryResult, PregnancyRead
 from app.services.family.breeding_service import breeding_service
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
@@ -22,7 +19,7 @@ logger = logging.getLogger(__name__)
 async def get_vault_pregnancies(
     vault_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> list[PregnancyRead]:
     """Get all active pregnancies in a vault.
 
@@ -43,7 +40,7 @@ async def get_vault_pregnancies(
 async def get_pregnancy(
     pregnancy_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> PregnancyRead:
     """Get a specific pregnancy.
 
@@ -66,7 +63,7 @@ async def get_pregnancy(
 async def deliver_baby(
     pregnancy_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> DeliveryResult:
     """Manually trigger delivery of a baby (must be due).
 
@@ -114,7 +111,7 @@ async def force_conception(
     mother_id: UUID,
     father_id: UUID,
     user: CurrentSuperuser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> PregnancyRead:
     """Force conception between two dwellers (debug only).
 
@@ -146,7 +143,7 @@ async def force_conception(
 async def accelerate_pregnancy(
     pregnancy_id: UUID,
     user: CurrentSuperuser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> PregnancyRead:
     """Accelerate a pregnancy to completion (debug only).
 

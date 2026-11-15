@@ -3,12 +3,10 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter, HTTPException, Query
 
-from app.api.deps import CurrentActiveUser, get_user_vault_or_403
+from app.api.deps import CurrentActiveUser, DBSession, get_user_vault_or_403
 from app.crud import training as crud_training
-from app.db.session import get_async_session
 from app.models.training import Training
 from app.schemas.training import TrainingGoalUpdate, TrainingProgress, TrainingRead
 from app.services.training_service import training_service
@@ -22,7 +20,7 @@ async def start_training(
     dweller_id: Annotated[UUID, Query()],
     room_id: Annotated[UUID, Query()],
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Training:
     """Start training a dweller in a training room.
 
@@ -55,7 +53,7 @@ async def start_training(
 async def get_dweller_training(
     dweller_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Training | None:
     """Get current active training for a dweller.
 
@@ -74,7 +72,7 @@ async def get_dweller_training(
 async def list_vault_training(
     vault_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> list[Training]:
     """List all active training sessions in a vault.
 
@@ -90,7 +88,7 @@ async def list_vault_training(
 async def get_training(
     training_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> TrainingProgress:
     """Get training details with current progress.
 
@@ -122,7 +120,7 @@ async def get_training(
 async def complete_training(
     training_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Training:
     """Complete an active training session and increase the dweller's SPECIAL stat.
 
@@ -152,7 +150,7 @@ async def complete_training(
 async def cancel_training(
     training_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Training:
     """Cancel an active training session.
 
@@ -182,7 +180,7 @@ async def cancel_training(
 async def list_room_training(
     room_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> list[Training]:
     """List all active training sessions in a room.
 
@@ -203,7 +201,7 @@ async def set_training_goal(
     training_id: UUID,
     goal: TrainingGoalUpdate,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Training:
     """Set a dweller's goal for the current training chain."""
     training = await crud_training.training.get(db_session, training_id)

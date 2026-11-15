@@ -1,14 +1,11 @@
 """Radio endpoints."""
 
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter
 
-from app.api.deps import CurrentActiveUser, get_user_vault_or_403
+from app.api.deps import CurrentActiveUser, DBSession, get_user_vault_or_403
 from app.core.enums import RadioModeEnum
-from app.db.session import get_async_session
 from app.schemas.dweller import DwellerRead
 from app.schemas.radio import ManualRecruitRequest, RadioStatsRead, RecruitmentResponse
 from app.schemas.responses import RadioModeResponse
@@ -22,7 +19,7 @@ router = APIRouter(prefix="/radio", tags=["Radio"])
 async def get_radio_stats(
     vault_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> RadioStatsRead:
     """Get recruitment statistics for a vault.
 
@@ -40,7 +37,7 @@ async def manual_recruit_dweller(
     vault_id: UUID,
     recruit_request: ManualRecruitRequest,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> RecruitmentResponse:
     """Manually recruit a dweller for caps.
 
@@ -78,7 +75,7 @@ async def set_radio_mode(
     vault_id: UUID,
     mode: RadioModeEnum,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> RadioModeResponse:
     """Set radio mode (recruitment or happiness).
 

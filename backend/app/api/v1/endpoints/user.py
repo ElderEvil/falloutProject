@@ -8,12 +8,10 @@ from uuid import UUID
 from fastapi import APIRouter, Body, Depends
 from pydantic.networks import EmailStr
 from redis.asyncio import Redis
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser, PaginationParams, get_redis_client
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, DBSession, PaginationParams, get_redis_client
 from app.crud.user_profile import profile_crud
-from app.db.session import get_async_session
 from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.schemas.ai_usage import AIUsageResponse
@@ -32,7 +30,7 @@ router = APIRouter(prefix="/users", tags=["User"])
 @router.post("/", response_model=UserRead)
 async def create_user(
     *,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user_in: UserCreate,
     actor: CurrentSuperuser,
 ) -> User:
@@ -50,7 +48,7 @@ async def create_user(
 @router.get("/", response_model=list[UserRead])
 async def read_users(
     *,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
     pagination: PaginationParams,
 ) -> Sequence[User]:
@@ -65,7 +63,7 @@ async def read_users(
 @router.put("/me", response_model=UserRead)
 async def update_user_me(
     *,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     username: Annotated[str | None, Body()] = None,
     password: Annotated[str | None, Body()] = None,
     email: Annotated[EmailStr | None, Body()] = None,
@@ -98,7 +96,7 @@ async def read_user_me(user: CurrentActiveUser) -> User:
 @router.post("/open", response_model=UserWithTokens)
 async def create_user_open(
     *,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     redis_client: Annotated[Redis, Depends(get_redis_client)],
     username: Annotated[str, Body()],
     password: Annotated[str, Body()],
@@ -122,7 +120,7 @@ async def create_user_open(
 async def read_user_by_id(
     *,
     user_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> User:
     """Get a specific user by id.
@@ -143,7 +141,7 @@ async def read_user_by_id(
 @router.put("/{user_id}", response_model=UserRead)
 async def update_user(
     *,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user_id: UUID,
     user_in: UserUpdate,
     actor: CurrentSuperuser,
@@ -167,7 +165,7 @@ async def update_user(
 @router.get("/me/profile", response_model=ProfileRead)
 async def get_my_profile(
     *,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> UserProfile:
     """Get current user's profile.
@@ -189,7 +187,7 @@ async def get_my_profile(
 @router.put("/me/profile", response_model=ProfileRead)
 async def update_my_profile(
     *,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     profile_data: ProfileUpdate,
     user: CurrentActiveUser,
 ) -> UserProfile:
@@ -215,7 +213,7 @@ async def update_my_profile(
 @router.get("/me/profile/statistics", response_model=DeathStatsResponse)
 async def get_death_statistics(
     *,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> DeathStatsResponse:
     """Get life/death statistics for the current user.
@@ -233,7 +231,7 @@ async def get_death_statistics(
 @router.get("/me/profile/ai-usage")
 async def get_ai_usage(
     *,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
     redis_client: Annotated[Redis, Depends(get_redis_client)],
 ) -> AIUsageResponse:

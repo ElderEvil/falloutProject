@@ -5,12 +5,10 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser, PaginationParams, get_user_vault_or_403
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, DBSession, PaginationParams, get_user_vault_or_403
 from app.core.enums import AgeGroupEnum
-from app.db.session import get_async_session
 from app.models.vault import Vault
 from app.schemas.vault import (
     AutoAssignResponse,
@@ -34,7 +32,7 @@ router = APIRouter(prefix="/vaults", tags=["Vault"])
 async def create_vault(
     *,
     vault_data: VaultCreate,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     admin: CurrentSuperuser,
 ) -> Vault:
     """Create a new vault.
@@ -48,7 +46,7 @@ async def create_vault(
 @router.get("/", response_model=list[VaultReadWithUser])
 async def read_vault_list(
     *,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
     pagination: PaginationParams,
 ) -> Sequence[Vault]:
@@ -63,7 +61,7 @@ async def read_vault_list(
 @router.get("/my", response_model=list[VaultReadWithNumbers])
 async def read_my_vaults(
     *,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> list[VaultReadWithNumbers]:
     """Retrieve vaults owned by the current user.
@@ -99,7 +97,7 @@ async def list_scenario_options(
 async def read_vault(
     *,
     vault_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: Annotated[Vault, Depends(get_user_vault_or_403)],
 ) -> VaultReadWithNumbers:
     """Retrieve a vault by ID with room and dweller counts.
@@ -115,7 +113,7 @@ async def update_vault(
     *,
     vault_id: UUID,
     vault_data: VaultUpdate,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: Annotated[Vault, Depends(get_user_vault_or_403)],
 ) -> Vault:
     """Update a vault.
@@ -130,7 +128,7 @@ async def update_vault(
 async def delete_vault(
     *,
     vault_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: Annotated[Vault, Depends(get_user_vault_or_403)],
     hard_delete: Annotated[bool, Query(description="If True, permanently delete. Otherwise soft delete.")] = False,
 ) -> None:
@@ -145,7 +143,7 @@ async def delete_vault(
 async def start_vault(
     *,
     vault_data: VaultNumber,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Vault:
     """Initiate a new vault for the current user.
@@ -181,7 +179,7 @@ async def start_vault(
 async def update_vault_resources(
     *,
     vault_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _: CurrentSuperuser,
 ):
     """Update vault resources (admin only).
@@ -195,7 +193,7 @@ async def update_vault_resources(
 @router.post("/{vault_id}/dwellers/unassign-all", response_model=UnassignResponse)
 async def unassign_all_dwellers(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> UnassignResponse:
     """Unassign all dwellers from their rooms in the specified vault.
 
@@ -209,7 +207,7 @@ async def unassign_all_dwellers(
 @router.post("/{vault_id}/dwellers/auto-assign-production", response_model=AutoAssignResponse)
 async def auto_assign_production_rooms(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     age_group: AgeGroupEnum | None = None,
 ) -> AutoAssignResponse:
     """Intelligently assign unassigned dwellers to production rooms based on SPECIAL stats.
@@ -227,7 +225,7 @@ async def auto_assign_production_rooms(
 @router.post("/{vault_id}/dwellers/auto-assign-all", response_model=AutoAssignResponse)
 async def auto_assign_all_rooms(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     age_group: AgeGroupEnum | None = None,
 ) -> AutoAssignResponse:
     """Intelligently assign unassigned dwellers to ALL room types based on SPECIAL stats.
@@ -251,7 +249,7 @@ async def auto_assign_all_rooms(
 @router.post("/{vault_id}/dwellers/auto-assign-training", response_model=AutoAssignResponse)
 async def auto_assign_training_rooms(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     age_group: AgeGroupEnum | None = None,
 ) -> AutoAssignResponse:
     """Assign idle dwellers to training rooms, prioritizing their lowest eligible SPECIAL stat."""
@@ -262,7 +260,7 @@ async def auto_assign_training_rooms(
 @router.post("/{vault_id}/dwellers/auto-assign-crafting", response_model=AutoAssignResponse)
 async def auto_assign_crafting_rooms(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     age_group: AgeGroupEnum | None = None,
 ) -> AutoAssignResponse:
     """Fill crafting rooms with unassigned adults ranked by total SPECIAL (highest first).

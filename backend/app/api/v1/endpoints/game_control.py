@@ -4,13 +4,11 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, DBSession, get_user_vault_or_403
 from app.core.enums import IncidentType
 from app.core.game_config import game_config
-from app.db.session import get_async_session
 from app.models.vault import Vault
 from app.schemas.incident import (
     DeleteIncidentsResponse,
@@ -91,7 +89,7 @@ async def get_game_balance_settings(_: CurrentActiveUser) -> GameBalanceResponse
 async def pause_vault(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> PauseResumeResponse:
     """Pause the game loop for a vault.
 
@@ -112,7 +110,7 @@ async def pause_vault(
 async def resume_vault(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> PauseResumeResponse:
     """Resume the game loop for a vault.
 
@@ -133,7 +131,7 @@ async def resume_vault(
 async def record_presence(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> PresenceResponse:
     """Stamp a visibility-gated vault-view heartbeat for incident spawn gating.
 
@@ -155,7 +153,7 @@ async def record_presence(
 async def get_game_state(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> dict[str, Any]:
     """Get current game state for a vault.
 
@@ -169,7 +167,7 @@ async def get_game_state(
 async def list_incidents(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> IncidentListResponse:
     """List all active incidents in a vault.
 
@@ -187,7 +185,7 @@ async def list_incidents(
 async def list_pending_incident_overflow(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> list[PendingIncidentOverflowRead]:
     """List resolved incidents still holding loot for a take or sell decision."""
     return await incident_service.get_pending_overflow(db_session, vault.id)
@@ -198,7 +196,7 @@ async def get_incident(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     incident_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> IncidentRead:
     """Get details of a specific incident.
 
@@ -215,7 +213,7 @@ async def get_incident(
 async def manual_tick(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> dict[str, Any]:
     """Manually trigger a game tick for a vault (for testing/debugging).
 
@@ -241,7 +239,7 @@ async def assign_incident_responders(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     incident_id: UUID,
     responders: IncidentRespondersRequest,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> IncidentRespondersResponse:
     """Assign healthy adult dwellers to defend an active incident room."""
     try:
@@ -259,7 +257,7 @@ async def get_incident_team(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     incident_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> list[IncidentResponderRead]:
     """Get the designated responder team for an incident."""
     try:
@@ -274,7 +272,7 @@ async def take_incident_overflow_item(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     incident_id: UUID,
     request: OverflowActionRequest,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> OverflowActionResponse:
     """Store one held incident item. 409 when storage is still full."""
     remaining = await incident_service.take_unclaimed_item(db_session, incident_id, vault.id, request.index)
@@ -287,7 +285,7 @@ async def sell_incident_overflow_item(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     incident_id: UUID,
     request: OverflowActionRequest,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> OverflowActionResponse:
     """Sell one held incident item for caps. Needs no storage space."""
     caps, remaining = await incident_service.sell_unclaimed_item(db_session, incident_id, vault.id, request.index)
@@ -298,7 +296,7 @@ async def sell_incident_overflow_item(
 async def spawn_debug_incident(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     incident_type: IncidentType | None = None,
 ) -> IncidentSpawnResponse:
     """[DEBUG] Manually spawn an incident for testing purposes.
@@ -339,7 +337,7 @@ async def spawn_debug_incident(
 async def delete_all_incidents(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _user: CurrentSuperuser,
 ) -> DeleteIncidentsResponse:
     """Delete all incidents for a vault.
@@ -361,7 +359,7 @@ async def delete_incident(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     incident_id: UUID,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     _user: CurrentSuperuser,
 ) -> DeleteIncidentsResponse:
     """Delete a specific incident.

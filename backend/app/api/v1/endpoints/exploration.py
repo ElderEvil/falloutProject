@@ -3,12 +3,10 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter, Query
 
 from app import crud
-from app.api.deps import CurrentActiveUser, get_user_vault_or_403, verify_exploration_access
-from app.db.session import get_async_session
+from app.api.deps import CurrentActiveUser, DBSession, get_user_vault_or_403, verify_exploration_access
 from app.models.exploration import Exploration
 from app.schemas.expedition import (
     AvailableSiteView,
@@ -41,7 +39,7 @@ async def send_dweller_to_wasteland(
     request: ExplorationSendRequest,
     vault_id: Annotated[UUID, Query()],
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Exploration:
     """The single departure boundary: one roster, optional destination.
 
@@ -71,7 +69,7 @@ async def dispatch_dweller(
     request: ExpeditionDispatchRequest,
     vault_id: Annotated[UUID, Query()],
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Exploration:
     """Send a party to clear a specific map point.
 
@@ -98,7 +96,7 @@ async def suggest_heading(
     vault_id: Annotated[UUID, Query()],
     seed: Annotated[str, Query(min_length=1)],
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     duration: Annotated[int, Query(ge=1, le=24)] = 4,
 ) -> HeadingSuggestion:
     """Suggest a heading for an auto departure; null when the vault has no map placement."""
@@ -111,7 +109,7 @@ async def suggest_heading(
 async def list_explorations_by_vault(
     vault_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     active_only: bool = True,
 ) -> list[Exploration]:
     """List all explorations for a vault.
@@ -132,7 +130,7 @@ async def get_exploration_party(
     vault_id: UUID,
     exploration_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> list[ExplorationPartyMemberRead]:
     """Get the dispatch party assigned to an exploration (empty for a free-roam run).
 
@@ -150,7 +148,7 @@ async def get_exploration_party(
 async def list_pending_overflow(
     vault_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> list[PendingOverflowRead]:
     """List overflow loot that still needs a take or sell decision."""
     await get_user_vault_or_403(vault_id, user, db_session)
@@ -161,7 +159,7 @@ async def list_pending_overflow(
 async def get_exploration(
     exploration_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Exploration:
     """Get detailed information about an exploration.
 
@@ -176,7 +174,7 @@ async def get_exploration(
 async def get_exploration_progress(
     exploration_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> ExplorationProgress:
     """Get current progress of an exploration.
 
@@ -191,7 +189,7 @@ async def get_exploration_progress(
 async def recall_dweller(
     exploration_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> ExplorationCompleteResponse:
     """Recall a dweller early from exploration.
 
@@ -216,7 +214,7 @@ async def recall_dweller(
 async def complete_exploration(
     exploration_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> ExplorationCompleteResponse:
     """Complete an exploration and collect rewards.
 
@@ -242,7 +240,7 @@ async def take_overflow_item(
     exploration_id: UUID,
     request: OverflowActionRequest,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> OverflowActionResponse:
     """Store one unclaimed overflow item. 409 when storage is still full."""
     await verify_exploration_access(exploration_id, user, db_session)
@@ -255,7 +253,7 @@ async def sell_overflow_item(
     exploration_id: UUID,
     request: OverflowActionRequest,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> OverflowActionResponse:
     """Sell one unclaimed overflow item for caps. Needs no storage space."""
     await verify_exploration_access(exploration_id, user, db_session)
@@ -267,7 +265,7 @@ async def sell_overflow_item(
 async def generate_event(
     exploration_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Exploration:
     """Manually trigger event generation for an exploration (for testing/debugging).
 
@@ -289,7 +287,7 @@ async def enter_expedition_site(
     exploration_id: UUID,
     request: ExpeditionEnterRequest,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> SiteRoomView:
     """Enter an expedition site on an active exploration.
 
@@ -304,7 +302,7 @@ async def enter_expedition_site(
 async def list_available_expedition_sites(
     exploration_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> list[AvailableSiteView]:
     """List expedition sites the dweller may currently enter (level + anti-farm gates)."""
     await verify_exploration_access(exploration_id, user, db_session)
@@ -315,7 +313,7 @@ async def list_available_expedition_sites(
 async def get_expedition_site(
     exploration_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> SiteRoomView | None:
     """Get the open expedition run view, or null when there is none (reconnect-safe)."""
     await verify_exploration_access(exploration_id, user, db_session)
@@ -327,7 +325,7 @@ async def resolve_expedition_node(
     exploration_id: UUID,
     request: ExpeditionResolveRequest,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> SiteRoomView:
     """Resolve the current site room node and advance.
 
@@ -342,7 +340,7 @@ async def resolve_expedition_node(
 async def retreat_expedition_site(
     exploration_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> SiteRoomView:
     """Abandon the expedition run at a room boundary; room loot is kept."""
     await verify_exploration_access(exploration_id, user, db_session)

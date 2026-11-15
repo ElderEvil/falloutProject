@@ -51,7 +51,7 @@ async def get_redis_client():
 
 
 async def get_current_user(
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
     token: Annotated[str, Depends(reusable_oauth2)],
 ) -> User:
     """Validate the OAuth2 token and return the current user.
@@ -136,7 +136,7 @@ CurrentSuperuser = Annotated[User, Depends(get_current_active_superuser)]
 async def get_user_vault_or_403(
     vault_id: UUID | None,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> Vault:
     """Return the user's vault (or any vault for a superuser)."""
     return await access_service.get_accessible_vault(vault_id, user, db_session)
@@ -145,7 +145,7 @@ async def get_user_vault_or_403(
 async def verify_dweller_access(
     dweller_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> None:
     """Apply the shared dweller access policy."""
     await access_service.verify_dweller_access(dweller_id, user, db_session)
@@ -154,7 +154,7 @@ async def verify_dweller_access(
 async def verify_room_access(
     room_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> tuple[Room, Vault]:
     """Return the room and its vault after authorization.
 
@@ -174,7 +174,7 @@ async def verify_item_access(
     item_id: UUID,
     model: type[Weapon | Outfit | Junk],
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> None:
     """Verify user has access to the vault owning an item.
 
@@ -201,7 +201,7 @@ async def verify_item_access(
 async def verify_exploration_access(
     exploration_id: UUID,
     user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    db_session: DBSession,
 ) -> None:
     """Verify user has access to the vault containing the exploring dweller.
 

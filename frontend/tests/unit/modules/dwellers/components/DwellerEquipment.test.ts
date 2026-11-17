@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vite-plus/test'
-import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test'
+import { enableAutoUnmount, mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { ref, nextTick } from 'vue'
+import { ref, reactive, nextTick } from 'vue'
 import DwellerEquipment from '@/modules/dwellers/components/DwellerEquipment.vue'
 import {
   createMockDwellerDetailContext,
@@ -10,12 +10,15 @@ import {
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 import type { DwellerDetailContext } from '@/modules/dwellers/components/DwellerDetailContext'
 
+enableAutoUnmount(afterEach)
+
+const equipmentFetch = vi.hoisted(() => ({ weapons: vi.fn(), outfits: vi.fn() }))
 const availableOutfitsMock = vi.hoisted(() => vi.fn(() => [] as Record<string, unknown>[]))
 
 vi.mock('@/modules/combat/stores/equipment', () => ({
   useEquipmentStore: () => ({
-    fetchWeapons: vi.fn().mockResolvedValue([]),
-    fetchOutfits: vi.fn().mockResolvedValue([]),
+    fetchWeapons: equipmentFetch.weapons,
+    fetchOutfits: equipmentFetch.outfits,
     getAvailableWeapons: vi.fn().mockReturnValue([]),
     getAvailableOutfits: availableOutfitsMock,
     equipWeapon: vi.fn().mockResolvedValue(undefined),
@@ -103,17 +106,19 @@ function mountEquip(
   return wrapper
 }
 
-describe('DwellerEquipment', () => {
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.clearAllMocks()
-    availableOutfitsMock.mockReturnValue([])
-    petsStoreMock.fetchPets.mockResolvedValue([])
-    petsStoreMock.getAvailablePets.mockReturnValue([])
-    petsStoreMock.equipPet.mockResolvedValue(undefined)
-    petsStoreMock.unequipPet.mockResolvedValue(undefined)
-  })
+beforeEach(() => {
+  setActivePinia(createPinia())
+  vi.clearAllMocks()
+  availableOutfitsMock.mockReturnValue([])
+  equipmentFetch.weapons.mockResolvedValue(undefined)
+  equipmentFetch.outfits.mockResolvedValue(undefined)
+  petsStoreMock.fetchPets.mockResolvedValue([])
+  petsStoreMock.getAvailablePets.mockReturnValue([])
+  petsStoreMock.equipPet.mockResolvedValue(undefined)
+  petsStoreMock.unequipPet.mockResolvedValue(undefined)
+})
 
+describe('DwellerEquipment', () => {
   it.each(['child', 'teen'] as const)(
     'allows a %s to remove existing gear but not replace it',
     async (age_group) => {
@@ -463,4 +468,45 @@ describe('DwellerEquipment', () => {
 
     expect(petsStoreMock.unequipPet).toHaveBeenCalledWith('pet-1')
   })
+})
+
+it('refreshes the outfit picker after a reward arrives without remounting the equipment view', async () => {
+  const inventory = reactive<Record<string, unknown>[]>([])
+  availableOutfitsMock.mockReturnValue(inventory)
+  const wrapper = mountEquip(
+    makeDweller(),
+    {},
+    {
+      EquipmentCard: { props: ['item'], template: '<p>{{ item.name }}</p>' },
+    }
+  )
+  await flushPromises()
+  equipmentFetch.outfits.mockClear()
+  equipmentFetch.outfits.mockImplementation(async () => {
+    inventory.push({ id: 'reward', name: 'Wasteland gear' })
+  })
+  await wrapper.findAll('button.empty-slot')[1]!.trigger('click')
+  await flushPromises()
+  expect(equipmentFetch.outfits).toHaveBeenCalledWith('test-token', 'v1')
+  expect(wrapper.text()).toContain('Wasteland gear')
+})
+
+it('does not open a stale picker after switching vaults during its load', async () => {
+  const vaultId = ref('v1')
+  let finish!: () => void
+  const wrapper = mountEquip(makeDweller(), { vaultId: vaultId as never })
+  await flushPromises()
+  equipmentFetch.outfits.mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve
+      })
+  )
+  await wrapper.findAll('button.empty-slot')[1]!.trigger('click')
+  await nextTick()
+  vaultId.value = 'v2'
+  await nextTick()
+  finish?.()
+  await flushPromises()
+  expect(wrapper.findComponent({ name: 'TerminalModal' }).props('open')).toBe(false)
 })

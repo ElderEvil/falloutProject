@@ -94,6 +94,10 @@ const exploreTooltip = computed(() =>
           <Button
             variant="outline"
             class="w-full"
+            v-bind="{
+              'data-onboarding':
+                !loading && isMatureDweller && dweller.health > 0 ? 'dweller-departure' : undefined,
+            }"
             @click="emit('send-wasteland')"
             :disabled="loading || !isMatureDweller"
           >

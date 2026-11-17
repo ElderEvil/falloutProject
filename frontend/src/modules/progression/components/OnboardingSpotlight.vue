@@ -4,7 +4,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { useElementBounding, usePreferredReducedMotion } from '@vueuse/core'
 import { Button } from '@/core/components/ui/button'
 import { Alert } from '@/core/components/ui/alert'
-import { Card } from '@/core/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/core/components/ui/card'
 import { usePolling } from '@/core/composables/usePolling'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -16,11 +22,12 @@ import { useOnboardingState } from '@/core/composables/useOnboardingState'
 import { isOverlayBlocking } from '@/core/composables/useBlockingOverlay'
 import {
   ORIENTATION_STEPS,
+  ORIENTATION_CHAPTERS,
   type OnboardingLesson,
   type TeachingEligibility,
   type TeachingSnapshot,
 } from '../models'
-import { currentObjective as lowestUnfinishedStarter } from '../models/objective'
+import { currentObjective, isObjectiveClaimable, objectiveRewardDetails } from '../models/objective'
 import type { Objective } from '../models/objective'
 import ObjectiveCompleteModal from './ObjectiveCompleteModal.vue'
 import IntroHandoffCard from './IntroHandoffCard.vue'
@@ -68,6 +75,13 @@ const objectiveFor = (lesson: OnboardingLesson): Objective | undefined =>
 
 const isHandled = (lesson: OnboardingLesson): boolean => {
   if (ledger.value[lesson.id]) return true
+  if (!replayMode.value && ['orientation.weapon', 'orientation.outfit'].includes(lesson.id)) {
+    // Preserve completed introductions and legacy cohorts without equipment objectives.
+    if (ledger.value['orientation.departure']) return true
+    const departure = ORIENTATION_STEPS.find((step) => step.id === 'orientation.departure')
+    if (departure && objectiveFor(departure)?.is_completed) return true
+    if (objectiveByKey.value.size > 0 && !objectiveFor(lesson)) return true
+  }
   // Explicit replay reaches claimed steps; otherwise a claimed objective retires the lesson.
   return !replayMode.value && objectiveFor(lesson)?.is_completed === true
 }
@@ -78,39 +92,47 @@ const lessonObjective = computed(() => {
   const lesson = currentLesson.value
   return lesson ? objectiveFor(lesson) : undefined
 })
+const chapter = computed(() => ORIENTATION_CHAPTERS[currentLesson.value?.chapter ?? 0])
+const reward = computed(() => objectiveRewardDetails(lessonObjective.value?.reward ?? ''))
+const nextLesson = computed(() => pendingLessons.value[1])
 
 const optedIn = computed(() => !!vaultState.value.created || replayMode.value)
 const welcomePending = computed(() => !!vaultState.value.created && !vaultState.value.welcomed)
 const active = computed(
   () => !!vaultId.value && !vaultState.value.skipped && optedIn.value && !!currentLesson.value
 )
-const showHandoff = computed(
+const starterObjectives = computed(() =>
+  store.objectives.filter(
+    (objective) => objective.vault_id === vaultId.value && objective.category === 'starter'
+  )
+)
+const guideObjective = computed(() => currentObjective(starterObjectives.value))
+const readyMilestones = computed(() => starterObjectives.value.filter(isObjectiveClaimable).length)
+const orientationComplete = computed(
   () =>
     !!vaultId.value &&
     optedIn.value &&
     !vaultState.value.skipped &&
     !replayMode.value &&
-    !vaultState.value.handoffDismissed &&
     !currentLesson.value &&
     ORIENTATION_STEPS.some(
       (lesson) => lesson.id === 'orientation.departure' && objectiveFor(lesson)?.is_completed
     )
 )
+const showHandoff = computed(() => orientationComplete.value && !vaultState.value.handoffDismissed)
+const showVaultGuide = computed(
+  () => orientationComplete.value && !!vaultState.value.handoffDismissed && !!guideObjective.value
+)
 const showWelcome = computed(() => active.value && welcomePending.value)
 const showLesson = computed(() => active.value && !showWelcome.value && !!currentLesson.value)
 
-const lowestStarterId = computed(() => {
-  const current = lowestUnfinishedStarter(store.objectives)
-  return current?.category === 'starter' ? current.id : undefined
-})
-const isServerCurrent = computed(
-  () => !!lessonObjective.value && lessonObjective.value.id === lowestStarterId.value
-)
 const earned = computed(() => {
   const objective = lessonObjective.value
   return !!objective && objective.progress >= objective.total
 })
-const ready = computed(() => !replayMode.value && earned.value && isServerCurrent.value)
+const ready = computed(
+  () => !replayMode.value && earned.value && !lessonObjective.value?.is_completed
+)
 const showContinue = computed(() => {
   const lesson = currentLesson.value
   return !!lesson && (replayMode.value || lesson.kind !== 'objective-explanation')
@@ -142,7 +164,9 @@ const {
   clearError: clearClaimError,
 } = useObjectiveClaim(vaultId)
 
-watch([() => currentLesson.value?.id, vaultId], () => clearClaimError())
+watch([() => currentLesson.value?.id, () => guideObjective.value?.id, vaultId], () =>
+  clearClaimError()
+)
 
 watch(
   [currentLesson, () => vaultId.value, () => auth.token],
@@ -275,23 +299,21 @@ onBeforeUnmount(() => {
   if (anchorFrame) cancelAnimationFrame(anchorFrame)
 })
 
-// The card sits opposite the control being explained, so it never covers it on
-// small screens; when the control is below the fold the card reduces itself so
-// the lesson stays visible without pushing the control off-screen. Placement
-// reads the reactive element bounds, so scroll and resize update it too.
+// Keep the card opposite the target; only an explicit player action collapses it.
 const anchorBelowFold = computed(() => {
   if (!viewportHeight.value || height.value <= 0) return false
-  return top.value > viewportHeight.value / 2
+  return top.value + height.value / 2 > viewportHeight.value / 2
 })
 const cardPlacement = computed(() => (anchorBelowFold.value ? 'top' : 'bottom'))
 
 // A manual toggle wins until the lesson changes; data refreshes never reopen or
 // re-collapse the card or move focus.
-const userCollapsed = ref<boolean | null>(null)
-const collapsed = computed(() => userCollapsed.value ?? anchorBelowFold.value)
+const userCollapsed = ref(false)
+const collapsed = computed(() => userCollapsed.value)
 const cardClass = computed(() => [
-  'onboarding-card',
+  'onboarding-card fixed inset-x-4 bottom-4 z-[61] mx-auto flex max-h-[calc(100svh-2rem)] max-w-[26rem] flex-col gap-3 overflow-y-auto rounded-lg border border-theme-primary bg-surface-raised p-4 font-mono text-theme-primary shadow-lg sm:right-6 sm:bottom-6 sm:left-auto sm:mx-0 sm:w-96',
   `onboarding-card--${cardPlacement.value}`,
+  { 'top-4 bottom-auto sm:top-6 sm:bottom-auto': anchorBelowFold.value },
   { 'onboarding-card--collapsed': collapsed.value },
 ])
 const toggleCollapsed = () => {
@@ -300,7 +322,7 @@ const toggleCollapsed = () => {
 watch(
   () => currentLesson.value?.id,
   () => {
-    userCollapsed.value = null
+    userCollapsed.value = false
   }
 )
 
@@ -323,9 +345,13 @@ const scrollToControl = () => {
   // raises no scroll event (or the element was already inside the viewport).
   refreshViewport()
 }
-const showNavigate = computed(
-  () => !!navPath.value && targetEl.value === null && presentAnchorEl.value === null
-)
+const showNavigate = computed(() => {
+  const path = navPath.value
+  if (!path || route.path === path || showScrollToControl.value) return false
+  const anchor = presentAnchorEl.value?.dataset.onboarding
+  if (anchor && !anchor.startsWith('nav-')) return false
+  return !currentLesson.value?.route || !route.path.startsWith(`${path}/`)
+})
 const navigateToLesson = () => {
   if (navPath.value) void router.push(navPath.value)
 }
@@ -339,6 +365,14 @@ const skipStepAction = () => {
 const continueLesson = () => {
   const lesson = currentLesson.value
   if (lesson) acknowledgeLesson(vaultId.value, lesson.id)
+}
+
+function onGuideClaim() {
+  const objective = guideObjective.value
+  if (!objective || !isObjectiveClaimable(objective)) return
+  void claim(objective.id, (claimed) => {
+    claimedObjective.value = claimed
+  })
 }
 
 function onClaim() {
@@ -367,110 +401,162 @@ function onClaim() {
       />
       <Card
         v-if="!blockedByOverlay"
-        :class="cardClass"
+        :class="[cardClass, { 'max-h-[calc(50svh-6rem)]': !showWelcome && targetEl }]"
         v-bind="{ role: 'region', 'aria-live': 'polite', 'aria-label': 'Vault onboarding' }"
       >
-        <template v-if="showWelcome">
-          <p class="onboarding-eyebrow">VAULT-TEC // ORIENTATION</p>
-          <h2 class="onboarding-title">Welcome, Overseer</h2>
-          <p class="onboarding-body">
-            You run this vault. Keep power, food and water flowing, put dwellers where their SPECIAL
-            fits, and grow. This guide shows you one thing to do at a time.
-          </p>
-          <div class="onboarding-actions">
-            <Button size="sm" @click="start">Start</Button>
-            <Button size="sm" variant="ghost" @click="skipTourAction">Skip tour</Button>
-          </div>
-        </template>
-        <template v-else-if="currentLesson">
-          <div class="onboarding-heading">
-            <p class="onboarding-eyebrow">NEXT STEP</p>
+        <CardHeader class="shrink-0 gap-2 p-0">
+          <div class="flex items-center justify-between gap-3">
+            <p class="text-[0.65rem] font-bold tracking-[0.14em] text-theme-accent">
+              VAULT FIELD GUIDE
+            </p>
             <Button
+              v-if="!showWelcome"
               variant="ghost"
               size="sm"
-              class="onboarding-collapse"
-              v-bind="{
-                type: 'button',
-                'aria-expanded': !collapsed,
-                'aria-controls': 'onboarding-guide-body',
-                'aria-label': collapsed ? 'Expand guide' : 'Collapse guide',
-              }"
+              class="onboarding-collapse h-auto px-1 py-0 text-xs"
+              :aria-expanded="!collapsed"
+              aria-controls="onboarding-guide-body"
+              :aria-label="collapsed ? 'Expand guide' : 'Collapse guide'"
               @click="toggleCollapsed"
+              >{{ collapsed ? 'Expand' : 'Collapse' }}</Button
             >
-              {{ collapsed ? 'Expand' : 'Collapse' }}
-            </Button>
           </div>
-          <h2 class="onboarding-title">{{ currentLesson.title }}</h2>
-          <div v-show="!collapsed" id="onboarding-guide-body" class="onboarding-details">
-            <p class="onboarding-body">{{ currentLesson.body }}</p>
-            <p v-if="lessonObjective" class="onboarding-progress">
-              {{ lessonObjective.progress }} / {{ lessonObjective.total }}
-            </p>
-            <div class="onboarding-actions">
-              <Button v-if="ready" size="sm" :disabled="claiming" @click="onClaim">
-                {{ claiming ? 'Claiming…' : `Claim ${lessonObjective?.reward}` }}
-              </Button>
-              <Button
-                v-else-if="showContinue"
-                size="sm"
-                :disabled="claiming"
-                @click="continueLesson"
+          <ol
+            v-if="!collapsed"
+            aria-label="Introduction milestones"
+            class="grid grid-cols-4 gap-2 border-y border-theme-primary/20 py-2"
+          >
+            <li
+              v-for="(milestone, index) in ORIENTATION_CHAPTERS"
+              :key="milestone.title"
+              :aria-current="!showWelcome && currentLesson?.chapter === index ? 'step' : undefined"
+              class="flex flex-col gap-1 text-[0.65rem] leading-tight"
+              :class="
+                index === currentLesson?.chapter ? 'text-theme-primary' : 'text-muted-foreground'
+              "
+            >
+              <span class="font-bold tabular-nums" aria-hidden="true">0{{ index + 1 }}</span>
+              <span>{{ milestone.title }}</span>
+            </li>
+          </ol>
+          <CardTitle class="onboarding-title text-base font-bold">
+            <h2>{{ showWelcome ? 'Welcome, Overseer' : currentLesson?.title }}</h2>
+          </CardTitle>
+          <CardDescription v-if="showWelcome" class="text-xs leading-relaxed">
+            Your crew is already at work. Your next chapter starts here: meet the crew, welcome a
+            newcomer, prepare an explorer and send them into the wasteland.
+          </CardDescription>
+        </CardHeader>
+        <CardContent v-if="showWelcome" class="onboarding-actions flex flex-wrap gap-2 p-0">
+          <Button size="sm" @click="start">Start</Button>
+          <Button size="sm" variant="ghost" @click="skipTourAction">Skip tour</Button>
+        </CardContent>
+        <CardContent
+          v-else-if="currentLesson"
+          v-show="!collapsed"
+          v-bind="{ id: 'onboarding-guide-body' }"
+          class="flex min-h-0 flex-col gap-3 p-0"
+        >
+          <div class="min-h-0 space-y-3 overflow-y-auto">
+            <p class="text-xs leading-relaxed text-muted-foreground">{{ currentLesson.body }}</p>
+            <div
+              v-if="lessonObjective && !replayMode"
+              class="flex items-start justify-between gap-3 rounded border border-theme-primary/20 bg-theme-primary/5 p-2 text-xs"
+            >
+              <div>
+                <p class="font-bold text-theme-accent">
+                  {{
+                    lessonObjective.is_completed
+                      ? 'REWARD CLAIMED'
+                      : ready
+                        ? 'READY TO CLAIM'
+                        : 'MILESTONE REWARD'
+                  }}
+                </p>
+                <p class="mt-1">
+                  {{ reward.kind === 'dweller' ? `${reward.name} joins your vault` : reward.name }}
+                </p>
+              </div>
+              <p
+                class="shrink-0 font-bold tabular-nums"
+                :aria-label="`Progress: ${lessonObjective.progress} of ${lessonObjective.total}`"
               >
-                Continue
-              </Button>
-              <Button
-                v-if="showScrollToControl"
-                size="sm"
-                variant="outline"
-                :disabled="claiming"
-                @click="scrollToControl"
-              >
-                Show control
-              </Button>
-              <Button
-                v-if="showNavigate"
-                size="sm"
-                variant="outline"
-                :disabled="claiming"
-                @click="navigateToLesson"
-              >
-                {{ navLabel }}
-              </Button>
-              <Button size="sm" variant="ghost" :disabled="claiming" @click="skipStepAction">
-                Skip step
-              </Button>
-              <Button size="sm" variant="ghost" :disabled="claiming" @click="skipTourAction">
-                Skip tour
-              </Button>
-              <Button
-                v-if="loadFailed"
-                size="sm"
-                variant="outline"
-                :disabled="claiming"
-                @click="refresh"
-              >
-                Retry
-              </Button>
+                {{ lessonObjective.progress }} / {{ lessonObjective.total }}
+              </p>
             </div>
-            <Alert v-if="loadFailed" class="onboarding-note">
-              Could not refresh the guide. Retry.
-            </Alert>
-            <Alert v-if="blockedReason" class="onboarding-note">{{ blockedReason }}</Alert>
-            <Alert v-if="claimError" variant="destructive" class="onboarding-error">
-              {{ claimError }}
-            </Alert>
+            <Alert v-if="loadFailed" class="onboarding-note text-xs"
+              >Could not refresh the guide. Retry.</Alert
+            >
+            <Alert v-if="blockedReason" class="onboarding-note text-xs">{{ blockedReason }}</Alert>
+            <Alert v-if="claimError" variant="destructive" class="onboarding-error text-xs">{{
+              claimError
+            }}</Alert>
+            <div class="border-t border-theme-primary/20 pt-2 text-xs text-muted-foreground">
+              <p>{{ chapter?.outcome }}</p>
+              <p v-if="nextLesson" class="mt-1">Next: {{ nextLesson.title }}</p>
+              <p v-else class="mt-1">Next: keep building while your explorer travels.</p>
+            </div>
           </div>
-        </template>
+          <div class="onboarding-actions flex shrink-0 flex-wrap gap-2">
+            <Button v-if="ready" size="sm" :disabled="claiming" @click="onClaim">
+              {{ claiming ? 'Claiming…' : `Claim ${reward.name}` }}
+            </Button>
+            <Button v-else-if="showContinue" size="sm" :disabled="claiming" @click="continueLesson"
+              >Continue</Button
+            >
+            <Button
+              v-if="showScrollToControl"
+              size="sm"
+              variant="outline"
+              :disabled="claiming"
+              @click="scrollToControl"
+              >Show control</Button
+            >
+            <Button
+              v-if="showNavigate"
+              size="sm"
+              variant="outline"
+              :disabled="claiming"
+              @click="navigateToLesson"
+              >{{ navLabel }}</Button
+            >
+            <Button
+              v-if="loadFailed"
+              size="sm"
+              variant="outline"
+              :disabled="claiming"
+              @click="refresh"
+              >Retry</Button
+            >
+          </div>
+          <div
+            class="onboarding-actions flex shrink-0 flex-wrap gap-2 border-t border-theme-primary/20 pt-2"
+          >
+            <Button size="sm" variant="ghost" :disabled="claiming" @click="skipStepAction"
+              >Skip step</Button
+            >
+            <Button size="sm" variant="ghost" :disabled="claiming" @click="skipTourAction"
+              >Skip tour</Button
+            >
+          </div>
+        </CardContent>
       </Card>
     </template>
     <IntroHandoffCard
-      v-if="showHandoff && vaultId"
+      v-if="(showHandoff || showVaultGuide) && vaultId"
       v-show="!blockedByOverlay"
       :key="vaultId"
       ref="handoffCard"
       :vault-id="vaultId"
-      class="onboarding-card"
+      :compact="!!vaultState.handoffDismissed"
+      :milestone="guideObjective"
+      :ready-count="readyMilestones"
+      :claiming="claiming"
+      :claim-error="claimError"
+      :class="cardClass"
       @dismiss="patch(vaultId, { handoffDismissed: true })"
+      @claim="onGuideClaim"
+      @hide="skipTourAction"
     />
   </Teleport>
   <ObjectiveCompleteModal
@@ -512,124 +598,6 @@ function onClaim() {
     outline: 4px solid var(--color-theme-primary);
     outline-offset: 6px;
   }
-}
-
-.onboarding-card {
-  position: fixed;
-  z-index: 61;
-  right: 1rem;
-  bottom: 1rem;
-  left: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  max-width: 26rem;
-  margin: 0 auto;
-  padding: 1rem;
-  border: 1px solid var(--color-theme-primary);
-  border-radius: 8px;
-  background: var(--color-surface-raised);
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-  box-shadow: 0 0 18px color-mix(in srgb, var(--color-theme-primary) 40%, transparent);
-}
-
-@media (min-width: 640px) {
-  .onboarding-card {
-    right: 1.5rem;
-    bottom: 1.5rem;
-    left: auto;
-    margin: 0;
-  }
-}
-
-/* Placed opposite the highlighted control so the card never covers it. */
-.onboarding-card--top {
-  top: 1rem;
-  bottom: auto;
-}
-
-@media (min-width: 640px) {
-  .onboarding-card--top {
-    top: 1.5rem;
-    bottom: auto;
-  }
-}
-
-.onboarding-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.onboarding-collapse {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-theme-accent);
-  font-family: inherit;
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.onboarding-collapse:hover {
-  color: var(--color-theme-primary);
-}
-
-.onboarding-eyebrow {
-  margin: 0;
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  color: var(--color-theme-accent);
-}
-
-.onboarding-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.onboarding-body {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: color-mix(in srgb, var(--color-theme-primary) 75%, transparent);
-}
-
-.onboarding-progress {
-  margin: 0;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.onboarding-note {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font-size: 0.7rem;
-  color: var(--color-theme-accent);
-}
-
-.onboarding-error {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font-size: 0.7rem;
-  color: var(--color-danger);
-}
-
-.onboarding-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.35rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

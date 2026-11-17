@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useEquipmentStore } from '@/modules/combat/stores/equipment'
 import { usePetsStore } from '@/modules/pets/stores/pets'
@@ -27,9 +27,16 @@ const canEquip = computed(() => mature.value && canUnequip.value)
 const showInventoryModal = ref(false)
 const petActionPending = ref(false)
 const inventoryMode = ref<'weapon' | 'outfit' | 'pet'>('weapon')
+const inventoryLoading = ref(false)
+let inventoryRequest = 0
 
-watch(canEquip, (allowed) => {
-  if (!allowed) showInventoryModal.value = false
+watch([canEquip, vaultId, () => dweller.value?.id, () => authStore.token], () => {
+  ++inventoryRequest
+  showInventoryModal.value = false
+  inventoryLoading.value = false
+})
+onBeforeUnmount(() => {
+  ++inventoryRequest
 })
 
 // Get equipped items from the dweller object
@@ -49,8 +56,6 @@ const availablePets = computed(() => petsStore.getAvailablePets())
 onMounted(async () => {
   // Item lists are vault-scoped server-side, so a missing vault id means "nothing to fetch".
   if (authStore.token && vaultId.value) {
-    await equipmentStore.fetchWeapons(authStore.token, vaultId.value)
-    await equipmentStore.fetchOutfits(authStore.token, vaultId.value)
     await petsStore.fetchPets(vaultId.value)
   }
 })
@@ -112,14 +117,20 @@ const handleEquipPet = async (petId: string) => {
   }
 }
 
-const openWeaponInventory = () => {
-  inventoryMode.value = 'weapon'
-  showInventoryModal.value = true
-}
-
-const openOutfitInventory = () => {
-  inventoryMode.value = 'outfit'
-  showInventoryModal.value = true
+const openEquipmentInventory = async (mode: 'weapon' | 'outfit') => {
+  const token = authStore.token
+  const id = vaultId.value
+  if (!canEquip.value || !token || !id || inventoryLoading.value) return
+  const request = ++inventoryRequest
+  inventoryMode.value = mode
+  inventoryLoading.value = true
+  try {
+    if (mode === 'weapon') await equipmentStore.fetchWeapons(token, id)
+    else await equipmentStore.fetchOutfits(token, id)
+    if (request === inventoryRequest && !equipmentStore.error) showInventoryModal.value = true
+  } finally {
+    if (request === inventoryRequest) inventoryLoading.value = false
+  }
 }
 
 const openPetInventory = () => {
@@ -156,7 +167,7 @@ const modalIcon = computed(() => {
       <div class="equipment-slot">
         <div class="slot-header">
           <Icon :icon="getItemIcon('weapon', equippedWeapon ?? {})" class="slot-icon" />
-          <h4 class="slot-title">Weapon</h4>
+          <h4 class="slot-title" v-bind="{ 'data-onboarding': 'dweller-weapon' }">Weapon</h4>
         </div>
 
         <EquipmentCard
@@ -172,11 +183,17 @@ const modalIcon = computed(() => {
           v-else
           type="button"
           class="empty-slot"
-          :disabled="!canEquip"
-          @click="openWeaponInventory"
+          :disabled="!canEquip || inventoryLoading"
+          @click="openEquipmentInventory('weapon')"
         >
           <Icon icon="mdi:plus-circle" class="empty-icon" />
-          <p class="empty-text">Click to equip weapon</p>
+          <p class="empty-text">
+            {{
+              inventoryLoading && inventoryMode === 'weapon'
+                ? 'Loading weapons…'
+                : 'Click to equip weapon'
+            }}
+          </p>
         </button>
       </div>
 
@@ -184,7 +201,7 @@ const modalIcon = computed(() => {
       <div class="equipment-slot">
         <div class="slot-header">
           <Icon :icon="getItemIcon('outfit', equippedOutfit ?? {})" class="slot-icon" />
-          <h4 class="slot-title">Outfit</h4>
+          <h4 class="slot-title" v-bind="{ 'data-onboarding': 'dweller-outfit' }">Outfit</h4>
         </div>
 
         <EquipmentCard
@@ -200,11 +217,17 @@ const modalIcon = computed(() => {
           v-else
           type="button"
           class="empty-slot"
-          :disabled="!canEquip"
-          @click="openOutfitInventory"
+          :disabled="!canEquip || inventoryLoading"
+          @click="openEquipmentInventory('outfit')"
         >
           <Icon icon="mdi:plus-circle" class="empty-icon" />
-          <p class="empty-text">Click to equip outfit</p>
+          <p class="empty-text">
+            {{
+              inventoryLoading && inventoryMode === 'outfit'
+                ? 'Loading outfits…'
+                : 'Click to equip outfit'
+            }}
+          </p>
         </button>
       </div>
 
@@ -228,7 +251,7 @@ const modalIcon = computed(() => {
           v-else
           type="button"
           class="empty-slot"
-          :disabled="!canEquip"
+          :disabled="!canEquip || inventoryLoading"
           @click="openPetInventory"
         >
           <Icon icon="mdi:plus-circle" class="empty-icon" />

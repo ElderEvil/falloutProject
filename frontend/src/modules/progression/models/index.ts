@@ -7,4 +7,4 @@ export type {
   TeachingSnapshot,
   OnboardingLesson,
 } from './onboardingSteps'
-export { ORIENTATION_STEPS } from './onboardingSteps'
+export { ORIENTATION_CHAPTERS, ORIENTATION_STEPS } from './onboardingSteps'

@@ -29,6 +29,12 @@ The existing [flow research](features/GAME_FLOW_CONTINUITY_RESEARCH.md),
 [tutorial reference](frontend/ONBOARDING.md) and [balance playtests](backend/BALANCE_PLAYTEST.md) provide
 starting evidence. Their dated findings and PR statuses need rechecking rather than automatic implementation.
 
+The [new-player journey proposal](features/FIRST_SESSION_PLAYER_JOURNEY.md) maps the redesigned opening,
+milestone rewards and Office handoff. The opening (#1418) and separate recruitment/Office slice implement the approved direction:
+nine earned recruits, a bounded 900-cap reward budget, preserved legacy cohorts and an optional
+post-intro guide. Real-service evidence is in the tutorial reference; measured pacing, optional-spending
+recovery and the full return-to-useful-outcome walkthrough remain to verify before closing #1034.
+
 ## Existing PR queue
 
 - Plan [site discovery alerts and playable encounters #1193](https://github.com/ElderEvil/falloutProject/issues/1193).

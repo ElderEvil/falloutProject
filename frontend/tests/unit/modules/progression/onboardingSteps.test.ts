@@ -41,12 +41,14 @@ const LIVING_ROOM = {
 const SEEDED_CAPACITY_ROOMS = [{ category: 'Capacity' }, { category: 'Capacity' }]
 
 describe('onboardingSteps', () => {
-  it('authors the five orientation lessons in order with stable ids', () => {
+  it('keeps stable teaching ids and prepares equipment before departure', () => {
     expect(ORIENTATION_STEPS.map((step) => step.id)).toEqual([
       'orientation.resources',
       'orientation.generator',
       'orientation.staffing',
       'orientation.housing',
+      'orientation.weapon',
+      'orientation.outfit',
       'orientation.departure',
     ])
   })
@@ -54,9 +56,17 @@ describe('onboardingSteps', () => {
   it('links only the objective-backed lessons to server template keys', () => {
     expect(byId.get('orientation.resources')?.templateKeys).toBeUndefined()
     expect(byId.get('orientation.generator')?.templateKeys).toBeUndefined()
-    expect(byId.get('orientation.staffing')?.templateKeys).toEqual([`${STAFFING}#v2`, STAFFING])
-    expect(byId.get('orientation.housing')?.templateKeys).toEqual([`${HOUSING}#v2`, HOUSING])
-    expect(byId.get('orientation.departure')?.templateKeys).toEqual([DEPARTURE])
+    expect(byId.get('orientation.staffing')?.templateKeys).toEqual([
+      `${STAFFING}#v3`,
+      `${STAFFING}#v2`,
+      STAFFING,
+    ])
+    expect(byId.get('orientation.housing')?.templateKeys).toEqual([
+      `${HOUSING}#v3`,
+      `${HOUSING}#v2`,
+      HOUSING,
+    ])
+    expect(byId.get('orientation.departure')?.templateKeys).toEqual([`${DEPARTURE}#v3`, DEPARTURE])
   })
 
   it('anchors each lesson to a real data-onboarding target', () => {

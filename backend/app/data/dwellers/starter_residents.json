@@ -138,5 +138,41 @@
       "clothing_style": "work clothes",
       "background": "scaffolded ruin"
     }
+  },
+  "Theo Mercer": {
+    "first_name": "Theo",
+    "last_name": "Mercer",
+    "gender": "male",
+    "agility": 5,
+    "bio": "Kept a roadside kitchen open through three bad winters. Heard your diner was still serving and brought his own ladle.",
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 36,
+      "build": "average",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "brown",
+      "clothing_style": "work clothes",
+      "background": "roadside kitchen"
+    }
+  },
+  "Nadia Quinn": {
+    "first_name": "Nadia",
+    "last_name": "Quinn",
+    "gender": "female",
+    "perception": 5,
+    "bio": "Traced a clean-water line all the way to your vault. Knows how to spot a leaking valve before the floor gets wet.",
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 31,
+      "build": "slim",
+      "hair_style": "ponytail",
+      "hair_color": "black",
+      "eye_color": "green",
+      "clothing_style": "work clothes",
+      "background": "water pump"
+    }
   }
 }

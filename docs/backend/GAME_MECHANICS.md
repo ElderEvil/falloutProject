@@ -80,7 +80,7 @@ Reward XP, levels and health persist together; deferred rewards remain rollback-
 - Already-achieved state (rooms, staffing, population, levels, completed training and quests) may satisfy the
   current guided milestone. Derive this on reads without writing; validate again during the claim. Event counters
   such as resource earnings and scrapping keep their recorded progress.
-- The starter scrap objective counts a rare **item instance** scrapped from Storage; finding it in the
+- Legacy starter scrap objectives count a rare **item instance** scrapped from Storage; finding it in the
   wasteland is not a requirement. Recipe learning separately follows the named catalog recipe's unlock rule,
   so a rare loot variant of a common recipe may yield materials without unlocking a schematic.
 - Earned daily/weekly rewards survive reset until claimed; resets may replace unfinished objectives and remove
@@ -137,31 +137,35 @@ A newly added easier stage is not retroactively awarded to an established track.
 Track initialization runs on first use and recurring renewals so newly added families
 become available without resetting an existing stage.
 
-### Starter teaching rewards (wave 1)
+### Starter teaching rewards (Continuity cohort)
 
-- Fresh standard vaults currently seed **9 residents**, including the family. The starter arc grants seven
-  more through housing, departure, equipment, production and expansion lessons. Two births reach the
-  unchanged 18-resident Office requirement; children count. The guide explicitly teaches this family wait:
-  pregnancy takes three real hours after conception, and each mother has a six-hour post-birth cooldown.
-  Two eligible couples can progress in parallel. The Office still costs 1,000 caps.
-- The first three orientation keys remain staffing, housing and departure. Additional lessons use stable
-  `starter:*` template keys; expanded spotlight teaching is wave 2 and must attach to these keys rather than
-  introduce a second progression sequence. Dismissing guidance must not claim or skip an objective.
-- Production lessons require 50 power/food/water from actual production. Equipment lessons distinguish weapon
-  and outfit equips; already-equipped gear may satisfy the current step. Additional generator construction
-  requires more floor space than the seeded generator, never just an upgrade; its staffing lesson requires
-  three workers. Population rewards require available housing, as with all other dweller rewards.
-- Pre-Office starter payouts total 1,100 caps, alongside seven dwellers, Wasteland gear and a Hunting rifle.
-  The service test builds housing and a generator and reaches the Office with two births and at least
-  200 caps left, without exploration returns, random loot or daily rewards. It uses distinct eligible
-  mothers and advances only the clock, asserting no births before the configured due time. This validates
-  timing and reachability, not whether the wait feels right in a playtest.
-- The Office grants a guaranteed rare Hardened shotgun before the rare-weapon scrap lesson. Equipment reward
-  strings may specify rarity as `weapon:rare:Hardened shotgun`; omitted rarity remains common.
-- During balance development, the JSON starter catalog updates matching template definitions on startup.
-  Existing vault progress links are not reconciled or backfilled; playtests should use fresh vaults.
-  Retiring the radio lesson leaves sequence 12 unused in the new catalog, preserving later template
-  positions for existing vaults that still have the old radio lesson.
+- Fresh standard vaults seed **9 residents**. The versioned `#v3` track grants nine adults,
+  reaching the unchanged **18-resident, 1,000-cap Office** requirement without births or an
+  exploration return. Family growth remains optional. Legacy tracks retain their original
+  rewards, ordering and three-hour pregnancy lesson; each mother's post-birth cooldown is six hours.
+- Order: staffing → additional housing → weapon → outfit → departure → production → expansion
+  → population → Office → first mission → level 2 → later development. Viewing or dismissing
+  teaching never claims a reward. Earned later rewards remain claimable independently.
+- Housing requires expansion beyond the seeded **nine** Living Quarters units (`baseline_size: 9`).
+  The first production lessons require 50 power/food/water; Theo Mercer and Nadia Quinn are earned
+  through 100 food/water produced, excluding loot and objective payouts. Additional generator
+  construction requires more floor space than the seeded generator, followed by three workers.
+  Resident claims still require housing capacity.
+- Pre-Office rewards total **900 caps**, nine residents and Wasteland gear. Starting with 1,000,
+  housing costs 175, a generator 125 and the Office 1,000, leaving **600**. An optional 400-cap
+  Medbay leaves **200**. This bounded route needs no sales, random loot, daily rewards or return
+  payouts; arbitrary optional spending is not covered by that budget.
+- The Office grants a rare Hardened shotgun to keep and equip. The next milestone is completing
+  the first mission; level 2 follows it so XP waiting cannot block the Office/mission handoff.
+  Equipment reward strings may specify rarity (`weapon:rare:Hardened shotgun`); omitted rarity is common.
+- Catalog startup inserts new starter rows **inactive**, then `sync_starter_templates` commits the
+  activation/retirement together. Failed activation leaves the old cohort active and new rows inactive;
+  retry reuses their IDs. Historical definitions and assigned links remain unchanged; only their fresh
+  assignability is retired. Future semantic changes require a new template-key version.
+- Real-service tests cover both cohorts, actual construction, explicit repeat-claim rejection and
+  an eligible equipped three-person party starting the authored Getting Started quest. Legacy tests
+  retain pregnancy timing, cooldown and rare-scrap assertions. These establish reachability and
+  contract preservation, not measured player completion times or arbitrary-spending recovery.
 
 ## Timed quest capacity
 

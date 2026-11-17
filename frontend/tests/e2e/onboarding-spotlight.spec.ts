@@ -395,3 +395,223 @@ test.describe('Spotlight guide — vault page', () => {
     await expect(handoff).toHaveCount(0)
   })
 })
+
+for (const width of [1280, 390]) {
+  test(`field guide claims equipment before departure at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await openVault(page, {
+      ...ORIENTATION_ACKNOWLEDGED,
+      lessons: {
+        ...ORIENTATION_ACKNOWLEDGED.lessons,
+        'orientation.staffing': 'acknowledged',
+        'orientation.housing': 'acknowledged',
+      },
+    })
+    const claimed = new Set<string>()
+    const rows = [
+      {
+        ...STAFFING_OBJECTIVE,
+        id: 'departure',
+        sequence: 2,
+        template_key: 'starter:send a dweller exploring',
+        objective_type: 'explore',
+        progress: 0,
+        total: 1,
+      },
+      {
+        ...STAFFING_OBJECTIVE,
+        id: 'weapon',
+        sequence: 3,
+        template_key: 'starter:equip a weapon',
+        objective_type: 'equip',
+        progress: 1,
+        total: 1,
+        reward: 'outfit:Wasteland gear',
+      },
+      {
+        ...STAFFING_OBJECTIVE,
+        id: 'outfit',
+        sequence: 4,
+        template_key: 'starter:equip an outfit',
+        objective_type: 'equip',
+        progress: 1,
+        total: 1,
+        reward: 'dweller:Mara Voss',
+      },
+    ]
+    await page.route('**/api/v1/objectives/vault-1/**', async (route) => {
+      const match = new URL(route.request().url()).pathname.match(/\/(weapon|outfit)\/claim$/)
+      if (match) {
+        claimed.add(match[1]!)
+        return route.fulfill({ json: { progress: 1, total: 1, is_completed: true } })
+      }
+      return route.fulfill({
+        json: rows.map((row) => ({ ...row, is_completed: claimed.has(row.id) })),
+      })
+    })
+    await page.reload()
+    const guide = page.getByRole('region', { name: 'Vault onboarding', exact: true })
+    await expect(guide.getByRole('list', { name: 'Introduction milestones' })).toBeVisible()
+    await expect(guide.getByRole('heading', { name: 'Arm your explorer' })).toBeVisible()
+    await expect(
+      guide.getByRole('button', { name: 'Claim Wasteland gear', exact: true })
+    ).toBeVisible()
+    await guide.getByRole('button', { name: 'Claim Wasteland gear', exact: true }).click()
+    const celebration = page.getByRole('dialog', { name: 'Objective Complete!' })
+    await expect(celebration).toContainText('Wasteland gear')
+    await celebration.getByRole('button', { name: 'Continue', exact: true }).click()
+    await expect(guide.getByRole('heading', { name: 'Dress for the wasteland' })).toBeVisible()
+    await guide.getByRole('button', { name: 'Claim Mara Voss', exact: true }).click()
+    await expect(celebration).toContainText('Mara Voss has joined your vault')
+    await celebration.getByRole('button', { name: 'Close', exact: true }).last().click()
+    await expect(guide.getByRole('heading', { name: 'Send a dweller exploring' })).toBeVisible()
+    expect([...claimed]).toEqual(['weapon', 'outfit'])
+    await page.reload()
+    await expect(guide.getByRole('heading', { name: 'Send a dweller exploring' })).toBeVisible()
+  })
+}
+
+test('expanded housing guidance leaves a middle-screen Build control clickable', async ({
+  page,
+}) => {
+  await openVault(page, {
+    ...ORIENTATION_ACKNOWLEDGED,
+    lessons: { ...ORIENTATION_ACKNOWLEDGED.lessons, 'orientation.staffing': 'acknowledged' },
+  })
+  await page.route('**/api/v1/objectives/vault-1/**', (route) =>
+    route.fulfill({
+      json: [
+        {
+          ...STAFFING_OBJECTIVE,
+          id: 'housing',
+          template_key: 'starter:build a living quarters',
+          objective_type: 'build',
+          progress: 1,
+          total: 1,
+          reward: 'dweller:Juno Pike',
+        },
+      ],
+    })
+  )
+  await page.reload()
+  // Real standard-vault layout placed Build just above the viewport midpoint.
+  await page.addStyleTag({
+    content:
+      '[data-onboarding="build"] { position: fixed !important; top: 44vh !important; right: 3rem !important; bottom: auto !important; }',
+  })
+  const guide = page.getByRole('region', { name: 'Vault onboarding', exact: true })
+  await expect(guide.getByRole('button', { name: 'Claim Juno Pike', exact: true })).toBeVisible()
+  const build = page.locator('[data-onboarding="build"]')
+  const target = (await build.boundingBox())!
+  await expect
+    .poll(async () => {
+      const card = (await guide.boundingBox())!
+      return card.y + card.height <= target.y || card.y >= target.y + target.height
+    })
+    .toBe(true)
+  await build.click()
+  await expect(page.getByRole('button', { name: /Cancel Building/ })).toBeVisible()
+})
+
+for (const width of [1280, 390]) {
+  test(`post-intro guide claims the next reward and leads to missions at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await openVault(page, {
+      ...ORIENTATION_ACKNOWLEDGED,
+      lessons: {
+        ...ORIENTATION_ACKNOWLEDGED.lessons,
+        'orientation.staffing': 'acknowledged',
+        'orientation.housing': 'acknowledged',
+        'orientation.departure': 'acknowledged',
+      },
+    })
+    let collected = false
+    await page.route('**/api/v1/objectives/vault-1/**', async (route) => {
+      if (route.request().url().endsWith('/food/claim')) {
+        collected = true
+        return route.fulfill({ json: { progress: 100, total: 100, is_completed: true } })
+      }
+      return route.fulfill({
+        json: [
+          {
+            ...STAFFING_OBJECTIVE,
+            id: 'departure',
+            sequence: 4,
+            template_key: 'starter:send a dweller exploring#v3',
+            objective_type: 'explore',
+            progress: 1,
+            total: 1,
+            is_completed: true,
+          },
+          {
+            ...STAFFING_OBJECTIVE,
+            id: 'food',
+            sequence: 12,
+            template_key: 'starter:produce 100 food#v3',
+            challenge: 'Produce 100 Food',
+            objective_type: 'collect',
+            target_entity: { resource_type: 'food' },
+            progress: 100,
+            total: 100,
+            reward: 'dweller:Theo Mercer',
+            is_completed: collected,
+          },
+          {
+            ...STAFFING_OBJECTIVE,
+            id: 'first-mission',
+            sequence: 17,
+            template_key: 'starter:complete first quest mission#v3',
+            challenge: 'Complete your first mission',
+            objective_type: 'expedition',
+            progress: 0,
+            total: 1,
+            reward: '300 caps',
+          },
+        ],
+      })
+    })
+    await page.reload()
+    await page
+      .getByRole('region', { name: 'First expedition handoff', exact: true })
+      .getByRole('button', { name: 'Finish intro', exact: true })
+      .click()
+    const guide = page.getByRole('region', { name: 'Vault guide', exact: true })
+    await expect(guide).toContainText('Produce 100 Food')
+    await page.reload()
+    await expect(
+      page.getByRole('region', { name: 'First expedition handoff', exact: true })
+    ).toHaveCount(0)
+    await guide.getByRole('button', { name: 'Claim Theo Mercer', exact: true }).click()
+    const celebration = page.getByRole('dialog', { name: 'Objective Complete!' })
+    await expect(celebration).toContainText('Theo Mercer has joined your vault')
+    await celebration.getByRole('button', { name: 'Close', exact: true }).last().click()
+    await expect(guide).toContainText('Complete your first mission')
+    await guide.getByRole('button', { name: 'Choose mission', exact: true }).click()
+    await expect(page).toHaveURL(/\/vault\/vault-1\/quests$/)
+    await guide.getByRole('button', { name: 'Hide guide', exact: true }).click()
+    await page.reload()
+    await expect(guide).toHaveCount(0)
+  })
+}
+
+test('short landscape windows let pointer users scroll to the guide actions', async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 })
+  await openVault(page)
+  await page.getByRole('button', { name: 'Start', exact: true }).click()
+  const guide = page.getByRole('region', { name: 'Vault onboarding', exact: true })
+  await expect(page.locator('.onboarding-cutout')).toBeAttached()
+  await guide.hover()
+  await page.mouse.wheel(0, 1000)
+  const skip = guide.getByRole('button', { name: 'Skip tour', exact: true })
+  await expect
+    .poll(async () => {
+      const card = (await guide.boundingBox())!
+      const button = (await skip.boundingBox())!
+      return button.y >= card.y && button.y + button.height <= card.y + card.height
+    })
+    .toBe(true)
+  await skip.click()
+  await expect(guide).toBeHidden()
+})

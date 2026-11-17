@@ -9,6 +9,8 @@ export type LessonId =
   | 'orientation.generator'
   | 'orientation.staffing'
   | 'orientation.housing'
+  | 'orientation.weapon'
+  | 'orientation.outfit'
   | 'orientation.departure'
 
 /** How a lesson is presented and acknowledged. */
@@ -56,6 +58,7 @@ export interface TeachingSnapshot {
 
 export interface OnboardingLesson {
   id: LessonId
+  chapter: number
   kind: LessonKind
   title: string
   body: string
@@ -71,9 +74,19 @@ export interface OnboardingLesson {
 }
 
 const OBJECTIVE_KEYS = {
-  staffing: ['starter:assign a dweller correctly#v2', 'starter:assign a dweller correctly'],
-  housing: ['starter:build a living quarters#v2', 'starter:build a living quarters'],
-  departure: ['starter:send a dweller exploring'],
+  staffing: [
+    'starter:assign a dweller correctly#v3',
+    'starter:assign a dweller correctly#v2',
+    'starter:assign a dweller correctly',
+  ],
+  housing: [
+    'starter:build a living quarters#v3',
+    'starter:build a living quarters#v2',
+    'starter:build a living quarters',
+  ],
+  weapon: ['starter:equip a weapon#v3', 'starter:equip a weapon'],
+  outfit: ['starter:equip an outfit#v3', 'starter:equip an outfit'],
+  departure: ['starter:send a dweller exploring#v3', 'starter:send a dweller exploring'],
 } as const
 
 const MATURE_AGE_GROUPS = new Set(['adult', 'elder'])
@@ -137,10 +150,18 @@ const departureEligibility = (snapshot: TeachingSnapshot): TeachingEligibility =
   return { blocked: 'No dweller is free to explore' }
 }
 
+export const ORIENTATION_CHAPTERS = [
+  { title: 'Take command', outcome: 'Know what keeps your community running.' },
+  { title: 'Welcome someone', outcome: 'More living space makes room for a new resident.' },
+  { title: 'Prepare equipment', outcome: 'A deliberate loadout helps your explorer survive.' },
+  { title: 'First departure', outcome: 'Keep building while your explorer travels.' },
+] as const
+
 /** The authored orientation arc; the only source of teaching order. */
 export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
   {
     id: 'orientation.resources',
+    chapter: 0,
     kind: 'tap',
     title: 'Keep the power on',
     body: 'Your crew keeps power, food and water flowing. Check whether the reserves are growing or draining, then open the generator to meet the workers keeping the lights on.',
@@ -149,6 +170,7 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
   },
   {
     id: 'orientation.generator',
+    chapter: 0,
     kind: 'tap',
     title: 'Open the Power Generator',
     body: 'Open the generator to see its crew and output. Strength helps these workers produce power; other rooms use different SPECIAL stats. Next, review who is suited to each job.',
@@ -157,6 +179,7 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
   },
   {
     id: 'orientation.staffing',
+    chapter: 0,
     kind: 'inspection',
     title: 'Understand SPECIAL staffing',
     body: 'Open Dwellers and compare a worker’s SPECIAL with their room. Your starting crew is already matched, so there is no need to move anyone just for the guide. Next, make room for a newcomer.',
@@ -168,6 +191,7 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
   },
   {
     id: 'orientation.housing',
+    chapter: 1,
     kind: 'objective-explanation',
     title: 'Build more Living Quarters',
     body: 'Build another Living Quarters segment, or merge it with the existing room, to raise capacity. Claim this objective’s reward to welcome a new dweller immediately, then review them before exploring.',
@@ -178,12 +202,37 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     eligibility: housingEligibility,
   },
   {
+    id: 'orientation.weapon',
+    chapter: 2,
+    kind: 'objective-explanation',
+    title: 'Arm your explorer',
+    body: 'Open Dwellers, choose a healthy available adult, then open Equipment. Compare weapons and equip one for the wasteland. Claim your reward to receive Wasteland gear for the next step.',
+    templateKeys: OBJECTIVE_KEYS.weapon,
+    anchors: ['dweller-weapon', 'dweller-equipment-tab', 'nav-dwellers'],
+    route: 'dwellers',
+    routeLabel: 'Open Dwellers',
+    eligibility: objectiveEligibility(OBJECTIVE_KEYS.weapon),
+  },
+  {
+    id: 'orientation.outfit',
+    chapter: 2,
+    kind: 'objective-explanation',
+    title: 'Dress for the wasteland',
+    body: 'In the dweller’s Equipment tab, compare outfits and equip Wasteland gear or another suitable outfit. Its SPECIAL bonuses help without changing base stats. Claim the earned resident reward before departure.',
+    templateKeys: OBJECTIVE_KEYS.outfit,
+    anchors: ['dweller-outfit', 'dweller-equipment-tab', 'nav-dwellers'],
+    route: 'dwellers',
+    routeLabel: 'Open Dwellers',
+    eligibility: objectiveEligibility(OBJECTIVE_KEYS.outfit),
+  },
+  {
     id: 'orientation.departure',
+    chapter: 3,
     kind: 'objective-explanation',
     title: 'Send a dweller exploring',
     body: 'Your newcomer is an option if they are healthy and available. Review equipment, supplies and the run length before sending an adult out. Sending a worker leaves their production room short; the guide will suggest something useful to do while they are away.',
     templateKeys: OBJECTIVE_KEYS.departure,
-    anchors: ['wasteland', 'nav-exploration'],
+    anchors: ['dweller-departure', 'wasteland', 'nav-exploration'],
     route: 'exploration',
     routeLabel: 'Open Exploration',
     eligibility: departureEligibility,

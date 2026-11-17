@@ -44,7 +44,8 @@ store + SettingsView, and ai-settings service.
 | 2026-10-29 | Exploration transport | `modules/exploration/api/exploration.ts` owns dispatch, heading suggestion, send, list, detail, progress, recall, complete, overflow resolution and pending overflow. The exploration store no longer imports the axios plugin or threads a token; only its SSE subscription still passes a token. |
 | 2026-10-29 | Social transport | `modules/social/api/relationship.ts` owns list/detail/create/romance/partner/marriage/breakup/compatibility/breeding; `modules/social/api/pregnancy.ts` owns list/detail/deliver. Both social stores no longer import the plugin, and the one-method `relationshipService` pass-through is gone. |
 | 2026-10-29 | Rooms transport | `modules/rooms/api/room.ts` owns list, buildable, build, destroy, upgrade, remodel, style, grid config and rush; `modules/rooms/api/barbershop.ts` owns status and appearance changes; `modules/rooms/api/arena.ts` owns state, creatures, fighter selection, match controls/skills and event clearing. Neither the room store nor the arena store imports the plugin or threads a token, and the barbershop service pass-through is gone. |
-| Pending | Batches 2–4 | 7 Pinia stores still import `@/core/plugins/axios`: dwellers (5), progression/quest, and vault. No views, components or composables remain. `modules/exploration/api/expeditionSite.ts` still imports the plugin and belongs to a later slice. |
+| 2026-11-18 | No-token services | `storageService`, `craftingService`, `notificationService`, `objectiveService`, `consoleApi`, `lineageService` and `happinessService` now use the boundary; no call-site signature changed. Void endpoints use `apiRequest` so an empty response is never read as `.data`; `happinessService` keeps the full response via `apiRequest`. |
+| Pending | Batches 2–4 | 15 consumers still import `@/core/plugins/axios`: 7 Pinia stores (dwellers x5, progression/quest, vault) and 8 `api/`/`services/` modules (`combat/api/incident`, `combat/services/equipment`, `contamination-team/api/roster`, `dwellers/services/dwellerService`, `exploration/api/expeditionSite`, `map/services/mapService`, `progression/services/trainingService`, `trading/services/tradingService`). |
 
 ## Action notifications
 
@@ -53,6 +54,22 @@ store + SettingsView, and ai-settings service.
 - Preserve the original error or its `cause` when rethrowing, so HTTP/store/UI handlers recognize the same failure.
 - `_skipErrorNotification` leaves the caller responsible for feedback, including expected responses explained in the UI.
 - Distinct progression events and partial-success warnings remain visible; they are not duplicate confirmations.
+
+## Migration parity checklist (per slice)
+
+Before removing a token parameter or an internal header, confirm:
+
+- **Response unwrapping** — `apiGet`/`apiPost` return the payload; callers that read `.data` move to `apiRequest`.
+- **Void endpoints** — use `apiRequest`, not the data-returning helpers, so an empty response is never dereferenced.
+- **Status/headers** — call sites that need them keep `apiRequest` (full `AxiosResponse`).
+- **Cancellation** — `signal` is forwarded through `ApiRequestOptions`.
+- **Token refresh** — the axios interceptor remains the only refresh owner; migrated call sites must not reimplement it.
+- **Error normalization** — failures surface as `ApiError`; `getErrorMessage` still reads both shapes.
+- **Duplicate-toast suppression** — `claimErrorNotification` remains the single notification owner; do not add a second toast.
+- **Module ownership** — transport stays in `modules/<name>/api` or `services`; stores never own HTTP calls.
+
+Bearer allowlist: `core/plugins/axios.ts` (interceptor), auth-session code, and SSE/WebSocket setup may construct
+`Authorization` headers. No module service or store may build one for a plain HTTP call.
 
 ## Why this consolidation (and why not fetch)
 

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.3.0 (2026-11-17)
+
+### Features
+
+* **onboarding:** connect starter recruitment to the first mission ([#1425](https://github.com/ElderEvil/falloutProject/issues/1425)) 9a49a92
+
 ## 3.2.1 (2026-11-15)
 
 ### Bug Fixes

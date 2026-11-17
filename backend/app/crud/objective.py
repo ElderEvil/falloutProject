@@ -105,15 +105,14 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         return list(result.scalars().all())
 
     async def sync_starter_templates(self, db_session: AsyncSession, templates: Sequence[ObjectiveCreate]) -> None:
-        """Apply the authored balance to templates; vault progress is deliberately untouched."""
+        """Activate the authored cohort atomically; retain historical definitions and vault links."""
         by_key = {template.template_key: template for template in templates}
-        previous_release_keys = {f"{key}#v2" for key in by_key}
         for objective in await self.get_by_category(db_session, ObjectiveCategoryEnum.STARTER):
             if template := by_key.get(objective.template_key):
                 objective.sqlmodel_update(template.model_dump())
                 objective.assignable = True
                 db_session.add(objective)
-            elif objective.template_key in previous_release_keys:
+            else:
                 objective.assignable = False
                 db_session.add(objective)
         await db_session.commit()

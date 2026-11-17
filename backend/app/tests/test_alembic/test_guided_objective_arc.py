@@ -91,7 +91,7 @@ async def test_scrap_guidance_migration_preserves_earned_and_claimed_rewards(
     await async_session.run_sync(apply)
     await async_session.refresh(objective)
     await async_session.refresh(link)
-    starter_path = Path(__file__).parents[2] / "data/objectives/starter.json"
+    starter_path = Path(__file__).parents[1] / "data/starter_pre_continuity.json"
     seed = next(row for row in json.loads(starter_path.read_text()) if row["objective_type"] == "scrap")
     assert objective.challenge == seed["challenge"] == "Scrap a rare weapon"
     assert objective.description == seed["description"]

@@ -283,9 +283,8 @@ def test_starter_seed_file_integrity() -> None:
         elif step["objective_type"] == "reach":
             assert target.get("reach_type") in VALID_REACH_TYPES
 
-    # Sequence 12 belongs to the retired radio lesson retained by existing vaults.
-    expected = [sequence for sequence in range(len(steps) + 1) if sequence != 12]
-    assert sequences == expected, "keep ordered unique positions, including the retired radio gap"
+    assert sequences == list(range(len(steps))), "fresh-cohort positions are unique and contiguous"
+    assert all(step["template_key"].endswith("#v3") for step in steps)
 
 
 def test_objective_item_rewards_are_catalog_backed() -> None:
@@ -341,3 +340,104 @@ async def test_starter_balance_refreshes_existing_templates_without_progress_bac
     assert await objective_crud.assign_initial(async_session, vault.id, is_boosted=False) == 1
     assigned = await objective_crud.get_multi_for_vault(async_session, vault.id)
     assert [row.reward for row in assigned] == ["dweller:Mechanic"]
+
+
+async def test_versioned_starter_switch_preserves_assigned_legacy_contract(async_session, tmp_path, vault):
+    from app.crud.objective import objective_crud
+    from app.models.vault_objective import VaultObjectiveProgressLink
+
+    old = Objective(
+        template_key="starter:legacy",
+        challenge="Legacy task",
+        reward="50 caps",
+        category="starter",
+        objective_type="collect",
+        target_entity={"resource_type": "food"},
+        target_amount=50,
+        sequence=2,
+    )
+    link = VaultObjectiveProgressLink(
+        vault_id=vault.id, objective_id=old.id, progress=17, total=50, reward_snapshot="50 caps"
+    )
+    async_session.add_all([old, link])
+    await async_session.commit()
+    revised = {
+        "template_key": "starter:legacy#v3",
+        "challenge": "Revised task",
+        "reward": "dweller:Theo Mercer",
+        "category": "starter",
+        "objective_type": "collect",
+        "target_entity": {"resource_type": "food"},
+        "target_amount": 100,
+        "sequence": 5,
+        "description": "Keep the diner producing.",
+    }
+    (tmp_path / "starter.json").write_text(json.dumps([revised]))
+    assert await seed_objectives_from_json(async_session, tmp_path) == 1
+    await async_session.refresh(old)
+    await async_session.refresh(link)
+    assert not old.assignable
+    assert (old.challenge, old.reward, old.sequence, old.target_amount) == ("Legacy task", "50 caps", 2, 50)
+    assert (link.progress, link.total, link.reward_snapshot, link.is_completed) == (17, 50, "50 caps", False)
+    assert await objective_crud.get_current_starter_id(async_session, vault.id) == old.id
+    assigned = await objective_crud.get_multi_for_vault(async_session, vault.id)
+    assert [(o.id, o.reward) for o in assigned] == [(old.id, "50 caps")]
+    active = [o for o in await objective_crud.get_by_category(async_session, "starter") if o.assignable]
+    assert [o.template_key for o in active] == ["starter:legacy#v3"]
+
+
+async def test_starter_activation_failure_keeps_old_cohort_and_retry_is_idempotent(async_session, tmp_path, vault):
+    from sqlalchemy import text
+    from sqlalchemy.exc import IntegrityError
+
+    from app.crud.objective import objective_crud
+
+    old = Objective(
+        template_key="starter:legacy",
+        challenge="Legacy task",
+        reward="50 caps",
+        category="starter",
+        objective_type="collect",
+        target_entity={"resource_type": "food"},
+        target_amount=50,
+        sequence=0,
+    )
+    async_session.add(old)
+    await async_session.commit()
+    revised = {
+        "template_key": "starter:replacement#v3",
+        "challenge": "Replacement task",
+        "reward": "50 caps",
+        "category": "starter",
+        "objective_type": "collect",
+        "target_entity": {"resource_type": "food"},
+        "target_amount": 100,
+        "sequence": 0,
+    }
+    (tmp_path / "starter.json").write_text(json.dumps([revised]))
+    await async_session.execute(
+        text("""
+        CREATE TRIGGER reject_starter_activation BEFORE UPDATE ON objective
+        WHEN NEW.template_key = 'starter:replacement#v3' AND NEW.assignable = 1
+        BEGIN SELECT RAISE(ABORT, 'late activation failure'); END
+    """)
+    )
+    await async_session.commit()
+    with pytest.raises(IntegrityError, match="late activation failure"):
+        await seed_objectives_from_json(async_session, tmp_path)
+    await async_session.rollback()
+    await async_session.refresh(old)
+    rows = await objective_crud.get_by_category(async_session, "starter")
+    replacement = next(o for o in rows if o.template_key == "starter:replacement#v3")
+    assert old.assignable
+    assert not replacement.assignable
+    replacement_id = replacement.id
+    await async_session.execute(text("DROP TRIGGER reject_starter_activation"))
+    await async_session.commit()
+    assert await seed_objectives_from_json(async_session, tmp_path) == 0
+    await async_session.refresh(old)
+    await async_session.refresh(replacement)
+    assert not old.assignable
+    assert replacement.assignable
+    assert replacement.id == replacement_id
+    assert len(await objective_crud.get_by_category(async_session, "starter")) == 2

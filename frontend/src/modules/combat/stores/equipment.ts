@@ -4,7 +4,6 @@ import type { Weapon, Outfit } from '../models/equipment'
 import * as equipmentService from '../services/equipment'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
-import { useAsyncAction } from '@/core/composables/useAsyncAction'
 
 export const useEquipmentStore = defineStore('equipment', () => {
   const toast = useToast()
@@ -13,34 +12,56 @@ export const useEquipmentStore = defineStore('equipment', () => {
   const weapons = ref<Weapon[]>([])
   const outfits = ref<Outfit[]>([])
   const error = ref<string | null>(null)
-  const { run: runFetchWeapons, isLoading: isWeaponsLoading } = useAsyncAction(
-    (token: string, vaultId: string) => equipmentService.fetchWeapons(token, vaultId),
-    { context: 'Failed to fetch weapons' }
-  )
-  const { run: runFetchOutfits, isLoading: isOutfitsLoading } = useAsyncAction(
-    (token: string, vaultId: string) => equipmentService.fetchOutfits(token, vaultId),
-    { context: 'Failed to fetch outfits' }
-  )
+  const isWeaponsLoading = ref(false)
+  const isOutfitsLoading = ref(false)
   const isLoading = computed(() => isWeaponsLoading.value || isOutfitsLoading.value)
+  let weaponsRequest = 0
+  let outfitsRequest = 0
+  let context = ''
 
-  // Actions
+  function beginContext(token: string, vaultId: string): void {
+    const next = `${vaultId}:${token}`
+    if (next === context) return
+    context = next
+    ++weaponsRequest
+    ++outfitsRequest
+    weapons.value = []
+    outfits.value = []
+    isWeaponsLoading.value = false
+    isOutfitsLoading.value = false
+  }
+
   async function fetchWeapons(token: string, vaultId: string): Promise<void> {
+    beginContext(token, vaultId)
+    const request = ++weaponsRequest
+    isWeaponsLoading.value = true
     error.value = null
-    const result = await runFetchWeapons(token, vaultId)
-    if (result) {
-      weapons.value = result
-    } else {
+    try {
+      const result = await equipmentService.fetchWeapons(token, vaultId)
+      if (request === weaponsRequest) weapons.value = result
+    } catch (err) {
+      if (request !== weaponsRequest) return
       error.value = 'Failed to load weapons'
+      handleStoreError(err, 'Failed to fetch weapons')
+    } finally {
+      if (request === weaponsRequest) isWeaponsLoading.value = false
     }
   }
 
   async function fetchOutfits(token: string, vaultId: string): Promise<void> {
+    beginContext(token, vaultId)
+    const request = ++outfitsRequest
+    isOutfitsLoading.value = true
     error.value = null
-    const result = await runFetchOutfits(token, vaultId)
-    if (result) {
-      outfits.value = result
-    } else {
+    try {
+      const result = await equipmentService.fetchOutfits(token, vaultId)
+      if (request === outfitsRequest) outfits.value = result
+    } catch (err) {
+      if (request !== outfitsRequest) return
       error.value = 'Failed to load outfits'
+      handleStoreError(err, 'Failed to fetch outfits')
+    } finally {
+      if (request === outfitsRequest) isOutfitsLoading.value = false
     }
   }
 

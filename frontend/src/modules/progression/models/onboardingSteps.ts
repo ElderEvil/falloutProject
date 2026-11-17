@@ -74,11 +74,19 @@ export interface OnboardingLesson {
 }
 
 const OBJECTIVE_KEYS = {
-  staffing: ['starter:assign a dweller correctly#v2', 'starter:assign a dweller correctly'],
-  housing: ['starter:build a living quarters#v2', 'starter:build a living quarters'],
-  weapon: ['starter:equip a weapon'],
-  outfit: ['starter:equip an outfit'],
-  departure: ['starter:send a dweller exploring'],
+  staffing: [
+    'starter:assign a dweller correctly#v3',
+    'starter:assign a dweller correctly#v2',
+    'starter:assign a dweller correctly',
+  ],
+  housing: [
+    'starter:build a living quarters#v3',
+    'starter:build a living quarters#v2',
+    'starter:build a living quarters',
+  ],
+  weapon: ['starter:equip a weapon#v3', 'starter:equip a weapon'],
+  outfit: ['starter:equip an outfit#v3', 'starter:equip an outfit'],
+  departure: ['starter:send a dweller exploring#v3', 'starter:send a dweller exploring'],
 } as const
 
 const MATURE_AGE_GROUPS = new Set(['adult', 'elder'])

@@ -791,10 +791,11 @@ describe('first-session continuity', () => {
       global: {
         stubs: {
           IntroHandoffCard: {
-            props: ['vaultId'],
-            emits: ['dismiss'],
-            template:
-              '<section aria-label="First expedition handoff"><button @click="$emit(\'dismiss\')">Finish intro</button></section>',
+            props: ['vaultId', 'compact', 'milestone'],
+            emits: ['dismiss', 'claim', 'hide'],
+            template: `<section :aria-label="compact ? 'Vault guide' : 'First expedition handoff'">
+              <template v-if="compact"><p>{{ milestone?.challenge }}</p><button @click="$emit('claim')">Claim milestone</button><button @click="$emit('hide')">Hide guide</button></template>
+              <button v-else @click="$emit('dismiss')">Finish intro</button></section>`,
           },
         },
       },
@@ -869,6 +870,63 @@ describe('first-session continuity', () => {
     view!.click()
     await flushPromises()
     expect(router.push).toHaveBeenCalledWith('/vault/v1/dwellers')
+    wrapper.unmount()
+  })
+  it('continues the optional vault guide after finishing the introduction, and persists hiding it', async () => {
+    finishOrientation()
+    useObjectivesStore().objectives.push({
+      ...objective('food', { templateKey: 'starter:produce 100 food#v3', sequence: 12 }),
+      challenge: 'Produce 100 Food',
+    })
+    let wrapper = mountHandoff()
+    await flushPromises()
+    const finish = document.querySelector(
+      '[aria-label="First expedition handoff"] button'
+    ) as HTMLButtonElement
+    finish.click()
+    await flushPromises()
+    expect(useOnboardingState().vaultState('v1').handoffDismissed).toBe(true)
+    expect(document.querySelector('[aria-label="First expedition handoff"]')).toBeNull()
+    expect(document.querySelector('[aria-label="Vault guide"]')?.textContent).toContain(
+      'Produce 100 Food'
+    )
+    wrapper.unmount()
+    wrapper = mountHandoff()
+    await flushPromises()
+    expect(document.querySelector('[aria-label="Vault guide"]')).not.toBeNull()
+    const hide = [
+      ...document.querySelectorAll<HTMLButtonElement>('[aria-label="Vault guide"] button'),
+    ].find((button) => button.textContent === 'Hide guide')!
+    hide.click()
+    await flushPromises()
+    expect(useOnboardingState().vaultState('v1').skipped).toBe(true)
+    expect(document.querySelector('[aria-label="Vault guide"]')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('claims a later milestone through the shared claim owner and celebrates the earned reward', async () => {
+    finishOrientation()
+    useOnboardingState().patch('v1', { handoffDismissed: true })
+    const food = objective('food', {
+      templateKey: 'starter:produce 100 food#v3',
+      sequence: 12,
+      progress: 100,
+      total: 100,
+    })
+    const store = useObjectivesStore()
+    store.objectives.push(food)
+    const complete = vi
+      .spyOn(store, 'completeObjective')
+      .mockResolvedValue({ ...food, is_completed: true })
+    const wrapper = mountHandoff()
+    await flushPromises()
+    const claimButton = [
+      ...document.querySelectorAll<HTMLButtonElement>('[aria-label="Vault guide"] button'),
+    ].find((button) => button.textContent === 'Claim milestone')!
+    claimButton.click()
+    await flushPromises()
+    expect(complete).toHaveBeenCalledWith('v1', 'food')
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Objective Complete!')
     wrapper.unmount()
   })
 })

@@ -170,3 +170,56 @@ describe('IntroHandoffCard', () => {
     expect(router.push).toHaveBeenCalledWith('/vault/v2/exploration/run-v2')
   })
 })
+
+it('keeps the next earned milestone available after the short introduction is dismissed', async () => {
+  const milestone = {
+    id: 'food',
+    vault_id: 'v1',
+    challenge: 'Produce 100 Food',
+    reward: 'dweller:Theo Mercer',
+    category: 'starter',
+    objective_type: 'collect',
+    target_entity: { resource_type: 'food' },
+    progress: 100,
+    total: 100,
+    is_completed: false,
+    description: 'Keep the diner working.',
+  }
+  const wrapper = mount(IntroHandoffCard, { props: { vaultId: 'v1', compact: true, milestone } })
+  wrappers.push(wrapper)
+  await flushPromises()
+  expect(wrapper.find('[aria-label="Vault guide"]').exists()).toBe(true)
+  expect(wrapper.text()).toContain('Theo Mercer')
+  const claim = wrapper.findAll('button').find((button) => button.text() === 'Claim Theo Mercer')!
+  await claim.trigger('click')
+  expect(wrapper.emitted('claim')).toEqual([[]])
+  expect(axios.get).not.toHaveBeenCalled()
+})
+
+it('opens the actual mission screen for the Office handoff without claiming or assigning a party', async () => {
+  const milestone = {
+    id: 'first-mission',
+    vault_id: 'v1',
+    challenge: 'Complete your first mission',
+    reward: '300 caps',
+    category: 'starter',
+    objective_type: 'expedition',
+    target_entity: {},
+    progress: 0,
+    total: 1,
+    is_completed: false,
+    description: 'Choose a mission and prepare eligible crew.',
+  }
+  const wrapper = mount(IntroHandoffCard, { props: { vaultId: 'v1', compact: true, milestone } })
+  wrappers.push(wrapper)
+  await flushPromises()
+  const action = wrapper.findAll('button').find((button) => button.text() === 'Choose mission')!
+  await action.trigger('click')
+  expect(router.push).toHaveBeenCalledWith('/vault/v1/quests')
+  expect(wrapper.emitted('claim')).toBeUndefined()
+  await wrapper
+    .findAll('button')
+    .find((button) => button.text() === 'Hide guide')!
+    .trigger('click')
+  expect(wrapper.emitted('hide')).toEqual([[]])
+})

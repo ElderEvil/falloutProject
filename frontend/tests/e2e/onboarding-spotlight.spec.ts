@@ -513,6 +513,89 @@ test('expanded housing guidance leaves a middle-screen Build control clickable',
   await expect(page.getByRole('button', { name: /Cancel Building/ })).toBeVisible()
 })
 
+for (const width of [1280, 390]) {
+  test(`post-intro guide claims the next reward and leads to missions at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await openVault(page, {
+      ...ORIENTATION_ACKNOWLEDGED,
+      lessons: {
+        ...ORIENTATION_ACKNOWLEDGED.lessons,
+        'orientation.staffing': 'acknowledged',
+        'orientation.housing': 'acknowledged',
+        'orientation.departure': 'acknowledged',
+      },
+    })
+    let collected = false
+    await page.route('**/api/v1/objectives/vault-1/**', async (route) => {
+      if (route.request().url().endsWith('/food/claim')) {
+        collected = true
+        return route.fulfill({ json: { progress: 100, total: 100, is_completed: true } })
+      }
+      return route.fulfill({
+        json: [
+          {
+            ...STAFFING_OBJECTIVE,
+            id: 'departure',
+            sequence: 4,
+            template_key: 'starter:send a dweller exploring#v3',
+            objective_type: 'explore',
+            progress: 1,
+            total: 1,
+            is_completed: true,
+          },
+          {
+            ...STAFFING_OBJECTIVE,
+            id: 'food',
+            sequence: 12,
+            template_key: 'starter:produce 100 food#v3',
+            challenge: 'Produce 100 Food',
+            objective_type: 'collect',
+            target_entity: { resource_type: 'food' },
+            progress: 100,
+            total: 100,
+            reward: 'dweller:Theo Mercer',
+            is_completed: collected,
+          },
+          {
+            ...STAFFING_OBJECTIVE,
+            id: 'first-mission',
+            sequence: 17,
+            template_key: 'starter:complete first quest mission#v3',
+            challenge: 'Complete your first mission',
+            objective_type: 'expedition',
+            progress: 0,
+            total: 1,
+            reward: '300 caps',
+          },
+        ],
+      })
+    })
+    await page.reload()
+    await page
+      .getByRole('region', { name: 'First expedition handoff', exact: true })
+      .getByRole('button', { name: 'Finish intro', exact: true })
+      .click()
+    const guide = page.getByRole('region', { name: 'Vault guide', exact: true })
+    await expect(guide).toContainText('Produce 100 Food')
+    await page.reload()
+    await expect(
+      page.getByRole('region', { name: 'First expedition handoff', exact: true })
+    ).toHaveCount(0)
+    await guide.getByRole('button', { name: 'Claim Theo Mercer', exact: true }).click()
+    const celebration = page.getByRole('dialog', { name: 'Objective Complete!' })
+    await expect(celebration).toContainText('Theo Mercer has joined your vault')
+    await celebration.getByRole('button', { name: 'Close', exact: true }).last().click()
+    await expect(guide).toContainText('Complete your first mission')
+    await guide.getByRole('button', { name: 'Choose mission', exact: true }).click()
+    await expect(page).toHaveURL(/\/vault\/vault-1\/quests$/)
+    await guide.getByRole('button', { name: 'Hide guide', exact: true }).click()
+    await page.reload()
+    await expect(guide).toHaveCount(0)
+  })
+}
+
 test('short landscape windows let pointer users scroll to the guide actions', async ({ page }) => {
   await page.setViewportSize({ width: 844, height: 390 })
   await openVault(page)

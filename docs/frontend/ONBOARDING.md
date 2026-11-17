@@ -57,8 +57,7 @@ The opening uses the existing teaching ledger and claim flow. A four-milestone r
 shows the journey through first departure; the current action displays its real
 server reward, progress, purpose and next action. Weapon and outfit preparation
 precede departure in teaching order. Earned equipment rewards can be claimed before
-the earlier departure objective, as the server already permits. The catalog order
-and recruitment/Office changes remain a later delivery slice.
+the earlier departure objective, as the server already permits. The separate recruitment/Office slice below changes the new-cohort catalog order too.
 
 Completed introductions remain completed. Legacy cohorts without equipment
 objectives skip the new equipment lessons, while replay stays explanation-only.
@@ -118,6 +117,52 @@ spotlight ledger and does not gate or reward gameplay.
 - **Existing accounts.** Accounts that already have a vault do not see the setup, avoiding a
   surprise first-run interruption after deploy. Theme and sound remain editable in Preferences.
 
+## Recruitment and Office continuation (second redesign slice)
+
+After Finish intro, the optional compact **Vault guide** shows the current starter
+milestone, live progress/reward, an explicit claim and a destination using the existing
+objective action resolver. Other ready rewards have a visible count and link. Hide,
+reload and resume use the same per-vault teaching ledger; compact mode does not add
+roster/storage/exploration fetches. Claims reuse the existing store and celebration.
+
+The `#v3` cohort grants nine adults, with Theo/Nadia earned through 100 food/water
+produced, reaching population 18 without births or an exploration return. Housing
+requires additional construction beyond the seeded nine units. Equipment precedes
+dispatch; the Office rewards a rare shotgun to keep, then the guide points to the
+first mission before level 2. The Office stays at population 18 and 1,000 caps.
+
+Equipment pickers refresh inventory when opened, so newly claimed gear appears
+without remounting the detail page. Loading and response guards prevent an old
+vault/account request from opening a picker or replacing the current inventory.
+
+### Continuation verification, 2026-11-15
+
+A second fresh Standard vault used the same ordinary account, real PostgreSQL/Redis,
+API and browser UI. Worker and scheduler ran normal production ticks. The opening
+required an actual Living Quarters build, welcomed Juno, equipped weapon/outfit,
+claimed Mara and dispatched Juno for one hour. The optional guide survived reload.
+Production and generator milestones paid all nine recruits, reaching 18 adults.
+All 20 legacy definitions/assigned links were compared across catalog activation
+and retained their semantic data; the fresh vault received 22 `#v3` steps.
+
+Actual claims paid **900 pre-Office caps**. Housing cost 175, generator 125 and Office
+1,000, leaving **600** from the initial 1,000. The Office's rare Hardened shotgun was
+explicitly claimed and retained. Choose mission opened the actual quest list.
+The walkthrough's engineering pauses prevent an active-time or pacing claim.
+Mara, Theo and Nadia each received a weapon and outfit through the UI, then the
+player selected those three adults and started Getting Started. The Office showed
+1/1 occupied slots. The developer environment initially supplied a 0.2 quest-duration
+multiplier; it was explicitly reset to 1.0 before starting, and both the mission card
+and party dialog showed the standard 15 minutes. No quest timer was accelerated.
+The optional guide was hidden during party preparation. Return rewards, unattended
+safety and optional-spending recovery remain unverified.
+
+Validation: normal backend suite **4,831 passed, 107 skipped**; frontend **4,247
+passed across 328 files**; 14 onboarding browser cases without retries; typecheck,
+lint, build, module/color guards, bundle budget and API type generation passed.
+The legacy family timing/scrap cases remain; SQLite late-activation failure/retry
+and eight late equipment-response cases cover the new compatibility boundaries.
+
 ## Compatibility (starter cohort)
 
 Objectives share template rows, so preserving a legacy vault's ordering and rewards requires
@@ -126,9 +171,9 @@ separate revised templates rather than an in-place rewrite.
 - **Existing vaults keep their entire original starter track.** Each legacy row is restored to
   its released `challenge`/`reward`/`objective_type`/`target_entity`/`sequence` and marked
   `assignable = false`; its links keep evaluating and claiming.
-- **New standard vaults receive the revised track**, whose definitions that changed
-  requirements, payout or sequence use versioned keys (`…#v2`). The new explore step has no
-  legacy counterpart and keeps its key.
+- **New standard vaults receive the Continuity track**, with every key versioned `…#v3`.
+  Startup stages new rows inactive, then activates the current cohort and retires other
+  starter rows in one commit. Historical definitions and assigned links are not rewritten.
 - **Fresh assignment requires both `assignable = true` and `objective_type IS NOT NULL`.**
 - **Links are never touched** by the cohort migration: progress, totals, completed claims and
   reward snapshots survive. No template is retired while assigned links still depend on it.
@@ -136,10 +181,9 @@ separate revised templates rather than an in-place rewrite.
 - **Standard vaults no longer seed a Radio Studio.** The room requires 20 dwellers to build, so
   the seeded copy bypassed its own gate. The `starter:staff the radio` template stops fresh
   assignment (migration `2026_10_24_1001-d6e8f0a2b4c9`) while existing links keep their progress
-  and rewards. Seven starter rewards carry a standard vault from 9 to 16 residents. The guide then
-  teaches two births to reach the Office gate at 18; children count. Pregnancy takes three real hours
-  after conception, with a six-hour cooldown per mother after delivery. Two couples can progress
-  in parallel while the player explores and develops the vault.
+  and rewards. Historical cohorts retain seven recruits and their two-birth Office chapter:
+  pregnancy takes three hours, with a six-hour cooldown per mother. Fresh `#v3` cohorts
+  instead earn nine adult recruits; the Office gate stays at 18.
 - Implemented by the corrective migration `2026_10_14_0002-f6a1b2c3d4e5`, applied on top of the
   spine revision `2026_10_14_0001-e5c2b7f19a04`.
 

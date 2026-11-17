@@ -3,12 +3,13 @@
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from importlib import import_module
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
 
 from app import crud
-from app.core.enums import RarityEnum
+from app.core.enums import DwellerStatusEnum, RarityEnum
 from app.core.game_config import game_config
 from app.models.objective import Objective
 from app.models.outfit import Outfit
@@ -26,6 +27,7 @@ from app.services.leveling_service import leveling_service
 from app.services.progression.objectives.evaluators import evaluator_manager
 from app.services.progression.objectives.evaluators.base import current_session_maker
 from app.services.progression.objectives.guidance import current_state_progress, read_objectives
+from app.services.quest_service import quest_service
 from app.services.resource_manager_service import ResourceManager
 from app.services.rewards.settlement import claim_objective_reward
 from app.services.room_service import room_service
@@ -34,6 +36,7 @@ from app.tests.factory.vaults import random_vault_number
 from app.utils.exceptions import ResourceConflictException
 from app.utils.item_factory import build_catalog_item
 from app.utils.seed_objectives import seed_objectives_from_json
+from app.utils.seed_quests import seed_quests_from_json
 
 
 @pytest.fixture
@@ -53,8 +56,17 @@ def objective_events(async_session):
     current_session_maker.reset(token)
 
 
-async def test_fresh_starter_rewards_reach_office_without_loot(async_session, superuser, objective_events, monkeypatch):
-    await seed_objectives_from_json(async_session)
+@pytest.mark.parametrize("cohort", ["legacy", "continuity"])
+async def test_starter_cohorts_reach_office_without_random_loot(
+    async_session, superuser, objective_events, monkeypatch, tmp_path, cohort
+):
+    if cohort == "legacy":
+        (tmp_path / "starter.json").write_text(
+            (Path(__file__).parents[1] / "data/starter_pre_continuity.json").read_text()
+        )
+        await seed_objectives_from_json(async_session, tmp_path)
+    else:
+        await seed_objectives_from_json(async_session)
     # A random twin birth would push the deterministic 18-dweller arc to 19.
     monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
@@ -64,6 +76,9 @@ async def test_fresh_starter_rewards_reach_office_without_loot(async_session, su
     initial_rooms = await crud.room.get_all_by_vault(async_session, vault.id)
     assert initial_population == 9
     assert not any("radio" in room.name.lower() for room in initial_rooms)
+    if cohort == "continuity":
+        housing = next(o for o in await read_objectives(async_session, vault.id) if o.objective_type == "build")
+        assert housing.progress == 0, "A fresh vault must earn additional housing through construction"
     production_seconds = 0
     granted_residents = 0
 
@@ -122,6 +137,8 @@ async def test_fresh_starter_rewards_reach_office_without_loot(async_session, su
         elif step.objective_type == "reach":
             if target["reach_type"] == "dweller_count":
                 missing = step.total - await crud.dweller.count_living_in_vault(async_session, vault.id)
+                if cohort == "continuity":
+                    assert missing <= 0, "Earned recruits must reach the Office without a pregnancy wait"
                 if missing > 0:
                     residents = {f"{d.first_name} {d.last_name}": d for d in dwellers}
                     couples = [
@@ -164,21 +181,65 @@ async def test_fresh_starter_rewards_reach_office_without_loot(async_session, su
             break
 
     await async_session.refresh(vault)
-    assert granted_residents == 7
+    assert granted_residents == (7 if cohort == "legacy" else 9)
     assert production_seconds <= 30 * 60
     assert await crud.dweller.count_living_in_vault(async_session, vault.id) == 18
     assert vault.bottle_caps >= 200
-    # The next scrap lesson has a guaranteed rare item; no random drop is required.
-    weapons = await crud.weapon.get_multi(async_session, limit=100)
-    rare_reward = next(w for w in weapons if w.name == "Hardened shotgun" and w.storage_id == storage.id)
-    assert rare_reward.rarity == RarityEnum.RARE
-    await item_service.scrap_item(async_session, item_id=rare_reward.id, model=Weapon)
-    scrap = next(
-        o
-        for o in await read_objectives(async_session, vault.id)
-        if o.category == "starter" and o.objective_type == "scrap"
-    )
-    assert scrap.progress == scrap.total
+    if cohort == "continuity":
+        next_step = min(
+            (
+                o
+                for o in await read_objectives(async_session, vault.id)
+                if o.category == "starter" and not o.is_completed
+            ),
+            key=lambda o: o.sequence,
+        )
+        assert next_step.objective_type == "expedition"
+        assert next_step.total == 1
+        # The budget also affords a care building without selling starter equipment.
+        assert vault.bottle_caps == 600
+        await room_service.build_room(
+            async_session, RoomBuild(vault_id=vault.id, room_name="Medbay", coordinate_x=16, coordinate_y=2)
+        )
+        await async_session.refresh(vault)
+        assert vault.bottle_caps == 200
+        weapons = await crud.weapon.get_multi(async_session, limit=100)
+        assert any(w.name == "Hardened shotgun" and w.storage_id == storage.id for w in weapons)
+        await seed_quests_from_json(async_session)
+        missions = await quest_service.get_quests_for_vault(async_session, vault.id, available_only=True)
+        first_mission = next(q for q in missions if q.title == "Getting Started")
+        residents = await crud.dweller.get_living_in_vault(async_session, vault.id)
+        party = [d for d in residents if d.is_mature and d.room_id is None and d.status == DwellerStatusEnum.IDLE][:3]
+        assert len(party) == 3
+        for model, item_crud in ((Weapon, crud.weapon), (Outfit, crud.outfit)):
+            equipment = [i for i in await item_crud.get_multi(async_session, limit=100) if i.storage_id == storage.id]
+            assert len(equipment) >= len(party)
+            for member, item in zip(party, equipment, strict=False):
+                await item_service.equip_item(async_session, item_id=item.id, dweller_id=member.id, model=model)
+        party_ids = [member.id for member in party]
+        await quest_service.start_quest_for_vault(async_session, vault.id, first_mission.id, dweller_ids=party_ids)
+        link = await crud.quest_crud.get_link(async_session, quest_id=first_mission.id, vault_id=vault.id)
+        assert link.started_at is not None
+        assert not link.is_completed
+        assert not link.is_reward_ready
+        roster = await crud.team_crud.get_quest_team(async_session, first_mission.id, vault.id)
+        assert {member.dweller_id for member in roster} == set(party_ids)
+        for member in party:
+            await async_session.refresh(member)
+            assert member.status == DwellerStatusEnum.QUESTING
+            assert member.room_id is None
+    else:
+        # The next scrap lesson has a guaranteed rare item; no random drop is required.
+        weapons = await crud.weapon.get_multi(async_session, limit=100)
+        rare_reward = next(w for w in weapons if w.name == "Hardened shotgun" and w.storage_id == storage.id)
+        assert rare_reward.rarity == RarityEnum.RARE
+        await item_service.scrap_item(async_session, item_id=rare_reward.id, model=Weapon)
+        scrap = next(
+            o
+            for o in await read_objectives(async_session, vault.id)
+            if o.category == "starter" and o.objective_type == "scrap"
+        )
+        assert scrap.progress == scrap.total
 
 
 @pytest.mark.parametrize("model", [Weapon, Outfit])

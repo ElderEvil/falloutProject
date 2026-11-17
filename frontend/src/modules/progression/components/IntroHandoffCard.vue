@@ -21,11 +21,25 @@ import {
 } from '@/modules/dwellers/models/dweller'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useExplorationProgress } from '@/modules/exploration/composables/useExplorationProgress'
+import type { Objective } from '../models/objective'
+import {
+  isObjectiveClaimable,
+  objectiveActionPath,
+  objectiveDescription,
+  objectiveRewardDetails,
+} from '../models/objective'
 import { storageService } from '@/modules/storage/services/storageService'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
-const props = defineProps<{ vaultId: string }>()
-const emit = defineEmits<{ dismiss: [] }>()
+const props = defineProps<{
+  vaultId: string
+  compact?: boolean
+  readyCount?: number
+  milestone?: Objective
+  claiming?: boolean
+  claimError?: string | null
+}>()
+const emit = defineEmits<{ dismiss: []; claim: []; hide: [] }>()
 const router = useRouter()
 const auth = useAuthStore()
 const dwellers = useDwellerStore()
@@ -40,7 +54,7 @@ let generation = 0
 
 // Reuse the guide's existing refresh cadence; this card owns no polling timer.
 async function refresh(): Promise<void> {
-  if (loading.value) return
+  if (props.compact || loading.value) return
   const vaultId = props.vaultId
   const token = auth.token
   if (!token) return
@@ -116,16 +130,82 @@ const suggestion = computed(() => {
     path: vaultPath,
   }
 })
+const milestoneReward = computed(() => objectiveRewardDetails(props.milestone?.reward ?? ''))
+const milestoneAction = computed(() => {
+  switch (props.milestone?.objective_type) {
+    case 'expedition':
+      return 'Choose mission'
+    case 'train':
+      return 'Open training'
+    case 'build':
+    case 'collect':
+      return 'Manage vault'
+    case 'reach':
+      return 'Review crew'
+    default:
+      return 'Open task'
+  }
+})
 </script>
 
 <template>
-  <Card v-bind="{ role: 'region', 'aria-label': 'First expedition handoff' }">
+  <Card v-if="compact" v-bind="{ role: 'region', 'aria-label': 'Vault guide' }">
+    <CardHeader class="gap-1 p-0">
+      <p class="text-xs font-bold tracking-widest text-theme-accent">VAULT GUIDE</p>
+      <CardTitle class="text-base"
+        ><h2>{{ milestone?.challenge ?? 'Your next milestone' }}</h2></CardTitle
+      >
+      <CardDescription v-if="milestone">{{ objectiveDescription(milestone) }}</CardDescription>
+    </CardHeader>
+    <CardContent v-if="milestone" class="space-y-2 p-0">
+      <p class="text-xs font-bold">{{ milestone.progress }} / {{ milestone.total }}</p>
+      <p class="text-sm">
+        Reward:
+        {{
+          milestoneReward.kind === 'dweller'
+            ? `${milestoneReward.name} joins your vault`
+            : milestoneReward.name
+        }}
+      </p>
+      <Alert v-if="claimError" variant="destructive">{{ claimError }}</Alert>
+    </CardContent>
+    <CardFooter class="flex-wrap gap-2 p-0">
+      <template v-if="milestone">
+        <Button
+          v-if="isObjectiveClaimable(milestone)"
+          size="sm"
+          :disabled="claiming"
+          @click="emit('claim')"
+          >{{ claiming ? 'Claiming…' : `Claim ${milestoneReward.name}` }}</Button
+        >
+        <Button
+          size="sm"
+          variant="outline"
+          :disabled="claiming"
+          @click="router.push(objectiveActionPath(milestone, vaultId))"
+          >{{ milestoneAction }}</Button
+        >
+      </template>
+      <Button
+        size="sm"
+        variant="outline"
+        :disabled="claiming"
+        @click="router.push(`/vault/${vaultId}/objectives`)"
+        >{{ readyCount ? `View ${readyCount} ready rewards` : 'View milestones' }}</Button
+      >
+      <Button size="sm" variant="ghost" :disabled="claiming" @click="emit('hide')"
+        >Hide guide</Button
+      >
+    </CardFooter>
+  </Card>
+  <Card v-else v-bind="{ role: 'region', 'aria-label': 'First expedition handoff' }">
     <CardHeader class="gap-1 p-0">
       <CardTitle class="text-base">{{
         run ? 'While they’re away' : 'You know the basics'
       }}</CardTitle>
       <CardDescription
-        >The introductory tour is complete. These next steps are optional.</CardDescription
+        >The introductory tour is complete. Finish it to continue with optional vault
+        milestones.</CardDescription
       >
     </CardHeader>
     <CardContent class="flex flex-col gap-3 p-0">

@@ -6,6 +6,8 @@ assets. Unmapped outfits fall back to the generic equipment icon in the UI.
 
 from pathlib import Path
 
+from app.utils.image_assets import lookup_image_url
+
 # Maps canonical lower-cased outfit names to the actual filename in
 # backend/app/static/apparel_images/. Keep this sorted alphabetically by key.
 OUTFIT_NAME_TO_IMAGE_FILE: dict[str, str] = {
@@ -194,21 +196,5 @@ _APPAREL_IMAGE_DIR = Path(__file__).parent.parent / "static" / "apparel_images"
 
 
 def get_outfit_image_url(outfit_name: str | None) -> str | None:
-    """Return the static image URL for an outfit, if a mapped asset exists.
-
-    The lookup is case-insensitive and ignores leading/trailing whitespace.
-    Returns ``None`` when the outfit is unmapped or the mapped file is missing
-    on disk, so callers can fall back to a generic icon.
-    """
-    if not outfit_name:
-        return None
-
-    key = outfit_name.strip().casefold()
-    filename = OUTFIT_NAME_TO_IMAGE_FILE.get(key)
-    if not filename:
-        return None
-
-    if not (_APPAREL_IMAGE_DIR / filename).exists():
-        return None
-
-    return f"/static/apparel_images/{filename}"
+    """Return the static image URL for an outfit, if a mapped asset exists."""
+    return lookup_image_url(outfit_name, OUTFIT_NAME_TO_IMAGE_FILE, _APPAREL_IMAGE_DIR, "/static/apparel_images")

@@ -96,7 +96,6 @@ async function openWorker() {
       plugins: [router],
       stubs: {
         DwellerDetailPane: Pane,
-        DwellerAppearanceEditor: true,
         TrainingStartModal: true,
         ExplorationDurationModal: true,
         Dialog: {

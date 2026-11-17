@@ -13,6 +13,7 @@
       import { createApp, h, reactive } from 'vue'
       import ArenaRing from '../../../src/modules/rooms/components/ArenaRing.vue'
       const params = new URLSearchParams(location.search)
+      const robotIds = new Set((params.get('robot') || '').split(',').filter(Boolean))
       const fighter = (id, creature = false) => ({
         id,
         name: id,
@@ -21,7 +22,7 @@
         max_health: 100,
         power: 10,
         is_creature: creature,
-        is_robot: false,
+        is_robot: creature && robotIds.has(id),
         image_url: !creature && params.has('portrait') ? '/static/test-dweller.png' : null,
         pet:
           !creature && params.has('pets')
@@ -67,6 +68,9 @@
         state.mode = 'duel'
         state.team_a = [fighter('Alpha')]
         state.team_b = [fighter('Bravo')]
+      }
+      if (params.get('teamA')) {
+        state.team_a = [fighter(`${params.get('teamA')}#0`, true)]
       }
       if (state.countdown_remaining) {
         const timer = setInterval(() => {

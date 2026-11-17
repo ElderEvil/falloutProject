@@ -68,6 +68,9 @@ describe('MarkerListPanel', () => {
       },
       slots: { filters: '<p>Gas station filter</p>', legend: '<p>Full map legend</p>' },
       global: { stubs: { Icon: IconStub } },
+      // jsdom 31 only computes styles for nodes in the document; detached nodes get
+      // `display: ''`, which @vue/test-utils' isVisible() reads as visible.
+      attachTo: document.body,
     })
     const list = wrapper.find('.panel-body').element
     list.scrollTop = 120
@@ -105,9 +108,13 @@ describe('MarkerListPanel', () => {
           vaultMarkers: [],
         },
         global: { stubs: { Icon: IconStub } },
+        // See the note above: jsdom 31 needs the node in the document to resolve
+        // the inline `display: none` that v-show applies.
+        attachTo: document.body,
       })
 
       expect(wrapper.find('.marker-list-panel').isVisible()).toBe(false)
+      wrapper.unmount()
     })
 
     it('should show panel when open=true', () => {

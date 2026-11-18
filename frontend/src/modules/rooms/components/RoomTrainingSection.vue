@@ -67,7 +67,7 @@ const refresh = async () => {
   const vaultId = props.vaultId
   isLoading.value = true
   try {
-    const records = await trainingStore.fetchRoomTrainings(requestRoomId, token)
+    const records = await trainingStore.fetchRoomTrainings(requestRoomId)
     if (requestRoomId === props.room.id) {
       const finishedRound = trainings.value.some(
         (previous) => !records.some((current) => current.id === previous.id)
@@ -89,7 +89,7 @@ const handleStart = async (dwellerId: string) => {
   if (!token || busyDwellerId.value) return
   busyDwellerId.value = dwellerId
   try {
-    await trainingStore.startTraining(dwellerId, props.room.id, token)
+    await trainingStore.startTraining(dwellerId, props.room.id)
     await refresh()
   } finally {
     busyDwellerId.value = null
@@ -99,21 +99,21 @@ const handleStart = async (dwellerId: string) => {
 const handleCancel = async (trainingId: string) => {
   const token = roomToken.value
   if (!token) return
-  await trainingStore.cancelTraining(trainingId, token)
+  await trainingStore.cancelTraining(trainingId)
   await refresh()
 }
 
 const handleGoal = async (trainingId: string, goal: number) => {
   const token = roomToken.value
   if (!token) return
-  await trainingStore.setTrainingGoal(trainingId, goal, token)
+  await trainingStore.setTrainingGoal(trainingId, goal)
   await refresh()
 }
 
 const handleComplete = async (trainingId: string) => {
   const token = roomToken.value
   if (!token) return
-  await trainingStore.completeTraining(trainingId, token)
+  await trainingStore.completeTraining(trainingId)
   await refresh()
 }
 

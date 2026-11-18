@@ -1,4 +1,5 @@
-import axios from '@/core/plugins/axios'
+import type { components } from '@/core/types/api.generated'
+import { apiGet, apiPost } from '@/core/utils/api'
 import type {
   Incident,
   IncidentListResponse,
@@ -7,62 +8,41 @@ import type {
   IncidentRespondersResponse,
 } from '../models/incident'
 
+type IncidentSpawnResponse = components['schemas']['IncidentSpawnResponse']
+
 export const incidentApi = {
   /**
    * Get all active incidents for a vault
    */
-  async getActiveIncidents(vaultId: string, token: string): Promise<IncidentListResponse> {
-    const response = await axios.get(`/api/v1/game/vaults/${vaultId}/incidents`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-    return response.data
+  async getActiveIncidents(vaultId: string): Promise<IncidentListResponse> {
+    return apiGet<IncidentListResponse>(`/api/v1/game/vaults/${vaultId}/incidents`)
   },
 
   /**
    * Get detailed information about a specific incident
    */
-  async getIncident(vaultId: string, incidentId: string, token: string): Promise<Incident> {
-    const response = await axios.get(`/api/v1/game/vaults/${vaultId}/incidents/${incidentId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-    return response.data
+  async getIncident(vaultId: string, incidentId: string): Promise<Incident> {
+    return apiGet<Incident>(`/api/v1/game/vaults/${vaultId}/incidents/${incidentId}`)
   },
 
   async assignResponders(
     vaultId: string,
     incidentId: string,
-    dwellerIds: string[],
-    token: string
+    dwellerIds: string[]
   ): Promise<IncidentRespondersResponse> {
-    const response = await axios.post<IncidentRespondersResponse>(
+    return apiPost<IncidentRespondersResponse>(
       `/api/v1/game/vaults/${vaultId}/incidents/${incidentId}/responders`,
-      { dweller_ids: dwellerIds },
-      { headers: { Authorization: `Bearer ${token}` } }
+      { dweller_ids: dwellerIds }
     )
-    return response.data
   },
 
   /**
    * Get the designated responder team for an incident
    */
-  async getIncidentTeam(
-    vaultId: string,
-    incidentId: string,
-    token: string
-  ): Promise<IncidentTeamMember[]> {
-    const response = await axios.get(
-      `/api/v1/game/vaults/${vaultId}/incidents/${incidentId}/team`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+  async getIncidentTeam(vaultId: string, incidentId: string): Promise<IncidentTeamMember[]> {
+    return apiGet<IncidentTeamMember[]>(
+      `/api/v1/game/vaults/${vaultId}/incidents/${incidentId}/team`
     )
-    return response.data
   },
 
   /**
@@ -71,18 +51,13 @@ export const incidentApi = {
   async takeOverflow(
     vaultId: string,
     incidentId: string,
-    index: number,
-    token: string
+    index: number
   ): Promise<IncidentOverflowResponse> {
-    const response = await axios.post(
+    return apiPost<IncidentOverflowResponse>(
       `/api/v1/game/vaults/${vaultId}/incidents/${incidentId}/overflow/take`,
       { index },
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        _skipErrorNotification: true,
-      }
+      { skipErrorNotification: true }
     )
-    return response.data
   },
 
   /**
@@ -91,27 +66,20 @@ export const incidentApi = {
   async sellOverflow(
     vaultId: string,
     incidentId: string,
-    index: number,
-    token: string
+    index: number
   ): Promise<IncidentOverflowResponse> {
-    const response = await axios.post(
+    return apiPost<IncidentOverflowResponse>(
       `/api/v1/game/vaults/${vaultId}/incidents/${incidentId}/overflow/sell`,
-      { index },
-      { headers: { Authorization: `Bearer ${token}` } }
+      { index }
     )
-    return response.data
   },
 
   /**
    * [DEBUG] Spawn an incident for testing purposes
    */
-  async spawnIncident(vaultId: string, token: string, incidentType?: string): Promise<any> {
-    const response = await axios.post(`/api/v1/game/vaults/${vaultId}/incidents/spawn`, null, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+  async spawnIncident(vaultId: string, incidentType?: string): Promise<IncidentSpawnResponse> {
+    return apiPost(`/api/v1/game/vaults/${vaultId}/incidents/spawn`, null, {
       params: incidentType ? { incident_type: incidentType } : {},
     })
-    return response.data
   },
 }

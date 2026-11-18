@@ -118,16 +118,15 @@ Axios's `isAxiosError` in the shared error adapter so module code only handles
 
 ### P2 — Large components and repeated visual styling remain maintenance hotspots
 
-- Current component sizes: `QuestCard.vue` 848 lines, `DwellerAppearanceEditor.vue`
-  749, and `ArenaModal.vue` 710. Arena was reduced from the prior audit, while
-  the other two remain large enough to mix UI and orchestration concerns.
+- Current component sizes: `QuestCard.vue` 848 lines and `ArenaModal.vue` 710.
+  Arena was reduced from the prior audit, while both remain large enough to
+  mix UI and orchestration concerns.
 - There are 80 `:style` bindings across 32 Vue files (down from about 155).
   The largest clusters are `PreferencesView.vue` (13), `VaultList.vue` (11),
   and `HappinessDashboard.vue` (8).
 
 **Recommendation:** extract only cohesive composables—countdown state from
-quest cards, appearance form state from the editor, and arena fight flow from
-the modal. Add static `text-theme-*`/`border-theme-*` utilities for color
+quest cards, and arena fight flow from the modal. Add static `text-theme-*`/`border-theme-*` utilities for color
 bindings; retain runtime styles only where the selected theme changes the value.
 
 ### P3 — Environment and CI hygiene drift persists

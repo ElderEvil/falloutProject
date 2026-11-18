@@ -4,6 +4,7 @@ import { nextTick } from 'vue'
 import { flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { useMapStore, VIEWED_LOCATIONS_STORAGE_KEY } from '@/modules/map/stores/map'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 
 // Mock the map service module
 vi.mock('@/modules/map/services/mapService', () => ({
@@ -93,9 +94,9 @@ describe('Map Store', () => {
       const store = useMapStore()
       vi.mocked(mapService.getVaultMap).mockResolvedValueOnce(mockMapResponse)
 
-      await store.fetchMap('vault-1', 'test-token')
+      await store.fetchMap('vault-1')
 
-      expect(mapService.getVaultMap).toHaveBeenCalledWith('test-token', 'vault-1')
+      expect(mapService.getVaultMap).toHaveBeenCalledWith('vault-1')
       expect(store.locations).toEqual(mockMapResponse.locations)
       expect(store.vaultMarkers).toEqual(mockMapResponse.vault_markers)
       expect(store.isLoading).toBe(false)
@@ -118,7 +119,7 @@ describe('Map Store', () => {
         place_groups: groups,
       })
 
-      await store.fetchMap('vault-1', 'test-token')
+      await store.fetchMap('vault-1')
 
       expect(store.placeGroups).toEqual(groups)
       expect(store.placeGroupByKey.get('gas_station')?.label).toBe('Gas Station')
@@ -133,7 +134,7 @@ describe('Map Store', () => {
         return mockMapResponse
       })
 
-      await store.fetchMap('vault-1', 'test-token')
+      await store.fetchMap('vault-1')
 
       expect(loadingDuringRequest).toBe(true)
       expect(store.isLoading).toBe(false)
@@ -143,7 +144,7 @@ describe('Map Store', () => {
       const store = useMapStore()
       vi.mocked(mapService.getVaultMap).mockRejectedValueOnce(new Error('Network Error'))
 
-      await store.fetchMap('vault-1', 'test-token')
+      await store.fetchMap('vault-1')
 
       expect(store.error).toBe('Failed to load map')
       expect(store.isLoading).toBe(false)
@@ -156,7 +157,7 @@ describe('Map Store', () => {
       const store = useMapStore()
       vi.mocked(mapService.getVaultMap).mockResolvedValueOnce(mockEmptyResponse)
 
-      await store.fetchMap('vault-1', 'test-token')
+      await store.fetchMap('vault-1')
 
       expect(store.locations).toEqual([])
       expect(store.vaultMarkers).toEqual([])
@@ -170,7 +171,7 @@ describe('Map Store', () => {
 
       vi.mocked(mapService.getVaultMap).mockResolvedValueOnce(mockMapResponse)
 
-      await store.fetchMap('vault-1', 'test-token')
+      await store.fetchMap('vault-1')
 
       expect(store.error).toBeNull()
       expect(store.locations).toEqual(mockMapResponse.locations)
@@ -183,7 +184,7 @@ describe('Map Store', () => {
       const store = useMapStore()
       vi.mocked(mapService.getVaultMap).mockResolvedValue(mockMapResponse)
 
-      store.startPolling('vault-1', 'test-token')
+      store.startPolling('vault-1')
 
       // First fetch shouldn't happen immediately (immediate: false)
       expect(mapService.getVaultMap).not.toHaveBeenCalled()
@@ -200,7 +201,7 @@ describe('Map Store', () => {
       const store = useMapStore()
       vi.mocked(mapService.getVaultMap).mockResolvedValue(mockMapResponse)
 
-      store.startPolling('vault-1', 'test-token')
+      store.startPolling('vault-1')
 
       // Stop before first interval fires
       store.stopPolling()
@@ -224,7 +225,7 @@ describe('Map Store', () => {
         .mockResolvedValueOnce(response1)
         .mockResolvedValueOnce(response2)
 
-      store.startPolling('vault-1', 'test-token')
+      store.startPolling('vault-1')
 
       await vi.advanceTimersByTimeAsync(30000)
       expect(store.locations).toHaveLength(1)
@@ -238,7 +239,7 @@ describe('Map Store', () => {
       const store = useMapStore()
       vi.mocked(mapService.getVaultMap).mockResolvedValue(mockMapResponse)
 
-      store.startPolling('vault-1', 'test-token')
+      store.startPolling('vault-1')
 
       // Let one poll cycle through
       await vi.advanceTimersByTimeAsync(30000)
@@ -265,12 +266,12 @@ describe('Map Store', () => {
         .mockResolvedValueOnce(pollResponse)
 
       // Direct fetch
-      await store.fetchMap('vault-1', 'test-token')
+      await store.fetchMap('vault-1')
       expect(store.locations).toHaveLength(1)
       expect(store.vaultMarkers).toHaveLength(0)
 
       // Another direct fetch (uses second mock)
-      await store.fetchMap('vault-1', 'test-token')
+      await store.fetchMap('vault-1')
       expect(store.locations).toHaveLength(2)
       expect(store.vaultMarkers).toHaveLength(1)
     })
@@ -307,7 +308,7 @@ describe('Map Store', () => {
       store.markLocationViewed('vault-1', 'loc-1')
 
       vi.mocked(mapService.getVaultMap).mockResolvedValueOnce(mockMapResponse)
-      await store.fetchMap('vault-1', 'test-token')
+      await store.fetchMap('vault-1')
 
       expect(store.isLocationViewed('vault-1', 'loc-1')).toBe(true)
     })
@@ -356,7 +357,7 @@ describe('Map Store', () => {
       })
       vi.mocked(mapService.getVaultMap).mockReturnValueOnce(controlled as any)
 
-      store.startPolling('vault-1', 'test-token')
+      store.startPolling('vault-1')
       await vi.advanceTimersByTimeAsync(30000)
       store.stopPolling()
 
@@ -377,9 +378,9 @@ describe('Map Store', () => {
       })
       vi.mocked(mapService.getVaultMap).mockReturnValueOnce(controlled as any)
 
-      store.startPolling('vault-1', 'test-token')
+      store.startPolling('vault-1')
       await vi.advanceTimersByTimeAsync(30000)
-      store.startPolling('vault-2', 'test-token')
+      store.startPolling('vault-2')
 
       resolveFn!(mockMapResponse)
       await flushPromises()
@@ -397,7 +398,7 @@ describe('Map Store', () => {
       })
       vi.mocked(mapService.getVaultMap).mockReturnValueOnce(controlled as any)
 
-      const fetchPromise = store.fetchMap('vault-1', 'test-token')
+      const fetchPromise = store.fetchMap('vault-1')
       store.stopPolling()
 
       resolveFn!(mockMapResponse)
@@ -424,8 +425,8 @@ describe('Map Store', () => {
         .mockReturnValueOnce(oldPromise as any)
         .mockResolvedValueOnce(newData)
 
-      const oldFetch = store.fetchMap('vault-1', 'token-old')
-      const newFetch = store.fetchMap('vault-2', 'token-new')
+      const oldFetch = store.fetchMap('vault-1')
+      const newFetch = store.fetchMap('vault-2')
 
       resolveOld!(mockMapResponse)
       await oldFetch
@@ -434,6 +435,71 @@ describe('Map Store', () => {
       expect(store.locations).toEqual([mockLocation2])
       expect(store.vaultMarkers).toEqual([])
       expect(store.isLoading).toBe(false)
+    })
+
+    it('drops a delayed fetch response after the session changes', async () => {
+      const store = useMapStore()
+      const auth = useAuthStore()
+      let finish!: (value: any) => void
+      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve
+        }) as any
+      )
+
+      const pending = store.fetchMap('vault-1')
+      auth.sessionGeneration += 1
+      finish(mockMapResponse)
+      await pending
+
+      expect(store.locations).toEqual([])
+      expect(store.vaultMarkers).toEqual([])
+      expect(store.error).toBeNull()
+      expect(store.isLoading).toBe(false)
+      expect(mockToast.success).not.toHaveBeenCalled()
+      expect(mockToast.error).not.toHaveBeenCalled()
+    })
+
+    it('drops a delayed fetch failure after the session changes', async () => {
+      const store = useMapStore()
+      const auth = useAuthStore()
+      let fail!: (reason: unknown) => void
+      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(
+        new Promise((_resolve, reject) => {
+          fail = reject
+        }) as any
+      )
+
+      const pending = store.fetchMap('vault-1')
+      auth.sessionGeneration += 1
+      fail(new Error('stale session failure'))
+      await pending
+
+      expect(store.error).toBeNull()
+      expect(store.locations).toEqual([])
+      expect(mockToast.error).not.toHaveBeenCalled()
+    })
+
+    it('drops a delayed poll response after the session changes', async () => {
+      vi.useFakeTimers()
+      const store = useMapStore()
+      const auth = useAuthStore()
+      let finish!: (value: any) => void
+      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve
+        }) as any
+      )
+
+      store.startPolling('vault-1')
+      await vi.advanceTimersByTimeAsync(30000)
+      auth.sessionGeneration += 1
+      finish(mockMapResponse)
+      await flushPromises()
+
+      expect(store.locations).toEqual([])
+      expect(store.vaultMarkers).toEqual([])
+      expect(mockToast.success).not.toHaveBeenCalled()
     })
   })
 })
@@ -449,12 +515,12 @@ describe('Map Store unlock toasts', () => {
 
   async function load(store: ReturnType<typeof useMapStore>, vaultId: string, locs: unknown[]) {
     vi.mocked(mapService.getVaultMap).mockResolvedValueOnce({ locations: locs, vault_markers: [] })
-    await store.fetchMap(vaultId, 'token')
+    await store.fetchMap(vaultId)
   }
 
   async function refresh(store: ReturnType<typeof useMapStore>, vaultId: string, locs: unknown[]) {
     vi.mocked(mapService.getVaultMap).mockResolvedValueOnce({ locations: locs, vault_markers: [] })
-    await store.refreshMap(vaultId, 'token')
+    await store.refreshMap(vaultId)
   }
 
   it('stays silent on baseline initial load', async () => {
@@ -531,9 +597,9 @@ describe('Map Store unlock toasts', () => {
         snapshot(new Array(80 * 80).fill('wasteland')) as any
       )
 
-      await store.fetchWorldSnapshot('test-token')
+      await store.fetchWorldSnapshot()
 
-      expect(mapService.getWorldSnapshot).toHaveBeenCalledWith('test-token')
+      expect(mapService.getWorldSnapshot).toHaveBeenCalled()
       expect(store.worldSnapshot?.width).toBe(80)
       expect(store.snapshotError).toBeNull()
     })
@@ -544,7 +610,7 @@ describe('Map Store unlock toasts', () => {
         snapshot(new Array(10).fill('wasteland')) as any
       )
 
-      await store.fetchWorldSnapshot('test-token')
+      await store.fetchWorldSnapshot()
 
       expect(store.worldSnapshot).toBeNull()
       expect(store.snapshotError).not.toBeNull()
@@ -554,7 +620,7 @@ describe('Map Store unlock toasts', () => {
       const store = useMapStore()
       vi.mocked(mapService.getWorldSnapshot).mockRejectedValueOnce(new Error('offline'))
 
-      await store.fetchWorldSnapshot('test-token')
+      await store.fetchWorldSnapshot()
 
       expect(store.worldSnapshot).toBeNull()
       expect(store.snapshotError).not.toBeNull()
@@ -570,7 +636,7 @@ describe('Map Store unlock toasts', () => {
         snapshot(new Array(80 * 60).fill('wasteland'), 80, 60) as any
       )
 
-      await store.fetchWorldSnapshot('test-token')
+      await store.fetchWorldSnapshot()
 
       expect(store.worldSnapshot).toBeNull()
       expect(store.snapshotError).not.toBeNull()

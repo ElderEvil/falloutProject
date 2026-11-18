@@ -254,7 +254,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   const cacheIdentity = computed(() => authStore.user?.id ?? authStore.token)
 
   watch(
-    [cacheIdentity, () => authStore.token],
+    [cacheIdentity, () => authStore.token, () => authStore.sessionGeneration],
     () => {
       detailedDwellers.value = {}
       ++cacheGeneration
@@ -263,6 +263,15 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       allDwellersVaultId = null
       allDwellers.value = []
       allDwellersLoadedVaultId.value = null
+    },
+    { flush: 'sync' }
+  )
+
+  watch(
+    [() => authStore.sessionGeneration, () => authStore.user?.id],
+    () => {
+      dwellers.value = []
+      ++dwellersRequestSeq
     },
     { flush: 'sync' }
   )
@@ -288,11 +297,16 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   const { run: runFetchDwellers, isLoading } = useAsyncAction(
     async (vaultId: string, token: string, options?: DwellerFetchOptions) => {
       const requestSeq = ++dwellersRequestSeq
+      const session = authStore.sessionGeneration
       const tickEpochAtStart = tickEpoch
       const knownIds = new Set(dwellers.value.map((d) => d.id))
-      const data = await getDwellersByVault(vaultId, token, toQueryParams(options))
+      const data = await getDwellersByVault(vaultId, toQueryParams(options))
       const activeVaultId = useVaultStore().activeVaultId
-      if (requestSeq === dwellersRequestSeq && (!activeVaultId || activeVaultId === vaultId)) {
+      if (
+        requestSeq === dwellersRequestSeq &&
+        session === authStore.sessionGeneration &&
+        (!activeVaultId || activeVaultId === vaultId)
+      ) {
         dwellers.value = data
         if (tickEpoch !== tickEpochAtStart) reapplyLatestTick(vaultId, 'dwellers', knownIds)
       }
@@ -545,7 +559,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
   }
 
-  async function loadAllDwellers(vaultId: string, token: string): Promise<boolean> {
+  async function loadAllDwellers(vaultId: string, _token: string): Promise<boolean> {
     const tickEpochAtStart = tickEpoch
     const knownIds = new Set(allDwellers.value.map((d) => d.id))
     allDwellers.value = []
@@ -553,13 +567,13 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     allDwellersVaultId = vaultId
     const requestSeq = ++allDwellersRequestSeq
 
-    let page = await getDwellersByVault(vaultId, token, {
+    let page = await getDwellersByVault(vaultId, {
       skip: 0,
       limit: ALL_DWELLERS_FETCH_LIMIT,
     })
     const collected: DwellerShort[] = [...page]
     while (page.length === ALL_DWELLERS_FETCH_LIMIT) {
-      page = await getDwellersByVault(vaultId, token, {
+      page = await getDwellersByVault(vaultId, {
         skip: collected.length,
         limit: ALL_DWELLERS_FETCH_LIMIT,
       })
@@ -586,7 +600,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     if (detailedDwellers.value[id] && !forceRefresh) return detailedDwellers.value[id] ?? null
     const requestGeneration = cacheGeneration
     try {
-      const dweller = await getDweller(id, token)
+      const dweller = await getDweller(id)
       if (cacheGeneration !== requestGeneration) return null
       detailedDwellers.value[id] = dweller
       return dweller

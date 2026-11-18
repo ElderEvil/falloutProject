@@ -25,17 +25,12 @@ describe('incidentApi.getIncidentTeam', () => {
     vi.clearAllMocks()
   })
 
-  it('hits the team endpoint with the auth header and returns the roster', async () => {
+  it('hits the team endpoint and returns the roster', async () => {
     vi.mocked(axios.get).mockResolvedValueOnce({ data: [teamMember] })
 
-    const team = await incidentApi.getIncidentTeam('vault-1', 'incident-1', 'token')
+    const team = await incidentApi.getIncidentTeam('vault-1', 'incident-1')
 
-    expect(axios.get).toHaveBeenCalledWith(
-      '/api/v1/game/vaults/vault-1/incidents/incident-1/team',
-      {
-        headers: { Authorization: 'Bearer token' },
-      }
-    )
+    expect(axios.get).toHaveBeenCalledWith('/api/v1/game/vaults/vault-1/incidents/incident-1/team')
     expect(team).toEqual([teamMember])
   })
 })
@@ -48,15 +43,12 @@ describe('incidentApi.takeOverflow', () => {
   it('leaves the actionable storage-full error to the incident store', async () => {
     vi.mocked(axios.post).mockResolvedValueOnce({ data: { unclaimed_loot: [], caps_granted: 0 } })
 
-    await incidentApi.takeOverflow('vault-1', 'incident-1', 2, 'token')
+    await incidentApi.takeOverflow('vault-1', 'incident-1', 2)
 
     expect(axios.post).toHaveBeenCalledWith(
       '/api/v1/game/vaults/vault-1/incidents/incident-1/overflow/take',
       { index: 2 },
-      {
-        headers: { Authorization: 'Bearer token' },
-        _skipErrorNotification: true,
-      }
+      { _skipErrorNotification: true }
     )
   })
 })
@@ -69,6 +61,6 @@ it('returns the responders actually accepted by the backend', async () => {
   }
   vi.mocked(axios.post).mockResolvedValueOnce({ data: result })
   expect(
-    await incidentApi.assignResponders('vault-1', 'incident-1', ['dweller-1', 'dweller-2'], 'token')
+    await incidentApi.assignResponders('vault-1', 'incident-1', ['dweller-1', 'dweller-2'])
   ).toEqual(result)
 })

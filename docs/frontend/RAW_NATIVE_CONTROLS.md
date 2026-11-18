@@ -28,7 +28,7 @@ re-derive a row from `raw-control-baseline.json` before citing it. No `<dialog>`
 | `checkbox` | No `Checkbox` / `Switch` primitive is vendored. These are `sr-only` peer-styled inputs driving a custom visual. | `QuestsView`, `HomeView`, `CraftingPanel` (`HomeView` is already documented inline) |
 | `textarea` | No `Textarea` primitive is vendored. | `ProfileEditor` ×2 |
 | `table` | No `Table` primitive is vendored. | `DwellersTable` |
-| `label-wrap` | `<label>` wrapping a **custom control** (peer checkbox / slider), i.e. not a standalone form label. | `HomeView`, `QuestsView`, `DwellerAppearanceEditor` |
+| `label-wrap` | `<label>` wrapping a **custom control** (peer checkbox / slider), i.e. not a standalone form label. | `HomeView`, `QuestsView` |
 
 ## Per-file inventory
 
@@ -45,7 +45,6 @@ re-derive a row from `raw-control-baseline.json` before citing it. No `<dialog>`
 | `map/components/MarkerListPanel.vue` | 3 button | bespoke |
 | `rooms/components/RoomGridCell.vue` | 3 button | bespoke |
 | `vault/components/shell/NotificationBell.vue` | 3 button | menu |
-| `dwellers/components/DwellerAppearanceEditor.vue` | 1 button, 1 label | bespoke + label-wrap |
 | `dwellers/components/DwellerEquipment.vue` | 2 button | bespoke |
 | `dwellers/components/grid/DwellerGridItem.vue` | 2 button | bespoke |
 | `dwellers/components/table/DwellersTable.vue` | 1 button, 1 table | table |

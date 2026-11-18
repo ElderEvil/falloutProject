@@ -124,11 +124,7 @@ const handleStart = async () => {
   errorMessage.value = ''
 
   try {
-    const result = await trainingStore.startTraining(
-      props.dweller.id,
-      selectedRoom.value.id,
-      authStore.token
-    )
+    const result = await trainingStore.startTraining(props.dweller.id, selectedRoom.value.id)
 
     if (result) {
       emit('started')

@@ -19,7 +19,7 @@ jobs:
   frontend-ci:
     name: Frontend Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       PNPM_CONFIG_STORE_DIR: ~/.pnpm-store
 
@@ -118,7 +118,8 @@ jobs:
 
       - name: Install Playwright Chromium
         if: steps.filter.outputs.src == 'true'
-        timeout-minutes: 5
+        # Includes apt downloads for browser system dependencies on a cold runner.
+        timeout-minutes: 15
         working-directory: frontend
         run: pnpm exec playwright install --with-deps chromium
 

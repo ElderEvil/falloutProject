@@ -30,7 +30,7 @@ const inventoryMode = ref<'weapon' | 'outfit' | 'pet'>('weapon')
 const inventoryLoading = ref(false)
 let inventoryRequest = 0
 
-watch([canEquip, vaultId, () => dweller.value?.id, () => authStore.token], () => {
+watch([canEquip, vaultId, () => dweller.value?.id, () => authStore.sessionGeneration], () => {
   ++inventoryRequest
   showInventoryModal.value = false
   inventoryLoading.value = false
@@ -62,26 +62,26 @@ onMounted(async () => {
 
 const handleUnequipWeapon = async () => {
   if (!canUnequip.value || !equippedWeapon.value || !authStore.token || !dweller.value?.id) return
-  await equipmentStore.unequipWeapon(dweller.value.id, equippedWeapon.value.id, authStore.token)
+  await equipmentStore.unequipWeapon(equippedWeapon.value.id)
   ctx.actions.refresh()
 }
 
 const handleUnequipOutfit = async () => {
   if (!canUnequip.value || !equippedOutfit.value || !authStore.token || !dweller.value?.id) return
-  await equipmentStore.unequipOutfit(dweller.value.id, equippedOutfit.value.id, authStore.token)
+  await equipmentStore.unequipOutfit(equippedOutfit.value.id)
   ctx.actions.refresh()
 }
 
 const handleEquipWeapon = async (weaponId: string) => {
   if (!canEquip.value || !authStore.token || !dweller.value?.id) return
-  await equipmentStore.equipWeapon(dweller.value.id, weaponId, authStore.token)
+  await equipmentStore.equipWeapon(dweller.value.id, weaponId)
   showInventoryModal.value = false
   ctx.actions.refresh()
 }
 
 const handleEquipOutfit = async (outfitId: string) => {
   if (!canEquip.value || !authStore.token || !dweller.value?.id) return
-  await equipmentStore.equipOutfit(dweller.value.id, outfitId, authStore.token)
+  await equipmentStore.equipOutfit(dweller.value.id, outfitId)
   showInventoryModal.value = false
   ctx.actions.refresh()
 }
@@ -125,8 +125,8 @@ const openEquipmentInventory = async (mode: 'weapon' | 'outfit') => {
   inventoryMode.value = mode
   inventoryLoading.value = true
   try {
-    if (mode === 'weapon') await equipmentStore.fetchWeapons(token, id)
-    else await equipmentStore.fetchOutfits(token, id)
+    if (mode === 'weapon') await equipmentStore.fetchWeapons(id)
+    else await equipmentStore.fetchOutfits(id)
     if (request === inventoryRequest && !equipmentStore.error) showInventoryModal.value = true
   } finally {
     if (request === inventoryRequest) inventoryLoading.value = false

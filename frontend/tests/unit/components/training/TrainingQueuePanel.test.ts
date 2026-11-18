@@ -84,7 +84,7 @@ describe('TrainingQueuePanel', () => {
 
       // BUG: fetchVaultTrainings should have been called now that vault is available,
       // but it wasn't — there's no watcher to react to activeVault changing
-      expect(fetchSpy).toHaveBeenCalledWith('vault-1', 'mock-token')
+      expect(fetchSpy).toHaveBeenCalledWith('vault-1')
     })
   })
 
@@ -111,19 +111,11 @@ describe('TrainingQueuePanel', () => {
     expect(toggle.attributes('aria-pressed')).toBe('false')
     await toggle.trigger('click')
     await flushPromises()
-    expect(trainingService.setContinuousTraining).toHaveBeenCalledWith(
-      'vault-1',
-      true,
-      'mock-token'
-    )
+    expect(trainingService.setContinuousTraining).toHaveBeenCalledWith('vault-1', true)
     expect(toggle.attributes('aria-pressed')).toBe('true')
     await toggle.trigger('click')
     await flushPromises()
-    expect(trainingService.setContinuousTraining).toHaveBeenLastCalledWith(
-      'vault-1',
-      false,
-      'mock-token'
-    )
+    expect(trainingService.setContinuousTraining).toHaveBeenLastCalledWith('vault-1', false)
     expect(toggle.attributes('aria-pressed')).toBe('false')
   })
 

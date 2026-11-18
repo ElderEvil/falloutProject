@@ -1,4 +1,4 @@
-import { computed, onScopeDispose } from 'vue'
+import { computed, onScopeDispose, ref } from 'vue'
 import { useStorageStore } from '@/modules/storage/stores/storage'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
@@ -56,7 +56,9 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
-  let sessionGeneration = 0
+  // Session identity changes on login, logout and session expiry. Consumers keep
+  // this separate from transport tokens so delayed work can be discarded.
+  const sessionGeneration = ref(0)
 
   // Getters
   const isAuthenticated = computed(() => !!token.value)
@@ -64,7 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Invalidate account-owned state before replacing credentials or user identity.
   function clearSession(): void {
-    sessionGeneration++
+    sessionGeneration.value++
     useVaultStore().clearSession()
     useStorageStore().reset()
     useProfileStore().clearProfile()
@@ -143,17 +145,17 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function fetchUser(): Promise<void> {
     if (!token.value) return
-    const generation = sessionGeneration
+    const generation = sessionGeneration.value
 
     try {
       const response = await authService.getCurrentUser()
-      if (generation !== sessionGeneration) return
+      if (generation !== sessionGeneration.value) return
       if (user.value?.id && user.value.id !== response.data.id) {
         clearSession()
       }
       user.value = response.data
     } catch (error) {
-      if (generation !== sessionGeneration) return
+      if (generation !== sessionGeneration.value) return
       handleStoreError(error, 'Failed to fetch user')
       if (error instanceof ApiError && error.status === 401) {
         clearSession()
@@ -225,7 +227,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout(): Promise<void> {
-    const generation = ++sessionGeneration
+    const generation = ++sessionGeneration.value
     try {
       if (token.value) {
         await authService.logout()
@@ -234,7 +236,7 @@ export const useAuthStore = defineStore('auth', () => {
       handleStoreError(error, 'Logout failed')
     } finally {
       // A newer login owns its credentials even if this logout finishes later.
-      if (generation === sessionGeneration) {
+      if (generation === sessionGeneration.value) {
         clearSession()
         token.value = null
         refreshToken.value = null
@@ -251,6 +253,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     // State
+    sessionGeneration,
     token,
     refreshToken,
     user,

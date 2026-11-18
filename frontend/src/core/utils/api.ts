@@ -131,17 +131,19 @@ export async function apiRequest<T = unknown>(
       return hasConfig ? await apiClient.get<T>(url, config) : await apiClient.get<T>(url)
     if (method === 'delete')
       return hasConfig ? await apiClient.delete<T>(url, config) : await apiClient.delete<T>(url)
-    if (method === 'post')
-      return hasConfig
-        ? await apiClient.post<T>(url, body, config)
-        : await apiClient.post<T>(url, body)
-    if (method === 'put')
-      return hasConfig
-        ? await apiClient.put<T>(url, body, config)
-        : await apiClient.put<T>(url, body)
-    return hasConfig
-      ? await apiClient.patch<T>(url, body, config)
-      : await apiClient.patch<T>(url, body)
+    if (method === 'post') {
+      if (hasConfig) return await apiClient.post<T>(url, body, config)
+      if (body !== undefined) return await apiClient.post<T>(url, body)
+      return await apiClient.post<T>(url)
+    }
+    if (method === 'put') {
+      if (hasConfig) return await apiClient.put<T>(url, body, config)
+      if (body !== undefined) return await apiClient.put<T>(url, body)
+      return await apiClient.put<T>(url)
+    }
+    if (hasConfig) return await apiClient.patch<T>(url, body, config)
+    if (body !== undefined) return await apiClient.patch<T>(url, body)
+    return await apiClient.patch<T>(url)
   } catch (error) {
     throw toApiError(error)
   }

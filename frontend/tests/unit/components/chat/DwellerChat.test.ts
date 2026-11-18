@@ -613,11 +613,7 @@ describe('DwellerChat', () => {
       await flushPromises()
 
       // Verify training service was called
-      expect(trainingService.startTraining).toHaveBeenCalledWith(
-        'dweller-123',
-        'training-room-789',
-        'test-token'
-      )
+      expect(trainingService.startTraining).toHaveBeenCalledWith('dweller-123', 'training-room-789')
 
       // Verify action card is removed
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
@@ -1034,11 +1030,7 @@ describe('DwellerChat', () => {
       await flushPromises()
 
       expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'training-room-789', 'test-token')
-      expect(trainingService.startTraining).toHaveBeenCalledWith(
-        'dweller-123',
-        'training-room-789',
-        'test-token'
-      )
+      expect(trainingService.startTraining).toHaveBeenCalledWith('dweller-123', 'training-room-789')
     })
 
     it('should prefer matching-stat training room over generic training room', async () => {
@@ -1117,11 +1109,7 @@ describe('DwellerChat', () => {
       await flushPromises()
 
       expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'strength-training', 'test-token')
-      expect(trainingService.startTraining).toHaveBeenCalledWith(
-        'dweller-123',
-        'strength-training',
-        'test-token'
-      )
+      expect(trainingService.startTraining).toHaveBeenCalledWith('dweller-123', 'strength-training')
     })
 
     it('should fallback to any training room when no stat-matching room available', async () => {
@@ -1188,8 +1176,7 @@ describe('DwellerChat', () => {
       expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'endurance-training', 'test-token')
       expect(trainingService.startTraining).toHaveBeenCalledWith(
         'dweller-123',
-        'endurance-training',
-        'test-token'
+        'endurance-training'
       )
     })
 
@@ -1511,11 +1498,7 @@ describe('DwellerChat', () => {
 
       expect(mockFetchRooms).toHaveBeenCalledWith('vault-123')
       expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'training-room-789', 'test-token')
-      expect(trainingService.startTraining).toHaveBeenCalledWith(
-        'dweller-123',
-        'training-room-789',
-        'test-token'
-      )
+      expect(trainingService.startTraining).toHaveBeenCalledWith('dweller-123', 'training-room-789')
     })
   })
 

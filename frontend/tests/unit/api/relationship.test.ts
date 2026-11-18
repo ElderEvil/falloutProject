@@ -48,9 +48,9 @@ describe('relationshipApi', () => {
     await relationshipApi.makePartners('rel-1')
     await relationshipApi.marry('rel-1')
 
-    expect(axios.put).toHaveBeenNthCalledWith(1, '/api/v1/relationships/rel-1/romance', undefined)
-    expect(axios.put).toHaveBeenNthCalledWith(2, '/api/v1/relationships/rel-1/partner', undefined)
-    expect(axios.put).toHaveBeenNthCalledWith(3, '/api/v1/relationships/rel-1/marry', undefined)
+    expect(axios.put).toHaveBeenNthCalledWith(1, '/api/v1/relationships/rel-1/romance')
+    expect(axios.put).toHaveBeenNthCalledWith(2, '/api/v1/relationships/rel-1/partner')
+    expect(axios.put).toHaveBeenNthCalledWith(3, '/api/v1/relationships/rel-1/marry')
   })
 
   it('breaks up through DELETE', async () => {
@@ -79,9 +79,6 @@ describe('relationshipApi', () => {
     vi.mocked(axios.post).mockResolvedValue({ data: result })
 
     await expect(relationshipApi.processVaultBreeding('vault-1')).resolves.toEqual(result)
-    expect(axios.post).toHaveBeenCalledWith(
-      '/api/v1/relationships/vault/vault-1/process',
-      undefined
-    )
+    expect(axios.post).toHaveBeenCalledWith('/api/v1/relationships/vault/vault-1/process')
   })
 })

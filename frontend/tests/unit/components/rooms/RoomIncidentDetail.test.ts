@@ -292,7 +292,7 @@ describe('RoomIncidentDetail', () => {
   it('fetches the designated team on mount', async () => {
     await mountDetail()
 
-    expect(fetchIncidentTeam).toHaveBeenCalledWith('vault-1', 'incident-1', 'test-token')
+    expect(fetchIncidentTeam).toHaveBeenCalledWith('vault-1', 'incident-1')
   })
 
   it('renders the designated team by name in the scene', async () => {

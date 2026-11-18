@@ -101,7 +101,7 @@ const fetchRoomTrainings = async () => {
 
   loading.value = true
   try {
-    const trainings = await trainingStore.fetchRoomTrainings(room.id, authStore.token)
+    const trainings = await trainingStore.fetchRoomTrainings(room.id)
     activeTrainings.value = trainings.filter((t) => t.status === 'active')
   } finally {
     loading.value = false
@@ -113,7 +113,7 @@ const handleStartTraining = async (dwellerId: string) => {
 
   loading.value = true
   try {
-    const result = await trainingStore.startTraining(dwellerId, room.id, authStore.token)
+    const result = await trainingStore.startTraining(dwellerId, room.id)
 
     if (result) {
       await fetchRoomTrainings()
@@ -129,7 +129,7 @@ const handleCancelTraining = async (trainingId: string) => {
 
   loading.value = true
   try {
-    const success = await trainingStore.cancelTraining(trainingId, authStore.token)
+    const success = await trainingStore.cancelTraining(trainingId)
     if (success) {
       await fetchRoomTrainings()
       emit('refresh')

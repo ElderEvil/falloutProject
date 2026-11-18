@@ -16,10 +16,12 @@ import * as mapService from '../services/mapService'
 import { isKnownLocation } from '../utils/visibility'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 
 export const VIEWED_LOCATIONS_STORAGE_KEY = 'map:viewed-location-keys'
 
 export const useMapStore = defineStore('map', () => {
+  const authStore = useAuthStore()
   // State
   const locations = ref<WastelandLocationWithDwellers[]>([])
   const vaultMarkers = ref<VaultMarkerRead[]>([])
@@ -51,17 +53,27 @@ export const useMapStore = defineStore('map', () => {
     isActive: isPollingActive,
   } = usePolling(
     async () => {
-      if (_pollVaultId.value && _pollToken.value) {
+      if (_pollVaultId.value) {
         const gen = _pollGeneration
         const vaultId = _pollVaultId.value
-        const token = _pollToken.value
+        const session = authStore.sessionGeneration
         try {
-          const data = await mapService.getVaultMap(token, vaultId)
-          if (gen !== _pollGeneration || vaultId !== _pollVaultId.value) return
+          const data = await mapService.getVaultMap(vaultId)
+          if (
+            gen !== _pollGeneration ||
+            vaultId !== _pollVaultId.value ||
+            session !== authStore.sessionGeneration
+          )
+            return
           applyMapData(data)
           notifyNewUnlocks(data, vaultId)
         } catch (err) {
-          if (gen !== _pollGeneration || vaultId !== _pollVaultId.value) return
+          if (
+            gen !== _pollGeneration ||
+            vaultId !== _pollVaultId.value ||
+            session !== authStore.sessionGeneration
+          )
+            return
           throw err
         }
       }
@@ -73,7 +85,6 @@ export const useMapStore = defineStore('map', () => {
 
   // Internal refs for polling context
   const _pollVaultId = ref<string | null>(null)
-  const _pollToken = ref<string | null>(null)
   let _pollGeneration = 0
 
   // Getters
@@ -132,17 +143,18 @@ export const useMapStore = defineStore('map', () => {
 
   // Always fetch the full map (never unlocked_only): locked previews and
   // deep-links need locked rows; visibility is enforced client-side.
-  async function fetchMap(vaultId: string, token: string): Promise<void> {
+  async function fetchMap(vaultId: string): Promise<void> {
     const gen = ++_pollGeneration
+    const session = authStore.sessionGeneration
     isLoading.value = true
     error.value = null
     try {
-      const data = await mapService.getVaultMap(token, vaultId)
-      if (gen !== _pollGeneration) return
+      const data = await mapService.getVaultMap(vaultId)
+      if (gen !== _pollGeneration || session !== authStore.sessionGeneration) return
       applyMapData(data)
       notifyNewUnlocks(data, vaultId)
     } catch (err) {
-      if (gen !== _pollGeneration) return
+      if (gen !== _pollGeneration || session !== authStore.sessionGeneration) return
       handleStoreError(err, 'Failed to fetch map')
       error.value = 'Failed to load map'
     } finally {
@@ -152,9 +164,8 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
-  function startPolling(vaultId: string, token: string): void {
+  function startPolling(vaultId: string): void {
     _pollVaultId.value = vaultId
-    _pollToken.value = token
     _pollGeneration += 1
     if (!isPollingActive.value) {
       resumePolling()
@@ -163,15 +174,16 @@ export const useMapStore = defineStore('map', () => {
 
   function stopPolling(): void {
     _pollVaultId.value = null
-    _pollToken.value = null
     _pollGeneration += 1
     pausePolling()
   }
 
-  async function fetchWorldSnapshot(token: string): Promise<void> {
+  async function fetchWorldSnapshot(): Promise<void> {
     snapshotError.value = null
+    const session = authStore.sessionGeneration
     try {
-      const snapshot = await mapService.getWorldSnapshot(token)
+      const snapshot = await mapService.getWorldSnapshot()
+      if (session !== authStore.sessionGeneration) return
       if (snapshot.terrain.length !== snapshot.width * snapshot.height) {
         throw new Error(
           `Snapshot terrain has ${snapshot.terrain.length} cells for a ${snapshot.width}x${snapshot.height} grid`
@@ -184,6 +196,7 @@ export const useMapStore = defineStore('map', () => {
       }
       worldSnapshot.value = snapshot
     } catch (err) {
+      if (session !== authStore.sessionGeneration) return
       worldSnapshot.value = null
       snapshotError.value = handleStoreError(
         err,
@@ -194,17 +207,17 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
-  async function refreshMap(vaultId: string, token?: string): Promise<void> {
-    const effectiveToken = token ?? _pollToken.value
-    if (!effectiveToken) return
+  async function refreshMap(vaultId: string): Promise<void> {
+    if (!authStore.isAuthenticated) return
     const gen = _pollGeneration
+    const session = authStore.sessionGeneration
     try {
-      const data = await mapService.getVaultMap(effectiveToken, vaultId)
-      if (gen !== _pollGeneration) return
+      const data = await mapService.getVaultMap(vaultId)
+      if (gen !== _pollGeneration || session !== authStore.sessionGeneration) return
       applyMapData(data)
       notifyNewUnlocks(data, vaultId)
     } catch (err) {
-      if (gen !== _pollGeneration) return
+      if (gen !== _pollGeneration || session !== authStore.sessionGeneration) return
       error.value = handleStoreError(err, 'Failed to refresh map after chat')
     }
   }

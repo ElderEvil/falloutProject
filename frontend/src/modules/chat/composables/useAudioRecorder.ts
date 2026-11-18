@@ -1,5 +1,5 @@
 import { notifyErrorOnce } from '@/core/utils/errorHandler'
-import { ref, computed } from 'vue'
+import { ref, computed, onScopeDispose } from 'vue'
 import { useToast } from '@/core/composables/useToast'
 import { formatClock } from '@/core/utils/format'
 
@@ -119,21 +119,50 @@ export function useAudioRecorder() {
   }
 
   const cancelRecording = () => {
-    if (mediaRecorder.value) {
-      mediaRecorder.value.stop()
-      mediaRecorder.value.stream.getTracks().forEach((track) => track.stop())
-      mediaRecorder.value = null
-    }
+    teardown()
+    recordingDuration.value = 0
+  }
 
+  function clearRecordingTimer(): void {
     if (recordingTimer.value) {
       clearInterval(recordingTimer.value)
       recordingTimer.value = null
     }
+  }
+
+  /**
+   * Release the microphone and the duration timer.
+   *
+   * Called by cancelRecording and by scope disposal: closing the chat mid-recording
+   * unmounts the host with a live MediaRecorder, so without this the interval keeps
+   * ticking and the browser keeps capturing audio after the dialog is gone.
+   */
+  function teardown(): void {
+    clearRecordingTimer()
+
+    const recorder = mediaRecorder.value
+    if (recorder) {
+      // Detach first: a discarded recorder must not push chunks into a disposed
+      // scope or resolve a pending stopRecording promise.
+      recorder.ondataavailable = null
+      recorder.onstop = null
+      recorder.onerror = null
+      if (recorder.state !== 'inactive') {
+        try {
+          recorder.stop()
+        } catch {
+          // Recorder already stopped itself; nothing to release.
+        }
+      }
+      recorder.stream.getTracks().forEach((track) => track.stop())
+      mediaRecorder.value = null
+    }
 
     audioChunks.value = []
     recordingState.value = 'idle'
-    recordingDuration.value = 0
   }
+
+  onScopeDispose(teardown)
 
   const formatDuration = (seconds: number): string =>
     formatClock(seconds, { showHours: false, padMinutes: false })

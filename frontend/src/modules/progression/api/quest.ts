@@ -1,8 +1,13 @@
 import type { components } from '@/core/types/api.generated'
 import { apiGet, apiPost } from '@/core/utils/api'
-import type { Quest, QuestPartyMember, VaultQuest } from '../models/quest'
+import type { QuestPartyMember, QuestRequirement, QuestReward, VaultQuest } from '../models/quest'
 
 type QuestCompleteResponse = components['schemas']['QuestCompleteResponse']
+type EligibleDwellerRead = components['schemas']['EligibleDwellerRead']
+type QuestPartyMemberRead = components['schemas']['QuestPartyMemberRead']
+type QuestRead = components['schemas']['QuestRead']
+type QuestRequirementRead = components['schemas']['QuestRequirementRead']
+type QuestRewardRead = components['schemas']['QuestRewardRead']
 
 export interface EligibleDweller {
   id: string
@@ -12,8 +17,58 @@ export interface EligibleDweller {
   rarity: string
 }
 
-export function listQuests(): Promise<Quest[]> {
-  return apiGet<Quest[]>('/api/v1/quests/')
+function toQuestRequirement(requirement: QuestRequirementRead, questId: string): QuestRequirement {
+  return {
+    ...requirement,
+    quest_id: questId,
+    requirement_type: requirement.requirement_type as QuestRequirement['requirement_type'],
+  }
+}
+
+function toQuestReward(reward: QuestRewardRead, questId: string): QuestReward {
+  return {
+    ...reward,
+    quest_id: questId,
+    reward_type: reward.reward_type as QuestReward['reward_type'],
+    item_data: reward.item_data ?? undefined,
+  }
+}
+
+function toVaultQuest(quest: QuestRead): VaultQuest {
+  return {
+    ...quest,
+    quest_category: quest.quest_category ?? null,
+    chain_id: quest.chain_id ?? null,
+    previous_quest_id: quest.previous_quest_id ?? null,
+    next_quest_id: quest.next_quest_id ?? null,
+    created_at: '',
+    updated_at: '',
+    lock_reason: quest.lock_reason ?? null,
+    started_at: quest.started_at ?? null,
+    duration_minutes: quest.duration_minutes ?? null,
+    return_started_at: quest.return_started_at ?? null,
+    return_completes_at: quest.return_completes_at ?? null,
+    completed_at: quest.completed_at ?? null,
+    quest_requirements: quest.quest_requirements?.map((item) => toQuestRequirement(item, quest.id)),
+    quest_rewards: quest.quest_rewards?.map((item) => toQuestReward(item, quest.id)),
+  }
+}
+
+function toQuestPartyMember(member: QuestPartyMemberRead): QuestPartyMember {
+  return {
+    ...member,
+    status: member.status as QuestPartyMember['status'],
+    created_at: member.created_at ?? '',
+    updated_at: member.updated_at ?? '',
+  }
+}
+
+function toEligibleDweller(dweller: EligibleDwellerRead): EligibleDweller {
+  return { ...dweller, last_name: dweller.last_name ?? null }
+}
+
+export function listQuests(): Promise<QuestRead[]> {
+  return apiGet<QuestRead[]>('/api/v1/quests/')
 }
 
 export async function listVaultQuests(vaultId: string): Promise<VaultQuest[]> {
@@ -21,7 +76,7 @@ export async function listVaultQuests(vaultId: string): Promise<VaultQuest[]> {
   if (!Array.isArray(data)) {
     throw new TypeError('Expected a list of vault quests')
   }
-  return data as VaultQuest[]
+  return (data as QuestRead[]).map(toVaultQuest)
 }
 
 export function assignQuest(vaultId: string, questId: string, isVisible = true): Promise<void> {
@@ -34,12 +89,19 @@ export function claimRewards(vaultId: string, questId: string): Promise<QuestCom
   return apiPost<QuestCompleteResponse>(`/api/v1/quests/${vaultId}/${questId}/claim-rewards`)
 }
 
-export function getParty(vaultId: string, questId: string): Promise<QuestPartyMember[]> {
-  return apiGet<QuestPartyMember[]>(`/api/v1/quests/${vaultId}/${questId}/party`)
+export async function getParty(vaultId: string, questId: string): Promise<QuestPartyMember[]> {
+  const data = await apiGet<QuestPartyMemberRead[]>(`/api/v1/quests/${vaultId}/${questId}/party`)
+  return data.map(toQuestPartyMember)
 }
 
-export function getEligibleDwellers(vaultId: string, questId: string): Promise<EligibleDweller[]> {
-  return apiGet<EligibleDweller[]>(`/api/v1/quests/${vaultId}/${questId}/eligible-dwellers`)
+export async function getEligibleDwellers(
+  vaultId: string,
+  questId: string
+): Promise<EligibleDweller[]> {
+  const data = await apiGet<EligibleDwellerRead[]>(
+    `/api/v1/quests/${vaultId}/${questId}/eligible-dwellers`
+  )
+  return data.map(toEligibleDweller)
 }
 
 export function startQuest(vaultId: string, questId: string, dwellerIds?: string[]): Promise<void> {

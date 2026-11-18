@@ -363,6 +363,7 @@ export function useDwellerDetail(
     const inVault = (supply === 'stimpack' ? availableStimpaks.value : availableRadaways.value) ?? 0
     if (carried <= 0 && inVault <= 0) return
 
+    const session = authStore.sessionGeneration
     healingSupply.value = supply
     try {
       if (carried <= 0) {
@@ -379,6 +380,7 @@ export function useDwellerDetail(
           vaultStore.refreshVault(vaultId.value),
         ])
       }
+      if (session !== authStore.sessionGeneration) return
       const used =
         supply === 'stimpack'
           ? await dwellerMedicalStore.useStimpack(dwellerId.value)

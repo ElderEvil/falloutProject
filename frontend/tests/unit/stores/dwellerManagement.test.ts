@@ -227,6 +227,28 @@ describe('useDwellerManagementStore', () => {
     expect(filter.detailedDwellers.d1).toBeUndefined()
   })
 
+  it('ignores a previous session success when a later assignment fails', async () => {
+    const auth = useAuthStore()
+    const filter = useDwellerFilterStore()
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'idle' }] as never
+    const stale = deferred<{ data: unknown }>()
+    vi.mocked(axios.post).mockReturnValueOnce(stale.promise as never)
+
+    const management = useDwellerManagementStore()
+    const staleCall = management.assignDwellerToRoom('d1', 'room-old')
+    auth.sessionGeneration += 1
+    stale.resolve({ data: { id: 'd1', room_id: 'room-old', status: 'working' } })
+    await staleCall
+
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'idle' }] as never
+    vi.mocked(axios.post).mockRejectedValueOnce({
+      response: { status: 400, data: { detail: 'Room is full' } },
+    })
+    await expect(management.assignDwellerToRoom('d1', 'room-new')).rejects.toBeTruthy()
+
+    expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-1', status: 'idle' })
+  })
+
   it('clears the room before the unassign response arrives', async () => {
     const filter = useDwellerFilterStore()
     filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'working' }] as never

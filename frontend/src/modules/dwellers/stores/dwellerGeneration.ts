@@ -3,10 +3,14 @@ import * as generationApi from '../api/generation'
 import type { Dweller } from '../models/dweller'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
+import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useDwellerFilterStore } from './dwellerFilter'
 
 export const useDwellerGenerationStore = defineStore('dwellerGeneration', () => {
   const toast = useToast()
+  const authStore = useAuthStore()
+  const vaultStore = useVaultStore()
   const filterStore = useDwellerFilterStore()
 
   async function run(
@@ -15,8 +19,13 @@ export const useDwellerGenerationStore = defineStore('dwellerGeneration', () => 
     successMessage: string,
     failurePrefix: string
   ): Promise<Dweller | null> {
+    const session = authStore.sessionGeneration
+    const vaultId = vaultStore.activeVaultId
     try {
       const data = await generate(id)
+      if (session !== authStore.sessionGeneration || vaultId !== vaultStore.activeVaultId) {
+        return null
+      }
       filterStore.detailedDwellers[id] = data
       toast.success(successMessage)
       return filterStore.detailedDwellers[id] ?? null

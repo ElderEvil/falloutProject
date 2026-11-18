@@ -30,8 +30,13 @@ const isInitialLoad = ref(true)
 const errorMessage = ref<string | null>(null)
 const { run: runLoadData, isLoading: isLoadingRequest } = useAsyncAction(
   async (currentVaultId: string, token: string) => {
+    const session = authStore.sessionGeneration
     await vaultStore.revalidateVault(currentVaultId)
+    // A session switch mid-load replaces this page's account; stop silently
+    // instead of reporting a load failure for the old vault.
+    if (session !== authStore.sessionGeneration) return true
     await dwellerStore.fetchDwellersByVault(currentVaultId)
+    if (session !== authStore.sessionGeneration) return true
     await incidentStore.fetchIncidents(currentVaultId, token)
     return true
   },

@@ -25,6 +25,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     string,
     { roomId: string | null; status: Dweller['status'] | undefined }
   >()
+  let confirmedSession: string | null = null
 
   const lineage = ref<LineageResponse | null>(null)
   const isLoadingLineage = ref(false)
@@ -42,6 +43,12 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
   function sessionIdentity(): string {
     return `${authStore.user?.id ?? ''}:${authStore.sessionGeneration}`
+  }
+
+  function scopeConfirmedAssignmentsToSession(identity: string): void {
+    if (identity === confirmedSession) return
+    confirmedAssignments.clear()
+    confirmedSession = identity
   }
 
   function roomFor(roomId: string | null) {
@@ -74,6 +81,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
   async function assignDwellerToRoom(dwellerId: string, roomId: string): Promise<Dweller> {
     const identity = sessionIdentity()
+    scopeConfirmedAssignmentsToSession(identity)
     const mutation = beginAssignmentMutation(dwellerId)
     const previous = filterStore.dwellers.find((d) => d.id === dwellerId)
     if (!confirmedAssignments.has(dwellerId)) {
@@ -86,11 +94,12 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     try {
       const data = await managementApi.moveToRoom(dwellerId, roomId)
 
+      if (sessionIdentity() !== identity) return data
       confirmedAssignments.set(dwellerId, {
         roomId,
         status: data.status,
       })
-      if (!ownsAssignmentMutation(dwellerId, mutation) || sessionIdentity() !== identity) {
+      if (!ownsAssignmentMutation(dwellerId, mutation)) {
         return data
       }
 
@@ -130,6 +139,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
   async function unassignDwellerFromRoom(dwellerId: string): Promise<Dweller> {
     const identity = sessionIdentity()
+    scopeConfirmedAssignmentsToSession(identity)
     const mutation = beginAssignmentMutation(dwellerId)
     const previous = filterStore.dwellers.find((d) => d.id === dwellerId)
     if (!confirmedAssignments.has(dwellerId)) {
@@ -143,11 +153,12 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       // Move dweller to null room (unassign)
       const data = await managementApi.updateDweller(dwellerId, { room_id: null })
 
+      if (sessionIdentity() !== identity) return data
       confirmedAssignments.set(dwellerId, {
         roomId: null,
         status: data.status,
       })
-      if (!ownsAssignmentMutation(dwellerId, mutation) || sessionIdentity() !== identity) {
+      if (!ownsAssignmentMutation(dwellerId, mutation)) {
         return data
       }
 

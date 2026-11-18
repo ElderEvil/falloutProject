@@ -2,13 +2,15 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import * as questApi from '../api/quest'
 import type { components } from '@/core/types/api.generated'
-import type { Quest, QuestPartyMember, VaultQuest } from '../models/quest'
+import type { QuestPartyMember, VaultQuest } from '../models/quest'
 import { formatGrantedReward, isQuestReturning, isStateQuestCategory } from '../models/quest'
 import { useToast } from '@/core/composables/useToast'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import { refreshNukaColaCount } from '@/modules/vault/composables/useNukaColaCount'
 import { notifyErrorOnce, handleStoreError } from '@/core/utils/errorHandler'
 
 type QuestCompleteResponse = components['schemas']['QuestCompleteResponse']
+type QuestRead = components['schemas']['QuestRead']
 
 import type { EligibleDweller } from '../api/quest'
 
@@ -25,9 +27,10 @@ function apiErrorDetail(error: unknown, fallback: string): string {
 
 export const useQuestStore = defineStore('quest', () => {
   const toast = useToast()
+  const authStore = useAuthStore()
 
   // State
-  const quests = ref<Quest[]>([])
+  const quests = ref<QuestRead[]>([])
   const vaultQuests = ref<VaultQuest[]>([])
   const isLoading = ref(false)
   const questSlotLimit = ref(3)
@@ -75,6 +78,8 @@ export const useQuestStore = defineStore('quest', () => {
   )
   const timedQuestLimitReached = computed(() => activeTimedQuestCount.value >= questSlotLimit.value)
 
+  let vaultRequest = 0
+
   // Actions
   async function fetchAllQuests(): Promise<void> {
     try {
@@ -90,10 +95,15 @@ export const useQuestStore = defineStore('quest', () => {
 
   async function fetchVaultQuests(vaultId: string, options?: { silent?: boolean }): Promise<void> {
     const silent = options?.silent ?? false
+    const request = ++vaultRequest
+    const session = authStore.sessionGeneration
     try {
       if (!silent) isLoading.value = true
-      vaultQuests.value = await questApi.listVaultQuests(vaultId)
+      const quests = await questApi.listVaultQuests(vaultId)
+      if (request !== vaultRequest || session !== authStore.sessionGeneration) return
+      vaultQuests.value = quests
     } catch (error: unknown) {
+      if (request !== vaultRequest || session !== authStore.sessionGeneration) return
       if (!silent) notifyErrorOnce(error, 'Failed to load vault quests')
       throw error
     } finally {

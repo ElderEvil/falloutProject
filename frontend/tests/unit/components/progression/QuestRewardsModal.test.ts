@@ -58,8 +58,12 @@ describe('QuestRewardsModal', () => {
     expect(actions.classes()).toContain('w-full')
     expect(actions.classes()).toContain('max-sm:flex-col')
     expect(actions.classes()).toContain('justify-between')
-    expect(actions.findAll('button').every(button => button.classes().includes('max-sm:w-full'))).toBe(true)
-    expect(actions.findAll('button').every(button => button.classes().includes('whitespace-nowrap'))).toBe(true)
+    expect(
+      actions.findAll('button').every((button) => button.classes().includes('max-sm:w-full'))
+    ).toBe(true)
+    expect(
+      actions.findAll('button').every((button) => button.classes().includes('whitespace-nowrap'))
+    ).toBe(true)
     expect(actions.text()).toContain('Review Later')
     expect(actions.text()).toContain('Confirm & Claim')
   })

@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vite-plus/test'
 import { nextTick, ref } from 'vue'
 import DwellerStats from '@/modules/dwellers/components/stats/DwellerStats.vue'
-import { createMockDwellerDetailContext, mountWithDwellerContext } from '../../helpers/dwellerDetailContext'
+import {
+  createMockDwellerDetailContext,
+  mountWithDwellerContext,
+} from '../../helpers/dwellerDetailContext'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 
 const stats = {

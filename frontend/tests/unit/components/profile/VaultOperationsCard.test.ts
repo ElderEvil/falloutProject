@@ -49,7 +49,9 @@ describe('VaultOperationsCard', () => {
   })
 
   it('announces when the live record is refreshing', () => {
-    const wrapper = mount(VaultOperationsCard, { props: { record: activeRecord, refreshing: true } })
+    const wrapper = mount(VaultOperationsCard, {
+      props: { record: activeRecord, refreshing: true },
+    })
 
     expect(wrapper.get('[role="status"]').text()).toContain('Refreshing')
   })

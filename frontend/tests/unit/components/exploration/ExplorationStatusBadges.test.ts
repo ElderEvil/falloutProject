@@ -5,7 +5,9 @@ import ExplorationStatusBadges from '@/modules/exploration/components/Exploratio
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 
-vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" />', props: [] }))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<span class="icon-mock" />', props: [] })
+)
 
 const exploration = {
   id: 'exploration-1',

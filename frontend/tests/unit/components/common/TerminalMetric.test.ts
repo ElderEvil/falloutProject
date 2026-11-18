@@ -3,7 +3,9 @@ import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 
-vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon" />' }))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon" />' })
+)
 
 describe('TerminalMetric', () => {
   it('renders a labelled metric with the warm sunken surface', () => {

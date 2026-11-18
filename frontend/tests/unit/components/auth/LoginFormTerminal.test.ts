@@ -7,9 +7,7 @@ import LoginFormTerminal from '@/modules/auth/components/LoginFormTerminal.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
 // Mock Iconify
-vi.mock('@iconify/vue', () =>
-  createIconifyMock()
-)
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 describe('LoginFormTerminal', () => {
   let router: any

@@ -9,7 +9,9 @@ describe('TerminalModalActions', () => {
     })
 
     expect(wrapper.classes()).toContain('max-sm:flex-col')
-    expect(wrapper.findAll('button').every((button) => button.classes().includes('max-sm:w-full'))).toBe(true)
+    expect(
+      wrapper.findAll('button').every((button) => button.classes().includes('max-sm:w-full'))
+    ).toBe(true)
   })
 
   it('disables the confirm action while confirmDisabled is set', () => {
@@ -19,7 +21,11 @@ describe('TerminalModalActions', () => {
     expect(enabled.get('.confirm').attributes('disabled')).toBeUndefined()
 
     const disabled = mount(TerminalModalActions, {
-      props: { cancelLabel: 'Review Later', confirmLabel: 'Confirm & Claim', confirmDisabled: true },
+      props: {
+        cancelLabel: 'Review Later',
+        confirmLabel: 'Confirm & Claim',
+        confirmDisabled: true,
+      },
     })
     expect(disabled.get('.confirm').attributes('disabled')).toBeDefined()
   })

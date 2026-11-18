@@ -80,7 +80,7 @@ describe('Progress', () => {
     const wrapper = mountWithSetup(Progress, { props: { modelValue: 30 } })
 
     expect(wrapper.find('[data-slot="progress-indicator"]').attributes('style')).toContain(
-      'translateX(-70%)',
+      'translateX(-70%)'
     )
   })
 
@@ -96,6 +96,6 @@ describe('Progress', () => {
       const wrapper = mountWithSetup(Progress, { props: { modelValue: 50, tone } })
 
       expect(root(wrapper).attributes('role')).toBe('progressbar')
-    },
+    }
   )
 })

@@ -3,9 +3,7 @@ import { createIconifyMock } from '../../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import PregnancyCard from '@/modules/social/components/pregnancy/PregnancyCard.vue'
 
-vi.mock('@iconify/vue', () =>
-  createIconifyMock()
-)
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 vi.mock('@/modules/social/stores/pregnancy', () => ({
   usePregnancyStore: () => ({

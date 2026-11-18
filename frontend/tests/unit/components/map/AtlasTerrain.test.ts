@@ -44,7 +44,10 @@ describe('AtlasTerrain', () => {
   it('renders the terrain image for a snapshot', async () => {
     const store = useMapStore()
     store.worldSnapshot = snapshot([
-      'water', 'forest', 'hills', 'ruins',
+      'water',
+      'forest',
+      'hills',
+      'ruins',
       ...new Array(12).fill('wasteland'),
     ])
     stubCanvas()

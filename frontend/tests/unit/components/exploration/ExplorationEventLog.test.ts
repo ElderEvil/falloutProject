@@ -5,11 +5,13 @@ import ExplorationEventLog from '@/modules/exploration/components/ExplorationEve
 
 vi.mock('@iconify/vue', () => createIconifyMock())
 
-const makeEvent = (overrides: Partial<{
-  type: string
-  description: string
-  time_elapsed_hours: number
-}> = {}) => ({
+const makeEvent = (
+  overrides: Partial<{
+    type: string
+    description: string
+    time_elapsed_hours: number
+  }> = {}
+) => ({
   type: overrides.type ?? 'combat',
   description: overrides.description ?? 'A raider attacked.',
   timestamp: '2026-01-01T00:00:00Z',

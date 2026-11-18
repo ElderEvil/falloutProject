@@ -7,7 +7,9 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 
 // Settings is reachable without a loaded vault (the back nav falls back to `/`),
 // so the balance fetch failing must not block rendering the page shell.
-vi.mock('@/core/plugins/axios', () => createAxiosMock({ get: vi.fn().mockRejectedValue(new Error('offline')) }))
+vi.mock('@/core/plugins/axios', () =>
+  createAxiosMock({ get: vi.fn().mockRejectedValue(new Error('offline')) })
+)
 
 vi.mock('vue-router', () => createRouterMock({ path: '/settings', meta: {} }))
 

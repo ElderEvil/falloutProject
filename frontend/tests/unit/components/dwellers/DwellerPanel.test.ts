@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vite-plus/test'
 import { nextTick, ref } from 'vue'
 import DwellerPanel from '@/modules/dwellers/components/DwellerPanel.vue'
-import { createMockDwellerDetailContext, mountWithDwellerContext } from '../../helpers/dwellerDetailContext'
+import {
+  createMockDwellerDetailContext,
+  mountWithDwellerContext,
+} from '../../helpers/dwellerDetailContext'
 
 describe('DwellerPanel', () => {
   const stubs = {
@@ -11,7 +14,6 @@ describe('DwellerPanel', () => {
     DwellerEquipment: true,
     FamilyTreePanel: true,
   }
-
 
   it('updates its active tab when notification navigation changes the query tab', async () => {
     const ctx = createMockDwellerDetailContext({

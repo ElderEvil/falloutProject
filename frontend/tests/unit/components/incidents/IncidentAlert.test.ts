@@ -8,7 +8,9 @@ import { IncidentType, IncidentStatus } from '@/modules/combat/models/incident'
 import type { Incident, IncidentTeamMember } from '@/modules/combat/models/incident'
 
 // Mock @iconify/vue
-vi.mock('@iconify/vue', () => createIconifyMock({ template: '<div class="mock-icon" :data-icon="icon"></div>' }))
+vi.mock('@iconify/vue', () =>
+  createIconifyMock({ template: '<div class="mock-icon" :data-icon="icon"></div>' })
+)
 
 describe('IncidentAlert', () => {
   const mockIncident: Incident = {

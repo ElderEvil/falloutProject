@@ -72,7 +72,8 @@ Before removing a token parameter or an internal header, confirm:
 - **Session invalidation** — account-owned stores capture `authStore.sessionGeneration` and discard late responses on change; never substitute the transport token for session identity.
 
 Bearer allowlist: `core/plugins/axios.ts` (interceptor), auth-session code, and SSE/WebSocket setup may construct
-`Authorization` headers. No module service or store may build one for a plain HTTP call.
+`Authorization` headers. Migrated module services and stores must not build one for a plain HTTP call; the 7
+pending stores listed above still do until their batch lands.
 
 ## Why this consolidation (and why not fetch)
 

@@ -21,7 +21,12 @@ from app.options.pet_modifiers import MAX_PCT_BONUS, pet_modifiers_for
 from app.services.notification_service import notification_service
 from app.services.room_assignment_policy import calculate_room_capacity
 from app.utils.dweller_availability import DwellerAction, purposeful_action_error
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
+from app.utils.exceptions import (
+    InvalidVaultTransferException,
+    ResourceConflictException,
+    ResourceNotFoundException,
+    VaultOperationException,
+)
 from app.utils.time import utcnow
 
 
@@ -143,6 +148,7 @@ class TrainingService:
 
         Raises:
             ResourceNotFoundException: If dweller or room not found
+            InvalidVaultTransferException: If the room belongs to another vault
             VaultOperationException: If training cannot be started
             ResourceConflictException: If dweller already training
         """
@@ -160,6 +166,12 @@ class TrainingService:
         room = await room_crud.get(db_session, room_id)
         if not room:
             raise ResourceNotFoundException(model=Room, identifier=room_id)
+
+        # Cross-vault assignment is a transfer, not a training session: reject it
+        # here exactly as move_to_room does, before capacity/stat checks touch
+        # the foreign room and before the dweller's room_id is rewritten.
+        if room.vault_id != dweller.vault_id:
+            raise InvalidVaultTransferException(detail="A dweller can only train in a room within their own vault.")
 
         # Validate can start training
         can_train, reason = await self.can_start_training(db_session, dweller, room)
@@ -232,7 +244,8 @@ class TrainingService:
         if SPECIALModel.get_stat(dweller, training.stat_being_trained) >= training.goal_stat_value:
             return None
         room = await room_crud.get(db_session, training.room_id)
-        if not room or room.ability != training.stat_being_trained:
+        # Legacy sessions may point at a foreign room: reject renewal, like start_training does.
+        if not room or room.ability != training.stat_being_trained or room.vault_id != dweller.vault_id:
             return None
         can_train, _ = await self.can_start_training(db_session, dweller, room)
         if not can_train:

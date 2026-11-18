@@ -23,10 +23,14 @@ async def test_extend_bio_endpoint_delegates_to_ai_service() -> None:
     dweller_id = uuid4()
     expected = MagicMock()
 
-    with patch("app.api.v1.endpoints.dweller.dweller_ai.extend_bio", new=AsyncMock(return_value=expected)) as extend:
+    with (
+        patch("app.api.v1.endpoints.dweller.verify_dweller_access", new=AsyncMock()) as guard,
+        patch("app.api.v1.endpoints.dweller.dweller_ai.extend_bio", new=AsyncMock(return_value=expected)) as extend,
+    ):
         result = await extend_bio(dweller_id=dweller_id, user=user, db_session=session)
 
     assert result is expected
+    guard.assert_awaited_once_with(dweller_id, user, session)
     extend.assert_awaited_once_with(db_session=session, dweller_id=dweller_id, user=user)
 
 
@@ -475,6 +479,41 @@ async def test_revive_endpoint_delegates_to_death_service() -> None:
 
     assert result is expected
     revive.assert_awaited_once_with(session, dweller_id, user)
+
+
+@pytest.mark.asyncio
+async def test_ai_endpoints_reject_users_without_vault_access(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """Every AI endpoint must authorize the dweller before doing any work."""
+    from app.utils.exceptions import AccessDeniedException
+
+    dweller_id = uuid4()
+    denial = AccessDeniedException("The user doesn't have enough privileges")
+
+    with (
+        patch("app.api.v1.endpoints.dweller.verify_dweller_access", new=AsyncMock(side_effect=denial)),
+        patch("app.api.v1.endpoints.dweller.dweller_ai.generate_backstory", new=AsyncMock()) as backstory,
+        patch("app.api.v1.endpoints.dweller.dweller_ai.extend_bio", new=AsyncMock()) as extend,
+        patch("app.api.v1.endpoints.dweller.dweller_ai.generate_audio", new=AsyncMock()) as audio,
+    ):
+        backstory_response = await async_client.post(
+            f"/dwellers/{dweller_id}/generate_backstory/", headers=superuser_token_headers
+        )
+        extend_response = await async_client.post(
+            f"/dwellers/{dweller_id}/extend_bio/", headers=superuser_token_headers
+        )
+        audio_response = await async_client.post(
+            f"/dwellers/{dweller_id}/generate_audio/", params={"text": "Hello"}, headers=superuser_token_headers
+        )
+
+    assert backstory_response.status_code == 403
+    assert extend_response.status_code == 403
+    assert audio_response.status_code == 403
+    backstory.assert_not_awaited()
+    extend.assert_not_awaited()
+    audio.assert_not_awaited()
 
 
 @pytest.mark.asyncio

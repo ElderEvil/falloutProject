@@ -475,10 +475,13 @@ async def test_vault_support_pause_resume_preserves_normal_game_state_transition
 
 
 async def test_admin_cancels_training_without_stat_gain_and_rejects_repeat(
-    admin_client: AsyncClient, async_session: AsyncSession, dweller: Dweller, room_in_vault: Any
+    admin_client: AsyncClient, async_session: AsyncSession, dweller_in_vault: Dweller, room_in_vault: Any
 ) -> None:
     from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
     from app.services.training_service import training_service
+
+    # Both fixtures must share one vault: training across vaults is rejected.
+    dweller = dweller_in_vault
 
     room_in_vault.category = RoomTypeEnum.TRAINING
     room_in_vault.ability = SPECIALEnum.STRENGTH

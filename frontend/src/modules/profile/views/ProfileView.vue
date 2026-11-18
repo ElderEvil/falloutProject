@@ -12,12 +12,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
 import { usePolling } from '@/core/composables/usePolling'
 import { useToast } from '@/core/composables/useToast'
-import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useBackNavigation } from '@/core/composables/useBackNavigation'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
-import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
-import SidePanel from '@/core/components/common/SidePanel.vue'
+import VaultPageShell from '@/core/components/common/VaultPageShell.vue'
 import { useProfileStore } from '../stores/profile'
 import { formatLongDateTime } from '@/core/utils/format'
 import ProfileEditor from '../components/ProfileEditor.vue'
@@ -62,8 +60,6 @@ const adminConsoleUrl = new URL(
   '/admin/',
   new URL(import.meta.env.VITE_API_BASE_URL || '/', window.location.origin)
 ).href
-
-const { isCollapsed } = useSidePanel()
 
 // Poll statistics every 30 seconds. The polling composable
 // automatically pauses when this view's scope is disposed.
@@ -139,277 +135,254 @@ watch(
 </script>
 
 <template>
-  <div
-    class="profile-page relative min-h-screen bg-terminal-background font-mono text-theme-primary [text-shadow:none]"
+  <VaultPageShell
+    rail
+    :vault-id="vaultStore.currentVaultId"
+    class="profile-page bg-terminal-background font-mono text-theme-primary [text-shadow:none]"
   >
-    <div class="flex min-h-screen">
-      <SidePanel :vault-id="vaultStore.currentVaultId" />
-      <main
-        class="min-w-0 flex-1 pb-8 transition-[margin-left] duration-300 ease max-md:ml-0"
-        :class="isCollapsed ? 'ml-16' : 'ml-60'"
-      >
-        <PageContentRail>
-          <PageHeader
-            title="User Profile"
-            icon="mdi:badge-account-horizontal-outline"
-            subtitle="Identity, account status, and vault record."
-          >
-            <template #back>
-              <PageNavigation
-                :back-label="backNav.backLabel()"
-                :back-to="backNav.backTo()"
-                :breadcrumbs="backNav.breadcrumbs()"
-              />
-            </template>
-          </PageHeader>
+    <PageHeader
+      title="User Profile"
+      icon="mdi:badge-account-horizontal-outline"
+      subtitle="Identity, account status, and vault record."
+    >
+      <template #back>
+        <PageNavigation
+          :back-label="backNav.backLabel()"
+          :back-to="backNav.backTo()"
+          :breadcrumbs="backNav.breadcrumbs()"
+        />
+      </template>
+    </PageHeader>
 
-          <div v-if="profileStore.loading && !profileStore.profile" class="py-20 text-center">
-            <Icon icon="mdi:loading" class="mx-auto h-12 w-12 animate-spin text-theme-primary" />
-            <div class="mt-4 text-xl text-theme-primary">Loading your profile...</div>
-          </div>
+    <div v-if="profileStore.loading && !profileStore.profile" class="py-20 text-center">
+      <Icon icon="mdi:loading" class="mx-auto h-12 w-12 animate-spin text-theme-primary" />
+      <div class="mt-4 text-xl text-theme-primary">Loading your profile...</div>
+    </div>
 
-          <Card
-            v-else-if="profileStore.error && !profileStore.profile"
-            class="gap-0 border-theme-primary/20 bg-surface"
-          >
-            <CardHeader class="border-b border-theme-primary/20 pb-4">
-              <CardTitle class="text-xl font-bold text-theme-primary"
-                >Profile unavailable</CardTitle
-              >
+    <Card
+      v-else-if="profileStore.error && !profileStore.profile"
+      class="gap-0 border-theme-primary/20 bg-surface"
+    >
+      <CardHeader class="border-b border-theme-primary/20 pb-4">
+        <CardTitle class="text-xl font-bold text-theme-primary">Profile unavailable</CardTitle>
+      </CardHeader>
+      <CardContent class="pt-4">
+        <Alert variant="destructive" class="mb-4">
+          <AlertDescription>{{ profileStore.error }}</AlertDescription>
+        </Alert>
+        <Button variant="default" @click="fetchProfile">
+          <Icon icon="mdi:refresh" class="mr-2" />
+          Retry Connection
+        </Button>
+      </CardContent>
+    </Card>
+
+    <div v-else-if="profileStore.profile" class="space-y-4">
+      <ProfileEditor
+        v-if="isEditing"
+        :initial-data="profileStore.profile"
+        :username="authStore.user?.username"
+        :email="authStore.user?.email"
+        :has-password="authStore.user?.has_password"
+        :loading="isSubmittingAccount || profileStore.loading"
+        :error="profileStore.error"
+        @submit="handleProfileUpdate"
+        @cancel="cancelEditing"
+      />
+
+      <template v-else>
+        <Tabs
+          :model-value="activeTab"
+          class="mb-4"
+          @update:model-value="activeTab = String($event)"
+        >
+          <TabsList>
+            <TabsTrigger v-for="tab in tabs" :key="tab.key" :value="tab.key">
+              {{ tab.label }}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <section v-show="activeTab === 'dossier'" class="max-w-5xl space-y-4">
+          <Card class="profile-dossier gap-0 py-4 border-theme-primary/20 bg-surface">
+            <CardHeader class="pb-4">
+              <CardTitle class="text-xl font-bold text-theme-primary">Account</CardTitle>
+              <CardAction>
+                <Button variant="outline" size="sm" @click="startEditing">
+                  <Icon icon="mdi:pencil" class="mr-1" />
+                  Edit profile
+                </Button>
+              </CardAction>
             </CardHeader>
-            <CardContent class="pt-4">
-              <Alert variant="destructive" class="mb-4">
-                <AlertDescription>{{ profileStore.error }}</AlertDescription>
-              </Alert>
-              <Button variant="default" @click="fetchProfile">
-                <Icon icon="mdi:refresh" class="mr-2" />
-                Retry Connection
-              </Button>
+
+            <CardContent class="grid gap-6 pt-0 lg:grid-cols-[minmax(0,1.3fr)_minmax(14rem,0.7fr)]">
+              <div class="min-w-0">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <div
+                    class="profile-avatar flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-theme-primary/30 bg-surface-sunken"
+                  >
+                    <img
+                      v-if="profileStore.profile.avatar_url && !avatarLoadFailed"
+                      :src="profileStore.profile.avatar_url"
+                      alt="Profile avatar"
+                      class="h-full w-full object-cover"
+                      @error="handleAvatarError"
+                    />
+                    <Icon v-else icon="mdi:account-circle" class="text-5xl text-theme-primary/60" />
+                  </div>
+                  <div class="min-w-0">
+                    <h3 class="truncate text-2xl font-bold text-theme-primary">
+                      {{ authStore.user?.username || 'User' }}
+                    </h3>
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                      <p class="break-all text-sm text-theme-primary/75">
+                        {{ authStore.user?.email || 'No account email on file' }}
+                      </p>
+                      <!-- @vue-ignore -->
+                      <Button
+                        v-if="!authStore.user?.email_verified"
+                        data-testid="resend-verification"
+                        variant="outline"
+                        size="xs"
+                        class="gap-1.5 border-theme-primary/40 text-theme-primary hover:bg-theme-primary/10"
+                        :disabled="resendStatus === 'sending'"
+                        @click="resendVerification"
+                      >
+                        <Icon icon="mdi:email-send-outline" />
+                        {{ resendLabel }}
+                      </Button>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                      <Badge
+                        :variant="authStore.user?.email_verified ? 'default' : 'destructive'"
+                        class="gap-1.5 font-medium"
+                      >
+                        <Icon
+                          :icon="
+                            authStore.user?.email_verified
+                              ? 'mdi:check-circle'
+                              : 'mdi:alert-circle-outline'
+                          "
+                        />
+                        {{ authStore.user?.email_verified ? 'Verified' : 'Unverified' }}
+                      </Badge>
+                      <Badge
+                        :variant="authStore.isSuperuser ? 'secondary' : 'outline'"
+                        class="gap-1.5 font-medium"
+                      >
+                        <Icon :icon="authStore.isSuperuser ? 'mdi:shield-crown' : 'mdi:account'" />
+                        {{ authStore.isSuperuser ? 'Administrator' : 'Standard account' }}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                <section class="mt-5">
+                  <p class="text-sm font-semibold text-theme-primary/75">Bio</p>
+                  <p class="mt-2 whitespace-pre-wrap text-sm leading-6 text-theme-primary/85">
+                    {{ profileStore.profile.bio || 'No bio added yet.' }}
+                  </p>
+                </section>
+              </div>
+
+              <aside class="pt-1">
+                <h3 class="text-sm font-semibold text-theme-primary">Account details</h3>
+                <dl class="mt-4 space-y-3 text-sm">
+                  <div>
+                    <dt class="text-theme-primary/60">Joined</dt>
+                    <dd class="mt-1 text-theme-primary/85">
+                      {{ formatLongDateTime(profileStore.profile.created_at) }}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt class="text-theme-primary/60">Profile updated</dt>
+                    <dd class="mt-1 text-theme-primary/85">
+                      {{ formatLongDateTime(profileStore.profile.updated_at) }}
+                    </dd>
+                  </div>
+                </dl>
+                <nav
+                  v-if="authStore.isSuperuser"
+                  aria-label="Administration"
+                  class="mt-5 border-t border-border pt-4"
+                >
+                  <h3 class="text-sm font-semibold text-theme-primary">Administration</h3>
+                  <div class="mt-3 flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" as-child>
+                      <RouterLink to="/admin/ai-settings">AI settings</RouterLink>
+                    </Button>
+                    <Button variant="outline" size="sm" as-child>
+                      <a :href="adminConsoleUrl">Admin console</a>
+                    </Button>
+                  </div>
+                </nav>
+              </aside>
             </CardContent>
           </Card>
 
-          <div v-else-if="profileStore.profile" class="space-y-4">
-            <ProfileEditor
-              v-if="isEditing"
-              :initial-data="profileStore.profile"
-              :username="authStore.user?.username"
-              :email="authStore.user?.email"
-              :has-password="authStore.user?.has_password"
-              :loading="isSubmittingAccount || profileStore.loading"
-              :error="profileStore.error"
-              @submit="handleProfileUpdate"
-              @cancel="cancelEditing"
-            />
+          <ConnectedAccountsCard />
 
-            <template v-else>
-              <Tabs
-                :model-value="activeTab"
-                class="mb-4"
-                @update:model-value="activeTab = String($event)"
+          <div>
+            <h2 class="mb-3 text-sm font-semibold text-theme-primary/75">Quick access</h2>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <Button
+                variant="outline"
+                as-child
+                class="h-auto min-h-24 flex-col items-start justify-start gap-1 whitespace-normal p-3 text-left"
               >
-                <TabsList>
-                  <TabsTrigger v-for="tab in tabs" :key="tab.key" :value="tab.key">
-                    {{ tab.label }}
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-
-              <section v-show="activeTab === 'dossier'" class="max-w-5xl space-y-4">
-                <Card class="profile-dossier gap-0 py-4 border-theme-primary/20 bg-surface">
-                  <CardHeader class="pb-4">
-                    <CardTitle class="text-xl font-bold text-theme-primary">Account</CardTitle>
-                    <CardAction>
-                      <Button variant="outline" size="sm" @click="startEditing">
-                        <Icon icon="mdi:pencil" class="mr-1" />
-                        Edit profile
-                      </Button>
-                    </CardAction>
-                  </CardHeader>
-
-                  <CardContent
-                    class="grid gap-6 pt-0 lg:grid-cols-[minmax(0,1.3fr)_minmax(14rem,0.7fr)]"
-                  >
-                    <div class="min-w-0">
-                      <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
-                        <div
-                          class="profile-avatar flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-theme-primary/30 bg-surface-sunken"
-                        >
-                          <img
-                            v-if="profileStore.profile.avatar_url && !avatarLoadFailed"
-                            :src="profileStore.profile.avatar_url"
-                            alt="Profile avatar"
-                            class="h-full w-full object-cover"
-                            @error="handleAvatarError"
-                          />
-                          <Icon
-                            v-else
-                            icon="mdi:account-circle"
-                            class="text-5xl text-theme-primary/60"
-                          />
-                        </div>
-                        <div class="min-w-0">
-                          <h3 class="truncate text-2xl font-bold text-theme-primary">
-                            {{ authStore.user?.username || 'User' }}
-                          </h3>
-                          <div class="mt-2 flex flex-wrap items-center gap-2">
-                            <p class="break-all text-sm text-theme-primary/75">
-                              {{ authStore.user?.email || 'No account email on file' }}
-                            </p>
-                            <!-- @vue-ignore -->
-                            <Button
-                              v-if="!authStore.user?.email_verified"
-                              data-testid="resend-verification"
-                              variant="outline"
-                              size="xs"
-                              class="gap-1.5 border-theme-primary/40 text-theme-primary hover:bg-theme-primary/10"
-                              :disabled="resendStatus === 'sending'"
-                              @click="resendVerification"
-                            >
-                              <Icon icon="mdi:email-send-outline" />
-                              {{ resendLabel }}
-                            </Button>
-                          </div>
-                          <div class="mt-3 flex flex-wrap gap-2">
-                            <Badge
-                              :variant="authStore.user?.email_verified ? 'default' : 'destructive'"
-                              class="gap-1.5 font-medium"
-                            >
-                              <Icon
-                                :icon="
-                                  authStore.user?.email_verified
-                                    ? 'mdi:check-circle'
-                                    : 'mdi:alert-circle-outline'
-                                "
-                              />
-                              {{ authStore.user?.email_verified ? 'Verified' : 'Unverified' }}
-                            </Badge>
-                            <Badge
-                              :variant="authStore.isSuperuser ? 'secondary' : 'outline'"
-                              class="gap-1.5 font-medium"
-                            >
-                              <Icon
-                                :icon="authStore.isSuperuser ? 'mdi:shield-crown' : 'mdi:account'"
-                              />
-                              {{ authStore.isSuperuser ? 'Administrator' : 'Standard account' }}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-
-                      <section class="mt-5">
-                        <p class="text-sm font-semibold text-theme-primary/75">Bio</p>
-                        <p class="mt-2 whitespace-pre-wrap text-sm leading-6 text-theme-primary/85">
-                          {{ profileStore.profile.bio || 'No bio added yet.' }}
-                        </p>
-                      </section>
-                    </div>
-
-                    <aside class="pt-1">
-                      <h3 class="text-sm font-semibold text-theme-primary">Account details</h3>
-                      <dl class="mt-4 space-y-3 text-sm">
-                        <div>
-                          <dt class="text-theme-primary/60">Joined</dt>
-                          <dd class="mt-1 text-theme-primary/85">
-                            {{ formatLongDateTime(profileStore.profile.created_at) }}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt class="text-theme-primary/60">Profile updated</dt>
-                          <dd class="mt-1 text-theme-primary/85">
-                            {{ formatLongDateTime(profileStore.profile.updated_at) }}
-                          </dd>
-                        </div>
-                      </dl>
-                      <nav
-                        v-if="authStore.isSuperuser"
-                        aria-label="Administration"
-                        class="mt-5 border-t border-border pt-4"
-                      >
-                        <h3 class="text-sm font-semibold text-theme-primary">Administration</h3>
-                        <div class="mt-3 flex flex-wrap gap-2">
-                          <Button variant="outline" size="sm" as-child>
-                            <RouterLink to="/admin/ai-settings">AI settings</RouterLink>
-                          </Button>
-                          <Button variant="outline" size="sm" as-child>
-                            <a :href="adminConsoleUrl">Admin console</a>
-                          </Button>
-                        </div>
-                      </nav>
-                    </aside>
-                  </CardContent>
-                </Card>
-
-                <ConnectedAccountsCard />
-
-                <div>
-                  <h2 class="mb-3 text-sm font-semibold text-theme-primary/75">Quick access</h2>
-                  <div class="grid gap-3 sm:grid-cols-2">
-                    <Button
-                      variant="outline"
-                      as-child
-                      class="h-auto min-h-24 flex-col items-start justify-start gap-1 whitespace-normal p-3 text-left"
-                    >
-                      <RouterLink :to="vaultShortcut ? `/vault/${vaultShortcut.id}` : '/'">
-                        <Icon icon="mdi:home-city-outline" class="size-5 text-theme-primary/60" />
-                        <span class="text-sm font-semibold text-theme-primary">
-                          {{
-                            vaultShortcut
-                              ? vaultShortcut.number
-                                ? `Vault ${vaultShortcut.number}`
-                                : 'Open your vault'
-                              : 'Open vaults'
-                          }}
-                        </span>
-                        <span class="text-xs font-normal leading-5 text-theme-primary/60">
-                          {{
-                            vaultShortcut ? 'Continue your active vault' : 'Choose a vault to play'
-                          }}
-                        </span>
-                      </RouterLink>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      as-child
-                      class="h-auto min-h-24 flex-col items-start justify-start gap-1 whitespace-normal p-3 text-left"
-                    >
-                      <RouterLink to="/preferences">
-                        <Icon icon="mdi:tune-variant" class="size-5 text-theme-primary/60" />
-                        <span class="text-sm font-semibold text-theme-primary">Preferences</span>
-                        <span class="text-xs font-normal leading-5 text-theme-primary/60">
-                          Appearance, sound, notifications, and gameplay
-                        </span>
-                      </RouterLink>
-                    </Button>
-                  </div>
-                </div>
-              </section>
-
-              <section
-                v-show="activeTab === 'analytics'"
-                aria-label="Vault analytics"
-                class="grid gap-6 xl:grid-cols-2"
+                <RouterLink :to="vaultShortcut ? `/vault/${vaultShortcut.id}` : '/'">
+                  <Icon icon="mdi:home-city-outline" class="size-5 text-theme-primary/60" />
+                  <span class="text-sm font-semibold text-theme-primary">
+                    {{
+                      vaultShortcut
+                        ? vaultShortcut.number
+                          ? `Vault ${vaultShortcut.number}`
+                          : 'Open your vault'
+                        : 'Open vaults'
+                    }}
+                  </span>
+                  <span class="text-xs font-normal leading-5 text-theme-primary/60">
+                    {{ vaultShortcut ? 'Continue your active vault' : 'Choose a vault to play' }}
+                  </span>
+                </RouterLink>
+              </Button>
+              <Button
+                variant="outline"
+                as-child
+                class="h-auto min-h-24 flex-col items-start justify-start gap-1 whitespace-normal p-3 text-left"
               >
-                <VaultOperationsCard
-                  class="xl:col-span-2"
-                  :record="profileStore.profile"
-                  :refreshing="profileStore.profileRefreshing"
-                />
-                <AIUsageCard
-                  :stats="profileStore.aiUsageStats"
-                  :loading="profileStore.aiUsageLoading"
-                />
-                <LifeDeathStatistics
-                  :statistics="profileStore.deathStatistics"
-                  :total-dwellers-created="profileStore.profile.total_dwellers_created"
-                  :loading="profileStore.deathStatsLoading"
-                />
-              </section>
-            </template>
+                <RouterLink to="/preferences">
+                  <Icon icon="mdi:tune-variant" class="size-5 text-theme-primary/60" />
+                  <span class="text-sm font-semibold text-theme-primary">Preferences</span>
+                  <span class="text-xs font-normal leading-5 text-theme-primary/60">
+                    Appearance, sound, notifications, and gameplay
+                  </span>
+                </RouterLink>
+              </Button>
+            </div>
           </div>
-        </PageContentRail>
-      </main>
+        </section>
+
+        <section
+          v-show="activeTab === 'analytics'"
+          aria-label="Vault analytics"
+          class="grid gap-6 xl:grid-cols-2"
+        >
+          <VaultOperationsCard
+            class="xl:col-span-2"
+            :record="profileStore.profile"
+            :refreshing="profileStore.profileRefreshing"
+          />
+          <AIUsageCard :stats="profileStore.aiUsageStats" :loading="profileStore.aiUsageLoading" />
+          <LifeDeathStatistics
+            :statistics="profileStore.deathStatistics"
+            :total-dwellers-created="profileStore.profile.total_dwellers_created"
+            :loading="profileStore.deathStatsLoading"
+          />
+        </section>
+      </template>
     </div>
-  </div>
+  </VaultPageShell>
 </template>
 
 <style scoped>

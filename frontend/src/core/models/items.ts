@@ -1,6 +1,6 @@
 /**
  * Single source of truth for item display: icons, rarity styling and stat rows.
- * Shared by combat (EquipmentCard), storage (StorageItemCard) and exploration loot lists.
+ * Shared by combat (EquippableItemCard), storage (StorageItemCard) and exploration loot lists.
  */
 import { humanize } from '@/core/utils/format'
 

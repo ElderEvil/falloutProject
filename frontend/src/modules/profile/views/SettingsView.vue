@@ -1,635 +1,594 @@
 <template>
-  <div
-    class="relative min-h-screen bg-terminal-background font-mono text-theme-primary [text-shadow:none]"
+  <VaultPageShell
+    rail
+    :side-panel="!!vaultStore.currentVaultId"
+    :vault-id="vaultStore.currentVaultId"
+    class="bg-terminal-background font-mono text-theme-primary [text-shadow:none]"
   >
-    <div class="flex min-h-screen">
-      <SidePanel v-if="vaultStore.currentVaultId" :vault-id="vaultStore.currentVaultId" />
-      <main
-        class="min-w-0 flex-1 pb-8 transition-[margin-left] duration-300 ease max-md:ml-0"
-        :class="vaultStore.currentVaultId ? (isCollapsed ? 'ml-16' : 'ml-60') : ''"
-      >
-        <PageContentRail>
-          <PageHeader
-            title="Game Balance Settings"
-            subtitle="Read-only game balance. Change your personal options in Preferences."
-          >
-            <template #actions>
-              <Button variant="outline" size="sm" as-child>
-                <RouterLink to="/preferences">Preferences</RouterLink>
-              </Button>
-            </template>
-            <template #back>
-              <PageNavigation
-                :back-label="backNav.backLabel()"
-                :back-to="backNav.backTo()"
-                :breadcrumbs="backNav.breadcrumbs()"
-              />
-            </template>
-          </PageHeader>
+    <PageHeader
+      title="Game Balance Settings"
+      subtitle="Read-only game balance. Change your personal options in Preferences."
+    >
+      <template #actions>
+        <Button variant="outline" size="sm" as-child>
+          <RouterLink to="/preferences">Preferences</RouterLink>
+        </Button>
+      </template>
+      <template #back>
+        <PageNavigation
+          :back-label="backNav.backLabel()"
+          :back-to="backNav.backTo()"
+          :breadcrumbs="backNav.breadcrumbs()"
+        />
+      </template>
+    </PageHeader>
 
-          <div v-if="loading" class="loading-state">
-            <Icon icon="mdi:loading" class="loading-icon animate-spin" />
-            <p class="mt-2">Loading settings...</p>
-          </div>
-
-          <div v-else-if="error" class="error-state">
-            <p class="text-danger">{{ error }}</p>
-          </div>
-
-          <div v-else class="[&_.setting-item]:mx-4! [&_.setting-item]:py-2!">
-            <Tabs
-              :model-value="activeTab"
-              class="mb-4"
-              @update:model-value="activeTab = String($event)"
-            >
-              <TabsList class="h-auto w-full flex-wrap justify-start gap-1">
-                <TabsTrigger
-                  v-for="tab in tabs"
-                  :key="tab.key"
-                  :value="tab.key"
-                  class="min-h-11 px-3 py-2 text-sm"
-                >
-                  {{ tab.label }}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-
-            <!-- Game Loop -->
-            <div v-show="activeTab === 'game-loop'" class="settings-section">
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary"
-                    >Game Loop Configuration</CardTitle
-                  >
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="Tick Interval"
-                    :value="settings.game_loop.tick_interval"
-                    unit="seconds"
-                  />
-                  <SettingItem
-                    label="Max Offline Catchup"
-                    :value="settings.game_loop.max_offline_catchup"
-                    unit="seconds"
-                  />
-                </CardContent>
-              </Card>
-            </div>
-
-            <!-- Incidents -->
-            <div
-              v-show="activeTab === 'incidents'"
-              class="settings-section grid items-start gap-3 lg:grid-cols-2"
-            >
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary"
-                    >Incident System</CardTitle
-                  >
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="Spawn Rate"
-                    :value="incidentSpawnRateLabel"
-                    unit="per hour by vault size"
-                  />
-                  <SettingItem
-                    label="Min Population"
-                    :value="settings.incident.min_vault_population"
-                    unit="dwellers"
-                  />
-                  <SettingItem
-                    label="Spread Duration"
-                    :value="settings.incident.spread_duration"
-                    unit="seconds"
-                  />
-                  <SettingItem
-                    label="Max Spread Count"
-                    :value="settings.incident.max_spread_count"
-                    unit="spreads"
-                  />
-                </CardContent>
-              </Card>
-
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary"
-                    >Spawn Weights</CardTitle
-                  >
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    v-for="(weight, type) in settings.incident.spawn_weights"
-                    :key="type"
-                    :label="humanizePreserveCase(String(type))"
-                    :value="weight"
-                  />
-                </CardContent>
-              </Card>
-
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary"
-                    >Difficulty Ranges</CardTitle
-                  >
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    v-for="(range, type) in settings.incident.difficulty_ranges"
-                    :key="type"
-                    :label="humanizePreserveCase(String(type))"
-                    :value="`${range[0]} - ${range[1]}`"
-                  />
-                </CardContent>
-              </Card>
-            </div>
-
-            <!-- Combat -->
-            <div
-              v-show="activeTab === 'combat'"
-              class="settings-section grid items-start gap-3 lg:grid-cols-2"
-            >
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary"
-                    >Combat System</CardTitle
-                  >
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="Base Raider Power"
-                    :value="settings.combat.base_raider_power"
-                  />
-                  <SettingItem
-                    label="Strength Weight"
-                    :value="(settings.combat.dweller_strength_weight * 100).toFixed(0)"
-                    unit="%"
-                  />
-                  <SettingItem
-                    label="Endurance Weight"
-                    :value="(settings.combat.dweller_endurance_weight * 100).toFixed(0)"
-                    unit="%"
-                  />
-                  <SettingItem
-                    label="Agility Weight"
-                    :value="(settings.combat.dweller_agility_weight * 100).toFixed(0)"
-                    unit="%"
-                  />
-                  <SettingItem
-                    label="Level Bonus Multiplier"
-                    :value="settings.combat.level_bonus_multiplier"
-                  />
-                </CardContent>
-              </Card>
-
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary">Loot</CardTitle>
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="Base Caps Reward"
-                    :value="settings.combat.caps_reward_base"
-                    unit="caps"
-                  />
-                  <SettingItem
-                    label="Caps Per Difficulty"
-                    :value="settings.combat.caps_reward_per_difficulty"
-                    unit="caps"
-                  />
-                  <SettingItem
-                    label="Weapon Drop Chance"
-                    :value="(settings.combat.weapon_drop_chance * 100).toFixed(1)"
-                    unit="%"
-                  />
-                  <SettingItem
-                    label="Outfit Drop Chance"
-                    :value="(settings.combat.outfit_drop_chance * 100).toFixed(1)"
-                    unit="%"
-                  />
-                  <SettingItem
-                    label="Junk Drop Chance"
-                    :value="(settings.combat.junk_drop_chance * 100).toFixed(1)"
-                    unit="%"
-                  />
-                </CardContent>
-              </Card>
-
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary">Experience</CardTitle>
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="XP Per Difficulty"
-                    :value="settings.combat.xp_per_difficulty"
-                    unit="XP"
-                  />
-                  <SettingItem
-                    label="Perfect Bonus"
-                    :value="`${((settings.combat.perfect_bonus_multiplier - 1) * 100).toFixed(0)}%`"
-                    unit="extra"
-                  />
-                </CardContent>
-              </Card>
-            </div>
-
-            <!-- Happiness -->
-            <div
-              v-show="activeTab === 'happiness'"
-              class="settings-section grid items-start gap-3 lg:grid-cols-2"
-            >
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary"
-                    >Decay Rates</CardTitle
-                  >
-                  <CardDescription>Happiness change per 60-second tick</CardDescription>
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="Base Decay"
-                    :value="settings.happiness.base_decay"
-                    :decimals="2"
-                  />
-                  <SettingItem
-                    label="Resource Shortage"
-                    :value="settings.happiness.resource_shortage_decay"
-                    :decimals="2"
-                  />
-                  <SettingItem
-                    label="Critical Resources"
-                    :value="settings.happiness.critical_resource_decay"
-                    :decimals="2"
-                  />
-                  <SettingItem
-                    label="Incident Penalty"
-                    :value="settings.happiness.incident_penalty"
-                    :decimals="2"
-                  />
-                  <SettingItem
-                    label="Idle Decay"
-                    :value="settings.happiness.idle_decay"
-                    :decimals="2"
-                  />
-                </CardContent>
-              </Card>
-
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary">Gain Rates</CardTitle>
-                  <CardDescription>Happiness change per 60-second tick</CardDescription>
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="Working Gain"
-                    :value="settings.happiness.working_gain"
-                    :decimals="2"
-                  />
-                  <SettingItem
-                    label="High Health Bonus"
-                    :value="settings.happiness.high_health_bonus"
-                    :decimals="2"
-                  />
-                  <SettingItem
-                    label="Partner Nearby"
-                    :value="settings.happiness.partner_nearby_bonus"
-                    :decimals="2"
-                  />
-                </CardContent>
-              </Card>
-
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary"
-                    >Room Bonuses</CardTitle
-                  >
-                  <CardDescription>Happiness change per 60-second tick</CardDescription>
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="Living Quarters"
-                    :value="settings.happiness.living_quarters_bonus"
-                    :decimals="2"
-                  />
-                  <SettingItem
-                    label="Training Room"
-                    :value="settings.happiness.training_room_bonus"
-                    :decimals="2"
-                  />
-                  <SettingItem
-                    label="Radio Room"
-                    :value="settings.happiness.radio_room_bonus"
-                    :decimals="2"
-                  />
-                </CardContent>
-              </Card>
-            </div>
-
-            <!-- Training -->
-            <div
-              v-show="activeTab === 'training'"
-              class="settings-section grid items-start gap-3 lg:grid-cols-2"
-            >
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary"
-                    >Training System</CardTitle
-                  >
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="Base Duration"
-                    :value="settings.training.base_duration_seconds / 3600"
-                    :decimals="1"
-                    unit="hours"
-                  />
-                  <SettingItem
-                    label="Per Level Increase"
-                    :value="settings.training.per_level_increase_seconds / 60"
-                    :decimals="0"
-                    unit="minutes"
-                  />
-                  <SettingItem label="Min SPECIAL" :value="settings.training.special_stat_min" />
-                  <SettingItem label="Max SPECIAL" :value="settings.training.special_stat_max" />
-                </CardContent>
-              </Card>
-
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary"
-                    >Tier Speed Multipliers</CardTitle
-                  >
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="Tier 1 (Normal)"
-                    :value="settings.training.tier_1_multiplier"
-                    :decimals="2"
-                  />
-                  <SettingItem
-                    label="Tier 2"
-                    :value="`${settings.training.tier_2_multiplier} (${((1 - settings.training.tier_2_multiplier) * 100).toFixed(0)}% faster)`"
-                  />
-                  <SettingItem
-                    label="Tier 3"
-                    :value="`${settings.training.tier_3_multiplier} (${((1 - settings.training.tier_3_multiplier) * 100).toFixed(0)}% faster)`"
-                  />
-                </CardContent>
-              </Card>
-            </div>
-
-            <!-- Resources -->
-            <div
-              v-show="activeTab === 'resources'"
-              class="settings-section grid items-start gap-3 lg:grid-cols-2"
-            >
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary">Production</CardTitle>
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="Base Rate"
-                    :value="settings.resource.base_production_rate"
-                    :decimals="2"
-                    unit="per SPECIAL/sec"
-                  />
-                  <SettingItem
-                    label="Tier 1 Multiplier"
-                    :value="settings.resource.tier_1_multiplier"
-                    :decimals="2"
-                  />
-                  <SettingItem
-                    label="Tier 2 Multiplier"
-                    :value="settings.resource.tier_2_multiplier"
-                    :decimals="2"
-                  />
-                  <SettingItem
-                    label="Tier 3 Multiplier"
-                    :value="settings.resource.tier_3_multiplier"
-                    :decimals="2"
-                  />
-                </CardContent>
-              </Card>
-
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary"
-                    >Consumption</CardTitle
-                  >
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="Power Rate"
-                    :value="(settings.resource.power_consumption_rate * 60).toFixed(3)"
-                    unit="per room/min"
-                  />
-                  <SettingItem
-                    label="Food Per Dweller"
-                    :value="(settings.resource.food_consumption_per_dweller * 60).toFixed(3)"
-                    unit="per min"
-                  />
-                  <SettingItem
-                    label="Water Per Dweller"
-                    :value="(settings.resource.water_consumption_per_dweller * 60).toFixed(3)"
-                    unit="per min"
-                  />
-                </CardContent>
-              </Card>
-
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary"
-                    >Warning Thresholds</CardTitle
-                  >
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="Low Resource"
-                    :value="(settings.resource.low_threshold * 100).toFixed(0)"
-                    unit="%"
-                  />
-                  <SettingItem
-                    label="Critical Resource"
-                    :value="(settings.resource.critical_threshold * 100).toFixed(0)"
-                    unit="%"
-                  />
-                </CardContent>
-              </Card>
-            </div>
-
-            <!-- Leveling -->
-            <div
-              v-show="activeTab === 'leveling'"
-              class="settings-section grid items-start gap-3 lg:grid-cols-2"
-            >
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary"
-                    >Leveling System</CardTitle
-                  >
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="Base XP Requirement"
-                    :value="settings.leveling.base_xp_requirement"
-                    unit="XP"
-                  />
-                  <SettingItem
-                    label="XP Curve Exponent"
-                    :value="settings.leveling.xp_curve_exponent"
-                    :decimals="2"
-                  />
-                  <SettingItem
-                    label="HP Per Level"
-                    :value="settings.leveling.hp_gain_per_level"
-                    unit="HP"
-                  />
-                  <SettingItem label="Max Level" :value="settings.leveling.max_level" />
-                </CardContent>
-              </Card>
-
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary"
-                    >Experience Sources</CardTitle
-                  >
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="Exploration (Per Mile)"
-                    :value="settings.leveling.exploration_xp_per_distance"
-                    unit="XP"
-                  />
-                  <SettingItem
-                    label="Exploration (Per Enemy)"
-                    :value="settings.leveling.exploration_xp_per_enemy"
-                    unit="XP"
-                  />
-                  <SettingItem
-                    label="Exploration (Per Event)"
-                    :value="settings.leveling.exploration_xp_per_event"
-                    unit="XP"
-                  />
-                  <SettingItem
-                    label="Work (Per Tick)"
-                    :value="settings.leveling.work_xp_per_tick"
-                    unit="XP"
-                  />
-                </CardContent>
-              </Card>
-            </div>
-
-            <!-- Relationships -->
-            <div
-              v-show="activeTab === 'relationships'"
-              class="settings-section grid items-start gap-3 lg:grid-cols-2"
-            >
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary"
-                    >Relationship System</CardTitle
-                  >
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="Affinity Increase"
-                    :value="settings.relationship.affinity_increase_per_tick"
-                    unit="per tick"
-                  />
-                  <SettingItem
-                    label="Romance Threshold"
-                    :value="settings.relationship.romance_threshold"
-                    unit="affinity"
-                  />
-                  <SettingItem
-                    label="Partner Happiness Bonus"
-                    :value="settings.relationship.partner_happiness_bonus"
-                    unit="points"
-                  />
-                </CardContent>
-              </Card>
-
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary"
-                    >Compatibility Weights</CardTitle
-                  >
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="SPECIAL Similarity"
-                    :value="(settings.relationship.compatibility_special_weight * 100).toFixed(0)"
-                    unit="%"
-                  />
-                  <SettingItem
-                    label="Happiness"
-                    :value="(settings.relationship.compatibility_happiness_weight * 100).toFixed(0)"
-                    unit="%"
-                  />
-                  <SettingItem
-                    label="Level Similarity"
-                    :value="(settings.relationship.compatibility_level_weight * 100).toFixed(0)"
-                    unit="%"
-                  />
-                  <SettingItem
-                    label="Proximity"
-                    :value="(settings.relationship.compatibility_proximity_weight * 100).toFixed(0)"
-                    unit="%"
-                  />
-                </CardContent>
-              </Card>
-            </div>
-
-            <!-- Breeding -->
-            <div v-show="activeTab === 'breeding'" class="settings-section">
-              <Card class="gap-0 py-3">
-                <CardHeader class="px-4 pb-2">
-                  <CardTitle class="text-lg font-semibold text-theme-primary"
-                    >Breeding System</CardTitle
-                  >
-                </CardHeader>
-                <CardContent class="px-0">
-                  <SettingItem
-                    label="Conception Chance"
-                    :value="(settings.breeding.conception_chance_per_tick * 100).toFixed(1)"
-                    unit="% per tick"
-                  />
-                  <SettingItem
-                    label="Pregnancy Duration"
-                    :value="settings.breeding.pregnancy_duration_hours"
-                    unit="hours"
-                  />
-                  <SettingItem
-                    label="Trait Variance"
-                    :value="`± ${settings.breeding.trait_inheritance_variance}`"
-                    unit="SPECIAL"
-                  />
-                  <SettingItem
-                    label="Rarity Upgrade Chance"
-                    :value="(settings.breeding.rarity_upgrade_chance * 100).toFixed(0)"
-                    unit="%"
-                  />
-                  <SettingItem
-                    label="Time to Adulthood"
-                    :value="settings.breeding.child_growth_duration_hours"
-                    unit="hours"
-                  />
-                  <SettingItem
-                    label="Child SPECIAL Multiplier"
-                    :value="(settings.breeding.child_special_multiplier * 100).toFixed(0)"
-                    unit="%"
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </PageContentRail>
-      </main>
+    <div v-if="loading" class="loading-state">
+      <LoadingInline label="Loading settings..." />
     </div>
-  </div>
+
+    <div v-else-if="error" class="error-state">
+      <p class="text-danger">{{ error }}</p>
+    </div>
+
+    <div v-else class="[&_.setting-item]:mx-4! [&_.setting-item]:py-2!">
+      <Tabs :model-value="activeTab" class="mb-4" @update:model-value="activeTab = String($event)">
+        <TabsList class="h-auto w-full flex-wrap justify-start gap-1">
+          <TabsTrigger
+            v-for="tab in tabs"
+            :key="tab.key"
+            :value="tab.key"
+            class="min-h-11 px-3 py-2 text-sm"
+          >
+            {{ tab.label }}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      <!-- Game Loop -->
+      <div v-show="activeTab === 'game-loop'" class="settings-section">
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary"
+              >Game Loop Configuration</CardTitle
+            >
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              label="Tick Interval"
+              :value="settings.game_loop.tick_interval"
+              unit="seconds"
+            />
+            <SettingItem
+              label="Max Offline Catchup"
+              :value="settings.game_loop.max_offline_catchup"
+              unit="seconds"
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <!-- Incidents -->
+      <div
+        v-show="activeTab === 'incidents'"
+        class="settings-section grid items-start gap-3 lg:grid-cols-2"
+      >
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary">Incident System</CardTitle>
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              label="Spawn Rate"
+              :value="incidentSpawnRateLabel"
+              unit="per hour by vault size"
+            />
+            <SettingItem
+              label="Min Population"
+              :value="settings.incident.min_vault_population"
+              unit="dwellers"
+            />
+            <SettingItem
+              label="Spread Duration"
+              :value="settings.incident.spread_duration"
+              unit="seconds"
+            />
+            <SettingItem
+              label="Max Spread Count"
+              :value="settings.incident.max_spread_count"
+              unit="spreads"
+            />
+          </CardContent>
+        </Card>
+
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary">Spawn Weights</CardTitle>
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              v-for="(weight, type) in settings.incident.spawn_weights"
+              :key="type"
+              :label="humanizePreserveCase(String(type))"
+              :value="weight"
+            />
+          </CardContent>
+        </Card>
+
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary"
+              >Difficulty Ranges</CardTitle
+            >
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              v-for="(range, type) in settings.incident.difficulty_ranges"
+              :key="type"
+              :label="humanizePreserveCase(String(type))"
+              :value="`${range[0]} - ${range[1]}`"
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <!-- Combat -->
+      <div
+        v-show="activeTab === 'combat'"
+        class="settings-section grid items-start gap-3 lg:grid-cols-2"
+      >
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary">Combat System</CardTitle>
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem label="Base Raider Power" :value="settings.combat.base_raider_power" />
+            <SettingItem
+              label="Strength Weight"
+              :value="(settings.combat.dweller_strength_weight * 100).toFixed(0)"
+              unit="%"
+            />
+            <SettingItem
+              label="Endurance Weight"
+              :value="(settings.combat.dweller_endurance_weight * 100).toFixed(0)"
+              unit="%"
+            />
+            <SettingItem
+              label="Agility Weight"
+              :value="(settings.combat.dweller_agility_weight * 100).toFixed(0)"
+              unit="%"
+            />
+            <SettingItem
+              label="Level Bonus Multiplier"
+              :value="settings.combat.level_bonus_multiplier"
+            />
+          </CardContent>
+        </Card>
+
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary">Loot</CardTitle>
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              label="Base Caps Reward"
+              :value="settings.combat.caps_reward_base"
+              unit="caps"
+            />
+            <SettingItem
+              label="Caps Per Difficulty"
+              :value="settings.combat.caps_reward_per_difficulty"
+              unit="caps"
+            />
+            <SettingItem
+              label="Weapon Drop Chance"
+              :value="(settings.combat.weapon_drop_chance * 100).toFixed(1)"
+              unit="%"
+            />
+            <SettingItem
+              label="Outfit Drop Chance"
+              :value="(settings.combat.outfit_drop_chance * 100).toFixed(1)"
+              unit="%"
+            />
+            <SettingItem
+              label="Junk Drop Chance"
+              :value="(settings.combat.junk_drop_chance * 100).toFixed(1)"
+              unit="%"
+            />
+          </CardContent>
+        </Card>
+
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary">Experience</CardTitle>
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              label="XP Per Difficulty"
+              :value="settings.combat.xp_per_difficulty"
+              unit="XP"
+            />
+            <SettingItem
+              label="Perfect Bonus"
+              :value="`${((settings.combat.perfect_bonus_multiplier - 1) * 100).toFixed(0)}%`"
+              unit="extra"
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <!-- Happiness -->
+      <div
+        v-show="activeTab === 'happiness'"
+        class="settings-section grid items-start gap-3 lg:grid-cols-2"
+      >
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary">Decay Rates</CardTitle>
+            <CardDescription>Happiness change per 60-second tick</CardDescription>
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem label="Base Decay" :value="settings.happiness.base_decay" :decimals="2" />
+            <SettingItem
+              label="Resource Shortage"
+              :value="settings.happiness.resource_shortage_decay"
+              :decimals="2"
+            />
+            <SettingItem
+              label="Critical Resources"
+              :value="settings.happiness.critical_resource_decay"
+              :decimals="2"
+            />
+            <SettingItem
+              label="Incident Penalty"
+              :value="settings.happiness.incident_penalty"
+              :decimals="2"
+            />
+            <SettingItem label="Idle Decay" :value="settings.happiness.idle_decay" :decimals="2" />
+          </CardContent>
+        </Card>
+
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary">Gain Rates</CardTitle>
+            <CardDescription>Happiness change per 60-second tick</CardDescription>
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              label="Working Gain"
+              :value="settings.happiness.working_gain"
+              :decimals="2"
+            />
+            <SettingItem
+              label="High Health Bonus"
+              :value="settings.happiness.high_health_bonus"
+              :decimals="2"
+            />
+            <SettingItem
+              label="Partner Nearby"
+              :value="settings.happiness.partner_nearby_bonus"
+              :decimals="2"
+            />
+          </CardContent>
+        </Card>
+
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary">Room Bonuses</CardTitle>
+            <CardDescription>Happiness change per 60-second tick</CardDescription>
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              label="Living Quarters"
+              :value="settings.happiness.living_quarters_bonus"
+              :decimals="2"
+            />
+            <SettingItem
+              label="Training Room"
+              :value="settings.happiness.training_room_bonus"
+              :decimals="2"
+            />
+            <SettingItem
+              label="Radio Room"
+              :value="settings.happiness.radio_room_bonus"
+              :decimals="2"
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <!-- Training -->
+      <div
+        v-show="activeTab === 'training'"
+        class="settings-section grid items-start gap-3 lg:grid-cols-2"
+      >
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary">Training System</CardTitle>
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              label="Base Duration"
+              :value="settings.training.base_duration_seconds / 3600"
+              :decimals="1"
+              unit="hours"
+            />
+            <SettingItem
+              label="Per Level Increase"
+              :value="settings.training.per_level_increase_seconds / 60"
+              :decimals="0"
+              unit="minutes"
+            />
+            <SettingItem label="Min SPECIAL" :value="settings.training.special_stat_min" />
+            <SettingItem label="Max SPECIAL" :value="settings.training.special_stat_max" />
+          </CardContent>
+        </Card>
+
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary"
+              >Tier Speed Multipliers</CardTitle
+            >
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              label="Tier 1 (Normal)"
+              :value="settings.training.tier_1_multiplier"
+              :decimals="2"
+            />
+            <SettingItem
+              label="Tier 2"
+              :value="`${settings.training.tier_2_multiplier} (${((1 - settings.training.tier_2_multiplier) * 100).toFixed(0)}% faster)`"
+            />
+            <SettingItem
+              label="Tier 3"
+              :value="`${settings.training.tier_3_multiplier} (${((1 - settings.training.tier_3_multiplier) * 100).toFixed(0)}% faster)`"
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <!-- Resources -->
+      <div
+        v-show="activeTab === 'resources'"
+        class="settings-section grid items-start gap-3 lg:grid-cols-2"
+      >
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary">Production</CardTitle>
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              label="Base Rate"
+              :value="settings.resource.base_production_rate"
+              :decimals="2"
+              unit="per SPECIAL/sec"
+            />
+            <SettingItem
+              label="Tier 1 Multiplier"
+              :value="settings.resource.tier_1_multiplier"
+              :decimals="2"
+            />
+            <SettingItem
+              label="Tier 2 Multiplier"
+              :value="settings.resource.tier_2_multiplier"
+              :decimals="2"
+            />
+            <SettingItem
+              label="Tier 3 Multiplier"
+              :value="settings.resource.tier_3_multiplier"
+              :decimals="2"
+            />
+          </CardContent>
+        </Card>
+
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary">Consumption</CardTitle>
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              label="Power Rate"
+              :value="(settings.resource.power_consumption_rate * 60).toFixed(3)"
+              unit="per room/min"
+            />
+            <SettingItem
+              label="Food Per Dweller"
+              :value="(settings.resource.food_consumption_per_dweller * 60).toFixed(3)"
+              unit="per min"
+            />
+            <SettingItem
+              label="Water Per Dweller"
+              :value="(settings.resource.water_consumption_per_dweller * 60).toFixed(3)"
+              unit="per min"
+            />
+          </CardContent>
+        </Card>
+
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary"
+              >Warning Thresholds</CardTitle
+            >
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              label="Low Resource"
+              :value="(settings.resource.low_threshold * 100).toFixed(0)"
+              unit="%"
+            />
+            <SettingItem
+              label="Critical Resource"
+              :value="(settings.resource.critical_threshold * 100).toFixed(0)"
+              unit="%"
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <!-- Leveling -->
+      <div
+        v-show="activeTab === 'leveling'"
+        class="settings-section grid items-start gap-3 lg:grid-cols-2"
+      >
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary">Leveling System</CardTitle>
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              label="Base XP Requirement"
+              :value="settings.leveling.base_xp_requirement"
+              unit="XP"
+            />
+            <SettingItem
+              label="XP Curve Exponent"
+              :value="settings.leveling.xp_curve_exponent"
+              :decimals="2"
+            />
+            <SettingItem
+              label="HP Per Level"
+              :value="settings.leveling.hp_gain_per_level"
+              unit="HP"
+            />
+            <SettingItem label="Max Level" :value="settings.leveling.max_level" />
+          </CardContent>
+        </Card>
+
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary"
+              >Experience Sources</CardTitle
+            >
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              label="Exploration (Per Mile)"
+              :value="settings.leveling.exploration_xp_per_distance"
+              unit="XP"
+            />
+            <SettingItem
+              label="Exploration (Per Enemy)"
+              :value="settings.leveling.exploration_xp_per_enemy"
+              unit="XP"
+            />
+            <SettingItem
+              label="Exploration (Per Event)"
+              :value="settings.leveling.exploration_xp_per_event"
+              unit="XP"
+            />
+            <SettingItem
+              label="Work (Per Tick)"
+              :value="settings.leveling.work_xp_per_tick"
+              unit="XP"
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <!-- Relationships -->
+      <div
+        v-show="activeTab === 'relationships'"
+        class="settings-section grid items-start gap-3 lg:grid-cols-2"
+      >
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary"
+              >Relationship System</CardTitle
+            >
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              label="Affinity Increase"
+              :value="settings.relationship.affinity_increase_per_tick"
+              unit="per tick"
+            />
+            <SettingItem
+              label="Romance Threshold"
+              :value="settings.relationship.romance_threshold"
+              unit="affinity"
+            />
+            <SettingItem
+              label="Partner Happiness Bonus"
+              :value="settings.relationship.partner_happiness_bonus"
+              unit="points"
+            />
+          </CardContent>
+        </Card>
+
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary"
+              >Compatibility Weights</CardTitle
+            >
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              label="SPECIAL Similarity"
+              :value="(settings.relationship.compatibility_special_weight * 100).toFixed(0)"
+              unit="%"
+            />
+            <SettingItem
+              label="Happiness"
+              :value="(settings.relationship.compatibility_happiness_weight * 100).toFixed(0)"
+              unit="%"
+            />
+            <SettingItem
+              label="Level Similarity"
+              :value="(settings.relationship.compatibility_level_weight * 100).toFixed(0)"
+              unit="%"
+            />
+            <SettingItem
+              label="Proximity"
+              :value="(settings.relationship.compatibility_proximity_weight * 100).toFixed(0)"
+              unit="%"
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <!-- Breeding -->
+      <div v-show="activeTab === 'breeding'" class="settings-section">
+        <Card class="gap-0 py-3">
+          <CardHeader class="px-4 pb-2">
+            <CardTitle class="text-lg font-semibold text-theme-primary">Breeding System</CardTitle>
+          </CardHeader>
+          <CardContent class="px-0">
+            <SettingItem
+              label="Conception Chance"
+              :value="(settings.breeding.conception_chance_per_tick * 100).toFixed(1)"
+              unit="% per tick"
+            />
+            <SettingItem
+              label="Pregnancy Duration"
+              :value="settings.breeding.pregnancy_duration_hours"
+              unit="hours"
+            />
+            <SettingItem
+              label="Trait Variance"
+              :value="`± ${settings.breeding.trait_inheritance_variance}`"
+              unit="SPECIAL"
+            />
+            <SettingItem
+              label="Rarity Upgrade Chance"
+              :value="(settings.breeding.rarity_upgrade_chance * 100).toFixed(0)"
+              unit="%"
+            />
+            <SettingItem
+              label="Time to Adulthood"
+              :value="settings.breeding.child_growth_duration_hours"
+              unit="hours"
+            />
+            <SettingItem
+              label="Child SPECIAL Multiplier"
+              :value="(settings.breeding.child_special_multiplier * 100).toFixed(0)"
+              unit="%"
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  </VaultPageShell>
 </template>
 
 <script setup lang="ts">
@@ -638,14 +597,13 @@ import { RouterLink } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { notifyErrorOnce } from '@/core/utils/errorHandler'
 import { useBackNavigation } from '@/core/composables/useBackNavigation'
-import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { apiGet } from '@/core/utils/api'
 import { humanizePreserveCase } from '@/core/utils/format'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import LoadingInline from '@/core/components/common/LoadingInline.vue'
+import VaultPageShell from '@/core/components/common/VaultPageShell.vue'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
-import PageContentRail from '@/core/components/common/PageContentRail.vue'
-import SidePanel from '@/core/components/common/SidePanel.vue'
 import {
   Card,
   CardContent,
@@ -661,7 +619,6 @@ const vaultStore = useVaultStore()
 const backNav = useBackNavigation('Settings', () =>
   vaultStore.currentVaultId ? `/vault/${vaultStore.currentVaultId}` : '/'
 )
-const { isCollapsed } = useSidePanel()
 
 const activeTab = ref('game-loop')
 const tabs = [

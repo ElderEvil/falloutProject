@@ -1,7 +1,7 @@
 {
   "count": 38,
   "files": [
-    "components/combat/EquipmentCard.test.ts",
+    "components/common/EquippableItemCard.test.ts",
     "components/common/PageContentRail.test.ts",
     "components/common/PageHeader.test.ts",
     "components/common/ResourceBar.test.ts",

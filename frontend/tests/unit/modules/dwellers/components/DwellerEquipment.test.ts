@@ -74,19 +74,22 @@ function makeDweller(overrides: Partial<Dweller> = {}): Dweller {
   } as unknown as Dweller
 }
 
+const equippableStub = {
+  template:
+    "<button :class=\"itemType === 'pet' ? 'pet-slot' : 'equip-slot'\" @click=\"$emit(equipped ? 'unequip' : 'equip')\"></button>",
+  props: ['item', 'itemType', 'equipped', 'showActions', 'disabled', 'rootClass'],
+}
+
 const sharedStubs = {
   Icon: true,
   Teleport: { template: '<div><slot /></div>' },
-  EquipmentCard: {
-    template: '<button class="equip-slot" @click="$emit(\'unequip\')"></button>',
-    props: ['item', 'type', 'equipped', 'showActions'],
-  },
+  EquippableItemCard: equippableStub,
 }
 
-const petCardStub = {
-  template: '<button class="pet-slot" @click="$emit(equipped ? \'unequip\' : \'equip\')"></button>',
-  props: ['pet', 'equipped', 'showActions'],
-}
+const petCardOf = (wrapper: VueWrapper) =>
+  wrapper
+    .findAllComponents(sharedStubs.EquippableItemCard)
+    .find((card) => card.props('itemType') === 'pet')!
 
 function mountEquip(
   dweller: Dweller,
@@ -132,11 +135,13 @@ describe('DwellerEquipment', () => {
         })
       )
       const ctx = createMockDwellerDetailContext({ dweller: dweller as never })
-      const wrapper = mountEquip(dweller.value, ctx, { PetCard: petCardStub })
-      const cards = wrapper.findAllComponents(sharedStubs.EquipmentCard)
+      const wrapper = mountEquip(dweller.value, ctx, {})
+      const cards = wrapper
+        .findAllComponents(sharedStubs.EquippableItemCard)
+        .filter((card) => card.props('itemType') !== 'pet')
       expect(cards).toHaveLength(2)
       expect(cards.every((card) => card.props('showActions'))).toBe(true)
-      expect(wrapper.findComponent(petCardStub).props('showActions')).toBe(true)
+      expect(petCardOf(wrapper).props('showActions')).toBe(true)
       for (const button of wrapper.findAll('button.equip-slot, button.pet-slot')) {
         await button.trigger('click')
       }
@@ -164,12 +169,14 @@ describe('DwellerEquipment', () => {
         pet: { id: 'pet-1' } as never,
       }),
       { actions: ctx.actions },
-      { PetCard: petCardStub }
+      {}
     )
-    const cards = wrapper.findAllComponents(sharedStubs.EquipmentCard)
+    const cards = wrapper
+      .findAllComponents(sharedStubs.EquippableItemCard)
+      .filter((card) => card.props('itemType') !== 'pet')
     expect(cards).toHaveLength(2)
     expect(cards.every((card) => !card.props('showActions'))).toBe(true)
-    expect(wrapper.findComponent(petCardStub).props('showActions')).toBe(false)
+    expect(petCardOf(wrapper).props('showActions')).toBe(false)
     for (const button of wrapper.findAll('button.equip-slot, button.pet-slot')) {
       await button.trigger('click')
     }
@@ -203,7 +210,7 @@ describe('DwellerEquipment', () => {
         {},
         {
           TerminalModal: { template: '<div v-if="open"><slot /></div>', props: ['open'] },
-          EquipmentCard: {
+          EquippableItemCard: {
             template: '<div class="outfit-option" :data-id="item.id" />',
             props: ['item'],
           },
@@ -319,7 +326,9 @@ describe('DwellerEquipment', () => {
             training_speed_pct: 0,
           },
         },
-      })
+      }),
+      {},
+      { EquippableItemCard: false }
     )
     await flushPromises()
 
@@ -363,7 +372,7 @@ describe('DwellerEquipment', () => {
       },
     ])
     petsStoreMock.equipPet.mockResolvedValue({ id: 'pet-9' })
-    const wrapper = mountEquip(makeDweller(), {}, { PetCard: petCardStub })
+    const wrapper = mountEquip(makeDweller(), {}, {})
     await flushPromises()
 
     await wrapper.findAll('button.empty-slot')[2].trigger('click')
@@ -395,7 +404,7 @@ describe('DwellerEquipment', () => {
         effect: {},
       },
     ])
-    const wrapper = mountEquip(makeDweller(), {}, { PetCard: petCardStub })
+    const wrapper = mountEquip(makeDweller(), {}, {})
     await flushPromises()
 
     await wrapper.findAll('button.empty-slot')[2].trigger('click')
@@ -459,7 +468,7 @@ describe('DwellerEquipment', () => {
         vaultId: ref('v1') as never,
       }),
       global: {
-        stubs: { ...sharedStubs, PetCard: petCardStub },
+        stubs: sharedStubs,
       },
     })
     await flushPromises()
@@ -478,7 +487,7 @@ it('refreshes the outfit picker after a reward arrives without remounting the eq
     makeDweller(),
     {},
     {
-      EquipmentCard: { props: ['item'], template: '<p>{{ item.name }}</p>' },
+      EquippableItemCard: { props: ['item'], template: '<p>{{ item.name }}</p>' },
     }
   )
   await flushPromises()

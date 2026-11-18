@@ -12,7 +12,7 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Card } from '@/core/components/ui/card'
-import DwellerPanelLayout from '../components/DwellerPanelLayout.vue'
+import VaultPageShell from '@/core/components/common/VaultPageShell.vue'
 import { DeadDwellerCard } from '../components/death'
 
 const route = useRoute()
@@ -41,7 +41,7 @@ const viewDwellerDetails = (dwellerId: string) => {
 </script>
 
 <template>
-  <DwellerPanelLayout>
+  <VaultPageShell rail terminal>
     <PageHeader
       title="Graveyard"
       icon="mdi:grave-stone"
@@ -91,7 +91,7 @@ const viewDwellerDetails = (dwellerId: string) => {
         laid to rest
       </p>
     </div>
-  </DwellerPanelLayout>
+  </VaultPageShell>
 </template>
 
 <style scoped>

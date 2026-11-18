@@ -3,16 +3,13 @@ import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useSidePanel } from '@/core/composables/useSidePanel'
-import SidePanel from '@/core/components/common/SidePanel.vue'
-import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import VaultPageShell from '@/core/components/common/VaultPageShell.vue'
 import AISettingsPanel from '../components/AISettingsPanel.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const { isCollapsed } = useSidePanel()
 
 const isSuperuser = computed(() => authStore.isSuperuser)
 
@@ -27,33 +24,24 @@ onMounted(() => {
 </script>
 
 <template>
-  <div
-    class="relative min-h-screen bg-terminal-background font-mono text-theme-primary [text-shadow:none]"
+  <VaultPageShell
+    rail
+    class="bg-terminal-background font-mono text-theme-primary [text-shadow:none]"
   >
-    <div class="flex min-h-screen">
-      <SidePanel />
-      <main
-        class="flex-1 transition-[margin-left] duration-300 ease leading-[1.6] max-md:ml-0"
-        :class="isCollapsed ? 'ml-16' : 'ml-60'"
-      >
-        <PageContentRail>
-          <PageHeader
-            title="AI Provider Settings"
-            icon="mdi:robot-outline"
-            subtitle="Configure the AI provider, model, and routing for dweller conversations. Changes apply live without restart."
-          >
-            <template #back>
-              <PageNavigation
-                back-label="Back to Profile"
-                back-to="/profile"
-                :breadcrumbs="breadcrumbs"
-              />
-            </template>
-          </PageHeader>
+    <PageHeader
+      title="AI Provider Settings"
+      icon="mdi:robot-outline"
+      subtitle="Configure the AI provider, model, and routing for dweller conversations. Changes apply live without restart."
+    >
+      <template #back>
+        <PageNavigation
+          back-label="Back to Profile"
+          back-to="/profile"
+          :breadcrumbs="breadcrumbs"
+        />
+      </template>
+    </PageHeader>
 
-          <AISettingsPanel />
-        </PageContentRail>
-      </main>
-    </div>
-  </div>
+    <AISettingsPanel />
+  </VaultPageShell>
 </template>

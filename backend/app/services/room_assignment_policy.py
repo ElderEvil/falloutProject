@@ -3,6 +3,8 @@
 # TODO: relocate this room-assignment kernel outside services so CRUD can share it
 # (dweller availability now lives in app/utils/dweller_availability.py).
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from uuid import UUID
 
 from sqlmodel import col
@@ -38,6 +40,21 @@ def vault_placement_lock_key(vault_id: UUID) -> str:
     placement changes cannot land on the same cells.
     """
     return f"vault-placement:{vault_id}"
+
+
+@asynccontextmanager
+async def vault_placement_guard(
+    db_session: AsyncSession, vault_id: UUID, *, conflict_detail: str
+) -> AsyncGenerator[None]:
+    """Hold the vault's placement lock, raising ``conflict_detail`` when busy.
+
+    The guard never commits or refreshes on the caller's behalf: the wrapped
+    block owns its transaction and any state reload it needs after acquiring.
+    """
+    async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(vault_id)) as acquired:
+        if not acquired:
+            raise ResourceConflictException(detail=conflict_detail)
+        yield
 
 
 def get_highest_special(dweller: Dweller | DwellerReadFull) -> SPECIALEnum:

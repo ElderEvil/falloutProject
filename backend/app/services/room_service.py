@@ -8,7 +8,6 @@ from uuid import UUID, uuid7
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core import db_locks
 from app.core.enums import RoomActionEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
@@ -16,7 +15,7 @@ from app.core.grid_config import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
 from app.crud.training import training as training_crud
 from app.models.room import Room
 from app.schemas.room import RoomBuild, RoomCreate, RoomUpdate
-from app.services.room_assignment_policy import vault_placement_lock_key
+from app.services.room_assignment_policy import vault_placement_guard
 from app.services.training_service import training_service
 from app.services.user_service import user_service
 from app.services.vault_service import vault_service
@@ -24,7 +23,6 @@ from app.utils import room_rules
 from app.utils.exceptions import (
     InsufficientResourcesException,
     NoSpaceAvailableException,
-    ResourceConflictException,
     UniqueRoomViolationException,
     VaultOperationException,
 )
@@ -336,9 +334,11 @@ class RoomService:
         if dry_run:
             return await self._merge_adjacent_vault_rooms(db_session, vault_id, dry_run=True)
 
-        async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(vault_id)) as acquired:
-            if not acquired:
-                raise ResourceConflictException(detail=f"Vault {vault_id} is already being built in — try again")
+        async with vault_placement_guard(
+            db_session,
+            vault_id,
+            conflict_detail=f"Vault {vault_id} is already being built in — try again",
+        ):
             return await self._merge_adjacent_vault_rooms(db_session, vault_id, dry_run=False)
 
     async def _merge_adjacent_vault_rooms(
@@ -450,9 +450,11 @@ class RoomService:
 
     async def _build(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> tuple[Room, bool]:
         """Build a room under the vault's placement lock, merging into an adjacent identical room."""
-        async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(obj_in.vault_id)) as acquired:
-            if not acquired:
-                raise ResourceConflictException(detail=f"Vault {obj_in.vault_id} is already being built in — try again")
+        async with vault_placement_guard(
+            db_session,
+            obj_in.vault_id,
+            conflict_detail=f"Vault {obj_in.vault_id} is already being built in — try again",
+        ):
             return await self._build_locked_transaction(db_session=db_session, obj_in=obj_in)
 
     async def _build_locked_transaction(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> tuple[Room, bool]:
@@ -591,11 +593,11 @@ class RoomService:
         """
         try:
             room = await crud.room.get(db_session, room_id)
-            async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(room.vault_id)) as acquired:
-                if not acquired:
-                    raise ResourceConflictException(
-                        detail=f"Vault {room.vault_id} is already being built in — try again"
-                    )
+            async with vault_placement_guard(
+                db_session,
+                room.vault_id,
+                conflict_detail=f"Vault {room.vault_id} is already being built in — try again",
+            ):
                 return await self._destroy_transaction(db_session, room_id)
         except ValueError as e:
             raise VaultOperationException(detail=str(e)) from e
@@ -662,18 +664,22 @@ class RoomService:
     async def _upgrade(self, db_session: AsyncSession, room_id: UUID) -> Room:
         """Upgrade a room under the vault's placement lock, merging into an adjacent identical room."""
         room = await crud.room.get(db_session, room_id)
-        async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(room.vault_id)) as acquired:
-            if not acquired:
-                raise ResourceConflictException(detail=f"Vault {room.vault_id} is already being built in — try again")
+        async with vault_placement_guard(
+            db_session,
+            room.vault_id,
+            conflict_detail=f"Vault {room.vault_id} is already being built in — try again",
+        ):
             await db_session.refresh(room)
             return await self._upgrade_locked_transaction(db_session, room)
 
     async def apply_room_style(self, db_session: AsyncSession, room_id: UUID, style: str) -> Room:
         """Apply a cosmetic room-wide style, updating the stored sprite URL."""
         room = await crud.room.get(db_session, room_id)
-        async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(room.vault_id)) as acquired:
-            if not acquired:
-                raise ResourceConflictException(detail=f"Vault {room.vault_id} is already being built in — try again")
+        async with vault_placement_guard(
+            db_session,
+            room.vault_id,
+            conflict_detail=f"Vault {room.vault_id} is already being built in — try again",
+        ):
             await db_session.refresh(room)
             if style != "default":
                 if style not in ROOM_STYLE_IMAGES.get(room.name, {}):

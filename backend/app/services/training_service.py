@@ -21,7 +21,12 @@ from app.options.pet_modifiers import MAX_PCT_BONUS, pet_modifiers_for
 from app.services.notification_service import notification_service
 from app.services.room_assignment_policy import calculate_room_capacity
 from app.utils.dweller_availability import DwellerAction, purposeful_action_error
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
+from app.utils.exceptions import (
+    InvalidVaultTransferException,
+    ResourceConflictException,
+    ResourceNotFoundException,
+    VaultOperationException,
+)
 from app.utils.time import utcnow
 
 
@@ -160,6 +165,12 @@ class TrainingService:
         room = await room_crud.get(db_session, room_id)
         if not room:
             raise ResourceNotFoundException(model=Room, identifier=room_id)
+
+        # Cross-vault assignment is a transfer, not a training session: reject it
+        # here exactly as move_to_room does, before capacity/stat checks touch
+        # the foreign room and before the dweller's room_id is rewritten.
+        if room.vault_id != dweller.vault_id:
+            raise InvalidVaultTransferException
 
         # Validate can start training
         can_train, reason = await self.can_start_training(db_session, dweller, room)

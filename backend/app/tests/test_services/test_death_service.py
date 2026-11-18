@@ -180,6 +180,45 @@ class TestDeathService:
         assert result.caps_spent == death_service.get_revival_cost(dead_dweller.level)
         assert result.remaining_caps == 10000 - result.caps_spent
 
+    async def test_revive_locks_the_vault_before_deducting_caps(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        dead_dweller: Dweller,
+    ):
+        """The caps deduction must follow a locked read, not a plain SELECT.
+
+        NOTE: the suite runs on SQLite, where ``FOR UPDATE`` is a no-op and two
+        transactions cannot interleave, so the race itself cannot be reproduced
+        here. This asserts the mechanism (lock taken, before the write) that makes
+        the deduction serializable on Postgres.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from app.crud.vault import vault as vault_crud
+
+        vault.bottle_caps = 10000
+        async_session.add(vault)
+        await async_session.commit()
+        owner = await crud.user.get(async_session, vault.user_id)
+
+        manager = MagicMock()
+        with (
+            patch.object(vault_crud, "lock_for_update", wraps=vault_crud.lock_for_update) as locked,
+            patch.object(vault_crud, "update", wraps=vault_crud.update) as updated,
+        ):
+            manager.attach_mock(locked, "lock_for_update")
+            manager.attach_mock(updated, "update")
+            await death_service.revive_dweller(async_session, dead_dweller.id, owner)
+
+        locked.assert_awaited_once()
+        assert locked.await_args is not None
+        assert locked.await_args.args[1] == vault.id
+        assert [call[0] for call in manager.mock_calls if call[0] in {"lock_for_update", "update"}] == [
+            "lock_for_update",
+            "update",
+        ]
+
     async def test_revive_clears_radiation(
         self,
         async_session: AsyncSession,

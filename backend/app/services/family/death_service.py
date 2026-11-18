@@ -171,7 +171,7 @@ class DeathService:
 
         self._require_revivable(dweller)
 
-        vault = await vault_crud.get(db_session, self._require_vault_id(dweller))
+        vault = await vault_crud.lock_for_update(db_session, self._require_vault_id(dweller))
         assert_vault_owner(vault, user)
 
         revival_cost = self.get_revival_cost(dweller.level)
@@ -181,12 +181,12 @@ class DeathService:
                 resource_amount=revival_cost - vault.bottle_caps,
             )
 
+        # Deduct caps. The row is locked above, so this absolute write cannot be
+        # overwritten by a concurrent revive or by the tick's own caps writeback:
+        # without the lock two revives both pass the affordability check and the
+        # second one restores the first one's deduction from a stale value.
         remaining_caps = vault.bottle_caps - revival_cost
-
-        # Deduct caps
-        from app.crud.vault import vault as vault_crud_instance
-
-        await vault_crud_instance.update(
+        await vault_crud.update(
             db_session,
             vault.id,
             {"bottle_caps": remaining_caps},

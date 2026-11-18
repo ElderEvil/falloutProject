@@ -19,6 +19,7 @@ export function useAudioRecorder() {
   const isIdle = computed(() => recordingState.value === 'idle')
 
   let disposed = false
+  let acquired: MediaStream | null = null
 
   const startRecording = async () => {
     if (disposed) {
@@ -34,6 +35,7 @@ export function useAudioRecorder() {
         stream.getTracks().forEach((track) => track.stop())
         return
       }
+      acquired = stream
 
       // Create MediaRecorder with WebM format (widely supported)
       const options = { mimeType: 'audio/webm;codecs=opus' }
@@ -63,7 +65,16 @@ export function useAudioRecorder() {
       recordingTimer.value = window.setInterval(() => {
         recordingDuration.value += 1
       }, 1000)
+      acquired = null
     } catch (error) {
+      // A constructor or start() failure must not leak the acquired stream:
+      // release the live recorder if there is one, else stop the bare stream.
+      if (mediaRecorder.value) {
+        release()
+      } else if (acquired) {
+        acquired.getTracks().forEach((track) => track.stop())
+        acquired = null
+      }
       if (disposed) {
         return
       }

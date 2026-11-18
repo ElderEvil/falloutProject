@@ -13,6 +13,8 @@ import { useAudioRecorder } from '@/modules/chat/composables/useAudioRecorder'
 class MediaRecorderStub {
   static isTypeSupported = () => true
   static failOnStop = false
+  static failConstruct = false
+  static failStart = false
 
   state: 'inactive' | 'recording' | 'paused' = 'inactive'
   ondataavailable: ((event: { data: Blob }) => void) | null = null
@@ -21,6 +23,9 @@ class MediaRecorderStub {
   readonly stream: { getTracks: () => { stop: () => void }[] }
 
   start = vi.fn(() => {
+    if (MediaRecorderStub.failStart) {
+      throw new Error('start failed')
+    }
     this.state = 'recording'
   })
 
@@ -42,6 +47,9 @@ class MediaRecorderStub {
   })
 
   constructor(stream: { getTracks: () => { stop: () => void }[] }) {
+    if (MediaRecorderStub.failConstruct) {
+      throw new Error('no recorder for you')
+    }
     this.stream = stream
   }
 }
@@ -63,6 +71,8 @@ describe('useAudioRecorder scope disposal', () => {
 
   afterEach(() => {
     MediaRecorderStub.failOnStop = false
+    MediaRecorderStub.failConstruct = false
+    MediaRecorderStub.failStart = false
     vi.useRealTimers()
     vi.unstubAllGlobals()
   })
@@ -155,5 +165,30 @@ describe('useAudioRecorder scope disposal', () => {
     scope.stop()
     // Disposal after an error release must not double-stop the tracks.
     expect(trackStop).toHaveBeenCalledTimes(1)
+  })
+  it('stops the acquired stream when the recorder cannot be constructed', async () => {
+    MediaRecorderStub.failConstruct = true
+    const scope = effectScope()
+    const recorder = scope.run(() => useAudioRecorder())!
+
+    await expect(recorder.startRecording()).rejects.toThrow('Failed to access microphone')
+
+    expect(trackStop).toHaveBeenCalledTimes(1)
+    expect(recorder.recordingState.value).toBe('idle')
+    vi.advanceTimersByTime(5000)
+    expect(recorder.recordingDuration.value).toBe(0)
+  })
+
+  it('releases the recorder and the stream when start throws', async () => {
+    MediaRecorderStub.failStart = true
+    const scope = effectScope()
+    const recorder = scope.run(() => useAudioRecorder())!
+
+    await expect(recorder.startRecording()).rejects.toThrow('Failed to access microphone')
+
+    expect(trackStop).toHaveBeenCalledTimes(1)
+    expect(recorder.recordingState.value).toBe('idle')
+    vi.advanceTimersByTime(5000)
+    expect(recorder.recordingDuration.value).toBe(0)
   })
 })

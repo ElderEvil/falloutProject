@@ -61,6 +61,33 @@ describe('ExplorationStatusBadges', () => {
     wrapper.unmount()
   })
 
+  it('names the status chip with a role that supports aria-label', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T01:00:00Z'))
+    const wrapper = mount(ExplorationStatusBadges, { props: { exploration, dweller } })
+
+    const chip = wrapper.find('span[role="img"]')
+    expect(chip.exists()).toBe(true)
+    expect(chip.attributes('aria-label')).toBe('EXPLORING')
+
+    wrapper.unmount()
+  })
+
+  it('names the icon-only compact chip too', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T01:00:00Z'))
+    const wrapper = mount(ExplorationStatusBadges, {
+      props: { exploration, dweller, compact: true },
+    })
+
+    const chip = wrapper.find('span[role="img"]')
+    expect(chip.exists()).toBe(true)
+    expect(chip.attributes('aria-label')).toBe('EXPLORING')
+    expect(wrapper.text()).not.toContain('EXPLORING')
+
+    wrapper.unmount()
+  })
+
   it('shows RETURNING when the run is heading home', () => {
     const wrapper = mount(ExplorationStatusBadges, {
       props: {

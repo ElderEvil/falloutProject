@@ -14,7 +14,6 @@ from app import crud
 from app.core.enums import DwellerStatusEnum, GenderEnum, RarityEnum
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
-from app.models.vault import Vault
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 from app.utils.time import utcnow
 
@@ -80,8 +79,6 @@ class DwellerRecyclingService:
         """
         # Verify target vault exists
         vault = await vault_crud.get(db_session, target_vault_id)
-        if not vault:
-            raise ResourceNotFoundException(Vault, identifier=target_vault_id)
 
         # Use SELECT ... FOR UPDATE to prevent race conditions
         dweller = await crud.dweller.get_for_update(db_session, dweller_id, include_deleted=True)

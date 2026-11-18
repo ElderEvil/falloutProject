@@ -226,7 +226,7 @@ async def test_initiate_romance_value_error(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """PUT /relationships/{id}/romance returns 400 when ValueError from service."""
+    """PUT /relationships/{id}/romance returns 400 when the service rejects the action."""
     mock_rel = _make_mock_relationship()
 
     with (
@@ -240,7 +240,7 @@ async def test_initiate_romance_value_error(
         ),
         patch(
             "app.api.v1.endpoints.relationship.relationship_service.initiate_romance",
-            AsyncMock(side_effect=ValueError("Affinity not high enough")),
+            AsyncMock(side_effect=ValidationException(detail="Affinity not high enough")),
         ),
     ):
         response = await async_client.put(
@@ -279,7 +279,7 @@ async def test_make_partners_value_error(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """PUT /relationships/{id}/partner returns 400 when ValueError from service."""
+    """PUT /relationships/{id}/partner returns 400 when the service rejects the action."""
     mock_rel = _make_mock_relationship()
 
     with (
@@ -293,7 +293,7 @@ async def test_make_partners_value_error(
         ),
         patch(
             "app.api.v1.endpoints.relationship.relationship_service.make_partners",
-            AsyncMock(side_effect=ValueError("Must be romantic first")),
+            AsyncMock(side_effect=ValidationException(detail="Must be romantic first")),
         ),
     ):
         response = await async_client.put(
@@ -332,7 +332,7 @@ async def test_break_up_value_error(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """DELETE /relationships/{id} returns 400 when ValueError from service."""
+    """DELETE /relationships/{id} returns 400 when the service rejects the action."""
     mock_rel = _make_mock_relationship()
 
     with (
@@ -346,7 +346,7 @@ async def test_break_up_value_error(
         ),
         patch(
             "app.api.v1.endpoints.relationship.relationship_service.break_up",
-            AsyncMock(side_effect=ValueError("Cannot break up an acquaintance relationship")),
+            AsyncMock(side_effect=ValidationException(detail="Cannot break up an acquaintance relationship")),
         ),
     ):
         response = await async_client.delete(

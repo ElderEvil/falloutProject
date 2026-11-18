@@ -182,15 +182,15 @@ class ExplorationService:
         existing = await crud_exploration.get_by_dweller(db_session, dweller_id=dweller_id)
         if existing:
             msg = "Dweller is already on an exploration"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         # Validate that stimpaks and radaways are non-negative
         if stimpaks < 0:
             msg = f"Stimpaks cannot be negative. Provided: {stimpaks}"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
         if radaways < 0:
             msg = f"Radaways cannot be negative. Provided: {radaways}"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         # Resolve origin/world before staging: snapshot generation commits, so
         # resolving later would split the departure transaction.
@@ -198,14 +198,14 @@ class ExplorationService:
         origin: tuple[float, float] | None = await self._vault_origin(db_session, vault_id)
         world_version: int | None = None
         if heading_degrees is not None and not 0 <= heading_degrees < 360:
-            raise ValueError("heading_degrees must be in [0, 360)")
+            raise ValidationException(detail="heading_degrees must be in [0, 360)")
         if origin is not None:
             snapshot = await world_snapshot_service.get_or_generate(db_session)
             world_version = snapshot.generator_version
             if heading_degrees is None:
                 heading_degrees = self.choose_heading(snapshot, origin, duration, seed=exploration_id)
         elif heading_degrees is not None:
-            raise ValueError("Vault has no map placement; cannot depart spatially")
+            raise ValidationException(detail="Vault has no map placement; cannot depart spatially")
 
         # Check vault storage first, then fall back to dweller inventory
         storage = await crud_storage.get_by_vault_for_update(db_session, vault_id)
@@ -215,12 +215,12 @@ class ExplorationService:
         # Get total available (vault + dweller)
         dweller = await dweller_crud.get(db_session, dweller_id)
         if dweller.vault_id != vault_id:
-            raise ValueError("Dweller does not belong to this vault")
+            raise ValidationException(detail="Dweller does not belong to this vault")
         if radaways > 0 and not can_use_radaway(dweller):
-            raise ValueError("This dweller cannot carry RadAway")
+            raise ValidationException(detail="This dweller cannot carry RadAway")
         reason = availability_error(dweller, action=DwellerAction.EXPLORE, require_healthy=True)
         if reason is not None:
-            raise ValueError(reason)
+            raise ValidationException(detail=reason)
         dweller_stimpaks = dweller.stimpack or 0
         dweller_radaways = dweller.radaway or 0
         total_stimpaks = vault_stimpaks + dweller_stimpaks
@@ -228,7 +228,7 @@ class ExplorationService:
 
         shortfall = self._supply_shortfall(total_stimpaks, total_radaways, stimpaks, radaways)
         if shortfall is not None:
-            raise ValueError(shortfall)
+            raise ValidationException(detail=shortfall)
 
         # Departure and room removal must be committed together so a failed
         # dispatch never leaves the dweller unexpectedly unassigned.
@@ -982,7 +982,7 @@ class ExplorationService:
             rewards = await exploration_coordinator.finalize_return(db_session, exploration_id)
             return await crud_exploration.get(db_session, exploration_id), rewards
 
-        raise ValueError(ERROR_NOT_ACTIVE)
+        raise ValidationException(detail=ERROR_NOT_ACTIVE)
 
     async def recall_exploration_with_data(
         self, db_session: AsyncSession, exploration_id: UUID
@@ -1015,11 +1015,11 @@ class ExplorationService:
 
         if not exploration.is_active():
             msg = "Exploration is not active"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         if exploration.paused_at is not None:
             msg = "Exploration is paused for an encounter"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         return await event_service.process_event(db_session, exploration)
 

@@ -276,7 +276,7 @@ class RelationshipService:
             relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
         if not relationship:
             msg = "Relationship not found between dwellers"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         new_affinity = min(100, relationship.affinity + amount)
         update_data = {"affinity": new_affinity, "updated_at": utcnow()}
@@ -398,12 +398,12 @@ class RelationshipService:
         """
         if amount <= 0:
             msg = "Affinity decrease amount must be positive"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
         if relationship is None:
             relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
         if not relationship:
             msg = "Relationship not found between dwellers"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         config = game_config.relationship
         floor = 0 if relationship.relationship_type in PARTNER_LINKED_STAGES else _AFFINITY_MIN
@@ -483,7 +483,7 @@ class RelationshipService:
         relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
         if not relationship:
             msg = "Relationship not found between dwellers"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         await RelationshipService._require_social_action(db_session, (dweller_1_id, dweller_2_id))
 
@@ -491,7 +491,7 @@ class RelationshipService:
             msg = (
                 f"Affinity too low for romance ({relationship.affinity} < {game_config.relationship.romance_threshold})"
             )
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         update_data = {"relationship_type": RelationshipTypeEnum.ROMANTIC, "updated_at": utcnow()}
 
@@ -523,14 +523,14 @@ class RelationshipService:
         relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
         if not relationship:
             msg = "Relationship not found between dwellers"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         await RelationshipService._require_social_action(db_session, (dweller_1_id, dweller_2_id))
 
         if relationship.affinity < game_config.relationship.romance_threshold:
             threshold = game_config.relationship.romance_threshold
             msg = f"Affinity too low for partnership ({relationship.affinity} < {threshold})"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         # Serialize concurrent commitment transitions: lock both dweller rows
         # before the guard so two racing make_partners calls cannot both pass it.
@@ -752,7 +752,7 @@ class RelationshipService:
             relationship = await relationship_crud.get(db_session, relationship_id)
         except ResourceNotFoundException:
             msg = "Relationship not found"
-            raise ValueError(msg) from None
+            raise ValidationException(detail=msg) from None
 
         # If partners or married, clear partner_id on both dwellers
         dweller_1 = dweller_2 = None

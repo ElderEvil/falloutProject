@@ -168,10 +168,7 @@ async def start_vault(
         scenario_start=scenario is not None,
     )
     if scenario is not None:
-        try:
-            await vault_scenario_service.seed(db_session, vault, scenario)
-        except ValueError as exc:
-            raise ValidationException(str(exc)) from exc
+        await vault_scenario_service.seed(db_session, vault, scenario)
     return vault
 
 

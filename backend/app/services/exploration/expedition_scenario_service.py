@@ -29,6 +29,7 @@ from app.services.exploration.expedition import ALL_SITES_SCENARIO_EVENT, expedi
 from app.services.exploration_service import exploration_service
 from app.services.leveling_service import leveling_service
 from app.services.vault_service import vault_service
+from app.utils.exceptions import ValidationException
 from app.utils.serialize import serialize_naive_utc_datetime
 from app.utils.time import utcnow
 
@@ -165,25 +166,29 @@ class ExpeditionScenarioService:
         existing_dweller = await crud.dweller.get(db_session, dweller_id) if dweller_id is not None else None
         if existing_dweller is not None:
             if existing_dweller.vault_id is None or (vault_id is not None and existing_dweller.vault_id != vault_id):
-                raise ValueError("The selected dweller does not belong to the target vault")
+                raise ValidationException(detail="The selected dweller does not belong to the target vault")
             vault_id = existing_dweller.vault_id
             dweller_level = existing_dweller.level
         if preclear_site_id is not None and data_loader.get_expedition_site(preclear_site_id) is None:
-            raise ValueError(f"Unknown expedition site: {preclear_site_id!r}")
+            raise ValidationException(detail=f"Unknown expedition site: {preclear_site_id!r}")
         discovered_site = data_loader.get_expedition_site(discovered_site_id) if discovered_site_id else None
         scenario_site = data_loader.get_expedition_site(scenario_site_id) if scenario_site_id else None
         if scenario_site_id is not None:
             if scenario_site is None:
-                raise ValueError(f"Unknown expedition site: {scenario_site_id!r}")
+                raise ValidationException(detail=f"Unknown expedition site: {scenario_site_id!r}")
             if dweller_level < scenario_site.min_dweller_level:
-                raise ValueError(f"{scenario_site.name} needs dweller level {scenario_site.min_dweller_level}")
+                raise ValidationException(
+                    detail=f"{scenario_site.name} needs dweller level {scenario_site.min_dweller_level}"
+                )
         if discovered_site_id is not None:
             if discovered_site is None:
-                raise ValueError(f"Unknown expedition site: {discovered_site_id!r}")
+                raise ValidationException(detail=f"Unknown expedition site: {discovered_site_id!r}")
             if dweller_level < discovered_site.min_dweller_level:
-                raise ValueError(f"{discovered_site.name} needs dweller level {discovered_site.min_dweller_level}")
+                raise ValidationException(
+                    detail=f"{discovered_site.name} needs dweller level {discovered_site.min_dweller_level}"
+                )
             if discovered_site_id == preclear_site_id:
-                raise ValueError("The discovered site cannot also be pre-cleared")
+                raise ValidationException(detail="The discovered site cannot also be pre-cleared")
 
         vault, created_vault, owner_email = await self._resolve_vault(
             db_session, vault_id=vault_id, user_email=user_email, vault_number=vault_number
@@ -260,10 +265,10 @@ class ExpeditionScenarioService:
         """
         site_ids = site_ids or default_multi_site_ids()
         if not site_ids:
-            raise ValueError("At least one expedition site is required")
+            raise ValidationException(detail="At least one expedition site is required")
         dwellers = len(site_ids) if dwellers is None else dwellers
         if dwellers > len(site_ids):
-            raise ValueError("Each dweller needs its own site; pass more site ids or fewer dwellers")
+            raise ValidationException(detail="Each dweller needs its own site; pass more site ids or fewer dwellers")
         dwellers = max(1, min(len(VAULT_ONE_DWELLERS), dwellers))
         dweller_level = max(1, min(50, dweller_level))
         duration_hours = max(1, min(24, duration_hours))
@@ -271,9 +276,9 @@ class ExpeditionScenarioService:
         for site_id in site_ids:
             site = data_loader.get_expedition_site(site_id)
             if site is None:
-                raise ValueError(f"Unknown expedition site: {site_id!r}")
+                raise ValidationException(detail=f"Unknown expedition site: {site_id!r}")
             if effective_level < site.min_dweller_level:
-                raise ValueError(f"{site.name} needs dweller level {site.min_dweller_level}")
+                raise ValidationException(detail=f"{site.name} needs dweller level {site.min_dweller_level}")
 
         if vault_id is not None:
             vault, created_vault, owner_email = await self._resolve_vault(
@@ -282,7 +287,9 @@ class ExpeditionScenarioService:
         else:
             owner = await crud.user.get_by_email(db_session, email=user_email or settings.FIRST_SUPERUSER_EMAIL)
             if owner is None:
-                raise ValueError("No superuser found — run 'uv run fo-cli createsuperuser --no-input' first")
+                raise ValidationException(
+                    detail="No superuser found — run 'uv run fo-cli createsuperuser --no-input' first"
+                )
             vaults = await crud.vault.get_by_user_id(db_session=db_session, user_id=owner.id)
             matching = [candidate for candidate in vaults if candidate.number == vault_number]
             if recreate:
@@ -322,7 +329,7 @@ class ExpeditionScenarioService:
             site_id = site_ids[index % len(site_ids)]
             site = data_loader.get_expedition_site(site_id)
             if site is None:
-                raise ValueError(f"Unknown expedition site: {site_id!r}")
+                raise ValidationException(detail=f"Unknown expedition site: {site_id!r}")
             exploration = await exploration_service.send_dweller(
                 db_session,
                 vault_id=vault.id,
@@ -363,7 +370,7 @@ class ExpeditionScenarioService:
                 )
             available_sites = await expedition_service.list_available_sites(db_session, exploration.id)
             if not available_sites:
-                raise ValueError(f"{site_id} is not available for {dweller.display_name}")
+                raise ValidationException(detail=f"{site_id} is not available for {dweller.display_name}")
             entries.append(
                 ExpeditionScenarioResult(
                     vault=vault,
@@ -440,7 +447,7 @@ class ExpeditionScenarioService:
         """
         origin_x, origin_y = exploration.origin_x, exploration.origin_y
         if origin_x is None or origin_y is None:
-            raise ValueError("A discovered-site scenario requires a vault map placement")
+            raise ValidationException(detail="A discovered-site scenario requires a vault map placement")
         now = utcnow()
         travel_hours = math.dist((origin_x, origin_y), (site.coord_x, site.coord_y)) * (
             game_config.exploration.dispatch.travel_hours_per_unit
@@ -476,7 +483,9 @@ class ExpeditionScenarioService:
             return vault, False, owner.email if owner else None
         owner = await crud.user.get_by_email(db_session, email=user_email or settings.FIRST_SUPERUSER_EMAIL)
         if owner is None:
-            raise ValueError("No superuser found — run 'uv run fo-cli createsuperuser --no-input' first")
+            raise ValidationException(
+                detail="No superuser found — run 'uv run fo-cli createsuperuser --no-input' first"
+            )
         vault = await vault_service.initiate_vault(
             db_session,
             obj_in=VaultNumber(number=vault_number or random.randint(1, 999), boosted=True),

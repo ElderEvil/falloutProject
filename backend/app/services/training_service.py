@@ -154,8 +154,6 @@ class TrainingService:
         """
         # Fetch dweller and room
         dweller = await dweller_crud.get(db_session, dweller_id)
-        if not dweller:
-            raise ResourceNotFoundException(model=Dweller, identifier=dweller_id)
 
         # Refresh to ensure all SPECIAL stats are loaded
         await db_session.refresh(dweller, with_for_update=True)
@@ -164,8 +162,6 @@ class TrainingService:
         dweller = await dweller_crud.get(db_session, dweller_id)
 
         room = await room_crud.get(db_session, room_id)
-        if not room:
-            raise ResourceNotFoundException(model=Room, identifier=room_id)
 
         # Cross-vault assignment is a transfer, not a training session: reject it
         # here exactly as move_to_room does, before capacity/stat checks touch

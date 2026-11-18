@@ -101,14 +101,11 @@ async def initiate_romance(
 
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
 
-    try:
-        return await relationship_service.initiate_romance(
-            db_session,
-            relationship.dweller_1_id,
-            relationship.dweller_2_id,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+    return await relationship_service.initiate_romance(
+        db_session,
+        relationship.dweller_1_id,
+        relationship.dweller_2_id,
+    )
 
 
 @router.put("/{relationship_id}/partner", response_model=RelationshipRead)
@@ -133,14 +130,11 @@ async def make_partners(
 
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
 
-    try:
-        return await relationship_service.make_partners(
-            db_session,
-            relationship.dweller_1_id,
-            relationship.dweller_2_id,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+    return await relationship_service.make_partners(
+        db_session,
+        relationship.dweller_1_id,
+        relationship.dweller_2_id,
+    )
 
 
 @router.put("/{relationship_id}/marry", response_model=RelationshipRead)
@@ -191,10 +185,7 @@ async def break_up_relationship(
 
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
 
-    try:
-        await relationship_service.break_up(db_session, relationship_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+    await relationship_service.break_up(db_session, relationship_id)
     return RelationshipActionResponse(message="Relationship ended")
 
 

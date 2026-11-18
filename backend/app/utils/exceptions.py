@@ -78,8 +78,12 @@ class ContentNoChangeException(DomainError):
     default_detail = "No changes detected in the content update."
 
 
-class ValidationException(DomainError):
-    """Raised when validation fails for a domain operation."""
+class ValidationException(DomainError, ValueError):
+    """Raised when validation fails for a domain operation.
+
+    Also a ``ValueError`` so existing CLI/worker callers that catch ``ValueError``
+    keep working while services stop raising the bare builtin.
+    """
 
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "Validation failed."

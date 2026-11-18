@@ -827,7 +827,7 @@ async def test_build_refused_when_vault_placement_lock_is_held(async_session: As
     starting_caps = rich_vault.bottle_caps
 
     with (
-        patch("app.services.room_service.db_locks.hold_advisory_lock", new=_placement_lock_held),
+        patch("app.services.room_assignment_policy.db_locks.hold_advisory_lock", new=_placement_lock_held),
         pytest.raises(ResourceConflictException),
     ):
         await room_service._build(
@@ -845,7 +845,7 @@ async def test_upgrade_refused_when_vault_placement_lock_is_held(async_session: 
     room = await _create_existing_room(async_session, rich_vault.id, coordinate_x=0, tier=1)
 
     with (
-        patch("app.services.room_service.db_locks.hold_advisory_lock", new=_placement_lock_held),
+        patch("app.services.room_assignment_policy.db_locks.hold_advisory_lock", new=_placement_lock_held),
         pytest.raises(ResourceConflictException),
     ):
         await room_service._upgrade(async_session, room.id)
@@ -858,7 +858,7 @@ async def test_backfill_apply_refused_when_vault_placement_lock_is_held(async_se
     await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
 
     with (
-        patch("app.services.room_service.db_locks.hold_advisory_lock", new=_placement_lock_held),
+        patch("app.services.room_assignment_policy.db_locks.hold_advisory_lock", new=_placement_lock_held),
         pytest.raises(ResourceConflictException),
     ):
         await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=False)
@@ -871,7 +871,7 @@ async def test_backfill_dry_run_ignores_vault_placement_lock(async_session: Asyn
     await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
     await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
 
-    with patch("app.services.room_service.db_locks.hold_advisory_lock", new=_placement_lock_held):
+    with patch("app.services.room_assignment_policy.db_locks.hold_advisory_lock", new=_placement_lock_held):
         summary = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=True)
 
     assert summary["merged"] == 1
@@ -988,11 +988,23 @@ async def test_destroy_lowest_elevator_with_attached_room_rejected(
 async def test_destroy_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
     room = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7)
     with (
-        patch("app.services.room_service.db_locks.hold_advisory_lock", new=_placement_lock_held),
+        patch("app.services.room_assignment_policy.db_locks.hold_advisory_lock", new=_placement_lock_held),
         pytest.raises(ResourceConflictException),
     ):
         await room_service.destroy_room(async_session, room.id)
     assert await crud.room.get(async_session, room.id)
+
+
+@pytest.mark.asyncio
+async def test_style_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
+    """Applying a style is a placement mutation; a concurrent build's lock refuses it."""
+    room = await _create_existing_room(async_session, rich_vault.id, coordinate_x=6)
+
+    with (
+        patch("app.services.room_assignment_policy.db_locks.hold_advisory_lock", new=_placement_lock_held),
+        pytest.raises(ResourceConflictException),
+    ):
+        await room_service.apply_room_style(async_session, room.id, "default")
 
 
 @pytest.mark.parametrize(("size", "tier"), [(6, 1), (9, 2), (9, 3)])
@@ -1058,7 +1070,7 @@ async def test_split_requires_multiple_base_segments_and_free_placement_lock(asy
     with pytest.raises(VaultOperationException, match="one base segment"):
         await remodel_room(async_session, source.id)
     with (
-        patch("app.services.room_remodel_service.db_locks.hold_advisory_lock", new=_placement_lock_held),
+        patch("app.services.room_assignment_policy.db_locks.hold_advisory_lock", new=_placement_lock_held),
         pytest.raises(ResourceConflictException),
     ):
         await remodel_room(async_session, source.id)

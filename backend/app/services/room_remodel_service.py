@@ -8,7 +8,7 @@ from app import crud
 from app.core import db_locks
 from app.crud.incident import incident_crud
 from app.models.room import Room
-from app.services.room_assignment_policy import room_occupancy_lock_key, vault_placement_lock_key
+from app.services.room_assignment_policy import room_occupancy_lock_key, vault_placement_guard
 from app.utils.exceptions import ResourceConflictException, VaultOperationException
 from app.utils.room_assets import get_room_image_url
 from app.utils.room_rules import room_refund
@@ -33,9 +33,7 @@ def _share(total: int | None, count: int, index: int) -> int | None:
 async def remodel_room(db_session: AsyncSession, room_id: UUID, other_room_id: UUID | None = None) -> list[Room]:
     """Split into base segments, or merge exactly two explicitly selected neighbors."""
     source = await crud.room.get(db_session, room_id)
-    async with db_locks.hold_advisory_lock(db_session, vault_placement_lock_key(source.vault_id)) as acquired:
-        if not acquired:
-            raise ResourceConflictException(detail="Vault layout is busy — try again.")
+    async with vault_placement_guard(db_session, source.vault_id, conflict_detail="Vault layout is busy — try again."):
         await db_session.refresh(source)
         source_x, _ = _validate_remodelable(source)
         rooms = [source]

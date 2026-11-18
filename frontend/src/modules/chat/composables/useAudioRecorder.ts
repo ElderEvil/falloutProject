@@ -18,10 +18,22 @@ export function useAudioRecorder() {
   const isProcessing = computed(() => recordingState.value === 'processing')
   const isIdle = computed(() => recordingState.value === 'idle')
 
+  let disposed = false
+
   const startRecording = async () => {
+    if (disposed) {
+      return
+    }
     try {
       // Request microphone access
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+
+      // The chat can close while the permission prompt is open: the disposal
+      // already ran, so stop the stream instead of starting an unstoppable recorder.
+      if (disposed) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
 
       // Create MediaRecorder with WebM format (widely supported)
       const options = { mimeType: 'audio/webm;codecs=opus' }
@@ -52,6 +64,9 @@ export function useAudioRecorder() {
         recordingDuration.value += 1
       }, 1000)
     } catch (error) {
+      if (disposed) {
+        return
+      }
       notifyErrorOnce(error, 'Failed to access microphone')
       throw new Error('Failed to access microphone. Please grant permission.', { cause: error })
     }
@@ -87,8 +102,10 @@ export function useAudioRecorder() {
 
       mediaRecorder.value.onerror = (error) => {
         toast.error('Audio recording failed')
-        recordingState.value = 'idle'
         reject(error)
+        // A dead recorder must not leave the mic capturing and the interval
+        // ticking while the UI reports idle: release like disposal does.
+        release()
       }
 
       mediaRecorder.value.stop()
@@ -119,7 +136,7 @@ export function useAudioRecorder() {
   }
 
   const cancelRecording = () => {
-    teardown()
+    release()
     recordingDuration.value = 0
   }
 
@@ -133,11 +150,11 @@ export function useAudioRecorder() {
   /**
    * Release the microphone and the duration timer.
    *
-   * Called by cancelRecording and by scope disposal: closing the chat mid-recording
-   * unmounts the host with a live MediaRecorder, so without this the interval keeps
-   * ticking and the browser keeps capturing audio after the dialog is gone.
+   * Called by cancelRecording, by the recorder's error path and by scope
+   * disposal: a discarded recorder must not leave the interval ticking or the
+   * browser capturing audio after its consumer is gone.
    */
-  function teardown(): void {
+  function release(): void {
     clearRecordingTimer()
 
     const recorder = mediaRecorder.value
@@ -160,6 +177,11 @@ export function useAudioRecorder() {
 
     audioChunks.value = []
     recordingState.value = 'idle'
+  }
+
+  function teardown(): void {
+    disposed = true
+    release()
   }
 
   onScopeDispose(teardown)

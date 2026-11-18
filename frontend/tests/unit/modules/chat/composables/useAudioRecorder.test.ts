@@ -12,6 +12,7 @@ import { useAudioRecorder } from '@/modules/chat/composables/useAudioRecorder'
  */
 class MediaRecorderStub {
   static isTypeSupported = () => true
+  static failOnStop = false
 
   state: 'inactive' | 'recording' | 'paused' = 'inactive'
   ondataavailable: ((event: { data: Blob }) => void) | null = null
@@ -33,6 +34,10 @@ class MediaRecorderStub {
 
   stop = vi.fn(() => {
     this.state = 'inactive'
+    if (MediaRecorderStub.failOnStop) {
+      this.onerror?.(new Error('recorder failed'))
+      return
+    }
     this.onstop?.()
   })
 
@@ -57,6 +62,7 @@ describe('useAudioRecorder scope disposal', () => {
   })
 
   afterEach(() => {
+    MediaRecorderStub.failOnStop = false
     vi.useRealTimers()
     vi.unstubAllGlobals()
   })
@@ -104,6 +110,50 @@ describe('useAudioRecorder scope disposal', () => {
 
     scope.stop()
     // Disposing after a cancel must not double-stop the tracks.
+    expect(trackStop).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops the acquired stream when the scope is disposed while permission is pending', async () => {
+    let resolveMedia!: (value: unknown) => void
+    const getUserMedia = navigator.mediaDevices.getUserMedia as unknown as ReturnType<typeof vi.fn>
+    getUserMedia.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveMedia = resolve
+        })
+    )
+    const scope = effectScope()
+    const recorder = scope.run(() => useAudioRecorder())!
+
+    const starting = recorder.startRecording()
+    scope.stop()
+    resolveMedia(stream)
+    await starting
+
+    expect(trackStop).toHaveBeenCalledTimes(1)
+    expect(recorder.recordingState.value).toBe('idle')
+    expect(recorder.recordingDuration.value).toBe(0)
+    vi.advanceTimersByTime(5000)
+    expect(recorder.recordingDuration.value).toBe(0)
+  })
+
+  it('releases the microphone and the timer when the recorder errors mid-stop', async () => {
+    MediaRecorderStub.failOnStop = true
+    const scope = effectScope()
+    const recorder = scope.run(() => useAudioRecorder())!
+
+    await recorder.startRecording()
+    vi.advanceTimersByTime(2000)
+
+    await expect(recorder.stopRecording()).rejects.toThrow('recorder failed')
+
+    expect(trackStop).toHaveBeenCalledTimes(1)
+    expect(recorder.recordingState.value).toBe('idle')
+    vi.advanceTimersByTime(5000)
+    expect(recorder.recordingDuration.value).toBe(2)
+
+    scope.stop()
+    // Disposal after an error release must not double-stop the tracks.
     expect(trackStop).toHaveBeenCalledTimes(1)
   })
 })

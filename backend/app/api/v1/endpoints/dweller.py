@@ -266,6 +266,7 @@ async def generate_backstory(
     Returns:
         DwellerReadFull: The dweller with generated backstory.
     """
+    await verify_dweller_access(dweller_id, user, db_session)
     return await dweller_ai.generate_backstory(db_session=db_session, dweller_id=dweller_id, user=user)
 
 
@@ -276,6 +277,7 @@ async def extend_bio(
     db_session: DBSession,
 ) -> DwellerReadFull:
     """Append new AI-generated detail to a dweller's existing biography."""
+    await verify_dweller_access(dweller_id, user, db_session)
     return await dweller_ai.extend_bio(db_session=db_session, dweller_id=dweller_id, user=user)
 
 
@@ -337,6 +339,7 @@ async def generate_audio(
     Returns:
         DwellerReadFull: The dweller with generated audio.
     """
+    await verify_dweller_access(dweller_id, user, db_session)
     return await dweller_ai.generate_audio(db_session=db_session, dweller_id=dweller_id, user=user, text=text)
 
 

@@ -197,7 +197,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   let allDwellersVaultId: string | null = null
   let allDwellersRequestSeq = 0
   const allDwellersLoadedVaultId = ref<string | null>(null)
-  let allDwellersInFlight: { vaultId: string; token: string; promise: Promise<boolean> } | null =
+  let allDwellersInFlight: { vaultId: string; session: number; promise: Promise<boolean> } | null =
     null
 
   let latestTick: { vaultId: string; delta: Map<string, DwellerTickSnapshot> } | null = null
@@ -251,7 +251,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
   }
 
-  const cacheIdentity = computed(() => authStore.user?.id ?? authStore.token)
+  const cacheIdentity = computed(() => authStore.user?.id ?? authStore.sessionGeneration)
 
   watch(
     [cacheIdentity, () => authStore.token, () => authStore.sessionGeneration],
@@ -295,7 +295,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   }
 
   const { run: runFetchDwellers, isLoading } = useAsyncAction(
-    async (vaultId: string, token: string, options?: DwellerFetchOptions) => {
+    async (vaultId: string, options?: DwellerFetchOptions) => {
       const requestSeq = ++dwellersRequestSeq
       const session = authStore.sessionGeneration
       const tickEpochAtStart = tickEpoch
@@ -499,18 +499,16 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
 
   async function fetchDwellersByVault(
     vaultId: string,
-    token: string,
     options?: DwellerFetchOptions
   ): Promise<void> {
-    await runFetchDwellers(vaultId, token, options)
+    await runFetchDwellers(vaultId, options)
   }
 
   async function fetchWithCurrentFilters(
     vaultId: string,
-    token: string,
     options: DwellerFetchOptions = {}
   ): Promise<void> {
-    await fetchDwellersByVault(vaultId, token, {
+    await fetchDwellersByVault(vaultId, {
       ...options,
       focus: filterFocus.value,
       status: filterStatus.value,
@@ -531,17 +529,17 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
    */
   async function fetchAllDwellers(
     vaultId: string,
-    token: string,
     throwOnError = false,
     forceRefresh = false
   ): Promise<void> {
     // Read-only callers share work. Mutation refreshes must start after the write.
     let request = allDwellersInFlight
-    if (forceRefresh || request?.vaultId !== vaultId || request.token !== token) {
+    const session = authStore.sessionGeneration
+    if (forceRefresh || request?.vaultId !== vaultId || request.session !== session) {
       request = {
         vaultId,
-        token,
-        promise: loadAllDwellers(vaultId, token).catch((error: unknown) => {
+        session,
+        promise: loadAllDwellers(vaultId).catch((error: unknown) => {
           handleStoreError(error, `Failed to fetch all dwellers for vault ${vaultId}`)
           throw error
         }),
@@ -559,7 +557,8 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
   }
 
-  async function loadAllDwellers(vaultId: string, _token: string): Promise<boolean> {
+  async function loadAllDwellers(vaultId: string): Promise<boolean> {
+    const session = authStore.sessionGeneration
     const tickEpochAtStart = tickEpoch
     const knownIds = new Set(allDwellers.value.map((d) => d.id))
     allDwellers.value = []
@@ -579,7 +578,12 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       })
       collected.push(...page)
     }
-    if (requestSeq !== allDwellersRequestSeq || allDwellersVaultId !== vaultId) return false
+    if (
+      requestSeq !== allDwellersRequestSeq ||
+      allDwellersVaultId !== vaultId ||
+      session !== authStore.sessionGeneration
+    )
+      return false
     const activeVaultId = useVaultStore().activeVaultId
     if (activeVaultId && activeVaultId !== vaultId) return false
     allDwellers.value = collected
@@ -588,11 +592,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     return true
   }
 
-  async function fetchDwellerDetails(
-    id: string,
-    token: string,
-    forceRefresh = false
-  ): Promise<Dweller | null> {
+  async function fetchDwellerDetails(id: string, forceRefresh = false): Promise<Dweller | null> {
     // Guard against invalid IDs (e.g. undefined before route resolves)
     if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
       return null
@@ -697,7 +697,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
   }
 
-  function applyDwellerTick(vaultId: string, snapshot: DwellerTickSnapshot[], token: string): void {
+  function applyDwellerTick(vaultId: string, snapshot: DwellerTickSnapshot[]): void {
     const vaultStore = useVaultStore()
     if (vaultStore.activeVaultId && vaultStore.activeVaultId !== vaultId) return
 
@@ -741,10 +741,10 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
 
     const hasNewDweller = snapshot.some((d) => !previousIds.has(d.id))
     if (pageMembershipChanged || (rosterLoaded && hasNewDweller)) {
-      void fetchWithCurrentFilters(vaultId, token)
+      void fetchWithCurrentFilters(vaultId)
     }
     if (rosterLoaded && hasNewDweller) {
-      void fetchAllDwellers(vaultId, token, false, true)
+      void fetchAllDwellers(vaultId, false, true)
     }
   }
 

@@ -31,7 +31,7 @@ const breadcrumbs = computed(() => [
 
 onMounted(async () => {
   if (authStore.isAuthenticated && vaultId.value) {
-    await dwellerStore.fetchGraveyardDwellers(vaultId.value, authStore.token as string)
+    await dwellerStore.fetchGraveyardDwellers(vaultId.value)
   }
 })
 

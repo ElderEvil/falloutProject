@@ -101,9 +101,7 @@ describe('WastelandDropzone', () => {
     })
 
     expect(wrapper.emitted('drop-error')).toHaveLength(1)
-    expect(wrapper.emitted('drop-error')![0]).toEqual([
-      'Failed to send dweller to wasteland',
-    ])
+    expect(wrapper.emitted('drop-error')![0]).toEqual(['Failed to send dweller to wasteland'])
   })
 
   it('removes drag-over state on drop', async () => {

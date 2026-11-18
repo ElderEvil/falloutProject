@@ -3,9 +3,7 @@ import { createIconifyMock } from '../../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import ChildChip from '@/modules/social/components/relationships/ChildChip.vue'
 
-vi.mock('@iconify/vue', () =>
-  createIconifyMock()
-)
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 const child = {
   id: 'c1',

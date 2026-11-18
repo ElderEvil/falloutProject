@@ -493,7 +493,7 @@ describe('Persisted roster attention', () => {
     localStorage.setItem('dwellerFilterFocus', stored!)
     const store = useDwellerStore().filter
     expect(store.filterFocus).toBe(hydrated)
-    await store.fetchWithCurrentFilters('vault-1', 'test-token')
+    await store.fetchWithCurrentFilters('vault-1')
     expect(getDwellersByVault).toHaveBeenLastCalledWith(
       'vault-1',
       expect.objectContaining({ focus: sent })

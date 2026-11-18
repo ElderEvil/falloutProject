@@ -33,12 +33,10 @@ describe('useDwellerMedicalStore', () => {
     vi.mocked(axios.post).mockResolvedValue({ data: payload })
     vi.mocked(axios.get).mockResolvedValue({ data: [{ id: 'd1', radiation: 0 }] })
 
-    const result = await medicalStore.distributeRecoverySupplies('vault-1', 'token-1')
+    const result = await medicalStore.distributeRecoverySupplies('vault-1')
 
     expect(axios.post).toHaveBeenCalledWith(
-      '/api/v1/storage/vault/vault-1/medical/distribute-recovery-supplies',
-      null,
-      { headers: { Authorization: 'Bearer token-1' } }
+      '/api/v1/storage/vault/vault-1/medical/distribute-recovery-supplies'
     )
     expect(result).toEqual(payload)
     expect(filterStore.dwellers).toEqual([{ id: 'd1', radiation: 0 }])
@@ -51,34 +49,35 @@ describe('useDwellerMedicalStore', () => {
   it.each([
     ['stimpack', 'useStimpack', { health: 100, stimpack: 0 }],
     ['radaway', 'useRadaway', { radiation: 0, radaway: 0 }],
-  ] as const)('patches the roster and detail cache after using a %s', async (supply, action, change) => {
-    const filter = useDwellerFilterStore()
-    const medical = useDwellerMedicalStore()
-    filter.dwellers = [
-      { id: 'd1', health: 40, radiation: 60, stimpack: 1, radaway: 1 },
-      { id: 'd2', health: 10, radiation: 90, stimpack: 0, radaway: 0 },
-    ] as never
-    filter.detailedDwellers.d1 = { id: 'd1', health: 40, radiation: 60, name: 'Ann' } as never
-    vi.mocked(axios.post).mockResolvedValue({ data: { id: 'd1', ...change } })
+  ] as const)(
+    'patches the roster and detail cache after using a %s',
+    async (supply, action, change) => {
+      const filter = useDwellerFilterStore()
+      const medical = useDwellerMedicalStore()
+      filter.dwellers = [
+        { id: 'd1', health: 40, radiation: 60, stimpack: 1, radaway: 1 },
+        { id: 'd2', health: 10, radiation: 90, stimpack: 0, radaway: 0 },
+      ] as never
+      filter.detailedDwellers.d1 = { id: 'd1', health: 40, radiation: 60, name: 'Ann' } as never
+      vi.mocked(axios.post).mockResolvedValue({ data: { id: 'd1', ...change } })
 
-    const result = await medical[action]('d1', 'token-1')
+      const result = await medical[action]('d1', 'token-1')
 
-    expect(axios.post).toHaveBeenCalledWith(`/api/v1/dwellers/d1/use_${supply}`, null, {
-      headers: { Authorization: 'Bearer token-1' },
-    })
-    expect(result).toMatchObject(change)
-    expect(filter.dwellers[0]).toMatchObject(change)
-    expect(filter.dwellers[1]).toMatchObject({ id: 'd2', health: 10, radiation: 90 })
-    expect(filter.detailedDwellers.d1).toMatchObject({ ...change, name: 'Ann' })
-  })
+      expect(axios.post).toHaveBeenCalledWith(`/api/v1/dwellers/d1/use_${supply}`)
+      expect(result).toMatchObject(change)
+      expect(filter.dwellers[0]).toMatchObject(change)
+      expect(filter.dwellers[1]).toMatchObject({ id: 'd2', health: 10, radiation: 90 })
+      expect(filter.detailedDwellers.d1).toMatchObject({ ...change, name: 'Ann' })
+    }
+  )
 
   it('reports healing once when a supply must first be issued from storage', async () => {
     const medical = useDwellerMedicalStore()
     vi.mocked(axios.post)
       .mockResolvedValueOnce({ data: { dweller_stimpacks: 1 } })
       .mockResolvedValueOnce({ data: { id: 'd1', health: 100, stimpack: 0 } })
-    await medical.issueMedicalSupply('vault-1', 'd1', 'stimpack', 'token')
-    await medical.useStimpack('d1', 'token')
+    await medical.issueMedicalSupply('vault-1', 'd1', 'stimpack')
+    await medical.useStimpack('d1')
     expect(toastMock.success).toHaveBeenCalledTimes(1)
     expect(toastMock.success).toHaveBeenCalledWith('Stimpack used! Dweller healed.')
   })
@@ -96,11 +95,11 @@ describe('useDwellerMedicalStore', () => {
           })
       )
       .mockResolvedValueOnce({ data: [{ id: 'treated', radiation: 0 }] })
-    const old = filter.fetchAllDwellers('vault-1', 'token-1')
+    const old = filter.fetchAllDwellers('vault-1')
     vi.mocked(axios.post).mockResolvedValue({
       data: { dwellers_treated: 1, radaways_used: 1, stimpaks_used: 0 },
     })
-    const treatment = medical.distributeRecoverySupplies('vault-1', 'token-1')
+    const treatment = medical.distributeRecoverySupplies('vault-1')
     await flushPromises()
     finishOld({ data: [{ id: 'treated', radiation: 50 }] })
     await Promise.all([old, treatment])
@@ -121,7 +120,7 @@ describe('useDwellerMedicalStore', () => {
       },
     })
 
-    await medicalStore.distributeRecoverySupplies('vault-1', 'token-1')
+    await medicalStore.distributeRecoverySupplies('vault-1')
 
     expect(toastMock.info).toHaveBeenCalledWith('No irradiated dwellers needed treatment')
   })
@@ -132,7 +131,7 @@ describe('useDwellerMedicalStore', () => {
     const medicalStore = useDwellerMedicalStore()
     vi.mocked(axios.post).mockRejectedValue(new Error('boom'))
 
-    const result = await medicalStore.distributeRecoverySupplies('vault-1', 'token-1')
+    const result = await medicalStore.distributeRecoverySupplies('vault-1')
 
     expect(result).toBeNull()
     expect(axios.get).not.toHaveBeenCalled()
@@ -145,7 +144,7 @@ describe('useDwellerMedicalStore', () => {
       response: { status: 400, data: { detail: 'No stimpacks available' } },
     })
 
-    const result = await medicalStore.useStimpack('d1', 'token-1')
+    const result = await medicalStore.useStimpack('d1')
 
     expect(result).toBeNull()
     expect(toastMock.error).toHaveBeenCalledTimes(1)

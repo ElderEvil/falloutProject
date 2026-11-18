@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import axios from '@/core/plugins/axios'
+import * as managementApi from '../api/management'
 import type { components } from '@/core/types/api.generated'
 import type { Dweller } from '../models/dweller'
 import { handleStoreError } from '@/core/utils/errorHandler'
@@ -41,7 +41,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
   }
 
   function sessionIdentity(): string {
-    return `${authStore.user?.id ?? ''}:${authStore.token ?? ''}`
+    return `${authStore.user?.id ?? ''}:${authStore.sessionGeneration}`
   }
 
   function roomFor(roomId: string | null) {
@@ -72,11 +72,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     }
   }
 
-  async function assignDwellerToRoom(
-    dwellerId: string,
-    roomId: string,
-    token: string
-  ): Promise<Dweller> {
+  async function assignDwellerToRoom(dwellerId: string, roomId: string): Promise<Dweller> {
     const identity = sessionIdentity()
     const mutation = beginAssignmentMutation(dwellerId)
     const previous = filterStore.dwellers.find((d) => d.id === dwellerId)
@@ -88,28 +84,24 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     }
     patchRoomAssignment(dwellerId, roomId)
     try {
-      const response = await axios.post(`/api/v1/dwellers/${dwellerId}/move_to/${roomId}`, null, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const data = await managementApi.moveToRoom(dwellerId, roomId)
 
       confirmedAssignments.set(dwellerId, {
         roomId,
-        status: response.data.status,
+        status: data.status,
       })
       if (!ownsAssignmentMutation(dwellerId, mutation) || sessionIdentity() !== identity) {
-        return response.data
+        return data
       }
 
-      patchRoomAssignment(dwellerId, roomId, response.data.status)
+      patchRoomAssignment(dwellerId, roomId, data.status)
       if (dwellerId in filterStore.detailedDwellers) {
-        filterStore.detailedDwellers[dwellerId] = response.data
+        filterStore.detailedDwellers[dwellerId] = data
       }
 
       audioManager.play('cardDrop', 'ui')
 
-      return response.data
+      return data
     } catch (error) {
       if (ownsAssignmentMutation(dwellerId, mutation) && sessionIdentity() === identity) {
         const confirmed = confirmedAssignments.get(dwellerId)
@@ -120,31 +112,23 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     }
   }
 
-  async function softDeleteDweller(dwellerId: string, token: string): Promise<Dweller> {
+  async function softDeleteDweller(dwellerId: string): Promise<Dweller> {
     try {
-      const response = await axios.post<Dweller>(
-        `/api/v1/dwellers/${dwellerId}/soft-delete`,
-        null,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
+      const data = await managementApi.softDelete(dwellerId)
 
       // Remove the dweller from the active list and detail cache
       filterStore.dwellers = filterStore.dwellers.filter((d) => d.id !== dwellerId)
       delete filterStore.detailedDwellers[dwellerId]
 
       toast.success('Dweller moved to the Trading Post pool')
-      return response.data
+      return data
     } catch (error: unknown) {
       handleStoreError(error, `Failed to soft-delete dweller ${dwellerId}`)
       throw error
     }
   }
 
-  async function unassignDwellerFromRoom(dwellerId: string, token: string): Promise<Dweller> {
+  async function unassignDwellerFromRoom(dwellerId: string): Promise<Dweller> {
     const identity = sessionIdentity()
     const mutation = beginAssignmentMutation(dwellerId)
     const previous = filterStore.dwellers.find((d) => d.id === dwellerId)
@@ -157,32 +141,24 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     patchRoomAssignment(dwellerId, null, 'idle')
     try {
       // Move dweller to null room (unassign)
-      const response = await axios.put(
-        `/api/v1/dwellers/${dwellerId}`,
-        { room_id: null },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
+      const data = await managementApi.updateDweller(dwellerId, { room_id: null })
 
       confirmedAssignments.set(dwellerId, {
         roomId: null,
-        status: response.data.status,
+        status: data.status,
       })
       if (!ownsAssignmentMutation(dwellerId, mutation) || sessionIdentity() !== identity) {
-        return response.data
+        return data
       }
 
-      patchRoomAssignment(dwellerId, null, response.data.status)
+      patchRoomAssignment(dwellerId, null, data.status)
       if (dwellerId in filterStore.detailedDwellers) {
-        filterStore.detailedDwellers[dwellerId] = response.data
+        filterStore.detailedDwellers[dwellerId] = data
       }
 
       audioManager.play('cardDrop', 'ui')
 
-      return response.data
+      return data
     } catch (error) {
       if (ownsAssignmentMutation(dwellerId, mutation) && sessionIdentity() === identity) {
         const confirmed = confirmedAssignments.get(dwellerId)
@@ -193,30 +169,26 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     }
   }
 
-  async function autoAssignToRoom(dwellerId: string, token: string): Promise<Dweller | null> {
+  async function autoAssignToRoom(dwellerId: string): Promise<Dweller | null> {
     try {
-      const response = await axios.post(`/api/v1/dwellers/${dwellerId}/auto_assign`, null, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const data = await managementApi.autoAssign(dwellerId)
 
       // Update the dweller in the list
       const dwellerIndex = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
       if (dwellerIndex !== -1 && filterStore.dwellers[dwellerIndex]) {
         filterStore.dwellers[dwellerIndex] = {
           ...filterStore.dwellers[dwellerIndex]!,
-          room_id: response.data.room_id,
+          room_id: data.room_id,
         }
       }
 
       // Update detailed dweller if cached
       if (filterStore.detailedDwellers[dwellerId]) {
-        filterStore.detailedDwellers[dwellerId] = response.data
+        filterStore.detailedDwellers[dwellerId] = data
       }
 
       toast.success('Dweller auto-assigned to best matching room!')
-      return response.data
+      return data
     } catch (error: unknown) {
       handleStoreError(error, `Failed to auto-assign dweller ${dwellerId}`)
       return null
@@ -225,13 +197,12 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
   async function assignApprenticeToRoom(
     dwellerId: string,
-    vaultId: string,
-    token: string
+    vaultId: string
   ): Promise<Dweller | null> {
     const roomStore = useRoomStore()
     try {
       await roomStore.fetchRooms(vaultId)
-      await filterStore.fetchAllDwellers(vaultId, token)
+      await filterStore.fetchAllDwellers(vaultId)
     } catch (error) {
       handleStoreError(error, 'Failed to load rooms for apprentice assignment')
       return null
@@ -251,7 +222,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     }
 
     try {
-      const assigned = await assignDwellerToRoom(dwellerId, target.id, token)
+      const assigned = await assignDwellerToRoom(dwellerId, target.id)
       toast.success(`Apprenticed in ${target.name}`)
       return assigned
     } catch {
@@ -262,23 +233,18 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
   async function renameDweller(
     dwellerId: string,
     firstName: string,
-    token: string,
     lastName?: string | null
   ): Promise<Dweller | null> {
     try {
-      const response = await axios.patch(
-        `/api/v1/dwellers/${dwellerId}/rename`,
-        { first_name: firstName, ...(lastName === undefined ? {} : { last_name: lastName }) },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
+      const payload = {
+        first_name: firstName,
+        ...(lastName === undefined ? {} : { last_name: lastName }),
+      }
+      const data = await managementApi.rename(dwellerId, payload)
 
       // Update detailed dweller if cached
       if (filterStore.detailedDwellers[dwellerId]) {
-        filterStore.detailedDwellers[dwellerId] = response.data
+        filterStore.detailedDwellers[dwellerId] = data
       }
 
       // Update in list if present
@@ -286,8 +252,8 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       if (dwellerIndex !== -1 && filterStore.dwellers[dwellerIndex]) {
         filterStore.dwellers[dwellerIndex] = {
           ...filterStore.dwellers[dwellerIndex]!,
-          first_name: response.data.first_name,
-          last_name: response.data.last_name,
+          first_name: data.first_name,
+          last_name: data.last_name ?? null,
         }
       }
 
@@ -300,7 +266,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
         toast.success('Dweller renamed successfully!')
       }
 
-      return response.data
+      return data
     } catch (error: unknown) {
       handleStoreError(error, `Failed to rename dweller ${dwellerId}`)
       return null
@@ -309,27 +275,20 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
   async function updateVisualAttributes(
     dwellerId: string,
-    visualAttributes: Record<string, unknown>,
-    token: string
+    visualAttributes: Record<string, unknown>
   ): Promise<Dweller | null> {
     try {
-      const response = await axios.put(
-        `/api/v1/dwellers/${dwellerId}`,
-        { visual_attributes: visualAttributes },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
+      const data = await managementApi.updateDweller(dwellerId, {
+        visual_attributes: visualAttributes,
+      })
 
       // Update detailed dweller if cached
       if (filterStore.detailedDwellers[dwellerId]) {
-        filterStore.detailedDwellers[dwellerId] = response.data
+        filterStore.detailedDwellers[dwellerId] = data
       }
 
       toast.success('Appearance updated successfully!')
-      return response.data
+      return data
     } catch (error: unknown) {
       handleStoreError(error, `Failed to update appearance for dweller ${dwellerId}`)
       return null
@@ -337,25 +296,16 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
   }
 
   async function unassignAllDwellers(
-    vaultId: string,
-    token: string
+    vaultId: string
   ): Promise<{ unassigned_count: number } | null> {
     try {
-      const response = await axios.post<{ unassigned_count: number }>(
-        `/api/v1/vaults/${vaultId}/dwellers/unassign-all`,
-        null,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
+      const data = await managementApi.unassignAll(vaultId)
 
       // Refetch dwellers to update UI
-      await filterStore.fetchDwellersByVault(vaultId, token)
+      await filterStore.fetchDwellersByVault(vaultId)
 
-      toast.success(`Unassigned ${response.data.unassigned_count} dwellers`)
-      return response.data
+      toast.success(`Unassigned ${data.unassigned_count} dwellers`)
+      return data
     } catch (error: unknown) {
       handleStoreError(error, `Failed to unassign all dwellers for vault ${vaultId}`)
       return null
@@ -370,33 +320,23 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       | 'auto-assign-all'
       | 'auto-assign-crafting',
     vaultId: string,
-    token: string,
     filters: { ageGroup?: AutoAssignAgeGroup } | undefined,
     successSuffix: string,
     failureLabel: string
   ): Promise<AutoAssignResponse | null> {
     try {
-      const queryString = filters?.ageGroup ? `?age_group=${filters.ageGroup}` : ''
-      const response = await axios.post<AutoAssignResponse>(
-        `/api/v1/vaults/${vaultId}/dwellers/${endpoint}${queryString}`,
-        null,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
+      const data = await managementApi.autoAssignVault(endpoint, vaultId, filters?.ageGroup)
 
       // Refetch dwellers to update UI
-      await filterStore.fetchWithCurrentFilters(vaultId, token)
+      await filterStore.fetchWithCurrentFilters(vaultId)
 
-      const { assigned_count, eligible_count } = response.data
+      const { assigned_count, eligible_count } = data
       const summary =
         eligible_count > assigned_count
           ? `Assigned ${assigned_count} of ${eligible_count} eligible dwellers ${successSuffix}`
           : `Assigned ${assigned_count} dwellers ${successSuffix}`
       toast.success(summary)
-      return response.data
+      return data
     } catch (error) {
       handleStoreError(error, `${failureLabel} for vault ${vaultId}`)
       return null
@@ -405,13 +345,11 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
   function autoAssignProductionDwellers(
     vaultId: string,
-    token: string,
     filters?: { ageGroup?: AutoAssignAgeGroup }
   ) {
     return autoAssignDwellers(
       'auto-assign-production',
       vaultId,
-      token,
       filters,
       'to production rooms!',
       'Failed to auto-assign dwellers to production rooms'
@@ -420,13 +358,11 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
   function autoAssignTrainingDwellers(
     vaultId: string,
-    token: string,
     filters?: { ageGroup?: AutoAssignAgeGroup }
   ) {
     return autoAssignDwellers(
       'auto-assign-training',
       vaultId,
-      token,
       filters,
       'to training rooms!',
       'Failed to auto-assign dwellers to training rooms'
@@ -435,28 +371,21 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
   function autoAssignCraftingDwellers(
     vaultId: string,
-    token: string,
     filters?: { ageGroup?: AutoAssignAgeGroup }
   ) {
     return autoAssignDwellers(
       'auto-assign-crafting',
       vaultId,
-      token,
       filters,
       'to crafting rooms!',
       'Failed to auto-assign dwellers to crafting rooms'
     )
   }
 
-  function autoAssignAllDwellers(
-    vaultId: string,
-    token: string,
-    filters?: { ageGroup?: AutoAssignAgeGroup }
-  ) {
+  function autoAssignAllDwellers(vaultId: string, filters?: { ageGroup?: AutoAssignAgeGroup }) {
     return autoAssignDwellers(
       'auto-assign-all',
       vaultId,
-      token,
       filters,
       'to rooms!',
       'Failed to auto-assign dwellers'

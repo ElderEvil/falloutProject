@@ -30,8 +30,8 @@ const isInitialLoad = ref(true)
 const errorMessage = ref<string | null>(null)
 const { run: runLoadData, isLoading: isLoadingRequest } = useAsyncAction(
   async (currentVaultId: string, token: string) => {
-    await vaultStore.revalidateVault(currentVaultId, token)
-    await dwellerStore.fetchDwellersByVault(currentVaultId, token)
+    await vaultStore.revalidateVault(currentVaultId)
+    await dwellerStore.fetchDwellersByVault(currentVaultId)
     await incidentStore.fetchIncidents(currentVaultId, token)
     return true
   },
@@ -101,7 +101,7 @@ const handleTreatIrradiated = async () => {
   if (!vaultId.value || !authStore.token || isTreatingDwellers.value) return
   isTreatingDwellers.value = true
   try {
-    await medicalStore.distributeRecoverySupplies(vaultId.value, authStore.token)
+    await medicalStore.distributeRecoverySupplies(vaultId.value)
   } finally {
     isTreatingDwellers.value = false
   }

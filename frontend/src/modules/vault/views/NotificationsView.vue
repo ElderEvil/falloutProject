@@ -75,7 +75,7 @@ watch([selectedVault, status], reload, { immediate: true })
 
 onMounted(() => {
   const token = useAuthStore().token
-  if (token) void vaultStore.fetchVaults(token)
+  if (token) void vaultStore.fetchVaults()
 })
 </script>
 

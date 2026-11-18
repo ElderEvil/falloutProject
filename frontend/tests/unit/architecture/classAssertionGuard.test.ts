@@ -83,7 +83,9 @@ describe('class-assertion ratchet guard', () => {
       )
     }
     for (const file of staleEntries) {
-      messages.push(`baseline entry ${file} no longer offends; remove it from classAssertionBaseline.json`)
+      messages.push(
+        `baseline entry ${file} no longer offends; remove it from classAssertionBaseline.json`
+      )
     }
 
     expect(messages).toEqual([])
@@ -98,8 +100,12 @@ describe('class-assertion ratchet guard', () => {
     expect(matchPatterns("expect(wrapper.classes()).toContain('mt-4')")).toEqual(['.classes('])
     expect(matchPatterns("expect(el.classList).toContain('bg-x')")).toEqual(['.classList'])
     expect(matchPatterns('expect(wrapper).toHaveClass("text-red-400")')).toEqual(['toHaveClass'])
-    expect(matchPatterns("expect(wrapper.html()).toContain('mt-4')")).toEqual(['full-DOM .html() assertion'])
-    expect(matchPatterns('expect(wrapper.html()).toMatchSnapshot()')).toEqual(['full-DOM .html() assertion'])
+    expect(matchPatterns("expect(wrapper.html()).toContain('mt-4')")).toEqual([
+      'full-DOM .html() assertion',
+    ])
+    expect(matchPatterns('expect(wrapper.html()).toMatchSnapshot()')).toEqual([
+      'full-DOM .html() assertion',
+    ])
     expect(matchPatterns("expect(wrapper.text()).toContain('Hello')")).toEqual([])
   })
 })

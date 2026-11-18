@@ -109,7 +109,7 @@ const handleUnassignAll = async () => {
 
   unassigningAll.value = true
   try {
-    await dwellerStore.unassignAllDwellers(props.vaultId, authStore.token)
+    await dwellerStore.unassignAllDwellers(props.vaultId)
   } finally {
     unassigningAll.value = false
     showConfirmDialog.value = false
@@ -128,7 +128,7 @@ const handleAutoAssign = async (target: keyof typeof bulkAssignActions) => {
 
   autoAssigning.value = target
   try {
-    await dwellerStore[bulkAssignActions[target]](props.vaultId, authStore.token, {
+    await dwellerStore[bulkAssignActions[target]](props.vaultId, {
       ageGroup: activeAgeFilter.value,
     })
   } finally {

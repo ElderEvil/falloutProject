@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vite-plus/test'
-import { describeBonusSources, getSpecialBreakdown } from '@/modules/dwellers/models/specialBreakdown'
+import {
+  describeBonusSources,
+  getSpecialBreakdown,
+} from '@/modules/dwellers/models/specialBreakdown'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 
 function makeDweller(overrides: Partial<Dweller> = {}): Dweller {
@@ -48,9 +51,7 @@ describe('getSpecialBreakdown', () => {
   })
 
   it('should fold identity modifiers into effective', () => {
-    const rows = getSpecialBreakdown(
-      makeDweller({ identity_modifiers: { charisma: 2 } as never })
-    )
+    const rows = getSpecialBreakdown(makeDweller({ identity_modifiers: { charisma: 2 } as never }))
     expect(rows[3].identity).toBe(2)
     expect(rows[3].effective).toBe(5)
   })

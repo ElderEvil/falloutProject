@@ -59,9 +59,9 @@ const togglePause = async () => {
 
   try {
     if (isPaused.value) {
-      await vaultStore.resumeVault(props.vaultId, authStore.token)
+      await vaultStore.resumeVault(props.vaultId)
     } else {
-      await vaultStore.pauseVault(props.vaultId, authStore.token)
+      await vaultStore.pauseVault(props.vaultId)
     }
   } catch (error) {
     handleStoreError(error, 'Failed to update vault pause state')
@@ -84,7 +84,7 @@ const spawnIncident = async (type: IncidentType) => {
 const initializeGameState = async () => {
   if (authStore.token) {
     try {
-      await vaultStore.fetchGameState(props.vaultId, authStore.token)
+      await vaultStore.fetchGameState(props.vaultId)
     } catch (error) {
       handleStoreError(error, 'Failed to load game state')
     }

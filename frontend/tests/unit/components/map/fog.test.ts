@@ -4,7 +4,11 @@ import { registryToTile } from '@/modules/map/utils/atlasProjection'
 
 describe('atlas fog of war', () => {
   it('reveals around the home vault', () => {
-    const mask = computeExploredMask({ home: { coord_x: 50, coord_y: 50 }, discovered: [], trailPoints: [] })
+    const mask = computeExploredMask({
+      home: { coord_x: 50, coord_y: 50 },
+      discovered: [],
+      trailPoints: [],
+    })
     const x = registryToTile(50)
     const y = registryToTile(50)
     expect(isExploredTile(mask, x, y)).toBe(true)
@@ -24,12 +28,16 @@ describe('atlas fog of war', () => {
 
   it('is empty with no discovery state', () => {
     const mask = computeExploredMask({ home: null, discovered: [], trailPoints: [] })
-    expect(mask.every(value => value === 0)).toBe(true)
+    expect(mask.every((value) => value === 0)).toBe(true)
   })
 
   it('clamps reveals at the map edge without throwing', () => {
-    const mask = computeExploredMask({ home: { coord_x: 0, coord_y: 0 }, discovered: [], trailPoints: [] })
-    expect(mask.some(value => value === 1)).toBe(true)
+    const mask = computeExploredMask({
+      home: { coord_x: 0, coord_y: 0 },
+      discovered: [],
+      trailPoints: [],
+    })
+    expect(mask.some((value) => value === 1)).toBe(true)
   })
 
   it('reveals the segment between movement-trail points, not just endpoints', () => {

@@ -41,8 +41,8 @@ const decide = async (grant: boolean) => {
   isDeciding.value = true
   try {
     const decided = grant
-      ? await store.grant(vaultId, request.dweller_id)
-      : await store.refuse(vaultId, request.dweller_id, request.refusal_happiness_penalty)
+      ? await store.grant(request.dweller_id)
+      : await store.refuse(request.dweller_id, request.refusal_happiness_penalty)
     if (decided) decideLater()
   } finally {
     isDeciding.value = false

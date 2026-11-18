@@ -49,7 +49,7 @@ export function useExplorationFinish(vaultId?: MaybeRefOrGetter<string | undefin
     const vault = toValue(vaultId)
     if (!rewardsDirty.value || !vault || !authStore.token) return true
     try {
-      await vaultStore.refreshVault(vault, authStore.token)
+      await vaultStore.refreshVault(vault)
       rewardsDirty.value = false
       return true
     } catch (error) {
@@ -84,8 +84,8 @@ export function useExplorationFinish(vaultId?: MaybeRefOrGetter<string | undefin
 
       const vault = toValue(vaultId)
       if (vault) {
-        await vaultStore.refreshVault(vault, authStore.token)
-        await dwellerStore.fetchDwellersByVault(vault, authStore.token)
+        await vaultStore.refreshVault(vault)
+        await dwellerStore.fetchDwellersByVault(vault)
       }
     } catch (error) {
       notifyErrorOnce(error, errorMessage)

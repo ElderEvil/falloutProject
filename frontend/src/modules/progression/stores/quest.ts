@@ -1,27 +1,30 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import axios from '@/core/plugins/axios'
+import * as questApi from '../api/quest'
 import type { components } from '@/core/types/api.generated'
 import type { Quest, QuestPartyMember, VaultQuest } from '../models/quest'
 import { formatGrantedReward, isQuestReturning, isStateQuestCategory } from '../models/quest'
 import { useToast } from '@/core/composables/useToast'
-import { useAuthStore } from '@/modules/auth/stores/auth'
 import { refreshNukaColaCount } from '@/modules/vault/composables/useNukaColaCount'
 import { notifyErrorOnce, handleStoreError } from '@/core/utils/errorHandler'
 
 type QuestCompleteResponse = components['schemas']['QuestCompleteResponse']
 
-export interface EligibleDweller {
-  id: string
-  first_name: string
-  last_name: string | null
-  level: number
-  rarity: string
+import type { EligibleDweller } from '../api/quest'
+
+export type { EligibleDweller } from '../api/quest'
+
+/** Prefer the backend's detail; a transport failure keeps the caller's fixed context. */
+function apiErrorDetail(error: unknown, fallback: string): string {
+  const detail = (error as { detail?: unknown } | null)?.detail
+  if (typeof detail === 'string' && detail) return detail
+  const responseDetail = (error as { response?: { data?: { detail?: unknown } } } | null)?.response
+    ?.data?.detail
+  return typeof responseDetail === 'string' && responseDetail ? responseDetail : fallback
 }
 
 export const useQuestStore = defineStore('quest', () => {
   const toast = useToast()
-  const authStore = useAuthStore()
 
   // State
   const quests = ref<Quest[]>([])
@@ -29,11 +32,6 @@ export const useQuestStore = defineStore('quest', () => {
   const isLoading = ref(false)
   const questSlotLimit = ref(3)
   const questPartyMap = ref<Record<string, QuestPartyMember[]>>({})
-
-  const getAuthHeaders = () => {
-    const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
-    return token ? { Authorization: `Bearer ${token}` } : {}
-  }
 
   // Computed
   // Single pass classification of all vault quests
@@ -81,8 +79,7 @@ export const useQuestStore = defineStore('quest', () => {
   async function fetchAllQuests(): Promise<void> {
     try {
       isLoading.value = true
-      const response = await axios.get<Quest[]>('/api/v1/quests/', { headers: getAuthHeaders() })
-      quests.value = response.data
+      quests.value = await questApi.listQuests()
     } catch (error: unknown) {
       notifyErrorOnce(error, 'Failed to load quests')
       throw error
@@ -95,13 +92,7 @@ export const useQuestStore = defineStore('quest', () => {
     const silent = options?.silent ?? false
     try {
       if (!silent) isLoading.value = true
-      const response = await axios.get<unknown>(`/api/v1/quests/${vaultId}/`, {
-        headers: getAuthHeaders(),
-      })
-      if (!Array.isArray(response.data)) {
-        throw new TypeError('Expected a list of vault quests')
-      }
-      vaultQuests.value = response.data as VaultQuest[]
+      vaultQuests.value = await questApi.listVaultQuests(vaultId)
     } catch (error: unknown) {
       if (!silent) notifyErrorOnce(error, 'Failed to load vault quests')
       throw error
@@ -132,14 +123,10 @@ export const useQuestStore = defineStore('quest', () => {
 
   async function assignQuest(vaultId: string, questId: string, isVisible = true): Promise<void> {
     try {
-      await axios.post(`/api/v1/quests/${vaultId}/${questId}/assign`, null, {
-        params: { is_visible: isVisible },
-      })
+      await questApi.assignQuest(vaultId, questId, isVisible)
       toast.success('Quest assigned successfully')
     } catch (error: unknown) {
-      const errorMessage =
-        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Failed to assign quest'
+      const errorMessage = apiErrorDetail(error, 'Failed to assign quest')
       notifyErrorOnce(error, errorMessage)
       throw error
     }
@@ -157,22 +144,18 @@ export const useQuestStore = defineStore('quest', () => {
   ): Promise<QuestCompleteResponse | null> {
     let result: QuestCompleteResponse | null = null
     try {
-      const response = await axios.post<QuestCompleteResponse>(
-        `/api/v1/quests/${vaultId}/${questId}/claim-rewards`
-      )
-      result = response.data
+      const claimed = await questApi.claimRewards(vaultId, questId)
+      result = claimed
 
-      if (result.granted_rewards && result.granted_rewards.length > 0) {
-        const rewardsText = result.granted_rewards.map(formatGrantedReward).join(', ')
+      if (claimed.granted_rewards && claimed.granted_rewards.length > 0) {
+        const rewardsText = claimed.granted_rewards.map(formatGrantedReward).join(', ')
         toast.success(`Rewards claimed: ${rewardsText}`)
       } else {
         toast.success('Quest rewards claimed!')
       }
       void refreshNukaColaCount(vaultId)
     } catch (error: unknown) {
-      const errorMessage =
-        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Failed to claim quest rewards'
+      const errorMessage = apiErrorDetail(error, 'Failed to claim quest rewards')
       notifyErrorOnce(error, errorMessage)
       throw error
     }
@@ -187,10 +170,7 @@ export const useQuestStore = defineStore('quest', () => {
 
   async function getParty(vaultId: string, questId: string): Promise<QuestPartyMember[]> {
     try {
-      const response = await axios.get<QuestPartyMember[]>(
-        `/api/v1/quests/${vaultId}/${questId}/party`
-      )
-      return response.data
+      return await questApi.getParty(vaultId, questId)
     } catch (error: unknown) {
       notifyErrorOnce(error, 'Failed to load quest party')
       throw error
@@ -199,9 +179,7 @@ export const useQuestStore = defineStore('quest', () => {
 
   async function getEligibleDwellers(vaultId: string, questId: string): Promise<EligibleDweller[]> {
     try {
-      const url = `/api/v1/quests/${vaultId}/${questId}/eligible-dwellers`
-      const response = await axios.get<EligibleDweller[]>(url)
-      return response.data
+      return await questApi.getEligibleDwellers(vaultId, questId)
     } catch (error: unknown) {
       notifyErrorOnce(error, 'Failed to load eligible dwellers')
       throw error
@@ -214,15 +192,10 @@ export const useQuestStore = defineStore('quest', () => {
     dwellerIds?: string[]
   ): Promise<void> {
     try {
-      await axios.post(
-        `/api/v1/quests/${vaultId}/${questId}/start`,
-        dwellerIds ? { dweller_ids: dwellerIds } : undefined
-      )
+      await questApi.startQuest(vaultId, questId, dwellerIds)
       toast.success('Quest started!')
     } catch (error: unknown) {
-      const errorMessage =
-        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Failed to start quest'
+      const errorMessage = apiErrorDetail(error, 'Failed to start quest')
       notifyErrorOnce(error, errorMessage)
       throw error
     }

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from '@/core/plugins/axios'
+import * as generationApi from '../api/generation'
 import type { Dweller } from '../models/dweller'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
@@ -9,91 +9,62 @@ export const useDwellerGenerationStore = defineStore('dwellerGeneration', () => 
   const toast = useToast()
   const filterStore = useDwellerFilterStore()
 
-  const requestConfig = (token: string) => ({
-    headers: { Authorization: `Bearer ${token}` },
-    _skipErrorNotification: true,
-  })
-
-  async function generateDwellerInfo(id: string, token: string): Promise<Dweller | null> {
+  async function run(
+    id: string,
+    generate: (id: string) => Promise<Dweller>,
+    successMessage: string,
+    failurePrefix: string
+  ): Promise<Dweller | null> {
     try {
-      const response = await axios.post(
-        `/api/v1/dwellers/${id}/generate_with_ai/`,
-        null,
-        requestConfig(token)
-      )
-      filterStore.detailedDwellers[id] = response.data
-      toast.success('Dweller info generated successfully!')
+      const data = await generate(id)
+      filterStore.detailedDwellers[id] = data
+      toast.success(successMessage)
       return filterStore.detailedDwellers[id] ?? null
     } catch (error) {
-      handleStoreError(error, `Failed to generate info for dweller ${id}`)
+      handleStoreError(error, `${failurePrefix} for dweller ${id}`)
       return null
     }
   }
 
-  async function generateDwellerBio(id: string, token: string): Promise<Dweller | null> {
-    try {
-      const response = await axios.post(
-        `/api/v1/dwellers/${id}/generate_backstory/`,
-        null,
-        requestConfig(token)
-      )
-      filterStore.detailedDwellers[id] = response.data
-      toast.success('Biography generated successfully!')
-      return filterStore.detailedDwellers[id] ?? null
-    } catch (error) {
-      handleStoreError(error, `Failed to generate biography for dweller ${id}`)
-      return null
-    }
-  }
+  const generateDwellerInfo = (id: string) =>
+    run(
+      id,
+      generationApi.generateDwellerInfo,
+      'Dweller info generated successfully!',
+      'Failed to generate info'
+    )
 
-  async function extendDwellerBio(id: string, token: string): Promise<Dweller | null> {
-    try {
-      const response = await axios.post(
-        `/api/v1/dwellers/${id}/extend_bio/`,
-        null,
-        requestConfig(token)
-      )
-      filterStore.detailedDwellers[id] = response.data
-      toast.success('Biography extended successfully!')
-      return filterStore.detailedDwellers[id] ?? null
-    } catch (error) {
-      handleStoreError(error, `Failed to extend biography for dweller ${id}`)
-      return null
-    }
-  }
+  const generateDwellerBio = (id: string) =>
+    run(
+      id,
+      generationApi.generateDwellerBio,
+      'Biography generated successfully!',
+      'Failed to generate biography'
+    )
 
-  async function generateDwellerPortrait(id: string, token: string): Promise<Dweller | null> {
-    try {
-      // force=true allows regeneration even if a photo already exists
-      const response = await axios.post(
-        `/api/v1/dwellers/${id}/generate_photo/?force=true`,
-        null,
-        requestConfig(token)
-      )
-      filterStore.detailedDwellers[id] = response.data
-      toast.success('Portrait generated successfully!')
-      return filterStore.detailedDwellers[id] ?? null
-    } catch (error) {
-      handleStoreError(error, `Failed to generate portrait for dweller ${id}`)
-      return null
-    }
-  }
+  const extendDwellerBio = (id: string) =>
+    run(
+      id,
+      generationApi.extendDwellerBio,
+      'Biography extended successfully!',
+      'Failed to extend biography'
+    )
 
-  async function generateDwellerAppearance(id: string, token: string): Promise<Dweller | null> {
-    try {
-      const response = await axios.post(
-        `/api/v1/dwellers/${id}/generate_visual_attributes/`,
-        null,
-        requestConfig(token)
-      )
-      filterStore.detailedDwellers[id] = response.data
-      toast.success('Appearance generated successfully!')
-      return filterStore.detailedDwellers[id] ?? null
-    } catch (error) {
-      handleStoreError(error, `Failed to generate appearance for dweller ${id}`)
-      return null
-    }
-  }
+  const generateDwellerPortrait = (id: string) =>
+    run(
+      id,
+      generationApi.generateDwellerPortrait,
+      'Portrait generated successfully!',
+      'Failed to generate portrait'
+    )
+
+  const generateDwellerAppearance = (id: string) =>
+    run(
+      id,
+      generationApi.generateDwellerAppearance,
+      'Appearance generated successfully!',
+      'Failed to generate appearance'
+    )
 
   return {
     generateDwellerInfo,

@@ -7,9 +7,7 @@ import RegisterForm from '@/modules/auth/components/RegisterForm.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
 // Mock Iconify
-vi.mock('@iconify/vue', () =>
-  createIconifyMock()
-)
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 describe('RegisterForm', () => {
   let router: any

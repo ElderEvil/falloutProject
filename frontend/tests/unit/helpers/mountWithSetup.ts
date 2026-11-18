@@ -24,7 +24,7 @@ vi.mock('@iconify/vue', () => ({
  */
 export function mountWithSetup(
   Component: unknown,
-  options: MountingOptions<unknown> = {},
+  options: MountingOptions<unknown> = {}
 ): VueWrapper {
   const pinia = createPinia()
   setActivePinia(pinia)

@@ -334,7 +334,7 @@ describe('RelationshipsView', () => {
 
       expect(relationshipStore.fetchVaultRelationships).toHaveBeenCalledWith('test-vault-id')
       expect(pregnancyStore.fetchVaultPregnancies).toHaveBeenCalledWith('test-vault-id')
-      expect(dwellerStore.fetchAllDwellers).toHaveBeenCalledWith('test-vault-id', 'mock-token')
+      expect(dwellerStore.fetchAllDwellers).toHaveBeenCalledWith('test-vault-id')
     })
   })
 })

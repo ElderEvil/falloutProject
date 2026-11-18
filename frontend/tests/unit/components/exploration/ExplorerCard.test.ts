@@ -218,13 +218,13 @@ describe('ExplorerCard', () => {
   it('links the dweller identity to the dweller page and the label to the expedition', () => {
     const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
 
-    expect(wrapper.findAllComponents({ name: 'RouterLink' }).map((link) => link.props('to'))).toEqual(
-      [
-        '/vault/vault-1/dwellers/dweller-1',
-        '/vault/vault-1/dwellers/dweller-1',
-        '/vault/vault-1/exploration/exploration-1',
-      ]
-    )
+    expect(
+      wrapper.findAllComponents({ name: 'RouterLink' }).map((link) => link.props('to'))
+    ).toEqual([
+      '/vault/vault-1/dwellers/dweller-1',
+      '/vault/vault-1/dwellers/dweller-1',
+      '/vault/vault-1/exploration/exploration-1',
+    ])
   })
 
   it('links each party member to their own dweller page', () => {

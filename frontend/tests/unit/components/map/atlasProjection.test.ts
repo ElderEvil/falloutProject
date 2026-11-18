@@ -41,13 +41,15 @@ describe('atlasProjection', () => {
   })
 
   it('converts player vault slots to registry-space anchors for preview use', () => {
-    const player = anchorsFromPlayerVaults([{ vault_id: 'v1', number: 121, coord_x: 108.3, coord_y: 85.5 }])
+    const player = anchorsFromPlayerVaults([
+      { vault_id: 'v1', number: 121, coord_x: 108.3, coord_y: 85.5 },
+    ])
     expect(player[0]?.id).toBe('player-vault-v1')
     expect(player[0]?.coord_x).toBeCloseTo(67.69, 1)
     const merged = mergeAnchors(
       anchorsFromVaultMarkers([{ name: 'S', coord_x: 80, coord_y: 80 }]),
       player,
-      player,
+      player
     )
     expect(merged).toHaveLength(2)
   })
@@ -60,7 +62,7 @@ describe('atlasProjection', () => {
     const before = anchorsFromVaultMarkers([{ name: 'S', coord_x: 80, coord_y: 80 }])
     const withPlayer = mergeAnchors(
       anchorsFromVaultMarkers([{ name: 'S', coord_x: 80, coord_y: 80 }]),
-      anchorsFromPlayerVaults([{ vault_id: 'v1', number: 999, coord_x: 20, coord_y: 20 }]),
+      anchorsFromPlayerVaults([{ vault_id: 'v1', number: 999, coord_x: 20, coord_y: 20 }])
     )
     expect(before).toHaveLength(1)
     expect(withPlayer).toHaveLength(2)

@@ -165,12 +165,12 @@ const loadData = async () => {
     await explorationStore.refreshActiveExplorations(vaultId.value, {
       includeParties: true,
     })
-    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
+    await dwellerStore.fetchDwellersByVault(vaultId.value)
     await questStore.fetchVaultQuests(vaultId.value)
     await questStore.fetchPartiesForActiveQuests(vaultId.value)
 
     for (const exploration of activeExplorationsArray.value) {
-      await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
+      await dwellerStore.fetchDwellerDetails(exploration.dweller_id)
     }
   } catch (error) {
     notifyErrorOnce(error, 'Failed to load exploration data')

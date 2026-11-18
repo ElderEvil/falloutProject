@@ -2,9 +2,10 @@ import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import { usePolling } from '@/core/composables/usePolling'
 import { ref, computed, watch } from 'vue'
-import axios from '@/core/plugins/axios'
+import * as vaultApi from '../api/vault'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useSse } from '@/core/composables/useEventStream'
+import { getAuthToken } from '@/core/utils/authToken'
 import { useToast } from '@/core/composables/useToast'
 import { useStorageStore } from '@/modules/storage/stores/storage'
 import type { DwellerTickSnapshot } from '@/modules/dwellers/models/dweller'
@@ -12,6 +13,7 @@ import type { components } from '@/core/types/api.generated'
 
 // Use generated API types
 type VaultReadWithNumbers = components['schemas']['VaultReadWithNumbers']
+type GameState = vaultApi.GameState
 
 export type VaultWithNumbers = VaultReadWithNumbers
 export type VaultScenarioOption = components['schemas']['VaultScenarioRead']
@@ -48,14 +50,6 @@ interface GameTickUpdate {
 
 const resourceNames: ResourceName[] = ['power', 'food', 'water']
 
-// GameState type (not yet in API schemas)
-interface GameState {
-  is_paused: boolean
-  paused_at?: string | null
-  resumed_at?: string | null
-  total_game_time?: number
-}
-
 export const useVaultStore = defineStore('vault', () => {
   const toast = useToast()
   // State
@@ -86,9 +80,9 @@ export const useVaultStore = defineStore('vault', () => {
     async () => {
       const vaultId = activeVaultId.value
       if (vaultId) {
-        const response = await axios.get(`/api/v1/vaults/${vaultId}`)
+        const data = await vaultApi.getVault(vaultId)
         if (activeVaultId.value === vaultId && loadedVaults.value[vaultId]) {
-          loadedVaults.value[vaultId] = response.data
+          loadedVaults.value[vaultId] = data
         }
       }
     },
@@ -110,16 +104,12 @@ export const useVaultStore = defineStore('vault', () => {
   const currentVaultId = computed(() => activeVaultId.value ?? selectedVaultId.value)
 
   // Actions
-  async function fetchVaults(token: string): Promise<boolean> {
+  async function fetchVaults(): Promise<boolean> {
     const requestGeneration = sessionGeneration
     try {
-      const response = await axios.get('/api/v1/vaults/my', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const data = await vaultApi.getVaults()
       if (requestGeneration !== sessionGeneration) return false
-      vaults.value = response.data
+      vaults.value = data
       return true
     } catch (error) {
       handleStoreError(error, 'Failed to fetch vaults')
@@ -127,12 +117,10 @@ export const useVaultStore = defineStore('vault', () => {
     }
   }
 
-  async function fetchScenarioOptions(token: string): Promise<boolean> {
+  async function fetchScenarioOptions(): Promise<boolean> {
     try {
-      const response = await axios.get<VaultScenarioOption[]>('/api/v1/vaults/scenarios', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      scenarioOptions.value = Array.isArray(response.data) ? response.data : []
+      const options = await vaultApi.getScenarioOptions()
+      scenarioOptions.value = Array.isArray(options) ? options : []
       return true
     } catch (error) {
       handleStoreError(error, 'Failed to fetch scenario options')
@@ -143,44 +131,34 @@ export const useVaultStore = defineStore('vault', () => {
   async function createVault(
     number: number,
     boosted: boolean,
-    token: string,
     vaultMode: VaultMode = 'standard',
     scenario?: string | null
   ) {
-    if (!(await fetchVaults(token))) return null
+    if (!(await fetchVaults())) return null
     if (vaults.value.length >= MAX_USER_VAULTS) {
       toast.warning(`Creating another vault is prohibited. Limit: ${MAX_USER_VAULTS} vaults.`)
       return null
     }
 
     try {
-      const response = await axios.post<{ id: string }>(
-        '/api/v1/vaults/initiate',
-        { number, boosted, vault_mode: vaultMode, ...(scenario ? { scenario } : {}) },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
+      const created = await vaultApi.createVault({
+        number,
+        boosted,
+        vault_mode: vaultMode,
+        ...(scenario ? { scenario } : {}),
+      })
       // Best-effort refresh: a failed GET must not fail a successful creation (a retry would duplicate the vault).
-      await fetchVaults(token)
-      return response.data.id
+      await fetchVaults()
+      return created.id
     } catch (error) {
       handleStoreError(error, 'Failed to create vault')
       return null
     }
   }
 
-  async function deleteVault(id: string, token: string, hardDelete = false) {
+  async function deleteVault(id: string, hardDelete = false) {
     try {
-      const url = hardDelete ? `/api/v1/vaults/${id}?hard_delete=true` : `/api/v1/vaults/${id}`
-
-      await axios.delete(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      await vaultApi.deleteVault(id, hardDelete)
 
       vaults.value = vaults.value.filter((vault) => vault.id !== id)
       if (loadedVaults.value[id]) {
@@ -204,23 +182,23 @@ export const useVaultStore = defineStore('vault', () => {
     }
   }
 
-  async function ensureVaultLoaded(id: string, token: string): Promise<void> {
-    return loadVault(id, token, false)
+  async function ensureVaultLoaded(id: string): Promise<void> {
+    return loadVault(id, false)
   }
 
-  async function revalidateVault(id: string, token: string): Promise<void> {
-    return loadVault(id, token, true)
+  async function revalidateVault(id: string): Promise<void> {
+    return loadVault(id, true)
   }
 
-  async function loadVault(id: string, token: string, revalidate: boolean): Promise<void> {
-    if (!id || !token) return
+  async function loadVault(id: string, revalidate: boolean): Promise<void> {
+    if (!id) return
     mostRecentlyRequestedVaultId = id
 
     const inFlight = inFlightLoads.get(id)
     if (inFlight) return inFlight
 
     if (!revalidate && loadedVaults.value[id]) {
-      adoptVault(id, token)
+      adoptVault(id)
       return
     }
 
@@ -228,13 +206,11 @@ export const useVaultStore = defineStore('vault', () => {
     isLoading.value = true
     const loadPromise = (async () => {
       try {
-        const response = await axios.get(`/api/v1/vaults/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        const data = await vaultApi.getVault(id)
         if (requestGeneration !== sessionGeneration) return
-        loadedVaults.value[id] = response.data
+        loadedVaults.value[id] = data
         if (mostRecentlyRequestedVaultId === id) {
-          adoptVault(id, token)
+          adoptVault(id)
         }
       } catch (error) {
         const isCurrent =
@@ -252,14 +228,14 @@ export const useVaultStore = defineStore('vault', () => {
     return loadPromise
   }
 
-  function adoptVault(id: string, token: string): void {
+  function adoptVault(id: string): void {
     if (activeVaultId.value !== id) {
       gameState.value = null
     }
     activeVaultId.value = id
     selectedVaultId.value = id
     if (!gameState.value?.is_paused) {
-      startResourcePolling(id, token)
+      startResourcePolling(id)
     }
   }
 
@@ -269,19 +245,17 @@ export const useVaultStore = defineStore('vault', () => {
     loadedVaults.value[id] = { ...vault, bottle_caps: caps }
   }
 
-  async function refreshVault(id: string, token: string) {
+  async function refreshVault(id: string) {
     const requestGeneration = sessionGeneration
     try {
-      const response = await axios.get(`/api/v1/vaults/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const data = await vaultApi.getVault(id)
       if (requestGeneration !== sessionGeneration) return
-      loadedVaults.value[id] = response.data
+      loadedVaults.value[id] = data
       if (
         (activeVaultId.value === id || activeVaultId.value === null) &&
         (!mostRecentlyRequestedVaultId || mostRecentlyRequestedVaultId === id)
       ) {
-        adoptVault(id, token)
+        adoptVault(id)
       }
     } catch (error) {
       handleStoreError(error, 'Failed to refresh vault')
@@ -324,90 +298,72 @@ export const useVaultStore = defineStore('vault', () => {
     isLoading.value = false
   }
 
-  async function fetchGameState(vaultId: string, token: string) {
+  async function fetchGameState(vaultId: string) {
     try {
-      const response = await axios.get(`/api/v1/game/vaults/${vaultId}/game-state`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const data = await vaultApi.getGameState(vaultId)
       if (activeVaultId.value === vaultId) {
-        gameState.value = response.data
-        if (response.data.is_paused) {
+        gameState.value = data
+        if (data.is_paused) {
           stopResourcePolling()
         } else {
-          startResourcePolling(vaultId, token)
+          startResourcePolling(vaultId)
         }
       }
-      return response.data
+      return data
     } catch (error) {
       handleStoreError(error, 'Failed to fetch game state')
       throw error
     }
   }
 
-  async function pauseVault(vaultId: string, token: string) {
+  async function pauseVault(vaultId: string) {
     try {
-      const response = await axios.post(
-        `/api/v1/game/vaults/${vaultId}/pause`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
+      const data = await vaultApi.pauseVault(vaultId)
       if (activeVaultId.value === vaultId) {
         gameState.value = {
           ...gameState.value,
           is_paused: true,
-          paused_at: response.data.paused_at,
+          paused_at: data.paused_at,
         }
         stopResourcePolling()
       }
-      return response.data
+      return data
     } catch (error) {
       handleStoreError(error, 'Failed to pause vault')
       throw error
     }
   }
 
-  async function resumeVault(vaultId: string, token: string) {
+  async function resumeVault(vaultId: string) {
     try {
-      const response = await axios.post(
-        `/api/v1/game/vaults/${vaultId}/resume`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
+      const data = await vaultApi.resumeVault(vaultId)
       if (activeVaultId.value === vaultId) {
         gameState.value = {
           ...gameState.value,
           is_paused: false,
-          resumed_at: response.data.resumed_at,
+          resumed_at: data.resumed_at,
         }
-        startResourcePolling(vaultId, token)
+        startResourcePolling(vaultId)
       }
-      return response.data
+      return data
     } catch (error) {
       handleStoreError(error, 'Failed to resume vault')
       throw error
     }
   }
 
-  async function pingPresence(vaultId: string, token: string): Promise<void> {
+  async function pingPresence(vaultId: string): Promise<void> {
     try {
-      await axios.post(
-        `/api/v1/game/vaults/${vaultId}/presence`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
+      await vaultApi.pingPresence(vaultId)
     } catch (error) {
       handleStoreError(error, 'Failed to send presence heartbeat', false)
     }
   }
 
-  function startGameTickSse(vaultId: string, token: string): void {
+  function startGameTickSse(vaultId: string, tokenOverride?: string): void {
     stopGameTickSse()
+    const token = tokenOverride ?? getAuthToken()
+    if (!token) return
     const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
     const stream = useSse(`${apiBase}/api/v1/stream/game/${vaultId}/ticks`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -465,7 +421,7 @@ export const useVaultStore = defineStore('vault', () => {
               if (sessionGeneration !== generation) return
               if (streamingVaultId !== vaultId) return
               if (activeVaultId.value && activeVaultId.value !== vaultId) return
-              useDwellerFilterStore().applyDwellerTick(vaultId, dwellerSnapshot, token)
+              useDwellerFilterStore().applyDwellerTick(vaultId, dwellerSnapshot)
             })
             .catch((error: unknown) => {
               handleStoreError(error, 'Failed to load the dweller tick applier', false)
@@ -475,9 +431,9 @@ export const useVaultStore = defineStore('vault', () => {
     )
   }
 
-  function ensureVaultStream(vaultId: string, token: string): void {
+  function ensureVaultStream(vaultId: string): void {
     if (streamingVaultId !== vaultId) {
-      startGameTickSse(vaultId, token)
+      startGameTickSse(vaultId)
     }
   }
 
@@ -492,12 +448,12 @@ export const useVaultStore = defineStore('vault', () => {
     streamingVaultId = null
   }
 
-  function startResourcePolling(vaultId?: string, token?: string) {
+  function startResourcePolling(vaultId?: string) {
     if (!isPollingActive.value) {
       resumePolling()
     }
-    if (vaultId && token) {
-      ensureVaultStream(vaultId, token)
+    if (vaultId) {
+      ensureVaultStream(vaultId)
     }
   }
 

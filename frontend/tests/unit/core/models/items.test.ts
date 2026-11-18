@@ -129,8 +129,12 @@ describe('stat rows', () => {
     expect(getOutfitRadiationResist({ outfit_type: 'POWER_ARMOR' })).toBe(0.75)
     expect(getOutfitRadiationResist({ outfit_type: 'rare_outfit' })).toBe(0)
     expect(getOutfitRadiationResist({ name: 'Hazmat suit', outfit_type: 'rare_outfit' })).toBe(1)
-    expect(getOutfitRadiationResist({ name: '  Hazmat suit  ', outfit_type: 'rare_outfit' })).toBe(1)
-    expect(getOutfitRadiationResist({ name: 'ADVANCED HAZMAT SUIT', outfit_type: 'legendary_outfit' })).toBe(1)
+    expect(getOutfitRadiationResist({ name: '  Hazmat suit  ', outfit_type: 'rare_outfit' })).toBe(
+      1
+    )
+    expect(
+      getOutfitRadiationResist({ name: 'ADVANCED HAZMAT SUIT', outfit_type: 'legendary_outfit' })
+    ).toBe(1)
     expect(getOutfitRadiationResist({ outfit_type: 'common_outfit' })).toBe(0)
     expect(getOutfitRadiationResist({})).toBe(0)
   })
@@ -146,7 +150,9 @@ describe('stat rows', () => {
   it('prefers a declared radiation share over the type fallback', () => {
     expect(getOutfitRadiationResist({ radiation_resist: 0, outfit_type: 'power_armor' })).toBe(0)
     expect(getOutfitRadiationResist({ radiation_resist: 1, outfit_type: 'rare_outfit' })).toBe(1)
-    expect(getOutfitRadiationResist({ radiation_resist: null, outfit_type: 'power_armor' })).toBe(0.75)
+    expect(getOutfitRadiationResist({ radiation_resist: null, outfit_type: 'power_armor' })).toBe(
+      0.75
+    )
   })
 
   it('reports the declared fire share', () => {

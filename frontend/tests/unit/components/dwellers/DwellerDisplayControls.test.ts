@@ -35,9 +35,9 @@ describe('DwellerDisplayControls', () => {
     const store = useDwellerStore().filter
 
     // reka-ui opens the listbox on pointerdown and selects on pointerup (not click).
-    wrapper.find('.display-group [role="combobox"]').element.dispatchEvent(
-      new MouseEvent('pointerdown', { button: 0, bubbles: true })
-    )
+    wrapper
+      .find('.display-group [role="combobox"]')
+      .element.dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true }))
     await flushPromises()
 
     const levelOption = Array.from(document.body.querySelectorAll('[role="option"]')).find(

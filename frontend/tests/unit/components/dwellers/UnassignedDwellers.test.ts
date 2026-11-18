@@ -184,12 +184,13 @@ describe('UnassignedDwellers', () => {
       const wrapper = mount(UnassignedDwellers)
       expect((wrapper.get('details').element as HTMLDetailsElement).open).toBe(false)
 
-      await wrapper.get('summary').trigger('drop', createDropEvent('dweller-1', 'John', 'Doe', 'room-1'))
+      await wrapper
+        .get('summary')
+        .trigger('drop', createDropEvent('dweller-1', 'John', 'Doe', 'room-1'))
       await flushPromises()
 
       expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledExactlyOnceWith(
-        'dweller-1',
-        'mock-token'
+        'dweller-1'
       )
       expect(mockToast.success).toHaveBeenCalledWith('John Doe unassigned from room')
       expect((wrapper.get('details').element as HTMLDetailsElement).open).toBe(false)
@@ -426,10 +427,7 @@ describe('UnassignedDwellers', () => {
 
       await flushPromises()
 
-      expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledWith(
-        'dweller-1',
-        'mock-token'
-      )
+      expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1')
     })
 
     it('should show success message after unassigning', async () => {
@@ -442,10 +440,7 @@ describe('UnassignedDwellers', () => {
 
       await flushPromises()
 
-      expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledWith(
-        'dweller-1',
-        'mock-token'
-      )
+      expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1')
       expect(mockToast.success).toHaveBeenCalledWith('John Doe unassigned from room')
     })
 
@@ -506,10 +501,7 @@ describe('UnassignedDwellers', () => {
 
       await flushPromises()
 
-      expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledWith(
-        'dweller-1',
-        'mock-token'
-      )
+      expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1')
       expect(mockToast.error).toHaveBeenCalledWith('Failed to unassign dweller')
     })
   })

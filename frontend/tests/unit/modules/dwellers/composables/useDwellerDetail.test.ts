@@ -99,7 +99,7 @@ describe('useDwellerDetail soft-delete', () => {
     rename.mockResolvedValueOnce(fakeDweller)
     detail.actions.confirmRename()
     await flushPromises()
-    expect(rename).toHaveBeenLastCalledWith('dweller-1', 'Amata', 'mock-token', 'Valid')
+    expect(rename).toHaveBeenLastCalledWith('dweller-1', 'Amata', 'Valid')
     expect(detail.renameDialogOpen.value).toBe(false)
     wrapper.unmount()
   })
@@ -290,8 +290,8 @@ describe('useDwellerDetail one-click heal', () => {
     await flushPromises()
 
     expect(issueMedicalSupply).toHaveBeenCalledTimes(1)
-    expect(fetchDetails).toHaveBeenCalledWith('dweller-1', 'mock-token', true)
-    expect(refreshVault).toHaveBeenCalledWith('vault-1', 'mock-token')
+    expect(fetchDetails).toHaveBeenCalledWith('dweller-1', true)
+    expect(refreshVault).toHaveBeenCalledWith('vault-1')
     expect(useStimpack).toHaveBeenCalledTimes(1)
     expect(issueMedicalSupply.mock.invocationCallOrder[0]).toBeLessThan(
       useStimpack.mock.invocationCallOrder[0]
@@ -307,7 +307,7 @@ describe('useDwellerDetail one-click heal', () => {
     await detail.actions.healSupply('radaway')
     await flushPromises()
 
-    expect(issueMedicalSupply).toHaveBeenCalledWith('vault-1', 'dweller-1', 'radaway', 'mock-token')
+    expect(issueMedicalSupply).toHaveBeenCalledWith('vault-1', 'dweller-1', 'radaway')
     expect(useRadaway).toHaveBeenCalledTimes(1)
   })
 

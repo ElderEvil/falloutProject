@@ -177,8 +177,7 @@ export function useDwellerDetail(
   const availableStimpaks = computed(() => currentVault.value?.stimpack)
   const availableRadaways = computed(() => currentVault.value?.radaway)
 
-  const refetch = () =>
-    dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+  const refetch = () => dwellerStore.fetchDwellerDetails(dwellerId.value, true)
 
   const runAction = async (action: () => Promise<unknown>, opts: RunOptions = {}) => {
     if (!dwellerStore.detailedDwellers[dwellerId.value] || opts.flag?.value) return
@@ -186,7 +185,7 @@ export function useDwellerDetail(
     try {
       await action()
       if (opts.refetch !== false) await refetch()
-      if (opts.refreshVault) await vaultStore.refreshVault(vaultId.value, authStore.token as string)
+      if (opts.refreshVault) await vaultStore.refreshVault(vaultId.value)
       opts.onSuccess?.()
     } catch (error) {
       notifyErrorOnce(error, opts.errorMessage ?? 'Action failed')
@@ -200,7 +199,7 @@ export function useDwellerDetail(
     const requestedId = dwellerId.value
     const seq = ++loadSeq
     loading.value = true
-    const fetched = await dwellerStore.fetchDwellerDetails(requestedId, authStore.token as string)
+    const fetched = await dwellerStore.fetchDwellerDetails(requestedId)
     if (seq !== loadSeq) return
     loading.value = false
 
@@ -210,10 +209,7 @@ export function useDwellerDetail(
     }
 
     if (fetched?.is_dead && !fetched.is_permanently_dead) {
-      revivalCost.value = await dwellerDeathStore.getRevivalCost(
-        requestedId,
-        authStore.token as string
-      )
+      revivalCost.value = await dwellerDeathStore.getRevivalCost(requestedId)
     }
 
     try {
@@ -232,10 +228,7 @@ export function useDwellerDetail(
 
   watch(isDead, async (newIsDead) => {
     if (newIsDead && !dweller.value?.is_permanently_dead && authStore.isAuthenticated) {
-      revivalCost.value = await dwellerDeathStore.getRevivalCost(
-        dwellerId.value,
-        authStore.token as string
-      )
+      revivalCost.value = await dwellerDeathStore.getRevivalCost(dwellerId.value)
     } else {
       revivalCost.value = null
     }
@@ -263,26 +256,18 @@ export function useDwellerDetail(
     runAction(
       () =>
         dweller.value && isMature(dweller.value)
-          ? dwellerManagementStore.autoAssignToRoom(dwellerId.value, authStore.token as string)
-          : dwellerManagementStore.assignApprenticeToRoom(
-              dwellerId.value,
-              vaultId.value,
-              authStore.token as string
-            ),
+          ? dwellerManagementStore.autoAssignToRoom(dwellerId.value)
+          : dwellerManagementStore.assignApprenticeToRoom(dwellerId.value, vaultId.value),
       {
         flag: assigning,
         errorMessage: 'Failed to assign dweller to a room',
       }
     )
   const handleUnassign = () =>
-    runAction(
-      () =>
-        dwellerManagementStore.unassignDwellerFromRoom(dwellerId.value, authStore.token as string),
-      {
-        flag: unassigning,
-        errorMessage: 'Failed to unassign dweller from room',
-      }
-    )
+    runAction(() => dwellerManagementStore.unassignDwellerFromRoom(dwellerId.value), {
+      flag: unassigning,
+      errorMessage: 'Failed to unassign dweller from room',
+    })
   const handleRecall = async () => {
     if (!dweller.value || !authStore.token) return
     const exploration = explorationStore.getExplorationByDwellerId(dwellerId.value)
@@ -314,74 +299,50 @@ export function useDwellerDetail(
     if (!pendingDwellerId) return Promise.resolve(false)
     return sendWasteland.confirm(payload, async () => {
       await Promise.all([
-        dwellerStore.fetchDwellerDetails(pendingDwellerId, authStore.token as string, true),
-        vaultStore.refreshVault(vaultId.value, authStore.token as string),
+        dwellerStore.fetchDwellerDetails(pendingDwellerId, true),
+        vaultStore.refreshVault(vaultId.value),
       ])
     })
   }
 
   const generateDwellerInfo = () =>
-    runAction(
-      () => dwellerGenerationStore.generateDwellerInfo(dwellerId.value, authStore.token as string),
-      {
-        flag: generatingAI,
-        errorMessage: 'Failed to generate dweller information',
-      }
-    )
+    runAction(() => dwellerGenerationStore.generateDwellerInfo(dwellerId.value), {
+      flag: generatingAI,
+      errorMessage: 'Failed to generate dweller information',
+    })
   const generateDwellerBio = () =>
-    runAction(
-      () => dwellerGenerationStore.generateDwellerBio(dwellerId.value, authStore.token as string),
-      {
-        flag: generatingBio,
-        errorMessage: 'Failed to generate dweller biography',
-      }
-    )
+    runAction(() => dwellerGenerationStore.generateDwellerBio(dwellerId.value), {
+      flag: generatingBio,
+      errorMessage: 'Failed to generate dweller biography',
+    })
   const extendDwellerBio = () =>
-    runAction(
-      () => dwellerGenerationStore.extendDwellerBio(dwellerId.value, authStore.token as string),
-      {
-        flag: generatingBio,
-        errorMessage: 'Failed to extend dweller biography',
-      }
-    )
+    runAction(() => dwellerGenerationStore.extendDwellerBio(dwellerId.value), {
+      flag: generatingBio,
+      errorMessage: 'Failed to extend dweller biography',
+    })
   const generateDwellerPortrait = () =>
-    runAction(
-      () =>
-        dwellerGenerationStore.generateDwellerPortrait(dwellerId.value, authStore.token as string),
-      {
-        flag: generatingPortrait,
-        errorMessage: 'Failed to generate dweller portrait',
-      }
-    )
+    runAction(() => dwellerGenerationStore.generateDwellerPortrait(dwellerId.value), {
+      flag: generatingPortrait,
+      errorMessage: 'Failed to generate dweller portrait',
+    })
   const generateDwellerAppearance = () =>
-    runAction(
-      () =>
-        dwellerGenerationStore.generateDwellerAppearance(
-          dwellerId.value,
-          authStore.token as string
-        ),
-      {
-        flag: generatingAppearance,
-        errorMessage: 'Failed to generate dweller appearance',
-      }
-    )
+    runAction(() => dwellerGenerationStore.generateDwellerAppearance(dwellerId.value), {
+      flag: generatingAppearance,
+      errorMessage: 'Failed to generate dweller appearance',
+    })
   const handleRefresh = () => refetch()
 
   const handleAppearanceSaved = async (attributes: Record<string, unknown>) => {
     if (!dweller.value) return
-    const result = await dwellerManagementStore.updateVisualAttributes(
-      dwellerId.value,
-      attributes,
-      authStore.token as string
-    )
+    const result = await dwellerManagementStore.updateVisualAttributes(dwellerId.value, attributes)
     if (result) {
       appearanceEditorOpen.value = false
-      await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+      await dwellerStore.fetchDwellerDetails(dwellerId.value, true)
     }
   }
 
   const handleRevive = () =>
-    runAction(() => dwellerDeathStore.reviveDweller(dwellerId.value, authStore.token as string), {
+    runAction(() => dwellerDeathStore.reviveDweller(dwellerId.value), {
       flag: revivalLoading,
       errorMessage: 'Failed to revive dweller',
       onSuccess: () => {
@@ -392,7 +353,6 @@ export function useDwellerDetail(
   const handleHealSupply = async (supply: 'stimpack' | 'radaway') => {
     const current = dweller.value
     if (!current || current.is_dead || healingSupply.value) return
-    const token = authStore.token as string
     const needsHealing =
       supply === 'stimpack'
         ? current.health < getEffectiveMaxHealth(current.radiation, current.max_health)
@@ -411,19 +371,18 @@ export function useDwellerDetail(
         const issued = await dwellerMedicalStore.issueMedicalSupply(
           vaultId.value,
           dwellerId.value,
-          supply,
-          token
+          supply
         )
         if (!issued) return
         await Promise.all([
-          dwellerStore.fetchDwellerDetails(dwellerId.value, token, true),
-          vaultStore.refreshVault(vaultId.value, token),
+          dwellerStore.fetchDwellerDetails(dwellerId.value, true),
+          vaultStore.refreshVault(vaultId.value),
         ])
       }
       const used =
         supply === 'stimpack'
-          ? await dwellerMedicalStore.useStimpack(dwellerId.value, token)
-          : await dwellerMedicalStore.useRadaway(dwellerId.value, token)
+          ? await dwellerMedicalStore.useStimpack(dwellerId.value)
+          : await dwellerMedicalStore.useRadaway(dwellerId.value)
       // A failed use is toasted by the store; the issued supply stays carried,
       // matching the outcome of the old manual issue-then-use two-click flow.
       if (used) await refetch()
@@ -435,21 +394,12 @@ export function useDwellerDetail(
   }
 
   const handleRename = (name: string, lastName?: string | null) =>
-    runAction(
-      () =>
-        dwellerManagementStore.renameDweller(
-          dwellerId.value,
-          name,
-          authStore.token as string,
-          lastName
-        ),
-      {
-        errorMessage: 'Failed to rename dweller',
-        onSuccess: () => {
-          renameDialogOpen.value = false
-        },
-      }
-    )
+    runAction(() => dwellerManagementStore.renameDweller(dwellerId.value, name, lastName), {
+      errorMessage: 'Failed to rename dweller',
+      onSuccess: () => {
+        renameDialogOpen.value = false
+      },
+    })
 
   const openRenameDialog = () => {
     renameDialogName.value = dweller.value?.first_name ?? ''
@@ -472,16 +422,13 @@ export function useDwellerDetail(
   }
   const confirmSoftDelete = async () => {
     softDeleteDialogOpen.value = false
-    await runAction(
-      () => dwellerManagementStore.softDeleteDweller(dwellerId.value, authStore.token as string),
-      {
-        flag: softDeleting,
-        errorMessage: 'Failed to soft-delete dweller',
-        // The record is gone: refetching would 404 and toast.
-        refetch: false,
-        onSuccess: onBack,
-      }
-    )
+    await runAction(() => dwellerManagementStore.softDeleteDweller(dwellerId.value), {
+      flag: softDeleting,
+      errorMessage: 'Failed to soft-delete dweller',
+      // The record is gone: refetching would 404 and toast.
+      refetch: false,
+      onSuccess: onBack,
+    })
   }
 
   const actions: DwellerDetailActions = {

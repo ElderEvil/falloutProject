@@ -82,9 +82,7 @@ describe('PartySelectionModal', () => {
 
     // Select the dweller and confirm the dispatch.
     await wrapper.find('.dweller-item').trigger('click')
-    const dispatchButton = wrapper
-      .findAll('button')
-      .find((b) => b.text().includes('Dispatch'))
+    const dispatchButton = wrapper.findAll('button').find((b) => b.text().includes('Dispatch'))
     expect(dispatchButton?.attributes('disabled')).toBeUndefined()
     await dispatchButton!.trigger('click')
 

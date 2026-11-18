@@ -26,7 +26,9 @@ describe('ToggleGroup', () => {
     const all = items(wrapper)
 
     expect(all).toHaveLength(3)
-    expect(wrapper.find('[aria-label="Set glow to Normal"]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('[aria-label="Set glow to Normal"]').attributes('aria-pressed')).toBe(
+      'true'
+    )
     expect(wrapper.find('[aria-label="Set glow to Off"]').attributes('aria-pressed')).toBe('false')
   })
 

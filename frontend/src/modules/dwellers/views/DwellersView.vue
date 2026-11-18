@@ -422,7 +422,7 @@ const summaryIssues = computed<SummaryIssue[]>(() => {
 const fetchDwellers = async (signal?: AbortSignal) => {
   await featureFlags.fetchFlags()
   if (authStore.isAuthenticated && vaultId.value) {
-    await dwellerStore.fetchWithCurrentFilters(vaultId.value, authStore.token as string, {
+    await dwellerStore.fetchWithCurrentFilters(vaultId.value, {
       signal,
     })
   }
@@ -442,10 +442,10 @@ async function loadVaultOverview(): Promise<void> {
   isIncidentsLoading.value = true
   await Promise.all([
     fetchDwellers(),
-    vaultStore.ensureVaultLoaded(id, authStore.token as string).catch((error: unknown) => {
+    vaultStore.ensureVaultLoaded(id).catch((error: unknown) => {
       vaultLoadError.value = error instanceof Error ? error.message : 'Failed to load vault'
     }),
-    dwellerStore.fetchAllDwellers(id, authStore.token as string).finally(() => {
+    dwellerStore.fetchAllDwellers(id).finally(() => {
       isAllDwellersLoading.value = false
     }),
     incidentStore.fetchIncidents(id, authStore.token as string).finally(() => {
@@ -495,7 +495,7 @@ watch(
       // Fetch dead dwellers when dead filter is active
       // Guard: ensure vaultId and token are present before fetching
       if (vaultId.value && authStore.token) {
-        await dwellerDeathStore.fetchDeadDwellers(vaultId.value, authStore.token)
+        await dwellerDeathStore.fetchDeadDwellers(vaultId.value)
       }
     } else {
       await fetchDwellers(controller.signal)
@@ -509,9 +509,9 @@ const handleRevive = async (dwellerId: string) => {
 
   revivingDwellers.value[dwellerId] = true
   try {
-    await dwellerDeathStore.reviveDweller(dwellerId, authStore.token)
+    await dwellerDeathStore.reviveDweller(dwellerId)
     // Refresh dead dwellers list
-    await dwellerDeathStore.fetchDeadDwellers(vaultId.value, authStore.token)
+    await dwellerDeathStore.fetchDeadDwellers(vaultId.value)
   } finally {
     revivingDwellers.value[dwellerId] = false
   }
@@ -556,7 +556,7 @@ watch(
 const handleQuickUnassign = async (dwellerId: string) => {
   if (!authStore.token) return
   try {
-    await dwellerManagementStore.unassignDwellerFromRoom(dwellerId, authStore.token)
+    await dwellerManagementStore.unassignDwellerFromRoom(dwellerId)
   } catch (error) {
     notifyErrorOnce(error, 'Failed to unassign dweller from room')
   }
@@ -581,7 +581,7 @@ const handleTreatIrradiated = async () => {
 
   treatingDwellers.value = true
   try {
-    await dwellerMedicalStore.distributeRecoverySupplies(vaultId.value, authStore.token)
+    await dwellerMedicalStore.distributeRecoverySupplies(vaultId.value)
   } finally {
     treatingDwellers.value = false
   }

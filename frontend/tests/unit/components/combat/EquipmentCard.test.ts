@@ -30,7 +30,11 @@ describe('EquipmentCard', () => {
   })
 
   it('constrains long outfit names so they truncate instead of overflowing the card', () => {
-    const longNames = ['Firefighter suit, rad helmet', "Confessor Cromwell's rags", 'X-01 Mk IV power armor']
+    const longNames = [
+      'Firefighter suit, rad helmet',
+      "Confessor Cromwell's rags",
+      'X-01 Mk IV power armor',
+    ]
 
     for (const name of longNames) {
       const wrapper = mount(EquipmentCard, {

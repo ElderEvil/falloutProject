@@ -26,7 +26,7 @@ describe('useActivateRadio', () => {
     await handleActivateRadio()
 
     expect(setRadioMode).toHaveBeenCalledWith('vault-1', 'happiness')
-    expect(refreshVault).toHaveBeenCalledWith('vault-1', 'token-1')
+    expect(refreshVault).toHaveBeenCalledWith('vault-1')
     expect(isActivatingRadio.value).toBe(false)
   })
 

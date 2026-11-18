@@ -5,18 +5,57 @@ import { setActivePinia, createPinia } from 'pinia'
 import { ref } from 'vue'
 import FamilyTreePanel from '@/modules/dwellers/components/FamilyTreePanel.vue'
 import { useDwellerManagementStore } from '@/modules/dwellers/stores/dwellerManagement'
-import { createMockDwellerDetailContext, mountWithDwellerContext } from '../../helpers/dwellerDetailContext'
+import {
+  createMockDwellerDetailContext,
+  mountWithDwellerContext,
+} from '../../helpers/dwellerDetailContext'
 
 vi.mock('@iconify/vue', () => createIconifyMock())
 
 const mockLineage = {
   dweller_id: 'self',
   generation: 1,
-  parents: [{ id: 'p1', first_name: 'Mom', last_name: 'Dweller', generation: 0, is_dead: false, age_group: 'adult' }],
-  children: [{ id: 'c1', first_name: 'Kid', last_name: 'Dweller', generation: 2, is_dead: false, age_group: 'child' }],
-  siblings: [{ id: 's1', first_name: 'Sib', last_name: 'Dweller', generation: 1, is_dead: false, age_group: 'teen' }],
+  parents: [
+    {
+      id: 'p1',
+      first_name: 'Mom',
+      last_name: 'Dweller',
+      generation: 0,
+      is_dead: false,
+      age_group: 'adult',
+    },
+  ],
+  children: [
+    {
+      id: 'c1',
+      first_name: 'Kid',
+      last_name: 'Dweller',
+      generation: 2,
+      is_dead: false,
+      age_group: 'child',
+    },
+  ],
+  siblings: [
+    {
+      id: 's1',
+      first_name: 'Sib',
+      last_name: 'Dweller',
+      generation: 1,
+      is_dead: false,
+      age_group: 'teen',
+    },
+  ],
   partners: [
-    { id: 'sp1', first_name: 'Spouse', last_name: 'Dweller', generation: 1, is_dead: false, age_group: 'adult', relationship_type: 'MARRIED', affinity: 90 },
+    {
+      id: 'sp1',
+      first_name: 'Spouse',
+      last_name: 'Dweller',
+      generation: 1,
+      is_dead: false,
+      age_group: 'adult',
+      relationship_type: 'MARRIED',
+      affinity: 90,
+    },
   ],
 }
 
@@ -27,7 +66,9 @@ describe('FamilyTreePanel', () => {
 
   function stubStore(lineage: unknown = mockLineage, reject = false) {
     const management = useDwellerManagementStore()
-    management.fetchLineage = vi.fn(() => (reject ? Promise.resolve(null) : Promise.resolve(lineage)))
+    management.fetchLineage = vi.fn(() =>
+      reject ? Promise.resolve(null) : Promise.resolve(lineage)
+    )
     management.lineage = lineage as never
     management.isLoadingLineage = false
     return management

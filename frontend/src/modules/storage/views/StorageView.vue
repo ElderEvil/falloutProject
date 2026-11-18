@@ -84,7 +84,7 @@ const fetchStorageData = async () => {
 onMounted(async () => {
   // Load vault if not already loaded (the shared action is idempotent)
   if (vaultId.value && authStore.token) {
-    await vaultStore.ensureVaultLoaded(vaultId.value, authStore.token)
+    await vaultStore.ensureVaultLoaded(vaultId.value)
   }
   fetchStorageData()
 })
@@ -211,7 +211,7 @@ const handleSellItem = async (itemId: string | string[], itemType: string) => {
 
     await fetchStorageData()
     if (vaultId.value && authStore.token) {
-      await vaultStore.refreshVault(vaultId.value, authStore.token)
+      await vaultStore.refreshVault(vaultId.value)
     }
   } catch (error) {
     notifyErrorOnce(error, 'Failed to sell item')
@@ -241,7 +241,7 @@ const handleScrapItem = async (
 
     await fetchStorageData()
     if (vaultId.value && authStore.token) {
-      await vaultStore.refreshVault(vaultId.value, authStore.token)
+      await vaultStore.refreshVault(vaultId.value)
     }
   } catch (error) {
     notifyErrorOnce(error, 'Failed to scrap item')
@@ -283,7 +283,7 @@ const closeLunchboxModal = async () => {
   if (!opened) return
   await fetchStorageData()
   if (vaultId.value && authStore.token) {
-    await vaultStore.refreshVault(vaultId.value, authStore.token)
+    await vaultStore.refreshVault(vaultId.value)
   }
 }
 
@@ -327,7 +327,7 @@ const closePetCarrierModal = async () => {
   if (!opened) return
   await fetchStorageData()
   if (vaultId.value && authStore.token) {
-    await vaultStore.refreshVault(vaultId.value, authStore.token)
+    await vaultStore.refreshVault(vaultId.value)
   }
 }
 </script>

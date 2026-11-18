@@ -295,7 +295,9 @@ describe('ExplorationDurationModal', () => {
 
       expect(wrapper.text()).toContain('Travel Heading')
       expect(wrapper.text()).toContain('No direction suggested')
-      const changeButton = wrapper.findAllComponents(Button).find((button) => button.text() === 'Change')
+      const changeButton = wrapper
+        .findAllComponents(Button)
+        .find((button) => button.text() === 'Change')
       expect(changeButton).toBeDefined()
     })
 
@@ -312,7 +314,9 @@ describe('ExplorationDurationModal', () => {
       })
 
       await wrapper.findAll('.duration-button')[3].trigger('click') // 8h
-      const changeButton = wrapper.findAllComponents(Button).find((button) => button.text() === 'Change')
+      const changeButton = wrapper
+        .findAllComponents(Button)
+        .find((button) => button.text() === 'Change')
       await changeButton?.trigger('click')
 
       expect(wrapper.emitted('reroll')).toContainEqual([8])
@@ -408,7 +412,10 @@ describe('ExplorationDurationModal', () => {
       const wrapper = mount(ExplorationDurationModal, { props: baseHeadingProps })
 
       await wrapper.find('.heading-dial-toggle').trigger('click')
-      await wrapper.findAll('.dial-direction').find((d) => d.text() === 'E')?.trigger('click')
+      await wrapper
+        .findAll('.dial-direction')
+        .find((d) => d.text() === 'E')
+        ?.trigger('click')
       expect(wrapper.emitted('selectHeading')).toContainEqual([90])
 
       // Selecting a different duration must NOT re-suggest a heading over the pick.
@@ -420,7 +427,10 @@ describe('ExplorationDurationModal', () => {
       const wrapper = mount(ExplorationDurationModal, { props: baseHeadingProps })
 
       await wrapper.find('.heading-dial-toggle').trigger('click')
-      await wrapper.findAll('.dial-direction').find((d) => d.text() === 'SE')?.trigger('click')
+      await wrapper
+        .findAll('.dial-direction')
+        .find((d) => d.text() === 'SE')
+        ?.trigger('click')
 
       const changeButton = wrapper
         .findAllComponents(Button)

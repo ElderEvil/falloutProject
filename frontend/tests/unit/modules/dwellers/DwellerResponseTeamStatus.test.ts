@@ -43,7 +43,11 @@ describe('DwellerResponseTeamStatus', () => {
       'd1',
       roster({
         teams: [
-          { team: 'fire', active: [{ dweller_id: 'd1', status: 'fighting', name: 'John Doe', level: 12 }], reserve: [] },
+          {
+            team: 'fire',
+            active: [{ dweller_id: 'd1', status: 'fighting', name: 'John Doe', level: 12 }],
+            reserve: [],
+          },
           { team: 'radiation', active: [], reserve: [] },
         ],
       })
@@ -51,7 +55,7 @@ describe('DwellerResponseTeamStatus', () => {
     await flushPromises()
 
     expect(contaminationTeamApi.getRoster).toHaveBeenCalledTimes(1)
-    expect(contaminationTeamApi.getRoster).toHaveBeenCalledWith('vault-1', 'test-token')
+    expect(contaminationTeamApi.getRoster).toHaveBeenCalledWith('vault-1')
     expect(wrapper.text()).toContain('Fire Team')
     expect(wrapper.text()).not.toContain('Radiation Team')
   })
@@ -62,7 +66,11 @@ describe('DwellerResponseTeamStatus', () => {
       roster({
         teams: [
           { team: 'fire', active: [], reserve: [] },
-          { team: 'radiation', active: [], reserve: [{ dweller_id: 'd1', status: 'idle', name: 'John Doe', level: 12 }] },
+          {
+            team: 'radiation',
+            active: [],
+            reserve: [{ dweller_id: 'd1', status: 'idle', name: 'John Doe', level: 12 }],
+          },
         ],
       })
     )
@@ -77,8 +85,16 @@ describe('DwellerResponseTeamStatus', () => {
       'd1',
       roster({
         teams: [
-          { team: 'fire', active: [{ dweller_id: 'd1', status: 'fighting', name: 'John Doe', level: 12 }], reserve: [] },
-          { team: 'radiation', active: [], reserve: [{ dweller_id: 'd1', status: 'idle', name: 'John Doe', level: 12 }] },
+          {
+            team: 'fire',
+            active: [{ dweller_id: 'd1', status: 'fighting', name: 'John Doe', level: 12 }],
+            reserve: [],
+          },
+          {
+            team: 'radiation',
+            active: [],
+            reserve: [{ dweller_id: 'd1', status: 'idle', name: 'John Doe', level: 12 }],
+          },
         ],
       })
     )

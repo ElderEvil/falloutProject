@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { handleStoreError } from '@/core/utils/errorHandler'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import type {
   ContaminationTeamRead,
   HazardTeam,
@@ -8,12 +9,13 @@ import type {
 import { fetchResponseRoster, updateResponseTeamPlace } from '../services/responseStationService'
 
 export const useResponseStationStore = defineStore('responseStation', () => {
+  const authStore = useAuthStore()
   const roster = ref<ContaminationTeamRead | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const busyDwellerIds = ref<string[]>([])
   // Every load supersedes the previous one; a response only lands when it
-  // belongs to the latest vault/token pair that was asked for.
+  // belongs to the latest vault that was asked for.
   let loadVersion = 0
 
   function reset(): void {
@@ -23,20 +25,21 @@ export const useResponseStationStore = defineStore('responseStation', () => {
     error.value = null
   }
 
-  async function loadRoster(vaultId: string, token: string): Promise<void> {
+  async function loadRoster(vaultId: string): Promise<void> {
     const version = ++loadVersion
+    const session = authStore.sessionGeneration
     error.value = null
-    if (!vaultId || !token) {
+    if (!vaultId) {
       isLoading.value = false
       return
     }
     isLoading.value = true
     try {
-      const updated = await fetchResponseRoster(vaultId, token)
-      if (version !== loadVersion) return
+      const updated = await fetchResponseRoster(vaultId)
+      if (version !== loadVersion || session !== authStore.sessionGeneration) return
       roster.value = updated.vault_id === vaultId ? updated : null
     } catch (caught) {
-      if (version !== loadVersion) return
+      if (version !== loadVersion || session !== authStore.sessionGeneration) return
       roster.value = null
       error.value = handleStoreError(caught, 'Failed to load response teams', false)
     } finally {
@@ -48,15 +51,16 @@ export const useResponseStationStore = defineStore('responseStation', () => {
     vaultId: string,
     team: HazardTeam,
     dwellerId: string,
-    active: boolean,
-    token: string
+    active: boolean
   ): Promise<void> {
-    if (!vaultId || !token || isLoading.value || busyDwellerIds.value.length > 0) return
+    if (!vaultId || isLoading.value || busyDwellerIds.value.length > 0) return
     const version = loadVersion
+    const session = authStore.sessionGeneration
     busyDwellerIds.value = [...busyDwellerIds.value, dwellerId]
     try {
-      const updated = await updateResponseTeamPlace(vaultId, team, dwellerId, active, token)
-      if (updated && version === loadVersion) roster.value = updated
+      const updated = await updateResponseTeamPlace(vaultId, team, dwellerId, active)
+      if (updated && version === loadVersion && session === authStore.sessionGeneration)
+        roster.value = updated
     } catch (caught) {
       handleStoreError(caught, 'Failed to update response team')
     } finally {

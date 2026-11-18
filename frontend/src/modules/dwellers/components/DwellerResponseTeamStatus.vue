@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useAuthStore } from '@/modules/auth/stores/auth'
 import DwellerStateChip from './DwellerStateChip.vue'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { contaminationTeamApi } from '@/modules/contamination-team'
@@ -9,18 +8,15 @@ import type { ContaminationTeamRead } from '@/modules/contamination-team'
 
 const props = defineProps<{ dwellerId: string; vaultId: string }>()
 
-const authStore = useAuthStore()
-
 const roster = ref<ContaminationTeamRead | null>(null)
 
-const { run } = useAsyncAction(
-  async (vaultId: string, token: string) => contaminationTeamApi.getRoster(vaultId, token),
-  { context: 'Failed to load response teams' }
-)
+const { run } = useAsyncAction(async (vaultId: string) => contaminationTeamApi.getRoster(vaultId), {
+  context: 'Failed to load response teams',
+})
 
 onMounted(async () => {
-  if (!props.vaultId || !authStore.token) return
-  roster.value = await run(props.vaultId, authStore.token)
+  if (!props.vaultId) return
+  roster.value = await run(props.vaultId)
 })
 
 interface TeamChip {

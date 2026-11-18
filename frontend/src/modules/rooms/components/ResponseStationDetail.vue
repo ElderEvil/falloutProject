@@ -25,8 +25,6 @@ const emit = defineEmits<{
 const authStore = useAuthStore()
 const stationStore = useResponseStationStore()
 
-const token = computed(() => (typeof authStore.token === 'string' ? authStore.token : ''))
-
 const activeTotal = computed(
   () => stationStore.roster?.teams.reduce((sum, team) => sum + team.active.length, 0) ?? 0
 )
@@ -42,14 +40,14 @@ const reserveTotal = computed(
 )
 
 function loadRoster(): void {
-  void stationStore.loadRoster(props.vaultId, token.value)
+  void stationStore.loadRoster(props.vaultId)
 }
 
 watch(
-  [() => props.room.id, () => props.vaultId, token],
+  [() => props.room.id, () => props.vaultId, () => authStore.sessionGeneration],
   () => {
     stationStore.reset()
-    if (props.vaultId && token.value) loadRoster()
+    if (props.vaultId) loadRoster()
   },
   { immediate: true }
 )
@@ -57,7 +55,7 @@ watch(
 onUnmounted(() => stationStore.reset())
 
 function handleSetPlace(team: HazardTeam, dwellerId: string, active: boolean): void {
-  void stationStore.setPlace(props.vaultId, team, dwellerId, active, token.value)
+  void stationStore.setPlace(props.vaultId, team, dwellerId, active)
 }
 </script>
 

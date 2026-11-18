@@ -5,7 +5,11 @@ import { mountWithSetup } from '../../helpers/mountWithSetup'
 import TradingPostPanel from '@/modules/trading/components/TradingPostPanel.vue'
 import { tradingService } from '@/modules/trading/services/tradingService'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import type { TradeMarketResponse, TradeOffer, TradeResultResponse } from '@/modules/trading/models/trading'
+import type {
+  TradeMarketResponse,
+  TradeOffer,
+  TradeResultResponse,
+} from '@/modules/trading/models/trading'
 
 const mockToast = createToastMock()
 
@@ -64,8 +68,7 @@ const result = (overrides: Partial<TradeResultResponse> = {}): TradeResultRespon
 const findButton = (wrapper: ReturnType<typeof mountWithSetup>, label: string) =>
   wrapper.findAll('button').find((button) => button.text().includes(label))!
 
-const mountPanel = (vaultId = 'vault-1') =>
-  mountWithSetup(TradingPostPanel, { props: { vaultId } })
+const mountPanel = (vaultId = 'vault-1') => mountWithSetup(TradingPostPanel, { props: { vaultId } })
 
 describe('TradingPostPanel', () => {
   beforeEach(() => {
@@ -87,7 +90,7 @@ describe('TradingPostPanel', () => {
     const wrapper = mountPanel()
     await flushPromises()
 
-    expect(tradingService.getMarket).toHaveBeenCalledWith('vault-1', 'test-token')
+    expect(tradingService.getMarket).toHaveBeenCalledWith('vault-1')
     expect(wrapper.text()).toContain('500 caps')
     expect(wrapper.text()).toContain('Nora')
     expect(wrapper.text()).toContain('Cait')
@@ -111,7 +114,7 @@ describe('TradingPostPanel', () => {
     await findButton(wrapper, 'Sell').trigger('click')
     await flushPromises()
 
-    expect(tradingService.sellDweller).toHaveBeenCalledWith('vault-1', 'dweller-1', 'test-token')
+    expect(tradingService.sellDweller).toHaveBeenCalledWith('vault-1', 'dweller-1')
     expect(mockToast.success).toHaveBeenCalledWith('Sold for 100 caps!')
     expect(tradingService.getMarket).toHaveBeenCalledTimes(2)
   })
@@ -125,7 +128,7 @@ describe('TradingPostPanel', () => {
     await findButton(wrapper, 'Buy').trigger('click')
     await flushPromises()
 
-    expect(tradingService.buyDweller).toHaveBeenCalledWith('vault-1', 'dweller-1', 'test-token')
+    expect(tradingService.buyDweller).toHaveBeenCalledWith('vault-1', 'dweller-1')
     expect(mockToast.success).toHaveBeenCalledWith('Nora joined the vault for 100 caps!')
     expect(tradingService.getMarket).toHaveBeenCalledTimes(2)
   })
@@ -189,6 +192,6 @@ describe('TradingPostPanel', () => {
     await flushPromises()
 
     expect(tradingService.getMarket).toHaveBeenCalledTimes(2)
-    expect(tradingService.getMarket).toHaveBeenLastCalledWith('vault-2', 'test-token')
+    expect(tradingService.getMarket).toHaveBeenLastCalledWith('vault-2')
   })
 })

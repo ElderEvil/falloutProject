@@ -38,17 +38,19 @@ describe('equipment store error feedback', () => {
     vi.mocked(equipmentService.equipWeapon).mockRejectedValueOnce(backendError('Weapon is broken'))
 
     await expectSingleErrorToast(
-      () => store.equipWeapon('d1', 'w1', 'token'),
+      () => store.equipWeapon('d1', 'w1'),
       'Failed to equip weapon: Weapon is broken'
     )
   })
 
   it('emits one toast with the backend detail when unequipping a weapon fails', async () => {
     const store = useEquipmentStore()
-    vi.mocked(equipmentService.unequipWeapon).mockRejectedValueOnce(backendError('Weapon is locked'))
+    vi.mocked(equipmentService.unequipWeapon).mockRejectedValueOnce(
+      backendError('Weapon is locked')
+    )
 
     await expectSingleErrorToast(
-      () => store.unequipWeapon('d1', 'w1', 'token'),
+      () => store.unequipWeapon('w1'),
       'Failed to unequip weapon: Weapon is locked'
     )
   })
@@ -58,17 +60,19 @@ describe('equipment store error feedback', () => {
     vi.mocked(equipmentService.equipOutfit).mockRejectedValueOnce(backendError('Outfit is torn'))
 
     await expectSingleErrorToast(
-      () => store.equipOutfit('d1', 'o1', 'token'),
+      () => store.equipOutfit('d1', 'o1'),
       'Failed to equip outfit: Outfit is torn'
     )
   })
 
   it('emits one toast with the backend detail when unequipping an outfit fails', async () => {
     const store = useEquipmentStore()
-    vi.mocked(equipmentService.unequipOutfit).mockRejectedValueOnce(backendError('Outfit is locked'))
+    vi.mocked(equipmentService.unequipOutfit).mockRejectedValueOnce(
+      backendError('Outfit is locked')
+    )
 
     await expectSingleErrorToast(
-      () => store.unequipOutfit('d1', 'o1', 'token'),
+      () => store.unequipOutfit('o1'),
       'Failed to unequip outfit: Outfit is locked'
     )
   })

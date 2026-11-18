@@ -43,6 +43,7 @@ vi.mock('@/modules/auth/stores/auth', () => ({
   useAuthStore: () => ({
     token: 'test-token',
     isAuthenticated: true,
+    sessionGeneration: 0,
   }),
 }))
 
@@ -487,7 +488,7 @@ it('refreshes the outfit picker after a reward arrives without remounting the eq
   })
   await wrapper.findAll('button.empty-slot')[1]!.trigger('click')
   await flushPromises()
-  expect(equipmentFetch.outfits).toHaveBeenCalledWith('test-token', 'v1')
+  expect(equipmentFetch.outfits).toHaveBeenCalledWith('v1')
   expect(wrapper.text()).toContain('Wasteland gear')
 })
 

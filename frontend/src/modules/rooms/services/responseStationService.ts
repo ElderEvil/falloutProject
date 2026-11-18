@@ -4,19 +4,15 @@ import type {
   HazardTeam,
 } from '@/modules/contamination-team/models/contaminationTeam'
 
-export function fetchResponseRoster(
-  vaultId: string,
-  token: string
-): Promise<ContaminationTeamRead> {
-  return contaminationTeamApi.getRoster(vaultId, token)
+export function fetchResponseRoster(vaultId: string): Promise<ContaminationTeamRead> {
+  return contaminationTeamApi.getRoster(vaultId)
 }
 
 export function updateResponseTeamPlace(
   vaultId: string,
   team: HazardTeam,
   dwellerId: string,
-  active: boolean,
-  token: string
+  active: boolean
 ): Promise<ContaminationTeamRead> {
-  return contaminationTeamApi.setPlace(vaultId, team, dwellerId, active, token)
+  return contaminationTeamApi.setPlace(vaultId, team, dwellerId, active)
 }

@@ -15,7 +15,7 @@ vi.mock('@/modules/rooms/services/responseStationService', () => ({
 }))
 
 vi.mock('@/modules/auth/stores/auth', () => ({
-  useAuthStore: () => ({ token: 'test-token' }),
+  useAuthStore: () => ({ token: 'test-token', sessionGeneration: 0 }),
 }))
 
 const station = (overrides: Partial<Room> = {}): Room =>
@@ -95,7 +95,7 @@ describe('ResponseStationDetail', () => {
     const wrapper = mountStation()
     await flushPromises()
 
-    expect(fetchResponseRoster).toHaveBeenCalledWith('vault-1', 'test-token')
+    expect(fetchResponseRoster).toHaveBeenCalledWith('vault-1')
     expect(wrapper.text()).toContain('1 / 2 stationed')
     expect(wrapper.text()).toContain('Gear ready')
     expect(wrapper.text()).toContain('1 / 1')
@@ -120,7 +120,7 @@ describe('ResponseStationDetail', () => {
     )
   })
 
-  it('sends roster moves through the service with the active token', async () => {
+  it('sends roster moves through the service', async () => {
     vi.mocked(updateResponseTeamPlace).mockResolvedValue(roster())
     const wrapper = mountStation()
     await flushPromises()
@@ -128,13 +128,7 @@ describe('ResponseStationDetail', () => {
     await findButton(wrapper, 'Activate').trigger('click')
     await flushPromises()
 
-    expect(updateResponseTeamPlace).toHaveBeenCalledWith(
-      'vault-1',
-      'fire',
-      'd2',
-      true,
-      'test-token'
-    )
+    expect(updateResponseTeamPlace).toHaveBeenCalledWith('vault-1', 'fire', 'd2', true)
   })
 
   it('offers a retry that refetches the roster after a load failure', async () => {

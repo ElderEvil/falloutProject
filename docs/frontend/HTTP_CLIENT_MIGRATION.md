@@ -45,7 +45,8 @@ store + SettingsView, and ai-settings service.
 | 2026-10-29 | Social transport | `modules/social/api/relationship.ts` owns list/detail/create/romance/partner/marriage/breakup/compatibility/breeding; `modules/social/api/pregnancy.ts` owns list/detail/deliver. Both social stores no longer import the plugin, and the one-method `relationshipService` pass-through is gone. |
 | 2026-10-29 | Rooms transport | `modules/rooms/api/room.ts` owns list, buildable, build, destroy, upgrade, remodel, style, grid config and rush; `modules/rooms/api/barbershop.ts` owns status and appearance changes; `modules/rooms/api/arena.ts` owns state, creatures, fighter selection, match controls/skills and event clearing. Neither the room store nor the arena store imports the plugin or threads a token, and the barbershop service pass-through is gone. |
 | 2026-11-18 | No-token services | `storageService`, `craftingService`, `notificationService`, `objectiveService`, `consoleApi`, `lineageService` and `happinessService` now use the boundary; no call-site signature changed. Void endpoints use `apiRequest` so an empty response is never read as `.data`; `happinessService` keeps the full response via `apiRequest`. |
-| Pending | Batches 2–4 | 15 consumers still import `@/core/plugins/axios`: 7 Pinia stores (dwellers x5, progression/quest, vault) and 8 `api/`/`services/` modules (`combat/api/incident`, `combat/services/equipment`, `contamination-team/api/roster`, `dwellers/services/dwellerService`, `exploration/api/expeditionSite`, `map/services/mapService`, `progression/services/trainingService`, `trading/services/tradingService`). |
+| 2026-11-18 | Token-bearing equipment, trading and response transport | `combat/services/equipment`, `trading/services/tradingService`, `contamination-team/api/roster` and `exploration/api/expeditionSite` use the boundary; the equipment store, response-station store/service, `DwellerEquipment`, `DwellerResponseTeamStatus`, `ResponseStationDetail` and `TradingPostPanel` no longer accept or pass an auth token. Unused `dwellerId` parameters were dropped where the endpoint never used them. Session invalidation now reads `authStore.sessionGeneration` instead of a transport token, so delayed equipment and response-station responses are discarded after an account switch or logout. |
+| Pending | Batches 2–4 | 11 consumers still import `@/core/plugins/axios`: 7 Pinia stores (dwellers x5, progression/quest, vault) and 4 `api/`/`services/` modules (`combat/api/incident`, `dwellers/services/dwellerService`, `map/services/mapService`, `progression/services/trainingService`). |
 
 ## Action notifications
 
@@ -67,6 +68,7 @@ Before removing a token parameter or an internal header, confirm:
 - **Error normalization** — failures surface as `ApiError`; `getErrorMessage` still reads both shapes.
 - **Duplicate-toast suppression** — `claimErrorNotification` remains the single notification owner; do not add a second toast.
 - **Module ownership** — transport stays in `modules/<name>/api` or `services`; stores never own HTTP calls.
+- **Session invalidation** — account-owned stores capture `authStore.sessionGeneration` and discard late responses on change; never substitute the transport token for session identity.
 
 Bearer allowlist: `core/plugins/axios.ts` (interceptor), auth-session code, and SSE/WebSocket setup may construct
 `Authorization` headers. No module service or store may build one for a plain HTTP call.

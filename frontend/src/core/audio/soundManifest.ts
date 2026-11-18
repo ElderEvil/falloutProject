@@ -87,10 +87,27 @@ export type SoundKey = keyof typeof SOUND_MANIFEST
  */
 export const MUSIC_MANIFEST = {
   vaultAmbient: [
+    // Entries 1-4 are the original curated tracks. Cafeteria, vault-theme and
+    // living-quarters loops alternate from there without neighbouring repeats;
+    // the main-menu cut and the two holiday variants close the list.
     '/audio/music/vault-ambient-1.mp3',
     '/audio/music/vault-ambient-2.mp3',
     '/audio/music/vault-ambient-3.mp3',
     '/audio/music/vault-ambient-4.mp3',
+    '/audio/music/vault-ambient-5.mp3', // 382. MU LivingQuarters Railroad 02.mp3
+    '/audio/music/vault-ambient-6.mp3', // 342. MU Cafeteria BoS 02.mp3
+    '/audio/music/vault-ambient-7.mp3', // 425. MUS Vault Clari02.mp3
+    '/audio/music/vault-ambient-8.mp3', // 376. MU LivingQuarters BoS 02.mp3
+    '/audio/music/vault-ambient-9.mp3', // 345. MU Cafeteria Institute 03.mp3
+    '/audio/music/vault-ambient-10.mp3', // 422. MUS Vault101 03.mp3
+    '/audio/music/vault-ambient-11.mp3', // 378. MU LivingQuarters Institute 03.mp3
+    '/audio/music/vault-ambient-12.mp3', // 347. MU Cafeteria Minutemen 02.mp3
+    '/audio/music/vault-ambient-13.mp3', // 426. MUS Vault Clari03.mp3
+    '/audio/music/vault-ambient-14.mp3', // 380. MU LivingQuarters Minutemen 02.mp3
+    '/audio/music/vault-ambient-15.mp3', // 350. MU Cafeteria Railroad 02.mp3
+    '/audio/music/vault-ambient-16.mp3', // 389. MU MainMenu.mp3
+    '/audio/music/vault-ambient-17.mp3', // 354. MU Cafeteria Xmas Jingle Bells.mp3
+    '/audio/music/vault-ambient-18.mp3', // 388. MU LivingRoom Xmas SilentNight.mp3
   ],
   exploration: [
     '/audio/music/exploration-1.mp3',

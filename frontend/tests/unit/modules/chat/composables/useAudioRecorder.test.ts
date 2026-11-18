@@ -186,7 +186,35 @@ describe('useAudioRecorder scope disposal', () => {
 
     await expect(recorder.startRecording()).rejects.toThrow('Failed to access microphone')
 
+    // release() stops the recorder's stream and the catch stops the acquired
+    // one; they are the same track here, and stops are idempotent.
+    expect(trackStop).toHaveBeenCalledTimes(2)
+    expect(recorder.recordingState.value).toBe('idle')
+    vi.advanceTimersByTime(5000)
+    expect(recorder.recordingDuration.value).toBe(0)
+  })
+
+  it('stops the second acquired stream when a retry fails after a completed recording', async () => {
+    const secondTrackStop = vi.fn()
+    const secondStream = { getTracks: () => [{ stop: secondTrackStop }] }
+    const getUserMedia = navigator.mediaDevices.getUserMedia as unknown as ReturnType<typeof vi.fn>
+    getUserMedia
+      .mockImplementationOnce(async () => stream)
+      .mockImplementationOnce(async () => secondStream)
+
+    const scope = effectScope()
+    const recorder = scope.run(() => useAudioRecorder())!
+
+    await recorder.startRecording()
+    await recorder.stopRecording()
     expect(trackStop).toHaveBeenCalledTimes(1)
+
+    MediaRecorderStub.failConstruct = true
+    await expect(recorder.startRecording()).rejects.toThrow('Failed to access microphone')
+
+    expect(secondTrackStop).toHaveBeenCalledTimes(1)
+    // release() re-stops the stale recorder's already-stopped track (idempotent).
+    expect(trackStop).toHaveBeenCalledTimes(2)
     expect(recorder.recordingState.value).toBe('idle')
     vi.advanceTimersByTime(5000)
     expect(recorder.recordingDuration.value).toBe(0)

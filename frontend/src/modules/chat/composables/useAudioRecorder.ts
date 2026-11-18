@@ -67,11 +67,10 @@ export function useAudioRecorder() {
       }, 1000)
       acquired = null
     } catch (error) {
-      // A constructor or start() failure must not leak the acquired stream:
-      // release the live recorder if there is one, else stop the bare stream.
-      if (mediaRecorder.value) {
-        release()
-      } else if (acquired) {
+      // A previous recording leaves a stale inactive recorder behind, so release()
+      // alone cannot stop the newly acquired stream. Track stops are idempotent.
+      release()
+      if (acquired) {
         acquired.getTracks().forEach((track) => track.stop())
         acquired = null
       }

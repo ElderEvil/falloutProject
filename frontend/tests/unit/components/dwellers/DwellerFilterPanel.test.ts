@@ -496,7 +496,6 @@ describe('Persisted roster attention', () => {
     await store.fetchWithCurrentFilters('vault-1', 'test-token')
     expect(getDwellersByVault).toHaveBeenLastCalledWith(
       'vault-1',
-      'test-token',
       expect.objectContaining({ focus: sent })
     )
   })

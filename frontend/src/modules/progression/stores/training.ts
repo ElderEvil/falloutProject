@@ -14,6 +14,7 @@ type TrainingProgress = components['schemas']['TrainingProgress']
 
 export const useTrainingStore = defineStore('training', () => {
   const toast = useToast()
+  const authStore = useAuthStore()
 
   // State
   const activeTrainings = ref<Map<string, TrainingRead | TrainingProgress>>(new Map())
@@ -26,8 +27,8 @@ export const useTrainingStore = defineStore('training', () => {
     isLoading,
     error: fetchVaultTrainingsError,
   } = useAsyncAction(
-    async (vaultId: string, token: string) => {
-      const trainings = await trainingService.getVaultTrainings(vaultId, token)
+    async (vaultId: string) => {
+      const trainings = await trainingService.getVaultTrainings(vaultId)
       activeTrainings.value.clear()
       trainings.forEach((training) => {
         if (training.id && training.status === 'active')
@@ -67,16 +68,13 @@ export const useTrainingStore = defineStore('training', () => {
   })
 
   // Actions
-  async function setContinuousTraining(
-    vaultId: string,
-    enabled: boolean,
-    token: string
-  ): Promise<boolean> {
+  async function setContinuousTraining(vaultId: string, enabled: boolean): Promise<boolean> {
     if (isSettingContinuousTraining.value) return false
     isSettingContinuousTraining.value = true
+    const session = authStore.sessionGeneration
     try {
-      const saved = await trainingService.setContinuousTraining(vaultId, enabled, token)
-      if (useAuthStore().token !== token) return false
+      const saved = await trainingService.setContinuousTraining(vaultId, enabled)
+      if (session !== authStore.sessionGeneration) return false
       const vault = useVaultStore().loadedVaults[vaultId]
       if (vault) vault.continuous_training = saved.continuous_training
       toast.success(
@@ -93,16 +91,13 @@ export const useTrainingStore = defineStore('training', () => {
     }
   }
 
-  async function setTrainingGoal(
-    trainingId: string,
-    goal: number,
-    token: string
-  ): Promise<boolean> {
+  async function setTrainingGoal(trainingId: string, goal: number): Promise<boolean> {
     if (savingGoals.value.has(trainingId)) return false
     savingGoals.value.add(trainingId)
+    const session = authStore.sessionGeneration
     try {
-      const saved = await trainingService.setTrainingGoal(trainingId, goal, token)
-      if (useAuthStore().token !== token) return false
+      const saved = await trainingService.setTrainingGoal(trainingId, goal)
+      if (session !== authStore.sessionGeneration) return false
       const current = activeTrainings.value.get(trainingId)
       if (current) Object.assign(current, saved)
       return true
@@ -114,13 +109,9 @@ export const useTrainingStore = defineStore('training', () => {
     }
   }
 
-  async function startTraining(
-    dwellerId: string,
-    roomId: string,
-    token: string
-  ): Promise<TrainingRead | null> {
+  async function startTraining(dwellerId: string, roomId: string): Promise<TrainingRead | null> {
     try {
-      const training = await trainingService.startTraining(dwellerId, roomId, token)
+      const training = await trainingService.startTraining(dwellerId, roomId)
       activeTrainings.value.set(training.id!, training)
       return training
     } catch (err: unknown) {
@@ -129,9 +120,9 @@ export const useTrainingStore = defineStore('training', () => {
     }
   }
 
-  async function cancelTraining(trainingId: string, token: string): Promise<boolean> {
+  async function cancelTraining(trainingId: string): Promise<boolean> {
     try {
-      const training = await trainingService.cancelTraining(trainingId, token)
+      const training = await trainingService.cancelTraining(trainingId)
       activeTrainings.value.delete(trainingId)
       trainingHistory.value.push(training)
       toast.success('Training cancelled')
@@ -142,9 +133,9 @@ export const useTrainingStore = defineStore('training', () => {
     }
   }
 
-  async function completeTraining(trainingId: string, token: string): Promise<boolean> {
+  async function completeTraining(trainingId: string): Promise<boolean> {
     try {
-      const training = await trainingService.completeTraining(trainingId, token)
+      const training = await trainingService.completeTraining(trainingId)
       activeTrainings.value.delete(trainingId)
       trainingHistory.value.push(training)
       return true
@@ -154,9 +145,9 @@ export const useTrainingStore = defineStore('training', () => {
     }
   }
 
-  async function fetchDwellerTraining(dwellerId: string, token: string): Promise<void> {
+  async function fetchDwellerTraining(dwellerId: string): Promise<void> {
     try {
-      const training = await trainingService.getDwellerTraining(dwellerId, token)
+      const training = await trainingService.getDwellerTraining(dwellerId)
       if (training && training.id) {
         if (training.status === 'active') {
           activeTrainings.value.set(training.id, training)
@@ -169,15 +160,15 @@ export const useTrainingStore = defineStore('training', () => {
     }
   }
 
-  async function fetchVaultTrainings(vaultId: string, token: string): Promise<void> {
+  async function fetchVaultTrainings(vaultId: string): Promise<void> {
     error.value = null
-    const result = await runFetchVaultTrainings(vaultId, token)
+    const result = await runFetchVaultTrainings(vaultId)
     if (!result) error.value = fetchVaultTrainingsError.value
   }
 
-  async function fetchRoomTrainings(roomId: string, token: string): Promise<TrainingRead[]> {
+  async function fetchRoomTrainings(roomId: string): Promise<TrainingRead[]> {
     try {
-      const trainings = await trainingService.getRoomTrainings(roomId, token)
+      const trainings = await trainingService.getRoomTrainings(roomId)
 
       // A completed round may already have a different successor id.
       for (const [id, training] of activeTrainings.value) {
@@ -196,9 +187,9 @@ export const useTrainingStore = defineStore('training', () => {
     }
   }
 
-  async function updateTrainingProgress(trainingId: string, token: string): Promise<void> {
+  async function updateTrainingProgress(trainingId: string): Promise<void> {
     try {
-      const progress = await trainingService.getTrainingProgress(trainingId, token)
+      const progress = await trainingService.getTrainingProgress(trainingId)
 
       if (progress.id) {
         if (progress.status === 'active') {
@@ -216,8 +207,8 @@ export const useTrainingStore = defineStore('training', () => {
     }
   }
 
-  async function refreshAllTrainings(vaultId: string, token: string): Promise<void> {
-    await fetchVaultTrainings(vaultId, token)
+  async function refreshAllTrainings(vaultId: string): Promise<void> {
+    await fetchVaultTrainings(vaultId)
   }
 
   function clearTrainings(): void {

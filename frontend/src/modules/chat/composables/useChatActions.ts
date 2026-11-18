@@ -136,7 +136,7 @@ export function useChatActions(options: UseChatActionsOptions) {
         return false
       }
 
-      await startTraining(options.dwellerId, trainingRoomId, authStore.token)
+      await startTraining(options.dwellerId, trainingRoomId)
       toast.success(`${options.dwellerName} started ${stat} training`)
       return true
     } catch (error) {
@@ -260,7 +260,7 @@ export function useChatActions(options: UseChatActionsOptions) {
 
     isPerformingAction.value = true
     try {
-      const updated = await appendBioAddendum(options.dwellerId, bioText, authStore.token)
+      const updated = await appendBioAddendum(options.dwellerId, bioText)
       // Cache the returned dweller so the biography panel shows the new entry immediately.
       dwellerStore.detailedDwellers[options.dwellerId] = updated
       toast.success(`Recorded in ${options.dwellerName}'s biography`)
@@ -303,7 +303,7 @@ export function useChatActions(options: UseChatActionsOptions) {
   const refreshAfterChat = async () => {
     const vaultId = options.vaultId ?? vaultStore.activeVaultId
     if (!vaultId || !authStore.token) return
-    await mapStore.refreshMap(vaultId, authStore.token)
+    await mapStore.refreshMap(vaultId)
   }
 
   return {

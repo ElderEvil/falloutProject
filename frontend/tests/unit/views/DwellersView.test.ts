@@ -177,8 +177,7 @@ describe('DwellersView', () => {
 
       // Should call fetchDwellersByVault with correct params
       expect(axios.get).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/dwellers/vault/vault-1'),
-        expect.any(Object)
+        expect.stringContaining('/api/v1/dwellers/vault/vault-1')
       )
     })
 
@@ -325,10 +324,7 @@ describe('DwellersView', () => {
       })
       await flushPromises()
 
-      expect(axios.get).toHaveBeenCalledWith(
-        expect.stringContaining('status=resting'),
-        expect.any(Object)
-      )
+      expect(axios.get).toHaveBeenCalledWith(expect.stringContaining('status=resting'))
     })
 
     it('applies the Fighting query filter', async () => {
@@ -343,10 +339,7 @@ describe('DwellersView', () => {
       })
       await flushPromises()
 
-      expect(axios.get).toHaveBeenCalledWith(
-        expect.stringContaining('status=fighting'),
-        expect.any(Object)
-      )
+      expect(axios.get).toHaveBeenCalledWith(expect.stringContaining('status=fighting'))
     })
 
     it('refetches with identity filters when they change', async () => {
@@ -403,10 +396,7 @@ describe('DwellersView', () => {
       const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
       await flushPromises()
 
-      expect(axios.get).toHaveBeenCalledWith(
-        expect.stringContaining('race=ghoul'),
-        expect.any(Object)
-      )
+      expect(axios.get).toHaveBeenCalledWith(expect.stringContaining('race=ghoul'))
       wrapper.unmount()
     })
 
@@ -520,10 +510,7 @@ describe('DwellersView', () => {
       await flushPromises()
 
       expect(_dwellerStore.filter.filterGender).toBe('female')
-      expect(axios.get).toHaveBeenCalledWith(
-        expect.stringContaining('gender=female'),
-        expect.any(Object)
-      )
+      expect(axios.get).toHaveBeenCalledWith(expect.stringContaining('gender=female'))
       wrapper.unmount()
     })
 
@@ -554,10 +541,7 @@ describe('DwellersView', () => {
       await flushPromises()
 
       expect(_dwellerStore.filter.filterRarity).toBe('legendary')
-      expect(axios.get).toHaveBeenCalledWith(
-        expect.stringContaining('rarity=legendary'),
-        expect.any(Object)
-      )
+      expect(axios.get).toHaveBeenCalledWith(expect.stringContaining('rarity=legendary'))
       wrapper.unmount()
     })
 

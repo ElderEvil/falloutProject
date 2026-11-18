@@ -20,7 +20,7 @@ export function useAppearanceOptions() {
   async function load(): Promise<void> {
     if (!authStore.token) return
     try {
-      const options = await getAppearanceOptions(authStore.token)
+      const options = await getAppearanceOptions()
       skinTonesByRace.value = options.skin_tones_by_race ?? {}
       buildsByRace.value = options.builds_by_race ?? {}
       haircutsByRace.value = options.haircuts_by_race ?? {}

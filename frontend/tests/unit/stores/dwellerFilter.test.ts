@@ -149,12 +149,7 @@ describe('DwellerFilter Store', () => {
       const store = useDwellerFilterStore()
       await store.fetchDwellersByVault('vault-1', 'test-token')
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/dwellers/vault/vault-1/',
-        expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' },
-        })
-      )
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/dwellers/vault/vault-1/')
       expect(store.dwellers).toEqual(mockDwellers)
       expect(store.isLoading).toBe(false)
     })
@@ -348,11 +343,6 @@ describe('DwellerFilter Store', () => {
       expect(url).toContain('/api/v1/dwellers/vault/vault-1/')
       expect(url).toContain('skip=0')
       expect(url).toContain(`limit=${ALL_DWELLERS_FETCH_LIMIT}`)
-      expect(vi.mocked(axios.get).mock.calls[0][1]).toEqual(
-        expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' },
-        })
-      )
       expect(store.allDwellers).toEqual(mockDwellers)
     })
 

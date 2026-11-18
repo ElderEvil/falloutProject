@@ -1,130 +1,83 @@
-import axios from '@/core/plugins/axios'
+import { api, apiGet, apiPost, apiPut } from '@/core/utils/api'
 import type { components } from '@/core/types/api.generated'
 
 type TrainingRead = components['schemas']['TrainingRead']
 type TrainingProgress = components['schemas']['TrainingProgress']
 
-export async function setContinuousTraining(vaultId: string, enabled: boolean, token: string) {
-  const response = await axios.put<components['schemas']['Vault']>(
-    `/api/v1/vaults/${vaultId}`,
-    { continuous_training: enabled },
-    { headers: { Authorization: `Bearer ${token}` } }
-  )
-  return response.data
+export async function setContinuousTraining(vaultId: string, enabled: boolean) {
+  return apiPut<components['schemas']['Vault']>(`/api/v1/vaults/${vaultId}`, {
+    continuous_training: enabled,
+  })
 }
 
 /**
  * Start training a dweller in a training room
  * @param dwellerId - UUID of the dweller to train
  * @param roomId - UUID of the training room
- * @param token - Auth token
  * @returns Created training session
  */
-export async function startTraining(
-  dwellerId: string,
-  roomId: string,
-  token: string
-): Promise<TrainingRead> {
-  const response = await axios.post('/api/v1/training/start', null, {
+export async function startTraining(dwellerId: string, roomId: string): Promise<TrainingRead> {
+  return apiPost<TrainingRead>('/api/v1/training/start', null, {
     params: { dweller_id: dwellerId, room_id: roomId },
-    headers: { Authorization: `Bearer ${token}` },
   })
-  return response.data
 }
 
 /**
  * Get active training for a dweller
  * @param dwellerId - UUID of the dweller
- * @param token - Auth token
  * @returns Active training session or null
  */
-export async function getDwellerTraining(
-  dwellerId: string,
-  token: string
-): Promise<TrainingRead | null> {
-  const response = await axios.get(`/api/v1/training/dweller/${dwellerId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  return response.data
+export async function getDwellerTraining(dwellerId: string): Promise<TrainingRead | null> {
+  return apiGet<TrainingRead | null>(`/api/v1/training/dweller/${dwellerId}`)
 }
 
 /**
  * Get all active training sessions in a vault
  * @param vaultId - UUID of the vault
- * @param token - Auth token
  * @returns List of active training sessions
  */
-export async function getVaultTrainings(vaultId: string, token: string): Promise<TrainingRead[]> {
-  const response = await axios.get(`/api/v1/training/vault/${vaultId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  return response.data
+export async function getVaultTrainings(vaultId: string): Promise<TrainingRead[]> {
+  return apiGet<TrainingRead[]>(`/api/v1/training/vault/${vaultId}`)
 }
 
 /**
  * Get training progress details
  * @param trainingId - UUID of the training session
- * @param token - Auth token
  * @returns Training session with progress information
  */
-export async function getTrainingProgress(
-  trainingId: string,
-  token: string
-): Promise<TrainingProgress> {
-  const response = await axios.get(`/api/v1/training/${trainingId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  return response.data
+export async function getTrainingProgress(trainingId: string): Promise<TrainingProgress> {
+  return apiGet<TrainingProgress>(`/api/v1/training/${trainingId}`)
 }
 
 /**
  * Cancel an active training session
  * @param trainingId - UUID of the training session
- * @param token - Auth token
  * @returns Cancelled training session
  */
-export async function cancelTraining(trainingId: string, token: string): Promise<TrainingRead> {
-  const response = await axios.post(`/api/v1/training/${trainingId}/cancel`, null, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  return response.data
+export async function cancelTraining(trainingId: string): Promise<TrainingRead> {
+  return apiPost<TrainingRead>(`/api/v1/training/${trainingId}/cancel`)
 }
 
 /**
  * Complete a training session, granting the stat increase to the dweller
  * @param trainingId - UUID of the training session to complete
- * @param token - Auth token
  * @returns Completed training session
  */
-export async function completeTraining(trainingId: string, token: string): Promise<TrainingRead> {
-  const response = await axios.post(`/api/v1/training/${trainingId}/complete`, null, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  return response.data
+export async function completeTraining(trainingId: string): Promise<TrainingRead> {
+  return apiPost<TrainingRead>(`/api/v1/training/${trainingId}/complete`)
 }
 
 /**
  * Get all active training sessions in a room
  * @param roomId - UUID of the room
- * @param token - Auth token
  * @returns List of active training sessions in the room
  */
-export async function getRoomTrainings(roomId: string, token: string): Promise<TrainingRead[]> {
-  const response = await axios.get(`/api/v1/training/room/${roomId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  return response.data
+export async function getRoomTrainings(roomId: string): Promise<TrainingRead[]> {
+  return apiGet<TrainingRead[]>(`/api/v1/training/room/${roomId}`)
 }
 
-export async function setTrainingGoal(
-  trainingId: string,
-  goal: number,
-  token: string
-): Promise<TrainingRead> {
-  const response = await axios.patch<TrainingRead>(
-    `/api/v1/training/${trainingId}/goal`,
-    { goal_stat_value: goal },
-    { headers: { Authorization: `Bearer ${token}` } }
-  )
-  return response.data
+export async function setTrainingGoal(trainingId: string, goal: number): Promise<TrainingRead> {
+  return api.patch<TrainingRead>(`/api/v1/training/${trainingId}/goal`, {
+    goal_stat_value: goal,
+  })
 }

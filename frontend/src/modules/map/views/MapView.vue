@@ -327,7 +327,7 @@ async function handleDispatch(payload: {
       payload.supplies
     )
     showModal.value = false
-    await mapStore.refreshMap(vaultId.value, authStore.token)
+    await mapStore.refreshMap(vaultId.value)
     toast.success(`${location.name} — dispatch sent`)
   } catch (err) {
     notifyErrorOnce(err, getErrorMessage(err))
@@ -421,12 +421,11 @@ function handleMarkerClick(
 
 async function loadMap() {
   if (!authStore.isAuthenticated || !vaultId.value) return
-  const token = authStore.token as string
   mapStore.stopPolling()
   // Snapshot first: terrain needs no vault context and is version-pinned, so it
   // loads independently of (and is never refetched by) the vault-map poll loop.
-  await Promise.all([mapStore.fetchWorldSnapshot(token), mapStore.fetchMap(vaultId.value, token)])
-  mapStore.startPolling(vaultId.value, token)
+  await Promise.all([mapStore.fetchWorldSnapshot(), mapStore.fetchMap(vaultId.value)])
+  mapStore.startPolling(vaultId.value)
   tryOpenPlaceFromQuery()
 }
 

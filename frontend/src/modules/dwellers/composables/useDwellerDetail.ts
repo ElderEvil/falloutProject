@@ -217,7 +217,7 @@ export function useDwellerDetail(
     }
 
     try {
-      const mapData = await getVaultMap(authStore.token as string, vaultId.value)
+      const mapData = await getVaultMap(vaultId.value)
       if (seq !== loadSeq) return
       placeLinks.value = mapData.locations
         .filter((loc) => loc.dwellers?.some((d) => d.dweller_id === requestedId))

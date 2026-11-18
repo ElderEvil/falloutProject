@@ -717,11 +717,7 @@ describe('RoomGrid', () => {
       )
 
       // Verify startTraining was called after assignment
-      expect(startTrainingSpy).toHaveBeenCalledWith(
-        'dweller-123',
-        'training-room-123',
-        'mock-token'
-      )
+      expect(startTrainingSpy).toHaveBeenCalledWith('dweller-123', 'training-room-123')
     })
 
     it('should not start training session when dropped into non-training room', async () => {

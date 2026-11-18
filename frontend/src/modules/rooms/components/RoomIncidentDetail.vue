@@ -172,7 +172,7 @@ const loadTeam = async (): Promise<void> => {
     return
   }
   const incidentId = props.incident.id
-  await incidentStore.fetchIncidentTeam(props.vaultId, incidentId, authStore.token)
+  await incidentStore.fetchIncidentTeam(props.vaultId, incidentId)
   if (props.incident.id === incidentId) {
     teamFetchSettled.value = true
   }

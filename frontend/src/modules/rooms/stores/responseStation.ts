@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -24,6 +24,8 @@ export const useResponseStationStore = defineStore('responseStation', () => {
     isLoading.value = false
     error.value = null
   }
+
+  watch(() => authStore.sessionGeneration, reset, { flush: 'sync' })
 
   async function loadRoster(vaultId: string): Promise<void> {
     const version = ++loadVersion
@@ -62,6 +64,7 @@ export const useResponseStationStore = defineStore('responseStation', () => {
       if (updated && version === loadVersion && session === authStore.sessionGeneration)
         roster.value = updated
     } catch (caught) {
+      if (version !== loadVersion || session !== authStore.sessionGeneration) return
       handleStoreError(caught, 'Failed to update response team')
     } finally {
       busyDwellerIds.value = busyDwellerIds.value.filter((id) => id !== dwellerId)

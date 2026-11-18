@@ -254,7 +254,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   const cacheIdentity = computed(() => authStore.user?.id ?? authStore.token)
 
   watch(
-    [cacheIdentity, () => authStore.token],
+    [cacheIdentity, () => authStore.token, () => authStore.sessionGeneration],
     () => {
       detailedDwellers.value = {}
       ++cacheGeneration
@@ -263,6 +263,15 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       allDwellersVaultId = null
       allDwellers.value = []
       allDwellersLoadedVaultId.value = null
+    },
+    { flush: 'sync' }
+  )
+
+  watch(
+    [() => authStore.sessionGeneration, () => authStore.user?.id],
+    () => {
+      dwellers.value = []
+      ++dwellersRequestSeq
     },
     { flush: 'sync' }
   )
@@ -288,11 +297,16 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   const { run: runFetchDwellers, isLoading } = useAsyncAction(
     async (vaultId: string, token: string, options?: DwellerFetchOptions) => {
       const requestSeq = ++dwellersRequestSeq
+      const session = authStore.sessionGeneration
       const tickEpochAtStart = tickEpoch
       const knownIds = new Set(dwellers.value.map((d) => d.id))
       const data = await getDwellersByVault(vaultId, toQueryParams(options))
       const activeVaultId = useVaultStore().activeVaultId
-      if (requestSeq === dwellersRequestSeq && (!activeVaultId || activeVaultId === vaultId)) {
+      if (
+        requestSeq === dwellersRequestSeq &&
+        session === authStore.sessionGeneration &&
+        (!activeVaultId || activeVaultId === vaultId)
+      ) {
         dwellers.value = data
         if (tickEpoch !== tickEpochAtStart) reapplyLatestTick(vaultId, 'dwellers', knownIds)
       }

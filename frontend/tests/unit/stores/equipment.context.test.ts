@@ -3,6 +3,8 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createToastMock } from '../helpers/mocks'
 import axios from '@/core/plugins/axios'
 import { useEquipmentStore } from '@/modules/combat/stores/equipment'
+import type { Weapon, Outfit } from '@/modules/combat/models/equipment'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 
 const authState = vi.hoisted(() => ({ generation: 0 }))
 
@@ -23,6 +25,46 @@ beforeEach(() => {
   authState.generation = 0
   setActivePinia(createPinia())
 })
+
+for (const action of ['equipWeapon', 'unequipWeapon', 'equipOutfit', 'unequipOutfit'] as const) {
+  it.each(['session', 'vault', 'active-vault'] as const)(
+    `${action} ignores a late success after a %s switch`,
+    async (change) => {
+      const { promise, resolve } = Promise.withResolvers<{ data: Weapon | Outfit }>()
+      vi.mocked(axios.post).mockReturnValueOnce(promise)
+      vi.mocked(axios.get).mockResolvedValue({ data: [{ id: 'item', dweller_id: null }] })
+      const store = useEquipmentStore()
+      const kind = action.endsWith('Weapon') ? 'weapons' : 'outfits'
+      const fetch = kind === 'weapons' ? store.fetchWeapons : store.fetchOutfits
+      await fetch('vault-a')
+      const pending = action.startsWith('unequip')
+        ? store[action as 'unequipWeapon' | 'unequipOutfit']('item')
+        : store[action as 'equipWeapon' | 'equipOutfit']('dweller', 'item')
+      expect(vi.mocked(axios.post).mock.calls.at(-1)?.[2]).toEqual({ _skipErrorNotification: true })
+      if (change === 'session') authState.generation++
+      if (change === 'active-vault') useVaultStore().activeVaultId = 'vault-b'
+      else await fetch(change === 'vault' ? 'vault-b' : 'vault-a')
+      resolve({ data: { id: 'item', dweller_id: 'old' } as Weapon })
+      expect(await pending).toBeNull()
+      if (change === 'active-vault') expect(store[kind]).toEqual([])
+      else expect(store[kind][0]?.dweller_id).toBeNull()
+      expect(toast.success).not.toHaveBeenCalled()
+    }
+  )
+
+  it(`${action} ignores a late failure after a session switch`, async () => {
+    const { promise, reject } = Promise.withResolvers<never>()
+    vi.mocked(axios.post).mockReturnValueOnce(promise)
+    const store = useEquipmentStore()
+    const pending = action.startsWith('unequip')
+      ? store[action as 'unequipWeapon' | 'unequipOutfit']('item')
+      : store[action as 'equipWeapon' | 'equipOutfit']('dweller', 'item')
+    authState.generation++
+    reject(new Error('Old failure'))
+    expect(await pending).toBeNull()
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+}
 
 for (const kind of ['weapons', 'outfits'] as const) {
   describe(`${kind} request ownership`, () => {

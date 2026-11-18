@@ -50,7 +50,11 @@ export async function getDweller(id: string): Promise<Dweller> {
 }
 
 export async function appendBioAddendum(dwellerId: string, text: string): Promise<Dweller> {
-  return apiPost<Dweller>(`/api/v1/dwellers/${dwellerId}/bio/addendum/`, { text })
+  return apiPost<Dweller>(
+    `/api/v1/dwellers/${dwellerId}/bio/addendum/`,
+    { text },
+    { skipErrorNotification: true }
+  )
 }
 
 export async function getIdentityOptions(): Promise<IdentityOptions> {

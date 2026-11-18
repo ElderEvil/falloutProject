@@ -258,14 +258,17 @@ export function useChatActions(options: UseChatActionsOptions) {
   const handleBioAddendum = async (bioText: string): Promise<boolean> => {
     if (!authStore.token) return false
 
+    const session = authStore.sessionGeneration
     isPerformingAction.value = true
     try {
       const updated = await appendBioAddendum(options.dwellerId, bioText)
+      if (session !== authStore.sessionGeneration) return false
       // Cache the returned dweller so the biography panel shows the new entry immediately.
       dwellerStore.detailedDwellers[options.dwellerId] = updated
       toast.success(`Recorded in ${options.dwellerName}'s biography`)
       return true
     } catch (error) {
+      if (session !== authStore.sessionGeneration) return false
       notifyErrorOnce(error, 'Failed to update biography')
       return false
     } finally {

@@ -34,6 +34,7 @@ describe('trainingService', () => {
         null,
         expect.objectContaining({
           params: { dweller_id: 'd1', room_id: 'r1' },
+          _skipErrorNotification: true,
         })
       )
       expect(result).toEqual(mockTraining)
@@ -47,7 +48,9 @@ describe('trainingService', () => {
 
       const result = await getDwellerTraining('d1')
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/training/dweller/d1')
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/training/dweller/d1', {
+        _skipErrorNotification: true,
+      })
       expect(result).toEqual(mockTraining)
     })
 
@@ -67,7 +70,9 @@ describe('trainingService', () => {
 
       const result = await getVaultTrainings('vault-1')
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/training/vault/vault-1')
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/training/vault/vault-1', {
+        _skipErrorNotification: true,
+      })
       expect(result).toEqual(mockTrainings)
     })
   })
@@ -79,7 +84,9 @@ describe('trainingService', () => {
 
       const result = await getTrainingProgress('t1')
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/training/t1')
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/training/t1', {
+        _skipErrorNotification: true,
+      })
       expect(result).toEqual(mockProgress)
     })
   })
@@ -91,7 +98,9 @@ describe('trainingService', () => {
 
       const result = await cancelTraining('t1')
 
-      expect(axios.post).toHaveBeenCalledWith('/api/v1/training/t1/cancel')
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/training/t1/cancel', undefined, {
+        _skipErrorNotification: true,
+      })
       expect(result).toEqual(mockCancelled)
     })
   })
@@ -103,7 +112,9 @@ describe('trainingService', () => {
 
       const result = await getRoomTrainings('r1')
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/training/room/r1')
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/training/room/r1', {
+        _skipErrorNotification: true,
+      })
       expect(result).toEqual(mockTrainings)
     })
   })

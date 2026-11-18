@@ -4,6 +4,10 @@ import { useTrainingStore } from '@/modules/progression/stores/training'
 import { getErrorMessage } from '@/core/types/utils'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { createToastMock } from '../helpers/mocks'
+
+const toast = createToastMock()
+vi.mock('@/core/composables/useToast', () => ({ useToast: () => toast }))
 
 vi.mock('@/core/plugins/axios')
 vi.mock('@/core/types/utils', () => ({
@@ -22,6 +26,10 @@ vi.mock('@/modules/progression/services/trainingService', () => ({
 }))
 
 import * as trainingService from '@/modules/progression/services/trainingService'
+import type { components } from '@/core/types/api.generated'
+
+type TrainingRead = components['schemas']['TrainingRead']
+type TrainingProgress = components['schemas']['TrainingProgress']
 
 describe('Training Store', () => {
   beforeEach(() => {
@@ -29,6 +37,114 @@ describe('Training Store', () => {
     vi.clearAllMocks()
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
+
+  it('keeps the latest vault response when an older request finishes last', async () => {
+    const { promise, resolve } = Promise.withResolvers<TrainingRead[]>()
+    const oldTraining = { id: 'old', status: 'active' } as TrainingRead
+    const current = { id: 'current', status: 'active' } as TrainingRead
+    vi.mocked(trainingService.getVaultTrainings)
+      .mockReturnValueOnce(promise)
+      .mockResolvedValueOnce([current])
+    const store = useTrainingStore()
+    const pending = store.fetchVaultTrainings('vault-a')
+    await store.fetchVaultTrainings('vault-b')
+    resolve([oldTraining])
+    await pending
+    expect([...store.activeTrainings.keys()]).toEqual(['current'])
+  })
+
+  it.each(['clear', 'session'] as const)(
+    'rejects a pending vault response after %s invalidation',
+    async (change) => {
+      const { promise, resolve } = Promise.withResolvers<TrainingRead[]>()
+      vi.mocked(trainingService.getVaultTrainings).mockReturnValueOnce(promise)
+      const auth = useAuthStore()
+      const store = useTrainingStore()
+      const pending = store.fetchVaultTrainings('vault-a')
+      if (change === 'session') auth.sessionGeneration++
+      else store.clearTrainings()
+      resolve([{ id: 'old', status: 'active' } as TrainingRead])
+      await pending
+      expect(store.activeTrainings.size).toBe(0)
+      expect(store.error).toBeNull()
+      expect(store.isLoading).toBe(false)
+    }
+  )
+
+  for (const action of ['start', 'cancel', 'complete', 'dweller', 'room', 'progress'] as const) {
+    it.each(['resolve', 'reject'] as const)(
+      `${action} ignores a late %s after context clear`,
+      async (outcome) => {
+        const { promise, resolve, reject } = Promise.withResolvers<
+          TrainingRead & TrainingProgress
+        >()
+        const room = Promise.withResolvers<TrainingRead[]>()
+        const value = { id: 'old', status: 'active', room_id: 'room-a' } as TrainingRead &
+          TrainingProgress
+        if (action === 'room')
+          vi.mocked(trainingService.getRoomTrainings).mockReturnValueOnce(room.promise)
+        else {
+          const service = {
+            start: trainingService.startTraining,
+            cancel: trainingService.cancelTraining,
+            complete: trainingService.completeTraining,
+            dweller: trainingService.getDwellerTraining,
+            progress: trainingService.getTrainingProgress,
+          }[action]
+          vi.mocked(service).mockReturnValueOnce(promise)
+        }
+        const store = useTrainingStore()
+        const actions = {
+          start: () => store.startTraining('dweller', 'room-a'),
+          cancel: () => store.cancelTraining('old'),
+          complete: () => store.completeTraining('old'),
+          dweller: () => store.fetchDwellerTraining('dweller'),
+          room: () => store.fetchRoomTrainings('room-a'),
+          progress: () => store.updateTrainingProgress('old'),
+        }
+        const pending = actions[action]()
+        store.clearTrainings()
+        if (outcome === 'resolve') {
+          if (action === 'room') room.resolve([value])
+          else resolve(value)
+        } else if (action === 'room') room.reject(new Error('Old failure'))
+        else reject(new Error('Old failure'))
+        await pending
+        expect(store.activeTrainings.size).toBe(0)
+        expect(store.trainingHistory).toEqual([])
+        expect(store.error).toBeNull()
+        expect(toast.error).not.toHaveBeenCalled()
+        expect(toast.success).not.toHaveBeenCalled()
+      }
+    )
+  }
+
+  for (const action of ['goal', 'continuous'] as const) {
+    it.each(['resolve', 'reject'] as const)(
+      `${action} ignores a late %s after clear`,
+      async (outcome) => {
+        const { promise, resolve, reject } = Promise.withResolvers<
+          TrainingRead & components['schemas']['Vault']
+        >()
+        if (action === 'goal')
+          vi.mocked(trainingService.setTrainingGoal).mockReturnValueOnce(promise)
+        else vi.mocked(trainingService.setContinuousTraining).mockReturnValueOnce(promise)
+        const store = useTrainingStore()
+        const pending =
+          action === 'goal'
+            ? store.setTrainingGoal('old', 7)
+            : store.setContinuousTraining('vault-a', true)
+        store.clearTrainings()
+        if (outcome === 'reject') reject(new Error('Old failure'))
+        else
+          resolve({ id: 'old', goal_stat_value: 7, continuous_training: true } as TrainingRead &
+            components['schemas']['Vault'])
+        expect(await pending).toBe(false)
+        expect(toast.error).not.toHaveBeenCalled()
+        expect(toast.success).not.toHaveBeenCalled()
+      }
+    )
+  }
 
   it('saves only the selected dweller goal and keeps the saved value on failure', async () => {
     useAuthStore().token = 'token'

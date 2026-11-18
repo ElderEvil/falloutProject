@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Badge } from '@/core/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/core/components/ui/card'
@@ -51,8 +51,6 @@ watch(
   },
   { immediate: true }
 )
-
-onUnmounted(() => stationStore.reset())
 
 function handleSetPlace(team: HazardTeam, dwellerId: string, active: boolean): void {
   void stationStore.setPlace(props.vaultId, team, dwellerId, active)

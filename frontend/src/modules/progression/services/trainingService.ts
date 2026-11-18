@@ -5,9 +5,13 @@ type TrainingRead = components['schemas']['TrainingRead']
 type TrainingProgress = components['schemas']['TrainingProgress']
 
 export async function setContinuousTraining(vaultId: string, enabled: boolean) {
-  return apiPut<components['schemas']['Vault']>(`/api/v1/vaults/${vaultId}`, {
-    continuous_training: enabled,
-  })
+  return apiPut<components['schemas']['Vault']>(
+    `/api/v1/vaults/${vaultId}`,
+    {
+      continuous_training: enabled,
+    },
+    { skipErrorNotification: true }
+  )
 }
 
 /**
@@ -19,6 +23,7 @@ export async function setContinuousTraining(vaultId: string, enabled: boolean) {
 export async function startTraining(dwellerId: string, roomId: string): Promise<TrainingRead> {
   return apiPost<TrainingRead>('/api/v1/training/start', null, {
     params: { dweller_id: dwellerId, room_id: roomId },
+    skipErrorNotification: true,
   })
 }
 
@@ -28,7 +33,9 @@ export async function startTraining(dwellerId: string, roomId: string): Promise<
  * @returns Active training session or null
  */
 export async function getDwellerTraining(dwellerId: string): Promise<TrainingRead | null> {
-  return apiGet<TrainingRead | null>(`/api/v1/training/dweller/${dwellerId}`)
+  return apiGet<TrainingRead | null>(`/api/v1/training/dweller/${dwellerId}`, {
+    skipErrorNotification: true,
+  })
 }
 
 /**
@@ -37,7 +44,9 @@ export async function getDwellerTraining(dwellerId: string): Promise<TrainingRea
  * @returns List of active training sessions
  */
 export async function getVaultTrainings(vaultId: string): Promise<TrainingRead[]> {
-  return apiGet<TrainingRead[]>(`/api/v1/training/vault/${vaultId}`)
+  return apiGet<TrainingRead[]>(`/api/v1/training/vault/${vaultId}`, {
+    skipErrorNotification: true,
+  })
 }
 
 /**
@@ -46,7 +55,7 @@ export async function getVaultTrainings(vaultId: string): Promise<TrainingRead[]
  * @returns Training session with progress information
  */
 export async function getTrainingProgress(trainingId: string): Promise<TrainingProgress> {
-  return apiGet<TrainingProgress>(`/api/v1/training/${trainingId}`)
+  return apiGet<TrainingProgress>(`/api/v1/training/${trainingId}`, { skipErrorNotification: true })
 }
 
 /**
@@ -55,7 +64,9 @@ export async function getTrainingProgress(trainingId: string): Promise<TrainingP
  * @returns Cancelled training session
  */
 export async function cancelTraining(trainingId: string): Promise<TrainingRead> {
-  return apiPost<TrainingRead>(`/api/v1/training/${trainingId}/cancel`)
+  return apiPost<TrainingRead>(`/api/v1/training/${trainingId}/cancel`, undefined, {
+    skipErrorNotification: true,
+  })
 }
 
 /**
@@ -64,7 +75,9 @@ export async function cancelTraining(trainingId: string): Promise<TrainingRead> 
  * @returns Completed training session
  */
 export async function completeTraining(trainingId: string): Promise<TrainingRead> {
-  return apiPost<TrainingRead>(`/api/v1/training/${trainingId}/complete`)
+  return apiPost<TrainingRead>(`/api/v1/training/${trainingId}/complete`, undefined, {
+    skipErrorNotification: true,
+  })
 }
 
 /**
@@ -73,11 +86,15 @@ export async function completeTraining(trainingId: string): Promise<TrainingRead
  * @returns List of active training sessions in the room
  */
 export async function getRoomTrainings(roomId: string): Promise<TrainingRead[]> {
-  return apiGet<TrainingRead[]>(`/api/v1/training/room/${roomId}`)
+  return apiGet<TrainingRead[]>(`/api/v1/training/room/${roomId}`, { skipErrorNotification: true })
 }
 
 export async function setTrainingGoal(trainingId: string, goal: number): Promise<TrainingRead> {
-  return api.patch<TrainingRead>(`/api/v1/training/${trainingId}/goal`, {
-    goal_stat_value: goal,
-  })
+  return api.patch<TrainingRead>(
+    `/api/v1/training/${trainingId}/goal`,
+    {
+      goal_stat_value: goal,
+    },
+    { skipErrorNotification: true }
+  )
 }

@@ -1,23 +1,25 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, watch } from 'vue'
 import DwellerStateChip from './DwellerStateChip.vue'
-import { useAsyncAction } from '@/core/composables/useAsyncAction'
-import { contaminationTeamApi } from '@/modules/contamination-team'
+import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useResponseStationStore } from '@/modules/rooms/stores/responseStation'
 import { HAZARD_TEAM_CONFIG } from '@/modules/contamination-team/models/contaminationTeam'
-import type { ContaminationTeamRead } from '@/modules/contamination-team'
 
 const props = defineProps<{ dwellerId: string; vaultId: string }>()
 
-const roster = ref<ContaminationTeamRead | null>(null)
+const authStore = useAuthStore()
+const stationStore = useResponseStationStore()
+const roster = computed(() =>
+  stationStore.roster?.vault_id === props.vaultId ? stationStore.roster : null
+)
 
-const { run } = useAsyncAction(async (vaultId: string) => contaminationTeamApi.getRoster(vaultId), {
-  context: 'Failed to load response teams',
-})
-
-onMounted(async () => {
-  if (!props.vaultId) return
-  roster.value = await run(props.vaultId)
-})
+watch(
+  [() => props.vaultId, () => authStore.sessionGeneration],
+  () => {
+    if (props.vaultId && !roster.value) void stationStore.loadRoster(props.vaultId)
+  },
+  { immediate: true }
+)
 
 interface TeamChip {
   label: string

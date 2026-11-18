@@ -14,7 +14,8 @@ export const contaminationTeamApi = {
   ): Promise<ContaminationTeamRead> {
     return apiPut<ContaminationTeamRead>(
       `/api/v1/contamination-team/vault/${vaultId}/${team}/${dwellerId}`,
-      { active }
+      { active },
+      { skipErrorNotification: true }
     )
   },
 }

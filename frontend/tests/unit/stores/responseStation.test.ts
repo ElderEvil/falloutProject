@@ -175,4 +175,21 @@ describe('useResponseStationStore', () => {
     expect(store.error).toBeNull()
     expect(store.isLoading).toBe(false)
   })
+
+  it.each(['session', 'reset'] as const)(
+    'ignores a mutation failure after %s invalidation',
+    async (change) => {
+      const { promise, reject } = Promise.withResolvers<ContaminationTeamRead>()
+      vi.mocked(updateResponseTeamPlace).mockReturnValueOnce(promise)
+      const auth = useAuthStore()
+      const store = useResponseStationStore()
+      const pending = store.setPlace('vault-1', 'fire', 'd1', true)
+      if (change === 'session') auth.sessionGeneration++
+      else store.reset()
+      reject(new Error('Old failure'))
+      await pending
+      expect(mockToast.error).not.toHaveBeenCalled()
+      expect(store.busyDwellerIds).toEqual([])
+    }
+  )
 })

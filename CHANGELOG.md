@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.3.3 (2026-11-18)
+
+### Bug Fixes
+
+* **chat:** close the recorder's async-start and error-path mic leaks e5894dd
+* **chat:** release the acquired stream even when a stale recorder exists 47cefa5
+* **chat:** release the microphone when the recorder scope is disposed deecc89
+* **chat:** release the microphone when the recorder scope is disposed ([#1430](https://github.com/ElderEvil/falloutProject/issues/1430)) 39efbce
+* **chat:** stop the acquired stream when the recorder setup throws 02b8b74
+
 ## 3.3.2 (2026-11-18)
 
 ### Bug Fixes

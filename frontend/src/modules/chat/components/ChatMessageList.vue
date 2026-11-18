@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import LoadingInline from '@/core/components/common/LoadingInline.vue'
 import { Button } from '@/core/components/ui/button'
 import {
   Tooltip,
@@ -311,7 +312,7 @@ const messageContentSegments = (
               :disabled="isPerformingAction"
               @click="emit('confirmAction', message.actionSuggestion, index)"
             >
-              <Icon v-if="isPerformingAction" icon="mdi:loading" class="h-4 w-4 spinning" />
+              <LoadingInline v-if="isPerformingAction" decorative class="h-4 w-4" />
               <Icon v-else icon="mdi:check" class="h-4 w-4" />
               <span>{{ actionConfirmLabel(message.actionSuggestion, isPerformingAction) }}</span>
             </Button>

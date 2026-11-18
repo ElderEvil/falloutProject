@@ -4,8 +4,7 @@ import { Icon } from '@iconify/vue'
 import { useEquipmentStore } from '@/modules/combat/stores/equipment'
 import { usePetsStore } from '@/modules/pets/stores/pets'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import EquipmentCard from '@/modules/combat/components/equipment/EquipmentCard.vue'
-import PetCard from '@/modules/pets/components/PetCard.vue'
+import EquippableItemCard from '@/core/components/common/EquippableItemCard.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import { isMature } from '../models/dweller'
 import { getItemIcon } from '@/core/models/items'
@@ -170,10 +169,11 @@ const modalIcon = computed(() => {
           <h4 class="slot-title" v-bind="{ 'data-onboarding': 'dweller-weapon' }">Weapon</h4>
         </div>
 
-        <EquipmentCard
+        <EquippableItemCard
           v-if="equippedWeapon"
+          root-class="equipment-card"
           :item="equippedWeapon"
-          type="weapon"
+          item-type="weapon"
           :equipped="true"
           :show-actions="canUnequip"
           @unequip="handleUnequipWeapon"
@@ -204,10 +204,11 @@ const modalIcon = computed(() => {
           <h4 class="slot-title" v-bind="{ 'data-onboarding': 'dweller-outfit' }">Outfit</h4>
         </div>
 
-        <EquipmentCard
+        <EquippableItemCard
           v-if="equippedOutfit"
+          root-class="equipment-card"
           :item="equippedOutfit"
-          type="outfit"
+          item-type="outfit"
           :equipped="true"
           :show-actions="canUnequip"
           @unequip="handleUnequipOutfit"
@@ -238,9 +239,11 @@ const modalIcon = computed(() => {
           <h4 class="slot-title">Pet</h4>
         </div>
 
-        <PetCard
+        <EquippableItemCard
           v-if="equippedPet"
-          :pet="equippedPet"
+          root-class="pet-card"
+          :item="equippedPet"
+          item-type="pet"
           :equipped="true"
           :show-actions="canUnequip"
           :disabled="petActionPending"
@@ -276,11 +279,12 @@ const modalIcon = computed(() => {
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
         <div class="items-list">
           <template v-if="inventoryMode === 'weapon'">
-            <EquipmentCard
+            <EquippableItemCard
               v-for="weapon in availableWeapons"
               :key="weapon.id"
+              root-class="equipment-card"
               :item="weapon"
-              type="weapon"
+              item-type="weapon"
               :show-actions="canEquip"
               @equip="handleEquipWeapon(weapon.id)"
             />
@@ -291,11 +295,12 @@ const modalIcon = computed(() => {
           </template>
 
           <template v-else-if="inventoryMode === 'outfit'">
-            <EquipmentCard
+            <EquippableItemCard
               v-for="outfit in availableOutfits"
               :key="outfit.id"
+              root-class="equipment-card"
               :item="outfit"
-              type="outfit"
+              item-type="outfit"
               :show-actions="canEquip"
               @equip="handleEquipOutfit(outfit.id)"
             />
@@ -306,10 +311,12 @@ const modalIcon = computed(() => {
           </template>
 
           <template v-else>
-            <PetCard
+            <EquippableItemCard
               v-for="pet in availablePets"
               :key="pet.id"
-              :pet="pet"
+              root-class="pet-card"
+              :item="pet"
+              item-type="pet"
               :show-actions="canEquip"
               :disabled="petActionPending"
               @equip="handleEquipPet(pet.id)"

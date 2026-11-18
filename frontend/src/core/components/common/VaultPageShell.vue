@@ -1,24 +1,40 @@
 <script setup lang="ts">
 import { inject, ref } from 'vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import PageContentRail from './PageContentRail.vue'
 import SidePanel from './SidePanel.vue'
 
-withDefaults(defineProps<{ flicker?: boolean }>(), {
-  flicker: false,
-})
+withDefaults(
+  defineProps<{
+    flicker?: boolean
+    rail?: boolean
+    sidePanel?: boolean
+    vaultId?: string | null
+    terminal?: boolean
+  }>(),
+  { flicker: false, rail: false, sidePanel: true, vaultId: null, terminal: false }
+)
 
 const { isCollapsed } = useSidePanel()
 const isFlickeringEnabled = inject('isFlickering', ref(false))
 </script>
 
 <template>
-  <div class="vault-page-shell vault-layout">
-    <SidePanel />
+  <div
+    class="vault-page-shell vault-layout"
+    :class="
+      terminal ? 'relative min-h-screen bg-terminal-background font-mono text-terminal-green' : ''
+    "
+  >
+    <SidePanel v-if="sidePanel" :vault-id="vaultId" />
     <main
-      class="vault-page-main main-content"
-      :class="{ collapsed: isCollapsed, flicker: flicker && isFlickeringEnabled }"
+      class="vault-page-main main-content min-w-0 flex-1 pb-8 leading-[1.6] transition-[margin-left] duration-300 ease max-md:ml-0"
+      :class="[isCollapsed ? 'ml-16' : 'ml-60', { flicker: flicker && isFlickeringEnabled }]"
     >
-      <slot />
+      <PageContentRail v-if="rail">
+        <slot />
+      </PageContentRail>
+      <slot v-else />
     </main>
   </div>
 </template>
@@ -30,16 +46,14 @@ const isFlickeringEnabled = inject('isFlickering', ref(false))
 }
 
 .vault-page-main {
-  flex: 1;
-  min-width: 0;
-  margin-left: 240px;
-  transition: margin-left 0.3s ease;
   font-weight: 700;
   letter-spacing: 0.025em;
-  line-height: 1.6;
 }
 
-.vault-page-main.collapsed {
-  margin-left: 64px;
+.vault-page-main :deep(h1),
+.vault-page-main :deep(h2),
+.vault-page-main :deep(h3) {
+  font-weight: 700;
+  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 </style>

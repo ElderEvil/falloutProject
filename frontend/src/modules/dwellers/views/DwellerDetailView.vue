@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import DwellerDetailContainer from '../components/DwellerDetailContainer.vue'
-import DwellerPanelLayout from '../components/DwellerPanelLayout.vue'
+import VaultPageShell from '@/core/components/common/VaultPageShell.vue'
 </script>
 
 <template>
-  <DwellerPanelLayout>
+  <VaultPageShell rail terminal>
     <DwellerDetailContainer />
-  </DwellerPanelLayout>
+  </VaultPageShell>
 </template>

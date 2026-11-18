@@ -10,12 +10,15 @@ from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import training as training_crud
 from app.crud.room import room as room_crud
+from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.pet import Pet
+from app.models.training import Training
 from app.models.vault import Vault
 from app.schemas.room import RoomCreate
+from app.schemas.vault import VaultCreate
 from app.services.training_service import TrainingService
-from app.utils.exceptions import VaultOperationException
+from app.utils.exceptions import InvalidVaultTransferException, VaultOperationException
 from app.utils.time import utcnow
 
 
@@ -166,6 +169,100 @@ async def test_can_start_training_rejects_feral_ghoul(
 
     assert can_train is False
     assert "state prevents purposeful training" in reason.lower()
+
+
+@pytest.mark.asyncio
+async def test_start_training_rejects_room_from_another_vault(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    training_service: TrainingService,
+):
+    """A dweller may only train in a room that belongs to its own vault."""
+    foreign_vault = await vault_crud.create_with_user_id(
+        db_session=async_session,
+        obj_in=VaultCreate(number=202, name="Foreign Vault"),
+        user_id=vault.user_id,
+    )
+    room_data = {
+        "name": "Foreign Weight Room",
+        "category": RoomTypeEnum.TRAINING,
+        "tier": 3,
+        "size": 2,
+        "capacity": 6,
+        "ability": SPECIALEnum.STRENGTH,
+        "base_cost": 1000,
+        "t2_upgrade_cost": 2500,
+        "t3_upgrade_cost": 5000,
+        "size_min": 1,
+        "size_max": 3,
+    }
+    foreign_room = await room_crud.create(async_session, RoomCreate(**room_data, vault_id=foreign_vault.id))
+
+    dweller.status = DwellerStatusEnum.IDLE
+    original_room_id = dweller.room_id
+    async_session.add(dweller)
+    await async_session.commit()
+
+    with pytest.raises(InvalidVaultTransferException):
+        await training_service.start_training(async_session, dweller.id, foreign_room.id)
+
+    await async_session.refresh(dweller)
+    assert dweller.room_id == original_room_id
+    assert dweller.status == DwellerStatusEnum.IDLE
+    assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None
+
+
+@pytest.mark.asyncio
+async def test_continuous_training_does_not_renew_a_foreign_room_session(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    training_service: TrainingService,
+):
+    """A legacy session pointing at a foreign room completes but is never renewed."""
+    from datetime import timedelta
+
+    foreign_vault = await vault_crud.create_with_user_id(
+        db_session=async_session,
+        obj_in=VaultCreate(number=203, name="Foreign Vault"),
+        user_id=vault.user_id,
+    )
+    foreign_room = await room_crud.create(async_session, _training_room(foreign_vault.id))
+
+    vault.continuous_training = True
+    dweller.age_group = "adult"
+    dweller.health = 100
+    dweller.status = DwellerStatusEnum.TRAINING
+    dweller.strength = 5
+    dweller.room_id = foreign_room.id
+    async_session.add(vault)
+    async_session.add(dweller)
+    await async_session.commit()
+
+    # Pre-guard row shape: dweller's vault_id, foreign room — only a vault check stops renewal.
+    training = Training(
+        dweller_id=dweller.id,
+        room_id=foreign_room.id,
+        vault_id=dweller.vault_id,
+        stat_being_trained=SPECIALEnum.STRENGTH,
+        current_stat_value=5,
+        target_stat_value=6,
+        goal_stat_value=10,
+        started_at=utcnow() - timedelta(minutes=30),
+        estimated_completion_at=utcnow() - timedelta(seconds=1),
+    )
+    async_session.add(training)
+    await async_session.commit()
+
+    completed = await training_service.complete_training(async_session, training.id)
+
+    assert completed.is_completed()
+    await async_session.refresh(dweller)
+    assert dweller.strength == 6
+    assert dweller.status == DwellerStatusEnum.IDLE
+    assert dweller.room_id is None
+    assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None
 
 
 @pytest.mark.asyncio

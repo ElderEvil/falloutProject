@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.3.3 (2026-11-18)
+
+### Bug Fixes
+
+* **chat:** close the recorder's async-start and error-path mic leaks e5894dd
+* **chat:** release the acquired stream even when a stale recorder exists 47cefa5
+* **chat:** release the microphone when the recorder scope is disposed deecc89
+* **chat:** release the microphone when the recorder scope is disposed ([#1430](https://github.com/ElderEvil/falloutProject/issues/1430)) 39efbce
+* **chat:** stop the acquired stream when the recorder setup throws 02b8b74
+
+## 3.3.2 (2026-11-18)
+
+### Bug Fixes
+
+* **training:** reject rooms that belong to another vault ee46c01
+* **training:** reject rooms that belong to another vault ([#1429](https://github.com/ElderEvil/falloutProject/issues/1429)) 3495058
+* **training:** stop continuous training from renewing foreign-room sessions cc91dc4
+
+## 3.3.1 (2026-11-18)
+
+### Bug Fixes
+
+* **dwellers:** restore ownership checks on AI endpoints 791a787
+* **dwellers:** restore ownership checks on AI endpoints ([#1427](https://github.com/ElderEvil/falloutProject/issues/1427)) d83fcfd
+
 ## 3.3.0 (2026-11-17)
 
 ### Features

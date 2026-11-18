@@ -297,7 +297,18 @@ async def grant_dweller(db_session: AsyncSession, vault_id: UUID, dweller_templa
         health = dweller_template.get("health", 50)
 
     stat_range = STATS_RANGE_BY_RARITY.get(rarity_enum, (1, 3))
-    default_stat = random.randint(stat_range[0], stat_range[1])
+
+    def roll_stat(stat: str) -> int:
+        """One independent draw per SPECIAL.
+
+        A single draw reused for all seven values produced flat clones — every
+        reward dweller arrived as all 1s, all 2s or all 3s — so an unnamed
+        reward had no shape at all. Curated templates still win when they carry
+        a value: the roll only fills what the template leaves empty.
+        """
+        supplied = dweller_template.get(stat)
+        return int(supplied) if supplied is not None else random.randint(stat_range[0], stat_range[1])
+
     provenance = ContentProvenanceEnum(
         dweller_template.get("content_provenance") or ContentProvenanceEnum.PLAYER_EDITED
     )
@@ -312,13 +323,13 @@ async def grant_dweller(db_session: AsyncSession, vault_id: UUID, dweller_templa
         max_health=max_health,
         health=health,
         happiness=dweller_template.get("happiness", 50),
-        strength=dweller_template.get("strength", default_stat),
-        perception=dweller_template.get("perception", default_stat),
-        endurance=dweller_template.get("endurance", default_stat),
-        charisma=dweller_template.get("charisma", default_stat),
-        intelligence=dweller_template.get("intelligence", default_stat),
-        agility=dweller_template.get("agility", default_stat),
-        luck=dweller_template.get("luck", default_stat),
+        strength=roll_stat("strength"),
+        perception=roll_stat("perception"),
+        endurance=roll_stat("endurance"),
+        charisma=roll_stat("charisma"),
+        intelligence=roll_stat("intelligence"),
+        agility=roll_stat("agility"),
+        luck=roll_stat("luck"),
         bio=dweller_template.get("bio"),
         visual_attributes=dweller_template.get("visual_attributes"),
         vault_id=vault_id,

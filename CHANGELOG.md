@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.3.1 (2026-11-18)
+
+### Bug Fixes
+
+* **dwellers:** restore ownership checks on AI endpoints 791a787
+* **dwellers:** restore ownership checks on AI endpoints ([#1427](https://github.com/ElderEvil/falloutProject/issues/1427)) d83fcfd
+
 ## 3.3.0 (2026-11-17)
 
 ### Features

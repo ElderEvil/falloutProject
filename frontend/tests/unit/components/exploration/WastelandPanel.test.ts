@@ -225,8 +225,8 @@ describe('WastelandPanel', () => {
       })
       await flushPromises()
 
-      expect(useVaultStore().refreshVault).toHaveBeenCalledWith('test-vault-id', 'mock-token')
-      expect(dwellerStore.fetchDwellersByVault).toHaveBeenCalledWith('test-vault-id', 'mock-token')
+      expect(useVaultStore().refreshVault).toHaveBeenCalledWith('test-vault-id')
+      expect(dwellerStore.fetchDwellersByVault).toHaveBeenCalledWith('test-vault-id')
     })
 
     it('cancels a pending dispatch when the vault changes', async () => {

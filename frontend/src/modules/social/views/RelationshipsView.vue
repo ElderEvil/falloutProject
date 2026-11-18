@@ -97,7 +97,7 @@ onMounted(async () => {
     await Promise.all([
       relationshipStore.fetchVaultRelationships(vaultId.value),
       pregnancyStore.fetchVaultPregnancies(vaultId.value),
-      dwellerStore.fetchAllDwellers(vaultId.value, authStore.token),
+      dwellerStore.fetchAllDwellers(vaultId.value),
     ])
   }
 })

@@ -13,7 +13,7 @@ export function usePresenceHeartbeat(
     const vaultId = getVaultId()
     const token = getToken()
     if (vaultId && token && document.visibilityState === 'visible')
-      return vaultStore.pingPresence(vaultId, token)
+      return vaultStore.pingPresence(vaultId)
   }
   usePolling(ping, { interval: intervalMs })
 }

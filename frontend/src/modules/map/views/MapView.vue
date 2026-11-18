@@ -180,7 +180,7 @@ async function handleVaultInfo(infoVaultId: string) {
   // whenever the current list does not contain it.
   vaultInfoLoading.value = true
   try {
-    await vaultStore.fetchVaults(token)
+    await vaultStore.fetchVaults()
   } finally {
     if (requestId === vaultInfoRequest) vaultInfoLoading.value = false
   }
@@ -288,7 +288,7 @@ async function ensureDispatchData() {
     // The shell hydrates loadedVaults asynchronously; showing the Send-team
     // section before that lands renders the supply sliders as zeros. Load the
     // vault record, then the roster, and let a failure leave supplies at zero.
-    await vaultStore.ensureVaultLoaded(requestedVaultId, token)
+    await vaultStore.ensureVaultLoaded(requestedVaultId)
     // A route change mid-load means this data no longer belongs to the view.
     if (vaultId.value !== requestedVaultId || authStore.token !== token) return
     // Room names drive the picker's job grouping; reuse cached rooms when this
@@ -297,7 +297,7 @@ async function ensureDispatchData() {
       roomStore.roomsLoadedVaultId === requestedVaultId
         ? Promise.resolve()
         : roomStore.fetchRooms(requestedVaultId)
-    await Promise.all([dwellerStore.fetchDwellersByVault(requestedVaultId, token), roomsReady])
+    await Promise.all([dwellerStore.fetchDwellersByVault(requestedVaultId), roomsReady])
   } catch {
     // Unloadable vault: the section still renders, supplies just stay at zero.
   } finally {

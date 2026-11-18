@@ -38,10 +38,14 @@ describe('api boundary', () => {
 
     await apiPost('/api/v1/thing', { a: 1 }, { params: { q: 'x' }, skipErrorNotification: true })
 
-    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/thing', { a: 1 }, {
-      params: { q: 'x' },
-      _skipErrorNotification: true,
-    })
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/v1/thing',
+      { a: 1 },
+      {
+        params: { q: 'x' },
+        _skipErrorNotification: true,
+      }
+    )
   })
 
   it('normalizes failures to ApiError with detail, fields and headers', async () => {

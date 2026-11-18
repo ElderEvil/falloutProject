@@ -318,7 +318,7 @@ export const useIncidentStore = defineStore('incident', () => {
       const result = await incidentApi.assignResponders(vaultId, incidentId, dwellerIds)
       await fetchIncidents(vaultId, token)
       await fetchIncidentTeam(vaultId, incidentId)
-      await filterStore.fetchDwellersByVault(vaultId, token)
+      await filterStore.fetchDwellersByVault(vaultId)
       const assignedIds = new Set(result.assigned_dweller_ids)
       const skippedIds = dwellerIds.filter((id) => !assignedIds.has(id))
       if (skippedIds.length) {
@@ -398,7 +398,7 @@ export const useIncidentStore = defineStore('incident', () => {
           case 'incident_spawned':
             if (data.is_paused === true) {
               void useVaultStore()
-                .fetchGameState(vaultId, token)
+                .fetchGameState(vaultId)
                 .catch((error) => {
                   handleStoreError(error, 'Failed to refresh automatic pause state')
                 })
@@ -408,7 +408,7 @@ export const useIncidentStore = defineStore('incident', () => {
               .then(({ useDwellerFilterStore }) => {
                 const currentVaultId = useVaultStore().activeVaultId
                 if (currentVaultId && currentVaultId !== vaultId) return
-                return useDwellerFilterStore().fetchDwellersByVault(vaultId, token)
+                return useDwellerFilterStore().fetchDwellersByVault(vaultId)
               })
               .catch((error: unknown) => {
                 handleStoreError(error, 'Failed to refresh dwellers after incident spawn', false)

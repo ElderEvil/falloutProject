@@ -81,7 +81,7 @@ describe('DwellerChatModal', () => {
     const wrapper = mountModal()
     await flushPromises()
 
-    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1', 'mock-token')
+    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1')
     const chat = wrapper.findComponent(DwellerChatStub)
     expect(chat.exists()).toBe(true)
     expect(chat.props('dwellerId')).toBe('dweller-1')

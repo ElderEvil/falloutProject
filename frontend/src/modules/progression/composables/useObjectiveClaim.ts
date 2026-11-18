@@ -25,11 +25,11 @@ export function useObjectiveClaim(vaultId: Ref<string | null>) {
       .catch((err) => handleStoreError(err, 'Failed to refresh objective guidance'))
     if (!auth.token) return
     void vaultStore
-      .refreshVault(id, auth.token)
+      .refreshVault(id)
       .catch((err) => handleStoreError(err, 'Failed to refresh claimed rewards'))
     // A claim can grant a dweller; the local roster feeds the wasteland picker.
     void dwellerStore.filter
-      .fetchDwellersByVault(id, auth.token)
+      .fetchDwellersByVault(id)
       .catch((err) => handleStoreError(err, 'Failed to refresh the dweller roster'))
   }
 

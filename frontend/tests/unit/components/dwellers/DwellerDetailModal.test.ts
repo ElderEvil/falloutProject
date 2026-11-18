@@ -179,11 +179,10 @@ it('uses the shared rename action from the embedded detail', async () => {
     .find((button) => button.text() === 'Save')!
     .trigger('click')
   await flushPromises()
-  expect(axios.patch).toHaveBeenCalledWith(
-    `/api/v1/dwellers/${dwellerId}/rename`,
-    { first_name: 'Lucy', last_name: 'Almodovar' },
-    expect.any(Object)
-  )
+  expect(axios.patch).toHaveBeenCalledWith(`/api/v1/dwellers/${dwellerId}/rename`, {
+    first_name: 'Lucy',
+    last_name: 'Almodovar',
+  })
   expect(wrapper.text()).toContain('Lucy')
   expect(router.currentRoute.value.path).toBe('/vault/vault-1')
 })

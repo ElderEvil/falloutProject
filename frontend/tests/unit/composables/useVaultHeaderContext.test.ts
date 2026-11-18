@@ -80,7 +80,7 @@ describe('useVaultHeaderContext', () => {
     const { ctx } = await mountContext(router, '/vault/vault-1')
 
     expect(ensureSpy).toHaveBeenCalledTimes(1)
-    expect(ensureSpy).toHaveBeenCalledWith('vault-1', 'mock-token')
+    expect(ensureSpy).toHaveBeenCalledWith('vault-1')
     expect(ctx.isVaultRoute.value).toBe(true)
     expect(ctx.vaultId.value).toBe('vault-1')
     expect(ctx.isReady.value).toBe(false)
@@ -98,7 +98,7 @@ describe('useVaultHeaderContext', () => {
     await flushPromises()
 
     expect(ensureSpy).toHaveBeenCalledTimes(2)
-    expect(ensureSpy).toHaveBeenLastCalledWith('vault-2', 'mock-token')
+    expect(ensureSpy).toHaveBeenLastCalledWith('vault-2')
     // The route decides what the strip shows: vault-1 must not leak through.
     expect(ctx.vaultId.value).toBe('vault-2')
     expect(ctx.vault.value).toBeNull()
@@ -158,7 +158,10 @@ describe('useVaultHeaderContext', () => {
   it('ignores a late failure from the previous vault route', async () => {
     let rejectOldLoad!: (reason: Error) => void
     ensureSpy.mockImplementationOnce(
-      () => new Promise((_, reject) => { rejectOldLoad = reject })
+      () =>
+        new Promise((_, reject) => {
+          rejectOldLoad = reject
+        })
     )
     const { ctx } = await mountContext(router, '/vault/vault-1')
 

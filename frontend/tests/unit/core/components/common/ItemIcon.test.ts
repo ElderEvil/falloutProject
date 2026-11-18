@@ -30,7 +30,10 @@ describe('ItemIcon', () => {
 
   it('renders an img with the resolved URL when an image exists', () => {
     const wrapper = mount(ItemIcon, {
-      props: { item: { image_url: 'https://example.com/knife.png', name: 'Combat Knife' }, itemType: 'weapon' },
+      props: {
+        item: { image_url: 'https://example.com/knife.png', name: 'Combat Knife' },
+        itemType: 'weapon',
+      },
     })
 
     const img = wrapper.get('img')
@@ -43,12 +46,17 @@ describe('ItemIcon', () => {
       props: { item: { image_url: '/static/items/knife.png' }, itemType: 'weapon' },
     })
 
-    expect(wrapper.get('img').attributes('src')).toBe('http://localhost:8000/static/items/knife.png')
+    expect(wrapper.get('img').attributes('src')).toBe(
+      'http://localhost:8000/static/items/knife.png'
+    )
   })
 
   it('falls back to the icon when the image fails to load', async () => {
     const wrapper = mount(ItemIcon, {
-      props: { item: { image_url: 'https://example.com/knife.png', weapon_subtype: 'edged' }, itemType: 'weapon' },
+      props: {
+        item: { image_url: 'https://example.com/knife.png', weapon_subtype: 'edged' },
+        itemType: 'weapon',
+      },
     })
 
     await wrapper.get('img').trigger('error')
@@ -59,7 +67,10 @@ describe('ItemIcon', () => {
 
   it('defaults alt to the item name, then to Unknown Item', () => {
     const named = mount(ItemIcon, {
-      props: { item: { image_url: 'https://example.com/knife.png', name: 'Ripper' }, itemType: 'weapon' },
+      props: {
+        item: { image_url: 'https://example.com/knife.png', name: 'Ripper' },
+        itemType: 'weapon',
+      },
     })
     expect(named.get('img').attributes('alt')).toBe('Ripper')
 

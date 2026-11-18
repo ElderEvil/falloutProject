@@ -113,7 +113,7 @@ export function useRadioRoom(
 
     // Refresh vault (non-throwing) — separate from mutation error handling
     try {
-      await vaultStore.refreshVault(vaultIdValue, token)
+      await vaultStore.refreshVault(vaultIdValue)
     } catch {
       toast.warning('Radio mode changed, but vault details could not refresh')
     }
@@ -144,12 +144,12 @@ export function useRadioRoom(
 
       // Refresh calls (non-throwing) — inside try so isRecruiting stays true until done
       try {
-        await vaultStore.refreshVault(vaultIdValue, token)
+        await vaultStore.refreshVault(vaultIdValue)
       } catch {
         toast.warning('Dweller recruited, but vault details could not refresh')
       }
       try {
-        await dwellerStore.fetchDwellersByVault(vaultIdValue, token)
+        await dwellerStore.fetchDwellersByVault(vaultIdValue)
       } catch {
         toast.warning('Dweller recruited, but the dweller list could not refresh')
       }

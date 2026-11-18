@@ -68,7 +68,7 @@ describe('useExitRequestStore', () => {
       data: { dweller_id: 'dweller-1', dweller_name: 'Alice Smith', granted: true, happiness: 30 },
     })
 
-    const result = await store.grant('vault-1', 'dweller-1')
+    const result = await store.grant('dweller-1')
 
     expect(axios.post).toHaveBeenCalledWith('/api/v1/dwellers/dweller-1/grant-exit')
     expect(result).toBe(true)
@@ -83,7 +83,7 @@ describe('useExitRequestStore', () => {
       data: { dweller_id: 'dweller-1', dweller_name: 'Alice Smith', granted: false, happiness: 20 },
     })
 
-    const result = await store.refuse('vault-1', 'dweller-1', 10)
+    const result = await store.refuse('dweller-1', 10)
 
     expect(axios.post).toHaveBeenCalledWith('/api/v1/dwellers/dweller-1/refuse-exit')
     expect(result).toBe(true)
@@ -96,7 +96,7 @@ describe('useExitRequestStore', () => {
     store.requests = [pendingRequest]
     vi.mocked(axios.post).mockRejectedValue(new Error('boom'))
 
-    const result = await store.refuse('vault-1', 'dweller-1', 10)
+    const result = await store.refuse('dweller-1', 10)
 
     expect(result).toBe(false)
     expect(store.requests).toEqual([pendingRequest])

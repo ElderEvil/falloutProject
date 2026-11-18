@@ -67,7 +67,7 @@ onMounted(async () => {
   if (authStore.token && vaultId) {
     // Ensure vault is loaded - the shared action is idempotent, so this is
     // safe to call alongside the shell's own hydration on every route entry
-    await vaultStore.ensureVaultLoaded(vaultId, authStore.token)
+    await vaultStore.ensureVaultLoaded(vaultId)
     await roomStore.fetchRooms(vaultId)
     await trainingStore.fetchVaultTrainings(vaultId)
   }

@@ -435,7 +435,7 @@ describe('MapView', () => {
       wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
       await flushPromises()
 
-      expect(fetchSpy).toHaveBeenCalledWith('test-token')
+      expect(fetchSpy).toHaveBeenCalledWith()
       expect(wrapper.findComponent({ name: 'VaultInfoModal' }).props('vault')).toEqual(vaultSummary)
       expect(mockPush).not.toHaveBeenCalled()
     })
@@ -457,7 +457,7 @@ describe('MapView', () => {
       wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
       await flushPromises()
 
-      expect(fetchSpy).toHaveBeenCalledWith('test-token')
+      expect(fetchSpy).toHaveBeenCalledWith()
       const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
       expect(modal.props('vault')).toEqual(vaultSummary)
       expect(modal.props('loading')).toBe(false)
@@ -693,7 +693,7 @@ describe('MapView', () => {
         data: clearable,
       })
       await flushPromises()
-      expect(filter.fetchDwellersByVault).toHaveBeenCalledWith('vault-1', 'test-token')
+      expect(filter.fetchDwellersByVault).toHaveBeenCalledWith('vault-1')
     })
 
     it('preloads the vault before rendering supplies in the details modal', async () => {

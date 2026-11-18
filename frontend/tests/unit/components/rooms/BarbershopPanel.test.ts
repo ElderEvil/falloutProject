@@ -168,11 +168,7 @@ describe('BarbershopPanel', () => {
     await flushPromises()
     await wrapper.get('[data-testid="barbershop-client-option"]').trigger('click')
     await flushPromises()
-    expect(store.management.assignDwellerToRoom).toHaveBeenCalledWith(
-      ADULT_ID,
-      'room-1',
-      'test-token'
-    )
+    expect(store.management.assignDwellerToRoom).toHaveBeenCalledWith(ADULT_ID, 'room-1')
     expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada')
     expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
     expect(wrapper.emitted('changed')).toHaveLength(1)
@@ -245,7 +241,7 @@ describe('BarbershopPanel', () => {
     await flushPromises()
     await wrapper.get('button[aria-label="Unassign Boris Barber from Barbershop"]').trigger('click')
     await flushPromises()
-    expect(store.management.unassignDwellerFromRoom).toHaveBeenCalledWith(BARBER_ID, 'test-token')
+    expect(store.management.unassignDwellerFromRoom).toHaveBeenCalledWith(BARBER_ID)
     expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
     expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada')
   })
@@ -407,12 +403,22 @@ describe('BarbershopPanel', () => {
       dweller({
         id: synthId,
         first_name: 'Synth',
-        visual_attributes: { race: 'synth', state_of_being: 'gen_3', skin_tone: 'Pale', hair_color: 'Blonde' },
+        visual_attributes: {
+          race: 'synth',
+          state_of_being: 'gen_3',
+          skin_tone: 'Pale',
+          hair_color: 'Blonde',
+        },
       }),
       dweller({
         id: waitingSynthId,
         first_name: 'Waiting Synth',
-        visual_attributes: { race: 'synth', state_of_being: 'gen_3', skin_tone: 'Pale', hair_color: 'Blonde' },
+        visual_attributes: {
+          race: 'synth',
+          state_of_being: 'gen_3',
+          skin_tone: 'Pale',
+          hair_color: 'Blonde',
+        },
       }),
     ])
     await flushPromises()
@@ -596,8 +602,8 @@ describe('BarbershopPanel', () => {
     await wrapper.get('[data-testid="barbershop-regenerate"]').trigger('click')
     await flushPromises()
 
-    expect(store.generation.generateDwellerPortrait).toHaveBeenCalledWith(ADULT_ID, 'test-token')
-    expect(store.filter.fetchDwellerDetails).toHaveBeenCalledWith(ADULT_ID, 'test-token', true)
+    expect(store.generation.generateDwellerPortrait).toHaveBeenCalledWith(ADULT_ID)
+    expect(store.filter.fetchDwellerDetails).toHaveBeenCalledWith(ADULT_ID, true)
     expect(portraitSrc(wrapper)).toContain('ada-fresh.webp?v=1')
     expect(store.filter.allDwellers.find((entry) => entry.id === ADULT_ID)?.thumbnail_url).toBe(
       '/static/dweller_images/custom/ada-fresh.webp'

@@ -891,11 +891,7 @@ describe('Exploration Store', () => {
       mockSseEvent.value = equipFrame
       await nextTick()
 
-      expect(mockDwellerFilter.fetchDwellerDetails).toHaveBeenCalledWith(
-        'dweller-1',
-        'test-token',
-        true
-      )
+      expect(mockDwellerFilter.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1', true)
     })
 
     it('does not refresh dweller details for a non-equip event', async () => {

@@ -246,10 +246,7 @@ describe('Quest Store', () => {
       const store = useQuestStore()
       await store.fetchAllQuests()
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/quests/',
-        expect.objectContaining({ headers: expect.any(Object) })
-      )
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/')
       expect(store.quests).toEqual(mockQuests)
       expect(store.isLoading).toBe(false)
     })
@@ -285,10 +282,7 @@ describe('Quest Store', () => {
       const store = useQuestStore()
       await store.fetchVaultQuests('vault-123')
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/quests/vault-123/',
-        expect.objectContaining({ headers: expect.any(Object) })
-      )
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/')
       expect(store.vaultQuests).toEqual(mockVaultQuests)
     })
 

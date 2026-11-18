@@ -147,7 +147,7 @@ export function useVaultHeaderContext(): VaultHeaderContext {
     ([id, token]) => {
       loadFailed.value = false
       if (!id || !token) return
-      void vaultStore.ensureVaultLoaded(id, token).catch(() => {
+      void vaultStore.ensureVaultLoaded(id).catch(() => {
         if (vaultId.value === id && authStore.token === token) {
           loadFailed.value = true
         }

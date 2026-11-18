@@ -105,20 +105,20 @@ describe('DwellerDetailView deep-link (?tab / ?stat)', () => {
     const wrapper = await mountWith('?tab=SPECIAL&stat=SPECIAL')
     const pane = wrapper.findComponent({ name: 'DwellerDetailPane' })
     expect(pane.exists()).toBe(true)
-    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1', 'mock-token')
+    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1')
   })
 
   it('defaults to no tab when the query is absent', async () => {
     const wrapper = await mountWith('')
     const pane = wrapper.findComponent({ name: 'DwellerDetailPane' })
     expect(pane.exists()).toBe(true)
-    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1', 'mock-token')
+    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1')
   })
 
   it('reflects a changed query on a fresh mount', async () => {
     const wrapper = await mountWith('?tab=equipment&stat=luck')
     const pane = wrapper.findComponent({ name: 'DwellerDetailPane' })
     expect(pane.exists()).toBe(true)
-    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1', 'mock-token')
+    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1')
   })
 })

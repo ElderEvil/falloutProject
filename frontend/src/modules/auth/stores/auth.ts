@@ -10,6 +10,7 @@ import {
   type RefreshedAuthTokens,
 } from '@/core/utils/authSessionEvents'
 import { ApiError } from '@/core/utils/api'
+import { setAuthTokenProvider } from '@/core/utils/authToken'
 import { authService } from '../services/authService'
 import type { User } from '../types/user'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -59,6 +60,7 @@ export const useAuthStore = defineStore('auth', () => {
   // Session identity changes on login, logout and session expiry. Consumers keep
   // this separate from transport tokens so delayed work can be discarded.
   const sessionGeneration = ref(0)
+  setAuthTokenProvider(() => (typeof token.value === 'string' ? token.value : null))
 
   // Getters
   const isAuthenticated = computed(() => !!token.value)

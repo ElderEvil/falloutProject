@@ -303,7 +303,7 @@ async function loadVault(id: string): Promise<void> {
   const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
   if (!token) return
   await roomStore.fetchRooms(id)
-  await dwellerStore.fetchDwellersByVault(id, token)
+  await dwellerStore.fetchDwellersByVault(id)
 
   // Fetch the catalog first so chain badges resolve on the vault quests' first paint,
   // then the vault quests (filtered client-side, including locked ones).

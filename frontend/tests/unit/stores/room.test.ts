@@ -303,7 +303,7 @@ describe('Room Store', () => {
       })
       expect(store.rooms).toHaveLength(1)
       expect(store.rooms[0]).toEqual(newRoom)
-      expect(dwellerRefresh.fetchWithCurrentFilters).toHaveBeenCalledWith('vault-1', 'test-token')
+      expect(dwellerRefresh.fetchWithCurrentFilters).toHaveBeenCalledWith('vault-1')
       expect(audioManager.play).toHaveBeenCalledWith('vaultBuild', 'sfx')
     })
 
@@ -534,7 +534,7 @@ describe('Room Store', () => {
       expect(store.rooms).toHaveLength(1)
       expect(store.rooms[0].id).toBe('room-9')
       expect(store.mergedRoomId).toBe('room-9')
-      expect(dwellerRefresh.fetchWithCurrentFilters).toHaveBeenCalledWith('vault-1', 'test-token')
+      expect(dwellerRefresh.fetchWithCurrentFilters).toHaveBeenCalledWith('vault-1')
     })
 
     it('reconciles cached dweller details with the survivor room after a merge', async () => {

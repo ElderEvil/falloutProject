@@ -246,8 +246,14 @@ class AudioManager {
     audio.currentTime = 0
   }
 
-  /** One-shot sample of the music bus at its current volume (volume sliders). */
+  /**
+   * One-shot sample of the music bus at its current volume (volume sliders).
+   * An audible loop already reflects the volume the slider just set; previewing
+   * over it would layer a second copy of the track from the top. A paused loop
+   * (alarm ducking) is silent, so the preview still gives slider feedback.
+   */
   previewMusic(): void {
+    if (this.currentLoop && !this.currentLoop.audio.paused) return
     if (this.settings.muted || !this.unlocked) return
     const src = MUSIC_MANIFEST.vaultAmbient[0]
     if (!src) return
@@ -261,8 +267,13 @@ class AudioManager {
     this.musicPreview.play().catch(() => {})
   }
 
-  /** One-shot sample of the ambience bus at its current volume (volume sliders). */
+  /**
+   * One-shot sample of the ambience bus at its current volume (volume sliders).
+   * A live room ambience loop already reflects the volume the slider just set;
+   * previewing over it would layer a second copy of the sample from the top.
+   */
   previewAmbience(): void {
+    if (this.ambienceAudio && !this.ambienceAudio.paused) return
     if (this.settings.muted || !this.unlocked) return
     const src = AMBIENCE_MANIFEST.production
     if (!src) return
@@ -497,6 +508,9 @@ class AudioManager {
       this.resumeTimer = null
       this.musicDucked = false
       if (this.settings.muted || !this.unlocked) return
+      // A preview started while ducked would otherwise keep playing on top of
+      // the resumed loop — two tracks on one bus.
+      this.stopPreview()
       if (this.pendingLoop) {
         const pending = this.pendingLoop
         this.pendingLoop = null

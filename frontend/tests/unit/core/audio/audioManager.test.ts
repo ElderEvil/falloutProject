@@ -455,6 +455,118 @@ describe('audioManager preview overlap', () => {
     expect(preview.pause).toHaveBeenCalled()
     expect(MockAudio.instances.filter((a) => !a.paused)).toHaveLength(1)
   })
+
+  it('keeps a playing loop untouched when previewing the music bus', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.playLoop('vaultAmbient')
+
+    const loop = MockAudio.instances.filter((a) => a.src.includes('vault-ambient')).at(-1)!
+    loop.currentTime = 42
+    loop.play.mockClear()
+
+    manager.setVolume('music', 0.8)
+    manager.previewMusic()
+
+    expect(MockAudio.instances.filter((a) => a.src.includes('vault-ambient'))).toHaveLength(1)
+    expect(loop.play).not.toHaveBeenCalled()
+    expect(loop.currentTime).toBe(42)
+    expect(loop.volume).toBeCloseTo(0.8 ** 2)
+  })
+
+  it('previews the music bus over a ducked (silent) loop for slider feedback', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.playLoop('vaultAmbient')
+
+    manager.duckMusic(500)
+    vi.advanceTimersByTime(600)
+    const loop = MockAudio.instances.filter((a) => a.src.includes('vault-ambient')).at(-1)!
+    expect(loop.paused).toBe(true)
+
+    manager.previewMusic()
+
+    const previews = MockAudio.instances.filter(
+      (a) => a.src.includes('vault-ambient') && a !== loop
+    )
+    expect(previews).toHaveLength(1)
+    expect(previews[0].play).toHaveBeenCalled()
+  })
+
+  it('stops a preview started while ducked when the loop is restored', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.playLoop('vaultAmbient')
+
+    const loop = MockAudio.instances.filter((a) => a.src.includes('vault-ambient')).at(-1)!
+    manager.duckMusic(500)
+    vi.advanceTimersByTime(600)
+    manager.previewMusic()
+    const preview = MockAudio.instances.filter((a) => a.src.includes('vault-ambient')).at(-1)!
+    expect(preview).not.toBe(loop)
+
+    manager.restoreMusic(0)
+    vi.advanceTimersByTime(1)
+
+    expect(preview.paused).toBe(true)
+    expect(
+      MockAudio.instances.filter((a) => a.src.includes('vault-ambient') && !a.paused)
+    ).toHaveLength(1)
+  })
+
+  it('stops an ambience preview started while ducked when ambience is restored', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.playAmbience('production')
+
+    manager.duckMusic(500)
+    vi.advanceTimersByTime(600)
+    manager.previewAmbience()
+    const previews = MockAudio.instances.filter(
+      (a) => a.src.includes('/audio/ambience/') && !a.loop
+    )
+    expect(previews).toHaveLength(1)
+
+    manager.restoreMusic(0)
+    vi.advanceTimersByTime(1)
+
+    expect(previews[0].paused).toBe(true)
+    expect(
+      MockAudio.instances.filter((a) => a.src.includes('/audio/ambience/') && !a.paused)
+    ).toHaveLength(1)
+  })
+
+  it('still previews the music bus when no loop is playing', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+
+    manager.previewMusic()
+
+    const preview = MockAudio.instances.filter((a) => a.src.includes('vault-ambient')).at(-1)!
+    expect(preview.play).toHaveBeenCalled()
+  })
+
+  it('keeps a live ambience loop untouched when previewing the ambience bus', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.playAmbience('production')
+
+    const ambience = MockAudio.instances.filter((a) => a.src.includes('/audio/ambience/')).at(-1)!
+    ambience.currentTime = 30
+    ambience.play.mockClear()
+
+    manager.previewAmbience()
+
+    expect(MockAudio.instances.filter((a) => a.src.includes('/audio/ambience/'))).toHaveLength(1)
+    expect(ambience.play).not.toHaveBeenCalled()
+    expect(ambience.currentTime).toBe(30)
+  })
 })
 
 describe('audioManager ambience bus', () => {

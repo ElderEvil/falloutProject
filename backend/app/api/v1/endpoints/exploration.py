@@ -29,7 +29,6 @@ from app.schemas.overflow import OverflowActionRequest, OverflowActionResponse
 from app.services.exploration.expedition import expedition_service
 from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
-from app.utils.exceptions import ValidationException
 
 router = APIRouter(prefix="/explorations", tags=["Exploration"])
 
@@ -200,14 +199,11 @@ async def recall_dweller(
         ValidationException: If the exploration cannot be recalled.
     """
     await verify_exploration_access(exploration_id, user, db_session)
-    try:
-        exploration, rewards = await exploration_service.recall_exploration_with_data(db_session, exploration_id)
-        return ExplorationCompleteResponse(
-            exploration=exploration,
-            rewards_summary=rewards.model_dump() if rewards else None,
-        )
-    except ValueError as e:
-        raise ValidationException(str(e)) from e
+    exploration, rewards = await exploration_service.recall_exploration_with_data(db_session, exploration_id)
+    return ExplorationCompleteResponse(
+        exploration=exploration,
+        rewards_summary=rewards.model_dump() if rewards else None,
+    )
 
 
 @router.post("/{exploration_id}/complete", response_model=ExplorationCompleteResponse)
@@ -225,14 +221,11 @@ async def complete_exploration(
         ValidationException: If the exploration cannot be completed.
     """
     await verify_exploration_access(exploration_id, user, db_session)
-    try:
-        exploration, rewards = await exploration_service.complete_exploration_with_data(db_session, exploration_id)
-        return ExplorationCompleteResponse(
-            exploration=exploration,
-            rewards_summary=rewards.model_dump() if rewards else None,
-        )
-    except ValueError as e:
-        raise ValidationException(str(e)) from e
+    exploration, rewards = await exploration_service.complete_exploration_with_data(db_session, exploration_id)
+    return ExplorationCompleteResponse(
+        exploration=exploration,
+        rewards_summary=rewards.model_dump() if rewards else None,
+    )
 
 
 @router.post("/{exploration_id}/overflow/take", response_model=OverflowActionResponse)
@@ -276,10 +269,7 @@ async def generate_event(
         ValidationException: If event generation fails.
     """
     await verify_exploration_access(exploration_id, user, db_session)
-    try:
-        return await exploration_service.process_event_for_exploration(db_session, exploration_id)
-    except ValueError as e:
-        raise ValidationException(str(e)) from e
+    return await exploration_service.process_event_for_exploration(db_session, exploration_id)
 
 
 @router.post("/{exploration_id}/site/enter", response_model=SiteRoomView)

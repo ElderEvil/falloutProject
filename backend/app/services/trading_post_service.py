@@ -115,8 +115,6 @@ class TradingPostService:
         if dweller.vault_id is None:
             raise ResourceNotFoundException(Vault, identifier=dweller_id)
         seller_vault = await vault_crud.get(db_session, dweller.vault_id)
-        if not seller_vault:
-            raise ResourceNotFoundException(Vault, identifier=dweller.vault_id)
 
         await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price)
         if not dweller.is_traded:

@@ -34,7 +34,7 @@ from app.services.bio_service import bio_service
 from app.services.notification_service import notification_service
 from app.utils.bios import render_newborn_bio
 from app.utils.dwellers import elder_birth_threshold
-from app.utils.exceptions import NoLivingSpaceError
+from app.utils.exceptions import NoLivingSpaceError, ValidationException
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -260,18 +260,18 @@ class BreedingService:
 
         mother = await dweller_crud.get(db_session, mother_id)
         if mother.age_group != AgeGroupEnum.ADULT:
-            raise ValueError("Mother must be an adult")
+            raise ValidationException(detail="Mother must be an adult")
         if mother.gender != GenderEnum.FEMALE:
-            raise ValueError("Mother must be female")
+            raise ValidationException(detail="Mother must be female")
 
         father = await dweller_crud.get(db_session, father_id)
         if father.age_group != AgeGroupEnum.ADULT:
-            raise ValueError("Father must be an adult")
+            raise ValidationException(detail="Father must be an adult")
         if father.gender != GenderEnum.MALE:
-            raise ValueError("Father must be male")
+            raise ValidationException(detail="Father must be male")
 
         if not can_breed(mother) or not can_breed(father):
-            raise ValueError("Only humans can conceive; non-human races enter the vault by other means")
+            raise ValidationException(detail="Only humans can conceive; non-human races enter the vault by other means")
 
         # NOTE: Using naive datetime to match database TIMESTAMP WITHOUT TIME ZONE
         conceived_at = utcnow()
@@ -464,7 +464,7 @@ class BreedingService:
 
         if not pregnancy.is_due:
             msg = "Pregnancy is not due yet"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         mother = await dweller_crud.get(db_session, pregnancy.mother_id)
         father = await dweller_crud.get(db_session, pregnancy.father_id)
@@ -472,7 +472,7 @@ class BreedingService:
         vault_id = mother.vault_id
         if vault_id is None:
             msg = "Newborn has no home vault"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         # Only the mother's pet counts: Fallout Shelter FAQ §5.2 puts the pet on
         # the female at birth, so the father's pet never influences the roll.
@@ -681,25 +681,25 @@ class BreedingService:
 
         if mother.gender != GenderEnum.FEMALE:
             msg = "Mother must be female"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         if mother.age_group != AgeGroupEnum.ADULT:
             msg = "Mother must be adult"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         father = await dweller_crud.get(db_session, father_id)
 
         if father.gender != GenderEnum.MALE:
             msg = "Father must be male"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         if father.age_group != AgeGroupEnum.ADULT:
             msg = "Father must be adult"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         if await pregnancy_crud.get_active_by_mother(db_session, mother_id):
             msg = "Mother is already pregnant"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         return await BreedingService.create_pregnancy(db_session, mother_id, father_id)
 
@@ -712,7 +712,7 @@ class BreedingService:
 
         if pregnancy.status != PregnancyStatusEnum.PREGNANT:
             msg = "Pregnancy is not active"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         pregnancy.due_at = utcnow() - timedelta(seconds=1)
         pregnancy.updated_at = utcnow()

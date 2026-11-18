@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.3.2 (2026-11-18)
+
+### Bug Fixes
+
+* **training:** reject rooms that belong to another vault ee46c01
+* **training:** reject rooms that belong to another vault ([#1429](https://github.com/ElderEvil/falloutProject/issues/1429)) 3495058
+* **training:** stop continuous training from renewing foreign-room sessions cc91dc4
+
 ## 3.3.1 (2026-11-18)
 
 ### Bug Fixes

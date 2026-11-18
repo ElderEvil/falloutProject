@@ -695,3 +695,62 @@ async def test_get_exploration_party_foreign_user_returns_403(
     )
 
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_complete_before_duration_returns_400(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Completing an active exploration before its outbound leg ends is a 400, not a 500."""
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+
+    response = await async_client.post(
+        f"/explorations/{exploration.id}/complete",
+        json={},
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 400
+    assert "has not finished yet" in response.json()["detail"].lower()
+    await async_session.refresh(exploration)
+    assert exploration.status == ExplorationStatus.ACTIVE
+
+
+@pytest.mark.asyncio
+async def test_complete_and_recall_finished_exploration_returns_400(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Completing or recalling a run that already finished is a 400, not a 500."""
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    await exploration_service.recall_exploration_with_data(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    exploration.return_completes_at = utcnow() - timedelta(seconds=1)
+    async_session.add(exploration)
+    await async_session.commit()
+    await exploration_service.complete_exploration_with_data(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    assert exploration.status != ExplorationStatus.ACTIVE
+
+    recall = await async_client.post(
+        f"/explorations/{exploration.id}/recall",
+        json={},
+        headers=superuser_token_headers,
+    )
+    assert recall.status_code == 400
+    assert "not active" in recall.json()["detail"].lower()
+
+    completion = await async_client.post(
+        f"/explorations/{exploration.id}/complete",
+        json={},
+        headers=superuser_token_headers,
+    )
+    assert completion.status_code == 400
+    assert "not active" in completion.json()["detail"].lower()

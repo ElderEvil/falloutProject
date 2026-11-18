@@ -19,6 +19,7 @@ from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.rewards_service import rewards_service
 from app.services.leveling_service import leveling_service
 from app.services.notification_service import notification_service
+from app.utils.exceptions import ValidationException
 from app.utils.serialize import serialize_optional_utc_datetime
 
 logger = logging.getLogger(__name__)
@@ -50,9 +51,9 @@ class ExplorationCoordinator:
         exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
 
         if not exploration.is_active():
-            raise ValueError(ERROR_NOT_ACTIVE)
+            raise ValidationException(detail=ERROR_NOT_ACTIVE)
         if not recalled and not arrived and exploration.time_remaining_seconds() > 0:
-            raise ValueError("Exploration has not finished yet; recall the dweller to end it early")
+            raise ValidationException(detail="Exploration has not finished yet; recall the dweller to end it early")
 
         # Clock expiry and recall both force-retreat an open site run before the
         # return leg starts, all in this one transaction.
@@ -91,9 +92,9 @@ class ExplorationCoordinator:
         exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
 
         if not exploration.is_returning():
-            raise ValueError(ERROR_NOT_RETURNING)
+            raise ValidationException(detail=ERROR_NOT_RETURNING)
         if exploration.return_time_remaining_seconds() > 0:
-            raise ValueError(ERROR_NOT_ARRIVED)
+            raise ValidationException(detail=ERROR_NOT_ARRIVED)
 
         recalled_early = exploration.recalled_early
         progress = exploration.exploring_progress_percentage()

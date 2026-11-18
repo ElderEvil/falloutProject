@@ -13,6 +13,7 @@ from app.crud.room import room as room_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.pet import Pet
+from app.models.training import Training
 from app.models.vault import Vault
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultCreate
@@ -209,6 +210,58 @@ async def test_start_training_rejects_room_from_another_vault(
     await async_session.refresh(dweller)
     assert dweller.room_id == original_room_id
     assert dweller.status == DwellerStatusEnum.IDLE
+    assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None
+
+
+@pytest.mark.asyncio
+async def test_continuous_training_does_not_renew_a_foreign_room_session(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    training_service: TrainingService,
+):
+    """A legacy session pointing at a foreign room completes but is never renewed."""
+    from datetime import timedelta
+
+    foreign_vault = await vault_crud.create_with_user_id(
+        db_session=async_session,
+        obj_in=VaultCreate(number=203, name="Foreign Vault"),
+        user_id=vault.user_id,
+    )
+    foreign_room = await room_crud.create(async_session, _training_room(foreign_vault.id))
+
+    vault.continuous_training = True
+    dweller.age_group = "adult"
+    dweller.health = 100
+    dweller.status = DwellerStatusEnum.TRAINING
+    dweller.strength = 5
+    dweller.room_id = foreign_room.id
+    async_session.add(vault)
+    async_session.add(dweller)
+    await async_session.commit()
+
+    # Pre-guard row shape: dweller's vault_id, foreign room — only a vault check stops renewal.
+    training = Training(
+        dweller_id=dweller.id,
+        room_id=foreign_room.id,
+        vault_id=dweller.vault_id,
+        stat_being_trained=SPECIALEnum.STRENGTH,
+        current_stat_value=5,
+        target_stat_value=6,
+        goal_stat_value=10,
+        started_at=utcnow() - timedelta(minutes=30),
+        estimated_completion_at=utcnow() - timedelta(seconds=1),
+    )
+    async_session.add(training)
+    await async_session.commit()
+
+    completed = await training_service.complete_training(async_session, training.id)
+
+    assert completed.is_completed()
+    await async_session.refresh(dweller)
+    assert dweller.strength == 6
+    assert dweller.status == DwellerStatusEnum.IDLE
+    assert dweller.room_id is None
     assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None
 
 

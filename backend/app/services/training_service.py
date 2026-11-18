@@ -148,6 +148,7 @@ class TrainingService:
 
         Raises:
             ResourceNotFoundException: If dweller or room not found
+            InvalidVaultTransferException: If the room belongs to another vault
             VaultOperationException: If training cannot be started
             ResourceConflictException: If dweller already training
         """
@@ -170,7 +171,7 @@ class TrainingService:
         # here exactly as move_to_room does, before capacity/stat checks touch
         # the foreign room and before the dweller's room_id is rewritten.
         if room.vault_id != dweller.vault_id:
-            raise InvalidVaultTransferException
+            raise InvalidVaultTransferException(detail="A dweller can only train in a room within their own vault.")
 
         # Validate can start training
         can_train, reason = await self.can_start_training(db_session, dweller, room)
@@ -243,7 +244,8 @@ class TrainingService:
         if SPECIALModel.get_stat(dweller, training.stat_being_trained) >= training.goal_stat_value:
             return None
         room = await room_crud.get(db_session, training.room_id)
-        if not room or room.ability != training.stat_being_trained:
+        # Legacy sessions may point at a foreign room: reject renewal, like start_training does.
+        if not room or room.ability != training.stat_being_trained or room.vault_id != dweller.vault_id:
             return None
         can_train, _ = await self.can_start_training(db_session, dweller, room)
         if not can_train:

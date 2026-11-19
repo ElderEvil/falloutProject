@@ -908,3 +908,80 @@ describe('audioManager alarm toggle', () => {
     expect(handler.mock.calls[0][0].alarmEnabled).toBe(false)
   })
 })
+
+describe('audioManager restore fade slider', () => {
+  beforeEach(() => {
+    MockAudio.instances = []
+    localStorage.clear()
+    vi.stubGlobal('Audio', MockAudio)
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  async function unlockedManager() {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    return manager
+  }
+
+  it('retargets the music restore fade when the slider moves between ticks', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    const loop = MockAudio.instances.find((a) => a.src.includes('/audio/music/'))!
+    manager.duckMusic(500)
+    vi.advanceTimersByTime(600)
+    expect(loop.paused).toBe(true)
+
+    manager.restoreMusic(0, 1000)
+    vi.advanceTimersByTime(1) // restore fires; fade-in starts (20 ticks of 50ms)
+    vi.advanceTimersByTime(200) // 4 ticks toward the original 0.4 slider target
+    const midFade = loop.volume
+    expect(midFade).toBeGreaterThan(0)
+    expect(midFade).toBeLessThan(0.4 ** 2)
+
+    manager.setVolume('music', 0.9)
+    vi.advanceTimersByTime(50) // next tick must not snap back to the old target
+    expect(loop.volume).toBeGreaterThanOrEqual(midFade)
+    vi.advanceTimersByTime(800) // fade completes at the latest slider value
+
+    expect(loop.volume).toBeCloseTo(0.9 ** 2)
+    expect(loop.paused).toBe(false)
+  })
+
+  it('retargets the ambience restore fade when the slider moves between ticks', async () => {
+    const manager = await unlockedManager()
+    manager.playAmbience('production')
+    const ambience = MockAudio.instances.find((a) => a.src.includes('/audio/ambience/'))!
+    manager.duckMusic(500)
+    vi.advanceTimersByTime(600)
+    expect(ambience.paused).toBe(true)
+
+    manager.restoreMusic(0, 1000)
+    vi.advanceTimersByTime(201) // restore fires, then 4 fade ticks
+    manager.setVolume('ambience', 0.7)
+    vi.advanceTimersByTime(850)
+
+    expect(ambience.volume).toBeCloseTo(0.7 ** 2)
+    expect(ambience.paused).toBe(false)
+  })
+
+  it('lets a duck fade finish at zero and pause even if the slider moves', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    const loop = MockAudio.instances.find((a) => a.src.includes('/audio/music/'))!
+
+    manager.duckMusic(1000)
+    vi.advanceTimersByTime(200)
+    manager.setVolume('music', 0.9)
+    vi.advanceTimersByTime(850)
+
+    expect(loop.pause).toHaveBeenCalled()
+    expect(loop.paused).toBe(true)
+    expect(loop.volume).toBeCloseTo(0)
+  })
+})

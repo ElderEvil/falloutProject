@@ -179,16 +179,37 @@ class AudioManager {
   setVolume(bus: AudioBus, volume: number): void {
     this.settings.volumes[bus] = Math.min(1, Math.max(0, volume))
     if (bus === 'music' && this.currentLoop) {
-      this.currentLoop.audio.volume = this.playbackVolume('music')
+      this.applySliderVolume(this.currentLoop.audio, 'music')
     }
     if (bus === 'ambience' && this.ambienceAudio) {
-      this.ambienceAudio.volume = this.playbackVolume('ambience')
+      this.applySliderVolume(this.ambienceAudio, 'ambience')
     }
     if (bus === 'sfx' && this.alarmAudio) {
-      this.alarmAudio.volume = this.playbackVolume('sfx')
+      this.applySliderVolume(this.alarmAudio, 'sfx')
     }
     this.persist()
     this.notifyChange()
+  }
+
+  /**
+   * Apply a slider change to a live element. An active fade-in is retargeted
+   * so it glides to — and finishes at — the new slider value instead of the
+   * one captured when the fade started. Fades that pause their element on
+   * completion (ducking, alarm stop, crossfade-out) keep their original
+   * course so they still finish silent and pause the loop.
+   */
+  private applySliderVolume(audio: HTMLAudioElement, bus: AudioBus): void {
+    const target = this.playbackVolume(bus)
+    const fade = this.fadeStates.get(audio)
+    const remaining = fade ? fade.steps - fade.n : 0
+    if (fade && !fade.pausesOnDone && remaining > 0) {
+      fade.start = audio.volume
+      fade.steps = remaining
+      fade.n = 0
+      fade.target = target
+      return
+    }
+    audio.volume = target
   }
 
   /**
@@ -433,6 +454,10 @@ class AudioManager {
   private musicDucked = false
   private resumeTimer: ReturnType<typeof setTimeout> | null = null
   private fadeTimers = new Map<HTMLAudioElement, ReturnType<typeof setInterval>>()
+  private fadeStates = new Map<
+    HTMLAudioElement,
+    { start: number; target: number; steps: number; n: number; pausesOnDone: boolean }
+  >()
 
   private fadeElement(
     audio: HTMLAudioElement,
@@ -443,15 +468,17 @@ class AudioManager {
     const previous = this.fadeTimers.get(audio)
     if (previous) window.clearInterval(previous)
     const steps = Math.max(1, Math.round(durationMs / 50))
-    const start = audio.volume
-    const delta = (target - start) / steps
-    let n = 0
+    // Mutable state so a slider change can retarget the fade mid-flight.
+    const state = { start: audio.volume, target, steps, n: 0, pausesOnDone: onDone !== undefined }
+    this.fadeStates.set(audio, state)
     const timer = window.setInterval(() => {
-      n += 1
-      audio.volume = Math.min(1, Math.max(0, start + delta * n))
-      if (n >= steps) {
+      state.n += 1
+      const delta = (state.target - state.start) / state.steps
+      audio.volume = Math.min(1, Math.max(0, state.start + delta * state.n))
+      if (state.n >= state.steps) {
         window.clearInterval(timer)
         this.fadeTimers.delete(audio)
+        this.fadeStates.delete(audio)
         onDone?.()
       }
     }, 50)
@@ -463,6 +490,7 @@ class AudioManager {
     if (!timer) return
     window.clearInterval(timer)
     this.fadeTimers.delete(audio)
+    this.fadeStates.delete(audio)
   }
 
   /** Start the looping incident alarm. Stays on until stopAlarmLoop. */

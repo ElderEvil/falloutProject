@@ -364,7 +364,7 @@ const sendAudioMessage = async () => {
 onMounted(() => {
   loadChatHistory()
   if (props.vaultId && authStore.token) {
-    void mapStore.fetchMap(props.vaultId, authStore.token)
+    void mapStore.fetchMap(props.vaultId)
   }
   if (!profileStore.hasProfile) {
     profileStore.fetchProfile().catch(() => {

@@ -46,9 +46,9 @@ const act = async (index: number, action: 'take' | 'sell') => {
   try {
     const { vaultId, aftermath } = props
     if (action === 'take') {
-      await incidentStore.takeOverflow(vaultId, aftermath.incidentId, index, authStore.token)
+      await incidentStore.takeOverflow(vaultId, aftermath.incidentId, index)
     } else {
-      await incidentStore.sellOverflow(vaultId, aftermath.incidentId, index, authStore.token)
+      await incidentStore.sellOverflow(vaultId, aftermath.incidentId, index)
     }
   } finally {
     acting.value = null

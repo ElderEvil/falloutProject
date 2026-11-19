@@ -69,7 +69,7 @@ onMounted(async () => {
     // safe to call alongside the shell's own hydration on every route entry
     await vaultStore.ensureVaultLoaded(vaultId, authStore.token)
     await roomStore.fetchRooms(vaultId)
-    await trainingStore.fetchVaultTrainings(vaultId, authStore.token)
+    await trainingStore.fetchVaultTrainings(vaultId)
   }
 })
 </script>

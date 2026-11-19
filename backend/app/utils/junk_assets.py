@@ -7,6 +7,8 @@ Unmapped junk falls back to the generic icon in the UI.
 
 from pathlib import Path
 
+from app.utils.image_assets import lookup_image_url
+
 # Maps canonical lower-cased junk names to the actual filename in
 # backend/app/static/junk_images/. Keep this sorted alphabetically by key.
 JUNK_NAME_TO_IMAGE_FILE: dict[str, str] = {
@@ -37,21 +39,5 @@ _JUNK_IMAGE_DIR = Path(__file__).parent.parent / "static" / "junk_images"
 
 
 def get_junk_image_url(junk_name: str | None) -> str | None:
-    """Return the static image URL for a junk item, if a mapped asset exists.
-
-    The lookup is case-insensitive and ignores leading/trailing whitespace.
-    Returns ``None`` when the junk is unmapped or the mapped file is missing
-    on disk, so callers can fall back to a generic icon.
-    """
-    if not junk_name:
-        return None
-
-    key = junk_name.strip().casefold()
-    filename = JUNK_NAME_TO_IMAGE_FILE.get(key)
-    if not filename:
-        return None
-
-    if not (_JUNK_IMAGE_DIR / filename).exists():
-        return None
-
-    return f"/static/junk_images/{filename}"
+    """Return the static image URL for a junk item, if a mapped asset exists."""
+    return lookup_image_url(junk_name, JUNK_NAME_TO_IMAGE_FILE, _JUNK_IMAGE_DIR, "/static/junk_images")

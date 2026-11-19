@@ -229,7 +229,7 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
 
     // If it's a training room, start a training session
     if (targetRoom?.category?.toLowerCase() === 'training') {
-      await trainingStore.startTraining(dwellerId, roomId, authStore.token as string)
+      await trainingStore.startTraining(dwellerId, roomId)
     }
 
     const action = currentRoomId ? 'moved' : 'assigned'

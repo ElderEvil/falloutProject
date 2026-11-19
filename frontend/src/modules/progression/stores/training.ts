@@ -1,10 +1,9 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import type { components } from '@/core/types/api.generated'
 import * as trainingService from '../services/trainingService'
 import { useToast } from '@/core/composables/useToast'
 import { notifyErrorOnce, getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
-import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { parseUtcMs } from '@/core/utils/time'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -14,6 +13,7 @@ type TrainingProgress = components['schemas']['TrainingProgress']
 
 export const useTrainingStore = defineStore('training', () => {
   const toast = useToast()
+  const authStore = useAuthStore()
 
   // State
   const activeTrainings = ref<Map<string, TrainingRead | TrainingProgress>>(new Map())
@@ -21,21 +21,18 @@ export const useTrainingStore = defineStore('training', () => {
   const error = ref<string | null>(null)
   const savingGoals = ref(new Set<string>())
   const isSettingContinuousTraining = ref(false)
-  const {
-    run: runFetchVaultTrainings,
-    isLoading,
-    error: fetchVaultTrainingsError,
-  } = useAsyncAction(
-    async (vaultId: string, token: string) => {
-      const trainings = await trainingService.getVaultTrainings(vaultId, token)
-      activeTrainings.value.clear()
-      trainings.forEach((training) => {
-        if (training.id && training.status === 'active')
-          activeTrainings.value.set(training.id, training)
-      })
-      return true
+  const isLoading = ref(false)
+  let contextVersion = 0
+  let vaultRequest = 0
+  let trainingVaultId: string | null = null
+
+  watch(
+    [() => authStore.sessionGeneration, () => useVaultStore().activeVaultId],
+    () => {
+      trainingVaultId = null
+      clearTrainings()
     },
-    { context: 'Failed to fetch vault trainings', showToast: false }
+    { flush: 'sync' }
   )
 
   // Getters
@@ -67,16 +64,14 @@ export const useTrainingStore = defineStore('training', () => {
   })
 
   // Actions
-  async function setContinuousTraining(
-    vaultId: string,
-    enabled: boolean,
-    token: string
-  ): Promise<boolean> {
+  async function setContinuousTraining(vaultId: string, enabled: boolean): Promise<boolean> {
     if (isSettingContinuousTraining.value) return false
     isSettingContinuousTraining.value = true
+    const version = contextVersion
+    const session = authStore.sessionGeneration
     try {
-      const saved = await trainingService.setContinuousTraining(vaultId, enabled, token)
-      if (useAuthStore().token !== token) return false
+      const saved = await trainingService.setContinuousTraining(vaultId, enabled)
+      if (version !== contextVersion || session !== authStore.sessionGeneration) return false
       const vault = useVaultStore().loadedVaults[vaultId]
       if (vault) vault.continuous_training = saved.continuous_training
       toast.success(
@@ -86,6 +81,7 @@ export const useTrainingStore = defineStore('training', () => {
       )
       return true
     } catch (err: unknown) {
+      if (version !== contextVersion || session !== authStore.sessionGeneration) return false
       handleStoreError(err, 'Failed to update continuous training')
       return false
     } finally {
@@ -93,20 +89,19 @@ export const useTrainingStore = defineStore('training', () => {
     }
   }
 
-  async function setTrainingGoal(
-    trainingId: string,
-    goal: number,
-    token: string
-  ): Promise<boolean> {
+  async function setTrainingGoal(trainingId: string, goal: number): Promise<boolean> {
     if (savingGoals.value.has(trainingId)) return false
     savingGoals.value.add(trainingId)
+    const version = contextVersion
+    const session = authStore.sessionGeneration
     try {
-      const saved = await trainingService.setTrainingGoal(trainingId, goal, token)
-      if (useAuthStore().token !== token) return false
+      const saved = await trainingService.setTrainingGoal(trainingId, goal)
+      if (version !== contextVersion || session !== authStore.sessionGeneration) return false
       const current = activeTrainings.value.get(trainingId)
       if (current) Object.assign(current, saved)
       return true
     } catch (err: unknown) {
+      if (version !== contextVersion || session !== authStore.sessionGeneration) return false
       handleStoreError(err, 'Failed to save training goal')
       return false
     } finally {
@@ -114,49 +109,56 @@ export const useTrainingStore = defineStore('training', () => {
     }
   }
 
-  async function startTraining(
-    dwellerId: string,
-    roomId: string,
-    token: string
-  ): Promise<TrainingRead | null> {
+  async function startTraining(dwellerId: string, roomId: string): Promise<TrainingRead | null> {
+    const version = contextVersion
     try {
-      const training = await trainingService.startTraining(dwellerId, roomId, token)
+      const training = await trainingService.startTraining(dwellerId, roomId)
+      if (version !== contextVersion) return null
       activeTrainings.value.set(training.id!, training)
       return training
     } catch (err: unknown) {
+      if (version !== contextVersion) return null
       notifyErrorOnce(err, getErrorMessage(err))
       return null
     }
   }
 
-  async function cancelTraining(trainingId: string, token: string): Promise<boolean> {
+  async function cancelTraining(trainingId: string): Promise<boolean> {
+    const version = contextVersion
     try {
-      const training = await trainingService.cancelTraining(trainingId, token)
+      const training = await trainingService.cancelTraining(trainingId)
+      if (version !== contextVersion) return false
       activeTrainings.value.delete(trainingId)
       trainingHistory.value.push(training)
       toast.success('Training cancelled')
       return true
     } catch (err: unknown) {
+      if (version !== contextVersion) return false
       notifyErrorOnce(err, getErrorMessage(err))
       return false
     }
   }
 
-  async function completeTraining(trainingId: string, token: string): Promise<boolean> {
+  async function completeTraining(trainingId: string): Promise<boolean> {
+    const version = contextVersion
     try {
-      const training = await trainingService.completeTraining(trainingId, token)
+      const training = await trainingService.completeTraining(trainingId)
+      if (version !== contextVersion) return false
       activeTrainings.value.delete(trainingId)
       trainingHistory.value.push(training)
       return true
     } catch (err: unknown) {
+      if (version !== contextVersion) return false
       notifyErrorOnce(err, getErrorMessage(err))
       return false
     }
   }
 
-  async function fetchDwellerTraining(dwellerId: string, token: string): Promise<void> {
+  async function fetchDwellerTraining(dwellerId: string): Promise<void> {
+    const version = contextVersion
     try {
-      const training = await trainingService.getDwellerTraining(dwellerId, token)
+      const training = await trainingService.getDwellerTraining(dwellerId)
+      if (version !== contextVersion) return
       if (training && training.id) {
         if (training.status === 'active') {
           activeTrainings.value.set(training.id, training)
@@ -165,19 +167,41 @@ export const useTrainingStore = defineStore('training', () => {
         }
       }
     } catch (err: unknown) {
+      if (version !== contextVersion) return
       notifyErrorOnce(err, getErrorMessage(err))
     }
   }
 
-  async function fetchVaultTrainings(vaultId: string, token: string): Promise<void> {
+  async function fetchVaultTrainings(vaultId: string): Promise<void> {
+    if (trainingVaultId !== vaultId) {
+      clearTrainings()
+      trainingVaultId = vaultId
+    }
+    const version = contextVersion
+    const request = ++vaultRequest
+    isLoading.value = true
     error.value = null
-    const result = await runFetchVaultTrainings(vaultId, token)
-    if (!result) error.value = fetchVaultTrainingsError.value
+    try {
+      const trainings = await trainingService.getVaultTrainings(vaultId)
+      if (version !== contextVersion || request !== vaultRequest) return
+      activeTrainings.value.clear()
+      for (const training of trainings) {
+        if (training.id && training.status === 'active')
+          activeTrainings.value.set(training.id, training)
+      }
+    } catch (err: unknown) {
+      if (version !== contextVersion || request !== vaultRequest) return
+      error.value = handleStoreError(err, 'Failed to fetch vault trainings')
+    } finally {
+      if (request === vaultRequest) isLoading.value = false
+    }
   }
 
-  async function fetchRoomTrainings(roomId: string, token: string): Promise<TrainingRead[]> {
+  async function fetchRoomTrainings(roomId: string): Promise<TrainingRead[]> {
+    const version = contextVersion
     try {
-      const trainings = await trainingService.getRoomTrainings(roomId, token)
+      const trainings = await trainingService.getRoomTrainings(roomId)
+      if (version !== contextVersion) return []
 
       // A completed round may already have a different successor id.
       for (const [id, training] of activeTrainings.value) {
@@ -191,14 +215,17 @@ export const useTrainingStore = defineStore('training', () => {
 
       return trainings
     } catch (err: unknown) {
+      if (version !== contextVersion) return []
       notifyErrorOnce(err, getErrorMessage(err))
       return []
     }
   }
 
-  async function updateTrainingProgress(trainingId: string, token: string): Promise<void> {
+  async function updateTrainingProgress(trainingId: string): Promise<void> {
+    const version = contextVersion
     try {
-      const progress = await trainingService.getTrainingProgress(trainingId, token)
+      const progress = await trainingService.getTrainingProgress(trainingId)
+      if (version !== contextVersion) return
 
       if (progress.id) {
         if (progress.status === 'active') {
@@ -212,15 +239,19 @@ export const useTrainingStore = defineStore('training', () => {
         }
       }
     } catch (err: unknown) {
+      if (version !== contextVersion) return
       notifyErrorOnce(err, getErrorMessage(err))
     }
   }
 
-  async function refreshAllTrainings(vaultId: string, token: string): Promise<void> {
-    await fetchVaultTrainings(vaultId, token)
+  async function refreshAllTrainings(vaultId: string): Promise<void> {
+    await fetchVaultTrainings(vaultId)
   }
 
   function clearTrainings(): void {
+    contextVersion++
+    vaultRequest++
+    isLoading.value = false
     activeTrainings.value.clear()
     trainingHistory.value = []
     error.value = null

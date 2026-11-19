@@ -45,7 +45,7 @@ describe('TradingPostView', () => {
     const wrapper = mountWithSetup(TradingPostView, { global: { stubs: { SidePanel: true } } })
     await flushPromises()
 
-    expect(tradingService.getMarket).toHaveBeenCalledWith('vault-1', 'test-token')
+    expect(tradingService.getMarket).toHaveBeenCalledWith('vault-1')
     expect(wrapper.text()).toContain('Your Listings')
   })
 })

@@ -40,6 +40,6 @@ describe('pregnancyApi', () => {
     vi.mocked(axios.post).mockResolvedValue({ data: result })
 
     await expect(pregnancyApi.deliver('preg-1')).resolves.toEqual(result)
-    expect(axios.post).toHaveBeenCalledWith('/api/v1/pregnancies/preg-1/deliver', undefined)
+    expect(axios.post).toHaveBeenCalledWith('/api/v1/pregnancies/preg-1/deliver')
   })
 })

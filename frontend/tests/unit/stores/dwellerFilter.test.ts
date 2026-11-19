@@ -149,12 +149,7 @@ describe('DwellerFilter Store', () => {
       const store = useDwellerFilterStore()
       await store.fetchDwellersByVault('vault-1', 'test-token')
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/dwellers/vault/vault-1/',
-        expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' },
-        })
-      )
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/dwellers/vault/vault-1/')
       expect(store.dwellers).toEqual(mockDwellers)
       expect(store.isLoading).toBe(false)
     })
@@ -250,6 +245,35 @@ describe('DwellerFilter Store', () => {
   })
 
   describe('fetchAllDwellers', () => {
+    it('accepts the filtered response after access-token rotation in the same session', async () => {
+      const auth = useAuthStore()
+      auth.token = 'token-a'
+      const store = useDwellerFilterStore()
+      const { promise, resolve } = Promise.withResolvers<{ data: unknown[] }>()
+      vi.mocked(axios.get).mockReturnValueOnce(promise)
+      const pending = store.fetchDwellersByVault('vault-1', 'token-a')
+      auth.token = 'refreshed-token'
+      resolve({ data: [{ id: 'current' }] })
+      await pending
+      expect(store.dwellers.map((dweller) => dweller.id)).toEqual(['current'])
+    })
+
+    it('clears the filtered roster and ignores a pending response after a session change', async () => {
+      const auth = useAuthStore()
+      auth.token = 'token-a'
+      const store = useDwellerFilterStore()
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [{ id: 'private' }] })
+      await store.fetchDwellersByVault('vault-1', 'token-a')
+      const { promise, resolve } = Promise.withResolvers<{ data: unknown[] }>()
+      vi.mocked(axios.get).mockReturnValueOnce(promise)
+      const pending = store.fetchDwellersByVault('vault-1', 'token-a')
+      auth.sessionGeneration++
+      expect(store.dwellers).toEqual([])
+      resolve({ data: [{ id: 'obsolete' }] })
+      await pending
+      expect(store.dwellers).toEqual([])
+    })
+
     it.each([false, true])(
       'keeps each caller error policy when the first strict flag is %s',
       async (firstStrict) => {
@@ -348,11 +372,6 @@ describe('DwellerFilter Store', () => {
       expect(url).toContain('/api/v1/dwellers/vault/vault-1/')
       expect(url).toContain('skip=0')
       expect(url).toContain(`limit=${ALL_DWELLERS_FETCH_LIMIT}`)
-      expect(vi.mocked(axios.get).mock.calls[0][1]).toEqual(
-        expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' },
-        })
-      )
       expect(store.allDwellers).toEqual(mockDwellers)
     })
 

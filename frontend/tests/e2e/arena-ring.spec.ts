@@ -10,6 +10,26 @@ test.beforeEach(async ({ page }) => {
   )
 })
 
+const horizontalScale = (element: Element) => {
+  let scale = 1
+  for (let node: Element | null = element; node; node = node.parentElement) {
+    const style = getComputedStyle(node)
+    if (style.scale !== 'none') scale *= Number(style.scale.split(' ')[0])
+    if (style.transform !== 'none') scale *= new DOMMatrix(style.transform).a
+  }
+  return scale
+}
+
+test('creature damage feedback respects reduced motion', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/tests/e2e/fixtures/arena-ring.html?damage')
+  const damage = page.getByText('-15', { exact: true })
+  await expect(damage).toHaveCSS('animation-name', 'none')
+  await expect(damage.locator('..')).toHaveAttribute('aria-hidden', 'true')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await expect(damage).toHaveCSS('animation-name', /damage-float/)
+})
+
 for (const width of [390, 1280]) {
   test(`skill impact artwork remains visible with reduced motion at ${width}px`, async ({
     page,
@@ -258,20 +278,40 @@ test('team B portrait faces inward while its skill control stays upright', async
   await page.goto('/tests/e2e/fixtures/arena-ring.html?mode=duel&portrait=1')
   const defender = page.getByRole('region', { name: 'Arena ring' }).locator('.ring-fighter').nth(1)
   const marker = defender.getByRole('button', { name: 'Use Aimed Shot from Alpha on Bravo' })
-  const horizontalScale = (element: Element) => {
-    let scale = 1
-    for (let node: Element | null = element; node; node = node.parentElement) {
-      const style = getComputedStyle(node)
-      if (style.scale !== 'none') scale *= Number(style.scale.split(' ')[0])
-      if (style.transform !== 'none') scale *= new DOMMatrix(style.transform).a
-    }
-    return scale
-  }
   expect(await marker.evaluate(horizontalScale)).toBeGreaterThan(0)
   expect(
     await defender.getByAltText('Bravo', { exact: true }).evaluate(horizontalScale)
   ).toBeLessThan(0)
 })
+
+for (const { label, query, flipped } of [
+  {
+    label: 'a team B robot creature',
+    query: '?enemy=training-eyebot&robot=training-eyebot%230',
+    flipped: true,
+  },
+  {
+    label: 'a team B non-robot creature',
+    query: '?enemy=training-eyebot',
+    flipped: false,
+  },
+  {
+    label: 'a team A robot creature',
+    query: '?mode=duel&teamA=training-eyebot&robot=training-eyebot%230',
+    flipped: false,
+  },
+]) {
+  test(`production ring renders ${label} ${flipped ? 'mirrored toward the enemy' : 'unmirrored'}`, async ({
+    page,
+  }) => {
+    await page.goto(`/tests/e2e/fixtures/arena-ring.html${query}`)
+    const image = page.getByAltText('training-eyebot#0', { exact: true })
+    await expect(image).toBeVisible()
+    const scale = await image.evaluate(horizontalScale)
+    if (flipped) expect(scale).toBeLessThan(0)
+    else expect(scale).toBeGreaterThan(0)
+  })
+}
 
 for (const [creature, lift] of [
   ['bloatfly', 0.2],

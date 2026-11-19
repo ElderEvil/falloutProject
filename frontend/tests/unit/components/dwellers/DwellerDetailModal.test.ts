@@ -96,7 +96,6 @@ async function openWorker() {
       plugins: [router],
       stubs: {
         DwellerDetailPane: Pane,
-        DwellerAppearanceEditor: true,
         TrainingStartModal: true,
         ExplorationDurationModal: true,
         Dialog: {
@@ -126,7 +125,7 @@ it('opens worker details without leaving the room and closes back to the room', 
   })
   expect(wrapper.text()).toContain('Amata')
   expect(wrapper.text()).toContain('Power Generator')
-  expect(axios.get).toHaveBeenCalledWith(`/api/v1/dwellers/${dwellerId}`, expect.any(Object))
+  expect(axios.get).toHaveBeenCalledWith(`/api/v1/dwellers/${dwellerId}`)
   await wrapper
     .findAll('button')
     .find((button) => button.text() === 'Close detail')!

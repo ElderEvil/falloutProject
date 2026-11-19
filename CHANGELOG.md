@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.3.4 (2026-11-18)
+
+### Bug Fixes
+
+* **ci:** allow cold Playwright dependency installation to finish d85c80e
+* **frontend:** discard obsolete session and vault responses 16492c4
+
+### Code Refactoring
+
+* **backend:** share static image lookup across junk, outfit and pet assets 7c9ffce
+* **frontend:** move equipment, trading and response transport to the API boundary cae9fb3
+* **frontend:** move incident, dweller, map and training transport to the API boundary a7e519f
+* **frontend:** move no-token services onto the HTTP boundary ac32e8a
+
 ## 3.3.3 (2026-11-18)
 
 ### Bug Fixes

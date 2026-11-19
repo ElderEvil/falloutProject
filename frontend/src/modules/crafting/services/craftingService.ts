@@ -1,4 +1,4 @@
-import axios from '@/core/plugins/axios'
+import { apiGet, apiPost } from '@/core/utils/api'
 import type {
   CraftableItemType,
   CraftingOrder,
@@ -9,18 +9,18 @@ import type {
 export const craftingService = {
   /** Craftable items of one type with their costs and affordability. */
   async listRecipes(vaultId: string, itemType: CraftableItemType): Promise<CraftingRecipe[]> {
-    const response = await axios.get<{ recipes: CraftingRecipe[] }>(
+    const data = await apiGet<{ recipes: CraftingRecipe[] }>(
       `/api/v1/crafting/vault/${vaultId}/recipes/${itemType}`
     )
-    return response.data.recipes
+    return data.recipes
   },
 
   /** The vault's workshop queue, newest first. */
   async listOrders(vaultId: string): Promise<CraftingOrder[]> {
-    const response = await axios.get<{ orders: CraftingOrder[] }>(
+    const data = await apiGet<{ orders: CraftingOrder[] }>(
       `/api/v1/crafting/vault/${vaultId}/orders`
     )
-    return response.data.orders
+    return data.orders
   },
 
   /** Queue a craft; materials are consumed immediately. */
@@ -29,26 +29,19 @@ export const craftingService = {
     itemName: string,
     itemType: CraftableItemType
   ): Promise<CraftingOrder> {
-    const response = await axios.post<CraftingOrder>(`/api/v1/crafting/vault/${vaultId}/orders`, {
+    return apiPost<CraftingOrder>(`/api/v1/crafting/vault/${vaultId}/orders`, {
       item_name: itemName,
       item_type: itemType,
     })
-    return response.data
   },
 
   /** Cancel an active order, refunding its caps and junk. */
   async cancelOrder(vaultId: string, orderId: string): Promise<CraftingOrder> {
-    const response = await axios.post<CraftingOrder>(
-      `/api/v1/crafting/vault/${vaultId}/orders/${orderId}/cancel`
-    )
-    return response.data
+    return apiPost<CraftingOrder>(`/api/v1/crafting/vault/${vaultId}/orders/${orderId}/cancel`)
   },
 
   /** Move a finished order's item into storage. */
   async collectOrder(vaultId: string, orderId: string): Promise<CraftResult> {
-    const response = await axios.post<CraftResult>(
-      `/api/v1/crafting/vault/${vaultId}/orders/${orderId}/collect`
-    )
-    return response.data
+    return apiPost<CraftResult>(`/api/v1/crafting/vault/${vaultId}/orders/${orderId}/collect`)
   },
 }

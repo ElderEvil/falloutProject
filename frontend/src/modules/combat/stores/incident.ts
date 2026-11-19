@@ -11,6 +11,7 @@ import type {
   IncidentTeamMember,
 } from '../models/incident'
 import { notifyErrorOnce, handleStoreError } from '@/core/utils/errorHandler'
+import { getErrorStatus } from '@/core/types/utils'
 import { useToast } from '@/core/composables/useToast'
 import { audioManager } from '@/core/audio/audioManager'
 import { useSse } from '@/core/composables/useEventStream'
@@ -121,15 +122,11 @@ export const useIncidentStore = defineStore('incident', () => {
     return null
   }
 
-  const refreshAftermathOverflow = async (
-    vaultId: string,
-    incidentId: string,
-    token: string
-  ): Promise<void> => {
+  const refreshAftermathOverflow = async (vaultId: string, incidentId: string): Promise<void> => {
     const entry = findAftermath(incidentId)
     if (!entry) return
     try {
-      const incident = await incidentApi.getIncident(vaultId, incidentId, token)
+      const incident = await incidentApi.getIncident(vaultId, incidentId)
       // A closed vault/account can leave this request in flight.
       if (findAftermath(incidentId) !== entry) return
       entry.scene = incident
@@ -153,19 +150,14 @@ export const useIncidentStore = defineStore('incident', () => {
     }
   }
 
-  async function takeOverflow(
-    vaultId: string,
-    incidentId: string,
-    index: number,
-    token: string
-  ): Promise<void> {
+  async function takeOverflow(vaultId: string, incidentId: string, index: number): Promise<void> {
     try {
-      const response = await incidentApi.takeOverflow(vaultId, incidentId, index, token)
+      const response = await incidentApi.takeOverflow(vaultId, incidentId, index)
       applyOverflow(incidentId, response.unclaimed_loot)
       showSuccess('Held loot stored.')
     } catch (error) {
       handleStoreError(error, 'Failed to store held incident loot', false)
-      const status = (error as { response?: { status?: number } } | null)?.response?.status
+      const status = getErrorStatus(error)
       notifyErrorOnce(
         error,
         status === 409
@@ -175,14 +167,9 @@ export const useIncidentStore = defineStore('incident', () => {
     }
   }
 
-  async function sellOverflow(
-    vaultId: string,
-    incidentId: string,
-    index: number,
-    token: string
-  ): Promise<void> {
+  async function sellOverflow(vaultId: string, incidentId: string, index: number): Promise<void> {
     try {
-      const response = await incidentApi.sellOverflow(vaultId, incidentId, index, token)
+      const response = await incidentApi.sellOverflow(vaultId, incidentId, index)
       applyOverflow(incidentId, response.unclaimed_loot)
       showSuccess(`Sold for ${response.caps_granted} caps.`)
     } catch (error) {
@@ -198,7 +185,7 @@ export const useIncidentStore = defineStore('incident', () => {
   ): Promise<void> {
     const request = contextGeneration
     try {
-      const response: IncidentListResponse = await incidentApi.getActiveIncidents(vaultId, token)
+      const response: IncidentListResponse = await incidentApi.getActiveIncidents(vaultId)
       if (request !== contextGeneration) return
 
       if (!response || !response.incidents || !Array.isArray(response.incidents)) {
@@ -221,7 +208,7 @@ export const useIncidentStore = defineStore('incident', () => {
           const vanished = incidents.value.get(id)
           if (vanished) {
             recordAftermath(vanished, 'unknown', 0, 0)
-            void refreshAftermathOverflow(vaultId, id, token)
+            void refreshAftermathOverflow(vaultId, id)
           }
           incidentTeams.value.delete(id)
           appliedDetailOrders.delete(id)
@@ -247,7 +234,7 @@ export const useIncidentStore = defineStore('incident', () => {
       // not leave the roster missing forever. A cached entry (even an empty
       // roster) is a successful load and is not refetched on every poll.
       const teamNeedsLoad = newIds.filter((id) => !incidentTeams.value.has(id))
-      await Promise.all(teamNeedsLoad.map((id) => fetchIncidentTeam(vaultId, id, token)))
+      await Promise.all(teamNeedsLoad.map((id) => fetchIncidentTeam(vaultId, id)))
       if (request !== contextGeneration) return
 
       // Update store
@@ -258,7 +245,7 @@ export const useIncidentStore = defineStore('incident', () => {
         newIds.map(async (id) => {
           try {
             const requestOrder = ++detailRequestOrder
-            const incident = await incidentApi.getIncident(vaultId, id, token)
+            const incident = await incidentApi.getIncident(vaultId, id)
             if (request !== contextGeneration) return
             // Overlapping polls can resolve out of order; the newer request wins so
             // an older full window cannot replay the hit or lower the marker.
@@ -308,14 +295,10 @@ export const useIncidentStore = defineStore('incident', () => {
     )
   )
 
-  async function fetchIncidentTeam(
-    vaultId: string,
-    incidentId: string,
-    token: string
-  ): Promise<void> {
+  async function fetchIncidentTeam(vaultId: string, incidentId: string): Promise<void> {
     const generation = contextGeneration
     try {
-      const team = await incidentApi.getIncidentTeam(vaultId, incidentId, token)
+      const team = await incidentApi.getIncidentTeam(vaultId, incidentId)
       if (generation !== contextGeneration) return
       incidentTeams.value.set(incidentId, team)
     } catch (error) {
@@ -332,9 +315,9 @@ export const useIncidentStore = defineStore('incident', () => {
     try {
       const { useDwellerFilterStore } = await import('@/modules/dwellers/stores/dwellerFilter')
       const filterStore = useDwellerFilterStore()
-      const result = await incidentApi.assignResponders(vaultId, incidentId, dwellerIds, token)
+      const result = await incidentApi.assignResponders(vaultId, incidentId, dwellerIds)
       await fetchIncidents(vaultId, token)
-      await fetchIncidentTeam(vaultId, incidentId, token)
+      await fetchIncidentTeam(vaultId, incidentId)
       await filterStore.fetchDwellersByVault(vaultId, token)
       const assignedIds = new Set(result.assigned_dweller_ids)
       const skippedIds = dwellerIds.filter((id) => !assignedIds.has(id))
@@ -455,7 +438,7 @@ export const useIncidentStore = defineStore('incident', () => {
                 capsEarned,
                 experienceEarned
               )
-              void refreshAftermathOverflow(vaultId, resolvedId, token)
+              void refreshAftermathOverflow(vaultId, resolvedId)
             }
             if (data.success === true) {
               playResolutionCue(resolvedId, 'victory')
@@ -482,7 +465,7 @@ export const useIncidentStore = defineStore('incident', () => {
             const spreadId = data.incident_id as string | undefined
             if (spreadId) {
               incidentApi
-                .getIncident(vaultId, spreadId, token)
+                .getIncident(vaultId, spreadId)
                 .then((incident) => {
                   incidents.value.set(spreadId, incident)
                 })
@@ -573,7 +556,7 @@ export const useIncidentStore = defineStore('incident', () => {
     incidentType?: string
   ): Promise<void> {
     try {
-      const result = await incidentApi.spawnIncident(vaultId, token, incidentType)
+      const result = await incidentApi.spawnIncident(vaultId, incidentType)
 
       // Show success notification
       showSuccess(

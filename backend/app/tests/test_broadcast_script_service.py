@@ -1,6 +1,6 @@
 """Tests for broadcast script renderer — pure function, no I/O."""
 
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from app.utils.broadcast_script import build_daily_script
 
@@ -39,6 +39,34 @@ class TestScriptWordCount:
         data["recent_notifications"] = []
         title, script = build_daily_script(**data, _now=now)
         assert "June 15, 2026" in title
+
+
+class TestWordCountYearSweep:
+    """Regression: every day of 2026 must render inside the word bounds.
+
+    On 2026-11-19 the seeded phrase pools rendered only 95 words because the
+    script had a soft ceiling but no floor. Sweep the whole year across three
+    vaults, with and without variant_seed overrides, and check determinism.
+    """
+
+    def test_every_day_of_2026_stays_in_bounds_and_deterministic(self):
+        baseline = TestScriptWordCount()._baseline_data()
+        day = date(2026, 1, 1)
+        while day.year == 2026:
+            now = datetime(day.year, day.month, day.day, 12, 0)
+            for vault in (13, 42, 101):
+                for seed in (None, f"sweep-vault-{vault}"):
+                    data: dict = dict(baseline, vault_number=vault)
+                    if seed is not None:
+                        data["variant_seed"] = seed
+                    label = f"{day.isoformat()} vault={vault} variant_seed={seed!r}"
+                    title, script = build_daily_script(**data, _now=now)
+                    words = len(script.split())
+                    assert 100 <= words <= 220, f"{label}: word count {words} outside 100-220"
+                    assert (title, script) == build_daily_script(**data, _now=now), (
+                        f"{label}: repeated render is not byte-identical"
+                    )
+            day += timedelta(days=1)
 
 
 class TestGenderSplit:

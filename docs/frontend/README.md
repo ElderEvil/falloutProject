@@ -216,7 +216,7 @@ pnpm install --frozen-lockfile
 pnpm exec playwright install --with-deps chromium firefox
 PW_SKIP_BACKEND=1 pnpm exec playwright test \
   tests/e2e/animation-gallery.spec.ts tests/e2e/crt-baselines.spec.ts \
-  tests/e2e/arena-creature-facing.spec.ts tests/e2e/barbershop-slots.spec.ts \
+  tests/e2e/barbershop-slots.spec.ts \
   tests/e2e/arena-roster.spec.ts tests/e2e/arena-setup.spec.ts \
   tests/e2e/combat-playback.spec.ts tests/e2e/skill-icons.spec.ts \
   tests/e2e/arena-ring.spec.ts tests/e2e/incident-scene.spec.ts \

@@ -8,6 +8,8 @@ them directly. Unmapped pets fall back to the generic icon in the UI.
 
 from pathlib import Path
 
+from app.utils.image_assets import lookup_image_url
+
 # Maps canonical lower-cased pet names to the actual filename in
 # backend/app/static/pet_images/. Keep this sorted alphabetically by key.
 PET_NAME_TO_IMAGE_FILE: dict[str, str] = {
@@ -122,21 +124,5 @@ _PET_IMAGE_DIR = Path(__file__).parent.parent / "static" / "pet_images"
 
 
 def get_pet_image_url(pet_name: str | None) -> str | None:
-    """Return the static image URL for a pet, if a mapped asset exists.
-
-    The lookup is case-insensitive and ignores leading/trailing whitespace.
-    Returns ``None`` when the pet is unmapped or the mapped file is missing
-    on disk, so callers can fall back to a generic icon.
-    """
-    if not pet_name:
-        return None
-
-    key = pet_name.strip().casefold()
-    filename = PET_NAME_TO_IMAGE_FILE.get(key)
-    if not filename:
-        return None
-
-    if not (_PET_IMAGE_DIR / filename).exists():
-        return None
-
-    return f"/static/pet_images/{filename}"
+    """Return the static image URL for a pet, if a mapped asset exists."""
+    return lookup_image_url(pet_name, PET_NAME_TO_IMAGE_FILE, _PET_IMAGE_DIR, "/static/pet_images")

@@ -6,7 +6,6 @@ import DwellerListRow from '@/modules/dwellers/components/DwellerListRow.vue'
 import DwellerCardSkeleton from '@/modules/dwellers/components/cards/DwellerCardSkeleton.vue'
 import DwellerBioBadge from '@/modules/dwellers/components/DwellerBioBadge.vue'
 import DwellerPlacesBadge from '@/modules/dwellers/components/DwellerPlacesBadge.vue'
-import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 import { notifyErrorOnce, getErrorMessage } from '@/core/utils/errorHandler'
 import { tradingService } from '../services/tradingService'
@@ -14,7 +13,6 @@ import type { TradeOffer } from '../models/trading'
 
 const props = defineProps<{ vaultId: string }>()
 
-const authStore = useAuthStore()
 const toast = useToast()
 
 const marketOffers = ref<TradeOffer[]>([])
@@ -24,10 +22,9 @@ const isLoading = ref(false)
 const busyDwellerId = ref<string | null>(null)
 
 async function refreshMarket() {
-  if (!authStore.token) return
   isLoading.value = true
   try {
-    const market = await tradingService.getMarket(props.vaultId, authStore.token)
+    const market = await tradingService.getMarket(props.vaultId)
     marketOffers.value = market.market_offers
     myListings.value = market.my_listings
     bottleCaps.value = market.bottle_caps
@@ -39,14 +36,9 @@ async function refreshMarket() {
 }
 
 async function sell(offer: TradeOffer) {
-  if (!authStore.token) return
   busyDwellerId.value = offer.dweller.id
   try {
-    const result = await tradingService.sellDweller(
-      props.vaultId,
-      offer.dweller.id,
-      authStore.token
-    )
+    const result = await tradingService.sellDweller(props.vaultId, offer.dweller.id)
     toast.success(`Sold for ${result.price} caps!`)
     await refreshMarket()
   } catch (error) {
@@ -57,10 +49,9 @@ async function sell(offer: TradeOffer) {
 }
 
 async function buy(offer: TradeOffer) {
-  if (!authStore.token) return
   busyDwellerId.value = offer.dweller.id
   try {
-    const result = await tradingService.buyDweller(props.vaultId, offer.dweller.id, authStore.token)
+    const result = await tradingService.buyDweller(props.vaultId, offer.dweller.id)
     toast.success(`${offer.dweller.first_name} joined the vault for ${result.price} caps!`)
     await refreshMarket()
   } catch (error) {

@@ -308,17 +308,17 @@ describe('Incident Store', () => {
         assigned_dweller_ids: ['dweller-1'],
       })
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
-      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({ ...mockIncident, damage_dealt: 40 })
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({
+        ...mockIncident,
+        damage_dealt: 40,
+      })
       vi.mocked(incidentApi.getIncidentTeam).mockResolvedValueOnce([])
 
       await store.assignResponders('vault-1', 'incident-1', ['dweller-1'], 'token')
 
-      expect(incidentApi.assignResponders).toHaveBeenCalledWith(
-        'vault-1',
-        'incident-1',
-        ['dweller-1'],
-        'token'
-      )
+      expect(incidentApi.assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', [
+        'dweller-1',
+      ])
       expect(store.incidents.get('incident-1')?.damage_dealt).toBe(40)
       expect(useDwellerFilterStore().dwellers).toEqual(roster)
       expect(store.getIncidentTeam('incident-1')).toEqual([])
@@ -380,7 +380,7 @@ describe('Incident Store', () => {
 
       await store.fetchIncidentTeam('vault-1', 'incident-1', 'token')
 
-      expect(incidentApi.getIncidentTeam).toHaveBeenCalledWith('vault-1', 'incident-1', 'token')
+      expect(incidentApi.getIncidentTeam).toHaveBeenCalledWith('vault-1', 'incident-1')
       expect(store.getIncidentTeam('incident-1')).toEqual([teamMember])
     })
 
@@ -414,13 +414,8 @@ describe('Incident Store', () => {
 
       await store.assignResponders('vault-1', 'incident-1', union, 'token')
 
-      expect(incidentApi.assignResponders).toHaveBeenCalledWith(
-        'vault-1',
-        'incident-1',
-        union,
-        'token'
-      )
-      expect(incidentApi.getIncidentTeam).toHaveBeenCalledWith('vault-1', 'incident-1', 'token')
+      expect(incidentApi.assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', union)
+      expect(incidentApi.getIncidentTeam).toHaveBeenCalledWith('vault-1', 'incident-1')
       expect(store.getIncidentTeam('incident-1')).toEqual([teamMember])
     })
 
@@ -472,7 +467,7 @@ describe('Incident Store', () => {
 
       await store.fetchIncidents('vault-1', 'token')
 
-      expect(incidentApi.getIncidentTeam).toHaveBeenCalledWith('vault-1', 'incident-1', 'token')
+      expect(incidentApi.getIncidentTeam).toHaveBeenCalledWith('vault-1', 'incident-1')
       expect(store.getIncidentTeam('incident-1')).toEqual([teamMember])
       expect(store.hasLoadedIncidentTeam('incident-1')).toBe(true)
     })
@@ -750,7 +745,7 @@ describe('Incident Store', () => {
 
       await store.spawnDebugIncident('vault-1', 'token', 'fire')
 
-      expect(incidentApi.spawnIncident).toHaveBeenCalledWith('vault-1', 'token', 'fire')
+      expect(incidentApi.spawnIncident).toHaveBeenCalledWith('vault-1', 'fire')
       expect(sseMock.toast.success).toHaveBeenCalledWith('Incident Spawned: fire (Difficulty: 3)')
       expect(store.activeIncidentIds).toEqual(['incident-1'])
     })
@@ -1619,7 +1614,7 @@ describe('Incident Store', () => {
 
       await store.takeOverflow('vault-1', 'incident-1', 0, 'token')
 
-      expect(incidentApi.takeOverflow).toHaveBeenCalledWith('vault-1', 'incident-1', 0, 'token')
+      expect(incidentApi.takeOverflow).toHaveBeenCalledWith('vault-1', 'incident-1', 0)
       expect(store.aftermathForRoom('room-1')?.unclaimed).toEqual([])
       store.stopPolling()
     })
@@ -1637,7 +1632,7 @@ describe('Incident Store', () => {
 
       await store.sellOverflow('vault-1', 'incident-1', 0, 'token')
 
-      expect(incidentApi.sellOverflow).toHaveBeenCalledWith('vault-1', 'incident-1', 0, 'token')
+      expect(incidentApi.sellOverflow).toHaveBeenCalledWith('vault-1', 'incident-1', 0)
       expect(sseMock.toast.success).toHaveBeenCalledWith('Sold for 12 caps.')
       store.stopPolling()
     })

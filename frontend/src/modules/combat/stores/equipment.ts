@@ -1,12 +1,15 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import type { Weapon, Outfit } from '../models/equipment'
 import * as equipmentService from '../services/equipment'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
+import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 
 export const useEquipmentStore = defineStore('equipment', () => {
   const toast = useToast()
+  const authStore = useAuthStore()
 
   // State
   const weapons = ref<Weapon[]>([])
@@ -19,8 +22,8 @@ export const useEquipmentStore = defineStore('equipment', () => {
   let outfitsRequest = 0
   let context = ''
 
-  function beginContext(token: string, vaultId: string): void {
-    const next = `${vaultId}:${token}`
+  function beginContext(vaultId: string): void {
+    const next = `${authStore.sessionGeneration}:${vaultId}`
     if (next === context) return
     context = next
     ++weaponsRequest
@@ -31,16 +34,24 @@ export const useEquipmentStore = defineStore('equipment', () => {
     isOutfitsLoading.value = false
   }
 
-  async function fetchWeapons(token: string, vaultId: string): Promise<void> {
-    beginContext(token, vaultId)
+  watch(
+    [() => authStore.sessionGeneration, () => useVaultStore().activeVaultId],
+    () => beginContext(useVaultStore().activeVaultId ?? ''),
+    { flush: 'sync' }
+  )
+
+  async function fetchWeapons(vaultId: string): Promise<void> {
+    beginContext(vaultId)
     const request = ++weaponsRequest
+    const session = authStore.sessionGeneration
     isWeaponsLoading.value = true
     error.value = null
     try {
-      const result = await equipmentService.fetchWeapons(token, vaultId)
-      if (request === weaponsRequest) weapons.value = result
+      const result = await equipmentService.fetchWeapons(vaultId)
+      if (request === weaponsRequest && session === authStore.sessionGeneration)
+        weapons.value = result
     } catch (err) {
-      if (request !== weaponsRequest) return
+      if (request !== weaponsRequest || session !== authStore.sessionGeneration) return
       error.value = 'Failed to load weapons'
       handleStoreError(err, 'Failed to fetch weapons')
     } finally {
@@ -48,16 +59,18 @@ export const useEquipmentStore = defineStore('equipment', () => {
     }
   }
 
-  async function fetchOutfits(token: string, vaultId: string): Promise<void> {
-    beginContext(token, vaultId)
+  async function fetchOutfits(vaultId: string): Promise<void> {
+    beginContext(vaultId)
     const request = ++outfitsRequest
+    const session = authStore.sessionGeneration
     isOutfitsLoading.value = true
     error.value = null
     try {
-      const result = await equipmentService.fetchOutfits(token, vaultId)
-      if (request === outfitsRequest) outfits.value = result
+      const result = await equipmentService.fetchOutfits(vaultId)
+      if (request === outfitsRequest && session === authStore.sessionGeneration)
+        outfits.value = result
     } catch (err) {
-      if (request !== outfitsRequest) return
+      if (request !== outfitsRequest || session !== authStore.sessionGeneration) return
       error.value = 'Failed to load outfits'
       handleStoreError(err, 'Failed to fetch outfits')
     } finally {
@@ -65,13 +78,12 @@ export const useEquipmentStore = defineStore('equipment', () => {
     }
   }
 
-  async function equipWeapon(
-    dwellerId: string,
-    weaponId: string,
-    token: string
-  ): Promise<Weapon | null> {
+  async function equipWeapon(dwellerId: string, weaponId: string): Promise<Weapon | null> {
+    const session = authStore.sessionGeneration
+    const requestContext = context
     try {
-      const weapon = await equipmentService.equipWeapon(dwellerId, weaponId, token)
+      const weapon = await equipmentService.equipWeapon(dwellerId, weaponId)
+      if (session !== authStore.sessionGeneration || requestContext !== context) return null
 
       // Update local state: unequip from previous dweller, equip to new dweller
       const weaponIndex = weapons.value.findIndex((w) => w.id === weaponId)
@@ -82,18 +94,18 @@ export const useEquipmentStore = defineStore('equipment', () => {
       toast.success('Weapon equipped successfully!')
       return weapon
     } catch (err) {
+      if (session !== authStore.sessionGeneration || requestContext !== context) return null
       handleStoreError(err, 'Failed to equip weapon')
       return null
     }
   }
 
-  async function unequipWeapon(
-    dwellerId: string,
-    weaponId: string,
-    token: string
-  ): Promise<Weapon | null> {
+  async function unequipWeapon(weaponId: string): Promise<Weapon | null> {
+    const session = authStore.sessionGeneration
+    const requestContext = context
     try {
-      const weapon = await equipmentService.unequipWeapon(dwellerId, weaponId, token)
+      const weapon = await equipmentService.unequipWeapon(weaponId)
+      if (session !== authStore.sessionGeneration || requestContext !== context) return null
 
       // Update local state
       const weaponIndex = weapons.value.findIndex((w) => w.id === weaponId)
@@ -104,18 +116,18 @@ export const useEquipmentStore = defineStore('equipment', () => {
       toast.success('Weapon unequipped successfully!')
       return weapon
     } catch (err) {
+      if (session !== authStore.sessionGeneration || requestContext !== context) return null
       handleStoreError(err, 'Failed to unequip weapon')
       return null
     }
   }
 
-  async function equipOutfit(
-    dwellerId: string,
-    outfitId: string,
-    token: string
-  ): Promise<Outfit | null> {
+  async function equipOutfit(dwellerId: string, outfitId: string): Promise<Outfit | null> {
+    const session = authStore.sessionGeneration
+    const requestContext = context
     try {
-      const outfit = await equipmentService.equipOutfit(dwellerId, outfitId, token)
+      const outfit = await equipmentService.equipOutfit(dwellerId, outfitId)
+      if (session !== authStore.sessionGeneration || requestContext !== context) return null
 
       // Update local state: unequip from previous dweller, equip to new dweller
       const outfitIndex = outfits.value.findIndex((o) => o.id === outfitId)
@@ -126,18 +138,18 @@ export const useEquipmentStore = defineStore('equipment', () => {
       toast.success('Outfit equipped successfully!')
       return outfit
     } catch (err) {
+      if (session !== authStore.sessionGeneration || requestContext !== context) return null
       handleStoreError(err, 'Failed to equip outfit')
       return null
     }
   }
 
-  async function unequipOutfit(
-    dwellerId: string,
-    outfitId: string,
-    token: string
-  ): Promise<Outfit | null> {
+  async function unequipOutfit(outfitId: string): Promise<Outfit | null> {
+    const session = authStore.sessionGeneration
+    const requestContext = context
     try {
-      const outfit = await equipmentService.unequipOutfit(dwellerId, outfitId, token)
+      const outfit = await equipmentService.unequipOutfit(outfitId)
+      if (session !== authStore.sessionGeneration || requestContext !== context) return null
 
       // Update local state
       const outfitIndex = outfits.value.findIndex((o) => o.id === outfitId)
@@ -148,6 +160,7 @@ export const useEquipmentStore = defineStore('equipment', () => {
       toast.success('Outfit unequipped successfully!')
       return outfit
     } catch (err) {
+      if (session !== authStore.sessionGeneration || requestContext !== context) return null
       handleStoreError(err, 'Failed to unequip outfit')
       return null
     }

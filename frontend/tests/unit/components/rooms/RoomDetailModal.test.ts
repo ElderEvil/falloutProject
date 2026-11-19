@@ -496,7 +496,7 @@ describe('RoomDetailModal', () => {
       })
       await flushPromises()
 
-      expect(fetchSpy).toHaveBeenCalledWith('room-1', 'test-token')
+      expect(fetchSpy).toHaveBeenCalledWith('room-1')
       expect(wrapper.text()).toContain('Strength')
       expect(wrapper.text()).toContain('Jane Smith')
       expect(wrapper.text()).toContain('John Doe')
@@ -534,13 +534,13 @@ describe('RoomDetailModal', () => {
         },
       })
       await flushPromises()
-      expect(fetchSpy).toHaveBeenCalledWith('room-1', 'test-token')
+      expect(fetchSpy).toHaveBeenCalledWith('room-1')
 
       await wrapper.setProps({
         room: { ...mockRoom, id: 'room-2', name: 'Athletics room', category: 'training' },
       })
       await flushPromises()
-      expect(fetchSpy).toHaveBeenCalledWith('room-2', 'test-token')
+      expect(fetchSpy).toHaveBeenCalledWith('room-2')
     })
 
     it('should display room position', () => {

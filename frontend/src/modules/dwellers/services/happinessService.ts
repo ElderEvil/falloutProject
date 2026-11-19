@@ -1,5 +1,5 @@
-import apiClient from '@/core/plugins/axios'
 import type { AxiosResponse } from 'axios'
+import { apiRequest } from '@/core/utils/api'
 
 export interface HappinessModifier {
   name: string
@@ -24,7 +24,10 @@ export const happinessService = {
    * Get detailed happiness modifiers for a specific dweller
    */
   async getDwellerModifiers(dwellerId: string): Promise<AxiosResponse<HappinessModifiers>> {
-    return await apiClient.get(`/api/v1/dwellers/${dwellerId}/happiness_modifiers`)
+    return await apiRequest<HappinessModifiers>(
+      'get',
+      `/api/v1/dwellers/${dwellerId}/happiness_modifiers`
+    )
   },
 
   /**

@@ -13,7 +13,7 @@ export function useIdentityOptions() {
   async function load(): Promise<void> {
     if (!authStore.token) return
     try {
-      const options = await getIdentityOptions(authStore.token)
+      const options = await getIdentityOptions()
       races.value = options.races ?? []
       factionsByRace.value = options.factions_by_race ?? {}
       statesByRace.value = options.states_by_race ?? {}

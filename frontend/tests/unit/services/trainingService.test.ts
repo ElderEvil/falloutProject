@@ -27,14 +27,14 @@ describe('trainingService', () => {
       }
       vi.mocked(axios.post).mockResolvedValueOnce({ data: mockTraining })
 
-      const result = await startTraining('d1', 'r1', 'test-token')
+      const result = await startTraining('d1', 'r1')
 
       expect(axios.post).toHaveBeenCalledWith(
         '/api/v1/training/start',
         null,
         expect.objectContaining({
           params: { dweller_id: 'd1', room_id: 'r1' },
-          headers: { Authorization: 'Bearer test-token' },
+          _skipErrorNotification: true,
         })
       )
       expect(result).toEqual(mockTraining)
@@ -46,21 +46,18 @@ describe('trainingService', () => {
       const mockTraining = { id: 't1', dweller_id: 'd1', status: 'active' }
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockTraining })
 
-      const result = await getDwellerTraining('d1', 'test-token')
+      const result = await getDwellerTraining('d1')
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/training/dweller/d1',
-        expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' },
-        })
-      )
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/training/dweller/d1', {
+        _skipErrorNotification: true,
+      })
       expect(result).toEqual(mockTraining)
     })
 
     it('should return null when no training exists', async () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: null })
 
-      const result = await getDwellerTraining('d1', 'test-token')
+      const result = await getDwellerTraining('d1')
 
       expect(result).toBeNull()
     })
@@ -71,14 +68,11 @@ describe('trainingService', () => {
       const mockTrainings = [{ id: 't1', dweller_id: 'd1' }]
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockTrainings })
 
-      const result = await getVaultTrainings('vault-1', 'test-token')
+      const result = await getVaultTrainings('vault-1')
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/training/vault/vault-1',
-        expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' },
-        })
-      )
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/training/vault/vault-1', {
+        _skipErrorNotification: true,
+      })
       expect(result).toEqual(mockTrainings)
     })
   })
@@ -88,14 +82,11 @@ describe('trainingService', () => {
       const mockProgress = { id: 't1', status: 'active', progress: 50 }
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProgress })
 
-      const result = await getTrainingProgress('t1', 'test-token')
+      const result = await getTrainingProgress('t1')
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/training/t1',
-        expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' },
-        })
-      )
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/training/t1', {
+        _skipErrorNotification: true,
+      })
       expect(result).toEqual(mockProgress)
     })
   })
@@ -105,15 +96,11 @@ describe('trainingService', () => {
       const mockCancelled = { id: 't1', status: 'cancelled' }
       vi.mocked(axios.post).mockResolvedValueOnce({ data: mockCancelled })
 
-      const result = await cancelTraining('t1', 'test-token')
+      const result = await cancelTraining('t1')
 
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/training/t1/cancel',
-        null,
-        expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' },
-        })
-      )
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/training/t1/cancel', undefined, {
+        _skipErrorNotification: true,
+      })
       expect(result).toEqual(mockCancelled)
     })
   })
@@ -123,14 +110,11 @@ describe('trainingService', () => {
       const mockTrainings = [{ id: 't1', room_id: 'r1' }]
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockTrainings })
 
-      const result = await getRoomTrainings('r1', 'test-token')
+      const result = await getRoomTrainings('r1')
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/training/room/r1',
-        expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' },
-        })
-      )
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/training/room/r1', {
+        _skipErrorNotification: true,
+      })
       expect(result).toEqual(mockTrainings)
     })
   })

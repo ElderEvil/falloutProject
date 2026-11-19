@@ -4,6 +4,10 @@ import { useTrainingStore } from '@/modules/progression/stores/training'
 import { getErrorMessage } from '@/core/types/utils'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { createToastMock } from '../helpers/mocks'
+
+const toast = createToastMock()
+vi.mock('@/core/composables/useToast', () => ({ useToast: () => toast }))
 
 vi.mock('@/core/plugins/axios')
 vi.mock('@/core/types/utils', () => ({
@@ -22,6 +26,10 @@ vi.mock('@/modules/progression/services/trainingService', () => ({
 }))
 
 import * as trainingService from '@/modules/progression/services/trainingService'
+import type { components } from '@/core/types/api.generated'
+
+type TrainingRead = components['schemas']['TrainingRead']
+type TrainingProgress = components['schemas']['TrainingProgress']
 
 describe('Training Store', () => {
   beforeEach(() => {
@@ -29,6 +37,114 @@ describe('Training Store', () => {
     vi.clearAllMocks()
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
+
+  it('keeps the latest vault response when an older request finishes last', async () => {
+    const { promise, resolve } = Promise.withResolvers<TrainingRead[]>()
+    const oldTraining = { id: 'old', status: 'active' } as TrainingRead
+    const current = { id: 'current', status: 'active' } as TrainingRead
+    vi.mocked(trainingService.getVaultTrainings)
+      .mockReturnValueOnce(promise)
+      .mockResolvedValueOnce([current])
+    const store = useTrainingStore()
+    const pending = store.fetchVaultTrainings('vault-a')
+    await store.fetchVaultTrainings('vault-b')
+    resolve([oldTraining])
+    await pending
+    expect([...store.activeTrainings.keys()]).toEqual(['current'])
+  })
+
+  it.each(['clear', 'session'] as const)(
+    'rejects a pending vault response after %s invalidation',
+    async (change) => {
+      const { promise, resolve } = Promise.withResolvers<TrainingRead[]>()
+      vi.mocked(trainingService.getVaultTrainings).mockReturnValueOnce(promise)
+      const auth = useAuthStore()
+      const store = useTrainingStore()
+      const pending = store.fetchVaultTrainings('vault-a')
+      if (change === 'session') auth.sessionGeneration++
+      else store.clearTrainings()
+      resolve([{ id: 'old', status: 'active' } as TrainingRead])
+      await pending
+      expect(store.activeTrainings.size).toBe(0)
+      expect(store.error).toBeNull()
+      expect(store.isLoading).toBe(false)
+    }
+  )
+
+  for (const action of ['start', 'cancel', 'complete', 'dweller', 'room', 'progress'] as const) {
+    it.each(['resolve', 'reject'] as const)(
+      `${action} ignores a late %s after context clear`,
+      async (outcome) => {
+        const { promise, resolve, reject } = Promise.withResolvers<
+          TrainingRead & TrainingProgress
+        >()
+        const room = Promise.withResolvers<TrainingRead[]>()
+        const value = { id: 'old', status: 'active', room_id: 'room-a' } as TrainingRead &
+          TrainingProgress
+        if (action === 'room')
+          vi.mocked(trainingService.getRoomTrainings).mockReturnValueOnce(room.promise)
+        else {
+          const service = {
+            start: trainingService.startTraining,
+            cancel: trainingService.cancelTraining,
+            complete: trainingService.completeTraining,
+            dweller: trainingService.getDwellerTraining,
+            progress: trainingService.getTrainingProgress,
+          }[action]
+          vi.mocked(service).mockReturnValueOnce(promise)
+        }
+        const store = useTrainingStore()
+        const actions = {
+          start: () => store.startTraining('dweller', 'room-a'),
+          cancel: () => store.cancelTraining('old'),
+          complete: () => store.completeTraining('old'),
+          dweller: () => store.fetchDwellerTraining('dweller'),
+          room: () => store.fetchRoomTrainings('room-a'),
+          progress: () => store.updateTrainingProgress('old'),
+        }
+        const pending = actions[action]()
+        store.clearTrainings()
+        if (outcome === 'resolve') {
+          if (action === 'room') room.resolve([value])
+          else resolve(value)
+        } else if (action === 'room') room.reject(new Error('Old failure'))
+        else reject(new Error('Old failure'))
+        await pending
+        expect(store.activeTrainings.size).toBe(0)
+        expect(store.trainingHistory).toEqual([])
+        expect(store.error).toBeNull()
+        expect(toast.error).not.toHaveBeenCalled()
+        expect(toast.success).not.toHaveBeenCalled()
+      }
+    )
+  }
+
+  for (const action of ['goal', 'continuous'] as const) {
+    it.each(['resolve', 'reject'] as const)(
+      `${action} ignores a late %s after clear`,
+      async (outcome) => {
+        const { promise, resolve, reject } = Promise.withResolvers<
+          TrainingRead & components['schemas']['Vault']
+        >()
+        if (action === 'goal')
+          vi.mocked(trainingService.setTrainingGoal).mockReturnValueOnce(promise)
+        else vi.mocked(trainingService.setContinuousTraining).mockReturnValueOnce(promise)
+        const store = useTrainingStore()
+        const pending =
+          action === 'goal'
+            ? store.setTrainingGoal('old', 7)
+            : store.setContinuousTraining('vault-a', true)
+        store.clearTrainings()
+        if (outcome === 'reject') reject(new Error('Old failure'))
+        else
+          resolve({ id: 'old', goal_stat_value: 7, continuous_training: true } as TrainingRead &
+            components['schemas']['Vault'])
+        expect(await pending).toBe(false)
+        expect(toast.error).not.toHaveBeenCalled()
+        expect(toast.success).not.toHaveBeenCalled()
+      }
+    )
+  }
 
   it('saves only the selected dweller goal and keeps the saved value on failure', async () => {
     useAuthStore().token = 'token'
@@ -39,11 +155,11 @@ describe('Training Store', () => {
       id: 't1',
       goal_stat_value: 7,
     } as any)
-    expect(await store.setTrainingGoal('t1', 7, 'token')).toBe(true)
+    expect(await store.setTrainingGoal('t1', 7)).toBe(true)
     expect(store.activeTrainings.get('t1')?.goal_stat_value).toBe(7)
     expect(store.activeTrainings.get('t2')?.goal_stat_value).toBe(10)
     vi.mocked(trainingService.setTrainingGoal).mockRejectedValueOnce(new Error('Save failed'))
-    expect(await store.setTrainingGoal('t1', 8, 'token')).toBe(false)
+    expect(await store.setTrainingGoal('t1', 8)).toBe(false)
     expect(store.activeTrainings.get('t1')?.goal_stat_value).toBe(7)
     expect(store.savingGoals.size).toBe(0)
   })
@@ -68,7 +184,7 @@ describe('Training Store', () => {
         new Error('Save failed')
       )
       const store = useTrainingStore()
-      expect(await store.setContinuousTraining('v1', false, 'token')).toBe(false)
+      expect(await store.setContinuousTraining('v1', false)).toBe(false)
       expect(vaultStore.loadedVaults['v1'].continuous_training).toBe(true)
       expect(store.isSettingContinuousTraining).toBe(false)
     })
@@ -86,11 +202,11 @@ describe('Training Store', () => {
           })
       )
       const store = useTrainingStore()
-      const pending = store.setContinuousTraining('v1', true, 'token')
+      const pending = store.setContinuousTraining('v1', true)
       expect(store.isSettingContinuousTraining).toBe(true)
-      expect(await store.setContinuousTraining('v1', true, 'token')).toBe(false)
+      expect(await store.setContinuousTraining('v1', true)).toBe(false)
       expect(trainingService.setContinuousTraining).toHaveBeenCalledTimes(1)
-      auth.token = 'different-login'
+      auth.sessionGeneration += 1
       finish({ continuous_training: true })
       expect(await pending).toBe(false)
       expect(vaultStore.loadedVaults['v1'].continuous_training).toBe(false)
@@ -120,9 +236,9 @@ describe('Training Store', () => {
       vi.mocked(trainingService.getVaultTrainings).mockResolvedValueOnce(mockTrainings)
 
       const store = useTrainingStore()
-      await store.fetchVaultTrainings('vault-1', 'test-token')
+      await store.fetchVaultTrainings('vault-1')
 
-      expect(trainingService.getVaultTrainings).toHaveBeenCalledWith('vault-1', 'test-token')
+      expect(trainingService.getVaultTrainings).toHaveBeenCalledWith('vault-1')
       expect(store.activeTrainings.size).toBe(2)
       expect(store.activeTrainings.get('t1')).toEqual(mockTrainings[0])
       expect(store.isLoading).toBe(false)
@@ -132,7 +248,7 @@ describe('Training Store', () => {
       vi.mocked(trainingService.getVaultTrainings).mockRejectedValueOnce(new Error('Network error'))
 
       const store = useTrainingStore()
-      await store.fetchVaultTrainings('vault-1', 'test-token')
+      await store.fetchVaultTrainings('vault-1')
 
       expect(store.isLoading).toBe(false)
       expect(store.error).toBeTruthy()
@@ -160,7 +276,7 @@ describe('Training Store', () => {
       vi.mocked(trainingService.getVaultTrainings).mockResolvedValueOnce(mockTrainings)
 
       const store = useTrainingStore()
-      await store.fetchVaultTrainings('vault-1', 'test-token')
+      await store.fetchVaultTrainings('vault-1')
 
       expect(store.activeTrainings.size).toBe(0)
     })
@@ -179,9 +295,9 @@ describe('Training Store', () => {
       vi.mocked(trainingService.startTraining).mockResolvedValueOnce(mockTraining)
 
       const store = useTrainingStore()
-      const result = await store.startTraining('d1', 'r1', 'test-token')
+      const result = await store.startTraining('d1', 'r1')
 
-      expect(trainingService.startTraining).toHaveBeenCalledWith('d1', 'r1', 'test-token')
+      expect(trainingService.startTraining).toHaveBeenCalledWith('d1', 'r1')
       expect(result).toEqual(mockTraining)
       expect(store.activeTrainings.get('t1')).toEqual(mockTraining)
     })
@@ -190,7 +306,7 @@ describe('Training Store', () => {
       vi.mocked(trainingService.startTraining).mockRejectedValueOnce(new Error('API error'))
 
       const store = useTrainingStore()
-      const result = await store.startTraining('d1', 'r1', 'test-token')
+      const result = await store.startTraining('d1', 'r1')
 
       expect(result).toBeNull()
       expect(getErrorMessage).toHaveBeenCalled()
@@ -212,9 +328,9 @@ describe('Training Store', () => {
       const store = useTrainingStore()
       store.activeTrainings.set('t1', { ...mockCancelled, status: 'active' })
 
-      const result = await store.cancelTraining('t1', 'test-token')
+      const result = await store.cancelTraining('t1')
 
-      expect(trainingService.cancelTraining).toHaveBeenCalledWith('t1', 'test-token')
+      expect(trainingService.cancelTraining).toHaveBeenCalledWith('t1')
       expect(result).toBe(true)
       expect(store.activeTrainings.has('t1')).toBe(false)
       expect(store.trainingHistory).toContainEqual(mockCancelled)
@@ -224,7 +340,7 @@ describe('Training Store', () => {
       vi.mocked(trainingService.cancelTraining).mockRejectedValueOnce(new Error('API error'))
 
       const store = useTrainingStore()
-      const result = await store.cancelTraining('t1', 'test-token')
+      const result = await store.cancelTraining('t1')
 
       expect(result).toBe(false)
     })
@@ -252,9 +368,9 @@ describe('Training Store', () => {
         completed_at: undefined,
       })
 
-      const result = await store.completeTraining('t1', 'test-token')
+      const result = await store.completeTraining('t1')
 
-      expect(trainingService.completeTraining).toHaveBeenCalledWith('t1', 'test-token')
+      expect(trainingService.completeTraining).toHaveBeenCalledWith('t1')
       expect(result).toBe(true)
       expect(store.activeTrainings.has('t1')).toBe(false)
       expect(store.trainingHistory).toContainEqual(mockCompleted)
@@ -264,7 +380,7 @@ describe('Training Store', () => {
       vi.mocked(trainingService.completeTraining).mockRejectedValueOnce(new Error('API error'))
 
       const store = useTrainingStore()
-      const result = await store.completeTraining('t1', 'test-token')
+      const result = await store.completeTraining('t1')
 
       expect(result).toBe(false)
     })
@@ -283,7 +399,7 @@ describe('Training Store', () => {
       vi.mocked(trainingService.getDwellerTraining).mockResolvedValueOnce(mockTraining)
 
       const store = useTrainingStore()
-      await store.fetchDwellerTraining('d1', 'test-token')
+      await store.fetchDwellerTraining('d1')
 
       expect(store.activeTrainings.get('t1')).toEqual(mockTraining)
     })
@@ -302,7 +418,7 @@ describe('Training Store', () => {
       const store = useTrainingStore()
       store.activeTrainings.set('t1', { ...mockTraining, status: 'active' })
 
-      await store.fetchDwellerTraining('d1', 'test-token')
+      await store.fetchDwellerTraining('d1')
 
       expect(store.activeTrainings.has('t1')).toBe(false)
     })
@@ -333,9 +449,9 @@ describe('Training Store', () => {
         room_id: 'r2',
         status: 'active',
       } as any)
-      const result = await store.fetchRoomTrainings('r1', 'test-token')
+      const result = await store.fetchRoomTrainings('r1')
 
-      expect(trainingService.getRoomTrainings).toHaveBeenCalledWith('r1', 'test-token')
+      expect(trainingService.getRoomTrainings).toHaveBeenCalledWith('r1')
       expect(result).toEqual(mockTrainings)
       expect(store.activeTrainings.get('t1')).toEqual(mockTrainings[0])
       expect(store.activeTrainings.has('previous-round')).toBe(false)
@@ -346,7 +462,7 @@ describe('Training Store', () => {
       vi.mocked(trainingService.getRoomTrainings).mockRejectedValueOnce(new Error('Error'))
 
       const store = useTrainingStore()
-      const result = await store.fetchRoomTrainings('r1', 'test-token')
+      const result = await store.fetchRoomTrainings('r1')
 
       expect(result).toEqual([])
     })
@@ -375,7 +491,7 @@ describe('Training Store', () => {
         estimated_completion_at: new Date(Date.now() + 3600000).toISOString(),
       })
 
-      await store.updateTrainingProgress('t1', 'test-token')
+      await store.updateTrainingProgress('t1')
 
       expect(store.activeTrainings.get('t1')).toEqual(mockProgress)
     })
@@ -402,7 +518,7 @@ describe('Training Store', () => {
         estimated_completion_at: new Date().toISOString(),
       })
 
-      await store.updateTrainingProgress('t1', 'test-token')
+      await store.updateTrainingProgress('t1')
 
       expect(store.activeTrainings.has('t1')).toBe(false)
       expect(store.trainingHistory).toContainEqual(mockCompleted)
@@ -422,7 +538,7 @@ describe('Training Store', () => {
       const store = useTrainingStore()
       store.activeTrainings.set('t1', { ...mockCancelled, status: 'active' } as any)
 
-      await store.updateTrainingProgress('t1', 'test-token')
+      await store.updateTrainingProgress('t1')
 
       expect(store.activeTrainings.has('t1')).toBe(false)
     })
@@ -552,9 +668,9 @@ describe('Training Store', () => {
       vi.mocked(trainingService.getVaultTrainings).mockResolvedValueOnce([])
 
       const store = useTrainingStore()
-      await store.refreshAllTrainings('vault-1', 'test-token')
+      await store.refreshAllTrainings('vault-1')
 
-      expect(trainingService.getVaultTrainings).toHaveBeenCalledWith('vault-1', 'test-token')
+      expect(trainingService.getVaultTrainings).toHaveBeenCalledWith('vault-1')
     })
   })
 

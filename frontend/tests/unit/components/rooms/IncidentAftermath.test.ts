@@ -120,10 +120,10 @@ describe('IncidentAftermath', () => {
 
     const [take, sell] = wrapper.findAll('button')
     await take.trigger('click')
-    expect(takeOverflow).toHaveBeenCalledWith('vault-1', 'incident-1', 0, 'test-token')
+    expect(takeOverflow).toHaveBeenCalledWith('vault-1', 'incident-1', 0)
 
     await sell.trigger('click')
-    expect(sellOverflow).toHaveBeenCalledWith('vault-1', 'incident-1', 0, 'test-token')
+    expect(sellOverflow).toHaveBeenCalledWith('vault-1', 'incident-1', 0)
   })
 
   it('omits the held section when everything fit', () => {

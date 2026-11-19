@@ -2,7 +2,6 @@
   "src/modules/chat/components/DwellerChat.vue": 1,
   "src/modules/combat/components/incidents/IncidentAlert.vue": 1,
   "src/modules/crafting/components/CraftingPanel.vue": 1,
-  "src/modules/dwellers/components/DwellerAppearanceEditor.vue": 1,
   "src/modules/dwellers/components/DwellerDisplayControls.vue": 8,
   "src/modules/dwellers/components/DwellerEquipment.vue": 3,
   "src/modules/dwellers/components/DwellerFilterGroup.vue": 1,

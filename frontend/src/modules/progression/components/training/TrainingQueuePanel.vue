@@ -62,9 +62,8 @@ const continuousTraining = computed(() => !!vaultStore.activeVault?.continuous_t
 
 const toggleContinuousTraining = async () => {
   const vaultId = vaultStore.activeVault?.id
-  const token = authStore.token
-  if (!vaultId || !token) return
-  await trainingStore.setContinuousTraining(vaultId, !continuousTraining.value, token)
+  if (!vaultId) return
+  await trainingStore.setContinuousTraining(vaultId, !continuousTraining.value)
 }
 
 const dwellerLookup = computed(() => {
@@ -94,7 +93,7 @@ const fetchTrainings = async () => {
   if (!vaultStore.activeVault?.id || !authStore.token) return
 
   await Promise.all([
-    trainingStore.fetchVaultTrainings(vaultStore.activeVault.id, authStore.token),
+    trainingStore.fetchVaultTrainings(vaultStore.activeVault.id),
     dwellerStore.fetchDwellersByVault(vaultStore.activeVault.id, authStore.token),
     roomStore.fetchRooms(vaultStore.activeVault.id),
   ])
@@ -106,20 +105,20 @@ usePolling(fetchTrainings, { interval: 30_000, immediate: false })
 const handleCancelTraining = async (trainingId: string) => {
   if (!authStore.token) return
 
-  await trainingStore.cancelTraining(trainingId, authStore.token)
+  await trainingStore.cancelTraining(trainingId)
   await fetchTrainings()
 }
 
 const handleCompleteTraining = async (trainingId: string) => {
   if (!authStore.token) return
 
-  await trainingStore.completeTraining(trainingId, authStore.token)
+  await trainingStore.completeTraining(trainingId)
   await fetchTrainings()
 }
 
 const handleGoal = async (trainingId: string, goal: number) => {
   if (!authStore.token) return
-  await trainingStore.setTrainingGoal(trainingId, goal, authStore.token)
+  await trainingStore.setTrainingGoal(trainingId, goal)
   await fetchTrainings()
 }
 

@@ -48,29 +48,15 @@ class GameLoopConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="GAME_LOOP_")
 
-    tick_interval: int = Field(
-        default=60,
-        description="Seconds between game ticks",
-        ge=1,
-        le=300,
-    )
+    tick_interval: int = Field(default=60, description="Seconds between game ticks", ge=1, le=300)
     max_offline_catchup: int = Field(
-        default=3600,
-        description="Maximum seconds to catch up after offline (1 hour)",
-        ge=0,
-        le=86400,
+        default=3600, description="Maximum seconds to catch up after offline (1 hour)", ge=0, le=86400
     )
     arena_tick_seconds: int = Field(
-        default=2,
-        description="Seconds between arena fight ticks (independent of the vault round)",
-        ge=1,
-        le=60,
+        default=2, description="Seconds between arena fight ticks (independent of the vault round)", ge=1, le=60
     )
     incident_tick_seconds: int = Field(
-        default=2,
-        description="Seconds between incident combat ticks (independent of the vault round)",
-        ge=1,
-        le=60,
+        default=2, description="Seconds between incident combat ticks (independent of the vault round)", ge=1, le=60
     )
     arena_countdown_seconds: int = Field(
         default=3,
@@ -90,31 +76,16 @@ class IncidentConfig(BaseSettings):
         min_length=1,
         description="Max rooms (transit included) to incidents per hour, first match wins; starter vaults see one per hour, developed ones one per quarter",
     )
-    min_vault_population: int = Field(
-        default=5,
-        description="Minimum dwellers required for incidents",
-        ge=0,
-    )
+    min_vault_population: int = Field(default=5, description="Minimum dwellers required for incidents", ge=0)
     deathclaw_min_population: int = Field(
-        default=60,
-        description="Living dwellers required before Deathclaw attacks can spawn in standard mode",
-        ge=0,
+        default=60, description="Living dwellers required before Deathclaw attacks can spawn in standard mode", ge=0
     )
     deathclaw_min_population_survival: int = Field(
-        default=35,
-        description="Living dwellers required before Deathclaw attacks can spawn in survival mode",
-        ge=0,
+        default=35, description="Living dwellers required before Deathclaw attacks can spawn in survival mode", ge=0
     )
-    spread_duration: int = Field(
-        default=60,
-        description="Seconds before incident spreads to adjacent rooms",
-        ge=10,
-    )
+    spread_duration: int = Field(default=60, description="Seconds before incident spreads to adjacent rooms", ge=10)
     max_spread_count: int = Field(
-        default=0,
-        description="Maximum incident spreads; temporarily disabled for balance",
-        ge=0,
-        le=10,
+        default=0, description="Maximum incident spreads; temporarily disabled for balance", ge=0, le=10
     )
     response_grace_seconds: int = Field(
         default=120,
@@ -122,16 +93,10 @@ class IncidentConfig(BaseSettings):
         ge=0,
     )
     max_active_incidents: int = Field(
-        default=5,
-        description="Maximum number of active incidents per vault",
-        ge=1,
-        le=20,
+        default=5, description="Maximum number of active incidents per vault", ge=1, le=20
     )
     spawn_cooldown_seconds: int = Field(
-        default=120,
-        description="Minimum seconds between incident spawns",
-        ge=0,
-        le=600,
+        default=120, description="Minimum seconds between incident spawns", ge=0, le=600
     )
     spawn_presence_seconds: int = Field(
         default=90,
@@ -241,16 +206,9 @@ class VaultEventConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="VAULT_EVENT_")
 
     spawn_chance_per_hour: float = Field(
-        default=0.05,
-        description="5% chance per hour for a random vault event",
-        ge=0.0,
-        le=1.0,
+        default=0.05, description="5% chance per hour for a random vault event", ge=0.0, le=1.0
     )
-    min_vault_population: int = Field(
-        default=3,
-        description="Minimum dwellers required for vault events",
-        ge=0,
-    )
+    min_vault_population: int = Field(default=3, description="Minimum dwellers required for vault events", ge=0)
 
     # Spawn weights (higher = more common)
     weight_resource_cache: int = 40
@@ -334,15 +292,10 @@ class CombatConfig(BaseSettings):
     )
     level_bonus_multiplier: int = Field(default=2, ge=0)
     arena_morale_bonus: int = Field(
-        default=1,
-        ge=0,
-        le=100,
-        description="Happiness every living dweller gains when an arena match finishes",
+        default=1, ge=0, le=100, description="Happiness every living dweller gains when an arena match finishes"
     )
     arena_morale_cooldown_seconds: int = Field(
-        default=3600,
-        ge=0,
-        description="Per-vault window during which further arena finishes grant no morale",
+        default=3600, ge=0, description="Per-vault window during which further arena finishes grant no morale"
     )
 
     @field_validator("weapon_stat_weights", mode="before")
@@ -545,9 +498,7 @@ class ResourceConfig(BaseSettings):
         ge=0.0,
     )
     medical_production_rate: float = Field(
-        default=0.01,
-        description="Per INT point per second for Medbay/Science Lab only",
-        ge=0.0,
+        default=0.01, description="Per INT point per second for Medbay/Science Lab only", ge=0.0
     )
     junior_worker_output_multiplier: float = Field(
         default=0.5,
@@ -572,10 +523,7 @@ class ResourceConfig(BaseSettings):
 
     # Room destruction refund
     destroy_room_refund_rate: float = Field(
-        default=0.5,
-        description="Percentage of room cost refunded when destroyed",
-        ge=0.0,
-        le=1.0,
+        default=0.5, description="Percentage of room cost refunded when destroyed", ge=0.0, le=1.0
     )
 
     def get_tier_multiplier(self, tier: int) -> float:
@@ -597,9 +545,7 @@ class RelationshipConfig(BaseSettings):
     affinity_loss_per_tick: int = Field(default=1, description="Base affinity loss when chemistry is poor", ge=0)
     affinity_max_loss_per_tick: int = Field(default=2, description="Upper bound on affinity lost per tick", ge=1)
     charisma_affinity_rate: float = Field(
-        default=0.08,
-        description="Affinity multiplier change per effective Charisma point away from baseline 5",
-        ge=0.0,
+        default=0.08, description="Affinity multiplier change per effective Charisma point away from baseline 5", ge=0.0
     )
     charisma_affinity_min_multiplier: float = Field(
         default=0.5, description="Floor for the Charisma affinity multiplier", ge=0.0
@@ -644,15 +590,9 @@ class RelationshipConfig(BaseSettings):
 
     # Compatibility calculation settings
     max_special_diff: int = Field(
-        default=70,
-        description="Maximum SPECIAL stat difference for compatibility (7 stats * 10)",
-        ge=1,
+        default=70, description="Maximum SPECIAL stat difference for compatibility (7 stats * 10)", ge=1
     )
-    max_level_diff: int = Field(
-        default=50,
-        description="Maximum level difference for compatibility",
-        ge=1,
-    )
+    max_level_diff: int = Field(default=50, description="Maximum level difference for compatibility", ge=1)
 
     # Compatibility weights (must sum to 1.0)
     compatibility_special_weight: float = Field(default=0.3, ge=0.0, le=1.0)
@@ -691,30 +631,17 @@ class BreedingConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="BREEDING_")
 
     conception_chance_per_tick: float = Field(
-        default=0.20,
-        description="20% chance per tick for partners in living quarters",
-        ge=0.0,
-        le=1.0,
+        default=0.20, description="20% chance per tick for partners in living quarters", ge=0.0, le=1.0
     )
     pregnancy_duration_hours: int = Field(default=3, description="Real-time hours", ge=1)
     birth_cooldown_hours: int = Field(
-        default=6,
-        description="Hours after delivery before the mother can conceive again",
-        ge=0,
+        default=6, description="Hours after delivery before the mother can conceive again", ge=0
     )
     maternal_last_name_chance: float = Field(
-        default=0.2,
-        description="20% chance baby takes mother's last name instead of father's",
-        ge=0.0,
-        le=1.0,
+        default=0.2, description="20% chance baby takes mother's last name instead of father's", ge=0.0, le=1.0
     )
     trait_inheritance_variance: int = Field(default=2, description="± SPECIAL variance from parents", ge=0)
-    rarity_upgrade_chance: float = Field(
-        default=0.15,
-        description="15% chance for higher rarity",
-        ge=0.0,
-        le=1.0,
-    )
+    rarity_upgrade_chance: float = Field(default=0.15, description="15% chance for higher rarity", ge=0.0, le=1.0)
     twin_chance: float = Field(
         default=0.05,
         description="Base 5% chance a birth delivers twins, raised by the mother's equipped Twins-chance pet",
@@ -743,10 +670,7 @@ class BreedingConfig(BaseSettings):
     child_growth_duration_hours: int = Field(default=60, description="Total hours from child to adult", ge=2)
     child_special_multiplier: float = Field(default=0.5, description="Children have 50% of adult stats", ge=0.0, le=1.0)
     child_consumption_multiplier: float = Field(
-        default=0.7,
-        description="Children consume 70% of adult resources",
-        ge=0.0,
-        le=1.0,
+        default=0.7, description="Children consume 70% of adult resources", ge=0.0, le=1.0
     )
 
 
@@ -786,11 +710,7 @@ class RadioConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="RADIO_")
 
-    base_recruitment_rate: float = Field(
-        default=1.0 / 360.0,
-        description="1 recruit per 6 hours in minutes",
-        ge=0.0,
-    )
+    base_recruitment_rate: float = Field(default=1.0 / 360.0, description="1 recruit per 6 hours in minutes", ge=0.0)
     charisma_rate_multiplier: float = Field(default=0.05, description="+5% per charisma point", ge=0.0)
     happiness_rate_multiplier: float = Field(default=0.01, description="+1% per happiness %", ge=0.0)
     manual_recruitment_cost: int = Field(default=500, description="Caps to recruit manually", ge=0)
@@ -842,10 +762,7 @@ class BioConfig(BaseSettings):
     # Chance a procedurally generated bio carries an unresolved rumour about the
     # Zone (Chernobyl easter egg). 0 disables it.
     zone_rumor_chance: float = Field(
-        default=0.05,
-        ge=0.0,
-        le=1.0,
-        description="Chance a generated dweller bio carries a Zone rumour (0-1)",
+        default=0.05, ge=0.0, le=1.0, description="Chance a generated dweller bio carries a Zone rumour (0-1)"
     )
 
     def max_visited(self, rarity: str) -> int:
@@ -860,10 +777,7 @@ class DeathConfig(BaseSettings):
 
     # Permanent death timing
     permanent_death_days: int = Field(
-        default=7,
-        description="Days after death before permanent (cannot revive)",
-        ge=1,
-        le=30,
+        default=7, description="Days after death before permanent (cannot revive)", ge=1, le=30
     )
 
     # Tiered revival cost (Option B)
@@ -877,10 +791,7 @@ class DeathConfig(BaseSettings):
 
     # Health after revival
     revival_health_percent: float = Field(
-        default=0.5,
-        description="Health restored as percentage of max (50%)",
-        ge=0.1,
-        le=1.0,
+        default=0.5, description="Health restored as percentage of max (50%)", ge=0.1, le=1.0
     )
 
     # Radiation threshold for death
@@ -915,10 +826,7 @@ class DwellerConfig(BaseSettings):
 
     # Starting stats for boosted dwellers (lunchbox legendary)
     boosted_stat_value: int = Field(
-        default=5,
-        description="Starting SPECIAL stat value for boosted dwellers",
-        ge=1,
-        le=10,
+        default=5, description="Starting SPECIAL stat value for boosted dwellers", ge=1, le=10
     )
 
     # Race distribution for generated dwellers — global (standard and boosted
@@ -1042,10 +950,7 @@ class DwellerConfig(BaseSettings):
         return dict(self.state_weights.get(race, {}))
 
     elder_age_years: int = Field(
-        default=70,
-        ge=50,
-        le=90,
-        description="Adults whose birth date is at least this many years ago are elders",
+        default=70, ge=50, le=90, description="Adults whose birth date is at least this many years ago are elders"
     )
 
 
@@ -1170,16 +1075,10 @@ class ExplorationConfig(BaseSettings):
 
     # Scrap probabilities
     same_rarity_junk_probability: float = Field(
-        default=0.4,
-        description="Probability of getting same rarity junk when scrapping",
-        ge=0.0,
-        le=1.0,
+        default=0.4, description="Probability of getting same rarity junk when scrapping", ge=0.0, le=1.0
     )
     different_rarity_junk_probability: float = Field(
-        default=0.6,
-        description="Probability of getting different rarity junk when scrapping",
-        ge=0.0,
-        le=1.0,
+        default=0.6, description="Probability of getting different rarity junk when scrapping", ge=0.0, le=1.0
     )
 
     def get_rarity_priority(self, rarity_str: str) -> int:
@@ -1226,10 +1125,7 @@ class CraftingConfig(BaseSettings):
         description="Duration reduction per point of the item's stat among the workshop's dwellers",
     )
     min_order_fraction: float = Field(
-        default=0.25,
-        gt=0.0,
-        le=1.0,
-        description="Fastest an order can get, as a fraction of its base duration",
+        default=0.25, gt=0.0, le=1.0, description="Fastest an order can get, as a fraction of its base duration"
     )
     unlock_scrap_count_by_rarity: dict[str, NonNegativeStrictInt] = Field(
         default_factory=lambda: {"rare": 1, "legendary": 1},
@@ -1332,21 +1228,12 @@ class ExitConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="EXIT_")
 
     despair_happiness: int = Field(
-        default=15,
-        ge=0,
-        le=100,
-        description="Happiness at or below which a dweller starts asking to leave",
+        default=15, ge=0, le=100, description="Happiness at or below which a dweller starts asking to leave"
     )
     min_population: int = Field(
-        default=2,
-        ge=1,
-        description="The vault will not grant an exit that drops it below this many dwellers",
+        default=2, ge=1, description="The vault will not grant an exit that drops it below this many dwellers"
     )
-    max_exit_requests_per_day: int = Field(
-        default=1,
-        ge=1,
-        description="Most exit requests the vault raises per day",
-    )
+    max_exit_requests_per_day: int = Field(default=1, ge=1, description="Most exit requests the vault raises per day")
     vault_refusal_happiness_penalty: int = Field(
         default=10,
         ge=0,
@@ -1354,9 +1241,7 @@ class ExitConfig(BaseSettings):
         description="Happiness every living dweller loses when the vault refuses an exit request",
     )
     despair_grace_hours: int = Field(
-        default=6,
-        ge=0,
-        description="Hours a dweller must stay in despair before they will ask to leave",
+        default=6, ge=0, description="Hours a dweller must stay in despair before they will ask to leave"
     )
 
 

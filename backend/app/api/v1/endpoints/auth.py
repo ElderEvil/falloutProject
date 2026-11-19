@@ -3,7 +3,7 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import EmailStr
 from redis.asyncio import Redis
@@ -12,7 +12,6 @@ from app.api.deps import CurrentActiveUser, CurrentUser, DBSession, get_redis_cl
 from app.schemas.responses import MessageResponse
 from app.schemas.token import Token
 from app.services.auth_service import auth_service
-from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
 
@@ -33,15 +32,12 @@ async def login_access_token(
     Raises:
         HTTPException: 400 if credentials are invalid.
     """
-    try:
-        return await auth_service.login(
-            db_session=db_session,
-            email=form_data.username,
-            password=form_data.password,
-            redis_client=redis_client,
-        )
-    except ValidationException as e:
-        raise HTTPException(status_code=400, detail=e.detail) from e
+    return await auth_service.login(
+        db_session=db_session,
+        email=form_data.username,
+        password=form_data.password,
+        redis_client=redis_client,
+    )
 
 
 @router.post("/refresh", response_model=Token)
@@ -58,16 +54,11 @@ async def refresh_access_token(
     Raises:
         HTTPException: 400 if refresh token is invalid. 404 if token not found.
     """
-    try:
-        return await auth_service.refresh_token(
-            db_session=db_session,
-            refresh_token=refresh_token,
-            redis_client=redis_client,
-        )
-    except ValidationException as e:
-        raise HTTPException(status_code=400, detail=e.detail) from e
-    except ResourceNotFoundException as e:
-        raise HTTPException(status_code=404, detail=e.detail) from e
+    return await auth_service.refresh_token(
+        db_session=db_session,
+        refresh_token=refresh_token,
+        redis_client=redis_client,
+    )
 
 
 @router.post("/logout", response_model=MessageResponse)
@@ -113,18 +104,13 @@ async def reset_password(
     Raises:
         HTTPException: 400 if token is invalid. 404 if token not found.
     """
-    try:
-        result = await auth_service.reset_password(
-            db_session=db_session,
-            token=token,
-            new_password=new_password,
-            redis_client=redis_client,
-        )
-        return MessageResponse(msg=result["msg"])
-    except ValidationException as e:
-        raise HTTPException(status_code=400, detail=e.detail) from e
-    except ResourceNotFoundException as e:
-        raise HTTPException(status_code=404, detail=e.detail) from e
+    result = await auth_service.reset_password(
+        db_session=db_session,
+        token=token,
+        new_password=new_password,
+        redis_client=redis_client,
+    )
+    return MessageResponse(msg=result["msg"])
 
 
 @router.put("/change-password", response_model=MessageResponse)
@@ -143,17 +129,14 @@ async def change_password(
     Raises:
         HTTPException: 400 if current password is incorrect.
     """
-    try:
-        result = await auth_service.change_password(
-            db_session=db_session,
-            user=user,
-            current_password=current_password,
-            new_password=new_password,
-            redis_client=redis_client,
-        )
-        return MessageResponse(msg=result["msg"])
-    except ValidationException as e:
-        raise HTTPException(status_code=400, detail=e.detail) from e
+    result = await auth_service.change_password(
+        db_session=db_session,
+        user=user,
+        current_password=current_password,
+        new_password=new_password,
+        redis_client=redis_client,
+    )
+    return MessageResponse(msg=result["msg"])
 
 
 @router.post("/verify-email", response_model=MessageResponse)
@@ -169,13 +152,8 @@ async def verify_email(
     Raises:
         HTTPException: 400 if token is invalid. 404 if token not found.
     """
-    try:
-        result = await auth_service.verify_email(db_session=db_session, token=token)
-        return MessageResponse(msg=result["msg"])
-    except ValidationException as e:
-        raise HTTPException(status_code=400, detail=e.detail) from e
-    except ResourceNotFoundException as e:
-        raise HTTPException(status_code=404, detail=e.detail) from e
+    result = await auth_service.verify_email(db_session=db_session, token=token)
+    return MessageResponse(msg=result["msg"])
 
 
 @router.post("/resend-verification", response_model=MessageResponse)
@@ -191,8 +169,5 @@ async def resend_verification_email(
     Raises:
         HTTPException: 400 if verification cannot be resent.
     """
-    try:
-        result = await auth_service.resend_verification_email(db_session=db_session, user=user)
-        return MessageResponse(msg=result["msg"])
-    except ValidationException as e:
-        raise HTTPException(status_code=400, detail=e.detail) from e
+    result = await auth_service.resend_verification_email(db_session=db_session, user=user)
+    return MessageResponse(msg=result["msg"])

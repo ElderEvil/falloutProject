@@ -70,7 +70,6 @@ from app.utils.exceptions import DomainError, QuotaExceededException
 from app.utils.seed_objectives import seed_objectives_from_json
 from app.utils.seed_quests import seed_quests_from_json
 
-# Import security middleware (conditional on settings)
 if settings.ENABLE_RATE_LIMITING:
     from guard.middleware import SecurityMiddleware
 
@@ -78,7 +77,6 @@ if settings.ENABLE_RATE_LIMITING:
 
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-# Configure logging with centralized setup
 setup_logging(
     log_level=settings.LOG_LEVEL,
     json_format=settings.LOG_JSON_FORMAT,
@@ -91,12 +89,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
-    """Lifespan context manager for FastAPI startup and shutdown events.
-
-    Performs health checks on startup and cleanup on shutdown.
-    """
+    """FastAPI lifespan: health checks on startup, cleanup on shutdown."""
     try:
-        # Startup: Check service health
         logger.info(
             "Starting Fallout Shelter API",
             extra={
@@ -112,15 +106,13 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         results = await health_check_service.check_all_services(async_engine, include_rustfs=False)
         health_check_service.log_health_check_results(results)
 
-        # Seed quests and objectives from JSON files
         async for session in get_async_session():
             quest_count = await seed_quests_from_json(session)
             objective_count = await seed_objectives_from_json(session)
             place_count = await seed_places_from_json(session)
 
-            # Re-apply the DB AI-provider profile so the chat agent uses the
-            # configured provider across restarts (a profile only takes effect
-            # on save otherwise, and a fresh process falls back to env defaults).
+            # Re-apply the DB AI-provider profile so the chat agent uses the configured provider across restarts (a
+            # profile only takes effect on save otherwise, and a fresh process falls back to env defaults).
             await ai_settings_service.apply(session)
 
             if quest_count > 0:
@@ -129,8 +121,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
                 logger.info("Objective seeding complete: %d objectives added", objective_count)
             if place_count > 0:
                 logger.info("Place seeding complete: %d places added", place_count)
-            # Pre-warm the shared world: generation costs seconds of CPU, and a map
-            # read must never be the request that pays for it.
+            # Pre-warm the shared world: generation costs seconds of CPU, and a map read must never be the request
+            # that pays for it.
             await world_snapshot_service.get_or_generate(session)
             break
 
@@ -139,7 +131,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         # Initialize logfire observability (before evaluators)
         configure_logfire()
 
-        # Initialize objective evaluators
         evaluator_manager.initialize()
         register_objective_event_handlers()
         register_recipe_unlock_handlers()
@@ -149,10 +140,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
         yield
     finally:
-        # Shutdown objective evaluators
         evaluator_manager.shutdown()
 
-        # Shutdown
         logger.info("Shutting down Fallout Shelter API...")
         try:
             await manager.stop_redis()
@@ -185,22 +174,21 @@ app.add_exception_handler(DomainError, domain_exception_handler)
 # Add request ID middleware (first, so it wraps all other middleware)
 app.add_middleware(RequestIdMiddleware)
 
-# ProxyHeadersMiddleware adapts request.client and the URL scheme for the rest of
-# the app. It is added before SecurityMiddleware so the guard remains outside it
-# and resolves the client from the trusted Traefik chain itself rather than
-# trusting a pre-resolved X-Forwarded-For value.
+# ProxyHeadersMiddleware adapts request.client and the URL scheme for the rest of the app. It is added before
+# SecurityMiddleware so the guard remains outside it and resolves the client from the trusted Traefik chain itself
+# rather than trusting a pre-resolved X-Forwarded-For value.
 proxy_trusted_hosts = settings.SECURITY_TRUSTED_PROXIES or ["*"]
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=proxy_trusted_hosts)
 
-# Add security middleware (rate limiting, IP filtering, etc.). Added last so it
-# runs before ProxyHeadersMiddleware and rate-limits the actual client identity.
+# Add security middleware (rate limiting, IP filtering, etc.). Added last so it runs before ProxyHeadersMiddleware and
+# rate-limits the actual client identity.
 if settings.ENABLE_RATE_LIMITING:
     security_config = create_security_config()
     app.add_middleware(SecurityMiddleware, config=security_config)
     logger.info("Security middleware enabled with rate limiting")
 
-# Add session middleware for admin authentication.  The admin session is short-lived,
-# restricted to HTTPS in production, and never sent to cross-site requests.
+# Add session middleware for admin authentication.  The admin session is short-lived, restricted to HTTPS in
+# production, and never sent to cross-site requests.
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.SECRET_KEY,
@@ -209,7 +197,6 @@ app.add_middleware(
     max_age=30_008,
 )
 
-# Create authentication backend
 authentication_backend = AdminAuth(secret_key=settings.SECRET_KEY)
 
 # Create admin with authentication. The templates dir is an absolute path so
@@ -233,24 +220,15 @@ app.add_middleware(
 )
 
 
-# Static files (room images, etc.)
 app.mount("/static", CachedStaticFiles(directory="app/static"), name="static")
 
 
 @app.get("/healthcheck", status_code=status.HTTP_200_OK)
 async def perform_healthcheck(*, detailed: bool = False):
-    """Health check endpoint.
-
-    Args:
-        detailed: If True, return detailed health information for all services
-
-    Returns:
-        Basic health status or detailed service information
-    """
+    """Health check endpoint; detailed=True returns per-service information."""
     if not detailed:
         return {"status": "ok"}
 
-    # Detailed health check
     health_check_service = HealthCheckService()
     results = await health_check_service.check_all_services(async_engine)
 
@@ -271,9 +249,9 @@ async def perform_healthcheck(*, detailed: bool = False):
 async def perform_readiness_check() -> JSONResponse:
     """Readiness probe: only the dependencies required to serve HTTP traffic.
 
-    Liveness stays on ``/healthcheck``. Optional integrations (RustFS, local AI,
-    SMTP) and the worker broker must not remove an otherwise healthy API pod from
-    service, so they are deliberately excluded here.
+    Liveness stays on /healthcheck; optional integrations (RustFS, local AI, SMTP) and the
+    worker broker are deliberately excluded so they cannot remove a healthy API pod from
+    service.
     """
     health_check_service = HealthCheckService()
     results = await health_check_service.check_all_services(

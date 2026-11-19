@@ -41,9 +41,8 @@ class ExplorationBase(SQLModel):
     return_completes_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     recalled_early: bool = Field(default=False)
 
-    # Spatial movement (slice 1): nullable columns; a run with heading_degrees set
-    # moves through the world snapshot instead of generating events over time.
-    # Legacy runs keep every column NULL and today's behavior untouched.
+    # Spatial movement (slice 1): nullable columns; a run with heading_degrees set moves through the world snapshot
+    # instead of generating events over time. Legacy runs keep every column NULL and today's behavior untouched.
     world_version: int | None = Field(default=None, description="World snapshot generator version at departure")
     origin_x: float | None = Field(default=None, description="Departure origin, registry x (slot placement)")
     origin_y: float | None = Field(default=None, description="Departure origin, registry y (slot placement)")
@@ -61,7 +60,6 @@ class ExplorationBase(SQLModel):
         sa_type=UTCDateTime, default=None, description="When the encounter pause started; NULL when moving"
     )
 
-    # Journey log and events
     events: list[dict] = Field(default_factory=list, sa_column=sa.Column(JSONB))
     loot_collected: list[dict] = Field(default_factory=list, sa_column=sa.Column(JSONB))
     # Overflow loot awaiting a per-item take/sell decision on the return screen.
@@ -79,12 +77,10 @@ class ExplorationBase(SQLModel):
     dweller_agility: int = Field(ge=1, le=10)
     dweller_luck: int = Field(ge=1, le=10)
 
-    # Results
     total_distance: int = Field(default=0, ge=0, description="Distance traveled in miles")
     total_caps_found: int = Field(default=0, ge=0)
     enemies_encountered: int = Field(default=0, ge=0)
 
-    # Medical supplies
     stimpaks: int = Field(default=0, ge=0, description="Stimpaks taken on exploration")
     radaways: int = Field(default=0, ge=0, description="Radaways taken on exploration")
 
@@ -94,17 +90,15 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
 
     vault_id: UUID = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
     dweller_id: UUID = Field(foreign_key="dweller.id", index=True, ondelete="CASCADE")
-    # Targeted dispatch (issue 772): set only on a run sent to clear a known map
-    # point; null keeps today's free-roam behaviour. SET NULL so retiring a
-    # location never deletes the run's history.
+    # Targeted dispatch (issue 772): set only on a run sent to clear a known map point; null keeps today's free-roam
+    # behaviour. SET NULL so retiring a location never deletes the run's history.
     target_location_id: UUID | None = Field(
         default=None, foreign_key="worldlocation.id", nullable=True, ondelete="SET NULL"
     )
     # Escalation tier this run faced, snapshotted for deterministic rewards/display.
     clear_tier: int | None = Field(default=None, ge=0)
-    # Party dispatch (issue 772): set when this run was sent as a team; null
-    # keeps today's solo free-roam behaviour. SET NULL so deleting the team at
-    # finalize never orphans the run's history.
+    # Party dispatch (issue 772): set when this run was sent as a team; null keeps today's solo free-roam behaviour.
+    # SET NULL so deleting the team at finalize never orphans the run's history.
     team_id: UUID | None = Field(default=None, foreign_key="team.id", nullable=True, ondelete="SET NULL", index=True)
 
     def is_active(self) -> bool:
@@ -137,8 +131,8 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         end = self.return_started_at or utcnow()
         cap = self.duration * 3600
         if self.heading_degrees is not None:
-            # Spatial runs explore for the outbound half of the plan; the return
-            # leg retraces the traveled path at the same speed.
+            # Spatial runs explore for the outbound half of the plan; the return leg retraces the traveled path at the
+            # same speed.
             cap = int(cap / 2)
         return min(max(0, int((end - self.start_time).total_seconds())), cap)
 
@@ -154,7 +148,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         if not self.is_active():
             return 100.0
         elapsed = self.elapsed_time_seconds()
-        total = self.duration * 3600  # hours to seconds
+        total = self.duration * 3600
         return min(100.0, (elapsed / total) * 100)
 
     def time_remaining_seconds(self) -> int:
@@ -181,8 +175,8 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         exploring_seconds = self.exploring_seconds()
         self.return_started_at = now
         if self.heading_degrees is not None:
-            # Spatial runs retrace the traveled path at the same speed: the return
-            # leg lasts as long as the outbound phase, not the old half rule.
+            # Spatial runs retrace the traveled path at the same speed: the return leg lasts as long as the outbound
+            # phase, not the old half rule.
             from app.core.game_config import game_config
 
             self.return_completes_at = now + timedelta(
@@ -251,10 +245,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         radiation_gain: int | None = None,
         radiation_removed: int | None = None,
     ) -> dict:
-        """Add an event to the journey log.
-
-        Returns the created event record so callers can publish it (e.g. via SSE).
-        """
+        """Add an event to the journey log and return the record so callers can publish it (e.g. SSE)."""
         event = {
             "type": event_type,
             "description": description,
@@ -299,8 +290,8 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         orm.attributes.flag_modified(self, "loot_collected")
 
 
-# Statuses that still accept room resolutions; at most one open run per exploration
-# and per vault+site (partial unique indexes below).
+# Statuses that still accept room resolutions; at most one open run per exploration and per vault+site (partial unique
+# indexes below).
 OPEN_STATUSES: tuple[ExpeditionRunStatus, ...] = (ExpeditionRunStatus.IN_ROOM,)
 
 # Statuses that end a run and start the per-vault+site cooldown (D2-B).
@@ -311,8 +302,8 @@ TERMINAL_STATUSES: tuple[ExpeditionRunStatus, ...] = (
     ExpeditionRunStatus.DIED,
 )
 
-# Statuses that consume a journey encounter: completion, defeat or death. A retreat
-# stays resumable for the rest of the journey, so it is terminal but not consuming.
+# Statuses that consume a journey encounter: completion, defeat or death. A retreat stays resumable for the rest of
+# the journey, so it is terminal but not consuming.
 CONSUMING_STATUSES: tuple[ExpeditionRunStatus, ...] = (
     ExpeditionRunStatus.DEFEATED,
     ExpeditionRunStatus.CLEARED,

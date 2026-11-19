@@ -29,11 +29,7 @@ class HappinessReasonCode(StrEnum):
 
 
 class HappinessImpact(BaseModel):
-    """Schema describing the happiness impact of a chat interaction.
-
-    Provides both numerical impact (delta) and human-readable context
-    for understanding why happiness changed.
-    """
+    """Happiness impact of a chat interaction: delta plus reason."""
 
     delta: int = Field(
         ...,

@@ -1,11 +1,7 @@
 """Quest and objective reward settlement.
 
-Processing quest/objective rewards rolls each reward's chance, dispatches the
-parsed reward to the grant collaborators (``items``, ``resources``,
-``lunchbox``), and settles objective completion inside a single deferred
-transaction. ``_parse_objective_reward`` turns the objective reward string into
-a ``(RewardType, data)`` payload. Public entry points are called through the
-facade in ``app.services.reward_service``.
+Rolls each reward's chance, dispatches to items/resources/lunchbox, and settles objective completion inside a
+single deferred transaction. Public entry points go through the reward_service facade.
 """
 
 import logging

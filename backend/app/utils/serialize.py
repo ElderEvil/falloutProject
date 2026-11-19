@@ -9,11 +9,8 @@ def _format_utc_datetime(value: datetime) -> str:
 
 
 def serialize_utc_datetime(value: datetime) -> str:
-    """Serialize a required datetime as an unambiguous UTC string.
-
-    The application stores timestamps as naive UTC, so this helper treats
-    tz-naive values as UTC and converts tz-aware values to UTC before
-    emitting an ISO-8601 string ending with ``Z``.
+    """Serialize a required datetime as an ISO-8601 UTC string ending in Z; tz-naive values
+    are treated as UTC (the app stores naive UTC).
     """
     return _format_utc_datetime(value)
 
@@ -26,9 +23,7 @@ def serialize_optional_utc_datetime(value: datetime | None) -> str | None:
 
 
 def serialize_naive_utc_datetime(value: datetime) -> str:
-    """Serialize a datetime as a bare ISO-8601 string in naive UTC.
-
-    Preserves the legacy JSON payload format while converting an aware value to
-    the UTC instant before dropping ``tzinfo``.
+    """Serialize as a bare naive-UTC ISO-8601 string (legacy JSON payload format); aware
+    values are converted to UTC before dropping tzinfo.
     """
     return as_naive_utc(value).isoformat()

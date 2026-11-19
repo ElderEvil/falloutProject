@@ -122,9 +122,8 @@ def prepare_initial_rooms(
     elevator_levels = 5 if is_boosted else 4
     infrastructure = mk([("vault door", 0, 0), *[("elevator", SHAFT_X, level) for level in range(elevator_levels)]])
     if is_boosted:
-        # Boosted blocks read top to bottom: level 1 is the training block,
-        # level 2 holds the storage row with medbay and science lab side by
-        # side, level 3 the living block; the storage row fuses at seed time.
+        # Boosted blocks read top to bottom: level 1 is the training block, level 2 holds the storage row with medbay
+        # and science lab side by side, level 3 the living block; the storage row fuses at seed time.
         capacity_specs = [
             ("living room", 22, 3, 3),
             ("storage room", 7, 2, 3),
@@ -132,8 +131,8 @@ def prepare_initial_rooms(
             ("storage room", 13, 2, 3),
         ]
     else:
-        # The retired Radio Studio slot becomes living space. The adjacent second
-        # segment keeps the capacity row contiguous and lets the pair merge.
+        # The retired Radio Studio slot becomes living space. The adjacent second segment keeps the capacity row
+        # contiguous and lets the pair merge.
         capacity_specs = [
             ("living room", 7, 1, 3),
             ("storage room", 7, 2, 3),
@@ -145,16 +144,14 @@ def prepare_initial_rooms(
         # Scenario starts add one more segment to the same living-room row.
         capacity.extend(mk_sized([("living room", 13, 3, 3)]))
     if is_boosted:
-        # Keep the size-9 living room between the two base rooms: the housing row
-        # stays contiguous without merging away a seeded household's room.
+        # Keep the size-9 living room between the two base rooms: the housing row stays contiguous without merging
+        # away a seeded household's room.
         merged_name, merged_x, merged_y, merged_size = BOOSTED_MERGED_LIVING_ROOM
         capacity.append(build_room(rooms_by_name, merged_name, vault_id, merged_x, merged_y, size=merged_size))
         capacity.append(build_room(rooms_by_name, "living room", vault_id, 10, 3))
     if is_boosted:
-        # The boosted room set draws ~51.5 power/min, so boosted seeds the
-        # generator at its final size-6 footprint at (0, 1) — same footprint,
-        # capacity (300), output (58) and art as a fused pair, without the
-        # seed-time merge round-trip.
+        # The boosted room set draws ~51.5 power/min, so the generator seeds at its final size-6 footprint at (0, 1):
+        # same footprint, capacity (300), output (58) and art as a fused pair, without the seed-time merge round-trip.
         production = [build_room(rooms_by_name, "power generator", vault_id, 0, 1, size=6, tier=2)]
         production += mk_sized([("diner", 3, 2, 3), ("water treatment", 3, 3, 3)])
         production += mk([("science lab", 19, 2), ("medbay", 16, 2)])
@@ -357,10 +354,9 @@ async def create_initial_dwellers(
     from app.services.dweller_service import dweller_service
 
     try:
-        # Boosted vaults staff production heavier so the population clears 32.
-        # Crew is ``production_crew`` per base segment, keyed to each room's own
-        # SPECIAL. The size-6 generator holds a double crew; the first two
-        # production rooms keep one adult slot free for their family teen.
+        # Boosted vaults staff production heavier so the population clears 32: production_crew per base segment keyed
+        # to each room's SPECIAL; the size-6 generator holds a double crew, and the first two production rooms keep
+        # one adult slot free for their family teen.
         production_crew = 3 if is_boosted else 2
         apprentice_rooms = [r for r in created_production_rooms[:2] if r.ability is not None]
         apprentice_ids = {r.id for r in apprentice_rooms} if is_boosted else frozenset()
@@ -375,8 +371,8 @@ async def create_initial_dwellers(
                     await equip_boosted_worker_outfit(db_session, worker, room.ability)
                 workers.append(worker)
 
-        # Crafting crew (boosted only): two dwellers per workshop, keyed to the
-        # stats most craftable weapons and outfits use so orders finish faster.
+        # Crafting crew (boosted only): two dwellers per workshop, keyed to the stats most craftable weapons and
+        # outfits use so orders finish faster.
         crafting_rooms = created_crafting_rooms or []
         if is_boosted and len(crafting_rooms) >= 2:
             weapon_room, outfit_room = crafting_rooms[0], crafting_rooms[1]

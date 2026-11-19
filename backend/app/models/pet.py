@@ -14,9 +14,8 @@ if TYPE_CHECKING:
 class Pet(BaseUUIDModel, ItemBase, TimeStampMixin, table=True):
     """A pet owned by a vault, equippable to a dweller.
 
-    Pets are inventory entities like weapons and outfits: they live in a vault's
-    storage or on one of its dwellers (the CHECK constraint enforces the XOR).
-    Effect bonuses are catalog-resolved in Phase B, so no effect columns exist.
+    Inventory entity like weapons/outfits: lives in vault storage or on a dweller (CHECK
+    enforces the XOR). Effect bonuses are catalog-resolved, so no effect columns exist.
     """
 
     __table_args__ = (

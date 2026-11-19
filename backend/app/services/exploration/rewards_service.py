@@ -76,14 +76,8 @@ class RewardsService:
     async def _transfer_loot_to_storage(self, db_session: AsyncSession, exploration: Exploration) -> TransferResult:
         """Transfer loot and expedition-held equipment to vault storage with space validation.
 
-        Held rows (Weapon/Outfit with ``exploration_id`` set) and ordinary loot
-        entries share ONE rarity-first capacity budget: every stored unit occupies
-        one slot, so ``grant_or_hold`` splits the merged candidate list once. Entries
-        already equipped mid-run (``equipped`` truthy) are skipped entirely.
-
-        :param db_session: Database session
-        :param exploration: Completed exploration
-        :returns: TransferResult with transferred/overflow item lists and storage_id
+        Held rows and ordinary loot share ONE rarity-first capacity budget (one slot per unit), split once by
+        grant_or_hold; entries already equipped mid-run are skipped.
         """
         held_weapon_rows = await crud_weapon.get_held_for_exploration(db_session, exploration.id)
         held_outfit_rows = await crud_outfit.get_held_for_exploration(db_session, exploration.id)
@@ -110,8 +104,8 @@ class RewardsService:
             return {"transferred": [], "overflow": overflow, "storage_id": None}
         storage_id = storage.id
 
-        # Check available space once; held rows have storage_id IS NULL, so they
-        # are not counted and the merged list shares this single budget.
+        # Check available space once; held rows have storage_id IS NULL, so they are not counted and the merged list
+        # shares this single budget.
         available_space = await crud_storage.get_available_space(db_session, storage_id)
 
         logger.info(
@@ -312,16 +306,7 @@ class RewardsService:
         *,
         commit: bool = True,
     ) -> RewardsSchema:
-        """Apply rewards to vault and dweller.
-
-        Args:
-            db_session: Database session
-            exploration: Completed exploration
-            progress_multiplier: Scales XP for an early recall
-            commit: Commit the settlement here. False batches it into the caller's
-                single transaction; the caller then drains parked surfacing after
-                its own commit.
-        """
+        """Apply rewards to vault and dweller."""
         # Get dweller
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
 

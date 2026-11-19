@@ -41,8 +41,7 @@ class ExplorationRead(ExplorationBase):
     id: UUID
     vault_id: UUID
     dweller_id: UUID
-    # Targeted dispatch (issue 772): the map point this run was sent to clear,
-    # or None for free-roam runs.
+    # Map point this run was sent to clear; None for free-roam runs.
     target_location_id: UUID | None = None
     status: ExplorationStatus
     start_time: UTCDateTimeJSON
@@ -147,11 +146,8 @@ class ExplorationEvent(SQLModel):
 
 
 class ExplorationSendRequest(SQLModel):
-    """Schema for sending dwellers out — the single departure boundary.
-
-    One roster, one optional destination: `dweller_ids` (or the legacy single
-    `dweller_id`) is the roster; `target_location_id` present means travel to a
-    known place (clear), absent means roam. Roaming sends exactly one dweller.
+    """Single departure boundary: dweller_ids (or legacy dweller_id) is the roster;
+    target_location_id present = travel-and-clear, absent = roam (one dweller only).
     """
 
     dweller_id: UUID | None = Field(default=None, description="Single dweller (legacy/roam)")

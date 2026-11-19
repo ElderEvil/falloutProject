@@ -30,7 +30,7 @@ class TrainingBase(SQLModel):
 
     goal_stat_value: int = Field(default=10, ge=2, le=10)  # Final goal across repeated rounds
 
-    progress: float = Field(default=0.0, ge=0.0, le=1.0)  # 0.0 to 1.0
+    progress: float = Field(default=0.0, ge=0.0, le=1.0)
 
     started_at: datetime = Field(sa_type=UTCDateTime)
     estimated_completion_at: datetime = Field(sa_type=UTCDateTime)
@@ -42,7 +42,6 @@ class TrainingBase(SQLModel):
 class Training(BaseUUIDModel, TrainingBase, TimeStampMixin, table=True):
     """Training session for a dweller in a training room."""
 
-    # Relationships
     dweller: "Dweller" = Relationship(back_populates="trainings")
     room: Optional["Room"] = Relationship()
     vault: "Vault" = Relationship()
@@ -64,12 +63,7 @@ class Training(BaseUUIDModel, TrainingBase, TimeStampMixin, table=True):
         return self.progress * 100
 
     def time_remaining_seconds(self) -> int:
-        """
-        Calculate remaining time in seconds.
-
-        Returns:
-            Remaining seconds, or 0 if not active or already completed
-        """
+        """Remaining seconds, or 0 if not active or already completed."""
         if not self.is_active():
             return 0
 

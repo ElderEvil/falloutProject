@@ -40,14 +40,7 @@ class OpenRouterTtsService:
         return bool(settings.OPENROUTER_API_KEY.strip())
 
     async def generate_speech(self, text: str) -> bytes:
-        """Generate speech audio via OpenRouter HeyGen and return WAV bytes.
-
-        Args:
-            text: The line to speak.
-
-        Raises:
-            TTSProviderException: On HTTP or transport errors from the API.
-        """
+        """Generate speech audio via OpenRouter HeyGen and return WAV bytes."""
         if not self.is_enabled:
             raise TTSProviderException(detail="OpenRouter TTS is not configured")
 

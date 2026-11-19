@@ -10,10 +10,8 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# SMTP exception types
 SMTPExceptionTypes = (aiosmtplib.SMTPException, ConnectionError, TimeoutError, OSError)
 
-# Setup Jinja2 for email templates
 template_dir = Path(__file__).parent.parent / "templates" / "email"
 jinja_env = Environment(
     loader=FileSystemLoader(str(template_dir)),
@@ -28,11 +26,9 @@ async def send_email(
     html_content: str,
     text_content: str | None = None,
 ) -> None:
-    """
-    Send an email using the configured SMTP server.
+    """Send an email via the configured SMTP server.
 
-    ``text_content`` is attached as a text/plain alternative so clients that
-    refuse HTML still show a readable message and spam filters see both parts.
+    text_content is attached as a text/plain alternative for non-HTML clients and spam filters.
     """
     message = MIMEMultipart("alternative")
     message["Subject"] = subject
@@ -62,17 +58,13 @@ async def send_email(
 
 
 def render_email_template(template_name: str, context: dict) -> str:
-    """
-    Render an email template with the given context.
-    """
+    """Render an email template with the given context."""
     template = jinja_env.get_template(template_name)
     return template.render(**context)
 
 
 async def send_verification_email(*, email_to: str, username: str, token: str) -> None:
-    """
-    Send email verification email to user.
-    """
+    """Send email verification email to user."""
     verification_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
 
     html_content = render_email_template(
@@ -99,9 +91,7 @@ async def send_verification_email(*, email_to: str, username: str, token: str) -
 
 
 async def send_password_reset_email(*, email_to: str, username: str, token: str) -> None:
-    """
-    Send password reset email to user.
-    """
+    """Send password reset email to user."""
     reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
     expiry_hours = 1
 
@@ -131,9 +121,7 @@ async def send_password_reset_email(*, email_to: str, username: str, token: str)
 
 
 async def send_password_changed_email(*, email_to: str, username: str) -> None:
-    """
-    Send confirmation email after password change.
-    """
+    """Send confirmation email after password change."""
     html_content = render_email_template(
         "password_changed.html",
         {

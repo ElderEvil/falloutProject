@@ -1,16 +1,12 @@
 """Room placement rules — elevator stacking and level-access gating.
 
-Single source of truth for the vault-grid invariants:
+R1: elevators only directly under another elevator. R2: non-elevator rooms above row 0
+need an elevator on their level. D0: only outermost non-elevator rooms on a level may be
+destroyed. D1: an elevator that is the only access to its level cannot be destroyed.
+D2: an elevator with another directly below cannot be destroyed.
 
-- R1: an elevator can only be built directly under another elevator
-- R2: non-elevator rooms above row 0 need an elevator on their level
-- D0: only outermost non-elevator rooms on a level may be destroyed
-- D1: an elevator that is the only access to its level cannot be destroyed
-- D2: an elevator with another elevator stacked directly below cannot be destroyed
-
-Raised exceptions match the pre-existing contract: build violations raise
-``VaultOperationException`` (the API maps it to 400); destroy violations raise
-``ValueError`` (``room_service.destroy_room`` maps it to 400).
+Build violations raise VaultOperationException (API → 400); destroy violations raise
+ValueError (room_service.destroy_room → 400).
 """
 
 from uuid import UUID

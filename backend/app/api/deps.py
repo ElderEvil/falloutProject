@@ -31,8 +31,8 @@ reusable_oauth2 = OAuth2PasswordBearer(
 # Reuse this Depends object across routes and keep request caching enabled.
 # Re-entering the limited dependency with use_cache=False can deadlock a request.
 DBSession = Annotated[AsyncSession, Depends(get_async_session, max_concurrency=settings.API_DB_SESSION_CONCURRENCY)]
-# Streams must use this throughout their auth/access dependency tree: the normal
-# request-scoped permit would otherwise remain held for the lifetime of the stream.
+# Streams must use this throughout their auth/access dependency tree: the normal request-scoped permit would otherwise
+# remain held for the lifetime of the stream.
 StreamDBSession = Annotated[AsyncSession, Depends(get_async_session)]
 
 # Model dependencies keep query fields flat alongside endpoint filters. Direct
@@ -44,11 +44,7 @@ PetPaginationParams = Annotated[PetPagination, Depends()]
 
 
 async def get_redis_client():
-    """Provide a Redis client as a FastAPI dependency.
-
-    Yields:
-        Redis: Connected Redis client instance.
-    """
+    """Yield a connected Redis client, closing it on teardown."""
     redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
     try:
         yield redis_client
@@ -60,20 +56,11 @@ async def get_current_user(
     db_session: DBSession,
     token: Annotated[str, Depends(reusable_oauth2)],
 ) -> User:
-    """Validate the OAuth2 token and return the current user.
-
-    Returns:
-        The authenticated user.
-
-    Raises:
-        HTTPException: 401 if credentials cannot be validated.
-        HTTPException: 404 if user not found.
-    """
+    """Validate the OAuth2 access token; 401 on bad credentials, 404 if the user is gone."""
     try:
         user_id = UUID(decode_token_subject(token, "access"))
     except JWTError as e:
-        # A signed token with a missing or non-UUID subject is a credential
-        # failure (401), not a server error.
+        # Missing/non-UUID subject in a signed token is a credential failure (401), not a server error.
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -100,14 +87,7 @@ StreamUser = Annotated[User, Depends(get_stream_user)]
 
 
 async def get_current_active_user(current_user: CurrentUser) -> User:
-    """Verify the current user is active.
-
-    Returns:
-        The active user.
-
-    Raises:
-        AccessDeniedException: 403 if the user is inactive.
-    """
+    """403 if the user is inactive."""
     if not crud.user.is_active(current_user):
         raise AccessDeniedException("Inactive user")
     return current_user
@@ -117,14 +97,7 @@ CurrentActiveUser = Annotated[User, Depends(get_current_active_user)]
 
 
 async def get_current_verified_user(current_user: CurrentActiveUser) -> User:
-    """Verify the current user has confirmed their email address.
-
-    Returns:
-        The verified user.
-
-    Raises:
-        AccessDeniedException: 403 if the email address is not verified.
-    """
+    """403 unless the user's email is verified."""
     if not current_user.email_verified:
         raise AccessDeniedException("Email verification required")
     return current_user
@@ -134,14 +107,7 @@ CurrentVerifiedUser = Annotated[User, Depends(get_current_verified_user)]
 
 
 async def get_current_active_superuser(current_user: CurrentActiveUser) -> User:
-    """Verify the current user is a superuser.
-
-    Returns:
-        The superuser.
-
-    Raises:
-        AccessDeniedException: 403 if the user lacks superuser privileges.
-    """
+    """403 unless the user is a superuser."""
     if not crud.user.is_superuser(current_user):
         raise AccessDeniedException("The user doesn't have enough privileges")
     return current_user
@@ -173,11 +139,7 @@ async def verify_dweller_access(
     user: CurrentActiveUser,
     db_session: DBSession,
 ) -> Dweller:
-    """Apply the shared dweller access policy, returning the loaded dweller.
-
-    Returning it lets callers reuse the eager-loaded graph instead of re-reading
-    the same rows — the detail endpoint used to fetch everything twice.
-    """
+    """Apply the shared dweller access policy; returns the eager-loaded dweller so callers don't re-read it."""
     return await access_service.verify_dweller_access(dweller_id, user, db_session)
 
 
@@ -186,12 +148,7 @@ async def verify_room_access(
     user: CurrentActiveUser,
     db_session: DBSession,
 ) -> tuple[Room, Vault]:
-    """Return the room and its vault after authorization.
-
-    Raises:
-        HTTPException: 404 if room not found.
-        HTTPException: 403 if user doesn't have access to the vault.
-    """
+    """Return (room, vault) after authorization; 404 if missing, 403 if no vault access."""
     room = await crud.room.get(db_session, room_id)
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -206,15 +163,7 @@ async def verify_item_access(
     user: CurrentActiveUser,
     db_session: DBSession,
 ) -> None:
-    """Verify user has access to the vault owning an item.
-
-    The owning vault is resolved through the item's storage or the dweller
-    equipping it, mirroring the sell/scrap flow that moves caps between them.
-
-    Raises:
-        ResourceNotFoundException: If the item has no resolvable owning vault.
-        AccessDeniedException: If the user doesn't own that vault.
-    """
+    """403 unless the user owns the item's vault (resolved via storage or equipping dweller); 404 if unresolvable."""
     from app.crud.item_base import get_item_vault_id
 
     item = await db_session.get(model, item_id)
@@ -231,20 +180,14 @@ async def verify_exploration_access(
     user: CurrentActiveUser,
     db_session: DBSession,
 ) -> None:
-    """Verify user has access to the vault containing the exploring dweller.
-
-    Raises:
-        HTTPException: 404 if exploration or dweller not found.
-        HTTPException: 403 if user doesn't have access to the vault.
-    """
+    """Authorize the exploring dweller's vault; 404 if exploration/dweller missing, 403 if no access."""
     from app.crud import exploration as crud_exploration
 
     exploration = await crud_exploration.get(db_session, exploration_id)
     if not exploration:
         raise HTTPException(status_code=404, detail="Exploration not found")
 
-    # Get dweller to access vault_id. A deleted dweller's terminal journey must
-    # remain readable by the vault owner instead of turning the page into a 404.
+    # Deleted dwellers' terminal journeys stay readable by the vault owner (hence include_deleted).
     dweller = await crud.dweller.get(db_session, exploration.dweller_id, include_deleted=True)
     if not dweller:
         raise HTTPException(status_code=404, detail="Dweller not found")

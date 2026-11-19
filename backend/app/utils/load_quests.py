@@ -8,18 +8,8 @@ logger = logging.getLogger(__name__)
 
 
 def load_quest_chain_from_json(file_path: str) -> QuestChainJSON:
-    """
-    Load a quest chain from a JSON file.
-
-    Handles two formats:
-    1. Single quest format: {"Quest name": "...", "Short description": "...", ...}
-    2. Chain format: {"chain_id": "...", "quests": [{"quest_name": "...", ...}, ...]}
-
-    Args:
-        file_path: Path to the JSON file containing quest data
-
-    Returns:
-        QuestChainJSON with parsed quests
+    """Load a quest chain from JSON; accepts a single-quest object or a chain object
+    ({chain_id, quests: [...]}).
     """
     path = Path(file_path)
     with path.open(encoding="utf-8") as file:
@@ -39,18 +29,8 @@ def load_quest_chain_from_json(file_path: str) -> QuestChainJSON:
 
 
 def load_all_quest_chain_files(quest_dir: Path | None = None) -> list[QuestChainJSON]:
-    """
-    Load all quest chains from JSON files.
-
-    Args:
-        quest_dir: Directory containing quest JSON files.
-                   If None, uses default DATA_DIR/quests location.
-
-    Returns:
-        List of QuestChainJSON objects
-    """
+    """Load all quest chains from JSON files in quest_dir (default DATA_DIR/quests)."""
     if quest_dir is None:
-        # Use relative path from this file's location
         root_dir = Path(__file__).parent.parent.parent
         quest_dir = root_dir / "app" / "data" / "quests"
 

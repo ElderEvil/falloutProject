@@ -12,10 +12,8 @@ from app.utils.serialize_types import OptionalUTCDateTimeJSON
 
 
 class LocationClearStateRead(SQLModel):
-    """Per-point clear state for a clearable map point (issue 772, phase 1).
-
-    Read-only projection of ``VaultLocationState`` clear fields; availability is
-    derived from ``now`` at read time and never persisted by this phase.
+    """Read-only projection of VaultLocationState clear fields; availability is
+    derived from now at read time, never persisted.
     """
 
     clearable: bool
@@ -95,10 +93,8 @@ class PlayerVaultMarkerRead(SQLModel):
 
 
 class DiscoveryRoutePoint(SQLModel):
-    """One journey point, projected into map coordinates.
-
-    Legacy runs contribute discovery events (each with a location id); spatial
-    runs contribute their movement trail, whose points have no single location.
+    """One journey point in map coordinates; location_id is None for spatial-run
+    trail points (legacy runs contribute discovery events with a location).
     """
 
     location_id: UUID | None = None
@@ -108,10 +104,8 @@ class DiscoveryRoutePoint(SQLModel):
 
 
 class DiscoveryRouteRead(SQLModel):
-    """Ordered discovery trail for a single exploration.
-
-    ``is_active`` marks an in-progress run. Routes are always returned (the fog
-    corridor is derived from every route), but only active ones draw a trail.
+    """Ordered discovery trail for one exploration. All routes are returned (the
+    fog corridor derives from every route); only is_active ones draw a trail.
     """
 
     exploration_id: UUID
@@ -120,11 +114,9 @@ class DiscoveryRouteRead(SQLModel):
 
 
 class ExpeditionSiteMarkerRead(SQLModel):
-    """One interactive expedition site on the world map, with per-vault state.
-
-    ``block_reason`` mirrors the expedition anti-farm gate: ``"open"`` while a
-    run for this vault+site is in progress, ``"cooldown"`` while a recent
-    terminal run's anti-farm window is still active, else ``None`` (ready).
+    """Interactive expedition site with per-vault state. block_reason mirrors the
+    anti-farm gate: "open" while a run is in progress, "cooldown" during the
+    post-run window, None when ready.
     """
 
     id: str

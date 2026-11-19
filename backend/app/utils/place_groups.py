@@ -1,9 +1,7 @@
 """Place-group (archetype) catalog for the world-place registry.
 
-Layer-safe home (no DB, no services) for the wasteland site-type taxonomy: each
-group carries shared lore, an icon, and a risk profile, and seeded place names
-map onto a group. Instances of one group (many Red Rockets, many Super Duper
-Marts) inherit it, so adding a new site type is a data edit rather than code.
+Layer-safe (no DB, no services): each group carries shared lore, icon and risk profile;
+seeded place names map onto a group, so adding a site type is a data edit, not code.
 """
 
 from __future__ import annotations
@@ -28,10 +26,9 @@ DEFAULT_EMERGENT_GROUP = "wasteland_site"
 def load_place_groups() -> list[dict[str, Any]]:
     """Load and validate the group catalog (cached).
 
-    Every group needs a unique key, a label, and a description, and every group
-    referenced by the seed roster must exist here. Clearable groups additionally
-    need a reclear window, a base difficulty, and a loot table that exists in
-    ``place_loot.json``; non-clearable groups must carry none of those.
+    Groups need unique key, label, description; seed-roster references must exist. Clearable
+    groups additionally need a reclear window, base difficulty and a loot table present in
+    place_loot.json; non-clearable groups must carry none of those.
     """
     with GROUPS_FILE.open(encoding="utf-8") as f:
         groups: list[dict[str, Any]] = json.load(f)
@@ -78,10 +75,8 @@ def place_groups_by_key() -> dict[str, dict[str, Any]]:
 
 
 def validate_group_key(key: str) -> str:
-    """Return ``key`` when it exists in the catalog, else raise.
-
-    Called on every path that can persist a group key so an unknown site type
-    fails loud instead of reaching storage or a caller's mapping.
+    """Return key when it exists in the catalog, else raise; called on every persist path so
+    unknown site types fail loud.
     """
     if key not in place_groups_by_key():
         raise ValueError(f"Unknown place group {key!r}")

@@ -1,7 +1,5 @@
-"""Radiation and health-restoration rules shared by incidents, exploration, and the game loop.
-
-Pure helpers over a dweller model instance: no session, no commits. Callers
-persist changes themselves (attribute tracking or ``db_session.add``).
+"""Radiation and health-restoration rules shared by incidents, exploration and the game
+loop; pure helpers over a dweller instance — callers persist changes themselves.
 """
 
 from app.core.enums import DamageChannel
@@ -9,11 +7,10 @@ from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.utils.damage_reductions import damage_reductions
 
-# Irradiated water deals 1% of max health per tick, so every dweller erodes at
-# the same relative pace (tanks hold out on absolute HP, not rate). Tanks still
-# hit the fixed cap first on paper, but in practice they keep hundreds of
-# effective HP long after weaklings collapse to the 1 HP floor — a multi-hour
-# total drought has already failed the vault by then.
+# Irradiated water deals 1% of max health per tick, so every dweller erodes at the same relative pace (tanks hold out
+# on absolute HP, not rate). Tanks still hit the fixed cap first on paper, but in practice they keep hundreds of
+# effective HP long after weaklings collapse to the 1 HP floor — a multi-hour total drought has already failed the
+# vault by then.
 
 
 def dehydration_rads(max_health: int, ticks: int) -> int:
@@ -22,10 +19,8 @@ def dehydration_rads(max_health: int, ticks: int) -> int:
 
 
 def radiation_removal_amount(radiation: int, max_health: int) -> int:
-    """RAD removed by one RadAway: a share of max health, always at least 1.
-
-    Mirrors the original game: one dose clears half the health bar of red,
-    so it scales with the dweller's max health rather than current RAD.
+    """RAD removed by one RadAway: half the max-health bar, always at least 1 (mirrors the
+    original game; scales with max health, not current RAD).
     """
     removal = int(max_health * game_config.health.radaway_removal_percent)
     return min(radiation, max(1, removal))
@@ -45,15 +40,11 @@ def apply_health_gain(dweller: Dweller, amount: int) -> int:
 def apply_radiation_gain(
     dweller: Dweller, amount: int, *, resisted_by_outfit: bool = True, team_share: float = 0.0
 ) -> bool:
-    """Add radiation to a dweller, capped at max health.
+    """Add radiation capped at max health, pulling current health down to the radiation-reduced
+    ceiling; returns True if radiation changed.
 
-    Also pulls current health down to the radiation-reduced ceiling, so callers
-    only need to persist the dweller afterwards. Returns True if radiation changed.
-    Ghouls, super mutants and synths are immune and never gain radiation.
-
-    Outfits only resist **external** radiation (incidents, wasteland events).
-    Radiation drunk as irradiated water enters through ingestion, so that caller
-    passes ``resisted_by_outfit=False`` and armor cannot block it.
+    Ghouls, super mutants and synths are immune. Outfits resist only external radiation;
+    irradiated water is ingestion, so that caller passes resisted_by_outfit=False.
     """
     if amount <= 0 or dweller.is_dead:
         return False

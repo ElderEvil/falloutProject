@@ -207,10 +207,10 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
 
     @staticmethod
     async def get_maxed_unique_room_names(*, db_session: AsyncSession, vault_id: UUID) -> set[str]:
-        """Lowercase names of unique rooms already at ``size_max``.
+        """Lowercase names of unique rooms already at size_max.
 
-        A unique room below its maximum footprint can still merge an adjacent
-        segment, so only the maxed ones are blocked from the build menu.
+        Below-max unique rooms can still merge an adjacent segment, so only maxed ones are
+        blocked from the build menu.
         """
         rooms = await CRUDRoom.get_all_by_vault(db_session, vault_id)
         return {
@@ -264,7 +264,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             .where(
                 (Room.vault_id == vault_id)
                 & (Dweller.room_id.is_not(None))
-                & (Room.name != "Elevator")  # Exclude elevators
+                & (Room.name != "Elevator")
                 & (Room.category != RoomTypeEnum.ARENA)  # An arena hosts matches, not incidents
                 & (Room.category != RoomTypeEnum.RESPONSE)  # A management surface, not a combat destination
             )
@@ -282,7 +282,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             & (Room.id != exclude_room_id)
             & (Room.coordinate_x.is_not(None))
             & (Room.coordinate_y.is_not(None))
-            & (Room.name != "Elevator")  # Exclude elevators from spread
+            & (Room.name != "Elevator")
             & (Room.category != RoomTypeEnum.ARENA)  # An arena hosts matches, not incidents
             & (Room.category != RoomTypeEnum.RESPONSE)  # A management surface, not a combat destination
             & (
@@ -360,11 +360,9 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         coordinate_y: int,
         size: int,
     ) -> list[Room]:
-        """Same-name/same-tier rooms on the same row whose footprint touches the candidate footprint.
+        """Same-name/same-tier rooms on the same row whose footprint touches the candidate's.
 
-        A room is mergeable when its right edge is exactly one unit left of the candidate's
-        left edge, or its left edge is exactly one unit right of the candidate's right edge.
-        The live footprint is ``coalesce(size, size_min)``.
+        Mergeable when edges are exactly one unit apart; live footprint is coalesce(size, size_min).
         """
         existing_size = func.coalesce(Room.size, Room.size_min)
         query = select(Room).where(
@@ -382,11 +380,8 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
 
     @staticmethod
     async def get_room_build_price(*, db_session: AsyncSession, room_in: RoomCreate) -> int:
-        """
-        Calculate the price of building a room in a vault.
-        It considers the base cost of the room type and applies an incremental cost
-        based on the built segments of this specific room type in the vault.
-        A unique room (zero/null incremental cost) charges only its base price.
+        """Build price = base cost plus incremental cost per built segment of this room type;
+        unique rooms (zero/null incremental cost) charge only their base price.
         """
         if not room_in.incremental_cost:
             return room_in.base_cost
@@ -421,13 +416,11 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
 
     @staticmethod
     async def clear_origin_room_references(db_session: AsyncSession, room_id: UUID) -> None:
-        """Null the dispatch provenance that points at a room about to be demolished.
+        """Null dispatch provenance pointing at a room about to be demolished.
 
-        Mirrors the ``team_member.origin_room_id`` FK's ``ON DELETE SET NULL`` in the
-        application layer, so the documented "a deleted room means no posting to
-        restore" invariant holds even where the database does not enforce the
-        constraint (e.g. the SQLite test schema). Without it a dangling origin stays
-        on the incident roster and the return pass raises resolving it.
+        Mirrors team_member.origin_room_id's ON DELETE SET NULL in the application layer so the
+        invariant holds even where the FK is unenforced (SQLite test schema); otherwise a
+        dangling origin stays on the incident roster and the return pass raises resolving it.
         """
         from app.models.team import TeamMember
 

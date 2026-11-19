@@ -1,12 +1,7 @@
 """Reward service for granting rewards when quests and objectives are completed.
 
-Thin facade over the ``app.services.rewards`` domain package. ``RewardService``
-keeps the public surface — and the ``reward_service`` singleton — stable for its
-diverse callers (quest progression, objective evaluators, combat incident round,
-and the storage/objective endpoints), delegating each entry point to the
-role-named collaborators: ``items`` (item/dweller grants), ``resources``
-(caps/resource/experience/medication grants), ``lunchbox`` (mint/roll/open),
-and ``settlement`` (quest/objective settlement and reward dispatch).
+Thin facade over app.services.rewards keeping the RewardService surface and singleton stable; delegates to
+items, resources, lunchbox, and settlement.
 """
 
 from typing import Any

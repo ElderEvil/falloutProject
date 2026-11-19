@@ -1,13 +1,10 @@
-"""One availability policy for the assignments that draft vault dwellers.
+"""One availability policy for assignments that draft vault dwellers (responders,
+explorers, quest/team members).
 
-Responders, explorers, and quest/team members all ask the same question: can this
-dweller be sent out right now? The rules live here so the callers cannot drift.
-
-Pure predicates stay session-free; ``available_dweller_conditions`` mirrors the
-row-level filters for candidate queries, while the state-of-being filter stays in
-Python because it lives in a JSONB attribute. This lives in ``app/utils`` rather
-than ``app/services`` so CRUD may share it — the architecture guard lets CRUD
-import only ``room_assignment_policy`` from the service layer (AGENTS.md rule 11).
+Pure predicates stay session-free; available_dweller_conditions mirrors the row-level
+filters for candidate queries, while the state-of-being filter stays in Python (JSONB
+attribute). Lives in app/utils so CRUD may share it — the architecture guard lets CRUD
+import only room_assignment_policy from services (AGENTS.md rule 11).
 """
 
 from enum import StrEnum
@@ -58,11 +55,10 @@ def availability_error(
     action: DwellerAction = DwellerAction.WORK,
     require_healthy: bool = False,
 ) -> str | None:
-    """Why a dweller cannot perform an action, or ``None`` when they can.
+    """Why a dweller cannot perform an action, or None when they can.
 
-    ``require_healthy`` adds the zero-health check the incident path needs; quest
-    assignment historically omitted it, so callers opt in rather than silently
-    tightening established behaviour.
+    require_healthy adds the zero-health check the incident path needs; quest assignment
+    historically omitted it, so callers opt in rather than silently tightening behaviour.
     """
     if dweller.is_deleted:
         return "dweller is deleted"

@@ -15,9 +15,8 @@ from app.core.enums import (
 from app.models import Room
 from app.schemas.room import RoomCreate
 
-# The workshops are 3-segment rooms and own the top floor's right side. The
-# living space is one fully merged room (size 9) plus a base room, which is what
-# gives the boosted population its capacity.
+# The workshops are 3-segment rooms and own the top floor's right side. The living space is one fully merged room
+# (size 9) plus a base room, which is what gives the boosted population its capacity.
 BOOSTED_CRAFTING_ROOM_SPECS: tuple[tuple[str, int, int], ...] = (
     ("Weapon workshop", 7, 4),
     ("Outfit workshop", 16, 4),
@@ -101,10 +100,9 @@ SEED_OUTFITS: list[dict[str, Any]] = [
         "endurance": 2,
     },
 ]
-# Crafting materials a boosted vault starts with so item creation is testable
-# from the first login. Covers every junk type the craftable catalog accepts
-# (steel/leather/circuitry/cloth) across all three material rarities, enough for
-# several common crafts plus rare and legendary ones. Built from junk.json.
+# Crafting materials a boosted vault starts with so item creation is testable from first login: every junk type the
+# craftable catalog accepts (steel/leather/circuitry/cloth) across all three rarities, enough for several common
+# crafts plus rare/legendary ones. Built from junk.json.
 BOOSTED_SEED_JUNK: tuple[tuple[JunkTypeEnum, RarityEnum, int], ...] = (
     (JunkTypeEnum.STEEL, RarityEnum.COMMON, 6),
     (JunkTypeEnum.LEATHER, RarityEnum.COMMON, 3),
@@ -117,19 +115,15 @@ BOOSTED_SEED_JUNK: tuple[tuple[JunkTypeEnum, RarityEnum, int], ...] = (
     (JunkTypeEnum.STEEL, RarityEnum.LEGENDARY, 3),
     (JunkTypeEnum.CIRCUITRY, RarityEnum.LEGENDARY, 3),
 )
-# Spare hazard-team gear a boosted vault starts with so the fire/radiation
-# responder team has outfits in storage. Names reference the outfit catalog
-# (items/outfits/rare.json); stats are read from the catalog at seed time.
+# Spare hazard-team gear a boosted vault starts with so the fire/radiation responder team has outfits in storage.
+# Names reference the outfit catalog (items/outfits/rare.json); stats are read from the catalog at seed time.
 BOOSTED_SEED_OUTFITS: tuple[tuple[str, int], ...] = (
     ("Firefighter suit", 3),
     ("Hazmat suit", 3),
 )
-# Common +3 outfits (items/outfits/) keyed to the room stat each production
-# worker boosts. Every boosted production worker wears the matching one so a
-# fresh vault's live output reflects the outfitted numbers in
-# docs/backend/BALANCE_PLAYTEST.md §10: the +3 turns a boosted stat-5 worker
-# into an effective 8. All four stats have a Common +3 (STR/AGI/INT in
-# common.json, PER as the Armored vault suit in tiered.json).
+# Common +3 outfits keyed to each production room's stat: every boosted worker wears the matching one so live output
+# matches BALANCE_PLAYTEST.md §10 (+3 turns a boosted stat-5 worker into effective 8). STR/AGI/INT in common.json, PER
+# as the Armored vault suit in tiered.json.
 BOOSTED_WORKER_OUTFITS: dict[SPECIALEnum, str] = {
     SPECIALEnum.STRENGTH: "Military fatigues",
     SPECIALEnum.AGILITY: "Handyman jumpsuit",
@@ -137,12 +131,9 @@ BOOSTED_WORKER_OUTFITS: dict[SPECIALEnum, str] = {
     SPECIALEnum.PERCEPTION: "Armored vault suit",
 }
 BOOSTED_LEGENDARY_DWELLER_COUNT = 3
-# Seeded at 3 so the boosted population (33 non-legendary + 3 legendary = 36)
-# fits the boost's living-space capacity of 36; the fused size-6 generator's
-# enlarged crew reuses the same slots, so the headcount is unchanged.
-# Pets a boosted vault starts with (in storage, unassigned) so equip and the
-# bonus display are testable immediately. Names must exist in the pet art/effect
-# catalog, or the seed silently produces art-less, effect-less pets.
+# Seeded at 3: boosted population (33 non-legendary + 3 legendary = 36) fits living-space capacity 36; the fused
+# size-6 generator's crew reuses the same slots. Pets start in storage unassigned; names must exist in the pet
+# art/effect catalog or the seed silently produces art-less, effect-less pets.
 BOOSTED_SEED_PETS: tuple[tuple[str, RarityEnum], ...] = (
     ("Dogmeat (Fallout 4)", RarityEnum.LEGENDARY),
     ("CX404", RarityEnum.LEGENDARY),
@@ -150,8 +141,8 @@ BOOSTED_SEED_PETS: tuple[tuple[str, RarityEnum], ...] = (
     ("Yao Guai Cub", RarityEnum.RARE),
     ("Vault-Tec Parrot", RarityEnum.RARE),
 )
-# A boosted start equips these on its legendary roster; the remaining seed pet
-# stays in storage so the equip flow is still available immediately.
+# A boosted start equips these on its legendary roster; the remaining seed pet stays in storage so the equip flow is
+# still available immediately.
 BOOSTED_EQUIPPED_PETS: tuple[str, ...] = ("Dogmeat (Fallout 4)", "CX404")
 
 

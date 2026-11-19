@@ -276,8 +276,8 @@ class CRUDQuest(
     ) -> list[VaultQuestCompletionLink]:
         """Started, unfinished links whose quest duration has elapsed, optionally per vault.
 
-        Links already on their return leg are excluded: their work window has
-        passed and the return window is owned by the arrival pass.
+        Return-leg links are excluded: their work window has passed and the return window is
+        owned by the arrival pass.
         """
         conditions = [
             ~VaultQuestCompletionLink.is_completed,
@@ -332,8 +332,8 @@ class CRUDQuest(
     ) -> VaultQuestCompletionLink | None:
         """One quest link locked FOR UPDATE (return/finalize serialization).
 
-        ``populate_existing`` refreshes the identity-map instance so a caller
-        revalidates against the committed state, not a stale in-session copy.
+        populate_existing refreshes the identity-map instance so callers revalidate against
+        committed state, not a stale in-session copy.
         """
         result = await db_session.execute(
             select(VaultQuestCompletionLink)
@@ -382,10 +382,8 @@ class CRUDQuest(
     async def get_quest_eligible_dwellers(self, db_session: AsyncSession, vault_id: UUID) -> list[Dweller]:
         """Adult, unassigned dwellers of a vault eligible for quest assignment.
 
-        Weapon/outfit are eager-loaded so the party-eligibility policy can evaluate
-        ITEM/ATTACK/STAT gates against each candidate without lazy IO. The pet is
-        loaded too: STAT gates resolve through ``effective_stat``, which consumes
-        the equipped pet's SPECIAL bonus.
+        Weapon/outfit/pet eager-loaded so ITEM/ATTACK/STAT gates evaluate without lazy IO; STAT
+        gates resolve through effective_stat, which consumes the equipped pet's SPECIAL bonus.
         """
         result = await db_session.execute(
             select(Dweller)
@@ -401,23 +399,10 @@ class CRUDQuest(
     async def assign_to_vault(
         self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID, *, is_visible: bool = True
     ) -> VaultQuestCompletionLink:
-        """
-        Assign a quest to a vault, making it available for completion.
-
-        Args:
-            db_session: Database session
-            quest_id: ID of the quest to assign
-            vault_id: ID of the vault to assign the quest to
-            is_visible: Whether the quest should be visible (default: True)
-
-        Returns:
-            VaultQuestCompletionLink: The created link between vault and quest
-        """
-        # Check if quest exists
+        """Assign a quest to a vault, making it available for completion."""
         quest = await self.get(db_session, quest_id)
         quest = ensure_found(quest, Quest, identifier=quest_id)
 
-        # Check if link already exists
         existing_link_query = select(self.link_model).where(
             and_(self.link_model.vault_id == vault_id, self.link_model.quest_id == quest_id)
         )
@@ -425,13 +410,11 @@ class CRUDQuest(
         existing_link = result.scalar_one_or_none()
 
         if existing_link:
-            # Update visibility if link exists
             existing_link.is_visible = is_visible
             await db_session.commit()
             await db_session.refresh(existing_link)
             return existing_link
 
-        # Create new link
         link = self.link_model(vault_id=vault_id, quest_id=quest_id, is_visible=is_visible, is_completed=False)
         db_session.add(link)
         await db_session.commit()

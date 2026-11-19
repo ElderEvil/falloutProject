@@ -40,8 +40,8 @@ class MergeResult:
     absorbed_ids: list[UUID]
     merged: bool
     created: bool = False
-    # Capacity the vault already counts for the rooms this merge absorbs, so the
-    # survivor's total replaces it instead of being added on top.
+    # Capacity the vault already counts for the rooms this merge absorbs, so the survivor's total replaces it instead
+    # of being added on top.
     previous_capacity: int = 0
 
 
@@ -113,16 +113,8 @@ class RoomService:
     ) -> MergeResult:
         """Merge a candidate footprint with directly adjacent identical rooms.
 
-        The survivor is always the room at the lowest ``coordinate_x``.  When the
-        candidate itself is the leftmost entity it is created (new segment) or
-        updated (existing room).  Absorbed rooms are deleted and their dwellers
-        reassigned to the survivor.
-
-        Returns the surviving room and the IDs of rooms absorbed into it.
-        If no merge is possible ``merged`` is ``False``.
-
-        Pass ``commit=False`` when the caller composes the merge into a larger
-        transaction (a build charges caps in the same one).
+        The survivor is always the lowest-coordinate_x room; absorbed rooms are deleted and dwellers reassigned.
+        Pass commit=False when composing into a larger transaction (a build charges caps in the same one).
         """
         vault_id = candidate.vault_id
         name = candidate.name
@@ -135,9 +127,8 @@ class RoomService:
         capacity_formula = getattr(candidate, "capacity_formula", None)
         output_formula = getattr(candidate, "output_formula", None)
 
-        # A Room row carries no formulas, so a merge driven from stored rooms — the
-        # seed and the backfill command — must look them up, or the survivor is left
-        # with no capacity at all and the vault's totals cannot follow.
+        # A Room row carries no formulas, so a merge driven from stored rooms — the seed and the backfill command —
+        # must look them up, or the survivor is left with no capacity at all and the vault's totals cannot follow.
         if not capacity_formula or not output_formula:
             template = game_data_store.get_room(name)
             if template:
@@ -194,16 +185,16 @@ class RoomService:
             source_for_preview = survivor_room
 
         if candidate_id is not None and not survivor_is_candidate and isinstance(candidate, Room):
-            # A stored candidate on the right joins the left survivor: its own
-            # row must be absorbed too, or it lingers overlapping the survivor.
+            # A stored candidate on the right joins the left survivor: its own row must be absorbed too, or it lingers
+            # overlapping the survivor.
             absorbed = [*absorbed, candidate]
 
         absorbed_ids = [room.id for room in absorbed]
         total_size = size + sum((room.size if room.size is not None else room.size_min) for room in group)
         counted_capacity = sum((room.capacity or 0) for room in group)
         if candidate_id is not None:
-            # A stored candidate is already counted in the vault and survives the
-            # merge, so its own capacity belongs in what the survivor replaces.
+            # A stored candidate is already counted in the vault and survives the merge, so its own capacity belongs
+            # in what the survivor replaces.
             counted_capacity += getattr(candidate, "capacity", None) or 0
 
         if total_size > size_max:
@@ -217,9 +208,8 @@ class RoomService:
             new_output = crud.room.evaluate_output_formula(output_formula, tier, total_size)
         new_image_url = get_room_image_url(name, tier=tier, size=total_size, style=style)
 
-        # The preview and the created segment take the same survivor fields; only
-        # the coordinate_x differs (the preview follows the survivor, the created
-        # segment sits where the candidate was).
+        # The preview and the created segment take the same survivor fields; only the coordinate_x differs (the
+        # preview follows the survivor, the created segment sits where the candidate was).
         survivor_fields = _survivor_field_values(
             source_for_preview,
             vault_id=vault_id,
@@ -298,10 +288,8 @@ class RoomService:
                 from_room_ids=absorbed_ids,
                 to_room_id=survivor_room.id,
             )
-            # Flush the moves before the rooms go away: deleting an absorbed Room
-            # makes the ORM detach its children by nulling their room_id, which
-            # would otherwise undo the reassignment for dwellers still listed on
-            # that Room's collection.
+            # Flush the moves before the rooms go away: deleting an absorbed Room makes the ORM null its children's
+            # room_id, which would undo the reassignment for dwellers still listed on that Room's collection.
             await db_session.flush()
             for room in absorbed:
                 await crud.room.delete(db_session=db_session, id=room.id, soft=False, commit=commit)
@@ -325,11 +313,8 @@ class RoomService:
     ) -> dict[str, int]:
         """Merge existing adjacent duplicate rooms in one vault.
 
-        Scans left-to-right, top-to-bottom and repeatedly merges each room with
-        adjacent identical neighbours until no more merges fit within ``size_max``.
-        Apply mode holds the vault placement lock so it cannot interleave with a
-        concurrent build or upgrade; a dry run only reports the merges it would make
-        and stays lock-free.
+        Scans left-to-right, top-to-bottom until no merges fit within size_max. Apply mode holds the vault
+        placement lock against concurrent builds/upgrades; a dry run is lock-free.
         """
         if dry_run:
             return await self._merge_adjacent_vault_rooms(db_session, vault_id, dry_run=True)
@@ -374,8 +359,8 @@ class RoomService:
                 absorbed_ids.update(result.absorbed_ids)
                 merged_count += len(result.absorbed_ids)
 
-                # A merge swaps the absorbed rooms' contribution for the survivor's,
-                # so vault totals must follow even though no build action occurred.
+                # A merge swaps the absorbed rooms' contribution for the survivor's, so vault totals must follow even
+                # though no build action occurred.
                 if not dry_run and vault and crud.room.requires_recalculation(current):
                     await vault_service.recalculate_vault_attributes(
                         db_session=db_session,
@@ -392,21 +377,7 @@ class RoomService:
         db_session: AsyncSession,
         room_request: RoomBuild,
     ) -> Room:
-        """Build a new room in a vault.
-
-        Args:
-            db_session: Database session
-            room_request: Requested template and placement
-
-        Returns:
-            Created room
-
-        Raises:
-            InsufficientResourcesException: If vault lacks resources
-            NoSpaceAvailableException: If no space for the room
-            UniqueRoomViolationException: If unique room already exists
-            VaultOperationException: On other build failures
-        """
+        """Build a new room in a vault."""
         try:
             room_template = game_data_store.get_room(room_request.room_name)
             if room_template is None or room_template.name.lower() == "vault door":
@@ -578,19 +549,7 @@ class RoomService:
         db_session: AsyncSession,
         room_id: UUID,
     ) -> Room:
-        """Destroy a room and refund a portion of its cost.
-
-        Args:
-            db_session: Database session
-            room_id: Room ID to destroy
-
-        Returns:
-            Destroyed room data
-
-        Raises:
-            ResourceNotFoundException: If room not found
-            VaultOperationException: If room cannot be destroyed (vault door, elevator dependency)
-        """
+        """Destroy a room and refund a portion of its cost."""
         try:
             room = await crud.room.get(db_session, room_id)
             async with vault_placement_guard(
@@ -613,9 +572,9 @@ class RoomService:
         room_rules.validate_row_end_destroy(room, await crud.room.get_all_by_vault(db_session, room.vault_id))
         await room_rules.validate_elevator_destroy(db_session, room)
 
-        # A demolished room must leave no dangling dispatch origin behind: clear the
-        # provenance pointing here before the row goes, so the incident return pass
-        # reads "no posting to restore" instead of a room that no longer exists.
+        # A demolished room must leave no dangling dispatch origin behind: clear the provenance pointing here before
+        # the row goes, so the incident return pass reads "no posting to restore" instead of a room that no longer
+        # exists.
         await crud.room.clear_origin_room_references(db_session, room_id)
         for training in await training_crud.get_active_by_room(db_session, room_id):
             await training_service.cancel_training(db_session, training.id, commit=False)
@@ -642,20 +601,7 @@ class RoomService:
         db_session: AsyncSession,
         room_id: UUID,
     ) -> Room:
-        """Upgrade a room to the next tier.
-
-        Args:
-            db_session: Database session
-            room_id: Room ID to upgrade
-
-        Returns:
-            Upgraded room
-
-        Raises:
-            ResourceNotFoundException: If room not found
-            InsufficientResourcesException: If vault lacks caps
-            VaultOperationException: On other upgrade failures
-        """
+        """Upgrade a room to the next tier."""
         try:
             return await self._upgrade(db_session, room_id)
         except ValueError as e:
@@ -732,9 +678,8 @@ class RoomService:
         new_capacity = None
         new_output = None
 
-        # Re-evaluate the template's own formula. The (tier + 4) ratio below only
-        # matches rooms whose capacity happens to be proportional to it — storage
-        # scales with (tier + 1), so the ratio silently understates it.
+        # Re-evaluate the template's own formula. The (tier + 4) ratio below only matches rooms whose capacity happens
+        # to be proportional to it — storage scales with (tier + 1), so the ratio silently understates it.
         if template and template.capacity_formula:
             new_capacity = crud.room.evaluate_capacity_formula(template.capacity_formula, room.tier, room_size)
         elif room.capacity is not None:
@@ -776,9 +721,8 @@ class RoomService:
             {"room_type": room.name, "from_tier": old_tier, "to_tier": room.tier, "room_id": str(room.id)},
         )
 
-        # An upgrade can make this room identical to an adjacent one (same
-        # name and tier), so fuse them exactly like a build does — otherwise
-        # same-tier neighbours built at different times never merge.
+        # An upgrade can make this room identical to an adjacent one (same name and tier), so fuse them exactly like a
+        # build does — otherwise same-tier neighbours built at different times never merge.
         merge_result = await self.merge_adjacent_rooms(db_session, candidate=room)
         if merge_result.merged and merge_result.room is not None:
             if crud.room.requires_recalculation(merge_result.room):
@@ -799,16 +743,8 @@ class RoomService:
     ) -> list:
         """Get list of rooms that can be built in a vault.
 
-        Filters out vault doors and unique rooms already grown to their maximum
-        footprint. A unique room below ``size_max`` stays buildable because a new
-        segment merges into it.
-
-        Args:
-            db_session: Database session
-            vault_id: Vault ID
-
-        Returns:
-            List of buildable room specs
+        Excludes vault doors and unique rooms at their maximum footprint; a unique room below size_max stays
+        buildable because a new segment merges into it.
         """
         from app.core.game_data import get_static_game_data
 

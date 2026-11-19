@@ -68,14 +68,7 @@ class CRUDTraining(CRUDBase[Training, TrainingCreate, TrainingUpdate]):
         vault_id: UUID,
         status: TrainingStatus | None = None,
     ) -> list[Training]:
-        """
-        Get training sessions in a vault, optionally filtered by status.
-
-        :param db_session: Database session
-        :param vault_id: Vault ID
-        :param status: Optional status filter
-        :returns: List of training sessions
-        """
+        """Get training sessions in a vault, optionally filtered by status."""
         query = select(Training).where(Training.vault_id == vault_id)
 
         if status:
@@ -109,13 +102,7 @@ class CRUDTraining(CRUDBase[Training, TrainingCreate, TrainingUpdate]):
         db_session: AsyncSession,
         training_sessions: list[Training],
     ) -> dict[UUID, Dweller]:
-        """
-        Batch-fetch dwellers for multiple training sessions.
-
-        :param db_session: Database session
-        :param training_sessions: List of training sessions
-        :returns: Dictionary mapping dweller_id to Dweller object
-        """
+        """Batch-fetch dwellers for multiple training sessions, keyed by dweller_id."""
         if not training_sessions:
             return {}
 

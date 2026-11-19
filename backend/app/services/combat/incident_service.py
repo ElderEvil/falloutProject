@@ -36,7 +36,7 @@ from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
-#: Maximum arriving helpers, in addition to the affected room's residents.
+# : Maximum arriving helpers, in addition to the affected room's residents.
 MAX_INCIDENT_RESPONDERS = 6
 
 
@@ -276,20 +276,15 @@ class IncidentService:
     ) -> list[UUID]:
         """Move eligible dwellers into an active incident room before its next round.
 
-        Records the incident's designated responder team; room presence continues
-        to drive the per-round combat engine. The roster is the set of responders
-        sent for the incident — assignments append, never replace, so the persisted
-        roster cannot diverge from the responders actually sent into the room.
-
-        The incident row is re-loaded FOR UPDATE so the roster read, the six-responder
-        cap check, and the insert all run under one row lock: two concurrent
-        assignments cannot both pass the cap check and exceed six members.
+        Assignments append, never replace, so the persisted roster matches responders actually sent. The incident row
+        is re-loaded FOR UPDATE: roster read, six-responder cap check, and insert share one row lock against
+        concurrent assignments.
         """
         if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
             raise ValidationException("Incident is no longer active")
 
-        # Re-load under a FOR UPDATE row lock so the read→check→insert below is
-        # serialized against concurrent assignments to the same incident.
+        # Re-load under a FOR UPDATE row lock so the read→check→insert below is serialized against concurrent
+        # assignments to the same incident.
         locked_incident = await incident_crud.get_for_update(db_session, incident.id)
         locked_incident = ensure_found(locked_incident, Incident, incident.id)
         incident = locked_incident
@@ -320,8 +315,8 @@ class IncidentService:
 
         existing_members = await team_crud.get_incident_team(db_session, incident.id, incident.vault_id)
         existing_member_ids = {member.dweller_id for member in existing_members}
-        # Residents already defend through room presence; only arrivals consume
-        # helper slots or need an origin posting for the return pass.
+        # Residents already defend through room presence; only arrivals consume helper slots or need an origin posting
+        # for the return pass.
         residents = [
             dweller
             for dweller in eligible

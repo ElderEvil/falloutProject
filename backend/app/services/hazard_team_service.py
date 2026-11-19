@@ -32,22 +32,22 @@ from app.utils.hazard_resist import outfit_fire_resist, outfit_radiation_resist
 
 logger = logging.getLogger(__name__)
 
-#: Incident participations required before a dweller earns a place on a team.
+# : Incident participations required before a dweller earns a place on a team.
 QUALIFYING_INCIDENTS = 3
-#: Dwellers who hold a team; further qualifiers wait on the bench.
+# : Dwellers who hold a team; further qualifiers wait on the bench.
 TEAM_SIZE = 3
-#: Bio entry source for service milestones (declared in ``bio_service.BIO_SECTIONS``).
+# : Bio entry source for service milestones (declared in ``bio_service.BIO_SECTIONS``).
 BIO_SOURCE = "hazard"
-#: How each team reads in a dweller's biography.
+# : How each team reads in a dweller's biography.
 TEAM_LABELS: dict[HazardTeam, str] = {
     HazardTeam.FIRE: "fire team",
     HazardTeam.RADIATION: "radiation team",
 }
-#: Response-power multiplier per active matching member during a hazard incident.
+# : Response-power multiplier per active matching member during a hazard incident.
 TEAM_RESPONSE_BONUS = 0.20
-#: Additional damage/radiation reduction for active matching members.
+# : Additional damage/radiation reduction for active matching members.
 TEAM_HAZARD_RESIST = 0.20
-#: Outfit an active member is auto-equipped with when one is spare.
+# : Outfit an active member is auto-equipped with when one is spare.
 TEAM_OUTFIT_NAMES: dict[HazardTeam, str] = {
     HazardTeam.FIRE: "Firefighter suit",
     HazardTeam.RADIATION: "Hazmat suit",
@@ -63,12 +63,8 @@ def roster_lock_key(vault_id: UUID, team: HazardTeam) -> str:
 class HazardTeamRoundResult:
     """What one incident round changed on a hazard team.
 
-    ``new_places`` lists every place earned this round (active or bench);
-    ``active_gainers`` are the dwellers who now hold an ACTIVE place as a
-    result of this round — join-as-active plus bench promotions — so callers
-    can notify and auto-equip exactly the members who stepped up.
-    ``active_ids`` are the present dwellers holding an active place on the
-    matching team, so callers apply the response bonus without re-querying.
+    active_gainers = dwellers who now hold an ACTIVE place (join-as-active plus bench promotions); active_ids =
+    present dwellers holding an active place, for the response bonus without re-querying.
     """
 
     new_places: list[TeamMember]
@@ -84,9 +80,7 @@ class HazardTeamService:
     ) -> HazardTeamRoundResult:
         """Credit this round's defenders and promote anyone who just qualified.
 
-        Called inside the incident round, so everything written here rides the
-        round's single commit and a failed round leaves no trace. Returns the
-        round's team changes so the caller can notify and auto-equip post-commit.
+        Runs inside the incident round: writes ride the round's single commit, a failed round leaves no trace.
         """
         if not dwellers:
             return HazardTeamRoundResult(new_places=[], active_gainers=[])
@@ -100,13 +94,11 @@ class HazardTeamService:
         new_places: list[TeamMember] = []
         active_gainers: list[Dweller] = []
 
-        # Roster places are read-then-insert, so two workers could both pass the read and
-        # then collide on uq_team_vault_hazard / uq_team_member_slot. A transaction-scoped
-        # lock keyed by the roster serializes the mutation until this round commits — the
-        # credit recorded above is untouched, so a deferred place is simply earned next round.
+        # Roster places are read-then-insert: two workers could both pass the read and collide on uq_team_vault_hazard
+        # / uq_team_member_slot. A transaction-scoped roster lock serializes the mutation until this round commits; a
+        # deferred place is simply earned next round.
         if await db_locks.try_advisory_xact_lock(db_session, roster_lock_key(incident.vault_id, team)):
-            # Bench members step up first so seniority holds and a freed place is
-            # never handed to the newest arrival.
+            # Bench members step up first so seniority holds and a freed place is never handed to the newest arrival.
             promoted = await self._promote_bench(db_session, incident.vault_id, team, dwellers_by_id)
             promoted_ids = {place.dweller_id for place, _ in promoted}
             new_places = [place for place, _ in promoted]
@@ -151,8 +143,8 @@ class HazardTeamService:
     async def _join_if_qualified(
         self, db_session: AsyncSession, vault_id: UUID, dweller: Dweller, team: HazardTeam
     ) -> TeamMember | None:
-        # Formation gating: no station, no team to join. The participation credit already
-        # stands, so a place is earned on a later callout once the station is built.
+        # Formation gating: no station, no team to join. The participation credit already stands, so a place is earned
+        # on a later callout once the station is built.
         if not await self._has_response_station(db_session, vault_id):
             return None
         if await team_crud.get_hazard_member(db_session, vault_id, team, dweller.id):
@@ -243,8 +235,8 @@ class HazardTeamService:
             promoted = place.dweller_id in promoted_ids
 
             async def sender(user_id, place=place, dweller=dweller, promoted=promoted) -> None:
-                # A failed flush must roll back to this savepoint (the exception has to
-                # leave the block for that) so the round's transaction stays committable.
+                # A failed flush must roll back to this savepoint (the exception has to leave the block for that) so
+                # the round's transaction stays committable.
                 async with db_session.begin_nested():
                     await notification_service.notify_hazard_team_joined(
                         db_session,
@@ -274,18 +266,15 @@ class HazardTeamService:
     ) -> None:
         """Best-effort: give each newly-active member a spare matching outfit.
 
-        Runs AFTER the incident round committed: ``outfit_crud.equip`` commits
-        internally, so it must never be called inside the round's transaction.
-        Skips dwellers who already wear the target outfit and when no spare is
-        available. Never unequips on leaving a team.
+        Must run AFTER the round commits: outfit_crud.equip commits internally. Never unequips on leaving a team.
         """
         target_name = TEAM_OUTFIT_NAMES[team]
         storage = await crud_storage.get_by_vault(db_session, vault_id)
         if storage is None:
             return
         storage_id = storage.id
-        # Read the ids up front: a rollback in the loop expires every loaded instance,
-        # so touching dweller/storage attributes afterwards would trigger lazy IO.
+        # Read the ids up front: a rollback in the loop expires every loaded instance, so touching dweller/storage
+        # attributes afterwards would trigger lazy IO.
         for dweller_id in [dweller.id for dweller in active_gainers]:
             try:
                 current = await outfit_crud.get_equipped(db_session, dweller_id)
@@ -302,11 +291,8 @@ class HazardTeamService:
     async def dispatch_to_incident(self, db_session: AsyncSession, incident: Incident) -> list[UUID]:
         """Auto-dispatch the vault's standing hazard team to a matching incident.
 
-        Called right after a hazard incident spawns: active members of the team
-        matching the incident's hazard are moved into the incident room and marked
-        ``dispatched`` on the incident roster, so the round engine's room-occupancy
-        combat picks them up. Best-effort — never raises; returns the ids actually
-        moved.
+        Active members of the matching team move into the incident room marked dispatched so room-occupancy
+        combat picks them up. Best-effort, never raises.
         """
         team = hazard_team_for(incident.type)
         if not team:
@@ -346,8 +332,8 @@ class HazardTeamService:
             if not candidates:
                 return []
 
-            # Snapshot every responder's posting before the move overwrites room_id,
-            # so the return pass can restore their posting.
+            # Snapshot every responder's posting before the move overwrites room_id, so the return pass can restore
+            # their posting.
             origins = {dweller.id: dweller.room_id for dweller in candidates}
             ids = [dweller.id for dweller in candidates]
             members = await team_crud.add_incident_team_members(
@@ -393,8 +379,8 @@ class HazardTeamService:
             if origin is not None:
                 if dweller.room_id != origin.id:
                     await dweller_service.move_to_room(db_session, member.dweller_id, origin.id)
-            # No original posting (or it was demolished): restore unassigned
-            # rather than silently selecting a different job.
+            # No original posting (or it was demolished): restore unassigned rather than silently selecting a
+            # different job.
             elif dweller.room_id == incident.room_id:
                 await dweller_service.update_dweller(db_session, member.dweller_id, {"room_id": None})
         except ContentNoChangeException:
@@ -433,8 +419,8 @@ class HazardTeamService:
                     or member.dweller_id in committed
                     or dweller.room_id not in (None, incident.room_id, member.origin_room_id)
                 ):
-                    # Dead/unavailable responders and newer player assignments must
-                    # not be moved. Close the old ledger so it cannot reclaim them.
+                    # Dead/unavailable responders and newer player assignments must not be moved. Close the old ledger
+                    # so it cannot reclaim them.
                     member.status = "completed"
                     db_session.add(member)
                     closed += 1
@@ -489,10 +475,8 @@ class HazardTeamService:
     ) -> ContaminationTeamRead:
         """Manually move a team member between Active and Reserve.
 
-        Activating is idempotent when the member is already active and refuses to
-        exceed ``TEAM_SIZE``; benching is idempotent when already on the bench and
-        leaves the slot open — a voluntary stand-down never unequips and never
-        auto-promotes a reserve member.
+        Both directions idempotent; activating refuses to exceed TEAM_SIZE. A voluntary stand-down never unequips
+        and never auto-promotes a reserve member.
         """
         if not await db_locks.try_advisory_xact_lock(db_session, roster_lock_key(vault_id, team)):
             raise ResourceConflictException("Team roster is busy — try again")

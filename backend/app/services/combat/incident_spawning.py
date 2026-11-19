@@ -42,25 +42,14 @@ def is_spawning_disabled(vault: Vault | None) -> bool:
 async def should_spawn_incident(
     db_session: AsyncSession, vault_id: UUID, seconds_passed: int, game_state: GameState | None = None
 ) -> bool:
-    """Determine if an incident should spawn based on vault state and time.
-
-    Args:
-        db_session: Database session
-        vault_id: The vault ID to check
-        seconds_passed: Seconds since last tick
-        game_state: Optional game state for online/offline check
-
-    Returns:
-        bool: True if incident should spawn
-    """
+    """Determine if an incident should spawn based on vault state and time."""
     # Check if user is online (has recent activity) - suppress incidents when offline
     if game_state and not game_state.is_user_online(timeout_seconds=600):
         logger.debug(f"Vault {vault_id} is offline, suppressing incident spawn")
         return False
 
-    # Spawns need a watching player: the vault overview must have sent a
-    # visibility-gated heartbeat inside the presence window, so background
-    # tabs start nothing.
+    # Spawns need a watching player: the vault overview must have sent a visibility-gated heartbeat inside the
+    # presence window, so background tabs start nothing.
     presence_window = game_config.incident.spawn_presence_seconds
     if (
         game_state is None
@@ -116,23 +105,9 @@ async def spawn_incident(
     start_delay_seconds: float = 0,
 ) -> Incident | None:
     """Spawn a new incident in a random occupied room, or in the requested target room.
-    Raiders and Deathclaws spawn at vault door (0,0) and spread inward.
 
-    Rules enforced:
-    - Only one incident type per vault at a time
-    - Only one incident per room
-    - Never spawn in elevators
-
-    Args:
-        db_session: Database session
-        vault_id: ID of the vault
-        incident_type: Type of incident (rolled from the balance weights if None)
-        target_room_id: Spawn in this room instead of a random eligible one
-        difficulty_bonus: Extra difficulty added to the rolled value (capped at 10)
-        start_delay_seconds: Reserve the incident now and activate it after this grace period
-
-    Returns:
-        Incident or None if no suitable room found
+    Raiders/Deathclaws spawn at vault door (0,0) and spread inward. One incident type per vault, one incident
+    per room, never in elevators. difficulty_bonus is capped at 10.
     """
     if not await db_locks.try_advisory_xact_lock(db_session, f"incident-spawn:{vault_id}"):
         return None
@@ -155,9 +130,8 @@ async def spawn_incident(
 
     active_types = {incident.type for incident in active_incidents}
 
-    # A vault already fighting a hazard gets more of the same; only a fresh wave
-    # rolls from the balance weights. Explicit types stay available to
-    # administrative and test callers.
+    # A vault already fighting a hazard gets more of the same; only a fresh wave rolls from the balance weights.
+    # Explicit types stay available to administrative and test callers.
     if incident_type is None:
         if active_types:
             incident_type = next(iter(active_types))
@@ -331,8 +305,8 @@ async def spread_incident(db_session: AsyncSession, incident: Incident) -> bool:
         # Pick a random adjacent room
         new_room = random.choice(adjacent_rooms)
 
-        # Create a new incident in the adjacent room with the SAME type, capped
-        # at the model's max difficulty so it can't snowball on repeat spreads.
+        # Create a new incident in the adjacent room with the SAME type, capped at the model's max difficulty so it
+        # can't snowball on repeat spreads.
         new_incident = await incident_crud.create(
             db_session,
             vault_id=incident.vault_id,

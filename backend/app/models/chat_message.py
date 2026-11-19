@@ -32,12 +32,10 @@ class ChatMessageBase(SQLModel):
     # Optional: Link to LLMInteraction for AI-generated messages
     llm_interaction_id: UUID | None = Field(default=None, foreign_key="llminteraction.id")
 
-    # Audio conversation fields
     audio_url: str | None = Field(default=None, max_length=500, description="Storage URL for audio message")
     transcription: str | None = Field(default=None, max_length=2000, description="STT transcription of audio")
     audio_duration: float | None = Field(default=None, description="Duration of audio in seconds")
 
-    # Sentiment/Happiness fields
     happiness_delta: float | None = Field(default=None, description="Happiness change caused by this message")
     happiness_reason: str | None = Field(default=None, max_length=255, description="Reason for happiness change")
 
@@ -45,7 +43,6 @@ class ChatMessageBase(SQLModel):
 class ChatMessage(BaseUUIDModel, ChatMessageBase, table=True):
     created_at: datetime = Field(sa_type=UTCDateTime, default_factory=utcnow, index=True)
 
-    # Relationships
     vault: "Vault" = Relationship()
     from_user: Optional["User"] = Relationship(
         sa_relationship_kwargs={

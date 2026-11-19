@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 def _storage_counted_items():
     """Rows that occupy storage space: everything except nuka-cola consumables.
 
-    The exclusion mirrors ``app.utils.storage_policy`` so counting and
-    admission cannot drift on the space-free bottle rule.
+    Mirrors app.utils.storage_policy so counting and admission cannot drift on the
+    space-free bottle rule.
     """
     return or_(col(Item.item_type) != ItemTypeEnum.CONSUMABLE.value, ~col(Item.name).ilike(NUKA_COLA_LIKE))
 
@@ -35,19 +35,16 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
 
     async def count_items(self, db_session: AsyncSession, storage_id: UUID) -> int:
         """Count total items in storage."""
-        # Count weapons
         weapons_result = await db_session.execute(
             select(func.count()).select_from(Weapon).where(Weapon.storage_id == storage_id)
         )
         weapons_count = weapons_result.scalar() or 0
 
-        # Count outfits
         outfits_result = await db_session.execute(
             select(func.count()).select_from(Outfit).where(Outfit.storage_id == storage_id)
         )
         outfits_count = outfits_result.scalar() or 0
 
-        # Count junk
         junk_result = await db_session.execute(
             select(func.count()).select_from(Junk).where(Junk.storage_id == storage_id)
         )
@@ -114,10 +111,7 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
     async def set_max_space(
         self, db_session: AsyncSession, vault_id: UUID, new_space_max: int, *, commit: bool = True
     ) -> Storage:
-        """Set a vault's storage max space.
-
-        :raises ResourceNotFoundException: If storage not found for vault.
-        """
+        """Set a vault's storage max space; raises ResourceNotFoundException when absent."""
         storage_obj = await self.get_by_vault(db_session, vault_id)
         storage_obj = ensure_found(storage_obj, Storage, identifier=vault_id)
         storage_obj.max_space = new_space_max
@@ -244,13 +238,11 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
     async def get_unopened_container(
         self, db_session: AsyncSession, item_id: UUID, vault_id: UUID, *, item_type: str
     ) -> Item | None:
-        """Fetch one unopened container Item of ``item_type`` scoped to a vault.
+        """Fetch one unopened container Item of item_type scoped to a vault.
 
-        Returns None for unknown, foreign-vault, or other-type rows alike so
-        callers cannot distinguish them (all surface as 404).
-
-        The row lock makes concurrent openings of the same container
-        single-winner: the loser blocks until the winner commits, then sees no row.
+        Unknown, foreign-vault and other-type rows all return None (indistinguishable 404s).
+        The row lock makes concurrent openings single-winner: the loser blocks until the winner
+        commits, then sees no row.
         """
         result = await db_session.execute(
             select(Item)
@@ -265,7 +257,6 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         return result.scalars().first()
 
 
-# Global instance
 storage = CRUDStorage(Storage)
 
 # Backwards compatibility aliases

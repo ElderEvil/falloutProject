@@ -1,8 +1,5 @@
-"""Dev/QA: populate a vault's map with one place per site-type group.
-
-Registers a seeded place for every group in the catalog (plus one ungrouped
-place for the wasteland_site fallback) as an unlocked discovery, so each marker
-archetype icon is visible on the map for a quick visual check.
+"""Dev/QA: seed one unlocked place per site-type group plus an ungrouped wasteland_site,
+so every marker archetype icon shows on the map.
 """
 
 from __future__ import annotations
@@ -28,8 +25,7 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-# The wasteland_site fallback has no seeded name, so register an ungrouped place
-# to exercise that (effective) archetype icon too.
+# The wasteland_site fallback has no seeded name; register an ungrouped place to exercise its archetype icon too.
 FALLBACK_PLACE_NAME = "Unmapped Wasteland Site"
 
 

@@ -89,13 +89,7 @@ class ExplorationService:
     """
 
     def generate_event(self, exploration: Exploration) -> ExplorationEvent | None:
-        """Generate a random wasteland event.
-
-        :param exploration: Active exploration
-        :type exploration: Exploration
-        :return: Generated event schema, or None when no event fires
-        :rtype: ExplorationEvent | None
-        """
+        """Generate a random wasteland event."""
         return event_generator.generate_event(exploration)
 
     async def get_party(
@@ -109,43 +103,17 @@ class ExplorationService:
         return [_to_exploration_party_member_read(member, exploration_id, vault_id) for member in members]
 
     async def process_event(self, db_session: AsyncSession, exploration: Exploration) -> Exploration:
-        """Process and add a generated event to an exploration.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param exploration: Active exploration
-        :type exploration: Exploration
-        :return: Updated exploration
-        :rtype: Exploration
-        """
+        """Process and add a generated event to an exploration."""
         return await event_service.process_event(db_session, exploration)
 
     async def start_return(
         self, db_session: AsyncSession, exploration_id: UUID, *, recalled: bool = False
     ) -> Exploration:
-        """Send a dweller home; rewards and loot wait until the return leg finishes.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param exploration_id: Exploration ID
-        :type exploration_id: UUID
-        :param recalled: True for a player-initiated early recall, defaults to False
-        :type recalled: bool
-        :return: The exploration now in RETURNING state
-        :rtype: Exploration
-        """
+        """Send a dweller home; rewards and loot wait until the return leg finishes."""
         return await exploration_coordinator.start_return(db_session, exploration_id, recalled=recalled)
 
     async def finalize_return(self, db_session: AsyncSession, exploration_id: UUID) -> RewardsSchema:
-        """Finalize an exploration whose dweller has arrived home.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param exploration_id: Exploration ID
-        :type exploration_id: UUID
-        :return: Rewards summary
-        :rtype: RewardsSchema
-        """
+        """Finalize an exploration whose dweller has arrived home."""
         return await exploration_coordinator.finalize_return(db_session, exploration_id)
 
     async def send_dweller(
@@ -158,26 +126,10 @@ class ExplorationService:
         radaways: int = 0,
         heading_degrees: float | None = None,
     ) -> Exploration:
-        """Send a dweller to wasteland exploration.
+        """Send a dweller into wasteland exploration.
 
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param vault_id: Vault ID
-        :type vault_id: UUID
-        :param dweller_id: Dweller ID
-        :type dweller_id: UUID
-        :param duration: Exploration duration in hours
-        :type duration: int
-        :param stimpaks: Number of Stimpaks to bring, defaults to 0
-        :type stimpaks: int
-        :param radaways: Number of Radaways to bring, defaults to 0
-        :type radaways: int
-        :param heading_degrees: Compass heading (0=N, 90=E) for a spatial roam;
-            None keeps today's legacy free-roam behavior
-        :type heading_degrees: float | None
-        :return: Created exploration
-        :rtype: Exploration
-        :raises ValueError: If dweller is already exploring or lacks supplies
+        `heading_degrees` (0=N, 90=E) starts a spatial roam; None keeps legacy free-roam.
+        ValueError if already exploring or lacking the requested supplies.
         """
         existing = await crud_exploration.get_by_dweller(db_session, dweller_id=dweller_id)
         if existing:
@@ -192,8 +144,8 @@ class ExplorationService:
             msg = f"Radaways cannot be negative. Provided: {radaways}"
             raise ValidationException(detail=msg)
 
-        # Resolve origin/world before staging: snapshot generation commits, so
-        # resolving later would split the departure transaction.
+        # Resolve origin/world before staging: snapshot generation commits, so resolving later would split the
+        # departure transaction.
         exploration_id = uuid7()
         origin: tuple[float, float] | None = await self._vault_origin(db_session, vault_id)
         world_version: int | None = None
@@ -230,11 +182,8 @@ class ExplorationService:
         if shortfall is not None:
             raise ValidationException(detail=shortfall)
 
-        # Departure and room removal must be committed together so a failed
-        # dispatch never leaves the dweller unexpectedly unassigned.
-        # Leaving the vault also ends any active training session (mirrors the
-        # room-change cancellation in DwellerService.update_dweller, but staged
-        # here without committing so dispatch stays atomic).
+        # Departure and room removal commit together so a failed dispatch never leaves the dweller unassigned.
+        # Leaving also ends active training, staged without committing so dispatch stays atomic.
         active_training = await training_crud.training.get_active_by_dweller(db_session, dweller_id)
         if active_training is not None:
             active_training.status = TrainingStatus.CANCELLED
@@ -332,9 +281,7 @@ class ExplorationService:
     ) -> Exploration:
         """Shared departure tail: clear rooms, mark EXPLORING, commit, record statistic.
 
-        Used by both free-roam sends (one dweller) and targeted dispatches (a party)
-        so departure bookkeeping stays in one place. The caller stages the
-        exploration (and any team roster) first; this commits everything once.
+        Caller stages the exploration (and any team roster) first; this commits everything once.
         """
         # Room clearing goes through CRUD: direct assignment trips the ORM type contract.
         for dweller in dwellers:
@@ -362,9 +309,7 @@ class ExplorationService:
     async def _vault_origin(self, db_session: AsyncSession, vault_id: UUID) -> tuple[float, float] | None:
         """Travel origin: the vault's slot placement, or None when the vault has no slot.
 
-        No production fallback to the map centre: vaults without a slot are
-        grandfathered (their existing placements keep working) but cannot start a
-        new spatial run or dispatch.
+        No fallback to map centre: slotless vaults are grandfathered but cannot start new spatial runs or dispatches.
         """
         slot = await vault_slot_crud.get_by_vault(db_session, vault_id)
         return slot_coords(slot.slot_index) if slot is not None else None
@@ -420,26 +365,10 @@ class ExplorationService:
         stimpaks: int = 0,
         radaways: int = 0,
     ) -> Exploration:
-        """Send a party to clear a specific map point (issue 772).
+        """Send a party to clear a specific map point.
 
-        A targeted run travels for a whole number of hours based on the distance
-        from the vault's slot placement, suppresses random events, and resolves exactly
-        once on arrival (see ``dispatch_resolution.resolve_dispatch_arrival``).
-        The party has no leader: ``dweller_ids[0]`` is only the anchor that keeps
-        the non-nullable ``Exploration.dweller_id`` FK working.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param vault_id: Vault ID
-        :type vault_id: UUID
-        :param dweller_ids: Party of 1 to ``max_party_size`` dweller IDs
-        :type dweller_ids: list[UUID]
-        :param location_id: Target world-location ID
-        :type location_id: UUID
-        :return: Created exploration
-        :rtype: Exploration
-        :raises ResourceNotFoundException: If a dweller or the location is unknown
-        :raises ValidationException: If a dweller cannot go or the point cannot be cleared
+        Travels whole hours by distance from the vault slot, suppresses random events, resolves once on arrival.
+        No leader: dweller_ids[0] only anchors the non-nullable Exploration.dweller_id FK.
         """
         max_party_size = game_config.exploration.dispatch.max_party_size
         if not dweller_ids:
@@ -487,15 +416,12 @@ class ExplorationService:
             raise ValidationException("Supplies cannot be negative")
         storage = await crud_storage.get_by_vault(db_session, vault_id)
         self._require_supplies(storage, stimpaks, radaways)
-        # Snapshot generation commits when it creates a row; resolve it before
-        # staging the storage deduction so supplies, team, and exploration all
-        # persist in the single departure commit. Staging first would let the
-        # snapshot commit strand the deduction if the run never gets created.
+        # Snapshot generation commits on row creation; resolve it before staging the storage deduction so supplies,
+        # team, and exploration persist in the single departure commit (staging first could strand it).
         snapshot = await world_snapshot_service.get_or_generate(db_session)
-        # That commit can leave the pre-snapshot read stale, so re-read the row
-        # under FOR UPDATE and refresh it: a supply spend committed in the window
-        # must not be overwritten by the earlier validation. The row lock holds
-        # until the departure commit, making the re-check and deduction atomic.
+        # The snapshot commit can stale the pre-read: re-read under FOR UPDATE so a supply spend committed in the
+        # window is not overwritten. The row lock holds until the departure commit, keeping re-check and deduction
+        # atomic.
         storage = await crud_storage.get_by_vault_for_update(db_session, vault_id)
         if storage is not None:
             await db_session.refresh(storage)
@@ -756,11 +682,8 @@ class ExplorationService:
     ) -> None:
         """Move a targeted run toward its location; hold on arrival, return when blocked.
 
-        Unlike roams, dispatches have no outbound budget: the forward phase lasts
-        until the dweller reaches the target, detected on the traveled segment so
-        long offline catch-ups cannot leapfrog it. The tick resolves arrival
-        combat; an unreached run falls back to the legacy timer expiry. Blocked
-        paths return early instead of stranding the party.
+        No outbound budget: arrival is detected on the traveled segment so offline catch-ups cannot leapfrog it.
+        Unreached runs fall back to legacy timer expiry; blocked paths return early.
         """
         target_location_id = exploration.target_location_id
         if target_location_id is None:
@@ -838,9 +761,8 @@ class ExplorationService:
         if (now - position_as_of).total_seconds() <= 0:
             return
 
-        # An encounter in progress freezes the journey: burn the interval without
-        # moving. The clock shift is applied once at the exit boundary
-        # (resume_from_encounter), so a pause with no inside tick is still counted.
+        # An encounter in progress freezes the journey: burn the interval without moving. The clock shift is applied
+        # once at the exit boundary (resume_from_encounter), so a pause with no inside tick is still counted.
         if exploration.paused_at is not None:
             exploration.position_as_of = max(position_as_of, now)
             return
@@ -871,17 +793,10 @@ class ExplorationService:
         now: datetime | None = None,
         exploration: Exploration | None = None,
     ) -> Exploration:
-        """Advance a spatial exploration's position by elapsed time (slice 1 movement).
+        """Advance a spatial exploration by elapsed time; legacy runs (heading NULL) are untouched.
 
-        Legacy runs (``heading_degrees`` NULL) are untouched. Spatial runs move along
-        their heading at ``1 / travel_hours_per_unit`` units per hour; the forward
-        phase lasts half the chosen duration, then the dweller retraces the traveled
-        path home at the same speed. Water and map bounds block forward movement and
-        trigger an early return. Reprocessing an already-processed interval is a no-op
-        via ``position_as_of``. The tick owns this transaction, so it commits.
-
-        Pass ``exploration`` when the caller already holds the locked row; this
-        avoids re-reading it merely to start the same tick's movement.
+        Speed 1/travel_hours_per_unit; forward phase is half the duration, then retraces home at the same speed.
+        Water/bounds force early return; position_as_of makes reprocessed intervals a no-op; tick owns the commit.
         """
         if exploration is None:
             exploration = await crud_exploration.get(db_session, exploration_id)
@@ -897,9 +812,7 @@ class ExplorationService:
     ) -> Exploration:
         """Stage the journey freeze while a site encounter is open (caller commits).
 
-        The pre-entry segment is settled to the boundary first, then the pause is
-        marked. ``advance`` burns intervals while paused and the clock shift happens
-        in ``resume_from_encounter``, so entry/exit need no ticks in between.
+        Settle the pre-entry segment to the boundary before marking the pause; resume_from_encounter shifts the clock.
         """
         now = now or utcnow()
         await self._settle_movement(db_session, exploration, now)
@@ -932,15 +845,7 @@ class ExplorationService:
         return exploration
 
     async def get_exploration_progress(self, db_session: AsyncSession, exploration_id: UUID) -> ExplorationProgress:
-        """Get current progress of an exploration.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param exploration_id: Exploration ID
-        :type exploration_id: UUID
-        :return: Exploration progress data
-        :rtype: ExplorationProgress
-        """
+        """Get current progress of an exploration."""
         exploration = await crud_exploration.get(db_session, exploration_id)
 
         return ExplorationProgress(
@@ -960,16 +865,7 @@ class ExplorationService:
     async def complete_exploration_with_data(
         self, db_session: AsyncSession, exploration_id: UUID
     ) -> tuple[Exploration, RewardsSchema | None]:
-        """Advance a finished exploration: start the return leg, or finalize once home.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param exploration_id: Exploration ID
-        :type exploration_id: UUID
-        :return: Tuple of (exploration, rewards); rewards are None while the dweller is still returning
-        :rtype: tuple[Exploration, RewardsSchema | None]
-        :raises ValueError: If exploration cannot be advanced
-        """
+        """Advance a finished exploration: start the return leg, or finalize once home."""
         exploration = await crud_exploration.get(db_session, exploration_id)
 
         if exploration.is_active():
@@ -986,30 +882,12 @@ class ExplorationService:
     async def recall_exploration_with_data(
         self, db_session: AsyncSession, exploration_id: UUID
     ) -> tuple[Exploration, RewardsSchema | None]:
-        """Recall dweller early: the run enters its return leg, rewards wait for arrival.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param exploration_id: Exploration ID
-        :type exploration_id: UUID
-        :return: Tuple of (exploration, None); rewards arrive when the dweller gets home
-        :rtype: tuple[Exploration, RewardsSchema | None]
-        :raises ValueError: If exploration cannot be recalled
-        """
+        """Recall dweller early: the run enters its return leg, rewards wait for arrival."""
         exploration = await exploration_coordinator.start_return(db_session, exploration_id, recalled=True)
         return exploration, None
 
     async def process_event_for_exploration(self, db_session: AsyncSession, exploration_id: UUID) -> Exploration:
-        """Generate and process an event for an exploration.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param exploration_id: Exploration ID
-        :type exploration_id: UUID
-        :return: Updated exploration
-        :rtype: Exploration
-        :raises ValueError: If exploration is not active or paused for an encounter
-        """
+        """Generate and process an event for an exploration."""
         exploration = await crud_exploration.get(db_session, exploration_id)
 
         if not exploration.is_active():

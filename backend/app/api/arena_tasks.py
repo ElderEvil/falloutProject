@@ -1,8 +1,7 @@
-"""Arena tick actor - kept in its own module so endpoints can wake it safely.
+"""Arena tick actor, isolated so endpoints can wake it safely.
 
-Importing ``app.api.tasks`` from an endpoint creates a circular import chain
-(``tasks`` -> ``crud.pregnancy`` -> ``app.api.deps``), so the fast arena tick
-lives here with only lightweight imports.
+Importing app.api.tasks from an endpoint creates a circular import chain
+(tasks -> crud.pregnancy -> app.api.deps).
 """
 
 import logging
@@ -22,11 +21,10 @@ ARENA_TICK_CHAIN_KEY: Final = "fallout:arena-tick:chain"
 
 
 async def _run_arena_tick(chain_token: str | None) -> tuple[str | None, dict | None]:
-    """Claim the tick chain, then run one fight round across all arena rooms.
+    """Claim the chain and run one fight round across all arena rooms.
 
-    Returns ``(next_chain_token, stats)``, or ``(None, None)`` when the chain
-    lease was lost to another worker (the periodiq watchdog will re-seed it,
-    taking over a stale lease once its heartbeat expires).
+    Returns (next_token, stats), or (None, None) if the lease was lost
+    (the periodiq watchdog re-seeds it).
     """
     from redis.asyncio import Redis
 
@@ -48,13 +46,11 @@ async def _run_arena_tick(chain_token: str | None) -> tuple[str | None, dict | N
 
 @dramatiq.actor(actor_name="arena_tick", max_retries=0)
 def arena_tick(chain_token: str | None = None):
-    """Fast arena fight tick - processes fight-ready arenas across all vaults.
+    """Fast arena fight tick across all vaults.
 
-    Reschedules itself every ``arena_tick_seconds`` while holding a Redis
-    chain lease (periodiq 6-field crons only resolve at minute granularity),
-    so combat updates read as live instead of once per minute. The periodiq
-    cron below acts as a watchdog that re-seeds the chain if it ever dies and
-    takes over a stale lease once its heartbeat expires.
+    Self-reschedules every arena_tick_seconds because periodiq crons only
+    resolve at minute granularity. The cron below is a watchdog: re-seeds a
+    dead chain, takes over once its heartbeat expires.
     """
     next_chain_token = None
     try:

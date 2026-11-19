@@ -1,8 +1,4 @@
-"""Event bus service providing pub/sub functionality for game events.
-
-Enables decoupled communication between game systems. Services emit events
-when actions occur, and evaluators subscribe to track objective progress.
-"""
+"""In-memory pub/sub event bus decoupling game systems: services emit, evaluators subscribe."""
 
 import asyncio
 import logging
@@ -46,13 +42,8 @@ class GameEvent(StrEnum):
 class EventBus:
     """In-memory pub/sub event bus for game events.
 
-    Handlers are async callables: ``(event_type, vault_id, data) -> None``.
-    Errors in individual handlers are logged but don't break other handlers.
-
-    Usage::
-
-        event_bus.subscribe(GameEvent.RESOURCE_COLLECTED, on_resource_collected)
-        await event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault_id, {"resource_type": "caps", "amount": 100})
+    Handlers are async callables (event_type, vault_id, data) -> None; handler errors are
+    logged without breaking other handlers.
     """
 
     def __init__(self) -> None:
@@ -67,10 +58,9 @@ class EventBus:
     async def emit(self, event_type: GameEvent, vault_id: UUID, data: dict[str, Any]) -> None:
         """Deliver one vault's event without overlapping the same event delivery.
 
-        Game-loop jobs for a vault can overlap. Serializing matching event
-        deliveries prevents evaluators from issuing concurrent operations on a
-        shared database connection, while preserving independent delivery for
-        other vaults and event types.
+        Game-loop jobs for a vault can overlap; serializing matching deliveries prevents
+        evaluators from issuing concurrent operations on a shared database connection. Other
+        vaults/event types stay independent.
         """
         lock = self._emit_locks.setdefault((event_type, vault_id, id(asyncio.get_running_loop())), asyncio.Lock())
         async with lock:

@@ -14,14 +14,7 @@ class CombatCalculator:
     """Handles combat outcome calculations."""
 
     def select_enemy(self, progress: float) -> EnemySchema:
-        """Select enemy based on exploration progress.
-
-        Args:
-            progress: Progress percentage (0-100)
-
-        Returns:
-            EnemySchema with name, difficulty, min_damage, max_damage
-        """
+        """Select enemy based on exploration progress."""
         enemies = data_loader.load_enemies()
         if not enemies:
             return EnemySchema(name="Wasteland Creature", difficulty=1, min_damage=5, max_damage=15)
@@ -55,17 +48,7 @@ class CombatCalculator:
         enemy: EnemySchema,
         profile: ExpeditionCombatProfile | None = None,
     ) -> CombatOutcomeSchema:
-        """Calculate combat outcome based on dweller stats.
-
-        Args:
-            exploration: Active exploration
-            enemy: Enemy schema with combat stats
-            profile: Live combat inputs (effective SPECIAL + equipped weapon damage);
-                None falls back to the exploration's departure snapshot.
-
-        Returns:
-            CombatOutcomeSchema with victory, health_loss, and description
-        """
+        """Calculate combat outcome based on dweller stats."""
         if profile is not None:
             strength, agility, endurance = profile.strength, profile.agility, profile.endurance
         else:

@@ -1,7 +1,5 @@
-"""Seed-roster loading for the canonical world-place registry.
-
-Layer-safe home (no DB, no services) for the JSON roster so both the seed
-service and vault-number reservation can share it without import cycles.
+"""Seed-roster loading for the canonical world-place registry; layer-safe (no DB, no
+services) so the seed service and vault-number reservation share it without import cycles.
 """
 
 from __future__ import annotations

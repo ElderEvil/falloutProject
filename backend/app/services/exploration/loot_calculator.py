@@ -39,14 +39,7 @@ class LootCalculator:
         return bool(self._eligible_items(item_type, min_rarity))
 
     def get_rarity_weights(self, luck: int) -> dict[str, float]:
-        """Get rarity weights adjusted by luck stat.
-
-        Args:
-            luck: Luck stat (1-10)
-
-        Returns:
-            Dict of rarity weights {Common, Rare, Legendary}
-        """
+        """Get rarity weights adjusted by luck stat."""
         cfg = game_config.exploration
 
         # Higher luck = better rarity distribution
@@ -150,14 +143,7 @@ class LootCalculator:
         return (ItemSchema(name="RadAway", value=50, rarity="Common"), "radaway")
 
     def select_random_loot(self, luck: int) -> tuple[ItemSchema, str]:
-        """Select a random loot item based on luck.
-
-        Args:
-            luck: Luck stat (1-10)
-
-        Returns:
-            Tuple of (item_schema, item_type) where item_type is 'junk', 'weapon', or 'outfit'
-        """
+        """Select a random loot item based on luck."""
         cfg = game_config.exploration
 
         # Determine item type with luck-adjusted weights
@@ -189,15 +175,7 @@ class LootCalculator:
         return (self.select_random_junk(luck), "junk")
 
     def calculate_caps_found(self, perception: int, luck: int) -> int:
-        """Calculate caps found based on perception and luck.
-
-        Args:
-            perception: Perception stat (1-10)
-            luck: Luck stat (1-10)
-
-        Returns:
-            Number of caps found
-        """
+        """Calculate caps found based on perception and luck."""
         cfg = game_config.exploration
         base_caps = random.randint(cfg.caps_base_min, cfg.caps_base_max)
         return base_caps + (perception * cfg.caps_perception_multiplier) + (luck * cfg.caps_luck_multiplier)

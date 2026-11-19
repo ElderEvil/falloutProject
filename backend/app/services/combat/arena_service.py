@@ -1,14 +1,8 @@
 """Arena service — experimental battle playground.
 
-Dwellers are parked in an Arena room, the player picks two of them as
-fighters (dweller-vs-dweller mode), then presses FIGHT: a 3-2-1 countdown
-elapses before the first combat tick. Combat power mirrors the incident combat
-math, with normal damage and alternating team turns. The first to reach
-zero HP loses; the winner gains happiness and XP, the loser loses happiness
-and is left standing at 1 HP. The room is marked done and stays stopped until
-the fighter selection changes, which resets it for a new match.
-
-This is an experimental feature on branch `experiment/arena`.
+Two picked fighters after a 3-2-1 countdown; combat power mirrors incident math with alternating team turns.
+First to 0 HP loses: winner gains happiness/XP, loser loses happiness and stands at 1 HP. Room stays done
+until fighter selection changes.
 """
 
 import logging
@@ -77,8 +71,8 @@ class ArenaService:
     """Process arena fights for vaults."""
 
     def __init__(self) -> None:
-        # room_id -> next journal round sequence (in-memory; events are cleared
-        # on match reset, so a restart just renumbers, which is cosmetic).
+        # room_id -> next journal round sequence (in-memory; events are cleared on match reset, so a restart just
+        # renumbers, which is cosmetic).
         self._round_seq: dict[str, int] = {}
         # room_id -> fighter_id -> fractional damage carried between ticks so a
         # 8.7 vs 8.0 power difference shows up instead of truncating both to 8.
@@ -177,11 +171,9 @@ class ArenaService:
     ) -> ArenaState:
         """Pick the fighters that fight, per mode.
 
-        Duel uses the a/b slots; brawl fills all four (a/c vs b/d); hunt pits one or
-        two dwellers (a, optional c) against creatures named by ``opponent_keys``.
-        Every provided fighter must be an adult assigned to the room. Changing the
-        selection resets any previous match: flags cleared and journal wiped.
-        Dwellers keep their current health; catalog opponents and support bots reset.
+        Duel uses a/b; brawl a/c vs b/d; hunt pits a (optional c) against opponent_keys creatures. Changing the
+        selection resets the match (flags cleared, journal wiped); dwellers keep health, catalog opponents/bots
+        reset.
         """
         room = await self._get_arena_room(db_session, room_id, vault_id)
         await arena_state_crud.get_for_update(db_session, room.id)
@@ -277,8 +269,8 @@ class ArenaService:
             if mode in (ArenaMode.HUNT, ArenaMode.TRAINING)
             else dweller_participants(b_slots, by_id)
         )
-        # Ignore retired Team A bot selections; incomplete legacy Brawls reset
-        # through the normal match-cancellation path until a dweller fills slot C.
+        # Ignore retired Team A bot selections; incomplete legacy Brawls reset through the normal match-cancellation
+        # path until a dweller fills slot C.
         if mode == ArenaMode.BRAWL:
             bot = (state.support_bots or {}).get("B")
             if bot:
@@ -695,10 +687,8 @@ class ArenaService:
     ) -> dict:
         """Run one fight round for every fight-ready Arena room across all vaults.
 
-        Called on its own fast cadence by the ``arena_tick`` dramatiq actor,
-        independent of the 60-second vault round. A cross-process advisory lock
-        serializes execution: the worker that loses the race skips the tick
-        rather than fighting the same room twice.
+        Own fast cadence via the arena_tick actor, independent of the 60-second vault round. A cross-process advisory
+        lock serializes execution: the loser of the race skips the tick.
         """
         async with db_locks.hold_advisory_lock(db_session, "arena-tick") as acquired:
             if not acquired:
@@ -765,8 +755,8 @@ class ArenaService:
         *,
         state: ArenaState | None = None,
     ) -> dict:
-        # One team attacks each tick. Damage keeps the slower Arena rate and
-        # training cap; the defending team can only retaliate on its own turn.
+        # One team attacks each tick. Damage keeps the slower Arena rate and training cap; the defending team can only
+        # retaliate on its own turn.
         room_key = str(room.id)
         state = state or await arena_state_crud.get_or_create(db_session, room.id)
         side = state.next_attack_team
@@ -788,8 +778,8 @@ class ArenaService:
             if participant.dweller is None:
                 continue
             if participant.health <= 0:
-                # Non-lethal arena KO: floor the dweller at 1 HP and record the KO so
-                # the fighter stays down without the health tick killing them.
+                # Non-lethal arena KO: floor the dweller at 1 HP and record the KO so the fighter stays down without
+                # the health tick killing them.
                 knocked_out.add(participant.key)
                 participant.dweller.health = 1
             else:
@@ -929,10 +919,8 @@ class ArenaService:
     async def _grant_arena_morale(self, db_session: AsyncSession, room: Room) -> bool:
         """Lift every living vault resident's happiness once per cooldown window.
 
-        Mirrors the exit-request refusal path: a vault-scoped lock serializes the
-        cooldown check-and-stamp, the bulk target is ``get_living_in_vault``
-        (fighters included — they are living residents too), and the award lands
-        in the caller's transaction. Returns whether the bonus was granted.
+        A vault-scoped lock serializes the cooldown check-and-stamp; fighters included (living residents), award
+        lands in the caller's transaction.
         """
         bonus = game_config.combat.arena_morale_bonus
         if bonus <= 0:

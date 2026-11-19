@@ -487,12 +487,9 @@ class DwellerAIService:
     ) -> DwellerReadFull:
         """Generates a voice line for a dweller, uploads it to storage, and updates dweller info.
 
-        Cache-first pipeline:
-          1. If dweller already has voice_line_url → ContentNoChangeException
-          2. Check storage for a cached audio file (sha256 of text+voice) → reuse URL
-          3. If ElevenLabs is enabled → use it (quota-exempt, free tier)
-          4. On ElevenLabs failure → log warning and fall through to OpenAI (quota-checked)
-          5. Else → OpenAI TTS (quota-checked)
+        Cache-first: existing voice_line_url raises ContentNoChangeException; storage cache keyed by sha256(text+voice)
+        reuses the URL. ElevenLabs (quota-exempt) is tried first, falling through to quota-checked OpenAI TTS on
+        failure or when disabled.
         """
         estimated_tokens = ceil(len(text) / 4)
 
@@ -567,8 +564,8 @@ class DwellerAIService:
                 bucket_name="dweller-audio",
             )
 
-        # Cache-exempt paths bill nothing: check_quota() sums total_tokens
-        # across providers, so exempt paths must record explicit zeros.
+        # Cache-exempt paths bill nothing: check_quota() sums total_tokens across providers, so exempt paths must
+        # record explicit zeros.
         billable_tokens = estimated_tokens if provider == "openai" else 0
 
         updated_visual_attributes = dweller_obj.visual_attributes or {}

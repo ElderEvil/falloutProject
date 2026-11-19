@@ -1,12 +1,4 @@
-"""Shared scaffolding for the Fallout Shelter balance simulators.
-
-The Monte Carlo simulators (exploration, happiness, incidents) print the same
-style of terminal report: a banner-wrapped title, stats rows, parameter-sweep
-tables and hourly curves. This module holds that shared presentation plumbing,
-the identical ``_Curves`` aggregation, the ``run_parameter_sweep`` control
-flow and the ``simulate`` command body so each simulator stays focused on its
-own model. No database or business logic lives here.
-"""
+"""Shared report/scaffolding for the Monte Carlo balance simulators; no database or business logic."""
 
 from __future__ import annotations
 

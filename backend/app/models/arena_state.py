@@ -1,8 +1,7 @@
-"""Arena match state: the per-room fighter selection, mode and match flags.
+"""Arena match state: per-room fighter selection, mode and match flags.
 
-Kept out of ``Room`` so generic room read/create/update contracts stay free of
-arena-only fields. One row per arena room that has been configured for a match;
-``knocked_out_ids`` persists knockouts across ticks and processes.
+Kept out of Room so generic room contracts stay free of arena-only fields; one row per
+configured arena room; knocked_out_ids persists knockouts across ticks and processes.
 """
 
 from datetime import datetime
@@ -29,8 +28,8 @@ class ArenaState(TimeStampMixin, table=True):
     fighter_d_id: UUID | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
     opponents: list[dict] | None = Field(default=None, sa_column=sa.Column(JSONB))
     support_bots: dict[str, dict] | None = Field(default=None, sa_column=sa.Column(JSONB))
-    # Fractional charge accumulates between ticks (seconds * perception-scaled
-    # rate); readers round to int when they surface the charge to clients.
+    # Fractional charge accumulates between ticks (seconds * perception-scaled rate); readers round to int when they
+    # surface the charge to clients.
     skill_charge: dict[str, float] | None = Field(default=None, sa_column=sa.Column(JSONB))
     queued_skill_ids: list[str] | None = Field(default=None, sa_column=sa.Column(JSONB))
     last_fight_at: datetime | None = Field(sa_type=UTCDateTime, default=None)

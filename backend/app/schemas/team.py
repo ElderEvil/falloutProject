@@ -1,8 +1,5 @@
-"""Read shapes for the reusable team roster primitive.
-
-The quest endpoints keep ``QuestPartyMemberRead`` as their wire contract; this
-module holds the internal read shape used when a service hands a ``TeamMember``
-back to the API layer.
+"""Internal team-roster read shapes; quest endpoints keep QuestPartyMemberRead
+as their wire contract.
 """
 
 from uuid import UUID

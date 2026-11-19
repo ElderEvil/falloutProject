@@ -67,14 +67,7 @@ if sys.platform == "win32":
 
 @dramatiq.actor(actor_name="create_task")
 def create_task(task_time: int):
-    """Simulate a long-running task for testing.
-
-    Args:
-        task_time: Duration in seconds to sleep.
-
-    Returns:
-        True when the task completes.
-    """
+    """Test actor: sleep task_time seconds, then return True."""
     time.sleep(task_time)
     return True
 
@@ -106,13 +99,10 @@ def game_tick():
 
 
 async def _run_incident_tick(chain_token: str | None) -> tuple[str | None, dict[str, int] | None]:
-    """Claim the tick chain, then process one round of incident combat.
+    """Claim the chain, process one incident round; return (next_token, stats).
 
-    Returns ``(next_chain_token, stats)``, or ``(None, None)`` when the chain
-    lease was lost to another worker (the periodiq watchdog will re-seed it,
-    taking over a stale lease once its heartbeat expires). A processing failure
-    logs the error but still returns the claimed token, so the chain keeps
-    self-scheduling instead of stalling until lease expiry.
+    (None, None) when the lease is lost (the periodiq watchdog re-seeds it).
+    Failures still return the claimed token so the chain keeps self-scheduling.
     """
     from app.services.combat.incident_service import incident_service
 
@@ -137,13 +127,10 @@ async def _run_incident_tick(chain_token: str | None) -> tuple[str | None, dict[
 
 @dramatiq.actor(actor_name="incident_tick", max_retries=0)
 def incident_tick(chain_token: str | None = None):
-    """Fast incident tick - processes combat for every vault's active incidents.
+    """Fast incident-combat tick; self-reschedules every incident_tick_seconds.
 
-    Self-reschedules every ``incident_tick_seconds`` (independent of the 60s
-    game tick) so incident combat gives live feedback. A Redis lease plus a
-    short-TTL heartbeat lets the periodiq cron below act as a watchdog that
-    re-seeds the chain when it dies and takes over a stale lease once its
-    heartbeat expires, instead of waiting out the lease TTL.
+    A Redis lease plus short-TTL heartbeat lets the periodiq cron below watchdog
+    the chain: re-seed when dead, take over once the heartbeat expires.
     """
     next_chain_token = None
     try:
@@ -244,9 +231,8 @@ async def _process_vault_tick_async(vault_id: str, redis: Redis, tick_id: str | 
 def process_vault_tick(vault_id: str, tick_id: str | None = None, enqueued_at: float | None = None) -> None:
     """Process one vault tick under a per-vault Redis lease.
 
-    The internal ``VaultTickResult`` is only used for the completion log. Returning
-    it here would hand a discarded payload to Dramatiq's Results middleware (which
-    warns on every tick), so the actor deliberately returns ``None``.
+    Deliberately returns None: a payload would reach Dramatiq's Results
+    middleware, which warns on every tick.
     """
     start = time.perf_counter()
     profile = None
@@ -295,11 +281,7 @@ async def _check_permanent_deaths() -> int:
 
 @dramatiq.actor(actor_name="check_permanent_deaths", max_retries=3, min_backoff=3600000)
 def check_permanent_deaths():
-    """Check for dead dwellers past the revival window and mark them as permanently dead.
-
-    Returns:
-        dict: Count of dwellers marked as permanently dead.
-    """
+    """Mark dead dwellers past the revival window permanently dead; return the count."""
     try:
         count = run_async(_check_permanent_deaths())
     except Exception:
@@ -322,11 +304,7 @@ async def _check_quest_completion() -> int:
 
 @dramatiq.actor(actor_name="check_quest_completion", max_retries=3, min_backoff=300000)
 def check_quest_completion():
-    """Check for quests that have exceeded their duration and auto-complete them.
-
-    Returns:
-        dict: Count of quests auto-completed.
-    """
+    """Auto-complete quests past their duration; return the count."""
     try:
         count = run_async(_check_quest_completion())
     except Exception:
@@ -351,11 +329,7 @@ async def _check_location_reclears() -> int:
 
 @dramatiq.actor(actor_name="check_location_reclears", max_retries=3, min_backoff=300000)
 def check_location_reclears():
-    """Check for map points whose reclear window has elapsed and notify their owners.
-
-    Returns:
-        dict: Count of map points swept.
-    """
+    """Sweep map points whose reclear window elapsed and notify owners; return the count."""
     try:
         count = run_async(_check_location_reclears())
     except Exception:
@@ -385,11 +359,7 @@ async def _refresh_objectives() -> dict:
 
 @dramatiq.actor(actor_name="refresh_daily_objectives", max_retries=3, min_backoff=3600000)
 def refresh_daily_objectives():
-    """Refresh daily objectives for all vaults.
-
-    Returns:
-        dict: Number of vaults processed and objectives assigned.
-    """
+    """Refresh daily objectives for all vaults."""
     try:
         result = run_async(_refresh_objectives())
     except Exception:
@@ -402,11 +372,7 @@ def refresh_daily_objectives():
 
 @dramatiq.actor(actor_name="refresh_weekly_objectives", max_retries=3, min_backoff=3600000)
 def refresh_weekly_objectives():
-    """Refresh weekly objectives for all vaults.
-
-    Returns:
-        dict: Number of vaults processed and objectives assigned.
-    """
+    """Refresh weekly objectives for all vaults."""
     try:
         result = run_async(_refresh_objectives())
     except Exception:
@@ -430,11 +396,7 @@ async def _cleanup_old_records() -> dict:
 
 @dramatiq.actor(actor_name="cleanup_old_records", max_retries=3, min_backoff=3600000)
 def cleanup_old_records():
-    """Clean up old incidents and notifications based on retention settings.
-
-    Returns:
-        dict: Counts of deleted incidents and notifications.
-    """
+    """Delete old incidents and notifications per retention settings."""
     try:
         result = run_async(_cleanup_old_records())
     except Exception:
@@ -445,22 +407,16 @@ def cleanup_old_records():
         return result
 
 
-# Periodiq schedule configuration
-# These actors are scheduled to run periodically via Periodiq scheduler
-# Command: periodiq app.core.dramatiq app.api.tasks
+# Periodiq schedule; run with: periodiq app.core.dramatiq app.api.tasks
 
-# Every minute (60 seconds)
 game_tick.options["periodic"] = periodiq.cron("* * * * *")
 incident_tick.options["periodic"] = periodiq.cron("*/2 * * * *")
 check_quest_completion.options["periodic"] = periodiq.cron("* * * * *")
 
-# Every 5 minutes
 check_location_reclears.options["periodic"] = periodiq.cron("*/5 * * * *")
 
-# Daily at midnight
 check_permanent_deaths.options["periodic"] = periodiq.cron("0 0 * * *")
 refresh_daily_objectives.options["periodic"] = periodiq.cron("0 0 * * *")
 cleanup_old_records.options["periodic"] = periodiq.cron("0 0 * * *")
 
-# Weekly on Monday at midnight
 refresh_weekly_objectives.options["periodic"] = periodiq.cron("0 0 * * 1")

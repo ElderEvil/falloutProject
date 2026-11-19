@@ -1,14 +1,6 @@
-"""Happiness Balance Simulator — focused happiness and productivity simulation.
+"""Happiness balance simulator: happiness dynamics and their effect on production efficiency.
 
-Models how happiness changes under various vault conditions and how
-happiness loss translates to reduced production efficiency.
-Run standalone without the full backend.
-
-Usage:
-    cd backend
-    uv run fo-cli simulate-happiness
-    uv run fo-cli simulate-happiness --days 3 --runs 50
-    uv run fo-cli simulate-happiness --sweep base_decay
+Runs standalone without the full backend.
 """
 
 from __future__ import annotations

@@ -1,15 +1,7 @@
 """Shared recruitment pool: claim a living departure into a new vault.
 
-A departure is a living person with no active vault (canonical ``wasteland``/``departure``).
-Once past the eligibility delay and with reusable content, they appear in the shared pool and
-any vault may recruit them for caps. A claim preserves the person — same id, age, appearance,
-stats and authored history — and transfers ownership atomically under a row lock, so a
-concurrent double claim cannot create two owners. Equipment is left with the source vault.
-
-Staged for issue #831: the claim/consent rules below are implemented and tested, but no endpoint,
-CLI command or worker calls this module yet — the Trading Post wiring is the remaining work. Keep it;
-a 2026-11-19 line audit confirmed zero live callers and this note exists so dead-code sweeps stop
-re-flagging it. See docs/ROADMAP.md ("Supporting work").
+A claim preserves the person (id, age, appearance, stats, history) and transfers ownership atomically under a
+row lock; equipment stays with the source vault. Staged (#831): zero live callers (2026-11-19 audit) — keep.
 """
 
 import logging
@@ -73,9 +65,9 @@ class DeparturePoolService:
         if not _consent_ok(dweller):
             raise ResourceConflictException(detail="Dweller's content is not shared for recruitment")
 
-        # Lock the buyer vault before charging caps: the lock serializes concurrent claims
-        # by the same buyer, so the withdrawal cannot lose an update, and it yields the
-        # active names that guard the per-vault curated-template reservation.
+        # Lock the buyer vault before charging caps: the lock serializes concurrent claims by the same buyer, so the
+        # withdrawal cannot lose an update, and it yields the active names that guard the per-vault curated-template
+        # reservation.
         active_names = await dweller_crud.lock_vault_for_template(db_session, vault.id)
         if dweller.display_name.casefold() in active_names:
             raise ResourceConflictException(detail=f"Vault already has an active {dweller.display_name}")
@@ -97,8 +89,8 @@ class DeparturePoolService:
         dweller.status = DwellerStatusEnum.IDLE
         dweller.departed_at = None
         dweller.departure_eligible_at = None
-        # A recruited person is alive by definition: clear any legacy death state a
-        # pre-lifecycle EXILE tombstone carried into the pool.
+        # A recruited person is alive by definition: clear any legacy death state a pre-lifecycle EXILE tombstone
+        # carried into the pool.
         dweller.is_dead = False
         dweller.is_permanently_dead = False
         dweller.death_cause = None

@@ -32,16 +32,7 @@ async def get_items_by_vault[ItemT: (Weapon, Outfit, Pet)](
     skip: int = 0,
     limit: int = 100,
 ) -> Sequence[ItemT]:
-    """
-    Get items filtered by vault - items in vault's storage OR equipped by vault's dwellers.
-
-    :param db_session: Database session
-    :param model: Item model class (Weapon or Outfit)
-    :param vault_id: Vault ID to filter by
-    :param skip: Number of items to skip
-    :param limit: Maximum items to return
-    :returns: List of items belonging to the vault
-    """
+    """Get items belonging to a vault: in its storage OR equipped by its dwellers."""
     from sqlmodel import or_, select
 
     from app.models.dweller import Dweller
@@ -157,7 +148,6 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
     ) -> ModelType:
         from sqlalchemy.orm import selectinload
 
-        # Determine which relationship to eager load (weapon, outfit or pet)
         item_attr = self.model.__name__.lower()
 
         dweller_result = await db_session.execute(
@@ -188,8 +178,8 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
                 raise ContentNoChangeException(detail=f"Dweller {dweller_id} already has this {item_attr} equipped.")
             current_item.dweller_id = None
             if held_exploration_id is not None:
-                # Mid-expedition upgrade: the displaced item stays with the
-                # expedition (held state) instead of returning to storage.
+                # Mid-expedition upgrade: the displaced item stays with the expedition (held state) instead of
+                # returning to storage.
                 current_item.storage_id = None
                 if hasattr(self.model, "exploration_id"):
                     current_item.exploration_id = held_exploration_id
@@ -199,10 +189,9 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
                     current_item.exploration_id = None
             db_session.add(current_item)
 
-        # Equip the new item via FK updates only. Touching the dweller's
-        # weapon/outfit/pet relationship here would orphan-cascade-delete the old
-        # item (Dweller.weapon/outfit/pet use cascade_delete=True) instead of
-        # returning it to storage.
+        # Equip the new item via FK updates only. Touching the dweller's weapon/outfit/pet relationship here would
+        # orphan-cascade-delete the old item (Dweller.weapon/outfit/pet use cascade_delete=True) instead of returning
+        # it to storage.
         item.dweller_id = dweller.id
         item.storage_id = None
         if hasattr(self.model, "exploration_id"):
@@ -215,10 +204,9 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         else:
             await db_session.flush()
 
-        # Equipping is an FK-only write, so the dweller's cached relationship
-        # still holds the previous value (None for a first equip). Expire it —
-        # without touching the relationship itself, which would cascade-delete
-        # the item just equipped — so the next read re-loads from the FK.
+        # Equipping is an FK-only write, so the dweller's cached relationship still holds the previous value (None for
+        # a first equip). Expire it — without touching the relationship itself, which would cascade-delete the item
+        # just equipped — so the next read re-loads from the FK.
         db_session.expire(dweller, [item_attr])
         return item
 
@@ -316,14 +304,9 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
 
     @staticmethod
     def convert_to_junk(item: Weapon | Outfit) -> list[Junk]:
-        """
-        Converts an item into junk based on its rarity.
-        Junk is generated with probabilities depending on the item's rarity.
-        Always creates at least one junk of the same rarity as the item.
-        """
+        """Convert an item into junk by rarity; always creates at least one junk of the item's rarity."""
         legendary_junk, rare_junk, common_junk = (random.choice(list(JunkTypeEnum)) for _ in range(3))
 
-        # Determine junk options based on item rarity
         match item.rarity:
             case RarityEnum.LEGENDARY:
                 junk_options = {
@@ -343,7 +326,6 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
                 error_message = f"Item rarity {item.rarity} is not supported for scrapping."
                 raise ValueError(error_message)
 
-        # Generate junk based on the defined probabilities
         junk_results = []
 
         # Always create at least one junk of the same rarity as the item
@@ -364,7 +346,6 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
                 )
             )
 
-        # Generate additional junk based on probabilities
         for junk_type, (rarity, probability) in junk_options.items():
             if junk_type != same_rarity_junk_type and random.random() < probability:
                 junk_results.append(
@@ -388,8 +369,8 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
 
         junk_list = self.convert_to_junk(item)
 
-        # Scrapping replaces one item with one or more junk, and selling is the way
-        # to free space, so reject a scrap that would push storage past capacity.
+        # Scrapping replaces one item with one or more junk, and selling is the way to free space, so reject a scrap
+        # that would push storage past capacity.
         if storage_id:
             from app.crud.storage import storage as storage_crud
 
@@ -397,7 +378,6 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
             if info["used_space"] - 1 + len(junk_list) > info["max_space"]:
                 raise ResourceConflictException("Storage is full")
 
-        # Assign junk items to the same storage and add to session
         for junk in junk_list:
             if storage_id:
                 junk.storage_id = storage_id

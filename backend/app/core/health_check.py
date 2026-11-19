@@ -74,14 +74,7 @@ class HealthCheckService:
 
     @staticmethod
     async def check_postgres(engine: AsyncEngine) -> HealthCheckResult:
-        """Check PostgreSQL database connectivity.
-
-        Args:
-            engine: AsyncEngine instance
-
-        Returns:
-            HealthCheckResult with connection status
-        """
+        """Check PostgreSQL database connectivity."""
         try:
             await db_locks.postgres_ping(engine)
             return _healthy(
@@ -97,11 +90,7 @@ class HealthCheckService:
 
     @staticmethod
     async def check_redis() -> HealthCheckResult:
-        """Check Redis connectivity.
-
-        Returns:
-            HealthCheckResult with connection status
-        """
+        """Check Redis connectivity."""
         redis_client = None
         try:
             redis_client = Redis(host=settings.REDIS_HOST, port=int(settings.REDIS_PORT), decode_responses=True)
@@ -146,12 +135,7 @@ class HealthCheckService:
 
     @staticmethod
     def check_rustfs() -> HealthCheckResult:
-        """Check optional RustFS connectivity and bucket access.
-
-        Returns:
-            HealthCheckResult with connection status
-        """
-        # Check if RustFS is configured
+        """Check optional RustFS connectivity and bucket access."""
         if not getattr(settings, "RUSTFS_ACCESS_KEY", None) or not getattr(settings, "RUSTFS_SECRET_KEY", None):
             return _degraded(
                 "rustfs",
@@ -184,7 +168,6 @@ class HealthCheckService:
                 ),
             )
 
-            # Test connection by listing buckets
             response = client.list_buckets()
             bucket_names = [bucket["Name"] for bucket in response.get("Buckets", [])]
 
@@ -206,11 +189,7 @@ class HealthCheckService:
 
     @staticmethod
     async def check_local_ai(provider: Literal["ollama", "lmstudio"]) -> HealthCheckResult:
-        """Check local AI provider connectivity (Ollama / LM Studio, OpenAI-compatible /models).
-
-        Returns:
-            HealthCheckResult with connection status
-        """
+        """Check local AI provider connectivity (Ollama / LM Studio, OpenAI-compatible /models)."""
         label = _LOCAL_AI_PROVIDERS[provider]
         base_url = settings.OLLAMA_BASE_URL if provider == "ollama" else settings.LMSTUDIO_BASE_URL
 
@@ -230,7 +209,6 @@ class HealthCheckService:
                     models = models_data.get("data", [])
                     model_names = [model.get("id") for model in models]
 
-                    # Check if the configured model is available
                     configured_model = settings.AI_MODEL
                     model_available = any(configured_model in name for name in model_names)
 
@@ -241,7 +219,7 @@ class HealthCheckService:
                             {
                                 "base_url": base_url,
                                 "configured_model": configured_model,
-                                "available_models": model_names[:5],  # Show first 5 models
+                                "available_models": model_names[:5],
                             },
                         )
                     recommendation = (
@@ -297,11 +275,7 @@ class HealthCheckService:
 
     @staticmethod
     async def check_smtp() -> HealthCheckResult:
-        """Check SMTP email service connectivity.
-
-        Returns:
-            HealthCheckResult with connection status
-        """
+        """Check SMTP email service connectivity."""
         try:
             # Keep TLS handling in sync with app.core.email.send_email (flag naming is inverted).
             if settings.SMTP_TLS:
@@ -313,7 +287,6 @@ class HealthCheckService:
 
             await smtp.connect()
 
-            # Test authentication if configured
             if settings.SMTP_USER and settings.SMTP_PASSWORD:
                 await smtp.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
 
@@ -367,29 +340,23 @@ class HealthCheckService:
     ) -> dict[str, HealthCheckResult]:
         """Check all services and return results.
 
-        SMTP is opt-in (no mail provider in production yet); pass
-        include_smtp=True to probe it explicitly via check_smtp().
-        include_local_ai probes the configured local AI provider
-        (Ollama / LM Studio) via check_local_ai(); nothing is probed
-        when no local provider is configured.
+        SMTP is opt-in (include_smtp=True); include_local_ai probes the configured local provider,
+        nothing when none is configured.
         """
         results = {}
 
-        # Check PostgreSQL
         postgres_result = await self.check_postgres(engine)
         results["postgresql"] = postgres_result
 
-        # Check Redis
         redis_result = await self.check_redis()
         results["redis"] = redis_result
 
-        # RustFS is optional and uses a synchronous boto3 client. Isolate it from the event loop and
-        # degrade rather than fail a detailed health check when the homelab endpoint is unavailable.
+        # RustFS is optional and uses a synchronous boto3 client. Isolate it from the event loop and degrade rather
+        # than fail a detailed health check when the homelab endpoint is unavailable.
         if include_rustfs:
             rustfs_result = await asyncio.to_thread(self.check_rustfs)
             results["rustfs"] = rustfs_result
 
-        # Check local AI provider (Ollama / LM Studio) when one is configured
         if include_local_ai and settings.AI_PROVIDER in _LOCAL_AI_PROVIDERS:
             local_provider = cast('Literal["ollama", "lmstudio"]', settings.AI_PROVIDER)
             results[local_provider] = await self.check_local_ai(local_provider)
@@ -399,7 +366,6 @@ class HealthCheckService:
             smtp_result = await self.check_smtp()
             results["smtp"] = smtp_result
 
-        # Check Dramatiq (optional)
         if include_dramatiq:
             dramatiq_result = self.check_dramatiq()
             results["dramatiq"] = dramatiq_result
@@ -408,14 +374,7 @@ class HealthCheckService:
 
     @staticmethod
     def log_health_check_results(results: dict[str, HealthCheckResult]) -> bool:
-        """Log health check results and return overall health status.
-
-        Args:
-            results: Dictionary of health check results
-
-        Returns:
-            True if all services are healthy, False otherwise
-        """
+        """Log health check results; return True only if all services are healthy."""
         all_healthy = True
 
         logger.info("==================================================")

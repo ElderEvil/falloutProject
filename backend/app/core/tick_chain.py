@@ -38,9 +38,9 @@ return 0
 async def claim_tick_chain(redis: Redis, key: str, token: str | None) -> str | None:
     """Claim a new tick chain, renew a continuation, or take over a stale lease.
 
-    ``token=None`` is the bootstrap/watchdog path: it claims a fresh chain when
-    the key is absent, and takes over a stale lease whose heartbeat has expired
-    so a dead chain recovers within the heartbeat TTL instead of the lease TTL.
+    token=None is the bootstrap/watchdog path: claims a fresh chain when the key is absent
+    and takes over leases whose heartbeat expired, so a dead chain recovers within the
+    heartbeat TTL instead of the lease TTL.
     """
     # Opaque lease token; only uniqueness matters.
     candidate = token or uuid4().hex

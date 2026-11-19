@@ -53,15 +53,7 @@ class RadioService:
         db_session: AsyncSession,
         vault_id: UUID,
     ) -> list[Room]:
-        """Get all radio studio rooms for a vault.
-
-        Args:
-            db_session: Database session
-            vault_id: Vault ID
-
-        Returns:
-            List of radio rooms
-        """
+        """Get all radio studio rooms for a vault."""
         # Radio rooms would have "Radio" in the name or a specific type
         # For now, we'll use name-based matching until a RADIO room type is added
         return await room_service.get_rooms_by_name_pattern(db_session, vault_id, "%radio%")
@@ -72,24 +64,15 @@ class RadioService:
         vault: Vault,
         radio_rooms: list[Room] | None = None,
     ) -> float:
-        """Calculate recruitment rate based on radio rooms, charisma, and happiness.
-
-        Args:
-            db_session: Database session
-            vault: Vault object
-            radio_rooms: Optional list of radio rooms (will fetch if None)
-
-        Returns:
-            Recruitment rate (probability per tick)
-        """
+        """Calculate recruitment rate based on radio rooms, charisma, and happiness."""
         if radio_rooms is None:
             radio_rooms = await RadioService.get_radio_rooms(db_session, vault.id)
 
         if not radio_rooms:
             return 0.0
 
-        # Prefetch every radio room's assigned dwellers in one query. The radio
-        # tick runs for every vault, so a per-room query is a per-vault N+1.
+        # Prefetch every radio room's assigned dwellers in one query. The radio tick runs for every vault, so a per-
+        # room query is a per-vault N+1.
         dwellers_by_room: dict[UUID, list[Dweller]] = {}
         room_dwellers = await crud.dweller.get_by_room_ids(db_session, vault.id, [room.id for room in radio_rooms])
         for dweller in room_dwellers:
@@ -120,16 +103,7 @@ class RadioService:
         *,
         rng: ModuleType = random,
     ) -> Dweller | None:
-        """Check if a new dweller should be recruited via radio.
-
-        Args:
-            db_session: Database session
-            vault_id: Vault ID
-            rng: Randomness source for the recruitment roll (injectable for tests)
-
-        Returns:
-            Newly recruited dweller if successful, None otherwise
-        """
+        """Check if a new dweller should be recruited via radio."""
         # Get vault
         vault = await crud.vault.get_or_none(db_session, id=vault_id, include_deleted=True)
 
@@ -182,19 +156,8 @@ class RadioService:
     ) -> tuple[Dweller, bool]:
         """Recruit a new dweller to the vault.
 
-        Prefers restoring a soft-deleted dweller (reusing their S3 assets) when the
-        recycling pool has eligible candidates and the config allows it. Falls back to
-        creating a fresh random dweller when no candidates are found, recycling is
-        disabled, or an explicit override was supplied by the caller.
-
-        Args:
-            db_session: Database session
-            vault_id: Vault ID
-            override: Optional override for dweller attributes (skips recycling)
-
-        Returns:
-            Tuple of (dweller, recycled) where recycled=True means a soft-deleted
-            dweller was restored rather than a new one created.
+        Prefers restoring a soft-deleted dweller (reusing S3 assets) when the pool has candidates and config allows;
+        falls back to a fresh random dweller when recycling is disabled, empty, or an override was supplied.
         """
         vault, population = await crud.vault.lock_population_for_update(db_session, vault_id)
         if crud.vault.population_limit_reached(vault.population_max, population):
@@ -216,11 +179,9 @@ class RadioService:
         recycled = False
         dweller: Dweller | None = None
 
-        # Recycling restores the soft-deleted dweller as-is: race/faction/state_of_being
-        # and rarity are preserved, never re-rolled (plan §6.2). Only the fresh-recruit
-        # path below applies race_weights diversity and rare_chance.
-        # Only attempt recycling when no caller-supplied override is present — an
-        # override signals an intentional customisation, so honour it with a fresh dweller.
+        # Recycling restores the soft-deleted dweller as-is: race/faction/state_of_being and rarity are preserved,
+        # never re-rolled; only the fresh-recruit path applies race_weights and rare_chance. A caller-supplied
+        # override signals intentional customisation, so skip recycling and honour it.
         if (
             game_config.radio.recycle_enabled
             and override is None
@@ -292,22 +253,7 @@ class RadioService:
         caps_cost: int | None = None,
         override: DwellerCreateCommonOverride | None = None,
     ) -> tuple[Dweller, bool]:
-        """Manually recruit a dweller for caps.
-
-        Args:
-            db_session: Database session
-            vault_id: Vault ID
-            caps_cost: Cost in caps (default from config)
-            override: Optional override for dweller attributes
-
-        Returns:
-            Tuple of (dweller, recycled) — the recruited Dweller and a bool that
-            is True when a soft-deleted dweller was restored rather than a fresh
-            one created.
-
-        Raises:
-            ValueError: If insufficient caps or no radio room
-        """
+        """Manually recruit a dweller for caps."""
         from app.crud import vault as crud_vault
         from app.services.vault_service import vault_service
 
@@ -356,15 +302,7 @@ class RadioService:
         db_session: AsyncSession,
         vault_id: UUID,
     ) -> dict:
-        """Get recruitment statistics for a vault.
-
-        Args:
-            db_session: Database session
-            vault_id: Vault ID
-
-        Returns:
-            Dictionary with recruitment stats
-        """
+        """Get recruitment statistics for a vault."""
         # Get vault
         vault = await crud.vault.get_or_none(db_session, id=vault_id, include_deleted=True)
 
@@ -423,16 +361,7 @@ class RadioService:
         vault: Vault,
         mode: str,
     ) -> str:
-        """Set the radio mode for a vault.
-
-        Args:
-            db_session: Database session
-            vault: Vault to update
-            mode: Radio mode string value
-
-        Returns:
-            The new radio mode value
-        """
+        """Set the radio mode for a vault."""
         vault.radio_mode = mode
         db_session.add(vault)
         await db_session.commit()

@@ -1,12 +1,8 @@
 """Reward item and dweller grants.
 
-Item rewards materialize catalog-backed weapons/outfits/junk/pets through
-``app.utils.item_factory`` — the only sanctioned constructors for those models —
-and mint dwellers from named templates or procedural stats. ``grant_item``
-routes dweller and medication rewards before touching storage, so treatment
-stock and population capacity are handled on the same paths as the original
-``RewardService``. Public entry points are called through the facade in
-``app.services.reward_service``.
+Catalog items materialize through app.utils.item_factory (the only sanctioned constructors); grant_item routes
+dweller and medication rewards before touching storage so treatment stock and population capacity use the
+original paths. Public entry points go through the reward_service facade.
 """
 
 import logging
@@ -179,8 +175,8 @@ async def grant_item(
     if item_type == "dweller":
         return await _grant_as_dweller(db_session, vault_id, str(item_name), str(item_rarity), quantity)
 
-    # Medication rides the dweller-stock path so it stays usable for treatment;
-    # generic Item rows would be inert (treatment spends carried stock).
+    # Medication rides the dweller-stock path so it stays usable for treatment; generic Item rows would be inert
+    # (treatment spends carried stock).
     if _medication_kind(str(item_name)) == "stimpak":
         return await grant_stimpak(db_session, vault_id, quantity, emit_event=emit_event)
     if _medication_kind(str(item_name)) == "radaway":
@@ -188,8 +184,8 @@ async def grant_item(
 
     if item_type not in {"weapon", "outfit", "junk", "consumable", "lunchbox", "pet", "pet_carrier"}:
         raise ValueError(f"Unsupported item_type: {item_type}")
-    # Space-free by design (app.utils.storage_policy): bottles live in storage
-    # but occupy no slot, so a full vault must not reject them.
+    # Space-free by design (app.utils.storage_policy): bottles live in storage but occupy no slot, so a full vault
+    # must not reject them.
     space_required = 0 if is_nuka_cola_consumable(item_type, item_name) else quantity
     storage_obj = await _ensure_storage(db_session, vault_id, space_required)
     created_ids: list[str] = []

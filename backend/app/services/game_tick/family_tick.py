@@ -1,10 +1,7 @@
-"""Family and vault-event tick logic for the game loop.
+"""Family and vault-event tick logic for the game loop; GameLoopService keeps same-named thin delegates.
 
-Extracted verbatim from ``GameLoopService``: weighted random vault events,
-room-shared relationship affinity updates, conception/pregnancy/birth
-processing, and child aging. ``GameLoopService`` keeps same-named thin
-delegates. Orchestration helpers dispatch through the service instance so
-existing ``GameLoopService`` test patches keep intercepting.
+Orchestration helpers dispatch through the service instance so existing GameLoopService test patches keep
+intercepting.
 """
 
 import logging
@@ -90,10 +87,9 @@ async def process_events(
         return stats
 
     if event_type == "raider_scout":
-        # Fail fast: the raider event can only fire when an incident can
-        # actually spawn. Check the blocking states before calling the
-        # service, which raises on them (the game-tick boundary handler
-        # would otherwise log a disabled vault as an error every tick).
+        # Fail fast: the raider event can only fire when an incident can spawn. Check blocking states before the
+        # service call (it raises on them, and the tick boundary handler would log a disabled vault as an error every
+        # tick).
         if not vault.incidents_disabled:
             from app.crud.incident import incident_crud
 
@@ -115,10 +111,9 @@ async def process_events(
         caps = rng.randint(game_config.vault_event.wanderer_caps_min, game_config.vault_event.wanderer_caps_max)
         title, message = "Wanderer at the Door", f"A wanderer gifted the vault {caps} caps before moving on!"
 
-    # Re-read the vault under the same row lock revivals use before depositing:
-    # deposit_caps writes an absolute balance, so an unlocked read could
-    # overwrite a concurrent revival deduction (1000 + 100 award vs -250 revive
-    # must land on 850, not 1100). The lock is held until the deposit commits.
+    # Re-read the vault under the same row lock revivals use: deposit_caps writes an absolute balance, so an unlocked
+    # read could overwrite a concurrent revival deduction (1000 + 100 award vs -250 revive must land on 850, not
+    # 1100). Lock held until the deposit commits.
     vault = await vault_crud.lock_for_update(db_session, vault_id)
     await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=caps)
     await notification_service.create_and_send(
@@ -313,9 +308,8 @@ async def update_apart_relationships(
 ) -> int:
     """Decay affinity for established pairs that did not share a room this tick.
 
-    Dead dwellers are absent from ``dwellers_by_id`` (living fetch), so pairs
-    with a dead member are frozen. RIVAL and EX pairs are frozen too: their
-    dynamics play out through co-location, not distance.
+    Pairs with a dead member are frozen (living fetch); RIVAL and EX pairs freeze too — their dynamics play out
+    through co-location, not distance.
     """
     from app.services.relationship_service import relationship_service
 
@@ -395,8 +389,7 @@ async def process_pregnancies_and_births(db_session: AsyncSession, vault_id: UUI
     # Check for due pregnancies and deliver babies
     try:
         due_pregnancies = await breeding_service.check_due_pregnancies(db_session, vault_id)
-        # Deliver by id: a failed delivery recovers the session, which expires the
-        # remaining ORM instances.
+        # Deliver by id: a failed delivery recovers the session, which expires the remaining ORM instances.
         for pregnancy_id in [pregnancy.id for pregnancy in due_pregnancies]:
             if await _deliver_due_baby(db_session, vault_id, pregnancy_id):
                 stats["births"] += 1
@@ -430,13 +423,7 @@ async def age_children(db_session: AsyncSession, vault_id: UUID) -> AgeStats:
 async def process_breeding(
     service: "GameLoopService", db_session: AsyncSession, vault_id: UUID, *, seconds_passed: int = 0
 ) -> BreedingStats:
-    """Process relationships and breeding for a vault.
-
-    - Update relationship affinity for dwellers in the same room
-    - Check for conception in living quarters
-    - Process due pregnancies and deliver babies
-    - Age children to adults
-    """
+    """Process relationships and breeding for a vault."""
     # Update relationship affinity
     relationship_stats = await service._update_room_relationships(db_session, vault_id)
 

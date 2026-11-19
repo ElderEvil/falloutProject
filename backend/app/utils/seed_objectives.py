@@ -35,14 +35,7 @@ def _transform_objective_create_to_model(objective_data: ObjectiveCreate) -> Obj
 
 
 def _validate_objective(objective_data: ObjectiveCreate) -> list[str]:
-    """Validate an objective's target_entity.
-
-    Args:
-        objective_data: The objective data to validate
-
-    Returns:
-        List of validation errors (empty if valid)
-    """
+    """Validate an objective's target_entity; returns a list of errors (empty if valid)."""
     return validate_target_entity(
         objective_type=objective_data.objective_type or "",
         target_entity=objective_data.target_entity,
@@ -50,15 +43,8 @@ def _validate_objective(objective_data: ObjectiveCreate) -> list[str]:
 
 
 async def seed_objectives_from_json(db_session: AsyncSession, objectives_dir: Path | None = None) -> int:
-    """
-    Seed objectives from JSON files into database if they don't already exist.
-
-    Args:
-        db_session: Database session
-        objectives_dir: Directory containing objective JSON files (defaults to app/data/objectives)
-
-    Returns:
-        Number of objectives seeded
+    """Seed objectives from JSON files if they don't already exist (default dir
+    app/data/objectives); returns the number seeded.
     """
     if objectives_dir is None:
         objectives_dir = DATA_DIR / "objectives"

@@ -167,10 +167,9 @@ class QuestService:
             if error is not None:
                 raise ValidationException(f"Dweller {dweller.id} {error}")
         party_dwellers = locked_party
-        # ITEM is vault-scoped, so it is gated here. The other vault gates
-        # (ROOM/DWELLER_COUNT/QUEST_COMPLETED) live in `vault_missing_requirements`
-        # and are enforced by `start_quest_for_vault` via `quest_availability`,
-        # which every production caller runs before this method.
+        # ITEM is vault-scoped, so it is gated here. ROOM/DWELLER_COUNT/QUEST_COMPLETED live in
+        # vault_missing_requirements and are enforced by start_quest_for_vault via quest_availability, which every
+        # production caller runs before this method.
         missing = await vault_missing_item_requirements(db_session, vault_id, quest)
         missing += party_missing_requirements(party_dwellers, quest)
         if missing:
@@ -197,10 +196,6 @@ class QuestService:
 
         The whole start workflow lives here so the router only authorizes and
         delegates.
-
-        Raises:
-            ResourceNotFoundException: If the quest does not exist.
-            ValidationException: If the quest is not currently available.
         """
         quest = await crud.quest_crud.get_or_none(db_session, quest_id)
         quest = ensure_found(quest, Quest, identifier=quest_id)
@@ -408,11 +403,8 @@ class QuestService:
     ) -> list[EligibleDwellerRead]:
         """Dwellers who individually satisfy the quest's party-level requirement gates.
 
-        A candidate is eligible when they meet every per-individual threshold
-        (LEVEL/ATTACK/STAT), independent of the gate's aggregate ``count`` —
-        two qualifying dwellers are both eligible for a ``count: 2`` gate. Vault-level
-        gates (ITEM/ROOM/DWELLER_COUNT/QUEST_COMPLETED) are checked on the start path, so
-        they do not filter candidates here.
+        Eligibility meets every per-individual threshold (LEVEL/ATTACK/STAT) independent of aggregate count; vault
+        gates (ITEM/ROOM/DWELLER_COUNT/QUEST_COMPLETED) are checked on the start path, not here.
         """
         from app.utils.exceptions import ensure_found
 

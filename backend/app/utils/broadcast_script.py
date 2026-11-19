@@ -1,7 +1,5 @@
-"""Broadcast script renderer - pure function(s), no I/O.
-
-Generates a 1950s-style radio announcer script from vault state data.
-Word count target: 120-180 words (excluding sign-off).
+"""Pure broadcast script renderer (no I/O): 1950s radio announcer script from vault state,
+target 120-180 words excluding sign-off.
 """
 
 from __future__ import annotations
@@ -123,18 +121,17 @@ _JUKEBOX_LINES = (
     "Tonight's jukebox special: one bottle cap to hear the same song twice. A bargain, twice over.",
 )
 
-# Soft ceiling for the rendered script; the rotating segment is the only
-# component dropped when the rest of the broadcast pushes past it.
+# Soft ceiling for the rendered script; the rotating segment is the only component dropped when the rest of the
+# broadcast pushes past it.
 _SEGMENT_WORD_BUDGET = 195
 
-# Hard floor and ceiling for the finished script. Some seed/date combinations
-# render short broadcasts; neutral filler lines top them up before sign-off.
+# Hard floor and ceiling for the finished script. Some seed/date combinations render short broadcasts; neutral filler
+# lines top them up before sign-off.
 _SCRIPT_MIN_WORDS = 120
 _SCRIPT_MAX_WORDS = 220
 
-# Neutral padding for short renders. The stat pools cannot supply filler
-# cleanly (they restate numbers already spoken or duplicate the rotating
-# segment), so these stand alone: dry, vault-radio flavored, no vault data.
+# Neutral padding for short renders. The stat pools cannot supply filler cleanly (they restate numbers already spoken
+# or duplicate the rotating segment), so these stand alone: dry, vault-radio flavored, no vault data.
 _FILLER_LINES = (
     "In other vault news: the atrium clock runs three minutes fast, and nobody intends to fix it.",
     "A quiet word from the announcer's booth: the coffee is strong, but the paperwork is stronger.",
@@ -195,8 +192,8 @@ _SUPPLY_TRANSITIONS = (
     "A glance at the gauges, if you please.",
 )
 
-# Tone-tinted wrappers for headline notifications. The raw message stays intact;
-# the wrapper sets the announcer's mood. {msg} is the notification message.
+# Tone-tinted wrappers for headline notifications. The raw message stays intact; the wrapper sets the announcer's
+# mood. {msg} is the notification message.
 _HEADLINE_TONES: dict[str, tuple[str, ...]] = {
     "dweller_died": ("With heavy hearts, we report: {msg}",),
     "combat_defeat": ("A hard day for the militia: {msg}",),
@@ -221,8 +218,8 @@ def _tone_headline(notification_type: str, message: str, seed: str) -> str:
     if not tones:
         return message
     msg = message.rstrip(" .!") + "."
-    # A capital after a colon-wrapper reads like a second headline; settle it,
-    # but only for openers that are clearly not proper nouns.
+    # A capital after a colon-wrapper reads like a second headline; settle it, but only for openers that are clearly
+    # not proper nouns.
     match = _LOWERIZE_OPENERS.match(msg)
     if match:
         msg = match.group(1).lower() + match.group(2)
@@ -253,31 +250,14 @@ def build_daily_script(
     variant_seed: str | None = None,
     _now: datetime | None = None,
 ) -> tuple[str, str]:
-    """Build a daily broadcast (title, script) from vault stats.
+    """Build a (title, script) daily broadcast from vault stats.
 
-    Phrase variants are chosen deterministically from ``variant_seed`` (falling
-    back to the vault number and UTC date), so the once-per-day render stays
-    stable while different vaults and days hear different broadcasts.
-
-    Args:
-        population: Current number of dwellers.
-        population_max: Max capacity.
-        caps: Bottle cap count.
-        happiness: Vault happiness percentage.
-        power: (current, max) power units.
-        food: (current, max) food units.
-        water: (current, max) water units.
-        recent_notifications: Up to 3 notable notifications to weave in.
-        vault_number: Optional vault number for sign-off.
-        variant_seed: Deterministic seed for phrase variants.
-        _now: Override datetime for testing.
-
-    Returns:
-        (title, script) tuple. Script is ~120-180 words.
+    Phrase variants derive deterministically from variant_seed (fallback: vault number +
+    UTC date), so a vault's render is stable within a day. ~120-180 words.
     """
     now = _now or utcnow()
-    # The vault day rolls over at UTC midnight, but listeners play the broadcast
-    # at every local hour, so the greeting stays time-of-day neutral.
+    # The vault day rolls over at UTC midnight, but listeners play the broadcast at every local hour, so the greeting
+    # stays time-of-day neutral.
     day_str = f"{now.strftime('%B')} {now.day}, {now.year}"
     title = f"Vault Radio News - {day_str}"
 
@@ -285,14 +265,13 @@ def build_daily_script(
     seed_base = variant_seed or f"{vault_number}:{now.date().isoformat()}"
     parts: list[str] = []
 
-    # Opening
     parts.append(_pick(_GREETINGS, f"{seed_base}:greeting").format(vault=vault_label, day=day_str))
 
     notable = _extract_notable(recent_notifications, seed=seed_base)
     reserved = len(notable.split()) + 3 if notable else 0
 
-    # Population with numbers is the default; if the housing segment is kept,
-    # it is rewritten below so capacity is never stated twice (or zero times).
+    # Population with numbers is the default; if the housing segment is kept, it is rewritten below so capacity is
+    # never stated twice (or zero times).
     population_idx = len(parts)
     if population_max and population_max > 0:
         parts.append(_pick(_POPULATION_LINES, f"{seed_base}:population").format(pop=population, pmax=population_max))
@@ -304,8 +283,8 @@ def build_daily_script(
         genders = ", ".join(f"{cnt} {g}" for g, cnt in gender_counts)
         parts.append(f"That breaks down to {genders}.")
 
-    # Rotating segment, inserted after the population/gender block when the
-    # full script (everything but the segment itself) stays in budget.
+    # Rotating segment, inserted after the population/gender block when the full script (everything but the segment
+    # itself) stays in budget.
     kind, segment = _pick_segment(seed_base, population, population_max, rewards_ready)
     segment_idx = len(parts)
     if len(" ".join(parts).split()) + len(segment.split()) + reserved <= _SEGMENT_WORD_BUDGET:
@@ -336,16 +315,13 @@ def build_daily_script(
         else:
             parts.append(f"{label.capitalize()} readings are unavailable.")
 
-    # Notifications
     if notable:
         parts.extend(["Now for today's headlines.", notable])
 
-    # Sign-off
     signoff = _pick(_SIGN_OFFS, f"{seed_base}:signoff").format(vault=vault_label)
 
-    # Word-count floor: some seeds render a short broadcast. Top it up with
-    # distinct filler lines (never a repeat, never past the hard ceiling)
-    # before the sign-off closes the show.
+    # Word-count floor: some seeds render a short broadcast. Top it up with distinct filler lines (never a repeat,
+    # never past the hard ceiling) before the sign-off closes the show.
     used = set(parts)
     filler_round = 0
     while len(" ".join(parts).split()) < _SCRIPT_MIN_WORDS:
@@ -367,9 +343,8 @@ def build_daily_script(
 
 _LEVEL_MESSAGE_NAME = re.compile(r"^(?P<name>.+?) reached level \d+", re.IGNORECASE)
 _LEVEL_TITLE_NAME = re.compile(r"^(?P<name>.+?) leveled up", re.IGNORECASE)
-# Notification messages carry a "[Vault N]" prefix for cross-vault
-# disambiguation in the notification center; the broadcast is already
-# bound to one vault, so the prefix is noise here.
+# Notification messages carry a "[Vault N]" prefix for cross-vault disambiguation in the notification center; the
+# broadcast is already bound to one vault, so the prefix is noise here.
 _VAULT_PREFIX = re.compile(r"^\[Vault \d+\]\s*", re.IGNORECASE)
 
 

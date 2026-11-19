@@ -147,19 +147,9 @@ class ExpeditionScenarioService:
     ) -> ExpeditionScenarioResult:
         """Provision a vault with one dweller on an active exploration.
 
-        When ``vault_id`` is omitted a new boosted vault is created for the
-        superuser (or ``user_email`` when given). ``duration_hours`` is clamped
-        to the exploration model's 1-24 hour range. ``preclear_site_id`` inserts
-        a completed run so the 7-day anti-farm gate hides the site from the
-        picker, demonstrating the lock. ``special`` sets every SPECIAL stat
-        (1-10); 5 keeps site checks differentiated (95/85/75) while still
-        winning most fights, 1 tests defeat/death, 7+ trivialises checks.
-
-        ``all_sites`` leaves a legacy (non-spatial) active journey where every
-        level-eligible site is offered, so one Scout can play all sites one by
-        one. ``single_scene_only`` hides multi-room sites from that journey;
-        ``choice_only`` limits it to stat-check choice encounters.
-        ``vault_number`` selects the number for a newly created vault.
+        duration_hours clamps to 1-24; preclear_site_id inserts a completed run so the 7-day anti-farm gate hides
+        the site. special=5 keeps checks differentiated (95/85/75) while winning most fights; 1 tests defeat, 7+
+        trivialises.
         """
         duration_hours = max(1, min(24, duration_hours))
         dweller_level = max(1, min(50, dweller_level))
@@ -254,14 +244,8 @@ class ExpeditionScenarioService:
     ) -> ExpeditionScenarioMultiResult:
         """Seed a vault with named dwellers, each scouting one expedition site.
 
-        ``vault_number`` is used only when no ``vault_id`` is given. With
-        ``recreate`` any existing vault with that number for the owner is
-        soft-deleted first, so the scenario starts from a fresh boosted vault;
-        otherwise the existing vault is reused. With ``discover`` each dweller's
-        journey is fast-forwarded along a trail past its site, so the site is
-        reported in the bell while the dweller keeps an ``outbound_hours``
-        outbound window; otherwise the journey stays legacy and its picker is
-        filtered to that one site.
+        recreate soft-deletes the owner's existing vault of that number first; discover fast-forwards each journey
+        past its site (bell report) while keeping an outbound_hours window, else the picker filters to that site.
         """
         site_ids = site_ids or default_multi_site_ids()
         if not site_ids:
@@ -338,8 +322,8 @@ class ExpeditionScenarioService:
                 stimpaks=0,
                 radaways=0,
             )
-            # Stage variety equipment only after departure succeeds, so a failed
-            # send cannot commit gear onto a dweller with no exploration.
+            # Stage variety equipment only after departure succeeds, so a failed send cannot commit gear onto a
+            # dweller with no exploration.
             loadout = ""
             if variety:
                 weapon_type = VARIETY_WEAPONS[index % len(VARIETY_WEAPONS)]
@@ -402,9 +386,7 @@ class ExpeditionScenarioService:
     ) -> None:
         """Turn the scenario into a legacy active journey so eligible sites are offered.
 
-        Spatial journeys only offer sites near the traveled trail. Clearing the
-        spatial fields makes ``list_available_sites`` use the legacy catalog, so
-        one Scout can enter every eligible site one by one.
+        Clearing the spatial fields makes list_available_sites use the legacy catalog instead of trail-nearby sites.
         """
         now = utcnow()
         exploration.heading_degrees = None
@@ -440,10 +422,8 @@ class ExpeditionScenarioService:
     def _stage_trail_to_site(exploration: Exploration, site: SiteDefinition) -> float:
         """Fast-forward a trail from the vault origin to the site; returns travel hours.
 
-        Setup is deliberately multi-stage: vault/scout/departure remain durable
-        if fast-forwarding or report delivery fails. This stage changes only the
-        exploration row; the caller commits it before discover_sites owns its
-        separate atomic report transaction.
+        Multi-stage on purpose: vault/scout/departure stay durable if this fails. Changes only the exploration row;
+        the caller commits before discover_sites owns its separate atomic report transaction.
         """
         origin_x, origin_y = exploration.origin_x, exploration.origin_y
         if origin_x is None or origin_y is None:

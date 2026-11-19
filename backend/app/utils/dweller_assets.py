@@ -1,14 +1,10 @@
 """Curated default portrait URLs for dwellers without a custom image.
 
-Procedurally generated dwellers get a curated static portrait at insert time (the
-``Dweller`` ``before_insert`` hook), and data migrations backfill existing rows,
-so every read path sees ``image_url``/``thumbnail_url`` without per-schema
-fallbacks. Human portraits additionally have skin-tone / hair-color variants
-selected for the Barbershop. ``is_default_dweller_image`` distinguishes curated
-URLs from custom/generated art so regeneration stays possible.
-
-URLs are relative to the backend ``/static`` mount; the frontend's
-``getStaticImageUrl`` resolves them against the API origin.
+Assigned at insert time (Dweller before_insert hook) and backfilled by migrations, so
+read paths see image_url/thumbnail_url without per-schema fallbacks. Human portraits
+have skin-tone/hair-color variants for the Barbershop; is_default_dweller_image
+distinguishes curated URLs from custom art so regeneration stays possible. URLs are
+relative to the backend /static mount.
 """
 
 from __future__ import annotations

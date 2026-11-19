@@ -17,8 +17,7 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
     ) -> Notification:
         """Create a notification row; commit deferred with the caller when requested.
 
-        The WebSocket/SSE delivery in the service layer always runs after the
-        row exists (best-effort), so callers deferring the commit also defer
+        WebSocket/SSE delivery runs after the row exists, so deferring the commit also defers
         delivery timing.
         """
         db_obj = self.model.model_validate(obj_in)
@@ -153,10 +152,8 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
     ) -> list[Notification]:
         """Oldest notification batch eligible for retention cleanup.
 
-        Read or dismissed rows expire at ``read_cutoff``; rows that are still
-        unread and not dismissed expire only at the later ``unread_cutoff``.
-        Dismissed-but-unread rows therefore follow the read path, preserving
-        the existing dismiss semantics.
+        Read or dismissed rows expire at read_cutoff; still-unread undismissed rows only at the
+        later unread_cutoff. Dismissed-but-unread rows follow the read path.
         """
         acted_on = or_(col(Notification.is_read).is_(True), col(Notification.is_dismissed).is_(True))
         untouched = and_(col(Notification.is_read).is_(False), col(Notification.is_dismissed).is_(False))

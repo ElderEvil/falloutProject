@@ -105,6 +105,14 @@ def test_scenario_opt_in_migration_preserves_numbered_vaults(harness: MigrationH
     )
     assert columns == [("YES",)]
     assert harness.fetch("SELECT number, scenario_key FROM vault WHERE id = :id", id=vault_id) == [(69, None)]
+    database = baseline_tools.make_url(harness.url).database
+    head = ScriptDirectory.from_config(config).get_current_head()
+    assert asyncio.run(baseline_tools.prepare_database(database)) == {
+        "database": database,
+        "state": "migrated",
+        "revision": head,
+    }
+    assert harness.scalar("SELECT version_num FROM alembic_version") == head
     command.downgrade(config, BASELINE)
     assert harness.scalar("SELECT number FROM vault WHERE id = :id", id=vault_id) == 69
 

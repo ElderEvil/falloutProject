@@ -19,10 +19,12 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from app.alembic import baseline_tools
 from app.core.config import settings
 
 pytestmark = pytest.mark.integration
@@ -78,6 +80,21 @@ class MigrationHarness:
 
     def upgrade(self, revision: str) -> None:
         self._alembic(command.upgrade, revision)
+
+    def upgrade_current(self) -> None:
+        """Apply the live graph to a fresh scratch database or a replayed legacy head."""
+        database = make_url(self.url).database
+        assert database is not None
+        asyncio.run(baseline_tools.prepare_database(database, apply=True))
+        command.upgrade(Config(str(ALEMBIC_DIR.parents[1] / "alembic.ini")), "head")
+
+    def restore_legacy_marker(self) -> None:
+        """Return a scratch database to the legacy graph for historical downgrade checks."""
+        backend = ALEMBIC_DIR.parents[1]
+        live_config = Config(str(backend / "alembic.ini"))
+        (baseline,) = ScriptDirectory.from_config(live_config).get_bases()
+        command.downgrade(live_config, baseline)
+        command.stamp(Config(str(backend / "alembic-legacy.ini")), "head", purge=True)
 
     def downgrade(self, revision: str) -> None:
         self._alembic(command.downgrade, revision)

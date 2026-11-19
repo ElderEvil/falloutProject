@@ -169,9 +169,13 @@ async def prepare_database(database: str, *, apply: bool = False) -> dict[str, A
     exists, revisions = await _version_marker(url)
     if not exists:
         return {"database": database, "state": "fresh"}
-    baseline = _base_for(_config("alembic.ini"))
+    config = _config("alembic.ini")
+    baseline = _base_for(config)
     if revisions == [baseline]:
         return {**(await inspect_database(database)), "state": "baseline"}
+    scripts = ScriptDirectory.from_config(config)
+    if len(revisions) == 1 and any(revision.revision == revisions[0] for revision in scripts.walk_revisions()):
+        return {"database": database, "state": "migrated", "revision": revisions[0]}
     if revisions != [_head_for(_config("alembic-legacy.ini"))]:
         raise RuntimeError("Database is not at the frozen legacy head or baseline; finish legacy upgrades first.")
     if not apply:

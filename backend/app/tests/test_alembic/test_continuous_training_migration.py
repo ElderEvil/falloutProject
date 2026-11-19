@@ -58,7 +58,7 @@ def test_concurrent_completions_create_only_one_successor(harness, monkeypatch, 
     from app.services.training_service import training_service
     from app.utils.exceptions import VaultOperationException
 
-    harness.upgrade("head")
+    harness.upgrade_current()
     vault_id = UUID(legacy._seed_vault(harness, number=927))
     monkeypatch.setattr(notification_service, "_deliver", AsyncMock())
 
@@ -180,9 +180,10 @@ def test_destroy_training_room_preserves_history_and_cancels_active_round(harnes
     from app.services.room_service import room_service
     from app.services.training_service import training_service
 
-    harness.upgrade("head")
+    harness.upgrade("b6d8f0a2c913")
     harness.downgrade("a3c7e9b1d602")
     harness.upgrade("head")
+    harness.upgrade_current()
     vault_id = UUID(legacy._seed_vault(harness, number=928))
     monkeypatch.setattr(notification_service, "_deliver", AsyncMock())
 
@@ -250,5 +251,6 @@ def test_destroy_training_room_preserves_history_and_cancels_active_round(harnes
             await engine.dispose()
 
     asyncio.run(demolish())
+    harness.restore_legacy_marker()
     with pytest.raises(RuntimeError, match="Cannot downgrade"):
         harness.downgrade("a3c7e9b1d602")

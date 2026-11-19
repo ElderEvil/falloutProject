@@ -34,6 +34,7 @@ def test_two_sessions_trial_one_weapon_once(harness, monkeypatch):
     )
     # The runtime service reads today's Vault model; keep its later columns available.
     harness.upgrade("head")
+    harness.upgrade_current()
     monkeypatch.setattr(game_config.storage, "maintenance_enabled", True)
     monkeypatch.setattr(notification_service, "_deliver", AsyncMock())
     rng = Mock(return_value=0.0)
